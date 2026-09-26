@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-08-26
 state: active
-programme: "P2 Behaviour & Control (docs/PROGRAMMES.md), design rounds"
+programme: "P2 Behaviour & Control (the retired programme register), design rounds"
 asked: "the quiz and scoreboard logics exist; the system goal is every common graphic (paraphrase)"
 ---
 # Playout logic for every common graphic, not just quiz and scoreboard

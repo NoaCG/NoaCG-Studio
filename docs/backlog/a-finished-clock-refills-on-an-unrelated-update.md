@@ -14,7 +14,7 @@ screen and game timer, plus any imported graphic with a countdown field.
 ## Why
 
 The owner's own story for a timer is *"at zero HOLDS at 0:00 until taken out"*
-(`docs/OWNER_RULINGS.md`, operator-stories-2026-08-27). It does not.
+(the retired rulings file, operator-stories-2026-08-27). It does not.
 
 Reaching zero, `tickClock()` calls `stopClock()`, and that clears `clockPaused` as well as the
 interval. So the next `clockDataUpdated()` - which runs on EVERY `update()`, because it is the

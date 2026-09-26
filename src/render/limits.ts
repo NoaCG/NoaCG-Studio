@@ -8,7 +8,7 @@
 // the full format set with sensible free limits; 'granted' is the widest cap table, reachable
 // only through a plan row whose render_tier names it - assigned by an admin, or auto-assigned
 // by e-mail domain (migration 0045) - for a school grant or a heavy-use exception. NoaCG sells
-// nothing and no billing is planned (docs/OWNER_RULINGS.md, 2026-09-07).
+// nothing and no billing is planned (the retired owner rulings, 2026-09-07).
 //
 // This tier was called 'paid' until migration 0055. The name was simply false: you reach it by
 // being granted it, never by buying it. AiTaskTier in api/_lib/aiTaskRegistry.ts still has a

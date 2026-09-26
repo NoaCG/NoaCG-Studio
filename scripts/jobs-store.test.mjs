@@ -367,7 +367,7 @@ test('a single browser walk starts on the RAM a suite is rightly refused', () =>
 // -- Presence: who is at the machine decides the floor ------------------------------------------
 //
 // Owner 2026-09-16, asked whether the day's wave could go over the 4 GB floor: "Not on the
-// computer, ok to use it all" (docs/OWNER_RULINGS.md). The gigabyte between the two floors is his
+// computer, ok to use it all" (the retired owner rulings). The gigabyte between the two floors is his
 // working room, so it is kept only while somebody might be using it - and every case below is
 // about the direction that mistake can go. Spending the machine out from under a person who is
 // using it is the failure; making an agent wait is an inconvenience.

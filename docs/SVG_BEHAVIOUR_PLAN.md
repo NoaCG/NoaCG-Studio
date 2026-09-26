@@ -450,7 +450,7 @@ knobs, by the same ruling.
 
 ### 7e. Options - the first customization
 
-Claim (b) in `docs/NORTH_STAR_2027.md` P2 - the next producer changes the behaviour - has a cheap
+Claim (b) in the retired 2027 North Star P2 - the next producer changes the behaviour - has a cheap
 first rung, and it is the one the owner named on 2026-08-22: "what if I don't want to be able to
 lock it?" A recipe option is a structural variant an expert authored: it adds or removes arrows,
 states or paint rules, and nothing else. The quiz's first two:
@@ -960,3 +960,10 @@ The `rank` kind is the share kind's sibling as sketched: it orders every row's p
 or lowest first with the recipe's one option), breaks a tie by drawn order so the same figures give
 the same table on every road, and derives `slot`, `place` and `slot-place`. A data write glides
 the rows; a state entry and a snap put them there at once.
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- Reveal in steps lets the author choose which elements reveal, in what order, and how each step behaves; one checkbox is not enough.
+- Keep `show:` and `choice:` as the only two layer-name prefixes, and "Require lock before reveal" as a checkbox, until real users have tested them.

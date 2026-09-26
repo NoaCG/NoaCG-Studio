@@ -10,7 +10,7 @@ You are one row of a planned wave, routed here because the work is mechanical an
 settled: the prompt carries the recipe and the way to verify it.
 
 Everything in `wave-row` applies unchanged: the repository's contracts bind you, `npm run build`
-verifies, the check workflow runs before you queue, you write the handoff the prompt names, and
+verifies, the check workflow runs before you queue, you write the handoff the prompt names only if work is left unfinished, and
 `/queue-merge` is your last action. Never merge or push by hand.
 
 The one thing this rung owes on top of that: if the recipe turns out to be wrong, or the work

@@ -133,7 +133,7 @@ export function typeFloorFor(category: string | null | undefined): number {
  * Measured against the catalog these three refuse **8 of 503** (1.6%), and each one is arguable:
  * a person's name at 12px on an imported design, "PRESENTED BY" at 20px, "Back shortly" at 30px on
  * a category whose designs run 64-280px. A floor that certifies the shipped work and still fires
- * is the point; `docs/OWNER_RULINGS.md` 2026-09-08 carries the ruling and the measurement.
+ * is the point; the retired owner rulings 2026-09-08 carries the ruling and the measurement.
  *
  * AN UNLISTED CATEGORY TAKES THE CARD BAND, never an exemption - the same doctrine `typeFloor.ts`
  * states as "a new category must be readable before it is special". Nothing here may return null.

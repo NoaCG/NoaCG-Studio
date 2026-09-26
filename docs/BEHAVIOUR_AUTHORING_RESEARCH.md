@@ -10,7 +10,7 @@ rich visual tracks and data collections, but Studio's declared custom actions cu
 acknowledge calls. It is therefore animation/binding evidence, not a replacement for this
 behaviour-authoring investigation or NoaCG's executable machine/control contract.
 
-**Status: research round 1, 2026-09-01.** Programme P2 (`docs/PROGRAMMES.md`) runs as a standing
+**Status: research round 1, 2026-09-01.** Programme P2 (the retired programme register) runs as a standing
 research thread by owner amendment: the search for the authoring surface starts now and never
 pauses; implementation waits for evidence plus a ruling. This document is that thread's record -
 the failure analysis the repo's own law demands as the starting point, the candidate interaction
@@ -289,7 +289,7 @@ above.
 
 The standing evaluation set. Every candidate surface, and every future implementation, is proven
 against these - never only against the quiz and scoreboard it was built around (the
-challenge-scenario rule, `docs/NORTH_STAR_2027.md` §4). Each brief names the graphic, the
+challenge-scenario rule, the retired 2027 North Star §4). Each brief names the graphic, the
 operator's verbs, the machine it implies, and the TRAP - the place a weak model or a weak surface
 fails, chosen so that between them the eight briefs cover every deferred or dangerous corner:
 data-condition temptation, state explosion, parallel groups, interruption, off-path rejoins,

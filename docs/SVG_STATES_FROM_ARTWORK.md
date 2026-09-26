@@ -8,7 +8,7 @@ which is exactly the problem. His ask: a deliberate import workflow, judged on o
 work*, with instructions that are simple, discoverable and explicit. This document is the
 answer for him to read in one sitting: what actually happens today, the three routes he named
 judged against the doctrine, ONE recommendation, and the artwork contract a student can follow.
-No product code was written; P2 is in DESIGN (`docs/PROGRAMMES.md`).
+No product code was written; P2 is in DESIGN (the retired programme register).
 
 Grounding: `docs/GRAPHIC_BEHAVIOUR_PLAN.md` (the pilot and its L1-L4 vocabulary),
 `docs/SVG_AUTHORING.md` §5b (the designer-facing contract today),

@@ -14,4 +14,4 @@ dashboard on the live site, bundle and data costs, then decide. Not urgent; meas
 
 On 2026-09-10 the owner ruled this good to go, since as he recalls it was looked into
 and no bugs were found, and put it after the editors and the North Star 2027 goals
-(ALIGN-2026-09-10-1 in `docs/OWNER_RULINGS.md`).
+(ALIGN-2026-09-10-1 in the retired owner rulings).

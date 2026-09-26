@@ -1,7 +1,7 @@
 # Game-show and late-night graphics on the SVG behaviour system
 
 **Status: the reuse test of `docs/SVG_BEHAVIOUR_PLAN.md`, run for real, 2026-09-06.** The owner's
-brief that morning (`docs/OWNER_RULINGS.md`, owner-decisions-2026-09-06): the quiz is done; the
+brief that morning (the retired owner rulings, owner-decisions-2026-09-06): the quiz is done; the
 students will produce game shows and late-night talk shows this term; find what American TV puts on
 air in those formats that needs operator commands during the show, draw it, import it, and say
 whether the shipped recipes and extras bind it, whether it needs a new field kind or recipe, or

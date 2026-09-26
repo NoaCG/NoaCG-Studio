@@ -130,3 +130,10 @@ acceptance route. Include multiple collections with identical graphic names, ren
 legacy adoption, interrupted installation, later edits before revert, unsupported artwork,
 brand asset replacement and exported font/logo portability. The five-minute route remains
 an acceptance target, not a measured result. Automatic brand following remains later scope.
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- No good design is left without a family: every design worth keeping belongs to a coherent collection, so someone who likes one graphic finds a matching production set.
+- A collection's default look covers palette, typography, spacing, shape, layout, image treatment and motion. It is a default, never a lock.

@@ -32,7 +32,7 @@ Work to the end, and finish the way every row finishes:
 - verify with `npm run build`, and never report observable work done on a green build alone;
 - run the check workflow before you queue, and if you ran out of time to, say `check: not run` in
   your handoff rather than leaving it unsaid;
-- write the handoff file the prompt names;
+- write the handoff file the prompt names only if meaningful work is left unfinished (finished work writes none);
 - run `/queue-merge` as your LAST action. Nothing can wake a stopped session, so a turn that ends
   waiting for CI, a landing job or a watcher is a branch that quietly sits unqueued.
 

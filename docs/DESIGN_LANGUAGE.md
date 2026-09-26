@@ -425,3 +425,9 @@ Rules:
    present, marked animation region present, simple ES5 JS.
 5. **SPX validity** — `validateTemplate` passes; `update/play/next/stop` run clean; export is
    plug-and-play (relative paths, bundled font + GSAP).
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- In code and AI prompts, "premium" means high production value, not a paid edition; marketing copy does not use the word.

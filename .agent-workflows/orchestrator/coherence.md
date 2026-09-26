@@ -24,11 +24,10 @@ thing at a time"* - and *"we are not in a hurry. Enterprise software takes years
   human appears at phase boundaries only when the plan names a decision that is genuinely his.
 - **Work smart, keep the end game in mind.** A phase that serves the deadline but bends the
   ratified picture gets flagged, not silently shipped.
-- **The record of which pictures are ratified is `docs/PROGRAMMES.md`** (the register, itself
-  ratified 2026-09-01). A big project IS a programme: its ratification, state, entry conditions,
-  scope edges and reopen triggers live there; the argument and the acceptance claims live in
-  `docs/NORTH_STAR_2027.md`. Never mark a capability complete because its implementation exists -
-  a claim advances only when its evidence rung is satisfied.
+- **The direction is `docs/GOALS.md`**: each outcome's desired state, its done criteria for this
+  phase and the evidence rungs. A big project serves an outcome, and its plan doc carries the
+  phases. Never mark a capability complete because its implementation exists - a claim advances
+  only when its evidence rung is satisfied.
 
 ## The coherence cadence
 
@@ -68,16 +67,32 @@ spend, decisions, the skill's own commits - is the weekly `orchestrator-week` wo
 
 ## Applying a wave's lesson to this system
 
-The rule is in the core ("Every wave improves the orchestration system"): a recurring failure
-becomes a mechanism before it becomes text. This is the order of preference when the lesson is an
-orchestration lesson - a collision class the plan missed, a report section that failed its reader,
+The principle is in the core ("Learning, without growing the rules"). Learning is continuous, and
+it is not adding rules:
+
+- **Record** a meaningful failure or surprising outcome as an observation:
+  `npm run learn -- --area orchestrator --evidence "..."`. Records are never loaded automatically.
+  `incidents.md` is the frozen history of earlier lessons; new evidence goes to the records.
+- **Pattern or one-off?** One ordinary mistake stays evidence. An expensive, repeated or systemic
+  failure justifies acting at once.
+- **Act in this order**, below, and verify that the change actually prevents the failure.
+- **Retire** lessons, workarounds and rules whose reason no longer exists.
+- **Synthesize, do not reread.** The weekly session reads the observations recorded since last
+  week (`contracts/records/**/*-observed-*`) for recurring patterns and picks at most a few fixes;
+  a wave never rereads the whole archive.
+- **Measure by outcomes**: repeated failures, stranded branches, open handoffs at the end of a wave
+  against its start, wasted work, and verification gaps - never the number of rules.
+
+This is the order of preference when the lesson is an orchestration lesson - a collision class the plan missed, a report section that failed its reader,
 a rule that was ambiguous under pressure. Product lessons are not this: they go to the taste rubric
 via the owner's rulings, to `docs/backlog/`, or to a prompt. The test: would the fix change what a
 SESSION builds, or how a WAVE is planned? Only the second belongs here.
 
+0. **Fix the cause**, or improve the default or the workflow, when that removes the failure.
 1. **A hook**, where the mistake has a tool shape - it fires at the call, whether or not anyone
    read a contract (`scripts/hooks/`, `docs/AGENT_WORKFLOWS.md`). A hook that can false-positive is
-   a warning; a refusal needs an exact test.
+   a warning; a refusal needs an exact test. A hook reaches Claude Code only; a lesson Codex needs
+   too goes in a script, gate or test instead.
 2. **A script or a test**, where the fact can be measured or a script's claim can be pinned - the
    tick, the drain, the plan check, the receipts. A contract sentence about what a script does, or
    a number written into prose, is a cache of the instrument; cite the instrument and its test
@@ -86,14 +101,13 @@ SESSION builds, or how a WAVE is planned? Only the second belongs here.
 3. **Durable state**, where a decision must outlive the session that made it - the wave-state file,
    a receipt, a ledger line.
 4. **Text, last, and by MOVING, never by adding.** Text changes only for a judgement the master
-   itself has to make. The lesson edits the module that owns the rule, its evidence goes to
-   `incidents.md` in one dated entry, and a new rule names what it replaced
+   itself has to make. The lesson edits the module that owns the rule, its evidence goes to the
+   records (`npm run learn`), and a new rule names what it replaced
    or shrank - budget-neutral by default, and the report says so when nothing could be cut. The
    core changes only for a rule that fires before its module loads, and only against its gate.
    The gate counts the core and the common path; the branch modules (`night`, `recovery`, this
    file, `incidents`) it does not, so their only counterweight is this rule and the coherence
-   session reading them cold. The old single file reached 924 lines by obeying "every wave
-   improves this file" with no second half.
+   session reading them cold. Always-loaded text comes only when the lesson applies broadly and nothing cheaper can enforce it.
 
 `npm run check:shared-instructions` fails on a core over 200 lines, on a common path over its
 budget, on a module nothing links to, on a link to a module that does not exist, and on an

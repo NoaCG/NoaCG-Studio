@@ -11,7 +11,7 @@
 //
 // WHY. The system landed on 2026-09-21 and drifted within three days: every agent that drew a
 // graphic layered and named it a little differently, because only the public page taught the
-// system and nothing checked the files a student copies (docs/OWNER_RULINGS.md, 2026-09-24). The
+// system and nothing checked the files a student copies (the retired owner rulings, 2026-09-24). The
 // importer stays loose on purpose - it reads every spelling and synonym in words.json - so the
 // importer can never be what holds the EXAMPLES to one spelling. This is.
 //
@@ -28,7 +28,7 @@
 //   layers   the top-level groups are Text, Moments and Board, in that order from the top of the
 //            Layers panel (the LAST in the file is the top), Text always, the other two only when
 //            they hold something - Illustrator's SVG save drops an empty layer, so an empty
-//            Moments layer cannot be required (measured 2026-09-24, docs/OWNER_RULINGS.md).
+//            Moments layer cannot be required (measured 2026-09-24, the retired owner rulings).
 //   text     Text holds named text objects (and `f:` pictures) only, each spelled the one taught
 //            way: a word, then the row last after a space. A name the importer reads as a
 //            behaviour role must be that role's taught spelling (`Answer A`, never `Vastaus A`).

@@ -1,24 +1,24 @@
 // The alignment answers ledger: an unanswered question never blocks anything, an answered one is
-// pending until the rulings file carries its id, and the block a session appends names that id -
-// which is the whole join between what the owner said on Tuesday and what the repository records.
+// pending until a tracked doc names its id (or its block says where it was recorded privately) -
+// the id is the whole join between what the owner said on Tuesday and what the repository records.
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { alignmentState, main, mentionsId, parseAlignmentQuestions, rulingBlock } from './alignment-answers.mjs';
+import { alignmentState, main, mentionsId, parseAlignmentQuestions, recordingHint } from './alignment-answers.mjs';
 
 const question = (id, q, a = '') => `### ${id}\n**Question:** ${q}\n**Answer:** ${a}\n`;
 
-/** A checkout with one weekly file and one rulings file, so the state can be read off disk. */
+/** A checkout with one weekly file and one tracked doc that may record answers, read off disk. */
 function checkout({ weekly = {}, rulings = '# Owner rulings\n' } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'align-'));
   mkdirSync(path.join(root, 'docs', 'handoffs'), { recursive: true });
   for (const [name, text] of Object.entries(weekly)) {
     writeFileSync(path.join(root, 'docs', 'handoffs', name), text);
   }
-  writeFileSync(path.join(root, 'docs', 'OWNER_RULINGS.md'), rulings);
+  writeFileSync(path.join(root, 'docs', 'GOALS.md'), rulings);
   return root;
 }
 
@@ -99,11 +99,27 @@ test('--check fails only while an answer is unrecorded', () => {
   );
 });
 
-test('the appendable block carries the id the plan check looks for', () => {
-  const block = rulingBlock({ id: 'ALIGN-2026-09-15-1', question: 'Still the top?', answer: 'Yes.' });
-  assert.match(block, /^## ALIGN-2026-09-15-1$/m);
-  assert.match(block, /Still the top\?/);
-  assert.match(block, /^> Yes\.$/m);
+test('the recording hint names the id the plan check looks for and where an answer belongs', () => {
+  const hint = recordingHint({ id: 'ALIGN-2026-09-15-1', question: 'Still the top?', answer: 'Yes.' });
+  assert.match(hint, /^ALIGN-2026-09-15-1: /);
+  assert.match(hint, /docs\/GOALS\.md/);
+  assert.match(hint, /Recorded in:/);
+});
+
+test('a Recorded in line records an answer kept in private context', () => {
+  const root = checkout({
+    weekly: { '2026-09-15-orchestrator-week.local.md': `${question('ALIGN-2026-09-15-1', 'Still the top?', 'Yes.')}**Recorded in:** docs/private/context.md\n` },
+  });
+  const state = alignmentState(root);
+  assert.deepEqual(state.pending.map((e) => e.id), []);
+  assert.deepEqual(state.recorded.map((e) => e.id), ['ALIGN-2026-09-15-1']);
+});
+
+test('the weekly file naming its own ids does not count as recording them', () => {
+  // The weekly files live in docs/handoffs/, inside the record roots, and they carry every id by
+  // construction - so that folder is skipped, or every answer would read as recorded at once.
+  const root = checkout({ weekly: { '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'Still the top?', 'Yes.') } });
+  assert.deepEqual(alignmentState(root).pending.map((e) => e.id), ['ALIGN-2026-09-15-1']);
 });
 
 test('a heading that names its reason after the id still parses - a lost question is a lost ruling', () => {
@@ -199,12 +215,12 @@ test('the weekly file is read from the primary checkout while the rulings come f
     path.join(primary, 'docs', 'handoffs', '2026-09-15-orchestrator-week.local.md'),
     question('ALIGN-2026-09-15-1', 'Still the top?', 'Yes.'),
   );
-  writeFileSync(path.join(primary, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n');
+  writeFileSync(path.join(primary, 'docs', 'GOALS.md'), '# Owner rulings\n');
 
   const worktree = path.join(primary, '.claude', 'worktrees', 'w');
   mkdirSync(path.join(worktree, 'docs', 'handoffs'), { recursive: true });
   writeFileSync(path.join(worktree, '.git'), `gitdir: ${admin}\n`);
-  writeFileSync(path.join(worktree, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n');
+  writeFileSync(path.join(worktree, 'docs', 'GOALS.md'), '# Owner rulings\n');
 
   const before = alignmentState(worktree);
   assert.equal(before.source, 'docs/handoffs/2026-09-15-orchestrator-week.local.md');
@@ -214,7 +230,7 @@ test('the weekly file is read from the primary checkout while the rulings come f
   // TWO ROOTS, on purpose. The branch that records a ruling has it in ITS working tree and nowhere
   // else, so the rulings side must read this checkout - otherwise the refusal never clears until
   // the branch lands, which is the moment it is no longer needed.
-  writeFileSync(path.join(worktree, 'docs', 'OWNER_RULINGS.md'), '# Owner rulings\n\n## ALIGN-2026-09-15-1\n\n> Yes.\n');
+  writeFileSync(path.join(worktree, 'docs', 'GOALS.md'), '# Owner rulings\n\n## ALIGN-2026-09-15-1\n\n> Yes.\n');
   const after = alignmentState(worktree);
   assert.deepEqual(after.pending, []);
   assert.deepEqual(after.recorded.map((entry) => entry.id), ['ALIGN-2026-09-15-1']);
@@ -250,7 +266,7 @@ test('a carried-forward question takes the answered copy, whichever week holds i
 });
 
 test('an id already in the rulings file reads as answered, even while the weekly Answer line is blank', () => {
-  // A question the owner settled in chat can land in docs/OWNER_RULINGS.md before anyone goes back
+  // A question the owner settled in chat can be recorded in a tracked doc before anyone goes back
   // to fill in the weekly file's own **Answer:** line. Without this, it prints OPEN at every
   // weekly session forever, asking him a question he already answered.
   const weekly = { '2026-09-15-orchestrator-week.local.md': question('ALIGN-2026-09-15-1', 'Still the top?') };

@@ -69,6 +69,6 @@ because what landed should be judged against what he actually said.
   `docs/design/svg-states/` - the owner walked and ratified this on 2026-09-03, including the
   neutral default look. Ask 2 is close to the "unassigned moment" wording that design already
   settled: it reads "NoaCG's default look" rather than "- not drawn -".
-- **The programme.** P2 (`docs/PROGRAMMES.md`), round 2 = prototypes against the C1-C8 challenge
+- **The programme.** P2 (the retired programme register), round 2 = prototypes against the C1-C8 challenge
   set. These four asks are evidence for that round, from the first outside user to walk the whole
   road, and should be read as requirements rather than as a separate feature request.

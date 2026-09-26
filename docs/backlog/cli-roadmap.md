@@ -106,7 +106,7 @@ by somebody else's roadmap.
 ## Future directions - moved from `GOALS.md` 2026-09-01
 
 The agent-door "future, so the directions are not forgotten" list, verbatim from the roadmap
-(condensed there under the 2026-09-01 North Star ratification; P5 in `docs/PROGRAMMES.md` points
+(condensed there under the 2026-09-01 North Star ratification; P5 in the retired programme register points
 at this file as the direction pool):
 
 - **Future, so the directions are not forgotten:** arbitrary graphic backends (graphic-authored

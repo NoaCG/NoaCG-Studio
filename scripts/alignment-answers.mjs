@@ -9,7 +9,7 @@
 // alignment questions - the only standing gate that reaches the owner, by his 2026-09-05 ruling.
 // His answers are rulings: they change what we build or in which order. But the session that asks
 // them is a ROUTINE, and a routine may not write a tracked file (`docs/ROUTINES.md`), so the answer
-// arrived in chat and stayed there. Whether it ever reached `docs/OWNER_RULINGS.md` depended on
+// arrived in chat and stayed there. Whether it was ever written down depended on
 // somebody remembering to lift it out, which is the exact shape this repo calls a missing mechanism
 // (owner, 2026-08-29: "a rule that depends on remembering to paste is a missing mechanism").
 //
@@ -17,8 +17,8 @@
 // happen. The session writes each question into its own gitignored file under a stable id; when the
 // owner answers, the same session fills the answer in beside it. From then on the answer is on
 // disk, and `wave-plan-check.mjs` refuses a wave plan that does not mention an unrecorded one - so
-// the reminder repeats every morning until a branch puts the ruling in `docs/OWNER_RULINGS.md`,
-// and stops by itself the moment it is there.
+// the reminder repeats every morning until a branch records the answer where it belongs, and
+// stops by itself the moment it is there.
 //
 // THE FORMAT, in `docs/handoffs/<date>-orchestrator-week.local.md`:
 //
@@ -27,11 +27,12 @@
 //     **Answer:** Yes, until the students have used it.
 //
 // An `**Answer:**` with nothing after it is an OPEN question: his to answer, never anyone's to
-// chase, and never a reason to refuse anything. A filled one is a RULING, and it is pending until
-// `docs/OWNER_RULINGS.md` contains its id. The id is the whole join - it is what the ruling is
-// written under, and what the plan check looks for.
+// chase, and never a reason to refuse anything. A filled one is an ANSWER, and it is pending until
+// a tracked doc names its id (RECORD_ROOTS), or, for private context kept out of git, until the
+// block gains a `**Recorded in:** <path>` line. The id is the whole join - it is what the record
+// names, and what the plan check looks for.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -40,9 +41,36 @@ import { primaryCheckout } from './primary-checkout.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
 
-/** Where the weekly session writes, and where the rulings live once a session has recorded them. */
+/** Where the weekly session writes. */
 export const HANDOFF_DIR = path.join('docs', 'handoffs');
-export const RULINGS_FILE = 'docs/OWNER_RULINGS.md';
+
+/**
+ * Where a recorded answer lives once a session has written it down: direction in docs/GOALS.md,
+ * a rule or a plan in its scoped doc, and the learning records. An answer counts as recorded when
+ * any tracked markdown file under these names its id. docs/handoffs/ is skipped, because the weekly
+ * files themselves live there, and so is docs/private/, which is not in git. The workflows are not
+ * scanned: they quote example ids, which would read as recorded answers.
+ */
+export const RECORD_ROOTS = Object.freeze(['docs', 'contracts/records']);
+const SKIPPED = new Set([path.join('docs', 'handoffs'), path.join('docs', 'private')]);
+
+/** The text of every markdown file under RECORD_ROOTS in this checkout, joined. */
+export function recordedText(root = REPO_ROOT) {
+  const parts = [];
+  const walk = (rel) => {
+    if (SKIPPED.has(rel)) return;
+    const dir = path.join(root, rel);
+    if (!existsSync(dir)) return;
+    for (const name of readdirSync(dir)) {
+      const child = path.join(rel, name);
+      const full = path.join(root, child);
+      if (statSync(full).isDirectory()) walk(child);
+      else if (name.endsWith('.md')) parts.push(readFileSync(full, 'utf8'));
+    }
+  };
+  for (const rel of RECORD_ROOTS) walk(path.join(...rel.split('/')));
+  return parts.join('\n');
+}
 
 /**
  * THE DIRECTORY THE WEEKLY FILE IS ACTUALLY IN - the PRIMARY checkout's, never this one's.
@@ -67,7 +95,7 @@ export function weeklyDir(root = REPO_ROOT) {
 // question the parser cannot see is a ruling nobody records, which is the failure this file exists
 // to prevent - so every doubtful case parses rather than vanishes.
 const HEADING = /^#{2,4}\s+(ALIGN-\d{4}-\d{2}-\d{2}-\d+)\b.*$/;
-const FIELD = /^\*\*(Question|Answer):\*\*\s*(.*)$/;
+const FIELD = /^\*\*(Question|Answer|Recorded in):\*\*\s*(.*)$/;
 const WEEKLY_FILE = /^\d{4}-\d{2}-\d{2}-orchestrator-week\.local\.md$/;
 
 /**
@@ -78,8 +106,8 @@ const WEEKLY_FILE = /^\d{4}-\d{2}-\d{2}-orchestrator-week\.local\.md$/;
  * in this repository wraps at about a hundred columns and the first session to run the weekly
  * procedure cold wrapped all three questions without thinking about it (dry run, 2026-09-10), so
  * reading one physical line took the question down to a fragment ending mid-clause. The question
- * only looks untidy in a report; the ANSWER is the damage. `rulingBlock` composes what a session
- * appends to `docs/OWNER_RULINGS.md` out of these two strings, so an owner who answers in three
+ * only looks untidy in a report; the ANSWER is the damage. A session records the answer from these
+ * two strings, so an owner who answers in three
  * sentences gets one and a half recorded, permanently, and the refusal clears as though the whole
  * ruling had landed - the failure this file exists to prevent, one level down and silent.
  *
@@ -96,7 +124,7 @@ export function parseAlignmentQuestions(text) {
   for (const line of String(text ?? '').split(/\r?\n/)) {
     const heading = line.match(HEADING);
     if (heading) {
-      current = { id: heading[1], question: '', answer: '' };
+      current = { id: heading[1], question: '', answer: '', recordedIn: '' };
       questions.push(current);
       field = null;
       continue;
@@ -106,7 +134,7 @@ export function parseAlignmentQuestions(text) {
     if (!current) continue;
     const opened = line.match(FIELD);
     if (opened) {
-      field = opened[1].toLowerCase();
+      field = opened[1] === 'Recorded in' ? 'recordedIn' : opened[1].toLowerCase();
       current[field] = opened[2].trim();
       continue;
     }
@@ -115,7 +143,7 @@ export function parseAlignmentQuestions(text) {
     //
     //  - an EMPTY `**Answer:**`, a blank line, then the section's own prose. Resuming there would
     //    invent an answer he never gave, refuse every wave plan over it and write it into the
-    //    rulings file. An empty field never resumes, so it cannot happen.
+    //    records. An empty field never resumes, so it cannot happen.
     //  - an answer given in TWO PARAGRAPHS, which is how a man who talks in paragraphs answers.
     //    Ending the field at the first blank line drops the second half exactly as silently as
     //    reading one physical line dropped the second line. A started field resumes.
@@ -163,15 +191,12 @@ export function newestWeeklyFile(root = REPO_ROOT) {
  */
 export function alignmentState(root = REPO_ROOT) {
   // TWO ROOTS, on purpose. The questions come from the PRIMARY checkout, because that is the only
-  // tree the weekly file is ever written into; the rulings come from THIS checkout, because
-  // `docs/OWNER_RULINGS.md` is tracked and the branch that records a ruling is the one that must
-  // clear it. Reading both from one root is what broke this on 2026-09-08. Both roots are resolved
+  // tree the weekly file is ever written into; the records come from THIS checkout, because they
+  // are tracked and the branch that records an answer is the one that must clear it. Reading both from one root is what broke this on 2026-09-08. Both roots are resolved
   // once here, so the `.git` link is read once per call rather than once per file.
   const primary = primaryCheckout(root);
   const dir = path.join(primary, HANDOFF_DIR);
   const files = weeklyFiles(root);
-  const rulingsPath = path.join(root, ...RULINGS_FILE.split('/'));
-  const rulings = existsSync(rulingsPath) ? readFileSync(rulingsPath, 'utf8') : '';
   if (files.length === 0) return { dir, source: null, open: [], pending: [], recorded: [] };
   const newest = files[files.length - 1];
   const relative = (file) => path.relative(primary, file).split(path.sep).join('/');
@@ -187,6 +212,7 @@ export function alignmentState(root = REPO_ROOT) {
   // exists in two weeks' files. Taking the newest occurrence unconditionally means an answer
   // written into the older copy - the file that was open in front of whoever heard him say it -
   // loses to the newer empty block, and the ruling disappears with nothing reporting it.
+  const records = recordedText(root);
   const seen = new Map();
   for (const file of [...files].reverse()) {
     for (const entry of parseAlignmentQuestions(readFileSync(file, 'utf8'))) {
@@ -200,12 +226,12 @@ export function alignmentState(root = REPO_ROOT) {
     // an UNANSWERED row is never replaced by the tie-break above, so its source is the file the id
     // first appeared in, walking newest first.
     //
-    // THE RULINGS FILE WINS OVER "unanswered" TOO. A question the owner settled in chat, recorded
-    // straight into docs/OWNER_RULINGS.md, with the weekly file's own `**Answer:**` line left
+    // A RECORD WINS OVER "unanswered" TOO. A question the owner settled in chat, recorded straight
+    // into the doc it changes, with the weekly file's own `**Answer:**` line left
     // blank because nobody went back to fill it in, is a settled question - checking
     // `entry.answered` first would carry it forward as OPEN at every weekly session even though
     // there is nothing left for him to answer.
-    if (mentionsId(rulings, entry.id)) {
+    if (entry.recordedIn || mentionsId(records, entry.id)) {
       state.recorded.push(entry);
     } else if (!entry.answered) {
       if (entry.source === state.source) state.open.push(entry);
@@ -216,14 +242,12 @@ export function alignmentState(root = REPO_ROOT) {
   return state;
 }
 
-/** The block a session appends to `docs/OWNER_RULINGS.md`, so nobody has to compose it twice. */
-export function rulingBlock(entry) {
+/** What a session does with one answer, so nobody has to work it out twice. */
+export function recordingHint(entry) {
   return [
-    `## ${entry.id}`,
-    '',
-    `**Asked at the weekly alignment session.** ${entry.question}`,
-    '',
-    `> ${entry.answer}`,
+    `${entry.id}: record the answer where it belongs, naming this id - direction in docs/GOALS.md,`,
+    'a rule or a plan in its scoped doc, or private context in docs/private/ with a',
+    '"**Recorded in:** <path>" line added under the answer in the weekly file.',
   ].join('\n');
 }
 
@@ -237,7 +261,7 @@ function report(state) {
     for (const entry of state.open) lines.push(`    ${entry.id}  ${entry.question}`);
   }
   if (state.recorded.length) {
-    lines.push('', `  RECORDED - already in ${RULINGS_FILE} (${state.recorded.length}):`);
+    lines.push('', `  RECORDED - a tracked doc names it, or its block says where (${state.recorded.length}):`);
     for (const entry of state.recorded) lines.push(`    ${entry.id}`);
   }
   if (state.pending.length) {
@@ -250,12 +274,11 @@ function report(state) {
     }
     lines.push(
       '',
-      `  Append each block below to ${RULINGS_FILE} on a BRANCH - never in the primary checkout,`,
-      '  where an uncommitted file stops every landing on the machine. Then this clears by itself.',
+      '  Record each one on a BRANCH, never in the primary checkout. Then this clears by itself.',
       '',
     );
     for (const entry of state.pending) {
-      for (const line of rulingBlock(entry).split('\n')) lines.push(`    ${line}`);
+      for (const line of recordingHint(entry).split('\n')) lines.push(`    ${line}`);
       lines.push('');
     }
   }
@@ -269,7 +292,7 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT } = {}) {
   if (argv.includes('--json')) console.log(JSON.stringify(state, null, 2));
   else for (const line of report(state)) console.log(line);
   if (failing) {
-    console.error(`\nAlignment: ${state.pending.length} answer(s) the owner gave are not in ${RULINGS_FILE}.`);
+    console.error(`\nAlignment: ${state.pending.length} answer(s) the owner gave are not recorded yet.`);
     return 1;
   }
   return 0;

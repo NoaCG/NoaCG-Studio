@@ -3011,7 +3011,7 @@ What was built (R1, all mutation-controlled in `pro-iterate-spike.mjs --control`
   designs whose text legitimately crosses rules mid-travel; the 20px secondary floor is the
   one floor the catalog already meets.
 
-  **SETTLED 2026-09-08 by owner ruling** (`docs/OWNER_RULINGS.md`): the primary floor is now
+  **SETTLED 2026-09-08 by owner ruling** (the retired owner rulings): the primary floor is now
   type-aware and this question is closed. Re-measured through the instrument itself rather than
   off the CSS, the universal 4.6% row refused **322 of 503** shipped designs - and it contradicted
   `typeFloor.ts`, which had already ratified 16px for a corner bug while this row demanded 49.68px
@@ -3822,3 +3822,9 @@ the negative one passing.
 - **Adapt first.** The default AI path adapts a proven catalog design (`ADAPT_FIRST_PLAN.md`);
   open-ended creation is the escalation. This is the likely base for built-in template and brand
   automation when that track starts.
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- Pro is a multi-model pipeline (different models for concept, layout reading, code writing and rendered critique, chosen per task and category). It must end up clearly better than Lite, and it is its own project, not Lite grown up.

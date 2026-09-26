@@ -2,7 +2,7 @@
 // auto-dismiss"; the catalog's `transition` type is the same arc on a design we drew).
 //
 // A follower pop, a donation flash, a breaking strap that must not sit there - the owner's own
-// story for alerts is "plays, holds briefly, self-outs" (docs/OWNER_RULINGS.md, operator-stories
+// story for alerts is "plays, holds briefly, self-outs" (the retired owner rulings, operator-stories
 // 2026-08-27). On imported artwork that is one TIMER arrow from the entrance to the exit, armed
 // when the entrance settles, plus the manual version for an operator cutting to their own rhythm.
 // No roles, no owned fields, no paint: the whole behaviour is the machine's shape, and a recipe

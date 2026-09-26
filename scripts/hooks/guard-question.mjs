@@ -1,5 +1,5 @@
 // PreToolUse guard for AskUserQuestion. A question to the owner is one of three kinds
-// (docs/OWNER_RULINGS.md, owner-decisions-2026-09-25):
+// (the retired owner rulings, owner-decisions-2026-09-25):
 //
 //   1. OPERATIONAL - branch order, sequencing, whether necessary work gets done, a fact the repo
 //      can answer. Never asked: the agent decides and keeps working.

@@ -1,5 +1,8 @@
 # Mistake triggers: which lessons become hooks, and which cannot
 
+Record a lesson with `npm run learn -- --area <area> --evidence "..."`: an observation first, never
+a rule by default (contracts/README.md, the ladder). This document routes the ones that need more.
+
 The owner asked on 2026-09-01: "we keep running into the same mistakes... why can't we find those
 when we need them?" The short answer is that a rule in a contract fires only if somebody reads the
 contract, and a session reads a contract at the start of its work rather than at the moment it is
@@ -164,75 +167,8 @@ Each of these passes the four tests and is unbuilt for a stated reason, not by o
 
 ## The 2026-09-05 read: fifty handoffs, and where each recurring mistake went
 
-The three hooks that landed on 2026-09-05 were picked from evidence, not from a brainstorm: every
-entry in `.agent-workflows/orchestrator/incidents.md` and every handoff from 2026-09-01 to
-2026-09-05, fifty files, grouped by shape and counted. The count is how many handoffs carry the
-same mistake. The point of keeping the table is the ROUTING, so the next reader does not re-derive
-it: most of what recurs is not a hook, and saying which home it has is the answer.
-
-| Recurring mistake | Handoffs | Home | Why there |
-|---|---|---|---|
-| A follow-up push cancels the earlier CI run and plans only its own delta; the new run reports green having skipped every shard | 16 | **RETIRED 2026-09-06 in the workflow** - `ci.yml` plans every branch push from the merge-base with `main`, so the replacement covers what the cancelled push run owed. The warn hook stayed, belt-and-braces, and now carries the cancelled-DISPATCH case instead | routed here as a hook because a workflow fix looked out of reach, and it was not; see the 2026-09-16 note below the table |
-| Push and dispatch in one command, a coin flip over which run survives | 4 | **hook, deny** (`guard-command.mjs`) | exact in the command text, and the sanctioned shape is two commands |
-| `preview_start` from a linked worktree serves a sibling checkout's page | 4 | **hook, deny** (`guard-preview.mjs`) | one stat decides it, the wrong page renders fine, and the shell guard's message never reaches a session that is not typing a shell command |
-| A wave prompt naming a path that does not exist | 2 | **hook, deny** (`guard-agent-launch.mjs`) | exact, and the second half of the plan gate: the prompt a session is handed is a different file from the plan that was checked |
-| "A green run is not a verdict until you read WHICH JOBS RAN" | 19 | contract | whether the colour was believed is invisible to any call; the push notice names the command at the moment a run is replaced, which is as close as a mechanism gets. Since 2026-09-06 a skipped shard is the plan being believed rather than a hole, so the job list is read to check the plan, not to catch a cancellation |
-| A local full suite from a worktree before landing | 8 | hook-shaped, unbuilt (above) | needs the matcher measured; today a memory entry, the wrong home |
-| An edit to a file another live row holds, or beyond the row's `TOUCHES` | 12 | queue-time gate (`merge-order.mjs`) + contract | a per-edit hook fails test 2: the fact is every other worktree's diff, and a git call across all of them on every `Edit` is the cost the doc forbids |
-| A new spec that is not in `FOCUS` or the map never runs on the gate it was written for | 3 | build gate, unbuilt - `docs/backlog/unmapped-spec-never-runs-on-its-gate.md` | the fact is the state of two files against a directory, which is a tree, not a call |
-| Ending a turn on a wait nothing will wake | 6 | built (`stop-wait.mjs`) | the 2026-09-04 widening, its false positive on quoted text, and the two 2026-09-16 misses below all stay with that hook |
-| A dev server left running is adopted by the suite | 3 | built (`guard-command.mjs` port check) | the 2026-09-05 case was a server killed mid-leg, which no call shows |
-| A handoff deletion list that was wrong | 5 | built (`handoff-trace.mjs`) | |
-| The instruction chains at their byte ceiling | 9 | built (`check:shared-instructions`) | |
-| The row's premise was wrong, the bug did not reproduce | 9 | nothing | content of a correctly shaped prompt; the fix is the "reproduce first" step, which is a contract line where the work happens |
-
-Two things the read taught about the METHOD, worth more than any row. First, the first real event
-fed to the push notice was silent, and correctly so: the sha it named had two runs, the cancelled
-push run and the green dispatch that cancelled it, and the rule as first written read only the
-newest. The fix was the rule, not the plumbing - one finished run for the old tip is enough,
-whichever it was - and it was found by feeding a REAL cancelled run from `gh run list`, not by
-reasoning about the regex. Second, the fan-out entry above was measured by the row that was going to
-build it, twice, with opposite results - and the first measurement alone would have landed as a
-refutation of a sentence four contracts state. One observation is not a rule in either direction;
-the standard this file sets for a hook, the real case AND the must-not-fire case, applies to a
-refutation too.
-
-**A third thing, learned on 2026-09-16 by the row that re-opened the table's first line.** That
-mistake was routed here to a warn hook because a workflow fix looked out of reach. It was fixed in
-the workflow on 2026-09-06 anyway: `ci.yml` now measures every branch push from the merge-base with
-`main`, so a cancelled predecessor's delta is covered by construction and the hook became
-belt-and-braces. The prose did not follow. Ten days later `docs/VERIFICATION.md`,
-`docs/WORKFLOW_ARCHITECTURE.md`, two backlog files and the hook's own header still described the
-retired mechanism as current, and a wave row was planned off that prose to build a fix that
-existed - one that would have made the shipped behaviour narrower, since it proposed applying the
-merge-base only when no finished run existed for `before`. The row that catches this is the one
-that reproduces first, which is why that step is a contract line and not advice. The routing
-lesson is the harder one: **a mistake's entry in this table records where the answer went, and the
-answer can move.** When a fix lands upstream of a hook, the hook's header, the contract prose and
-the backlog file are all now wrong, and nothing in this repository fails when they are. The table's
-"the row's premise was wrong" line counts nine handoffs to 2026-09-05; this is another, and the
-first where the premise came from the repository's own documentation rather than from a misreading
-of the code. That is the worse kind, because the documentation is what a planner reads.
-
-**A fourth thing, learned on 2026-09-16 from two rows the stop-wait hook did not catch.** Row SC
-stopped at 13:31:30Z on "The waiter will wake me when the exit line lands", and row SE stopped at
-15:32:46Z on a background watcher. Both had the "never end a turn waiting" line in their prompts;
-both were recovered only because a person was awake. The two misses had DIFFERENT causes, and
-finding that out took minutes because the detector is a pure function that can be fed a real
-sentence: SC's words matched no pattern, SE's matched two. So SE was never a detector problem at
-all. The hook had fired on SE ninety seconds earlier, correctly, and gone silent on the second wait
-because it bailed on `stop_hook_active` - the flag Claude Code sets while a session is continuing
-BECAUSE a stop hook blocked it, which does not clear when the session goes back to work. **The
-guard was a one-shot.** It is now a budget of three refusals counted per session, which does the
-flag's only real job, breaking a loop, with a number instead of a cliff.
-
-Two lessons that outlive this hook. First, **a guard that fires once is a guard that a habit
-outlasts**, and every blocking hook should be asked how many times it can fire before the harness's
-own loop-breaker silences it. Second, the delivery half was measured rather than argued: a wave row
-is a SUBAGENT, so `SubagentStop` carries that row's own `last_assistant_message`, exit 2 blocks that
-row's stop, and the row gets another turn with the message in it. That was established by launching
-a throwaway subagent that ended a turn on a real background task, twice, and reading the payloads -
-about four minutes, against a reading of the code that would have been a guess either way.
+A one-time read that routed each recurring mistake found in fifty handoffs to a hook, a script
+or a contract. The full account is history now: `contracts/records/learning/2026-09-05-fifty-handoffs-read.md`.
 
 ## What cannot be hooked
 
@@ -262,87 +198,13 @@ in, and that is a real answer rather than a consolation prize.
 
 ## Memory: the weakest trigger, and how it stays small and current
 
-Long-term memory is the fourth place, and it was outside this framework until 2026-09-03. That
-omission is what the framework was built to prevent: a lesson with no firing moment lands in the
-store, is agreed with, and is not done.
-
-**The measured case.** The owner's rule that a surfaced task chip is started rather than offered
-was recorded THREE times - `fix-dont-ask.md` (2026-08-30, *"a task chip is a queue item, not a
-question - start it"*), a standing line in `MEMORY.md` itself, and a third record of him dismissing
-chips on 2026-08-29. `MEMORY.md` loads into every session. It was read, agreed with, and not
-applied on the 2026-09-02 night wave; the owner had to ask the next morning whether the task was
-tracked, and it was not. **This was never a capture failure or a loading failure.** The entries
-described a DISPOSITION - be the kind of agent that starts chips - and no procedure anywhere asks
-"is there a chip?", so the rule had nothing to attach to. Rewritten as a step inside the wave
-procedure (`.agent-workflows/orchestrator/report.md`, "Work the wave surfaces") it now fires.
-
-That fixed it for a session running the wave procedure and left it unfired for every session that
-is not. **On 2026-09-03 the same rule got its tool shape** in `spawn-task-guard.mjs`: minting a
-chip is refused, and the refusal names the two places the work actually goes - here, on this
-branch, or `docs/backlog/<slug>.md`. It is worth being precise about what changed, because the
-disposition was never the problem. A session reaching for the chip tool has already decided the
-work is somebody else's; no amount of prose reaches it at that point, and a refusal does. The
-carve-out `launch.md` grants - a start that is genuinely the owner's call - survives as an
-`OWNER-DECISION: <reason>` line in the prompt, which is a marker rather than a judgement because
-no hook can tell whether the reason is true. What it can enforce is that one was written down.
-
-### The charter - what may be a memory at all
-
-Only what **no file in the repo can hold**: the owner's taste, money, direction and relationships,
-and whether a human has looked at something. Everything else routes to a hook, a gate or a contract
-by the tests above.
-
-The test to apply before writing one: **can this fire at a moment?** If a session could be about to
-get it wrong, and the moment is nameable, then it belongs where that moment happens - and a memory
-is the wrong home however well written it is. "Start task chips" fires when a chip appears. "The
-owner dislikes gallery rounds that reuse three graphic types" fires nowhere in particular, and is a
-memory.
-
-### Precedence - memory is EVIDENCE, never AUTHORITY
-
-Highest first. A memory may inform a decision and may never veto one.
-
-1. **What the owner says in the current conversation.**
-2. **The repo's current state** - code, gates, contracts. It is verifiable, so it beats any
-   description of it. A memory contradicting the repo is wrong by default and is deleted, not
-   reconciled.
-3. **The newest dated ruling** on that subject.
-4. **Older entries: advisory.** They explain how we got here. They do not decide where we go.
-
-Owner, 2026-09-03: *"I do not want something I said two months ago, under different circumstances
-or with weaker models, to be treated as permanent truth."*
-
-**A rule outlives its own why, and the why is the thing to test.** Worked example, measured the
-same day: `merge-cost-is-the-bottleneck` says default to 3-4 sessions a night, because merge cost
-is paid in OWNER HOURS. The landing queue was built after it was written. On the 2026-09-02 night
-wave nine branches landed and cost the owner zero hours, so the premise is simply false now -
-following the rule would have planned four rows instead of nine and shipped less. Neither entry was
-badly written. Both had lapsed.
-
-### The fields that make staleness detectable
-
-- `decided:` the date the OWNER said it, not the date the file was touched.
-- `strength:` `ruling` (he decided - binds until superseded) | `preference` (he leaned - informs,
-  never constrains) | `observation` (measured - true until re-measured). **Unmarked defaults to
-  `preference`**, because over-binding is the expensive direction.
-- `holds-while:` the condition under which it is still true, written so it can be checked.
-  **`exit: never` is abolished.** It was the cheapest legal value and 41 of 49 entries took it, so
-  the bound that was supposed to keep the store small was opted out of one file at a time. "Never"
-  becomes "not yet": when the condition lapses the entry is re-justified or deleted.
-- `supersedes:` a slug, when it replaces one. Supersession recorded in prose inside an index line
-  is not checkable and was already happening.
-
-### Why a mechanism and not an audit
-
-**203 entries were archived on 2026-08-25. Nine days later the store held 49 entries and 179 KB** -
-about five new entries a day, on track to pass 200 again within a month. A 96% manual cleanup has
-already been performed once and did not hold, so a second one is not a plan.
-
-The budget also has to move. Until 2026-09-03 the only ceiling was 60 LINES ON THE INDEX, with the
-corpus unbounded behind it - so pressure produced terser pointers rather than fewer memories, which
-makes retrieval worse while the store grows. **The ceiling belongs on the corpus.** A related tell,
-worth checking because it is cheap: 43 of 71 `[[links]]` between entries pointed at nothing, so the
-graph that was supposed to carry context between memories was 61% broken while looking dense.
+Memory is the weakest trigger: it loads, it is agreed with, and nothing makes it fire at the
+moment it matters. So it holds almost nothing. Direction lives in `docs/GOALS.md`, design guidance
+in `docs/DESIGN_LANGUAGE.md`, operational rules in the scoped doc, hook, gate or test that fires
+where they apply, and private context (dates, partners, demos) in `docs/private/` in the main
+checkout. Claude's memory index keeps a pointer to that and little else, and it is evidence, never
+authority: what the owner says now and the repository's current state win. If a lesson could fire
+at a moment, it is not a memory; route it with the rest of this document.
 
 ## When a hook turns out to be wrong
 

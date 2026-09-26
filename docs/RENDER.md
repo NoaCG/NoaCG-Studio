@@ -128,7 +128,7 @@ lives in process memory (dev/self-host).
 
 Client checks are UX; the server re-validates everything. A plan row's `render_tier` reaches
 `resolveTier()` through the entitlements resolver; nothing is sold, and no billing is planned
-(owner, 2026-09-07, `docs/OWNER_RULINGS.md`). The widest tier was called `paid` until migration
+(owner, 2026-09-07, the retired owner rulings). The widest tier was called `paid` until migration
 0055 renamed it; a stored row still saying so is read as `granted` (`storedRenderTier()`), so the
 code and the migration can reach production in either order.
 
