@@ -636,9 +636,10 @@ function renderNested(dir, rules) {
   // Claude Code loads folder rules by itself, Codex loads only the chain down to where it started.
   if (dir === ROOT_TITLE) {
     lines.push(
-      'Folder rules load in Claude Code by themselves. In Codex, before editing, run',
-      '`npm run rules -- <the files you will edit>` once: it prints all their folder guidance, so no',
-      'folder AGENTS.md needs reading. Map of the code: `docs/ARCHITECTURE.md`.',
+      'Claude loads folder rules natively. In Codex, before editing run',
+      '`npm run rules -- <files>` once; add `--loaded <AGENTS.md>` for each folder contract',
+      'fully in your starting context. It supplies the remaining folder guidance.',
+      'Code map: `docs/ARCHITECTURE.md`.',
     );
   }
   lines.push('');
