@@ -230,6 +230,13 @@ const MAP = [
   [/^src\/control\/cueData/, ['production-data.spec.ts']],
   // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
   [/^src\/output\//, ['productions.spec.ts', 'snap-recovery.spec.ts']],
+  // A FOREIGN OGraf package on the stage (docs/OGRAF_ECOSYSTEM.md §3): the isolated player, the
+  // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
+  // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
+  // module is what the published graphics load through as well.
+  [/^(src\/output\/(stage|foreignOgraf)|src\/control\/ograf(Host|Contract)|e2e\/fixtures\/foreign-ograf\/)/, ['foreign-ograf-sandbox.spec.ts', 'output-first-paint.spec.ts']],
+  // The host document moved out of src/bridge/ (both entries load it) and took its specs along.
+  [/^src\/control\/ografHost/, ['bridge.spec.ts', 'ograf-contract.spec.ts']],
   [/^output\.html$/, ['productions.spec.ts']],
   // The universal in/out bank (blocks/motionPresets.ts) rides the `^src/blocks/` rule below as
   // well, so naming it here only puts its own spec first. Its PICKER rides NOTHING: it sits at

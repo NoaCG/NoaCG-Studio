@@ -27,6 +27,7 @@
 
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import type { ControlButton } from '../blocks/animMachine';
+import type { ControlMessage } from './controlModel';
 
 /** The operator surface one manifest describes. */
 export interface OgrafControlContract {
@@ -183,4 +184,36 @@ function defaultFor(prop: Json, kind: FieldKind): string | number {
   if (kind === 'toggle') return d === true || d === 'true' ? 'true' : 'false';
   if (d === undefined || d === null) return '';
   return typeof d === 'string' ? d : String(d);
+}
+
+/** One call on a Graphic's lifecycle, in the shape the OGraf host document's driver takes
+ *  (`src/control/ografHost.ts`): `play(params)`, `stop(params)`, `update(data)`, `custom(id, payload)`. */
+export type OgrafLifecycleCall =
+  | { call: 'play'; args: [{ goto?: number; delta?: number }] }
+  | { call: 'stop'; args: [Record<string, never>] }
+  | { call: 'update'; args: [Record<string, string>] }
+  | { call: 'custom'; args: [string, Record<string, string>] };
+
+/**
+ * The renderer half of the contract: the one ControlMessage every control surface already sends,
+ * as the OGraf call it means. Take is `playAction({goto: 0})`, so a replayed or repeated Take
+ * lands on the first step instead of advancing; » Next is `playAction({delta: 1})`, which the
+ * Graphic resolves against its own `stepCount`; an operator event is `customAction`. A `snap` is
+ * NoaCG's machine vocabulary and has no OGraf meaning, so it (like `hello`) maps to nothing.
+ */
+export function ografCallFor(msg: ControlMessage): OgrafLifecycleCall | null {
+  switch (msg.t) {
+    case 'play':
+      return { call: 'play', args: [{ goto: 0 }] };
+    case 'next':
+      return { call: 'play', args: [{ delta: 1 }] };
+    case 'stop':
+      return { call: 'stop', args: [{}] };
+    case 'update':
+      return { call: 'update', args: [msg.data ?? {}] };
+    case 'event':
+      return { call: 'custom', args: [msg.event, msg.payload ?? {}] };
+    default:
+      return null;
+  }
 }

@@ -103,7 +103,8 @@ here and not in §6 are wrong - fix the code, not the table.
 - `showchat` -> backend, control
 - `output` -> control, preview, backend (the renderer follows the hosted-control log through
   `control/hostedControl`, composes each published graphic through `preview/composeDocument`,
-  and feature-detects the backend; it reads no store, no components, no templates)
+  mounts a foreign OGraf package through the host document in `control/ografHost`, and
+  feature-detects the backend; it reads no store, no components, no templates)
 - `join` -> audience, backend (the join page mounts the shared join surface over the Supabase
   audience provider and feature-detects the backend; it reads no store, no components, no
   templates, and no control module - a viewer's page must not even be able to name the command log)

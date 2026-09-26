@@ -132,7 +132,7 @@ says otherwise:
   dedicated e2e specs, and two externally-validated rounds in a renderer nobody here wrote
   (`docs/OGRAF.md`). All 1470 catalog manifests validate against the EBU's own schema files.
 - **Import, halfway**: `src/export/targets/ografImport.ts` reads any package, validates it,
-  derives the operator contract; `src/bridge/ografHost.ts` is a minimal working OGraf renderer;
+  derives the operator contract; `src/control/ografHost.ts` is a minimal working OGraf renderer;
   `noacg inspect`/`validate` drive a stranger's package through its whole lifecycle;
   `e2e/ograf-contract.spec.ts` renders the real control components from a hand-written third-party
   manifest. What is refused, deliberately and in three places: turning a foreign package into an

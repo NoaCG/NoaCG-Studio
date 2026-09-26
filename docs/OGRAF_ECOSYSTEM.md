@@ -314,7 +314,7 @@ where first-class ends. The operations, against what exists today:
 |---|---|---|
 | inspect | `noacg inspect` prints the derived operator surface from any package (`ografImport.ts` -> `ografContract.ts`) | in-app surface for the same read |
 | validate | `noacg validate` mounts and drives the full lifecycle; manifest + package checked on read | nothing structural |
-| load / play / stop / update / custom actions / steps / dispose | `src/bridge/ografHost.ts` does all of it in the CLI's contained bench context | the same host **behind the isolation boundary** (§3), in preview and `/output` |
+| load / play / stop / update / custom actions / steps / dispose | `src/control/ografHost.ts` does all of it in the CLI's contained bench context | the same host **behind the isolation boundary** (§3): on the `/output` stage since 2026-09-26; in preview, open |
 | edit exposed data | the derived `FieldDescriptor[]` is the same shape every control surface renders | residence: a library item of kind "OGraf package" so a production can hold one |
 | place on a render target | our production/layer addressing is exactly the vendor-shaped `renderTargetSchema` the standard expects | the `/output` stage mounting a foreign Graphic on a layer |
 | recover | the standard's own snap: `load` + `updateAction` + `playAction({goto, skipAnimation})` | wiring that replay into the per-graphic recovery baseline the log already keeps |
@@ -368,15 +368,55 @@ stage's frames already carrying `sandbox="allow-scripts"` (`src/output/stage.ts:
   graphic's CSS cannot reach a neighbour.
 - Package files are served from an isolated scope, never the app origin's ambient paths: the
   bridge already mounts packages under a dedicated route with an allowlist
-  (`src/bridge/ografHost.ts` header); in-app, the ograf-devtool Service-Worker pattern (§1c) is
+  (`src/control/ografHost.ts` header); in-app, the ograf-devtool Service-Worker pattern (§1c) is
   the proven local-file variant. Either way the component's `new URL('./x', import.meta.url)`
   resolves inside the package and nowhere else.
-- The bridge's `ografHost.ts` itself is NOT the boundary (CLI/dev context; the review says so) -
-  it is the seed of the host *document*, which becomes safe only inside the sandboxed frame.
-- Non-goals, honestly: `allow-scripts` still permits CPU burn and its own fetches inside the
-  frame where a CSP is not imposed on the host document; a hostile package can be slow or ugly.
-  The boundary's promise is confinement, not curation - the bench and validation remain the
-  quality gates.
+- The host document on its own is NOT the boundary (the CLI bench runs it unsandboxed, and the
+  review says so); it becomes safe only inside the sandboxed frame, with its network policy.
+- Non-goals, honestly: `allow-scripts` still permits CPU burn; a hostile package can be slow or
+  ugly. The boundary's promise is confinement, not curation - the bench and validation remain
+  the quality gates.
+
+**Built and proven (2026-09-26).** The output stage mounts a foreign package through
+`createOutputStage(root, payload, { foreign })` (`src/output/foreignOgraf.ts`); the published
+NoaCG graphics load exactly as before. What each part does:
+
+- **The frame.** `sandbox="allow-scripts"`, `referrerpolicy="no-referrer"`, one per Graphic. The
+  host document loads from a blob URL, NOT `srcdoc`: a srcdoc document's base URL is its parent's
+  URL, and the `/output` URL carries the production's output capability. (NoaCG's own layers are
+  srcdoc, so their `document.baseURI` does show that URL to published template code. That is
+  unchanged here and worth a separate look.)
+- **The network policy** (`ografNetworkPolicy`, `src/control/ografHost.ts`) is a CSP that comes
+  first in the host document: every script, style, image, font, media file and fetch must come
+  from the package's base URL. A CSP source whose path ends in `/` matches that path and below,
+  so `../` out of the package is refused like any other host. Inline script and eval are allowed
+  because they fetch nothing.
+- **The bridge.** The page sends only the calls `ografCallFor` (`src/control/ografContract.ts`)
+  maps a ControlMessage to: Take is `playAction({goto: 0})`, Next is `playAction({delta: 1})`, an
+  operator event is `customAction`, and `snap` maps to nothing. It accepts a reply only from that
+  frame's window, with that frame's nonce, to a call still pending, and keeps only
+  `statusCode`/`statusMessage`/`currentStep` from it. The host document answers only its parent,
+  with its nonce, for an allowlisted call.
+- **What the package's server owes.** It answers only the package's own files, from a file map
+  rather than a filesystem path. It sends `Access-Control-Allow-Origin: *`, because the frame's
+  origin is opaque and sends no credentials, and it never redirects, because a redirect relaxes
+  the policy's path match. The spec serves the fixtures this way. The in-app scope that stores
+  and serves an imported package is part of the library item
+  (`docs/backlog/import-foreign-ograf-packages.md`).
+- **The proof.** `e2e/foreign-ograf-sandbox.spec.ts` checks two fixtures on the real `/output`
+  shell. A benign package with three steps, a custom action, a sub-module, an image and a data
+  file loads, plays, updates, steps and stops. A hostile one tries each escape, and the spec
+  asserts each refusal. It cannot read the parent's DOM, URL or storage, its own storage or the
+  cookie. It cannot navigate the top window. Its fetch, image and beacon to the internet are
+  blocked. It cannot fetch a secret served beside the package, import from or load an image out
+  of a sibling package, or command its neighbours. The page's credential appears nowhere it can
+  read. Adding `allow-same-origin` or dropping the policy turns the spec red; both mutations
+  were run.
+- **Residuals a CSP cannot close**, stated rather than hidden: the frame can navigate ITSELF to
+  another URL (CSP has no navigation directive), and WebRTC and DNS prefetch are not governed by
+  `connect-src`. What such a request could carry is only what the frame holds, which is the
+  operator's data for that graphic and no credential. Once a frame has navigated away, the stage
+  sends it nothing more (the spec checks this too).
 
 ## 4. Interop strategy - the evidence bar, both directions
 
@@ -471,5 +511,5 @@ abstraction until a second device class actually exists.
 Five dedicated research passes, 2026-08-29, reading repositories, package manifests, sources and
 issue trackers; URLs inline throughout. In-repo grounding: `docs/OGRAF_FIRST_REVIEW.md`,
 `docs/OGRAF.md`, `docs/CLOUD_PLAYOUT.md`, `docs/NATIVE_PLAYOUT_RESEARCH.md`,
-`src/control/ografContract.ts`, `src/export/targets/ografImport.ts`, `src/bridge/ografHost.ts`,
+`src/control/ografContract.ts`, `src/export/targets/ografImport.ts`, `src/control/ografHost.ts`,
 `src/output/stage.ts`, `docs/backlog/ograf-ecosystem-watch.md`.

@@ -254,7 +254,7 @@ is an hour of text, an hour of writing and a rehearsal.
    session re-litigates the scheduler and the 3D designer from scratch. *Effort: one hour. Unlocks:
    every deferral below survives the session that produced it.*
 5. **On the day the two graphics pass their walk, export both as OGraf packages and drive them
-   through `src/bridge/ografHost.ts`** - load, every customAction, update, stop. *Effort: one hour.
+   through `src/control/ografHost.ts`** - load, every customAction, update, stop. *Effort: one hour.
    Unlocks: the cheapest possible test of the sentence the whole distribution argument rests on,
    using graphics that only exist that week.*
 
