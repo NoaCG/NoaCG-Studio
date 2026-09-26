@@ -32,7 +32,7 @@ precisely to prevent that, and says so in its own header - a layered SVG importe
 user's exact graphic", which is why it "never redraws, reflows or prettifies anything".
 
 So the failure mode is not an error anybody sees. It is an approximation of somebody's brand,
-produced confidently, with a green gate at the end of it. For Yle that is worse than a refusal.
+produced confidently, with a green gate at the end of it. For a broadcaster that is worse than a refusal.
 
 **The owner's ruling, 2026-09-17, and it is the one that binds the design:**
 

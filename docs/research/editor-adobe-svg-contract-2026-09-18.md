@@ -86,7 +86,7 @@ that all text is automatically exposed. Our on-by-default Text tool is a NoaCG u
 decision, consistent with our SVG wizard. Loopic's OGraf integration page currently includes
 legacy CasparCG wording; use EBU's specification as the technical authority.
 
-## OGraf and YLE acceptance
+## OGraf and broadcaster acceptance
 
 [EBU's specification](https://ograf.ebu.io/v1/specification/docs/Specification.html) and
 [manifest schema](https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json)
@@ -100,7 +100,7 @@ host, and declared capability flags. Step count excludes final Out. A scrubber i
 does not prove OGraf non-realtime support: that requires the scheduled-actions/time APIs.
 Preserve imported custom actions instead of flattening quizzes into linear Next steps.
 
-Record the exact OGraf version, renderer/version and receiving workflow for a YLE acceptance
+Record the exact OGraf version, renderer/version and receiving workflow for a receiving broadcaster's acceptance
 run before claiming suitability for their deployment. These are currently unknown. Schema
 validity alone is not host interoperability, and opening an OGraf package does not guarantee
 every third-party implementation can be visually edited. R1.5 owns supported core output

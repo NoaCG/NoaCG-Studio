@@ -115,5 +115,5 @@ section for primary sources and the separate GSAP gate. This is more than scene-
 The [baseline](editor-baseline-2026-09-17.md) and
 [supplement](editor-design-review-2026-09-17/baseline-supplement.md) retain old-editor evidence.
 Transform/source, latency, comparative users and real receiving-host checks remain unverified.
-YLE renderer/workflow and the free-AI launch budget remain explicit later gates. No planning
+A broadcaster's receiving renderer/workflow and the free-AI launch budget remain explicit later gates. No planning
 commit, review verdict or green build is implementation, merge or deployment authorization.

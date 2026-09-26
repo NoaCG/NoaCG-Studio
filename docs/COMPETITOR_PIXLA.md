@@ -349,7 +349,7 @@ is an hour of text, an hour of writing and a rehearsal.
 - **Team-scoped assets.** *Trigger: a second cohort has to share one brand, or teams stage 4 lands
   and the missing shared assets become obvious.*
 - **OGraf import, untrusted-package isolation and foreign packages on `/output`.** *Trigger: the
-  probe shows packages actually moving between vendors, or Yle asks.* Worth recording that this is
+  probe shows packages actually moving between vendors, or a broadcaster asks.* Worth noting this is
   more built than the roadmap implies: `ografImport.ts`, `ografContract.ts` and `ografHost.ts`
   already read, derive an operator surface from, and drive a stranger's package, and both halves are
   E2E-pinned. What is missing is a surface for people and the sandbox.

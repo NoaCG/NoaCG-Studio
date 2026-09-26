@@ -475,7 +475,7 @@ extends this review in four places; the review's verdicts otherwise stand.
 1. **Sequencing (§12) is reordered by owner ruling, 2026-08-29 evening (relayed via the wave
    coordinator): working OGraf playout on the EXISTING output architecture comes first, and ALL
    outreach - the ograf.dev listing, EBU pitch or working-group contact - is gated behind NoaCG
-   being something EBU/YLE can test in a real production.** The "soon after" item 1 above (the
+   being something a broadcaster can test in a real production.** The "soon after" item 1 above (the
    listing as cheapest credibility) is superseded by that gate; the GOALS.md ladder carries it.
 2. **The package checker is 83 rules, not 82, and is not SuperFlyTV's**: it is Felipe Iasi's
    personal MIT project (<https://github.com/ficosta/ograf>), browser-only, no CLI - community

@@ -8,15 +8,15 @@ into their renderer: what we emit, what maps to what, and where the limits are.
 > overlay, H2R and LiveOS, and more will follow. The product is not an OGraf generator any more
 > than it is an SPX generator: you make a graphic in NoaCG and take it wherever it has to run.
 > OGraf gets this much attention because it is the open standard, because it is the one target
-> that also lets a graphic come back IN, and because EBU/YLE are the first customers who asked
-> for it - not because a NoaCG graphic is an OGraf graphic underneath. It is not. The code is the
+> that also lets a graphic come back IN, and because broadcasters asked for it first; it is
+> not because a NoaCG graphic is an OGraf graphic underneath. It is not. The code is the
 > source of truth, and every target is an adapter off it.
 
 ## The free starters page (`/ograf`)
 
 **<https://noacg.studio/ograf>** hands out six curated catalog graphics as free OGraf starter
 packages - the shareable answer to "we want editable base templates to teach our staff on"
-(the Yle ask, 2026-08-20; `docs/GOALS_ARCHIVE.md` "the SVG road"). It is a public, indexable page
+(a broadcaster's request; `docs/GOALS_ARCHIVE.md` "the SVG road"). It is a public, indexable page
 (`ograf.html` + `src/ograf/`, vanilla TS): the card copy is static, and each download is built
 **by the real exporter at click time** - `ografTarget.build()` on `variant.create()` - so a
 starter can never drift from what the product ships, and every package passes the same

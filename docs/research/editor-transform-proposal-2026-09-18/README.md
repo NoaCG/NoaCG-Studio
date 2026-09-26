@@ -29,7 +29,7 @@ Out is a sample fade; auto-Out settings are displayed but no live timer is simul
 Panel width changes the example rectangle; this does not validate real text fitting/followers.
 Anchor compensation is demonstrated at the parked pose, not an entire animated trajectory.
 No B task passes because a mockup interaction works. Full wizard/quiz/timer regression and
-OGraf/YLE receiving-host acceptance remain assigned implementation evidence.
+OGraf receiving-host acceptance remain assigned implementation evidence.
 
 ## Verification
 

@@ -74,8 +74,8 @@ export function canonicalKind(kind) {
 export const KINDS = Object.freeze(['walk', 'walk-p', 'owner-action', 'hardware', 'agent', ...KINDS_V2]);
 
 /**
- * The only value `serves:` may carry. It marks an item whose work serves the `## NOW` push in
- * `docs/GOALS.md`, and `/walk` presents those first. One value rather than a set, deliberately:
+ * The only value `serves:` may carry. It marks an item whose work serves an outcome marked `(now)`
+ * in `docs/GOALS.md`, and `/walk` presents those first. One value rather than a set, deliberately:
  * the push is singular, and a second value would be a priority scheme nobody agreed on.
  */
 export const SERVES = 'now';

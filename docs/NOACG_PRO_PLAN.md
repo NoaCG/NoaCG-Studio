@@ -3805,3 +3805,20 @@ the negative one passing.
   box, so wiring it there multiplies the bench's cost by the event count for a state the default
   path already walks. A defect that appears only inside one branch is out of reach today; the
   two passes that carry it are the ones the catalog gate measures.
+
+## Lessons from the owner's reads of the benches
+
+- **Blind galleries of the same subjects are spent.** A 36-row read of lower thirds, sponsor bugs
+  and countdowns with the same brands answered "looks the same" row after row: that is a no on
+  whether either route makes packages a person can tell apart, not a tie to re-run. A new round
+  varies the SUBJECT, not only the treatment, and states first what a no would look like. Measure
+  with the composition rules in `DESIGN_LANGUAGE.md` and `scripts/catalog-sameness.mjs` instead.
+- **Making "something like this" is honest; "Recreate" is not.** About 8 of 13 references came back
+  airable and none as the same graphic, so the door is named "inspired by this design". Seen in
+  that harness: type comes out smaller than the reference and the body spreads to fill; rounds
+  converge by round 0 or 1 and later rounds can regress, so keep the best round, not the last; it
+  could not yet draw chamfered corners, thin decorative rules, glow text, fade-out edges or a drawn
+  accent line.
+- **Adapt first.** The default AI path adapts a proven catalog design (`ADAPT_FIRST_PLAN.md`);
+  open-ended creation is the escalation. This is the likely base for built-in template and brand
+  automation when that track starts.

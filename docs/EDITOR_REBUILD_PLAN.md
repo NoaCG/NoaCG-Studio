@@ -500,8 +500,8 @@ changes. Reuse current field/layout builders; unsupported source is not silently
 OGraf manifests expose public fields through `schema`; author prefixes and private element
 names are not standardized. Validate schema, runtime lifecycle/custom actions, declared
 capabilities and locally packaged resources on a clean host. Editor seeking alone does not
-justify non-realtime capability flags. Record a named renderer/version and YLE workflow
-acceptance before claiming deployment compatibility. See the comparison for official sources.
+justify non-realtime capability flags. Record a named renderer/version and receiving
+workflow acceptance before claiming deployment compatibility. See the comparison for official sources.
 
 ## Later capability contracts
 

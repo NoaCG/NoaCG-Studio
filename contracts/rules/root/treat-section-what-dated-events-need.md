@@ -3,7 +3,7 @@ v: 1
 scope: .agent-workflows/orchestrator.md, .agent-workflows/orchestrator/**, .agent-workflows/next.md, docs/GOALS.md
 kind: rule
 fires: contract
-status: active
+status: retired
 since: 2026-09-15
 supersedes: root/treat-only-section-push-everything-under
 record: contracts/records/root/2026-09-15-treat-section-what-dated-events-need.md

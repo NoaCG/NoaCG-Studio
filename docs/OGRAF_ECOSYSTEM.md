@@ -422,7 +422,7 @@ right control, the degradation ladder exercised, ograf-form as the oracle - §1b
 build WORKING OGraf playout first, on the EXISTING NoaCG output architecture - the `/output`
 renderer and the durable command log - never a separate playout system. All outreach - the
 ograf.dev listing, any EBU pitch or working-group contact, public claims - is gated behind
-NoaCG being something EBU/YLE can test in a real production.** This reorders the ratified
+NoaCG being something a broadcaster can test in a real production.** This reorders the ratified
 ladder's first rung (the listing was previously "cheapest credibility per minute"); the GOALS.md
 NEXT section carries the same gate, and the review's §12 carries a dated update note.
 
@@ -452,7 +452,7 @@ here may delay it.
 
 **Gated outreach, only after a real production runs on the above:** ograf.dev listing (one
 curator, approachable - §1d), the checker-CI community contribution, ebu/ograf doc PRs
-(#79/#80/#81 are open and small), any EBU/YLE-facing pitch.
+(#79/#80/#81 are open and small), any EBU- or broadcaster-facing pitch.
 
 **Backlog (filed, one file each, each with its why):** the 83-rule checker pass
 (`ograf-checker-83-rules.md`), the SPX-GC 1.4 interop round (`spx-gc-ograf-round.md`), the

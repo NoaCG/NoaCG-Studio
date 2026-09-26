@@ -1,18 +1,18 @@
 # The spx_examples corpus - real-world SPX productions as reference material
 
 `spx_examples/` (repo root, **gitignored - never commit it**) holds ~1.3 GB of real SPX
-Graphics productions: Yle broadcast shows (Arto Nyberg, Elämäni Biisi), the Finnish Radio
+Graphics productions: shows from a Finnish public broadcaster, the Finnish Radio
 Symphony Orchestra and Helsinki Philharmonic packages, Helsinki Music Centre (Musiikkitalo)
 with four client re-skins, and SmartPX/Softpix's own commercial template packs (elemento,
 two-tone, events, faith, texter, creditsroll, scoreboard, imageLayer, googleslidelayer,
 spxSocial, countdown, bug). ~200 HTML templates plus their shared JS/CSS/themes, fonts,
-webm/Lottie assets, and on-air reference screenshots (`media/ArtoNyberg/examples/*.png`).
+webm/Lottie assets, and on-air reference screenshots (`media/*/examples/*.png`).
 
 ## Licensing - why it stays local
 
 Most packs carry the **SPX-GC PREMIUM LICENSE** (SmartPX 2021): use and adapt inside the
-organization, **never share or redistribute, as-is or modified**. Yle's show designs belong
-to Yle. Bundled fonts (YleNext, Founders Grotesk, etc.) are separately licensed. Exceptions:
+organization, **never share or redistribute, as-is or modified**. A broadcaster's show designs
+belong to that broadcaster. Bundled fonts (YleNext, Founders Grotesk, etc.) are separately licensed. Exceptions:
 `smartpx/Template_Pack_1` is MIT; `bug` and `imageLayer` are CC BY-NC-SA 4.0 (non-commercial,
 so still not borrowable for us).
 
@@ -101,7 +101,7 @@ HMC/Musiikkitalo, and older webcg-era packs):
   even behaviour constants like `--lower-max-message-chars` read from JS). Reskins swap a
   `<link id="DynamicTheme">` href from a field - four client brands ship on identical
   code+HTML with only the token css and images changed.
-- **Palettes:** Yle production graphics are restrained scrims (rgba(0,0,0,0.4) panels,
+- **Palettes:** the broadcaster's production graphics are restrained scrims (rgba(0,0,0,0.4) panels,
   white text, one accent); orchestras run saturated non-cliché palettes (RSO teal
   `#04A188`/gold/coral/violet; HKO red `#D40035` with strict fg/bg pairing logic where
   the secondary row's colour is DERIVED from the chosen scheme).
@@ -207,7 +207,7 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
    come from `scripts/spx-corpus-gallery.mjs`, which now takes `--only=<substring>` so the
    six pairs refresh in seconds instead of re-rendering 204 templates.
 
-   The first six pairs are the whole Arto Nyberg pack (host strap, guest strap, bio board,
+   The first six pairs are one talk show's whole pack (host strap, guest strap, bio board,
    motto board, song requests, credits roll), each mapped to its template by its own
    definition rather than by filename. What the frames show, recorded as observations and
    NOT as rulings - three of them contradict `docs/DESIGN_LANGUAGE.md` and are filed as
@@ -250,4 +250,4 @@ knowledge, validation, and benchmarks. Five workstreams, in value order:
   markup) and proof that a token layer carries four brands on identical code.
 - `templates/smartpx/Template_Pack_1/SPX1_HEADLINE_2_STEPS.html` - the clearest `steps`
   state machine. (This pack is MIT.)
-- `media/ArtoNyberg/examples/*.png` - on-air ground truth of Yle broadcast graphics.
+- `media/*/examples/*.png` - on-air ground truth of the broadcaster's graphics.

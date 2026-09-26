@@ -6,7 +6,7 @@ import or research knowledge; it does not authorize adding a node editor to the 
 
 
 **Status: binding plan, owner-directed 2026-08-20 (north-star material, wanted working in weeks).**
-Origin: the Yle demo. Their designer insight - **SVG is code** - names the gap our raster Import
+Origin: a broadcast designer's insight, **SVG is code**, which names the gap our raster Import
 Graphic cannot close: erase fails on textured art, and AI recreation produces "inspired by", never
 the user's exact graphic. A layered SVG imported *verbatim* IS the exact graphic; binding its text
 layers to data fields makes it a playable NoaCG template that exports to SPX, CasparCG, OGraf,
