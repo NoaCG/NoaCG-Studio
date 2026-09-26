@@ -126,6 +126,52 @@ function mergeItems(base: unknown, ours: unknown, theirs: unknown): { value: Ite
   return { value: result, conflict };
 }
 
+// THE LAYER RULE, as shows.ts states it (`graphicLayer`, `nextFreeLayer`, the PLAYOUT_LAYER
+// constants). Mirrored rather than imported because this module stays pure: its test loads it
+// alone, and shows.ts brings the durable store with it. Change one, change both.
+const MIN_LAYER = 1;
+const MAX_LAYER = 100;
+const DEFAULT_LAYER = 20;
+
+/** `graphicLayer`: the stored number, or the default for a missing or out-of-range one. */
+function layerOf(item: Item): number {
+  const n = Number((item as Item & { layer?: unknown }).layer);
+  return Number.isFinite(n) && n >= MIN_LAYER && n <= MAX_LAYER ? Math.round(n) : DEFAULT_LAYER;
+}
+
+/** `nextFreeLayer`: the lowest layer nothing uses, from the default up, then below it. */
+function lowestFreeLayer(used: ReadonlySet<number>): number | null {
+  for (let n = DEFAULT_LAYER; n <= MAX_LAYER; n++) if (!used.has(n)) return n;
+  for (let n = MIN_LAYER; n < DEFAULT_LAYER; n++) if (!used.has(n)) return n;
+  return null;
+}
+
+/**
+ * TWO NEW GRAPHICS, ONE LAYER. A graphic added to a production takes the lowest free layer, so two
+ * members who each add one from the same base both pick the same number - and two graphics on one
+ * layer replace each other on air. Nobody chose that; the merge made it (found by the three-member
+ * walk, e2e/configured/teams.spec.ts). So a graphic WE added that lands on a layer a graphic THEY
+ * added holds takes the layer its add would have picked had it seen theirs. Theirs keeps its
+ * number: it is saved, and may already be on air. A clash involving any graphic from before is
+ * somebody's own layer choice, which the production page warns about, and is left alone.
+ */
+function separateNewLayers(merged: Item[], base: unknown, theirs: unknown): Item[] {
+  const ids = (list: unknown) => new Set(isItemList(list) ? list.map((item) => item.id) : []);
+  const inBase = ids(base);
+  const inTheirs = ids(theirs);
+  const theirNewLayers = new Set(merged.filter((g) => inTheirs.has(g.id) && !inBase.has(g.id)).map(layerOf));
+  const used = new Set(merged.map(layerOf));
+  return merged.map((g) => {
+    // In neither base nor theirs, a merged item can only be one WE added.
+    const ourNew = !inBase.has(g.id) && !inTheirs.has(g.id);
+    if (!ourNew || !theirNewLayers.has(layerOf(g))) return g;
+    const free = lowestFreeLayer(used);
+    if (free === null) return g; // Every layer is taken: the page's shared-layer warning says so.
+    used.add(free);
+    return { ...g, layer: free };
+  });
+}
+
 /**
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
@@ -148,7 +194,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     const items = mergeItems(b[key], o[key], t[key]);
     if (items) {
-      doc[key] = items.value;
+      doc[key] = key === 'graphics' ? separateNewLayers(items.value, b[key], t[key]) : items.value;
       if (items.conflict) lost.push(FIELD_LABEL[key] ?? key);
       continue;
     }
