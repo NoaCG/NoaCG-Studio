@@ -118,50 +118,48 @@ interface HeldRundown {
   outputSlug: string | null;
 }
 
+/** The fields of a production record the summary reads - the same shape on a page and on the
+ *  server row, which is what makes the two comparable. */
+interface RundownRecord {
+  graphics: { id: string; name: string; layer?: number }[];
+  cues?: { label: string; sourceId: string; values: Record<string, string> }[];
+  datasets?: { name: string }[];
+  hostedSlug?: string;
+  outputSlug?: string;
+}
+
+function summarise(s: RundownRecord | null): HeldRundown | null {
+  if (!s) return null;
+  const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
+  return {
+    graphics: s.graphics.map((g) => g.name),
+    layers: s.graphics.map((g) => Number(g.layer)),
+    cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
+    datasets: (s.datasets ?? []).map((d) => d.name),
+    hostedSlug: s.hostedSlug ?? null,
+    outputSlug: s.outputSlug ?? null,
+  };
+}
+
 async function heldRundown(page: Page, showId: string): Promise<HeldRundown | null> {
-  return page.evaluate(async (id) => {
+  const record = await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
-    const s = loadShows().find((x) => x.id === id);
-    if (!s) return null;
-    const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
-    return {
-      graphics: s.graphics.map((g) => g.name),
-      layers: s.graphics.map((g) => Number(g.layer)),
-      cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
-      datasets: (s.datasets ?? []).map((d) => d.name),
-      hostedSlug: s.hostedSlug ?? null,
-      outputSlug: s.outputSlug ?? null,
-    };
+    return loadShows().find((x: { id: string }) => x.id === id) ?? null;
   }, showId);
+  return summarise(record as RundownRecord | null);
 }
 
 /** The same summary off the SERVER row (`team_productions.doc`), read with this page's session -
  *  what tells "the edit reached the team" from "the edit is on this screen". */
 async function serverRundown(page: Page, showId: string): Promise<HeldRundown | null> {
-  return page.evaluate(async (id) => {
+  const record = await page.evaluate(async (id) => {
     const { getSupabase } = await import('/src/backend/supabase.ts');
     const sb = await getSupabase();
     if (!sb) return null;
     const { data } = await sb.from('team_productions').select('doc').eq('id', id).maybeSingle();
-    type Doc = {
-      graphics: { id: string; name: string; layer?: number }[];
-      cues?: { label: string; sourceId: string; values: Record<string, string> }[];
-      datasets?: { name: string }[];
-      hostedSlug?: string;
-      outputSlug?: string;
-    };
-    const s = (data as { doc?: Doc } | null)?.doc;
-    if (!s) return null;
-    const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
-    return {
-      graphics: s.graphics.map((g) => g.name),
-      layers: s.graphics.map((g) => Number(g.layer)),
-      cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
-      datasets: (s.datasets ?? []).map((d) => d.name),
-      hostedSlug: s.hostedSlug ?? null,
-      outputSlug: s.outputSlug ?? null,
-    };
+    return (data as { doc?: unknown } | null)?.doc ?? null;
   }, showId);
+  return summarise(record as RundownRecord | null);
 }
 
 /** The first field's value on the cue made for `graphic`, off the server row. */
@@ -734,25 +732,35 @@ test.describe('teams: the share door', () => {
         await shot(annaAgain, 'teams-three-creator-back');
       } finally {
         // Unpublish (A owns the published row), then delete the team, which cascades its
-        // productions and both memberships (0054). Then each member's library graphic.
-        if (owner) {
-          if (showId) {
-            await owner
-              .evaluate(async (id) => {
+        // productions and both memberships (0054). Then each member's library graphic. None of it
+        // may replace the walk's own failure, so a teardown fault is logged, not thrown; a team it
+        // leaves is swept by the one-account walk (`E2E team ` prefix). A run that failed while
+        // Anna was signed out signs her in again to clean up.
+        try {
+          if (!owner && showId) {
+            owner = await open();
+            await signIn(owner);
+            await dismissWizard(owner);
+          }
+          if (owner) {
+            if (showId) {
+              await owner.evaluate(async (id) => {
                 const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
                 await unpublishControlShow(id);
-              }, showId)
-              .catch(() => undefined);
+              }, showId);
+            }
+            await owner.goto('/app#/home/teams');
+            const card = owner.locator('.team-card', { hasText: teamName });
+            if (await card.count()) {
+              await card.getByTestId('team-card-open').click();
+              await owner.getByTestId(TEAM.deleteTeam).click();
+              await owner.getByTestId(TEAM.deleteTeam).click();
+              await expect(owner.locator('.team-card', { hasText: teamName })).toHaveCount(0, { timeout: 20_000 });
+            }
+            await dropLibraryGraphics(owner, [gfx.anna]);
           }
-          await owner.goto('/app#/home/teams').catch(() => undefined);
-          const card = owner.locator('.team-card', { hasText: teamName });
-          if (await card.count().catch(() => 0)) {
-            await card.getByTestId('team-card-open').click();
-            await owner.getByTestId(TEAM.deleteTeam).click();
-            await owner.getByTestId(TEAM.deleteTeam).click();
-            await expect(owner.locator('.team-card', { hasText: teamName })).toHaveCount(0, { timeout: 20_000 });
-          }
-          await dropLibraryGraphics(owner, [gfx.anna]);
+        } catch (e) {
+          console.warn('[three-member walk] teardown left something behind:', (e as Error).message);
         }
         await dropLibraryGraphics(ben, [gfx.ben]);
         await dropLibraryGraphics(cleo, [gfx.cleo]);

@@ -157,6 +157,7 @@ import {
   clockSpecFromHtml,
   clockValueAfterUpdate,
   fastEventGraphics,
+  plainClockValue,
   speakingClockRowEffect,
   speakingClocksFromHtml,
   type ClockSpec,
@@ -1065,20 +1066,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // not on air yet" about values that were on air, and the rebuilt PROGRAM monitor showed
         // the template's defaults. The renderer's own report is the best answer. A layer it has
         // not reported (the report trails a take, and no renderer need be open at all) falls
-        // back to the live cue's values in the rundown, which is what its Take sent.
-        setAiredData((prev) => {
-          let next = prev;
-          for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
-            if (!cueId || next[graphic]) continue;
-            const reported = resolved.live[graphic]?.data;
-            const values =
-              reported && Object.keys(reported).length > 0
-                ? reported
-                : cuesRef.current.find((c) => c.id === cueId)?.values;
-            if (values) next = { ...next, [graphic]: { ...values } };
+        // back to the live cue's values in the rundown, which is what its Take sent. The seed
+        // REPLACES whatever the map held for that layer: this page has sent nothing since the
+        // request (the guard above), and a value left from another production the page showed
+        // before is not what this one's air holds. A clock's reported value carries its origin
+        // stamp, which the baseline never holds (see `clockValues`), so the stamp goes back where
+        // `restoreProgram` reads it and the baseline keeps the plain time.
+        const seed: Record<string, Record<string, string>> = {};
+        for (const [graphic, cueId] of Object.entries(resolved.liveCue)) {
+          if (!cueId) continue;
+          const reported = resolved.live[graphic]?.data;
+          const values = {
+            ...(reported && Object.keys(reported).length > 0
+              ? reported
+              : cuesRef.current.find((c) => c.id === cueId)?.values),
+          };
+          const clock = clockSpecsRef.current.get(graphic);
+          const pair = speakingClocksRef.current.get(graphic);
+          if (clock && values[clock.field] !== undefined) {
+            clockValues.current[graphic] = values[clock.field];
+            values[clock.field] = plainClockValue(values[clock.field]);
           }
-          return next;
-        });
+          if (pair && values[pair.fieldA] !== undefined && values[pair.fieldB] !== undefined) {
+            speakingValues.current[graphic] = { [pair.fieldA]: values[pair.fieldA], [pair.fieldB]: values[pair.fieldB] };
+            values[pair.fieldA] = plainClockValue(values[pair.fieldA]);
+            values[pair.fieldB] = plainClockValue(values[pair.fieldB]);
+          }
+          if (Object.keys(values).length > 0) seed[graphic] = values;
+        }
+        setAiredData((prev) => ({ ...prev, ...seed }));
         // …and the recovery is triggered by THE WIRE'S OWN ANSWER, never by `liveCue` moving —
         // see the effect below for what that distinction cost.
         setBootLive(resolved.liveCue);

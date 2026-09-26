@@ -34,6 +34,17 @@ test('the moved graphic skips every layer already in use', () => {
   assert.equal(doc.graphics.find((g) => g.id === 'cleo').layer, 23);
 });
 
+test('the moved graphic follows the add rule: a missing layer counts as 20, and a full top wraps below it', () => {
+  // `anna` has no layer and so airs on 20; layers 21-100 are all taken; both new graphics picked 19.
+  const taken = Array.from({ length: 80 }, (_, i) => graphic(`t${i + 21}`, i + 21));
+  const base = show([graphic('anna', undefined), ...taken]);
+  const theirs = show([...base.graphics, graphic('ben', 19)]);
+  const ours = show([...base.graphics, graphic('cleo', 19)]);
+  const { doc } = mergeTeamShow(base, ours, theirs, AT);
+  assert.equal(doc.graphics.find((g) => g.id === 'ben').layer, 19);
+  assert.equal(doc.graphics.find((g) => g.id === 'cleo').layer, 1);
+});
+
 test('a layer shared with a graphic from before is somebody’s choice and is left alone', () => {
   // Ours puts the new graphic on anna's layer on purpose; theirs adds one elsewhere.
   const base = show([graphic('anna', 20)]);
