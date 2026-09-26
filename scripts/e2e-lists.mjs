@@ -28,6 +28,11 @@ export const FOCUS = [
   // sprint is that those two surfaces keep working, not that CasparCG does.
   'bridge-connect.spec.ts',
   'playout-cues.spec.ts',
+  // THE BRIDGE AS AN OGRAF CLIENT (docs/BRIDGE.md §3a): the real Bridge against a fake OGraf
+  // server, every verb's exact Server API request. It shares the playout protocol file with the
+  // two specs above, and nothing under cli/ selects a spec by itself, so without this row the
+  // browser-to-Bridge-to-server proof would never run in the merge gate. Three tests, no catalog.
+  'bridge-ograf.spec.ts',
   'control.spec.ts',
   'cross-tab.spec.ts',
   'data-api.spec.ts',

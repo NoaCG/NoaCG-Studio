@@ -3,12 +3,13 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-24
-state: unstarted
+state: advanced
+note: "2026-09-26: parts 1, 2 and 6 landed - the protocol's ograf target and slot, adapters/ograf.ts, and the fake-server spec. Settings and the cue editor (parts 3-4) and the real ograf-server round are open."
 asked: "We want to be the client. Create the backlog item for the OGraf adapter in the Bridge; start building after tomorrow's lecture (paraphrase, 2026-09-24)"
 serves: P6
 size: large
 touches: cli/src/playout/, src/control/playoutProtocol.ts, src/control/playoutLink.ts, src/components/home/ProductionPage.tsx, src/components/PlayoutSettingsPanel.tsx
-covered-by: e2e/playout-cues.spec.ts, e2e/bridge-connect.spec.ts
+covered-by: e2e/playout-cues.spec.ts, e2e/bridge-connect.spec.ts, e2e/bridge-ograf.spec.ts
 needs-owner: none
 ---
 
@@ -60,6 +61,30 @@ does not need our own facade to exist, so H can go ahead of G.
    an uncertain result as uncertain, never retry a timed-out take blindly, and never assume the
    foreign server has NoaCG's recovery. These rules are already written for package H in
    `ograf-server-api-contract.md`.
+
+## Where it stands (2026-09-26)
+
+**Landed: parts 1, 2 and 6.** `AdapterId` has `'ograf'`, with `OgrafTarget { baseUrl }` and
+`OgrafSlot { rendererId, renderTarget }`, all additive (`PLAYOUT_V` is still 2). The Bridge carries
+`adapters/ograf.ts`, which maps status, list, take, update, next, out and All out (the new `clear`
+verb) onto the pinned OpenAPI's routes; `docs/BRIDGE.md` §3a has the table. Decisions made on the
+way, each revertible in that one file:
+
+- **Stateless.** A take clears the render target, then loads and plays, the way a CasparCG take
+  replaces its layer. Update, next and out read the target (`GET /renderers/{id}/target`) for the
+  graphic instance instead of the Bridge remembering an id.
+- **`/list` answers renderers too.** For an OGraf target it returns the graphics as items and the
+  renderers, each with its `renderTargetSchema` and its targets, as `renderers`, so the picker and
+  Settings have what they need in one call.
+- **Honest results.** A sent command with no clear answer is `uncertain`, a new error code, and is
+  never retried; a `200` without a `statusCode` counts as uncertain.
+
+Proof: `e2e/bridge-ograf.spec.ts` drives the real Bridge from the studio's origin against the fake
+server in `e2e/fixtures/ograf-server/`, and `cli/test/ograf.test.mjs` pins every mapping.
+
+**Open: parts 3 and 4** (the Settings target and the cue editor's "Plays on" pick), then the real
+round and the owner-queue file below. The page's `slotAddress` already reads an OGraf slot as
+`renderer-0 layerId=1` until the target's own label is shown.
 
 ## Acceptance
 

@@ -17,19 +17,22 @@ import {
   type AmcpReply,
   type AmcpTarget,
 } from '../amcp.js';
-import type { AgentError, ItemKind, ListItem, PlayoutAction, PlayoutVerb, Target } from '../protocol.js';
+import type { AgentError, CasparTarget, ItemKind, ListItem, PlayoutAction, PlayoutRenderer, PlayoutVerb, Target } from '../protocol.js';
 import { UsageError } from '../../output.js';
 
 export type AdapterResult<T> = { ok: true; value: T; raw: string } | { ok: false; error: AgentError };
 
-/** What every adapter answers. OBS, vMix and an OGraf renderer implement this same shape. */
-export interface PlayoutAdapter {
-  id: Target['adapter'];
+/** What every adapter answers, for its own kind of target. The Bridge hands each adapter only
+ *  the targets that name it. OBS and vMix implement this same shape (adapters/ograf.ts does). */
+export interface PlayoutAdapter<T extends Target = Target> {
+  id: T['adapter'];
   capabilities(): { lists: ItemKind[]; thumbnails: boolean; verbs: PlayoutVerb[] };
-  status(target: Target): Promise<AdapterResult<{ version: string }>>;
-  list(target: Target, kind: ItemKind, path?: string): Promise<AdapterResult<ListItem[]>>;
-  thumbnail(target: Target, name: string): Promise<AdapterResult<{ png: string }>>;
-  act(target: Target, action: PlayoutAction): Promise<AdapterResult<null>>;
+  status(target: T): Promise<AdapterResult<{ version: string }>>;
+  list(target: T, kind: ItemKind, path?: string): Promise<AdapterResult<ListItem[]>>;
+  /** Where the library can play, for a target that has renderers of its own (OGraf). */
+  renderers?(target: T): Promise<AdapterResult<PlayoutRenderer[]>>;
+  thumbnail(target: T, name: string): Promise<AdapterResult<{ png: string }>>;
+  act(target: T, action: PlayoutAction): Promise<AdapterResult<null>>;
 }
 
 /** A cue waits the default; a list waits past the server's own scanner timeout so the 501
@@ -38,7 +41,9 @@ export const LIST_TIMEOUT_MS = 12_000;
 
 /** The AMCP line for one action. Pure and exported so the tests pin every verb's exact text. */
 export function casparLine(action: PlayoutAction): string {
-  const at = layerAddress(action.slot.channel, action.slot.layer);
+  const { slot } = action;
+  if (slot.adapter !== 'casparcg') throw new UsageError('A CasparCG command needs a casparcg slot.');
+  const at = layerAddress(slot.channel, slot.layer);
   switch (action.verb) {
     case 'take': {
       const { item } = action;
@@ -75,16 +80,16 @@ export function casparLine(action: PlayoutAction): string {
   }
 }
 
-function amcpTarget(target: Target, timeoutMs?: number): AmcpTarget {
+function amcpTarget(target: CasparTarget, timeoutMs?: number): AmcpTarget {
   return { host: target.host, port: target.port, timeoutMs };
 }
 
-function targetName(target: Target): string {
+function targetName(target: CasparTarget): string {
   return `${target.host}:${target.port}`;
 }
 
 /** Turn a reply or a thrown socket error into the protocol's error, with the hop named. */
-function failure(target: Target, e: unknown, listing: boolean): AgentError {
+function failure(target: CasparTarget, e: unknown, listing: boolean): AgentError {
   if (e instanceof AmcpTimeout) {
     return {
       hop: 'target',
@@ -103,7 +108,7 @@ function failure(target: Target, e: unknown, listing: boolean): AgentError {
   };
 }
 
-function refusal(target: Target, reply: AmcpReply, listing: boolean): AgentError {
+function refusal(target: CasparTarget, reply: AmcpReply, listing: boolean): AgentError {
   if (reply.code === 501 && listing) {
     return {
       hop: 'target',
@@ -130,7 +135,7 @@ function refusal(target: Target, reply: AmcpReply, listing: boolean): AgentError
 
 /** One line to the server. A LISTING waits out the scanner's own timeout and reads a 501 as
  *  the scanner missing; a cue waits the default and reads a 501 as a refusal. */
-async function send(target: Target, line: string, listing = false): Promise<AdapterResult<AmcpReply>> {
+async function send(target: CasparTarget, line: string, listing = false): Promise<AdapterResult<AmcpReply>> {
   try {
     const reply = await amcpSend(amcpTarget(target, listing ? LIST_TIMEOUT_MS : undefined), line);
     if (reply.code >= 200 && reply.code < 300) return { ok: true, value: reply, raw: reply.status };
@@ -140,7 +145,7 @@ async function send(target: Target, line: string, listing = false): Promise<Adap
   }
 }
 
-export const casparcgAdapter: PlayoutAdapter = {
+export const casparcgAdapter: PlayoutAdapter<CasparTarget> = {
   id: 'casparcg',
 
   capabilities() {
