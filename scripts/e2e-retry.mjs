@@ -72,10 +72,11 @@ export function retryPlan({ failed, reports, shards, changed = [] }) {
 /**
  * Merge the blob reports in `dir` into one JSON report, with the Playwright the shards used.
  *
- * The reporter writes to a FILE (`PLAYWRIGHT_JSON_OUTPUT_FILE`), never to stdout: on the Linux
- * runner the captured stdout once carried something besides the report, and `JSON.parse` failed
- * mid-document, which turned a one-spec flake into a red main. A file only the reporter writes
- * cannot be mixed with anything else that shares the pipe.
+ * The reporter writes to a FILE (`PLAYWRIGHT_JSON_OUTPUT_FILE`), never to stdout. On the Linux
+ * runner, stdout captured through a pipe stops at 146,176 bytes of a 2.2 MB report, every time
+ * (runs 36246036302 and 36253812414), while a file receives all of it: `JSON.parse` then failed on
+ * the cut-off document, and a one-spec flake turned main red. Windows receives the whole report,
+ * which is why it could not be reproduced there.
  */
 function mergeBlobReports(dir) {
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'e2e-retry-'));
