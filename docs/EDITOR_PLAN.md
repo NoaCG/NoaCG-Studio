@@ -236,7 +236,7 @@ New sessions resume these records and the actual branch state.
 | R3.1-R3.2 | Not started |
 | Node editor | Deferred outside these releases; existing work preserved |
 
-Next: complete the usable static-graphic task in the R1.1a follow-up before key authoring. The [owner feedback](acceptance/owner-queue/2026-09-20-editor-r1-1a.md) and [engineering receipt](research/editor-r1-1a/README.md) record the current tools and missing editing controls. Keep engineering slices bounded; demonstrate cumulative user outcomes before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
+Next: complete the usable static-graphic task in the R1.1a follow-up before key authoring. The [owner feedback](research/editor-r1-1a/README.md#owner-feedback-2026-09-20) and [engineering receipt](research/editor-r1-1a/README.md) record the current tools and missing editing controls. Keep engineering slices bounded; demonstrate cumulative user outcomes before requesting workflow review. Each slice retains its branch, evidence, review and merge-queue handoff.
 
 Mechanisms: [animation/preview](EDITOR_REBUILD_PLAN.md) and [collections/brands](STARTER_COLLECTIONS_PLAN.md), not duplicate roadmaps.
 Read [consolidation evidence](research/editor-consolidation-2026-09-17/README.md) for archived

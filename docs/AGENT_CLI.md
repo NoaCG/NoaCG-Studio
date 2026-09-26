@@ -375,10 +375,9 @@ production page, so the untimed last hop above now has a number. The verbs came 
 cost - `doctor` 2.1 s, `types` 1.7 s, `scaffold` 1.8-1.9 s, `validate --screenshots` 11.2 s,
 `inspect` 1.8 s, `screenshot` 4.0 s, `pack` 1.9 s, `save` refused in 0.3 s for want of a key - and
 **the operator's minute measured 56 seconds**, agent-driven, which is an upper bound on the
-product rather than a producer's pace. The whole account, the route to see it, and the defects
-it found - two fixed on the spot, three filed under `docs/backlog/` - are in
-`docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`; the fixture both graphics ship
-as is `e2e/fixtures/agent-made/`.
+product rather than a producer's pace. It found five defects: two were fixed on the spot (the
+transport-verb column is pinned by `e2e/agent-made-graphics.spec.ts`) and three were filed under
+`docs/backlog/`. The fixture both graphics ship as is `e2e/fixtures/agent-made/`.
 
 ## The skill (`cli/skill/noacg-graphic/`)
 

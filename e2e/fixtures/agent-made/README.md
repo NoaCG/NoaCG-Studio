@@ -21,8 +21,8 @@ Both passed `noacg validate` with zero errors. The votes board raises exactly on
 
 The authored sources are not kept here - the pack carries every graphic whole, so nothing is
 lost, and two copies of GSAP and a variable font are not worth the repository weight. To rebuild
-the pack from sources, follow `docs/acceptance/owner-queue/2026-09-15-agent-made-proof-case.md`,
-which records the exact verbs and their wall clocks, and then:
+the pack from sources, author each board with the loop in `cli/skill/noacg-graphic/SKILL.md`
+(the 2026-09-15 walk's verbs and wall clocks are in `docs/AGENT_CLI.md`), and then:
 
 ```bash
 noacg pack ./votes-board ./totals-board --out ./elamani-biisi.noacgpack.json \
