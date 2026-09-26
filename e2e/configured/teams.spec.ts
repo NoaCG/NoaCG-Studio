@@ -110,6 +110,8 @@ async function dropLibraryGraphics(page: Page, names: string[]): Promise<void> {
  *  production. This is what "all three read the same rundown" compares. */
 interface HeldRundown {
   graphics: string[];
+  /** Each pool graphic's playout layer, in pool order. */
+  layers: number[];
   cues: { label: string; graphic: string | null; values: Record<string, string> }[];
   datasets: string[];
   hostedSlug: string | null;
@@ -124,6 +126,7 @@ async function heldRundown(page: Page, showId: string): Promise<HeldRundown | nu
     const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
     return {
       graphics: s.graphics.map((g) => g.name),
+      layers: s.graphics.map((g) => Number(g.layer)),
       cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
       datasets: (s.datasets ?? []).map((d) => d.name),
       hostedSlug: s.hostedSlug ?? null,
@@ -141,7 +144,7 @@ async function serverRundown(page: Page, showId: string): Promise<HeldRundown | 
     if (!sb) return null;
     const { data } = await sb.from('team_productions').select('doc').eq('id', id).maybeSingle();
     type Doc = {
-      graphics: { id: string; name: string }[];
+      graphics: { id: string; name: string; layer?: number }[];
       cues?: { label: string; sourceId: string; values: Record<string, string> }[];
       datasets?: { name: string }[];
       hostedSlug?: string;
@@ -152,6 +155,7 @@ async function serverRundown(page: Page, showId: string): Promise<HeldRundown | 
     const names = new Map(s.graphics.map((g) => [g.id, g.name] as const));
     return {
       graphics: s.graphics.map((g) => g.name),
+      layers: s.graphics.map((g) => Number(g.layer)),
       cues: (s.cues ?? []).map((c) => ({ label: c.label, graphic: names.get(c.sourceId) ?? null, values: c.values })),
       datasets: (s.datasets ?? []).map((d) => d.name),
       hostedSlug: s.hostedSlug ?? null,
@@ -617,7 +621,10 @@ test.describe('teams: the share door', () => {
         await expect(cleo.getByTestId('dataset-name')).toHaveCount(1);
         await expect.poll(async () => (await serverRundown(cleo, showId))?.datasets.length ?? 0, { timeout: 30_000 }).toBe(1);
         const built = (await serverRundown(cleo, showId))!;
-        expect(built.graphics.sort()).toEqual([gfx.anna, gfx.ben, gfx.cleo].sort());
+        expect([...built.graphics].sort()).toEqual([gfx.anna, gfx.ben, gfx.cleo].sort());
+        // Three graphics, three layers. B's and C's adds each took "the lowest free layer" from
+        // the same base, and two graphics on one layer replace each other on air.
+        expect(new Set(built.layers).size, `layers ${built.layers.join(', ')}`).toBe(3);
         expect(Object.fromEntries(built.cues.map((c) => [c.graphic, c.values.f0]))).toEqual({
           [gfx.anna]: said.anna,
           [gfx.ben]: said.ben,
@@ -714,6 +721,21 @@ test.describe('teams: the share door', () => {
         expect(shown).toHaveLength(3);
         await expect.poll(() => shownRundown(cleo), { timeout: 20_000 }).toEqual(shown);
         await expect.poll(() => shownRundown(annaAgain), { timeout: 20_000 }).toEqual(shown);
+        // …and her desk agrees with AIR. Anna's graphic is still up (B took it and only took
+        // Cleo's out), so the program monitor must show what B sent, and the on-air cue's editor
+        // must not claim its values are unsent - she opened the desk after the take, not before.
+        const resolved = await annaAgain.evaluate(async (slug) => {
+          const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
+          const r = await controlShowBySlug(slug);
+          return r ? { live: r.live, liveCue: r.liveCue } : null;
+        }, published.hostedSlug!);
+        console.log('[three-member walk] published live state:', JSON.stringify(resolved));
+        await expect(annaAgain.getByTestId('cue-list').locator('.pd-cue.on-air', { hasText: gfx.anna })).toHaveCount(1);
+        await selectCueFor(annaAgain, gfx.anna);
+        await expect(annaAgain.getByTestId('cue-unsent')).not.toContainText('not on air yet');
+        await expect(
+          annaAgain.getByTestId('program-stage').frameLocator(`iframe[title="${gfx.anna}"]`).locator('#f0'),
+        ).toContainText(said.anna, { timeout: 20_000 });
         await shot(annaAgain, 'teams-three-creator-back');
       } finally {
         // Unpublish (A owns the published row), then delete the team, which cascades its

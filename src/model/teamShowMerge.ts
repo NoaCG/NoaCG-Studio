@@ -126,6 +126,44 @@ function mergeItems(base: unknown, ours: unknown, theirs: unknown): { value: Ite
   return { value: result, conflict };
 }
 
+/** The highest layer a production offers (shows.ts MAX_PLAYOUT_LAYER, the range CasparCG takes). */
+const MAX_LAYER = 100;
+
+type Layered = Item & { layer?: unknown };
+
+/**
+ * TWO NEW GRAPHICS, ONE LAYER. A graphic added to a production takes the lowest free layer
+ * (shows.ts `nextFreeLayer`), so two members who each add one from the same base both pick the
+ * same number - and two graphics on one layer replace each other on air. Nobody chose that; the
+ * merge made it (found by the three-member walk, e2e/configured/teams.spec.ts). So a graphic WE
+ * added that lands on a layer a graphic THEY added already holds moves up to the next layer
+ * nothing uses. Theirs keeps its number: it is stored, and may already be on air. A clash that
+ * involves any graphic from before is somebody's own layer choice and is left alone.
+ */
+function separateNewLayers(merged: Item[], base: unknown, ours: unknown, theirs: unknown): Item[] {
+  const ids = (list: unknown) => new Set(isItemList(list) ? list.map((item) => item.id) : []);
+  const inBase = ids(base);
+  const inOurs = ids(ours);
+  const inTheirs = ids(theirs);
+  const layerOf = (item: Item) => {
+    const n = Number((item as Layered).layer);
+    return Number.isInteger(n) ? n : null;
+  };
+  const theirNewLayers = new Set(
+    merged.filter((g) => inTheirs.has(g.id) && !inBase.has(g.id)).map(layerOf).filter((n) => n !== null),
+  );
+  const used = new Set(merged.map(layerOf).filter((n) => n !== null));
+  return merged.map((g) => {
+    const layer = layerOf(g);
+    if (layer === null || !inOurs.has(g.id) || inBase.has(g.id) || inTheirs.has(g.id) || !theirNewLayers.has(layer)) return g;
+    let free = layer + 1;
+    while (free <= MAX_LAYER && used.has(free)) free++;
+    if (free > MAX_LAYER) return g; // Nowhere to go: the page's shared-layer warning says so.
+    used.add(free);
+    return { ...g, layer: free };
+  });
+}
+
 /**
  * Merge a refused local document onto the one a teammate saved. `at` becomes the result's
  * `updatedAt`, so the merged record reads as the newest edit it is.
@@ -148,7 +186,7 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
     }
     const items = mergeItems(b[key], o[key], t[key]);
     if (items) {
-      doc[key] = items.value;
+      doc[key] = key === 'graphics' ? separateNewLayers(items.value, b[key], o[key], t[key]) : items.value;
       if (items.conflict) lost.push(FIELD_LABEL[key] ?? key);
       continue;
     }
