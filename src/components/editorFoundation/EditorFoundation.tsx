@@ -3,24 +3,28 @@ import { useTemplateStore } from '../../store/templateStore';
 import { useRouter } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
+import BrandLogo from '../BrandLogo';
 import { modalOpen } from '../spaceKey';
 import Canvas, { recordFoundationInput } from './Canvas';
 import Timeline from './Timeline';
 import Inspector from './Inspector';
 import { activeEditorSession, setSessionTime } from './documentAdapter';
 import { readTimeline } from './timelineView';
+import type { RenderedPart } from './protocol';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
 export default function EditorFoundation() {
   const template = useTemplateStore(state => state.template);
-  const sampleData = useTemplateStore(state => state.sampleData);
+  // Artwork authoring shows saved defaults; operator rehearsals retain their own samples.
+  const sampleData = useMemo(() => Object.fromEntries(template.fields.map(f => [f.field, String(f.value ?? '')])), [template.fields]);
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
   const session = activeEditorSession();
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [projectOpen, setProjectOpen] = useState(false);
   const [linked, setLinked] = useState(true);
+  const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
   const view = useMemo(() => readTimeline(template), [template]);
   const time = Math.min(view.duration, clock.documentId === session.documentId ? clock.time : session.port.view().time);
   const seek = (next: number) => { recordFoundationInput('scrub'); setSessionTime(next); setClock({ documentId: session.documentId, time: next }); };
@@ -42,7 +46,7 @@ export default function EditorFoundation() {
       if (event.key === 'Escape') session.cancel();
     }}>
     <header className="ef-header">
-      <strong className="ef-brand">NoaCG</strong>
+      <BrandLogo size={26} />
       <button data-testid="open-home" onClick={() => useRouter.getState().navigate({ view: 'home', section: null })}>Home</button>
       <NewGraphicButton />
       <span className="ef-document-name">{template.name}</span><span className="ef-spacer" />
@@ -65,11 +69,11 @@ export default function EditorFoundation() {
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">This view follows the open graphic. Project tabs and shared library workflows follow in R1.4.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} />
-      <Inspector view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} />
+      <Inspector view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} />
     </div>
     <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={seek} select={select}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
-    <footer className="ef-status"><span>Source-backed artwork · R1.1a</span><span>Base edits preserve motion · Key authoring follows separately</span></footer>
+    <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Base edits preserve motion · Key authoring follows separately</span></footer>
   </main>;
 }

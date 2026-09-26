@@ -11,10 +11,11 @@ import { chromium, expect } from '@playwright/test';
 import { devPort } from './dev-port.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const baseEdits = process.argv.includes('--base-edits');
+const artwork = process.argv.includes('--artwork');
+const baseEdits = process.argv.includes('--base-edits') || artwork;
 const captureFinish = process.argv.includes('--capture-finish');
 const fixtures = resolve(root, 'docs/research/editor-r1-foundation');
-const output = baseEdits ? resolve(root, 'docs/research/editor-r1-1a') : fixtures;
+const output = artwork ? resolve(root, 'docs/research/editor-artwork-basics') : baseEdits ? resolve(root, 'docs/research/editor-r1-1a') : fixtures;
 mkdirSync(output, { recursive: true });
 async function settleFrame(frame) {
   const style = await frame.addStyleTag({ content: '*{will-change:auto !important}' });
@@ -102,6 +103,10 @@ if (process.argv.includes('--verify')) {
           await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
           await expect(page.locator('.ef-selection rect')).toHaveCount(1);
           dragBox = await page.locator('.ef-selection rect').boundingBox();
+          if (artwork) {
+            await page.locator('.ef-track[data-selector="#f1"] .ef-layer').click({ modifiers: ['Control'] });
+            await expect(page.locator('.ef-selection rect')).toHaveCount(2);
+          }
         }
         const start = dragBox ? { x: dragBox.x + dragBox.width / 2, y: dragBox.y + dragBox.height / 2 } : { x: box.x + 5, y: box.y + 20 };
         await page.mouse.move(start.x, start.y); await page.mouse.down();
@@ -193,8 +198,21 @@ if (process.argv.includes('--verify')) {
           for (const [i, tool] of ['rectangle', 'ellipse', 'text'].entries()) {
             await page.getByRole('button', { name: tool + ' tool', exact: true }).click();
             const x = artboard.x + artboard.width * (.35 + i * .16), y = artboard.y + artboard.height * .35;
-            await page.mouse.move(x, y); await page.mouse.down();
-            await page.mouse.move(x + 45, y + 24, { steps: 5 }); await page.mouse.up();
+            if (artwork && tool === 'text') await page.mouse.click(x, y);
+            else {
+              await page.mouse.move(x, y); await page.mouse.down();
+              await page.mouse.move(x + (artwork ? artboard.width * .08 : 45), y + (artwork ? artboard.height * .09 : 24), { steps: 5 }); await page.mouse.up();
+            }
+            await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+          }
+          if (artwork) {
+            await page.getByRole('textbox', { name: 'Artwork text', exact: true }).fill('Evening report');
+            await page.getByRole('button', { name: 'Apply text', exact: true }).click();
+            await expect(page.getByRole('textbox', { name: 'Artwork text', exact: true })).toHaveValue('Evening report');
+            await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption('archivo');
+            await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('38');
+            await page.locator('.ef-appearance-field .grow').fill('#f6a623');
+            await page.getByRole('button', { name: 'Apply appearance' }).click();
             await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
           }
           const settledFrame = await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle()).contentFrame();
@@ -230,7 +248,7 @@ if (process.argv.includes('--verify')) {
       await page.screenshot({ path: resolve(output, 'wizard-finish-built.png'), fullPage: true });
       await context.close();
     }
-    const sourceFiles = ['src/App.tsx', 'src/blocks/baseEdits.ts', 'src/blocks/designLayout.ts',
+    const sourceFiles = ['src/App.tsx', 'src/blocks/baseEdits.ts', 'src/blocks/designLayout.ts', 'src/blocks/artworkEdits.ts', 'src/blocks/artworkLayers.ts', 'src/components/fields/FieldControl.tsx',
       'src/components/wizard/CreationWizard.tsx', 'src/components/wizard/steps/FinishStep.tsx',
       ...readdirSync(resolve(root, 'src/components/editorFoundation')).filter(name => /\.(tsx?|css)$/.test(name)).map(name => 'src/components/editorFoundation/' + name)];
     if (!captureFinish) writeFileSync(resolve(output, 'latency-built.json'), JSON.stringify({
