@@ -5,7 +5,8 @@ agents read it to decide what matters, and the orchestrator reads it to find the
 unsatisfied outcome and the next safe step toward it. Supporting plans are linked from each
 outcome; they describe how, this file says what and why. **Keep it under 200 lines**; a roadmap
 nobody can read in one sitting steers nothing. Private context (dates, partners, demos) never
-goes here; it lives outside public git in `docs/private/` in the main checkout.
+goes here; it lives outside public git in `docs/private/` in the main checkout. Older commits that
+still hold such text stay as they are: published history is never rewritten.
 
 ## North Star
 
