@@ -9,7 +9,7 @@
 
 import { browserLabel, launchBrowser } from '../browser.js';
 import { BridgeClient } from '../bridgeClient.js';
-import { cliVersion, configDir, noacgUrl, UNKNOWN_VERSION } from '../config.js';
+import { cliVersion, configDir, credentialsDir, noacgUrl, UNKNOWN_VERSION } from '../config.js';
 import { displayPrefix, resolveKey } from '../auth.js';
 import { fetchLatestVersion, isBehind } from '../npmLatest.mjs';
 import { installedSkills, type InstalledSkill } from '../skillVersion.js';
@@ -49,7 +49,7 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
   // Ask npm first and read the answer last: the browser launch below is seconds and this is a
   // cached read with a 1.5 s cap, so the check costs no wall clock at all. It never rejects.
   const asked = fetchLatestVersion();
-  const report: Record<string, unknown> = { cli, url: noacgUrl(), configDir: configDir() };
+  const report: Record<string, unknown> = { cli, url: noacgUrl(), configDir: configDir(), credentialsDir: credentialsDir() };
   // Whether a key is HELD here, not whether it is still honoured - `noacg whoami` asks the
   // deployment; doctor stays a local report that works with no network at all.
   const held = await resolveKey(noacgUrl());
@@ -87,6 +87,7 @@ export async function runDoctor(args: ParsedArgs, out: Out): Promise<number> {
     out.say(`bridge       NONE - ${report.bridgeError}`);
   }
   out.say(`config dir   ${report.configDir}`);
+  if (report.credentialsDir !== report.configDir) out.say(`key store    ${report.credentialsDir} (NOACG_CREDENTIALS_DIR)`);
   out.say(`login        ${report.login}`);
   // Both version rows compare against the version of the CLI executing this, so a CLI that could
   // not read its own package.json has nothing to compare with: `cliVersion()` answers a sentinel

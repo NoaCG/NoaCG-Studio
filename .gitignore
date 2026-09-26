@@ -48,6 +48,10 @@ ograf-external-out/
 # plugin with no server until the negation was found and re-pointed by hand.
 /.mcp.json
 
+# This checkout's own `noacg login` (the scoped agent key), set up by the SessionStart hook
+# (scripts/hooks/cli-credentials-env.mjs). A secret, never committed.
+/.noacg/
+
 # AI bench / comparison outputs (screenshots + generated code, regenerated on demand).
 # The out-dir is the operator's choice, so the bench patterns are deliberately broad.
 bench-*/

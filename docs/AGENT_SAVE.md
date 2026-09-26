@@ -37,8 +37,9 @@ on air.
 - **Storage on the CLI side** (`cli/src/auth.ts`): `<config dir>/credentials.json`, keyed by
   deployment origin (`%APPDATA%\noacg`, `~/Library/Application Support/noacg`,
   `$XDG_CONFIG_HOME/noacg`); 0700/0600 on POSIX, the directory's ACL reset to the current user on
-  Windows (best effort). `NOACG_AGENT_KEY` (CI) beats the file; `noacg login --key` stores a
-  pasted key. A keychain is a native dependency and is deliberately not in v1.
+  Windows (best effort). `NOACG_CREDENTIALS_DIR` moves the file to another folder (in this
+  repository each checkout's `.noacg/`, `docs/AGENT_CLI.md`). `NOACG_AGENT_KEY` (CI) beats the
+  file; `noacg login --key` stores a pasted key. A keychain is a native dependency and is deliberately not in v1.
 
 ## 2. The handoff: how a key is minted without transiting the browser
 

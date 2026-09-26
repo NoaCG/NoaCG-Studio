@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { writeCliCredentialsEnv } from './cli-credentials-env.mjs';
 import { readHookInput } from './lib.mjs';
 import { HOME_RELATIVE_PATH } from '../orchestrator-home.mjs';
 import { reattachMainIfSafe } from '../reattach-main.mjs';
@@ -28,6 +29,14 @@ const roots = gitLines(['worktree', 'list', '--porcelain'], sessionCwd)
   .filter((line) => line.startsWith('worktree '))
   .map((line) => normalize(line.slice('worktree '.length)));
 if (roots.length === 0) process.exit(0); // not a git checkout - nothing to check
+
+// Each checkout keeps its own `noacg login`, so one row's logout cannot sign its siblings out.
+// The lines resolve the checkout per command, so they need nothing the checks below compute.
+try {
+  writeCliCredentialsEnv();
+} catch {
+  // Best effort: without it the CLI uses the per-user store, as it did before.
+}
 
 // Sweep leftover EMPTY worktree folders (shared rule with cleanup-worktrees). `git worktree
 // remove` on Windows can't delete the folder while a session is cwd'd inside it, so it

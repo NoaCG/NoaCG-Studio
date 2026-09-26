@@ -22,8 +22,20 @@ export function browserExecutable(): string | undefined {
 }
 
 /**
- * The per-user config directory - where a later `noacg login` keeps its scoped key. Per OS
- * convention: %APPDATA%\noacg, ~/Library/Application Support/noacg, $XDG_CONFIG_HOME/noacg.
+ * Where `noacg login` keeps the scoped key: the config directory, unless NOACG_CREDENTIALS_DIR
+ * names another. The override is for one account holding more than one login - several checkouts
+ * whose agents each log in and out, or a test - so that one of them logging out cannot end
+ * another's session. A relative value is taken from the current folder. Unset, the key lives
+ * exactly where it always has.
+ */
+export function credentialsDir(): string {
+  const override = process.env.NOACG_CREDENTIALS_DIR?.trim();
+  return override ? path.resolve(override) : configDir();
+}
+
+/**
+ * The per-user config directory - the scoped key (see credentialsDir) and the Bridge's token. Per
+ * OS convention: %APPDATA%\noacg, ~/Library/Application Support/noacg, $XDG_CONFIG_HOME/noacg.
  */
 export function configDir(): string {
   if (process.platform === 'win32') {

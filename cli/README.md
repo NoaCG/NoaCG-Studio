@@ -137,7 +137,9 @@ npx @noacg/cli save ./football-scoreboard
 Add `--json` to any command for one JSON object on stdout. Exit codes: 0 clean, 1 findings or
 refused, 2 usage/IO error. Environment: `NOACG_URL` (default `https://noacg.studio`; a dev server
 or self-host works), `NOACG_BROWSER` (a Chromium executable; otherwise the system Chrome/Edge or a
-Playwright-installed Chromium is used), `NOACG_AGENT_KEY` (a key for CI - beats the stored one).
+Playwright-installed Chromium is used), `NOACG_AGENT_KEY` (a key for CI - beats the stored one),
+`NOACG_CREDENTIALS_DIR` (the folder `login` keeps its key in, for more than one login on one
+account; default the per-user config directory).
 
 ## The package on disk
 

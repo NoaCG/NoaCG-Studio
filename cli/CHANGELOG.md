@@ -23,6 +23,12 @@ green. Validate now derives the number from the default path, writes it into the
 prints a `Steps:` line naming the old and new value. Nothing to do: change the path, not the
 number.
 
+**New: `NOACG_CREDENTIALS_DIR`.** Names the folder where `noacg login` keeps its key, for when
+one account needs more than one login at a time, for example several project folders whose
+agents each log in and out. A `logout` in one folder then leaves the others signed in, and
+`noacg doctor` shows the folder in use. Unset, the key stays where it always was, so there is
+nothing to do.
+
 ## 0.4.1 - 2026-09-23
 
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your
