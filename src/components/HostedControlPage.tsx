@@ -296,6 +296,21 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     return () => clearInterval(t);
   }, []);
 
+  /**
+   * THE LOG ROWS THE PROGRAM MONITOR'S FIRST RECOVERY STILL HAS TO REPLAY (`restoreProgram`):
+   * null until the boot has read the log, then emptied by the recovery that applies them. A
+   * renderer reports its state 800 ms after its last change, so a tab reloaded straight after a
+   * press reads a report from BEFORE that press. The `/output` renderer's own boot recovery
+   * therefore replays every row after the report's baseline (control/outputRecovery.ts), and this
+   * monitor now does the same. Without it, a tab reloaded moments after the next question's lock
+   * rebuilt the PREVIOUS question's reveal, and its Reveal correct, greyed on that stale reveal,
+   * never lit the new key here while air lit it (configured run 36279794719).
+   */
+  const bootReplay = useRef<ControlEventRow[] | null>(null);
+  /** A stage came up before the log had been read: recover once it has. */
+  const restoreWaiting = useRef(false);
+  const restoreRef = useRef<() => void>(() => {});
+
   useEffect(() => {
     if (!isBackendConfigured()) {
       setShow(null);
@@ -303,6 +318,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     }
     let live = true;
     let unsubscribe: (() => void) | null = null;
+    bootReplay.current = null;
     void (async () => {
       const resolved = await controlShowBySlug(slug);
       if (!live) return;
@@ -348,8 +364,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         }
         return eventLogLabel(buttons.get(graphic)!, event);
       };
-      const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
+      const historyFrom = Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN);
+      const history = await hostedControlTail(slug, historyFrom);
       if (!live) return;
+      // The rows each report does not contain yet: after its own baseline, up to the head this
+      // page follows from. A report older than the history read (or one with no baseline) is
+      // trusted as it stands, which is what the recovery did before.
+      bootReplay.current = history.filter((row) => {
+        const at = resolved.live[row.graphic]?.event;
+        return typeof at === 'number' && at >= historyFrom && row.id > at && row.id <= resolved.lastEventId;
+      });
+      if (restoreWaiting.current) {
+        restoreWaiting.current = false;
+        restoreRef.current();
+      }
       setWireLog((l) =>
         appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e)),
       );
@@ -516,6 +544,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const reportsRef = useRef<ResolvedControlShow['live']>({});
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
+    if (bootReplay.current === null) {
+      restoreWaiting.current = true;
+      return;
+    }
+    const replay = bootReplay.current;
+    bootReplay.current = [];
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
       const data = airedRef.current[graphic] ?? reportsRef.current[graphic]?.data;
@@ -526,8 +560,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         groups ? { graphic, msg: { t: 'snap' as const, snap: groups } } : { graphic, msg: { t: 'play' as const } },
         ...dataItem,
       ]);
+      // …then what air did after that report, through the same door the follow uses. Cue rows
+      // stay out: which cue is live came off the row, already current.
+      applyCommand(
+        replay.filter((row) => row.graphic === graphic && row.msg.t !== 'cue').map((row) => ({ graphic, msg: row.msg })),
+      );
     }
-  }, []);
+  }, [applyCommand]);
+  restoreRef.current = restoreProgram;
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
