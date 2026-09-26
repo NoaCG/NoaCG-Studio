@@ -963,7 +963,7 @@ export default function BehaviourSection({
               {/* WHAT THE OPERATOR WILL GET, said once and plainly, exactly as the score board's
                   and the vote's sections say it. The verbs are the surveyed ones
                   (docs/BEHAVIOUR_SURVEY.md); "starts on air" is the owner ruling this behaviour
-                  was built to (docs/OWNER_RULINGS.md, operator-stories-2026-08-27). */}
+                  was built to (the retired owner rulings, operator-stories-2026-08-27). */}
               <p className="hint" data-testid="map-svg-timer-how">
                 The count starts when you Take the graphic, and holds at 0:00 until you take it
                 out. The control page gets Start, Pause and Reset, and the length in minutes is a

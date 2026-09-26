@@ -48,7 +48,7 @@ measure, buildManifest, config) may use anything the app uses.
   configurable number lives here; UI checks are UX, api/ re-validates authoritatively.
   `resolveTier()` is the single seam a plan row's `render_tier` enters through, and
   `storedRenderTier()` the one a stored tier name does; `granted` is a cap table for grants, not
-  a product - NoaCG sells nothing (`docs/OWNER_RULINGS.md`). It was called `paid` until migration
+  a product - NoaCG sells nothing (`docs/GOALS.md`, "Posture"). It was called `paid` until migration
   0055, which is unrelated to `AiTaskTier`'s `paid` in api/_lib/aiTaskRegistry.ts - that one is
   reserved for the day a user's own money settles an AI bill and must not be renamed. Every tier number is
   PER PRINCIPAL and is only checked once a request is parsed; the flood guards in front of

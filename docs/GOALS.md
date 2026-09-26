@@ -36,8 +36,8 @@ expected. What NoaCG adds is what standards leave open: graphics that expose the
 controls a production needs, one consistent control model, the agent door, a catalog that looks
 paid-for, and free self-hosting.
 
-**Posture.** Everything is free: creating, editing, exporting, controlling, self-hosting, and the
-built-in AI. There is no paid surface and none is planned; product architecture is not built
+**Posture.** NoaCG is free and open source. Everything is free: creating, editing, exporting,
+controlling, self-hosting, and the built-in AI. There is no paid surface and none is planned; product architecture is not built
 around monetization. The goal is to be useful, excellent and widely used.
 
 **Standing non-goals.**
@@ -59,7 +59,8 @@ Implementation never means done. Each claim in an outcome climbs five rungs:
 | owner-accepted | the owner has judged it, only where human judgment adds value |
 | production-proven | it survived real production use |
 
-- Test the claim, not the implementation. The verifying scenario is never the development example.
+- Test the claim, not the implementation. The verifying scenario is never the development example:
+  a real production case is evidence for a general capability, never its design target.
 - A reproducible defect becomes an automated regression check when practical. Not every taste or
   UI observation needs a permanent test.
 - Agents verify everything they reasonably can. The owner is asked only for a decision, a quick
@@ -83,7 +84,9 @@ Each outcome carries its priority (now, next, later). List order is not priority
 
 - **Why:** most productions start from their own design or a template, and that look must survive.
 - **Desired state:** a design made elsewhere (SVG) or a NoaCG template or brand becomes a premium,
-  playable graphic with editable fields, without code.
+  playable graphic with editable fields, without code. The catalog never looks like one house
+  style: distinct compositions, type, shapes and motion across news, sport, late-night, events and
+  streaming, never palette swaps of one layout.
 - **Current state:** SVG import v1 and text-to-box binding are built and machine-verified. Brands
   have a model and a wizard chooser; the brand creator and applying a brand across a production are
   still to build. The catalog has visual quality gates.
@@ -122,7 +125,10 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Why:** a live graphic is only useful if the operator can drive what the show needs.
 - **Desired state:** any graphic exposes the states, editable data and controls its production
   needs (quiz lock, reveal and correct, scores, clocks, steps, fields, data bindings) through one
-  consistent control model that also stretches to graphic types nobody has imagined yet.
+  consistent control model that also stretches to graphic types nobody has imagined yet. Controls
+  come from a few composable primitives, never a general automation or programming system. A
+  downloaded graphic works on its own in a generic OGraf host; behaviour across graphics (shared
+  data, combined presses, sequencing) lives in NoaCG's playout and control layer.
 - **Principle:** the control model stays structural. Visible states, transitions and events decide
   which controls are available, so NoaCG can generate correct, predictable controls for any
   graphic without hiding operator logic in formulas. Graphic-specific logic can live in the
@@ -161,7 +167,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
     Agents verify all they can first; a real-environment test is asked for only where it adds
     evidence.
 - **Needs the owner's accounts:** custom email (SMTP) and the Google sign-in client.
-- **Plans:** `BRIDGE.md`, `CLOUD_PLAYOUT.md`, `TEAMS_PLAN.md`.
+- **Plans:** `BRIDGE.md`, `CLOUD_PLAYOUT.md`, `CONTROL_PANEL_ROAD.md`, `TEAMS_PLAN.md`.
 
 ### 6. Standards and interoperability: OGraf and EBU (now, with a high-priority next milestone)
 
@@ -181,7 +187,8 @@ Each outcome carries its priority (now, next, later). List order is not priority
 
 - **Why:** many graphics are only as good as their live data.
 - **Desired state:** graphics bind to external data, APIs, feeds and automation, not only typed
-  fields.
+  fields. Data changes values and never operates the show: taking to air and advancing stay
+  operator presses, and the operator wins over a feed.
 - **Done for this phase:** one data model instead of the two that coexist today, and a connector
   design.
 

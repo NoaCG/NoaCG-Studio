@@ -61,10 +61,8 @@ because `docs/STACK_FRESHNESS.md` is time-driven and nothing in CI ever notices 
 This is the half the owner attends, so it is written for him and it is short. Read four things:
 
 - the North Star and the outcomes marked `(now)` in `docs/GOALS.md` - what we are building toward;
-- the programme register in `docs/PROGRAMMES.md` - which programmes are ACTIVE, AUTHORIZED or held,
-  and what each one's next gate is;
 - `node scripts/owner-receipts.mjs` - what he has asked for, what advanced, what is still unstarted;
-- the backlog frontier: the `docs/backlog/` entries whose `serves:` is NOW, newest first.
+- the backlog entries in `docs/backlog/` that serve an outcome marked now, newest first.
 
 Then write **the week's plan as something he can read in five minutes**: what the queue will work
 toward this week, in order, in plain words. Not tasks - directions. A line an outsider could not
@@ -85,19 +83,13 @@ that is a board, and a board is what the 2026-09-05 ruling deleted.
 
 ### The two or three questions, and nothing else
 
-End Part A with **at most three questions**, and apply the ask-test the repo already has rather than
-a second one. The invariant `root/question-owner-names-reason-own-text` gives a question to the
-owner five possible reasons - `needs: account`, `money`, `identity`, `harness`, `alignment` - and
-this page owns exactly one of them. **Every question here is a `needs: alignment` question, and its
-block must say so** - on the HEADING line, `### ALIGN-<date>-<n> - needs: alignment`, which the
-parser reads and he never has to. Not at the front of the question itself: the dry run put
-`needs: alignment.` as the first words of all three questions, so the first thing he read three
-times was a routing token from a contract he has never opened, in the half of the page written for
-him - and `rulingBlock` then copies it into `docs/OWNER_RULINGS.md` as the opening words of the
-permanent record of what he was asked. The requirement is unchanged and so is the invariant behind
-it; only the line it sits on moves, and it stays inside the block that gets carried forward. The
-other four reasons reach him when they arise, through whatever session hits them; they do not wait
-for Tuesday.
+End Part A with **at most three questions**, under the ask-test the repo already has
+(`root/question-owner-names-reason-own-text`): a question is his only when it changes the outcome
+(intent, direction, UX or taste, scope, money), and it carries `needs: decision` on the HEADING
+line of its block, `### ALIGN-<date>-<n> - needs: decision`, which the parser reads and he never
+has to. Each question challenges an assumption or proposes a better goal, with a recommended
+answer. When he names a date he is working toward, say plainly what that date needs, and plan
+everything else on merit.
 
 So the filter is the orchestrator's §6 ask-test narrowed to that one reason:
 
@@ -135,7 +127,7 @@ From that moment the answer is on disk and nobody's memory is load-bearing.
 The id is `ALIGN-<the date>-<n>`, and the shape is exactly this, because
 `scripts/alignment-answers.mjs` parses it:
 
-    ### ALIGN-2026-09-15-1 - needs: alignment
+    ### ALIGN-2026-09-15-1 - needs: decision
     **Question:** Does the SVG road still deserve the top of NOW, six weeks in?
     **Answer:**
 
@@ -146,13 +138,13 @@ breaks and all, so never trim him to fit. An EMPTY `**Answer:**` is the one thin
 resume - it ends at the blank line under it, which is what keeps an unanswered question open with
 the section's own prose below it rather than quietly adopting that prose as his answer.
 
-**His answers are then recorded by a session, not by this routine.** The answer belongs in
-`docs/OWNER_RULINGS.md` under its id, and in whichever doc it moves (`GOALS.md`, `PROGRAMMES.md`, a
-backlog entry). Routines report; sessions write. What makes that happen rather than being hoped for:
-`node scripts/wave-plan-check.mjs` refuses a wave plan that does not mention an answered id which is
-not yet in `OWNER_RULINGS.md`, so the next `/orchestrator` plans the row that writes it, and the
-refusal returns every morning until the ruling has landed. `npm run alignment:pending` prints what
-is outstanding and the block to append.
+**His answers are then recorded by a session, not by this routine**, where they belong: direction
+in `docs/GOALS.md`, a rule or a plan in its scoped doc (naming the id), private context in
+`docs/private/` with a `**Recorded in:** <path>` line added under the answer in the weekly file.
+Routines report; sessions write. What makes that happen rather than being hoped for:
+`node scripts/wave-plan-check.mjs` refuses a wave plan that does not mention an answered id no
+tracked doc names yet, so the next `/orchestrator` plans the row that records it, and the refusal
+returns every morning until it has landed. `npm run alignment:pending` prints what is outstanding.
 
 ## 3. Part B - the skill's own week
 

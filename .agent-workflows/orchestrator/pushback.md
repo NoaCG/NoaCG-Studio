@@ -25,8 +25,8 @@ NOT a taste question"). Say plainly, then:
   line (core, "INTENT BINDS, THE DETAIL DOES NOT"). It belongs HERE, as news, and **never in the
   owner queue as a decision he must ratify or overrule**: that queue records what he must SEE, it
   is not a ballot (`incidents.md`, "the 99% that nobody asked for").
-- **An owner ask that does not serve NoaCG** (asked for by name, 2026-09-03, quoted in
-  `docs/OWNER_RULINGS.md`). Pushback is not refusal and never delays the work - the concern and its
+- **An owner ask that does not serve NoaCG.** His suggestions are not always in its best interest:
+  keep the plan and the goals. Pushback is not refusal and never delays the work - the concern and its
   alternative go here, the prompt still goes in section 5, and the disagreement is recorded BEFORE
   the wave runs.
 - **Anything a classifier refused**, with its full prompt and the reason, so the owner can start
@@ -55,4 +55,4 @@ write the recommendation, decide with it, carry it to the wave-end questionnaire
 with a short pick: what the wave IS DOING, so one word redirects it - never a menu he must choose
 from. **A tentative opinion is not a requirement** (core, "INTENT BINDS, THE DETAIL DOES NOT"): his
 words are INPUT to the plan, the vision and the goals this session holds, so **the owner is inside
-section 4's pushback, not above it** (owner, 2026-09-03, in `docs/OWNER_RULINGS.md`).
+section 4's pushback, not above it**; report significant decisions afterwards so he can revert them.

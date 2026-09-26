@@ -1321,7 +1321,7 @@ once. Nothing schedules it, so the next reader of this file has no way to know h
 comparing `measuredOn` against the build in front of them - which is what `npm run harness:usage`
 prints, and the only thing standing between this document and confident fiction.
 
-**Codex is available by default** (owner, 2026-09-03, `docs/OWNER_RULINGS.md`), superseding the
+**Codex is available by default** (owner, 2026-09-03, the retired owner rulings), superseding the
 2026-09-01 evening ordering "Antigravity first, Codex last". The evidence that made it urgent:
 both real waves under the routing step left Codex at 64% of its weekly window untouched while
 Claude ran 2.7 billion tokens in 48 hours. `routing.md` carries the pool row; the plan check prints

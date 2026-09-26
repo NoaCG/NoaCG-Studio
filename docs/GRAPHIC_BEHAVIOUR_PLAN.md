@@ -497,7 +497,7 @@ drawing to react to the time running out.
 
 **THE TAKE STARTS THE COUNT, and it was an owner ruling rather than a call this session made.**
 *"Timer/countdown: duration set beforehand, starts on TAKE, at zero HOLDS at 0:00 until taken
-out"* (`docs/OWNER_RULINGS.md`, operator-stories-2026-08-27). It also keeps two promises: attaching
+out"* (the retired owner rulings, operator-stories-2026-08-27). It also keeps two promises: attaching
 a behaviour never changes what the Take does to the same artwork, and it is the vote board's own
 rule from §12, where the entrance step IS the voting state and there is therefore no Open vote
 button. A chair who wants to count the class in gets it from Reset.

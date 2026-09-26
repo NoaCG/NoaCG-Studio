@@ -14,7 +14,7 @@
  * checks it was standing in for — and they run on both sides of the publish, because the half
  * that matters is the second one. Every guard here also exists in the workflow; the point of
  * repeating them is that a local refusal costs nothing, while a workflow refusal costs a version
- * if it comes after the registry call. (docs/OWNER_RULINGS.md, owner-decisions-2026-09-05.)
+ * if it comes after the registry call. (the retired owner rulings, owner-decisions-2026-09-05.)
  *
  * Usage:
  *   npm run release:cli              preflight, tag, push, watch, verify from the registry

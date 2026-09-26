@@ -219,7 +219,7 @@ the original scanners' claims. Verdicts: **we beat** (nobody credible matches), 
 | Switcher automation (ATEM, TriCaster) | Pixla (111 TriCaster occurrences), Cuez, Sofie, Rundown Creator Pro | No | Absent. Our graphic reaches air as a browser source, so a DSK button keys over a feed we did not make | gap-wrong | weeks |
 | Multiview of camera inputs | Pixla (free), vMix, Tractus ($97 perpetual), Kiloview (free to 16 NDI), OBS built-in | No | Absent | different product | months |
 | Broadcast scheduler | Pixla, Cuez | No | Absent | different product | weeks |
-| MOS / NRCS ingest | Chyron CAMIO, Ross Gateway, Sofie, Cuez, HighField (8 systems) | No | Absent. Zero source hits. `PROGRAMMES.md` P4: kept possible, not built | gap-wrong | quarters |
+| MOS / NRCS ingest | Chyron CAMIO, Ross Gateway, Sofie, Cuez, HighField (8 systems) | No | Absent. Zero source hits. the retired programme register P4: kept possible, not built | gap-wrong | quarters |
 | Rehearse the operator surface before air | Singular's data panel doubles as the control app. Loopic's actions do not run in the editor at all | Yes | `PlayoutSimulator.tsx`, three drill specs | we beat | done |
 | Rehearse a whole **show** | Sofie, Cuez, any rundown vendor | Yes | Absent. We drill one machine, never a running order or a handoff | gap | weeks |
 | As-run log / proof of play | Every cloud platform sells it to sponsors and rights holders | Yes | **Absent, and we delete the material.** `0029_cloud_playout.sql` §5 prunes rows older than 7 days on publish. Nothing exports the log | gap | days |

@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-21
 state: advanced
-note: 2026-09-24 the Board rule, the simple types' field sets and the empty-Moments answer are settled in docs/OWNER_RULINGS.md (2026-09-24), the five-line cheat sheet opens every page that teaches it, and npm run check:example-layers holds every example to it in the build; what stands is his read of the settled words, which the ruling says how to revert, and docs/svg-samples/ which says it is a gallery rather than following the system
+note: 2026-09-24 the Board rule, the simple types' field sets and the empty-Moments answer are settled in the retired owner rulings (2026-09-24), the five-line cheat sheet opens every page that teaches it, and npm run check:example-layers holds every example to it in the build; what stands is his read of the settled words, which the ruling says how to revert, and docs/svg-samples/ which says it is a gallery rather than following the system
 asked: "We just need to have a system and stick by it. This goes for all the different graphics." The reading stays as flexible as possible so people do not make mistakes, and the examples are strictly consistent. Pick the easiest and most logical scheme; he may rename later.
 ---
 # One layer-naming system for every graphic
@@ -74,7 +74,7 @@ lists. The drawn trees themselves are checked by eye against Illustrator, as row
 
 The system drifted within three days, because only the public page taught it and nothing
 checked the files. The owner's goal of 2026-09-24 settled the rest, and
-`docs/OWNER_RULINGS.md` (2026-09-24) records it with how to revert each part: the background is
+the retired owner rulings (2026-09-24) records it with how to revert each part: the background is
 `Panel`, a plate under a text is that text's name plus `box` (`Answer box A`), fixed words are
 `static:`, anything else on the Board is decoration; a title is `Title` and `Subtitle`, a name tag
 `Name` and `Role`, credits `Heading` and `Credits`; names are English; and a graphic with no

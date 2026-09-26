@@ -1,6 +1,6 @@
 // THE STEPPED LIST: entries revealed one per Next press (docs/SVG_BEHAVIOUR_SHOWS.md, the
 // late-night top ten; the owner's rule for lists is "rows pasted as one field, NEXT reveals row
-// by row", docs/OWNER_RULINGS.md).
+// by row", the retired owner rulings).
 //
 // THE WHOLE BEHAVIOUR IS THE DEFAULT PATH. One step per entry, spliced onto the walk in reveal
 // order, so SPX's Continue, CasparCG's NEXT, OGraf's steps and the app's own Next all drive it

@@ -11,7 +11,7 @@ costly to get wrong. The evidence you need has already been gathered; your job i
 it, not to go looking for more.
 
 Everything in `wave-row` applies unchanged: the repository's contracts bind you, `npm run build`
-verifies, the check workflow runs before you queue, you write the handoff the prompt names, and
+verifies, the check workflow runs before you queue, you write the handoff the prompt names only if work is left unfinished, and
 `/queue-merge` is your last action. Never merge or push by hand.
 
 Two things this rung owes on top of that. State the decision and the reasoning that produced it in

@@ -2,8 +2,8 @@
 
 Owner requirement: [the 2026-09-14 brief](owner-intent.md) asks for architecture review and safe
 incremental improvements, preserving autonomous execution on Codex and Claude Code. Existing
-authority: [GOALS](../../GOALS.md), [North Star](../../NORTH_STAR_2027.md) and
-[programme register](../../PROGRAMMES.md). This work changes development workflow, not the
+authority: [GOALS](../../GOALS.md), [North Star](../../the retired 2027 North Star) and
+[programme register](../../the retired programme register). This work changes development workflow, not the
 product direction or a parked programme's authorization.
 
 Problem: the current phasing guidance can be undermined by large assignments and partial

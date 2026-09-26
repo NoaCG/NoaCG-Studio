@@ -38,7 +38,7 @@ third number.
 **Fourteen entries, counted off `docs.html` itself on 2026-09-10**, up from ten on 2026-08-26 and
 thirteen before "Working with other people" landed on 2026-09-09. The file is the count, so the
 number re-derives from the nav markup rather than from any note about it. The owner's rule is his
-2026-08-26 walk, *"only the most important information on the left"*, in `docs/OWNER_RULINGS.md`.
+2026-08-26 walk, *"only the most important information on the left"*, in the retired owner rulings.
 
 The two entries earlier notes wanted to argue about are "Pictures, logos & Lottie" and "Which
 package do I want", both landed 2026-09-06 on branch `claude/h-docs-guides`. One owner-queue item

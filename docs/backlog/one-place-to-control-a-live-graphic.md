@@ -54,7 +54,7 @@ Inputs to read first: `docs/CONTROL_PANEL_ANY_GRAPHIC.md`, `docs/PLAYOUT_DASHBOA
 reveal), and the 2026-09-22 row U handoff on quiz live consistency, which records what was
 deferred to this review.
 
-Boundary: the review proposes. Scope edges go back to the owner, per `docs/PROGRAMMES.md`.
+Boundary: the review proposes. Scope edges go back to the owner, per the retired programme register.
 
 ## Evidence
 The owner's test notes of 2026-09-22 cover the Arcade quiz (`src/templates/quiz/qz15.ts`) and the

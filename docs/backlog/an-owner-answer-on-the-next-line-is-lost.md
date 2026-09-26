@@ -10,7 +10,7 @@ line. The owner writing his answer on the next line - the natural thing to do fo
 than a few words - leaves `answer === ''`, so the question stays OPEN forever: it never becomes
 `pending`, `wave-plan-check` never surfaces it, and the ruling is lost. An answer wrapped over two
 lines is worse than lost: the first line is captured, and `rulingBlock()` writes that truncation
-into `docs/OWNER_RULINGS.md` as though it were the whole ruling.
+into the retired rulings file as though it were the whole ruling.
 
 The file exists to stop exactly this - a ruling given and then forgotten - so the failure mode is
 the one thing it may not do.

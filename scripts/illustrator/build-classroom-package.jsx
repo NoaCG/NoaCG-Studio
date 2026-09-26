@@ -9,7 +9,7 @@
 // every state into Previews/.
 //
 // A graphic with no moments gets NO Moments layer: Illustrator's SVG save drops an empty layer
-// anyway (measured 2026-09-24, docs/OWNER_RULINGS.md), so the .ai and the SVG say the same thing.
+// anyway (measured 2026-09-24, the retired owner rulings), so the .ai and the SVG say the same thing.
 //
 // Run it from Illustrator (File > Scripts > Other Script...) or through COM on Windows:
 //   $ai = New-Object -ComObject Illustrator.Application

@@ -396,7 +396,7 @@ rule refuses. Nothing in the catalog needs it today, which is why it is not writ
 
 ### 2f. Two Space modes - the operator's checkbox (owner 2026-09-10, built 2026-09-16)
 
-**The ask, in his words** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-10-3): *"I think we need to have
+**The ask, in his words** (the retired owner rulings ALIGN-2026-09-10-3): *"I think we need to have
 a checkbox for this so the operator can choose for themselves. One is that you press Space and it
 goes to the preview and then you press Space again and it goes to program. That would mean that
 when you go up and down the queue list, nothing gets automatically put into the preview. If the

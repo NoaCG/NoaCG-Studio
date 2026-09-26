@@ -133,7 +133,7 @@ export const POLICY = Object.freeze({
    *
    * TWO NUMBERS, BECAUSE PRESENCE DECIDES THE ALLOWANCE. Owner 2026-09-16, asked whether that
    * day's wave could go over the 4 GB floor: "Not on the computer, ok to use it all" - the second
-   * half of his 2026-09-15 ask, recorded in `docs/OWNER_RULINGS.md`. When nobody is at the
+   * half of his 2026-09-15 ask, recorded in the retired owner rulings. When nobody is at the
    * keyboard the floor is what a job actually takes; when somebody is, it is that plus their own
    * headroom.
    *

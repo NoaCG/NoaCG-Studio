@@ -57,7 +57,7 @@ state: unstarted             # unstarted | advanced | active | parked | supersed
 branch: claude/x-thing       # required while active
 note: what landed, or why it waits   # required when advanced, parked or superseded
 asked: "the owner's own words, or a paraphrase marked as one"   # `found:` instead, on a finding
-serves: NOW                  # optional: NOW, a programme id (P6), or a receipt slug - the frontier it is on
+serves: NOW                  # optional: NOW (it serves an outcome marked now in docs/GOALS.md), or a receipt slug
 size: standard               # optional: small | standard | large - launch-to-land estimate class
 touches: src/x.ts, src/y/    # optional: files/globs the work owns (what collision-check reads)
 covered-by: x.spec.ts        # optional: covering e2e specs (what collision-check reads for a shared flow)
@@ -138,9 +138,8 @@ one line it costs.
 
 An item leaves this folder one of two ways:
 
-- **It graduates** into `docs/GOALS.md` "NOW", into a stage of a programme in `docs/PROGRAMMES.md`
-  (or into a handoff that a session picks up), and the file is deleted in the same commit that
-  schedules it. The backlog never holds a copy of live work.
+- **It graduates** into a wave row that moves a `docs/GOALS.md` outcome (or into a handoff that a
+  session picks up), and the file is deleted in the same commit that schedules it. The backlog never holds a copy of live work.
 - **It dies.** Anything that has sat here through a full push without being picked is re-read and
   either re-argued or deleted. A shelf that only accumulates is a landfill, and a landfill gets
   ignored, which costs exactly as much as never writing the idea down.
@@ -177,10 +176,9 @@ reader open it is not.
 When a session asks "what should I do next", the order is:
 
 1. **Owner feedback** - something the owner said, that is not yet true in the product.
-2. **`docs/handoffs/`** - work a finished session handed over, already scoped.
-3. **`docs/GOALS.md` "NOW"** - the binding roadmap of the current push.
-4. **The next stages of ACTIVE programmes in `docs/PROGRAMMES.md`.**
-5. **This folder.**
+2. **The unsatisfied outcomes marked now in `docs/GOALS.md`**, and their done criteria.
+3. **Inventory that moves one of them**: `docs/handoffs/` (work a session left unfinished, already
+   scoped), then this folder. An item that connects to no outcome and no reliability need waits.
 
-The backlog is LAST on purpose. It is where an idea waits for the day the first three are empty, or
+The backlog is LAST on purpose. It is where an idea waits for the day the first two are empty, or
 for the day it becomes the answer to something above it.

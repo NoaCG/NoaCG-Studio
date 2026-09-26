@@ -29,7 +29,7 @@ note: >-
 ---
 # The orchestrator produces the same plan in Codex as in Claude Code
 
-**Filed:** 2026-09-05. **Source:** owner ruling (`docs/OWNER_RULINGS.md`, owner-decisions-2026-09-05).
+**Filed:** 2026-09-05. **Source:** owner ruling (the retired owner rulings, owner-decisions-2026-09-05).
 
 ## Why
 

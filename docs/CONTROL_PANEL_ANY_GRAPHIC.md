@@ -12,7 +12,7 @@ total of how many songs each person has guessed right. The owner wants to prompt
 Code, save it with the CLI, and run it from the playout dashboard within minutes, in front of the
 producer and director.
 
-**What the first showing is, answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6): a
+**What the first showing is, answered 2026-09-16** (the retired owner rulings ALIGN-2026-09-15-6): a
 DEMONSTRATION, not an air date. The programme's own graphics are made in post by its own people;
 what is wanted on the day is a graphic that updates so the host and the contestants can follow the
 score, the playout in the room is SPX, and the point is to show the producers and creators how
@@ -279,7 +279,7 @@ below are what we BUILD; §5a is what the DAY needs**, and the two are not the s
 | # | What | Why it is on this side of the line | Cost | Who |
 |---|---|---|---|---|
 | 1 | **LANDED 2026-09-15, pull request 270.** **The skill teaches the contract.** Retire "a later capability"; add §2a as a section of `references/contract.md` with a worked machine and controls block; make the three gates explicit steps of the loop - validate, inspect and SHOW the user the buttons, bench; teach the default-path contract and reported fields. One generated source, every shipped copy follows (`cli/scripts/build-skill.mjs`). | Without it the agent scaffolds a typeless graphic and ships state as fields - the measured failure mode of the 2026-08-22 round's free cells | one row; a CLI release after it (`npm run release:cli`, which a session may run) | one row, week of the 28th |
-| 2 | **LANDED 2026-09-15, pull request 270**, in the same row. **Close the open gate in GOALS.** "Agent-authored machines - the owner gate is armed" is answered by the brief; record it in `docs/OWNER_RULINGS.md` and move the GOALS line. | A doc that says the question is open will stop the next session | minutes | the same row |
+| 2 | **LANDED 2026-09-15, pull request 270**, in the same row. **Close the open gate in GOALS.** "Agent-authored machines - the owner gate is armed" is answered by the brief; record it in the retired owner rulings and move the GOALS line. | A doc that says the question is open will stop the next session | minutes | the same row |
 | 3 | **WALKED 2026-09-15, pull request 271** - in-app only; publishing needed an env a linked worktree has not got. **Walk the proof case ourselves, once, end to end and timed.** Prompt Claude Code with the shipped skill, build both graphics, `save`, one production, publish, drive §3c from the dashboard, and file the owner-queue item with the route and the stopwatch. Fix what it finds; §3d says where to look first. | "Within minutes in front of the producer" is a number, and the numbers we have are 24.8 s of tool time for the seven verbs and, since 2026-09-16, the last hop as well: 7.4 s from `noacg save` returning to the graphic readable on a production's output URL, of which 0.7 s is the take | a day, plus whatever it finds | one row, first week of October |
 | 4 | **LANDED 2026-09-15, pull request 274** - 24 arrows, and a `bench-events-skipped` finding for what it cannot reach. **The bench's event cap** (§3d.1): raise `MAX_BENCH_EVENTS` for a machine that declares more, or have `validate` say which buttons it did not press. | Gate 3 has to mean what §2c says it means on the first real graphic that needs it | an hour, plus one bench run | one row, with row 3 |
 | 5 | **LANDED 2026-09-15, pull request 275** - migration 0058. **The profile's model and storage** (§6e): `Show.profile` v1 with ARRANGE and COMBINE, its parse/serialize/validate beside `shows.ts`, pinned at publish, baked at export, deletable in one action. Unit-tested offline. | Everything after it reads this shape; a wrong shape here is a migration later | a day | one row, week of the 28th |
@@ -305,7 +305,7 @@ that would pull it up:
 
 ### 5a. What the first showing actually needs
 
-**Answered 2026-09-16** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6). The day is a demonstration:
+**Answered 2026-09-16** (the retired owner rulings ALIGN-2026-09-15-6). The day is a demonstration:
 a score that updates so the host and the contestants can follow along, running on SPX, in front of
 the show's producers and creators, to show how easily the graphic was made. A dated event gets
 a clear list of what it needs and never the whole machine (owner, 2026-09-15), so here is the list
@@ -362,7 +362,7 @@ and the evidence for each line. It is short because most of it is already standi
 ## 6. The production control profile - two primitives, and the proof that they are general
 
 **Ruled 2026-09-15, after this plan's first landing: build the profile for the first showing.** The
-owner's framing binds the design and is quoted in `docs/OWNER_RULINGS.md` ALIGN-2026-09-15-2: the
+owner's framing binds the design and is quoted in the retired owner rulings ALIGN-2026-09-15-2: the
 "one press: Reveal plus a delayed action" case is EVIDENCE for a general capability, never the
 workflow being designed around. NoaCG should control essentially any sensible graphic sequence -
 reveal elements in different orders, trigger several related actions from one control, delay a
@@ -486,7 +486,7 @@ happen, and the operator presses it by hand. Nothing is retried behind anyone's 
 
 ### 6f. The boundary - portable graphics, NoaCG-owned production behaviour
 
-**Owner, 2026-09-15, the third ruling of the day** (`docs/OWNER_RULINGS.md` ALIGN-2026-09-15-3):
+**Owner, 2026-09-15, the third ruling of the day** (the retired owner rulings ALIGN-2026-09-15-3):
 production data and bindings are ONE capability of the control model, never the whole of it; a
 downloaded graphic must stay usable without knowing any NoaCG production path; and NoaCG's
 multi-graphic state, sequencing and automation are not forced into a standalone HTML export where

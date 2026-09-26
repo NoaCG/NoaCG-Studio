@@ -74,6 +74,13 @@ chain instead of by pre-approval:
 asked. Staying awake is a LOOP, not a daemon: this session only sees a landing if something wakes
 it to look.
 
+- **Declare the machine away first:** `npm run jobs -- presence away`. It expires on its own after
+  twelve hours, and it gives unattended browser work the memory the night can use while keeping the
+  anti-swap margin. A day wave with the owner at the machine leaves presence alone.
+- **Times the owner names are Helsinki time** (UTC+3 in summer, UTC+2 in winter). Write them into
+  the wave-state file and any schedule as ISO timestamps with the offset
+  (`2026-09-27T06:00:00+03:00`), never a bare UTC clock time.
+
 - **In Claude Code the wake-up is an EVENT, not a nap.** Arm `node scripts/wave-watch.mjs` as a
   persistent Monitor: it runs the tick on a short interval and prints ONE LINE PER EVENT and
   nothing else, so a landing wakes this session within minutes and a quiet night wakes it never.
@@ -137,7 +144,7 @@ Each tick, in this order, and nothing else:
    the start with `node scripts/wave-launch.mjs record --letter <L> --branch <b> --size <size>` so
    the horizon learns, and append the launch and its traced why to the wave-state file. A refill
    unit is a **frontier row the loop launches under the WHY chain**: its why traces to a `(now)` outcome in
-   GOALS, an ACTIVE programme, an owner receipt or the wave's goals, or it is a candidate row in the report,
+   GOALS, an owner receipt or the wave's goals, or it is a candidate row in the report,
    never a launch. **The bound is the HORIZON and the report, not a count.** The handoff
    continuations below were capped at the wave's session count because they had no other limit;
    refill has one - it runs until `wave-horizon.mjs` closes the window or the report checkpoint is
@@ -156,7 +163,7 @@ wave-state file under `## Candidates` as a TABLE `candidates.mjs` reads - column
 `L | size | serves | TOUCHES | SPECS | goal` plus an optional `browser` (`yes`/`no` only; any other
 cell derives the need from SPECS); `size` is `small`, `standard` or `large` (`wave-horizon`),
 `TOUCHES` and `SPECS` are the files and covering specs (`collision-check`), and `serves` traces the
-why to a `(now)` outcome in GOALS, an ACTIVE programme or an owner receipt. Each candidate is a FRONTIER unit under
+why to a `(now)` outcome in GOALS, reliability, or an owner receipt. Each candidate is a FRONTIER unit under
 the same WHY chain as a continuation; the fields come from its backlog item's front matter
 (`serves`/`size`/`touches`/`covered-by`, `docs/backlog/README.md`). A unit that collides or does not
 fit is held, not dropped, and re-tried when a slot or the window allows. When the list is spent and
@@ -191,8 +198,11 @@ which re-posts the verdict and turns auto-merge back on - it reads the `/check` 
 queueing, so an unstamped tip needs the `--unreviewed` form below. `gh pr merge <n> --auto` does the
 same job in one call, but the auto-mode classifier BLOCKED it on 2026-09-08 on the one branch that
 needed it, so a loop knowing only the raw command has no repair at 03:00. A RED CHECK or a CONFLICT
-with what landed is the branch's, and only its own session may queue it again - it reaches the user,
-with its command, when that session is gone.
+with what landed is the branch's own session's to fix. **When that session is gone, the loop
+launches a RESOLVER row** in a fresh worktree on that branch: merge current `main`, regenerate the
+generated files, resolve mechanical conflicts, consult the strongest available model on a conflict
+about meaning, run the build and the integration specs, `/check`, and queue it
+(`.agent-workflows/queue-merge.md`, section 4). It never reaches the owner.
 
 **A BRANCH WHOSE SESSION IS STILL ALIVE IS THE ONE THING THE LOOP MAY NOT QUEUE.** Queueing it
 would be this session declaring another session's work done, which is the one rule landing has
@@ -219,7 +229,8 @@ that could fix it is gone: either is a candidate row in the report, never a queu
 `npm run queue:merge -- <branch>` (with
 `--unreviewed "queued by the night loop: the session is gone"` when the tip carries no `/check`
 stamp - it refuses an unstamped tip otherwise, and the reason lands on the pull request), and the
-report says which branches the loop queued and why. **What protects a half-finished branch is the
+report says which branches the loop queued and why. **Speed never costs safety**: waking to a broken `main` or a broken live product is the one
+unacceptable outcome of an unattended wave. **What protects a half-finished branch is the
 GATE, not the owner's attention**: the queue runs `ci.yml` on the pull request and again on the
 merge group, refuses red, and lands one group at a time. Asking him instead buys no safety and
 costs the landing. **Whatever is uncommitted stays uncommitted** - the landing takes the branch's

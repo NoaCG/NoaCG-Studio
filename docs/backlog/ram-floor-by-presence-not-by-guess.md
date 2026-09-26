@@ -15,7 +15,7 @@ note: "the mechanism landed 2026-09-16 on claude/sf-ram-floor-by-presence; what 
 
 **Filed:** 2026-09-15, the evening the control-panel chain stalled on it. **Source:** the owner,
 in session, recorded as the rule `jobs/owner-away-machine-job-queue-may` the same evening and as
-the 2026-09-16 ruling in `docs/OWNER_RULINGS.md`.
+the 2026-09-16 ruling in the retired owner rulings.
 
 ## What landed, 2026-09-16
 

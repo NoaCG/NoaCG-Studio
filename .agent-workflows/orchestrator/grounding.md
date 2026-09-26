@@ -37,8 +37,8 @@ It produces the wave table, so if the window later runs short the routing alread
   measured by a real three-way merge. A collision input, never a landing order: order is the queue's.
 - `git log --oneline -5`, `git branch --show-current`, `git status --porcelain=v1 --branch`.
 - `node scripts/owner-receipts.mjs` - every owner-raised task with its state and age. A STANDING
-  ask (unstarted or advanced) is on the frontier above the backlog and the plan check refuses a plan
-  that does not mention it; a FINDING is our own bug, never his, and drains with the backlog.
+  ask (unstarted or advanced) is inventory the plan must mention (the plan check refuses one that
+  does not); a FINDING is our own bug, never his, and drains with the backlog.
 - `node scripts/handoff-drain.mjs` - every handoff file, classified or not, with its age. The
   classification the plan owes each one is written under `## Handoffs` in the wave-state file
   (`collisions.md`, "Consuming the handoff folder").
@@ -63,10 +63,9 @@ It produces the wave table, so if the window later runs short the routing alread
   this phase; `(next)`, `(later)` and `Later and parked` wait. That is enough to classify every pasted
   task, whatever its own handoff says about urgency. Never read the whole file, and never read
   `docs/GOALS_ARCHIVE.md`.
-- **The register, one read:** the state table at the top of `docs/PROGRAMMES.md` (and a
-  programme's own section only when planning a row from it). It answers which programmes are
-  ACTIVE, what their next stages are, and which entry condition may have just become true - a flip
-  is recorded in the same commit as the first work it permits.
+- **The outcomes, one read:** `## Outcomes` in `docs/GOALS.md` - each outcome's priority, current
+  state and done criteria for this phase. An outcome whose criteria are met is reported, never
+  silently advanced; updating GOALS.md's current state lands with the work that changed it.
 
 ## Only when it changes routing
 

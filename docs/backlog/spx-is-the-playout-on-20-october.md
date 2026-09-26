@@ -13,7 +13,7 @@ needs-owner: none
 # Which door into SPX the proof case uses, and what it costs
 
 **Filed:** 2026-09-16. **Source:** the owner's answer to ALIGN-2026-09-15-6, recorded in
-`docs/OWNER_RULINGS.md`, derived into `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2.
+the retired owner rulings, derived into `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2.
 
 ## Why
 
@@ -52,7 +52,7 @@ the room rather than in it.
 
 ## Evidence
 
-- `docs/OWNER_RULINGS.md` ALIGN-2026-09-15-6, 2026-09-16 - the playout is SPX, and the point is
+- the retired owner rulings ALIGN-2026-09-15-6, 2026-09-16 - the playout is SPX, and the point is
   how easily the graphic is made.
 - `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §5a item 2 (what the proof case needs) and §6f (what a
   downloaded package deliberately does not carry).

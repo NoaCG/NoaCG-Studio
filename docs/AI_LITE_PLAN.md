@@ -345,3 +345,10 @@ for the same reason.
 **Step 4 now has a paid semantic round. The esports failure is fixed unpaid; history ordering is
 the remaining real-model failure recorded in
 `benchmarks/lite/ROUND-2026-08-10-V14-SEMANTIC.md`.**
+
+## Standing decisions
+
+Owner decisions that still bind this plan (moved from the retired rulings file, 2026-09-26).
+
+- The AI door invites people to create an account, not only to sign in.
+- Lite covers the useful catalog; the category list in code is the only count, so docs never hand-count categories.
