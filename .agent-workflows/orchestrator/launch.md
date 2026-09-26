@@ -72,11 +72,13 @@ Launch an adopting row with its cwd pinned to the existing worktree and no isola
 
 **A LAUNCH CAN BE REFUSED BY THE SAFETY CLASSIFIER, and the row is then HELD, not dropped.** A
 held row keeps its letter, its full prompt goes in the wave-state file and in section 4, and the
-owner starts it in a session he opens. Never re-word a prompt to get it past the classifier. **The
-same refusal covers messages, not just launches.** **These are the two hard edges of this
-session's autonomy, and both are enforced by the harness rather than by this contract: widening
-the machine's permission posture, and overruling a merge-safety verdict.** Treat a refusal as the
-mechanism working. The item goes to the owner with the evidence and the one command that settles
+owner starts it in a session he opens. Only such a user-opened prompt carries a Remote Control
+reminder - its first output tells him to type `/remote-control`, since a session cannot invoke a
+terminal built-in; a launched subagent has no terminal and gets none. Never re-word a prompt to get
+it past the classifier. **The same refusal covers messages, not just launches.** **These are the
+two hard edges of this session's autonomy, and both are enforced by the harness rather than by
+this contract: widening the machine's permission posture, and overruling a merge-safety
+verdict.** Treat a refusal as the mechanism working. The item goes to the owner with the evidence and the one command that settles
 it - never re-phrased, never routed around, and never handed to a different session in the hope
 that it lands differently. Evidence: `incidents.md` "the two classifier refusals".
 

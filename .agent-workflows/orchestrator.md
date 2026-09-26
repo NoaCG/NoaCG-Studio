@@ -4,11 +4,10 @@ Shared canonical procedure, invoked as `/orchestrator` (alias `/o`) in Claude Co
 `$orchestrator` (alias `$o`) in Codex. Cross-references use plain names ("the queue-merge
 workflow"); translate as `/queue-merge` or `$queue-merge`.
 
-**This file is the always-loaded core, capped at 200 lines, and the modules the routing table
-marks *every plan* load beside it every time** - `npm run check:shared-instructions` gates both and
-prints the common path, the number that actually costs. The split is by DEPTH: a rule that fires
-before its module loads keeps one sentence here, its mechanics in the module. A rule restated here
-that fires only after its module loads is a defect, not thoroughness.
+**This file is the always-loaded core (200-line cap), and the modules the routing table marks
+*every plan* load beside it every time**; `npm run check:shared-instructions` gates both. A rule
+that fires before its module loads keeps one sentence here and its mechanics in the module; a rule
+restated here that fires only after its module loads is a defect.
 
 ## THIS SESSION NEVER ACTS
 
@@ -27,34 +26,31 @@ it **never touches another worktree** - not to check something, not to merge, no
 **Exactly four exceptions, all bounded, all written here so none can widen quietly.** Outside them,
 **Create or update no files.**
 
-1. **Its own contract.** This session may edit `.agent-workflows/orchestrator.md`, its module
-   directory, the adapters that point at them, and the part of
-   `scripts/check-shared-instructions.mjs` that pins them - and nothing else in the repository.
-   Requiring a separate session to change the rule that says "change no files" is a missing
-   mechanism, not a safeguard.
+1. **Its own contract**: `.agent-workflows/orchestrator.md`, its module directory, the adapters
+   that point at them, and the part of `scripts/check-shared-instructions.mjs` that pins them -
+   nothing else in the repository.
 2. **A follow-on it already planned**, when the trigger branch lands, in that session's own
    worktree, named in the wave table before the wave started (`orchestrator/night.md`).
-3. **The wave-state file** - the plan's durable copy, NEVER in a checkout; its path, its headings
-   and the plan check that gates the launch are `orchestrator/wave-state.md`. A plan printed only
-   in chat dies with this session while the user is asleep.
+3. **The wave-state file** - the plan's durable copy, NEVER in a checkout, because a plan printed
+   only in chat dies with this session (`orchestrator/wave-state.md`).
 4. **Launch infrastructure** - `node scripts/orchestrator-home.mjs` maintains the detached home;
    `orchestrator/hosts.md` also permits creating each assigned row's EMPTY feature worktree and
    launch receipts, never editing or adopting another worker's tree. Historically **the main checkout
    belongs to the landing queue**; GitHub now lands remotely. Plan from fetched `origin/main`.
 
 **Landing authority belongs to GitHub's merge queue.** Never merge, and never push by hand. A branch
-reaches `main` declared finished by its own session - but re-arming a declared landing's watcher,
-and queueing a branch **NO LIVE SESSION HOLDS**, are neither, so this session DOES both (owner, 2026-09-04 and 09-05).
+reaches `main` declared finished by its own session; re-arming a declared landing's watcher and
+queueing a branch **NO LIVE SESSION HOLDS** are neither, so this session DOES both.
 
 ## Input, and the frontier
 
-**Two sources of authority, and only two:** the owner's current feedback and direction (what he
-pasted or said; feedback from testing the newest build outranks everything else), and the
-UNSATISFIED OUTCOMES in `docs/GOALS.md` - the ones marked `(now)` and their done criteria for this
-phase. Everything else is INVENTORY: `docs/handoffs/` (read by default), `docs/backlog/` items and
-owner receipts (`node scripts/owner-receipts.mjs`), bugs, red CI, unfinished work. Inventory
-supplies tasks, never priority, and joins a wave only when it connects to an outcome or a concrete
-reliability requirement. A vague report is ONE session whose first step is reproduce-and-scope.
+**Two sources of authority, and only two:** the owner's current feedback and direction (feedback
+from testing the newest build outranks everything else), and the UNSATISFIED OUTCOMES marked
+`(now)` in `docs/GOALS.md`, with their done criteria for this phase. Everything else is INVENTORY:
+`docs/handoffs/` (read by default), `docs/backlog/` items and owner receipts
+(`node scripts/owner-receipts.mjs`), bugs, red CI, unfinished work. Inventory supplies tasks, never
+priority, and joins a wave only when it connects to an outcome or a concrete reliability
+requirement. A vague report is ONE session whose first step is reproduce-and-scope.
 
 **A row is on the FRONTIER when three things hold:** its why traces to the owner's feedback, to an
 unsatisfied outcome's done criteria, or to reliability; its files are free; and it waits on no
@@ -65,13 +61,14 @@ naming its outcome, written by one row's first commit. Private context (dates, p
 is in `docs/private/` in the main checkout: plan with it, never cite a date as the reason, never
 copy it into public text.
 
-**Day wave or night wave, and how it starts.** A NIGHT wave is planned in the evening, started by
-the user, landed by morning through the queue; everything marked *night* is mandatory there. An
-interactively started wave may open with a brief alignment step, a few `needs: decision`
-questions Grill-Me style, when a major owner-level choice shapes the whole wave. **START-NOW mode**
-(`/orchestrator now`) skips it: no questions, decide and launch. Once a wave runs it asks nothing. **THE WAVE WINDOW is whatever time the user names in the invocation** and the plan scopes
-to it - prompt cores sized to finish inside it, tails cut first. Unstated, plan to the next
-natural checkpoint and say which. **24 hours is the absolute ceiling of any unattended chain.**
+**Day wave or night wave.** A NIGHT wave is planned in the evening, started by the user, landed by
+morning through the queue; everything marked *night* is mandatory there. An interactively started
+wave may open with a brief alignment step, a few `needs: decision` questions Grill-Me style, when a
+major owner-level choice shapes the whole wave. **START-NOW mode** (`/orchestrator now`) skips it:
+no questions, decide and launch. Once a wave runs it asks nothing. **THE WAVE WINDOW is whatever
+time the user names in the invocation** and the plan scopes to it - prompt cores sized to finish
+inside it, tails cut first. Unstated, plan to the next natural checkpoint and say which. **24 hours
+is the absolute ceiling of any unattended chain.**
 
 ## Output - seven sections, in this order, nothing else
 
@@ -85,9 +82,9 @@ natural checkpoint and say which. **24 hours is the absolute ceiling of any unat
 3. **Landing.** Two things, never blended: branches already ahead of `main`, each with its state
    from `npm run jobs` (`QUEUED` with its pull request, `LANDED`, `LANDING FAILED` with the check
    that failed, or `not queued`); and today's new sessions, which have no branches yet - **order is
-   the queue's, never predicted**. **Section 3 is a report, not a pick.** A refusal is on the pull
-   request (`gh pr view <n>`): name the branch, the failed check, and WHERE the fix runs - the
-   branch's own worktree, the only session that may queue it again.
+   the queue's, never predicted**. **Section 3 is a report, not a pick.** A refusal lives on the
+   pull request (`gh pr view <n>`), never in a local log: name the branch, the failed check, and
+   WHERE the fix runs - the branch's own worktree, the only session that may queue it again.
 4. **What I would push back on.** -> `orchestrator/pushback.md`
 5. **The prompts, and every row's route** - then the launch. -> `orchestrator/prompts.md`, `orchestrator/routing.md`
 6. **Decisions deferred, then one pick.** Preserve the intended outcome, use engineering judgment,
@@ -104,19 +101,16 @@ session enters the watch loop (`orchestrator/night.md`) and stays there until th
 
 These fire while the wave table is being written, before any module is loaded.
 
-- **INTENT BINDS, THE DETAIL DOES NOT** - unless the owner made that detail the point, and this
-  reaches FROZEN ARTIFACTS as much as his live words. A number in a backlog slug, a paraphrase in a
-  receipt's `asked:` line, an implementation sketch in an old handoff, a wording in a title: each is
-  paraphrase twice over, so each is EVIDENCE OF INTENT and never a specification. A row that serves
-  the intent better by other means DOES, and says so - that is the assignment, not a deviation from
-  it, and "better" is measured against what he WANTED, never against what a row would rather build.
-  **The detail binds where he made it the point:** a taste ruling, a named date, a figure he
-  arrived at himself, an explicit "it must be X". Where you genuinely cannot tell, serve the intent
-  and REPORT - never stop to ask, and never file the difference as a decision he owes an answer to.
-- **A wave is ORDER-FREE or it is not a wave** - by default, and chained on purpose when
-  parallelism buys risk instead of time. No `WAIT` lines: two tasks that cannot be made order-free
-  are ONE prompt doing both, or a `START on <branch> landing` the loop fires itself; where the
-  collision pass is UNSURE, chain (`orchestrator/collisions.md`).
+- **INTENT BINDS, THE DETAIL DOES NOT**, in his live words and in FROZEN ARTIFACTS alike: a number
+  in a backlog slug, a receipt's `asked:` line, a sketch in an old handoff, a title's wording are
+  paraphrase, so EVIDENCE OF INTENT, never a specification. A row that serves what he WANTED better
+  by other means DOES, and says so; "better" is never what a row would rather build. **The detail
+  binds where he made it the point:** a taste ruling, a named date, a figure he arrived at himself,
+  an explicit "it must be X". Where you cannot tell, serve the intent and REPORT - never stop to
+  ask, and never file the difference as a decision he owes an answer to.
+- **A wave is ORDER-FREE or it is not a wave**, unless chained on purpose where parallelism buys
+  risk instead of time. Two tasks that cannot be made order-free are ONE prompt, or a
+  `START on <branch> landing` the loop fires itself (`orchestrator/collisions.md`).
 - **A GATE LANDS ALONE.** A session adding or tightening a build gate runs in its own wave or is
   the wave's designated LAST landing. Otherwise every sibling's next merge of `main` brings in a
   gate their prompt never saw, and their red reads as their own fault.
@@ -124,11 +118,10 @@ These fire while the wave table is being written, before any module is loaded.
   baseline, `package.json`), each named in its session's `MINTS` (`orchestrator/collisions.md`).
 - **Every row names its POOL**, with one clause on the kind of thinking the task rewards.
   Routing is a step of the plan, not a default (`orchestrator/routing.md`).
-- **Every pasted task gets a prompt.** Flagging is not vetoing.
-- **Handoffs are continuation records, not a queue.** A row writes one only for unfinished work; a
-  row that finishes a handoff's work deletes it; the report counts open handoffs before and after.
-- **One browser-driving job per MACHINE, not per worktree** (root `AGENTS.md`). Editing
-  parallelises; a browser job does not. Tell sessions to use the `:queued` form.
+- **Every pasted task gets a prompt.** Flagging is not vetoing: the concern goes in section 4, the
+  prompt still goes in section 5, and the decision stays the user's.
+- **One browser-driving job per MACHINE, not per worktree** (`docs/VERIFICATION.md`). Editing
+  parallelises; a browser job does not (`orchestrator/collisions.md`).
 - **The owner queue is a RECORD, NEVER a gate on what can be started** - report its depth in
   section 4 and plan the row anyway. **A technical problem is never his**: a ROW, never an ask.
 - **Verify before you list.** A blocker, a collision or a landing order stated as fact came from a
@@ -163,8 +156,7 @@ reaches `main` - GitHub's merge queue lands it), `check` (review, simplify, veri
 
 ## Learning, without growing the rules
 
-Every wave teaches something, and learning is not adding rules. Record a meaningful failure or
-surprise as an observation (`npm run learn -- --area orchestrator --evidence "..."`); one ordinary
-mistake stays evidence. For a pattern or an expensive failure, fix the cause first, then a default,
-a check or the scheduling, and a rule last; verify the fix works. The ladder, the periodic
-synthesis and the outcome measures are `orchestrator/coherence.md`.
+Learning is not adding rules. Record a meaningful failure or surprise as an observation
+(`npm run learn -- --area orchestrator --evidence "..."`); one ordinary mistake stays evidence. For
+a pattern or an expensive failure, fix the cause first and a rule last, and verify the fix works
+(the ladder: `orchestrator/coherence.md`).
