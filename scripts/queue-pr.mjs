@@ -4,7 +4,7 @@
 //
 //   import { queuePullRequest, alreadyQueued } from './queue-pr.mjs'
 //
-// The three mechanical landings of docs/WORKFLOW_ARCHITECTURE.md §5.2 (a quarantine entry, a
+// The three mechanical landings of docs/WORKFLOW_ARCHITECTURE.md §6 (a quarantine entry, a
 // quarantine release, a revert of a batch that turned main red) all end the same way: a branch
 // exists locally with one commit on it, and it has to reach `main` through the merge queue and
 // nothing else. That is what `npm run queue:merge` does for a session (scripts/jobs.mjs

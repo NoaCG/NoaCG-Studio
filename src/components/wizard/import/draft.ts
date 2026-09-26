@@ -1,4 +1,4 @@
-// The IMPORT-GRAPHIC road's part of the draft (docs/WORKFLOW_ARCHITECTURE.md §5.5): the
+// The IMPORT-GRAPHIC road's part of the draft (docs/ARCHITECTURE.md §5): the
 // erase, placed-field and SVG mapping state the raster and SVG import steps hold, the
 // behaviour bindings and their gap checks, and the build passes that turn all of it into
 // real placed fields and DesignSvg options. The SvgImportDraft record that carries this state
@@ -30,8 +30,8 @@ import { BEHAVIOUR_WORDS, rowKeys } from '../../../templates/behaviours/recipe';
  * Every field below is a shape THIS file declares, so it is declared here too: `SvgImportDraft`
  * (../draft/core.ts) extends this rather than restating it, and the capability's own passes
  * take `SvgImportDraft` rather than the whole record. That is what lets them say, in their
- * signature, exactly how much of the draft they read - and it is the `draftSlice` shape
- * docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard rows 5 and 6 nest the draft into.
+ * signature, exactly how much of the draft they read - and it is the slice a later split of
+ * `WizardDraft` into one record per capability would nest.
  *
  * It stays a SUPERSET of what any one pass reads: the raster half (designArt, designOriginal,
  * designErases, designKeepBakedText, designFields) is the Prepare and Text steps' state and

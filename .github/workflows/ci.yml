@@ -32,7 +32,7 @@ on:
     # that run and cancelled it within seconds, which the queue read as a failed check.
     branches: ['**', '!gh-readonly-queue/**']
   pull_request:
-  # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5.2): GitHub builds a temporary merge of the
+  # The merge queue (docs/WORKFLOW_ARCHITECTURE.md §5): GitHub builds a temporary merge of the
   # queued pull requests on top of main and runs this workflow on it; `CI gate` on that commit is
   # what lets the group merge. The plan below measures from the group's base, which is main.
   merge_group:
@@ -622,7 +622,7 @@ jobs:
   # run ONCE MORE on the same commit, here, and the gate reads both answers: fail-then-pass is a
   # flake, and the gate passes while the specs go into e2e/quarantine.json through the merge
   # queue; fail-then-fail is a regression, the run is red, and on main the batch is reverted
-  # (docs/WORKFLOW_ARCHITECTURE.md §5.1 and §3, "sheriffs + auto-revert + flake bots").
+  # (docs/WORKFLOW_ARCHITECTURE.md §6, "A red main answers itself first").
   #
   # The failed FILES come from the shards' own blob reports (scripts/e2e-retry.mjs), not from
   # re-running whole shards: a shard is nine minutes of mostly-green specs, and the question is

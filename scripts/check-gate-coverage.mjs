@@ -19,7 +19,7 @@
 //
 // THE FIRST VERSION asked "does the build line, or a workflow, or an exemption name this gate?"
 // and that question had one cheap answer: make the build line longer. The line became the most
-// conflicted thing in the repository (docs/WORKFLOW_ARCHITECTURE.md §1.4). THE QUESTION IS NOW
+// conflicted thing in the repository (docs/METRICS.md, the baseline). THE QUESTION IS NOW
 // INVERTED: each gate says in its own header where it runs and which paths it guards,
 // scripts/gates.mjs discovers the gates from those headers, and this check is its `audit` - the
 // rules are in that file, beside the discovery they judge.

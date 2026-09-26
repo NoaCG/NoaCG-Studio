@@ -2,9 +2,10 @@
 // gate: build
 // guards: contracts/**, .claude/rules/**
 //
-// Compile the rule store into the loaded contracts (docs/WORKFLOW_ARCHITECTURE.md §5.3).
+// Compile the rule store into the loaded contracts (docs/WORKFLOW_ARCHITECTURE.md §2).
 //
-//   node scripts/compile-contracts.mjs            # write .claude/rules/*.md and contracts/index.md
+//   node scripts/compile-contracts.mjs            # write the root and owned folder AGENTS.md,
+//                                                 # .claude/rules/*.md and contracts/index.md
 //   node scripts/compile-contracts.mjs --check    # part of `npm run build`: fail if they are stale
 //   node scripts/compile-contracts.mjs --report   # bytes per generated file
 //
@@ -14,9 +15,8 @@
 // a rule whose text carries evidence, a `fires:` naming a mechanism that is not there, two active
 // rules that read as one rule, and a generated file that differs from what the store says.
 //
-// Phase 0 (2026-09-06) produces ONLY this layer. The hand-written AGENTS.md files stay until
-// each area migrates (phase 2b); scripts/check-contract-evidence.mjs keeps them from growing
-// evidence in the meantime.
+// A folder whose AGENTS.md is still hand-written stays so until its area migrates (phase 2b);
+// scripts/check-contract-evidence.mjs keeps it from growing evidence in the meantime.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

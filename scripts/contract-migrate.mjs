@@ -5,7 +5,7 @@
 //   node scripts/contract-migrate.mjs audit --contract src/templates/AGENTS.md --since <ref> \
 //       [--area templates] [--also docs/SOME_DOC.md] [--allow contracts/migrations/<area>.json]
 //
-// WHY. Phase 2b (docs/WORKFLOW_ARCHITECTURE.md §5.3, §7) moves 108 hand-written contracts into
+// WHY. The migration (phase 2b; docs/WORKFLOW_ARCHITECTURE.md §2) moves hand-written contracts into
 // the rule store, one area per row. A row that quietly drops a rule looks exactly like a row that
 // moved it: both leave a smaller file and a green build. The plan names one gate for that, and
 // this is it - the set of backticked tokens in the contract BEFORE the row must be a subset of

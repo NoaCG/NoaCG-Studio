@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// What the instruction contracts cost a session (docs/WORKFLOW_ARCHITECTURE.md §9).
+// What the instruction contracts cost a session (baseline and targets: docs/METRICS.md).
 //
 //   npm run metrics:contracts                 # today's numbers
 //   npm run metrics:contracts -- --at 2026-08-15   # the same numbers at a past commit

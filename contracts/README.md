@@ -4,8 +4,8 @@ The loaded contracts are compiled from here. Nothing in this directory loads int
 itself; `scripts/compile-contracts.mjs` turns the active rules into the root `AGENTS.md` (the
 `**` rules, loaded by every session and held to a byte budget), `.claude/rules/*.md` (which
 Claude Code loads only when a matching file is read), the nested `AGENTS.md` Codex reads, and
-`index.md`. The design and the
-measurements behind it are in `docs/WORKFLOW_ARCHITECTURE.md` §5.3.
+`index.md`. How the pieces fit together, and how each tool loads them, is
+`docs/WORKFLOW_ARCHITECTURE.md` §2.
 
 ## Layout
 

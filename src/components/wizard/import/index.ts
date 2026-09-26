@@ -1,5 +1,5 @@
-// The Import-graphic capability's ONE public entry (docs/WORKFLOW_ARCHITECTURE.md §5.5,
-// wizard row 2). Everything the capability owns - the five steps, the artwork canvas, the
+// The Import-graphic capability's ONE public entry (docs/ARCHITECTURE.md §5, wizard row 2).
+// Everything the capability owns - the five steps, the artwork canvas, the
 // fill-them-in guess and the draft slice they all read - lives beside this file, and nothing
 // outside the folder reaches past it: the `.dependency-cruiser.cjs` rule
 // `wizard-import-through-its-index` refuses a deep import. Three callers exist, and the list

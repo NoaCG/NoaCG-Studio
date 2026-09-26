@@ -2,7 +2,7 @@
 // No `gate:` header: git invokes this, not the build. Its decisions are pinned by
 // scripts/contracts-merge-driver.test.mjs, which the build discovers on disk like any other test.
 //
-// Resolve a conflict in a GENERATED contract by regenerating it (docs/WORKFLOW_ARCHITECTURE.md §5.3).
+// Resolve a conflict in a GENERATED contract by regenerating it (docs/WORKFLOW_ARCHITECTURE.md §2).
 //
 //   node scripts/contracts-merge-driver.mjs --install        # register the driver in this clone
 //   node scripts/contracts-merge-driver.mjs %O %A %B %P      # what git runs, per conflicted file

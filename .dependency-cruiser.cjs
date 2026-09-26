@@ -59,7 +59,7 @@ module.exports = {
       severity: 'error',
       comment:
         'The Import-graphic capability (src/components/wizard/import/, ' +
-        'docs/WORKFLOW_ARCHITECTURE.md §5.5 wizard row 2) is reached through its own ' +
+        'docs/ARCHITECTURE.md §5) is reached through its own ' +
         'index.ts and nothing else. The point of the folder is that a change inside it stops ' +
         'touching files the other wizard capabilities share, and a deep import is how that ' +
         'stops being true: it makes an internal file part of another capability contract, so ' +
@@ -303,7 +303,7 @@ module.exports = {
       to: { path: '^src/editor/commentVisibility' },
     },
 
-    // ---- the row-1 shim (docs/WORKFLOW_ARCHITECTURE.md §5.5) - deleted together with the shim --
+    // ---- the row-1 shim (docs/ARCHITECTURE.md §6, model -> templates) - deleted together with the shim --
     {
       comment:
         'Domain row 1 shim: src/model/wizard.ts is a re-export of templates/contract.ts and ' +

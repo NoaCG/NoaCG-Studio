@@ -3,8 +3,8 @@
 // The template contract that lived here (TemplateVariant, WizardOptions, the palettes, the field
 // plans, resolveOptions, fieldsFromOptions, ...) moved to src/templates/contract.ts, and the
 // Import-graphic road's DesignSvg* / DesignArt shapes moved to
-// src/templates/importedDesign/designTypes.ts (docs/WORKFLOW_ARCHITECTURE.md §5.5, domain
-// row 1). Nothing here is kernel: every model/ importer of this file takes types only.
+// src/templates/importedDesign/designTypes.ts (docs/ARCHITECTURE.md §6, the model -> templates
+// debt). Nothing here is kernel: every model/ importer of this file takes types only.
 //
 // The file keeps the old path resolving so the hundreds of importers on open branches - and the
 // scripts that `import('/src/model/wizard.ts')` through Vite - compile while those branches land.
