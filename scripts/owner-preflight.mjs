@@ -141,12 +141,18 @@ export function gather({ repo = 'NoaCG/NoaCG-Studio', rulesetName = RULESET_NAME
   const secrets = ghJson([`repos/${repo}/environments/production/secrets`]);
   facts['migration-token'] = secrets === null ? null : (secrets.secrets ?? []).some((s) => s?.name === 'SUPABASE_ACCESS_TOKEN');
 
-  const variables = ghJson([`repos/${repo}/actions/variables?per_page=100`]);
-  const repoSecrets = ghJson([`repos/${repo}/actions/secrets?per_page=100`]);
-  facts['bot-app'] = variables === null || repoSecrets === null
-    ? null
-    : (variables.variables ?? []).some((v) => v?.name === 'NOACG_BOT_CLIENT_ID')
-      && (repoSecrets.secrets ?? []).some((s) => s?.name === 'NOACG_BOT_PRIVATE_KEY');
+  // Either level counts: a workflow reads `vars.X` and `secrets.X` from the repository or from the
+  // organisation, whichever holds it, and the organisation's are listed per repository by GitHub.
+  const names = (path, key) => {
+    const listed = ghJson([`repos/${repo}/actions/${path}?per_page=100`]);
+    return listed === null ? null : (listed[key] ?? []).map((item) => item?.name);
+  };
+  const variables = [names('variables', 'variables'), names('organization-variables', 'variables')];
+  const botSecrets = [names('secrets', 'secrets'), names('organization-secrets', 'secrets')];
+  const holds = (lists, name) => (lists.some((list) => list?.includes(name)) ? true : lists.some((list) => list === null) ? null : false);
+  const clientId = holds(variables, 'NOACG_BOT_CLIENT_ID');
+  const privateKey = holds(botSecrets, 'NOACG_BOT_PRIVATE_KEY');
+  facts['bot-app'] = clientId === false || privateKey === false ? false : clientId && privateKey ? true : null;
 
   const labels = ghJson([`repos/${repo}/labels?per_page=100`]);
   facts['land-label'] = labels === null ? null : labels.some((l) => l?.name === 'land');
