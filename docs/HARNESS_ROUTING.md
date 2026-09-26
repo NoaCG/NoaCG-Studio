@@ -1571,3 +1571,15 @@ Native Claude background launch from Codex reached the assigned cwd, then report
 An earlier successful auth-status lookup was insufficient. Read the worker result before declaring
 that route usable. Native Codex subagent work and targeted local tests succeeded; a complete
 unattended cross-host shift remains unverified. The adapter is `.agent-workflows/orchestrator/hosts.md`.
+
+## Fable: consult only
+
+Fable does not implement or own a wave row (owner, 2026-09-26): implementation runs on Opus, and
+the plan check refuses `POOL fable`. A row may consult `design-consult` (Fable) for a visual
+design or taste judgement where the evidence below says it has helped. Measured on 2026-09-24,
+one Fable row cost 26% of a nine-row wave, about 2.5 times Opus per token.
+
+Evidence that a Fable consult changed a decision for the better, one line each (date, row,
+question, what it changed):
+
+- none recorded yet

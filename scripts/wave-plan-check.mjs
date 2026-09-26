@@ -63,8 +63,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
 
 /** The worker pools a row may name. The two Antigravity pools are billed separately (owner, 2026-09-01). */
-export const POOLS = Object.freeze(['opus', 'fable', 'sonnet', 'agy-gemini', 'agy-claude-gpt', 'codex']);
-export const CLAUDE_POOLS = Object.freeze(['opus', 'fable', 'sonnet']);
+export const POOLS = Object.freeze(['opus', 'sonnet', 'agy-gemini', 'agy-claude-gpt', 'codex']);
+export const CLAUDE_POOLS = Object.freeze(['opus', 'sonnet']);
+/**
+ * Fable is a consultant, not a pool (owner, 2026-09-26): it cost 2.5 times Opus per token and one
+ * Fable row was a quarter of a nine-row wave. It is refused with the route that replaces it.
+ */
+const FABLE_REFUSAL = 'Fable does not implement: run the row on opus, and consult `design-consult` from inside it for a design or taste call (docs/HARNESS_ROUTING.md)';
 export const PROMPT_KEYS = /^(SESSION|BRANCH|MODEL|POOL|START|TOUCHES|MINTS|GOAL|WHY|READ|SPEC|SIZE|DO|CORE|TAIL|TRAPS|GATE|CHECK|QUEUE)\b/;
 const REQUIRED_COLUMNS = ['letter', 'goal', 'start', 'touches', 'mints', 'pool', 'browser'];
 
@@ -357,7 +362,8 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
     const pools = rowPools(row);
     if (pools.length === 0) problems.push(`row ${letter}: no POOL - every row names the pool that does its work (${POOLS.join(', ')})`);
     for (const pool of pools) {
-      if (!POOLS.includes(pool)) problems.push(`row ${letter}: POOL "${pool}" is not one of ${POOLS.join(', ')}`);
+      if (pool === 'fable') problems.push(`row ${letter}: POOL "fable" - ${FABLE_REFUSAL}`);
+      else if (!POOLS.includes(pool)) problems.push(`row ${letter}: POOL "${pool}" is not one of ${POOLS.join(', ')}`);
     }
     const block = blocks.get(letter);
     if (pools.some((pool) => POOLS.includes(pool) && !CLAUDE_POOLS.includes(pool))) {

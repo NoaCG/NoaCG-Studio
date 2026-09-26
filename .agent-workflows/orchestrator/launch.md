@@ -26,7 +26,10 @@ the model, the effort and `isolation: worktree`:
 | `opus high` (the default) | `wave-row` |
 | `opus xhigh` / `opus max` | `wave-row-deciding` |
 | `sonnet` | `wave-row-mechanical` |
-| `fable high` | `wave-row-design` |
+
+There is no Fable rung: Fable does not implement (owner, 2026-09-26). A row that needs a visual
+design or taste judgement consults `design-consult` from inside itself, blocking, and implements
+on Opus.
 
 A rung with no definition falls back to a plain model launch, which runs at the SESSION's effort
 whatever the row promised - so a new rung is a new file, never a note in a prompt. Read the
@@ -96,8 +99,8 @@ persist, and peers vanish - most of the ones a listing shows are already offline
 to a session known to be live; the durable channels stay the only source of truth (the handoff
 file, the owner queue, the wave-state file).
 
-A task chip is minted only when starting it is genuinely the owner's call: a Fable-tier task worth
-hand-picking the model for, anything near real money, or a scope judgment. Chips are the owner's
+A task chip is minted only when starting it is genuinely the owner's call: anything near real
+money, or a scope judgment. Chips are the owner's
 control point, not the loop's queue. **A `PreToolUse` guard (`scripts/hooks/spawn-task-guard.mjs`)
 refuses every chip that does not say so**, so a legitimate one carries an
 `OWNER-DECISION: <the reason, in your own words>` line in the prompt or the tldr - a bare marker

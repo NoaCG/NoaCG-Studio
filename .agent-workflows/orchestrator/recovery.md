@@ -60,6 +60,17 @@ case and stays the default. Nothing here licenses discarding work that merely ha
 - **One rewind per assignment.** A second rewind means the assignment itself is wrong, not the
   attempts. That goes to the owner as a section-4 item, never to a third attempt.
 
+## A red or late pull request: repair it with a fresh worker
+
+When a queued row's pull request goes red, or its landing needs substantial work, **launch a fresh
+worker for the repair rather than resuming the old one.** A resumed worker re-reads its whole
+context on every turn, and by then that is 400-600K tokens: one repair resumed that way on
+2026-09-24 cost more than most of the rows that night. The fresh worker gets a small, complete
+brief: the row's GOAL, WHY and ACCEPT, the branch, the failing check with its log excerpt (or
+the conflict), and what the first worker established. It checks the branch out in its own
+worktree, fixes, verifies and queues. Resuming stays right for a one-line fix the old worker has
+already diagnosed. This is a repair, not a rewind: the branch and its work are kept.
+
 ## Who may do it
 
 - **A session may rewind its OWN unlanded work without asking anyone.** It is inside its own

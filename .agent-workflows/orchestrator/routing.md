@@ -9,7 +9,7 @@ this module the choice. Claude's existing Agent and rescue routes remain valid.
 | POOL | use | route |
 | --- | --- | --- |
 | `opus` | a major implementation pool; Claude's default, not a required supervisor for every other pool | Claude Agent definitions in `launch.md`; from Codex, the Claude CLI |
-| `fable` | consequential design, architecture or adversarial review; only when the host exposes the model | Claude Agent with its definition; never silently substitute a model |
+| `fable` | NOT a row pool: a blocking design or taste consult from inside an Opus row, only where `docs/HARNESS_ROUTING.md` records it has helped (owner, 2026-09-26) | `design-consult` agent; the plan check refuses `POOL fable` |
 | `sonnet` | mechanical work with a written recipe and verification | Claude Agent or CLI |
 | `codex` | a full implementation and review pool, AVAILABLE BY DEFAULT; short specification, substantial engineering | native Codex subagent when present; from Claude, `rescue` in the owning row |
 | `agy-gemini` | bounded implementation, comprehension and corpus work where measured outcomes justify it | `npm run agy:read` or `npm run agy -- --write` from either host |
