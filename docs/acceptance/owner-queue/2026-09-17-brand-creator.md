@@ -1,27 +1,20 @@
 ---
-kind: walk
-because: taste
+kind: desktop
 date: 2026-09-17
+because: taste
 ---
-
 # Create a brand before making a graphic
 
-## What changed
+Home's Brands section has **New brand** and **Edit**: a name, a logo, colours, fonts and notes,
+with three real template previews that follow the edits. The wizard's Brand chooser uses the same
+saved record. Save, reopen and the size refusal are pinned by `e2e/brand-editor.spec.ts`; the
+wizard's chooser and applying a brand to a logo slot by `e2e/wizard-brand.spec.ts`.
 
-Home's Brand looks is now Brands, with New brand and Edit. A brand can be made independently
-of an open graphic: name, logo, colours, fonts and notes, with three actual template previews.
-The wizard uses that same saved record. This is the first part of the collection/editor
-workflow, not the completed collection browser or timeline rebuild.
+## The route, under a minute
 
-## Route in under a minute
+/app#/home/looks, **New brand**. Name it, upload a small PNG or SVG logo, change the accent and
+pick a font, **Save brand**. Then **New graphic**, **Start from a template**, and choose that brand.
 
-Open `/app#/home/looks` -> New brand. Name it, upload a small PNG/SVG logo and change Accent.
-Choose a font, Save brand, then New graphic -> Start from a template -> choose that brand.
-
-## What to look at
-
-Does seeing the three examples make it easy to understand the look being created? At laptop
-size, are the colour/font controls and the preview column comfortable to use? The functional
-save/reopen/refusal checks are automated; this item asks whether the result feels good enough.
-Saving changes to a brand leaves existing graphics unchanged. Rapid colour edits update the
-controls immediately and refresh the three previews after a short pause (150 ms).
+**What to look at.** Whether the three previews make the look you are creating easy to understand,
+and whether the colour and font controls and the preview column are comfortable at laptop size. It
+is your "the graphic would magically adapt to the brand", so whether it feels like that is yours.

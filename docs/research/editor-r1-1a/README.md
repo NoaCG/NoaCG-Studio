@@ -152,5 +152,25 @@ the existing timeline; key authoring, span/body moves, Out changes, playback, ro
 anchor editing, grouping, Monaco and the default-editor switch remain later work.
 The route remains Alpha, including the live shortcut and phone viewing.
 
-Stop before R1.1b. The [owner review item](../../acceptance/owner-queue/2026-09-20-editor-r1-1a.md)
-is deliberately unanswered.
+Stop before R1.1b. The owner walked this slice on 2026-09-20; his feedback is below. It is not an
+acceptance verdict, and the next owner review waits for the usable-static-authoring follow-up.
+
+## Owner feedback, 2026-09-20
+
+Moved here from the owner-queue review item when that item was closed on 2026-09-26, so the
+follow-up reads it beside the receipt.
+
+The owner can create Text, Rectangle and Ellipse in the local build, but cannot edit the text by
+double-clicking, choose fonts, change shape colours, reorder layers or see animation keyframes. He
+expects Ctrl/marquee selection and moving multiple items together as basic editor functionality,
+and asked which features should work now and how to proceed.
+
+Current boundary at the time: Ctrl/Shift selection is implemented, but multi-object dragging and
+marquee selection are not. Text content/typography, basic appearance and layer stacking are
+allocated to R1.2b; visible/editable keys and timing to R1.1b. The slice demonstrates creation,
+base geometry, preservation and history, not complete template customization.
+
+Recommended next milestone, for discussion: pull forward a bounded everyday-editing portion of
+R1.2b so the owner can create a title and shapes, edit text/font/solid colours, change stacking
+order, select and move several objects, and save/reopen the result; then resume key authoring. This
+recommendation does not change the approved roadmap on its own.

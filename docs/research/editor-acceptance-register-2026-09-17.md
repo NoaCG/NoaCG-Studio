@@ -246,8 +246,8 @@ verdict or receiving-host acceptance is claimed.
 Directly animated scale, or an SVG element's own animated position, has an explicit
 refusal rather than competing base properties. Existing panel masks remain meaningful.
 Full B03/B04, broad R1.1d identity fixtures, physical phones, first-time users, R1.0 owner
-acceptance and the original blank-stage report remain open. The [R1.1a owner item](../acceptance/owner-queue/2026-09-20-editor-r1-1a.md)
-is unanswered. No R1.1b keys/bar/Out authoring was implemented. This is engineering progress, not workflow-review readiness; continue with the usable-static-authoring follow-up.
+acceptance and the original blank-stage report remain open. The [R1.1a owner feedback](editor-r1-1a/README.md#owner-feedback-2026-09-20)
+is not an acceptance verdict. No R1.1b keys/bar/Out authoring was implemented. This is engineering progress, not workflow-review readiness; continue with the usable-static-authoring follow-up.
 
 ## Optional P-GPU evidence
 
