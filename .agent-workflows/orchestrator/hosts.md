@@ -104,8 +104,11 @@ For a bounded foreground review, or a host without background mode, use:
 Omit `--read-only` only for an assigned implementation row, which adds `--agent <definition>
 --effort <its effort>` as above. A read-only review keeps its Read, Grep and Glob limit with `--agent`
 too (measured 2026-09-27). The bridge sends stdin, inherits
-permissions, records local job/results, and refuses duplicate workers for one worktree. Its
-`status`/`result --cwd <worktree> --id <id>` commands recover receipts. Keep its persistent shell
+permissions, records local job/results, and refuses duplicate workers for one worktree. Those
+records live in `<git-common-dir>/noacg-jobs/claude-workers`, outside the worktree and so outside a
+Codex sandbox limited to the workspace: run the bridge with approved host access, never by changing
+permission settings. Its tests failed in that sandbox and passed with host access (2026-09-27). The
+bridge's `status`/`result --cwd <worktree> --id <id>` commands recover receipts. Keep its persistent shell
 session alive until completion. The bridge provides no durable supervision after its host is killed.
 A killed supervisor can leave a live child worker process; PID presence is not identity proof.
 `readStatus` reports `supervisorPresent` and `workerPresent` separately (with `processPresent`
