@@ -69,7 +69,7 @@ async function open(page: Page, id: string): Promise<void> {
 
 const railWidth = (page: Page) => page.locator('.pd-rail').evaluate((el) => Math.round(el.getBoundingClientRect().width));
 const storedWidth = (page: Page) =>
-  page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{}').rundownWidth ?? null);
+  page.evaluate(async () => (await import('/src/model/prefs.ts')).loadPrefs().rundownWidth);
 
 /** Drag the handle by `dx` pixels (negative = left = a WIDER rundown). */
 async function dragHandle(page: Page, dx: number): Promise<void> {
@@ -218,12 +218,12 @@ for (const size of [
       });
 
     const results: Record<string, number> = {};
-    for (const rail of ['narrowest', 'default', 'widest'] as const) {
-      const w = rail === 'narrowest' ? RAIL_MIN : rail === 'widest' ? 99999 : null;
-      await page.evaluate((width) => {
-        const prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{"v":2}');
-        localStorage.setItem('spx-gfx-prefs', JSON.stringify({ ...prefs, v: 2, rundownWidth: width }));
-      }, w);
+    for (const [rail, w] of [
+      ['narrowest', RAIL_MIN],
+      ['default', null],
+      ['widest', 99999],
+    ] as const) {
+      await page.evaluate(async (width) => (await import('/src/model/prefs.ts')).savePrefs({ rundownWidth: width }), w);
       await page.reload();
       // A reload selects the first cue again, so the scorebug is picked once more, and taken, so
       // PROGRAM's header carries a name and a layer badge as well as its label.

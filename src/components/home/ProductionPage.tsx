@@ -1351,6 +1351,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [advancedFor, setAdvancedFor] = useState<string | null>(null);
   /** Bumped by a rundown row's clash badge, so the repair is brought into view once it renders. */
   const [repairAsk, setRepairAsk] = useState(0);
+  const clashFix = useRef<HTMLButtonElement>(null);
   /** THE CLASH BADGE'S DOOR (docs/CLIP_PLAYBACK_PLAN.md §6.5): select the cue, and its editor opens
    *  Advanced by itself because the layer clashes; then the repair is scrolled to and focused. */
   const openLayerRepair = useCallback(
@@ -1362,9 +1363,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   useEffect(() => {
     if (!repairAsk) return;
-    const fix = document.querySelector<HTMLElement>('[data-testid="layer-clash-fix"]');
-    fix?.scrollIntoView({ block: 'nearest' });
-    fix?.focus({ preventScroll: true });
+    clashFix.current?.scrollIntoView({ block: 'nearest' });
+    clashFix.current?.focus({ preventScroll: true });
   }, [repairAsk]);
   /**
    * Switching modes keeps the picture still. Into 'preview-then-take', what the operator was
@@ -1991,7 +1991,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
-  const layerClash = !!poolGraphic && clashes.has(graphicLayer(poolGraphic));
+  /** The edited graphic's layer, and who else is on it when two graphics share it. */
+  const editedLayer = poolGraphic ? graphicLayer(poolGraphic) : 0;
+  const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
+  const layerClash = !!sharingLayer;
   const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
   const editingView = editingCue ? cueView(editingCue) : null;
   // The graphic's own picture assets, so an IMAGE field is actually pickable here. Without
@@ -2965,7 +2968,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
                 Advanced
                 <span className="pd-advanced-sum" data-testid="cue-advanced-summary">
-                  Layer {graphicLayer(poolGraphic)}
+                  Layer {editedLayer}
                   {layerClash ? ' · shared' : ''}
                 </span>
               </button>
@@ -2977,16 +2980,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                       type="number"
                       min={MIN_PLAYOUT_LAYER}
                       max={MAX_PLAYOUT_LAYER}
-                      value={graphicLayer(poolGraphic)}
+                      value={editedLayer}
                       onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
                       data-testid="graphic-layer"
                     />
                   </label>
-                  {layerClash && (
+                  {sharingLayer && (
                     <p className="status-warn pd-layer-clash" data-testid="layer-clash">
-                      {nameList(clashes.get(graphicLayer(poolGraphic))!.map((g) => g.name))} share layer{' '}
-                      {graphicLayer(poolGraphic)}. On air they replace each other.
+                      {nameList(sharingLayer.map((g) => g.name))} share layer {editedLayer}. On air
+                      they replace each other.
                       <button
+                        ref={clashFix}
                         onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
                         data-testid="layer-clash-fix"
                       >
@@ -3527,7 +3531,7 @@ function ProductionShell({
         {children}
         {/* Only beside the playout surface: Data and Audience take the whole body and have no
             rundown to resize. The phone hides it, where the rundown is a row of the one column. */}
-        {sub === null && <RailResizer width={rail.width} max={rail.max} preview={rail.preview} commit={rail.commit} />}
+        {sub === null && <RailResizer {...rail} />}
       </main>
     </div>
   );

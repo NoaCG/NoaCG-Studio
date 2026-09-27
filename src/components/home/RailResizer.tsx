@@ -15,12 +15,14 @@ import { loadPrefs, savePrefs } from '../../model/prefs';
  */
 
 /** The narrowest the rundown gets: a one-line row still shows its number, kind, name and slot. */
-export const RAIL_MIN = 320;
+const RAIL_MIN = 320;
 /** The widest, as a share of the window: the stage column keeps its verbs and two monitors. */
-export const RAIL_MAX_SHARE = 0.6;
+const RAIL_MAX_SHARE = 0.6;
 /** One arrow press, and one with Shift held. */
 const KEY_STEP = 20;
 const KEY_STEP_BIG = 100;
+/** The body class every drag handle in the app sets while it moves. */
+const DRAG_CLASS = 'resizing-cols';
 
 /**
  * The width with nothing chosen: 23% of the window, and never under 380px - so 380 at the
@@ -32,12 +34,12 @@ const KEY_STEP_BIG = 100;
  * on 2026-08-21 (pinned in e2e/productions.spec.ts). At 23% they keep 343px, and a wider rundown is
  * one drag away.
  */
-export function defaultRailWidth(windowWidth: number): number {
+function defaultRailWidth(windowWidth: number): number {
   return Math.round(Math.max(380, 0.23 * windowWidth));
 }
 
 /** Any width, held inside the limits for this window. */
-export function clampRailWidth(width: number, windowWidth: number): number {
+function clampRailWidth(width: number, windowWidth: number): number {
   const max = Math.max(RAIL_MIN, Math.floor(RAIL_MAX_SHARE * windowWidth));
   return Math.round(Math.min(max, Math.max(RAIL_MIN, width)));
 }
@@ -48,19 +50,22 @@ function storedWidth(): number | null {
   return typeof w === 'number' && Number.isFinite(w) ? w : null;
 }
 
-/**
- * The rundown's width for the body `body`, in CSS pixels, and the three ways to change it. The
- * body's own width is measured rather than read off `window`, so the limits and the default are
- * worked out against exactly the box the grid divides.
- */
-export function useRailWidth(body: RefObject<HTMLElement | null>): {
+/** The rundown's width and the ways to change it: what the handle needs, and all it needs. */
+interface RailWidth {
   width: number;
   max: number;
   /** A width while the handle moves, shown at once and stored only by `commit`; null ends it. */
   preview: (width: number | null) => void;
   /** Store a width, or null to go back to the default. */
   commit: (width: number | null) => void;
-} {
+}
+
+/**
+ * The rundown's width for the body `body`, in CSS pixels. The body's own width is measured rather
+ * than read off `window`, so the limits and the default are worked out against exactly the box
+ * the grid divides.
+ */
+export function useRailWidth(body: RefObject<HTMLElement | null>): RailWidth {
   const [bodyWidth, setBodyWidth] = useState(() => (typeof window === 'undefined' ? 1366 : window.innerWidth));
   const [stored, setStored] = useState<number | null>(storedWidth);
   const [dragging, setDragging] = useState<number | null>(null);
@@ -74,7 +79,6 @@ export function useRailWidth(body: RefObject<HTMLElement | null>): {
     return () => observer.disconnect();
   }, [body]);
 
-  const preview = useCallback((width: number | null) => setDragging(width), []);
   const commit = useCallback(
     (width: number | null) => {
       const next = width === null ? null : clampRailWidth(width, bodyWidth);
@@ -88,7 +92,7 @@ export function useRailWidth(body: RefObject<HTMLElement | null>): {
   return {
     width: clampRailWidth(dragging ?? stored ?? defaultRailWidth(bodyWidth), bodyWidth),
     max: clampRailWidth(Infinity, bodyWidth),
-    preview,
+    preview: setDragging,
     commit,
   };
 }
@@ -98,22 +102,17 @@ export function useRailWidth(body: RefObject<HTMLElement | null>): {
  * (`right: var(--pd-rail-w)` inside `.pd-body`), so dragging it LEFT widens the rundown, and the
  * arrow keys move it the same way the pointer does.
  */
-export default function RailResizer({
-  width,
-  max,
-  preview,
-  commit,
-}: {
-  width: number;
-  max: number;
-  preview: (width: number | null) => void;
-  commit: (width: number | null) => void;
-}) {
+export default function RailResizer({ width, max, preview, commit }: RailWidth) {
   /** Where the drag began: the pointer's x and the width it started from. */
   const drag = useRef<{ x: number; width: number; last: number } | null>(null);
-  // A handle that goes away mid-drag (a workspace tab opened, the page left) must not leave the
-  // whole app wearing the resize cursor with text selection off.
-  useEffect(() => () => document.body.classList.remove('pd-resizing'), []);
+  // DRAGGING wears the app's one resize state (styles/brand-mark.css, shared with the editor's
+  // splitters): the resize cursor everywhere and no text selection under it. A handle that goes
+  // away mid-drag (a workspace tab opened, the page left) must not leave the app wearing it.
+  const endDrag = () => {
+    drag.current = null;
+    document.body.classList.remove(DRAG_CLASS);
+  };
+  useEffect(() => () => document.body.classList.remove(DRAG_CLASS), []);
 
   return (
     <div
@@ -134,7 +133,7 @@ export default function RailResizer({
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
         drag.current = { x: e.clientX, width, last: width };
-        document.body.classList.add('pd-resizing');
+        document.body.classList.add(DRAG_CLASS);
       }}
       onPointerMove={(e) => {
         const d = drag.current;
@@ -145,8 +144,7 @@ export default function RailResizer({
       onPointerUp={(e) => {
         const d = drag.current;
         if (!d) return;
-        drag.current = null;
-        document.body.classList.remove('pd-resizing');
+        endDrag();
         if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
         // A press with no movement is half of a double-click, not a choice of width: storing it
         // would pin the default's current value and stop it following the window.
@@ -154,8 +152,7 @@ export default function RailResizer({
         else preview(null);
       }}
       onPointerCancel={() => {
-        drag.current = null;
-        document.body.classList.remove('pd-resizing');
+        endDrag();
         preview(null);
       }}
       onDoubleClick={() => commit(null)}

@@ -39,7 +39,7 @@ export function nameList(names: string[]): string {
 }
 
 /** How long the list stays where the operator scrolled it before it follows the air again. */
-export const FOLLOW_PAUSE_MS = 10_000;
+const FOLLOW_PAUSE_MS = 10_000;
 
 /** Whether a hand scrolled the list within the pause, as of now. */
 function scrolledLately(at: number): boolean {
@@ -158,13 +158,15 @@ export default function CueRundown({
   const draggingRow = useRef<string | null>(null);
   const scrolledAt = useRef(-Infinity);
   const menuOpen = menuCueId !== null || pickerOpen;
-  const liveIds = cues
-    .filter((cue) => {
-      const graphic = cueGraphicName(cue);
-      return (!!graphic && liveCue[graphic] === cue.id) || serverCueLive(serverOnAir, playoutItemFor(cue), cue);
-    })
-    .map((cue) => cue.id);
-  const liveKey = liveIds.join(' ');
+  const liveIds = new Set(
+    cues
+      .filter((cue) => {
+        const graphic = cueGraphicName(cue);
+        return (!!graphic && liveCue[graphic] === cue.id) || serverCueLive(serverOnAir, playoutItemFor(cue), cue);
+      })
+      .map((cue) => cue.id),
+  );
+  const liveKey = [...liveIds].join(' ');
   const wasLive = useRef<ReadonlySet<string>>(new Set());
   useEffect(() => {
     const now = new Set(liveKey ? liveKey.split(' ') : []);
@@ -231,7 +233,7 @@ export default function CueRundown({
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
-          const cueIsLive = liveIds.includes(cue.id);
+          const cueIsLive = liveIds.has(cue.id);
           const isSelected = cue.id === (selectedCueId ?? '');
           // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
           // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.
@@ -242,9 +244,8 @@ export default function CueRundown({
           // graphic, so losing it loses the uploads and the operator has to be told.
           const siblingCues = cues.filter((c) => c.sourceId === cue.sourceId).length;
           const pictures = poolEntry?.type === 'picture' ? poolEntry.template.assets.length : 0;
-          const clashWith = poolEntry
-            ? (clashes.get(graphicLayer(poolEntry)) ?? []).filter((g) => g.id !== poolEntry.id)
-            : [];
+          const layer = poolEntry ? graphicLayer(poolEntry) : 0;
+          const clashWith = poolEntry ? (clashes.get(layer) ?? []).filter((g) => g.id !== poolEntry.id) : [];
           const address = playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
           // THE KIND, in words for whoever cannot see the glyph: the icon's accessible name and
           // its tooltip carry what the old second line printed ("Lower third · Hairline").
@@ -267,7 +268,6 @@ export default function CueRundown({
             : (playoutItem?.name ?? 'missing graphic');
           const length = playoutItem?.kind === 'media' ? clipLength(playoutItem) : '';
           const loops = playoutItem?.kind === 'media' && !!playoutItem.loop;
-          const marks = (loops ? 1 : 0) + (view.note ? 1 : 0);
           return (
             <div
               key={cue.id}
@@ -315,9 +315,6 @@ export default function CueRundown({
                 onClick={() => selectCue(cue.id)}
                 data-testid="select-cue"
                 aria-current={isSelected ? 'true' : undefined}
-                // The name never shrinks while the summary has room to give; this is how much of
-                // the line its marks need, so a long name ends in an ellipsis before them.
-                style={{ '--pd-marks-w': `${marks * 22}px` } as React.CSSProperties}
               >
                 <strong>{view.label}</strong>
                 {/* A clip that LOOPS says so after its name: it is what happens at its end, and
@@ -355,18 +352,18 @@ export default function CueRundown({
                   <button
                     className="pd-cue-layer clash"
                     onClick={() => onLayerRepair(cue.id)}
-                    title={`Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other. Click to repair.`}
+                    title={`Shares layer ${layer} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other. Click to repair.`}
                     data-testid="cue-layer"
                   >
-                    L{graphicLayer(poolEntry)}
+                    L{layer}
                   </button>
                 ) : (
                   <span
                     className="pd-cue-layer"
-                    title={`${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`}
+                    title={`${poolEntry.name} airs on layer ${layer}`}
                     data-testid="cue-layer"
                   >
-                    L{graphicLayer(poolEntry)}
+                    L{layer}
                   </span>
                 ))}
               {/* A server item wears its CasparCG address, channel and layer, the way the

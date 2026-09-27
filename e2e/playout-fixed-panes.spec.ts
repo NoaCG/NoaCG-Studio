@@ -192,6 +192,7 @@ for (const size of SIZES) {
   }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await seedRailWidth(page, size.rail);
+    const tag = `${size.width}x${size.height}-rail-${size.rail ?? 'default'}`;
     const seeded = await seedProduction(page);
     await page.goto(`/app#/production/${seeded.id}`);
     await expect(page.getByTestId('production-page')).toBeVisible();
@@ -213,10 +214,10 @@ for (const size of SIZES) {
       await frames(page);
     }
     const scrolled = await snapshot(page);
-    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-long-top`);
+    await shot(page, `${tag}-long-top`);
     await page.getByTestId('control-area').evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await frames(page);
-    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-long-bottom`);
+    await shot(page, `${tag}-long-bottom`);
     await page.getByTestId('control-area').evaluate((el) => el.scrollTo(0, 0));
     await wheelDownAndBack(page);
     const drift = await stopDriftSampler(page);
@@ -251,7 +252,7 @@ for (const size of SIZES) {
     await page.getByTestId('select-cue').filter({ hasText: seeded.short }).first().scrollIntoViewIfNeeded();
     await openCue(page, seeded.short);
     const shortBefore = await snapshot(page);
-    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-short`);
+    await shot(page, `${tag}-short`);
     await startDriftSampler(page);
     await wheelDownAndBack(page);
     const shortDrift = await stopDriftSampler(page);
