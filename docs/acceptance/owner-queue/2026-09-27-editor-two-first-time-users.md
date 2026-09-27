@@ -10,6 +10,11 @@ The R1.1d engineering checks cover the real import, edits, keys, exit, history a
 exports. What remains is whether two people using this editor for the first time
 can complete the task within the acceptance targets, and what help they need.
 
+## The route, about 15 minutes per person
+
+Open `/app#/new`, import the checkpoint's SVG, continue through the wizard and
+find **Edit** on Finish. Use a fresh graphic for each participant.
+
 Use the [checkpoint and individual recording sheets](../../research/editor-r1-1d/checkpoint.md).
 It includes the SVG, identical introduction, task finishes and timing rules.
 Allow about 15 minutes per person. Record the live revision and device setup.

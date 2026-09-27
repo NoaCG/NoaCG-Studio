@@ -241,13 +241,20 @@ test('unnamed and duplicate identities are minted atomically and never during dr
     const noOp = applyOperations(input, [{ ...op, values: { x: baseValues(input, target).x } }]);
     let referenceError = '';
     try { applyOperations({ ...input, css: input.css + '\n#duplicate { opacity: .8 }' }, [op]); } catch (e) { referenceError = String(e); }
+    const attributeErrors = ['[id="duplicate"]', '[id=duplicate]', '#d\\75 plicate'].map(selector => { try { applyOperations({ ...input, css: input.css + '\n' + selector + ' { fill: red }' }, [op]); return ''; } catch (e) { return String(e); } });
+    const escapedInput = { ...input, html: input.html.replaceAll('id="duplicate"', 'id="bad:id"'), css: input.css + '\n#bad\\:id { fill: red }' };
+    let escapedError = ''; try { applyOperations(escapedInput, [op]); } catch (e) { escapedError = String(e); }
+    let unnamedError = ''; try { applyOperations({ ...original, css: original.css + '\n[id] { fill: red }' }, [op]); } catch (e) { unnamedError = String(e); }
+    const reservedCss = applyOperations({ ...original, css: original.css + '\n#artwork\\2d 1 { fill: red }' }, [op]);
     const dangling = applyOperations({ ...input, html: input.html.replace('<defs>', '<defs><use href="#artwork-2"/>') }, [op]);
     const hidden = getTemplateParts(original.html.replace('</svg>', '<g style="display:none"><circle id="hidden-child" r="10"/></g></svg>'), original.fields, true);
-    return { draftHtml: draft.template.html === input.html, id: committed.identities![target], duplicateCount: after.querySelectorAll('#duplicate').length, count: after.querySelectorAll('#artwork-2').length, preserved: committed.template.html.replace('id="artwork-2"', 'id="duplicate"') === input.html, error, referenceError, unchanged: noOp.template.html === input.html, fields: committed.template.fields === input.fields, danglingId: dangling.identities![target], hiddenOffered: hidden.some(p => p.selector === '#hidden-child') };
+    return { draftHtml: draft.template.html === input.html, id: committed.identities![target], duplicateCount: after.querySelectorAll('#duplicate').length, count: after.querySelectorAll('#artwork-2').length, preserved: committed.template.html.replace('id="artwork-2"', 'id="duplicate"') === input.html, error, referenceError, attributeErrors, escapedError, unnamedError, reservedCssId: reservedCss.identities![target], unchanged: noOp.template.html === input.html, fields: committed.template.fields === input.fields, danglingId: dangling.identities![target], hiddenOffered: hidden.some(p => p.selector === '#hidden-child') };
   });
   expect(result).toMatchObject({ draftHtml: true, id: '#artwork-2', duplicateCount: 1, count: 1, preserved: true, unchanged: true, fields: true });
   expect(result.error).toContain('finite'); expect(result.referenceError).toContain('references');
   expect(result.danglingId).toBe('#artwork-3'); expect(result.hiddenOffered).toBe(false);
+  for (const error of [...result.attributeErrors, result.escapedError]) expect.soft(error).toContain('references');
+  expect.soft(result.unnamedError).toContain('references'); expect.soft(result.reservedCssId).toBe('#artwork-2');
 });
 
 test('completed pointer trims keep clipped keys while the body moves them in one transaction', async ({ page }) => {
