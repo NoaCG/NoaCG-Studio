@@ -102,15 +102,22 @@ if (process.argv.includes('--verify')) {
           const outPercent = await page.locator('.ef-out').evaluate(el => parseFloat(el.style.left));
           await page.mouse.click(box.x + box.width * outPercent / 100 - .01, box.y + 20);
           await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
+          await expect.poll(() => page.evaluate(() => Math.abs(
+            Number(document.querySelector('[data-testid="foundation-canvas"]').getAttribute('data-pose-time')) -
+            Number(document.querySelector('[aria-label="Playhead"]').getAttribute('aria-valuenow')),
+          ))).toBeLessThan(.00001);
           await expect(page.locator('.ef-selection rect')).toHaveCount(1);
-          dragBox = await page.locator('.ef-selection rect').boundingBox();
           if (artwork) {
             await page.locator('.ef-track[data-selector="#f1"] .ef-layer').click({ modifiers: ['Control'] });
             await expect(page.locator('.ef-selection rect')).toHaveCount(2);
           }
+          dragBox = await page.locator('.ef-selection rect').first().boundingBox();
         }
+        const selectedTargets = () => page.locator('.ef-layer[aria-pressed="true"]').evaluateAll(elements => elements.map(el => el.closest('.ef-track').dataset.selector));
+        const targets = artwork ? ['#f0', '#f1'] : ['#f0'];
         const start = dragBox ? { x: dragBox.x + dragBox.width / 2, y: dragBox.y + dragBox.height / 2 } : { x: box.x + 5, y: box.y + 20 };
         await page.mouse.move(start.x, start.y); await page.mouse.down();
+        if (baseEdits) await expect.poll(selectedTargets).toEqual(targets);
         const dragStartedAt = await page.evaluate(() => performance.timeOrigin + performance.now());
         for (let i = 0; i < 90; i++) {
           if (baseEdits) await page.mouse.move(start.x + 15 + i * .5, start.y + Math.sin(i / 10) * 5);
@@ -122,27 +129,36 @@ if (process.argv.includes('--verify')) {
         const pointerUpAt = await page.evaluate(() => performance.timeOrigin + performance.now());
         await page.mouse.up();
         await page.waitForTimeout(100);
+        if (baseEdits) {
+          await expect.poll(selectedTargets).toEqual(targets);
+          await expect(page.locator('.ef-stage-error')).toHaveCount(0);
+        }
         const metrics = await page.evaluate(() => new Promise(resolve => {
           window.addEventListener('noacg-editor-metrics', event => resolve(event.detail), { once: true });
           window.dispatchEvent(new Event('noacg-editor-read-metrics'));
         }));
-        let editedCssSha256 = null;
+        let editedCssSha256 = null, editedSourceSha256 = null;
         if (baseEdits) {
-          const savedCss = () => page.evaluate(() => new Promise((resolve, reject) => {
+          const savedSource = () => page.evaluate(() => new Promise((resolve, reject) => {
             const open = indexedDB.open('noacg-studio');
             open.onerror = () => reject(open.error);
             open.onsuccess = () => {
               const db = open.result, request = db.transaction('kv').objectStore('kv').get('spx-gfx-project');
-              request.onsuccess = () => { db.close(); resolve(JSON.parse(request.result).template.css); };
+              request.onsuccess = () => { db.close(); const { html, css, js } = JSON.parse(request.result).template; resolve({ html, css, js }); };
               request.onerror = () => { db.close(); reject(request.error); };
             };
           }));
-          await expect.poll(savedCss).not.toBe(template.css);
-          editedCssSha256 = createHash('sha256').update(await savedCss()).digest('hex');
+          // Existing numeric tracks (F4) edit JS keys; unarmed artwork edits CSS.
+          // Check the actual source transaction, including both paths and HTML.
+          const before = { html: template.html, css: template.css, js: template.js };
+          await expect.poll(savedSource).not.toEqual(before);
+          const edited = await savedSource();
+          editedCssSha256 = createHash('sha256').update(edited.css).digest('hex');
+          editedSourceSha256 = createHash('sha256').update(JSON.stringify(edited)).digest('hex');
           // Ninety transient updates must still undo as one source transaction. Park the
           // original composition for screenshots: its authored clip masks remain effective.
           await page.getByRole('button', { name: 'Undo', exact: true }).click();
-          await expect.poll(savedCss).toBe(template.css);
+          await expect.poll(savedSource).toEqual(before);
           await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
         }
         const summary = values => {
@@ -168,7 +184,7 @@ if (process.argv.includes('--verify')) {
         await page.waitForTimeout(100);
         await settleFrame(iframe);
         await page.screenshot({ path: resolve(output, name + '-built-' + viewport.width + '.png') });
-        const result = { name, viewport, sourceSha256: createHash('sha256').update(serialized).digest('hex'), editedCssSha256,
+        const result = { name, viewport, sourceSha256: createHash('sha256').update(serialized).digest('hex'), editedCssSha256, editedSourceSha256,
           pointerUpMs: Math.max(0, (metrics.samples.at(-1)?.presentedAt ?? pointerUpAt) - pointerUpAt), finalPose,
           selection: summary(metrics.samples.filter(s => s.kind === 'selection').map(s => s.ms)),
           scrub: summary(metrics.samples.filter(s => s.kind === 'scrub').map(s => s.ms)),
@@ -256,7 +272,7 @@ if (process.argv.includes('--verify')) {
       recordedAt: new Date().toISOString(), build: buildStamp, environment: { platform: platform(), release: release(), cpu: cpus()[0].model,
         totalMemory: totalmem(), freeMemory: freemem(), browser: browser.version(), node: process.version },
       sourceSha256: Object.fromEntries(sourceFiles.map(file => [file, createHash('sha256').update(readFileSync(resolve(root, file))).digest('hex')])),
-      method: baseEdits ? 'Actual canvas pointer drag, transient CSS and atomic commit on the built app. Input-handler epoch to revision/request-matching acknowledgement; transient geometry measured at next rAF, committed geometry after two rAFs. Feedback Hz counts matching drag acknowledgements over the input interval. Includes postMessage, not physical photon timing. 125% uses equivalent CSS viewport and device scale.' : 'Input handler epoch to matching pose acknowledgement after two rAFs; includes postMessage. 125% uses equivalent CSS viewport and device scale. Not physical display photon timing.',
+      method: baseEdits ? 'Actual canvas pointer drag, transient source edits and atomic commit on the built app. Input-handler epoch to revision/request-matching acknowledgement; transient geometry measured at next rAF, committed geometry after two rAFs. Feedback Hz counts matching drag acknowledgements over the input interval. Includes postMessage, not physical photon timing. 125% uses equivalent CSS viewport and device scale.' : 'Input handler epoch to matching pose acknowledgement after two rAFs; includes postMessage. 125% uses equivalent CSS viewport and device scale. Not physical display photon timing.',
       results
     }, null, 2));
   } finally {

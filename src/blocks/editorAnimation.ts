@@ -1,15 +1,16 @@
 import type { SpxTemplate } from '../model/types';
 import { losslessAnimData, type AnimData } from './animData';
-import { deleteKeyframe, setKeyframe, moveLayerSpan } from './animEdit';
+import { deleteKeyframe, setKeyframe, moveLayerSpan, trimLayerSpan } from './animEdit';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 
-export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'opacity';
-export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; opacity: number }
+export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
+export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; rotation: number; opacity: number }
 export type AnimationOperation =
   | { kind: 'animation.key'; selector: string; step: number; property: NumericProperty; time: number; value: number; action: 'set' | 'remove' | 'disable'; baseValue?: number }
-  | { kind: 'layer.move'; selector: string; step: number; delta: number };
+  | { kind: 'layer.move'; selector: string; step: number; delta: number }
+  | { kind: 'layer.trim'; selector: string; step: number; interval: number; edge: 'start' | 'end'; time: number };
 
 export function animationSource(template: SpxTemplate): AnimData {
   const data = losslessAnimData(template.js);
@@ -42,14 +43,15 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   animationTarget(template, data, selector);
   if (step === 1 && data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
   if (!Number.isInteger(step) || !data.steps[step]) throw new Error('The target cue no longer exists.');
-  if (operation.kind === 'layer.move') {
-    if (!selector.startsWith('#')) throw new Error('Visibility spans require a stable layer ID. Its source is preserved.');
+  if (operation.kind === 'layer.trim') {
+    data = trimLayerSpan(data, step, selector, operation.interval, operation.edge, operation.time, data.speed / template.fps);
+  } else if (operation.kind === 'layer.move') {
     data = moveLayerSpan(data, step, selector, operation.delta);
   }
   else {
     const { property, time, value, action } = operation;
     if (step > 0 && step === data.steps.length - 1 && action === 'set' && Number.isFinite(time) && time > data.steps[step].duration) data.steps[step].duration = time;
-    if (!['x', 'y', 'scaleX', 'scaleY', 'opacity'].includes(property) || !Number.isFinite(value) || !Number.isFinite(time) || time < 0 || time > data.steps[step].duration || property === 'opacity' && (value < 0 || value > 1)) {
+    if (!['x', 'y', 'scaleX', 'scaleY', 'rotation', 'opacity'].includes(property) || !Number.isFinite(value) || !Number.isFinite(time) || time < 0 || time > data.steps[step].duration || property === 'opacity' && (value < 0 || value > 1)) {
       throw new Error('Enter a finite numeric value and a time inside this cue.');
     }
     if (data.steps.some(s => s.layers[selector]?.[property]?.some(k => typeof k.value !== 'number'))) throw new Error('This property contains nonnumeric source.');

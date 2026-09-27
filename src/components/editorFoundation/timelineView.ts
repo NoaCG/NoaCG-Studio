@@ -3,7 +3,7 @@ import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
 
 export interface Segment { index: number; name: string; start: number; duration: number; out: boolean }
-export interface LayerBar { selector: string; start: number; end: number; step: number }
+export interface LayerBar { selector: string; start: number; end: number; step: number; interval: number; cueStart: number }
 export interface TimelineView {
   data: AnimData | null; parts: TemplatePart[]; segments: Segment[];
   bars: LayerBar[]; duration: number; out: number; reason: string | null;
@@ -13,7 +13,7 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const cached = views.get(template);
   if (cached) return cached;
   const data = parseAnimData(template.js);
-  const parts = getTemplateParts(template.html, template.fields);
+  const parts = getTemplateParts(template.html, template.fields, true);
   let cursor = 0;
   const segments = (data?.steps ?? []).map((step, index) => {
     const segment = { index, name: index === 0 ? 'In' : index === data!.steps.length - 1 ? 'Out' : step.name,
@@ -28,10 +28,10 @@ export function readTimeline(template: SpxTemplate): TimelineView {
     const hide = data?.steps.findIndex(s => !!s.hides?.includes(part.selector)) ?? -1;
     return segments.flatMap(segment => {
       const spans = data!.steps[segment.index]?.spans?.[part.selector];
-      if (spans) return spans.map(span => ({ selector: part.selector, step: segment.index,
+      if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
         start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
       if (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide) return [];
-      return [{ selector: part.selector, step: segment.index, start: segment.start, end: segment.start + segment.duration }];
+      return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];
     });
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'

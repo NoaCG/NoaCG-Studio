@@ -24,6 +24,7 @@ export function displayedBase(base: BaseValues, appearance: RenderedPart['appear
   const motion = appearance?.motion?.[property], initial = appearance?.initialMotion?.[property];
   if (motion === undefined || initial === undefined) return base[property];
   if (property === 'x' || property === 'y') return base[property] + (motion - initial) / (appearance?.unit ?? 1);
+  if (property === 'rotation') return base.rotation + motion - initial;
   return initial === 0 ? base[property] : base[property] * motion / initial;
 }
 /** A combined gesture keeps separated axes and mixed selections independent. */
@@ -39,7 +40,7 @@ export function authoredTransform(template: SpxTemplate, selector: string, base:
       const current = appearance?.motion?.[key];
       if (current === undefined) throw new Error('Wait for the rendered property pose before editing animation.');
       const runtime = key === 'x' || key === 'y' ? current + (value - before) * (appearance?.unit ?? 1)
-        : before === 0 ? value : current * value / before;
+        : key === 'rotation' ? current + value - before : before === 0 ? value : current * value / before;
       operations.push({ kind: 'animation.key', selector, property: key as NumericProperty, ...position, value: runtime, action: 'set' });
     } else unarmed[key] = value;
   }

@@ -43,7 +43,7 @@ export default function AnimationProperties({ template, selector, session, appea
   try { base = baseValues(template, selector); } catch { return null; }
   const reason = sequenceAuthoringReason(readTimeline(template).data);
   if (reason) return <p className="ef-muted">{reason} Use Edit base values below.</p>;
-  const fields = [['x', base.mode === 'flow' ? 'Layout offset X' : 'Position X'], ['y', base.mode === 'flow' ? 'Layout offset Y' : 'Position Y'], ['scaleX', 'Scale X'], ['scaleY', 'Scale Y']] as const;
+  const fields = [['x', base.mode === 'flow' ? 'Layout offset X' : 'Position X'], ['y', base.mode === 'flow' ? 'Layout offset Y' : 'Position Y'], ['scaleX', 'Scale X'], ['scaleY', 'Scale Y'], ['rotation', 'Rotation']] as const;
   return <div className="ef-animation-properties">
     <span className="ef-section-label">Transform at playhead</span>
     {fields.map(([property, label]) => {

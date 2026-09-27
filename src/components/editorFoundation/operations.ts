@@ -8,6 +8,7 @@ import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../bloc
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, type AnimationOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
+import { commitSvgIdentity } from '../../blocks/svgIdentity';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
@@ -24,6 +25,7 @@ export type EditorOperation =
 export interface OperationPatch {
   template: SpxTemplate;
   changedTargets: string[];
+  identities?: Record<string, string>;
   diff: { file: 'html' | 'css' | 'js'; before: string; after: string }[];
 }
 
@@ -36,14 +38,27 @@ function ordered(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function applyOperations(template: SpxTemplate, operations: EditorOperation[]): OperationPatch {
+export function applyOperations(template: SpxTemplate, operations: EditorOperation[], committed = true): OperationPatch {
   if (!operations.length || operations.length > 1000) throw new Error('Provide a bounded, nonempty operation batch.');
+  // Inspection/drafts never mint identities, and neither does an unchanged edit.
+  if (committed && operations.some(op => 'selector' in op && op.selector.startsWith('body:nth-of-type('))) {
+    const draft = applyOperations(template, operations, false);
+    if (!draft.diff.length) return draft;
+  }
   let next = template;
   const targets = new Set<string>();
-  for (const operation of operations) {
+  const identities: Record<string, string> = {};
+  for (let operation of operations) {
+    if (committed && 'selector' in operation) {
+      const original = operation.selector;
+      const identity = identities[original] ? { template: next, selector: identities[original] } : commitSvgIdentity(next, original);
+      next = identity.template;
+      if (identity.selector !== original) identities[original] = identity.selector;
+      operation = { ...operation, selector: identity.selector };
+    }
     if (operation.kind === 'out.set' || operation.kind === 'out.reverse') {
       next = applyOut(next, operation);
-    } else if (operation.kind === 'animation.key' || operation.kind === 'layer.move') {
+    } else if (operation.kind === 'animation.key' || operation.kind === 'layer.move' || operation.kind === 'layer.trim') {
       next = applyAnimation(next, operation); targets.add(operation.selector);
     } else if (operation.kind === 'base.set') {
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
@@ -70,7 +85,7 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyKeyOperations(next, [operation]).template; targets.add(operation.selector);
     } else throw new Error('Unknown editor operation.');
   }
-  return { template: next, changedTargets: [...targets], diff: (['html', 'css', 'js'] as const)
+  return { template: next, changedTargets: [...targets], identities, diff: (['html', 'css', 'js'] as const)
     .filter(file => template[file] !== next[file]).map(file => ({ file, before: template[file], after: next[file] })) };
 }
 
@@ -82,7 +97,7 @@ function applyKeyOperations(template: SpxTemplate, operations: Extract<EditorOpe
   if (ordered(JSON.parse(original)) !== ordered(JSON.parse(serializeAnimData(data)))) {
     throw new Error('This animation contains data the current writer cannot preserve exactly.');
   }
-  const parts = new Set(getTemplateParts(template.html, template.fields).map(p => p.selector));
+  const parts = new Set(getTemplateParts(template.html, template.fields, true).map(p => p.selector));
   const changedTargets = new Set<string>();
   for (const operation of operations) {
     if (operation.kind !== 'key.set') throw new Error('Unknown editor operation.');

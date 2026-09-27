@@ -48,7 +48,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const selected = parts.filter(part => selection.includes(part.selector));
   const containers = useMemo(() => {
     const doc = new DOMParser().parseFromString(template.html, 'text/html');
-    const parts = getTemplateParts(template.html, template.fields);
+    const parts = getTemplateParts(template.html, template.fields, true);
     return new Set(parts.filter(part => parts.some(other => other !== part && doc.querySelector(part.selector)?.contains(doc.querySelector(other.selector) ?? null))).map(part => part.selector));
   }, [template.html, template.fields]);
   const gesture = useArtworkGesture(template, session, () => controller.current, linked, drawingSpace);
@@ -154,7 +154,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
           if (handle >= 0) { gesture.begin({ x, y }, selected[0], handle); return; }
         }
         const hits = parts.filter(p => p.selector !== rootSelector && x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height)
-          .sort((a, b) => a.width * a.height - b.width * b.height || Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || parts.indexOf(b) - parts.indexOf(a));
+          .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height || parts.indexOf(b) - parts.indexOf(a));
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
         const hit = hits[index], additive = event.shiftKey || event.ctrlKey || event.metaKey;
         if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {

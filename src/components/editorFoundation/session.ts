@@ -70,7 +70,7 @@ export class EditorSession {
   preview(operations: EditorOperation[]) {
     if (!this.gesture) throw new Error('No active gesture.');
     this.check(this.documentId, this.gesture.expected);
-    return applyOperations(this.current, operations);
+    return applyOperations(this.current, operations, false);
   }
   cancel(restoreView = true) {
     if (!this.gesture) return;
@@ -90,6 +90,7 @@ export class EditorSession {
     this.ownWrite = true;
     try {
       this.port.apply(patch.template); this.sync();
+      if (patch.identities && Object.keys(patch.identities).length) this.port.restore({ ...this.port.view(), selectedParts: this.port.view().selectedParts.map(selector => patch.identities![selector] ?? selector) });
       if (request.operations.some(op => op.kind === 'layer.create' || op.kind === 'layer.duplicate')) {
         this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
       }

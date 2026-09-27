@@ -43,10 +43,36 @@ export function moveLayerSpan(data: AnimData, index: number, selector: string, d
   }
   next.steps.forEach((cue, i) => {
     if (cue.spans?.[selector] !== undefined) return;
-    cue.spans = { ...cue.spans, [selector]: (reveal >= 0 && i < reveal || hide >= 0 && i > hide) ? [] : [{ start: 0, end: cue.duration }] };
+    cue.spans = { ...cue.spans, [selector]: (cue.duration === 0 || reveal >= 0 && i < reveal || hide >= 0 && i > hide) ? [] : [{ start: 0, end: cue.duration }] };
   });
   target.spans = { ...target.spans, [selector]: spans.map(s => ({ start: round(s.start + delta), end: round(s.end + delta) })) };
   for (const track of Object.values(target.layers[selector] ?? {})) for (const key of track) key.time = round(key.time + delta);
+  return next;
+}
+
+/** Trim one interval only. Keys, inheritance and all other cue poses remain intact. */
+export function trimLayerSpan(data: AnimData, index: number, selector: string, interval: number, edge: 'start' | 'end', time: number, minimum: number): AnimData {
+  const step = data.steps[index];
+  const spans = step?.spans?.[selector] ?? (step ? [{ start: 0, end: step.duration }] : []);
+  const span = spans[interval];
+  if (!step || !Number.isInteger(interval) || !span || !['start', 'end'].includes(edge) || !Number.isFinite(time) || !Number.isFinite(minimum) || minimum <= 0) throw new Error('Choose a valid visibility interval and edge.');
+  time = round(time);
+  const changed = { ...span, [edge]: time };
+  if (spans.some((s, i) => i > 0 && s.start < spans[i - 1].end)) throw new Error('These visibility intervals overlap or are out of order. Resolve them in source before trimming.');
+  if (changed.start < 0 || changed.end > step.duration || changed.end - changed.start < minimum - EPS ||
+      interval > 0 && changed.start < spans[interval - 1].end || interval + 1 < spans.length && changed.end > spans[interval + 1].start) {
+    throw new Error('Keep the span inside its cue, clear of adjacent spans and at least one frame long. No keys or spans changed.');
+  }
+  if (time === span[edge]) return data;
+  if (data.steps.some(cue => cue.spans?.[selector] === undefined && cue.hides?.includes(selector))) throw new Error('This legacy layer hides at a cue endpoint. Its held pose cannot be preserved by this trim.');
+  const next = clone(data);
+  const reveal = data.steps.findIndex((s, i) => i > 0 && s.reveals?.includes(selector));
+  const hide = data.steps.findIndex(s => s.hides?.includes(selector));
+  next.steps.forEach((cue, i) => {
+    if (cue.spans?.[selector] !== undefined) return;
+    cue.spans = { ...cue.spans, [selector]: (cue.duration === 0 || reveal >= 0 && i < reveal || hide >= 0 && i > hide) ? [] : [{ start: 0, end: cue.duration }] };
+  });
+  next.steps[index].spans![selector][interval] = changed;
   return next;
 }
 

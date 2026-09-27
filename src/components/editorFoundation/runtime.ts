@@ -69,7 +69,7 @@ export const foundationRuntime = String.raw`
   }
   function numericPose(element) {
     var pose = {};
-    ['x', 'y', 'scaleX', 'scaleY', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
+    ['x', 'y', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
   }
   function seek(step, time, inspect) {
@@ -147,11 +147,16 @@ export const foundationRuntime = String.raw`
       var matrix = basis(parent);
       var unit = adapter && adapter.scaled || adapter && adapter.mode === 'flow'
         ? parseFloat(getComputedStyle(target).getPropertyValue('--scale')) || 1 : 1;
+      var motion = window.gsap ? numericPose(element) : undefined;
+      // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
+      // walk was repeated three times per layer; no value survives this measure.
+      var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
+      var points = corners(target, targetMatrix, rect);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, revision: current, motion: window.gsap ? numericPose(element) : undefined, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
-        corners: corners(target), anchor: anchor(target) }];
+        corners: points, anchor: anchor(target, targetMatrix, points) }];
     });
   }
   // Translation cancels for pointer deltas. SVG supplies an exact CTM; HTML composes
@@ -168,15 +173,14 @@ export const foundationRuntime = String.raw`
     }
     return matrix;
   }
-  function corners(element) {
-    var rect = element.getBoundingClientRect();
+  function corners(element, matrix, rect) {
     if (element instanceof SVGGraphicsElement) {
       var box = element.getBBox(), m = element.getScreenCTM();
       if (m) return [[box.x,box.y],[box.x+box.width,box.y],[box.x+box.width,box.y+box.height],[box.x,box.y+box.height]].map(function (p) {
         return { x:m.a*p[0]+m.c*p[1]+m.e, y:m.b*p[0]+m.d*p[1]+m.f };
       });
     }
-    var m = basis(element), w = element.offsetWidth, h = element.offsetHeight;
+    var m = matrix || basis(element), w = element.offsetWidth, h = element.offsetHeight;
     var points = [[0,0],[w,0],[w,h],[0,h]].map(function (p) { return { x:m.a*p[0]+m.c*p[1], y:m.b*p[0]+m.d*p[1] }; });
     var left = Math.min.apply(null, points.map(function (p) { return p.x; }));
     var top = Math.min.apply(null, points.map(function (p) { return p.y; }));
@@ -193,18 +197,18 @@ export const foundationRuntime = String.raw`
     probe.remove();
     return [m.a,m.b,m.c,m.d,rect.x,rect.y];
   }
-  function anchor(element) {
+  function anchor(element, matrix, points) {
     var origin = getComputedStyle(element).transformOrigin.split(' ').map(parseFloat);
     if (element instanceof SVGGraphicsElement) {
       var m = element.getScreenCTM();
       return { x:m.a*origin[0]+m.c*origin[1]+m.e, y:m.b*origin[0]+m.d*origin[1]+m.f };
     }
-    var m = basis(element), corner = corners(element)[0];
+    var m = matrix, corner = points[0];
     return { x:corner.x+m.a*origin[0]+m.c*origin[1], y:corner.y+m.b*origin[0]+m.d*origin[1] };
   }
   function setCss(css) {
     var sheet = document.getElementById('spx-inline-css');
-    var baseTransforms = /--base-(?:scale-[xy]|[xy])\s*:[^;}]+/g;
+    var baseTransforms = /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
     var changed = String(sheet.textContent.match(baseTransforms)) !== String(css.match(baseTransforms));
     var step = activeStep, time = timeline ? timeline.time() : 0;
     // GSAP folds independent CSS transforms into its cached matrix and writes inline

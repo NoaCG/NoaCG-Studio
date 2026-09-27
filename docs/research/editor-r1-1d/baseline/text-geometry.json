@@ -1,0 +1,22 @@
+{
+  "sourceText": {
+    "font": "22px Arial",
+    "box": {
+      "x": 58,
+      "y": 24,
+      "width": 143.4736328125,
+      "height": 24.5
+    },
+    "html": "<text id=\"headline\" data-name=\"Headline\" x=\"58\" y=\"44\" font-family=\"Arial\" font-size=\"22\" fill=\"#ffffff\">Evening report</text>"
+  },
+  "importedText": {
+    "font": "22px Arial",
+    "box": {
+      "x": 58,
+      "y": 20.75,
+      "width": 143.4736328125,
+      "height": 24.5
+    },
+    "html": "<text id=\"f0\" data-name=\"Headline\" x=\"58\" y=\"44\" font-family=\"Arial\" font-size=\"22\" fill=\"#ffffff\"><tspan x=\"58\" dy=\"-3.25\" data-noacg-line=\"\">Evening report </tspan></text>"
+  }
+}
