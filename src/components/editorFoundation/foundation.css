@@ -149,3 +149,11 @@
 .ef-bar-error { position: relative; background: var(--bg-panel); z-index: 5; margin: 0; font-size: 12px; }
 .ef-shell .ef-bar { touch-action: none; cursor: grab; }
 .ef-inspector details > summary { cursor: pointer; margin: 12px 0; }
+.ef-out-controls { display: flex; align-items: center; gap: 5px; }
+.ef-out-popover { position: fixed; margin: 0; max-width: calc(100vw - 16px); padding: 12px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg-panel); color: var(--text); box-shadow: 0 6px 28px #0008; }
+.ef-out-popover p { margin: 0 0 10px; }
+.ef-out-popover > div { display: flex; gap: 6px; }
+.ef-out-popover small { display: block; margin-top: 8px; color: var(--text-dim); }
+.ef-out-error { position: absolute; right: 12px; bottom: 100%; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); z-index: 5; }
+.ef-transport { position: relative; }
+@media (max-width: 1150px) { .ef-transport > .ef-muted { display: none; } }

@@ -33,21 +33,34 @@ export default function EditorFoundation() {
   const previewCss = useCallback((css: string) => { preview.current?.previewCss(css, 'appearance'); }, []);
   const previewTemplate = useCallback((template: SpxTemplate) => { preview.current?.previewTemplate(template, 'appearance'); }, []);
   const [playing, setPlaying] = useState(false);
+  const [playbackRun, setPlaybackRun] = useState(0);
   const playback = useRef<{ from: number; end: number; expected: ReturnType<typeof session.version>; session: typeof session } | null>(null);
   const view = useMemo(() => readTimeline(template), [template]);
-  const time = Math.min(view.duration, clock.documentId === session.documentId ? clock.time : session.port.view().time);
-  const seek = useCallback((next: number) => { recordFoundationInput('scrub'); setSessionTime(next); setClock({ documentId: session.documentId, time: next }); }, [session, setClock]);
+  const time = clock.documentId === session.documentId ? clock.time : session.port.view().time;
+  const seek = useCallback((next: number, cue?: number) => { recordFoundationInput('scrub'); setSessionTime(next, cue); setClock({ documentId: session.documentId, time: next }); }, [session, setClock]);
   const pause = useCallback(() => { playback.current = null; setPlaying(false); }, [setPlaying]);
   const togglePlayback = useCallback(() => {
     if (playing) { pause(); return; }
     if (view.reason || !view.duration) return;
     const time = session.port.view().time;
-    const segment = view.segments[segmentAt(view.segments, time).step];
+    const exiting = preview.current?.isExiting();
+    const resumeExit = exiting && time < view.duration;
+    if (!resumeExit) preview.current?.stopExit();
+    const segment = view.segments[exiting ? (resumeExit ? view.segments.length - 1 : 0) : segmentAt(view.segments, time).step];
     const end = segment.start + segment.duration;
     const from = time >= end ? segment.start : time;
     playback.current = { from, end, expected: session.version(), session };
     seek(from); setPlaying(true);
   }, [playing, pause, view, session, seek, setPlaying]);
+  const playOut = () => {
+    if (!preview.current?.startExit()) return;
+    const exit = view.segments[view.segments.length - 1];
+    playback.current = { from: view.out, end: view.out + exit.duration, expected: session.version(), session };
+    preview.current.seek(view.out);
+    seek(view.out); setPlaybackRun(run => run + 1); setPlaying(true);
+  };
+  const parkOut = () => { preview.current?.stopExit(); seek(readTimeline(session.port.read()).out); };
+  const inspectOut = () => { pause(); preview.current?.stopExit(); seek(view.out, view.segments.length - 1); };
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !editorShortcutsLive(event.target) || activatableFocus()) return;
@@ -71,7 +84,7 @@ export default function EditorFoundation() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, session, seek, pause]);
+  }, [playing, playbackRun, session, seek, pause]);
   const select = useCallback((selector: string | null, toggle: boolean) => {
     recordFoundationInput('selection');
     const selection = useTemplateStore.getState().selectedParts;
@@ -80,7 +93,7 @@ export default function EditorFoundation() {
       : [selector];
     setSelection(next);
   }, [setSelection]);
-  const history = (redo: boolean) => { pause(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time); };
+  const history = (redo: boolean) => { pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
   return <main className={'ef-shell' + (projectOpen ? ' ef-project-open' : '')} data-testid="editor-foundation"
     onKeyDown={event => {
       if (!editorShortcutsLive(event.target)) return;
@@ -116,7 +129,7 @@ export default function EditorFoundation() {
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} />
       <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} />
     </div>
-    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); seek(next); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause}
+    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
     <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;

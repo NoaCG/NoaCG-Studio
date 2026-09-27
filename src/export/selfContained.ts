@@ -1,3 +1,4 @@
+import { prepareOutRuntime } from '../blocks/animMigration';
 // Shared builder for SINGLE-FILE exports (CasparCG, H2R, HTML overlay): everything the graphic
 // needs — CSS, GSAP, template JS, images, fonts — inlined into one .html so the file is
 // plug-and-play with no sibling files at playout.
@@ -28,6 +29,7 @@ export async function composeSelfContainedHtml(
   template: SpxTemplate,
   extraBodyScripts: string[] = [],
 ): Promise<string> {
+  template = { ...template, js: prepareOutRuntime(template.js) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
   let html = injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template)
     // Drop the external stylesheet/script references — their contents go inline below.

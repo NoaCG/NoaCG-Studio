@@ -266,7 +266,8 @@ export interface AnimData {
   root: string;
   /** The speed knob: every duration and keyframe time is divided by it at playback. */
   speed: number;
-  /** At least two steps — the entrance and the Out step. Under a machine these are the
+  /** One legacy In is valid; Out is derived until a supported write materializes it.
+   * Under a machine these are the
    *  default-path states' timelines in walk order (the v1 step chain, absorbed). */
   steps: AnimStep[];
   /** Absent = the implicit linear machine. */
@@ -438,7 +439,7 @@ export function isAnimData(raw: unknown): raw is AnimData {
   if (d.version !== 2) return false;
   if (typeof d.root !== 'string' || !d.root) return false;
   if (typeof d.speed !== 'number' || !(d.speed > 0)) return false;
-  if (!Array.isArray(d.steps) || d.steps.length < 2) return false;
+  if (!Array.isArray(d.steps) || d.steps.length < 1) return false;
   for (const step of d.steps) {
     if (!isAnimStepShape(step, true)) return false;
   }
@@ -451,7 +452,7 @@ export function isAnimData(raw: unknown): raw is AnimData {
 function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
   if (!step || typeof step !== 'object') return false;
   if (typeof step.name !== 'string') return false;
-  if (typeof step.duration !== 'number' || !(step.duration > 0)) return false;
+  if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration < 0) return false;
   if (typeof step.ease !== 'string') return false;
   if (!revealsAllowed && (step.reveals !== undefined || step.hides !== undefined)) return false;
   if (step.reveals !== undefined && !Array.isArray(step.reveals)) return false;
@@ -893,4 +894,15 @@ export function spliceAnimData(js: string, data: AnimData): string | null {
   const loc = locateAnimData(js);
   if (!loc) return null;
   return js.slice(0, loc.start) + serializeAnimData(data) + js.slice(loc.end);
+}
+
+function ordered(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(ordered).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => JSON.stringify(k) + ':' + ordered(v)).join(',') + '}';
+  return JSON.stringify(value);
+}
+export function losslessAnimData(js: string): AnimData | null {
+  const location = locateAnimData(js), data = parseAnimData(js);
+  if (!location || !data) return null;
+  return ordered(JSON.parse(js.slice(location.start, location.end))) === ordered(JSON.parse(serializeAnimData(data))) ? data : null;
 }

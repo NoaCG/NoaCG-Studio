@@ -13,12 +13,12 @@ export function AnimationButtons({ template, selector, property, label, session,
   template: SpxTemplate; selector: string; property: NumericProperty; label: string; session: EditorSession; appearance?: RenderedPart['appearance'];
 }) {
   const [error, setError] = useState('');
-  const view = readTimeline(template), position = authoringPosition(template, selector, session.port.view().time);
+  const view = readTimeline(template), position = authoringPosition(template, selector, session.port.view().time, session.port.view().cue);
   const armed = isArmed(view.data, selector, property);
   const keyed = !!view.data?.steps[position.step]?.layers[selector]?.[property]?.some(k => Math.abs(k.time - position.time) < .0005);
   const act = (action: 'set' | 'remove' | 'disable') => {
     try {
-      requireCurrentPose(appearance, session.port.view().time, session.version());
+      requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
       const value = appearance?.motion?.[property];
       if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
       const baseValue = property === 'opacity' ? value : displayedBase(baseValues(template, selector), appearance, property);
@@ -49,10 +49,10 @@ export default function AnimationProperties({ template, selector, session, appea
     {fields.map(([property, label]) => {
       const percent = property.startsWith('scale') ? 100 : 1;
       const value = displayedBase(base, appearance, property) * percent;
-      const commit = (value: number, expected: Revision, time: number) => {
+      const commit = (value: number, expected: Revision, time: number, cue?: number) => {
         try {
-          if (time !== session.port.view().time) throw new Error('The playhead moved. Inspect the value again before editing.');
-          requireCurrentPose(appearance, time, expected);
+          if (time !== session.port.view().time || cue !== session.port.view().cue) throw new Error('The playhead moved. Inspect the value again before editing.');
+          requireCurrentPose(appearance, time, expected, session.port.view().cue);
           const other = property === 'scaleX' ? 'scaleY' : 'scaleX';
           const current = displayedBase(base, appearance, property);
           const values = { [property]: value / percent, ...(linked && percent === 100 ? { [other]: current === 0 ? value / percent : displayedBase(base, appearance, other) * value / percent / current } : {}) };
@@ -67,16 +67,16 @@ export default function AnimationProperties({ template, selector, session, appea
     {error && <p role="alert">{error}</p>}
   </div>;
 }
-function AnimationNumber({ label, value, commit, session }: { label: string; value: number; commit: (n: number, revision: Revision, time: number) => void; session: EditorSession }) {
+function AnimationNumber({ label, value, commit, session }: { label: string; value: number; commit: (n: number, revision: Revision, time: number, cue?: number) => void; session: EditorSession }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const started = useRef<{ expected: Revision; time: number } | null>(null);
+  const started = useRef<{ expected: Revision; time: number; cue?: number } | null>(null);
   const finish = () => {
-    if (draft !== null && draft.trim() && Number.isFinite(Number(draft)) && started.current) commit(Number(draft), started.current.expected, started.current.time);
+    if (draft !== null && draft.trim() && Number.isFinite(Number(draft)) && started.current) commit(Number(draft), started.current.expected, started.current.time, started.current.cue);
     started.current = null; setDraft(null);
   };
   return <label className="ef-number" onBlur={finish} onKeyDown={event => {
       if (event.key === 'Enter') { event.preventDefault(); finish(); }
       if (event.key === 'Escape') { event.stopPropagation(); started.current = null; setDraft(null); }
     }}><span>{label}</span><FieldControl descriptor={{ key: label, label, kind: 'text', defaultValue: '' }} value={draft ?? String(Math.round(value * 1000) / 1000)}
-      onChange={value => { started.current ??= { expected: session.version(), time: session.port.view().time }; setDraft(String(value)); }} /></label>;
+      onChange={value => { started.current ??= { expected: session.version(), time: session.port.view().time, cue: session.port.view().cue }; setDraft(String(value)); }} /></label>;
 }

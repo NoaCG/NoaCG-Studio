@@ -1,3 +1,4 @@
+import { prepareOutRuntime } from '../../blocks/animMigration';
 // OGraf export: packages the template as an EBU OGraf v1 Graphic — a manifest
 // (<slug>.ograf.json) plus a JS entry point (graphic.mjs) exporting a Web Component that
 // wraps the template's own play()/stop()/update() runtime. Spec:
@@ -1381,6 +1382,7 @@ export async function addOgrafPackage(
   usage: GraphicUsage = 'live',
   opts: OgrafPackageOptions = {},
 ): Promise<void> {
+  template = { ...template, js: prepareOutRuntime(template.js) };
   if (usage !== 'live') {
     const compatibility = validateOgrafOfflineCompatibility(template);
     if (!compatibility.compatible) {

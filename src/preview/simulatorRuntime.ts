@@ -52,6 +52,7 @@ export type SimWindow = Window & {
   next?: () => void;
   buildInTimeline?: () => SimTimeline;
   buildOutTimeline?: () => SimTimeline;
+  noacgOutActive?: () => boolean;
   /** Steps templates: reveal the next Continue line; returns the tween (null when done). */
   revealNextStep?: () => SimTimeline | null;
   /** State machine: dispatch one operator event through the serial queue. */
@@ -277,6 +278,7 @@ export function runSimCommand(w: SimWindow, cmd: SimCommand): void {
 
   if (cmd.action === 'sim-stop') {
     clearAutoOut();
+    if (w.noacgOutActive?.()) return;
     if (typeof w.buildOutTimeline === 'function') {
       killAllTimelines(w);
       const run = { phase: 'out', tl: w.buildOutTimeline(), runId: nextRun() };

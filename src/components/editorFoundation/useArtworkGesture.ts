@@ -35,7 +35,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
     try {
       const expected = session.version();
       const base = part ? baseValues(template, part.selector) : undefined;
-      if (part) requireCurrentPose(part.appearance, session.port.view().time, expected);
+      if (part) requireCurrentPose(part.appearance, session.port.view().time, expected, session.port.view().cue);
       if (handle !== undefined && base?.scaleReason) animationTarget(template, animationSource(template), base.selector);
       if (handle !== undefined && base && (base.scaleX === 0 || base.scaleY === 0)) {
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');

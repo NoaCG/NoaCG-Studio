@@ -446,6 +446,7 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await page.getByRole('button', { name: 'text tool', exact: true }).click();
   await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2); await ready(page);
   const edited = await source(page), field = edited.fields.at(-1)!.field;
+  expect(edited.js).toBe(initial.js);
   // Save through the user surface: a CDP-awaited save promise can be collected when
   // the renamed preview reloads, even though the save and main page both survive.
   const url = page.url();
@@ -453,7 +454,24 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await expect(page).toHaveURL(url);
   await settleDurableWrites(page); await page.reload(); await ready(page);
   const reopened = await source(page);
-  expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css); expect(reopened.js).toBe(initial.js);
+  expect(reopened.html).toBe(edited.html); expect(reopened.css).toBe(edited.css);
+  // Saving upgrades a known legacy interpreter. Artwork edits, animation data and
+  // source outside that owned region must still round-trip without changes.
+  const preserved = await page.evaluate(async ({ before, after }) => {
+    const { losslessAnimData } = await import('/src/blocks/animData.ts');
+    const { ANIMATION_MARK_OPEN: open, ANIMATION_MARK_CLOSE: close } = await import('/src/templates/lowerThirds/animPresets.ts');
+    const { ANIM_INTERPRETER_JS } = await import('/src/templates/shared/animRuntime.ts');
+    const surrounding = (js: string) => [js.slice(0, js.indexOf(open)), js.slice(js.indexOf(close) + close.length)];
+    return {
+      before: losslessAnimData(before), after: losslessAnimData(after),
+      surroundingBefore: surrounding(before), surroundingAfter: surrounding(after),
+      current: after.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n')),
+    };
+  }, { before: initial.js, after: reopened.js });
+  expect(preserved.before).not.toBeNull();
+  expect(preserved.after).toEqual(preserved.before);
+  expect(preserved.surroundingAfter).toEqual(preserved.surroundingBefore);
+  expect(preserved.current).toBe(true);
   const root = await page.evaluate(async () => (await import('/src/blocks/baseEdits.ts')).creationParent((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
   const relative = (element: Element, root: string) => {
     const a = element.getBoundingClientRect(), b = element.ownerDocument.querySelector(root)!.getBoundingClientRect();

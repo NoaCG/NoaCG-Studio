@@ -2,7 +2,7 @@ import { useTemplateStore } from '../../store/templateStore';
 import { EditorSession } from './session';
 import { readTimeline } from './timelineView';
 
-let active: { baseline: object; session: EditorSession; time: number } | null = null;
+let active: { baseline: object; session: EditorSession; time: number; cue?: number } | null = null;
 /** R1.0 binds the existing working slot. R1.4a replaces this binding with independent
  * GraphicDoc ports; registry, selection and protocol already require document identity. */
 export function activeEditorSession(): EditorSession {
@@ -10,12 +10,13 @@ export function activeEditorSession(): EditorSession {
   if (active?.baseline === state.baseline) return active.session;
   active?.session.dispose();
   const openingTime = readTimeline(state.template).segments[0]?.duration ?? 0;
-  const binding = { baseline: state.baseline, time: openingTime, session: null as unknown as EditorSession };
+  const binding = { baseline: state.baseline, time: openingTime, cue: undefined as number | undefined, session: null as unknown as EditorSession };
   const session = new EditorSession(state.saved.graphicId ?? 'draft:' + crypto.randomUUID(), {
     read: () => useTemplateStore.getState().template,
-    view: () => ({ selectedParts: [...useTemplateStore.getState().selectedParts], time: binding.time }),
+    view: () => ({ selectedParts: [...useTemplateStore.getState().selectedParts], time: binding.time, cue: binding.cue }),
     restore: view => {
       binding.time = view.time;
+      binding.cue = view.cue;
       useTemplateStore.getState().setSelectedParts(view.selectedParts);
     },
     apply: template => useTemplateStore.getState().applyTemplate(template),
@@ -27,4 +28,4 @@ export function activeEditorSession(): EditorSession {
   active = binding;
   return session;
 }
-export function setSessionTime(time: number) { if (active) active.time = time; }
+export function setSessionTime(time: number, cue?: number) { if (active) { active.time = time; active.cue = cue; } }

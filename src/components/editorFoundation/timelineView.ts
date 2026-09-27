@@ -22,11 +22,12 @@ export function readTimeline(template: SpxTemplate): TimelineView {
     return segment;
   });
   const out = segments.find(s => s.out)?.start ?? cursor;
+  if (data?.steps.length === 1) segments.push({ index: 1, name: 'Out', start: cursor, duration: 0, out: true });
   const bars = parts.flatMap(part => {
     const reveal = data?.steps.findIndex((s, i) => i > 0 && !!s.reveals?.includes(part.selector)) ?? -1;
     const hide = data?.steps.findIndex(s => !!s.hides?.includes(part.selector)) ?? -1;
     return segments.flatMap(segment => {
-      const spans = data!.steps[segment.index].spans?.[part.selector];
+      const spans = data!.steps[segment.index]?.spans?.[part.selector];
       if (spans) return spans.map(span => ({ selector: part.selector, step: segment.index,
         start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
       if (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide) return [];
@@ -42,7 +43,8 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   return view;
 }
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */
-export function segmentAt(segments: Segment[], time: number): { step: number; time: number } {
+export function segmentAt(segments: Segment[], time: number, cue?: number): { step: number; time: number } {
+  if (cue !== undefined && segments[cue]) return { step: cue, time: Math.max(0, time - segments[cue].start) };
   const segment = segments.find(s => time <= s.start + s.duration) ?? segments[segments.length - 1];
   return segment ? { step: segment.index, time: Math.max(0, Math.min(segment.duration, time - segment.start)) }
     : { step: 0, time: 0 };
