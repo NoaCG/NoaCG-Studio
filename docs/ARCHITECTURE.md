@@ -77,7 +77,7 @@ here and not in §6 are wrong - fix the code, not the table.
 - `blocks` -> templates (preset data tables + `shared/animRuntime`, `shared/textFit`)
 - `validation` -> blocks, templates, preview
 - `preview`, `editor`, `format`, `backend`, `landing`, `teach` -> (kernel only)
-- `preview/composeDocument.ts` -> `blocks/animMigration.ts` only: compose the same supported legacy empty-Out upgrade as save/export on a transient copy, preserving read-only source and runtime parity.
+- `preview/composeDocument.ts` -> `blocks/animMigration.ts` only: compose the same supported legacy Out runtime upgrade as save/export on a transient copy, preserving read-only source and runtime parity.
 - `store` -> blocks, validation, templates (`defaultTemplate` only - the store's initial document,
   when no project is saved, is the first catalog variant)
 - `ai` -> templates, blocks, validation, video, backend (`getAccessToken` only - proxy metering)

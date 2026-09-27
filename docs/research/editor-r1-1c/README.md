@@ -118,6 +118,55 @@ redo, manual exit extension, cancellation and durable reopening are executable.
 Catalog source recordings `j-2146` and `j-2156` change only JavaScript fingerprints for 528
 variants. HTML/CSS fingerprints and the render baseline are unchanged.
 
+## Check review and simplification
+
+Review ran inline against merge base `ffd7a3ec5a560e719f18517b0af8b7d2f31eb002`.
+Eleven confirmed finding groups were fixed: repeat-stop cleanup, unseen-layer gates,
+derived Out indexing, transport clock/resume/replay, unsafe reversal ownership,
+cue-aware pose guards, legacy preview migration, custom interpreter tail preservation,
+off-grid history, empty outside-root cleanup and illegal dependency edges.
+
+Simplification ran inline: reuse the lossless animation reader, keep migration in
+one pure blocks helper shared by preview/save/export, delegate span upgrades to the
+same exact-body writer, and reuse the preview controller's existing single request
+queue. The frozen PR #469 interpreter was compared byte-for-byte after newline
+normalization. Its 41 historical em-dashes are recorded in the copy baseline because
+changing that recognition fixture would break safe migration; no new emitted copy
+uses the frozen body.
+
+Verification ran inline through the repository queue. The final full catalog battery
+is `j-2166`: type-floor, overflow against baseline, field coverage, numerals, catalog
+specs/baselines, factory and Hairline/Quiz taste frames. `j-2165` failed only its runner's
+readiness probe (127.0.0.1 versus the server's localhost bind); the corrected runner
+owns and stops only its own dev server. Final build, check stamp and landing are
+recorded on the exact committed tip by the check/merge workflow.
+
+Final catalog result: `j-2166` passed type-floor (526), overflow (528, no baseline
+regressions), field coverage (526; fields in 105 variants explicitly undriven),
+numerals (349), calibration (35 tests), source/render baselines (four tests) and
+factory (317/317 candidates plus 12 kits). The render baseline was not updated.
+`npm run build` on implementation tip `076d7520` exited 0: 1,900 tests passed,
+three skipped, with TypeScript, lint, dependency, bundle and after-build gates green.
+The final evidence-only commit is rebuilt before its check stamp and landing.
+
+### Rendered taste review
+
+All six [Hairline and Quiz frames](taste/) from `j-2166` were opened: default/long
+holds and Quiz's default/long revealed answer. This reviews regression appearance
+on the prescribed grey bed; it does not close receiving-host or owner acceptance.
+
+| Question | Answer and observed evidence |
+|---|---|
+| Hierarchy | YES: Hairline's name leads its quieter role; Quiz's question leads before reveal and the correct answer leads after it. |
+| Composition | YES: Hairline shares one left edge beside its rule; Quiz's question and evenly spaced answer plates stay within the panel. |
+| Restraint | YES: each uses one amber accent with neutral type and backgrounds; Quiz's reveal highlight has a clear state purpose. |
+| Coherence | YES: type, rule/plate weights and amber state treatment remain consistent within each graphic. |
+| On-air quality | YES for these reference frames: clear contrast, readable type and stable placement; real footage and receiving hosts remain unverified. |
+| T1 Centred | YES: the Quiz question is centred in its header area and labels sit centrally in their chips; Hairline is intentionally left aligned. |
+| T2 Inside | YES: long names, role, question and answers retain every glyph within their allotted space. |
+| T3 Aligned to graphic | YES: text follows its rule or padded answer plate, with consistent shared edges. |
+| T4 Grows as implied | YES: Hairline extends right from its fixed anchor; Quiz keeps fixed plates and fits the longer question without moving the answers. |
+
 ## Remaining acceptance and R1.1d handoff
 
 Keep every whole E/B row open. This is scoped engineering evidence, not owner
@@ -144,4 +193,3 @@ executable exports. Preserve viewBox/aspect ratio, stacking, masks/clips,
 definitions/references and sibling appearance. Stable collision-free IDs land on
 first committed edit without changing read-only imports. Keep Next/cross-cue,
 full easing/multi-key and advanced tools out; use /check and /queue-merge again.
-
