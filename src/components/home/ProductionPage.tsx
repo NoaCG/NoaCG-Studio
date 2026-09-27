@@ -164,6 +164,7 @@ import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
 import ProductionLinks from './ProductionLinks';
 import CueRundown, { nameList } from './CueRundown';
+import RailResizer, { useRailWidth } from './RailResizer';
 import ServerCueEditor from './ServerCueEditor';
 import { FieldRow } from '../fields/FieldControl';
 import { isImageAsset } from '../../assets/assetUtils';
@@ -1345,6 +1346,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     [flushDraft],
   );
+  /** The graphic whose editor has its Advanced part (the playout layer) open by the operator's
+   *  hand, if any: every other graphic's editor shows it closed unless its layer clashes. */
+  const [advancedFor, setAdvancedFor] = useState<string | null>(null);
+  /** Bumped by a rundown row's clash badge, so the repair is brought into view once it renders. */
+  const [repairAsk, setRepairAsk] = useState(0);
+  const clashFix = useRef<HTMLButtonElement>(null);
+  /** THE CLASH BADGE'S DOOR (docs/CLIP_PLAYBACK_PLAN.md §6.5): select the cue, and its editor opens
+   *  Advanced by itself because the layer clashes; then the repair is scrolled to and focused. */
+  const openLayerRepair = useCallback(
+    (cueId: string) => {
+      selectCue(cueId);
+      setRepairAsk((n) => n + 1);
+    },
+    [selectCue],
+  );
+  useEffect(() => {
+    if (!repairAsk) return;
+    clashFix.current?.scrollIntoView({ block: 'nearest' });
+    clashFix.current?.focus({ preventScroll: true });
+  }, [repairAsk]);
   /**
    * Switching modes keeps the picture still. Into 'preview-then-take', what the operator was
    * looking at (the selection) stays on PREVIEW rather than the monitor going blank under
@@ -1970,6 +1991,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
+  /** The edited graphic's layer, and who else is on it when two graphics share it. */
+  const editedLayer = poolGraphic ? graphicLayer(poolGraphic) : 0;
+  const sharingLayer = poolGraphic ? clashes.get(editedLayer) : undefined;
+  const layerClash = !!sharingLayer;
+  const advancedOpen = layerClash || (!!poolGraphic && advancedFor === poolGraphic.id);
   const editingView = editingCue ? cueView(editingCue) : null;
   // The graphic's own picture assets, so an IMAGE field is actually pickable here. Without
   // them the control renders a select whose only option is "None" — which is how a match
@@ -2906,12 +2932,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               })}
             </div>
 
-            {/* CUE SETTINGS, under a rule and not in the content grid. The note is the cue's and
-                the layer is the graphic's; neither is something the graphic SHOWS, and flowing
-                them in beside the content fields is what left "Playout layer" alone on a second
-                row looking like a field nobody finished (owner, 2026-08-21). The layer stays
-                here rather than moving to a settings screen - it belongs where the operator
-                already is when they decide a graphic needs its own (§5). */}
+            {/* CUE SETTINGS, under a rule and not in the content grid. The note is the cue's; it is
+                not something the graphic SHOWS, and flowing it in beside the content fields is
+                what left settings alone on a second row looking like a field nobody finished
+                (owner, 2026-08-21). */}
             <div className="pd-cue-meta" data-testid="cue-meta">
               <label className="pd-field pd-field-note">
                 <span>Operator note</span>
@@ -2922,31 +2946,61 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   data-testid="cue-note"
                 />
               </label>
-              <label className="pd-field pd-field-layer">
-                <span>Playout layer</span>
-                <input
-                  type="number"
-                  min={MIN_PLAYOUT_LAYER}
-                  max={MAX_PLAYOUT_LAYER}
-                  value={graphicLayer(poolGraphic)}
-                  onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
-                  data-testid="graphic-layer"
-                />
-              </label>
             </div>
 
-            {clashes.has(graphicLayer(poolGraphic)) && (
-              <p className="status-warn pd-layer-clash" data-testid="layer-clash">
-                {nameList(clashes.get(graphicLayer(poolGraphic))!.map((g) => g.name))} share layer{' '}
-                {graphicLayer(poolGraphic)}. On air they replace each other.
-                <button
-                  onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
-                  data-testid="layer-clash-fix"
-                >
-                  Move to layer {nextFreeLayer(show.graphics)}
-                </button>
-              </p>
-            )}
+            {/* ADVANCED: the graphic's PLAYOUT LAYER (docs/CLIP_PLAYBACK_PLAN.md §6.5). Closed by
+                default with the number in its summary, because most productions never change it
+                (§5 counts from 20, distinct by construction). WHEN IT CLASHES it is open and
+                cannot be closed: two graphics on one layer replace each other on air, so the
+                repair must never be one click away behind a closed disclosure. The rundown's
+                clash badge lands here too (`openLayerRepair`). */}
+            <div className={`pd-advanced${layerClash ? ' clash' : ''}`} data-testid="cue-advanced">
+              <button
+                type="button"
+                className="pd-advanced-toggle"
+                aria-expanded={advancedOpen}
+                aria-controls="pd-advanced-graphic"
+                disabled={layerClash}
+                onClick={() => setAdvancedFor(advancedOpen ? null : poolGraphic.id)}
+                title={layerClash ? 'Open while the layer is shared: two graphics on one layer replace each other on air' : undefined}
+                data-testid="cue-advanced-toggle"
+              >
+                <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
+                Advanced
+                <span className="pd-advanced-sum" data-testid="cue-advanced-summary">
+                  Layer {editedLayer}
+                  {layerClash ? ' · shared' : ''}
+                </span>
+              </button>
+              {advancedOpen && (
+                <div className="pd-advanced-body" id="pd-advanced-graphic">
+                  <label className="pd-field pd-field-layer">
+                    <span>Playout layer</span>
+                    <input
+                      type="number"
+                      min={MIN_PLAYOUT_LAYER}
+                      max={MAX_PLAYOUT_LAYER}
+                      value={editedLayer}
+                      onChange={(e) => setShows(setShowGraphicLayer(show.id, poolGraphic.id, Number(e.target.value)))}
+                      data-testid="graphic-layer"
+                    />
+                  </label>
+                  {sharingLayer && (
+                    <p className="status-warn pd-layer-clash" data-testid="layer-clash">
+                      {nameList(sharingLayer.map((g) => g.name))} share layer {editedLayer}. On air
+                      they replace each other.
+                      <button
+                        ref={clashFix}
+                        onClick={() => setShows(setShowGraphicLayer(show.id, poolGraphic.id, nextFreeLayer(show.graphics)))}
+                        data-testid="layer-clash-fix"
+                      >
+                        Move to layer {nextFreeLayer(show.graphics)}
+                      </button>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -3175,6 +3229,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         cueGraphicName={cueGraphicName}
         playoutItemFor={playoutItemFor}
         selectCue={selectCue}
+        onLayerRepair={openLayerRepair}
         removeCue={removeCue}
         removeGraphic={removeGraphic}
         uploadPictures={uploadPictures}
@@ -3291,6 +3346,10 @@ function ProductionShell({
   const saving = teamState.saving[show.id];
   const teamNote = teamState.notes[show.id];
   const edited = team && head ? `edited by ${teamMemberName(team.id, head.updatedBy)}, ${editedWhen(head.updatedAt)}` : '';
+  // THE RUNDOWN'S WIDTH (home/RailResizer): the grid's second column and the handle on its edge
+  // both read `--pd-rail-w`, so the two can never disagree about where the divider is.
+  const body = useRef<HTMLElement>(null);
+  const rail = useRailWidth(body);
 
   return (
     <div className="app playout-dashboard" data-testid="production-page">
@@ -3468,7 +3527,12 @@ function ProductionShell({
           <button onClick={() => dismissTeamNote(show.id)}>OK</button>
         </div>
       )}
-      <main className="pd-body">{children}</main>
+      <main className="pd-body" ref={body} style={{ '--pd-rail-w': `${rail.width}px` } as React.CSSProperties}>
+        {children}
+        {/* Only beside the playout surface: Data and Audience take the whole body and have no
+            rundown to resize. The phone hides it, where the rundown is a row of the one column. */}
+        {sub === null && <RailResizer {...rail} />}
+      </main>
     </div>
   );
 }

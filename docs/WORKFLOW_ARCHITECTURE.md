@@ -174,6 +174,7 @@ Each tier answers a different question. All of them live in `.github/workflows/`
 | Every push to `main` | `post-land.yml`, `quarantine.yml`, `configured-suite.yml` | migrations for production and staging, then the Supabase advisors; each quarantined spec in its own job, reported as a commit status; the suite that needs a real backend, against a local Supabase stack |
 | Production deployments, and four times a day | `deploy-verify.yml` | that the deployed commit is the one live, and that the site answers |
 | Scheduled | `nightly.yml`, `catalog-gates.yml`, `nightly-drift.yml`, `weekly-audit.yml` and others | the full sweep and the catalog-wide gates; the catalog battery; a watch that those schedules actually ran; the weekly dependency and freshness audit |
+| On demand, for a branch | `rerecord-screenshots.yml` | one screenshot spec run with `--update-snapshots` on a runner, its `*-linux.png` baselines uploaded for the branch to take in (`gh workflow run rerecord-screenshots.yml --ref <branch>`) |
 
 The E2E plan fails toward running more: an unmapped file, a shared-core file or an unusable diff
 base plans the full suite. `docs/VERIFICATION.md`, "E2E is TIERED", has the detail, including the

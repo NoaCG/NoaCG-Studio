@@ -101,7 +101,7 @@ const isEntrypoint =
 // A row that selects specs for a behaviour of ProductionPage.tsx has to select them for the file
 // that behaviour moved to as well, so the list is named once, here, and spliced into those rows. A
 // part split out later is added here and nowhere else.
-const PRODUCTION_PAGE_PARTS = 'ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor';
+const PRODUCTION_PAGE_PARTS = 'ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor|RailResizer';
 
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
@@ -630,7 +630,10 @@ const MAP = [
   // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
   // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
   // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
-  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`), ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
+  // The rundown's width and its one-line rows (docs/CLIP_PLAYBACK_PLAN.md phase 1) are pinned by
+  // playout-rail-width: the handle, the §6.2 row table, the clash door and the list following the
+  // air. The stylesheet half reaches it through the FOCUS list, like the fixed-panes spec.
+  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`), ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts', 'playout-rail-width.spec.ts']],
   // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
   // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
   // header door and the Back/Home pair beside it.

@@ -583,8 +583,12 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   await expect(rowLayers.nth(0)).toHaveText('L20');
   await expect(rowLayers.nth(1)).toHaveText('L21');
 
-  // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic.
+  // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic,
+  // whose layer sits under Advanced, closed with the number in its summary (plan §6.5).
   await page.getByTestId('cue-list').locator('.pd-cue').first().getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-advanced-summary')).toHaveText('Layer 20');
+  await expect(page.getByTestId('graphic-layer')).toHaveCount(0);
+  await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('graphic-layer').fill('30');
   await expect.poll(() => layerOf('Bug')).toBe(30);
   await expect(rowLayers.nth(0)).toHaveText('L30');

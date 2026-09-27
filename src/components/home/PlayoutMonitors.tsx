@@ -133,7 +133,7 @@ export default function PlayoutMonitors({
       <div className="pd-monitor pd-pvw">
         <h2>
           <span className="pd-dot" aria-hidden="true" />
-          PREVIEW
+          <span className="pd-monitor-name">PREVIEW</span>
           <span className="pd-what" data-testid="preview-what">
             {previewLabel}
           </span>
@@ -184,7 +184,7 @@ export default function PlayoutMonitors({
       <div className="pd-monitor pd-pgm">
         <h2>
           <span className="pd-dot" aria-hidden="true" />
-          PROGRAM · ON AIR
+          <span className="pd-monitor-name">PROGRAM · ON AIR</span>
           {/* The names can run past the monitor's width and end in an ellipsis, so the title
               carries them whole. The badge names EVERY live layer, in the names' order: with a
               quiz and a score both up it used to show one layer beside two names. */}
