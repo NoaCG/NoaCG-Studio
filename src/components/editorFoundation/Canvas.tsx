@@ -194,7 +194,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (!moved && clickSelection.current) select(clickSelection.current, false);
         clickSelection.current = null;
       }}
-      onLostPointerCapture={() => { clickSelection.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
+      onLostPointerCapture={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
       onPointerCancel={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; gesture.cancel(); if (marqueeStart.current) setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }}>
       <div className="ef-artboard" style={{ width, height,
         transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) translate(-50%,-50%) scale(' + scale + ')' }}>

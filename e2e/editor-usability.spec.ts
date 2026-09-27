@@ -132,6 +132,25 @@ for (const name of ['Hairline', 'House Quiz']) for (const width of [1920, 1366, 
   });
 }
 
+test('B11 losing pointer capture cancels Space panning without playback', async ({ page }) => {
+  await open(page, 'Hairline');
+  const canvas = page.getByTestId('foundation-canvas'), board = page.locator('.ef-artboard');
+  const bounds = (await canvas.boundingBox())!, initial = await board.getAttribute('style');
+  const parked = await clock(page), original = await source(page);
+  await canvas.focus(); await page.keyboard.down('Space');
+  await page.mouse.move(bounds.x + 20, bounds.y + 20); await page.mouse.down();
+  await page.mouse.move(bounds.x + 40, bounds.y + 40);
+  expect(await board.getAttribute('style')).not.toBe(initial);
+  // Fault-inject capture loss while the pointer is down, rather than depending
+  // on a window-switch race. Later movement must not keep the abandoned pan alive.
+  expect(await canvas.evaluate(el => el.hasPointerCapture(1))).toBe(true);
+  await canvas.evaluate(el => el.releasePointerCapture(1));
+  await page.mouse.move(bounds.x + 60, bounds.y + 60); await frames(page, 3);
+  expect(await board.getAttribute('style')).toBe(initial);
+  await page.mouse.up(); await page.keyboard.up('Space'); await frames(page, 6);
+  expect(await clock(page)).toBe(parked); expect(await source(page)).toEqual(original);
+});
+
 test('B04 appearance drafts survive focus changes and refuse invalid/stale input', async ({ page }) => {
   await open(page, 'Hairline');
   await page.locator('.ef-track[data-selector="#f0"] .ef-layer').click();
