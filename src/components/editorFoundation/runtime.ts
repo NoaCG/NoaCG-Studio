@@ -11,6 +11,7 @@ export const foundationRuntime = String.raw`
   var timeline = null;
   var activeStep = -1;
   var initial = [];
+  var initialMotion = {};
   var intervals = [];
   var longTasks = [];
   var lastFrame = 0;
@@ -59,6 +60,11 @@ export const foundationRuntime = String.raw`
     // Remove calls before building, not just during seek: no callback can fire at t=0.
     return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [], loops: undefined }));
   }
+  function numericPose(element) {
+    var pose = {};
+    ['x', 'y', 'scaleX', 'scaleY', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
+    return pose;
+  }
   function seek(step, time) {
     if (!config.scrubbable) return;
     if (typeof window.buildStepTimeline !== 'function' || !window.gsap) {
@@ -67,6 +73,10 @@ export const foundationRuntime = String.raw`
     if (!NOACG_ANIM.steps[step]) throw new Error('The requested segment no longer exists.');
     if (activeStep !== step) {
       resetPose();
+      config.selectors.forEach(function (selector) {
+        var element = document.querySelector(selector);
+        if (element) initialMotion[selector] = numericPose(element);
+      });
       gsap.set(NOACG_ANIM.root, { opacity: 1 });
       for (var i = 0; i < step; i++) {
         var previous = build(i);
@@ -90,11 +100,17 @@ export const foundationRuntime = String.raw`
         else gsap.set(selector, { visibility: 'visible' });
       });
     });
+    Object.keys(NOACG_ANIM.steps[step].spans || {}).forEach(function (selector) {
+      var segment = NOACG_ANIM.steps[step];
+      gsap.set(selector, { visibility: noacgSpanVisible(segment.spans[selector], target * NOACG_ANIM.speed, segment.duration) ? 'visible' : 'hidden' });
+    });
     var finalExit = step > 0 && step === NOACG_ANIM.steps.length - 1 &&
       time >= NOACG_ANIM.steps[step].duration / NOACG_ANIM.speed;
     gsap.set(NOACG_ANIM.root, { opacity: finalExit ? 0 : 1 });
   }
   function measure() {
+    var poseTime = config.scrubbable ? (timeline ? timeline.time() : 0) : config.time;
+    for (var i = 0; i < activeStep; i++) poseTime += NOACG_ANIM.steps[i].duration / NOACG_ANIM.speed;
     return config.selectors.flatMap(function (selector) {
       var element = document.querySelector(selector);
       if (!element) return [];
@@ -108,9 +124,9 @@ export const foundationRuntime = String.raw`
         ? parseFloat(getComputedStyle(target).getPropertyValue('--scale')) || 1 : 1;
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, revision: current, motion: window.gsap ? numericPose(element) : undefined, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
-        corners: adapter && adapter.scaleReason ? undefined : corners(target), anchor: anchor(target) }];
+        corners: corners(target), anchor: anchor(target) }];
     });
   }
   // Translation cancels for pointer deltas. SVG supplies an exact CTM; HTML composes
@@ -208,6 +224,7 @@ export const foundationRuntime = String.raw`
         if (m.kind === 'apply-css') setCss(m.css);
         else { resetPose(); window.NOACG_ANIM = m.animation; }
         current = m.revision;
+        seek(m.step, m.time);
         presented(m.requestId, 'ready');
       } catch (error) { send('error', m.requestId, { message: String(error.message || error) }); }
       return;
@@ -217,9 +234,21 @@ export const foundationRuntime = String.raw`
     try {
       if (m.kind === 'seek') seek(m.step, m.time);
       else if (m.kind === 'preview-css') setCss(m.css);
+      else if (m.kind === 'preview-template') {
+        resetPose(); setCss(m.css);
+        (m.geometry || []).forEach(function (patch) {
+          var element = document.querySelector(patch.selector);
+          if (!element) return;
+          ['x', 'y', 'cx', 'cy'].forEach(function (name) {
+            var value = patch.attributes[name];
+            if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
+          });
+        });
+        window.NOACG_ANIM = m.animation; seek(m.step, m.time);
+      }
       else if (m.kind === 'reset-metrics') { intervals = []; longTasks = []; }
       else return;
-      presented(m.requestId, 'pose', m.kind === 'preview-css');
+      presented(m.requestId, 'pose', m.kind === 'preview-css' || m.kind === 'preview-template');
     } catch (error) { send('error', m.requestId, { message: String(error.message || error) }); }
   });
   window.addEventListener('load', async function () {

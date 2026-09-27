@@ -38,8 +38,11 @@ async function seed(page: Page, name = 'catalog', nested = false) {
   await expect(page.locator('.ef-selection rect')).toHaveCount(1);
 }
 async function numeric(page: Page, label: string, value: number) {
-  await page.getByRole('textbox', { name: label, exact: true }).fill(String(value));
-  await page.getByRole('textbox', { name: label, exact: true }).press('Enter');
+  if (!label.startsWith('Box ')) label = 'Base ' + label;
+  const details = page.locator('.ef-inspector details');
+  await details.evaluate(el => { (el as HTMLDetailsElement).open = true; });
+  await details.getByRole('textbox', { name: label, exact: true }).fill(String(value));
+  await details.getByRole('textbox', { name: label, exact: true }).press('Enter');
   await ready(page);
 }
 async function rect(page: Page, selector: string) {
@@ -517,7 +520,7 @@ test('B04 point text and canceled creation; base scale agrees with handles at zo
   await page.mouse.click(stage.x + stage.width / 2, stage.y + stage.height / 2); await ready(page);
   expect((await source(page)).fields.length).toBe(initial.fields.length + 1);
   await numeric(page, 'Scale X %', 150);
-  await expect(page.getByRole('textbox', { name: 'Scale Y %', exact: true })).toHaveValue('150');
+  await expect(page.getByRole('textbox', { name: 'Base Scale Y %', exact: true })).toHaveValue('150');
   const scaled = await source(page);
   expect(scaled.html.match(/<svg[\s\S]*?<\/svg>/)?.[0]).toBe(initial.html.match(/<svg[\s\S]*?<\/svg>/)?.[0]);
   await page.getByRole('combobox', { name: 'Canvas zoom' }).selectOption('1.5');

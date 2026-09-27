@@ -1,13 +1,16 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { TimelineView } from './timelineView';
+import type { EditorSession } from './session';
+import LayerBar from './LayerBar';
 
 interface Props {
   view: TimelineView; fps: number; time: number; selection: string[];
   seek: (time: number) => void; select: (selector: string | null, toggle: boolean) => void;
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
   playing: boolean; togglePlayback: () => void;
+  session: EditorSession; pause: () => void;
 }
-export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback }: Props) {
+export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause }: Props) {
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   const ruler = useRef<HTMLDivElement>(null);
   const tracks = useRef<HTMLDivElement>(null);
@@ -18,7 +21,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const display = (value: number) => units === 'seconds' ? value.toFixed(2) + ' s' : Math.round(value * fps) + ' f';
   const fromPointer = (clientX: number) => {
     const box = ruler.current?.getBoundingClientRect();
-    if (box) seek(Math.max(0, Math.min(view.duration, (clientX - box.left) / box.width * extent)));
+    if (box) seek(Math.max(0, Math.min(view.duration, Math.round((clientX - box.left) / box.width * extent * 1e6) / 1e6)));
   };
   useLayoutEffect(() => {
     const scroller = tracks.current;
@@ -77,7 +80,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         </div>
       </div>
       {view.parts.map((part, index) => {
-        const bar = view.bars.find(b => b.selector === part.selector)!;
+        const bars = view.bars.filter(b => b.selector === part.selector);
         return <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')}
           key={part.selector} data-selector={part.selector}>
           <button className="ef-layer" aria-pressed={selection.includes(part.selector)}
@@ -87,15 +90,17 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             <span>{part.label}</span>
           </button>
           <div className="ef-track-lane">
-            <button className="ef-bar" tabIndex={-1} aria-label={'Select ' + part.label + ' span'}
-              style={{ left: bar.start / extent * 100 + '%', width: Math.max(0.2, (bar.end - bar.start) / extent * 100) + '%' }}
-              onClick={event => select(part.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>{part.label}</button>
+            {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={view.data?.speed ?? 1} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
+            {view.data?.steps.flatMap((step, index) => Object.entries(step.layers[part.selector] ?? {}).flatMap(([property, keys]) => keys.map(key =>
+              <button key={index + property + key.time} className="ef-timeline-key" aria-label={property + ' key at ' + display(view.segments[index].start + key.time / view.data!.speed)}
+                style={{ left: (view.segments[index].start + key.time / view.data!.speed) / extent * 100 + '%' }}
+                onClick={() => { select(part.selector, false); seek(view.segments[index].start + key.time / view.data!.speed); }}>◆</button>)))}
             <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
           </div>
         </div>;
       })}
       {!view.parts.length && <p className="ef-notice">No addressable layers in this source.</p>}
     </div>
-    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Shift: ten · Escape: cancel</span><span>Playback stops at cues · Spans read only</span></div>
+    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Drag bars: snap to frames · Alt: bypass · Moves stay within cues</span></div>
   </section>;
 }

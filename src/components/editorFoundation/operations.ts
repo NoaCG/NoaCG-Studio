@@ -6,9 +6,11 @@ import { createArtwork, editBase, baseValues, type BasePatch, type Creation } fr
 import { setSlotSize, setLineFit } from '../../blocks/designLayout';
 import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
+import { applyAnimation, type AnimationOperation } from '../../blocks/editorAnimation';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | AnimationOperation
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'box.resize'; selector: string; width: number; height: number }
@@ -37,7 +39,9 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
   let next = template;
   const targets = new Set<string>();
   for (const operation of operations) {
-    if (operation.kind === 'base.set') {
+    if (operation.kind === 'animation.key' || operation.kind === 'layer.move') {
+      next = applyAnimation(next, operation); targets.add(operation.selector);
+    } else if (operation.kind === 'base.set') {
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {
       const result = createArtwork(next, operation.geometry); next = result.template; targets.add(result.selector);
