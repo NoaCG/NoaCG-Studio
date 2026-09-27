@@ -71,18 +71,20 @@
 .wz-continue-card .wz-entry-icon { font-size: 24px; }
 .wz-continue-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wz-continue-card .hint { min-width: 0; }
-/* The two shortcuts: secondary buttons, never amber. Home is where saved work is, not the
-   action the step is recommending — the entry cards below are. */
+/* The step's ONE secondary button: the Home row's shortcuts and the Playout row's actions.
+   Never amber - the start cards are what the step recommends. */
 .wz-continue-jump { display: flex; gap: 8px; flex: 0 0 auto; }
-.wz-continue-jump button {
-  padding: 7px 14px;
-  font-size: 13px;
+.wz-continue-jump button,
+.wz-playout-actions button {
+  padding: 8px 16px;
+  font-size: 14px;
   border-radius: 4px;
   border-color: var(--border-strong);
   color: var(--text-mid);
   background: none;
 }
-.wz-continue-jump button:hover { color: var(--text); border-color: var(--accent); }
+.wz-continue-jump button:hover,
+.wz-playout-actions button:hover { color: var(--text); border-color: var(--accent); }
 .wz-beta-tag {
   display: inline-block;
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -99,10 +101,11 @@
   vertical-align: 2px;
 }
 /* ── THE FOUR START CARDS: one row, one size, one treatment ──────────────────────────────
-   Overrides the shared two-column grid in wizard-and-dialogs.css (which the Finish doors also
-   use) for the Entry step alone, scoped under `.wz-entry-wrap` so nothing else moves. Four
-   columns at a laptop width: two rows of two cost a whole card height of the 768px budget
-   that the Playout row now needs. The odd-card span rule there never fires on four. */
+   Overrides the base two-column grid in wizard-and-dialogs.css. Scoped under `.wz-entry-wrap`
+   so it outranks that file and mobile.css, which is why the media blocks below restate the
+   column count. Four columns at a laptop width: two rows of two cost a whole card height of
+   the 768px budget that the Playout row needs. The odd-card span rules there never fire on
+   four; retiring them is a change to that file. */
 .wz-entry-wrap .wz-entry { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* One step roomier than the shared card: four in a row leave the 768px budget about 250px
    of air, and the first screen reads calmer spending a little of it on the cards than on a
@@ -110,29 +113,20 @@
 .wz-entry-wrap .wz-entry .wz-entry-card { padding: 18px 20px; gap: 8px; }
 .wz-entry-wrap .wz-entry .wz-entry-card .hint { line-height: 1.5; }
 .wz-entry-wrap .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.5em); }
-/* The drawn icons (EntryStep.tsx) sit on the title's line in the accent, all at one size,
-   where the glyphs they replace took their size from `font-size` and their weight from
-   whichever system font had them. */
-.wz-entry-wrap .wz-entry .wz-entry-card .wz-entry-icon { width: 22px; height: 22px; font-size: inherit; flex: 0 0 auto; }
 .wz-entry-wrap .wz-entry .wz-entry-card strong { white-space: nowrap; }
 /* THE GREYED CARD. It keeps the card's size and outline so the row stays four equal cards,
    and drops everything that says "pick me": the icon and title go dim, the fill goes flat and
    nothing lifts or lights. The border stays SOLID: dashed is the "drop zone / add new" cue,
    the wrong hint one card away from Import. Signed in it still opens on click - greyed says
    "not yet recommended", not "broken" - so its hover answers in the quiet border only. */
-.wz-entry-wrap .wz-entry .wz-entry-card--muted { background: transparent; }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted { background: transparent; transform: none; }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted .wz-entry-icon,
 .wz-entry-wrap .wz-entry .wz-entry-card--muted strong { color: var(--text-dim); }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted .hint { color: var(--text-faint); }
-.wz-entry-wrap .wz-entry .wz-entry-card--muted:hover:not(:disabled) {
-  background: transparent;
-  border-color: var(--border-strong);
-  transform: none;
-}
+.wz-entry-wrap .wz-entry .wz-entry-card--muted:hover { border-color: var(--border-strong); }
 /* Disabled (signed out) it is the same greyed card, not a second, fainter state: the card
    already reads as unavailable, and base.css's 0.45 opacity would make its reason unreadable. */
-.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled { opacity: 1; cursor: not-allowed; }
-.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled:hover { background: transparent; border-color: var(--border); transform: none; }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled { opacity: 1; cursor: not-allowed; border-color: var(--border); }
 
 /* A laptop narrower than the four-column measure (a 1024px window, a split screen) goes back
    to two by two rather than squeezing four titles onto two lines each. */
@@ -154,22 +148,12 @@
   border-top: 1px solid var(--border);
 }
 .wz-playout-text { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.wz-playout-text .wz-entry-icon { width: 22px; height: 22px; flex: 0 0 auto; color: var(--accent); }
+.wz-playout-text .wz-entry-icon { flex: 0 0 auto; color: var(--accent); }
 .wz-playout-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 /* The card title's size: "Run the show" is half the headline's promise, not a footnote. */
 .wz-playout-copy strong { font-size: 17px; font-weight: 600; }
-/* The two actions: plain secondary buttons, never amber (the cards are the step's
-   recommendation), matched to the Home row's shortcuts so the step has one secondary button. */
+/* The two actions wear the step's one secondary button (the Home row's rule, above). */
 .wz-playout-actions { display: flex; gap: 8px; flex: 0 0 auto; }
-.wz-playout-actions button {
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 4px;
-  border-color: var(--border-strong);
-  color: var(--text);
-  background: none;
-}
-.wz-playout-actions button:hover { border-color: var(--accent); background: var(--bg-2); }
 
 @media (max-width: 768px) {
   /* THE HERO IS DESKTOP-SIZED (42/18, `.wz-wizard` above) and a phone cannot afford it: at

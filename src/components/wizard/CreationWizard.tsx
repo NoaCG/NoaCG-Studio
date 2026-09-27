@@ -1815,10 +1815,7 @@ export default function CreationWizard() {
                   // "Last used" is the production saved most recently: every rundown edit,
                   // publish and graphic add stamps `updatedAt`, so it is the one the user
                   // touched last without a second record to keep in step.
-                  const last = loadShows().reduce<Show | null>(
-                    (best, s) => (!best || s.updatedAt > best.updatedAt ? s : best),
-                    null,
-                  );
+                  const last = loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
                   closeGallery();
                   useRouter.getState().navigate(
                     last ? { view: 'production', id: last.id } : { view: 'home', section: 'productions' },

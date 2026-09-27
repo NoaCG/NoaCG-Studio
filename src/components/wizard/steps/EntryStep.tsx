@@ -181,18 +181,25 @@ export default function EntryStep({
             It keeps its place so nobody wonders where it went, and it is closed to a signed-out
             visitor, who is told why in the card itself because a disabled button shows no
             tooltip. `signedIn` is true offline, where nothing is gated, and false while a
-            configured session is still resolving. */}
+            configured session is still resolving.
+            ITS ACCESSIBLE NAME IS THE MODE'S FULL NAME, "Video or animation with AI", the name
+            the Video step, the Videos section and the video specs use; the visible title drops
+            "with AI" only because four titles share one laptop row. The note stays announced
+            as the description. `--video` stays as the card's stable hook
+            (scripts/landing-shots.mjs crops by it). */}
         <button
-          className="wz-entry-card wz-entry-card--muted"
+          className="wz-entry-card wz-entry-card--muted wz-entry-card--video"
           onClick={onVideo}
           disabled={!signedIn}
+          aria-label="Video or animation with AI"
+          aria-describedby="wz-video-note"
           data-entry="video"
         >
           <span className="wz-entry-head">
             <IconVideo />
             <strong>Video or animation</strong>
           </span>
-          <span className="hint">
+          <span className="hint" id="wz-video-note">
             Not recommended yet. It renders a video file, not a live graphic.
             {!signedIn && ' Sign in to try it.'}
           </span>
@@ -252,41 +259,47 @@ function EntryIcon({ children }: { children: ReactNode }) {
   );
 }
 
-function IconAgent() {
+/** The shared 18x15 screen every start-card icon draws on. */
+function ScreenIcon({ children }: { children: ReactNode }) {
   return (
     <EntryIcon>
       <rect x="3" y="4.5" width="18" height="15" rx="2" />
-      <path d="M7 10l3 2.25L7 14.5M12.5 15H17" />
+      {children}
     </EntryIcon>
+  );
+}
+
+function IconAgent() {
+  return (
+    <ScreenIcon>
+      <path d="M7 10l3 2.25L7 14.5M12.5 15H17" />
+    </ScreenIcon>
   );
 }
 
 function IconVector() {
   return (
-    <EntryIcon>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <ScreenIcon>
       <path d="M7.5 14C7.5 11 11 8.5 15 8.5" />
       <rect x="6" y="14" width="3" height="3" rx="0.6" />
       <rect x="15" y="7" width="3" height="3" rx="0.6" />
-    </EntryIcon>
+    </ScreenIcon>
   );
 }
 
 function IconTemplate() {
   return (
-    <EntryIcon>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <ScreenIcon>
       <path d="M6.5 14.5h8M6.5 16.75h5" />
-    </EntryIcon>
+    </ScreenIcon>
   );
 }
 
 function IconVideo() {
   return (
-    <EntryIcon>
-      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+    <ScreenIcon>
       <path d="M10.25 9.25v5.5L14.75 12z" />
-    </EntryIcon>
+    </ScreenIcon>
   );
 }
 
