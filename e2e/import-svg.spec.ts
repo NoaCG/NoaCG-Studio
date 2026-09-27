@@ -161,13 +161,15 @@ test('svg import: the design step says the workflow in one line and links the ex
 
   for (const size of [{ width: 1366, height: 768 }, { width: 1280, height: 800 }]) {
     await page.setViewportSize(size);
-    const fit = await line.evaluate((el) => {
-      const link = el.querySelector('a')!.getBoundingClientRect();
-      const box = el.getBoundingClientRect();
-      return { overflow: el.scrollWidth - el.clientWidth, linkInside: link.right <= box.right + 0.5 };
-    });
-    expect(fit.overflow, `summary ellipsized at ${size.width}`).toBeLessThanOrEqual(0);
-    expect(fit.linkInside, `example link cut off at ${size.width}`).toBe(true);
+    // Narrower widths let the line WRAP (so the link is never cut off), so "one line" is a
+    // height: no taller than the title beside it, which never wraps.
+    const fit = await line.evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      titleHeight: el.parentElement!.firstElementChild!.getBoundingClientRect().height,
+      overflow: el.scrollWidth - el.clientWidth,
+    }));
+    expect(fit.height, `summary wrapped at ${size.width}`).toBeLessThanOrEqual(fit.titleHeight + 1);
+    expect(fit.overflow, `summary cut off at ${size.width}`).toBeLessThanOrEqual(0);
   }
 
   // It belongs to the empty step: once a file is in, the card below says what was found instead.
