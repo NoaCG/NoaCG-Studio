@@ -106,6 +106,7 @@ test('the pages and anchors the landing links to exist', async ({ page }) => {
     ['/', 'live'],
     ['/', 'how'],
     ['/downloads', 'bridge'],
+    ['/downloads', 'cli'],
     ['/docs', 'agent-install'],
     ['/docs', 'svg'],
     ['/docs', 'dashboard'],
