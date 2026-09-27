@@ -40,7 +40,7 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const { matchRole, bestProposal } = await load(path.join(projectRoot, 'src/templates/behaviours/naming.ts'));
+const { matchRole, readableName, bestProposal } = await load(path.join(projectRoot, 'src/templates/behaviours/naming.ts'));
 const { BEHAVIOUR_RECIPES } = await load(path.join(projectRoot, 'src/templates/behaviours/registry.ts'));
 
 /** Every role a name matches in each type, as `role@row` (`:weak` where it is not evidence). */
@@ -50,7 +50,7 @@ function readings(name) {
     const hits = [];
     for (const role of recipe.roles) {
       if (role.countdown) continue; // bound by kind, never by a name
-      const m = matchRole(role, name, recipe.roles);
+      const m = matchRole(role, readableName(name, recipe.roles));
       if (m) hits.push(`${role.id}@${m.key}${m.weak ? ':weak' : ''}`);
     }
     if (hits.length > 0) out[recipe.id] = hits;
@@ -79,11 +79,15 @@ function toleranceTable() {
   const page = readFileSync(path.join(projectRoot, 'docs/SVG_IMPORT_PLAN.md'), 'utf8');
   const block = /<!-- layer-name-tolerance:start[^>]*-->([\s\S]*?)<!-- layer-name-tolerance:end -->/.exec(page);
   assert.ok(block, 'docs/SVG_IMPORT_PLAN.md has lost its layer-name-tolerance table');
+  // Every table line between the markers is a row to hold, bar the header and its rule: a row this
+  // cannot read fails here rather than being skipped, so a mistyped row is never silently unchecked.
   return block[1]
-    .split('\n')
-    .filter((line) => line.startsWith('| `'))
+    .split(/\r?\n/)
+    .filter((line) => line.trim().startsWith('|') && !/^\|\s*Name\s*\|/.test(line.trim()) && !/^\|-/.test(line.trim()))
     .map((line) => {
       const [name, type, reads] = line.split('|').slice(1, 4).map((cell) => cell.trim());
+      assert.match(name ?? '', /^`[^`]+`$/, `a tolerance row whose name is not one quoted name: ${line}`);
+      assert.match(reads ?? '', /^(?:-|`[^`]+`(?:, `[^`]+`)*)$/, `a tolerance row whose Reads as is not - or quoted roles: ${line}`);
       const unquote = (cell) => cell.replace(/^`|`$/g, '');
       return { name: unquote(name), type, reads: reads === '-' ? '' : reads.split(',').map((r) => unquote(r.trim())).join(', ') };
     });
@@ -112,23 +116,27 @@ test('the spelled-out retry is only for a name the recipe reads as nothing', () 
   const total = vote.roles.find((r) => r.id === 'total');
   // Read as written, `TotalShare1` is the total; spelled out it would ALSO be row 1's share, and
   // one layer would then have two jobs. The strict reading wins and the retry is never made.
-  assert.deepEqual(matchRole(total, 'TotalShare1', vote.roles), { key: '', weak: false });
-  assert.equal(matchRole(percent, 'TotalShare1', vote.roles), null);
-  // Without the recipe's roles there is no retry at all: that is the reading the docs' own
-  // examples are checked against (scripts/behaviour-docs.mjs), and it stays the strict one.
+  const name = readableName('TotalShare1', vote.roles);
+  assert.deepEqual(matchRole(total, name), { key: '', weak: false });
+  assert.equal(matchRole(percent, name), null);
+  // `matchRole` alone never retries: that is the reading the docs' own examples are checked
+  // against (scripts/behaviour-docs.mjs), and it stays the strict one.
   const quiz = BEHAVIOUR_RECIPES.find((r) => r.id === 'quiz');
   const answer = quiz.roles.find((r) => r.id === 'answer');
   assert.equal(matchRole(answer, 'AnswerA'), null);
-  assert.deepEqual(matchRole(answer, 'AnswerA', quiz.roles), { key: 'A', weak: false });
+  assert.deepEqual(matchRole(answer, readableName('AnswerA', quiz.roles)), { key: 'A', weak: false });
 });
 
 // ── WHOLE INVENTORIES ──
 
-let serial = 0;
-const text = (label, extra = {}) => ({ id: `c${serial++}`, label, numeric: false, clock: false, ...extra });
-const group = (label, hidden = true) => ({ id: `g${serial++}`, label, hidden });
-/** The slice of an SvgImportResult the proposal reads. */
-const inventory = (candidates, groups = []) => ({ candidates, groups, shapes: [] });
+const text = (label, extra = {}) => ({ label, numeric: false, clock: false, ...extra });
+const group = (label, hidden = true) => ({ label, hidden });
+/** The slice of an SvgImportResult the proposal reads, ids by position. */
+const inventory = (candidates, groups = []) => ({
+  candidates: candidates.map((c, i) => ({ id: `c${i}`, ...c })),
+  groups: groups.map((g, i) => ({ id: `g${i}`, ...g })),
+  shapes: [],
+});
 
 test('a quiz named in German is proposed as the quiz, with its three rows', () => {
   const p = bestProposal(
@@ -144,15 +152,10 @@ test('a quiz named in German is proposed as the quiz, with its three rows', () =
 });
 
 test('a quiz whose names are joined is proposed exactly as the spaced one', () => {
-  const spaced = ['Question', 'Answer A', 'Answer B', 'Selected A', 'Selected B', 'Correct A', 'Correct B'];
-  const joined = ['Question', 'AnswerA', 'AnswerB', 'SelectedA', 'SelectedB', 'CorrectA', 'CorrectB'];
-  const build = (names) => {
-    serial = 0;
-    return bestProposal(inventory(names.slice(0, 3).map((n) => text(n)), names.slice(3).map((n) => group(n))));
-  };
-  const a = build(spaced);
-  assert.equal(a?.recipe, 'quiz');
-  assert.deepEqual(build(joined), a);
+  const build = (names) => bestProposal(inventory(names.slice(0, 3).map((n) => text(n)), names.slice(3).map((n) => group(n))));
+  const spaced = build(['Question', 'Answer A', 'Answer B', 'Selected A', 'Selected B', 'Correct A', 'Correct B']);
+  assert.equal(spaced?.recipe, 'quiz');
+  assert.deepEqual(build(['Question', 'AnswerA', 'AnswerB', 'SelectedA', 'SelectedB', 'CorrectA', 'CorrectB']), spaced);
 });
 
 test('a Spanish score board is proposed as the score tracker', () => {
@@ -169,22 +172,17 @@ test('a Spanish score board is proposed as the score tracker', () => {
 });
 
 test('the containers are read by nothing, in any language or case', () => {
-  const build = (containers) => {
-    serial = 0;
-    const inner = [text('Question'), text('Answer A'), text('Answer B')];
-    const moments = [group('Selected A'), group('Selected B'), group('Locked in')];
-    return bestProposal(inventory(inner, [...containers.map((c) => group(c, false)), ...moments]));
-  };
-  // The ids shift with the container count, so compare what was bound, by label, not by id.
-  const labelled = (p, containers) => {
-    serial = 0;
-    const ids = new Map();
-    for (const l of ['Question', 'Answer A', 'Answer B']) ids.set(`c${serial++}`, l);
-    for (const l of ['Selected A', 'Selected B', 'Locked in', ...containers]) ids.set(`g${serial++}`, l);
-    return JSON.stringify(p, (_, v) => (typeof v === 'string' && ids.has(v) ? ids.get(v) : v));
-  };
-  const english = ['Text', 'Moments', 'Board'];
-  const reference = labelled(build(english), english);
+  // The containers come after the moments, so the ids of everything bound stay put and the
+  // proposals compare whole.
+  const build = (containers) =>
+    bestProposal(
+      inventory(
+        [text('Question'), text('Answer A'), text('Answer B')],
+        [group('Selected A'), group('Selected B'), group('Locked in'), ...containers.map((c) => group(c, false))],
+      ),
+    );
+  const reference = build(['Text', 'Moments', 'Board']);
+  assert.equal(reference?.recipe, 'quiz');
   for (const containers of [
     ['TEXT', 'MOMENTS', 'BOARD'],
     ['text', 'moments', 'board'],
@@ -194,6 +192,6 @@ test('the containers are read by nothing, in any language or case', () => {
     ['Texto', 'Momentos', 'Tablero'],
     [],
   ]) {
-    assert.equal(labelled(build(containers), containers), reference, `containers ${containers.join('/') || '(none)'}`);
+    assert.deepEqual(build(containers), reference,`containers ${containers.join('/') || '(none)'}`);
   }
 });

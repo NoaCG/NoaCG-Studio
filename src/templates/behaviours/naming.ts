@@ -60,8 +60,11 @@ export function withRowKey(label: string, key: string): string {
     .join(' ');
 }
 
-/** The strict reading of one role: exactly the rule the docs teach. */
-function strictMatch(role: RecipeRole, label: string): { key: string; weak: boolean } | null {
+/** Does this name play this role, as written? Returns the row key for a per-row role, `''` for a
+ *  role without rows, null for no match. `weak` marks a match that binds the role but is not
+ *  evidence. This is the reading the docs teach and scripts/behaviour-docs.mjs checks the taught
+ *  names against; a caller reading somebody's file passes the name through `readableName` first. */
+export function matchRole(role: RecipeRole, label: string): { key: string; weak: boolean } | null {
   const { key, head } = rowTokenOf(label);
   if (role.perRow) {
     if (key === null) return null;
@@ -78,7 +81,7 @@ function strictMatch(role: RecipeRole, label: string): { key: string; weak: bool
  *  `Score1`, `Team1Score`, `FullTime`), and dots, hashes, brackets and long dashes read as spaces
  *  (`Answer.A`, `Score #1`, `Answer (A)`). A figure followed by a lower-case letter is left alone,
  *  so `1st` never becomes row 1. Colons and slashes are kept: they belong to the prefixes. */
-export function spelledOut(label: string): string {
+function spelledOut(label: string): string {
   return label
     .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
     .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
@@ -88,23 +91,13 @@ export function spelledOut(label: string): string {
     .trim();
 }
 
-/** Does this name play this role? Returns the row key for a per-row role, `''` for a role
- *  without rows, null for no match. `weak` marks a match that binds the role but is not evidence.
- *
- *  With `peers` (every role of the recipe) a name the strict reading leaves unread by ALL of them
- *  is read once more spelled out. Without `peers` only the strict reading applies, which is what
- *  the docs script's twin checks the taught names against. */
-export function matchRole(
-  role: RecipeRole,
-  label: string,
-  peers?: readonly RecipeRole[],
-): { key: string; weak: boolean } | null {
-  const strict = strictMatch(role, label);
-  if (strict || !peers) return strict;
-  const loose = spelledOut(label);
-  if (loose === label.trim()) return null;
-  if (peers.some((p) => !p.countdown && strictMatch(p, label))) return null;
-  return strictMatch(role, loose);
+/** The spelling a recipe reads a name in: as written when ANY of its roles reads it so, else
+ *  spelled out. The check is on the NAME, over every role whatever its pool, on purpose: a name
+ *  then has one reading however it was drawn, and the cost is a name like `VotesBar1` (the total,
+ *  as written) never being retried as a bar - a missed read, never a wrong one. Worked out once
+ *  per layer by a caller that reads many roles (`proposeBinding`, `proposeFill`). */
+export function readableName(label: string, roles: readonly RecipeRole[]): string {
+  return roles.some((r) => !r.countdown && matchRole(r, label)) ? label : spelledOut(label);
 }
 
 /** A binding proposed from names alone: candidate ids by role, per row where the role repeats. */
@@ -157,13 +150,14 @@ function sortKeys(keys: Iterable<string>): string[] {
 export function proposeBinding(svg: SvgImportResult, recipe: BehaviourRecipe): ProposedBinding | null {
   const layers = inventory(svg);
   const roleOf = new Map<string, { role: RecipeRole; key: string; weak: boolean }>();
+  const names = new Map(layers.map((l) => [l.id, readableName(l.label, recipe.roles)]));
   for (const role of recipe.roles) {
     if (role.countdown) continue; // bound by the row's kind, never by a name
     for (const layer of layers) {
       const pool = role.kind === 'field' ? 'text' : role.pool ?? 'drawn';
       if (layer.pool !== pool) continue;
       if (role.numeric && !layer.numeric) continue;
-      const match = matchRole(role, layer.label, recipe.roles);
+      const match = matchRole(role, names.get(layer.id)!);
       if (match) roleOf.set(layer.id, { role, key: match.key, weak: match.weak });
     }
   }

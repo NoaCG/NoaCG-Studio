@@ -159,7 +159,7 @@
         "numeric": true,
         "distinctive": true,
         "pool": "text",
-        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit|poäng|\\bmål\\b|\\bpts\\b|punkte|\\btore?\\b|puntos|\\bgol(?:es)?\\b|po[aä]ng",
+        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit|poäng|\\bmål\\b|\\bpts\\b|punkte|\\btore?\\b|puntos|\\bgol(?:es)?\\b|poang",
         "teach": "Score 1",
         "also": [
           "Points 1",
@@ -197,7 +197,7 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "full[\\s-]?time|final|game over|loppu|full tid|\\bslut\\b|spielende|abpfiff|endstand|fin del partido",
+        "words": "full[\\s-]?time|final|game over|loppu|full tid|\\bslut\\b|^spielende$|abpfiff|endstand|fin del partido",
         "teach": "Full time",
         "also": [
           "Final",
@@ -246,7 +246,7 @@
         "required": true,
         "numeric": true,
         "pool": "text",
-        "words": "\\bpoints?\\b|\\bpts\\b|\\bscore\\b|\\btotal\\b|pisteet|\\bpoäng\\b|punkte|puntos|po[aä]ng",
+        "words": "\\bpoints?\\b|\\bpts\\b|\\bscore\\b|\\btotal\\b|pisteet|\\bpoäng\\b|punkte|puntos|\\bpoang\\b",
         "teach": "Points 1",
         "also": [
           "Row 1 points",

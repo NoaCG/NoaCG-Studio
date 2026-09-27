@@ -156,6 +156,9 @@ What is pinned, and where:
 | `Balken1` | vote | `bar@1` | joined, in German |
 | `1st Place` | ranking | - | a figure before a lower-case letter is an ordinal, never a row |
 | `TotalShare1` | vote | `total@` | it reads as the total as written, so the spelled-out `Share 1` is never tried |
+| `VotesBar1` | vote | `total@` | left out as a bar: the total reads it as written, and a name has one reading whatever it was drawn as, so a drawn `VotesBar1` binds nothing rather than a guess |
+| `Spielende` | score | `final@` | German full time, as the whole name |
+| `Spielende Kinder` | score | - | left out: inside a longer name `spielende` is German for playing |
 | `Text` | every | - | a container |
 | `TEXT` | every | - | a container, in capitals |
 | `text` | every | - | a container, in lower case |
@@ -226,7 +229,6 @@ What is pinned, and where:
 | `Tor 1` | score | `score@1, team.flash@1` | German goal: a text is the score, a hidden group the flash, like `Goal 1` |
 | `Gol 1` | score | `score@1, team.flash@1` | Spanish goal, the same |
 | `Maali 1` | score | `team.flash@1` | Finnish |
-| `Spielende` | score | `final@` | German |
 | `Abpfiff` | score | `final@` | German |
 | `Endstand` | score | `final@` | German |
 | `Fin del partido` | score | `final@` | Spanish |

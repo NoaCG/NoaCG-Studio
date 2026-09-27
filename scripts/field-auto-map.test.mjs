@@ -179,6 +179,9 @@ test('the ink is every candidate the step measured, not only what a picker offer
   assert.equal(fillGap('vote', VOTE_PICKERS, words, drawn, [], inkOf(words, drawn, [photo])).spare, 3);
 });
 
+/** The picks the fill made from a layer's NAME, not from where it sits. */
+const byName = (picks) => picks.filter((p) => p.reason.startsWith('named'));
+
 test('the fill reads names the way the drop does: joined, and in German or Spanish', () => {
   // "Fill them in" takes names first, through the same matcher as the drop
   // (docs/SVG_IMPORT_PLAN.md §2a). A board named `Frage`, `Opción 1` and `Balken1` fills from its
@@ -192,8 +195,7 @@ test('the fill reads names the way the drop does: joined, and in German or Spani
     { id: 's0', label: 'Balken1' },
     { id: 's1', label: 'Balken2' },
   ];
-  const picks = proposeFill('vote', VOTE_PICKERS, words, drawn);
-  const named = picks.filter((p) => p.reason.startsWith('named')).map((p) => [p.role, p.key ?? '', p.candidateId]);
+  const named = byName(proposeFill('vote', VOTE_PICKERS, words, drawn)).map((p) => [p.role, p.key ?? '', p.candidateId]);
   assert.deepEqual(named, [
     ['question', '', 'c0'],
     ['option', '1', 'c1'],
@@ -208,7 +210,5 @@ test('the fill never re-reads a name the recipe already reads as written', () =>
   // layer with two jobs is the thing the matcher refuses - so the share is not filled from it BY
   // NAME, whatever the later, positional rules then do.
   const words = [{ id: 'c0', label: 'TotalShare1' }];
-  const picks = proposeFill('vote', VOTE_PICKERS, words, []);
-  assert.ok(!picks.some((p) => p.role === 'percent' && p.reason.startsWith('named')), JSON.stringify(picks));
-  assert.deepEqual(picks.filter((p) => p.reason.startsWith('named')).map((p) => p.role), ['total']);
+  assert.deepEqual(byName(proposeFill('vote', VOTE_PICKERS, words, [])).map((p) => p.role), ['total']);
 });
