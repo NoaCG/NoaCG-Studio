@@ -379,7 +379,9 @@ test.describe('teams: the share door', () => {
         await expect(page.getByTestId(TEAM.joinCode)).toBeVisible({ timeout: 20_000 });
         await page.getByTestId(TEAM.deleteTeam).click();
         await page.getByTestId(TEAM.deleteTeam).click();
-        await expect(page.getByTestId('open-team-details')).toBeVisible({ timeout: 20_000 });
+        // Back on the pick screen. Not `open-team-details`: once the LAST team is gone the footer
+        // offers New team as its primary instead, and the move explainer is on the screen either way.
+        await expect(page.getByTestId('move-explainer')).toBeVisible({ timeout: 20_000 });
       }
       await expect(page.locator('.team-pickrow', { hasText: name })).toHaveCount(0);
 

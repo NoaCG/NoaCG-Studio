@@ -395,7 +395,9 @@ function Dialog() {
               <div className="team-members" data-testid="team-members">
                 {members === null && <p className="hint">Loading members…</p>}
                 {selectedMembers.map((m) => m.userId === user?.id && renaming !== null ? (
-                  <div className="team-member" key={m.userId}>
+                  // Its own key, so leaving the rename remounts the row: reusing Save's button for
+                  // "Change my name" animated the primary's amber out over the link.
+                  <div className="team-member" key={`${m.userId}-rename`}>
                     <input
                       autoFocus
                       className="team-member-rename"

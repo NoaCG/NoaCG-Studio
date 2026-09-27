@@ -50,6 +50,11 @@
   /* A long member list scrolls the BODY, so the footer's controls never leave the screen. */
   overflow-y: auto;
 }
+/* The body's flex gap spaces its paragraphs. A hint's own browser margin on top of it put ~37px
+   between two sentences of one screen, so three hints read as three unrelated notes. */
+.team-dialog-body > .hint,
+.team-dialog-body > .status-ok,
+.team-dialog-body > .status-bad { margin: 0; }
 /* The footer can carry four controls on the team screen (Back · Rotate · Delete · Done), which
    is one more than the anatomy's usual pair. It stays ONE ROW - wrapping a footer moves the
    primary action to a line of its own, which is the defect .dlg-foot exists to prevent. */
