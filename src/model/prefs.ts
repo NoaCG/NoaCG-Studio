@@ -40,6 +40,12 @@ export interface UserPrefs {
    *  Read live via components/playoutKeys useSpaceMode; the exported controller keeps its own
    *  copy on the relay's origin. */
   spaceMode: SpaceMode;
+  /** How wide the operator dragged the production page's cue rundown, in CSS pixels
+   *  (docs/PLAYOUT_DASHBOARD.md §2, docs/CLIP_PLAYBACK_PLAN.md §6.1). null = the default, which
+   *  follows the window's width. Per device, never on the production: it is about this screen,
+   *  and a production opened on a 1366 laptop and on a 1920 monitor wants two different answers.
+   *  The page clamps it to 320px and 60% of the window whatever is stored. */
+  rundownWidth: number | null;
 }
 
 /** The two SPACE modes. One word with a safe default; `control/spaceMode.ts` normalises it. */
@@ -54,6 +60,7 @@ const DEFAULTS: UserPrefs = {
   // looks like, not its name.
   libraryView: 'grid',
   spaceMode: 'take',
+  rundownWidth: null,
 };
 
 /** What the stored record turned out to be. `writable` is false only for a newer build's record. */

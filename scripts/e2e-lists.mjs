@@ -96,6 +96,9 @@ export const FOCUS = [
   // in src/styles/playout-dashboard.css, and src/styles is CORE, which resolves to THIS list -
   // so without the row a stylesheet change could bring the page scroll back and still merge.
   'playout-fixed-panes.spec.ts',
+  // THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout
+  // and the handle live in the CORE stylesheet and the width in model/prefs.ts, also CORE.
+  'playout-rail-width.spec.ts',
   'production-audience.spec.ts',
   'production-chat-intake.spec.ts',
   'production-controls.spec.ts',

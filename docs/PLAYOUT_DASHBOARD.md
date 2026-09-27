@@ -38,27 +38,54 @@ the surface serves it.
 ## 2. Layout — desktop
 
 Two columns in a fixed shell. **The CONTROL AREA under the monitors is the only scroller; every
-block in it is content-sized.** The header, the stage head and the cue rail never move.
+block in it is content-sized.** The header, the stage head and the cue rail never move. The line
+between the two columns is a handle: the rundown is as wide as the operator drags it.
 
 ```
 ┌ header ───────────────────────────────────────────────────────────────────────┐
 │ ▤ Show name  ● SHOW  00:42:17        ● output connected · N layers            │
 │                                         [Publish/links]  [Export…]  [■ All out]│
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
-│  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │  ⣿ 1 Presenter strap │
-│  ┌───────────────┐            ┌───────────────┐         │      after the intro │
-│  │  amber frame  │            │   red frame   │         │             L1 ON AIR│
-│  └───────────────┘            └───────────────┘         │  ⣿ 2 Topic card  PVW │
-│  [⟳ TAKE SPACE] [⟳ Re-take R] [✎ Update U] [» Next N]   │  …                   │
+│  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │ 1 T Strap ✎ ON AIR L1│
+│  ┌───────────────┐            ┌───────────────┐         │ 2 T Topic card PVW L2│
+│  │  amber frame  │            │   red frame   │         │ 3 ▶ CLIP ⟲  0:30 2-10│
+│  └───────────────┘            └───────────────┘         ⇔ …                    │
+│  [⟳ TAKE SPACE] [⟳ Re-take R] [✎ Update U] [» Next N]   │                      │
 │  [■ Out 0]                          on air: ● <graphic> │                      │
 │  ┌ EDITING PREVIEW CUE · <name> ─── switch to on-air ▾┐ │                      │
 │  │ F0 · KICKER   F1 · TITLE   F2 · SUBTITLE           │ │                      │
-│  │ [⚡ event] [⚡ event]                                │ │                      │
+│  │ OPERATOR NOTE   ▸ Advanced  Layer 1                │ │                      │
 │  └────────────────────────────────────────────────────┘ ├──────────────────────┤
 │  ▸ ACTIVITY  20:14:02  ⟳ Take · Presenter strap         │ [+ from library][+ …]│
 └─────────────────────────────────────────────────────────┴──────────────────────┘
 ```
 
+- **THE RUNDOWN'S WIDTH IS THE OPERATOR'S** (`docs/CLIP_PLAYBACK_PLAN.md` §6.1, built 2026-09-27;
+  `⇔` above). A long show wants a wide list and a graphic with twelve fields wants a wide editor,
+  and only the person running that show knows which matters tonight. So the divider is a handle
+  (`home/RailResizer`): dragged, moved 20px a press with ←/→ (100px with Shift), and
+  double-clicked back to the default. It holds between **320px and 60% of the window**, and the
+  width is remembered **per device** (`prefs.rundownWidth` in `spx-gfx-prefs`), never on the
+  production, since the same show is run from a 1366 laptop and a 1920 monitor. A width chosen on
+  a wide window is only clamped, never rewritten, so it comes back when the window does.
+  **The default is 23% of the window and never under 380px** (owner, 2026-09-27): 380px at the
+  1366 floor, where the laptop opens exactly as it did with the old fixed column, and about 440px
+  at 1920. The plan asked for about 40% at 1920; that left the 1080p monitors 250px tall, under
+  the 300px the owner had ruled too small on 2026-08-21, so the default keeps them at 343px and a
+  wider list is one drag away.
+  **The monitors give way, never the verbs.** A wider rundown narrows the stage column, the
+  monitors shrink inside it (never per cue, so they still never jump between cues), and the verb
+  column keeps its 206px floor. Each monitor's header shrinks with it - the cue name first, then
+  the label - so at the widest rundown on a 1366 window PROGRAM's header ends in an ellipsis
+  instead of running under TAKE.
+  **The cue editor answers its own width, not the window's.** `.pd-editor` is a CSS container, so
+  a band's heading drops above its fields and the settings go to one column when the EDITOR is
+  under 620px (§2d, §2e), whatever the window is. The field grid already reflowed to its own
+  width; it keeps §2d's measured 250px floor. The control area is still the one scroller.
+  Pinned by `e2e/playout-rail-width.spec.ts` (drag, keys, limits, reload, reset, and a
+  twelve-field graphic at both sizes with the rundown narrowest and widest) and
+  `e2e/playout-fixed-panes.spec.ts` (the one-scroller model with the rundown narrow and wide).
+  The phone hides the handle.
 - **THE HEADER OPENS WITH NAVIGATION, and ends with the panic control** (owner walk,
   2026-08-29). Left to right: the logo (which is the Home door here), **＋ New graphic**, ← back
   to Productions, the production's name and mode, the clock, the workspace tabs - then the
@@ -384,14 +411,19 @@ falls back to `Side A` on an empty value or one longer than 20 characters (a hea
 and a wrapped one is worse than a generic one). The shared band is headed `Both`.
 
 The heading sits in a 92px LEFT GUTTER so the bands read as rows across, and drops above its band
-below 620px. A band's fields keep the auto-fit grid from §2d, **capped rather than `1fr`**: three
+when the editor is under 620px wide (a container query on the editor since 2026-09-27, so it
+answers the room the rundown leaves rather than the window). A band's fields keep the auto-fit grid from §2d, **capped rather than `1fr`**: three
 fields stretched across a 2560px band gave a team name a 663px box and pushed the three so far
 apart the band stopped reading as one thing.
 
-**Cue SETTINGS are not content.** The operator note (the cue's) and the playout layer (the
-graphic's) sit under a hairline in their own strip, out of the field grid — neither is something
-the graphic shows, and flowing them in beside the content fields is exactly what left the layer
-alone on a second row looking like a field nobody finished.
+**Cue SETTINGS are not content.** The operator note (the cue's) sits under a hairline in its own
+strip, out of the field grid — it is not something the graphic shows, and flowing settings in
+beside the content fields is exactly what left the layer alone on a second row looking like a
+field nobody finished. **The playout layer (the graphic's) sits under Advanced** below it since
+2026-09-27 (`docs/CLIP_PLAYBACK_PLAN.md` §6.5): closed, with the number in its one-line summary
+(`Layer 21`), because most productions never change it. When the layer CLASHES with another
+graphic's, Advanced is open and cannot be closed, and the rundown's clash badge opens it too, so
+the repair is never behind a closed disclosure (§5). The hosted page's editor has no layer box.
 
 Both React surfaces render this: the in-app editor and the hosted control page, one module,
 docs/CONTROL_PANEL_PARITY.md §4.
@@ -491,9 +523,26 @@ that scrolls sideways is a layout bug, not a scrolling affordance.
 
 ## 4. The cue rundown
 
-One row per cue: drag handle, number, **bold label**, the operator note (or the graphic name)
-under it, the **layer badge**, and the ON AIR / PVW tag. Full-width label — reorder, duplicate
-and delete live behind the row's `⋯`, never as four permanent buttons that crush the name.
+**One line a row, 34px** (`docs/CLIP_PLAYBACK_PLAN.md` §6.2, built 2026-09-27), so about twenty
+rows show at 1080p where two-line rows showed ten. Left to right: drag grip, number (`●` while on
+air), the **kind icon** (`T` a graphic, `▶` a server clip; its accessible name and tooltip say
+the kind and the graphic in words, "Lower third · Hairline", "Server clip · 2-10"), the **bold
+label**, its marks (`⟲` a looping clip; `✎` a cue with an operator note, the note in its tooltip
+and accessible name), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
+item's own name). Then, in the same place on every row so they read down the list: the ON AIR /
+PVW tag, the clip's length (a column only when the rundown has a server clip), the **slot**
+(`L20`, or `2-10` for a server cue) and the `⋯`. What the old second line carried is moved, never
+dropped - the kind and the graphic's name are the icon's, the note is the ✎'s, the layer is the
+slot - and `e2e/playout-rail-width.spec.ts` holds that table. The summary gives way first, and a
+name too long for the row ends in an ellipsis before its marks. Reorder, duplicate and delete
+live behind the row's `⋯`, never as four permanent buttons that crush the name. The one-line row
+is the production page's (`.pd-rundown`); the hosted control page keeps its two-line row. On a
+phone a row keeps one line at a thumb's height (44px).
+
+**The list follows the air.** When a cue goes on air off-screen - a take from the keys, a
+combined control, another operator - the list scrolls it into view. It holds still while the
+operator is working in it: a row being dragged, a row's menu or the server picker open, focus in
+the rundown, or for ten seconds after a hand scrolled it. Only the list scrolls, never the page.
 
 - **Every cue carries its own field values.** The same lower third is a different person at cue
   2 and cue 7; that is what a cue IS.
@@ -542,7 +591,10 @@ A duplicate can still be typed deliberately, so **the surface says when one exis
 letting it be discovered live: the editor flags it inline with a one-click move to the next free
 number, and **every rundown row on the shared number wears the warning colour**, naming its
 partner on hover. Both rows, not just the one being edited — the point is which two graphics are
-about to replace each other. All three surfaces mark it the same way.
+about to replace each other. All three surfaces mark it the same way. On the production page the
+row's badge is also the door to the repair (an amber `⚠` outline, since 2026-09-27): pressing it
+selects that cue, whose editor has Advanced open because the layer clashes, and puts the
+one-click move in front with the focus on it.
 
 **A server cue carries a CHANNEL as well** (2026-09-23, `docs/BRIDGE.md` §5). A template or clip
 cued from the playout server's own library plays on a CasparCG channel AND layer, so its row wears

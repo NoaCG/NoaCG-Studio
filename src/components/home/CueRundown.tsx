@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -14,6 +14,7 @@ import {
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
 import { graphicKindLabel } from '../../model/types';
+import { fieldDescriptors } from '../../control/controlModel';
 import {
   channelOf,
   channelTitle,
@@ -36,16 +37,40 @@ export function nameList(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
+/** How long the list stays where the operator scrolled it before it follows the air again. */
+export const FOLLOW_PAUSE_MS = 10_000;
+
+/** Whether a hand scrolled the list within the pause, as of now. */
+function scrolledLately(at: number): boolean {
+  return Date.now() - at < FOLLOW_PAUSE_MS;
+}
+
+/** A clip's length as the rundown prints it (`3:00`, `1:02:05`), or '' when the server gave none. */
+export function clipLength(item: Pick<PlayoutItem, 'frames' | 'fps'>): string {
+  if (!item.frames || !item.fps || item.frames <= 0 || item.fps <= 0) return '';
+  const total = Math.round(item.frames / item.fps);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = String(total % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
 /**
- * THE CUE RUNDOWN of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2): the rows, the drag
- * reorder, each row's ⋯ menu, and the rail foot, which is how graphics, pictures and server items
- * get in. Phase 1 of docs/backlog/production-page-phases.md: moved out of ProductionPage with its
- * behaviour unchanged.
+ * THE CUE RUNDOWN of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2 and §4): the rows, the
+ * drag reorder, each row's ⋯ menu, and the rail foot, which is how graphics, pictures and server
+ * items get in. Moved out of ProductionPage by phase 1 of docs/backlog/production-page-phases.md.
  *
- * It owns only its own menus and pickers. What it changes goes to the record through `setShows`
- * or through the page's callbacks, and what is ON AIR comes in as values it only reads: `liveCue`
- * is the Take contract and never leaves the page, so the rundown is handed this render's map and
- * has no way to change it.
+ * It owns only its own menus and pickers, and where the list is scrolled. What it changes goes to
+ * the record through `setShows` or through the page's callbacks, and what is ON AIR comes in as
+ * values it only reads: `liveCue` is the Take contract and never leaves the page, so the rundown
+ * is handed this render's map and has no way to change it.
+ *
+ * ONE LINE A ROW (docs/CLIP_PLAYBACK_PLAN.md §6.2), so about twenty rows show at 1080p where ten
+ * did. What the old second line carried is moved, never dropped: the kind and the graphic's name
+ * are the kind icon's accessible name and tooltip, the operator note is the ✎ mark's, the layer
+ * or the server address is the slot at the row's end (still the clash warning when two graphics
+ * share a layer), and ON AIR / PVW stay as words beside the tint. e2e/playout-rail-width.spec.ts
+ * holds that table.
  */
 export default function CueRundown({
   show,
@@ -64,6 +89,7 @@ export default function CueRundown({
   cueGraphicName,
   playoutItemFor,
   selectCue,
+  onLayerRepair,
   removeCue,
   removeGraphic,
   uploadPictures,
@@ -93,6 +119,8 @@ export default function CueRundown({
   cueGraphicName: (cue: ShowCue) => string | null;
   playoutItemFor: (cue: ShowCue) => PlayoutItem | null;
   selectCue: (cueId: string) => void;
+  /** A row's clash badge was pressed: select that cue and put its layer repair in front. */
+  onLayerRepair: (cueId: string) => void;
   removeCue: (cue: ShowCue) => Promise<void>;
   removeGraphic: (poolId: string) => Promise<void>;
   uploadPictures: (files: File[]) => Promise<void>;
@@ -110,8 +138,62 @@ export default function CueRundown({
   const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  /** Each pool graphic's WORD fields, in the template's order: what a row's dim summary reads. */
+  const wordFields = useMemo(() => {
+    const out = new Map<string, { key: string; defaultValue: string }[]>();
+    for (const [id, g] of graphicByPoolId) {
+      out.set(
+        id,
+        fieldDescriptors(g.template.fields)
+          .filter((d) => d.kind === 'text' || d.kind === 'lines')
+          .map((d) => ({ key: d.key, defaultValue: String(d.defaultValue ?? '') })),
+      );
+    }
+    return out;
+  }, [graphicByPoolId]);
+  /** The length column is there only when the rundown holds a server clip (plan §6.8). */
+  const timed = cues.some((c) => playoutItemFor(c)?.kind === 'media');
+
+  // ── THE LIST FOLLOWS THE AIR (plan §6.2). A cue that goes on air off-screen is scrolled into
+  // view, so a take from the keys, a combined control or another operator never leaves the
+  // operator hunting for the red row. It holds still while the operator is working IN the list:
+  // a row being dragged, a menu open, focus in the rundown, or ten seconds after they scrolled
+  // it by hand. Only the list scrolls - never the page, which on a phone is the column the verbs
+  // are pinned to.
+  const rail = useRef<HTMLElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const draggingRow = useRef(false);
+  const scrolledAt = useRef(-Infinity);
+  const menuOpen = menuCueId !== null || pickerOpen;
+  const liveIds = cues
+    .filter((cue) => {
+      const graphic = cueGraphicName(cue);
+      return (!!graphic && liveCue[graphic] === cue.id) || serverCueLive(serverOnAir, playoutItemFor(cue), cue);
+    })
+    .map((cue) => cue.id);
+  const liveKey = liveIds.join(' ');
+  const wasLive = useRef<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    const now = new Set(liveKey ? liveKey.split(' ') : []);
+    const arrived = [...now].find((id) => !wasLive.current.has(id));
+    wasLive.current = now;
+    if (!arrived || offstage) return;
+    const held =
+      draggingRow.current ||
+      menuOpen ||
+      !!rail.current?.contains(document.activeElement) ||
+      scrolledLately(scrolledAt.current);
+    const box = list.current;
+    const row = box?.querySelector<HTMLElement>(`[data-testid="cue-${arrived}"]`);
+    if (held || !box || !row) return;
+    const b = box.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    if (r.top < b.top) box.scrollTop -= b.top - r.top + 8;
+    else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom + 8;
+  }, [liveKey, offstage, menuOpen]);
+
   return (
-    <aside className={`pd-rail${offstage ? ' pd-offstage' : ''}`}>
+    <aside ref={rail} id="pd-rundown" className={`pd-rail pd-rundown${offstage ? ' pd-offstage' : ''}`}>
       <div className="pd-rail-head">
         <h2>Cue rundown</h2>
         <span className="muted">{cues.length}</span>
@@ -138,14 +220,21 @@ export default function CueRundown({
         </p>
       )}
 
-      <div className="pd-cues" data-testid="cue-list">
+      <div
+        ref={list}
+        className={`pd-cues${timed ? ' pd-cues--timed' : ''}`}
+        data-testid="cue-list"
+        // A HAND on the list, not the list moving: the follow's own scrolling fires `scroll` too,
+        // so only a wheel or a touch counts as the operator having looked somewhere on purpose.
+        onWheel={() => (scrolledAt.current = Date.now())}
+        onTouchMove={() => (scrolledAt.current = Date.now())}
+      >
         {cues.map((cue, i) => {
           const view = cueView(cue);
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
-          const cueIsLive =
-            (!!cueGraphic && liveCue[cueGraphic] === cue.id) || serverCueLive(serverOnAir, playoutItem, cue);
+          const cueIsLive = liveIds.includes(cue.id);
           const isSelected = cue.id === (selectedCueId ?? '');
           // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
           // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.
@@ -159,16 +248,44 @@ export default function CueRundown({
           const clashWith = poolEntry
             ? (clashes.get(graphicLayer(poolEntry)) ?? []).filter((g) => g.id !== poolEntry.id)
             : [];
+          const address = playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
+          // THE KIND, in words for whoever cannot see the glyph: the icon's accessible name and
+          // its tooltip carry what the old second line printed ("Lower third · Hairline").
+          const kind = poolEntry
+            ? { glyph: 'T', tone: 'graphic', name: `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` }
+            : playoutItem?.kind === 'media'
+              ? { glyph: '▶', tone: 'clip', name: `Server clip · ${address}` }
+              : playoutItem
+                ? { glyph: 'T', tone: 'server', name: `Server template · ${address}` }
+                : { glyph: '?', tone: 'missing', name: 'Missing graphic' };
+          // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
+          // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
+          // no words (a logo, a picture) falls back to its name, as the old second line did.
+          const summary = poolEntry
+            ? (wordFields.get(poolEntry.id) ?? [])
+                .map((d) => (view.values[d.key] ?? d.defaultValue).split('\n')[0].replace(/\s+/g, ' ').trim())
+                .filter(Boolean)
+                .slice(0, 2)
+                .join(' · ') || cueGraphic || ''
+            : (playoutItem?.name ?? 'missing graphic');
+          const length = playoutItem?.kind === 'media' ? clipLength(playoutItem) : '';
+          const loops = playoutItem?.kind === 'media' && !!playoutItem.loop;
+          const marks = (loops ? 1 : 0) + (view.note ? 1 : 0);
           return (
             <div
               key={cue.id}
               className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}`}
               data-testid={`cue-${cue.id}`}
               draggable
-              onDragStart={(e) => e.dataTransfer.setData('text/noacg-cue', cue.id)}
+              onDragStart={(e) => {
+                draggingRow.current = true;
+                e.dataTransfer.setData('text/noacg-cue', cue.id);
+              }}
+              onDragEnd={() => (draggingRow.current = false)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
+                draggingRow.current = false;
                 const from = e.dataTransfer.getData('text/noacg-cue');
                 const fromIndex = cues.findIndex((c) => c.id === from);
                 if (fromIndex < 0 || fromIndex === i) return;
@@ -183,6 +300,15 @@ export default function CueRundown({
             >
               <span className="pd-grip" aria-hidden="true">⣿</span>
               <span className="pd-cue-no">{cueIsLive ? '●' : i + 1}</span>
+              <span
+                className={`pd-cue-kind pd-cue-kind--${kind.tone}`}
+                role="img"
+                aria-label={kind.name}
+                title={kind.name}
+                data-testid="cue-kind"
+              >
+                {kind.glyph}
+              </span>
               {/* aria-current, not aria-selected: this is a list of cues the operator moves a
                   cursor through, and "the one I am holding" is exactly what current means. It
                   is also the non-visual half of the ring the CSS draws — a tally colour tells a
@@ -192,53 +318,72 @@ export default function CueRundown({
                 onClick={() => selectCue(cue.id)}
                 data-testid="select-cue"
                 aria-current={isSelected ? 'true' : undefined}
+                // The name never shrinks while the summary has room to give; this is how much of
+                // the line its marks need, so a long name ends in an ellipsis before them.
+                style={{ '--pd-marks-w': `${marks * 22}px` } as React.CSSProperties}
               >
                 <strong>{view.label}</strong>
-                <span className="muted">
-                  {/* The LAYER, and the one place a shared layer is announced now that the
-                      layer list is gone (§5): two graphics on one number replace each other on
-                      air, so both rows wear the warning colour where the operator is already
-                      looking. The repair — the editor's one-click "Move to layer N" — stays
-                      beside the number itself. */}
-                  {poolEntry && (
-                    <span
-                      className={`pd-cue-layer${clashWith.length ? ' clash' : ''}`}
-                      title={
-                        clashWith.length
-                          ? `Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other.`
-                          : `${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`
-                      }
-                      data-testid="cue-layer"
-                    >
-                      L{graphicLayer(poolEntry)}
-                    </span>
-                  )}
-                  {/* A server item wears its CasparCG address, channel and layer, the way the
-                      server itself writes it (`2-10`): a rundown that airs on two channels
-                      has to say which one at a glance. The kind word says where it lives,
-                      since the label is the operator's and the name is the server's. */}
-                  {playoutItem && (
-                    <span
-                      className="pd-cue-layer"
-                      title={`${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`}
-                      data-testid="cue-layer"
-                    >
-                      {slotAddress(itemSlot(playoutSettings, playoutItem))}
-                    </span>
-                  )}
-                  {poolEntry || playoutItem ? ' · ' : ''}
-                  {/* The KIND beside the name: the label above is the operator's own word for
-                      the cue, so this is what says "that one is the scoreboard" at a glance. */}
-                  {poolEntry ? `${graphicKindLabel(poolEntry.type)} · ` : ''}
-                  {playoutItem ? `${playoutItem.kind === 'media' ? (playoutItem.loop ? 'Server clip ⟲ loop' : 'Server clip') : 'Server template'} · ` : ''}
-                  {view.note || cueGraphic || playoutItem?.name || 'missing graphic'}
-                </span>
+                {/* A clip that LOOPS says so after its name: it is what happens at its end, and
+                    Out is the only thing that stops it. */}
+                {loops && (
+                  <span className="pd-cue-mark" role="img" aria-label="Loops until Out" title="Loops until Out" data-testid="cue-loop">
+                    ⟲
+                  </span>
+                )}
+                {/* The OPERATOR NOTE ("after the intro") is a mark with the note in its tooltip
+                    and its accessible name, so it is announced with the row. */}
+                {view.note && (
+                  <span className="pd-cue-mark" role="img" aria-label={`Note: ${view.note}`} title={view.note} data-testid="cue-note-mark">
+                    ✎
+                  </span>
+                )}
+                {summary && summary !== view.label && <span className="pd-cue-sum">{summary}</span>}
               </button>
               {cueIsLive ? (
                 <span className="pd-tag air">ON AIR</span>
               ) : isPreviewed ? (
                 <span className="pd-tag pvw">PVW</span>
               ) : null}
+              {timed && (
+                <span className="pd-cue-len" data-testid="cue-length">
+                  {length}
+                </span>
+              )}
+              {/* The LAYER, and the one place a shared layer is announced now that the layer
+                  list is gone (§5): two graphics on one number replace each other on air, so both
+                  rows wear the warning where the operator is already looking, and the badge IS
+                  the door to the repair - it selects the cue and opens its layer under Advanced. */}
+              {poolEntry &&
+                (clashWith.length ? (
+                  <button
+                    className="pd-cue-layer clash"
+                    onClick={() => onLayerRepair(cue.id)}
+                    title={`Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other. Click to repair.`}
+                    data-testid="cue-layer"
+                  >
+                    L{graphicLayer(poolEntry)}
+                  </button>
+                ) : (
+                  <span
+                    className="pd-cue-layer"
+                    title={`${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`}
+                    data-testid="cue-layer"
+                  >
+                    L{graphicLayer(poolEntry)}
+                  </span>
+                ))}
+              {/* A server item wears its CasparCG address, channel and layer, the way the
+                  server itself writes it (`2-10`): a rundown that airs on two channels has to
+                  say which one at a glance. */}
+              {playoutItem && (
+                <span
+                  className="pd-cue-layer"
+                  title={`${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`}
+                  data-testid="cue-layer"
+                >
+                  {address}
+                </span>
+              )}
               <div className="pd-cue-menu-host">
                 <button
                   className="pd-icon pd-cue-more"

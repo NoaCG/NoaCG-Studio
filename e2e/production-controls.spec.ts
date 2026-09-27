@@ -1125,9 +1125,11 @@ test.describe('the cue editor groups fields by what they belong to', () => {
 
     // The cue's SETTINGS are not content: out of the field grid, under their own rule. This is
     // what stopped "Playout layer" flowing in as a tenth field and landing alone on a second row.
+    // The note stays in sight; the layer sits under Advanced (docs/CLIP_PLAYBACK_PLAN.md §6.5).
     const meta = page.getByTestId('cue-meta');
     await expect(meta.getByTestId('cue-note')).toBeVisible();
-    await expect(meta.getByTestId('graphic-layer')).toBeVisible();
+    await page.getByTestId('cue-advanced-toggle').click();
+    await expect(page.getByTestId('cue-advanced').getByTestId('graphic-layer')).toBeVisible();
     await expect(editor.locator('.pd-fields').getByTestId('graphic-layer')).toHaveCount(0);
   });
 

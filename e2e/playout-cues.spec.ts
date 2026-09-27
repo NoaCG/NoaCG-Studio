@@ -198,7 +198,9 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   // on the studio's one channel, since this studio has named no other.
   const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(cue).toHaveCount(1);
-  await expect(cue).toContainText('Server clip');
+  // The kind is the row's icon now (one-line rows, docs/CLIP_PLAYBACK_PLAN.md §6.2), said in words
+  // by its accessible name.
+  await expect(cue.getByRole('img', { name: 'Server clip · 1-10' })).toBeVisible();
   await expect(cue.getByTestId('cue-layer')).toHaveText('1-10');
   await expect(page.getByTestId('playout-cue-editor')).toBeVisible();
   await expect(page.getByTestId('playout-cue-editor')).toContainText('SERVER CLIP');
@@ -293,7 +295,7 @@ test('a clip set to Loop is taken with LOOP, the row says so, and the choice sur
   await expect(loop).not.toBeChecked();
   await loop.check();
   const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
-  await expect(cue).toContainText('loop');
+  await expect(cue.getByRole('img', { name: 'Loops until Out' })).toBeVisible();
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toEqual({
     verb: 'take',
@@ -335,7 +337,7 @@ test('a server template takes the next free layer, carries its typed fields as J
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
 
   const cue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
-  await expect(cue).toContainText('Server template');
+  await expect(cue.getByRole('img', { name: 'Server template · 1-21' })).toBeVisible();
   // The production's own graphic holds 20, so the template took the next free one.
   await expect(cue.getByTestId('cue-layer')).toHaveText('1-21');
   const editor = page.getByTestId('playout-cue-editor');

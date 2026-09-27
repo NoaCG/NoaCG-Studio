@@ -162,17 +162,36 @@ async function shot(page: Page, name: string): Promise<void> {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/fixed-panes-${name}.png` });
 }
 
+// THE RUNDOWN'S WIDTH IS THE OPERATOR'S (docs/CLIP_PLAYBACK_PLAN.md §6.1, home/RailResizer), so
+// the model has to hold at both ends of it too: the narrowest rail (320px) hands the stage column
+// the most room and the widest (60% of the window) the least. `rail` is the stored preference,
+// null for the default; 99999 is clamped to the widest the window allows.
 const SIZES = [
-  { width: 1366, height: 768 },
-  { width: 1280, height: 720 },
-  { width: 1920, height: 1080 },
+  { width: 1366, height: 768, rail: null },
+  { width: 1280, height: 720, rail: null },
+  { width: 1920, height: 1080, rail: null },
+  { width: 1366, height: 768, rail: 320 },
+  { width: 1366, height: 768, rail: 99999 },
+  { width: 1920, height: 1080, rail: 320 },
+  { width: 1920, height: 1080, rail: 99999 },
 ];
 
+/** Store the operator's rundown width before the page reads its preferences. */
+async function seedRailWidth(page: Page, width: number | null): Promise<void> {
+  if (width === null) return;
+  await page.addInitScript((w) => {
+    const prefs = JSON.parse(localStorage.getItem('spx-gfx-prefs') ?? '{"v":2}');
+    localStorage.setItem('spx-gfx-prefs', JSON.stringify({ ...prefs, v: 2, rundownWidth: w }));
+  }, width);
+}
+
 for (const size of SIZES) {
-  test(`at ${size.width}x${size.height} only the control area scrolls, and the monitors and rundown never move`, async ({
+  const railName = size.rail === null ? '' : size.rail === 320 ? ', the rundown at its narrowest' : ', the rundown at its widest';
+  test(`at ${size.width}x${size.height}${railName} only the control area scrolls, and the monitors and rundown never move`, async ({
     page,
   }) => {
-    await page.setViewportSize(size);
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await seedRailWidth(page, size.rail);
     const seeded = await seedProduction(page);
     await page.goto(`/app#/production/${seeded.id}`);
     await expect(page.getByTestId('production-page')).toBeVisible();
@@ -194,15 +213,15 @@ for (const size of SIZES) {
       await frames(page);
     }
     const scrolled = await snapshot(page);
-    await shot(page, `${size.width}x${size.height}-long-top`);
+    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-long-top`);
     await page.getByTestId('control-area').evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await frames(page);
-    await shot(page, `${size.width}x${size.height}-long-bottom`);
+    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-long-bottom`);
     await page.getByTestId('control-area').evaluate((el) => el.scrollTo(0, 0));
     await wheelDownAndBack(page);
     const drift = await stopDriftSampler(page);
     const after = await snapshot(page);
-    console.log(`[fixed-panes ${size.width}x${size.height} long]`, JSON.stringify({ before, scrolled, after, drift }));
+    console.log(`[fixed-panes ${size.width}x${size.height}${railName} long]`, JSON.stringify({ before, scrolled, after, drift }));
 
     expect.soft(scrolled.controls, 'the control area is the scroller, and it scrolled').toBeGreaterThan(0);
     expect.soft(drift.doc, 'the document scroll position stays 0 while the control area scrolls').toBe(0);
@@ -232,11 +251,11 @@ for (const size of SIZES) {
     await page.getByTestId('select-cue').filter({ hasText: seeded.short }).first().scrollIntoViewIfNeeded();
     await openCue(page, seeded.short);
     const shortBefore = await snapshot(page);
-    await shot(page, `${size.width}x${size.height}-short`);
+    await shot(page, `${size.width}x${size.height}-rail-${size.rail ?? 'default'}-short`);
     await startDriftSampler(page);
     await wheelDownAndBack(page);
     const shortDrift = await stopDriftSampler(page);
-    console.log(`[fixed-panes ${size.width}x${size.height} short]`, JSON.stringify({ shortBefore, shortDrift }));
+    console.log(`[fixed-panes ${size.width}x${size.height}${railName} short]`, JSON.stringify({ shortBefore, shortDrift }));
     expect.soft(shortDrift.doc).toBe(0);
     for (const part of ['header', 'monitors', 'verbs', 'rail'] as const) {
       expect.soft(shortDrift[part], `${part} moved with a short control area`).toBeLessThan(1);
@@ -361,6 +380,8 @@ test('on a phone the body scrolls as one column, the document never does, and th
     return box ? Math.round(box.y + box.height) : -1;
   };
   expect(await bottomOf(), 'the verb bar sits on the bottom edge').toBe(844);
+  // The rundown is a row of the one column here: there is nothing beside it to resize.
+  await expect(page.getByTestId('rail-resizer')).toBeHidden();
 
   // The header never overflows: ■ All out is the panic control and must be wholly on screen,
   // and the production's name must keep some width of its own. With the workspace tabs in the

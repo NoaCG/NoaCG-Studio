@@ -227,14 +227,60 @@
 /* The body is exactly the height under the header. `min-height: 0` lets it be SMALLER than its
    content, which is the point: what does not fit scrolls inside the control area instead of
    making the body, and so the document, taller. One `minmax(0, 1fr)` row, so both columns are
-   exactly the body's height whatever they hold. */
+   exactly the body's height whatever they hold.
+   THE RUNDOWN'S WIDTH IS THE OPERATOR'S (docs/CLIP_PLAYBACK_PLAN.md §6.1): the production page
+   sets `--pd-rail-w` from home/RailResizer, already held between 320px and 60% of the window, and
+   the handle on the divider reads the same variable. A surface that sets nothing (the hosted
+   control page) keeps the fixed 380px column. Positioned only so the handle can sit on the line. */
 .pd-body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) var(--pd-rail-w, 380px);
   grid-template-rows: minmax(0, 1fr);
 }
+/* THE HANDLE ON THE DIVIDER. A strip over the line between the stage column and the rundown,
+   leaning into the rundown (whose rows start 12px in) so it covers as little as possible of the
+   control area's scrollbar on the other side. At rest it is a short grip at mid-height; hovered,
+   focused or dragged, the whole line lights in the accent. */
+.pd-rail-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--pd-rail-w, 380px) - 7px);
+  width: 10px;
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+}
+.pd-rail-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.pd-rail-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 3px;
+  height: 36px;
+  margin-top: -18px;
+  border-radius: 2px;
+  background: #3f4553;
+}
+.pd-rail-resizer:hover::before,
+.pd-rail-resizer:focus-visible::before,
+body.pd-resizing .pd-rail-resizer::before { background: var(--accent); }
+.pd-rail-resizer:focus-visible { outline: none; }
+/* While a drag is on, the whole page wears the resize cursor and nothing selects under it. */
+body.pd-resizing { cursor: col-resize; user-select: none; }
 /* THE STAGE COLUMN: the stage head on top at its own height, the control area taking the rest.
    It also draws the divider beside the rail, which now runs exactly the body's height.
    `overflow: auto` here is the LAST RESORT for a window too short to hold the stage head at all
@@ -467,9 +513,15 @@
      frame below PREVIEW's. `.pd-what` gives way with an ellipsis instead; its title and the
      on-air line under the verbs still carry the full names. */
   white-space: nowrap;
+  /* ...and never wider than its monitor. A rundown dragged wide leaves a monitor 143px across at
+     1366, narrower than "PROGRAM · ON AIR" and its layer badge, and a header that overflowed ran
+     under the TAKE button beside it. The cue name gives way first, then the label itself. */
+  overflow: hidden;
 }
+.pd-monitor-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pd-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .pd-what {
+  flex: 0 100 auto;
   font-weight: 400;
   letter-spacing: 0;
   font-size: 12px;
@@ -706,18 +758,42 @@
 .pd-fields .field-row > .row,
 .pd-fields .pd-field > .row { flex-wrap: wrap; }
 .pd-band-fields > * { min-width: 0; }
-/* CUE SETTINGS: the note and the layer, under a hairline and OUT of the content grid. They are
-   not things the graphic shows, and flowing them in beside the fields is what left the layer
-   alone on a second row reading like a field nobody finished. */
+/* CUE SETTINGS: the note, under a hairline and OUT of the content grid. It is not something the
+   graphic shows, and flowing settings in beside the fields is what left the layer alone on a
+   second row reading like a field nobody finished. A graphic's layer has moved on under Advanced
+   (below); a server cue's row still carries its channel and layer (`--slot`). */
 .pd-cue-meta {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 130px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px 14px;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
-  max-width: 640px;
+  max-width: 496px;
 }
+/* ADVANCED, the graphic's playout layer (docs/CLIP_PLAYBACK_PLAN.md §6.5): one quiet line under
+   the note that names what is inside it ("Layer 21"), and the layer box with its repair once
+   open. A shared layer turns the line amber and holds it open, because the repair must never sit
+   behind a closed disclosure. */
+.pd-advanced { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.pd-advanced-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pd-advanced-toggle:disabled { cursor: default; opacity: 1; }
+.pd-advanced-caret { color: var(--text-dim); font-size: 10px; width: 10px; }
+.pd-advanced-sum { font-weight: 400; font-size: 12px; color: var(--text-dim); }
+.pd-advanced.clash .pd-advanced-sum { color: var(--amber); font-weight: 600; }
+.pd-advanced-body { margin-top: 8px; }
 .pd-field { display: flex; flex-direction: column; gap: 3px; }
 .pd-field > span {
   font-size: 10px;
@@ -770,7 +846,14 @@
    width only while the fields beside it still have room; below this the heading sits on top of
    its own band and the fields keep the full width. The number is where one 250px field plus the
    gutter plus the editor's padding stops fitting a phone-to-tablet window. */
-@media (max-width: 620px) {
+/* MEASURED ON THE EDITOR, NOT THE WINDOW (docs/CLIP_PLAYBACK_PLAN.md §6.1): the rundown beside it
+   is as wide as the operator dragged it, so a 1920 window can leave the editor 500px and a 1366
+   one can leave it 900. The editor is the container, so the gutter and the settings columns
+   answer the room they actually have; the field grid above already does, being a grid.
+   `inline-size` containment only: the editor's height stays its content's, so the control area
+   is still the one scroller and the editor never becomes a box with a scrollbar of its own. */
+.pd-editor { container-type: inline-size; }
+@container (max-width: 620px) {
   .pd-band { grid-template-columns: minmax(0, 1fr); }
   .pd-cue-meta { grid-template-columns: minmax(0, 1fr); }
 }
@@ -1447,6 +1530,94 @@
    (docs/PLAYOUT_DASHBOARD.md §5), so the rundown row's own number is where that is said — amber,
    the warning colour the editor's inline fix already wears. */
 .pd-cue-layer.clash { color: var(--amber); font-weight: 600; }
+/* ── ONE LINE A ROW, on the production page (docs/CLIP_PLAYBACK_PLAN.md §6.2) ──
+   34px, so about twenty rows show at 1080p against ten. Scoped to `.pd-rundown`, the production
+   page's rail: the hosted control page shares every `.pd-cue` rule above and keeps its two-line
+   row, since this page's design leads and that one follows only where it is cheap.
+   Left to right: grip, number, kind icon, then the name with its dim summary and marks taking the
+   slack; then the fixed columns at the end, in the same place on every row so they read down the
+   list - the ON AIR / PVW tag, the clip length (only when the rundown has a server clip), the
+   slot, and the ⋯. The name gives way last: the summary shrinks away first. */
+.pd-rundown .pd-cues { gap: 3px; }
+/* `flex: none`: the list is a flex column, and a one-line row's content is shorter than its
+   height, so without it the rows shrink to fit the list instead of the list scrolling. */
+.pd-rundown .pd-cue { flex: none; height: 34px; padding: 0 6px 0 7px; gap: 7px; border-radius: 6px; }
+.pd-rundown .pd-grip { font-size: 10px; }
+.pd-rundown .pd-cue-no { min-width: 16px; }
+.pd-cue-kind {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.pd-cue-kind--graphic { color: var(--amber); background: rgba(246, 166, 35, 0.14); }
+.pd-cue-kind--clip { color: #60a5fa; background: rgba(96, 165, 250, 0.15); font-size: 9px; }
+.pd-cue-kind--server { color: #cbd5e1; background: rgba(203, 213, 225, 0.1); }
+.pd-cue-kind--missing { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
+.pd-rundown .pd-cue-label {
+  flex-direction: row;
+  align-items: center;
+  align-self: stretch;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+/* The NAME does not shrink at all while the summary can: any shrink, even a fraction of a pixel,
+   is enough to draw its ellipsis. It is capped instead, at the line less its marks, so a name too
+   long for the row ends in an ellipsis and the ✎ / ⟲ after it stay on screen. */
+.pd-rundown .pd-cue-label strong {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: calc(100% - var(--pd-marks-w, 0px));
+  font-size: 13px;
+}
+.pd-cue-sum {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.pd-cue-mark { flex: none; font-size: 12px; color: var(--text-dim); }
+.pd-cue-len {
+  flex: none;
+  width: 38px;
+  text-align: right;
+  font-family: var(--mono, monospace);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.pd-rundown .pd-cue-layer {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+/* THE CLASH BADGE is a door, so it looks like one: an amber outline and a ⚠ that is not colour,
+   for the eye that cannot tell amber from grey. Its title carries the sentence. */
+.pd-rundown button.pd-cue-layer.clash {
+  padding: 1px 4px;
+  border: 1px solid rgba(246, 166, 35, 0.6);
+  border-radius: 4px;
+  background: rgba(246, 166, 35, 0.08);
+  color: var(--amber);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pd-rundown button.pd-cue-layer.clash::before { content: '⚠ '; }
+.pd-rundown button.pd-cue-layer.clash:hover { background: rgba(246, 166, 35, 0.18); }
+.pd-rundown .pd-cue-more { width: 22px; height: 22px; }
+
 /* The foot is how graphics get in: the library picker, a new graphic, pictures. */
 .pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .pd-new-graphic { width: 100%; }
@@ -1487,6 +1658,10 @@
      itself so the editor is never pushed off the end of a nine-cue rundown. */
   .pd-body > * { flex: none; }
   .pd-cues { flex: none; max-height: 46vh; }
+  /* The rundown is a row of the one column here, as wide as the phone: nothing to resize. */
+  .pd-rail-resizer { display: none; }
+  /* One line still, but a thumb's height (§3, large touch rows). */
+  .pd-rundown .pd-cue { height: auto; min-height: 44px; }
 
   /* The header is the operator's, not the author's: identity, mode, and the panic control.
      Export and the wizard door are AUTHORING actions and stand down at this width. */
