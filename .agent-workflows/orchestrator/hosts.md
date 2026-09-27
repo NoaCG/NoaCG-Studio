@@ -70,11 +70,15 @@ from an API key; do not start paid API work merely because a key is present. A l
 result marks this route unavailable until reauthentication.
 For a working `--bg` route:
 
-    claude --bg --name <wave-letter-name> --model opus --effort high -- <prompt>
+    claude --bg --name <wave-letter-name> --agent <wave-row|wave-row-mechanical|wave-row-deciding> --effort <its effort> -- <prompt>
     claude agents --json --all
     claude logs <returned-id>
     claude --bg --resume <returned-session-id> -- <follow-up>
 
+Pick the definition by the row's MODEL line (the table in `launch.md`). `--agent` applies its model
+and tool allowlist and the repo CLAUDE.md still loads, but not its `effort:` (measured 2026-09-27,
+CLI 2.1.269, `-p` and `--bg` alike), so pass that value as `--effort`. Its `isolation: worktree`
+does not apply to a main session: this route has already made the feature worktree, so launch there.
 Invoke with an argv array and `--` before the prompt: variadic flags such as `--mcp-config` otherwise
 consume it. A failed-before-init ID has no resumable conversation; diagnose it before a fresh
 launch. Adding flags to resume may create a COPY: record the actual returned ID. The worktree flag is also
@@ -97,7 +101,9 @@ For a bounded foreground review, or a host without background mode, use:
 
     node scripts/claude-run.mjs run --cwd <feature-worktree> --prompt-file <absolute-file> --read-only --timeout-seconds 180
 
-Omit `--read-only` only for an assigned implementation row. The bridge sends stdin, inherits
+Omit `--read-only` only for an assigned implementation row, which adds `--agent <definition>
+--effort <its effort>` as above. A read-only review keeps its Read, Grep and Glob limit with `--agent`
+too (measured 2026-09-27). The bridge sends stdin, inherits
 permissions, records local job/results, and refuses duplicate workers for one worktree. Its
 `status`/`result --cwd <worktree> --id <id>` commands recover receipts. Keep its persistent shell
 session alive until completion. The bridge provides no durable supervision after its host is killed.

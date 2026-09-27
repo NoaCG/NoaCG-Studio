@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Foreground Claude worker for other harnesses. Keep the exec session alive until completion.
  * Usage: node scripts/claude-run.mjs run --cwd <feature-worktree> --prompt-file <file>
- *        [--timeout-seconds 3600] [--model <model>] [--effort <level>] [--read-only]
+ *        [--timeout-seconds 3600] [--agent <definition>] [--model <model>] [--effort <level>] [--read-only]
  *        node scripts/claude-run.mjs status|result --cwd <worktree> --id <id>
  * Records are local operational state, never proof that a branch is verified or ready to land.
  */
@@ -67,7 +67,7 @@ export function readStatus(info, id, alive = (pid) => { try { process.kill(pid, 
 }
 
 export async function runWorker(options, dependencies = {}) {
-  for (const key of ['cwd', 'promptFile', 'model', 'effort', 'timeoutSeconds']) {
+  for (const key of ['cwd', 'promptFile', 'agent', 'model', 'effort', 'timeoutSeconds']) {
     if (options[key] !== undefined && (!String(options[key]).trim() || String(options[key]).trim().startsWith('-'))) throw new Error(`Invalid value for ${key}`);
   }
   const info = workspace(options.cwd);
@@ -85,6 +85,7 @@ export async function runWorker(options, dependencies = {}) {
   const args = [...prefix, '--print', '--output-format', 'json', '--permission-prompts', 'none'];
   // This narrows built-in tools. Empty MCP configuration also prevents unrelated connector tools.
   if (options.readOnly) args.push('--tools', 'Read,Grep,Glob', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}');
+  if (options.agent) args.push('--agent', options.agent);
   if (options.model) args.push('--model', options.model);
   if (options.effort) args.push('--effort', options.effort);
   mkdirSync(info.directory, { recursive: true });
@@ -178,7 +179,7 @@ export async function runWorker(options, dependencies = {}) {
 async function main(argv) {
   const command = argv.shift();
   const options = {};
-  const keys = { '--cwd': 'cwd', '--prompt-file': 'promptFile', '--timeout-seconds': 'timeoutSeconds', '--model': 'model', '--effort': 'effort', '--id': 'id' };
+  const keys = { '--cwd': 'cwd', '--prompt-file': 'promptFile', '--timeout-seconds': 'timeoutSeconds', '--agent': 'agent', '--model': 'model', '--effort': 'effort', '--id': 'id' };
   while (argv.length) {
     const flag = argv.shift();
     if (flag === '--read-only') { options.readOnly = true; continue; }

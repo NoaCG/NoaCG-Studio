@@ -98,7 +98,7 @@ Each tick, in this order, and nothing else:
    the per-branch `merge-base --is-ancestor` landing checks (a queued job is not a landed branch),
    the queue and landings, `blocked-sessions.mjs`, the green-but-unqueued check (a branch ahead of
    main, clean tree, session idle, nothing queued - the ended-expecting-a-watcher failure, seen
-   from outside; the Stop hook `scripts/hooks/stop-wait.mjs` catches the same failure from inside,
+   from outside; in Claude Code only, the Stop hook `scripts/hooks/stop-wait.mjs` catches the same failure from inside,
    at the turn that ends on a wait), and the heartbeat append to the wave-state file. It prints only the DELTA since
    the last tick; a no-event tick prints one line. Every event is ALSO appended to
    `<git-common-dir>/noacg-jobs/wave-tick-events.log`, before the snapshot cursor advances. A crash can repeat an event; reconcile

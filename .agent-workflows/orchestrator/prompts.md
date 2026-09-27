@@ -88,8 +88,8 @@ QUEUE  Then, as your LAST THREE actions and in this order:
   one on its own work - plan it as its own row.
 - **A finished session leaves nothing running.** Before its last action it stops every background
   task it started - watchers, polls, queued waits - and whatever one was holding goes into the
-  handoff file first. The Stop hook (`scripts/hooks/stop-wait.mjs`) refuses a turn that ends on a
-  wait.
+  handoff file first. In Claude Code, the Stop hook (`scripts/hooks/stop-wait.mjs`) refuses a turn
+  that ends on a wait; other hosts have no such hook.
 - **A continuation prompt printed only in chat does not exist.** The handoff FILE is the one
   channel the next orchestrator reads.
 - A row that **delegates** says so and names its fallback pool (`routing.md`, step 4).
