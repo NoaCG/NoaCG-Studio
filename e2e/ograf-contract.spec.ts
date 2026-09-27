@@ -1,3 +1,14 @@
+// covers: src/export/{noacgPackage.ts,targets/ograf*}, src/control/ografContract.ts
+//
+// The /bridge page (docs/AGENT_CLI.md) and what it composes that nothing else exercises: the
+// dual graphic package + the OGraf package reader (export), the neutral scaffold (templates),
+// the OGraf manifest -> operator-surface adapter (control). The CLI under cli/ has its own
+// package tests (CI) and `npm run bench:cli`; a change there runs no e2e spec.
+// covers: {bridge.html,src/bridge/**}
+//
+// The host document moved out of src/bridge/ (both entries load it) and took its specs along.
+// covers: src/control/ografHost.ts
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';

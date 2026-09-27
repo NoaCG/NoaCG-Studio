@@ -1,3 +1,13 @@
+// covers: api/me/**, scripts/meDevPlugin.mjs, src/components/feedback/**, src/backend/feedback.ts
+// covers: api/_lib/feedbackStore*
+// focus
+//
+// The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the half this
+// suite can check; the interactive half is e2e/configured/feedback.spec.ts and needs a configured
+// backend. The button itself lives under src/components/feedback/, so the second covers line names
+// it along with the contract and the client.
+// covers: src/feedback/**
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic } from './_create';
 

@@ -1,3 +1,8 @@
+// covers: none - its route lives in src/app/router.ts, which is CORE: a change there runs the full
+// suite, or the focus set this spec is in
+//
+// focus
+
 import { test, expect } from '@playwright/test';
 
 // The prerendered template pages' CTA (scripts/prerender.mjs, docs/PRERENDER.md):

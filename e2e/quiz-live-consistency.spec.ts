@@ -1,3 +1,15 @@
+// covers: src/components/{home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer},HostedControlPage}.tsx
+// covers: src/templates/**
+//
+// THE QUIZ ON AIR across every board: the Reveal's carried key, the two answer models, and
+// which road a clock-free graphic's events take. Its sources are the two control lists, the
+// imported quiz recipe, the road rule and its clock test, and the two pages that send.
+// covers: src/{templates/{types/{answerBoard,quizShow},behaviours/quiz},control/{hostedControl,matchClockWire}}.ts
+//
+// Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
+// the two answer models stay what they are, and a clock-free event takes the fast road.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';

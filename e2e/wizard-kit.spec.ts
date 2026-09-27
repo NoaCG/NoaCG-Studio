@@ -1,3 +1,17 @@
+// covers: src/templates/**, src/model/templateSet.ts, src/components/NewGraphicButton.tsx
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit half,
+// so a pack edit or a change to `kitChoices` moves what the picker offers, what the count promises
+// and what the production ends up holding. The three quiz kits are pinned in quiz-show.spec.ts.
+// Unions with the `src/templates` covers line.
+// covers: src/templates/{kit,packs}.ts
+//
+// The kit's export door lands on ProductionPage and asks it to open THE production export dialog
+// (templateStore `pendingProductionExport`), so a change to that page can break this wizard flow.
+// covers: src/components/{home,save}/**
+
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';

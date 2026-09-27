@@ -1,3 +1,13 @@
+// covers: src/ai/**, src/templates/importedDesign/designTypes.ts, src/blocks/**
+// covers: src/components/wizard/import/**, src/components/canvas/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// assets/eraseRegion.ts is the deterministic flat-fill erase behind the Import Graphic Prepare
+// step, so an edit there must run this spec rather than leave it to the nightly.
+// covers: src/assets/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';

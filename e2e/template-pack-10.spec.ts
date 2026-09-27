@@ -1,3 +1,7 @@
+// covers: src/export/**, src/templates/**
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';

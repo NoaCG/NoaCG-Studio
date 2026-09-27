@@ -1,3 +1,6 @@
+// covers: src/ai/**, src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+// covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 
 // Era 3: the Describe-it step's example prompts + brainstorm chat (gateway mocked).

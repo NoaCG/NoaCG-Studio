@@ -1,3 +1,7 @@
+// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+// covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { enableAdvancedMode } from './_create';
 

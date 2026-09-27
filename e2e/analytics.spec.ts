@@ -1,3 +1,8 @@
+// covers: src/backend/events.ts, api/{events.ts,_lib/funnelEvents*}
+// covers: src/components/{AnalyticsConsentBanner,SettingsDialog}.tsx
+// covers: supabase/migrations/0037_funnel_opt_in_retention.sql
+// focus
+
 import { expect, test } from '@playwright/test';
 
 test('offline builds have no analytics prompt, storage, or Settings surface', async ({ page }) => {

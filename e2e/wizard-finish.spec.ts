@@ -1,3 +1,6 @@
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { addToProductionFromFinish, enableAdvancedMode } from './_create';
 import { pickDesign } from './_browse';

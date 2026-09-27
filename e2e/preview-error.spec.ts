@@ -1,3 +1,6 @@
+// covers: none - its subject, PreviewFrame and the preview composer, is CORE, so a change there
+// already runs the full suite
+
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
 import { awaitPreviewRebuild } from './_preview';

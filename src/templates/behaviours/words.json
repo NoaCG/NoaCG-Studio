@@ -19,7 +19,7 @@
         "kind": "field",
         "required": true,
         "pool": "text",
-        "words": "question|kysymys|fråga",
+        "words": "question|kysymys|fråga|frage|pregunta|fraga",
         "teach": "Question",
         "also": [
           "Kysymys",
@@ -35,14 +35,14 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^(?:answer|vastaus|svar)$",
+        "words": "^(?:answer|vastaus|svar|antwort|respuesta)$",
         "teach": "Answer A",
         "also": [
           "Vastaus A",
           "Svar A"
         ],
         "what": "always - a field",
-        "weak": "^(?:option|vaihtoehto)$"
+        "weak": "^(?:option|vaihtoehto|alternativ|opci[oó]n)$"
       },
       {
         "id": "answer.selected",
@@ -53,7 +53,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "select|pick|chosen|valittu|\\bvald\\b",
+        "words": "select|pick|chosen|valittu|\\bvald\\b|gew[aä]hlt|seleccionad[ao]|elegid[ao]",
         "teach": "Selected A",
         "also": [
           "Picked A",
@@ -73,7 +73,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "correct|right|oikein|\\brätt\\b",
+        "words": "correct|right|oikein|\\brätt\\b|\\btick\\b|\\bcheck\\b|richtig|korrekt|\\bratt\\b|oikea",
         "teach": "Correct A",
         "also": [
           "Right A",
@@ -92,7 +92,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "wrong|incorrect|väärin|\\bfel\\b",
+        "words": "wrong|incorrect|väärin|\\bfel\\b|\\bcross\\b|falsch|inkorrekt|väärä|vaarin",
         "teach": "Wrong A",
         "also": [
           "Incorrect A",
@@ -110,7 +110,7 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "lock|lukittu|låst",
+        "words": "lock|lukittu|låst|gesperrt|eingeloggt|bloquead[ao]",
         "teach": "Locked in",
         "also": [
           "Locked",
@@ -140,7 +140,7 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:team|side|player|joukkue|lag)$",
+        "words": "^(?:team|side|player|joukkue|lag|mannschaft|spieler|spelare|pelaaja|equipo|jugador)$",
         "teach": "Team 1",
         "also": [
           "Side 1",
@@ -159,7 +159,7 @@
         "numeric": true,
         "distinctive": true,
         "pool": "text",
-        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit|poäng|\\bmål\\b",
+        "words": "\\bscore\\b|\\bpoints?\\b|\\bgoals?\\b|pisteet|maalit|poäng|\\bmål\\b|\\bpts\\b|punkte|\\btore?\\b|puntos|\\bgol(?:es)?\\b|poang",
         "teach": "Score 1",
         "also": [
           "Points 1",
@@ -179,7 +179,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "\\bflash\\b|\\bgoal\\b|\\bscored\\b|maali|\\bmål\\b",
+        "words": "\\bflash\\b|\\bgoal\\b|\\bscored\\b|maali|\\bmål\\b|\\btor\\b|\\bgol\\b",
         "teach": "Flash 1",
         "also": [
           "Goal 1",
@@ -197,7 +197,7 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "full[\\s-]?time|final|game over|loppu|full tid|\\bslut\\b",
+        "words": "full[\\s-]?time|final|game over|loppu|full tid|\\bslut\\b|^spielende$|abpfiff|endstand|fin del partido",
         "teach": "Full time",
         "also": [
           "Final",
@@ -228,7 +228,7 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "\\bname\\b|competitor|contestant|\\bplayer\\b|\\bdriver\\b|\\bathlete\\b|\\bnimi\\b|kilpailija|\\bnamn\\b",
+        "words": "\\bname\\b|competitor|contestant|\\bplayer\\b|\\bdriver\\b|\\bathlete\\b|\\bnimi\\b|kilpailija|\\bnamn\\b|\\bspieler\\b|\\bspelare\\b|\\bpelaaja\\b|\\bjugador\\b|\\bnombre\\b|teilnehmer|participante|deltagare",
         "teach": "Name 1",
         "also": [
           "Row 1 name",
@@ -246,7 +246,7 @@
         "required": true,
         "numeric": true,
         "pool": "text",
-        "words": "\\bpoints?\\b|\\bpts\\b|\\bscore\\b|\\btotal\\b|pisteet|\\bpoäng\\b",
+        "words": "\\bpoints?\\b|\\bpts\\b|\\bscore\\b|\\btotal\\b|pisteet|\\bpoäng\\b|punkte|puntos|\\bpoang\\b",
         "teach": "Points 1",
         "also": [
           "Row 1 points",
@@ -266,7 +266,7 @@
         "perRow": true,
         "distinctive": true,
         "pool": "text",
-        "words": "\\bpos(?:ition)?\\b|\\brank\\b|\\bplace\\b|\\bsija\\b|\\bplacering\\b",
+        "words": "\\bpos(?:ition)?\\b|\\brank\\b|\\bplace\\b|\\bsija\\b|\\bplacering\\b|\\bplatz\\b|\\bpuesto\\b|\\bposici[oó]n\\b",
         "teach": "Position 1",
         "also": [
           "Row 1 position",
@@ -285,7 +285,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "^(?:row|plate|card|entry|rivi)$",
+        "words": "^(?:row|plate|card|entry|rivi|zeile|fila|rad)$",
         "teach": "Row 1",
         "also": [
           "Plate 1",
@@ -321,7 +321,7 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "timer bar|time bar|countdown bar|\\bdrain\\b|aikapalkki|tidsbalk",
+        "words": "timer bar|time bar|countdown bar|\\bdrain\\b|aikapalkki|tidsbalk|zeitbalken|barra de tiempo",
         "teach": "Timer bar",
         "also": [
           "Drain",
@@ -340,7 +340,7 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bwarn(?:ing)?\\b|last (?:stretch|seconds)|\\bhurry\\b|varoitus|varning",
+        "words": "\\bwarn(?:ing)?\\b|last (?:stretch|seconds)|\\bhurry\\b|varoitus|varning|warnung|advertencia|\\baviso\\b",
         "teach": "Warning",
         "also": [
           "Last stretch",
@@ -359,7 +359,7 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bpaused?\\b|\\bhold\\b|\\bheld\\b|tauko|tauolla|\\bpaus\\b|pausad",
+        "words": "\\bpaused?\\b|\\bhold\\b|\\bheld\\b|tauko|tauolla|\\bpaus\\b|pausad|pausiert|\\bpausa\\b",
         "teach": "Paused",
         "also": [
           "Hold",
@@ -377,7 +377,7 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "time.?s? up|\\bexpired\\b|\\bfinished\\b|aika loppu|^aika$|tiden? ute",
+        "words": "time.?s? up|\\bexpired\\b|\\bfinished\\b|aika loppu|^aika$|tiden? ute|abgelaufen|zeit ist um|tiempo agotado|se acab[oó]",
         "teach": "Time up",
         "also": [
           "Expired",
@@ -409,7 +409,7 @@
           "write"
         ],
         "pool": "text",
-        "words": "question|prompt|kysymys|fråga",
+        "words": "question|prompt|kysymys|fråga|frage|pregunta|fraga",
         "teach": "Question",
         "also": [
           "Kysymys",
@@ -427,7 +427,7 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:option|choice|answer|vaihtoehto|alternativ)$",
+        "words": "^(?:option|choice|answer|vaihtoehto|alternativ|opci[oó]n)$",
         "teach": "Option 1",
         "also": [
           "Choice 1",
@@ -447,7 +447,7 @@
         "perRow": true,
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bbar\\b|palkki|stapel",
+        "words": "\\bbar\\b|palkki|stapel|balken|\\bbarra\\b",
         "teach": "Bar 1",
         "also": [
           "Palkki 1",
@@ -465,7 +465,7 @@
         ],
         "perRow": true,
         "pool": "text",
-        "words": "%|percent|share|osuus|procent|andel",
+        "words": "%|percent|share|osuus|procent|andel|prozent|porcentaje|prosentti",
         "teach": "Percent 1",
         "also": [
           "Share 1",
@@ -483,7 +483,7 @@
         ],
         "perRow": true,
         "pool": "drawn",
-        "words": "winner|voittaja|vinnare",
+        "words": "winner|voittaja|vinnare|gewinner|sieger|ganador",
         "teach": "Winner 1",
         "also": [
           "Voittaja 1",
@@ -499,7 +499,7 @@
           "write"
         ],
         "pool": "text",
-        "words": "total|votes|ääntä|röster",
+        "words": "total|votes|ääntä|röster|\\bstimmen\\b|votos",
         "teach": "Total votes",
         "also": [
           "Ääntä",
@@ -515,7 +515,7 @@
           "look"
         ],
         "pool": "drawn",
-        "words": "badge|vote now|äänestä|rösta",
+        "words": "badge|vote now|äänestä|rösta|abstimmen|vota ahora|vota ya",
         "teach": "Vote badge",
         "also": [
           "Äänestä",
@@ -539,13 +539,13 @@
         ],
         "distinctive": true,
         "pool": "drawn",
-        "words": "progress|\\bmeter\\b|mittari",
+        "words": "progress|\\bmeter\\b|mittari|fortschritt|progreso|edistyminen",
         "teach": "Progress bar",
         "also": [
           "Meter"
         ],
         "what": "draw it at its FULL length - that length is the target",
-        "weak": "\\bbar\\b|palkki"
+        "weak": "\\bbar\\b|palkki|balken|\\bbarra\\b"
       },
       {
         "id": "percent",
@@ -555,7 +555,7 @@
           "write"
         ],
         "pool": "text",
-        "words": "%|percent|share|osuus",
+        "words": "%|percent|share|osuus|procent|prozent|porcentaje|prosentti",
         "teach": "Percent",
         "also": [
           "Share",
@@ -588,7 +588,7 @@
         "label": "Question",
         "kind": "field",
         "pool": "text",
-        "words": "question|kysymys|fråga",
+        "words": "question|kysymys|fråga|frage|pregunta|fraga",
         "teach": "Question",
         "also": ["Kysymys", "Fråga"],
         "what": "a field the operator types"
@@ -601,7 +601,7 @@
         "perRow": true,
         "required": true,
         "pool": "text",
-        "words": "^(?:answer|survey|vastaus|svar)$",
+        "words": "^(?:answer|survey|vastaus|svar|antwort|respuesta)$",
         "teach": "Answer 1",
         "also": ["Vastaus 1", "Svar 1"],
         "what": "draw it as it looks revealed - written from the Answers box, hidden until its reveal"
@@ -615,7 +615,7 @@
         "numeric": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^(?:points?|pts|pisteet)$",
+        "words": "^(?:points?|pts|pisteet|punkte|puntos|po[aä]ng)$",
         "teach": "Points 1",
         "also": ["Pts 1", "Pisteet 1"],
         "what": "a plain figure - written from the Answers box, shown with its answer"
@@ -673,7 +673,7 @@
         "kind": "layer",
         "paint": ["write"],
         "pool": "text",
-        "words": "total|sum|round|yhteensä",
+        "words": "total|sum|round|yhteensä|gesamt",
         "teach": "Total",
         "also": ["Sum", "Yhteensä"],
         "what": "written by NoaCG: the points of the revealed answers, added up"
@@ -740,7 +740,7 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^(?:guest|act|speaker|vieras)$",
+        "words": "^(?:guest|act|speaker|vieras|g[aä]st|invitad[oa])$",
         "teach": "Guest 1",
         "also": ["Act 1", "Speaker 1", "Vieras 1"],
         "what": "a field the operator types"
@@ -753,7 +753,7 @@
         "perRow": true,
         "distinctive": true,
         "pool": "drawn",
-        "words": "\\bnow\\b|current|on air|\\bup\\b|nyt",
+        "words": "\\bnow\\b|current|on air|\\bup\\b|nyt|jetzt|ahora",
         "teach": "Now 1",
         "also": ["Current 1", "Nyt 1"],
         "what": "shown on the guest who is on"
@@ -789,7 +789,7 @@
         "label": "Category",
         "kind": "field",
         "pool": "text",
-        "words": "category|clue|kategoria|vihje",
+        "words": "category|clue|kategoria|vihje|kategori|categor[ií]a|hinweis|pista|ledtr[aå]d",
         "teach": "Category",
         "what": "a field the operator types"
       },
@@ -802,7 +802,7 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "^(?:letter|tile|kirjain)$",
+        "words": "^(?:letter|tile|kirjain|buchstabe|letra|bokstav)$",
         "teach": "Letter 1",
         "also": ["Tile 1", "Kirjain 1"],
         "what": "one letter, drawn as it looks revealed - written from the phrase, shown once its letter is called"
@@ -825,7 +825,7 @@
         "kind": "layer",
         "paint": ["look"],
         "pool": "drawn",
-        "words": "solved|ratkaistu|\\bwin\\b",
+        "words": "solved|ratkaistu|\\bwin\\b|löst|resuelt[oa]",
         "teach": "Solved",
         "also": ["Ratkaistu"],
         "what": "once the puzzle is solved (one, whole board)"
@@ -845,7 +845,7 @@
         "required": true,
         "distinctive": true,
         "pool": "text",
-        "words": "price|secret|hidden|reveal|hinta|paljastus",
+        "words": "price|secret|hidden|reveal|hinta|paljastus|preis|precio|\\bpris\\b|geheim",
         "teach": "Price",
         "also": ["Secret", "Reveal", "Hinta"],
         "what": "draw it as it looks revealed - written from The reveal box, hidden until the press"
@@ -857,7 +857,7 @@
         "paint": ["look"],
         "distinctive": true,
         "pool": "drawn",
-        "words": "cover|envelope|sealed|closed|kansi",
+        "words": "cover|envelope|sealed|closed|kansi|umschlag|kuvert|\\bsobre\\b",
         "teach": "Cover",
         "also": ["Envelope", "Sealed", "Kansi"],
         "what": "shown until the reveal - the sealed plate over the text"
@@ -910,7 +910,7 @@
         "perRow": true,
         "distinctive": true,
         "pool": "drawn",
-        "words": "^(?:last|latest|newest|ring|viimeisin)$",
+        "words": "^(?:last|latest|newest|ring|viimeisin|letzte|[uú]ltim[oa]|senaste)$",
         "teach": "Last 7",
         "also": ["Latest 7", "Ring 7"],
         "what": "shown on the number called most recently, until the next call"

@@ -1,3 +1,5 @@
+// covers: src/templates/**, src/community/**, src/showchat/**, src/backend/myEntitlement.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, skipOldEditor } from './_create';
 

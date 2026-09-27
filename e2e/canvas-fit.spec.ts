@@ -1,3 +1,5 @@
+// covers: none - its subject, PreviewFrame, is CORE, so a change there already runs the full suite
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 

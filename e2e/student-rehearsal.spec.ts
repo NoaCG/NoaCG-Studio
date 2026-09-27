@@ -1,3 +1,26 @@
+// covers: src/control/**, src/templates/**, src/components/{home,save}/**, src/assets/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):
+// every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
+// same machine.
+// covers: src/blocks/behaviourData.ts, src/templates/behaviours/**
+// covers: src/templates/importedDesign/{behaviour,behaviourRuntime,artworkFields}.ts
+//
+// The motion picker matches no directory rule, so every surface that MOUNTS it names it here;
+// this spec walks one of them.
+// covers: src/components/MotionPresetPicker.tsx
+//
+// It reaches the Import-graphic folder through the import entry and asserts on testids only it
+// renders: the quiz and behaviour rows of MapSvgFieldsStep.
+// covers: src/components/wizard/import/**
+//
+// The 2026-09-12 rehearsal, walked on artwork a STUDENT drew rather than on the shipped
+// samples: an Illustrator export with the dialog untouched and layer names that honour none
+// of our conventions, both graphics into one production, and the dashboard reloaded mid-run.
+// It is the whole sprint goal in one file, so it belongs in the sprint's own set.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { settleDurableWrites } from './_durable';

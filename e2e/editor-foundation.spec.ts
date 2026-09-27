@@ -1,3 +1,5 @@
+// covers: src/components/editorFoundation/**, src/app/router.ts, src/App.tsx, src/templates/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

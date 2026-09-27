@@ -1,3 +1,14 @@
+// covers: none - its subject, the boot routing in src/App.tsx, is CORE: a change there runs the
+// full suite, or the focus set this spec is in
+//
+// The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay on. It
+// belongs here because of what it guards rather than what it costs: src/App.tsx is a CORE file, and
+// a CORE escalation resolves to the focus set under E2E_SPRINT_FOCUS, so without the `// focus`
+// line a later branch could move the boot decision back into an effect and still get a green merge
+// gate - the regression would surface only in the nightly full run. The spec is four fast page
+// loads and drives no catalog.
+// focus
+
 import { expect, test, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 

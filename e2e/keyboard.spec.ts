@@ -1,3 +1,7 @@
+// StepTimeline owns the Space-plays handler - one half of a two-surface key contract whose other
+// half sits in PreviewFrame, which is CORE.
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+//
 // WHO OWNS A KEY (src/components/spaceKey.ts).
 //
 // Several components listen for the same keys on `window`. They are siblings on one node, so

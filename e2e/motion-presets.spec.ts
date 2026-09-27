@@ -1,3 +1,28 @@
+// covers: src/blocks/**, src/components/{home,save}/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):
+// every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
+// same machine.
+// covers: src/blocks/behaviourData.ts, src/templates/behaviours/**
+// covers: src/templates/importedDesign/{behaviour,behaviourRuntime,artworkFields}.ts
+//
+// The motion picker (src/components/MotionPresetPicker.tsx) matches no directory rule, so the
+// specs that name it are its ENTIRE coverage - this one and the surfaces that MOUNT it.
+// covers: src/components/MotionPresetPicker.tsx
+//
+// THE PRACTICE LIBRARY (docs/svg-samples/) is documentation by location and a FIXTURE SET by use:
+// `e2e/_svg-import.ts` loads scorebug.svg and quiz-board.svg out of it, and import-svg.spec.ts
+// loads illustrator-export.svg. The blanket `^docs/` ignore in scripts/e2e-affected.mjs has a
+// carve-out for this folder so those loads are not invisible to the plan. Measured 2026-08-30: the
+// branch that grew the library from 5 files to 23 got a green CI run with every E2E shard SKIPPED,
+// because the plan saw only ignored `docs/` paths - a green gate over zero specs. The rule covers
+// the WHOLE folder, not just `*.svg`, so it agrees with that carve-out: a path the ignore admits
+// and no rule maps is `unmapped`, which escalates to the full suite. Adding a preview image here
+// would otherwise run 100+ specs to prove nothing.
+// covers: docs/svg-samples/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';
 import { settleDurableWrites } from './_durable';

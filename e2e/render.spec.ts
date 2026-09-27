@@ -1,3 +1,10 @@
+// covers: src/render/**, api/**, src/backend/myEntitlement.ts, src/components/useMyEntitlement.ts
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+//
+// The entitlement contract is what the render and AI paths gate on, so a change there can
+// move behaviour in either - and in the admin surface that explains it.
+// covers: src/entitlements/**
+
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import { pickDesign } from './_browse';
 

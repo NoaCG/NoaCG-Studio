@@ -1,3 +1,10 @@
+// covers: src/components/auth/**, src/backend/**
+// focus
+//
+// Which account's library the page shows: the key naming (model/accountScope.ts) and every
+// module that stores a per-account record under it.
+// covers: src/model/{accountScope,brand}.ts
+
 import { test, expect } from '@playwright/test';
 
 // Era 5.2: the sync engine's merge policy is pure and must be provably correct offline. This drives

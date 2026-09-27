@@ -1,3 +1,14 @@
+// covers: src/control/**, src/templates/quiz/**
+// covers: src/templates/types/{answerBoard,quizBoard,livePoll,clocks}.ts
+// covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
+// covers: src/components/{home,save}/**
+//
+// The four types whose MACHINE the per-graphic control page is generated from. A type file is where
+// a state, an arrow or a control label is authored, and control-panel-types.spec.ts is the only
+// place the resulting BUTTONS and their greying are driven on that page - so an edit to any of them
+// has to run it. (types/scoreboard.ts is covered by the scoreboards covers line.)
+// covers: src/templates/{poll,gameTimers}/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 

@@ -1,3 +1,6 @@
+// covers: none - no source path selected this spec when coverage moved into spec headers
+// (2026-09-27); it runs when edited, on a full escalation and at night
+//
 // The static video validators, replayed over REAL model output.
 //
 // `e2e/fixtures/generations/` holds 57 compositions from a 42-generation benchmark that cost

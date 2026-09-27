@@ -1,3 +1,7 @@
+// covers: app.html
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, switchToAdvancedMode } from './_create';

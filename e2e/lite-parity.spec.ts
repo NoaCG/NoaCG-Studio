@@ -1,3 +1,5 @@
+// covers: src/ai/**, src/templates/**
+//
 // A NoaCG Lite graphic IS a catalog graphic.
 //
 // The doctrine (src/ai/AGENTS.md, docs/AI_LITE_PLAN.md) is that Lite never invents a layout: it

@@ -1,3 +1,21 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// TEAMS (docs/TEAMS_PLAN.md §7). The whole feature is absent offline BY DESIGN, so the offline
+// plan can only ever pin its absence (e2e/auth.spec.ts). Creating a team, reading its join
+// code, joining by link and leaving all need a real session against migrations 0053/0054, and
+// e2e/configured/teams.spec.ts is the only thing that walks them - it is also what proves the
+// test ids the offline pin asserts to be ABSENT are ids something really renders.
+// covers: src/backend/teams.ts, src/components/teams/**, e2e/_teams.ts
+//
+// The door's two MOUNT POINTS, named individually the way this list names
+// ProductionDataPanel: the configured walk drives the card's overflow item and the production
+// header's button, and offline neither exists to be driven. The `join-team` ROUTE needs no row
+// - `src/app/router.ts` is CORE for the offline plan, and the offline pin fails outright if
+// that route stops resolving, so it is covered where it is cheap to cover.
+// covers: src/components/home/ProductionPage.tsx
+// covers: src/components/home/sections/ProductionsSection.tsx
+
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,

@@ -1,3 +1,5 @@
+// covers: src/templates/**
+
 import { test, expect } from '@playwright/test';
 import * as rules from '../scripts/rules.mjs';
 

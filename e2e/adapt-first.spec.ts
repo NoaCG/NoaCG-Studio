@@ -1,3 +1,6 @@
+// covers: src/ai/**, src/components/wizard/steps/{AiStep.tsx,ai/**}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { enableAdvancedMode } from './_create';
 import { previewFrame } from './_frame';

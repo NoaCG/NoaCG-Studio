@@ -1,3 +1,29 @@
+// covers: src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The motion picker matches no directory rule, so every surface that MOUNTS it names it here;
+// this spec walks one of them.
+// covers: src/components/MotionPresetPicker.tsx
+//
+// The EXPORTER CORPUS (e2e/fixtures/svg-corpus/README.md): artwork and expectation sidecars,
+// not application code, so they verify the spec that walks them and nothing else. Adding a
+// fixture is how a new real-world export shape enters the road, and it has to run something.
+// TWO SPECS, not one. The corpus spec sweeps every file; import-svg-behaviour ALSO walks three
+// of them by name - the vote band since 2026-08-30, the four-team scoreboard since 2026-09-04
+// and the question timer since 2026-09-05 - because a behaviour needs artwork carrying real
+// exporter idioms and none of the three is offered as a shipped sample. That second load was
+// invisible to this plan until the scoreboard arrived: editing the vote band would have re-run
+// the sweep and not the walk that drives it.
+// covers: e2e/fixtures/svg-corpus/**
+//
+// SVG IMPORT is how a student's own artwork gets in, so the road belongs to the sprint's
+// definition of the product. This is the EXPORTER CORPUS spec - six files shaped the way
+// Illustrator, Figma, Inkscape and Affinity really export, each pinning an answer the importer
+// used to get wrong (e2e/fixtures/svg-corpus/README.md). Its 2180-line sibling
+// `import-svg.spec.ts` deliberately stays out: it covers the same road far more slowly, and
+// merge latency is the bottleneck the sprint is protecting.
+// focus
+
 import { test, expect, type FrameLocator, type Page } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 import { fileURLToPath } from 'node:url';

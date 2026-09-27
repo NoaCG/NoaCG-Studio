@@ -1,3 +1,8 @@
+// covers: src/export/**, src/control/**
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+// focus
+
 import { test, expect, type Route, type Page, type BrowserContext } from '@playwright/test';
 import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';

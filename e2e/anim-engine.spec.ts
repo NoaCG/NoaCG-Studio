@@ -1,3 +1,13 @@
+// covers: src/blocks/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+//
+// This spec RECONSTRUCTS a preset's emitted region - the only spec that imports presetRegistry -
+// and measures it against the interpreter, so the emit authored under src/templates/ is its subject.
+// Reachable only from src/blocks/ until 2026-08-27, when a changed infographic emit reached the
+// nightly unplanned and main was red for a day. The pin in e2e-affected.test.mjs is derived from
+// that import.
+// covers: src/templates/**
+
 import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 

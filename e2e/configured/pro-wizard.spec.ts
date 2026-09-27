@@ -1,3 +1,15 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// The hosted-Pro door and its wire contract: absent offline, so only the configured suite
+// can walk it (e2e/configured/pro-wizard.spec.ts).
+// covers: src/ai/pro/session.ts, src/ai/pro/types.ts, api/_lib/pro/**, api/ai/?...path?.ts
+// covers: scripts/aiDevPlugin.mjs, scripts/apiRouteTable.mjs
+//
+// The step that decides which tiers are offered at all, and the one feature-detection point
+// the second half of that decision reads.
+// covers: src/components/wizard/steps/AiStep.tsx, src/backend/config.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { SUPABASE_URL, haveCreds, settleSync, signIn } from './_helpers';
 import { startNewProject } from '../_create';

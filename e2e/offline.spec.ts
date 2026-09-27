@@ -1,3 +1,7 @@
+// covers: src/export/**, src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/backend/**
+// focus
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

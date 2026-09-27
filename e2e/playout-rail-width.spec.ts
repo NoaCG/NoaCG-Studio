@@ -1,3 +1,18 @@
+// The dashboard's fixed shell: the control area is the one scroller and the monitors and the
+// rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches the
+// spec through the focus set; the exported controller carries its own copy of the shell, which the
+// spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its DOM needs a
+// configured backend, so no offline spec can mount it, and its copy of the wrapper is held by the
+// parity contract (docs/CONTROL_PANEL_PARITY.md) instead. The rundown's width and its one-line rows
+// (docs/CLIP_PLAYBACK_PLAN.md phase 1) are pinned by playout-rail-width: the handle, the §6.2 row
+// table, the clash door and the list following the air. The stylesheet half reaches it through the
+// focus set, like the fixed-panes spec.
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+//
+// THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout
+// and the handle live in the CORE stylesheet and the width in model/prefs.ts, also CORE.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';

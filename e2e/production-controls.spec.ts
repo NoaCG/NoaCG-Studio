@@ -1,3 +1,10 @@
+// covers: src/control/**, src/templates/quiz/**
+// covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
+// covers: src/components/playoutKeys.ts, src/components/{home,save}/**
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+
 import { test, expect, type Locator, type Page, type Route } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';

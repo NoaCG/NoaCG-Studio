@@ -1,3 +1,16 @@
+// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+// It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
+// and its footer, so both of those specs ride along. public/downloads/ holds the classroom
+// package zip the page links, and downloads.spec.ts fetches it.
+// covers: {downloads.html,src/downloads/**,public/downloads/**}
+//
+// THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
+// e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore in scripts/e2e-affected.mjs
+// carves it out too. Every file in it maps here, README.md too: the spec pastes the README's
+// English credit list, so the `.md` ignore in scripts/e2e-affected.mjs carves that one file out.
+// downloads.spec.ts rides along because it checks the committed zip still holds these files.
+// covers: docs/tutorials/classroom-package/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -52,19 +65,20 @@ async function fakeChannels(page: Page, answer: 'ok' | 'down'): Promise<void> {
   );
 }
 
-test('the landing names both tools and links the Downloads page from its nav, a band and its footer', async ({ page }) => {
+test('the landing names both tools and links each download where it is introduced, plus its nav and footer', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto('/');
   await expect(page.locator('header nav a[href="/downloads"]')).toBeVisible();
   await expect(page.locator('footer a[href="/downloads"]')).toHaveCount(1);
-  const band = page.locator('#downloads');
-  await expect(band).toContainText('NoaCG Bridge');
-  await expect(band).toContainText('NoaCG CLI');
-  await expect(band.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
-  await expect(band.locator('a[href="/downloads#cli"]')).toHaveCount(1);
-  // The operating section points a CasparCG user at the Bridge where the question comes up.
-  await expect(page.locator('#live a[href="/downloads#bridge"]')).toHaveCount(1);
+  // The short landing has no separate downloads band: each tool's download sits in the section
+  // that introduces it, so a visitor meets the link where the question comes up.
+  const playout = page.locator('#playout');
+  await expect(playout).toContainText('NoaCG Bridge');
+  await expect(playout.locator('a[href="/downloads#bridge"]')).toBeVisible();
+  const agents = page.locator('#agents');
+  await expect(agents).toContainText('NoaCG CLI');
+  await expect(agents.locator('a[href="/downloads#cli"]')).toBeVisible();
 
   await page.locator('header nav a[href="/downloads"]').click();
   await expect(page).toHaveURL(/\/downloads$/);

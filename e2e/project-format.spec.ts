@@ -1,3 +1,10 @@
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// It reaches the Import-graphic folder through the import entry and asserts on testids only it
+// renders: ImportDesignStep's format and raster warnings.
+// covers: src/components/wizard/import/**
+
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';

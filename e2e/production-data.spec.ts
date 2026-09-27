@@ -1,3 +1,11 @@
+// covers: src/components/{home,save}/**
+// focus
+//
+// Loading a DATASET row into a cue: the matcher is shared by the in-app page (live) and the publish
+// path (the hosted page's rows), so the production-data specs that drive the gesture have to run
+// alongside the control ones the covers line beside it selects.
+// covers: src/control/cueData.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';

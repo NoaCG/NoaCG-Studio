@@ -1,3 +1,5 @@
+// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
+
 import { expect, test, type Route } from '@playwright/test';
 import { createProject } from './_create';
 

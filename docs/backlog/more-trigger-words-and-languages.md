@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-21
-state: unstarted
+state: advanced
+note: 2026-09-27 claude/u-layer-name-tolerance landed the joined-name retry (AnswerA, Score1, FullTime), German and Spanish beside English, Finnish and Swedish for the common roles of every type, and a pin that no name read before changes meaning; the accepted table is docs/SVG_IMPORT_PLAN.md §2a. What waits - the public table's printed synonyms, the less common roles and further languages, and localized design-app default names (Ebene 1, Capa 1)
 asked: more synonyms and more languages over time, anything that makes it easier for users (paraphrase, given with the one-naming-system ask)
 ---
 # More trigger words and more languages, over time
@@ -51,3 +52,47 @@ to neither.
 
 The public docs' Layer names page prints the table from the same JSON, so a word added there is
 taught the same moment it is read. Nothing else changes.
+
+## 2026-09-27: what shipped, and what waits
+
+**Shipped.** `docs/SVG_IMPORT_PLAN.md` §2a holds the whole table of accepted names, and
+`scripts/layer-name-readings.test.mjs` reads that table and fails when a row and the matcher
+disagree.
+
+- **Joined names.** A name that reads as nothing in a type is read once more with its words split
+  where the case or a figure changes, and dots, hashes, brackets and long dashes read as spaces:
+  `AnswerA`, `Score1`, `Team1Score`, `FullTime`, `time_up`, `Answer (A)`, `Score #1`. Only a name
+  that read as NOTHING is retried, so nothing that read before can change. The docs page's own
+  example of a name that is not found, `Bar1`, is now found, and that sentence is gone.
+- **German and Spanish**, plus a few more English words (`Tick`, `Check`, `Cross`, `Pts`), for the
+  question, answer, selected, correct, wrong, locked, team, score, goal, full time, competitor,
+  points, position, row, timer bar, warning, paused, time up, option, bar, percent, winner, votes,
+  badge, progress, guest, now, category, letter, solved, price, envelope and last. Swedish was
+  already in for most roles (the list above was stale); it gained `Spelare`, `Deltagare`, `Rad`,
+  `Bokstav`, `Ledtråd`, `Senaste`, and `Fraga` without the ring.
+- **The containers.** `Text`, `Moments` and `Board` are read by nothing in the importer, so they
+  work in any language, in any case, or left out. A test holds a quiz with its containers named
+  in seven ways to the same proposal.
+- **The pin.** `scripts/fixtures/layer-name-readings.json` holds every one of the 896 names the
+  matcher read before (every taught name and synonym with its rows swapped, and every layer name
+  in the repository's SVGs); each keeps every reading it had.
+
+**Left out, because each would be a guess** (each is a row in the table): `Last` (låst without the
+ring is English), `Mal` (mål without the ring is Spanish for bad), `Lost` (löst without the dots),
+`Vaara` (väärä without the dots is Finnish for danger), `Highlight` as a quiz pick (it is the
+running order's mark), `Result` as a vote share, `Numero` as a list entry (it is the bingo's
+number), `Home` and `Away` (`docs/SVG_AUTHORING.md`), and a glued name with no case change such as
+`ANSWERA`.
+
+**Waits:**
+
+- The `also` synonyms the public table prints are unchanged: English and Finnish, as before. Adding
+  the new words there is a copy decision about how long that table gets, not a reading one.
+- The less common roles (the survey's strikes, the list's mark, the bingo's tally) and further
+  languages, as users bring them. The rule above still holds for each word.
+- Localized design-app default names (Illustrator's `Ebene 1`, `Capa 1`, `Taso 1`) are still read
+  as names rather than skipped like `Layer 1`. That is `isDefaultObjectName` in
+  `src/assets/svgImport.ts`, and a separate change.
+- Found while pinning, and pinned as it is: `Background` reads as the survey's total, because the
+  total's word `round` sits inside it. Harmless while the survey is not proposed, and changing it
+  would change a reading, so it was left for its own fix.

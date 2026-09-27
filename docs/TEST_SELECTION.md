@@ -16,10 +16,48 @@ matter. The rule the whole thing rests on is stated once:
 > contract is a claim of that shape, and where the claim cannot be made honestly, the rule
 > escalates. The script fails TOWARD running more: a path no rule recognises runs everything.
 
+## Where the map lives: in each spec's header
+
+Since 2026-09-27 the spec-to-source map is not a list. Each `e2e/*.spec.ts` declares in its leading
+comment block what it covers (`// covers: <glob>, ...`, optional `// focus`, or
+`// covers: none - <why>`), and `scripts/e2e-lists.mjs` builds the map from those headers; the
+grammar is in `docs/VERIFICATION.md` "E2E is TIERED". The old hand-kept list was touched by 40 of
+the 344 landings from 2026-09-06 to 2026-09-27, second only to the generated rule index, because the root rule made every project
+write into it. Adding or re-mapping a spec now edits that spec only.
+
+What stays central in `scripts/e2e-affected.mjs`, each for a reason no spec header can carry:
+
+| central rule | why it is not in a spec header |
+|---|---|
+| `CORE` | the shared foundations whose change runs the full suite. The claim is "most specs", which is a fact about the file, not about any spec. |
+| `IGNORE` | files no spec can observe. There is no spec to hold them. |
+| `CATALOG_TRIGGERS` | raise the catalog calibration gate, a separate Playwright config over the whole catalog: one flag, not a spec a header could name. |
+| `CENTRAL` (`cli/`, `.claude-plugin/`, `benchmarks/agent/`) | source that is known and selects NO spec. Without the row it would read as unmapped and escalate. |
+| `CONFIGURED_SUITE_FILES` (`scripts/e2e-lists.mjs`) | the configured suite's own files trigger its line for every change, not for one spec's sake. Every other configured trigger is in a configured spec's header. |
+
+Every row of the old map that named a spec moved into those specs' headers, the wide ones included.
+`src/templates/**` is now written in 53 headers and the wizard directory in 40. That was a judgement,
+not an accident: each line is a true fact about its spec (it enumerates the catalog, it walks the
+wizard), the glob is a directory that does not churn, and keeping the widest rows central would have
+left exactly the rows new specs most often join as the shared file everyone edits. The one cost is
+the list of files split out of the production page, which used to be one constant
+(`PRODUCTION_PAGE_PARTS`) spliced into four rows and is now a brace glob in ten headers; a part
+split out later has to be added to the headers that should follow it.
+
+The move changed no plan. `node scripts/e2e-plan-compare.mjs --sweep` ran the old planner at
+`origin/main` and the header-built one over the last 50 landings, every unmerged branch and all
+8140 paths git has ever recorded, with and without sprint focus, and every plan was identical.
+
+The build refuses what the list used to let through silently (`auditSpecHeaders`, run by
+`scripts/e2e-affected.test.mjs`): a spec with no `covers:` line, a glob or exclusion that matches no
+file, a central rule naming a spec that does not exist, and a malformed header, named by file and
+line. Sixteen specs say `covers: none` today: they were selected by no source path before the move
+either, and their headers say why.
+
 ## What runs, per kind of change
 
 Measured against today's table (147 specs, 99.7 minutes) with sprint focus on, which is how CI runs
-it. "Focus set" is the 55-spec, 36.9-minute list in `scripts/e2e-lists.mjs`.
+it. "Focus set" is the specs whose header says `// focus` (55 specs and 36.9 minutes when measured; 66 specs today).
 
 | A change to | plans | why that is enough |
 |---|---|---|
@@ -31,10 +69,10 @@ it. "Focus set" is the 55-spec, 36.9-minute list in `scripts/e2e-lists.mjs`.
 | one `e2e/*.spec.ts` | that spec | the median spec is 0.5 minutes and the heaviest 5.0, so this is usually the cheapest plan the gate can produce. |
 | `e2e/_*` (shared helpers) | everything | every spec imports them. |
 | `e2e/configured/**` | nothing here | see "the configured tier" below. |
-| a wizard step | 37 specs, 36.2 min | the wizard rule names the surfaces the wizard specs drive, plus the components that MOUNT the shared pickers. Wide because the wizard IS the primary creation flow, not because nobody looked: `src/components/AGENTS.md` carries the per-surface split and MAP names the exceptions individually. |
+| a wizard step | 37 specs, 36.2 min | the wizard rule names the surfaces the wizard specs drive, plus the components that MOUNT the shared pickers. Wide because the wizard IS the primary creation flow, not because nobody looked: `src/components/AGENTS.md` carries the per-surface split and the specs' own headers name the exceptions individually. |
 | one catalog design | 46 specs, 45.6 min, plus the catalog calibration gate | the pack specs ITERATE the catalog, so a design added, renamed or re-declared changes what they assert. Six of them were reachable from no template path at all until 2026-08-08, and ten designs landed green because of it. |
 | a shared foundation (`src/store`, `src/model`, `src/preview`, `src/validation`, the app shell, the router, `src/styles`, `package-lock.json`) | the focus set (55 specs, 36.9 min) under sprint focus; the full suite otherwise | genuine fan-out. Each is imported by most of the app, so no smaller claim can be made honestly. |
-| a path no rule recognises | the focus set under sprint focus; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing MAP rule, not a fact of life. |
+| a path no rule recognises | the focus set under sprint focus; the full suite otherwise | the safe direction. It is also a REPORT: the plan names every unmapped file, and a file that keeps appearing there is a missing `covers:` line, not a fact of life. |
 
 ## What the audit found
 
@@ -61,7 +99,7 @@ file for the planner - each running 36.9 minutes of specs to prove something no 
 
 The p75 moving from 36.9 to 12.5 minutes is those cases leaving. The p90 is unchanged, and that is
 the honest reading: **the wide plans are wide for reasons that survive scrutiny**, and the way to
-make them narrower is better MAP rules for `src/templates/` and `src/components/wizard/`, which is
+make them narrower is better covers lines for `src/templates/` and `src/components/wizard/`, which is
 design work per rule rather than a policy change.
 
 ## The narrowing that was NOT taken
@@ -179,8 +217,8 @@ needs.
 - A new IGNORE entry is the only edit here with no alarm attached. Every other mistake fails toward
   running MORE; a wrong IGNORE runs FEWER specs and nothing goes red. Write the confidence argument
   into the code comment beside it, in the form "no spec can observe this, and here is its real gate".
-- A new MAP rule is cheap and reversible. If a file keeps showing up in the plan's `unmapped` list,
+- A new `covers:` line in the spec that really covers a file is cheap and reversible. If a file keeps showing up in the plan's `unmapped` list,
   that is the signal to write one.
 - Widening CORE is the expensive edit, because it is what makes an ordinary change run the focus
-  set. Prefer a MAP rule that names the surfaces, and put a file in CORE only when the honest answer
+  set. Prefer covers lines that name the surfaces, and put a file in CORE only when the honest answer
   to "which specs can this break" is "most of them".

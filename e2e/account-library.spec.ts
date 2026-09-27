@@ -1,3 +1,25 @@
+// covers: src/backend/**
+//
+// Which account's library the page shows: the key naming (model/accountScope.ts) and every
+// module that stores a per-account record under it.
+// covers: src/model/{accountScope,brand}.ts
+//
+// Restricted-network resilience (docs/GOALS.md "the SVG road"): the boot watchdog and the
+// inline connection check live in app.html, the hydration timeout in the durable store, and
+// the app-level notice in its own component - a change to any of them must run the spec
+// that boots with the network or the storage broken. src/model and src/main are CORE, so
+// for them this line documents the pairing; for app.html (otherwise unmapped, so it
+// escalated by accident) and the notice component it IS the mapping. flows rides along on
+// app.html because that file frames every /app load.
+// durableStore also owns CROSS-TAB safety: its mirror is per-tab and every model mutator is a
+// read-modify-WHOLE-RECORD write, so a change here can silently reintroduce one tab eating
+// another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
+// covers: {app.html,src/model/durableStore.ts,src/main.tsx,src/components/StorageHealthNotice.tsx}
+//
+// Graphics are account-bound: a second account on the same browser must never see the first
+// one's library. Auth and sync are sprint surfaces, and this is their isolation pin.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 

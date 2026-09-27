@@ -1,3 +1,14 @@
+// covers: none - its subject, the layer scale in src/styles/base.css, is CORE: a change there runs
+// the full suite, or the focus set this spec is in
+//
+// WHAT PAINTS OVER WHAT. It belongs to the sprint because of the failure that produced it:
+// a corner notice outranked every dialog in the app, so an undecided first-time visitor
+// could not press the wizard's own "Add it and go there" - the student's last click before
+// a production. The offline suite is also the only tier that can hold this: the banner that
+// caused it exists only on a configured deployment, which is why it went unseen until the
+// scheduled configured run failed on it.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 

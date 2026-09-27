@@ -1,3 +1,14 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// THE HOSTED PLAYOUT WIRE (docs/CLOUD_PLAYOUT.md §3). The follow discipline, the boot
+// baseline and the renderer that uses both only ever run against a real durable log: offline
+// there is no production to resolve, no log to follow and no channel to join, so the
+// mechanism is ABSENT rather than merely untested. Their live coverage is the four /output
+// walks plus output-realtime-floor and relay-cold-boot, all in the configured suite - so a
+// change here that the offline plan reports as "covered" is covered by nothing.
+// covers: src/control/{hostedControl,hostedReceiver,outputRecovery}.ts, src/output/**
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { appliedIn, receiverHost } from '../_receiverHost';
