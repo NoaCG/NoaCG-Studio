@@ -265,17 +265,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   }, [anyArmed]);
 
   /**
-   * WHAT THIS OPERATOR SEES, from whichever road the command arrived on.
-   *
-   * A published verb travels twice (src/control/commandRoads.ts): the database's broadcast on the
-   * production's private topic, about 100 ms after the press, and the durable row behind it at
-   * 130-650 with a slow mode past 600. This page also presses verbs of its own,
-   * which arrive faster than either. `applied` decides which arrival counts, on the id the press
-   * minted - and nothing else could, because a second `play` re-runs an entrance and settles on
-   * the picture that was already there. `PayloadStage` counts them as `data-plays` and
-   * e2e/configured/playout-both-roads.spec.ts reads that count on this very page.
-   */
-  /**
    * THE LOG ROWS THE PROGRAM MONITOR REPLAYS OVER THE RENDERER'S REPORT when it recovers
    * (`restoreProgram`). A renderer reports its state 800 ms after its last change, so a tab
    * reloaded straight after a press reads a report from BEFORE that press. The `/output`
@@ -291,6 +280,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * recovery reads what the page has seen since, and this is null.
    */
   const bootReplay = useRef<ControlSendItem[] | null>(null);
+  /**
+   * WHAT THIS OPERATOR SEES, from whichever road the command arrived on.
+   *
+   * A published verb travels twice (src/control/commandRoads.ts): the database's broadcast on the
+   * production's private topic, about 100 ms after the press, and the durable row behind it at
+   * 130-650 with a slow mode past 600. This page also presses verbs of its own,
+   * which arrive faster than either. `applied` decides which arrival counts, on the id the press
+   * minted - and nothing else could, because a second `play` re-runs an entrance and settles on
+   * the picture that was already there. `PayloadStage` counts them as `data-plays` and
+   * e2e/configured/playout-both-roads.spec.ts reads that count on this very page.
+   */
   const applied = useRef(createAppliedOnce());
   const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     for (const item of items) {
