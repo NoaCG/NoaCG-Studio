@@ -5,13 +5,13 @@ import { test, expect, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { SCORE_SVG, dropSvg, intoProduction } from './_svg-import';
 
-// A SCORE TRACKER OFFERS A BOARD VERB ONLY WHEN ITS ARTWORK DRAWS THE MOMENT (the classroom walk
-// of 2026-09-24). The classroom package's score tracker draws a flash per team and deliberately no
+// A SCORE TRACKER OFFERS A BOARD VERB ONLY WHEN ITS ARTWORK DRAWS THE MOMENT (the examples walk
+// of 2026-09-24). The SVG examples' scoreboard draws a flash per team and deliberately no
 // Full time, and it used to get a Full time button anyway: a press moved the state chip to Final
 // and nothing changed on air. The recipe now follows the quiz's rule (behaviours/score.ts): Full
 // time exists only on a board that draws it, and Clear flash only on one that draws a flash.
 
-const CLASSROOM_SCORE = fileURLToPath(new URL('../docs/tutorials/classroom-package/SVG/score-tracker.svg', import.meta.url));
+const EXAMPLE_SCORE = fileURLToPath(new URL('../docs/tutorials/svg-examples/SVG/scoreboard.svg', import.meta.url));
 
 /** The ⚡ buttons the production page renders for the selected cue, by event id. */
 async function actionEvents(page: Page): Promise<string[]> {
@@ -23,11 +23,11 @@ async function actionEvents(page: Page): Promise<string[]> {
 test('a tracker without a Full time layer offers no Full time, and one with it does', async ({ page }) => {
   test.slow(); // two imports, two productions
 
-  // The classroom board: two teams, two flashes, no Full time.
+  // The examples' scoreboard: two teams, two flashes, no Full time.
   await page.goto('/app');
-  await dropSvg(page, CLASSROOM_SCORE);
+  await dropSvg(page, EXAMPLE_SCORE);
   await expect(page.getByTestId('map-svg-behaviour-kind')).toHaveValue('score');
-  await intoProduction(page, 'Class score', 'Class score night');
+  await intoProduction(page, 'Example score', 'Example score night');
   const plain = await actionEvents(page);
   expect(plain).not.toContain('final');
   expect(plain).toEqual(expect.arrayContaining(['score1', 'unscore1', 'score2', 'unscore2', 'clearFlag', 'newGame']));

@@ -248,7 +248,7 @@ const SUITE_CRITICAL_SCRIPTS =
 // that makes a clean tree read as dirty.
 const NESTED_GITATTRIBUTES = /\/\.gitattributes$/;
 // `contracts/` is the rule store and its retired list: read by the build gates, never by the product.
-const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/classroom-package\/)/, /^(?!docs\/tutorials\/classroom-package\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
+const IGNORE = [/^docs\/(?!svg-samples\/|tutorials\/svg-examples\/)/, /^(?!docs\/tutorials\/svg-examples\/README\.md$).*\.md$/, /^scripts\/[^/]*\.test\.mjs$/, /^e2e\/quarantine\.json$/, new RegExp(`^scripts/(?!.*(${SUITE_CRITICAL_SCRIPTS}))`), /^e2e\/configured\//, /^render-worker\//, /^supabase\//, /^contracts\//, /^NoaCG-Brand-Kit\//, /^example_projects\//, /^benchmarks\/corpus-eval\//, /^\.dependency-cruiser\.cjs$/, /^\.gitignore$/, /^\.github\//, /^\.(claude|codex|agents|agent-workflows)\//, /^\.env\.example$/, NESTED_GITATTRIBUTES];
 
 // Anything matching these also needs the catalog-wide gate (npm run test:e2e:catalog -
 // e2e/catalog/catalog-bench.spec.ts, excluded from the default suite above). Same reasoning as

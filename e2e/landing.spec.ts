@@ -11,8 +11,8 @@
 //
 // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-// and its footer, so both of those specs ride along. public/downloads/ holds the classroom
-// package zip the page links, and downloads.spec.ts fetches it.
+// and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
+// zip the page links, and downloads.spec.ts fetches it.
 // covers: {downloads.html,src/downloads/**,public/downloads/**}
 
 import { test, expect } from '@playwright/test';

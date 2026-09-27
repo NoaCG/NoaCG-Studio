@@ -6,11 +6,11 @@ import { fileURLToPath } from 'node:url';
 import { dropSvg } from './_svg-import';
 
 // THE FIELDS STEP AND THE GRAPHIC READ THE ALIGNMENT FROM THE FACE THE TITLE IS DRAWN IN. The
-// show intro's title is centred by position alone, in Oswald, which loads lazily on first layout;
+// example title is centred by position alone, in Oswald, which loads lazily on first layout;
 // measured only in the wider fallback it read as right-aligned - on the step (MapSvgFieldsStep,
 // `fontKey`) and in the runtime, which wrote that anchor onto the title (svg.ts, svgRereadAlign).
-const SHOW_INTRO = fileURLToPath(
-  new URL('../docs/tutorials/classroom-package/SVG/show-intro.svg', import.meta.url),
+const EXAMPLE_TITLE = fileURLToPath(
+  new URL('../docs/tutorials/svg-examples/SVG/title.svg', import.meta.url),
 );
 
 test('svg import: a centred title reads centred on the Fields step, as the graphic centres it', async ({ page, baseURL }) => {
@@ -25,7 +25,7 @@ test('svg import: a centred title reads centred on the Fields step, as the graph
     document.fonts.add(new FontFace('Oswald', `url(${origin}/fonts/oswald.woff2)`, { weight: '200 700' }));
   }, new URL(baseURL!).origin);
   await page.goto('/app');
-  await dropSvg(page, SHOW_INTRO);
+  await dropSvg(page, EXAMPLE_TITLE);
 
   // Title is t0, Subtitle t1: both drawn centred in their plates, and both read so.
   for (const row of ['t0', 't1']) {
@@ -44,7 +44,7 @@ test('svg import: a centred title reads centred on the Fields step, as the graph
   await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
   const frame = page.frameLocator('.wz-side iframe');
   const title = frame.locator('#f0');
-  await expect(title).toContainText('QUIZ NIGHT');
+  await expect(title).toContainText('THE WEEKLY SHOW');
   await expect
     .poll(() =>
       title.evaluate((el) => {

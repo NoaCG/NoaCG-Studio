@@ -35,7 +35,7 @@
     <rect id="Subtitle_box" class="st3" x="660" y="640" width="600" height="80"/>
   </g>
   <g id="Text">
-    <text id="Title" class="st2" transform="translate(633.59 566.7)"><tspan x="0" y="0">QUIZ NIGHT</tspan></text>
+    <text id="Title" class="st2" transform="translate(433.96 566.7)"><tspan x="0" y="0">THE WEEKLY SHOW</tspan></text>
     <text id="Subtitle" class="st4" transform="translate(874.05 697.82)"><tspan x="0" y="0">EPISODE 1</tspan></text>
   </g>
 </svg>

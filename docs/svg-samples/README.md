@@ -1,13 +1,14 @@
 # The practice library
 
-Layered SVGs a student can drop into the Import door, and then keep working on in Illustrator.
+Layered SVGs anyone can drop into the Import door, and then keep working on in Illustrator.
 One file per KIND of graphic the catalog has, so practising the import road is practising the
 whole road and not one lower third twenty times.
 
 **This is a design gallery, not the teaching set.** The files here show what the importer can
 read and what a finished design looks like, and their layer trees predate the one naming system.
-The files a student copies are `public/docs/examples/`, one per graphic type, each with the three
-layers `Text`, `Moments` and `Board` and the spellings the public docs teach
+The files to copy are `public/docs/examples/` and the SVG examples package
+(`docs/tutorials/svg-examples/`, offered at `/downloads#svg-examples`), one per graphic type,
+each with the three layers `Text`, `Moments` and `Board` and the spellings the public docs teach
 (`docs/backlog/one-layer-naming-system-for-every-graphic.md`). Import them, learn from them,
 but copy a layer tree from the docs examples. `npm run check:example-layers` holds the docs
 examples to the system in every build and deliberately does not read this folder. Pointed at it
@@ -20,7 +21,7 @@ files attached.
 
 **Not the corpus.** `e2e/fixtures/svg-corpus/` is a measured set of files carrying real exporters'
 mistakes, with an expectation sidecar each and a gate over it. These are teaching files: they are
-correct on purpose, they are pretty on purpose, and a student is meant to open one and change it.
+correct on purpose, they are pretty on purpose, and a reader is meant to open one and change it.
 
 ## What each file teaches
 
