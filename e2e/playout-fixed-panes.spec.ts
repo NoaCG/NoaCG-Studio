@@ -380,8 +380,13 @@ test('on a phone the body scrolls as one column, the document never does, and th
     return box ? Math.round(box.y + box.height) : -1;
   };
   expect(await bottomOf(), 'the verb bar sits on the bottom edge').toBe(844);
-  // The rundown is a row of the one column here: there is nothing beside it to resize.
+  // The rundown is a row of the one column here: there is nothing beside it to resize. Its rows
+  // are one line, as on the desktop, but a thumb's height (docs/PLAYOUT_DASHBOARD.md §4).
   await expect(page.getByTestId('rail-resizer')).toBeHidden();
+  const rowHeights = await page.getByTestId('cue-list').locator('.pd-cue').evaluateAll((els) =>
+    els.map((el) => el.getBoundingClientRect().height),
+  );
+  expect(Math.min(...rowHeights), 'a phone row is a thumb high').toBeGreaterThanOrEqual(44);
 
   // The header never overflows: ■ All out is the panic control and must be wholly on screen,
   // and the production's name must keep some width of its own. With the workspace tabs in the

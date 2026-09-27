@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LibMenu from './LibMenu';
+import { clipLength } from './clipLength';
 import { slug } from '../../model/slug';
 import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField } from '../../model/shows';
@@ -332,8 +333,7 @@ function PickerRow({
     return () => io.disconnect();
   }, [item.name, item.changed, kind]);
 
-  const seconds = item.frames && item.fps ? item.frames / item.fps : 0;
-  const duration = seconds ? `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}` : '';
+  const duration = clipLength(item);
 
   return (
     <li ref={ref} className="pd-picker-row" data-testid="picker-row" data-name={item.name}>

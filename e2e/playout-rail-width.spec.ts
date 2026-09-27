@@ -258,6 +258,9 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
       }),
     );
   });
+  // The studio's Bridge is refused outright: this test is about the row, and a real NoaCG Bridge
+  // on this machine's 8899 must not be asked anything.
+  await page.route('http://127.0.0.1:8899/**', (route) => route.abort());
   const id = await seed(page, { clash: true, server: true });
   await open(page, id);
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
@@ -332,6 +335,12 @@ test('the clash badge opens the layer repair, and a graphic keeps its layer unde
   await page.getByTestId('cue-advanced-toggle').click();
   await expect(page.getByTestId('cue-advanced-toggle')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('graphic-layer')).toHaveValue('22');
+  // It is remembered for the graphic it was opened on: another graphic's editor has its own (a
+  // clashing one, held open), and back on the quiz it is still open.
+  await rows.nth(1).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-advanced-summary')).toContainText('Layer 20');
+  await rows.nth(2).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-advanced-toggle')).toHaveAttribute('aria-expanded', 'true');
   // It closes again the same way, since nothing about this layer needs the operator.
   await page.getByTestId('cue-advanced-toggle').click();
   await expect(page.getByTestId('graphic-layer')).toHaveCount(0);

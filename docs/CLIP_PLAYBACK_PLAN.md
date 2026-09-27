@@ -727,7 +727,8 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 - **The monitors' headers shrink** (`.pd-monitor-name`): at the widest rundown on a 1366 window
   PROGRAM is 143px wide, and its header ran under TAKE.
 - `.pd-editor` is the container, not the control area, so the hosted page's editor (the same
-  class) reflows by its own width too; it changes nothing it did below 620px.
+  class) reflows by its own width too: its band headings drop above their fields whenever that
+  editor is under 620px wide, which on a desktop window of about 900 to 1030px is new.
 - The one-line row rules are scoped to `.pd-rundown`, so the hosted page keeps its two-line rows.
 
 ### Phase 2 - the clock and the server's truth

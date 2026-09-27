@@ -29,6 +29,7 @@ import type { LiveCueMap } from '../../control/hostedControl';
 import { serverCueLive, type ServerOnAir } from '../../control/serverPlayout';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
+import { clipLength } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
@@ -43,16 +44,6 @@ export const FOLLOW_PAUSE_MS = 10_000;
 /** Whether a hand scrolled the list within the pause, as of now. */
 function scrolledLately(at: number): boolean {
   return Date.now() - at < FOLLOW_PAUSE_MS;
-}
-
-/** A clip's length as the rundown prints it (`3:00`, `1:02:05`), or '' when the server gave none. */
-export function clipLength(item: Pick<PlayoutItem, 'frames' | 'fps'>): string {
-  if (!item.frames || !item.fps || item.frames <= 0 || item.fps <= 0) return '';
-  const total = Math.round(item.frames / item.fps);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const sec = String(total % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
 }
 
 /**
@@ -162,7 +153,9 @@ export default function CueRundown({
   // are pinned to.
   const rail = useRef<HTMLElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  const draggingRow = useRef(false);
+  /** The row being dragged, by cue id. An id and not a flag: a row removed mid-drag (a teammate's
+   *  save) never gets its dragend, and a flag would then hold the list still for good. */
+  const draggingRow = useRef<string | null>(null);
   const scrolledAt = useRef(-Infinity);
   const menuOpen = menuCueId !== null || pickerOpen;
   const liveIds = cues
@@ -178,8 +171,9 @@ export default function CueRundown({
     const arrived = [...now].find((id) => !wasLive.current.has(id));
     wasLive.current = now;
     if (!arrived || offstage) return;
+    const dragged = draggingRow.current;
     const held =
-      draggingRow.current ||
+      (!!dragged && cues.some((c) => c.id === dragged)) ||
       menuOpen ||
       !!rail.current?.contains(document.activeElement) ||
       scrolledLately(scrolledAt.current);
@@ -190,6 +184,9 @@ export default function CueRundown({
     const r = row.getBoundingClientRect();
     if (r.top < b.top) box.scrollTop -= b.top - r.top + 8;
     else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom + 8;
+    // `cues` is read for the drag check only, as of this render; following is decided when the
+    // live set changes, not whenever the rundown does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveKey, offstage, menuOpen]);
 
   return (
@@ -278,14 +275,14 @@ export default function CueRundown({
               data-testid={`cue-${cue.id}`}
               draggable
               onDragStart={(e) => {
-                draggingRow.current = true;
+                draggingRow.current = cue.id;
                 e.dataTransfer.setData('text/noacg-cue', cue.id);
               }}
-              onDragEnd={() => (draggingRow.current = false)}
+              onDragEnd={() => (draggingRow.current = null)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                draggingRow.current = false;
+                draggingRow.current = null;
                 const from = e.dataTransfer.getData('text/noacg-cue');
                 const fromIndex = cues.findIndex((c) => c.id === from);
                 if (fromIndex < 0 || fromIndex === i) return;
