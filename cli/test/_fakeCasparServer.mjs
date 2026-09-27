@@ -9,8 +9,8 @@
 // THE MODEL IS §4 OF THE PLAN, read from the server's source (v2.3.3 and v2.5.0), and nothing else:
 //   - a clip that ends without LOOP holds its last frame;
 //   - a still, and the EMPTY colour, never end (unless a LENGTH is given);
-//   - `LOADBG … AUTO` plays the background when the foreground ends, `MIX n` frames early (at
-//     least one frame), and onto an EMPTY layer it plays at once;
+//   - `LOADBG … AUTO` plays the background once the foreground's last frame has been shown, or
+//     `MIX n` frames before it (at least one frame), and onto an EMPTY layer it plays at once;
 //   - the AUTO check runs before the pause check: a paused clip already inside its last `n`
 //     frames still switches, and the switch clears the pause;
 //   - a `PLAY` whose file is missing answers 404 and leaves the layer, its background and its
@@ -107,6 +107,8 @@ export async function fakeCasparServer(options = {}) {
   const layers = new Map();
   /** Every line received, with the clock reading it arrived at. */
   const commands = [];
+  /** What a throwing intercept threw: the connection is dropped, and the error kept here. */
+  const errors = [];
 
   const fpsOf = (channel) => channels[channel]?.fps ?? 25;
   const layerAt = (channel, layer) => {
@@ -131,9 +133,9 @@ export async function fakeCasparServer(options = {}) {
     // `load()`: AUTO onto an empty layer plays at once.
     if (!fg) return bg.loadedAt;
     if (fg.loop || !Number.isFinite(fg.length)) return null;
-    // The transition starts `n` frames before the end so it finishes on the last one; a cut
-    // switches when the last frame has been shown. At least one frame either way.
-    const lead = Math.max(1, bg.mix ?? 0) / fpsOf(l.channel);
+    // A `MIX n` starts `n` frames before the end (at least one) so it finishes on the last
+    // frame; a cut switches once the last frame has been shown.
+    const lead = (bg.mix === undefined ? 0 : Math.max(1, bg.mix)) / fpsOf(l.channel);
     const due = fg.startedAt + (fg.length - lead) * 1000;
     if (fg.pausedAt !== null) {
       // The AUTO check runs before the pause check, and it reads the frozen frame number: paused
@@ -363,9 +365,11 @@ export async function fakeCasparServer(options = {}) {
       while ((i = buffer.indexOf('\r\n')) >= 0) {
         const line = buffer.slice(0, i);
         buffer = buffer.slice(i + 2);
-        // One line at a time per connection, in order, even when an intercept awaits.
+        commands.push({ line, at: clock.now() });
+        // One line at a time per connection, in order, even when an intercept awaits. An
+        // intercept that throws drops the connection at once, so the client fails there rather
+        // than waiting out its timeout, and the error is kept for the test to read.
         queue = queue.then(async () => {
-          commands.push({ line, at: clock.now() });
           const tokens = tokenize(line);
           const injected = options.intercept ? await options.intercept(line, { tokens }) : undefined;
           let answer = injected;
@@ -374,6 +378,9 @@ export async function fakeCasparServer(options = {}) {
             answer = apply(line, tokens);
           }
           if (!socket.destroyed) socket.write(answer, 'utf8');
+        }).catch((error) => {
+          errors.push(error);
+          socket.destroy();
         });
       }
     });
@@ -386,6 +393,7 @@ export async function fakeCasparServer(options = {}) {
     clock,
     /** Every line received, `{ line, at }`, oldest first. */
     commands,
+    errors,
     /** Just the lines. */
     get seen() {
       return commands.map((c) => c.line);

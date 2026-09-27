@@ -93,12 +93,14 @@ test('LOADBG … AUTO plays the background at the end, and at the instant it was
   await send('LOADBG 1-10 "INTRO_VT" AUTO');
   caspar.advance(3_000);
   assert.equal(caspar.layer(1, 10).foreground.file, 'STING');
-  // One jump well past the end: the follower started when the sting ended (a cut switches one
-  // frame before the end, so the last frame is shown), not when the test looked.
-  caspar.advance(7_000);
+  caspar.advance(999);
+  assert.equal(caspar.layer(1, 10).foreground.file, 'STING', 'a cut waits for the last frame');
+  // One jump well past the end: the follower started when the sting ended, not when the test
+  // looked.
+  caspar.advance(6_001);
   const l = caspar.layer(1, 10);
   assert.equal(l.foreground.file, 'INTRO_VT');
-  assert.equal(l.foreground.playedAt, 4_000 - 40);
+  assert.equal(l.foreground.playedAt, 4_000);
   assert.equal(l.background, null);
   assert.equal(l.auto, false);
 });
@@ -241,10 +243,23 @@ test('an intercept injects a fault without applying the command, and can hold a 
   // A delayed reply: the LOADBG is received now and applied when the test lets it through.
   await send('PLAY 1-10 "STING"');
   const late = send('LOADBG 1-10 "INTRO_VT" AUTO');
+  while (!caspar.seen.some((l) => l.startsWith('LOADBG'))) await new Promise((resolve) => setTimeout(resolve, 1));
   clock.advance(10_000);
   release();
   assert.equal((await late).code, 202);
   // Applied only once released, after the sting had ended: it lands on an ended clip and plays.
   assert.equal(caspar.layer(1, 10).foreground.file, 'INTRO_VT');
   assert.equal(caspar.layer(1, 10).foreground.playedAt, 10_000);
+  // Stamped when it arrived, not when it was let through.
+  assert.equal(caspar.commands.find((c) => c.line.startsWith('LOADBG')).at, 0);
+});
+
+test('an intercept that throws drops the connection at once and keeps the error', async (t) => {
+  const { caspar, send } = await start(t, {
+    intercept: () => {
+      throw new Error('broken fault');
+    },
+  });
+  await assert.rejects(send('VERSION'), /closed the connection/);
+  assert.equal(caspar.errors[0].message, 'broken fault');
 });

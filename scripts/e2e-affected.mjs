@@ -638,10 +638,10 @@ const MAP = [
   // behaviour now names the file that behaviour lives in too. The baselines ride on all of them:
   // they are the pictures the split was held to.
   [
-    /^src\/(components\/home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor|ProgramStage|PayloadStage)\.tsx|control\/serverPlayout(Store)?\.ts)$/,
+    /^src\/(components\/home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor|ProgramStage|PayloadStage)\.tsx|control\/(serverPlayout|serverPlayoutStore|playoutSlots)\.ts)$/,
     ['playout-baseline.spec.ts'],
   ],
-  [/^src\/control\/serverPlayout(Store)?\.ts$/, ['playout-cues.spec.ts', 'bridge-connect.spec.ts']],
+  [/^src\/control\/(serverPlayout|serverPlayoutStore|playoutSlots)\.ts$/, ['playout-cues.spec.ts', 'bridge-connect.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
   // dashboard and the video shell. styles.css is already CORE, so this row is not
