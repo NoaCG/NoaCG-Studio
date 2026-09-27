@@ -398,32 +398,17 @@ export default function AiStep({
   // configured needs the setup in front of them, a Lite visitor does not.
   const [showSettings, setShowSettings] = useState(false);
   const settingsAutoOpened = useRef(false);
-  // THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the PREFERRED
-  // way to make graphics with NoaCG, said at the top of the step before any tier and any key.
-  // The card is one line until asked; it opens by itself on exactly the condition below, where
-  // the key field is about to be on screen, and the settings sheet's pointer opens it too.
-  const [agentRouteOpen, setAgentRouteOpen] = useState(false);
-  const agentRouteRef = useRef<HTMLDivElement>(null);
-  // A reveal is a nonce, not a boolean, so a second "Show me" on an already-open card still
-  // scrolls - and the scroll runs in an effect AFTER the body has rendered, aligned to the
-  // card's top, so the commands land in view rather than the one-line card being centred and
-  // the body it exists to show cut off below the fold.
-  const [agentRouteReveal, setAgentRouteReveal] = useState(0);
-  const revealAgentRoute = () => {
-    setAgentRouteOpen(true);
-    setAgentRouteReveal((n) => n + 1);
-  };
-  useEffect(() => {
-    if (agentRouteReveal > 0) agentRouteRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }, [agentRouteReveal]);
+  // THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the
+  // RECOMMENDED way to make graphics with NoaCG, so it is the first block of the step, always
+  // open, above the built-in generator. The settings sheet's pointer scrolls back up to it.
+  const agentRouteRef = useRef<HTMLElement>(null);
+  const revealAgentRoute = () =>
+    agentRouteRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
     settingsAutoOpened.current = true;
-    if (!liteStatus?.enabled && !aiConfigured()) {
-      setShowSettings(true);
-      setAgentRouteOpen(true);
-    }
+    if (!liteStatus?.enabled && !aiConfigured()) setShowSettings(true);
   }, [liteStatus]);
   const [prompt, setPrompt] = useState('');
   // ONE list of uploads, each carrying what it is FOR (model/imagePurpose.ts). The step used
@@ -1144,16 +1129,24 @@ export default function AiStep({
 
   return (
     <div>
-      {/* THE STEP OPENS BY SAYING IT IS STILL IN TESTING (owner, 2026-08-29 - the same fact
-          the Entry card leads with, said once more where the reader is about to spend a
-          generation). It reuses the step's OWN convention rather than adding a second notice
-          pattern: SectionHead's summary is the one always-visible line, and the ⓘ holds the
-          rest (GOALS goal 4). The tier paragraph that used to sit under this heading moved
-          into the ⓘ with it - that is exactly the move the convention prescribes, and it is
-          why the caution costs this step no height. */}
-      <div className="panel-section">
+      {/* THE RECOMMENDED ROUTE COMES FIRST (owner, 2026-09-27): the user's own coding agent,
+          the four steps and the install lines, before the drop zone, the brief and any key.
+          Never gated on an account - a visitor with no account is exactly who owns a better
+          road than the one that asks for one. `hostedOffered` is the route a visitor can
+          actually REACH, which is now only the Lite path: ORing in a server's "Pro is
+          available" made this card promise "nothing to install" while the sheet under it said
+          the opposite. */}
+      <AgentRouteCard ref={agentRouteRef} hostedOffered={liteOffered} />
+
+      {/* THE BUILT-IN GENERATOR, LABELLED AS THE BUILT-IN OPTION, SAYS IT IS STILL IN TESTING
+          (owner, 2026-08-29 - the same fact the Entry card leads with, said once more where
+          the reader is about to spend a generation). It reuses the step's OWN convention rather
+          than adding a second notice pattern: SectionHead's summary is the one always-visible
+          line, and the ⓘ holds the rest (GOALS goal 4). The heading keeps the door's name,
+          "Create with AI", because that is what the Entry card called it. */}
+      <div className="panel-section ai-builtin" data-testid="ai-builtin">
         <SectionHead
-          title="Create with AI"
+          title="Built-in Create with AI"
           summary={<span className="wz-testing-note">Still in testing - results vary</span>}
           testid="ai-testing-why"
         >
@@ -1166,25 +1159,11 @@ export default function AiStep({
             import your own artwork instead.
           </p>
           <p>
-            Describe the graphic you need and NoaCG designs one for you. Every result is validated
-            and exercised in a live playout test before you can create it, and lands as clean,
-            editable code. This route is still under construction - if you have Claude Code or
-            Codex, your own agent is the better way to make a graphic today.
+            Describe the graphic you need and NoaCG designs one for you, here in the browser.
+            Every result lands as clean, editable code. If you have Claude Code, Codex or another
+            compatible coding agent, the route above is the better way to make a graphic today.
           </p>
         </SectionHead>
-        {/* Before the drop zone, the brief, the tiers and any key: the preferred route is the
-            first thing the step says after its caution. Never gated on an account - a visitor
-            with no account is exactly who owns a better road than the one that asks for one. */}
-        {/* `hostedOffered` is the route a visitor can actually REACH, which is now only the Lite
-            path: with the Pro door closed, a server answering "Pro is available" no longer puts a
-            hosted route on this screen, and ORing it in made this card promise "nothing to
-            install" while the sheet under it said the opposite. */}
-        <AgentRouteCard
-          ref={agentRouteRef}
-          open={agentRouteOpen}
-          onToggle={setAgentRouteOpen}
-          hostedOffered={liteOffered}
-        />
         {liteMode && liteStatus?.allowance && (
           <p className="hint" data-testid="lite-allowance">
             {liteStatus.allowance.dailySuccessesRemaining} successful generation(s) left today ·{' '}
@@ -1689,8 +1668,8 @@ export default function AiStep({
                   A pointer rather than a second copy of the card, so there is one place the
                   commands live and this line only reveals it. */}
               <p className="hint ai-agent-pointer" data-testid="ai-agent-pointer">
-                Have Claude Code or Codex? Your own agent is the preferred route, and it needs no
-                account and no key.{' '}
+                Have Claude Code or Codex? Your own agent is the recommended route, and it needs
+                no account and no key.{' '}
                 <button type="button" className="link-btn" onClick={revealAgentRoute}>Show me ›</button>
               </p>
               <p className="hint" data-testid="ai-hosted-note">{hostedNote}</p>

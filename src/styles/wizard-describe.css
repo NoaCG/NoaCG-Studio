@@ -197,38 +197,92 @@
 }
 .ai-settings-head h2 { font-size: 14px; }
 
-/* THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the PREFERRED
-   way to make graphics with NoaCG, said before any tier and any key. One always-visible line
-   in the step's own one-line-then-disclosure grammar, the two install lines as a selectable
-   block underneath. The Preferred tag is the card's one amber; the button is the app's link
-   colour, not a second accent. */
+/* THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the RECOMMENDED
+   way to make graphics with NoaCG, so it is the step's first and largest block, always open,
+   above the built-in generator. A raised panel with a sentence-case title (the only one on the
+   step - every other head is the small uppercase label), four numbered steps, and the two
+   install blocks side by side where the column is wide enough. The Recommended tag is the
+   block's one amber; links keep the app's link colour, not a second accent. */
 .ai-agent-route {
-  margin-top: 10px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  margin: 0 0 18px;
+  padding: 14px 16px 12px;
+  background: var(--bg-panel-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
 }
-.ai-agent-route-line {
+.ai-agent-route-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 8px;
-  font-size: 12.5px;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 10px;
 }
-.ai-agent-route-line .link-btn { margin-left: auto; white-space: nowrap; }
-.ai-agent-route-body { margin-top: 8px; }
-.ai-agent-route-body p { margin: 0 0 8px; }
-.ai-agent-route-body p:last-child { margin-bottom: 0; }
-/* A command block and its Copy button. `user-select: all` stays, so one click still selects both
-   lines for anyone who copies by hand; the button is for everyone else, above all on a phone,
-   where a partial selection looks like a whole one until the paste fails. */
-.ai-agent-cmd-wrap {
-  position: relative;              /* the Copy button sits in the block's top-right corner */
+/* Resets the panel's uppercase label so this reads as the step's title, not another section. */
+.ai-agent-route .ai-agent-route-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
 }
-.ai-agent-copy {
+.ai-agent-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: ai-agent-step;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ai-agent-steps > li {
+  position: relative;
+  counter-increment: ai-agent-step;
+  padding-left: 28px;
+  margin-bottom: 8px;
+}
+.ai-agent-steps > li::before {
+  content: counter(ai-agent-step);
   position: absolute;
-  top: 5px;
-  right: 5px;
+  left: 0;
+  top: 1px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--text-dim);
+}
+.ai-agent-cmds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 0 12px;
+  margin-top: 6px;
+}
+.ai-agent-route-foot { margin: 4px 0 0; }
+/* A labelled command block and its Copy button. `user-select: all` stays, so one click still
+   selects both lines for anyone who copies by hand; the button is for everyone else, above all on
+   a phone, where a partial selection looks like a whole one until the paste fails. The button
+   sits on the label's row, not over the block, so a line that scrolls sideways on a phone never
+   runs under it. */
+.ai-agent-cmd-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 8px;
+}
+.ai-agent-cmd-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-mid);
+}
+.ai-agent-cmd-wrap .ai-agent-cmd { grid-column: 1 / -1; grid-row: 2; }
+/* Two classes, so the wizard's 15px `.wz-wizard button` does not win. */
+.ai-agent-cmd-wrap .ai-agent-copy {
+  grid-column: 2;
+  grid-row: 1;
   padding: 2px 8px;
   font-size: 11px;
   line-height: 1.5;
@@ -237,9 +291,6 @@
   border-radius: 4px;
   color: inherit;
   cursor: pointer;
-}
-.ai-agent-cmd-wrap .ai-agent-cmd {
-  padding-right: 64px;             /* the longest line never runs under the button */
 }
 .ai-agent-cmd {
   margin: 4px 0 8px;

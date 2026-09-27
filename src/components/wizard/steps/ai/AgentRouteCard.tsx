@@ -2,35 +2,30 @@ import { forwardRef, useEffect, useState } from 'react';
 import { copyLink } from '../../../home/copyLink';
 
 /**
- * THE USER'S OWN CODING AGENT IS THE PREFERRED WAY TO MAKE GRAPHICS WITH NOACG, AND THE
- * STEP SAYS SO BEFORE IT EVER ASKS ANYONE FOR A KEY.
+ * THE USER'S OWN CODING AGENT IS THE RECOMMENDED WAY TO MAKE GRAPHICS WITH NOACG, SO IT IS THE
+ * FIRST AND LARGEST THING THE CREATE WITH AI STEP SHOWS.
  *
  * Owner, 2026-08-26: "steer users to their own Claude Code - better and cheaper - before any
  * key entry"; re-confirmed 2026-09-03: "That is the preferred way of using AI with NoaCG."
- * The receipt is docs/backlog/byo-key-and-create-with-ai-guidance.md. Three reasons, each
- * enough on its own: a Claude Code or Codex subscription already holds a frontier model and an
- * agent loop, and the NoaCG CLI exists so that agent can scaffold, validate, screenshot and
- * save into the user's library (docs/AGENT_CLI.md); the user is already paying for it, so a
- * second credential and a second bill for a worse answer is the wrong recommendation; and a
- * key field on the one door marked AI is the login wall the product refuses everywhere else.
+ * The receipt is docs/backlog/byo-key-and-create-with-ai-guidance.md. Owner, 2026-09-27: the
+ * one-line card was too small, and the built-in generator under it read as the recommended AI
+ * workflow, which it is not today. So the route is no longer a disclosure: the four steps and
+ * the install lines are always on screen, above the generator, and the generator below is
+ * labelled as the built-in option. Why the agent wins: a Claude Code or Codex subscription holds
+ * a frontier model and an agent loop, and the NoaCG CLI lets that agent scaffold, validate,
+ * screenshot and save into the user's library (docs/AGENT_CLI.md), with no key and no second
+ * bill.
  *
  * WHAT THIS IS NOT: an execution tier. Nothing here runs in the studio - the agent runs on
- * the user's machine - so this is copy and a link, never a radio beside Lite and Pro. It is
- * also not a brush-off: the closing line tells somebody with no agent that nothing changes
- * for them, and the tiers stay exactly where they were.
+ * the user's machine - so this is copy and a link, never a radio beside the generator. Nor is
+ * it a brush-off: the closing line tells somebody with no agent that the generator below is
+ * theirs, and the generator keeps every control it had.
  *
  * WHAT IT PROMISES IS ONLY WHAT EXISTS. Every command is the Distribution table of
  * docs/AGENT_CLI.md, verbatim; `/noacg:graphic` is the plugin's command; the link is the docs
- * page's own "paste this to your agent" prompt, which does the install for people who would
- * rather not type commands. What the user needs is said plainly - their own subscription and
- * a terminal - rather than sold around.
- *
- * SHAPE: the step's own one-line-then-disclosure grammar (SectionHead, GOALS goal 4), except
- * that the body here is the instruction rather than the WHY, so it opens from a button that
- * says what it does. The host owns `open`: the settings sheet's pointer and the key-entry
- * moment both reveal this same card rather than repeating it, and the host opens it by itself
- * exactly when it opens the settings sheet by itself - the build where the key field is
- * already on screen.
+ * page's own "paste this to your agent" prompt, which does the install for any agent, and for
+ * people who would rather not type commands. What the user needs is said plainly - their own
+ * subscription and a terminal - rather than sold around.
  */
 
 /** The docs page's "paste this to your agent" prompt, which does the whole setup. */
@@ -63,12 +58,12 @@ async function copyCommand(text: string): Promise<boolean> {
 }
 
 /**
- * A command block with a Copy button. Select-then-copy is two motions and the second has no
- * feedback, so on a phone a partial selection looks exactly like a whole one until the paste
- * fails in a terminal (docs/backlog/install-lines-need-a-copy-control.md). The block stays
+ * A labelled command block with a Copy button. Select-then-copy is two motions and the second
+ * has no feedback, so on a phone a partial selection looks exactly like a whole one until the
+ * paste fails in a terminal (docs/backlog/install-lines-need-a-copy-control.md). The block stays
  * selectable in one click for anyone who prefers that; the button says whether the copy landed.
  */
-function CopyableCommand({ text, testId }: { text: string; testId: string }) {
+function CopyableCommand({ label, text, testId }: { label: string; text: string; testId: string }) {
   const [said, setSaid] = useState<'copied' | 'failed' | null>(null);
   useEffect(() => {
     if (!said) return;
@@ -77,11 +72,13 @@ function CopyableCommand({ text, testId }: { text: string; testId: string }) {
   }, [said]);
   return (
     <div className="ai-agent-cmd-wrap">
+      <span className="ai-agent-cmd-label">{label}</span>
       <pre className="ai-agent-cmd" data-testid={testId}><code>{text}</code></pre>
       <button
         type="button"
         className="ai-agent-copy"
         data-testid={`${testId}-copy`}
+        aria-label={`Copy the ${label} install lines`}
         onClick={() => void copyCommand(text).then((ok) => setSaid(ok ? 'copied' : 'failed'))}
       >
         {said === 'copied' ? 'Copied' : said === 'failed' ? 'Select and copy' : 'Copy'}
@@ -91,76 +88,64 @@ function CopyableCommand({ text, testId }: { text: string; testId: string }) {
 }
 
 interface Props {
-  open: boolean;
-  onToggle: (open: boolean) => void;
   /**
    * Whether the NoaCG-run route is on offer here. The closing line for somebody
-   * with no agent has to be true in BOTH builds: on a hosted studio nothing needs installing
-   * or pasting, but on a self-hosted one the only road left is their own provider account,
-   * and "nothing to install" there would send them to a Generate button that stays disabled
-   * until a key is stored.
+   * with no agent has to be true in BOTH builds: on a hosted studio nothing needs installing,
+   * but on a self-hosted one the only road left is their own provider account, and "nothing to
+   * install" there would send them to a Generate button that stays disabled until a key is
+   * stored.
    */
   hostedOffered: boolean;
 }
 
-const AgentRouteCard = forwardRef<HTMLDivElement, Props>(function AgentRouteCard(
-  { open, onToggle, hostedOffered },
-  ref,
-) {
+const AgentRouteCard = forwardRef<HTMLElement, Props>(function AgentRouteCard({ hostedOffered }, ref) {
   return (
-    <div className="ai-agent-route" data-testid="ai-agent-route" ref={ref}>
-      <div className="ai-agent-route-line">
-        {/* The card's one amber: the same tag the entry card wears for Beta, because it is the
+    <section
+      className="ai-agent-route"
+      data-testid="ai-agent-route"
+      ref={ref}
+      aria-labelledby="ai-agent-route-title"
+    >
+      <div className="ai-agent-route-head">
+        {/* The block's one amber: the same tag the entry card wears for Beta, because it is the
             same job - one word the eye reads before the sentence. */}
-        <span className="wz-beta-tag">Preferred</span>
-        <span>
-          Have Claude Code or Codex? Your own agent is the best way to make graphics with NoaCG,
-          and you already pay for it.
-        </span>
-        <button
-          type="button"
-          className="link-btn"
-          aria-expanded={open}
-          onClick={() => onToggle(!open)}
-          data-testid="ai-agent-route-toggle"
-        >
-          {open ? 'Hide' : 'Show me ›'}
-        </button>
+        <span className="wz-beta-tag">Recommended</span>
+        <h3 id="ai-agent-route-title" className="ai-agent-route-title">
+          Make graphics with your coding agent
+        </h3>
       </div>
-      {open && (
-        <div className="ai-agent-route-body hint" data-testid="ai-agent-route-body">
-          <p>
-            Your agent draws the graphic the way it writes any other code, checks it against
-            NoaCG&apos;s own validator and live playout test, fixes what that reports, and saves
-            the finished graphic into your NoaCG library. That gives a better graphic than a
-            single generation here, and it costs nothing beyond the subscription you already
-            have: no key to paste, no second bill. What it needs is that subscription and a
-            terminal to run the agent in.
-          </p>
-          <p>
-            <strong>Claude Code:</strong> run these two lines once, then ask for the graphic you
-            need, or type <code className="inline">/noacg:graphic</code>.
-          </p>
-          <CopyableCommand text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
-          <p>
-            <strong>Codex:</strong> the same two steps.
-          </p>
-          <CopyableCommand text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
-          <p>
-            Would rather not type commands?{' '}
+      <ol className="ai-agent-steps" data-testid="ai-agent-route-body">
+        <li>Use Claude Code, Codex or another compatible coding agent.</li>
+        <li>
+          Install the NoaCG CLI. Run the two lines for your agent once.
+          <div className="ai-agent-cmds">
+            <CopyableCommand label="Claude Code" text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
+            <CopyableCommand label="Codex" text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
+          </div>
+          <span className="hint">
+            Another agent, or rather not type commands?{' '}
             <a href={AGENT_ROUTE_DOCS_HREF} target="_blank" rel="noreferrer">
               Paste one prompt to your agent
             </a>{' '}
-            and it does the setup itself, then asks you what to make.
-          </p>
-          <p>
-            {hostedOffered
-              ? 'No coding agent? Nothing to install: describe the graphic below and NoaCG makes it right here.'
-              : 'No coding agent? This door still works: tick “Use your own AI account instead”, under AI settings below, to run it on your own provider account.'}
-          </p>
-        </div>
-      )}
-    </div>
+            and it does the setup itself.
+          </span>
+        </li>
+        <li>
+          Prompt the graphic you want. In Claude Code you can also type{' '}
+          <code className="inline">/noacg:graphic</code>.
+        </li>
+        <li>It appears in NoaCG, ready for a rundown.</li>
+      </ol>
+      <p className="hint ai-agent-route-foot">
+        Your agent checks each graphic with NoaCG&apos;s validator and live playout test before it
+        saves it. You need the agent&apos;s own subscription and a terminal, and no key.
+      </p>
+      <p className="hint ai-agent-route-foot">
+        {hostedOffered
+          ? 'No coding agent? Use the built-in generator below. Nothing to install.'
+          : 'No coding agent? The built-in generator below runs on your own AI provider account: tick “Use your own AI account instead” under AI settings.'}
+      </p>
+    </section>
   );
 });
 
