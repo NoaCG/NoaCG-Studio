@@ -2,8 +2,9 @@
 
 **Draft, 2026-09-27. Nothing in it is built.** It comes from an owner planning session; the owner
 has answered its four questions (§15) and approved the design, and it now waits on one independent
-review of the plan AND the code it touches before phase 0 starts (§14 says what to challenge, §16
-lists every file each phase touches). Once approved it replaces §3
+review of the plan AND the code it touches before phase 0 starts. §14 says what to challenge, §16
+lists every file each phase touches, §17 where the plan meets the repository's standing rules, and
+§18 every failure case with its guard. Once approved it replaces §3
 ("Build 2: basic media") of [`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) and closes
 the open half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md).
 
@@ -237,7 +238,7 @@ its room back.
 Under **Advanced**, closed by default, with a one-line summary when closed
 (`Channel 2 · layer 10 · whole clip`): channel, layer, start at and end at (trim), and the kind
 (movie or audio) when the server's word was wrong. Short is half a second and Long one second,
-turned into the channel's own frames by the adapter (§17, case 7); they are not settings.
+turned into the channel's own frames by the adapter (§18, case 7); they are not settings.
 
 **A folder.** Its name, **How it plays** (One by one / Play through / All together), for Play
 through **At the end** (As the last clip says / Loop the folder), and a small picture of what airs
@@ -400,7 +401,8 @@ the exported controller, a graphics pack) sees the same cues in the same order.
 ## 8. The other surfaces, frozen on purpose
 
 The hosted Control page (phone or tablet), the Presenter link and the exported controller get **no
-new features in these phases**. They keep doing exactly what they do today, and a spec pins that a
+new features in these phases** (with the one exception the dashboard rule may ask for: §17, item 1,
+and Q5). They keep doing exactly what they do today, and a spec pins that a
 published production with folders and clip settings still loads on each and lists its graphic cues
 in order. Server cues stay listed and disabled there, as today.
 
@@ -440,7 +442,8 @@ it brittle. So the first phase changes nothing on screen:
 - **Pin today's behaviour first.** Before moving code, add the missing e2e checks for what exists:
   the exact action of every verb on a clip and a template, a graphics-only rundown's rows, reload
   behaviour, the hosted page's lists, and screenshots of the page at 1920 and 1366 as the baseline.
-- **Split the page along its seams**, behaviour unchanged, each piece in its own file with its own
+- **Split the page along its seams**, as `backlog/production-page-phases.md` already plans (§16,
+  phase 0), behaviour unchanged, each piece in its own file with its own
   comment block: the rundown list and row, the cue panel for server cues, and server playout as a
   module of plain functions (what each Take sends, how a chain is queued, how an `INFO` answer
   becomes on-air state) with a thin React hook over it. Plain functions can be checked without a
@@ -540,6 +543,15 @@ The questions this plan most needs challenged:
    hiding a second line of detail) that this plan does not see?
 6. **Does the per-clip `AF` level really survive the server's own switch**, and is resetting the
    mixer on every manual Take safe when two cues share a slot?
+7. **For the code review, not only the plan**: check §16 against the code at the commit you
+   review. Is any caller of `show.cues`, `PlayoutItem` or the playout protocol missing from it
+   (the list of order-reading files is `shows.ts`, `ProductionPage.tsx`, `playoutKeys.ts`,
+   `hostedControl.ts`, `HostedControlPage.tsx`, `showExport.ts` → `productionControllerHtml.ts`,
+   `graphicsPack.ts`, `teamShowMerge.ts`)? Does any AMCP form in §4, §9 or §18 disagree with the
+   CasparCG source at `v2.5.0-stable`? Is any case in §18 missing its guard, or any guard untestable
+   as described?
+8. **§17's four conflicts with standing rules**: is any other rule in the root, `src/components`,
+   `src/components/home`, `src/model`, `e2e` or `cli` contracts crossed by a phase?
 
 ## 15. The owner's answers, 2026-09-27
 
@@ -555,7 +567,152 @@ The questions this plan most needs challenged:
 - **The review**: the plan and the code it touches go to an independent reviewer (Codex) before
   phase 0 starts. §16 is written for that review.
 
-## 17. What could go wrong, case by case
+- **Q5 (open, needs: alignment). Folders on the hosted Control page.** The repository's rule is
+  that both dashboards render identically (§17, item 1). Recommendation: in phase 4 the hosted page
+  shows folders as headers with indentation, display only (no folder Take there), which keeps the
+  two dashboards alike for a few lines of code; the alternative is to amend the rule so folders are
+  production-page only.
+
+## 16. Every file each phase touches
+
+Line numbers are at `ca54e17` (2026-09-27) and will drift; the names will not. "New" is a file the
+phase creates. Each phase also adds its specs to `scripts/e2e-affected.mjs` (the playout rows are
+at 601-634; `cli/` maps to no e2e spec at 207) in the same commit, as
+`root/add-playwright-spec-any-new-flow` requires, and files its own owner-queue item.
+
+### Phase 0 - safety net and seams (no visible change)
+
+It runs the first two phases of the split already planned in
+[`backlog/production-page-phases.md`](backlog/production-page-phases.md), plus one piece that plan
+did not have. That plan's rule binds here too: **`liveCue` and `selectedCueId` do not move**
+(`src/components/home/AGENTS.md`, "ProductionPage is being SPLIT"), and its note that the owner
+runs these phases awake stands.
+
+| File | Change |
+|---|---|
+| `src/components/home/ProductionPage.tsx` | the rundown `<aside className="pd-rail">` (3519-3862) moves out; the monitors `.pd-monitors` (2754-2851) move out; the server cue editor (3194-3329) moves out; `livePlayout` (369-378), `playoutVerb` (1924-1984), `dropLivePlayout` (1917) and the server half of `outAll` (2122-2130) move into the server-playout module below. `liveCue`, `selectedCueId`, the draft and `runVerb` stay. |
+| `src/components/home/CueRundown.tsx` (new) | the rundown, as `production-page-phases.md` §3 specifies: owns `menuCueId`, `armedRemove`, `addPick`; takes `liveCue` read-only |
+| `src/components/home/PlayoutMonitors.tsx` (new) | the monitors, as that plan's §4 specifies, with `programRef` forwarded from the page and the measurement keyed on the node |
+| `src/components/home/ServerCueEditor.tsx` (new) | the server cue editor (loop row, pause/resume, channel, layer, note), props only |
+| `src/control/serverPlayout.ts` (new) | plain functions with no React: what a verb sends for a server cue (today's `playoutVerb` logic), the on-air map, `outAll`'s server half. Later phases add the `INFO` reading and sequence display here. |
+| `src/control/serverPlayoutStore.ts` (new) | a tiny subscribable store for server on-air state, so phase 2's twice-a-second updates reach only the components that read them (§18, case 15) |
+| `cli/test/_fakeCasparServer.mjs` (new) | a fake CasparCG with state: layers, clip lengths on a clock, `PLAY`/`LOADBG … AUTO`/`STOP`/`PAUSE`/`RESUME`/`INFO`/`MIXER`/`BEGIN`/`COMMIT`. The existing `cli/test/_fakeCaspar.mjs` (26 lines) only answers a scripted line per command and stays for the parser tests. |
+| `e2e/playout-cues.spec.ts` | `fakeBridge` (52-139) learns `/state` behind an option, off by default; new characterisation tests: the exact action of every verb on a clip and a template after a reorder, All out across two channels (exists) and after a reload |
+| `e2e/playout-baseline.spec.ts` (new) | screenshots of a graphics-only and a mixed production at 1920×1080 and 1366×768, compared against themselves before and after the split |
+| `e2e/hosted-control.spec.ts` | new: a production with server cues publishes, and the hosted page lists them disabled with their `2-10` address (today nothing asserts it, 1261-1292) |
+| `docs/backlog/production-page-phases.md` | its phases 1 and 2 marked done, with the commit |
+
+### Phase 1 - layout for everyone
+
+| File | Change |
+|---|---|
+| `src/styles/playout-dashboard.css` | `.pd-body` (231-237): the fixed `380px` becomes `var(--pd-rail-w)`; `.pd-cue` (1359-1449) one line; the cue panel's field grid by container query; phone rules (1457-1554, 1652-1761) untouched except hiding the handle |
+| `src/components/home/ProductionPage.tsx` | `ProductionShell` (3892-4135) renders the drag handle between the stage and `.pd-body`'s rail and sets `--pd-rail-w` |
+| `src/components/home/RailResizer.tsx` (new) | the handle: pointer drag, keyboard (arrow keys, for accessibility), double-click reset, limits 320px to 60%; reads and writes the width through `src/model/prefs.ts` |
+| `src/model/prefs.ts` | one per-device preference, the rail width (a `spx-gfx-*` key; `model/never-rename-persisted-deployed-identifiers-storage`) |
+| `src/components/home/CueRundown.tsx` | one-line rows: kind icon, name plus summary, end mark, length (only when the rundown has a server cue), slot; follows the on-air row |
+| `src/components/home/ServerCueEditor.tsx`, the graphic editor block in `ProductionPage.tsx` (2963-~3185) | the graphic's layer moves under **Advanced** (a `<details>`; the wizard's `details:not([open])` trap in `AGENTS.md` applies to its CSS) |
+| `src/components/HostedControlPage.tsx` | the same row and handle changes, because the dashboard must render identically on both (§17) |
+| `e2e/playout-fixed-panes.spec.ts` | still only the control area scrolls, at every size, with the rail narrow and wide |
+| `e2e/playout-rail-width.spec.ts` (new) | drag, keyboard, reset, the limits, surviving a reload; a twelve-field graphic at 1366 with the rail at its widest overlaps nothing |
+| `docs/PLAYOUT_DASHBOARD.md` | §2 and §4: the rail width and the one-line row |
+
+### Phase 2 - the clip clock and the server's truth
+
+| File | Change |
+|---|---|
+| `src/control/playoutProtocol.ts` and `cli/src/playout/protocol.ts` (byte-identical, `cli/test/playout.test.mjs:18` refuses drift) | `HealthReply` gains `features?: string[]`; a `StateReply` type (slots with `file`, `elapsed`, `length`, `paused`, `loop`, `queued`, `sequence?`) |
+| `cli/src/playout/server.ts` | `/health` (248) reports `features`; a `/state` route beside `/act` (325), token-checked like it |
+| `cli/src/playout/amcp.ts` | `parseInfo`: the `INFO <channel>` XML into layer states, tolerant of fields a version lacks |
+| `cli/src/playout/adapters/casparcg.ts` | `state(target, channel)`; `capabilities()` (151-157) grows `features: ['state']` |
+| `cli/src/playout/adapters/ograf.ts` | `capabilities()` (262-264) declares no features; `/state` answers `unsupported` |
+| `src/control/playoutLink.ts` | `reachBridge` (396) keeps the `features` it reads; `readState` beside `act` (520); a poller that never overlaps itself |
+| `src/control/serverPlayout.ts`, `serverPlayoutStore.ts` | turn `/state` answers into on-air truth; match a slot's file to a cue after reload; the one-second trust after a Take (§18, case 14) |
+| `src/components/home/ClipClock.tsx` (new) | the clock of §6.4: `container-type: size`, the one-row fold, the warnings, HOLDING, PAUSED, `estimated` |
+| `src/components/home/PlayoutMonitors.tsx` | the `STILL` tag; PREVIEW's length |
+| `src/components/home/CueRundown.tsx` | remaining time and progress on on-air rows; `played`; `replaced on the server` |
+| `src/components/playoutKeys.ts` (43-69) | `p` → pause/resume on a server clip (`components/keep-every-playout-verb-key-keymap`: the key lives only here) |
+| `src/styles/playout-dashboard.css` | the clock, the progress bar, the still tag |
+| `cli/test/playout.test.mjs`, `cli/test/caspar.test.mjs` | `parseInfo` against real 2.3.3 and 2.5.0 `INFO` answers captured on the real server (§12, item 1); `/state` auth and origin |
+| `e2e/playout-clock.spec.ts` (new) | with `page.clock` and the fake: counts, warns at 10 and 5, HOLDING, PAUSED, reload mid-clip, Bridge gone mid-clip, an old Bridge's `estimated`, render count |
+| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` (0.4.2) | the Bridge release that carries `/state` (§17: publishing it needs the owner) |
+| `docs/BRIDGE.md` | §3 routes, §3a protocol, §3b adapter, §5 "What the page believes", §9 (OSC no longer needed for position) |
+
+### Phase 3 - clip settings
+
+| File | Change |
+|---|---|
+| `src/model/shows.ts` | `PlayoutItem` (56-83) gains the §7 fields; `setPlayoutItemLoop` (589-597) becomes `setPlayoutItemEnd` and keeps writing `loop` beside `end: 'loop'`; new setters for fades, level and trim; `addPlayoutItem` (536-567) records `mediaKind` and puts audio on the new `PLAYOUT_AUDIO_LAYER = 5` beside `PLAYOUT_CLIP_LAYER` (526) |
+| `src/components/home/PlayoutItemPicker.tsx` | `add` (101-105) passes the server's kind word it drops today (102); the `onAdd` type (46) carries it |
+| `src/components/home/ServerCueEditor.tsx` | At the end (four choices, Play next's target named or its reason), Fade, Level, Advanced (channel, layer, trim, kind); controls greyed without the feature |
+| `src/control/serverPlayout.ts` | what a Take sends now: `end`, the Play-next target (the next clip on the same slot, past graphics, inside the folder), fades, level, trim |
+| `src/control/playoutProtocol.ts` and its mirror | `take` gains `end?`, `next?`, `fadeIn?`, `levelDb?`, `trimIn?`, `trimOut?`; `out` gains `fadeOut?`; `update` may carry `levelDb` alone |
+| `cli/src/playout/server.ts` | `readAction` (185-207) validates the new fields and refuses a malformed one with the hop named |
+| `cli/src/playout/adapters/casparcg.ts` | `casparLine` (43-81) becomes a list of lines per action: `MIXER c-l VOLUME 1`, then `PLAY … [IN n] [OUT n] [MIX n] [AF "volume=…"] [LOOP]`, then `LOADBG … AUTO` for Clear and Play next; fade seconds to channel frames (§18, case 7); an action with none of the new fields writes exactly today's one line |
+| `src/components/home/CueRundown.tsx` | the end marks after the name; audio's icon |
+| `cli/test/playout.test.mjs` | every new line, its order, the exact old line for an old action, 25p and 50p fades, the `AF` value for -60, -12, 0 and +6 dB |
+| `e2e/playout-cues.spec.ts` | the exact action for each setting; an old record (`loop: true` only) still loops; audio lands on layer 5; an old Bridge greys the controls and sends today's action |
+| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | a Bridge release (§17) |
+| `docs/BRIDGE.md` | §3a, §3b, §5a (the sketch superseded) |
+
+### Phase 4 - folders
+
+| File | Change |
+|---|---|
+| `src/model/shows.ts` | `Show.folders`, `ShowCue.folderId` (§7); `addShowCue` (499-522), `moveShowCue` (687-697), `removeShowCue` (707-719) and `setShowCues` (659-684) keep a folder's cues together; new `addFolder`, `renameFolder`, `setFolderMode`, `removeFolder` (keeps the cues), `moveCueIntoFolder` |
+| `src/model/teamShowMerge.ts` | `FIELD_LABEL` (26-37) gains `folders: 'folders'`. `folders` is an id-keyed list, so `mergeItems` (60-80) already merges it item by item with the stored order as the spine; a spec proves two members adding folders at once keeps both |
+| `src/components/home/CueRundown.tsx` | folder rows, indentation, collapse, drag into and out of a folder, the folder's `⋯` menu |
+| `src/components/home/FolderEditor.tsx` (new) | the folder's panel: how it plays, at the end, what airs where |
+| `src/components/playoutKeys.ts` | `stepSelection` (109-119) walks visible rows; a folder row is one step |
+| `src/control/serverPlayout.ts` | a folder Take: Play through becomes one `sequence`; All together becomes one batch plus the graphic Takes; folder Out |
+| `src/control/playoutProtocol.ts` and its mirror | the `sequence` verb; the `/act` batch |
+| `cli/src/playout/server.ts` | `/act` accepts a batch; the sequence runner's state, per slot, in memory (§6.6) |
+| `cli/src/playout/adapters/casparcg.ts` | `BEGIN … COMMIT` when `VERSION` is 2.4 or later; the sequence runner reading `INFO` and queuing the next `LOADBG … AUTO` |
+| `cli/src/playout/amcp.ts` | `amcpSend` (81) opens one connection per command today; a batch sends `BEGIN`, its lines and `COMMIT` on one connection and reads each reply |
+| `src/control/hostedControl.ts` | if the owner chooses Q5's recommendation: `buildOutputPayload` (289-344) publishes `folders` and each cue's `folderId`, additively, `OutputPayload.v` staying 1 |
+| `src/components/HostedControlPage.tsx` | the same, display only: folder headers and indentation in its rundown (1217-1260) |
+| `src/export/showExport.ts` (274-278), `src/packs/graphicsPack.ts` (420-448), `api/_lib/me/packageShape.ts` | **not changed**: they copy named fields, so folders do not travel in an export or a pack in these phases. A spec proves a production with folders still exports and packs with every graphic cue in order. |
+| `e2e/playout-folders.spec.ts` (new) | create, rename, drag in and out, collapse, keyboard, delete keeps the cues, a split folder in an old record, the three modes against the timed fake, Loop the folder, All together as one batch |
+| `e2e/production-pack.spec.ts`, `e2e/production-persistence.spec.ts` | a production with folders round-trips a reload and a pack |
+| `cli/test/playout.test.mjs` | the batch, the sequence runner against `_fakeCasparServer.mjs`: each switch queues the next, Out ends it, a new Take ends it |
+| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | a Bridge release (§17) |
+| `docs/BRIDGE.md`, `docs/PLAYOUT_DASHBOARD.md`, `docs/CLOUD_PLAYOUT.md` §2 (if folders are published) | the new behaviour |
+
+### Not touched by any phase
+
+The editor (`src/components/editorFoundation/**`, `src/editor/**`, `src/App.tsx`), the
+editor-opening code in `HomePage.tsx`, `GraphicControlPage.tsx` and `CreationWizard.tsx`; the output
+renderer (`/output`); the database and its migrations (nothing here is published through the
+command log); `src/control/combine.ts` (combined controls resolve cues by id, not order).
+
+## 17. Where this plan meets the repository's standing rules
+
+Found while mapping the files; each needs a decision before the phase it names, and none is
+settled by this plan alone.
+
+1. **`components/render-playout-dashboard-identically-hosted-page`** (an invariant): the playout
+   dashboard renders identically on the hosted `?control=` page and the production page, and "a
+   control added to either belongs on BOTH in the same commit". The owner's Q2 (freeze the phone
+   surfaces) was answered without this rule on the table.
+   - **Phase 1** (row, width) is honoured as the rule says: both pages, which share the `.pd-`
+     classes anyway. The phone breakpoint does not change, so nothing new reaches a phone.
+   - **Phases 2 and 3** (clock, clip settings) need the Bridge, which the hosted page can never
+     reach (§3). The rule is amended in phase 2, through `npm run learn` as the root rules
+     require, to say so: controls that need the operator's own Bridge live only where the Bridge is.
+   - **Phase 4** (folders) is a rundown feature for graphics too, so the rule asks for it on both.
+     Question Q5.
+2. **`backlog/production-page-phases.md`**: the page split is already planned, with the rule that
+   `liveCue` and `selectedCueId` never move and that the owner runs the phases awake. Phase 0 runs
+   its phases 1 and 2 as written and adds the server-playout module, which moves `livePlayout`
+   but neither of those two.
+3. **The Bridge keeps no state** (`BRIDGE.md` §3). Phase 4's sequence runner is the one exception
+   (§6.6), recorded in `BRIDGE.md` in the same commit.
+4. **A Bridge release is a publication past `main`** (`root/publishing-past-still-needs-user-message`):
+   the `bridge-vX.Y.Z` tag runs `.github/workflows/release-bridge.yml` and puts a download on the
+   Releases page, which a later commit cannot take back. Phases 2, 3 and 4 each end with one, and
+   each needs the owner's go in that message. Its notes follow `cli/write-every-published-text-person-who`.
+
+## 18. What could go wrong, case by case
 
 Each case names the guard the build must have, and the phase whose specs pin it. "Source" means
 checked in the CasparCG source (§4); "server" means it goes on §12's list for the real server.
