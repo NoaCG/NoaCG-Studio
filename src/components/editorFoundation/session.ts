@@ -71,11 +71,11 @@ export class EditorSession {
     this.check(this.documentId, this.gesture.expected);
     return applyOperations(this.current, operations);
   }
-  cancel() {
+  cancel(restoreView = true) {
     if (!this.gesture) return;
     const view = this.gesture.view;
     this.gesture = null;
-    this.port.restore(view);
+    if (restoreView) this.port.restore(view);
   }
   execute(request: OperationRequest) {
     this.check(request.documentId, request.expected);

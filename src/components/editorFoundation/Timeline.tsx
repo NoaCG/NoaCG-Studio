@@ -5,8 +5,9 @@ interface Props {
   view: TimelineView; fps: number; time: number; selection: string[];
   seek: (time: number) => void; select: (selector: string | null, toggle: boolean) => void;
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
+  playing: boolean; togglePlayback: () => void;
 }
-export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo }: Props) {
+export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback }: Props) {
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   const ruler = useRef<HTMLDivElement>(null);
   const tracks = useRef<HTMLDivElement>(null);
@@ -31,13 +32,14 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
   }, [selection, view.parts]);
   return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline">
-    <div className="ef-toolbar"><strong>Timeline</strong><span className="ef-muted">Layer spans · read only</span>
+    <div className="ef-toolbar"><strong>Layers &amp; Timeline</strong><span className="ef-muted">{view.parts.length} layers · Select a row to edit artwork</span>
       <span className="ef-spacer" /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
       <span className="ef-muted">{fps} fps</span></div>
     <div className="ef-transport">
       <button disabled={!!view.reason} onClick={() => seek(0)} aria-label="Go to beginning">|◀</button>
-      <button disabled={!!view.reason} onClick={() => seek(Math.max(0, time - 1 / fps))} aria-label="Previous frame">◀</button>
-      <button disabled={!!view.reason} onClick={() => seek(Math.min(view.duration, time + 1 / fps))} aria-label="Next frame">▶</button>
+      <button disabled={!!view.reason} onClick={() => seek(Math.max(0, time - 1 / fps))} aria-label="Previous frame" title="Previous frame">‹|</button>
+      <button disabled={!!view.reason || !view.duration} onClick={togglePlayback} aria-label={playing ? 'Pause' : 'Play'} title="Space: play/pause. At a cue, replay the current segment.">{playing ? 'Ⅱ Pause' : '▶ Play'}</button>
+      <button disabled={!!view.reason} onClick={() => seek(Math.min(view.duration, time + 1 / fps))} aria-label="Next frame" title="Next frame">|›</button>
       <output data-testid="foundation-clock">{display(time)}</output>
       <span className="ef-muted">{Math.round(time * fps)} frames</span>
       <span className="ef-spacer" />
@@ -94,6 +96,6 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       })}
       {!view.parts.length && <p className="ef-notice">No addressable layers in this source.</p>}
     </div>
-    <div className="ef-caption"><span>Arrow keys: one frame · Shift: ten frames · Escape: cancel scrub</span><span>Holds wait for an operator cue</span></div>
+    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Shift: ten · Escape: cancel</span><span>Playback stops at cues · Spans read only</span></div>
   </section>;
 }

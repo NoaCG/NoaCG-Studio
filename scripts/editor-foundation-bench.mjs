@@ -15,7 +15,8 @@ const artwork = process.argv.includes('--artwork');
 const baseEdits = process.argv.includes('--base-edits') || artwork;
 const captureFinish = process.argv.includes('--capture-finish');
 const fixtures = resolve(root, 'docs/research/editor-r1-foundation');
-const output = artwork ? resolve(root, 'docs/research/editor-artwork-basics') : baseEdits ? resolve(root, 'docs/research/editor-r1-1a') : fixtures;
+const outputArg = process.argv.indexOf('--output');
+const output = outputArg >= 0 ? resolve(root, process.argv[outputArg + 1]) : artwork ? resolve(root, 'docs/research/editor-artwork-basics') : baseEdits ? resolve(root, 'docs/research/editor-r1-1a') : fixtures;
 mkdirSync(output, { recursive: true });
 async function settleFrame(frame) {
   const style = await frame.addStyleTag({ content: '*{will-change:auto !important}' });
@@ -212,7 +213,7 @@ if (process.argv.includes('--verify')) {
             await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption('archivo');
             await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('38');
             await page.locator('.ef-appearance-field .grow').fill('#f6a623');
-            await page.getByRole('button', { name: 'Apply appearance' }).click();
+            await page.locator('.ef-appearance-field .grow').press('Enter');
             await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
           }
           const settledFrame = await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle()).contentFrame();
