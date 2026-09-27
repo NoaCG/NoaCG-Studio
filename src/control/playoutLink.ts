@@ -31,9 +31,7 @@ import {
   type CasparSlot,
   type CasparTarget,
   type ListItem,
-  type OgrafSlot,
   type PlayoutAction,
-  type Slot,
 } from './playoutProtocol';
 
 const STORE_KEY = 'spx-gfx-caspar';
@@ -217,22 +215,9 @@ export function channelTitle(s: PlayoutSettings, channel: number): string {
   return name && name !== defaultChannelName(channel) ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 
-/** `1-20` - what the operator sees on the button, and what CasparCG calls the layer. An OGraf
- *  slot reads as its renderer and the render target's own fields: `renderer-0 layerId=1`. */
-export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafSlot): string {
-  if ('rendererId' in slot) {
-    return [slot.rendererId, ...Object.entries(slot.renderTarget).map(([k, v]) => `${k}=${String(v)}`)].join(' ');
-  }
-  return `${slot.channel}-${slot.layer}`;
-}
-
-/** The order live slots are named in: by channel and then front to back, the way the server
- *  stacks them. An OGraf slot has no channel, so it follows, by its address. */
-export function compareSlots(a: Slot, b: Slot): number {
-  if (a.adapter === 'casparcg' && b.adapter === 'casparcg') return a.channel - b.channel || b.layer - a.layer;
-  if (a.adapter !== b.adapter) return a.adapter === 'casparcg' ? -1 : 1;
-  return slotAddress(a).localeCompare(slotAddress(b));
-}
+// `slotAddress` (`1-20`) and `compareSlots` live in ./playoutSlots.ts, where rules that must run
+// without a browser can import them; they are re-exported here for every caller of this module.
+export { compareSlots, slotAddress } from './playoutSlots';
 
 // ---------------------------------------------------------------------------------------------
 // Local Network Access

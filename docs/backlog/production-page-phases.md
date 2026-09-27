@@ -4,8 +4,10 @@
 the order are there; this file is the evidence and the remaining work).
 
 **Status.** Phase 0 landed on 2026-08-28: the three READ-ONLY pieces the report named are out,
-2,968 -> 2,541 lines, zero behaviour change. Every phase below is still to run, and each is
-session-sized with its own proof. **The owner runs these awake** - the file is the surface the
+2,968 -> 2,541 lines, zero behaviour change. Phases 1 and 2 landed on 2026-09-27 as part of the
+clip playback plan's phase 0 (docs/CLIP_PLAYBACK_PLAN.md §16), together with the server cue
+editor and `control/serverPlayout.ts`, 4,165 -> 3,480 lines. Phases 3 to 5 are still to run, and
+each is session-sized with its own proof. **The owner runs these awake** - the file is the surface the
 2026-09-12 production plays out from, and every phase past this one moves state that decides
 what Take airs.
 

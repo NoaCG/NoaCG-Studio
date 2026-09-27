@@ -25,6 +25,7 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
+import { serverCueLive, type ServerOnAir } from '../../control/serverPlayout';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
 import PlayoutItemPicker from './PlayoutItemPicker';
@@ -77,7 +78,7 @@ export default function CueRundown({
   /** Which cue is on air on each graphic's layer. Read-only here. */
   liveCue: LiveCueMap;
   /** What this page put up on the playout server, by item id. Read-only here. */
-  serverOnAir: Readonly<Record<string, { cueId: string }>>;
+  serverOnAir: ServerOnAir;
   /** The rundown's cursor: the selected cue, or the first when none is. */
   selectedCueId: string | null;
   /** The cue on PREVIEW, which in 'preview-then-take' mode the cursor may have left. */
@@ -144,7 +145,7 @@ export default function CueRundown({
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
           const cueIsLive =
-            (!!cueGraphic && liveCue[cueGraphic] === cue.id) || (!!playoutItem && serverOnAir[playoutItem.id]?.cueId === cue.id);
+            (!!cueGraphic && liveCue[cueGraphic] === cue.id) || serverCueLive(serverOnAir, playoutItem, cue);
           const isSelected = cue.id === (selectedCueId ?? '');
           // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
           // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.

@@ -222,11 +222,16 @@ Phase 1 is built - manual, local, no API.
   and the tooltip, because both sit in tracks sized by that button and a word would widen the
   table under them (docs/PLAYOUT_DASHBOARD.md §2d, one surface over).
 - **ProductionPage is being SPLIT, read-only pieces first** (docs/backlog/production-page-phases.md
-  carries the state map and the five phases still to run). Out already: `home/ProductionLinks.tsx`
+  carries the state map and the phases still to run). Out already: `home/ProductionLinks.tsx`
   (the links popover, with `LinkRow` and `BridgeAirRow`), `home/ActionLog.tsx` (the wire-log
   readout) and `home/CueOverflowNote.tsx` (the too-long line, plus `cueOverflowKeys` - the pure
-  program-or-preview choice the page still needs for the field marks). All three are pure
-  READOUTS: they hold no state and send nothing.
+  program-or-preview choice the page still needs for the field marks), which are pure READOUTS
+  that hold no state and send nothing. Then `home/CueRundown.tsx` (the rail, owning only its menus
+  and pickers), `home/PlayoutMonitors.tsx` (PREVIEW's frame and PROGRAM, with `programRef` handed
+  in by the page) and `home/ServerCueEditor.tsx` (props only). A server cue's verbs and what the
+  page believes is up on the server are `control/serverPlayout.ts`, plain functions that run in
+  Node, held in `control/serverPlayoutStore.ts`: an OWNERSHIP part the verbs read and a TIMING
+  part they never do, so a clock ticking twice a second cannot re-render the page.
   **What may NOT move: `liveCue` and `selectedCueId`.** `liveCue` is a map keyed by graphic name
   and Take airs the selected cue's LAYER out of it, so splitting either across two owners changes
   what goes on air. That is why the links panel's MARKUP moved and its state did not - `unpublish`
