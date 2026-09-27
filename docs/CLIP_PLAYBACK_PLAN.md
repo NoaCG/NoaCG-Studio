@@ -1,16 +1,19 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, 2026-09-27. Nothing in it is built.** It comes from an owner planning session; the owner
-has answered its four questions (§15) and approved the design, and it now waits on one independent
-review of the plan AND the code it touches before phase 0 starts. §14 says what to challenge, §16
+**Draft, revision 2, 2026-09-27. Nothing in it is built.** It comes from an owner planning session.
+The owner approved the design and answered its five questions (§15). An independent review of the
+plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
+server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
 lists every file each phase touches, §17 where the plan meets the repository's standing rules, and
-§18 every failure case with its guard. Once approved it replaces §3
-("Build 2: basic media") of [`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) and closes
-the open half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md).
+§18 every failure case with the test that guards it. Once approved it replaces §3 ("Build 2: basic
+media") of [`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) and closes the open half of
+[`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md).
 
 The mockups are drawn, not built. They live beside the research in
 [`research/clip-playback-2026-09-27/`](research/clip-playback-2026-09-27/), with `mockup.html` as
-their source:
+their source. Revision 2 changed two things the pictures do not show yet: rows keep a small
+`AIR`/`PVW` tag, a note mark and the layer-clash warning (§6.2), and the Level slider has no live
+effect on air (§6.6).
 
 | File | Shows |
 |---|---|
@@ -52,54 +55,68 @@ carried out by the playout server itself, and a countdown the operator can trust
 
 - **No video through the web.** The file stays on the server; only its name travels
   (`backlog/video-through-playout-wrapper.md`).
-- **No NoaCG-side timer that fires a clip.** The server does the sequencing (`LOADBG … AUTO`); the
-  page only queues the next file and reads back what happened. This is `BRIDGE.md` §5a's rule.
+- **No timer in the page that fires a clip.** The server switches clips (`LOADBG … AUTO`); the
+  Bridge queues the next file (§6.10); the page only asks and shows. This is `BRIDGE.md` §5a's rule.
+- **No live level changes while a clip is on air** in these phases (§6.6, and §19 finding 2).
+- **No promise that separate video and audio files start on the same frame** (§6.6, "All together").
 - **No mixer items** (picture-in-picture, crop, opacity, colour), no push/wipe/slide transitions, no
   input routing, recording or streaming, no raw AMCP command items.
 - **No new features on the phone surfaces** (the hosted Control page, the Presenter link, the
-  exported controller) in these phases. They keep working; §8.
+  exported controller). They keep working; §8.
 - **No change to the graphic editor** or to the editor-opening code on Home, the graphic control
   page or the wizard.
 
 ## 3. What exists today
 
 - **Server clips play from the rundown** through NoaCG Bridge: Take, Out, Pause, Resume, and Loop
-  since 2026-09-25. Each verb is one AMCP line (`cli/src/playout/adapters/casparcg.ts:46-80`), and
+  since 2026-09-25. Each verb is one AMCP line (`cli/src/playout/adapters/casparcg.ts:43-81`), and
   the page never composes AMCP itself (`BRIDGE.md` §3).
 - **Every clip shares layer 10**, and an audio file is treated as a clip on the same layer, so a
   sting replaces the VT (`src/model/shows.ts:526`). The picker keeps a clip's length and drops the
   server's kind word (`src/components/home/PlayoutItemPicker.tsx:102`).
-- **What is on air on the server is page memory only**, so a reload forgets it, and nothing reports
-  back what the server really holds (`BRIDGE.md` §5, "What the page believes").
-- **The rundown is a fixed 380px column** (`src/styles/playout-dashboard.css:235`). Each row is two
-  lines tall, so about ten rows show at 1080p.
-- **The production page is 4,165 lines in one component** (`src/components/home/ProductionPage.tsx`),
-  and server playout, the rundown, the cue editor and the verbs all live in it.
+- **One server file is one item, shared by its cues.** `addPlayoutItem` de-duplicates on adapter,
+  kind and name (`src/model/shows.ts:536-567`), so the same clip added twice, or a duplicated cue,
+  gives two cues over one `PlayoutItem`. Its slot and `loop` are therefore shared by every cue of
+  that file.
+- **What is on air on the server is page memory only** (`livePlayout`, `ProductionPage.tsx:369-378`),
+  so a reload forgets it, and nothing reports back what the server really holds.
+- **The rundown is a fixed 380px column** (`src/styles/playout-dashboard.css:231-237`). Each row is
+  two lines: the name, then the cue's note or its kind and graphic, a layer badge that turns into a
+  clash warning when two graphics share a layer, and `AIR`/`PVW` tags (`ProductionPage.tsx:3566-3641`).
+- **The production page is 4,165 lines in one component**, and a split is already planned
+  (`backlog/production-page-phases.md`), with the rule that `liveCue` and `selectedCueId` never move.
 - **The layout has an owner-set contract** (`PLAYOUT_DASHBOARD.md`, 2026-08-21): the minimum
   supported window is 1366×768, the class laptops' size. The verb bar sits beside PROGRAM down to
-  that width, the monitors never change size with the selected cue, and a phone (≤900px) stacks
-  everything in one scrolling column with the verbs pinned to the bottom.
+  that width, the monitors never change size with the selected cue, only the control area scrolls,
+  and a phone (≤900px) stacks everything in one scrolling column with the verbs pinned to the bottom.
 - **The hosted Control page** ("Operate from a phone or tablet") lists server cues as disabled,
   because a phone cannot reach the operator's Bridge (`src/components/HostedControlPage.tsx:1261`).
+  The exported controller and packs keep graphic cues only (`src/export/showExport.ts:274-278`,
+  `src/packs/graphicsPack.ts:420-448`).
 
 ## 4. What CasparCG does, checked against its source
 
-Checked on 2026-09-27 against the server's source at the `v2.3.3-lts-stable` and `v2.5.0-stable`
-tags (github.com/CasparCG/server). The AMCP wiki is labelled "may not be valid for versions newer
-than 2.0.x", so the source is the authority. **Every line still needs the real 2.5.0 server** (§12).
+Checked against the server's source at the `v2.3.3-lts-stable` and `v2.5.0-stable` tags
+(github.com/CasparCG/server), and re-checked by the review. The AMCP wiki is labelled "may not be
+valid for versions newer than 2.0.x", so the source is the authority. **Every line still needs the
+real 2.5.0 server** (§12). Paths are under `src/`.
 
 | Behaviour | Where in the source | Consequence for NoaCG |
 |---|---|---|
-| A clip that reaches its end without `LOOP` keeps showing its **last frame** until something replaces it. | `core/producer/layer.cpp`, `receive()`: an empty frame falls back to `last_frame()` | Hold last frame is today's behaviour and the default. |
-| `LOADBG c-l <clip> [transition] AUTO` plays the background by itself when the foreground ends. One background per layer. | `layer.cpp`, `auto_play_`; `AMCPCommandsImpl.cpp`, `loadbg_command` | The server can chain one clip ahead with the page closed. The page queues the next as each one starts. |
-| With a MIX (or any) transition, AUTO starts the transition **that many frames before the end**, so the transition finishes on the last frame. | `transition_producer.cpp`, `auto_play_delta()` returns the duration | A clip set to Clear with a Long (1 s) fade starts fading 1 s before its end, and loses its last second. Said on screen. |
-| A MIX transition **crossfades the audio** too. | `transition_producer.cpp`, `audio_transform.volume` | Fades are sound and picture together, with nothing extra. |
-| `EMPTY` is a transparent colour producer (`#00000000`), not an empty layer. | `color/color_producer.cpp`, `get_hex_color` | "Clear" leaves a transparent layer. Invisible on air; `INFO` reports a colour producer. |
-| `LOADBG` without `AUTO` sets `auto_play_ = false`. | `layer.cpp`, `load()` | Queuing EMPTY without AUTO cancels a pending switch. |
-| `PLAY`/`LOADBG` of a clip take `SEEK`, `IN`, `OUT`, `LENGTH`, and an **audio filter `AF`** (FFmpeg syntax), in 2.3.3 and in 2.5. | `ffmpeg_producer.cpp`, parameter parsing | Trim is cheap. A per-clip level can travel **with the clip** as `AF "volume=0.5"`, so it stays right when the server switches clips by itself. |
-| `MIXER c-l VOLUME <gain> [frames]` is a linear gain on the **layer** (1.0 = original), and it outlives the clip. | `AMCPCommandsImpl.cpp`, `mixer_volume_command` | Used only for a live nudge while on air, and reset to 1 at each manual Take. |
-| `BEGIN` … `COMMIT` runs a batch of commands on the **same frame**, across layers and channels. **2.5 only**; absent in 2.3.3. | `AMCPProtocolStrategy.cpp`, `parse_batch_commands`; `AMCPCommandQueue.cpp`, `Execute` | "All together" is frame-exact on 2.5, and one command after another on 2.3. |
-| `INFO <channel>` reports each layer's foreground `file/name`, `file/time` (elapsed and length in seconds), `paused` and `loop`, and its background producer. | `layer.cpp` `state_`; `av_producer.cpp`, `file/time` | **The page can read the truth** every half second: what is on air, the real remaining time, and what is queued. No OSC needed. |
+| A clip that reaches its end without `LOOP` keeps showing its **last frame**. | `core/producer/layer.cpp`, `receive()`: an empty frame falls back to `last_frame()` | Hold last frame is today's behaviour and the default. |
+| A **still image** has no end: its length defaults to "forever" unless `LENGTH` is given, so `AUTO` behind it never fires. Its state carries `file/path`, not the video producer's `file/name`. | `modules/image/producer/image_producer.cpp:63, 97, 113` | Stills get Hold and Out only. State parsing is per producer. |
+| `LOADBG c-l <clip> [MIX n] AUTO` plays the background when the foreground ends. One background per layer. | `layer.cpp`, `auto_play_`; `protocol/amcp/AMCPCommandsImpl.cpp`, `loadbg_command` | The server switches with the page closed; something must queue each next file (§6.10). |
+| **`LOADBG … AUTO` onto an empty layer plays at once.** | `layer.cpp:59`, `load()`: `if (auto_play_ && foreground_ == empty) play()` | A late queue after Out would air the follower. Every queue carries a generation (§6.10). |
+| With **MIX**, `AUTO` starts the transition that many frames before the end, so it finishes on the last frame (at least one frame). Other transition types differ and are not used. | `core/producer/transition/transition_producer.cpp:97`, `auto_play_delta()` | A Clear with a 1 s fade starts fading 1 s before the end. Two clips crossfaded with a 1 s MIX overlap by 1 s, so a sequence is **shorter than the sum of its clips** (§6.4). |
+| A MIX **crossfades the audio** too. | `transition_producer.cpp`, `audio_transform.volume` | Fades are sound and picture together. |
+| The `AUTO` check runs **before** the pause check, and `play()` clears pause. | `layer.cpp:114-128` | A follower queued while the clip is paused inside its last `n` frames starts at once. The runner never queues onto a paused layer (§6.10). |
+| A `PLAY c-l "<clip>"` that **fails to load** (404) leaves the layer's previous background, and its `AUTO`, in place. | `AMCPCommandsImpl.cpp:353-368`, `play_command` | A failed replacement Take must be followed by a disarm (§6.10). |
+| `LOADBG` without `AUTO` switches `AUTO` off; `STOP` empties the foreground and switches it off but keeps the background loaded; `CLEAR c-l` removes both. | `layer.cpp`, `load()`, `stop()`; `core/producer/stage.cpp:314`, `clear(index)` erases the layer | Out on a slot with a queued follower sends `CLEAR c-l` (§6.10). |
+| `EMPTY` is a transparent colour producer (`#00000000`). | `core/producer/color/color_producer.cpp`, `get_hex_color` | "Clear" leaves a transparent layer; `INFO` reports a colour producer. |
+| `PLAY`/`LOADBG` take `SEEK`, `IN`, `OUT`, `LENGTH` and an **audio filter `AF`** (FFmpeg syntax), in 2.3.3 and 2.5. | `modules/ffmpeg/producer/ffmpeg_producer.cpp`, parameter parsing | Trim is cheap. A per-cue level travels **with the clip** as `AF "volume=<linear>"`. |
+| `MIXER c-l VOLUME` is a **layer** gain that multiplies with the clip's own `AF` gain and outlives the clip. | `AMCPCommandsImpl.cpp:1308`, the mixer commands | NoaCG does not send it in these phases (§6.6). |
+| **`INFO <channel>`** reports each layer's foreground and background. For the video producer, `file/time` is the **position in the whole file** and the **whole file's** length; the played segment is `file/clip` (start and length). `paused`, `loop` and the producer's name are there too. | `layer.cpp` `state_`; `modules/ffmpeg/producer/av_producer.cpp:1006-1007` | The countdown is computed from the segment, never from `file/time` alone (§6.7). |
+| `BEGIN … COMMIT` batches commands, but is **not a transaction**: it can answer `202 COMMIT PARTIAL` after applying the successful ones; `BEGIN` has no reply of its own; a one-command batch takes a shortcut. Not in 2.3.3. | `protocol/amcp/AMCPProtocolStrategy.cpp:215`, `AMCPCommandQueue.cpp:115` | Not used in these phases (§6.6, "All together"). |
 
 ## 5. What other tools do
 
@@ -113,8 +130,7 @@ Mosart, Cuez and Grass Valley from their documentation's search snippets):
 - **vMix, TriCaster, OBS**: every clip has an end choice. Hold the last frame is the usual default;
   then loop, or auto-next.
 - **Broadcast automation** (Sofie, Viz Mosart, Grass Valley iTX): the clip is the main event, and
-  graphics and audio are **attached** to it at an offset ("lower third in at 0:05 for 8 s"). They
-  move with it.
+  graphics and audio are **attached** to it at an offset ("lower third in at 0:05 for 8 s").
 - **What nobody does**: auto-take a graphic by guessing its length; chain clips from a timer in the
   client; leave a finished clip frozen on air by accident.
 
@@ -122,261 +138,314 @@ Mosart, Cuez and Grass Valley from their documentation's search snippets):
 
 ### 6.1 One screen, sized by the operator
 
-- **Design target 1920×1080. Floor 1366×768**, as the layout contract already says (owner, Q1).
-  Below the floor the existing phone layout takes over, unchanged in behaviour.
+- **Design target 1920×1080. Floor 1366×768**, as the layout contract says (owner, Q1). Below the
+  floor the existing phone layout takes over, unchanged.
 - **The rundown's width is the operator's.** A drag handle on the divider, from 320px to 60% of the
-  window; double-click returns it to the default (about 40% at 1920, 380px at 1366). Remembered per
-  machine in `localStorage`, never in the production: two operators of one show sit at different
-  screens. Everything else on the left takes what is left.
-- **The monitors keep their rule**: sized from the room that is left, computed per production and
-  never per cue, so they never jump between cues (`PLAYOUT_DASHBOARD.md`, 2026-08-21). A wider
-  rundown makes them smaller; the verb column beside PROGRAM stays.
+  window, also moved with the arrow keys; double-click returns it to the default (about 40% at
+  1920, 380px at 1366). Remembered per machine as a preference, never in the production.
+- **The monitors keep their rule**: sized from the room that is left, per production and never per
+  cue, so they never jump between cues. A wider rundown makes them smaller; the verb column stays.
 - **The cue panel reflows to its own width**, through CSS container queries, never the window's:
-  - graphic fields fill as many columns as fit (`repeat(auto-fill, minmax(200px, 1fr))`);
-  - a clip's settings put each label above its control when the panel is narrower than 620px;
-  - the panel scrolls inside itself when it is taller than the room, as the control area already
-    does, and the monitors and verbs never scroll away.
+  graphic fields fill as many columns as fit (`repeat(auto-fill, minmax(200px, 1fr))`), and a clip's
+  settings put each label above its control below 620px. **Scrolling stays where the contract puts
+  it**: the control area (`.pd-control-area`) is the one scroller; the cue panel gets no scroller of
+  its own (`PLAYOUT_DASHBOARD.md` §2, the fixed-panes rule).
 
   So a quiz with twelve fields and seven controls fits at 1920 with the rundown at 440px
-  (`graphics-only-1920.png`), and folds into more rows when the rundown is dragged to 860px
-  (`graphics-only-wide-rundown-1920.png`) without breaking.
+  (`graphics-only-1920.png`), and folds into more rows when the rundown is 860px wide
+  (`graphics-only-wide-rundown-1920.png`).
 
-### 6.2 The rundown row: minimal, one line
+### 6.2 The rundown row: one line, nothing lost
 
-Every row is one line, 34px, so about twenty rows show at 1080p against ten today.
+Every row is one line, 34px, so about twenty rows show at 1080p against ten today. What today's
+second line carries is kept, moved, never dropped:
 
 | Part | Shows | For |
 |---|---|---|
-| number, kind icon | `▶` clip, `♪` audio, `T` graphic, `▤` folder | every row |
+| number, kind icon | `▶` clip, `♪` audio, `T` graphic, `▤` folder. The icon's accessible name and tooltip say the kind in words ("Lower third · Hairline", "Server clip · 2-10"). | every row |
 | name, then a dim summary | a graphic's first field values (`Alexandra Riva`); a clip's own name | every row |
-| end mark, after the name | `⟲` loops, `→` plays the next, `⌀` clears; **nothing** for Hold, the default | clips only |
-| length, right-aligned | `3:00`; while on air, the **remaining time** in red (`-0:09`) | clips only, and the column is absent when the rundown has no server cue |
-| slot | `2-10` for a server cue, `L20` for a graphic, as today's rows already write them | every row |
+| **note mark** | `✎` when the cue has an operator note; the note in its tooltip and accessible name | any cue with a note |
+| end mark, after the name | `⟲` loops, `→` plays the next, `⌀` clears; nothing for Hold, the default | clips only |
+| length, right-aligned | `3:00`; while on air, the **remaining time** (`-0:09`) | clips only; the column is absent when the rundown has no server cue |
+| slot | `2-10` for a server cue, `L20` for a graphic, as today. **When two graphics share a layer the badge is the clash warning it is today**, with its sentence, and a click opens the layer repair (§6.5) | every row |
+| state tag | `AIR` or `PVW`, as today, small, at the row's end. The red tint and amber outline stay; the tag is what a colour-blind operator and a screen reader get | on air, preview |
 
-The row's **state is its colour**, as today, with no state column: red tint and a thin progress
-bar along its bottom while on air, amber outline while in preview, dimmed once played. One word is
-kept, because it is a promise the server will keep by itself: a clip queued to play next on the
-server wears **`NEXT ON SERVER`** after its name.
+A clip queued on the server to play next wears **`NEXT ON SERVER`** after its name.
 
-**Rejected: a NOW / NEXT strip above the rundown** (it was in the first mockups). The monitors
-already say what is on air and what is in preview, the clip clock (§6.4) says what ends when, and
-the rundown follows the on-air row (below). A strip would say all of it a third time and cost two
-rows of rundown.
+**Rejected: a NOW / NEXT strip above the rundown.** The monitors say what is on air and in
+preview, the clip clock says what ends when, and the list follows the air. A strip would say it a
+third time and cost two rows.
 
-**Rejected: a state column and an ends column.** Five columns on a graphic row would be empty.
-The colour carries state and a glyph carries the ending, both without a column.
+**Rejected: separate state and ends columns.** A graphic row would leave both empty.
 
-**The list follows the air**: when a cue goes on air off-screen, the list scrolls it into view,
-unless the operator scrolled by hand in the last ten seconds.
+**The list follows the air**: when a cue goes on air off-screen, the list scrolls it into view.
+It does **not** scroll while a row is being dragged, while a row's menu is open, while focus is
+in the rundown, or for ten seconds after the operator scrolled it by hand.
 
 ### 6.3 The monitors
 
-- **No labels over the picture.** The first mockups printed "first frame" and "from the server";
-  they are gone.
-- **One small `STILL` tag** on a server clip's picture, because the page cannot play the server's
-  video: it shows the clip's thumbnail. An operator who does not know that could wait for a picture
-  to move.
-- **PREVIEW** shows a clip's length, small, in its corner (`3:00`). **PROGRAM** shows no time at
-  all: the clip clock sits right beside it (§6.4), and one number is clearer than two.
+- **No labels over the picture.**
+- **One small `STILL` tag** on a server clip's picture: the page shows the clip's thumbnail, not the
+  server's moving video, and an operator who does not know that could wait for a picture to move.
+- **PREVIEW** shows a clip's length in its corner (`3:00`). **PROGRAM** shows no time: the clip
+  clock sits right beside it.
 
 ### 6.4 The clip clock
 
-The owner called the countdown "one of the most important things when you play a clip", so the
-operator can count the director back to the studio. Owner review of 2026-09-27 set its shape: **a
-clear number, and nothing that moves the rest of the page.**
+The owner called the countdown "one of the most important things when you play a clip". His
+review set its shape: **one clear number, and nothing that moves the rest of the page.**
 
-**Where.** Under the verb buttons, beside PROGRAM, in the column the 2026-08-21 layout contract
-left free. It appears only while a server clip or audio file is on air, and it takes **only the
-height left in that column**: its bottom edge is PROGRAM's bottom edge, never lower. In CSS it is a
-flex item of the verb column with `container-type: size`, so its content can never make the stage,
-and so the monitors, taller. Its number scales with its own height (`cqh` units). When less than
-about 96px is left, as at 1366×768, it folds to **one thin row**: the label and the number, nothing
-else (`clock-clip-then-clip-1366.png`).
+**Where.** Under the verb buttons, beside PROGRAM, in the column the layout contract left free. It
+appears only while a server clip or audio file is on air and takes **only the height left in that
+column**: its bottom edge is PROGRAM's, never lower. In CSS it is a flex item of the verb column
+with `container-type: size`, so its content cannot make the stage taller, and its number scales with
+its own height (`cqh`). Below about 96px it folds to **one thin row**: label and number only.
 
-**What it shows** depends on what happens at the end of the clip:
+**What it shows** depends on what happens at the end:
 
 | When the clip ends it... | The clock shows | Warns (red, then pulsing) |
 |---|---|---|
-| **holds the last frame** or **clears** | one big number, the clip's remaining time, and one small line: `then holds the last frame` / `then clears to studio` (`clock-single-clip-1920.png`) | on that number |
-| **plays the next clip** automatically (Play next, or a Play-through folder) | **`TO STUDIO`** as the big number: this clip's remaining time plus the length of every clip that will follow it automatically, up to the one that holds or clears. One small line: `clip -0:09 · next INTRO_VT 0:20` (`clock-clip-then-clip-1920.png`) | on **TO STUDIO only**. The clip's own countdown never warns when another clip follows, because nothing happens on air at that moment |
-| **loops** | the clip's remaining time, small, and `loops until Out`. No studio time: there is none | never |
+| **holds the last frame** or **clears** | one big number, the remaining time of the segment on air, and `then holds the last frame` / `then clears to studio` | on that number |
+| **plays the next clip** (Play next, or a Play-through folder) | **`TO STUDIO`** big: the time until the sequence ends on air (below), and small: `clip -0:09 · next INTRO_VT 0:20` | on **TO STUDIO only**; the clip's own time never warns when a clip follows |
+| **loops**, or the sequence ends in a loop | the clip's remaining time, small, and `loops until Out`. No studio time: there is none | never |
 
-- **The warning**: the last ten seconds turn the box red; the last five pulse it
-  (`clock-single-clip-last-seconds-1920.png`, `clock-last-clip-last-seconds-1366.png`). Colour is
-  never the only signal: the digits count too.
-- **At zero on Hold** the number turns amber and counts up, `HOLDING +0:03`, so nobody forgets a
-  frozen frame on air. **On Clear** it disappears with the clip.
-- **Paused** reads `PAUSED -0:09`, and the studio time stops with it.
+- **TO STUDIO** is the sum of the remaining segments in the sequence **minus every transition
+  overlap**: three 10-second clips joined by two 1-second MIX transitions end after about 28
+  seconds, not 30 (§4, the MIX row). A member whose length is unknown makes it `TO STUDIO ?`.
+- **The warning**: the last ten seconds turn the box red; the last five pulse it. Colour is never
+  the only signal: the digits count too.
+- **At zero on Hold** the number turns amber and counts up, `HOLDING +0:03`. **On Clear** it goes.
+- **Paused** reads `PAUSED -0:09`, and TO STUDIO stops with it.
 - **One clock, one clip.** It follows the server clip or audio file the operator took last (for an
-  All-together folder, its longest file). Any other server file on air shows its remaining time on
-  its own rundown row, never as a second line in the clock: the owner's shows do not run a separate
-  sound against a video, and a second line would crowd the one number that matters.
-- **Where the number comes from**: the server's own `INFO`, read twice a second (§6.7), with the
-  page's clock filling in between reads so the seconds tick evenly. With a Bridge too old to answer
-  `INFO`, the clock counts from the Take and the clip's length and says `estimated`.
-- **TO STUDIO is computed, and says so when it cannot be**: it adds the lengths the server listed
-  (trimmed where the clip is trimmed). A clip with no known length in the chain makes it read
-  `TO STUDIO ?` rather than a wrong number.
+  All-together folder, its longest file). Any other server file on air shows its time on its own row.
+- **Honest about certainty.** The number comes from the Bridge's reading of the server (§6.7). It
+  reads `estimated` when it is not: an old Bridge that cannot read `INFO`, no fresh reading for 3
+  seconds, or a segment the server did not report.
 
 ### 6.5 The cue panel (left of the rundown, where graphics are edited today)
 
-Selecting a cue in the rundown opens its settings here, the same place and shape for every kind.
+Selecting a cue opens its settings here, the same place and shape for every kind.
 
 **A graphic.** Unchanged in what it offers: title, fields, controls, note. One move: its playout
-layer goes under **Advanced**, beside the operator-facing rarities, which gives a many-field graphic
-its room back.
+layer goes under **Advanced** (closed by default, with a one-line summary: `Layer 21`). **When the
+graphic's layer clashes with another's, Advanced opens by itself** and shows today's repair; the
+rundown's clash badge opens it too, so the repair is never hidden.
 
 **A server clip or audio file.** Basic, always visible:
 
 | Setting | Choices | On air |
 |---|---|---|
-| **At the end** | **Hold last frame** (default) / **Clear** / **Loop** / **Play next** | the server does it |
-| **Fade** | In: Cut / Short / Long. Out: Cut / Short / Long | a MIX on Take, and on Out or Clear |
-| **Level** | a slider in dB, -60 to +6, 0 by default, with Reset | stored level travels with the clip; a change while on air goes out with Update |
+| **At the end** | **Hold last frame** (default) / **Clear** / **Loop** / **Play next** (movies and audio; a still has Hold only) | the server does it |
+| **Fade** | In: Cut / Short / Long. Out: Cut / Short / Long | §6.6 |
+| **Level** | a slider in dB, -60 to +6, 0 by default, with Reset | **applies at the next Take**; while the cue is on air the slider says so, as Loop does today |
 | **Note** | free text | - |
 
-Under **Advanced**, closed by default, with a one-line summary when closed
-(`Channel 2 · layer 10 · whole clip`): channel, layer, start at and end at (trim), and the kind
-(movie or audio) when the server's word was wrong. Short is half a second and Long one second,
-turned into the channel's own frames by the adapter (§18, case 7); they are not settings.
+**Advanced** (closed, summary `Channel 2 · layer 10 · whole clip`): channel, layer, start at and
+end at (trim, validated: start before end, both inside the file), and the kind when the server's
+word was missing on an older item. Short is 0.5 s and Long 1 s, converted to the channel's frames by
+the adapter; they are not settings. Channel and layer belong to the file (every cue of one server
+file shares its slot, as today); everything else belongs to **this cue** (§7).
 
-**A folder.** Its name, **How it plays** (One by one / Play through / All together), for Play
-through **At the end** (As the last clip says / Loop the folder), and a small picture of what airs
-on which slot.
+**A folder.** Its name; **How it plays** (One by one / Play through / All together); for Play through,
+**At the end** (As the last clip says / Loop the folder); and what airs on which slot.
 
 **A clip inside a Play-through folder** shows `→ Plays the next, set by the folder` in place of its
 At the end, except the folder's last clip, which keeps its own Hold / Clear / Loop.
 
 ### 6.6 The rules, on air
 
-**At the end** (one clip, outside a Play-through folder):
+**At the end**, for one clip outside a Play-through folder:
 
-- **Hold last frame**: nothing is sent; the server holds it (§4). Default, and every existing clip.
-- **Clear**: the Take also queues `LOADBG c-l EMPTY [MIX n] AUTO`. With an out fade, the fade
-  starts that many frames before the end (§4), and the setting says so.
+- **Hold last frame**: nothing more is sent. Default, and every existing clip.
+- **Clear**: the Take also queues `LOADBG c-l EMPTY [MIX n] AUTO`, where `n` is the cue's **fade
+  out**. With a fade, the fade starts `n` frames before the end, and the setting says so.
 - **Loop**: `PLAY … LOOP`, as shipped.
-- **Play next**: when this clip ends, the server plays the **next clip or audio cue on the same slot**,
-  looking past any graphics in between (owner, Q3), and never past the end of the clip's folder.
-  The Take queues it with `LOADBG c-l <next> [MIX n] AUTO`. The target is named where the choice is
-  made (`Then plays: STUDIO_BG, cue 3`) and in the clip clock. When there is no such clip, the
-  button is disabled and says why ("the next cue is a graphic", "the next clip plays on 2-5").
+- **Play next**: the Take starts a **sequence** (§6.10): this clip, then the next clip or audio cue
+  on the same slot, looking past any graphics in between (owner, Q3), never past the end of the
+  clip's folder, and then whatever that clip's own At the end says (it may play next again). The
+  target is resolved **from the rundown as it stands at the Take**, and named where the choice is
+  made: `Then plays: STUDIO_BG (cue 5, after 2 graphics)`. When no clip qualifies the choice is
+  disabled with the reason: "no clip after this one plays on 2-10", "the next clip is in another
+  folder", "the next clip is shorter than 2 seconds".
+
+**The transition between two clips** is decided by the **incoming** clip: its fade in is the MIX
+into it (`Cut` means a cut). The outgoing clip's fade out is used only when it ends into nothing:
+Out, or Clear at its end. So each switch has exactly one transition, and it is visible where the
+incoming clip is edited.
 
 **A clip ending never takes a graphic.** Graphics are taken by the operator. A graphic that should
-come in with a clip is a later feature, **attached** to the clip at an offset with a stated length
-(the broadcast pattern in §5), and it needs the timed cues of `RUNDOWN_AUTOMATION_PLAN.md` §2.
+come in with a clip is a later feature, attached to the clip at an offset with a stated length,
+built on the timed cues of `RUNDOWN_AUTOMATION_PLAN.md` §2.
 
-**A Take never moves the selection by itself**, and neither does a server-side switch: somebody may
-be editing the next cue (`RUNDOWN_AUTOMATION_PLAN.md` §2.1).
+**A Take never moves the selection by itself**, and neither does a server-side switch.
 
-**Level.** The stored level goes out with the clip as `AF "volume=<linear>"`, so a clip keeps its own
-level when the server switches to it by itself. A change while on air goes out as
-`MIXER c-l VOLUME <gain> 12` (half a second's ramp) on Update. Every manual Take first resets the
-layer's mixer to 1, so no clip inherits a nudge meant for another.
+**Level.** The cue's level goes out with the clip as `AF "volume=<linear gain>"` (`10^(dB/20)`,
+written with four decimals), so each clip keeps its own level when the server switches to it by
+itself. NoaCG sends **no `MIXER VOLUME`** in these phases: the layer gain multiplies with the clip's
+own, outlives the clip into every automatic follower, and cannot be reset without touching the clip
+still on air (§19, finding 2). A **live fader** for a slot is a later feature, designed as the
+slot's own setting (like a fader on a sound desk), never as a change to a clip.
 
 **Audio files** become their own kind (`mediaKind: 'audio'`, from the server's list) on their own
 default layer, **5**, below clips on 10. A sting never knocks a VT off, and a bed survives both.
-Two audio files at once need one moved to another layer in Advanced.
 
 **Folders:**
 
-- **One by one**: a folder for tidiness, the way a quiz groups its rounds. Collapsing it hides its
-  cues; the operator takes each as today. Works for graphics as much as clips.
+- **One by one**: tidiness, the way a quiz groups its rounds. Collapsing hides its cues; the
+  operator takes each. Works for graphics as much as clips.
 - **Play through**: one Take plays the folder's clips and audio in order on **the folder's one
-  slot** (the clip layer on the clip channel, changeable in the folder's Advanced), each ending into
-  the next, which is what lets the server switch with no gap. Each file keeps its own fades and
-  level. The **last** file ends by its own setting (Hold, Clear or Loop), so an opening sequence can
-  end on a looping background; or the folder's **At the end** is **Loop the folder**, which the
-  CasparCG Client cannot do. Graphics cannot be put in a Play-through folder
-  (they would need a length; see "attached", above), and the drop says so.
-- **All together**: one Take starts every cue in it. On 2.5 the server cues go in one
-  `BEGIN … COMMIT` batch and start on the same frame; on 2.3 they go one after another. A NoaCG
-  graphic in the folder travels through the web and lands a moment after the server cues; that is
-  stated in the folder's panel. This is also the owner's "a video with its own audio file" and the
-  plan's older "linked cues" item: a lower third and a clip on one press.
+  slot**, as one sequence (§6.10). Each file keeps its own fade in, trim and level. The last file
+  ends by its own setting, or the folder's **Loop the folder** starts the sequence again. Graphics
+  cannot be put in a Play-through folder, and the drop says why.
+- **All together**: one Take starts every cue in it: the server cues one after another, as fast as
+  the Bridge can send them, then the graphics through the web. **Before anything is sent**, two cues
+  of the folder on the same slot refuse the Take with the reason. Each cue's result is shown on its
+  own row; when some fail, the others stay on air, the folder says `2 of 3 on air`, and nothing is
+  retried by itself. How far apart the starts land is measured on the real server (§12); separate
+  video and audio files are not promised to start on the same frame. Frame-exact starts
+  (`BEGIN … COMMIT`, 2.5 only) are later, once partial results are designed for.
 - **Out on a folder** takes all of it off. **All out** is unchanged.
-- **Folders do not nest.** One level of indentation, which the owner called important, and nothing
-  deeper.
-
-**Who queues the next file in a sequence** (Play next more than one clip deep, or a Play-through
-folder): **the Bridge, not the page.** The page hands the Bridge the whole list once, at the Take
-(`sequence`, §9). The Bridge queues the first follower with the Take, watches the slot with `INFO`,
-and queues the next file each time the server switches. Only the server ever switches.
-
-*Why not the page*, which is what the CasparCG Client does: a browser slows the timers of a tab
-that is hidden. Chrome's "intensive throttling" allows a hidden tab's chained timers to run about
-once a minute after five minutes hidden, so a folder of 20-second clips, run from a tab the
-operator switched away from, would stall after the queued one and hold a frozen frame on air. The
-Bridge is an ordinary local process that nothing throttles, and it is already running whenever a
-server cue can be taken. It also means two pages open on one show never both queue.
-
-*The cost*: the Bridge has so far kept no state (`BRIDGE.md` §3, "Stateless"). A sequence is the
-one exception, deliberately small: per slot, the list still to play and the file it last queued,
-in memory only. It is reported by `/state`, so any page sees it. A Bridge restart forgets it; the
-server still plays the file already queued, then holds its last frame, and the page says the
-sequence stopped. Out, All out, or a new Take on the slot ends the sequence in the Bridge before
-anything is sent to the server.
+- **Folders do not nest.**
 
 ### 6.7 The server tells the truth
 
-While any server cue is on air, the page asks the Bridge for `INFO <channel>` of each channel it
-has cues on, twice a second. From the answer it knows, per layer: the file on air, elapsed and
-length, paused, looping, and what is queued behind it. That drives:
+While any server cue is on air, the page asks the Bridge for the state of each channel it has cues
+on, **twice a second**, never overlapping one request with the next. The Bridge reads `INFO
+<channel>` (§4) and answers in the protocol's words, per slot:
 
-- the clip clock and the rows' remaining time;
-- `played`, `NEXT ON SERVER` and ON AIR, including a clip the server cleared or switched by itself;
-- a warning when the server holds something the rundown did not send (another client took the
-  layer): the row says `replaced on the server`.
+```ts
+interface SlotState {
+  producer: 'video' | 'still' | 'colour' | 'html' | 'other';
+  file?: string;                // video: file/name; still: file/path
+  segment?: { start: number; length: number };  // seconds in the file, from file/clip
+  position?: number;            // seconds into the segment: file/time[0] - segment.start
+  paused: boolean;
+  loop: boolean;
+  transition?: { progress: number };            // while a MIX is running
+  queued?: { file: string; auto: boolean };     // the background
+  instance?: string;            // the Bridge's own id for what it started here (§6.10)
+  generation: number;           // the slot's action counter at this reading (§6.10)
+  observedAt: number;           // the Bridge's monotonic clock, ms
+}
+```
 
-It stops polling when nothing of the rundown's is on air on the server. It is one short AMCP
-command; the Bridge already opens one connection per command.
+Remaining = `segment.length - position`. The page counts down between readings from `observedAt`,
+and a reading whose `generation` is older than the page's last accepted action on that slot is
+ignored, so a slow answer from before a Take can never overrule the Take (§18, case 14).
+
+From the state the page shows: the clock, remaining time on rows, `NEXT ON SERVER`, ON AIR including
+a clip the server ended or switched by itself, and **`replaced on the server`** when a slot holds
+something this Bridge did not start. After a reload, a slot whose `instance` this Bridge recorded
+is matched to its cue exactly; anything else is shown as **an unidentified item on 2-10**, never
+guessed from the file name.
 
 ### 6.8 A production with no playout server
 
 Nothing in §6.2 to §6.7 that belongs to the server appears unless the production has a server cue:
-
-- no length column, no end marks, no clip clock, no `STILL`, no "From the playout server" button
-  until a Bridge is paired (the button's rule today);
-- the rundown is still resizable and one line per row, so a forty-graphic quiz shows twice as much;
-- **folders** (One by one and All together) work for graphics;
-- the cue panel's reflow is what gives a scoreboard or quiz its room (§6.1).
-
-**Graphics are not neglected, and should not look it.** A graphics-only production gets the wider
-and denser rundown, folders for rounds and segments, one press for two graphics, and a cue panel
-that fits a twelve-field scoreboard. The next graphics-first work after these phases is the timed
+no length column, no end marks, no clock, no `STILL`, no "From the playout server" button until a
+Bridge is paired. The rundown is still resizable and one line per row, and **folders** (One by one
+and All together) work for graphics. The next graphics-first work after these phases is the timed
 cues of `RUNDOWN_AUTOMATION_PLAN.md` §2 (owner, Q4).
 
-### 6.9 Any playout system, not only CasparCG
+### 6.9 Any playout system: what the Bridge speaks, and what the target can do
 
-Each new ability is a **capability** the adapter declares, and the page shows a control only when
-the running Bridge's adapter lists it: `endModes`, `fade`, `level`, `trim`, `batch`, `state`. The OGraf
-adapter declares none of them today, so an OGraf target sees none of these controls. A future OBS
-or vMix adapter declares what it can do, and the page's model does not move.
+Two different questions, answered in two places (§19, finding 7):
+
+- **What this Bridge understands**: `/health` gains `features` (for example `state`, `playback`,
+  `sequence`). It has no target, so it says nothing about a server.
+- **What this target can do**: `/status` (which names a target) gains `capabilities`, from the
+  adapter and the server's version: `end`, `fade`, `trim`, `level`, `sequence`, `state`. The OGraf
+  adapter answers none of them.
+
+The page offers a control only when both say yes. **A cue that already carries a setting the
+running Bridge or target cannot honour is not taken silently the old way.** Its Take is disabled
+with the reason ("This cue clears with a fade. Update NoaCG Bridge to take it, or set it to Hold").
+A **legacy cue**, one with no new setting, sends exactly today's line. The Bridge also **refuses** an
+action carrying a field its adapter does not support (the OGraf adapter refuses media fields and a
+level-only `update`), with the hop named, rather than dropping the field.
+
+### 6.10 The sequence runner, in the Bridge
+
+**Why the Bridge.** A browser slows a hidden tab's timers (Chrome's intensive throttling runs them
+about once a minute after five minutes hidden), so a queue kept by the page would stall a folder of
+short clips run from a background tab. The Bridge is an ordinary local process, already running
+whenever a server cue can be taken. The review agreed (§19, question 1).
+
+**What it holds.** In memory, per server slot: the **instance** it started (an id, with the cue id
+and position in the sequence), the list still to play, the file it last queued, and the slot's
+**generation**, a counter every action on the slot increases. `/state` reports all of it. This is
+the one exception to the Bridge keeping no state (`BRIDGE.md` §3), recorded there when it lands.
+
+**How it works:**
+
+1. **One queue per slot.** Every action on a slot (the page's verbs and the runner's own queuing)
+   runs through one serial queue for that target, channel and layer, in order, one at a time.
+2. **Generations.** A Take, Out, Clear or a new sequence on the slot increases its generation
+   **before** anything is sent. Runner work carries the generation it was planned under and is
+   dropped, unsent, when the slot's generation has moved on. A late `LOADBG … AUTO` can therefore
+   never reach a slot that was taken off or replaced (§4, the empty-layer row).
+3. **Queue ahead.** When a sequence starts, the Take plays its first file and queues the second
+   with `LOADBG … AUTO`. While a sequence runs, the Bridge reads the slot's state **four times a
+   second**; when it sees the switch, it queues the next. A sequence member must be **at least 2
+   seconds** long, so the next is always queued well before the one on air ends.
+4. **Never queue onto a paused slot.** While paused, the runner waits; on Resume it continues
+   (§4, the pause row).
+5. **Disarm.** Out on a slot with a queued follower sends `CLEAR c-l` (foreground and background
+   gone), or with a fade out `PLAY c-l EMPTY MIX n`, which replaces the background. A **failed**
+   replacement Take (the `PLAY` refused) is followed by `LOADBG c-l EMPTY`, without `AUTO`, so the
+   old follower cannot air (§4, the failed-PLAY row).
+6. **Foreign content.** When the slot holds something the runner did not start (another client),
+   the runner ends its sequence for that slot, sends nothing, and the page shows `replaced on the
+   server`.
+7. **Restart.** A restarted Bridge has no sequences. `/state` still answers; it reports the slot as
+   the server has it, with no instance: an unidentified item. Whatever the server already had
+   queued still plays by the server's own rule (a queued loop keeps looping); the page says the
+   sequence stopped.
+8. **One authority per slot.** Two operators on two machines have two Bridges. The Bridge that
+   last took a slot owns its sequence; any other Bridge that sees the slot change ends its own and
+   never re-queues. A page never takes over another Bridge's sequence; it shows it as unidentified.
 
 ## 7. The record
 
-All additive and optional, so `Show.version` stays 2 and an older build keeps the fields untouched
-(`root/version-every-persisted-format-ship-breaking`).
+All additive and optional, so `Show.version` stays 2
+(`root/version-every-persisted-format-ship-breaking`). **The file and the cue are kept apart**
+(§19, finding 5): what the file *is* stays on the `PlayoutItem`, shared; how *this cue* plays it goes
+on the `ShowCue`.
 
-On `PlayoutItem` (`src/model/shows.ts:55`):
+On `PlayoutItem` (`src/model/shows.ts:56-83`), facts about the file:
 
 ```ts
-/** The server's own word from its list. Absent on items saved before it: a movie. */
+/** The server's own word from its list. Absent on items saved before it: resolved from the
+ *  server's list (CLS) before the cue can join a sequence, else treated as a movie. */
 mediaKind?: 'movie' | 'still' | 'audio';
-/** What the server does at the clip's end. Absent = hold. `loop: true` on an older item reads
- *  as 'loop', and the field is written only for a non-default choice. */
-end?: 'clear' | 'loop' | 'next';
-fadeIn?: 'short' | 'long';
-fadeOut?: 'short' | 'long';
-/** dB, -60 to +6. Absent = 0 dB. */
-levelDb?: number;
-/** Trim in seconds from the file's start. Absent = the whole file. */
-trimIn?: number;
-trimOut?: number;
+// existing, unchanged: name, layer, channel, frames, fps, loop (legacy, below)
 ```
 
-`loop` stays readable and is still written beside `end: 'loop'`, so an older build keeps looping.
+On `ShowCue` (`src/model/shows.ts:24-40`), how this cue plays it:
 
-On `Show`, and one field on `ShowCue`:
+```ts
+playback?: {
+  /** Absent = hold, unless the legacy item.loop says loop (below). */
+  end?: 'hold' | 'clear' | 'loop' | 'next';
+  fadeIn?: 'short' | 'long';
+  fadeOut?: 'short' | 'long';
+  levelDb?: number;             // -60 to +6; absent = 0 dB
+  trimIn?: number;              // seconds into the file; absent = its start
+  trimOut?: number;             // seconds into the file; absent = its end
+};
+folderId?: string;
+```
+
+**Loop has one writable place in this build** (§19, finding 8). The effective ending of a cue is
+`cue.playback.end` when present, else `'loop'` when the legacy `item.loop` is true, else `'hold'`.
+This build writes only `cue.playback.end`, always explicitly once the operator chooses, and
+**never writes `item.loop`**; it removes `item.loop` when every cue of that item has an explicit
+end. An older build that toggles `item.loop` therefore still changes the cues that never had an
+ending chosen in this build, and cannot re-enable a loop this build turned off. A spec pins it with
+edits made through the **previous build's own functions** (`setPlayoutItemLoop` as shipped),
+not only its reader.
+
+On `Show`:
 
 ```ts
 folders?: ShowFolder[];
@@ -385,412 +454,414 @@ interface ShowFolder {
   id: string;
   name: string;
   mode: 'manual' | 'through' | 'together';
-  end?: 'loop';                    // 'through' only; absent = the last clip's own ending
+  end?: 'loop';                 // 'through' only; absent = the last clip's own ending
   slot?: { channel?: number; layer?: number };  // 'through' only; absent = the clip defaults
   collapsed?: boolean;
 }
-
-// ShowCue:
-folderId?: string;
 ```
 
-**Cues stay one flat, ordered list**, and a folder's cues are contiguous in it; the rundown's
-moves keep them so. Every reader that knows nothing of folders (an older build, the hosted page,
-the exported controller, a graphics pack) sees the same cues in the same order.
+**Where a folder sits, and how it stays whole:**
+
+- **A folder always holds at least one cue.** It is made from the selected cues ("New folder from
+  selection"), and it is removed when its last cue leaves. So it is placed by its **first member**,
+  and there is never an empty folder to place.
+- **Its cues are contiguous in the flat list.** Every writer in this build keeps them so: add,
+  duplicate (the copy joins the original's folder, right after it), remove, drag, move, the pack
+  installer (`setShowCues` drops `folderId`, since packs carry no folders) and the team merge.
+- **When they are not** (an older build moved a cue out of the middle, or two teammates' edits
+  crossed), the team merge gathers each folder's cues at its first member's position after merging
+  and reports `folders` among the changes it could not keep as made (`FIELD_LABEL` in
+  `src/model/teamShowMerge.ts:26-37`). A record read with a split folder shows each run with its
+  own header, the second marked `(continued)`, until the next move gathers them. Nothing reorders
+  on read.
+- **Readers that know nothing of folders** (an older build, the hosted page, the exported
+  controller, packs) keep the **flat order**. They do not keep folders: an export or pack of a
+  production with folders is **not** a folder round-trip, by design.
 
 ## 8. The other surfaces, frozen on purpose
 
-The hosted Control page (phone or tablet), the Presenter link and the exported controller get **no
-new features in these phases** (the owner's ruling on the dashboard rule: §17, item 1). They keep doing exactly what they do today, and a spec pins that a
-published production with folders and clip settings still loads on each and lists its graphic cues
-in order. Server cues stay listed and disabled there, as today.
+The hosted Control page, the Presenter link and the exported controller get **no new features**
+(owner, Q2 and Q5). They must keep doing what they do today, each checked for what it actually does:
+
+| Surface | Today | Pinned by |
+|---|---|---|
+| hosted `?control=` page | lists graphic cues and takes them; lists server cues **disabled** with their `2-10` address | a new assertion in `e2e/hosted-control.spec.ts`, with a production carrying folders and cue playback settings |
+| Presenter link (`src/join/main.ts`) | reads audience data only, never cues | unchanged; no spec needed beyond today's |
+| exported controller | graphic cues only, in order; **server cues are dropped** (`showExport.ts:274-278`) | an assertion in the export spec that a production with folders exports every graphic cue in order |
+| graphics pack | graphic cues only, in order; folders and server cues dropped | `e2e/production-pack.spec.ts` with a production carrying folders |
 
 The production page's **phone layout** (≤900px) gets no design work: the drag handle is hidden, the
-clip clock takes its place in the stacked column, and the existing phone spec must stay green.
-
-**Rejected: switching the phone surfaces off.** The owner offered it. The Control page is how a
-second operator or a presenter's phone joins a live show, which is outcome 5's "no one person a
-single point of failure". Freezing costs one spec per phase; switching off costs a feature somebody
-may rely on in a show. The owner chose freezing (Q2): "no need to remove if it works".
+clip clock sits in the stacked column, and the existing phone spec stays green.
 
 ## 9. Bridge and protocol
 
-Additive in protocol v2 (`src/control/playoutProtocol.ts`, mirrored in `cli/src/playout/`), so
-`PLAYOUT_V` stays 2. Each phase that touches it ships one Bridge release.
+Additive in protocol v2 (`src/control/playoutProtocol.ts`, mirrored byte for byte in
+`cli/src/playout/protocol.ts`), so `PLAYOUT_V` stays 2.
 
-- `take` on media gains `end?`, `next?` (the item to queue), `fadeIn?`, `levelDb?`, `trimIn?`,
-  `trimOut?`; `out` gains `fadeOut?`; `update` on a media slot may carry `levelDb` alone.
-- A new verb **`sequence`**: `{ slot, items: [...], end }`, taken with the first item. The Bridge
-  plays the first, queues the second with `LOADBG c-l <item> [MIX n] AUTO`, and runs the rest as
-  §6.6 says. `out`, `clear` and a new `take` on the slot end it. Its state is in `/state`.
-- A new route **`POST /state`** `{ target, channel }` → the layers' state from `INFO`, parsed by the
-  adapter into protocol words (`file`, `elapsed`, `length`, `paused`, `loop`, `queued`), never raw
-  XML, so an OBS adapter can answer the same shape.
-- A **batch** on `/act`, `{ target, actions: [...] }`, sent as `BEGIN … COMMIT` where the adapter
-  has `batch`, else one after another, with each action's result.
-- `/health` gains `features`, so a page never sends a setting a running Bridge would ignore: an old
-  Bridge gets the controls greyed with "Update NoaCG Bridge to use this".
-- **The adapter keeps writing every AMCP line itself.** The page sends words, never AMCP, and the
-  unit tests pin each line (`cli/test/caspar.test.mjs`, against `cli/test/_fakeCaspar.mjs`).
+- **One playback descriptor** for a media take and for each entry of a sequence (§19, finding 6):
+
+  ```ts
+  interface MediaPlayback {
+    end?: 'hold' | 'clear' | 'loop';   // what the LAST file does; 'next' is a sequence
+    fadeIn?: number;                   // seconds; the adapter converts to channel frames
+    fadeOut?: number;                  // seconds; used on Clear at the end, and on Out
+    gain?: number;                     // linear, from levelDb
+    trim?: { in?: number; out?: number };  // seconds into the file
+  }
+  ```
+
+  `take` on media carries `playback?`; `out` carries `fadeOut?`. The Bridge validates each field
+  and refuses a malformed one with the hop named.
+- **`sequence`**: `{ slot, entries: [{ item, playback, cueId }], loop?: boolean }`, taken with the
+  first entry; the Bridge runs the rest (§6.10) and answers the slot's new `instance` and
+  `generation`.
+- **`/state`**: `{ target, channel }` → `SlotState` per layer (§6.7), with the running sequence.
+- **Every action's reply** carries the slot's new `generation`.
+- **`/health`** gains `features`; **`/status`** gains `capabilities` (§6.9).
+- **The adapter keeps writing every AMCP line itself.** An action with no new field writes exactly
+  today's line; the unit tests pin every line and its order.
 
 ## 10. Making it robust before making it bigger
 
-The production page is already large, and the owner is right that adding to it as it is would make
-it brittle. So the first phase changes nothing on screen:
-
-- **Pin today's behaviour first.** Before moving code, add the missing e2e checks for what exists:
-  the exact action of every verb on a clip and a template, a graphics-only rundown's rows, reload
-  behaviour, the hosted page's lists, and screenshots of the page at 1920 and 1366 as the baseline.
-- **Split the page along its seams**, as `backlog/production-page-phases.md` already plans (§16,
-  phase 0), behaviour unchanged, each piece in its own file with its own
-  comment block: the rundown list and row, the cue panel for server cues, and server playout as a
-  module of plain functions (what each Take sends, how a chain is queued, how an `INFO` answer
-  becomes on-air state) with a thin React hook over it. Plain functions can be checked without a
-  browser.
-- **Fake the server with time in it.** The CLI's fake CasparCG and the e2e fake Bridge learn
-  `INFO`, `LOADBG … AUTO` and clip lengths on a clock, so a Play-through folder, a Clear at the end
-  and the clip clock are all tested against a server that switches by itself, with Playwright's
-  clock (`page.clock`) driving time.
-- **Browsers**: Chrome, Edge and Firefox, the ones the Bridge supports (`BRIDGE.md` §1b; Safari
-  cannot reach a local Bridge at all). The new CSS is container queries and a drag handle, both in
-  every supported browser. The existing `playout-fixed-panes` spec keeps guarding the layout.
+- **Pin today's behaviour first** (phase 0): the exact action of every verb on a clip and a
+  template, All out, reload behaviour, the hosted page's lists, and baseline screenshots at 1920 and
+  1366.
+- **Split the page along its seams**, as `backlog/production-page-phases.md` plans, behaviour
+  unchanged, `liveCue` and `selectedCueId` staying where they are. No general playout framework is
+  built during the split (§19, question 4).
+- **Two kinds of server state, two update speeds** (§19, finding 10). The clock and the rows'
+  remaining time change twice a second and subscribe to a small store of their own. Who owns a
+  slot, what is on air, and whether a verb or All out is allowed change only on an action or a
+  switch, and they are what the verb dispatcher (`onVerb`, `ProductionPage.tsx:2640`), `canTake`
+  (2148) and All out's enabled state (2691) read. A spec counts renders to prove the page does not
+  re-render twice a second, and proves All out and the verbs are right after a server-side switch.
+- **Time in the tests is controlled on both sides** (§19, finding 11). Playwright's `page.clock`
+  moves the browser's time only. The fake CasparCG (`cli/test/_fakeCasparServer.mjs`) and the
+  Bridge's runner take an **injectable clock**, advanced by the test. The runner is tested in
+  `node:test` against the fake server with the real Bridge code, including after the page has gone.
+  The e2e specs fake `/state` answers at the network layer, as `playout-cues.spec.ts` fakes the
+  Bridge today. Answers captured from the real server are kept as fixtures, apart from the fake's
+  own model.
+- **Pure rules are tested in Node, without a browser**, the way `scripts/team-show-merge.test.mjs`
+  already tests `teamShowMerge.ts` (Node strips the types on import): the effective ending and loop
+  precedence, Play next's target, TO STUDIO's arithmetic, and a folder's contiguity after each
+  writer, in `scripts/server-playout.test.mjs` (new). A module that pulls in the browser store is
+  kept apart from these pure functions so they stay importable.
+- **Guards are tested to fail.** Each guard in §18 has a test that breaks it on purpose (a delayed
+  reply, a refused command, a stale reading) and shows the guard catching it, as
+  `e2e/AGENTS.md` asks of guards.
+- **Browsers**: Chrome, Edge and Firefox, the ones the Bridge supports (Safari cannot reach a local
+  Bridge, `BRIDGE.md` §1b). Container queries and the drag handle work in all three.
 
 ## 11. Phases
 
-Each lands on its own, through the queue, with its own owner-queue item.
+Each lands on its own, through the queue.
 
 | # | What | Size | Why that size | What could break, and the guard |
 |---|---|---|---|---|
-| **0** | **Safety net and seams.** Characterisation specs, the split of §10, the timed fake server. No visible change. | medium | moving code in a 4,165-line component is careful, not clever; nothing new is designed | a moved piece behaves differently: every existing spec plus the new baseline screenshots must pass unchanged |
-| **1** | **Layout for everyone.** Resizable rundown, one-line rows, container-query cue panel, the graphic's layer under Advanced, the list following the air. | medium | touches every production; CSS and two small components | graphics-only productions look different: the owner-queue item walks one at 1920 and at 1366, and the phone spec stays green |
-| **2** | **The clip clock and the server's truth.** `/state` and `INFO` polling, the clock, remaining time and progress on rows, `STILL`, `played`. Works for today's clips (once and loop) before any new setting. Bridge release. | medium | one route, one poller, one panel; the parsing is pinned by CLI tests | a wrong or late number: the clock says `estimated` when it is not the server's; measured on the real server first |
-| **3** | **Clip settings.** At the end (all four), fades, level, audio as its own kind on layer 5, Advanced with trim. `/health` features. Bridge release. | medium | a handful of AMCP forms, all pinned by unit tests; one panel | an old clip playing differently: absent fields keep today's exact AMCP line, pinned |
-| **4** | **Folders.** The three modes, drag in and out, collapse, folder Take and Out, the Play-through chain, `BEGIN … COMMIT` on 2.5, Loop the folder. | large | a new record shape, rundown moves that keep folders whole, and the chain | a folder's cues out of order in older readers: the flat order is the invariant, pinned on the hosted page and in a pack |
-| later | Graphics attached to a clip at an offset | medium | needs the timed cues of `RUNDOWN_AUTOMATION_PLAN.md` §2 | - |
-| later | Load (first frame on air, paused) and preloading the next clip | small | only if the take delay measured on the real server is visible | - |
+| **0** | **Safety net and seams.** Characterisation specs; the split's first two phases plus the server-playout module; the fake server with an injectable clock. No visible change. | medium | careful moves, nothing designed | a moved piece behaves differently: every existing spec and the baseline screenshots pass unchanged |
+| **1** | **Layout for everyone.** Resizable rundown, one-line rows keeping note, kind, clash and state tags, container-query cue panel, layer under Advanced with the clash repair, the list following the air. | medium | every production sees it | a graphics-only operator loses information: the row table of §6.2 is a spec; the phone spec stays green |
+| **2** | **The clock and the server's truth.** `/state` with the normalised `SlotState`, generations on replies, the poller, the clock, remaining time, `STILL`, instance ids and unidentified items after reload. Works for today's clips before any new setting. Bridge release. | medium | one route, one parser per producer, one panel | a wrong number: segment arithmetic pinned against real `INFO` fixtures; `estimated` whenever it is not the server's |
+| **3** | **Clip settings and sequences.** At the end (all four), fades, level, trim, audio on layer 5, stills Hold-only; the playback descriptor; **the sequence runner** (Play next); capabilities and the disabled Take for unsupported settings. Bridge release. | large | the runner is the hard part and is needed as soon as Play next exists (§19, finding 6) | a follower airing when it must not: every §18 runner case, fault-injected |
+| **4** | **Folders.** The three modes, made from selection, drag in and out, collapse, folder Take and Out, Play through as a sequence, Loop the folder, All together with per-cue results; the merge's gathering. Bridge release only if the runner needs a change. | large | a new record shape and every writer of the cue order | a folder torn apart: every writer and the merge are specs, with old-build edits |
+| later | A live fader for a slot; graphics attached to a clip; frame-exact All together; Load and preloading | - | each after its own measurement or plan | - |
 
-**Order**: 0 → 1 → 2 → 3 → 4, then the timed graphics cues (owner, Q4). Phase 2 comes before 3
-because the clock helps every clip that already exists, and because Clear and Play next must not
-ship until the page can see the server do them.
+**Order**: 0 → 1 → 2 → 3 → 4, then the timed graphics cues (owner, Q4).
 
-**Acceptance, observable on a CasparCG server** (each phase's owner-queue item carries its own):
+**Owner checks**, only where a person must judge (`root/verify-proportion-change-against-spec-acceptance`):
+phase 1's look at 1920 and 1366 (a desktop check), and phases 2 to 4 on the real CasparCG server (a
+production check). The refactor of phase 0 and the Bridge releases need no owner: routine releases
+need no owner (`GOALS.md`, "Autonomous work").
 
-- Phase 1: at 1920 and 1366, drag the rundown from narrow to wide; the scoreboard's fields reflow
-  and nothing overlaps or scrolls off; the width is still there after a reload.
-- Phase 2: take a 15-second clip; the clock counts down to 0:00 within a second of the server, turns
-  red at 10 and pulses at 5, then reads `HOLDING +0:01`; reload the page mid-clip and the clock comes
-  back with the right number.
-- Phase 3: a clip set to Clear with a short fade fades out and leaves the layer empty with the page
-  closed; a sting on layer 5 plays over a running VT without stopping it; a clip at -12 dB is audibly
-  quieter, and a live nudge is reset by the next Take.
-- Phase 4: a three-clip Play-through folder plays through with no black between clips; with Loop the
-  folder, it starts over; an All-together folder of a video and its audio file stays in sync to the
-  end (on 2.5).
+**Acceptance, observable on a CasparCG server:**
+
+- Phase 1: at 1920 and 1366, drag the rundown from narrow to wide; the scoreboard's fields reflow and
+  nothing overlaps; the width survives a reload; a clash still shows on its row and its repair opens.
+- Phase 2: take a 15-second clip trimmed from a longer file; the clock counts the **trimmed** length
+  to 0:00 within half a second of the server, turns red at 10 and pulses at 5, then reads `HOLDING
+  +0:01`; reload mid-clip and the clock comes back right; take the same file from the CasparCG Client
+  and the row says `replaced on the server`.
+- Phase 3: a clip set to Clear with a short fade leaves the layer empty with the page closed; a sting
+  on layer 5 plays over a VT without stopping it; a clip at -12 dB is audibly quieter than the same
+  clip at 0 dB; three clips set to Play next play with no black between them, and TO STUDIO reaches
+  0:00 when the last one ends; Out in the middle stops the sequence and nothing else airs.
+- Phase 4: a Play-through folder plays through and, with Loop the folder, starts over; an
+  All-together folder with a video and its audio file starts both, and the measured gap is recorded.
 
 ## 12. Needs the real CasparCG 2.5.0 server
 
-Nothing here is assumed; each is a line in the phase's owner-queue item or a measurement in
-`e2e/configured/bridge-real-server.spec.ts`:
+Each is a measurement in `e2e/configured/bridge-real-server.spec.ts` (which runs only with
+`BRIDGE_REAL=1`), or a line in that phase's owner check:
 
-1. What `INFO <channel>` really returns on 2.5.0 (the fields of §4) and how long it takes.
-2. Clear with a fade: the fade overlaps the clip's last frames (§4).
-3. Per-clip level through `AF "volume=…"`, and that a MIXER nudge does not stack with it wrongly.
-4. `LOADBG` without `AUTO` cancels a queued clip.
-5. `BEGIN … COMMIT` starts a video and its audio file on the same frame.
-6. The length an audio-only file reports in `CLS` and `INFO`.
-7. The delay between Take and the first frame on air, to decide on preloading.
-8. Whether 2.3 servers are still in use anywhere NoaCG plays out (it decides whether 2.3's
-   one-after-another "All together" needs saying on screen).
+1. `INFO <channel>` on 2.5.0 for a video, a trimmed video, a still, an audio file, a looping clip, a
+   paused clip, a clip with a queued background and a MIX in progress: kept as fixtures.
+2. How long `INFO` takes to answer, and whether four readings a second disturb playout.
+3. Clear with a fade: the fade overlaps the clip's last frames.
+4. `AF "volume=…"`: the measured level of a clip at -12 dB against 0 dB, through a manual Take and
+   an automatic switch.
+5. `LOADBG` without `AUTO` cancels a queued clip; `CLEAR c-l` removes a queued follower; a refused
+   `PLAY` leaves the old follower armed until the disarm.
+6. Pause just before, at, and after the MIX threshold of a clip with a follower queued.
+7. `AUTO` with `IN`/`OUT`: the follower starts at the trimmed end.
+8. The gap between two cues of an All-together folder sent one after another.
+9. The delay between Take and first frame, to decide on preloading.
+10. Whether 2.3 servers are still in use anywhere NoaCG plays out.
 
 ## 13. Decisions
 
-**Build (phases 0 to 4):** resizable rundown; one-line rows with end marks and remaining time; the
-clip clock; `INFO` polling; At the end with four choices; fades; level in dB; audio on its own layer;
-trim under Advanced; folders in three modes with Loop the folder; capability-gated controls; the
-phone surfaces frozen and pinned.
+**Build (phases 0 to 4):** resizable rundown; one-line rows that keep note, kind, clash and state;
+the clip clock with segment arithmetic and transition overlaps; `/state` from `INFO`; At the end with
+four choices; fades decided by the incoming clip; a per-cue level at Take; trim; audio on its own
+layer; sequences run by the Bridge with generations and disarm; folders in three modes; capabilities
+split between Bridge and target; the phone surfaces frozen and pinned.
 
-**Later:** graphics attached to a clip at an offset (after timed cues); Load and preloading, if
-measured; Invoke; a second-channel preview.
+**Later:** a live fader per slot; graphics attached to a clip; frame-exact All together; Load and
+preloading, if measured; Invoke; a second-channel preview.
 
 **Not built:** a clip end that takes a graphic; a NOW / NEXT strip; state and ends columns; mixer,
 route, record and stream items; raw AMCP command items; transitions other than MIX; nested
-folders; a NoaCG-side playlist timer.
+folders; a timer in the page that fires or queues a clip.
 
-**Changes to earlier plans, once approved:**
+**Changes to earlier plans, once approved:** `RUNDOWN_AUTOMATION_PLAN.md` §3 is replaced by this
+plan, and build 1's `At clip end` choice is dropped, because a clip's end now belongs to the clip and
+its folder. `BRIDGE.md` §5a's sketch is superseded, and §9's milestone 2 (OSC) is not needed for
+position readout.
 
-- `RUNDOWN_AUTOMATION_PLAN.md` §3 is replaced by this plan. Build 1's `At clip end` choice is
-  dropped, because a clip's end now belongs to the clip and its folder; build 1 keeps timed cues
-  for graphics ("After 8 s → Out") and remains the next graphics work.
-- `BRIDGE.md` §5a's fade and "then play" sketch is superseded; §9's milestone 2 (OSC) is no longer
-  needed for position readout.
+## 14. For a reviewer
 
-## 14. For the reviewer
+Revision 1's eight questions and the review's answers are in §19. What revision 2 most needs checked:
 
-The questions this plan most needs challenged:
-
-1. **Is `INFO` polling twice a second sound** as the source of truth (load on the server, the
-   Bridge's connection per command, a slow answer), or does it need one held connection? And is the
-   Bridge's one piece of state, a running sequence (§6.6), the right place for it, against a
-   page-side queue plus a warning to keep the tab visible?
-2. **Play next "looking past graphics"**: is it clear enough to an operator which clip it will play,
-   and does limiting it to the same slot and the same folder remove every surprising case?
-3. **Is the flat cue list with `folderId` enough** to keep every older reader correct, and do the
-   rundown's moves really keep a folder's cues contiguous in every case (drag, delete, paste, import)?
-4. **Is Phase 0's split worth its cost** before Phase 1, or should the split happen piece by piece
-   inside the phases that need each piece?
-5. **Is anything a graphics-only operator loses** (the layer moving under Advanced, one-line rows
-   hiding a second line of detail) that this plan does not see?
-6. **Does the per-clip `AF` level really survive the server's own switch**, and is resetting the
-   mixer on every manual Take safe when two cues share a slot?
-7. **For the code review, not only the plan**: check §16 against the code at the commit you
-   review. Is any caller of `show.cues`, `PlayoutItem` or the playout protocol missing from it
-   (the list of order-reading files is `shows.ts`, `ProductionPage.tsx`, `playoutKeys.ts`,
-   `hostedControl.ts`, `HostedControlPage.tsx`, `showExport.ts` → `productionControllerHtml.ts`,
-   `graphicsPack.ts`, `teamShowMerge.ts`)? Does any AMCP form in §4, §9 or §18 disagree with the
-   CasparCG source at `v2.5.0-stable`? Is any case in §18 missing its guard, or any guard untestable
-   as described?
-8. **§17's standing rules**: is any other rule in the root, `src/components`,
-   `src/components/home`, `src/model`, `e2e` or `cli` contracts crossed by a phase?
+1. Do the runner's rules (§6.10) close every case in §18's runner group, including one not listed?
+2. Is the loop precedence (§7) right for every mix of old-build and new-build edits?
+3. Does anything in §16 still miss a writer of the cue order?
 
 ## 15. The owner's answers, 2026-09-27
 
 - **Q1. The screen.** Full HD is the design target, and the page must still work at 1366×768.
 - **Q2. The phone surfaces.** Frozen: they keep working with no new features. "No need to remove if
   it works."
-- **Q3. Play next.** Plays the next clip on the same slot and looks past graphics, as recommended.
+- **Q3. Play next.** Plays the next clip on the same slot and looks past graphics.
 - **Q4. The order.** Phases 0 to 4 as recommended, then the timed graphics cues.
-- **The clip clock** (design review): it must fit under the buttons and never reach below the
-  monitors; one clear number matters most; show what comes next only when something follows
-  automatically, with the clip's own time and the time to the studio kept apart, and warn on the
-  time to the studio; no second line for a sound running against a video. §6.4 is written to that.
-- **The review**: the plan and the code it touches go to an independent reviewer (Codex) before
-  phase 0 starts. §16 is written for that review.
-
 - **Q5. The dashboard-parity rule.** Loosened: "It's okay if they look different. We will 100% focus
   on making sure that the computer view works... Phone is a nice add-on if it works." Recorded as
   a superseding rule (§17, item 1). Folders stay on the production page.
+- **The clip clock** (design review): it fits under the buttons and never reaches below the
+  monitors; one clear number; what comes next only when something follows automatically, the
+  clip's own time and the time to the studio kept apart, the warning on the time to the studio; no
+  second line for a sound against a video.
+
+**Decided in revision 2, after the review, and reversible** (§19): the Level slider applies at the
+next Take, with no live change on air; All together does not promise same-frame starts; rows keep
+small `AIR`/`PVW` tags, the note mark and the clash warning; Play next moves into phase 3 with the
+runner; playback settings belong to the cue, not the shared file.
 
 ## 16. Every file each phase touches
 
 Line numbers are at `ca54e17` (2026-09-27) and will drift; the names will not. "New" is a file the
-phase creates. Each phase also adds its specs to `scripts/e2e-affected.mjs` (the playout rows are
-at 601-634; `cli/` maps to no e2e spec at 207) in the same commit, as
-`root/add-playwright-spec-any-new-flow` requires, and files its own owner-queue item.
+phase creates. Each phase adds its specs to `scripts/e2e-affected.mjs` (the playout rows are at
+601-634; `cli/` maps to no e2e spec at 207) in the same commit, as
+`root/add-playwright-spec-any-new-flow` requires.
 
 ### Phase 0 - safety net and seams (no visible change)
 
-It runs the first two phases of the split already planned in
-[`backlog/production-page-phases.md`](backlog/production-page-phases.md), plus one piece that plan
-did not have. That plan's rule binds here too: **`liveCue` and `selectedCueId` do not move**
-(`src/components/home/AGENTS.md`, "ProductionPage is being SPLIT"), and its note that the owner
-runs these phases awake stands.
+It runs the first two phases of [`backlog/production-page-phases.md`](backlog/production-page-phases.md)
+as written, plus the server-playout module. **`liveCue` and `selectedCueId` do not move.**
 
 | File | Change |
 |---|---|
-| `src/components/home/ProductionPage.tsx` | the rundown `<aside className="pd-rail">` (3519-3862) moves out; the monitors `.pd-monitors` (2754-2851) move out; the server cue editor (3194-3329) moves out; `livePlayout` (369-378), `playoutVerb` (1924-1984), `dropLivePlayout` (1917) and the server half of `outAll` (2122-2130) move into the server-playout module below. `liveCue`, `selectedCueId`, the draft and `runVerb` stay. |
-| `src/components/home/CueRundown.tsx` (new) | the rundown, as `production-page-phases.md` §3 specifies: owns `menuCueId`, `armedRemove`, `addPick`; takes `liveCue` read-only |
-| `src/components/home/PlayoutMonitors.tsx` (new) | the monitors, as that plan's §4 specifies, with `programRef` forwarded from the page and the measurement keyed on the node |
-| `src/components/home/ServerCueEditor.tsx` (new) | the server cue editor (loop row, pause/resume, channel, layer, note), props only |
-| `src/control/serverPlayout.ts` (new) | plain functions with no React: what a verb sends for a server cue (today's `playoutVerb` logic), the on-air map, `outAll`'s server half. Later phases add the `INFO` reading and sequence display here. |
-| `src/control/serverPlayoutStore.ts` (new) | a tiny subscribable store for server on-air state, so phase 2's twice-a-second updates reach only the components that read them (§18, case 15) |
-| `cli/test/_fakeCasparServer.mjs` (new) | a fake CasparCG with state: layers, clip lengths on a clock, `PLAY`/`LOADBG … AUTO`/`STOP`/`PAUSE`/`RESUME`/`INFO`/`MIXER`/`BEGIN`/`COMMIT`. The existing `cli/test/_fakeCaspar.mjs` (26 lines) only answers a scripted line per command and stays for the parser tests. |
-| `e2e/playout-cues.spec.ts` | `fakeBridge` (52-139) learns `/state` behind an option, off by default; new characterisation tests: the exact action of every verb on a clip and a template after a reorder, All out across two channels (exists) and after a reload |
-| `e2e/playout-baseline.spec.ts` (new) | screenshots of a graphics-only and a mixed production at 1920×1080 and 1366×768, compared against themselves before and after the split |
-| `e2e/hosted-control.spec.ts` | new: a production with server cues publishes, and the hosted page lists them disabled with their `2-10` address (today nothing asserts it, 1261-1292) |
-| `docs/backlog/production-page-phases.md` | its phases 1 and 2 marked done, with the commit |
+| `src/components/home/ProductionPage.tsx` | the rundown `<aside className="pd-rail">` (3519-3862) and the monitors (2754-2851) move out; the server cue editor (3194-3329) moves out; `livePlayout` (369-378), `playoutVerb` (1924-1984), `dropLivePlayout` (1917) and the server half of `outAll` (2122-2130) move into the module below. `liveCue`, `selectedCueId`, the draft and `runVerb` stay. |
+| `src/components/home/CueRundown.tsx` (new) | as `production-page-phases.md` §3 specifies |
+| `src/components/home/PlayoutMonitors.tsx` (new) | as that plan's §4 specifies, `programRef` forwarded from the page |
+| `src/components/home/ServerCueEditor.tsx` (new) | the server cue editor, props only |
+| `src/control/serverPlayout.ts` (new) | plain functions: what a verb sends for a server cue, the on-air map, All out's server half |
+| `src/control/serverPlayoutStore.ts` (new) | two subscribable parts: the **ownership** part (on air, per slot, what verbs are legal) and the **timing** part (positions), so each consumer re-renders only for what it reads |
+| `cli/test/_fakeCasparServer.mjs` (new) | a stateful fake with an **injectable clock**: layers, lengths, `PLAY`/`LOADBG … AUTO`/`STOP`/`CLEAR`/`PAUSE`/`RESUME`/`INFO`, the empty-layer `AUTO` rule and the failed-`PLAY` rule of §4. `_fakeCaspar.mjs` stays for the parser tests. |
+| `e2e/playout-cues.spec.ts` | characterisation: every verb's exact action after a reorder and after a reload; All out across two channels |
+| `e2e/playout-baseline.spec.ts` (new) | screenshots of a graphics-only and a mixed production at 1920×1080 and 1366×768 |
+| `e2e/hosted-control.spec.ts` | the hosted page lists server cues disabled with their address (nothing asserts it today, 1261-1292) |
+| `docs/backlog/production-page-phases.md` | its phases 1 and 2 marked done |
 
 ### Phase 1 - layout for everyone
 
 | File | Change |
 |---|---|
-| `src/styles/playout-dashboard.css` | `.pd-body` (231-237): the fixed `380px` becomes `var(--pd-rail-w)`; `.pd-cue` (1359-1449) one line; the cue panel's field grid by container query; phone rules (1457-1554, 1652-1761) untouched except hiding the handle |
-| `src/components/home/ProductionPage.tsx` | `ProductionShell` (3892-4135) renders the drag handle between the stage and `.pd-body`'s rail and sets `--pd-rail-w` |
-| `src/components/home/RailResizer.tsx` (new) | the handle: pointer drag, keyboard (arrow keys, for accessibility), double-click reset, limits 320px to 60%; reads and writes the width through `src/model/prefs.ts` |
-| `src/model/prefs.ts` | one per-device preference, the rail width (a `spx-gfx-*` key; `model/never-rename-persisted-deployed-identifiers-storage`) |
-| `src/components/home/CueRundown.tsx` | one-line rows: kind icon, name plus summary, end mark, length (only when the rundown has a server cue), slot; follows the on-air row |
-| `src/components/home/ServerCueEditor.tsx`, the graphic editor block in `ProductionPage.tsx` (2963-~3185) | the graphic's layer moves under **Advanced** (a `<details>`; the wizard's `details:not([open])` trap in `AGENTS.md` applies to its CSS) |
-| `src/components/HostedControlPage.tsx` | nothing required. It shares the `.pd-cue` styles, so the one-line row reaches it; the frozen-surface spec proves it still lists and takes its cues at phone and desktop width, and any row change that hurts it is scoped to the production page (§17, item 1) |
-| `e2e/playout-fixed-panes.spec.ts` | still only the control area scrolls, at every size, with the rail narrow and wide |
-| `e2e/playout-rail-width.spec.ts` (new) | drag, keyboard, reset, the limits, surviving a reload; a twelve-field graphic at 1366 with the rail at its widest overlaps nothing |
-| `docs/PLAYOUT_DASHBOARD.md` | §2 and §4: the rail width and the one-line row |
+| `src/styles/playout-dashboard.css` | `.pd-body` (231-237) uses `var(--pd-rail-w)`; `.pd-cue` (1359-1449) one line, with the note mark, the clash badge and the state tag; the field grid by container query; phone rules (1457-1554, 1652-1761) untouched except hiding the handle. Any row rule that would hurt the hosted page is scoped to the production page. |
+| `src/components/home/ProductionPage.tsx` | `ProductionShell` (3892-4135) places the handle and sets `--pd-rail-w`; the graphic editor block (2963-~3185) puts the layer under Advanced and opens it on a clash |
+| `src/components/home/RailResizer.tsx` (new) | pointer drag, arrow keys, double-click reset, limits |
+| `src/model/prefs.ts` | the per-device rail width (a `spx-gfx-*` key; `model/never-rename-persisted-deployed-identifiers-storage`) |
+| `src/components/home/CueRundown.tsx` | the one-line row of §6.2; following the air, with its pauses |
+| `src/components/HostedControlPage.tsx` | nothing required; it shares the `.pd-cue` styles, and the frozen-surface assertions prove it still lists and takes its cues |
+| `e2e/playout-fixed-panes.spec.ts` | only the control area scrolls, with the rail narrow and wide |
+| `e2e/playout-rail-width.spec.ts` (new) | drag, keys, reset, limits, reload; a twelve-field graphic at 1366 with the rail at its widest overlaps nothing; the row keeps note, kind (accessible name), clash and state tag; the list does not scroll during a drag or with a menu open |
+| `docs/PLAYOUT_DASHBOARD.md` | §2 and §4 |
 
-### Phase 2 - the clip clock and the server's truth
-
-| File | Change |
-|---|---|
-| `src/control/playoutProtocol.ts` and `cli/src/playout/protocol.ts` (byte-identical, `cli/test/playout.test.mjs:18` refuses drift) | `HealthReply` gains `features?: string[]`; a `StateReply` type (slots with `file`, `elapsed`, `length`, `paused`, `loop`, `queued`, `sequence?`) |
-| `cli/src/playout/server.ts` | `/health` (248) reports `features`; a `/state` route beside `/act` (325), token-checked like it |
-| `cli/src/playout/amcp.ts` | `parseInfo`: the `INFO <channel>` XML into layer states, tolerant of fields a version lacks |
-| `cli/src/playout/adapters/casparcg.ts` | `state(target, channel)`; `capabilities()` (151-157) grows `features: ['state']` |
-| `cli/src/playout/adapters/ograf.ts` | `capabilities()` (262-264) declares no features; `/state` answers `unsupported` |
-| `src/control/playoutLink.ts` | `reachBridge` (396) keeps the `features` it reads; `readState` beside `act` (520); a poller that never overlaps itself |
-| `src/control/serverPlayout.ts`, `serverPlayoutStore.ts` | turn `/state` answers into on-air truth; match a slot's file to a cue after reload; the one-second trust after a Take (§18, case 14) |
-| `src/components/home/ClipClock.tsx` (new) | the clock of §6.4: `container-type: size`, the one-row fold, the warnings, HOLDING, PAUSED, `estimated` |
-| `src/components/home/PlayoutMonitors.tsx` | the `STILL` tag; PREVIEW's length |
-| `src/components/home/CueRundown.tsx` | remaining time and progress on on-air rows; `played`; `replaced on the server` |
-| `src/components/playoutKeys.ts` (43-69) | `p` → pause/resume on a server clip (`components/keep-every-playout-verb-key-keymap`: the key lives only here) |
-| `src/styles/playout-dashboard.css` | the clock, the progress bar, the still tag |
-| `cli/test/playout.test.mjs`, `cli/test/caspar.test.mjs` | `parseInfo` against real 2.3.3 and 2.5.0 `INFO` answers captured on the real server (§12, item 1); `/state` auth and origin |
-| `e2e/playout-clock.spec.ts` (new) | with `page.clock` and the fake: counts, warns at 10 and 5, HOLDING, PAUSED, reload mid-clip, Bridge gone mid-clip, an old Bridge's `estimated`, render count |
-| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` (0.4.2) | the Bridge release that carries `/state` (§17: publishing it needs the owner) |
-| `docs/BRIDGE.md` | §3 routes, §3a protocol, §3b adapter, §5 "What the page believes", §9 (OSC no longer needed for position) |
-
-### Phase 3 - clip settings
+### Phase 2 - the clock and the server's truth
 
 | File | Change |
 |---|---|
-| `src/model/shows.ts` | `PlayoutItem` (56-83) gains the §7 fields; `setPlayoutItemLoop` (589-597) becomes `setPlayoutItemEnd` and keeps writing `loop` beside `end: 'loop'`; new setters for fades, level and trim; `addPlayoutItem` (536-567) records `mediaKind` and puts audio on the new `PLAYOUT_AUDIO_LAYER = 5` beside `PLAYOUT_CLIP_LAYER` (526) |
-| `src/components/home/PlayoutItemPicker.tsx` | `add` (101-105) passes the server's kind word it drops today (102); the `onAdd` type (46) carries it |
-| `src/components/home/ServerCueEditor.tsx` | At the end (four choices, Play next's target named or its reason), Fade, Level, Advanced (channel, layer, trim, kind); controls greyed without the feature |
-| `src/control/serverPlayout.ts` | what a Take sends now: `end`, the Play-next target (the next clip on the same slot, past graphics, inside the folder), fades, level, trim |
-| `src/control/playoutProtocol.ts` and its mirror | `take` gains `end?`, `next?`, `fadeIn?`, `levelDb?`, `trimIn?`, `trimOut?`; `out` gains `fadeOut?`; `update` may carry `levelDb` alone |
-| `cli/src/playout/server.ts` | `readAction` (185-207) validates the new fields and refuses a malformed one with the hop named |
-| `cli/src/playout/adapters/casparcg.ts` | `casparLine` (43-81) becomes a list of lines per action: `MIXER c-l VOLUME 1`, then `PLAY … [IN n] [OUT n] [MIX n] [AF "volume=…"] [LOOP]`, then `LOADBG … AUTO` for Clear and Play next; fade seconds to channel frames (§18, case 7); an action with none of the new fields writes exactly today's one line |
-| `src/components/home/CueRundown.tsx` | the end marks after the name; audio's icon |
-| `cli/test/playout.test.mjs` | every new line, its order, the exact old line for an old action, 25p and 50p fades, the `AF` value for -60, -12, 0 and +6 dB |
-| `e2e/playout-cues.spec.ts` | the exact action for each setting; an old record (`loop: true` only) still loops; audio lands on layer 5; an old Bridge greys the controls and sends today's action |
-| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | a Bridge release (§17) |
-| `docs/BRIDGE.md` | §3a, §3b, §5a (the sketch superseded) |
+| `src/control/playoutProtocol.ts` and `cli/src/playout/protocol.ts` (`cli/test/playout.test.mjs:18` refuses drift) | `HealthReply.features`, `StatusReply.capabilities`, `SlotState`, `generation` on `ActReply` |
+| `cli/src/playout/server.ts` | `/health` (248) `features`; `/status` (298) `capabilities`; `/state` beside `/act` (325), token-checked; the per-slot generation counter |
+| `cli/src/playout/amcp.ts` | `parseInfo`, per producer (video, still, colour, html), tolerant of fields a version lacks |
+| `cli/src/playout/adapters/casparcg.ts` | `state()`, with the segment arithmetic of §6.7; `capabilities()` (151-157) from the server's version |
+| `cli/src/playout/adapters/ograf.ts` | `capabilities()` (262-264) answers none; `/state` answers `unsupported` |
+| `cli/src/commands/bridge.ts` | reviewed: reads the protocol version only (23); unchanged |
+| `src/control/playoutLink.ts` | keeps `features` from `reachBridge` (396) and `capabilities` from `testConnection` (502); `readState` beside `act` (520); a poller that never overlaps and drops stale generations |
+| `src/control/serverPlayout.ts`, `serverPlayoutStore.ts` | readings into the two store parts; reload matching by instance; unidentified items |
+| `src/components/home/ProductionPage.tsx` | `onVerb` (2640), `canTake` (2148) and All out's enabled state (2691) read the ownership part of the store, so a server-side switch updates what the verbs may do |
+| `src/components/home/ClipClock.tsx` (new) | §6.4 |
+| `src/components/home/PlayoutMonitors.tsx` | `STILL`; PREVIEW's length |
+| `src/components/home/CueRundown.tsx` | remaining time, `NEXT ON SERVER`, `replaced on the server`, unidentified items |
+| `src/styles/playout-dashboard.css` | the clock, the still tag |
+| `cli/test/playout.test.mjs`, `cli/test/caspar.test.mjs` | `parseInfo` against the real-server fixtures (§12, item 1); segment arithmetic for a trimmed file; `/state` auth and origin |
+| `e2e/playout-clock.spec.ts` (new) | counts, warns at 10 and 5, HOLDING, PAUSED, a trimmed clip, reload mid-clip, a stale reading after a Take ignored, the Bridge gone, an old Bridge's `estimated`, render counts, All out and verbs right after a server-side end |
+| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | the release; its notes follow `cli/write-every-published-text-person-who` |
+| `docs/BRIDGE.md` | §3, §3a, §3b, §5, §9 |
+
+### Phase 3 - clip settings and sequences
+
+| File | Change |
+|---|---|
+| `src/model/shows.ts` | `PlayoutItem.mediaKind`; `ShowCue.playback`; the effective-ending function and loop precedence of §7 (`setPlayoutItemLoop`, 589-597, is no longer called by this build; it stays for reading old records); setters for the cue's playback; `addPlayoutItem` (536-567) records `mediaKind` and puts audio on `PLAYOUT_AUDIO_LAYER = 5` |
+| `src/components/home/PlayoutItemPicker.tsx` | `add` (101-105) passes the server's kind word; the `onAdd` type (46) carries it |
+| `src/components/home/ServerCueEditor.tsx` | At the end (with Play next's target and its reasons), Fade, Level (applies at next Take), Advanced with validated trim; controls off without the capability |
+| `src/control/serverPlayout.ts` | the playback descriptor from the cue; Play next resolved from the rundown at the Take into a `sequence`; a legacy cue sends today's action; a cue the Bridge cannot honour is not taken |
+| `src/components/home/ProductionPage.tsx` | `canTake` (2148) and the Take button say why a cue cannot be taken with this Bridge |
+| `src/components/playoutKeys.ts` (43-69) | `p` toggles pause on a server clip (`components/keep-every-playout-verb-key-keymap`); bound only while playout is on screen, not in Data or Audience, not while typing, and a held key does not repeat |
+| `src/control/playoutProtocol.ts` and its mirror | `MediaPlayback`, `sequence` |
+| `cli/src/playout/server.ts` | `readAction` (185-207) validates the descriptor and `sequence`; the per-slot serial queue and the runner's state |
+| `cli/src/playout/runner.ts` (new) | the sequence runner of §6.10, with an injectable clock |
+| `cli/src/playout/adapters/casparcg.ts` | `casparLine` (43-81) becomes the lines for an action: `PLAY … [IN] [OUT] [MIX n] [AF "volume=…"] [LOOP]`, `LOADBG … AUTO` for Clear and followers, `CLEAR`/`PLAY EMPTY MIX` for Out with a follower, `LOADBG EMPTY` after a refused `PLAY`; fades and ramps converted with the channel's frame rate, read once per target and channel and read again when the channel's format changes |
+| `cli/src/playout/adapters/ograf.ts` | refuses media playback fields and a level-only `update` (332) |
+| `cli/test/playout.test.mjs`, `cli/test/runner.test.mjs` (new) | every line and its order; the exact old line for a legacy action; 25p, 50p, 29.97 and interlaced conversions; every runner case of §18 against the fake, fault-injected |
+| `e2e/playout-cues.spec.ts` | each setting's action; a legacy `loop: true` cue still loops; audio on layer 5; a cue with a fade on an old Bridge cannot be taken and says why |
+| `e2e/playout-sequence.spec.ts` (new) | Play next's target and reasons; TO STUDIO with overlaps; Out mid-sequence |
+| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json`, `docs/BRIDGE.md` | the release; §3 records the runner as the Bridge's one piece of state |
 
 ### Phase 4 - folders
 
 | File | Change |
 |---|---|
-| `src/model/shows.ts` | `Show.folders`, `ShowCue.folderId` (§7); `addShowCue` (499-522), `moveShowCue` (687-697), `removeShowCue` (707-719) and `setShowCues` (659-684) keep a folder's cues together; new `addFolder`, `renameFolder`, `setFolderMode`, `removeFolder` (keeps the cues), `moveCueIntoFolder` |
-| `src/model/teamShowMerge.ts` | `FIELD_LABEL` (26-37) gains `folders: 'folders'`. `folders` is an id-keyed list, so `mergeItems` (60-80) already merges it item by item with the stored order as the spine; a spec proves two members adding folders at once keeps both |
-| `src/components/home/CueRundown.tsx` | folder rows, indentation, collapse, drag into and out of a folder, the folder's `⋯` menu |
-| `src/components/home/FolderEditor.tsx` (new) | the folder's panel: how it plays, at the end, what airs where |
-| `src/components/playoutKeys.ts` | `stepSelection` (109-119) walks visible rows; a folder row is one step |
-| `src/control/serverPlayout.ts` | a folder Take: Play through becomes one `sequence`; All together becomes one batch plus the graphic Takes; folder Out |
-| `src/control/playoutProtocol.ts` and its mirror | the `sequence` verb; the `/act` batch |
-| `cli/src/playout/server.ts` | `/act` accepts a batch; the sequence runner's state, per slot, in memory (§6.6) |
-| `cli/src/playout/adapters/casparcg.ts` | `BEGIN … COMMIT` when `VERSION` is 2.4 or later; the sequence runner reading `INFO` and queuing the next `LOADBG … AUTO` |
-| `cli/src/playout/amcp.ts` | `amcpSend` (81) opens one connection per command today; a batch sends `BEGIN`, its lines and `COMMIT` on one connection and reads each reply |
-| `src/control/hostedControl.ts`, `src/components/HostedControlPage.tsx` | **not changed**: folders are not published (Q5). `buildOutputPayload` (289-344) copies named fields, so the hosted page keeps listing every cue flat, in order; a spec proves it |
-| `src/export/showExport.ts` (274-278), `src/packs/graphicsPack.ts` (420-448), `api/_lib/me/packageShape.ts` | **not changed**: they copy named fields, so folders do not travel in an export or a pack in these phases. A spec proves a production with folders still exports and packs with every graphic cue in order. |
-| `e2e/playout-folders.spec.ts` (new) | create, rename, drag in and out, collapse, keyboard, delete keeps the cues, a split folder in an old record, the three modes against the timed fake, Loop the folder, All together as one batch |
-| `e2e/production-pack.spec.ts`, `e2e/production-persistence.spec.ts` | a production with folders round-trips a reload and a pack |
-| `cli/test/playout.test.mjs` | the batch, the sequence runner against `_fakeCasparServer.mjs`: each switch queues the next, Out ends it, a new Take ends it |
-| `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | a Bridge release (§17) |
-| `docs/BRIDGE.md`, `docs/PLAYOUT_DASHBOARD.md` | the new behaviour |
+| `src/model/shows.ts` | `Show.folders`, `ShowCue.folderId`; every writer keeps folders whole: `addShowCue` (499-522, also Duplicate), `addGraphicToShow` (393-432), `addPlayoutItem` (536-567), `moveShowCue` (687-697), `removeShowCue` (707-719), `removeShowGraphic` (434), `removePlayoutItem` (625), `setShowCues` (659-684, drops `folderId`); new `addFolderFromSelection`, `renameFolder`, `setFolderMode`, `removeFolder` (keeps the cues), `moveCueIntoFolder` |
+| `src/model/teamShowMerge.ts` | `FIELD_LABEL` (26-37) gains `folders`; after `mergeItems` (60-80), a step that gathers split folders and reports `folders` |
+| `src/components/home/CueRundown.tsx` | folder rows, indentation, collapse, drag in and out (3570-3585 today), the folder menu through `LibMenu` (`home/AGENTS.md`: it measures which way it opens), `(continued)` runs |
+| `src/components/home/FolderEditor.tsx` (new) | §6.5, a folder |
+| `src/components/playoutKeys.ts` | `stepSelection` (109-119) walks visible rows; a folder row is one step; Space on a folder row takes the folder in every Space mode |
+| `src/components/home/ProductionPage.tsx` | `onVerb` (2640) dispatches a folder as well as a cue; `canTake` and All out know folders |
+| `src/control/serverPlayout.ts` | a folder Take: Play through → one `sequence`; All together → its cues one after another with per-cue results, conflicting slots refused before sending; folder Out |
+| `src/components/home/ProductionAudienceWorkspace.tsx` (467, 517) | reviewed: finds cues by id; unchanged |
+| `src/components/home/sections/ProductionsSection.tsx` (58) | reviewed: counts cues, and folders are not cues; unchanged |
+| `src/control/hostedCombine.ts` (112), `src/model/profile.ts` (683), `src/control/combine.ts` | reviewed: combined controls reference cues by id; unchanged |
+| `src/export/spxLeftBehind.ts` (72) | reviewed: exported cue references by id; unchanged |
+| `api/_lib/dataIngest.ts` (247) | reviewed: the data API finds published cues by id; unchanged |
+| `src/control/hostedControl.ts`, `HostedControlPage.tsx`, `src/export/showExport.ts`, `src/control/productionControllerHtml.ts` (663), `src/packs/graphicsPack.ts`, `api/_lib/me/packageShape.ts` | **not changed**: folders are not published, exported or packed; each keeps the flat order, pinned per §8 |
+| `e2e/playout-folders.spec.ts` (new) | from selection, rename, drag in and out, collapse, keyboard, removed when empty, duplicate joins the folder, a split folder read and gathered, the three modes against the fake, Loop the folder, All together's partial result and its refused conflicting slots; folder changes report success only after the durable write (`components/never-report-save-storage-layer-has`) |
+| `e2e/production-pack.spec.ts`, `e2e/production-persistence.spec.ts` | a production with folders round-trips a reload; a pack keeps graphic order and drops folders |
+| `scripts/team-show-merge.test.mjs` | the existing merge tests grow the folder cases: one teammate folders A and B, the other orders A, C, B, D; the result is gathered and reported; two teammates adding folders at once keep both |
+| `docs/PLAYOUT_DASHBOARD.md`, `docs/BRIDGE.md` | the new behaviour |
 
 ### Not touched by any phase
 
 The editor (`src/components/editorFoundation/**`, `src/editor/**`, `src/App.tsx`), the
 editor-opening code in `HomePage.tsx`, `GraphicControlPage.tsx` and `CreationWizard.tsx`; the output
-renderer (`/output`); the database and its migrations (nothing here is published through the
-command log); `src/control/combine.ts` (combined controls resolve cues by id, not order).
+renderer (`/output`); the database and its migrations; the Presenter page.
 
 ## 17. Where this plan meets the repository's standing rules
 
-Found while mapping the files; each needs a decision before the phase it names, and none is
-settled by this plan alone.
+1. **The dashboard-parity invariant, retired 2026-09-27.** It said the hosted page and the
+   production page render identically and every control goes on both in one commit. The owner
+   loosened it (Q5), and `components/build-playout-dashboard-desktop-production-page` supersedes it:
+   the production page leads, the hosted page is a best-effort companion that may look different or
+   lack controls, a control that needs the Bridge lives only on the production page, and **no change
+   may break what the hosted page already does** (§8).
+2. **`backlog/production-page-phases.md`**: phase 0 runs its phases 1 and 2 as written; `liveCue`
+   and `selectedCueId` never move.
+3. **The Bridge keeps no state** (`BRIDGE.md` §3): the sequence runner is the one exception (§6.10),
+   recorded in `BRIDGE.md` in phase 3.
+4. **Bridge releases** are routine and need no owner (`GOALS.md`, "Autonomous work"). Their notes
+   follow `cli/write-every-published-text-person-who`.
+5. **Owner checks only where a person must judge** (`root/verify-proportion-change-against-spec-acceptance`):
+   §11 lists them.
+6. **Saves are reported only once landed** (`components/never-report-save-storage-layer-has`):
+   folder creation, moves and removal await the durable write before they say done or continue.
+7. **One keymap** (`components/keep-every-playout-verb-key-keymap`): `P` lives in `playoutKeys.ts`,
+   bound only while playout is on screen.
+8. **Popovers through `LibMenu`** (`src/components/home/AGENTS.md`): the folder menu measures which
+   way it opens and closes on Escape and an outside press.
+9. **Guards tested to fail, and duplicate entrances asserted as arithmetic** (`e2e/AGENTS.md`).
+10. **Layer-clash warnings and each export target's validation** stay as they are; §6.2 and §6.5
+    keep the clash visible.
+11. **Additive fields, no version bump** (`root/version-every-persisted-format-ship-breaking`), and
+    the old-writer behaviour of §7 pinned with the old build's own functions.
 
-1. **The dashboard-parity invariant, retired 2026-09-27.** It said the hosted `?control=` page and
-   the production page render identically, and that "a control added to either belongs on BOTH in
-   the same commit". The owner loosened it (Q5): the desktop production page is what must work,
-   and the phone is a nice add-on if it works. It is superseded by
-   `components/build-playout-dashboard-desktop-production-page`: the production page leads, the
-   hosted page is a best-effort companion that may look different or lack controls, a control
-   that needs the Bridge lives only on the production page, and **no change may break what the
-   hosted page already does**. So:
-   - **Phase 1** changes the shared `.pd-` row styles, which the hosted page also wears. Where that
-     helps it, it stays; where it hurts the phone, the change is scoped to the production page.
-     The resize handle is production page only.
-   - **Phases 2, 3 and 4** add nothing to the hosted page. Folders are not published.
-   - Every phase keeps the frozen-surface spec green (§8).
-2. **`backlog/production-page-phases.md`**: the page split is already planned, with the rule that
-   `liveCue` and `selectedCueId` never move and that the owner runs the phases awake. Phase 0 runs
-   its phases 1 and 2 as written and adds the server-playout module, which moves `livePlayout`
-   but neither of those two.
-3. **The Bridge keeps no state** (`BRIDGE.md` §3). Phase 4's sequence runner is the one exception
-   (§6.6), recorded in `BRIDGE.md` in the same commit.
-4. **A Bridge release is a publication past `main`** (`root/publishing-past-still-needs-user-message`):
-   the `bridge-vX.Y.Z` tag runs `.github/workflows/release-bridge.yml` and puts a download on the
-   Releases page, which a later commit cannot take back. Phases 2, 3 and 4 each end with one, and
-   each needs the owner's go in that message. Its notes follow `cli/write-every-published-text-person-who`.
+## 18. What could go wrong, and the test that guards it
 
-## 18. What could go wrong, case by case
+"Runner" tests run in `node:test` against the fake server with an injectable clock (§10); "e2e"
+tests run in Playwright with the Bridge faked at the network layer. Every guard has a test that
+breaks it on purpose.
 
-Each case names the guard the build must have, and the phase whose specs pin it. "Source" means
-checked in the CasparCG source (§4); "server" means it goes on §12's list for the real server.
+**The sequence runner and the server**
 
-**On the server**
+| # | Case | Guard | Test |
+|---|---|---|---|
+| 1 | A runner queue arrives after Out, onto an empty layer, which would play it at once | generations: work planned under an old generation is dropped unsent | runner: delay the queue across Out and across a new Take; assert no old follower ever airs |
+| 2 | A replacement Take's `PLAY` is refused; the old follower stays armed | `LOADBG c-l EMPTY` after a refused `PLAY` | runner: refuse the `PLAY`; advance past the old clip's end; nothing new airs |
+| 3 | Pause inside the MIX threshold; a follower queued while paused starts at once | never queue onto a paused slot | runner: pause before, at and after the threshold; try to queue while paused; resume |
+| 4 | A still in a sequence never ends | stills are Hold-only; the Bridge refuses a still in a sequence | runner and e2e: a still offered Play next; a sequence entry of a still refused |
+| 5 | An old item with no `mediaKind` joins a sequence | resolved from `CLS` first; unresolved, not allowed in a sequence | e2e: an old record's clip set to Play next |
+| 6 | A trim outside the file, or start after end | validated in the panel and refused by the Bridge | e2e and unit: invalid ranges |
+| 7 | Fades at 50p, 29.97 and interlaced channels | seconds converted with the channel's rate, cached per target and channel, re-read on a format change | unit: each format; runner: a format change |
+| 8 | A follower clip shorter than the queue-ahead margin | members of at least 2 seconds; the runner reads four times a second | runner: a 2-second member queues its follower in time; a shorter one is refused |
+| 9 | Another client takes the slot | the runner ends its sequence and sends nothing; the row says `replaced on the server` | runner and e2e |
+| 10 | Two Bridges on one slot | the last taker owns it; the other ends its own and never re-queues | runner: two runners against one fake server |
+| 11 | The Bridge restarts mid-sequence | `/state` answers with no instance; the page says the sequence stopped; a queued loop keeps looping | runner: restart separately from a dropped connection |
+| 12 | A cue with new settings on an old Bridge or an unsupported target | Take disabled with the reason; legacy cues send today's line | e2e with a fake 0.4 Bridge and an OGraf target |
+| 13 | The Bridge refuses a field its adapter lacks | refused with the hop named, never dropped | unit: OGraf with media fields and a level-only `update` |
 
-1. **A new Take onto a slot with a queued follower.** `PLAY c-l "<clip>"` loads its own background
-   first, which replaces the queued one and switches `AUTO` off (source: `load()` sets
-   `auto_play_` from the new command). The Bridge also ends its sequence for the slot before
-   sending. Pinned in phase 3 (unit) and phase 4 (e2e). Server: confirm on 2.5.0.
-2. **Out during a sequence.** `STOP` empties the foreground and switches `AUTO` off (source:
-   `stop()`), but the queued background stays loaded. NoaCG never sends a bare `PLAY c-l` without a
-   name, so it is never played. An Out with a fade sends `PLAY c-l EMPTY MIX n`, which replaces the
-   background too. Pinned in phase 3 (unit: no nameless PLAY is ever written).
-3. **Pause during a sequence.** A paused clip does not advance, so `AUTO` does not fire until
-   Resume; `INFO` reports `paused`, and the clock and TO STUDIO stop. Pinned in phase 4 (e2e with
-   the timed fake server).
-4. **Loop and Play next together.** They are one control (At the end), so they cannot both be set.
-   A looping clip never ends, so nothing queued behind it would ever play.
-5. **A still image.** A still has no length (2.3.2 lists it as `1 1/25`,
-   `cli/src/playout/amcp.ts:218-221`), so `AUTO` behind it would fire at once. At the end, Play next
-   and fades on the end are offered for movies and audio only; a still keeps Hold and Out.
-6. **Trim and `AUTO`.** `AUTO` counts the producer's own frames; with `IN`/`OUT` set, that should
-   be the trimmed length. Server: confirm, or trim is not offered on a clip set to Play next.
-7. **Fade lengths at other frame rates.** `MIX n` counts the channel's frames, so 12 frames is half a
-   second at 25p and a quarter at 50p. The adapter converts Short (0.5 s) and Long (1 s) to frames
-   with the channel's own rate, read once from `INFO <channel>` and cached per target. Pinned in
-   phase 3 (unit, 25p and 50p).
-8. **The mixer level leaks to the next clip.** `MIXER VOLUME` outlives the clip on its layer
-   (source). Every manual Take writes `MIXER c-l VOLUME 1` before its `PLAY`; the stored level rides
-   in the clip's own `AF`. Pinned in phase 3 (unit: the line order).
-9. **Another client takes the layer** (the CasparCG Client, a second NoaCG). `INFO` shows a file the
-   rundown did not send: the row reads `replaced on the server` and the clock goes. The Bridge ends
-   its sequence for that slot. Pinned in phase 2 (e2e).
-10. **2.3 servers.** No `BEGIN … COMMIT`: an All-together folder goes one command after another. The
-    adapter declares `batch` only when `VERSION` says 2.4 or later. Server: whether 2.3 is still in
-    use anywhere.
+**Timing and the page**
 
-**In the Bridge and the network**
+| # | Case | Guard | Test |
+|---|---|---|---|
+| 14 | A slow `INFO` answer from before a Take arrives after it | readings older than the page's last accepted generation are ignored | e2e: delay a pre-Take reading past the Take |
+| 15 | Twice-a-second updates re-render the whole page | two store parts; only the clock and rows read timing | e2e: render counts bounded; verbs and All out right after a server-side end |
+| 16 | A hidden or closed tab | the Bridge runs sequences; the page re-reads `/state` on return | runner: the page gone mid-sequence; e2e: a hidden tab |
+| 17 | Reload mid-clip, same file twice, adjacent identical clips | matched by instance; otherwise an unidentified item | e2e: each, including a same-file retake by another client |
+| 18 | TO STUDIO wrong with crossfades or trims | segment lengths minus overlaps; `?` when unknown | unit and e2e: 3×10 s with two 1 s MIXes reads 0:28 |
+| 19 | Keyboard | `P` and folder steps in `playoutKeys.ts` | e2e: folder selection, every Space mode, a held `P`, focus in a field, Data and Audience open |
 
-11. **The Bridge stops or restarts mid-sequence.** The server plays the file already queued and
-    holds. The page's `/state` calls fail: the clock reads `no answer from NoaCG Bridge` over its
-    last known number, and the row keeps ON AIR with the same note. Pinned in phase 2 (e2e: Bridge
-    goes away mid-clip).
-12. **An old Bridge.** `/health` has no `features`: every new control is greyed with "Update NoaCG
-    Bridge to use this", and a Take sends exactly today's line. Pinned in phase 3 (e2e with a fake
-    0.4 Bridge).
-13. **`INFO` answers slowly.** The poll never overlaps itself: the next one waits for the last. The
-    clock keeps counting from the last good answer and marks itself `estimated` after 3 s without
-    one.
-14. **A Take the server has not started yet.** The first `INFO` after a Take can still show the old
-    file. The page trusts its own accepted Take for one second before `INFO` may overrule it.
+**The record**
 
-**In the page**
+| # | Case | Guard | Test |
+|---|---|---|---|
+| 20 | A `folderId` naming no folder | read as no folder; removing a folder clears its cues' ids | e2e: an orphan in a record |
+| 21 | A folder split by an older build or a merge | shown as `(continued)` runs; gathered by the next move and by the merge, which reports it | e2e and a merge test: the A, C, B, D case |
+| 22 | Concurrent moves and deletes, duplicate, import | every writer of §16 phase 4 keeps folders whole | e2e per writer |
+| 23 | An older build edits loop | §7's precedence; this build never writes `item.loop` | e2e: edits through the shipped `setPlayoutItemLoop`, then this build reads |
+| 24 | Level applied twice | no `MIXER VOLUME` is ever sent; the level is the clip's `AF` | unit: no MIXER line in any action; real server: measured level (§12, item 4) |
+| 25 | The frozen surfaces | each checked for what it does today (§8) | e2e: hosted page, export and pack with folders and playback settings |
 
-15. **Twice-a-second updates re-rendering the whole page.** The production page is one large
-    component; a poll that sets its state would re-render all of it twice a second. The server
-    state lives in its own small store (phase 0), and only the clock, the rows' time and the
-    on-air marks subscribe to it. Pinned in phase 2 by a render-count check in the e2e spec.
-16. **A hidden tab.** The page's own polling slows when the tab is hidden (see §6.6), which only
-    delays the display; the server and the Bridge carry on. On return the page reads `/state` at
-    once.
-17. **Reload mid-clip.** The page reads `/state` and matches each slot's file to the rundown's
-    server cues on that slot. Two cues of the same file on one slot are ambiguous: the page marks
-    the first and says `matched by file name`. Pinned in phase 2 (e2e: reload mid-clip).
-18. **Two operators on one show.** Both pages poll and both show the same truth; only the Bridge
-    queues sequences, so nothing is sent twice. A Take from either replaces the slot, as today.
-19. **Keyboard.** Arrow keys walk visible rows only: a collapsed folder is one row, and Space on a
-    folder row takes the folder. `P` pauses a server clip (a new key; H stays reserved for the
-    timed cues' Hold). Pinned in phase 4 and phase 3.
+## 19. The review of revision 1, and what was done
 
-**In the record**
+Codex reviewed revision 1 at `5b3b044` against the code and the CasparCG source (2026-09-27): "AGREE
+WITH CORRECTIONS. The overall direction is sound, including putting sequence execution in the
+Bridge." Each finding was checked against the source before it was accepted; none was rejected.
 
-20. **A cue whose `folderId` names no folder** (a folder deleted on another machine, an old pack):
-    read as no folder. Deleting a folder keeps its cues and clears their `folderId`.
-21. **A folder's cues no longer contiguous** (an older build moved one out of the middle): the page
-    shows each run of the folder's cues as it stands, never reorders on read, and the next move in
-    this build puts them back together. Pinned in phase 4 (e2e: a record with a split folder).
-22. **An older build saves the show.** Every new field is optional and passes through untouched,
-    and `loop` is still written beside `end: 'loop'` (§7). Pinned in phase 3 and 4 by reading a
-    record written by this build with the previous build's normaliser (fixture in the spec).
-23. **The hosted page, the exported controller and packs.** They read the flat cue list and ignore
-    the new fields. Pinned in each phase by the frozen-surface spec (§8).
+| # | Finding | Done |
+|---|---|---|
+| 1 | The countdown is wrong for trimmed clips (`file/time` is the whole file) and sequences (overlaps) | accepted: `SlotState` with segment and position (§6.7); TO STUDIO minus overlaps (§6.4) |
+| 2 | Live volume stacks with the clip's `AF` and leaks into followers | accepted: no `MIXER VOLUME` at all; the level applies at the next Take; a live fader later (§6.6) |
+| 3 | Cancelling a sequence does not cancel the server's queued follower (late queue, failed PLAY, pause) | accepted: serial queue per slot, generations, disarm, no queue while paused (§6.10) |
+| 4 | `BEGIN … COMMIT` is not a transaction and does not prove sync | accepted: All together sends one after another, per-cue results, conflicting slots refused; batching later (§6.6) |
+| 5 | The file, the cue and a playback instance are conflated | accepted: playback on the cue (§7), instance ids (§6.10), unidentified items after reload (§6.7), one authority per slot |
+| 6 | Take lacks the end fade; Play next needs the runner in phase 3; the transition between two clips is undefined | accepted: one playback descriptor (§9); runner in phase 3 (§11); the incoming clip decides (§6.6) |
+| 7 | Capabilities are per target, and old Bridges silently change authored playback | accepted: `/health` features and `/status` capabilities; Take disabled with a reason; the Bridge refuses, never drops (§6.9) |
+| 8 | Folders split under the team merge; loop has two writable places; empty folders have no place | accepted: gathered and reported by the merge; one writable loop; folders made from selection and removed when empty (§7) |
+| 9 | Stills, MIX-only overlap, frame arithmetic, 2.4 vs 2.5 batching | accepted: §4 corrected; producer-aware parsing; format conversion per target and channel; batching dropped |
+| 10 | §16 misses page wiring and consumers | accepted: `onVerb`, `canTake` and All out wiring per phase; every consumer listed with "unchanged because" (§16) |
+| 11 | `page.clock` does not drive the fake server; guards were happy paths | accepted: an injectable clock in the fake and the runner; fault-injected guards (§10, §18) |
+| 12 | The denser row drops note, kind, clash and state; scrolling must stay on the control area | accepted: §6.2 keeps each; §6.1 keeps the one scroller; the list does not follow the air during edits |
+| 13 | §17 cited retired rules and over-required owner items | accepted: §17 and §11 cite the active rules |
+
+Its answers to revision 1's questions: the Bridge runner, yes; polling twice a second, a reasonable
+start to be measured, with commands given priority; Play next past graphics, keep it but name the
+exact target and the skipped cues; flat folders, a foundation that needed the rules §7 now has; the
+phase 0 split, yes, without building a general framework; graphics-only losses, yes, now kept.
