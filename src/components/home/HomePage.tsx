@@ -23,6 +23,7 @@ import { checkTemplateLegibility } from '../../validation/designRulesWarnings';
 import type { ProjectLegibility } from '../../model/designRules';
 import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
 import { graphicKindLabel, type SpxTemplate } from '../../model/types';
+import { DOWNLOADS_URL } from '../../downloads/links';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
@@ -30,7 +31,6 @@ import { useAuthState } from '../auth/useAuthState';
 import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SettingsDialog from '../SettingsDialog';
-import { DOWNLOADS_URL } from '../../downloads/links';
 import { copyLink } from './copyLink';
 import { activeValues } from './GraphicRow';
 import GraphicThumb from './GraphicThumb';
@@ -339,7 +339,9 @@ export default function HomePage({ route }: { route: Route }) {
                 )}
               </div>
               {searchRow}
-              {searchFiltered.length === 0 && videos.length === 0 && productions.length === 0 && (
+              {/* An EMPTY LIBRARY, not an empty search result: see the same gate in the Graphics
+                  section below. */}
+              {graphics.length === 0 && videos.length === 0 && productions.length === 0 && (
                 <EmptyHint onNew={() => navigate({ view: 'new' })} />
               )}
               <div className="home-shelf">
