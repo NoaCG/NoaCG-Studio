@@ -297,7 +297,7 @@ const MAP = [
   // which road a clock-free graphic's events take. Its sources are the two control lists, the
   // imported quiz recipe, the road rule and its clock test, and the two pages that send.
   [/^src\/(templates\/(types\/(answerBoard|quizShow)|behaviours\/quiz)|control\/(hostedControl|matchClockWire))\.ts$/, ['quiz-live-consistency.spec.ts']],
-  [/^src\/components\/(home\/ProductionPage|HostedControlPage)\.tsx$/, ['quiz-live-consistency.spec.ts']],
+  [/^src\/components\/(home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor)|HostedControlPage)\.tsx$/, ['quiz-live-consistency.spec.ts']],
   // THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
   // score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
   // the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
@@ -483,7 +483,7 @@ const MAP = [
   // no row: the `src/backend/` rule already reaches auth.spec.ts.
   // ProductionLinks carries the Start production button, whose offline title auth.spec.ts pins
   // (the page's own auth posture: disabled, a plain reason, no sign-in dialog).
-  [/^(src\/components\/teams\/|src\/components\/home\/(ProductionPage|ProductionLinks|sections\/ProductionsSection)\.tsx$)/, ['auth.spec.ts']],
+  [/^(src\/components\/teams\/|src\/components\/home\/(ProductionPage|ProductionLinks|CueRundown|sections\/ProductionsSection)\.tsx$)/, ['auth.spec.ts']],
   // AGENT ACCESS (docs/AGENT_SAVE.md): the consent query route, the Settings key list, the
   // browser client and the two /api/me routes it calls. The offline spec pins the no-backend
   // posture; the live half is e2e/configured/agent-access.spec.ts (CONFIGURED_TRIGGERS).
@@ -611,14 +611,14 @@ const MAP = [
   // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
   // named here rather than left to the components/home rule above: that rule's set does not
   // include this spec, and the ONE button is the whole browser half of the feature.
-  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
+  [/^src\/components\/home\/(ProductionPage|ProductionLinks|CueRundown|PlayoutMonitors|ServerCueEditor)\.tsx$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
   // The dashboard's fixed shell: the control area is the one scroller and the monitors and the
   // rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches
   // the spec through the FOCUS list; the exported controller carries its own copy of the shell,
   // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
   // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
   // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
-  [/^src\/components\/home\/ProductionPage\.tsx$/, ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
+  [/^src\/components\/home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor)\.tsx$/, ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
   // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
   // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
   // header door and the Back/Home pair beside it.
@@ -632,6 +632,16 @@ const MAP = [
   [/^src\/components\/home\/PlayoutItemPicker\.tsx$/, ['playout-cues.spec.ts']],
   [/^src\/components\/HostedControlPage\.tsx$/, ['playout-cues.spec.ts']],
   [/^src\/(model\/shows|control\/hostedControl)\.ts$/, ['playout-cues.spec.ts']],
+  // THE PRODUCTION PAGE, SPLIT (docs/CLIP_PLAYBACK_PLAN.md §16 phase 0). The rundown, the monitors
+  // and the server cue editor moved out of ProductionPage.tsx, and the server's verbs into
+  // control/serverPlayout.ts with their store, so every row that names ProductionPage.tsx for a
+  // behaviour now names the file that behaviour lives in too. The baselines ride on all of them:
+  // they are the pictures the split was held to.
+  [
+    /^src\/(components\/home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor|ProgramStage|PayloadStage)\.tsx|control\/serverPlayout(Store)?\.ts)$/,
+    ['playout-baseline.spec.ts'],
+  ],
+  [/^src\/control\/serverPlayout(Store)?\.ts$/, ['playout-cues.spec.ts', 'bridge-connect.spec.ts']],
   // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
   // change to it moves the same control on Home, the editor, the control page, the production
   // dashboard and the video shell. styles.css is already CORE, so this row is not
@@ -652,7 +662,7 @@ const MAP = [
     ['exports.spec.ts', 'control.spec.ts', 'local-relay.spec.ts', 'ograf-conformance.spec.ts', 'render.spec.ts', 'template-pack-10.spec.ts', 'template-pack-4.spec.ts', 'production-controls.spec.ts'],
   ],
   [
-    /^src\/components\/home\/ProductionPage\.tsx$/,
+    /^src\/components\/home\/(ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor)\.tsx$/,
     ['bridge-connect.spec.ts', 'cross-tab.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-audience.spec.ts', 'production-chat-intake.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'productions.spec.ts', 'quiz-pilot.spec.ts'],
   ],
   [

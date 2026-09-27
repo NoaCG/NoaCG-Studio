@@ -1079,3 +1079,85 @@ test('canAdvance greys past the last waypoint, and movedStateNames names only a 
   expect(measured.questionKeeps).toEqual([]);
   expect(measured.nothingReportedAdvances).toBe(true);
 });
+
+// ── THE HOSTED PAGE'S SERVER CUES, frozen (docs/CLIP_PLAYBACK_PLAN.md §8) ──
+//
+// The clip playback work gives the production page folders and per-cue playback settings, and
+// gives this page nothing new: it must keep doing exactly what it does today. For a server cue
+// that is LISTING it, with its CasparCG address, under "On the playout server", and offering no
+// way to take it, because a phone cannot reach the operator's own Bridge.
+//
+// WHAT THIS PROVES AND WHAT IT DOES NOT. The page cannot be mounted offline (it needs a configured
+// backend, the same ceiling as the cases above), so its DOM is the live checklist's. What an
+// offline run can pin is everything the page reads and how it draws it: the published payload a
+// production with server cues on two channels writes, read back through the reader the page
+// uses, and the page's own source for that list - rows with an address and no button in them.
+
+test('the hosted page lists server cues by their address, apart from the graphic cues, and offers no way to take them', async ({ page }) => {
+  // The studio's two named channels, in place before the app boots.
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'spx-gfx-caspar',
+      JSON.stringify({
+        agentUrl: 'http://127.0.0.1:8899',
+        agentToken: 'e2e-token',
+        host: '127.0.0.1',
+        amcpPort: 5250,
+        channel: 1,
+        layer: 20,
+        v: 1,
+        channels: [
+          { channel: 1, name: 'Graphics' },
+          { channel: 2, name: 'Inserts' },
+        ],
+        clipChannel: 2,
+      }),
+    );
+  });
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  const published = await page.evaluate(async () => {
+    const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
+    const { useTemplateStore } = await import('/src/store/templateStore.ts');
+    const show = createShowNamed('Frozen Hosted');
+    addGraphicToShow(show.id, useTemplateStore.getState().template);
+    addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', channel: 2 });
+    addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP' });
+    const record = loadShows().find((s) => s.id === show.id)!;
+    const payload = readOutputPayload(JSON.parse(JSON.stringify(await buildOutputPayload(record))));
+    return {
+      graphicCues: (payload?.cues ?? []).map((c) => c.label),
+      playoutCues: (payload?.playoutCues ?? []).map(({ label, kind, name, channel, channelName, layer }) => ({
+        label,
+        kind,
+        name,
+        channel,
+        channelName,
+        layer,
+      })),
+    };
+  });
+  // The graphic cue is the one the page can take; the server cues are listed apart, each with the
+  // channel and layer its row prints as `2-10`.
+  expect(published.graphicCues).toHaveLength(1);
+  expect(published.playoutCues).toEqual([
+    { label: 'GIORNO', kind: 'media', name: 'GIORNO', channel: 2, channelName: 'Inserts', layer: 10 },
+    { label: 'HOUSE_STRAP', kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP', channel: 1, channelName: 'Graphics', layer: 21 },
+  ]);
+
+  // How the page draws them: under their own heading, the address through the shared
+  // `slotAddress`, and not one button in a row - nothing there selects, previews or takes.
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/components/HostedControlPage.tsx', import.meta.url), 'utf8');
+  const start = src.indexOf('data-testid="hosted-playout-cues"');
+  // The block runs to the hint under the rows, which says why nothing here can take them.
+  const end = src.indexOf('This page cannot reach it.', start);
+  expect(start, 'the hosted page lists server cues').toBeGreaterThan(0);
+  expect(end, 'the list still says why it cannot take them').toBeGreaterThan(start);
+  const block = src.slice(start, end);
+  expect(block).toContain('<h3>On the playout server</h3>');
+  expect(block).toContain('data-testid={`hosted-playout-cue-${cue.id}`}');
+  expect(block).toContain('slotAddress({ channel: cue.channel, layer: cue.layer })');
+  expect(block).not.toContain('<button');
+  expect(block).not.toContain('onClick');
+});
