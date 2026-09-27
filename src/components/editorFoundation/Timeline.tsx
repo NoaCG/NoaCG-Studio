@@ -91,7 +91,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             onClick={event => select(part.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>
             <span className="ef-layer-number">{String(index + 1).padStart(2, '0')}</span>
             <span className="ef-layer-icon">{part.kind === 'line' ? 'T' : part.kind === 'image' ? '▧' : '◇'}</span>
-            <span>{part.label}</span>
+            <span style={{ paddingInlineStart: (part.depth ?? 0) * 8 }}>{part.label}</span>
           </button>
           <div className="ef-track-lane">
             {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={view.data?.speed ?? 1} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
@@ -105,6 +105,6 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       })}
       {!view.parts.length && <p className="ef-notice">No addressable layers in this source.</p>}
     </div>
-    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Drag bars: snap to frames · Alt: bypass · Moves stay within cues</span></div>
+    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Body: move keys · Edges: trim visibility · Alt: bypass snap</span></div>
   </section>;
 }

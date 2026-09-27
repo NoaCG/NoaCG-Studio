@@ -10,7 +10,7 @@ import { parseAnimData } from './animData';
 export function artworkNode(template: SpxTemplate, selector: string): Element {
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
   const nodes = doc.querySelectorAll(selector);
-  if (nodes.length !== 1 || !getTemplateParts(template.html, template.fields).some(p => p.selector === selector)) {
+  if (nodes.length !== 1 || !getTemplateParts(template.html, template.fields, true).some(p => p.selector === selector)) {
     throw new Error('Select a uniquely addressable artwork layer.');
   }
   return nodes[0];

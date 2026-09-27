@@ -118,9 +118,13 @@ export function detectPrefix(html: string): string | null {
  * compound, or attribute selectors: the animation-region parsers (blocks/timelineModel.ts)
  * strip whitespace and split target lists on commas, so anything richer cannot round-trip
  * through the emitted code.
+ * Foundation-only nested inspection may return structural selectors for unnamed SVG
+ * nodes. The committed operation replaces those with an ID before persisting edits.
  */
 export interface TemplatePart {
   selector: string;
+  /** Source hierarchy, only for the foundation editor's nested SVG inspection. */
+  depth?: number;
   kind: 'root' | 'panel' | 'accent' | 'line' | 'image' | 'block';
   /** The human name every surface shows ('Whole graphic', 'Panel', field titles, …). */
   label: string;
@@ -165,7 +169,7 @@ function insertedPrefixes(doc: Document): Array<{ root: Element; prefix: string 
  * - hidden data holders (`.noacg-data-source` divs SPX writes into) are not parts; empty logo
  *   `<img>` slots ARE (the slot exists — a value shows it).
  */
-export function getTemplateParts(html: string, fields: SpxField[] = []): TemplatePart[] {
+export function getTemplateParts(html: string, fields: SpxField[] = [], nestedSvg = false): TemplatePart[] {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const parts: TemplatePart[] = [];
 
@@ -215,6 +219,20 @@ export function getTemplateParts(html: string, fields: SpxField[] = []): Templat
           label: svgLayerLabel(child) || child.getAttribute('id')!,
           channel: 'rise',
         });
+      }
+      if (nestedSvg) for (const node of art.querySelectorAll('g,rect,circle,ellipse,path,polygon,polyline,line,text,image,use')) {
+        if (node.closest('defs,clipPath,mask,symbol,pattern,marker')) continue;
+        let hidden = false;
+        for (let ancestor: Element | null = node; ancestor && ancestor !== art; ancestor = ancestor.parentElement) {
+          if (isHiddenNode(ancestor, art) || /(?:^|\s)[\w-]+-(?:outlined|removed|[a-z]+state|look)(?:\s|$)/.test(ancestor.getAttribute('class') ?? '')) hidden = true;
+        }
+        if (hidden) continue;
+        if (/^f\d+$/.test(node.id) && unique('#' + node.id)) continue;
+        const selector = node.id && /^[A-Za-z_][\w-]*$/.test(node.id) && unique('#' + node.id) ? '#' + node.id : svgInspectionSelector(node);
+        if (parts.some(p => p.selector === selector)) continue;
+        const tag = node.tagName.toLowerCase();
+        parts.push({ selector, kind: tag === 'text' ? 'line' : tag === 'image' ? 'image' : 'block',
+          label: (/^artwork-\d+$/.test(node.id) ? node.getAttribute('data-name') : svgLayerLabel(node)) || (tag === 'g' ? 'Group' : tag[0].toUpperCase() + tag.slice(1)), channel: 'rise' });
       }
     }
   }
@@ -315,11 +333,34 @@ export function getTemplateParts(html: string, fields: SpxField[] = []): Templat
 
   // Building-block inserted elements (blocks tag them data-gfx and give them an id).
   for (const el of Array.from(doc.querySelectorAll('[data-gfx][id]'))) {
-    if (/^f\d+$/.test(el.id) || !unique(`#${el.id}`)) continue; // field imgs handled above
+    if (/^f\d+$/.test(el.id) || !unique(`#${el.id}`) || parts.some(part => part.selector === '#' + el.id)) continue; // field imgs handled above
     parts.push({ selector: `#${el.id}`, kind: 'block', label: el.id, channel: 'rise' });
   }
 
+  if (nestedSvg) {
+    const nodes = new Map(parts.map(part => [part.selector, doc.querySelector(part.selector)!]));
+    parts.sort((a, b) => a.selector === b.selector ? 0 : nodes.get(a.selector)!.compareDocumentPosition(nodes.get(b.selector)!) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+    for (const part of parts) {
+      const node = nodes.get(part.selector)!;
+      if (node.namespaceURI !== 'http://www.w3.org/2000/svg') continue;
+      let depth = 0;
+      for (let parent = node.parentElement; parent?.namespaceURI === node.namespaceURI; parent = parent.parentElement) depth++;
+      part.depth = depth;
+    }
+  }
   return parts;
+}
+
+/** Read-only locator. The editor replaces this with an ID in the first committed edit.
+ * Legacy preset consumers keep their single-token registry through the default option. */
+export function svgInspectionSelector(node: Element): string {
+  const path: string[] = [];
+  for (let current: Element | null = node; current && current.tagName.toLowerCase() !== 'html'; current = current.parentElement) {
+    const tag = current.tagName.toLowerCase();
+    const siblings = [...(current.parentElement?.children ?? [])].filter(el => el.tagName.toLowerCase() === tag);
+    path.unshift(tag + ':nth-of-type(' + (siblings.indexOf(current) + 1) + ')');
+  }
+  return path.join('>');
 }
 
 /** Visible text lines OF THIS GRAPHIC: the mask-slide-capable `line` parts (steps and line

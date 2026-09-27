@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Imported SVG design</title>
+
+    <!-- GSAP animation library (bundled locally — no internet needed at playout). -->
+    <script src="js/gsap.min.js"></script>
+
+    <!-- Template styles and logic. -->
+    <link rel="stylesheet" href="css/template.css" />
+    <script src="js/template.js"></script>
+
+    <!-- SPX template definition: the data fields shown to the operator. -->
+    <script id="spx-template-definition" type="text/javascript">
+      window.SPXGCTemplateDefinition = {
+          "description": "Imported SVG design",
+          "playserver": "OVERLAY",
+          "playchannel": "1",
+          "playlayer": "7",
+          "webplayout": "7",
+          "out": "manual",
+          "steps": "1",
+          "dataformat": "json",
+          "uicolor": "7",
+          "DataFields": [
+              {
+                  "field": "f0",
+                  "ftype": "textfield",
+                  "title": "Headline",
+                  "value": "Evening report"
+              }
+          ]
+      };
+    </script>
+  </head>
+  <body>
+    <!-- Imported SVG design - your artwork, exactly as exported. The text layers chosen at
+       import carry id="f0", "f1", … and update() writes the operator's values straight into
+       them; everything else is untouched. -->
+    <div class="imported-design">
+      <div class="imported-design-box">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          width="960"
+          height="540"
+          viewBox="0 0 960 540"
+          preserveAspectRatio="xMidYMid meet"
+          class="imported-design-art"
+        >
+          <defs>
+            <linearGradient id="plate-gradient" x2="1" y2="1">
+              <stop stop-color="#14324d" />
+              <stop offset="1" stop-color="#386983" />
+            </linearGradient>
+            <clipPath id="plate-clip">
+              <rect x="0" y="0" width="320" height="140" rx="16" />
+            </clipPath>
+            <mask id="soft-mask"><rect width="320" height="140" fill="white" /></mask>
+          </defs>
+          <g id="backdrop" data-name="Backdrop"><rect width="960" height="540" fill="#17212b" /></g>
+          <g
+            id="parent"
+            data-name="Transformed parent"
+            transform="translate(100 80) rotate(30) scale(2)"
+          >
+            <g
+              id="card"
+              data-name="Clipped card"
+              clip-path="url(#plate-clip)"
+              mask="url(#soft-mask)"
+            >
+              <rect width="320" height="140" fill="url(#plate-gradient)" />
+              <g data-name="Unnamed badge" transform="translate(12 12)">
+                <circle cx="18" cy="18" r="18" fill="#eeb844" />
+                <path d="M8 18 L16 26 L29 10" fill="none" stroke="#17212b" stroke-width="4" />
+              </g>
+              <text
+                id="f0"
+                data-name="Headline"
+                x="58"
+                y="44"
+                font-family="Arial"
+                font-size="22"
+                fill="#ffffff"
+              >
+                Evening report
+              </text>
+              <g id="outlined" data-name="Outlined letters" transform="translate(58 66)">
+                <path d="M0 24V0H6L18 14V0H24V24H18L6 10V24Z" fill="#eeb844" />
+              </g>
+              <image
+                id="logo"
+                data-name="Logo"
+                x="264"
+                y="82"
+                width="40"
+                height="40"
+                xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=="
+              />
+            </g>
+          </g>
+          <g id="sibling" data-name="Sibling" transform="translate(760 420) rotate(-12)">
+            <rect width="140" height="50" rx="8" fill="#eeb844" />
+          </g>
+        </svg>
+      </div>
+    </div>
+  </body>
+</html>

@@ -69,7 +69,7 @@ export const foundationRuntime = String.raw`
   }
   function numericPose(element) {
     var pose = {};
-    ['x', 'y', 'scaleX', 'scaleY', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
+    ['x', 'y', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
   }
   function seek(step, time, inspect) {

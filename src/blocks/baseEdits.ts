@@ -10,7 +10,7 @@ import { artworkNode, artworkRange } from './artworkEdits';
 export interface BaseValues {
   selector: string; target: string; mode: 'placed' | 'svg' | 'flow' | 'absolute';
   x: number; y: number; originX: number; originY: number; scaled: boolean;
-  scaleX: number; scaleY: number;
+  scaleX: number; scaleY: number; rotation: number;
   scaleReason: string | null;
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -65,7 +65,7 @@ export function baseValues(template: SpxTemplate, selector: string): BaseValues 
 
 /** No inspection mutation: identifiers and all values are read from source. */
 function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues {
-  const part = getTemplateParts(template.html, template.fields).find(p => p.selector === selector);
+  const part = getTemplateParts(template.html, template.fields, true).find(p => p.selector === selector);
   const doc = new DOMParser().parseFromString(template.html, 'text/html');
   const nodes = doc.querySelectorAll(selector);
   if (!part || nodes.length !== 1) throw new Error('Select one uniquely addressable artwork layer.');
@@ -89,7 +89,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   if (svg && ['xPercent', 'yPercent', 'transform'].some(key => owned.has(key))) throw new Error('This SVG uses an unsupported position channel. Its source is preserved.');
   // Existing independent transforms are not ours to replace. Our declarations are marked
   // by the readable custom properties, so reopening requires no hidden metadata.
-  for (const property of ['translate', 'scale']) {
+  for (const property of ['translate', 'scale', 'rotate']) {
     if (styles.some(style => {
       const raw = style.getPropertyValue(property);
       return raw && raw !== 'none' && !raw.includes('--base-') && !raw.includes('--layout-');
@@ -113,7 +113,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
       }
     }
   }
-  if (doc.querySelector(target)?.getAttribute('style')?.match(/(?:^|;)\s*(?:translate|scale|left|top|right|bottom)\s*:/)) {
+  if (doc.querySelector(target)?.getAttribute('style')?.match(/(?:^|;)\s*(?:translate|scale|rotate|left|top|right|bottom)\s*:/)) {
     throw new Error('Inline placement needs a source edit; no competing rule was written.');
   }
   let originX = 0, originY = 0;
@@ -128,9 +128,10 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     x: placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
-    scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1) };
+    scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
+    rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
 }
-export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number }
+export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number }
 export function editBase(template: SpxTemplate, selector: string, patch: BasePatch): SpxTemplate {
   if (!Object.keys(patch).length || Object.values(patch).some(n => !Number.isFinite(n) || Math.abs(n!) > 100000)) {
     throw new Error('Enter finite artwork coordinates and scale.');
@@ -138,6 +139,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   const base = baseValues(template, selector);
   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
+  if (patch.rotation !== undefined && parseAnimData(template.js)?.steps.some(step => Object.entries(step.layers).some(([target, tracks]) => artworkNode(template, selector).matches(target) && ('rotation' in tracks || 'transform' in tracks)))) throw new Error('Rotation is animated on this layer. Use its animation controls to preserve motion.');
   if (Object.entries(patch).every(([key, value]) => value === base[key as keyof BasePatch])) return template;
   const x = precise(patch.x ?? base.x), y = precise(patch.y ?? base.y);
   let html = template.html;
@@ -192,6 +194,10 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     css = setCssDeclaration(css, base.target, '--base-scale-x', String(precise(patch.scaleX ?? base.scaleX)));
     css = setCssDeclaration(css, base.target, '--base-scale-y', String(precise(patch.scaleY ?? base.scaleY)));
     css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
+  }
+  if (patch.rotation !== undefined) {
+    css = setCssDeclaration(css, base.target, '--base-rotation', String(precise(patch.rotation)));
+    css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
   }
   return { ...template, html, css };
 }

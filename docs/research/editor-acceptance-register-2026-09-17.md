@@ -318,6 +318,22 @@ fixture move to R1.1d. Next, loops, full easing/multi-key/cross-cue authoring,
 physical devices, receiving hosts and owner acceptance remain open. The default
 editor is unchanged.
 
+## R1.1d scoped fidelity and trim receipt, 2026-09-27
+
+The [bounded spec and evidence](editor-r1-1d/README.md) use the actual wizard result
+from a nested Illustrator-style SVG. They cover source-derived nested targets,
+first-edit IDs, group transforms with child motion, and independent visibility
+trims that retain clipped keys. D03/D04/G03 and applicable B01-B06/B11/B13 gain
+scoped engineering evidence; no whole row is closed. The receipt records final
+verification and the existing rotated-text import-fit difference explicitly.
+
+The [two-first-time-user checkpoint](editor-r1-1d/checkpoint.md) is prepared with
+per-person task times, errors and assistance fields. Both participants remain
+pending; automation does not satisfy this acceptance. Physical display scaling,
+receiving hosts and full workflow acceptance remain open. Step/Next, cross-cue,
+full easing/multi-key and advanced tools remain later slices. The default editor
+is unchanged.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

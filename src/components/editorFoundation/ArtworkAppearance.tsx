@@ -122,6 +122,8 @@ export default function ArtworkAppearance(props: Props) {
     </>}
     {(text || shape) && <>
       <AppearanceField {...props} property={text ? 'color' : 'fill'} descriptor={{ key: 'appearance-color', label: text ? 'Text colour' : 'Solid fill', kind: 'color', defaultValue: '#ffffff' }} value={hex} testId="artwork-colour" />
+    </>}
+    {(text || shape || svg) && <>
       <AppearanceField {...props} property="opacity" descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }} value={Math.round((appearance?.opacity ?? 1) * 100)} testId="artwork-opacity" />
       <AnimationButtons {...props} property="opacity" label="Opacity" />
       <p className="ef-muted">Changes preview immediately. Enter or leave the field to finish; Escape cancels.</p>

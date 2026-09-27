@@ -62,6 +62,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
     {tab === 'outline' ? <div className="ef-inspector-body">
       <h2>Source outline</h2><p className="ef-muted">The same layers and selection as the timeline.</p>
       {view.parts.map(item => <button className="ef-outline-item" key={item.selector}
+        style={{ paddingInlineStart: 8 + (item.depth ?? 0) * 8 }}
         aria-pressed={selection.includes(item.selector)}
         onClick={event => select(item.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>{item.label}<code>{item.selector}</code></button>)}
     </div> : <div className="ef-inspector-body">
