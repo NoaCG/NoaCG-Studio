@@ -835,7 +835,7 @@ body.pd-resizing { cursor: col-resize; user-select: none; }
 /* A SERVER cue's settings carry its CasparCG address too: the note, then the channel pick,
    then the layer, in the order the server writes an address (`2-10`). The channel column is
    wide enough for a named channel ("2 · Inserts") without the select clipping it. */
-.pd-cue-meta--slot { grid-template-columns: minmax(0, 1fr) 170px 96px; }
+.pd-cue-meta--slot { grid-template-columns: minmax(0, 1fr) 170px 96px; max-width: 640px; }
 .pd-field-channel select { width: 100%; }
 /* Chromium draws a select 2px taller than an input with the same padding and font, which left
    the channel pick hanging below the note and layer boxes. Every box in the row grows to the
