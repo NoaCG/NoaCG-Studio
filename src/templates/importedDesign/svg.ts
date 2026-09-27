@@ -431,6 +431,7 @@ var svgFitWidths = {};                          // id -> that text's width, in t
 var svgFitSizes = {};                           // id -> the font size it was drawn at, in px
 var svgFitRoom = {};                            // id -> { width, lines } the design offers it
 var svgFitAlign = {};                           // id -> { h, v } read off where the line was drawn
+var svgFitPose = {};                            // id -> a copy of the line as drawn, to read it again
 var svgFitExtra = {};                           // id -> WIDTH a growing panel gave this line
 var svgFitShift = {};                           // id -> how far that panel's MIDDLE moved doing it
 var svgFitExtraH = {};                          // id -> HEIGHT a growing panel may still give it
@@ -1725,6 +1726,34 @@ function noacgTextOverflow() {
   return out;
 }
 
+// THE ALIGNMENT IS READ IN THE FACE ON SCREEN, AND READ AGAIN WHEN THE FACE CHANGES. The first
+// pass runs before a bundled @font-face has loaded, so it measures the drawn line in a fallback
+// of another width: the classroom show intro's centred title, start-anchored and 653 units wide
+// in Oswald, measured far wider in Linux's default face, read as 'end' - and svgApplyAnchor then
+// wrote that 'end' onto the node, so the title sat right of centre on air for good once Oswald
+// arrived. So every re-measure reads the alignment again, off a COPY OF THE LINE AS DRAWN
+// (kept from before any pass wrote over it) stood in the line's place for the reading - the
+// line's own node carries the last pass's anchor, and a kerned headline's per-glyph runs are
+// flattened by the first fit, so neither could be put back by resetting an attribute or two. A
+// block is read as the first pass reads it, repainted on its drawn lines. The copy leaves at once,
+// and a line with no box keeps its answer, since nothing could be read in its place.
+function svgRereadAlign() {
+  var nodes = svgFitNodes();
+  for (var i = 0; i < nodes.length; i++) {
+    var el = nodes[i];
+    if (svgFitPlaced(el)) continue;
+    var drawn = svgFitPose[el.id];
+    if (!drawn) { svgFitPose[el.id] = el.cloneNode(true); continue; }   // the first pass reads el itself
+    if (!svgFitLaidOut(el) || !el.parentNode) continue;
+    var copy = drawn.cloneNode(true);
+    el.parentNode.replaceChild(copy, el);
+    if (svgFitLines[el.id] && svgFitDrawn[el.id] != null) svgShowDrawn(copy, svgFitDrawn[el.id]);
+    delete svgFitAlign[el.id];
+    svgAlignOf(copy, svgFitContainer(copy));
+    copy.parentNode.replaceChild(el, copy);
+  }
+}
+
 // THE ROOM IS THE DESIGN'S, NEVER THE LAST PASS'S. A re-measure has to start from the artwork
 // AT REST: measured while a panel is still grown from the previous pass, the room reads as
 // bigger than the designer drew, the block looks like it already fits, and the growth is
@@ -1733,6 +1762,7 @@ function noacgTextOverflow() {
 // first and the pass is a pure function of the value and the design.
 function svgRestAndMeasure() {
   if (typeof svgLayoutRest === 'function') svgLayoutRest();
+  svgRereadAlign();
   measureSvgBudgets();
   measureSvgRoom();
 }

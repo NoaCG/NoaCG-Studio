@@ -2,14 +2,25 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dropSvg } from './_svg-import';
 
-// THE FIELDS STEP READS THE ALIGNMENT FROM THE FACE THE GRAPHIC IS DRAWN IN. The show intro's
-// title is centred by position alone, in Oswald, which loads lazily on the step's first layout;
-// measured only in the wider fallback it read as right-aligned (MapSvgFieldsStep, `fontKey`).
+// THE FIELDS STEP AND THE GRAPHIC READ THE ALIGNMENT FROM THE FACE THE TITLE IS DRAWN IN. The
+// show intro's title is centred by position alone, in Oswald, which loads lazily on first layout;
+// measured only in the wider fallback it read as right-aligned - on the step (MapSvgFieldsStep,
+// `fontKey`) and in the runtime, which wrote that anchor onto the title (svg.ts, svgRestAnchors).
 const SHOW_INTRO = fileURLToPath(
   new URL('../docs/tutorials/classroom-package/SVG/show-intro.svg', import.meta.url),
 );
 
-test('svg import: a centred title reads centred on the Fields step, as the graphic centres it', async ({ page }) => {
+test('svg import: a centred title reads centred on the Fields step, as the graphic centres it', async ({ page, baseURL }) => {
+  // THE FACE ARRIVES LATE ON EVERY MACHINE. Oswald is held back, and the family name is claimed
+  // by that same held-back file in every document, so a copy installed on the machine cannot
+  // stand in for it: the first layout is in the default face, as on a runner without Oswald.
+  await page.route('**/fonts/oswald.woff2', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  await page.addInitScript((origin) => {
+    document.fonts.add(new FontFace('Oswald', `url(${origin}/fonts/oswald.woff2)`, { weight: '200 700' }));
+  }, new URL(baseURL!).origin);
   await page.goto('/app');
   await dropSvg(page, SHOW_INTRO);
 
