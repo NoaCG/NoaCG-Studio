@@ -215,9 +215,9 @@ export function channelTitle(s: PlayoutSettings, channel: number): string {
   return name && name !== defaultChannelName(channel) ? `channel ${channel} (${name})` : `channel ${channel}`;
 }
 
-// `slotAddress` (`1-20`) and `compareSlots` live in ./playoutSlots.ts, where rules that must run
-// without a browser can import them; they are re-exported here for every caller of this module.
-export { compareSlots, slotAddress } from './playoutSlots';
+// `slotAddress` (`1-20`) lives in ./playoutSlots.ts with `compareSlots`, where rules that must run
+// without a browser can import them; it is re-exported here for the callers of this module.
+export { slotAddress } from './playoutSlots';
 
 // ---------------------------------------------------------------------------------------------
 // Local Network Access

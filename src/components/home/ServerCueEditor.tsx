@@ -9,7 +9,7 @@ import {
   type PlayoutItem,
   type Show,
 } from '../../model/shows';
-import { channelLabel, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
+import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { FieldRow } from '../fields/FieldControl';
 
 /**
@@ -30,7 +30,6 @@ export default function ServerCueEditor({
   view,
   live,
   cueNo,
-  channel,
   bridgeStatus,
   playoutSettings,
   onEdit,
@@ -45,8 +44,6 @@ export default function ServerCueEditor({
   live: boolean;
   /** Its place in the rundown, 1-based; 0 when there is none to name. */
   cueNo: number;
-  /** The channel it is set to play on. */
-  channel: number;
   /** The Bridge's last word on the playout server; null while it is still being asked. */
   bridgeStatus: PlayoutResult | null;
   playoutSettings: PlayoutSettings;
@@ -54,6 +51,8 @@ export default function ServerCueEditor({
   onTransport: (verb: 'pause' | 'resume', label: string) => void;
   setShows: (shows: Show[]) => void;
 }) {
+  /** The channel it is set to play on, for the pick. */
+  const channel = channelOf(playoutSettings, item);
   return (
     <div className={`pd-editor${live ? ' live' : ''}`} data-testid="playout-cue-editor">
       <div className="pd-editor-head">

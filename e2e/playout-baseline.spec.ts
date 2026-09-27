@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import { parkFocusOffControls } from './_keys';
 
 // THE PRODUCTION PAGE AS IT LOOKS, pinned as pictures (docs/CLIP_PLAYBACK_PLAN.md §10, phase 0).
 //
@@ -18,7 +19,10 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 //     row says ON AIR, PROGRAM's header names it and its editor shows the transport.
 //
 // What moves with the wall clock is masked: the header's session timer and the activity log's
-// times. Everything else on screen is a function of the seeded record.
+// times. So are the graphics INSIDE the two monitors: how far an entrance has got is timing, and
+// how a catalog design draws is the catalog's business, not this page's. The mask is drawn over
+// each frame's scaled box, so where the preview sits and how large it is scaled stay pinned.
+// Everything else on screen is a function of the seeded record.
 //
 // Baselines are per platform (`-win32`, `-linux`), because fonts rasterise differently. To
 // re-record after a deliberate change: `--update-snapshots` locally writes the `-win32` ones; for
@@ -116,9 +120,14 @@ async function seedProduction(page: Page, mixed: boolean): Promise<string> {
 /** The picture, with what the wall clock moves masked, the pointer parked and focus dropped. */
 async function expectPage(page: Page, name: string): Promise<void> {
   await page.mouse.move(0, 0);
-  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await parkFocusOffControls(page);
   await expect(page).toHaveScreenshot(name, {
-    mask: [page.locator('.pd-clock'), page.locator('[data-testid="action-log"] summary .muted'), page.locator('.prod-log-time')],
+    mask: [
+      page.locator('.pd-clock'),
+      page.locator('[data-testid="action-log"] summary .muted'),
+      page.locator('.prod-log-time'),
+      page.locator('.pd-monitors iframe'),
+    ],
     animations: 'disabled',
     caret: 'hide',
     timeout: 20_000,

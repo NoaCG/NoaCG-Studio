@@ -33,6 +33,7 @@
 // against those, never against this.
 
 import { createServer } from 'node:net';
+import { StringDecoder } from 'node:string_decoder';
 
 /** A clock that moves only when told. Share one between the fake and the code under test. */
 export function manualClock(startMs = 0) {
@@ -41,10 +42,6 @@ export function manualClock(startMs = 0) {
     now: () => t,
     advance(ms) {
       t += ms;
-      return t;
-    },
-    set(ms) {
-      t = ms;
       return t;
     },
   };
@@ -161,7 +158,7 @@ export async function fakeCasparServer(options = {}) {
   /** A producer for a file name, with its segment - or null when the server has no such file. */
   function producerFor(tokens, channel) {
     const first = tokens[0];
-    if (!first) return { error: 'no file' };
+    if (!first) return null;
     const rest = tokens.slice(1).map((t) => t.text.toUpperCase());
     const flag = (word) => rest.includes(word);
     const arg = (word) => {
@@ -255,6 +252,7 @@ export async function fakeCasparServer(options = {}) {
         return reply.ok(cmd);
       }
       case 'LOADBG': {
+        if (args.length === 0) return reply.bad(line);
         const p = producerFor(args, channel);
         if (!p) return reply.notFound(cmd);
         l.background = { ...p, loadedAt: now, startedAt: now, pausedAt: null };
@@ -263,6 +261,7 @@ export async function fakeCasparServer(options = {}) {
       }
       case 'LOAD': {
         // The first frame, paused, on the foreground.
+        if (args.length === 0) return reply.bad(line);
         const p = producerFor(args, channel);
         if (!p) return reply.notFound(cmd);
         l.foreground = { ...p, loadedAt: now, startedAt: now, pausedAt: now, playedAt: now };
@@ -359,8 +358,10 @@ export async function fakeCasparServer(options = {}) {
   const server = createServer((socket) => {
     let buffer = '';
     let queue = Promise.resolve();
+    // A name like `Jääkiekko` can split across two chunks; the decoder holds the half character.
+    const decoder = new StringDecoder('utf8');
     socket.on('data', (chunk) => {
-      buffer += chunk.toString('utf8');
+      buffer += decoder.write(chunk);
       let i;
       while ((i = buffer.indexOf('\r\n')) >= 0) {
         const line = buffer.slice(0, i);

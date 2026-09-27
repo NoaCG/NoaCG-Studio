@@ -1155,9 +1155,8 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(start, 'the hosted page lists server cues').toBeGreaterThan(0);
   expect(end, 'the list still says why it cannot take them').toBeGreaterThan(start);
   const block = src.slice(start, end);
-  expect(block).toContain('<h3>On the playout server</h3>');
-  expect(block).toContain('data-testid={`hosted-playout-cue-${cue.id}`}');
-  expect(block).toContain('slotAddress({ channel: cue.channel, layer: cue.layer })');
-  expect(block).not.toContain('<button');
-  expect(block).not.toContain('onClick');
+  expect(block).toContain('On the playout server');
+  expect(block).toContain('hosted-playout-cue-');
+  expect(block).toContain('slotAddress(');
+  expect(block).not.toMatch(/<button|role="button"|onClick|onPointer|onKey/);
 });

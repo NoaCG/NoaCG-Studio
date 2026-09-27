@@ -213,6 +213,7 @@ test('a command on a channel the server does not have is refused, and an unknown
   const { caspar, send } = await start(t);
   assert.equal((await send('PLAY 9-10 "GIORNO"')).code, 401);
   assert.equal((await send('FROB 1-10')).code, 400);
+  assert.equal((await send('LOADBG 1-10')).code, 400, 'a LOADBG with no file is not a guess');
   assert.equal((await send('VERSION')).lines[0], '2.5.0 fake Stable');
 });
 

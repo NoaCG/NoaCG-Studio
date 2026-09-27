@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
 import type { GraphicDoc } from '../../model/library';
 import type { Show } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
-import type { Slot } from '../../control/playoutProtocol';
+import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
@@ -48,7 +48,7 @@ export default function PlayoutMonitors({
   /** The graphics up on air, each with the cue that put it there, front to back. */
   liveLayers: { layer: number; label: string }[];
   /** The server cues this page put up - named on PROGRAM's header, never drawn. */
-  serverLayers: { slot: Slot; label: string }[];
+  serverLayers: Pick<ServerLayer, 'slot' | 'label'>[];
   show: Show;
   library: GraphicDoc[];
   programRef: Ref<ProgramStageHandle>;

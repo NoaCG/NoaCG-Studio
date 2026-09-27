@@ -29,7 +29,6 @@ import {
 } from '../../model/shows';
 import {
   act,
-  channelOf,
   itemSlot,
   loadPlayoutSettings,
   playoutConfigured,
@@ -37,7 +36,7 @@ import {
   type PlayoutResult,
 } from '../../control/playoutLink';
 import { runServerVerb, serverCueLive, serverLayers, type ServerVerb } from '../../control/serverPlayout';
-import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
+import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
 import type { Resolution } from '../../model/types';
 import {
   diffResolved,
@@ -347,9 +346,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  it lives exactly as long as the state it replaced. The page never reads the TIMING part: a
    *  clock ticking twice a second must not re-render the whole surface
    *  (control/serverPlayoutStore.ts). */
-  const serverPlayoutRef = useRef<ServerPlayoutStore | null>(null);
-  if (!serverPlayoutRef.current) serverPlayoutRef.current = createServerPlayoutStore();
-  const serverPlayout = serverPlayoutRef.current;
+  const [serverPlayout] = useState(createServerPlayoutStore);
   const serverOnAir = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
@@ -1750,8 +1747,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
-  /** Its channel, read once for the editor's pick (the graphics channel when no server cue is selected). */
-  const selectedPlayoutChannel = channelOf(playoutSettings, selectedPlayoutItem ?? {});
   const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
@@ -1935,7 +1930,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const isLast = cues.filter((c) => c.sourceId === cue.sourceId).length === 1;
     if (isLast && entry) await takeOffAir(entry.name);
     // A server cue that is up goes off with its row, the same courtesy a graphic gets.
-    if (cue.source === 'playout' && serverOnAir[cue.sourceId]?.cueId === cue.id) await playoutVerb(cue, 'out', 'Out');
+    if (serverCueLive(serverOnAir, playoutItemFor(cue), cue)) await playoutVerb(cue, 'out', 'Out');
     setDraft(null);
     setShows(removeShowCue(show.id, cue.id));
   };
@@ -2963,7 +2958,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             view={editingView}
             live={editingIsLive}
             cueNo={editingCueNo}
-            channel={selectedPlayoutChannel}
             bridgeStatus={bridgeStatus}
             playoutSettings={playoutSettings}
             onEdit={editDraft}

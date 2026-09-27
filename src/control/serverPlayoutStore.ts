@@ -28,7 +28,7 @@ export interface StorePart<T> {
   subscribe: (listener: () => void) => () => void;
 }
 
-export function storePart<T>(initial: T): StorePart<T> {
+function storePart<T>(initial: T): StorePart<T> {
   let value = initial;
   const listeners = new Set<() => void>();
   return {
@@ -48,7 +48,8 @@ export function storePart<T>(initial: T): StorePart<T> {
   };
 }
 
-/** Where one clip is in the segment on air, as the Bridge last read it off the server. */
+/** Where one clip is in the segment on air, as the Bridge last read it off the server. A stand-in
+ *  until phase 2 puts the protocol's own `SlotState` (plan §6.7) here. */
 export interface SlotTiming {
   /** Seconds into the segment. */
   position: number;

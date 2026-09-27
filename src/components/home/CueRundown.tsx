@@ -390,7 +390,7 @@ export default function CueRundown({
         {/* The playout server's own library - templates and clips already on the CasparCG box,
             through NoaCG Bridge (docs/BRIDGE.md §5). Present only once a server is configured
             under Settings -> Playout: a dead door on the busiest surface would be worse than none. */}
-        {playoutConfigured(loadPlayoutSettings()) && (
+        {playoutConfigured(playoutSettings) && (
           <div className="pd-links-host">
             <button
               className="pd-new-graphic"

@@ -60,7 +60,6 @@ export function withoutItem(onAir: ServerOnAir, itemId: string): ServerOnAir {
 /** A server cue this page has up, as PROGRAM's header names it and All out takes it off. */
 export interface ServerLayer {
   slot: Slot;
-  name: string;
   cue: ShowCue;
   label: string;
 }
@@ -73,7 +72,7 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
     .map((item) => ({ item, live: onAir[item.id] ?? null }))
     .map((l) => ({ ...l, cue: l.live ? (cues.find((c) => c.id === l.live!.cueId) ?? null) : null }))
     .filter((l): l is { item: PlayoutItem; live: ServerLive; cue: ShowCue } => !!l.cue)
-    .map((l) => ({ slot: l.live.slot, name: l.item.name, cue: l.cue, label: l.cue.label }))
+    .map((l) => ({ slot: l.live.slot, cue: l.cue, label: l.cue.label }))
     .sort((a, b) => compareSlots(a.slot, b.slot));
 }
 
@@ -135,13 +134,12 @@ export async function runServerVerb({
   act: (action: PlayoutAction) => Promise<PlayoutResult>;
 }): Promise<ServerVerbOutcome> {
   const slot = verb !== 'take' && live ? live.slot : slotNow;
-  const itemRef = { kind: item.kind, name: item.name };
   // A RE-TAKE after the cue was moved to another channel or layer: its first copy is still up
   // where it went, and nothing else knows it is there. Take that one off first, so the move is a
   // move and not a second copy stranded on the old slot.
   let movedOff = false;
   if (verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot)) {
-    const off = await act({ verb: 'out', slot: live.slot, item: itemRef });
+    const off = await act(serverAction('out', item, live.slot, {}));
     if (off.state !== 'ok') {
       return {
         ok: false,
