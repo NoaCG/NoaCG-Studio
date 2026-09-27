@@ -317,16 +317,16 @@ export default function MapSvgFieldsStep({
   // Oswald, which read as right-aligned), and the runtime re-fits on `document.fonts.ready`. A
   // face lands when the author picks or uploads one (the draft's fonts), or when a bundled
   // @font-face the stage's first layout asked for finishes loading (`loadingdone`, which this
-  // listener, attached in that same commit, cannot miss). Only a face the stage's text names
-  // counts: a pass is a second of main thread on a slow laptop, and the step's own UI loads
-  // faces too.
+  // listener cannot miss: a LAYOUT effect declared above the measuring ones, so it is attached
+  // before they ask for the face). Only a face the stage's text names counts: a pass is a second
+  // of main thread on a slow laptop, and the step's own UI loads faces too.
   const [fontsLanded, setFontsLanded] = useState(0);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const fonts = document.fonts;
     if (!fonts) return;
     const landed = (e: FontFaceSetLoadEvent) => {
       const asked = new Set<string>();
-      for (const t of stageRef.current?.querySelectorAll('text') ?? []) {
+      for (const t of stageRef.current?.querySelectorAll('text, tspan') ?? []) {
         for (const family of getComputedStyle(t).fontFamily.split(',')) asked.add(fontNameKey(family));
       }
       if (e.fontfaces.some((f) => asked.has(fontNameKey(f.family)))) setFontsLanded((n) => n + 1);

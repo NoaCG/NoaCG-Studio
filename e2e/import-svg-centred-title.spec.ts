@@ -5,7 +5,7 @@ import { dropSvg } from './_svg-import';
 // THE FIELDS STEP AND THE GRAPHIC READ THE ALIGNMENT FROM THE FACE THE TITLE IS DRAWN IN. The
 // show intro's title is centred by position alone, in Oswald, which loads lazily on first layout;
 // measured only in the wider fallback it read as right-aligned - on the step (MapSvgFieldsStep,
-// `fontKey`) and in the runtime, which wrote that anchor onto the title (svg.ts, svgRestAnchors).
+// `fontKey`) and in the runtime, which wrote that anchor onto the title (svg.ts, svgRereadAlign).
 const SHOW_INTRO = fileURLToPath(
   new URL('../docs/tutorials/classroom-package/SVG/show-intro.svg', import.meta.url),
 );
@@ -35,7 +35,10 @@ test('svg import: a centred title reads centred on the Fields step, as the graph
     );
   }
 
-  // The same geometry as the graphic's own runtime, read inside the preview document.
+  // The same geometry as the graphic's own runtime, read inside the settled preview document:
+  // its answer, and the anchor it wrote onto the title.
+  const stage = page.locator('.wz-side .wz-stage');
+  await expect(stage).not.toHaveAttribute('data-doc-pending', '1', { timeout: 20_000 });
   const frame = page.frameLocator('.wz-side iframe');
   const title = frame.locator('#f0');
   await expect(title).toContainText('QUIZ NIGHT');
@@ -43,8 +46,8 @@ test('svg import: a centred title reads centred on the Fields step, as the graph
     .poll(() =>
       title.evaluate((el) => {
         const w = el.ownerDocument.defaultView as unknown as { svgFitAlign?: Record<string, { h: string }> };
-        return w.svgFitAlign?.f0?.h;
+        return `${w.svgFitAlign?.f0?.h} ${el.getAttribute('text-anchor')}`;
       }),
     )
-    .toBe('middle');
+    .toBe('middle middle');
 });
