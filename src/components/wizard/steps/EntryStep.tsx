@@ -72,7 +72,7 @@ export default function EntryStep({
             reading it, and the app repeating the promise word for word is what makes the two
             surfaces one product. */}
         <h1 className="wz-hero-title">
-          Make broadcast graphics. <span>Run them live.</span>
+          Create live graphics. <span>Run the show.</span>
         </h1>
         {/* A normal link opts into the alpha on a fresh boot and is bookmarkable on any host.
             It opens the current graphic; it never creates or replaces a document. */}

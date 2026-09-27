@@ -208,7 +208,7 @@ test('the hero names both routes to air and EVERY export target, in the sentence
   const hero = page.locator('.wz-hero');
   // The landing page's headline, verbatim - the app repeating the promise word for word is
   // what makes the two surfaces read as one product.
-  await expect(hero.locator('.wz-hero-title')).toHaveText('Make broadcast graphics. Run them live.');
+  await expect(hero.locator('.wz-hero-title')).toHaveText('Create live graphics. Run the show.');
   const sub = hero.locator('.wz-hero-sub');
   // THE CONTROLLER ROUTE IS NAMED, AND SO IS ITS MECHANISM. The step used to promise export
   // alone; naming the controller without saying how it reaches air reads as a platform the
