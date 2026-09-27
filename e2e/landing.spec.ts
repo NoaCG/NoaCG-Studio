@@ -7,7 +7,7 @@ import { createProject } from './_create';
 
 test('root shows the landing page, not the editor', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toContainText('Run the show');
+  await expect(page.locator('h1')).toContainText('Make broadcast graphics');
   // Every "Start creating" call to action lands on the CREATION WIZARD (`#/new`), not on
   // whatever document happened to be open last. Arriving from the marketing page means
   // "I want to make something"; dropping a returning visitor straight into an old project
@@ -44,36 +44,45 @@ test('the landing CTA opens the wizard even for a visitor with work in progress'
   await expect(page.locator('iframe.preview-frame')).toBeVisible();
 });
 
-test('the landing says the four things a stranger has to meet', async ({ page }) => {
-  // The four claims docs/PROMISE_AUDIT.md says the page must make early and plainly: free and
-  // open source, your own artwork becomes fields and controls, a coding agent can drive it, and
-  // OGraf is where it is going. A capability nobody can discover does not exist, and a claim
-  // without a row in the audit is not allowed on the page.
+test('the landing says what NoaCG is, where it plays out, and the three ways in', async ({ page }) => {
+  // The page's job is that a stranger understands NoaCG in about thirty seconds (owner,
+  // 2026-09-27): what it makes, NoaCG Playout and NoaCG Bridge near the top, then the three ways to
+  // start in a fixed order. A capability nobody can discover does not exist, and a claim that runs
+  // ahead of docs/GOALS.md outcomes 5 and 6 is not allowed on the page.
   await page.goto('/');
 
-  // Free and open source, before the product tour, with the licence named. The claim is pinned to
-  // the HERO rather than to the lede: it lives in the kicker line above the headline, and the lede
-  // deliberately stopped repeating it on 2026-09-10, when the owner failed the page's voice for
-  // saying the same thing twice on one screen. What matters is that a stranger meets the claim
-  // before the tour, not which element carries it.
-  const free = page.locator('#free');
-  await expect(free).toContainText('AGPL-3.0');
+  // Free and open source in the hero, with the licence named further down.
   await expect(page.locator('.hero')).toContainText(/free (?:and|&) open source/i);
+  await expect(page.locator('#free')).toContainText('AGPL-3.0');
 
-  // The artwork card leads with SVG and links to the authoring guide.
-  const importCard = page.locator('.way', { hasText: 'Bring your own artwork' });
-  await expect(importCard).toContainText('SVG');
-  await expect(importCard.locator('a[href="/docs#svg"]')).toHaveCount(1);
+  // Playout and Bridge come straight after the hero. Only the CasparCG route through the Bridge is
+  // marked proven, because it is the only production-proven one; the Bridge's download is linked.
+  const playout = page.locator('#playout');
+  await expect(page.locator('main > section').first()).toHaveAttribute('id', 'playout');
+  await expect(playout).toContainText('NoaCG Bridge');
+  await expect(playout.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
+  await expect(playout.locator('.proven')).toHaveCount(1);
+  await expect(playout.locator('.route', { has: page.locator('.proven') })).toContainText('CasparCG');
+  await expect(playout).toContainText('not yet tested');
 
-  // The agent-door section shows the real, installable command - never a mocked terminal.
+  // The three ways, in order: the coding agent, your own artwork, templates.
+  const ways = page.locator('#start .way');
+  await expect(ways).toHaveCount(3);
+  await expect(ways.nth(0)).toHaveAttribute('id', 'agents');
+  await expect(ways.nth(1)).toHaveAttribute('id', 'artwork');
+  await expect(ways.nth(2)).toHaveAttribute('id', 'templates');
   const agents = page.locator('#agents');
   await expect(agents).toContainText('Claude Code');
-  await expect(agents).toContainText('npx @noacg/cli');
-  await expect(agents.locator('a[href="/docs#claude-code"]')).toHaveCount(1);
+  await expect(agents).toContainText('NoaCG CLI');
+  await expect(agents.locator('a[href="/docs#agent-install"]')).toHaveCount(1);
+  const artwork = page.locator('#artwork');
+  await expect(artwork).toContainText('SVG');
+  await expect(artwork.locator('a[href="/docs#svg"]')).toHaveCount(1);
 
   // OGraf has its own section, reachable from the nav, linking the starters page, and every
   // direction card is marked as direction rather than shown as shipped. The number of dashed
   // cards is not pinned: a card turns solid in the commit that lands its rung (docs/GOALS.md).
+  // Nothing in it may say the Bridge carries OGraf graphics.
   const ograf = page.locator('#ograf');
   await expect(page.locator('header nav a[href="#ograf"]')).toHaveCount(1);
   await expect(ograf.locator('a[href="/ograf"]')).toHaveCount(1);
@@ -81,10 +90,26 @@ test('the landing says the four things a stranger has to meet', async ({ page })
   expect(planned).toBeGreaterThan(0);
   await expect(ograf.locator('.feat.planned .soon')).toHaveCount(planned);
   await expect(ograf.locator('.feat:not(.planned) .soon')).toHaveCount(0);
+  await expect(ograf).not.toContainText('Bridge');
 
-  // And the docs home is reachable from the page chrome.
+  // The docs home and the downloads page are reachable from the page chrome.
   await expect(page.locator('header nav a[href="/docs"]')).toHaveCount(1);
   await expect(page.locator('footer a[href="/docs"]')).toHaveCount(1);
+  await expect(page.locator('footer a[href="/downloads"]')).toHaveCount(1);
+});
+
+test('the pages and anchors the landing links to exist', async ({ page }) => {
+  // A link to a renamed anchor fails silently: the page opens at its top and nobody notices.
+  for (const [path, anchor] of [
+    ['/downloads', 'bridge'],
+    ['/docs', 'agent-install'],
+    ['/docs', 'svg'],
+    ['/docs', 'dashboard'],
+  ]) {
+    const response = await page.goto(path);
+    expect(response?.ok(), path).toBe(true);
+    await expect(page.locator(`[id="${anchor}"]`).first(), `${path}#${anchor}`).toBeAttached();
+  }
 });
 
 test('old root share links redirect into the app with their query intact', async ({ page }) => {
