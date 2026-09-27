@@ -52,6 +52,18 @@ test('worker sends literal stdin, preserves permission settings, and writes term
   assert.equal(readStatus(workspace(f.cwd), result.id).status, 'completed');
 });
 
+test('an agent definition passes through and a read-only review keeps its narrowed tools', async (t) => {
+  const f = fixture(t);
+  const result = await runWorker({ ...f, readOnly: true, agent: 'wave-row-mechanical' }, f);
+  assert.equal(result.status, 'completed');
+  const receipt = JSON.parse(readFileSync(path.join(result.directory, 'result.json')));
+  assert.deepEqual(receipt.result.argv, ['--print', '--output-format', 'json', '--permission-prompts', 'none', '--tools', 'Read,Grep,Glob', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--agent', 'wave-row-mechanical']);
+  await assert.rejects(runWorker({ ...f, agent: '--dangerously-skip-permissions' }, f), /Invalid value/);
+  const cli = spawnSync(process.execPath, ['scripts/claude-run.mjs', 'run', '--agent', '--read-only'], { encoding: 'utf8' });
+  assert.equal(cli.status, 1);
+  assert.match(cli.stderr, /incomplete option/);
+});
+
 test('main, unbounded runs, and shell launchers are refused before launch', async (t) => {
   const f = fixture(t);
   await assert.rejects(runWorker({ ...f, timeoutSeconds: 86401 }, f), /Timeout/);
