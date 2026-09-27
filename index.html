@@ -294,10 +294,9 @@
     .way .n { font-family: var(--mono); font-size: 11px; color: var(--amber); letter-spacing: 0.2em; }
     .way h3 { font-size: 17.5px; font-weight: 700; margin: 6px 0 0; }
     .way p { font-size: 14.5px; color: var(--dim); margin-top: 7px; }
-    .way .go { margin-top: auto; padding-top: 14px; font-size: 14.5px; font-weight: 600; }
+    .way .go { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: auto; padding-top: 14px; font-size: 14.5px; font-weight: 600; }
     .way .go a { color: var(--amber); }
     .way .go a:hover { color: var(--glow); }
-    .way .go a + a { margin-left: 18px; }
     @media (max-width: 960px) { .ways { grid-template-columns: 1fr; max-width: 560px; } }
 
     /* ── Small tiles (the OGraf section) ── */
