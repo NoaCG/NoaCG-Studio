@@ -1,3 +1,8 @@
+// covers: src/components/editorFoundation/**
+// covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
+// covers: src/model/structure.ts, src/templates/shared/animRuntime.ts
+// covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 import { mkdirSync } from 'node:fs';

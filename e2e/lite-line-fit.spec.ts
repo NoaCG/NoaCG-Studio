@@ -1,3 +1,5 @@
+// covers: src/ai/**
+//
 // An identity line must not wrap, and a headline may.
 //
 // The first production NoaCG Lite round shipped a five-line "lower third": the operator's job

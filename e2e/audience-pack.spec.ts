@@ -1,3 +1,9 @@
+// covers: src/templates/**
+//
+// The quiz runtime is also the exported control panel's recovery subject and the audience
+// pack's answer boards.
+// covers: src/templates/quiz/**
+
 import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 

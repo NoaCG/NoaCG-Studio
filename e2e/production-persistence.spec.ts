@@ -1,3 +1,6 @@
+// covers: src/components/{home,save}/**
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 

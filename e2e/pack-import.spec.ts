@@ -1,3 +1,19 @@
+// covers: src/components/{home,save}/**
+// covers: {scripts/packs/**,scripts/build-news-pack.mjs,public/packs/**}, src/model/templateSet.ts
+//
+// The pack CONTENT and its builder: the sample-import test drives the built file end to
+// end (import gate included), so editing a pack graphic or the assembler selects it.
+// covers: {packs/**,public/packs/**,scripts/build-production-pack.mjs}
+//
+// The graphics-pack door: the format/importer, the shipped pack + its sources and build
+// script, and the shared multi-template save path (also the wizard kit's, hence
+// wizard-kit rides along on templateSet changes).
+// covers: src/packs/**
+//
+// The waiting-packages list on Productions: offline it must grow nothing (pack-import.spec.ts);
+// the live half - send, list, Install, Dismiss - is e2e/configured/agent-access.spec.ts.
+// covers: src/backend/agentPackages.ts
+
 import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 

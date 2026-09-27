@@ -1,3 +1,16 @@
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+//
+// The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
+// download): one spec drives export -> re-import through the real UI, plus the shipped Fight Night
+// pack's install (rundown order included) - so the format owner and both UI ends select it,
+// unioning with the pack-import covers lines.
+// covers: src/{packs/**,components/home/{ProductionExportDialog.tsx,sections/ProductionsSection.tsx}}
+//
+// The pack CONTENT and its builder: the sample-import test drives the built file end to
+// end (import gate included), so editing a pack graphic or the assembler selects it.
+// covers: {packs/**,public/packs/**,scripts/build-production-pack.mjs}
+
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

@@ -1,3 +1,5 @@
+// covers: src/components/canvas/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { createProject } from './_create';

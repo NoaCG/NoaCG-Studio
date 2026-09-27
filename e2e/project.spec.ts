@@ -1,3 +1,17 @@
+// covers: src/components/NewGraphicButton.tsx
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
+// the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,
+// and the save dialogs whose z-order it clicks through, select it too. App.tsx is CORE
+// already; VideoAppShell and SaveDialogs are not.
+// covers: src/components/video/VideoAppShell.tsx
+//
+// The save dialog also names WHERE a graphic goes when a backend is configured, and the
+// offline pin that it names no account at all is in auth.spec.ts.
+// covers: src/components/save/SaveDialogs.tsx
+
 import { test, expect } from '@playwright/test';
 import { awaitPreviewAfterReload, awaitPreviewRebuild } from './_preview';
 import { showCode } from './_code';

@@ -17,13 +17,14 @@
 // AN ARGUMENT THIS CLI DOES NOT RECOGNISE IS AN ERROR, not a no-op (see `parseArgs`): a
 // misspelt plan-only flag used to be dropped on the floor, leaving the plan to RUN.
 //
-// The mapping below is CURATED, not traced: it errs toward running more. Anything touching the
+// The mapping is CURATED, not traced, and each spec carries its own share of it in its header
+// (`// covers:`, scripts/e2e-lists.mjs): it errs toward running more. Anything touching the
 // shared core (store, model, preview composer, validation, the shell, the e2e helpers, build
 // config) runs the full suite, because those files feed every flow.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONFIGURED_TRIGGERS, FOCUS } from './e2e-lists.mjs';
+import { CONFIGURED_TRIGGERS, COVERAGE, FOCUS } from './e2e-lists.mjs';
 import { measured } from './measured.mjs';
 import {
   budgetMinutes,
@@ -97,598 +98,31 @@ const isEntrypoint =
   resolve(process.argv[1]).replaceAll('\\', '/').toLowerCase() ===
     resolve(fileURLToPath(import.meta.url)).replaceAll('\\', '/').toLowerCase();
 
-// THE PRODUCTION PAGE AND THE PARTS SPLIT OUT OF IT (docs/backlog/production-page-phases.md).
-// A row that selects specs for a behaviour of ProductionPage.tsx has to select them for the file
-// that behaviour moved to as well, so the list is named once, here, and spliced into those rows. A
-// part split out later is added here and nowhere else.
-const PRODUCTION_PAGE_PARTS = 'ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor|RailResizer';
-
-// ── Source-area → spec globs ────────────────────────────────────────────────
-// Order does not matter; every matching rule contributes its specs (union).
-const MAP = [
-  // THE CLOSED DOORS TO THE OLD CODE EDITOR (owner, 2026-09-24). Every file that used to hold one
-  // selects the spec that pins them all shut: Settings (the Advanced mode switch), the wizard's
-  // Entry and Finish steps, Home, a graphic row, the control page, the new editor's header and the
-  // video workspace. App.tsx and model/prefs.ts are CORE, which reaches the same spec through the
-  // FOCUS list in scripts/e2e-lists.mjs.
-  [
-    /^src\/components\/(SettingsDialog|home\/(HomePage|GraphicRow|GraphicControlPage)|editorFoundation\/(EditorFoundation|openNewEditor)|video\/VideoAppShell|wizard\/(CreationWizard|steps\/(EntryStep|FinishStep)))\.tsx?$/,
-    ['no-old-editor.spec.ts'],
-  ],
-  [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout|artworkEdits|artworkLayers|svgIdentity|editorAnimation|editorOut|animData|animEdit)\.ts$|^src\/model\/structure\.ts$|^src\/templates\/shared\/animRuntime\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts', 'editor-usability.spec.ts', 'editor-keys.spec.ts', 'editor-out.spec.ts', 'editor-fidelity-trim.spec.ts']],
-  [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
-  [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
-  [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],
-  [/^src\/backend\/events\.ts$|^api\/(events\.ts|_lib\/funnelEvents)/, ['analytics.spec.ts']],
-  [/^src\/components\/(AnalyticsConsentBanner|SettingsDialog)\.tsx$/, ['analytics.spec.ts', 'auth.spec.ts']],
-  [/^supabase\/migrations\/0037_funnel_opt_in_retention\.sql$/, ['analytics.spec.ts']],
-  [/^src\/ai\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
-  // creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
-  // of which live here - it was previously nightly-only for src/ai changes, which is exactly
-  // the surface it exists to protect.
-  // Phase A's composer (docs/NOACG_PRO_PLAN.md §15.5). Listed BEFORE the generic pro rule and
-  // union'd with it: the language path shares nothing with the concept-and-compile pipeline
-  // pro.spec.ts covers, so its guarantees had no gate at all until this spec existed.
-  [/^src\/ai\/pro\/language\//, ['pro-language.spec.ts']],
-  [/^src\/ai\/pro\/custom\//, ['pro-custom.spec.ts', 'pro-language.spec.ts']],
-  // …and the platform HALF of that composer, which since Phase B (§15.9) is the graphic-type
-  // registry and two category assemblers rather than one. A Pro sponsor bug is compiled through
-  // `types/bugs.ts` and a Pro countdown through `types/clocks.ts`, and both take their mark
-  // placement from the shared logo slot - so a change to any of them can break a Pro package
-  // while every catalog spec stays green, which is exactly the mapping hole this file exists to
-  // close. Union'd with the generic src/templates rule below.
-  [
-    /^src\/templates\/(types\/(bugs|clocks|graphicType|registry)\.ts|shared\/(logoSlot|standard)\.ts|(cornerBug|gameTimers|lowerThirds)\/shared\.ts)$/,
-    ['pro-language.spec.ts'],
-  ],
-  [/^src\/ai\/pro\//, ['pro.spec.ts', 'import-graphic.spec.ts']],
-  // The bench-only spike instruments. They never gate a user flow, but they are what a paid
-  // round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
-  // exactly the class that builds green and reports a defect as its opposite.
-  [/^src\/ai\/spike\//, ['spike-instruments.spec.ts']],
-  // The design rules as a PRODUCT property (docs/DESIGN_RULES_PLAN.md §5 R4): the canonical
-  // module, the shared measurement instruments (moved out of the spike so product and bench
-  // read one code), and the warn-first product warnings. src/model and src/validation are
-  // CORE (full suite), but under the sprint focus that escalation runs the FOCUS list - so
-  // the spec is in e2e-lists.mjs FOCUS as well, and this line documents the pairing.
-  [/^src\/(model\/designRules\.ts|validation\/(designRulesWarnings|readabilityCheck|tickerCheck)\.ts)$/, ['design-rules-product.spec.ts', 'spike-instruments.spec.ts']],
-  // The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
-  // trigger rests entirely on `inkSpread` separating one ink from several.
-  [/^src\/assets\/assetInfo\.ts$/, ['spike-instruments.spec.ts', 'mark-legibility.spec.ts', 'assets.spec.ts']],
-  [/^src\/ai\//, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-retrieval.spec.ts', 'adapt-first.spec.ts', 'import-graphic.spec.ts', 'creative-routing.spec.ts', 'creative-pilot.spec.ts', 'pro.spec.ts', 'lite-line-fit.spec.ts', 'lite-type-floor.spec.ts', 'lite-parity.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts']],
-  // The AI step and its child panels are what the ai-* specs actually drive; the generic
-  // wizard rule below does not name them, which silently left an AiStep edit unpinned.
-  [/^src\/components\/wizard\/steps\/(AiStep|ai\/)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-lite.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-consent.spec.ts', 'image-purpose.spec.ts', 'adapt-first.spec.ts', 'pro.spec.ts', 'design-rules-product.spec.ts']],
-  // The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
-  // one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
-  [/^src\/components\/AiProviderSettings\.tsx$/, ['ai-tiers.spec.ts', 'video-settings.spec.ts', 'ai.spec.ts']],
-  // The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
-  // needs that spec and nothing else.
-  [/^benchmarks\/creative\//, ['creative-routing.spec.ts']],
-  // The Pro brief bank feeds the spike runner and scripts/lite-on-pro-bank.mjs; the offline
-  // product flow it relates to is Phase A's composer, pinned by pro-language.spec.ts. (Until
-  // 2026-08-15 this pointed at pro.spec.ts and the fixture bank beside it - both belonged to the
-  // retired concept-and-reconstruct engine.)
-  [/^benchmarks\/pro\//, ['pro-language.spec.ts']],
-  [/^src\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
-  [/^src\/components\/video\//, ['video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts', 'video-player-host.spec.ts', 'video-hyperframes.spec.ts', 'video-readability.spec.ts']],
-  [/^player-host\//, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
-  // The host BUILD is load-bearing for the preview: it inlines the player JS and the bundled
-  // video fonts into public/player-host/index.html, which the video specs load.
-  [/^scripts\/build-player-host/, ['video-player-host.spec.ts', 'video-project.spec.ts', 'video-readability.spec.ts']],
-  [/^src\/render\//, ['render.spec.ts', 'render-schedule.spec.ts']],
-  // ai-dev-routes rides along because a function ADDED, RENAMED or MOVED under api/ai changes
-  // what the dev server can reach, and nothing else here would notice.
-  [/^api\/(ai\/|_lib\/ai)/, ['ai.spec.ts', 'ai-depth.spec.ts', 'ai-tiers.spec.ts', 'ai-more-control.spec.ts', 'ai-dev-routes.spec.ts', 'video-project.spec.ts', 'video-inputs.spec.ts', 'video-settings.spec.ts']],
-  [/^api\//, ['render.spec.ts', 'render-schedule.spec.ts']],
-  // The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
-  // the dev middleware that makes the route exist locally at all.
-  [/^(api\/data\/|api\/_lib\/dataIngest|scripts\/dataDevPlugin)/, ['data-api.spec.ts']],
-  // The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
-  // of mocking it, which is the only thing that can prove a route is reachable at all - every
-  // other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
-  [/^scripts\/(aiDevPlugin|apiRouteTable)/, ['ai-dev-routes.spec.ts', 'ai.spec.ts', 'ai-depth.spec.ts', 'ai-more-control.spec.ts']],
-  [/^src\/export\//, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts', 'production-gate.spec.ts']],
-  // The two walks that drive a CasparCG package's own operator page live with the imported
-  // boards they drive, so an export change has to schedule them from here - they are the only
-  // gate on that package's panel, and it was missing from that package entirely until
-  // 2026-09-04 with nothing red to say so.
-  [/^src\/export\/(common|selfContained|targets\/casparcg)/, ['import-svg-behaviour.spec.ts']],
-  [/^src\/control\/receiverScript/, ['import-svg-behaviour.spec.ts']],
-  // OGraf conformance is checked over the whole CATALOG, so a template change can break it as
-  // surely as an exporter change can (a new field type, a new machine shape).
-  [/^src\/(export\/targets\/ograf|templates)\//, ['ograf-conformance.spec.ts']],
-  // The free OGraf starters page (/ograf, docs/OGRAF.md): its own files, and it rides on the
-  // OGraf target (the download IS that target's build) and on src/templates (a catalog RENAME
-  // must fail the card-resolution test, not strand a dead card on a public page).
-  [/^(ograf\.html|src\/ograf\/|src\/export\/targets\/ograf|src\/templates\/)/, ['ograf-starters.spec.ts']],
-  // The /bridge page (docs/AGENT_CLI.md) and what it composes that nothing else exercises: the
-  // dual graphic package + the OGraf package reader (export), the neutral scaffold (templates),
-  // the OGraf manifest -> operator-surface adapter (control). The CLI under cli/ has its own
-  // package tests (CI) and `npm run bench:cli`; a change there runs no e2e spec.
-  [/^(bridge\.html|src\/bridge\/)/, ['bridge.spec.ts', 'ograf-contract.spec.ts']],
-  [/^src\/export\/(noacgPackage|targets\/ografImport|targets\/ograf)/, ['bridge.spec.ts', 'ograf-contract.spec.ts']],
-  [/^src\/templates\/types\/neutralDesign/, ['bridge.spec.ts']],
-  [/^src\/control\/ografContract/, ['ograf-contract.spec.ts', 'bridge.spec.ts']],
+// ── Which specs a source change selects ─────────────────────────────────────
+// Each spec declares the source it covers in its own header (`// covers:`, scripts/e2e-lists.mjs),
+// and every matching spec contributes (union). Adding or re-mapping a spec edits that spec only.
+//
+// What stays HERE is only what no single spec can hold, each with its reason:
+//   - CORE below: the shared foundations whose change runs the full suite.
+//   - IGNORE below: files no spec can observe.
+//   - CATALOG_TRIGGERS below: the catalog gate is a separate config over the whole catalog, raised
+//     as one flag, not a spec a header could name.
+//   - CENTRAL: source that is KNOWN and deliberately selects no spec. There is no spec to carry
+//     it, and without the row it would read as unmapped and escalate to the full suite.
+//
+// `components/spaceKey.ts` is deliberately in NONE of these. It answers who owns Space, Delete,
+// Escape, Ctrl+C and the arrows for the canvas, the timeline, every modal and every focused
+// control, so the set of specs a change to it can move is not a list anybody would keep correct.
+// It escalates as unmapped, and that is the decision rather than an omission.
+export const CENTRAL = [
+  // The CLI under cli/ has its own package tests (CI) and `npm run bench:cli`; a change there
+  // runs no e2e spec. (e2e/bridge-ograf.spec.ts imports the Bridge from cli/ and runs when it is
+  // edited itself, through the focus set and at night.)
   [/^cli\//, []],
   // The plugin marketplace entry (root .claude-plugin/) and the agent round's brief bank +
   // results (benchmarks/agent/): read by `claude plugin` and by scripts/agent-round-bench.mjs,
   // never by a spec.
   [/^(\.claude-plugin\/|benchmarks\/agent\/)/, []],
-  // The OUTPUT EMBED is an export file about the cloud output, so it belongs to the production
-  // suite rather than to the package specs the rule above lists (rules union, never shadow).
-  [/^src\/export\/outputEmbed/, ['productions.spec.ts']],
-  // `agent-made-graphics.spec.ts` rides along because it is the only spec whose ⚡ block comes
-  // from a machine NOBODY here wrote: the derived panel is `controlModel.ts`'s answer to code an
-  // agent authored, and a change that narrowed it to the studio's own machines would leave every
-  // other spec in this row green.
-  [/^src\/control\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'exports.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'snap-recovery.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'production-gate.spec.ts', 'agent-made-graphics.spec.ts']],
-  // The library->air gate (docs/AGENT_SAVE.md): publishControlShow and the production builders
-  // refuse an invalid graphic. src/validation is CORE, so a change to the gate itself runs the
-  // full suite; this line is for the two call sites and the dialog that shows the verdict.
-  [/^(src\/export\/showExport|src\/components\/home\/ProductionExportDialog)/, ['production-gate.spec.ts']],
-  // The readable audience name is minted by the publish path but READ on the audience surfaces,
-  // and rules union rather than shadowing - so this adds to the src/control/ list above.
-  [/^src\/control\/joinName/, ['production-audience.spec.ts']],
-  // Loading a DATASET row into a cue: the matcher is shared by the in-app page (live) and the
-  // publish path (the hosted page's rows), so the production-data specs that drive the gesture
-  // have to run alongside the control ones the rule above selects.
-  [/^src\/control\/cueData/, ['production-data.spec.ts']],
-  // The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
-  [/^src\/output\//, ['productions.spec.ts', 'snap-recovery.spec.ts']],
-  // A FOREIGN OGraf package on the stage (docs/OGRAF_ECOSYSTEM.md §3): the isolated player, the
-  // host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
-  // fixtures. The one spec that proves the boundary, and output-first-paint because the stage
-  // module is what the published graphics load through as well.
-  [/^(src\/output\/(stage|foreignOgraf)|src\/control\/ograf(Host|Contract)|e2e\/fixtures\/foreign-ograf\/)/, ['foreign-ograf-sandbox.spec.ts', 'output-first-paint.spec.ts']],
-  // The host document moved out of src/bridge/ (both entries load it) and took its specs along.
-  [/^src\/control\/ografHost/, ['bridge.spec.ts', 'ograf-contract.spec.ts']],
-  [/^output\.html$/, ['productions.spec.ts']],
-  // The universal in/out bank (blocks/motionPresets.ts) rides the `^src/blocks/` rule below as
-  // well, so naming it here only puts its own spec first. Its PICKER rides NOTHING: it sits at
-  // `src/components/MotionPresetPicker.tsx`, which matches neither the wizard rule nor the
-  // home rule, so whatever is listed on this line is its ENTIRE coverage. That cost a red
-  // shard on 2026-08-23 - the picker grew a direction-arrow row sharing the wizard Travel
-  // box's class, and `ux.spec.ts`, which broke on the resulting ambiguous locator, was never
-  // planned. The surfaces that MOUNT the picker are therefore named here explicitly.
-  // The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):
-  // every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
-  // same machine.
-  [/^src\/blocks\/behaviourData\.ts$|^src\/templates\/behaviours\/|^src\/templates\/importedDesign\/(behaviour|behaviourRuntime|artworkFields)\.ts$/, ['import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'import-svg.spec.ts', 'motion-presets.spec.ts']],
-  // The credits roll on imported artwork (docs/END_CREDITS.md): its recipe, the roll engine, the
-  // parser it shares with the catalog rolls, the fields list that turns the sample into one box,
-  // and its fixture. The classroom walk rides along: its credits are the list the default pace
-  // was set by (about thirty seconds), rolled from Illustrator's own output.
-  [/^src\/templates\/(behaviours\/credits\.ts|importedDesign\/(creditsRoll|artworkFields)\.ts|endCredits\/shared\.ts)$|^e2e\/fixtures\/credits-roll\.svg$/, ['import-svg-credits.spec.ts', 'classroom-package.spec.ts']],
-  [/^src\/blocks\/motionPresets\.ts$/, ['motion-presets.spec.ts']],
-  [
-    /^src\/components\/MotionPresetPicker\.tsx$/,
-    ['motion-presets.spec.ts', 'ux.spec.ts', 'wizard-preview.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts'],
-  ],
-  // animData.ts is the animation DATA MODEL, and one of its questions is read outside the
-  // timeline entirely: `hasMeasuredMotion` decides whether the wizard's preview plays a
-  // graphic or settles it (components/wizard/WizardPreview.tsx). A change to that predicate
-  // changes the FIRST FRAME somebody judges a template by, and both specs that measure it
-  // live here rather than under the timeline rule below.
-  [/^src\/blocks\/animData\.ts$/, ['wizard-preview.spec.ts', 'end-credits.spec.ts', 'public-service.spec.ts']],
-  // The reason the importer refused a hand-authored ANIMATION region. It lives in blocks/ beside
-  // the reader it explains, but the sentence it produces is READ through the agent CLI door
-  // (bridgeApi.normalize) - and the blocks rule below selects no bridge spec, so the one test
-  // that pins the wording would otherwise only ever run at night.
-  [/^src\/blocks\/animationRegion\.ts$/, ['bridge.spec.ts']],
-  // defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
-  // from it by importing it directly are named here; the templates subset alone would miss
-  // storage-full, which builds its own fixture off createDefaultTemplate().
-  [/^src\/templates\/defaultTemplate\.ts$/, ['format.spec.ts', 'storage-full.spec.ts']],
-  // The Import-graphic road's option shapes (DesignSvg*, DesignArt, DesignStretch). They were
-  // full-suite as part of src/model/wizard.ts; the generic ^src/templates/ rule below does not
-  // name the import road, whose consumers are the wizard steps, so the specs are named here.
-  [/^src\/templates\/importedDesign\/designTypes\.ts$/, ['import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts', 'import-canvas.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts']],
-
-  // src/model/cssVars.ts has no row: it is CORE (src/model), and CORE is decided before MAP is
-  // read, so a row here would never fire. The two specs that pin `cssPaintsWith` - whether the
-  // wizard offers a palette role at all (components/wizard/steps/StyleStep.tsx) - are
-  // wizard-setup-fields.spec.ts and wizard-preview.spec.ts; the full-suite escalation runs both.
-  [/^src\/blocks\//, ['motion-presets.spec.ts', 'anim-engine.spec.ts', 'timeline-v2.spec.ts', 'inspector.spec.ts', 'canvas-keyframe.spec.ts', 'legacy-timeline.spec.ts', 'multi-select.spec.ts', 'pasteboard.spec.ts', 'ux.spec.ts', 'bench.spec.ts', 'import-graphic.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  // creative-routing rides along because ROUTING and SATISFACTION resolve live against the
-  // catalog and the type registry (src/templates/structuralAnchor.ts): a structure the
-  // catalog gains or loses moves a route, which is the decay rule the spec enforces.
-  // ai-retrieval rides along for the same reason one level down: the shortlist is RANKED over
-  // the catalog's own metadata and FILTERED by the same anchor table, so a design added,
-  // renamed or re-declared moves what a brief retrieves.
-  // The quiz runtime is also the exported control panel's recovery subject and the audience
-  // pack's answer boards - the generic src/templates rule below unions with this one.
-  [/^src\/templates\/quiz\//, ['control.spec.ts', 'control-panel-types.spec.ts', 'audience-pack.spec.ts', 'production-controls.spec.ts', 'quiz-pilot.spec.ts', 'quiz-show.spec.ts', 'quiz-live-consistency.spec.ts']],
-  // THE QUIZ ON AIR across every board: the Reveal's carried key, the two answer models, and
-  // which road a clock-free graphic's events take. Its sources are the two control lists, the
-  // imported quiz recipe, the road rule and its clock test, and the two pages that send.
-  [/^src\/(templates\/(types\/(answerBoard|quizShow)|behaviours\/quiz)|control\/(hostedControl|matchClockWire))\.ts$/, ['quiz-live-consistency.spec.ts']],
-  [new RegExp(`^src/components/(home/(${PRODUCTION_PAGE_PARTS})|HostedControlPage)\\.tsx$`), ['quiz-live-consistency.spec.ts']],
-  // THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
-  // score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
-  // the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
-  // family tokens and palettes ride along because those nine designs are their only readers.
-  [/^src\/templates\/(types\/(quizShow|duelScore)\.ts|scoreboards\/(duelShared|sb2[678])\.ts|lowerThirds\/lt(68|69|70)\.ts)$/, ['quiz-show.spec.ts']],
-  [/^src\/model\/themeTokens\.ts$/, ['quiz-show.spec.ts']],
-  // The rest of the Quiz Show kit: five more designs per game-show family and the pack that
-  // gathers all eight. quiz-show.spec.ts holds the kit's resolution (three looks and no other).
-  [/^src\/templates\/(infoCards\/card8[456]|infographics\/ig4[012]|infographics\/pack4\/gameShowFacts|cornerBug\/bug(38|39|40)|gameTimers\/gt0[789]|startingSoon\/ss2[234]|shared\/gameShowShapes)\.ts$/, ['quiz-show.spec.ts']],
-  // THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
-  // file, and the spec walks it through the real import wizard - so a change to the sample, or to
-  // the importer that reads it, has to re-prove what the guide promises.
-  [/^docs\/svg-samples\/sticker-lower-third\.svg$/, ['import-svg-sticker-sample.spec.ts']],
-  [/^src\/(assets\/svgImport\.ts|templates\/importedDesign\/)/, ['import-svg-sticker-sample.spec.ts']],
-  // The classroom package is the other road through real Illustrator output, and the only file
-  // anywhere carrying Illustrator 30's look-wrapped lines (svgImport.ts `unwrapLookWrappers`).
-  [/^src\/assets\/svgImport\.ts$/, ['classroom-package.spec.ts']],
-  // The four types whose MACHINE the per-graphic control page is generated from. A type file is
-  // where a state, an arrow or a control label is authored, and control-panel-types.spec.ts is
-  // the only place the resulting BUTTONS and their greying are driven on that page - so an edit
-  // to any of them has to run it. (types/scoreboard.ts is covered by the sports rule below.)
-  [/^src\/templates\/(poll|gameTimers)\//, ['control-panel-types.spec.ts']],
-  [/^src\/templates\/types\/(answerBoard|quizBoard|livePoll|clocks)\.ts$/, ['control-panel-types.spec.ts']],
-  // The scoreboards are the OTHER stateful family with a runtime of their own - the match
-  // clock, the club-colour lift and the period rebuild - and sports.spec.ts is the only place
-  // any of that is driven. It had been mapped nowhere at all, so a scoreboard change reached
-  // air having run none of its 13 tests until the nightly. control.spec.ts rides along because
-  // its exported-panel case is built from a scorebug (sb01).
-  [/^src\/templates\/(scoreboards|types\/(sportsBugs|scoreboard))/, ['sports.spec.ts', 'control.spec.ts', 'control-panel-types.spec.ts', 'production-controls.spec.ts']],
-  // WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit
-  // half, so a pack edit or a change to `kitChoices` moves what the picker offers, what the
-  // count promises and what the production ends up holding. The three quiz kits are pinned in
-  // quiz-show.spec.ts. Unions with the generic src/templates rule below.
-  [/^src\/templates\/(kit|packs)\.ts$/, ['wizard-kit.spec.ts', 'quiz-show.spec.ts']],
-  // The PICTURE graphic is generated by the production page and by nothing else - no catalog
-  // route reaches it - so the generic src/templates rule below would run thirty catalog specs
-  // and miss the one spec that actually drives it.
-  [/^src\/templates\/picture\.ts$/, ['productions.spec.ts']],
-  // THE PACK SPECS BELONG HERE, and for six of them they did not. A spec that iterates the
-  // CATALOG asserts over exactly what a design addition changes, so adding one design must
-  // select every one of them - yet `competition-pack`, `holding-pack`, `full-frame-offering`,
-  // `public-service`, `template-escaping` and `sports` were reachable from no template path at
-  // all (sports only from `src/templates/scoreboards`, which a new esports design does not
-  // touch). Measured on 2026-08-08: ten designs landed on claude/new-session-d34962, every
-  // local and CI branch gate stayed green, and competition-pack.spec.ts only ran because that
-  // branch's FIRST push gave CI no diff base and it escalated to the full suite by accident.
-  // `scripts/e2e-affected.test.mjs` now pins the rule this list was failing - every catalog
-  // importer is selected by a `src/templates/` change - so the hole cannot silently reopen.
-  // package.spec.ts and images.spec.ts both CREATE catalog variants and assert on the markup they
-  // emit (package.spec drives Classic Roll's parsed roll; images.spec drives its logo slot), so a
-  // design's markup changing under them is a real templates dependency. Neither was mapped, which
-  // is how a renamed credits row got past a local affected run and red-mained CI on 2026-08-26.
-  // anim-engine.spec.ts is the same class one layer down, and it cost main a full day of red on
-  // 2026-08-27. It RECONSTRUCTS a preset's emitted region - the only spec that imports
-  // presetRegistry - and measures that against the interpreter, so the emit authored under
-  // src/templates/ is literally its subject; yet it was reachable only from src/blocks/. The
-  // count-from-zero fix changed an infographic emit, every branch plan skipped the one spec that
-  // compares the two representations, and the mismatch surfaced in the nightly. The pin lives in
-  // scripts/e2e-affected.test.mjs and is derived from that import rather than from this list.
-  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts', 'quiz-show.spec.ts', 'quiz-live-consistency.spec.ts', 'playout-baseline.spec.ts']],
-  // The Import-graphic capability lives behind its own folder and its own index
-  // (src/components/wizard/import/, docs/ARCHITECTURE.md §5), so a
-  // change inside it selects the import road's own specs and the four others that assert on
-  // testids these files render - 38 specs down to 13. The rules below are UNION'd, not
-  // first-match, so the narrowing is what the negative
-  // lookahead in the generic wizard rule does; this line only names the road's own specs. A
-  // change ANYWHERE ELSE under the wizard still runs all nine, because the shell mounts these
-  // steps and the draft re-exports their state.
-  [
-    /^src\/components\/wizard\/import\//,
-    [
-      // The road's own nine.
-      'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts',
-      'import-canvas.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts',
-      'import-svg-behaviour.spec.ts',
-      // And the four that reach these components through the import entry and assert on testids
-      // only they render: the quiz and behaviour rows of MapSvgFieldsStep (student-rehearsal, the
-      // spec that gates the quiz and scoreboard push), ImportDesignStep's format and raster
-      // warnings (project-format), PlaceFieldsStep's tool area (text-tools) and its font field
-      // (google-fonts). They were reached by the generic wizard rule before the lookahead.
-      'student-rehearsal.spec.ts', 'project-format.spec.ts', 'text-tools.spec.ts', 'google-fonts.spec.ts',
-    ],
-  ],
-  // wizard-finish, wizard-kit and wizard-shell were MISSING from this list, so a FinishStep,
-  // kit-flow or wizard-header change ran neither the spec named after it nor anything that
-  // walks to its step - the "runs FEWER specs" failure mode with no alarm attached
-  // (scripts/e2e-affected.mjs's own safety argument is that it fails toward running more).
-  // import-prepare, import-canvas, import-stretch and import-analysis were mapped from NOWHERE
-  // - not from this list, not from src/assets/ below - so the four specs that own the Import
-  // Graphic flow's Prepare and Text steps only ever ran at night. That is the same "runs FEWER
-  // specs" failure mode the wizard-finish line above records, and it has already bitten twice:
-  // auto-placement broke import-analysis, and the erase's opening proposal changes the very
-  // step import-prepare and import-canvas walk through.
-  // library rides along because the wizard HEADER is a door out of the wizard, and where its
-  // controls land is asserted over there: library.spec.ts walks Home -> wizard -> Home through
-  // the header. Splitting the logo and Home into two controls changed both of its walks while
-  // every spec named after the wizard stayed green, which is this list's own failure mode
-  // again - a header change running nothing that leaves the header.
-  // AiStep.tsx and steps/ai/ LIVE in this directory, so every AI spec is a real dependency of it
-  // - and none of them was mapped. Rewriting one line of the result card's copy on 2026-08-26
-  // broke 21 assertions across seven AI specs, and the affected plan selected none of them.
-  [/^src\/components\/wizard\/(?!import\/)/, ['ai.spec.ts', 'ai-lite.spec.ts', 'ai-more-control.spec.ts', 'adapt-first.spec.ts', 'image-purpose.spec.ts', 'project-format.spec.ts',
-    'motion-presets.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'wizard-entry-fit.spec.ts', 'editor-alpha-entry.spec.ts', 'wizard-finish.spec.ts', 'wizard-kit.spec.ts', 'wizard-shell.spec.ts', 'import-name-collision.spec.ts', 'library.spec.ts', 'flows.spec.ts', 'ux.spec.ts', 'import.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'text-tools.spec.ts', 'project.spec.ts', 'video-project.spec.ts', 'video-hyperframes.spec.ts', 'pro.spec.ts', 'storage-full.spec.ts', 'wizard-setup-fields.spec.ts', 'google-fonts.spec.ts', 'design-rules-product.spec.ts', 'end-credits.spec.ts']],
-  // WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
-  // across the storage layer, the two save paths over it, and the surface that announces the
-  // failure. It is mapped separately because the failure mode it guards - a door that saves
-  // nothing and says nothing - reads as "worked" to every other spec in the suite.
-  [/^src\/(model\/(library|shows|prefs|storageHealth)|store\/(saveActions|storageAlert)|ai\/settings)/, ['storage-full.spec.ts']],
-  [/^src\/components\/save\/StorageAlertDialog/, ['storage-full.spec.ts']],
-  // The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
-  // the local provider, so the offline suite really does cover it - which is why the seam was
-  // built before the backend.
-  [/^src\/audience\//, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
-  [/^src\/components\/home\/ProductionAudienceWorkspace/, ['production-audience.spec.ts', 'production-chat-intake.spec.ts']],
-  // The public join page is its own MPA entry, so it needs its own mapping: a change to
-  // join.html or src/join/ touches no module the app imports, and would otherwise map to
-  // nothing at all.
-  [/^(join\.html|src\/join\/)/, ['production-audience.spec.ts']],
-  // The canvas surface moved into its own directory on 2026-08-22 (the overlay, the gesture
-  // layer, the guides, the locks and the pasteboard), so the pattern is the DIRECTORY now -
-  // pasteboard.ts and partLocks.ts used to fall through to the components fallback.
-  [/^src\/components\/canvas\//, ['canvas-selection.spec.ts', 'canvas-keyframe.spec.ts', 'multi-select.spec.ts', 'wysiwyg.spec.ts', 'inline-edit.spec.ts', 'pasteboard.spec.ts', 'import-graphic.spec.ts', 'asset-workflow.spec.ts']],
-  // THE TIMELINE DOCK's components. The path matters: these five moved into
-  // `src/components/timeline/` and both rules kept naming `src/components/<Name>`, so from the
-  // move until 2026-08-29 they matched NOTHING and every timeline change escalated to the full
-  // suite as an unmapped path. That direction is the safe one - it ran more, never less - but it
-  // ran the whole suite to verify a comment in Inspector.tsx, which is the cost this file exists
-  // to avoid. (`TimelineDock` was in the old list and is not a file at all; the dock is
-  // WorkspaceDock.tsx, already mapped below.) keyboard.spec.ts is named because StepTimeline owns
-  // the Space-plays handler - one half of a two-surface key contract whose other half sits in
-  // PreviewFrame, which is CORE.
-  [/^src\/components\/timeline\/(StepTimeline|LegacyTimeline|Inspector|PlayoutSimulator)/, ['timeline-v2.spec.ts', 'legacy-timeline.spec.ts', 'inspector.spec.ts', 'anim-engine.spec.ts', 'canvas-keyframe.spec.ts', 'ux.spec.ts', 'import-graphic.spec.ts', 'machine-graph.spec.ts', 'asset-workflow.spec.ts', 'keyboard.spec.ts']],
-  [/^src\/components\/timeline\/MachineGraph/, ['machine-graph.spec.ts', 'state-machine.spec.ts', 'timeline-v2.spec.ts']],
-  // components/spaceKey.ts is deliberately NOT mapped. It answers who owns Space, Delete, Escape,
-  // Ctrl+C and the arrows for the canvas, the timeline, every modal and every focused control, so
-  // the set of specs a change to it can move is not a list anybody would keep correct. It
-  // escalates, and that is the decision rather than an omission.
-  // playout-baseline draws a production page's cue editor, whose every box is a field control.
-  [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts', 'playout-baseline.spec.ts']],
-  // The playout dashboard's VERB KEYS, shared by the in-app production page and the hosted
-  // control page. Named here rather than left to the components fallback because the spec that
-  // actually presses them (playout-drills) is not in either surface's own row - the keymap is a
-  // foundation two surfaces read, which is exactly the shape that gets mapped as a helper and
-  // then verified by specs that never touch it.
-  [/^src\/components\/playoutKeys\.ts$/, ['playout-drills.spec.ts', 'production-controls.spec.ts', 'productions.spec.ts', 'hosted-control.spec.ts']],
-  [/^src\/components\/(AssetsPanel|assetInfo|InsertTemplateDialog)/, ['assets.spec.ts', 'images.spec.ts', 'asset-workflow.spec.ts', 'template-insert.spec.ts']],
-  // The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
-  // download): one spec drives export -> re-import through the real UI, plus the shipped
-  // Fight Night pack's install (rundown order included) - so the format owner and both UI
-  // ends select it, unioning with the pack-import rules below.
-  [/^src\/(packs\/|components\/home\/(ProductionExportDialog|sections\/ProductionsSection))/, ['production-pack.spec.ts', 'agent-made-graphics.spec.ts']],
-  // The pack CONTENT and its builder: the sample-import test drives the built file end to
-  // end (import gate included), so editing a pack graphic or the assembler selects it.
-  [/^(packs\/|public\/packs\/|scripts\/build-production-pack)/, ['production-pack.spec.ts', 'pack-import.spec.ts']],
-  // wizard-kit rides along: the kit's export door lands on ProductionPage and asks it to open
-  // THE production export dialog (templateStore `pendingProductionExport`), so a change to
-  // that page can break a wizard flow whose name says nothing about productions.
-  // import-svg-behaviour rides along too: the cue editor's TOO LONG warning
-  // (docs/SVG_IMPORT_PLAN.md §3) is drawn by home/CueOverflowNote and only an IMPORTED graphic
-  // reports one, so that spec is the only thing that would catch it going quiet. It is also the
-  // only one, which is why it is worth saying twice: a FOCUS run drops it, so a change to that
-  // warning is not verified by `test:e2e:focus` - use the full affected plan for it.
-  [/^src\/components\/(home|save)\//, ['motion-presets.spec.ts', 'library.spec.ts', 'library-bulk.spec.ts', 'library-productions.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'agent-made-graphics.spec.ts', 'playout-baseline.spec.ts']],
-  // The graphics-pack door: the format/importer, the shipped pack + its sources and build
-  // script, and the shared multi-template save path (also the wizard kit's, hence
-  // wizard-kit rides along on templateSet changes).
-  [/^src\/packs\//, ['pack-import.spec.ts']],
-  [/^(scripts\/packs\/|scripts\/build-news-pack|public\/packs\/)/, ['pack-import.spec.ts']],
-  [/^src\/model\/templateSet/, ['pack-import.spec.ts', 'wizard-kit.spec.ts']],
-  // The EXPORT SCREEN and the compatibility panel it mounts. Same spec set as `src/export/`
-  // above, because they are the same surface from the other side: those specs drive the Export
-  // panel, so they are what renders these components at all. Unmapped, each of them escalated a
-  // one-component edit to the whole suite - measured 2026-08-07, when a comment fix in
-  // PlayoutCompatibility.tsx ran 759 specs to prove nothing.
-  // NOTE: no spec asserts the compatibility panel's CONTENT yet (its `playout-compat` testids
-  // are unused). These specs mount it, so a crash or a render fault is caught; a wrong VERDICT
-  // is not. That gap wants a spec, not a wider mapping.
-  [/^src\/components\/(ExportSurface|PlayoutCompatibility)/, ['exports.spec.ts', 'package.spec.ts', 'offline.spec.ts', 'control.spec.ts', 'shows.spec.ts', 'local-relay.spec.ts', 'template-pack-10.spec.ts', 'design-rules-product.spec.ts']],
-  [/^src\/components\/auth\//, ['auth.spec.ts', 'sync.spec.ts']],
-  // TEAMS (docs/TEAMS_PLAN.md §7). The offline claim - a build with no backend grows ZERO team
-  // UI - is pinned in auth.spec.ts, and the door hangs off the two PRODUCTION surfaces, whose
-  // own rule (`src/components/(home|save)/` above) does not name that spec. Rules union, so this
-  // adds it rather than replacing what those files already select. `src/backend/teams.ts` needs
-  // no row: the `src/backend/` rule already reaches auth.spec.ts.
-  // ProductionLinks carries the Start production button, whose offline title auth.spec.ts pins
-  // (the page's own auth posture: disabled, a plain reason, no sign-in dialog).
-  [/^(src\/components\/teams\/|src\/components\/home\/(ProductionPage|ProductionLinks|sections\/ProductionsSection)\.tsx$)/, ['auth.spec.ts']],
-  // AGENT ACCESS (docs/AGENT_SAVE.md): the consent query route, the Settings key list, the
-  // browser client and the two /api/me routes it calls. The offline spec pins the no-backend
-  // posture; the live half is e2e/configured/agent-access.spec.ts (CONFIGURED_TRIGGERS).
-  [/^(src\/backend\/agentAccess|src\/components\/auth\/AgentAccessConsent|src\/components\/SettingsDialog|api\/_lib\/me\/(agentKeys|graphics|graphicShape|packages|packageShape)|api\/_lib\/(principal|agentAccessStore)|src\/entitlements\/permissions)/, ['agent-access.spec.ts']],
-  // The waiting-packages list on Productions: offline it must grow nothing (pack-import.spec.ts);
-  // the live half - send, list, Install, Dismiss - is e2e/configured/agent-access.spec.ts.
-  [/^src\/backend\/agentPackages/, ['pack-import.spec.ts']],
-  [/^src\/backend\//, ['auth.spec.ts', 'sync.spec.ts', 'offline.spec.ts', 'network-resilience.spec.ts', 'account-library.spec.ts']],
-  // Which account's library the page shows: the key naming (model/accountScope.ts) and every
-  // module that stores a per-account record under it.
-  [/^src\/model\/(accountScope|brand)\.ts$/, ['account-library.spec.ts', 'sync.spec.ts']],
-  // Restricted-network resilience (docs/GOALS.md "the SVG road"): the boot watchdog and the
-  // inline connection check live in app.html, the hydration timeout in the durable store, and
-  // the app-level notice in its own component - a change to any of them must run the spec
-  // that boots with the network or the storage broken. src/model and src/main are CORE, so
-  // for them this line documents the pairing; for app.html (otherwise unmapped, so it
-  // escalated by accident) and the notice component it IS the mapping. flows rides along on
-  // app.html because that file frames every /app load.
-  // durableStore also owns CROSS-TAB safety: its mirror is per-tab and every model mutator is a
-  // read-modify-WHOLE-RECORD write, so a change here can silently reintroduce one tab eating
-  // another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
-  [/^(app\.html|src\/model\/durableStore\.ts|src\/main\.tsx|src\/components\/StorageHealthNotice\.tsx)$/, ['network-resilience.spec.ts', 'cross-tab.spec.ts', 'account-library.spec.ts']],
-  [/^app\.html$/, ['flows.spec.ts']],
-  [/^src\/community\//, ['community.spec.ts']],
-  [/^src\/showchat\//, ['community.spec.ts']],
-  [/^src\/landing\//, ['landing.spec.ts']],
-  [/^index\.html$/, ['landing.spec.ts']],
-  // The public docs home (docs.html + src/docs/, docs/AGENT_CLI.md's landing half).
-  // public/docs/ holds the screenshots docs.html embeds, and docs.spec.ts asserts they load;
-  // left unmapped, one regenerated picture escalated to the full suite plus the catalog gate
-  // (measured 2026-08-30). The landing spec rides along on the entry because the two pages
-  // cross-link: a docs section renamed out from under the landing's anchors is exactly the
-  // break neither page sees alone.
-  [/^(docs\.html$|public\/docs\/)/, ['docs.spec.ts', 'landing.spec.ts']],
-  [/^src\/docs\//, ['docs.spec.ts']],
-  // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
-  // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-  // and its footer, so both of those specs ride along. public/downloads/ holds the classroom
-  // package zip the page links, and downloads.spec.ts fetches it.
-  [/^(downloads\.html$|src\/downloads\/|public\/downloads\/)/, ['downloads.spec.ts', 'landing.spec.ts', 'docs.spec.ts']],
-  // THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
-  // the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
-  // reachable surface can show a change here, and escalating to the whole suite would test code
-  // nobody can open. The spec that pins the old editor shut is the honest and cheap answer - it
-  // fails if anything starts loading AppShell again. The source stays until the new editor has
-  // taken over what is worth keeping.
-  [/^src\/components\/(AppShell|WorkspaceDock|CodeEditor)\.tsx$|^src\/teach\//, ['no-old-editor.spec.ts']],
-  // import-graphic rides along because assets/eraseRegion.ts is not only an assets helper: it is
-  // the deterministic flat-fill erase behind the Import Graphic Prepare step. Without this edge,
-  // editing the file the behaviour lives in runs the assets specs and never the one that would
-  // catch a break, leaving it to the nightly. (`pro.spec.ts` was here too while the Pro
-  // compiler's baked-text removal and ring matte used the same helper; that engine was deleted
-  // on 2026-08-15 and the Import Graphic step is the only caller left.)
-  // eraseRegion.ts also owns the SCAN that draws the Prepare step's opening box, and
-  // suggestFields.ts the Text step's auto-placement, so the four Import Graphic specs ride
-  // along here for the same reason they now ride along on the wizard directory.
-  [/^src\/assets\//, ['assets.spec.ts', 'images.spec.ts', 'bench.spec.ts', 'asset-workflow.spec.ts', 'import-graphic.spec.ts', 'import-prepare.spec.ts', 'import-canvas.spec.ts', 'import-stretch.spec.ts', 'import-analysis.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts']],
-  [/^src\/admin\//, ['admin.spec.ts']],
-  [/^admin\.html$/, ['admin.spec.ts']],
-  [/^api\/admin\//, ['admin.spec.ts']],
-  [/^api\/_lib\/admin/, ['admin.spec.ts']],
-  [/^scripts\/adminDevPlugin/, ['admin.spec.ts']],
-  [/^api\/me\//, ['admin.spec.ts', 'render.spec.ts', 'feedback.spec.ts']],
-  [/^scripts\/meDevPlugin/, ['admin.spec.ts', 'feedback.spec.ts']],
-  // The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the
-  // half this suite can check; the interactive half is e2e/configured/feedback.spec.ts and
-  // needs a configured backend. The button itself lives under src/components/feedback/, so the
-  // second row below names it along with the contract and the client.
-  [/^src\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
-  [/^src\/components\/feedback\//, ['feedback.spec.ts', 'ai.spec.ts']],
-  [/^src\/backend\/feedback/, ['feedback.spec.ts']],
-  [/^api\/_lib\/feedbackStore/, ['feedback.spec.ts']],
-  // The caller's own entitlement drives format greying, the template browser and the gallery.
-  [/^src\/backend\/myEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts', 'community.spec.ts']],
-  [/^src\/components\/useMyEntitlement/, ['admin.spec.ts', 'render.spec.ts', 'wizard-filters.spec.ts']],
-  // The entitlement contract is what the render and AI paths gate on, so a change there can
-  // move behaviour in either - and in the admin surface that explains it.
-  [/^src\/entitlements\//, ['admin.spec.ts', 'render.spec.ts', 'ai.spec.ts']],
-  // These files are assertions over catalog output, not shared application foundations.
-  // Refreshing them should verify the catalog baseline without expanding to every UI flow.
-  [/^e2e\/catalog(?:-render)?-baseline\.json$/, ['catalog-baseline.spec.ts']],
-  // The EXPORTER CORPUS (e2e/fixtures/svg-corpus/README.md): artwork and expectation sidecars,
-  // not application code, so they verify the spec that walks them and nothing else. Adding a
-  // fixture is how a new real-world export shape enters the road, and it has to run something.
-  // TWO SPECS, not one. The corpus spec sweeps every file; import-svg-behaviour ALSO walks three
-  // of them by name - the vote band since 2026-08-30, the four-team scoreboard since 2026-09-04
-  // and the question timer since 2026-09-05 - because a behaviour needs artwork carrying real
-  // exporter idioms and none of the three is offered as a shipped sample. That second load was
-  // invisible to this plan until the scoreboard arrived: editing the vote band would have re-run
-  // the sweep and not the walk that drives it.
-  [/^e2e\/fixtures\/svg-corpus\//, ['import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts']],
-  // The SHOW corpus (e2e/fixtures/svg-shows/README.md): the game-show and late-night graphics the
-  // behaviour spec walks through the wizard and the operator's controls.
-  [/^e2e\/fixtures\/svg-shows\//, ['import-svg-behaviour.spec.ts']],
-  // The AGENT-MADE proof case (e2e/fixtures/agent-made/README.md): one packed production whose
-  // two graphics carry machines an agent wrote by hand. Only one spec reads it, and a change to
-  // the pack is a change to what that spec asserts.
-  [/^e2e\/fixtures\/agent-made\//, ['agent-made-graphics.spec.ts']],
-  // THE PRACTICE LIBRARY (docs/svg-samples/) is documentation by location and a FIXTURE SET by
-  // use: `e2e/_svg-import.ts` loads scorebug.svg and quiz-board.svg out of it, and
-  // import-svg.spec.ts loads illustrator-export.svg. The blanket `^docs/` ignore below has a
-  // carve-out for this folder so those loads are not invisible to the plan. Measured 2026-08-30:
-  // the branch that grew the library from 5 files to 23 got a green CI run with every E2E shard
-  // SKIPPED, because the plan saw only ignored `docs/` paths - a green gate over zero specs.
-  // The rule covers the WHOLE folder, not just `*.svg`, so it agrees with that carve-out: a
-  // path the ignore admits and no rule maps is `unmapped`, which escalates to the full suite.
-  // Adding a preview image here would otherwise run 100+ specs to prove nothing.
-  [/^docs\/svg-samples\//, ['import-svg.spec.ts', 'import-svg-behaviour.spec.ts', 'motion-presets.spec.ts']],
-  // THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
-  // e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore below carves it out too.
-  // Every file in it maps here, README.md too: the spec pastes the README's English credit list,
-  // so the `.md` ignore below carves that one file out.
-  // downloads.spec.ts rides along because it checks the committed zip still holds these files.
-  [/^docs\/tutorials\/classroom-package\//, ['classroom-package.spec.ts', 'downloads.spec.ts']],
-  // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two
-  // surfaces it grows are already mapped elsewhere for their own reasons - SettingsDialog to
-  // analytics/auth, ProductionPage into the productions set - so those rules are UNION'd with
-  // this one rather than replaced. Without this row a change to the link contract would run
-  // specs that pin the panels' other contents and never the four diagnosis states, which are
-  // the whole point of the feature.
-  // The channel table and the per-cue slot helpers live in playoutLink.ts too, and the rundown
-  // is what reads them.
-  // serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
-  // address goes through, and the baselines draw both.
-  [
-    /^src\/control\/(playoutLink|playoutProtocol|serverPlayout|serverPlayoutStore|playoutSlots)\.ts$/,
-    ['bridge-connect.spec.ts', 'playout-cues.spec.ts', 'playout-baseline.spec.ts'],
-  ],
-  [/^src\/components\/(SettingsDialog|BridgePairPage)\.tsx$/, ['bridge-connect.spec.ts']],
-  // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
-  // named here rather than left to the components/home rule above: that rule's set does not
-  // include this spec, and the ONE button is the whole browser half of the feature.
-  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS}|ProductionLinks)\\.tsx$`), ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
-  // The dashboard's fixed shell: the control area is the one scroller and the monitors and the
-  // rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches
-  // the spec through the FOCUS list; the exported controller carries its own copy of the shell,
-  // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
-  // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
-  // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
-  // The rundown's width and its one-line rows (docs/CLIP_PLAYBACK_PLAN.md phase 1) are pinned by
-  // playout-rail-width: the handle, the §6.2 row table, the clash door and the list following the
-  // air. The stylesheet half reaches it through the FOCUS list, like the fixed-panes spec.
-  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`), ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts', 'playout-rail-width.spec.ts']],
-  // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
-  // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
-  // header door and the Back/Home pair beside it.
-  [
-    /^src\/(components\/(PlayoutSettingsDialog|PlayoutSettingsPanel)\.tsx|control\/playoutSystems\.ts)$/,
-    ['bridge-connect.spec.ts', 'playout-nav.spec.ts', 'playout-baseline.spec.ts'],
-  ],
-  [/^src\/control\/productionControllerHtml\.ts$/, ['playout-fixed-panes.spec.ts']],
-  // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
-  // the published payload's playout cues on the hosted page.
-  [/^src\/components\/home\/PlayoutItemPicker\.tsx$/, ['playout-cues.spec.ts']],
-  [/^src\/components\/HostedControlPage\.tsx$/, ['playout-cues.spec.ts']],
-  [/^src\/(model\/shows|control\/hostedControl)\.ts$/, ['playout-cues.spec.ts']],
-  // THE WIZARD DOOR (components/NewGraphicButton.tsx) is mounted by five shells at once, so a
-  // change to it moves the same control on Home, the editor, the control page, the production
-  // dashboard and the video shell. styles.css is already CORE, so this row is not
-  // what makes such a change verified - it records which specs OWN the door, so a later refactor
-  // touching only this file still runs them instead of falling through to the unmapped
-  // escalation and reading as covered by everything in general.
-  [
-    /^src\/components\/NewGraphicButton\.tsx$/,
-    ['project.spec.ts', 'library.spec.ts', 'control.spec.ts', 'productions.spec.ts', 'wizard-kit.spec.ts', 'playout-baseline.spec.ts'],
-  ],
-  // THE SURFACES THE OLD EDITOR'S SPECS WERE MOVED ONTO (2026-09-25). Those specs used to stand
-  // in the old code editor to reach an export, a production or the save dialog; they now open the
-  // export window (openExportWindow), a production page (openProductionWithCurrent) or the new
-  // editor's header (openWorkingGraphicInEditor, whose Home button carries `open-home`), all in
-  // e2e/_create.ts. A change to one of those surfaces selects the specs that now stand on it.
-  [
-    /^src\/components\/(ExportWindow|ExportSurface)\.tsx$/,
-    ['exports.spec.ts', 'control.spec.ts', 'local-relay.spec.ts', 'ograf-conformance.spec.ts', 'render.spec.ts', 'template-pack-10.spec.ts', 'template-pack-4.spec.ts', 'production-controls.spec.ts'],
-  ],
-  [
-    new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`),
-    ['bridge-connect.spec.ts', 'cross-tab.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-audience.spec.ts', 'production-chat-intake.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'productions.spec.ts', 'quiz-pilot.spec.ts'],
-  ],
-  [
-    /^src\/components\/(editorFoundation\/EditorFoundation|save\/(SaveControls|SaveDialogs))\.tsx$/,
-    ['auth.spec.ts', 'library.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-controls.spec.ts', 'production-pack.spec.ts', 'productions.spec.ts'],
-  ],
-  // The SVG import family's tests that read only the created template walk Finish's "Edit this
-  // graphic" into the new editor (finishIntoNewEditor), so the Finish step and the editor's mount
-  // select them too.
-  [
-    /^src\/components\/(editorFoundation\/EditorFoundation|wizard\/steps\/FinishStep)\.tsx$/,
-    ['import-svg.spec.ts', 'import-prepare.spec.ts', 'import-stretch.spec.ts'],
-  ],
-  // The door's ORDER beside Home and the wizard's own mount (guarded start-over, guard over
-  // the wizard) are pinned in project.spec.ts - so the two shells whose headers it measures,
-  // and the save dialogs whose z-order it clicks through, select it too. App.tsx is CORE
-  // already; VideoAppShell and SaveDialogs are not.
-  [/^src\/components\/video\/VideoAppShell\.tsx$/, ['project.spec.ts']],
-  // The save dialog also names WHERE a graphic goes when a backend is configured, and the
-  // offline pin that it names no account at all is in auth.spec.ts.
-  [/^src\/components\/save\/SaveDialogs\.tsx$/, ['project.spec.ts', 'auth.spec.ts']],
 ];
 
 // Anything matching these runs the FULL suite - shared foundations with fan-out everywhere.
@@ -706,12 +140,12 @@ const CORE = [
   /^src\/app\/router\./,
   /^src\/styles/,
   // The bundled GSAP build is a shared foundation that happens to live under src/assets/, and
-  // the `src/assets/` MAP entry below is written for asset HELPERS (eraseRegion, assetInfo,
+  // the `src/assets/**` spec headers are written for asset HELPERS (eraseRegion, assetInfo,
   // lottieSupport) - so without this line an upgrade of the animation engine ran the assets
   // and Pro specs and never anim-engine.spec.ts. Measured on the 3.10.4 -> 3.15.0 upgrade: 57
   // specs, none of them the one that pins editor-vs-runtime motion parity. Every preview and
   // every export inlines this file verbatim (imported `?raw`, so Vite never even transpiles
-  // it), which is the definition of fan-out. Matching CORE as well as MAP is harmless - the
+  // it), which is the definition of fan-out. Matching CORE as well as a header is harmless - the
   // full suite is a superset - and it fails toward running MORE, the direction this script
   // says its safety comes from.
   /^src\/assets\/gsap\.min\.js$/,
@@ -797,7 +231,7 @@ const SUITE_CRITICAL_SCRIPTS =
 // first-parent commits on `main` to 2026-09-04: eight of them escalated on nothing but
 // `.claude/settings.json` or `.codex/config.toml`, each running the 55-spec focus set to prove
 // something no spec can see. `.claude-plugin/` is NOT covered by this - it is the published
-// plugin manifest and has its own MAP rule.
+// plugin manifest and has its own CENTRAL rule.
 //
 // `scripts/*.test.mjs` is here because a test cannot change the thing it tests. The suite-critical
 // exception above matches on a NAME, so `scripts/e2e-affected.test.mjs` was pulled back out of
@@ -872,7 +306,7 @@ const CATALOG_TRIGGERS = [
  * @returns {{ mode: 'none'|'subset'|'full', specs: string[], catalog: boolean,
  *             unmapped: string[], focusApplied: boolean }}
  */
-export function planFor(changed, { sprintFocus = false, specsOnDisk = null } = {}) {
+export function planFor(changed, { sprintFocus = false, specsOnDisk = null, coverage = COVERAGE } = {}) {
   const onDisk = specsOnDisk ? new Set(specsOnDisk) : null;
   const specs = new Set();
   let full = false;
@@ -903,12 +337,14 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null } = {
       full = true;
       continue;
     }
-    const rules = MAP.filter(([r]) => r.test(file));
-    if (rules.length === 0) {
+    const covering = coverage.filter((c) => c.test(file));
+    const central = CENTRAL.filter(([r]) => r.test(file));
+    if (covering.length === 0 && central.length === 0) {
       unmapped.push(file); // Unknown territory: be safe, run everything, and say why.
       full = true;
     } else {
-      for (const [, list] of rules) for (const s of list) specs.add(s);
+      for (const c of covering) specs.add(c.spec);
+      for (const [, list] of central) for (const s of list) specs.add(s);
     }
   }
 
@@ -1366,11 +802,11 @@ function emitJson({ mode, specs, catalog, base, changedFiles }) {
   // A SPEC NAME THAT NAMES NOTHING used to be harmless: Playwright took the plan as filters and
   // simply matched nothing extra. Now each name becomes one runner's whole file list, so a ghost
   // left behind by a rename can land alone in a bin and red that shard with "no tests found" -
-  // a MAP typo reported as a test failure. `e2e-affected.test.mjs` already documents that a MAP
-  // rule pointing at a path that no longer exists is otherwise silent.
+  // a central-rule typo reported as a test failure. The build refuses one first (`auditSpecHeaders`
+  // in scripts/e2e-lists.mjs, run by `e2e-affected.test.mjs`); this is the line behind it.
   const ghosts = planned.filter((spec) => !onDisk.includes(spec));
   if (ghosts.length > 0) {
-    throw new Error(`the plan names ${ghosts.length} spec file(s) that do not exist: ${ghosts.join(', ')} - fix MAP in scripts/e2e-affected.mjs`);
+    throw new Error(`the plan names ${ghosts.length} spec file(s) that do not exist: ${ghosts.join(', ')} - fix CENTRAL in scripts/e2e-affected.mjs`);
   }
 
   const table = readTable();

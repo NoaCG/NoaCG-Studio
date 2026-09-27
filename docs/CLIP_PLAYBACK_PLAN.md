@@ -663,9 +663,8 @@ runner; playback settings belong to the cue, not the shared file.
 ## 16. Every file each phase touches
 
 Line numbers are at `ca54e17` (2026-09-27) and will drift; the names will not. "New" is a file the
-phase creates. Each phase adds its specs to `scripts/e2e-affected.mjs` (the playout rows are at
-601-634; `cli/` maps to no e2e spec at 207) in the same commit, as
-`root/add-playwright-spec-any-new-flow` requires.
+phase creates. Each phase gives its new specs a `// covers:` header naming the files they cover, in
+the same commit, as `root/give-any-new-flow-playwright-spec` requires (`cli/` selects no e2e spec).
 
 ### Phase 0 - safety net and seams (no visible change)
 

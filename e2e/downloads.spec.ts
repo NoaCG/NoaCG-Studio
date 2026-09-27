@@ -1,3 +1,16 @@
+// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+// It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
+// and its footer, so both of those specs ride along. public/downloads/ holds the classroom
+// package zip the page links, and downloads.spec.ts fetches it.
+// covers: {downloads.html,src/downloads/**,public/downloads/**}
+//
+// THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
+// e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore in scripts/e2e-affected.mjs
+// carves it out too. Every file in it maps here, README.md too: the spec pastes the README's
+// English credit list, so the `.md` ignore in scripts/e2e-affected.mjs carves that one file out.
+// downloads.spec.ts rides along because it checks the committed zip still holds these files.
+// covers: docs/tutorials/classroom-package/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

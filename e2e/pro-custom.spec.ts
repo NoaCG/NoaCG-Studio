@@ -1,3 +1,5 @@
+// covers: src/ai/pro/custom/**
+//
 // THE CUSTOM LANE's engine, pinned OFFLINE at its pure seams (src/ai/pro/custom/loop.ts).
 //
 // The lane is flag-gated server-side (`AI_PRO_CUSTOM_ENABLED`, default off) and its full walk

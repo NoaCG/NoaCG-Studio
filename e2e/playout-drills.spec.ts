@@ -1,3 +1,11 @@
+// covers: src/components/{home,save}/**
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+//
+// The playout dashboard's VERB KEYS, shared by the in-app production page and the hosted control
+// page. This is the spec that actually presses them, and it is in neither surface's own list.
+// covers: src/components/playoutKeys.ts
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { parkFocusOffControls } from './_keys';

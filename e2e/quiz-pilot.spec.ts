@@ -1,3 +1,7 @@
+// covers: src/templates/quiz/**
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { expectMachineState } from './_stage';

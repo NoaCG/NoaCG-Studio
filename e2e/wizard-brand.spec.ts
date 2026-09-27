@@ -1,3 +1,12 @@
+// covers: src/templates/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// THE BRAND CHOOSER (docs/BRAND_PLAN.md). It belongs to the sprint set for the same reason the logo
+// spec does: it is the road a student's own channel look takes into a graphic, and its model half
+// (model/brand.ts, model/packets.ts) is CORE - so a change there escalates to THIS list, and
+// without the `// focus` line the one spec written to protect the surface would never run.
+// focus
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

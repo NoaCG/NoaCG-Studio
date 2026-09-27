@@ -1,3 +1,5 @@
+// covers: src/ai/**, src/templates/**
+//
 // Every field a NoaCG Lite graphic declares must reach the screen.
 //
 // The defect, from the 2026-08-08 quality round (benchmarks/lite/ROUND-2026-08-08-QUALITY.md

@@ -1,3 +1,19 @@
+// The bench-only spike instruments. They never gate a user flow, but they are what a paid
+// round's numbers MEAN - and the panel-overflow blindness (docs/NOACG_PRO_PLAN.md §15.6) is
+// exactly the class that builds green and reports a defect as its opposite.
+// covers: src/ai/spike/**
+//
+// The design rules as a PRODUCT property (docs/DESIGN_RULES_PLAN.md §5 R4): the canonical module,
+// the shared measurement instruments (moved out of the spike so product and bench read one code),
+// and the warn-first product warnings. src/model and src/validation are CORE (full suite), but
+// under the sprint focus that escalation runs the focus set - so the spec is in the focus set
+// (`// focus`) as well, and this line documents the pairing.
+// covers: src/{model/designRules.ts,validation/{designRulesWarnings,readabilityCheck,tickerCheck}.ts}
+//
+// The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
+// trigger rests entirely on `inkSpread` separating one ink from several.
+// covers: src/assets/assetInfo.ts
+//
 // The spacing instrument must count content that ESCAPES its panel.
 //
 // THE DEFECT (docs/NOACG_PRO_PLAN.md §15.6, first item). Panel membership was geometric

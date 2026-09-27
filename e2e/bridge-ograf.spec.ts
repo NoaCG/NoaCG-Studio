@@ -1,3 +1,12 @@
+// covers: none - its subject is the Bridge under cli/, which selects no e2e spec (the CLI's package
+// tests gate it); it runs when edited, through the focus set and at night
+//
+// THE BRIDGE AS AN OGRAF CLIENT (docs/BRIDGE.md §3a): the real Bridge against a fake OGraf server,
+// every verb's exact Server API request. It shares the playout protocol file with the two specs
+// above, and nothing under cli/ selects a spec by itself, so without this line the
+// browser-to-Bridge-to-server proof would never run in the merge gate. Three tests, no catalog.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';

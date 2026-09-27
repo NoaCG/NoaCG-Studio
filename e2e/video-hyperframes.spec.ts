@@ -1,3 +1,6 @@
+// covers: src/ai/video/**, src/video/**, src/components/video/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
 // The HyperFrames engine flow, end to end on the offline stub provider: pick the engine
 // in the wizard, auto-generate a composition document, LIVE preview through the sandboxed
 // srcdoc driver (clip windows + the paused GSAP timeline seeked by the driver), Content

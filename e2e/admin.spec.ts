@@ -1,3 +1,11 @@
+// covers: src/admin/**, admin.html, api/admin/**, api/_lib/admin*{,/**}, scripts/adminDevPlugin.mjs
+// covers: api/me/**, scripts/meDevPlugin.mjs, src/backend/myEntitlement.ts
+// covers: src/components/useMyEntitlement.ts
+//
+// The entitlement contract is what the render and AI paths gate on, so a change there can
+// move behaviour in either - and in the admin surface that explains it.
+// covers: src/entitlements/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { resultTotal } from './_browse';
 

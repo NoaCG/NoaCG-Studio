@@ -1,3 +1,7 @@
+// covers: src/blocks/**, src/components/canvas/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+// covers: src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}, src/assets/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 

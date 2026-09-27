@@ -1,3 +1,19 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// AGENT ACCESS (docs/AGENT_SAVE.md): the consent page with a session, the loopback handoff,
+// redeem, a save 201, the deep link after sync and revoke -> 401 only exist against a real
+// backend (e2e/configured/agent-access.spec.ts). The offline spec can only pin their absence.
+// covers: src/backend/agentAccess.ts, src/components/auth/AgentAccessConsent.tsx
+//
+// WHAT AN ACCOUNT IS FOR, and where a save goes in each state. The dialog and the inline gate
+// only render with a backend, so the sentence they carry (accountCopy.ts) and its two shapes
+// are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
+// signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
+// auth.spec.ts can only pin that it says neither.
+// covers: api/_lib/me/{agentKeys,graphics,graphicShape}.ts
+// covers: api/_lib/{principal,agentAccessStore}.ts, api/me/?...path?.ts, scripts/meDevPlugin.mjs
+
 import { test, expect } from '@playwright/test';
 import http from 'node:http';
 import { readFileSync } from 'node:fs';

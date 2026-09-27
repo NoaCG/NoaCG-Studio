@@ -1,3 +1,6 @@
+// covers: src/templates/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';

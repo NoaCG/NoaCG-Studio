@@ -1,3 +1,14 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// THE PRODUCTION DATA API and the panel that hands out its key (docs/DATA_API.md). Offline
+// there is no publish, no data_key row and no key to reveal, so the only honest proof that the
+// revealed string AUTHENTICATES is the configured walk
+// (e2e/configured/production-data-key.spec.ts). The offline data-api spec pins the refusal
+// shapes, and production-data.spec.ts pins the button's absence; both are different claims.
+// covers: src/control/productionDataApi.ts, src/components/home/ProductionDataPanel.tsx
+// covers: api/data/**, scripts/dataDevPlugin.mjs
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { openWorkspace } from '../_workspace';

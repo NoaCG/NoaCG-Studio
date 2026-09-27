@@ -283,7 +283,7 @@ has nothing telling them the timing lives on a different board.
 `#/control/<id>` on a graphic that has a machine. `e2e/control-panel-types.spec.ts` now walks the
 quiz (both routes), the live vote, the scoreboard and the countdown on that page, asserting the
 state chip AND the full greying table after every press, plus the machine-less lower third and the
-§5.1 regression. Its mapping is in `scripts/e2e-affected.mjs` under `src/control/`, the four type
+§5.1 regression. Its own `// covers:` header maps it to `src/control/`, the four type
 files, and `src/components/home/`.
 
 ## 6. The recorded blocker: `validation/fieldPaint.ts` read one state — FIXED

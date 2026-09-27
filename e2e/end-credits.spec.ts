@@ -1,3 +1,13 @@
+// covers: src/templates/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// animData.ts is the animation DATA MODEL, and one of its questions is read outside the timeline
+// entirely: `hasMeasuredMotion` decides whether the wizard's preview plays a graphic or settles it
+// (components/wizard/WizardPreview.tsx). A change to that predicate changes the FIRST FRAME
+// somebody judges a template by, and both specs that measure it live here rather than under the
+// `timeline` covers line.
+// covers: src/blocks/animData.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject, enableAdvancedMode, finishIntoEditor } from './_create';
 import { chooseType, pickDesign } from './_browse';

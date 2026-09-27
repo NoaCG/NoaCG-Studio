@@ -1,3 +1,6 @@
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 
 // The Entry step's HEIGHT BUDGET. Step 0 is the app's first screen, and it has to fit a

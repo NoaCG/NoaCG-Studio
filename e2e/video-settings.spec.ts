@@ -1,3 +1,9 @@
+// covers: src/ai/video/**, src/video/**, src/components/video/**, api/{ai/**,_lib/ai*{,/**}}
+//
+// The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
+// one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
+// covers: src/components/AiProviderSettings.tsx
+//
 // Settings vs the code the AI wrote.
 //
 // A project's settings drive the player and the renderer the moment they change - but not the

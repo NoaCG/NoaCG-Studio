@@ -1,3 +1,9 @@
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// It reaches the Import-graphic folder through the import entry and asserts on testids only it
+// renders: PlaceFieldsStep's tool area.
+// covers: src/components/wizard/import/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { lowerThirdPng } from './_png';

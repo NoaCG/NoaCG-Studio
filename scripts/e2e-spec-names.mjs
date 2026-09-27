@@ -2,7 +2,7 @@
 // the suite can import without pulling the planner in.
 //
 //   store / annotation identity   e2e/anim-engine.spec.ts   (the failure set, the quarantine, git)
-//   planner identity              anim-engine.spec.ts       (the MAP, the durations table, the shards)
+//   planner identity              anim-engine.spec.ts       (the plan, the durations table, the shards)
 //   Playwright filter             [\\/]anim-engine\.spec\.ts$ (what a shard is handed)
 //
 // The planner (scripts/e2e-affected.mjs) re-exports `specFilterArg`, so its callers are unchanged;

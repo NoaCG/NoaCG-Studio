@@ -1,3 +1,12 @@
+// covers: src/export/**, src/control/**, src/templates/**
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+// focus
+//
+// The EXPORT SCREEN and the compatibility panel it mounts. No spec asserts the panel's CONTENT yet
+// (its `playout-compat` testids are unused): these specs mount it, so a crash is caught and a wrong
+// VERDICT is not. That gap wants a spec, not a wider mapping.
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';

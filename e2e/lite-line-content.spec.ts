@@ -1,3 +1,5 @@
+// covers: src/ai/**, src/templates/**
+//
 // A generated graphic must come back carrying every line it was given, and a graphic TYPE must
 // never come back with fewer populated lines than it declares line fields.
 //

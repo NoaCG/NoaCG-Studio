@@ -1,3 +1,9 @@
+// covers: src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}, src/assets/**
+//
+// The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
+// trigger rests entirely on `inkSpread` separating one ink from several.
+// covers: src/assets/assetInfo.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 

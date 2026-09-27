@@ -1,3 +1,5 @@
+// covers: src/blocks/**, src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 import { awaitPreviewRebuild } from './_preview';

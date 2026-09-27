@@ -1,3 +1,11 @@
+// covers: src/templates/**
+// focus
+//
+// defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
+// from it by importing it directly are named here; the templates subset alone would miss
+// storage-full, which builds its own fixture off createDefaultTemplate().
+// covers: src/templates/defaultTemplate.ts
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

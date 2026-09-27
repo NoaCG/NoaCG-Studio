@@ -1,3 +1,10 @@
+// covers: src/components/{ExportWindow,ExportSurface}.tsx
+// focus
+//
+// OGraf conformance is checked over the whole CATALOG, so a template change can break it as
+// surely as an exporter change can (a new field type, a new machine shape).
+// covers: src/templates/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openExportWindow } from './_create';
 import JSZip from 'jszip';

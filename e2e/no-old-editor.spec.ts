@@ -1,3 +1,24 @@
+// THE CLOSED DOORS TO THE OLD CODE EDITOR (owner, 2026-09-24). Every file that used to hold one
+// selects the spec that pins them all shut: Settings (the Advanced mode switch), the wizard's Entry
+// and Finish steps, Home, a graphic row, the control page, the new editor's header and the video
+// workspace. App.tsx and model/prefs.ts are CORE, which reaches the same spec through the focus set
+// (`// focus`).
+// covers: src/components/{SettingsDialog,home/{HomePage,GraphicRow,GraphicControlPage},editorFoundation/{EditorFoundation,openNewEditor},video/VideoAppShell,wizard/{CreationWizard,steps/{EntryStep,FinishStep}}}.ts{,x}
+//
+// THE OLD CODE EDITOR ITSELF, and what only it reads: its shell, its dock, its Monaco pane and
+// the pane's teaching layer. No route renders any of it any more (owner, 2026-09-24), so no
+// reachable surface can show a change here, and escalating to the whole suite would test code
+// nobody can open. The spec that pins the old editor shut is the honest and cheap answer - it
+// fails if anything starts loading AppShell again. The source stays until the new editor has
+// taken over what is worth keeping.
+// covers: src/components/{AppShell,WorkspaceDock,CodeEditor}.tsx, src/teach/**
+//
+// NOBODY REACHES THE OLD CODE EDITOR (owner, 2026-09-24). A student on a shared lab computer must
+// never land in AppShell, whatever an earlier visitor ticked, and src/App.tsx - where the boot
+// routing that decides it lives - is CORE, which resolves to the focus set. Without the `// focus`
+// line a later branch could route a hash back to the old editor and still merge green.
+// focus
+
 import { expect, test, type Page } from '@playwright/test';
 import { pickDesign } from './_browse';
 import * as rules from '../scripts/rules.mjs';

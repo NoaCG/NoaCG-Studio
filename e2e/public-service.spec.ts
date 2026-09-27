@@ -1,3 +1,15 @@
+// animData.ts is the animation DATA MODEL, and one of its questions is read outside the timeline
+// entirely: `hasMeasuredMotion` decides whether the wizard's preview plays a graphic or settles it
+// (components/wizard/WizardPreview.tsx). A change to that predicate changes the FIRST FRAME
+// somebody judges a template by, and both specs that measure it live here rather than under the
+// `timeline` covers line.
+// covers: src/blocks/animData.ts
+//
+// This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it.
+// Until 2026-08-08 it was reachable from no template path and ten designs landed with every
+// branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
+// covers: src/templates/**
+
 import { createProject, enableAdvancedMode } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { awaitPreviewRebuild } from './_preview';

@@ -1,3 +1,5 @@
+// covers: {terms,privacy}.html, src/legal.css
+
 import { expect, test } from '@playwright/test';
 
 for (const policy of [

@@ -1,3 +1,9 @@
+// focus
+//
+// The Production Data API (docs/DATA_API.md): the routed function, its logic module, and
+// the dev middleware that makes the route exist locally at all.
+// covers: {api/data/**,api/_lib/dataIngest*,scripts/dataDevPlugin.mjs}
+
 import { expect, test } from '@playwright/test';
 
 // The Production Data API is served in development exactly as deployed (dataDevPlugin

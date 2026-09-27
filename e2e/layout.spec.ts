@@ -1,3 +1,8 @@
+// covers: none - its subject, src/model/layout.ts, is CORE: a change there runs the full suite, or
+// the focus set this spec is in
+//
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 import { chooseType } from './_browse';

@@ -1,3 +1,5 @@
+// covers: src/ai/**
+//
 // Creative Mode phase C (docs/CREATIVE_MODE_PLAN.md §3.2, §8, §10): the pilot's FREE half -
 // the deterministic compile, the style gate, the concept-diversity measure, the knowledge-card
 // selection, and the anti-anchoring rule. No tokens: every model-bound stage is exercised

@@ -1,3 +1,6 @@
+// covers: src/components/brand/**, src/components/home/{HomePage,sections/LooksSection}.tsx
+// covers: src/model/{brand,packets}.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { bootstrapGraphic } from './_create';

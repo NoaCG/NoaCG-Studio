@@ -1,3 +1,20 @@
+// covers: src/landing/**, index.html
+// focus
+//
+// The public docs home (docs.html + src/docs/, docs/AGENT_CLI.md's landing half).
+// public/docs/ holds the screenshots docs.html embeds, and docs.spec.ts asserts they load;
+// left unmapped, one regenerated picture escalated to the full suite plus the catalog gate
+// (measured 2026-08-30). The landing spec rides along on the entry because the two pages
+// cross-link: a docs section renamed out from under the landing's anchors is exactly the
+// break neither page sees alone.
+// covers: {docs.html,public/docs/**}
+//
+// The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
+// It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
+// and its footer, so both of those specs ride along. public/downloads/ holds the classroom
+// package zip the page links, and downloads.spec.ts fetches it.
+// covers: {downloads.html,src/downloads/**,public/downloads/**}
+
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
 

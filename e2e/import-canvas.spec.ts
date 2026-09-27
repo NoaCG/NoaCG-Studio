@@ -1,3 +1,10 @@
+// covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/assets/**
+//
+// The Import Graphic flow's Prepare and Text steps are driven from the wizard; mapped from
+// nowhere until 2026-08, these specs ran only at night and auto-placement broke one unseen.
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 import { awaitPreviewRebuild } from './_preview';

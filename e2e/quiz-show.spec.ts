@@ -1,3 +1,25 @@
+// covers: src/model/themeTokens.ts, src/templates/**
+//
+// THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
+// score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
+// the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
+// family tokens and palettes ride along because those nine designs are their only readers.
+// covers: src/templates/{types/{quizShow,duelScore}.ts,scoreboards/{duelShared,sb2[678]}.ts,lowerThirds/lt{68,69,70}.ts}
+//
+// The rest of the Quiz Show kit: five more designs per game-show family and the pack that
+// gathers all eight. quiz-show.spec.ts holds the kit's resolution (three looks and no other).
+// covers: src/templates/{infoCards/card8[456],infographics/ig4[012],infographics/pack4/gameShowFacts,cornerBug/bug{38,39,40},gameTimers/gt0[789],startingSoon/ss2[234],shared/gameShowShapes}.ts
+//
+// WHAT A KIT CONTAINS is resolved in kit.ts + packs.ts and offered by the Browse step's kit half,
+// so a pack edit or a change to `kitChoices` moves what the picker offers, what the count promises
+// and what the production ends up holding. The three quiz kits are pinned in quiz-show.spec.ts.
+// Unions with the `src/templates` covers line.
+// covers: src/templates/{kit,packs}.ts
+//
+// A two-player quiz: the board, the score and the three looks to pick between, driven through
+// the pick / reveal arc and the wizard's "Answers shown" choice.
+// focus
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { chooseType, pickDesign } from './_browse';

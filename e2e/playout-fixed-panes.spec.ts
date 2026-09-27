@@ -1,3 +1,21 @@
+// covers: src/control/productionControllerHtml.ts
+//
+// The dashboard's fixed shell: the control area is the one scroller and the monitors and the
+// rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches the
+// spec through the focus set; the exported controller carries its own copy of the shell, which the
+// spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its DOM needs a
+// configured backend, so no offline spec can mount it, and its copy of the wrapper is held by the
+// parity contract (docs/CONTROL_PANEL_PARITY.md) instead. The rundown's width and its one-line rows
+// (docs/CLIP_PLAYBACK_PLAN.md phase 1) are pinned by playout-rail-width: the handle, the §6.2 row
+// table, the clash door and the list following the air. The stylesheet half reaches it through the
+// focus set, like the fixed-panes spec.
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+//
+// THE MONITORS AND THE RUNDOWN NEVER MOVE. The dashboard's scroll model lives almost entirely in
+// src/styles/playout-dashboard.css, and src/styles is CORE, which resolves to the focus set - so
+// without the `// focus` line a stylesheet change could bring the page scroll back and still merge.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 import { awaitDurableReady, settleDurableWrites } from './_durable';

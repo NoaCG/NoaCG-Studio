@@ -1,3 +1,8 @@
+// This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it.
+// Until 2026-08-08 it was reachable from no template path and ten designs landed with every
+// branch gate green; e2e-affected.test.mjs now pins that every catalog importer covers src/templates/.
+// covers: src/templates/**
+
 import { test, expect } from '@playwright/test';
 
 const FRAME_IDS = ['fr05', 'fr06', 'fr07', 'fr08', 'fr09', 'fr10', 'fr11', 'fr12', 'fr13', 'fr14'];

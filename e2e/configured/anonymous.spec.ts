@@ -1,3 +1,21 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// PASSWORD RECOVERY (docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
+// agent access. Offline the route is INERT by design and e2e/auth.spec.ts can only pin that
+// it stays inert; the expired-link card, the resend door and the pre-route fragment key are
+// only reachable against a real project (e2e/configured/anonymous.spec.ts). A change here
+// that broke the live path would leave every offline spec green.
+// covers: src/backend/recoveryLink.ts, src/components/auth/PasswordRecoveryPage.tsx
+//
+// WHAT AN ACCOUNT IS FOR, and where a save goes in each state. The dialog and the inline gate
+// only render with a backend, so the sentence they carry (accountCopy.ts) and its two shapes
+// are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
+// signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
+// auth.spec.ts can only pin that it says neither.
+// covers: src/components/auth/{accountCopy.ts,SignInDialog.tsx,SignInPrompt.tsx}
+// covers: src/components/save/SaveDialogs.tsx
+
 import { test, expect } from '@playwright/test';
 import { dismissWizard, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';

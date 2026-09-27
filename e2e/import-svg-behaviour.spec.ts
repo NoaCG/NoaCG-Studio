@@ -1,3 +1,53 @@
+// covers: src/control/**, src/templates/**, src/components/wizard/import/**, src/assets/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The two walks that drive a CasparCG package's own operator page live with the imported
+// boards they drive, so an export change has to schedule them from here - they are the only
+// gate on that package's panel, and it was missing from that package entirely until
+// 2026-09-04 with nothing red to say so.
+// covers: src/export/{common.ts,selfContained.ts,targets/casparcg.ts}
+//
+// The behaviour binding table and the recipes it is compiled from (docs/SVG_BEHAVIOUR_PLAN.md):
+// every imported-artwork behaviour, the rehearsal, and the machine-graph spec that reads the
+// same machine.
+// covers: src/blocks/behaviourData.ts, src/templates/behaviours/**
+// covers: src/templates/importedDesign/{behaviour,behaviourRuntime,artworkFields}.ts
+//
+// The motion picker matches no directory rule, so every surface that MOUNTS it names it here;
+// this spec walks one of them.
+// covers: src/components/MotionPresetPicker.tsx
+//
+// The cue editor's TOO LONG warning (docs/SVG_IMPORT_PLAN.md §3) is drawn by home/CueOverflowNote
+// and only an IMPORTED graphic reports one, so this spec is the only thing that would catch it going
+// quiet. A FOCUS run drops it, so a change to that warning is verified by the full affected plan.
+// covers: src/components/{home,save}/**
+//
+// The EXPORTER CORPUS (e2e/fixtures/svg-corpus/README.md): artwork and expectation sidecars,
+// not application code, so they verify the spec that walks them and nothing else. Adding a
+// fixture is how a new real-world export shape enters the road, and it has to run something.
+// TWO SPECS, not one. The corpus spec sweeps every file; import-svg-behaviour ALSO walks three
+// of them by name - the vote band since 2026-08-30, the four-team scoreboard since 2026-09-04
+// and the question timer since 2026-09-05 - because a behaviour needs artwork carrying real
+// exporter idioms and none of the three is offered as a shipped sample. That second load was
+// invisible to this plan until the scoreboard arrived: editing the vote band would have re-run
+// the sweep and not the walk that drives it.
+// covers: e2e/fixtures/svg-corpus/**
+//
+// The SHOW corpus (e2e/fixtures/svg-shows/README.md): the game-show and late-night graphics the
+// behaviour spec walks through the wizard and the operator's controls.
+// covers: e2e/fixtures/svg-shows/**
+//
+// THE PRACTICE LIBRARY (docs/svg-samples/) is documentation by location and a FIXTURE SET by use:
+// `e2e/_svg-import.ts` loads scorebug.svg and quiz-board.svg out of it, and import-svg.spec.ts
+// loads illustrator-export.svg. The blanket `^docs/` ignore in scripts/e2e-affected.mjs has a
+// carve-out for this folder so those loads are not invisible to the plan. Measured 2026-08-30: the
+// branch that grew the library from 5 files to 23 got a green CI run with every E2E shard SKIPPED,
+// because the plan saw only ignored `docs/` paths - a green gate over zero specs. The rule covers
+// the WHOLE folder, not just `*.svg`, so it agrees with that carve-out: a path the ignore admits
+// and no rule maps is `unmapped`, which escalates to the full suite. Adding a preview image here
+// would otherwise run 100+ specs to prove nothing.
+// covers: docs/svg-samples/**
+
 import { test, expect, type BrowserContext, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 import { pathToFileURL } from 'node:url';

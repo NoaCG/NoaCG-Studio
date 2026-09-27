@@ -1,3 +1,8 @@
+// covers: src/export/**, src/control/**
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// focus
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { createProject } from './_create';
 import { importProofCase } from './_proofCase';

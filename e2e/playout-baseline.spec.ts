@@ -1,3 +1,28 @@
+// covers: src/templates/**, src/components/{home,save}/**, src/components/NewGraphicButton.tsx
+//
+// This spec draws a production page's cue editor, whose every box is a field control.
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+//
+// NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
+// already mapped elsewhere for their own reasons - SettingsDialog to analytics/auth, ProductionPage
+// into the productions set - so those rules are UNION'd with this one rather than replaced. Without
+// this line a change to the link contract would run specs that pin the panels' other contents and
+// never the four diagnosis states, which are the whole point of the feature. The channel table and
+// the per-cue slot helpers live in playoutLink.ts too, and the rundown is what reads them.
+// serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
+// address goes through, and the baselines draw both.
+// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots}.ts
+//
+// PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
+// the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
+// header door and the Back/Home pair beside it.
+// covers: src/{components/{PlayoutSettingsDialog,PlayoutSettingsPanel}.tsx,control/playoutSystems.ts}
+//
+// THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so a
+// CSS change reaches no covers line and runs the focus set instead; without the baselines here, a
+// change that moves the dashboard would pass its own gate and turn main red. Four screenshots.
+// focus
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';

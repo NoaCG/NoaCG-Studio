@@ -1,3 +1,20 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// The TOPBAR's account cluster, for the same reason and with a sharper edge: signed in it
+// carries three controls the offline build never renders, so the only thing that measures
+// whether the bar still holds ONE ROW at 1366/1280/1100 is e2e/configured/signed-in-ux.spec.ts.
+// A width regression here lands with every offline spec green - the ladder in app-shell.css
+// records that the bar was already 24px over at 1366 before its 1400px step was added.
+// covers: src/components/auth/AuthStatus.tsx, src/styles/{auth,app-shell,mobile}.css
+//
+// WHAT AN ACCOUNT IS FOR, and where a save goes in each state. The dialog and the inline gate
+// only render with a backend, so the sentence they carry (accountCopy.ts) and its two shapes
+// are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
+// signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
+// auth.spec.ts can only pin that it says neither.
+// covers: src/components/save/SaveDialogs.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import { E2E_EMAIL, createGraphic, createGraphicInEditor, haveCreds, settleSync, shot, signIn, wipeMyGraphics, wipeMySubmissions } from './_helpers';
 import { openProductionWithCurrent, skipOldEditor } from '../_create';

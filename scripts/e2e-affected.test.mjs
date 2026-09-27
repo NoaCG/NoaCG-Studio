@@ -206,7 +206,7 @@ test('a design added under src/templates selects every spec that enumerates the 
   assert.deepEqual(
     missing,
     [],
-    `these specs enumerate the catalog but no src/templates/ change selects them - add them to the src/templates rule in e2e-affected.mjs: ${missing.join(', ')}`,
+    `these specs enumerate the catalog but no src/templates/ change selects them - add a "// covers: src/templates/**" line to their headers: ${missing.join(', ')}`,
   );
 });
 
@@ -232,7 +232,7 @@ test('a preset change under src/templates selects every spec that reconstructs a
   assert.deepEqual(
     missing,
     [],
-    `these specs rebuild a preset's emitted region but no src/templates/ change selects them - add them to the src/templates rule in e2e-affected.mjs: ${missing.join(', ')}`,
+    `these specs rebuild a preset's emitted region but no src/templates/ change selects them - add a "// covers: src/templates/**" line to their headers: ${missing.join(', ')}`,
   );
 });
 
@@ -307,7 +307,7 @@ test('the SVG practice library plans the specs that load it, while the rest of d
 // to 2026-09-04, eight escalated on nothing but `.claude/settings.json` or `.codex/config.toml`
 // and each ran the 55-spec, 36.9-minute focus set to prove something Playwright cannot see.
 // The regex stops at the directory boundary so `.claude-plugin/` - the PUBLISHED plugin manifest,
-// which has a MAP rule of its own - is not swept up by a prefix match on `.claude`.
+// which has a CENTRAL rule of its own - is not swept up by a prefix match on `.claude`.
 test('the agent harness plans nothing at all', () => {
   for (const file of [
     '.claude/settings.json',
@@ -550,12 +550,13 @@ test('the plan states the wall clock it expects, and says when that does not fit
 
 // THE RULE: a component that lives outside every directory rule must name its own surfaces.
 // `MotionPresetPicker.tsx` sits directly under src/components/, which no wide rule covers, so
-// its line in MAP is the whole of its coverage - and a line that names only the component's own
-// spec is indistinguishable from one that is right. On 2026-08-23 it was the former: the picker
+// the specs whose headers name it are the whole of its coverage - and naming only its own
+// spec is indistinguishable from naming the right set. On 2026-08-23 it was the former: the picker
 // grew a direction-arrow row in the wizard Travel box's class and ux.spec.ts, which walks that
 // step, went red on a shard nothing had planned.
-// A MAP rule naming a path that no longer exists is silent: it matches nothing, the file falls
-// through to the unmapped escalation, and the plan looks conservative rather than broken. That is
+// A rule naming a path that no longer exists used to be silent (the build now refuses a covers
+// glob that matches no file): it matched nothing, the file fell through to the unmapped
+// escalation, and the plan looked conservative rather than broken. That is
 // what happened to the timeline dock's five components when they moved into
 // `src/components/timeline/` - both rules kept naming `src/components/<Name>` and every timeline
 // change ran the full suite to prove nothing. Pinned by DIRECTORY, so the next move fails here
@@ -909,4 +910,210 @@ test('a nested .gitattributes plans nothing, and the root one still runs everyth
   assert.equal(planFor(['.gitattributes']).mode, 'full');
   // And ignoring the metadata must not have ignored the code beside it.
   assert.equal(planFor(['src/templates/versus/vs01.ts']).mode, 'subset');
+});
+
+// ── The spec headers: what each spec covers, declared in the spec ──────────
+//
+// THE RULE: adding or re-mapping a spec touches no shared file. Each spec's leading comment block
+// says which source it covers (`// covers:`, scripts/e2e-lists.mjs), and the planner builds its
+// map from those headers. Until 2026-09-27 the map was one hand-kept list that 40 of 344 landings
+// had to edit (2026-09-06 to 2026-09-27), second only to the generated rule index.
+import {
+  CONFIGURED_HEADERS,
+  CONFIGURED_TRIGGERS,
+  COVERAGE,
+  FOCUS,
+  SPEC_HEADERS,
+  auditSpecHeaders,
+  coverageOf,
+  globToRegExp,
+  parseSpecHeader,
+  readSpecHeaders,
+} from './e2e-lists.mjs';
+import { CENTRAL } from './e2e-affected.mjs';
+import { repositoryFiles } from './gates.mjs';
+
+const covered = (text, file) => parseSpecHeader(text).covers.some((line) => line.test(file));
+
+test('a glob stays inside a segment with *, crosses them with **, and matches dotfiles', () => {
+  assert.ok(globToRegExp('src/ai/**').test('src/ai/pro/deep/x.ts'));
+  assert.ok(!globToRegExp('src/ai/**').test('src/aix/y.ts'));
+  assert.ok(globToRegExp('src/control/receiverScript*').test('src/control/receiverScript.ts'));
+  assert.ok(!globToRegExp('src/control/receiver*').test('src/control/receiver/x.ts'), '* must not cross a slash');
+  assert.ok(globToRegExp('src/{a,b/c}/**').test('src/b/c/d.ts'));
+  assert.ok(globToRegExp('src/{a,b/{c,d}}.ts').test('src/b/d.ts'), 'braces nest');
+  assert.ok(globToRegExp('src/templates/scoreboards/sb2[678].ts').test('src/templates/scoreboards/sb27.ts'));
+  assert.ok(!globToRegExp('src/templates/scoreboards/sb2[678].ts').test('src/templates/scoreboards/sb29.ts'));
+  assert.ok(globToRegExp('cli/**').test('cli/.eslintrc'), 'a dotfile is an ordinary name');
+  assert.ok(globToRegExp('src/**/x.ts').test('src/x.ts'), 'a/**/b includes a/b');
+  assert.ok(globToRegExp('api/ai/?...path?.ts').test('api/ai/[...path].ts'));
+  assert.ok(!globToRegExp('legal.css').test('legalxcss'), 'a dot is literal');
+  assert.ok(globToRegExp('sb2[!9].ts').test('sb27.ts'), '[!x] is a negated class, as in every glob');
+  assert.ok(!globToRegExp('sb2[!9].ts').test('sb29.ts'));
+  assert.throws(() => globToRegExp('a[/]b'), /slash in a \[class\]/);
+});
+
+test('a header declares covers over several lines, with globs, braces and per-line exclusions', () => {
+  const text = [
+    '// A spec about the wizard.',
+    '// covers: src/components/wizard/**, !src/components/wizard/import/**',
+    '// Prose between declarations is fine.',
+    '// covers: src/components/wizard/import/MapSvgFieldsStep.tsx, src/templates/{kit,packs}.ts',
+    '// focus',
+    '',
+    "import { test } from '@playwright/test';",
+    '// covers: src/never/** - a declaration below the code is prose, not a header',
+  ].join('\n');
+  const header = parseSpecHeader(text, 'e2e/x.spec.ts');
+  assert.equal(header.covers.length, 2);
+  assert.equal(header.focus, true);
+  assert.equal(header.none, null);
+  assert.ok(covered(text, 'src/components/wizard/steps/EntryStep.tsx'));
+  assert.ok(!covered(text, 'src/components/wizard/import/PlaceFieldsStep.tsx'), 'the exclusion holds on its own line');
+  assert.ok(covered(text, 'src/components/wizard/import/MapSvgFieldsStep.tsx'), '...and only there: another line may cover the excluded folder');
+  assert.ok(covered(text, 'src/templates/packs.ts'), 'a comma inside braces belongs to the glob');
+  assert.ok(!covered(text, 'src/never/x.ts'));
+  // Prose that merely starts with a keyword is not a declaration.
+  assert.deepEqual(parseSpecHeader('// covers the viewport, and FOCUS list work\n// Focus off the fields\ncode();').covers, []);
+  // `none` with a reason is an explicit, honest "no source selects this spec".
+  const none = parseSpecHeader('// covers: none - its subject, PreviewFrame, is CORE\ncode();');
+  assert.equal(none.none, 'its subject, PreviewFrame, is CORE');
+  assert.deepEqual(none.covers, []);
+});
+
+test('a malformed header is refused, and the refusal names the file and the line', () => {
+  for (const [text, why] of [
+    ['// cover: src/ai/**', /write `\/\/ covers: <glob>, <glob>`/],
+    ['// covers src/ai/**', /write `\/\/ covers: <glob>, <glob>`/],
+    ['// Covers: src/ai/**', /write `\/\/ covers: <glob>, <glob>`/],
+    ['// covers:', /an empty glob/],
+    ['// covers: src/ai/**,', /an empty glob/],
+    ['// covers: src/{ai,video/**', /leaves a brace open/],
+    ['// covers: src\\ai\\**', /backslash/],
+    ['// covers: /src/ai/**', /not repo-relative/],
+    ['// covers: !src/ai/**', /exclusions alone covers nothing/],
+    ['// covers: none', /needs a reason/],
+    ['// covers: none - later', /needs a reason/],
+    ['// focus: yes', /focus flag/],
+    ['// FOCUS', /focus flag/],
+    ['// focus - it is a sprint surface', /focus flag/],
+    ['/// covers src/ai/**', /write `\/\/ covers: <glob>, <glob>`/],
+  ]) {
+    assert.throws(() => parseSpecHeader(`// A spec.\n${text}\ncode();`, 'e2e/broken.spec.ts'), (error) => {
+      assert.match(error.message, /^e2e\/broken\.spec\.ts:2: malformed spec header/, `${text} must be refused by file and line`);
+      assert.match(error.message, why, `${text}: ${error.message}`);
+      return true;
+    });
+  }
+  assert.throws(() => parseSpecHeader('// covers: none - its subject is CORE, so nothing\n// covers: src/ai/**\ncode();', 'e2e/both.spec.ts'), /e2e\/both\.spec\.ts: .*keep one/);
+  // A covers list wrapped onto the next line would read as prose and cover less, silently.
+  assert.throws(
+    () => parseSpecHeader('// covers: src/ai/**, src/video/**\n// src/render/**, player-host/**\ncode();', 'e2e/wrapped.spec.ts'),
+    /e2e\/wrapped\.spec\.ts:2: malformed spec header - a wrapped covers list/,
+  );
+  // ...while prose after a covers line, and a second covers line, are fine.
+  assert.equal(parseSpecHeader('// covers: src/ai/**\n// The AI road, see docs/AI.md.\n// covers: src/video/**\ncode();').covers.length, 2);
+});
+
+// THE BUILD'S REFUSALS, each driven with a fixture so the rule is pinned without the repository.
+test('the build refuses a spec with no covers, a glob that matches nothing and a central rule naming a ghost', () => {
+  const headers = new Map([
+    ['mapped.spec.ts', parseSpecHeader('// covers: src/a/**, !src/a/skip/**\n')],
+    ['honest.spec.ts', parseSpecHeader('// covers: none - its subject is CORE, so the full suite runs it\n')],
+    ['central.spec.ts', parseSpecHeader('code();')],
+  ]);
+  const files = ['src/a/x.ts', 'src/a/skip/y.ts'];
+  const specsOnDisk = ['mapped.spec.ts', 'honest.spec.ts', 'central.spec.ts'];
+  const central = [[/^src\/c\//, ['central.spec.ts']]];
+  assert.deepEqual(auditSpecHeaders({ headers, files, specsOnDisk, central }), [], 'a sound fixture has nothing to say');
+
+  // 1. A spec in neither a header nor a central rule.
+  headers.set('orphan.spec.ts', parseSpecHeader("import x from 'y';"));
+  let problems = auditSpecHeaders({ headers, files, specsOnDisk: [...specsOnDisk, 'orphan.spec.ts'], central });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /^e2e\/orphan\.spec\.ts declares no `\/\/ covers:`/);
+  headers.delete('orphan.spec.ts');
+
+  // 2. A glob - or an exclusion - that matches no file in the repository.
+  headers.set('stale.spec.ts', parseSpecHeader('// covers: src/moved/**, !src/a/gone/**\n'));
+  problems = auditSpecHeaders({ headers, files, specsOnDisk: [...specsOnDisk, 'stale.spec.ts'], central });
+  assert.deepEqual(problems, [
+    'e2e/stale.spec.ts covers `src/moved/**`, which matches no file in the repository',
+    'e2e/stale.spec.ts covers `!src/a/gone/**`, which matches no file in the repository',
+  ]);
+  headers.delete('stale.spec.ts');
+  // ...and an exclusion that removes nothing its own line includes is refused too: it matches a
+  // file, so it looks meaningful, and it is not.
+  headers.set('idle.spec.ts', parseSpecHeader('// covers: src/a/x.ts, !src/a/skip/**\n'));
+  problems = auditSpecHeaders({ headers, files, specsOnDisk: [...specsOnDisk, 'idle.spec.ts'], central });
+  assert.deepEqual(problems, ['e2e/idle.spec.ts excludes `!src/a/skip/**`, which removes no file its own covers line includes']);
+  headers.delete('idle.spec.ts');
+  // ...the configured suite's headers are held to the same rule.
+  const configured = new Map([['live.spec.ts', parseSpecHeader('// covers: src/nowhere.ts\n')]]);
+  assert.deepEqual(auditSpecHeaders({ headers, configured, files, specsOnDisk, central }), [
+    'e2e/configured/live.spec.ts covers `src/nowhere.ts`, which matches no file in the repository',
+  ]);
+
+  // 3. A central rule naming a spec that does not exist.
+  problems = auditSpecHeaders({ headers, files, specsOnDisk, central: [...central, [/^src\/d\//, ['renamed-away.spec.ts']]] });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /names renamed-away\.spec\.ts, which is not a spec in e2e\//);
+});
+
+// The same three refusals over the REAL repository: this is the line that makes `npm run build`
+// go red when a spec lands without a covers header, a glob goes stale, or a central rule names a
+// spec that is gone. It closed docs/backlog/unmapped-spec-never-runs-on-its-gate.md.
+test('every spec header in the repository passes the refusals', () => {
+  const problems = auditSpecHeaders({
+    headers: SPEC_HEADERS,
+    configured: CONFIGURED_HEADERS,
+    files: repositoryFiles(),
+    specsOnDisk: specFilesOnDisk(),
+    central: CENTRAL,
+  });
+  assert.deepEqual(problems, [], `the spec headers need fixing:\n  ${problems.join('\n  ')}`);
+  assert.equal(SPEC_HEADERS.size, specFilesOnDisk().length, 'every spec on disk has had its header read');
+  assert.ok(FOCUS.length >= 50, `the focus set comes from \`// focus\` headers - found ${FOCUS.length}`);
+  assert.ok(CONFIGURED_TRIGGERS.length > 2, "the configured triggers come from the configured specs' headers");
+});
+
+// THE SAFE DIRECTION, pinned: a source file no spec covers still escalates to the full suite
+// (the sprint focus set under E2E_SPRINT_FOCUS), and says which file did it.
+test('a source file no spec covers escalates to the full suite, exactly as before headers', () => {
+  for (const file of ['src/components/spaceKey.ts', 'src/brand-new-area/thing.ts']) {
+    const plan = planFor([file]);
+    assert.equal(plan.mode, 'full', `${file} is covered by no header and must escalate`);
+    assert.deepEqual(plan.unmapped, [file]);
+    assert.equal(plan.catalog, true, 'a full escalation assumes the catalog could move too');
+    const focused = planFor([file], { sprintFocus: true });
+    assert.equal(focused.mode, 'subset');
+    assert.ok(focused.focusApplied);
+    assert.deepEqual(focused.specs, [...FOCUS].sort());
+  }
+  // A path a CENTRAL rule knows plans nothing, rather than escalating.
+  assert.equal(planFor(['cli/src/index.ts']).mode, 'none');
+  assert.deepEqual(planFor(['cli/src/index.ts']).unmapped, []);
+});
+
+// THE POINT OF THE CHANGE, pinned: a new spec with a covers header is planned for a change to the
+// file it covers, and nothing in scripts/ is edited to make that true. The header is read by the
+// same reader the planner uses, from a directory holding nothing but the new spec.
+test('a new spec with a covers header is planned for its file with no edit to the planner', () => {
+  const root = mkdtempSync(join(tmpdir(), 'e2e-new-spec-'));
+  try {
+    mkdirSync(join(root, 'e2e'));
+    writeFileSync(
+      join(root, 'e2e', 'brand-new.spec.ts'),
+      "// covers: src/brand-new-area/**\n\nimport { test } from '@playwright/test';\n",
+    );
+    const fresh = coverageOf(readSpecHeaders('e2e', root));
+    const before = planFor(['src/brand-new-area/thing.ts']);
+    assert.equal(before.mode, 'full', 'without the spec, the new area is unmapped');
+    const after = planFor(['src/brand-new-area/thing.ts'], { coverage: [...COVERAGE, ...fresh] });
+    assert.equal(after.mode, 'subset');
+    assert.deepEqual(after.specs, ['brand-new.spec.ts']);
+    assert.deepEqual(after.unmapped, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

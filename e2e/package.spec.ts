@@ -1,3 +1,11 @@
+// covers: src/export/**, src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// focus
+//
+// This spec CREATES catalog variants and asserts on the markup they emit (Classic Roll's parsed
+// roll), so a design's markup changing under it is a real templates dependency; unmapped, a renamed
+// credits row got past a local affected run and red-mained CI on 2026-08-26.
+// covers: src/templates/**
+
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';

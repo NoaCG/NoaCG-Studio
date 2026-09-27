@@ -1,3 +1,11 @@
+// covers: src/templates/**, src/components/{home,save}/**
+//
+// WHICH GRAPHICS BELONG TO WHICH PRODUCTION. It reads the pool's `graphicId` back-link, so the
+// change most likely to break it is one to model/shows.ts - which escalates to the focus set rather
+// than to the covers lines, and would otherwise run the two library specs beside it and never the
+// one written to protect this surface.
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
 

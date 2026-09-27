@@ -1,3 +1,5 @@
+// covers: src/templates/**
+
 import { test, expect } from '@playwright/test';
 import { enableAdvancedMode } from './_create';
 

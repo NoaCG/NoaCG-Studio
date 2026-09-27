@@ -1,3 +1,9 @@
+// covers: src/ai/**
+//
+// The shortlist is RANKED over the catalog's own metadata and FILTERED by the structural anchor
+// table, so a design added, renamed or re-declared moves what a brief retrieves.
+// covers: src/templates/**
+
 import { test, expect } from '@playwright/test';
 import { toApp } from './_bench';
 

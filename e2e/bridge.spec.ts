@@ -1,3 +1,21 @@
+// covers: src/export/{noacgPackage.ts,targets/ograf*}, src/templates/types/neutralDesign.ts
+// covers: src/control/ografContract.ts
+//
+// The /bridge page (docs/AGENT_CLI.md) and what it composes that nothing else exercises: the
+// dual graphic package + the OGraf package reader (export), the neutral scaffold (templates),
+// the OGraf manifest -> operator-surface adapter (control). The CLI under cli/ has its own
+// package tests (CI) and `npm run bench:cli`; a change there runs no e2e spec.
+// covers: {bridge.html,src/bridge/**}
+//
+// The host document moved out of src/bridge/ (both entries load it) and took its specs along.
+// covers: src/control/ografHost.ts
+//
+// The reason the importer refused a hand-authored ANIMATION region. It lives in blocks/ beside the
+// reader it explains, but the sentence it produces is READ through the agent CLI door
+// (bridgeApi.normalize) - and the `src/blocks/**` covers line selects no bridge spec, so the one
+// test that pins the wording would otherwise only ever run at night.
+// covers: src/blocks/animationRegion.ts
+
 import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 

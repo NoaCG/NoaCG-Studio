@@ -1,3 +1,11 @@
+// covers: src/export/**, src/control/**
+// focus
+//
+// The library->air gate (docs/AGENT_SAVE.md): publishControlShow and the production builders
+// refuse an invalid graphic. src/validation is CORE, so a change to the gate itself runs the
+// full suite; this line is for the two call sites and the dialog that shows the verdict.
+// covers: {src/export/showExport.ts,src/components/home/ProductionExportDialog.tsx}
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic } from './_create';
 import { settleDurableWrites } from './_durable';

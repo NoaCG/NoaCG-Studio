@@ -1,3 +1,27 @@
+// covers: src/ai/pro/custom/**
+//
+// creative-routing covers the mode + intent ROUTER and the brief-satisfaction check, both
+// of which live here - it was previously nightly-only for src/ai changes, which is exactly
+// the surface it exists to protect.
+// Phase A's composer (docs/NOACG_PRO_PLAN.md §15.5). Listed BEFORE the generic pro rule and
+// union'd with it: the language path shares nothing with the concept-and-compile pipeline
+// pro.spec.ts covers, so its guarantees had no gate at all until this spec existed.
+// covers: src/ai/pro/language/**
+//
+// …and the platform HALF of that composer, which since Phase B (§15.9) is the graphic-type registry
+// and two category assemblers rather than one. A Pro sponsor bug is compiled through
+// `types/bugs.ts` and a Pro countdown through `types/clocks.ts`, and both take their mark placement
+// from the shared logo slot - so a change to any of them can break a Pro package while every
+// catalog spec stays green, which is exactly the mapping hole this file exists to close. Union'd
+// with the `src/templates` covers line.
+// covers: src/templates/{types/{bugs,clocks,graphicType,registry}.ts,shared/{logoSlot,standard}.ts,{cornerBug,gameTimers,lowerThirds}/shared.ts}
+//
+// The Pro brief bank feeds the spike runner and scripts/lite-on-pro-bank.mjs; the offline
+// product flow it relates to is Phase A's composer, pinned by pro-language.spec.ts. (Until
+// 2026-08-15 this pointed at pro.spec.ts and the fixture bank beside it - both belonged to the
+// retired concept-and-reconstruct engine.)
+// covers: benchmarks/pro/**
+//
 // PHASE A's COMPOSER, gated (docs/NOACG_PRO_PLAN.md §15.5, src/ai/pro/language/).
 //
 // WHY THIS EXISTS. The composer's whole claim is that the platform owns the panel, so the layout
