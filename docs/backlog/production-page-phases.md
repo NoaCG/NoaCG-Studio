@@ -91,7 +91,15 @@ could not travel with its markup, and phase 3 exists only because of that.
 
 ---
 
-## 3. Phase 1 - the cue rundown (`home/CueRundown.tsx`)
+## 3. Phase 1 - the cue rundown (`home/CueRundown.tsx`) - DONE (2026-09-27)
+
+Landed as the second step of the clip playback plan's phase 0 (docs/CLIP_PLAYBACK_PLAN.md §16).
+It also owns `pickerOpen` and the picture input, which were added to the rail after this plan
+was written and are read nowhere else. The page hands it the server's on-air map read-only, the
+same way as `liveCue`. No spec covered the drag reorder, so `e2e/playout-cues.spec.ts` now drags
+a row and pins every server verb's action after it; the move changed no screenshot in
+`e2e/playout-baseline.spec.ts`.
+
 
 **Move:** the `<aside className="pd-rail">` block - the rundown rows, the drag reorder, the row
 overflow menu, and the rail foot (add graphic, new graphic, add pictures).
