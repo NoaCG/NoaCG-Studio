@@ -214,6 +214,10 @@ Those symptoms have not been reproduced in this documentation-only follow-up.
 
 ## Next bounded outcome
 
+The September 27 corrections are implemented and locally verified in the
+[bounded usability receipt](usability-corrections.md). After this slice lands,
+R1.1b is next. The table below retains the acceptance contract and scope boundary.
+
 Make the existing customization workflow usable before adding keys. Reproduce owner
 reports on updated main through the real Hairline and Quiz entry routes, including a
 new rectangle, at desktop/laptop/125% layouts. Record route, revision, viewport and
