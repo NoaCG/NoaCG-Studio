@@ -117,7 +117,15 @@ own menu state. `uploadPictures` stays on the page: it writes `note` and reads `
 assertions in `e2e/production-controls.spec.ts`. Any cue path with no spec gets one in the same
 commit - check drag-reorder coverage first.
 
-## 4. Phase 2 - the two monitors (`home/PlayoutMonitors.tsx`)
+## 4. Phase 2 - the two monitors (`home/PlayoutMonitors.tsx`) - DONE (2026-09-27)
+
+Landed as the third step of the clip playback plan's phase 0. `programRef` is the page's, handed
+in as a prop, and the measurement is still keyed on the node. `previewOverflow` is measured in the
+monitor, which owns the frame and its messages, and reported through `onOverflow` to the page,
+which keeps the value because the editor's field marks read it; the rest of the monitor's state
+lives in the monitor. Proved by the specs named below (`output-cold-boot` needs the configured
+backend and did not run) and the unchanged baselines.
+
 
 **Move:** the `.pd-monitors` block - the PREVIEW iframe with its fit arithmetic, and the PROGRAM
 frame wrapping `ProgramStage`.

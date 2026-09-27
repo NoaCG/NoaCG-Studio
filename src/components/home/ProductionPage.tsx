@@ -160,9 +160,9 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from '../../control/matchClockWire';
-import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
+import { type ProgramStageHandle } from './ProgramStage';
+import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
-import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import { isBackendConfigured } from '../../backend/config';
 import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
@@ -1236,7 +1236,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // every surface (the exported controller has always edited the selection), while the monitor
   // shows the PREVIEW cue. In 'take' mode those are one cue; in 'preview-then-take' mode they
   // differ whenever the operator has walked on from what is on PREVIEW. ──
-  const previewIframe = useRef<HTMLIFrameElement>(null);
   const poolGraphic = selectedCue ? graphicByPoolId.get(selectedCue.sourceId) ?? null : null;
   const editorKey = poolGraphic ? `${poolGraphic.id}:${poolGraphic.savedAt}` : '';
   const previewGraphic = previewCue ? graphicByPoolId.get(previewCue.sourceId) ?? null : null;
@@ -1273,64 +1272,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const settleData = previewCue
     ? JSON.stringify(withBoundValues(cueGraphicName(previewCue) ?? '', cueView(previewCue).values))
     : '';
-  const settlePreview = useCallback((data: string) => {
-    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
-  }, []);
-  useEffect(() => {
-    if (!previewDoc || !settleData) return;
-    const t = setTimeout(() => settlePreview(settleData), 150);
-    return () => clearTimeout(t);
-  }, [previewDoc, settleData, settlePreview]);
-  /**
-   * WHICH OF THE VALUES BEING TYPED DO NOT FIT — the warn half of the owner's fit ruling
-   * (docs/SVG_IMPORT_PLAN.md §3). The graphic on PREVIEW has already settled with exactly the
-   * values a Take would air, so asking IT is asking the only thing that knows: whether the copy
-   * fits is a measurement of the rendered artwork, not a property of the string.
-   *
-   * Same request/reply round trip the machine state uses, for the same reason — this iframe
-   * carries no `allow-same-origin`, so nothing here can read the document directly. It is
-   * polled rather than answered once because the answer moves without any command: a webfont
-   * arriving re-measures every budget, and the ladder re-runs.
-   */
+  /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
+   *  (PlayoutMonitors), read here by the editor's field marks. */
   const [previewOverflow, setPreviewOverflow] = useState<string[]>([]);
-  useEffect(() => {
-    if (!previewDoc) {
-      setPreviewOverflow([]);
-      return;
-    }
-    const onMessage = (ev: MessageEvent) => {
-      if (ev.source !== previewIframe.current?.contentWindow) return;
-      const msg = ev.data as PreviewStateMessage | undefined;
-      if (!msg || msg.type !== PREVIEW_STATE_TYPE) return;
-      const next = Array.isArray(msg.overflow) ? msg.overflow.map(String) : [];
-      setPreviewOverflow((prev) => (prev.join(',') === next.join(',') ? prev : next));
-    };
-    window.addEventListener('message', onMessage);
-    const tick = () => postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'state' });
-    const handle = window.setInterval(tick, 500);
-    return () => {
-      window.removeEventListener('message', onMessage);
-      window.clearInterval(handle);
-    };
-  }, [previewDoc]);
-  // The frame sizes itself in CSS from the graphic's own aspect ratio; the measurement drives
-  // ONE number, the inner scale. (Sizing the frame from the measurement made the observed box
-  // depend on the value it produced — a late observer left a right-sized frame around a
-  // wrongly scaled graphic.) Keyed on the NODE, not the document: the Data tab unmounts this
-  // subtree, and an effect keyed on the unchanged previewDoc never measured the remounted
-  // frame — the observer's last tick on the detaching node had left stageW at 0, so the
-  // returning preview rendered a 1920px document unscaled and showed its empty corner.
-  const [stageBox, setStageBox] = useState({ width: 0, height: 0 });
-  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!stageEl) return;
-    const measure = () => setStageBox({ width: stageEl.clientWidth, height: stageEl.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(stageEl);
-    return () => ro.disconnect();
-  }, [stageEl]);
-
+  const notePreviewOverflow = useCallback((next: string[]) => {
+    setPreviewOverflow((prev) => (prev.join(',') === next.join(',') ? prev : next));
+  }, []);
   /**
    * THE STAGE THE PRODUCTION DRAWS ON - both monitors' shape, and never the selected cue's.
    *
@@ -1354,7 +1301,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [poolResolutionKey, library],
   );
-  const stageAspect = `${stage.width} / ${stage.height}`;
 
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
@@ -1398,16 +1344,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const ownsPlayout = useRef(sub === null);
   if (sub === null) ownsPlayout.current = true;
   const keepPlayout = ownsPlayout.current;
-  // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
-  // is the production's shape now, so a cue of another shape has to fit inside it rather than
-  // overflow its height.
-  const fit =
-    previewTemplate && stageBox.width && stageBox.height
-      ? Math.min(
-          stageBox.width / previewTemplate.resolution.width,
-          stageBox.height / previewTemplate.resolution.height,
-        )
-      : 0;
 
   const selectCue = useCallback(
     (cueId: string) => {
@@ -2732,103 +2668,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
-        <div
-          className="pd-monitors"
-          style={{ ['--pd-ar' as string]: stage.width / stage.height }}
-        >
-          <div className="pd-monitor pd-pvw">
-            <h2>
-              <span className="pd-dot" aria-hidden="true" />
-              PREVIEW
-              <span className="pd-what" data-testid="preview-what">
-                {previewCue
-                  ? cueView(previewCue).label
-                  : spaceMode === 'preview-then-take'
-                    ? PREVIEW_EMPTY_LABEL
-                    : 'nothing selected'}
-              </span>
-            </h2>
-            <div className="pd-screen">
-              {previewDoc && previewTemplate ? (
-                <div
-                  className="pd-frame"
-                  ref={setStageEl}
-                  style={{ aspectRatio: stageAspect }}
-                  data-testid="production-preview"
-                >
-                  <iframe
-                    ref={previewIframe}
-                    title="Cue preview"
-                    sandbox="allow-scripts"
-                    srcDoc={previewDoc}
-                    onLoad={() => settlePreview(settleData)}
-                    style={{
-                      position: 'absolute',
-                      // CENTRED IN THE STAGE, the same way src/output/stage.ts centres its own:
-                      // origin at the frame's middle, then translated back by half the SCALED
-                      // size. Percentage translates would compound with the scale.
-                      left: '50%',
-                      top: '50%',
-                      width: previewTemplate.resolution.width,
-                      height: previewTemplate.resolution.height,
-                      border: 0,
-                      transformOrigin: '0 0',
-                      transform: `translate(${(-previewTemplate.resolution.width * (fit || 1)) / 2}px, ${
-                        (-previewTemplate.resolution.height * (fit || 1)) / 2
-                      }px) scale(${fit || 1})`,
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }}>
-                  <p className="hint">
-                    {cues.length === 0
-                      ? 'Add a cue to preview it here.'
-                      : 'SPACE on the selected cue shows it here.'}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="pd-monitor pd-pgm">
-            <h2>
-              <span className="pd-dot" aria-hidden="true" />
-              PROGRAM · ON AIR
-              {/* The names can run past the monitor's width and end in an ellipsis, so the title
-                  carries them whole. The badge names EVERY live layer, in the names' order: with a
-                  quiz and a score both up it used to show one layer beside two names. */}
-              <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
-                {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
-              </span>
-              {liveLayers.length > 0 && (
-                <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
-              )}
-              {/* Server cues are up on the playout box, not in this monitor - named, never drawn. */}
-              {livePlayoutLayers.length > 0 && (
-                <span
-                  className="pd-layer-badge pd-server-badge"
-                  title="Playing on the playout server through NoaCG Bridge - not shown on this monitor"
-                  data-testid="playout-on-air"
-                >
-                  server: {livePlayoutLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
-                </span>
-              )}
-            </h2>
-            <div className="pd-screen">
-              <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
-                <ProgramStage
-                  ref={programRef}
-                  show={show}
-                  library={library}
-                  empty={liveLayers.length === 0}
-                  onState={noteMachineState}
-                  onReady={restoreProgram}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PlayoutMonitors
+          stage={stage}
+          previewDoc={previewDoc}
+          previewTemplate={previewTemplate}
+          previewLabel={
+            previewCue
+              ? cueView(previewCue).label
+              : spaceMode === 'preview-then-take'
+                ? PREVIEW_EMPTY_LABEL
+                : 'nothing selected'
+          }
+          settleData={settleData}
+          hasCues={cues.length > 0}
+          liveLayers={liveLayers}
+          serverLayers={livePlayoutLayers}
+          show={show}
+          library={library}
+          programRef={programRef}
+          onState={noteMachineState}
+          onReady={restoreProgram}
+          onOverflow={notePreviewOverflow}
+        />
 
         {/* The verbs, with the keys that fire them. All out lives in the header — it is the
             panic control and must not sit beside the ones used every minute. */}
