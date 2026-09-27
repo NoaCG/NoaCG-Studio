@@ -58,7 +58,7 @@
 .ef-stage-error { color: var(--warn); display: grid; gap: 10px; }
 .ef-caption { justify-content: space-between; padding: 3px 10px; color: var(--ef-muted); font-size: 10px; gap: 20px; }
 .ef-inspector { border-left: 1px solid var(--ef-border); }
-.ef-inspector .ef-toolbar { position: sticky; top: 0; }
+.ef-inspector .ef-toolbar { position: sticky; top: 0; z-index: 1; }
 .ef-shell [aria-selected=true], .ef-outline-item[aria-pressed=true] { border-color: var(--accent-line); background: var(--accent-bg); }
 .ef-toolbar button[aria-pressed=true] { border-color: var(--accent-line); background: var(--accent-bg); }
 .ef-number-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
