@@ -15,7 +15,9 @@
 // payload and an export all get the same buttons, and nothing is rewritten on disk.
 //
 // An entry recognises only what OUR generators wrote. A graphic whose code it cannot read is left
-// exactly as it was saved, never guessed at.
+// exactly as it was saved, never guessed at. And an entry is for a change a saved graphic would
+// otherwise get WRONG on air: a heading or a label that is merely older stays as it was saved,
+// because a copy of today's wording here could only drift from the declaration that owns it.
 
 import type { AnimMachine } from '../blocks/animData';
 import { parseBehaviourData } from '../blocks/behaviourData';

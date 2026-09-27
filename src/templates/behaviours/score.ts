@@ -24,7 +24,9 @@
 // state, and one with no flash on any team gets no Clear flash: a press that moves the state chip
 // and nothing on air is a button that lies (docs/tutorials/classroom-package's score tracker draws
 // two flashes and no Full time, on purpose). The arrow goes with the button, because an event an
-// arrow carries and no control declares still becomes a plain button of its own.
+// arrow carries and no control declares still becomes a plain button of its own. A tracker saved
+// before this rule keeps its Full time until it is imported again: taking a state out of a saved
+// machine is a graph change, not the control dressing control/controlUpgrades.ts re-derives.
 
 import { scoreboardType } from '../types/scoreboard';
 import type { TypeBranch, TypeControlEvent, TypeGroup, TypeMachine } from '../types/graphicType';

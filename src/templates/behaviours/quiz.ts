@@ -16,7 +16,7 @@
 // The pick is DATA (one `selected` state plus a row-pick field), which is why a board can have
 // any number of rows without gaining a state - the model's central rule, unchanged.
 
-import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE, ANSWER_PICK_SECTION } from '../types/answerBoard';
+import { ANSWER_BOARD_CONTROLS, ANSWER_BOARD_MACHINE, ANSWER_PICK_LOCK_OPTIONAL_SECTION, ANSWER_PICK_SECTION } from '../types/answerBoard';
 import type { BehaviourRecipe, RecipeContext } from './recipe';
 import { rolesOf, rowsOf, withRepaint } from './recipe';
 import type { TypeBranch, TypeMachine } from '../types/graphicType';
@@ -93,11 +93,10 @@ export const quizRecipe: BehaviourRecipe = {
   // is named for what it shows so the state chip reads "Question" rather than "Enter".
   path: () => ({ entrance: 'Question', steps: [{ name: 'Reveal', duration: 0.45 }] }),
   machine: quizMachine,
-  // The board's own buttons; with the lock option off the heading says the lock is optional,
-  // because Reveal correct then works straight from a pick.
+  // The board's own buttons; with the lock option off the heading says the lock is optional.
   controls: (ctx) =>
     ctx.options.lock === false
-      ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: 'Pick, lock optional' } : c))
+      ? ANSWER_BOARD_CONTROLS.map((c) => (c.section === ANSWER_PICK_SECTION ? { ...c, section: ANSWER_PICK_LOCK_OPTIONAL_SECTION } : c))
       : ANSWER_BOARD_CONTROLS,
   paint: () => [
     { look: 'answer.selected', rows: 'answer', when: { state: ['main/selected', 'main/locked'], facts: ['selectedAnswer:picked'] }, default: 'row-highlight', anchor: 'answer' },

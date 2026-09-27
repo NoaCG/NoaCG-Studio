@@ -136,6 +136,9 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
  * reveal sits under the same "Reveal" heading on both.
  */
 export const ANSWER_PICK_SECTION = 'Pick, then lock';
+/** The same heading on an imported quiz whose lock option is off: Reveal works straight from a
+ *  pick, so the lock is there but optional (behaviours/quiz.ts). */
+export const ANSWER_PICK_LOCK_OPTIONAL_SECTION = 'Pick, lock optional';
 
 /** The buttons every answer board's control page carries, in the sequence an operator runs. */
 export const ANSWER_BOARD_CONTROLS: TypeControlEvent[] = [
