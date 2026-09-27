@@ -14,6 +14,13 @@
 // role's words are matched against. `Options` has no key token, so it is not row S; `Score 10`
 // is row 10, never row 1. A role without rows is matched against the whole name.
 //
+// THE LOOSE READING (docs/SVG_IMPORT_PLAN.md §2a). A name that reads as NOTHING in a recipe as
+// written gets one more try, spelled out: `AnswerA`, `Score1`, `FullTime`, `Answer.A` and
+// `Answer (A)` are read as `Answer A`, `Score 1`, `Full Time`. Only a name the strict reading
+// leaves unread is retried, and only against the same recipe's roles, so a name that reads today
+// reads exactly as it did (scripts/layer-name-readings.test.mjs pins every one). A glued name the
+// case cannot split (`ANSWERA`, `answera`) stays unread: it is a word as far as anyone can tell.
+//
 // THE SCORER. Every recipe is scored against the same inventory. A recipe is ELIGIBLE when it has
 // DISTINCTIVE evidence - a role words.json marks as evidence of THIS behaviour rather than any
 // (a bar for the vote, a numeric figure for the score, a drawn moment for the quiz or the
@@ -53,9 +60,8 @@ export function withRowKey(label: string, key: string): string {
     .join(' ');
 }
 
-/** Does this name play this role? Returns the row key for a per-row role, `''` for a role
- *  without rows, null for no match. `weak` marks a match that binds the role but is not evidence. */
-export function matchRole(role: RecipeRole, label: string): { key: string; weak: boolean } | null {
+/** The strict reading of one role: exactly the rule the docs teach. */
+function strictMatch(role: RecipeRole, label: string): { key: string; weak: boolean } | null {
   const { key, head } = rowTokenOf(label);
   if (role.perRow) {
     if (key === null) return null;
@@ -66,6 +72,39 @@ export function matchRole(role: RecipeRole, label: string): { key: string; weak:
   if (role.words.test(label)) return { key: '', weak: false };
   if (role.weak?.test(label)) return { key: '', weak: true };
   return null;
+}
+
+/** The same name spelled out: joined words split where the case or a figure changes (`AnswerA`,
+ *  `Score1`, `Team1Score`, `FullTime`), and dots, hashes, brackets and long dashes read as spaces
+ *  (`Answer.A`, `Score #1`, `Answer (A)`). A figure followed by a lower-case letter is left alone,
+ *  so `1st` never becomes row 1. Colons and slashes are kept: they belong to the prefixes. */
+export function spelledOut(label: string): string {
+  return label
+    .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
+    .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .replace(/(\p{L})(\d)/gu, '$1 $2')
+    .replace(/(\d)(\p{Lu})/gu, '$1 $2')
+    .replace(/[\s_.#()[\]\u2013\u2014-]+/g, ' ')
+    .trim();
+}
+
+/** Does this name play this role? Returns the row key for a per-row role, `''` for a role
+ *  without rows, null for no match. `weak` marks a match that binds the role but is not evidence.
+ *
+ *  With `peers` (every role of the recipe) a name the strict reading leaves unread by ALL of them
+ *  is read once more spelled out. Without `peers` only the strict reading applies, which is what
+ *  the docs script's twin checks the taught names against. */
+export function matchRole(
+  role: RecipeRole,
+  label: string,
+  peers?: readonly RecipeRole[],
+): { key: string; weak: boolean } | null {
+  const strict = strictMatch(role, label);
+  if (strict || !peers) return strict;
+  const loose = spelledOut(label);
+  if (loose === label.trim()) return null;
+  if (peers.some((p) => !p.countdown && strictMatch(p, label))) return null;
+  return strictMatch(role, loose);
 }
 
 /** A binding proposed from names alone: candidate ids by role, per row where the role repeats. */
@@ -124,7 +163,7 @@ export function proposeBinding(svg: SvgImportResult, recipe: BehaviourRecipe): P
       const pool = role.kind === 'field' ? 'text' : role.pool ?? 'drawn';
       if (layer.pool !== pool) continue;
       if (role.numeric && !layer.numeric) continue;
-      const match = matchRole(role, layer.label);
+      const match = matchRole(role, layer.label, recipe.roles);
       if (match) roleOf.set(layer.id, { role, key: match.key, weak: match.weak });
     }
   }

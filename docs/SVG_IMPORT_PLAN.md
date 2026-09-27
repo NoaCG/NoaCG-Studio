@@ -86,6 +86,264 @@ proposal the user applies, never an authoring step. Behaviour on an imported gra
 type, not from a model (`docs/CONTROL_PANEL_ROAD.md` §9); the 2026-08-27 opening of authored
 machines is about the agent door and the AI tiers, and changes nothing in this plan.
 
+## 2a. How loosely a layer name is read (2026-09-27)
+
+One naming system is TAUGHT (`src/templates/behaviours/layer-names.json`, the examples, the
+cheat sheet), and it stays English and strict so a student copying it cannot go wrong. The
+READING is as loose as it can be without guessing, because the file somebody drops is rarely our
+sample (`docs/backlog/more-trigger-words-and-languages.md`). Three layers of tolerance, all in
+`src/templates/behaviours/naming.ts` over the words in `words.json`:
+
+- **Case, spaces, underscores and dashes** were always one separator, and every word is matched
+  case-insensitively: `Answer A`, `ANSWER A`, `answer_a` and `answer-a` are one name.
+- **The spelled-out retry.** A name that reads as nothing in a type is read once more with joined
+  words split where the case or a figure changes, and dots, hashes, brackets and long dashes read
+  as spaces: `AnswerA`, `Score1`, `FullTime`, `Answer (A)`. Only a name that reads as NOTHING in
+  that type is retried, so no name that read before can change its reading. A figure followed by
+  a lower-case letter is left alone (`1st` is an ordinal, not row 1), and a glued name with no
+  case change (`ANSWERA`) stays unread, because it could as well be a word.
+- **Languages.** The role words carry Finnish, Swedish, German and Spanish beside English for the
+  common roles. A word goes in only where it names one role in one type; one that already means
+  something else, in English or in a type's other roles, is left out and listed below.
+
+**The containers `Text`, `Moments` and `Board` are read by nothing.** The importer finds fields,
+moments and plates by the names INSIDE them, so a file whose containers are called `Teksti`,
+`Ögonblick`, `Momente` or `Tablero`, or that has no containers at all, imports exactly like one
+that follows the examples. Only `npm run check:example-layers` holds the repository's own examples
+to the English names, and that is teaching, not reading.
+
+What is pinned, and where:
+
+- `scripts/fixtures/layer-name-readings.json` is every name the matcher read before this change
+  (every taught name and synonym with its rows swapped, and every layer name in the repository's
+  SVGs) and what it read as in each type. `scripts/layer-name-readings.test.mjs` fails if any of
+  them loses or changes a reading; a name may only gain a reading in a type where it read nothing.
+- The table below is the new tolerance, one row per case. The same test reads this table and
+  fails when a row and the matcher disagree, so the table cannot drift. **Reads as** lists every
+  role the name matches in that type (`role@row`, `:weak` for a match that binds without being
+  evidence), in declaration order; when a name matches two roles, the LAST takes the layer, and a
+  text layer never takes a drawn role or the other way round. `-` is no role at all, and the type
+  `every` means no type reads it.
+
+<!-- layer-name-tolerance:start - read by scripts/layer-name-readings.test.mjs; every row must hold -->
+| Name | Type | Reads as | Why |
+|---|---|---|---|
+| `Answer A` | quiz | `answer@A` | the taught spelling |
+| `ANSWER A` | quiz | `answer@A` | capitals |
+| `answer a` | quiz | `answer@A` | lower case; the row letter is read as a capital |
+| `Answer_A` | quiz | `answer@A` | underscore |
+| `answer-a` | quiz | `answer@A` | dash |
+| `AnswerA` | quiz | `answer@A` | joined: split at the capital |
+| `answerA` | quiz | `answer@A` | joined: split at the capital |
+| `Answer.A` | quiz | `answer@A` | a dot is a space |
+| `Answer (A)` | quiz | `answer@A` | brackets are spaces |
+| `Answer–A` | quiz | `answer@A` | a long dash is a space |
+| `SelectedA` | quiz | `answer.selected@A` | joined moment |
+| `ANSWERA` | quiz | - | left out: no case change to split at, so it could be a word |
+| `answera` | quiz | - | left out: the same |
+| `Team_1` | score | `team@1` | underscore |
+| `TEAM-2` | score | `team@2` | capitals and a dash |
+| `Score1` | score | `score@1` | joined: split before the figure |
+| `Team1Score` | score | `score@1` | read as `Team 1 Score` |
+| `Score #1` | score | `score@1` | a hash is a space |
+| `FullTime` | score | `final@` | joined |
+| `full_time` | score | `final@` | underscore inside a two-word name |
+| `TimerBar` | countdown | `bar@` | joined |
+| `timer_bar` | countdown | `bar@` | underscore inside a two-word name |
+| `TimesUp` | countdown | `expired@` | joined |
+| `time_up` | countdown | `expired@` | underscore inside a two-word name |
+| `Bar1` | vote | `bar@1` | joined; the docs used to name it as the example that is not found |
+| `Balken1` | vote | `bar@1` | joined, in German |
+| `1st Place` | ranking | - | a figure before a lower-case letter is an ordinal, never a row |
+| `TotalShare1` | vote | `total@` | it reads as the total as written, so the spelled-out `Share 1` is never tried |
+| `Text` | every | - | a container |
+| `TEXT` | every | - | a container, in capitals |
+| `text` | every | - | a container, in lower case |
+| `Moments` | every | - | a container |
+| `MOMENTS` | every | - | a container, in capitals |
+| `Board` | every | - | a container |
+| `board` | every | - | a container, in lower case |
+| `Teksti` | every | - | Finnish Text |
+| `Hetket` | every | - | Finnish Moments |
+| `Taulu` | every | - | Finnish Board |
+| `Ögonblick` | every | - | Swedish Moments |
+| `Tavla` | every | - | Swedish Board |
+| `Momente` | every | - | German Moments |
+| `Tafel` | every | - | German Board |
+| `Texto` | every | - | Spanish Text |
+| `Momentos` | every | - | Spanish Moments |
+| `Tablero` | every | - | Spanish Board |
+| `Frage` | quiz | `question@` | German |
+| `Pregunta` | quiz | `question@` | Spanish |
+| `Fråga` | quiz | `question@` | Swedish |
+| `Fraga` | quiz | `question@` | Swedish without the ring |
+| `Kysymys` | quiz | `question@` | Finnish |
+| `Antwort A` | quiz | `answer@A` | German |
+| `Respuesta B` | quiz | `answer@B` | Spanish |
+| `Svar A` | quiz | `answer@A` | Swedish |
+| `Vastaus A` | quiz | `answer@A` | Finnish |
+| `Opción C` | quiz | `answer@C:weak` | Spanish option: binds an answer, is not evidence of a quiz |
+| `Alternativ A` | quiz | `answer@A:weak` | Swedish option, the same |
+| `Gewählt A` | quiz | `answer.selected@A` | German |
+| `Seleccionada A` | quiz | `answer.selected@A` | Spanish |
+| `Elegido B` | quiz | `answer.selected@B` | Spanish |
+| `Vald A` | quiz | `answer.selected@A` | Swedish |
+| `Valittu A` | quiz | `answer.selected@A` | Finnish |
+| `Richtig A` | quiz | `answer.correct@A` | German |
+| `Correcta A` | quiz | `answer.correct@A` | Spanish |
+| `Korrekt A` | quiz | `answer.correct@A` | German and Swedish |
+| `Rätt A` | quiz | `answer.correct@A` | Swedish |
+| `Oikea A` | quiz | `answer.correct@A` | Finnish |
+| `Tick A` | quiz | `answer.correct@A` | English |
+| `Check A` | quiz | `answer.correct@A` | English |
+| `Falsch A` | quiz | `answer.wrong@A` | German |
+| `Incorrecta A` | quiz | `answer.correct@A, answer.wrong@A` | Spanish; wrong is declared later, so wrong takes it |
+| `Inkorrekt A` | quiz | `answer.correct@A, answer.wrong@A` | German and Swedish; wrong takes it |
+| `Fel A` | quiz | `answer.wrong@A` | Swedish |
+| `Väärä A` | quiz | `answer.wrong@A` | Finnish |
+| `Cross A` | quiz | `answer.wrong@A` | English |
+| `Gesperrt` | quiz | `locked@` | German |
+| `Eingeloggt` | quiz | `locked@` | German quiz-show usage |
+| `Bloqueada` | quiz | `locked@` | Spanish |
+| `Låst` | quiz | `locked@` | Swedish |
+| `Lukittu` | quiz | `locked@` | Finnish |
+| `Mannschaft 1` | score | `team@1` | German |
+| `Spieler 2` | score | `team@2` | German player |
+| `Equipo 1` | score | `team@1` | Spanish |
+| `Jugador 2` | score | `team@2` | Spanish player |
+| `Lag 1` | score | `team@1` | Swedish |
+| `Spelare 2` | score | `team@2` | Swedish player |
+| `Joukkue 1` | score | `team@1` | Finnish |
+| `Pelaaja 2` | score | `team@2` | Finnish player |
+| `Punkte 1` | score | `score@1` | German |
+| `Tore 2` | score | `score@2` | German goals |
+| `Puntos 1` | score | `score@1` | Spanish |
+| `Goles 2` | score | `score@2` | Spanish goals |
+| `Pts 1` | score | `score@1` | English short form |
+| `Poäng 1` | score | `score@1` | Swedish |
+| `Poang 2` | score | `score@2` | Swedish without the dots |
+| `Pisteet 1` | score | `score@1` | Finnish |
+| `Tor 1` | score | `score@1, team.flash@1` | German goal: a text is the score, a hidden group the flash, like `Goal 1` |
+| `Gol 1` | score | `score@1, team.flash@1` | Spanish goal, the same |
+| `Maali 1` | score | `team.flash@1` | Finnish |
+| `Spielende` | score | `final@` | German |
+| `Abpfiff` | score | `final@` | German |
+| `Endstand` | score | `final@` | German |
+| `Fin del partido` | score | `final@` | Spanish |
+| `Full tid` | score | `final@` | Swedish |
+| `Loppu` | score | `final@` | Finnish |
+| `Spieler 1` | ranking | `competitor@1` | German |
+| `Teilnehmer 2` | ranking | `competitor@2` | German |
+| `Nombre 1` | ranking | `competitor@1` | Spanish |
+| `Participante 2` | ranking | `competitor@2` | Spanish |
+| `Namn 1` | ranking | `competitor@1` | Swedish |
+| `Deltagare 2` | ranking | `competitor@2` | Swedish |
+| `Nimi 1` | ranking | `competitor@1` | Finnish |
+| `Punkte 1` | ranking | `points@1` | German |
+| `Puntos 2` | ranking | `points@2` | Spanish |
+| `Poäng 1` | ranking | `points@1` | Swedish |
+| `Platz 1` | ranking | `position@1` | German |
+| `Puesto 2` | ranking | `position@2` | Spanish |
+| `Posición 3` | ranking | `position@3` | Spanish |
+| `Placering 1` | ranking | `position@1` | Swedish |
+| `Sija 1` | ranking | `position@1` | Finnish |
+| `Zeile 1` | ranking | `plate@1` | German row |
+| `Fila 2` | ranking | `plate@2` | Spanish row |
+| `Rad 3` | ranking | `plate@3` | Swedish row |
+| `Rivi 1` | ranking | `plate@1` | Finnish row |
+| `Zeitbalken` | countdown | `bar@` | German |
+| `Barra de tiempo` | countdown | `bar@` | Spanish |
+| `Tidsbalk` | countdown | `bar@` | Swedish |
+| `Aikapalkki` | countdown | `bar@` | Finnish |
+| `Warnung` | countdown | `warning@` | German |
+| `Advertencia` | countdown | `warning@` | Spanish |
+| `Aviso` | countdown | `warning@` | Spanish |
+| `Varning` | countdown | `warning@` | Swedish |
+| `Varoitus` | countdown | `warning@` | Finnish |
+| `Pause` | countdown | `paused@` | German |
+| `Pausiert` | countdown | `paused@` | German |
+| `Pausa` | countdown | `paused@` | Spanish |
+| `Paus` | countdown | `paused@` | Swedish |
+| `Tauko` | countdown | `paused@` | Finnish |
+| `Abgelaufen` | countdown | `expired@` | German |
+| `Zeit ist um` | countdown | `expired@` | German |
+| `Tiempo agotado` | countdown | `expired@` | Spanish |
+| `Se acabó` | countdown | `expired@` | Spanish |
+| `Tiden ute` | countdown | `expired@` | Swedish |
+| `Aika loppu` | countdown | `expired@` | Finnish |
+| `Frage` | vote | `question@` | German |
+| `Opción 1` | vote | `option@1` | Spanish |
+| `Opcion 2` | vote | `option@2` | Spanish without the accent |
+| `Alternativ 1` | vote | `option@1` | Swedish |
+| `Vaihtoehto 2` | vote | `option@2` | Finnish |
+| `Balken 1` | vote | `bar@1` | German |
+| `Barra 2` | vote | `bar@2` | Spanish |
+| `Stapel 1` | vote | `bar@1` | Swedish |
+| `Palkki 2` | vote | `bar@2` | Finnish |
+| `Prozent 1` | vote | `percent@1` | German |
+| `Porcentaje 2` | vote | `percent@2` | Spanish |
+| `Procent 1` | vote | `percent@1` | Swedish |
+| `Prosentti 2` | vote | `percent@2` | Finnish |
+| `Gewinner 1` | vote | `winner@1` | German |
+| `Sieger 2` | vote | `winner@2` | German |
+| `Ganador 1` | vote | `winner@1` | Spanish |
+| `Vinnare 2` | vote | `winner@2` | Swedish |
+| `Voittaja 1` | vote | `winner@1` | Finnish |
+| `Stimmen` | vote | `total@` | German votes |
+| `Votos` | vote | `total@` | Spanish votes |
+| `Röster` | vote | `total@` | Swedish votes |
+| `Ääntä` | vote | `total@` | Finnish votes |
+| `Abstimmen` | vote | `badge@` | German vote now; not the total, whose word stops at `Stimmen` |
+| `Vota ya` | vote | `badge@` | Spanish |
+| `Rösta` | vote | `badge@` | Swedish |
+| `Äänestä` | vote | `badge@` | Finnish |
+| `Fortschritt` | meter | `bar@` | German progress |
+| `Progreso` | meter | `bar@` | Spanish progress |
+| `Edistyminen` | meter | `bar@` | Finnish progress |
+| `Prozent` | meter | `percent@` | German |
+| `Porcentaje` | meter | `percent@` | Spanish |
+| `Antwort 1` | survey | `answer@1` | German |
+| `Respuesta 2` | survey | `answer@2` | Spanish |
+| `Punkte 1` | survey | `points@1` | German |
+| `Poäng 2` | survey | `points@2` | Swedish |
+| `Gesamt` | survey | `total@` | German |
+| `Gast 1` | lineup | `guest@1` | German |
+| `Gäst 2` | lineup | `guest@2` | Swedish |
+| `Invitada 1` | lineup | `guest@1` | Spanish |
+| `Jetzt 1` | lineup | `guest.now@1` | German |
+| `Ahora 2` | lineup | `guest.now@2` | Spanish |
+| `Kategorie` | puzzle | `category@` | German |
+| `Categoría` | puzzle | `category@` | Spanish |
+| `Kategori` | puzzle | `category@` | Swedish |
+| `Hinweis` | puzzle | `category@` | German clue |
+| `Pista` | puzzle | `category@` | Spanish clue |
+| `Ledtråd` | puzzle | `category@` | Swedish clue |
+| `Buchstabe 1` | puzzle | `tile@1` | German |
+| `Letra 2` | puzzle | `tile@2` | Spanish |
+| `Bokstav 3` | puzzle | `tile@3` | Swedish |
+| `Gelöst` | puzzle | `solved@` | German |
+| `Löst` | puzzle | `solved@` | Swedish |
+| `Resuelto` | puzzle | `solved@` | Spanish |
+| `Preis` | reveal | `secret@` | German price |
+| `Precio` | reveal | `secret@` | Spanish price |
+| `Pris` | reveal | `secret@` | Swedish price |
+| `Geheim` | reveal | `secret@` | German secret |
+| `Umschlag` | reveal | `cover@` | German envelope |
+| `Kuvert` | reveal | `cover@` | Swedish envelope |
+| `Sobre` | reveal | `cover@` | Spanish envelope |
+| `Letzte 7` | bingo | `called.last@7` | German last |
+| `Último 7` | bingo | `called.last@7` | Spanish last |
+| `Senaste 7` | bingo | `called.last@7` | Swedish last |
+| `Last` | quiz | - | left out: `låst` without its ring is the English word last |
+| `Mal 1` | score | - | left out: `mål` without its ring is Spanish for bad |
+| `Lost` | puzzle | - | left out: `löst` without its dots is the English word lost |
+| `Vaara A` | quiz | - | left out: `väärä` without its dots is Finnish for danger |
+| `Highlight A` | quiz | - | left out: highlight is the running order's mark, so as a quiz pick it would be a guess |
+| `Result 1` | vote | - | left out: a result is as much a score as a share |
+| `Numero 1` | list | - | left out: `numero` is the bingo's number, and as a list entry every bingo board would read as a list too |
+| `Home 1` | score | - | left out: home and away tell a versus card from a score tracker no better than a guess (`docs/SVG_AUTHORING.md`, Home and Away boards) |
+<!-- layer-name-tolerance:end -->
+
 ## 3. The generated template
 
 A new generator beside `src/templates/importedDesign/` (registered like `imp01`; the SVG variant

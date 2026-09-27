@@ -70,7 +70,7 @@ export function namesThatFill(recipeId: string, roleId: string, rowKey?: string)
   const out: string[] = [];
   for (const taught of taughtNames(recipeId, roleId)) {
     const name = rowKey ? withRowKey(taught, rowKey) : taught;
-    const match = matchRole(role, name);
+    const match = matchRole(role, name, rolesOf(recipeId));
     if (!match || match.key !== (rowKey ?? '')) continue;
     if (!out.includes(name)) out.push(name);
   }
@@ -344,7 +344,7 @@ export function proposeFill(
   for (const picker of [...empty]) {
     const role = roleOf(picker.role)!;
     const layer = spare(poolOf(role)).find((l) => {
-      const m = matchRole(role, l.label);
+      const m = matchRole(role, l.label, roles);
       return m !== null && m.key === (picker.key ?? '') && fits(role, l);
     });
     if (layer) take(picker, layer, `named “${layer.label}”`);
@@ -517,7 +517,7 @@ export function rowKeysOf(b: SvgBehaviourDraft, text: FillLayer[]): string[] {
   if (!rowRole) return positional;
   const named = ids.map((id, i) => {
     const label = text.find((l) => l.id === id)?.label;
-    return (label && matchRole(rowRole, label)?.key) || positional[i];
+    return (label && matchRole(rowRole, label, rolesOf(recipeId))?.key) || positional[i];
   });
   return new Set(named).size === named.length ? named : positional;
 }
