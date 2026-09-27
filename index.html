@@ -203,8 +203,8 @@
     section { padding: 88px 0 0; }
     h2 { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; margin: 14px 0 10px; line-height: 1.2; }
     .sub { color: var(--dim); max-width: 620px; }
-    .sub a, .route p a, .way p a, .feat p a, .note a { color: var(--amber); }
-    .sub a:hover, .route p a:hover, .way p a:hover, .feat p a:hover, .note a:hover { color: var(--glow); }
+    .sub a, .feat p a { color: var(--amber); }
+    .sub a:hover, .feat p a:hover { color: var(--glow); }
     .note { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
 
     /* ═══ Product screenshots ═══
@@ -297,7 +297,6 @@
     .way .go { margin-top: auto; padding-top: 14px; font-size: 14.5px; font-weight: 600; }
     .way .go a { color: var(--amber); }
     .way .go a:hover { color: var(--glow); }
-    .way code, .feat code { font-family: var(--mono); font-size: 12.5px; color: var(--paper); background: rgba(232,237,242,0.06); padding: 1px 6px; border-radius: 4px; }
     @media (max-width: 960px) { .ways { grid-template-columns: 1fr; max-width: 560px; } }
 
     /* ── Small tiles (the OGraf section) ── */
@@ -424,7 +423,9 @@
            and browser sources are proven too but are an ordinary URL, not a product of their own.
            Other targets are said to be untested, never listed as supported. -->
       <section id="playout">
-        <p class="kicker" data-reveal>NoaCG Playout and NoaCG Bridge</p>
+        <!-- id="live" and id="how" (below) keep the old section links from /docs and /downloads
+             landing on the right place. -->
+        <p class="kicker" id="live" data-reveal>NoaCG Playout and NoaCG Bridge</p>
         <h2 data-reveal>Run the show from a rundown.</h2>
         <p class="sub" data-reveal>
           NoaCG Playout is the operator page: a cue rundown, preview and program monitors, and
@@ -464,7 +465,7 @@
            second, templates third. Every picture is a real screenshot; the agent card shows the
            words you type to your agent and nothing it prints back. -->
       <section id="start">
-        <p class="kicker" data-reveal>Three ways to start</p>
+        <p class="kicker" id="how" data-reveal>Three ways to start</p>
         <h2 data-reveal>Make a graphic the way you already work.</h2>
         <div class="ways" data-reveal-group>
           <article class="way" id="agents">

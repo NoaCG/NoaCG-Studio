@@ -100,7 +100,11 @@ test('the landing says what NoaCG is, where it plays out, and the three ways in'
 
 test('the pages and anchors the landing links to exist', async ({ page }) => {
   // A link to a renamed anchor fails silently: the page opens at its top and nobody notices.
+  // The first two are the landing's own old section anchors, still linked from /docs and
+  // /downloads.
   for (const [path, anchor] of [
+    ['/', 'live'],
+    ['/', 'how'],
     ['/downloads', 'bridge'],
     ['/docs', 'agent-install'],
     ['/docs', 'svg'],
