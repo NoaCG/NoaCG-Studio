@@ -1,8 +1,8 @@
-/* ══ Wizard entry: Continue working + the separated video strip ═══════════════════════════ */
+/* ══ Wizard entry: the Home row, the four start cards, the Playout row ═════════════════════ */
 
-/* Continue working is a compact one-line ROW (icon · title · hint), not a tall card — the
-   entry step's height budget goes to the five creation cards, and this block sits above
-   them on every launch. Width tracks the 4-card grid (4 × 264px + 3 × 14px gaps). */
+/* The Home row is a compact one-line ROW (icon · title · hint), not a tall card — the entry
+   step's height budget goes to the start cards, and this block sits above them whenever
+   there is saved work. Width tracks the card grid's 1180px measure. */
 .wz-continue { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 0; width: 100%; max-width: 1180px; }
 /* THE HOME ROW (handoff §2a): one bordered row holding the body button and its two section
    shortcuts as SIBLINGS. The border lives on the row, not on the body button, so the three
@@ -98,44 +98,78 @@
   margin-left: 6px;
   vertical-align: 2px;
 }
-/* The video strip stays visually apart (dashed rule) but flat: ONE LINE (handoff §2a), so
-   the whole strip is on screen at 768px viewport height, below the entry grid. */
-.wz-video-strip {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border);
+/* ── THE FOUR START CARDS: one row, one size, one treatment ──────────────────────────────
+   Overrides the shared two-column grid in wizard-and-dialogs.css (which the Finish doors also
+   use) for the Entry step alone, scoped under `.wz-entry-wrap` so nothing else moves. Four
+   columns at a laptop width: two rows of two cost a whole card height of the 768px budget
+   that the Playout row now needs. The odd-card span rule there never fires on four. */
+.wz-entry-wrap .wz-entry { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* One step roomier than the shared card: four in a row leave the 768px budget about 250px
+   of air, and the first screen reads calmer spending a little of it on the cards than on a
+   blank band under them. Top-anchored still: centring would push the first read down. */
+.wz-entry-wrap .wz-entry .wz-entry-card { padding: 18px 20px; gap: 8px; }
+.wz-entry-wrap .wz-entry .wz-entry-card .hint { line-height: 1.5; }
+.wz-entry-wrap .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.5em); }
+/* The drawn icons (EntryStep.tsx) sit on the title's line in the accent, all at one size,
+   where the glyphs they replace took their size from `font-size` and their weight from
+   whichever system font had them. */
+.wz-entry-wrap .wz-entry .wz-entry-card .wz-entry-icon { width: 22px; height: 22px; font-size: inherit; flex: 0 0 auto; }
+.wz-entry-wrap .wz-entry .wz-entry-card strong { white-space: nowrap; }
+/* THE GREYED CARD. It keeps the card's size and outline so the row stays four equal cards,
+   and drops everything that says "pick me": the icon and title go dim, the fill goes flat and
+   nothing lifts or lights. The border stays SOLID: dashed is the "drop zone / add new" cue,
+   the wrong hint one card away from Import. Signed in it still opens on click - greyed says
+   "not yet recommended", not "broken" - so its hover answers in the quiet border only. */
+.wz-entry-wrap .wz-entry .wz-entry-card--muted { background: transparent; }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted .wz-entry-icon,
+.wz-entry-wrap .wz-entry .wz-entry-card--muted strong { color: var(--text-dim); }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted .hint { color: var(--text-faint); }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--border-strong);
+  transform: none;
+}
+/* Disabled (signed out) it is the same greyed card, not a second, fainter state: the card
+   already reads as unavailable, and base.css's 0.45 opacity would make its reason unreadable. */
+.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled { opacity: 1; cursor: not-allowed; }
+.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled:hover { background: transparent; border-color: var(--border); transform: none; }
+
+/* A laptop narrower than the four-column measure (a 1024px window, a split screen) goes back
+   to two by two rather than squeezing four titles onto two lines each. */
+@media (max-width: 1100px) {
+  .wz-entry-wrap .wz-entry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── THE PLAYOUT ROW: the other half of the product, under the cards ─────────────────────
+   Flush with the grid and the Home row (same 1180px measure), set apart by a rule rather than
+   boxed: it is the step's closing line, not a fifth card. */
+.wz-playout {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
   width: 100%;
   max-width: 1180px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
 }
-/* FLUSH WITH THE GRID. The strip used to lead with a "Not a live graphic?" label, which
-   pushed the card 160px right of every card above it; the dashed rule already says the row is
-   apart, and the offset only read as a card that failed to line up. */
-.wz-video-strip .wz-entry-card--video {
-  flex: 1 1 100%;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  /* 9px, not 12: one line of copy, so the card is as tall as its text plus the least padding
-     that still reads as a control. It is the quietest thing on the step and must measure that
-     way beside the shipped modes above it. */
-  padding: 9px 14px;
+.wz-playout-text { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.wz-playout-text .wz-entry-icon { width: 22px; height: 22px; flex: 0 0 auto; color: var(--accent); }
+.wz-playout-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The card title's size: "Run the show" is half the headline's promise, not a footnote. */
+.wz-playout-copy strong { font-size: 17px; font-weight: 600; }
+/* The two actions: plain secondary buttons, never amber (the cards are the step's
+   recommendation), matched to the Home row's shortcuts so the step has one secondary button. */
+.wz-playout-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+.wz-playout-actions button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  border-color: var(--border-strong);
+  color: var(--text);
+  background: none;
 }
-.wz-video-strip .wz-entry-card--video .wz-entry-icon { font-size: 13px; }
-.wz-video-strip .wz-entry-card--video strong { white-space: nowrap; }
-/* The hint is the tail of one sentence, so it truncates rather than wrapping the row to two
-   lines — the strip's whole point is that it costs one. */
-.wz-video-strip .wz-entry-card--video .hint {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wz-video-strip-go { flex: 0 0 auto; color: var(--text-faint); }
+.wz-playout-actions button:hover { border-color: var(--accent); background: var(--bg-2); }
 
 @media (max-width: 768px) {
   /* THE HERO IS DESKTOP-SIZED (42/18, `.wz-wizard` above) and a phone cannot afford it: at
@@ -145,26 +179,25 @@
      sentence is the only place the export targets and the cloud control panel are named. */
   .wz-wizard .wz-hero-title { font-size: 28px; }
   .wz-wizard .wz-hero-sub { font-size: 15px; }
-  /* On a phone the title and the hint cannot share a row — "Video or animation with AI" plus
-     the Beta tag is already most of 390px. Two lines, the icon spanning both, and the arrow
-     drops out: it pointed at a row that no longer reads as one. */
-  .wz-video-strip .wz-entry-card--video {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    column-gap: 12px;
-    row-gap: 4px;
+  /* ONE COLUMN, the same four cards in the same order (mobile.css sets the column). The
+     three-line reserve stays, so the four are still one size stacked. */
+  .wz-entry-wrap .wz-entry { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .wz-entry-wrap .wz-entry .wz-entry-card { padding: 14px 16px; }
+  /* The Playout row stacks: copy on top, the two actions side by side under it, each half the
+     width, so both are thumb-sized and neither wraps its label. */
+  .wz-playout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    /* Flush with the cards, which mobile.css insets 4px each side. */
+    width: auto;
+    align-self: stretch;
+    margin: 12px 4px 0;
   }
-  .wz-video-strip .wz-entry-card--video .wz-entry-icon {
-    grid-row: 1 / span 2;
-  }
-  .wz-video-strip .wz-entry-card--video strong { white-space: normal; }
-  .wz-video-strip .wz-entry-card--video .hint {
-    grid-column: 2;
-    width: 100%;
-    white-space: normal;
-  }
-  .wz-video-strip-go { display: none; }
+  /* Beside a two-line hint the icon belongs to the title, not the middle of the block. */
+  .wz-playout-text { align-items: flex-start; }
+  .wz-playout-text .wz-entry-icon { margin-top: 1px; }
+  .wz-playout-actions button { flex: 1; }
   /* The Home row stacks: two shortcut buttons beside a two-line description leave the
      description a sliver, and the shortcuts are the row's real value on a phone. */
   .wz-continue-row { flex-direction: column; align-items: stretch; gap: 10px; }

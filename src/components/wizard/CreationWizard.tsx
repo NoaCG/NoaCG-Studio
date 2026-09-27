@@ -1811,6 +1811,29 @@ export default function CreationWizard() {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section });
                 }}
+                onOpenPlayout={() => {
+                  // "Last used" is the production saved most recently: every rundown edit,
+                  // publish and graphic add stamps `updatedAt`, so it is the one the user
+                  // touched last without a second record to keep in step.
+                  const last = loadShows().reduce<Show | null>(
+                    (best, s) => (!best || s.updatedAt > best.updatedAt ? s : best),
+                    null,
+                  );
+                  closeGallery();
+                  useRouter.getState().navigate(
+                    last ? { view: 'production', id: last.id } : { view: 'home', section: 'productions' },
+                  );
+                }}
+                onNewProduction={() => {
+                  // The same create Home's "New production" card runs, unnamed, so it takes the
+                  // model's own "Untitled production" floor. A failed write has no production to
+                  // open, so it lands on the list, which shows what is actually saved.
+                  const { show, error } = createShowNamedChecked('');
+                  closeGallery();
+                  useRouter.getState().navigate(
+                    error ? { view: 'home', section: 'productions' } : { view: 'production', id: show.id },
+                  );
+                }}
               />
             )}
             {step === 1 && mode === 'video' && (

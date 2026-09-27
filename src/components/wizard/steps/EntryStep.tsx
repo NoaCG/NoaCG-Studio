@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { useAuthState } from '../../auth/useAuthState';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -15,40 +16,40 @@ interface Props {
    * of them again is a stop the reference removes.
    */
   onHome: (section?: string | null) => void;
+  /** The production used last, or the productions list when there is none. */
+  onOpenPlayout: () => void;
+  /** Make an empty production and open its rundown. */
+  onNewProduction: () => void;
 }
 
 /**
- * Step 0 — the app's home moment. A hero states what NoaCG Studio is and who it's for, then
- * two halves: the HOME row (all saved work — the wizard is not the place to browse it, Home
- * is) and ways to start something new. Broadcast-graphics paths sit together; "Video or
- * animation with AI" is one separated line marked Beta, because it creates a STANDALONE
- * video — not a live broadcast graphic.
+ * Step 0 — the app's home moment. A hero states what NoaCG Studio is, then the HOME row (all
+ * saved work, only when there is some), four equal start cards, and the Playout row: the two
+ * halves of the product, making graphics and running the show, both reachable from the first
+ * screen with nothing saved.
  *
- * THREE DIVERGENCES FROM re-design/handoff.md §2a ARE DELIBERATE. They are listed here so
- * nobody "fixes" the screen back towards the picture:
- *  - there is no "Start from a kit" card (see the note at the bottom of this comment);
+ * DELIBERATE DIVERGENCES FROM re-design/handoff.md §2a, listed so nobody "fixes" the screen
+ * back towards the picture:
+ *  - there is no "Start from a kit" card: a kit is the same walk over a whole set, so "one
+ *    graphic or the whole kit" is asked at the top of the BROWSE step (this reverses
+ *    docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23);
  *  - a card ACTS ON CLICK; the reference draws radio dots and a Continue button, which is a
  *    second press for a choice that has already been made unambiguously;
- *  - there is no Blank card, so the screen shows three cards where the reference shows four.
- *    Blank's only outcome was the old code editor, which no door opens any more (owner,
- *    2026-09-24).
- *
- * The old per-graphic "Recent" chips are gone deliberately: in the default studio they
- * opened the EDITOR, the demoted surface, and Home's rows (control page, productions,
- * export) are the honest continuation of saved work.
+ *  - there is no Blank card. Blank's only outcome was the old code editor, which no door opens
+ *    any more (owner, 2026-09-24).
  *
  * "Import graphic" is deliberately its own card and a MANUAL path — no AI anywhere in it.
- * A user who designed their graphic in Photoshop wants NoaCG to make it broadcast-ready
- * (fields, animation, export), not to regenerate it. Existing .html / SPX templates (and
- * logos to design around) go through Create with AI instead.
- *
- * THERE IS NO "Start from a kit" CARD. A kit is not a different way of starting — it is the
- * same walk over a whole set — so "one graphic or the whole kit" is asked at the top of the
- * BROWSE step, where designs are chosen and the answer can be changed without walking back
- * here. (This reverses docs/TEMPLATE_TAXONOMY_PROPOSAL.md §18, 2026-07-23; see the reversal
- * recorded there.)
  */
-export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo, onHome }: Props) {
+export default function EntryStep({
+  onTemplates,
+  onImportGraphic,
+  onAi,
+  onVideo,
+  onHome,
+  onOpenPlayout,
+  onNewProduction,
+}: Props) {
+  const { signedIn } = useAuthState();
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
    *  the screen as a door to an empty room is a false lead - creation leads instead. */
@@ -63,20 +64,13 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
 
   return (
     <div className="wz-entry-wrap">
-      {/* THE HERO IS A HEADLINE AND TWO LINES (re-design/handoff.md §2a) — nothing else.
-          It used to carry a 40px BrandLogo above the title and a row of SPX / CasparCG /
-          OGraf mono chips below the subtitle. Both are gone, and neither is a trim for space:
-          the wizard's own topbar already wears the brand two inches higher, so a second logo
-          states the same fact twice on the one screen where the reader has a decision to
-          make; and three export targets rendered as CHIPS read as filters or as status,
-          because that is what a row of small bordered pills means everywhere else in this
-          app. The targets belong in the sentence, where they are a promise rather than
-          furniture — which is exactly where the reference puts them. */}
+      {/* THE HERO IS A HEADLINE AND TWO LINES (re-design/handoff.md §2a) — nothing else. No
+          second brand mark (the topbar wears one two inches higher) and no row of export-target
+          chips (a row of small bordered pills reads as filters or status in this app). */}
       <div className="wz-hero">
         {/* THE HEADLINE IS THE LANDING PAGE'S, VERBATIM. A visitor arrives here seconds after
             reading it, and the app repeating the promise word for word is what makes the two
-            surfaces one product. It also names the half most tools stop short of: creating a
-            graphic is not the job, putting it on air is. */}
+            surfaces one product. */}
         <h1 className="wz-hero-title">
           Create live graphics. <span>Run the show.</span>
         </h1>
@@ -86,18 +80,10 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
           Open editor <span className="wz-beta-tag">Alpha</span>
         </a>
         {/* THE SUBTITLE CARRIES BOTH ROUTES TO AIR, and every export target rather than a
-            sample of three: naming SPX, CasparCG and OGraf alone read as the whole list, which
-            told an OBS, vMix, H2R or LiveOS user this was not for them.
-
-            THE CONTROLLER ROUTE NAMES ITS MECHANISM, because "run it from the cloud" sounds
-            like a platform you have to move onto, and the truth is the opposite: the playout
-            client the studio already runs adds ONE browser source and never touches it again.
-            That sentence is the answer to "do I have to change my setup", so it says the thing
-            the operator actually does rather than where the software lives.
-
-            It says BROWSER SOURCE, never "HTML overlay". `HTML overlay (OBS / vMix)` is the
-            name of an export TARGET - a downloadable folder of files - so using the phrase for
-            the live URL would make one term mean two products on the one screen. */}
+            sample of three. The controller route names its MECHANISM (one browser source the
+            playout client loads once), because that is the answer to "do I have to change my
+            setup". It says BROWSER SOURCE, never "HTML overlay", which is the name of an export
+            TARGET. */}
         <p className="wz-hero-sub">
           Choose your graphics, then pick who drives them. Our controller runs the show live
           through one browser source your playout client loads once, or export them for OGraf,
@@ -108,12 +94,10 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
       {/* ── Home: saved work first — creation is not the only door. Shown only when there
              IS work to continue; see hasSavedWork.
 
-             A ROW, NOT A CARD, and it carries its own shortcuts (handoff §2a). Home holds two
-             kinds of saved thing and the reader already knows which one they want, so the row
-             names them: the body opens the dashboard, "Graphics" and "Productions" go
-             straight to their section. Those are SIBLING buttons of the body button, never
-             nested inside it — a button inside a button is invalid, and the same sibling
-             pattern the Browse card's ⓘ uses. ── */}
+             A ROW, NOT A CARD, and it carries its own shortcuts (handoff §2a). The body opens
+             the dashboard, "Graphics" and "Productions" go straight to their section. Those are
+             SIBLING buttons of the body button, never nested inside it — a button inside a
+             button is invalid. ── */}
       {hasSavedWork && (
       <div className="wz-continue" data-testid="wz-continue">
         <div className="wz-continue-row">
@@ -135,98 +119,184 @@ export default function EntryStep({ onTemplates, onImportGraphic, onAi, onVideo,
       </div>
       )}
 
-      {/* THE TWO-COLUMN GRID (re-design/handoff.md §2a). Every card is the same two blocks: a
-          TITLE ROW carrying the icon beside the title, then the description in a block of its
-          own. The icon used to be a third stacked line, which put each card's copy at a
-          different y and let the longest description make its whole grid row taller than the
-          other (measured at 1366x768: row 1 179px, row 2 138px). Card copy is kept to what the
-          row reserves — a card that needs a fourth line is a card that needs shorter copy.
-          THREE cards in a two-column grid leave no hole: an ODD LAST CARD spans both columns
-          (`.wz-entry-card:last-child:nth-child(odd)`), so the three read as a full block. */}
+      {/* FOUR EQUAL CARDS (owner, 2026-09-27). The three ways to start, in the order the owner
+          ranks them - your own AI coding agent through the NoaCG CLI, your own artwork, a
+          template - then the video door as a fourth card of the same size, greyed.
+
+          SAME SIZE AND SAME TREATMENT means no card is tinted as the primary: the order says
+          which one leads, and a tinted border on one card read as "this one is different",
+          which is what the owner reported about the Import card. Every card is the same two
+          blocks - a title row with its icon, then a description reserving three lines - so
+          every card's copy starts at the same y and the row is one height. A card that needs a
+          fourth line needs shorter copy: the step's height is a budget at 1366x768
+          (e2e/wizard-entry-fit.spec.ts). Phones stack the same four in the same order. */}
       <div className="wz-entry">
-        <button className="wz-entry-card wz-entry-card--primary" onClick={onTemplates} data-entry="template">
-          <span className="wz-entry-head">
-            <span className="wz-entry-icon">▤</span>
-            <strong>Start from a template</strong>
-          </span>
-          {/* The kit is named HERE because there is no kit card — this sentence is the only
-              thing on the front page that says a whole set is possible, and the switch that
-              does it sits at the top of Browse (see the note above). It used to end "Tweak the
-              code it writes, or never open it", a promise no door keeps since the old code
-              editor closed (owner, 2026-09-24), so the card says only what the walk does. */}
-          <span className="hint">Pick a design, one graphic or the whole kit a show needs in one look. Then choose your fields, style and animation.</span>
-        </button>
         <button className="wz-entry-card" onClick={onAi} data-entry="ai">
           <span className="wz-entry-head">
-            <span className="wz-entry-icon">✦</span>
-            {/* BETA, like the video door: the adapt-first pipeline is shipped and metered, but
-                it is the least settled surface in the studio, and a card that promises the same
-                polish as the catalog sets the wrong expectation for what comes back. */}
+            <IconAgent />
+            {/* BETA: the adapt-first pipeline is shipped and metered, but it is the least
+                settled surface in the studio. */}
             <strong>
               Create with AI <span className="wz-beta-tag">Beta</span>
             </strong>
           </span>
-          {/* THE TESTING PHASE IS SAID IN WORDS, NOT ONLY AS A TAG (owner, 2026-08-29). "Beta"
-              is a label a reader can carry any meaning into; what this door actually owes them
-              before they open it is that the RESULT is not settled yet. It leads the
-              description rather than trailing it, because a caution nobody reaches is not a
-              caution, and it sits INSIDE the .hint block so the card's three reserved lines
-              still hold the whole of the copy — the entry grid's height budget is measured by
-              e2e/wizard-entry-fit.spec.ts, and a fourth line pushes the video strip below the
-              fold. It is brighter than the hint, never a second amber: the Beta tag on this
-              card's own title is already the one accent the card is allowed. The fuller
-              sentence — what varies, and what to reach for instead — is one screen in, on the
-              AI step's own ⓘ, where the reader has actually opened the door. */}
+          {/* THE TESTING PHASE IS SAID IN WORDS, NOT ONLY AS A TAG (owner, 2026-08-29), and it
+              LEADS the hint, inline, so the three reserved lines still hold the whole card. The
+              rest names the route the studio recommends first: the user's own coding agent
+              driving the NoaCG CLI (the AI step's AgentRouteCard says how). */}
           <span className="hint">
             <span className="wz-testing-note" data-testid="ai-testing-note">
               Still in testing - results vary.
             </span>{' '}
-            Describe the graphic you need and NoaCG adapts a proven design to it. Drop in a
-            logo, mood board or brand colours.
+            Use your own AI coding agent with the NoaCG CLI, or describe it here.
           </span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
           <span className="wz-entry-head">
-            <span className="wz-entry-icon">▦</span>
+            <IconVector />
             <strong>Import graphic</strong>
           </span>
-          {/* IT NAMES SVG FIRST, because that is the import the Design step calls the best one
-              (its text layers arrive as fields on their own) and a card that says only "image"
-              reads as the raster road to anyone holding a drawing. It also names .html / .zip,
-              because this card is where that file's owner looks: the same drop zone takes all of
-              them (ImportDesignStep's `accept`), and the AI card used to be the only place either
-              was mentioned — so anyone holding a finished template had to guess that the AI door,
-              which they had every reason to avoid, was the way in. "No AI" and "already finished"
-              are the same errand. Keep this copy no LONGER than it is: the entry grid's height
-              budget is measured by e2e/wizard-entry-fit.spec.ts. */}
-          <span className="hint">Bring your own artwork, no AI. A layered SVG brings its text in as fields. On a PNG or JPEG you place text. Already have it as .html or .zip? Drop that in instead.</span>
+          {/* A MANUAL path: a designer wants their drawing made broadcast-ready, not
+              regenerated. SVG leads because its text layers arrive as fields on their own;
+              .html / .zip are named because the same drop zone takes a finished template
+              (ImportDesignStep's `accept`), and this card is where its owner looks. */}
+          <span className="hint">
+            SVG from Illustrator, no AI. Its text layers become fields. PNG, JPEG, .html or .zip
+            work too.
+          </span>
+        </button>
+        <button className="wz-entry-card" onClick={onTemplates} data-entry="template">
+          <span className="wz-entry-head">
+            <IconTemplate />
+            <strong>Start from a template</strong>
+          </span>
+          {/* The kit is named HERE because there is no kit card: the switch that makes a whole
+              set sits at the top of Browse. */}
+          <span className="hint">
+            Pick a design, one graphic or a whole kit. Then set its fields, style and motion.
+          </span>
+        </button>
+        {/* THE VIDEO DOOR IS GREYED, NOT HIDDEN (owner, 2026-09-27). It makes a rendered FILE in
+            the separate Video workspace, not a live graphic, and it is not ready to recommend.
+            It keeps its place so nobody wonders where it went, and it is closed to a signed-out
+            visitor, who is told why in the card itself because a disabled button shows no
+            tooltip. `signedIn` is true offline, where nothing is gated, and false while a
+            configured session is still resolving. */}
+        <button
+          className="wz-entry-card wz-entry-card--muted"
+          onClick={onVideo}
+          disabled={!signedIn}
+          data-entry="video"
+        >
+          <span className="wz-entry-head">
+            <IconVideo />
+            <strong>Video or animation</strong>
+          </span>
+          <span className="hint">
+            Not recommended yet. It renders a video file, not a live graphic.
+            {!signedIn && ' Sign in to try it.'}
+          </span>
         </button>
       </div>
 
-      {/* ── The video world, clearly apart: a standalone rendered video, not a live graphic.
-             ONE QUIET LINE (handoff §2a). It was a full card with a three-line hint, which
-             gave the BETA side-door more vertical weight than "Import graphic" — a shipped
-             mode — and spent the entry step's tightest resource on the option fewest people
-             want. What the line has to say is what makes it different from everything above
-             it: it renders to a FILE, and it opens the other workspace. The rest was
-             examples, and a mode nobody has chosen yet does not need examples.
-
-             THE STRIP HAS NO LEADING LABEL. "Not a live graphic?" sat outside the card and
-             indented it 160px, so the one row on the step that is not flush with the grid was
-             the row already marked as the odd one out — the offset read as a layout fault
-             rather than as separation, which the dashed rule above it already provides. The
-             distinction the label carried is now the first words of the card's own hint,
-             where it belongs to the thing it describes. ── */}
-      <div className="wz-video-strip" data-testid="wz-video-strip">
-        <button className="wz-entry-card wz-entry-card--video" onClick={onVideo} data-entry="video">
-          <span className="wz-entry-icon">▶</span>
-          <strong>
-            Video or animation with AI <span className="wz-beta-tag">Beta</span>
-          </strong>
-          <span className="hint">Not a live graphic: it renders to a file, in the separate Video workspace.</span>
-          <span className="wz-video-strip-go" aria-hidden="true">→</span>
-        </button>
+      {/* ── THE PLAYOUT ROW (owner, 2026-09-27): nobody should have to make a graphic before
+             they can have a rundown. Two plain actions that work on a first-ever visit with
+             nothing saved: "Open Playout" goes to the production used last, or to the
+             productions list when there is none; "New production" makes an empty one and
+             opens its rundown, where its own add-graphics control is waiting.
+             A ROW, NOT A FIFTH CARD: it is the other half of the product, running the show,
+             not a way to start a graphic. Its buttons are secondary, never amber - the cards
+             above are what the step recommends. ── */}
+      <div className="wz-playout" data-testid="wz-playout">
+        <span className="wz-playout-text">
+          <IconRundown />
+          <span className="wz-playout-copy">
+            <strong>Run the show</strong>
+            <span className="hint">Line up graphics in a production and take them to air.</span>
+          </span>
+        </span>
+        <span className="wz-playout-actions">
+          <button onClick={onOpenPlayout} data-entry="open-playout">Open Playout</button>
+          <button onClick={onNewProduction} data-entry="new-production">New production</button>
+        </span>
       </div>
     </div>
+  );
+}
+
+/* ── THE ENTRY ICONS: ONE DRAWN SET ──────────────────────────────────────────────────────────
+   The cards used to wear Unicode glyphs (▤ ✦ ▦ ▶), which render in whatever font the platform
+   has, at four different weights, and read as generic placeholders (owner, 2026-09-27). These
+   are drawn for this screen on one grid: 24-unit viewBox, 1.6 stroke, round joins, drawing
+   `currentColor` like the house set in components/icons.tsx. The four cards share ONE idea -
+   the same 18x15 screen, and what goes on it: a terminal prompt (your coding agent), a vector
+   path with its anchors (your artwork), a lower third (a template), a play mark (a rendered
+   video). The Playout row's rundown marks its on-air line with the one filled dot. */
+function EntryIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      className="wz-entry-icon"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function IconAgent() {
+  return (
+    <EntryIcon>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M7 10l3 2.25L7 14.5M12.5 15H17" />
+    </EntryIcon>
+  );
+}
+
+function IconVector() {
+  return (
+    <EntryIcon>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M7.5 14C7.5 11 11 8.5 15 8.5" />
+      <rect x="6" y="14" width="3" height="3" rx="0.6" />
+      <rect x="15" y="7" width="3" height="3" rx="0.6" />
+    </EntryIcon>
+  );
+}
+
+function IconTemplate() {
+  return (
+    <EntryIcon>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M6.5 14.5h8M6.5 16.75h5" />
+    </EntryIcon>
+  );
+}
+
+function IconVideo() {
+  return (
+    <EntryIcon>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M10.25 9.25v5.5L14.75 12z" />
+    </EntryIcon>
+  );
+}
+
+function IconRundown() {
+  return (
+    <EntryIcon>
+      <path d="M9.5 7H20M9.5 12H20M9.5 17H20" />
+      <circle cx="5" cy="7" r="1.75" fill="currentColor" stroke="none" />
+      <circle cx="5" cy="12" r="1.1" />
+      <circle cx="5" cy="17" r="1.1" />
+    </EntryIcon>
   );
 }
