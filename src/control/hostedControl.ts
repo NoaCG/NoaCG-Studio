@@ -1172,6 +1172,29 @@ export async function hostedControlTail(slug: string, afterId: number, graphic?:
 }
 
 /**
+ * Every row of one production's log after `after`, up to and including `upTo` (a head this show
+ * resolved with, so a row with that id exists), paged. Null when the read did not reach `upTo`:
+ * a failed page (`hostedControlTail` answers a failure as no rows) or more than `maxPages`
+ * pages. A recovery that replays half the rows would be worse than one that replays none.
+ */
+export async function hostedControlRange(
+  slug: string,
+  after: number,
+  upTo: number,
+  maxPages = 4,
+): Promise<ControlEventRow[] | null> {
+  const rows: ControlEventRow[] = [];
+  let from = after;
+  for (let page = 0; page < maxPages && from < upTo; page += 1) {
+    const got = await hostedControlTail(slug, from);
+    if (got.length === 0) return null;
+    for (const row of got) if (row.id <= upTo) rows.push(row);
+    from = got[got.length - 1].id;
+  }
+  return from >= upTo ? rows : null;
+}
+
+/**
  * Live log rows for one show (the show-chat pattern: Realtime nudges, the durable table is
  * the truth). Returns an unsubscribe. Rows are NOT guaranteed to arrive in id order - one
  * transaction's rows can reach the log topic shuffled - so the caller keeps its own last-seen id,

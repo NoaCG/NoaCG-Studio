@@ -71,6 +71,7 @@ import {
   clearCueItems,
   controlShowBySlug,
   followControlLog,
+  hostedControlRange,
   hostedControlTail,
   sendControlVerb,
   stageHostedData,
@@ -84,6 +85,7 @@ import {
   type PanelGraphicSpec,
   type ResolvedControlShow,
 } from '../control/hostedControl';
+import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
 import { isBackendConfigured } from '../backend/config';
 import { fastEventGraphics as clockFreeGraphics } from '../control/matchClockWire';
 import { detectPrefix } from '../model/structure';
@@ -297,19 +299,19 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   }, []);
 
   /**
-   * THE LOG ROWS THE PROGRAM MONITOR'S FIRST RECOVERY STILL HAS TO REPLAY (`restoreProgram`):
-   * null until the boot has read the log, then emptied by the recovery that applies them. A
-   * renderer reports its state 800 ms after its last change, so a tab reloaded straight after a
-   * press reads a report from BEFORE that press. The `/output` renderer's own boot recovery
-   * therefore replays every row after the report's baseline (control/outputRecovery.ts), and this
-   * monitor now does the same. Without it, a tab reloaded moments after the next question's lock
-   * rebuilt the PREVIOUS question's reveal, and its Reveal correct, greyed on that stale reveal,
-   * never lit the new key here while air lit it (configured run 36279794719).
+   * THE LOG ROWS THE PROGRAM MONITOR'S FIRST RECOVERY STILL HAS TO REPLAY (`restoreProgram`),
+   * emptied by the recovery that applies them. A renderer reports its state 800 ms after its last
+   * change, so a tab reloaded straight after a press reads a report from BEFORE that press. The
+   * `/output` renderer's own boot recovery therefore replays every row after the report's
+   * baseline (control/outputRecovery.ts), and this monitor now does the same. Without it, a tab
+   * reloaded moments after the next question's lock rebuilt the PREVIOUS question's reveal, and
+   * its Reveal correct, greyed on that stale reveal, never lit the new key here while air lit it
+   * (configured run 36279794719).
+   *
+   * Read BEFORE the page shows the production, so no stage can come up, and no button can be
+   * pressed, ahead of the rows its recovery needs.
    */
-  const bootReplay = useRef<ControlEventRow[] | null>(null);
-  /** A stage came up before the log had been read: recover once it has. */
-  const restoreWaiting = useRef(false);
-  const restoreRef = useRef<() => void>(() => {});
+  const bootReplay = useRef<ControlEventRow[]>([]);
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -318,10 +320,23 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     }
     let live = true;
     let unsubscribe: (() => void) | null = null;
-    bootReplay.current = null;
     void (async () => {
       const resolved = await controlShowBySlug(slug);
       if (!live) return;
+      if (resolved) {
+        // Only the layers on air need recovering; the plan is the renderer's own.
+        const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
+        const { followFrom, snapshotAt } = planOutputRecovery(onAir, resolved.live);
+        const rows =
+          onAir.length > 0 && followFrom < resolved.lastEventId
+            ? await hostedControlRange(slug, followFrom, resolved.lastEventId)
+            : [];
+        if (!live) return;
+        // A read that did not reach the head replays nothing: the report stands, as it did before.
+        bootReplay.current = (rows ?? []).filter(
+          (row) => onAir.includes(row.graphic) && !alreadyInSnapshot(snapshotAt, row.graphic, row.id),
+        );
+      }
       setShow(resolved);
       if (!resolved) return;
       sharedStaged.current = { ...resolved.staged };
@@ -364,20 +379,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         }
         return eventLogLabel(buttons.get(graphic)!, event);
       };
-      const historyFrom = Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN);
-      const history = await hostedControlTail(slug, historyFrom);
+      const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!live) return;
-      // The rows each report does not contain yet: after its own baseline, up to the head this
-      // page follows from. A report older than the history read (or one with no baseline) is
-      // trusted as it stands, which is what the recovery did before.
-      bootReplay.current = history.filter((row) => {
-        const at = resolved.live[row.graphic]?.event;
-        return typeof at === 'number' && at >= historyFrom && row.id > at && row.id <= resolved.lastEventId;
-      });
-      if (restoreWaiting.current) {
-        restoreWaiting.current = false;
-        restoreRef.current();
-      }
       setWireLog((l) =>
         appendLogEntries(l, history.map((r) => describeLogRow(r, cueLabel, eventLabel)).filter((e): e is LogEntry => !!e)),
       );
@@ -544,10 +547,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const reportsRef = useRef<ResolvedControlShow['live']>({});
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
-    if (bootReplay.current === null) {
-      restoreWaiting.current = true;
-      return;
-    }
     const replay = bootReplay.current;
     bootReplay.current = [];
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
@@ -567,7 +566,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       );
     }
   }, [applyCommand]);
-  restoreRef.current = restoreProgram;
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
@@ -1568,8 +1566,12 @@ function HostedCueEditor({
     flushPending();
     onStage(cue.graphic, { ...held?.data, ...data });
   };
-  // No dependencies on purpose: the page must hold this render's closure over `onStage`.
-  useEffect(() => onFlushReady(flushPending));
+  // No dependencies on purpose: the page must hold this render's closure over `onStage`. An
+  // editor that goes away hands back a no-op, so no press calls into it afterwards.
+  useEffect(() => {
+    onFlushReady(flushPending);
+    return () => onFlushReady(() => {});
+  });
   const edit = (key: string, value: string) => {
     setEcho((v) => ({ ...v, [key]: value }));
     setEntryId('');

@@ -99,9 +99,9 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     const takenKey = variant === 'rekey' ? LETTERS[(LETTERS.indexOf(key) + 2) % 4] : key;
     const tag = `round ${round + 1} (${variant}, key ${key})`;
 
-    // FAULT INJECTION for the fast round: the renderer's state reports are held until the
-    // reloaded tab has booted, so the report it reads is the PREVIOUS question's, the way it is
-    // for real inside the renderer's 800 ms report debounce (src/output/main.ts).
+    // FAULT INJECTION for the fast round: the renderer's state reports are held for the whole
+    // round, so the report the reloaded tab reads is the PREVIOUS question's, the way it is for
+    // real inside the renderer's 800 ms report debounce (src/output/main.ts).
     const heldReports: Route[] = [];
     if (variant === 'fast') await output.route(REPORT_RPC, (r) => void heldReports.push(r));
 
@@ -134,11 +134,6 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     await tab.reload();
     await expect(tab.getByTestId('hosted-control-page'), tag).toBeVisible({ timeout: 60_000 });
     await tab.getByTestId('hosted-select-cue').filter({ hasText: 'Quiz board' }).first().click();
-    if (variant === 'fast') {
-      // Released BEFORE the unroute, which settles any route it still holds on its own.
-      for (const r of heldReports.splice(0)) await r.continue();
-      await output.unroute(REPORT_RPC);
-    }
     // The tab comes back knowing the quiz is locked, on the key that is on air.
     await expect.soft(tab.getByTestId('hosted-state-chip'), tag).toContainText('Locked', WIRE);
     await expect.soft(tab.getByTestId(`hosted-field-f5-opt-${key}`), tag).toHaveAttribute('aria-pressed', 'true');
@@ -157,6 +152,14 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
     rounds.push(`${tag}: air ${onAir ?? 'none'}, tab ${onTab ?? 'none'}`);
     expect.soft(onAir, `${tag}: the verdict on air`).toBe(key);
     expect.soft(onTab, `${tag}: the verdict on the reloaded tab's PROGRAM monitor`).toBe(key);
+    if (variant === 'fast') {
+      // Held through the whole round, so everything the tab knew came from the log, never from
+      // a fresh report. A round that held nothing would have proved nothing.
+      expect(heldReports.length, `${tag}: the renderer's reports were held`).toBeGreaterThan(0);
+      // Released BEFORE the unroute, which settles any route it still holds on its own.
+      for (const r of heldReports.splice(0)) await r.continue();
+      await output.unroute(REPORT_RPC);
+    }
 
     await tab.getByTestId('hosted-out-cue').click();
     await expect(tab.getByTestId('hosted-live-chip'), tag).toContainText('nothing on air', WIRE);
