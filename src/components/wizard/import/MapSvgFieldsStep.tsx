@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { uuid } from '../../../model/id';
+import { fontNameKey } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   DesignFieldSpec,
@@ -315,15 +316,22 @@ export default function MapSvgFieldsStep({
   // another width (the classroom show intro's centred "QUIZ NIGHT": 860 units against 653 in
   // Oswald, which read as right-aligned), and the runtime re-fits on `document.fonts.ready`. A
   // face lands when the author picks or uploads one (the draft's fonts), or when a bundled
-  // @font-face the stage itself asked for finishes loading (`loadingdone`; one pass on `ready`
-  // covers a load that finished before this listener was attached).
+  // @font-face the stage's first layout asked for finishes loading (`loadingdone`, which this
+  // listener, attached in that same commit, cannot miss). Only a face the stage's text names
+  // counts: a pass is a second of main thread on a slow laptop, and the step's own UI loads
+  // faces too.
   const [fontsLanded, setFontsLanded] = useState(0);
   useEffect(() => {
     const fonts = document.fonts;
     if (!fonts) return;
-    const landed = () => setFontsLanded((n) => n + 1);
+    const landed = (e: FontFaceSetLoadEvent) => {
+      const asked = new Set<string>();
+      for (const t of stageRef.current?.querySelectorAll('text') ?? []) {
+        for (const family of getComputedStyle(t).fontFamily.split(',')) asked.add(fontNameKey(family));
+      }
+      if (e.fontfaces.some((f) => asked.has(fontNameKey(f.family)))) setFontsLanded((n) => n + 1);
+    };
     fonts.addEventListener('loadingdone', landed);
-    void fonts.ready.then(landed);
     return () => fonts.removeEventListener('loadingdone', landed);
   }, []);
   const fontKey = `${draft.svgFonts
