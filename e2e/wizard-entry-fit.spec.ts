@@ -70,155 +70,135 @@ for (const [label, width, height] of [['desktop', 1366, 768], ['phone', 390, 844
   });
 }
 
-test('the video strip is fully inside the scrollport at 1366x768', async ({ page }) => {
+test('the whole step, Playout row included, is inside the scrollport at 1366x768', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
 
   // Geometry, not visibility: an element clipped away by a scrolling ancestor still reports
-  // `toBeVisible()`, which is exactly how the strip shipped below the fold in the first place.
+  // `toBeVisible()`, which is exactly how the old video strip shipped below the fold. The
+  // Playout row is the last thing on the step, so it is the one that would go first.
   const clipped = await page.evaluate(() => {
-    const strip = document.querySelector('[data-testid="wz-video-strip"]')!.getBoundingClientRect();
     const port = document.querySelector('.wz-step')!.getBoundingClientRect();
+    const out = (sel: string) => {
+      const r = document.querySelector(sel)!.getBoundingClientRect();
+      return r.top < port.top - 0.5 || r.bottom > port.bottom + 0.5 || r.left < port.left - 0.5 || r.right > port.right + 0.5;
+    };
     return {
-      above: strip.top < port.top - 0.5,
-      below: strip.bottom > port.bottom + 0.5,
-      left: strip.left < port.left - 0.5,
-      right: strip.right > port.right + 0.5,
+      video: out('[data-entry="video"]'),
+      playout: out('[data-testid="wz-playout"]'),
+      openPlayout: out('[data-entry="open-playout"]'),
+      newProduction: out('[data-entry="new-production"]'),
     };
   });
-  expect(clipped).toEqual({ above: false, below: false, left: false, right: false });
+  expect(clipped).toEqual({ video: false, playout: false, openPlayout: false, newProduction: false });
 });
 
-test('the video card keeps a compact readable layout on mobile', async ({ page }) => {
-  await entryStepAt(page, 390, 844);
-  await page.locator('.wz-step').evaluate((el) => el.scrollTo(0, el.scrollHeight));
-
-  const geometry = await page.locator('[data-entry="video"]').evaluate((card) => {
-    const rect = card.getBoundingClientRect();
-    const icon = card.querySelector('.wz-entry-icon')!.getBoundingClientRect();
-    const title = card.querySelector('strong')!.getBoundingClientRect();
-    const hint = card.querySelector('.hint')!.getBoundingClientRect();
-    return {
-      cardHeight: rect.height,
-      cardWidth: rect.width,
-      hintWidth: hint.width,
-      iconRight: icon.right,
-      titleLeft: title.left,
-      hintLeft: hint.left,
-    };
-  });
-
-  expect(geometry.cardHeight).toBeLessThan(220);
-  expect(geometry.hintWidth).toBeGreaterThan(geometry.cardWidth * 0.7);
-  expect(geometry.iconRight).toBeLessThan(geometry.titleLeft);
-  expect(Math.abs(geometry.titleLeft - geometry.hintLeft)).toBeLessThan(1);
-});
-
-test('the three mode cards fill the grid with no hole', async ({ page }) => {
+test('the four start cards are one row of equal cards, in the owner order', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
 
-  // THE ALIGNMENT CONTRACT (re-design/handoff.md §2a). Before this, the icon sat on its own
-  // line above the title and the grid sized each row to its tallest card, so the longest
-  // description made row 1 taller than row 2 (measured: 179px against 138px) and every card's
-  // copy began at a different offset. Geometry, because the defect is invisible to any
-  // assertion about which elements exist.
+  // THE ORDER IS THE RANKING (owner, 2026-09-27): your own AI coding agent, your own artwork,
+  // a template, then the greyed video door. SAME SIZE AND SAME TREATMENT: no card is tinted
+  // as the primary any more - the old tinted template border made one card of four look
+  // different, which is what the owner reported. Geometry, because a ragged row is invisible
+  // to any assertion about which elements exist.
   const cards = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
     els.map((el) => {
       const r = el.getBoundingClientRect();
-      const head = el.querySelector('.wz-entry-head').getBoundingClientRect();
-      const icon = el.querySelector('.wz-entry-icon').getBoundingClientRect();
-      const title = el.querySelector('strong').getBoundingClientRect();
-      const hint = el.querySelector('.hint').getBoundingClientRect();
+      const head = el.querySelector('.wz-entry-head')!.getBoundingClientRect();
+      const icon = el.querySelector('.wz-entry-icon')!;
+      const iconRect = icon.getBoundingClientRect();
+      const title = el.querySelector('strong')!.getBoundingClientRect();
+      const hint = el.querySelector('.hint')!.getBoundingClientRect();
       return {
-        entry: el.dataset.entry,
-        left: r.left, width: r.width, height: r.height,
-        // Where each block sits INSIDE its own card — the card-relative offsets are what has
-        // to match across all four, since the two rows sit at different page positions.
+        entry: (el as HTMLElement).dataset.entry,
+        primary: el.classList.contains('wz-entry-card--primary'),
+        top: r.top, width: r.width, height: r.height,
+        // Where each block sits INSIDE its own card.
         headTop: head.top - r.top,
         hintTop: hint.top - r.top,
-        // Same row: the icon's box overlaps the title's vertically and precedes it.
-        iconRight: icon.right, titleLeft: title.left,
-        iconMidY: icon.top + icon.height / 2, titleMidY: title.top + title.height / 2,
+        // ONE DRAWN SET: every icon is an inline SVG at one size, never a Unicode glyph.
+        iconTag: icon.tagName.toLowerCase(),
+        iconSize: `${Math.round(iconRect.width)}x${Math.round(iconRect.height)}`,
+        iconRight: iconRect.right, titleLeft: title.left,
+        iconMidY: iconRect.top + iconRect.height / 2, titleMidY: title.top + title.height / 2,
       };
     }),
   );
-  // THREE in the default studio since the kit card retired (its question moved into the
-  // Browse step's build-mode switch); Advanced mode adds a fourth.
-  expect(cards.map((c) => c.entry)).toEqual(['template', 'ai', 'import-graphic']);
+  expect(cards.map((c) => c.entry)).toEqual(['ai', 'import-graphic', 'template', 'video']);
+  expect(cards.some((c) => c.primary)).toBe(false);
 
-  // NO HOLE. An odd count in a two-column grid would leave an empty cell that reads as a card
-  // that failed to render, so the last card spans the row
-  // (`.wz-entry-card:last-child:nth-child(odd)`).
   const round = (n: number) => Math.round(n);
-  expect(round(cards[0].width)).toBe(round(cards[1].width));
-  expect(round(cards[2].width)).toBeGreaterThan(round(cards[0].width) * 1.9);
-  expect(round(cards[0].left)).toBe(round(cards[2].left));
-  expect(round(cards[1].left)).toBeGreaterThan(round(cards[0].left));
-
-  // THE PAIR SHARING A ROW ARE EQUAL; THE SPANNING CARD IS NOT MADE TO MATCH THEM. Equal
-  // heights and the three-line description reserve both exist so cards SIDE BY SIDE line up.
-  // A card that spans the row has no row-mate, so applying either to it is not alignment — it
-  // is two empty lines of padding: "Import graphic" drew one line of copy inside a 130px box,
-  // which reads as content that failed to load.
-  expect(round(cards[0].height)).toBe(round(cards[1].height));
-  expect(round(cards[2].height)).toBeLessThan(round(cards[0].height));
-
   for (const c of cards) {
+    // One row, one size: every card shares the first card's top, width and height.
+    expect(round(c.top), `${c.entry}: row`).toBe(round(cards[0].top));
+    expect(round(c.width), `${c.entry}: width`).toBe(round(cards[0].width));
+    expect(round(c.height), `${c.entry}: height`).toBe(round(cards[0].height));
+    expect(c.iconTag, `${c.entry}: drawn icon`).toBe('svg');
+    expect(c.iconSize, `${c.entry}: icon size`).toBe(cards[0].iconSize);
     // The title row is one flex line: the icon precedes the title and shares its centreline.
     expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
     expect(Math.abs(c.iconMidY - c.titleMidY), `${c.entry}: icon on the title's line`).toBeLessThan(4);
-    // Every card's copy starts at the same y INSIDE its own card — the whole point of the
-    // fixed-height title row.
+    // Every card's copy starts at the same y INSIDE its own card.
     expect(round(c.headTop), `${c.entry}: title row offset`).toBe(round(cards[0].headTop));
     expect(round(c.hintTop), `${c.entry}: description offset`).toBe(round(cards[0].hintTop));
   }
 
-  // THE ROW-MATES STAY EQUAL WHEN ONE OUTGROWS THE RESERVE. With today's copy both fit the
-  // three-line block, so the heights above would match even without `grid-auto-rows: 1fr` —
-  // which would leave the rule that actually holds the row together unproven, and the day
-  // someone writes a fourth line the ragged pair comes back. So force that day.
-  const pair = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
-    els[0].querySelector('.hint').textContent = 'x '.repeat(220);
-    return els.slice(0, 2).map((el) => Math.round(el.getBoundingClientRect().height));
+  // THE ROW STAYS EQUAL WHEN ONE CARD OUTGROWS THE RESERVE. With today's copy every card fits
+  // the three-line block, so the heights above would match even without `grid-auto-rows: 1fr`;
+  // force the day someone writes a fourth line.
+  const grown = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => {
+    els[0].querySelector('.hint')!.textContent = 'x '.repeat(220);
+    return els.map((el) => Math.round(el.getBoundingClientRect().height));
   });
-  expect(pair[1], `the row-mate followed: ${pair.join(', ')}`).toBe(pair[0]);
+  expect(new Set(grown).size, `the row followed: ${grown.join(', ')}`).toBe(1);
 });
 
-test('the mode cards stack into one column on a phone', async ({ page }) => {
-  await entryStepAt(page, 390, 844);
+test('the phone reads top to bottom: four equal cards, then the Playout row', async ({ page }) => {
+  await entryStepAt(page, 375, 812);
 
-  // The two-column grid is a DESKTOP measure. Left at two columns on a 390px screen each card
-  // got a 164px column — about 110px of text beside the icon — so every title wrapped to two
-  // lines with the icon floating against the middle of the block, and the descriptions ran
-  // seven to eleven lines of two-word rows. Measured then: four cards 291px tall each.
-  const cards = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
-    els.map((el) => {
+  // The four-column row is a DESKTOP measure. On a phone the same four cards stack in the same
+  // order, one size, each title on ONE line with its icon leading it - a wrapped title is what
+  // turned these cards into screen-tall ragged blocks before - and the Playout row closes the
+  // column with both actions side by side.
+  const layout = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll<HTMLElement>('.wz-entry .wz-entry-card')].map((el) => {
       const r = el.getBoundingClientRect();
-      const title = el.querySelector('strong').getBoundingClientRect();
-      const icon = el.querySelector('.wz-entry-icon').getBoundingClientRect();
+      const title = el.querySelector('strong')!;
+      const icon = el.querySelector('.wz-entry-icon')!.getBoundingClientRect();
       return {
         entry: el.dataset.entry,
-        left: Math.round(r.left), width: Math.round(r.width), top: Math.round(r.top),
-        titleHeight: title.height,
-        titleLineHeight: parseFloat(getComputedStyle(el.querySelector('strong')).lineHeight),
-        iconRight: icon.right, titleLeft: title.left,
+        left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height),
+        top: Math.round(r.top), bottom: Math.round(r.bottom),
+        titleHeight: title.getBoundingClientRect().height,
+        titleLineHeight: parseFloat(getComputedStyle(title).lineHeight),
+        iconRight: icon.right, titleLeft: title.getBoundingClientRect().left,
       };
-    }),
-  );
-  expect(cards).toHaveLength(3);
-
-  // One column: every card shares a left edge and a width, and each starts below the last.
+    });
+    const playout = document.querySelector('[data-testid="wz-playout"]')!.getBoundingClientRect();
+    const open = document.querySelector('[data-entry="open-playout"]')!.getBoundingClientRect();
+    const create = document.querySelector('[data-entry="new-production"]')!.getBoundingClientRect();
+    return {
+      cards,
+      playoutTop: Math.round(playout.top),
+      playoutLeft: Math.round(playout.left),
+      playoutWidth: Math.round(playout.width),
+      actionsSideBySide: Math.abs(open.top - create.top) < 1 && open.right <= create.left + 0.5,
+    };
+  });
+  const { cards } = layout;
+  expect(cards.map((c) => c.entry)).toEqual(['ai', 'import-graphic', 'template', 'video']);
   expect(new Set(cards.map((c) => c.left)).size).toBe(1);
   expect(new Set(cards.map((c) => c.width)).size).toBe(1);
-  const tops = cards.map((c) => c.top);
-  expect([...tops].sort((a, b) => a - b)).toEqual(tops);
-
+  expect(new Set(cards.map((c) => c.height)).size, `heights ${cards.map((c) => c.height)}`).toBe(1);
+  for (let i = 1; i < cards.length; i++) expect(cards[i].top).toBeGreaterThanOrEqual(cards[i - 1].bottom);
   for (const c of cards) {
-    // ONE line of title. This is the assertion that fails the day the column narrows again —
-    // a wrapped title is what turns these cards back into screen-tall ragged blocks.
     expect(c.titleHeight, `${c.entry}: title wrapped`).toBeLessThan(c.titleLineHeight * 1.6);
-    // And the icon still leads that line rather than floating beside a block.
     expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
   }
+  // The Playout row comes after the last card and is flush with the column.
+  expect(layout.playoutTop).toBeGreaterThan(cards[3].bottom);
+  expect(layout.playoutLeft).toBe(cards[0].left);
+  expect(layout.playoutWidth).toBe(cards[0].width);
+  expect(layout.actionsSideBySide).toBe(true);
 });
 
 // ── WHAT THE STEP SAYS (re-design/handoff.md §2a) ───────────────────────────────────────
@@ -417,43 +397,97 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
     .toEqual({ border: amber, background: fill, outline: 'none' });
 });
 
-test('the video strip is one line, quieter than any shipped mode', async ({ page }) => {
+test('the video card is greyed and says in words that it is not recommended yet', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
+  // Owner, 2026-09-27: the video door stays, the same size as the others, but greyed with a
+  // short plain note. It makes a rendered FILE, not a live graphic, and says both.
   const card = page.locator('[data-entry="video"]');
-  // ONE LINE: icon, title, Beta tag and the hint all share a centreline. It was a full card
-  // with a three-line hint, giving the BETA side-door more vertical weight than "Import
-  // graphic", a shipped mode.
-  const shape = await card.evaluate((el) => {
-    const mid = (n: Element) => { const r = n.getBoundingClientRect(); return r.top + r.height / 2; };
-    return {
-      height: el.getBoundingClientRect().height,
-      titleMid: mid(el.querySelector('strong')!),
-      hintMid: mid(el.querySelector('.hint')!),
-      hintLines: el.querySelector('.hint')!.getBoundingClientRect().height,
-      lineHeight: parseFloat(getComputedStyle(el.querySelector('.hint')!).lineHeight),
-    };
-  });
-  expect(Math.abs(shape.titleMid - shape.hintMid)).toBeLessThan(4);
-  expect(shape.hintLines).toBeLessThan(shape.lineHeight * 1.6);
-  // …and shorter than every mode card above it, which is what "quieter" means in geometry.
-  const modeHeight = await page.locator('.wz-entry .wz-entry-card').first()
-    .evaluate((el) => el.getBoundingClientRect().height);
-  expect(shape.height).toBeLessThan(modeHeight);
+  await expect(card.locator('.hint')).toContainText('Not recommended yet');
+  await expect(card.locator('.hint')).toContainText('not a live graphic');
+  // One signal, not two: the note replaces the old Beta tag.
+  await expect(card.locator('.wz-beta-tag')).toHaveCount(0);
 
-  // FLUSH WITH THE GRID, and no label outside the card. "Not a live graphic?" used to lead the
-  // strip and indented the card 160px, so the one row that is not aligned with the cards above
-  // was the row already set apart by a dashed rule - the offset read as a layout fault. The
-  // distinction it carried is the first words of the card's own hint instead.
-  await expect(page.locator('.wz-video-strip-label')).toHaveCount(0);
-  await expect(card.locator('.hint')).toContainText('Not a live graphic');
-  const edges = await page.evaluate(() => {
-    const video = document.querySelector('[data-entry="video"]')!.getBoundingClientRect();
-    const grid = document.querySelector('.wz-entry')!.getBoundingClientRect();
-    return { videoLeft: Math.round(video.left), gridLeft: Math.round(grid.left),
-             videoWidth: Math.round(video.width), gridWidth: Math.round(grid.width) };
+  // GREYED means quieter than its row-mates in the two things a reader scans: the title and
+  // the icon are dimmer than the Import card's, and the card has no fill of its own.
+  const tone = await page.evaluate(() => {
+    const read = (entry: string) => {
+      const el = document.querySelector(`[data-entry="${entry}"]`)!;
+      return {
+        title: getComputedStyle(el.querySelector('strong')!).color,
+        icon: getComputedStyle(el.querySelector('.wz-entry-icon')!).color,
+        fill: getComputedStyle(el).backgroundColor,
+      };
+    };
+    return { video: read('video'), other: read('import-graphic') };
   });
-  expect(edges.videoLeft).toBe(edges.gridLeft);
-  expect(edges.videoWidth).toBe(edges.gridWidth);
+  expect(tone.video.title).not.toBe(tone.other.title);
+  expect(tone.video.icon).not.toBe(tone.other.icon);
+  expect(tone.video.fill).toBe('rgba(0, 0, 0, 0)');
+
+  // Offline nothing is gated, so the greyed door still opens: greyed is "not yet", not broken.
+  // Known signed out (configured builds) the same button opens the sign-in dialog instead and
+  // its hint adds "Sign in to try it."; while auth is still loading it behaves as signed in.
+  await expect(card).toBeEnabled();
+  await expect(card.locator('.hint')).not.toContainText('Sign in');
+});
+
+test('New production from a fresh profile opens an empty production, ready to add graphics', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // Nobody should have to make a graphic before they can have a rundown (owner, 2026-09-27).
+  // A first-ever visit has zero graphics and zero productions, and the action still works: it
+  // makes one production and lands on its page with an empty rundown and the rundown's own
+  // add-graphics controls in reach.
+  await page.locator('[data-entry="new-production"]').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByTestId('creation-wizard')).toHaveCount(0);
+  expect(page.url()).toMatch(/#\/production\/[^/]+$/);
+  await expect(page.getByText('No cues yet.')).toBeVisible();
+  await expect(page.getByTestId('production-new-graphic')).toBeVisible();
+
+  const shows = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().map((s) => ({ id: s.id, name: s.name, graphics: s.graphics.length }));
+  });
+  expect(shows).toHaveLength(1);
+  expect(shows[0]).toMatchObject({ name: 'Untitled production', graphics: 0 });
+  expect(page.url()).toContain(shows[0].id);
+
+  // It SURVIVES A RELOAD. The door waits for the durable write like every other create path,
+  // so the production the page just opened is still there, and still this one, after a reload.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByText('No cues yet.')).toBeVisible();
+  const afterReload = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().map((s) => s.id);
+  });
+  expect(afterReload).toEqual([shows[0].id]);
+});
+
+test('Open Playout goes to the productions list with none, and to the last used production', async ({ page }) => {
+  await entryStepAt(page, 1366, 768);
+  // NONE: there is no production to open, so the list is the honest landing, where making one
+  // is a press away.
+  await page.locator('[data-entry="open-playout"]').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  expect(page.url()).toContain('#/home/productions');
+
+  // SOME: the one saved most recently opens, whichever order they were made in.
+  const lastId = await page.evaluate(async () => {
+    const { createShowNamedChecked, upsertShow } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const older = createShowNamedChecked('Older show').show;
+    createShowNamedChecked('Newer show');
+    // The older one is the one edited last: its stamp moves past the newer one's.
+    upsertShow({ ...older, updatedAt: new Date(Date.now() + 60_000).toISOString() });
+    await commitDurableWrites();
+    return older.id;
+  });
+  await page.goto('/app#/new');
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await page.locator('[data-entry="open-playout"]').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  expect(page.url()).toContain(`#/production/${lastId}`);
 });
 
 test('the Import card names the file types its own drop zone takes', async ({ page }) => {
@@ -476,19 +510,16 @@ test('the AI card carries no tier or paid-edition copy', async ({ page }) => {
   // marketing clause in any build state. Configured mode pins the same absence in
   // e2e/configured/anonymous.spec.ts.
   const hint = page.locator('[data-entry="ai"] .hint');
-  await expect(hint).toContainText('Describe the graphic you need');
+  await expect(hint).toContainText('NoaCG CLI');
   await expect(hint).not.toContainText(/NoaCG Lite|free with|included|free account/i);
 });
 
-test('both AI doors are marked Beta', async ({ page }) => {
+test('the AI door is marked Beta inside its title', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
-  // The video door has said Beta since it shipped; "Create with AI" is the same kind of
-  // promise and was the only unmarked one. The tag lives INSIDE the title, so the card's
-  // fixed-height title row is what has to absorb it - a tag that wrapped the title would
-  // push this card's copy off the y its row-mate's sits at.
-  for (const entry of ['ai', 'video']) {
-    await expect(page.locator(`[data-entry="${entry}"] .wz-beta-tag`)).toHaveText('Beta');
-  }
+  // The tag lives INSIDE the title, so the card's fixed-height title row is what has to absorb
+  // it - a tag that wrapped the title would push this card's copy off the y its row-mates' sit
+  // at. (The video door carried one too until it was greyed; its note replaced it.)
+  await expect(page.locator('[data-entry="ai"] .wz-beta-tag')).toHaveText('Beta');
   const rows = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
     els.map((el) => {
       const strong = el.querySelector('strong')!;
@@ -551,11 +582,10 @@ test('the deliberate divergences from the reference hold', async ({ page }) => {
 });
 
 test('a window too short for the step cues its overflow', async ({ page }) => {
-  // 500px, where this used to say 620: the §2a content pass shortened the step (the video
-  // strip became one line, and the odd spanning card stopped reserving three lines of hint it
-  // has no copy for), so 1280x620 now FITS and the premise below stopped being true. Measured
-  // after the change: the step's content settles at 461px, so it overflows below ~560.
-  await entryStepAt(page, 1280, 500);
+  // 440px: the four start cards share one row since the 2026-09-27 entry pass, so the step's
+  // scroll height at 1280 wide settles near 420px and a 500px window only just overflows
+  // (measured: 2px). The premise below needs a window that is clearly too short.
+  await entryStepAt(page, 1280, 440);
 
   // The premise: this window really is too short. Without it the two assertions below would
   // pass vacuously the day the step grows a scrollbar it should not have.

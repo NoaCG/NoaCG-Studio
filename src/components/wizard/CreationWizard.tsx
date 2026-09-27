@@ -313,6 +313,9 @@ export default function CreationWizard() {
    *  pass down the same walk minting a second library record under the same name, whether the
    *  second pass came from a resume or from pressing Export twice without leaving Finish. */
   const madeThisOpen = useRef<MadeGraphic | null>(null);
+  /** True while the entry's New production waits for its durable write, so a second press in
+   *  that window does not mint a second "Untitled production". */
+  const creatingProduction = useRef(false);
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
@@ -1810,6 +1813,38 @@ export default function CreationWizard() {
                 onHome={(section = null) => {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section });
+                }}
+                onOpenPlayout={() => {
+                  // "Last used" is the production saved most recently: every rundown edit,
+                  // publish and graphic add stamps `updatedAt`, so it is the one the user
+                  // touched last without a second record to keep in step.
+                  const last = loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+                  closeGallery();
+                  useRouter.getState().navigate(
+                    last ? { view: 'production', id: last.id } : { view: 'home', section: 'productions' },
+                  );
+                }}
+                onNewProduction={async () => {
+                  // The same create Home's "New production" card runs, unnamed, so it takes the
+                  // model's own "Untitled production" floor, and it waits for the durable write
+                  // like every other create path so the production survives a reload. A failed
+                  // write says so and lands on the list, which shows what is actually saved.
+                  if (creatingProduction.current) return;
+                  creatingProduction.current = true;
+                  const { show, error: written } = createShowNamedChecked('');
+                  const error = written ?? (await commitDurableWrites());
+                  creatingProduction.current = false;
+                  if (error) {
+                    raiseStorageAlert({
+                      action: `Creating the production “${show.name}”`,
+                      error,
+                      outcome: 'Nothing was added. Free some room, then press “New production” again.',
+                    });
+                  }
+                  closeGallery();
+                  useRouter.getState().navigate(
+                    error ? { view: 'home', section: 'productions' } : { view: 'production', id: show.id },
+                  );
                 }}
               />
             )}
