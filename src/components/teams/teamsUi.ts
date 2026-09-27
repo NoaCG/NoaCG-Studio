@@ -7,7 +7,7 @@
 //
 // This store holds no team data. Teams live on the server and are fetched by the dialog when it
 // opens, because a team's member list and join code can change from another member's browser -
-// caching them here would show a stale code to the one person about to read it out loud.
+// caching them here would show a stale code to the one person about to send it on.
 
 import { create } from 'zustand';
 

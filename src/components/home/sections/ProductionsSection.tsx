@@ -18,6 +18,7 @@ import { useTeamsUi } from '../../teams/teamsUi';
 import { useTeamsAvailable } from '../../teams/useTeamsAvailable';
 import { useTeamState } from '../../teams/useTeamState';
 import TeamChip from '../../teams/TeamChip';
+import JoinTeamCard from '../../teams/JoinTeamCard';
 import { deleteTeamProduction, teamMemberName, type TeamProductionHead } from '../../../backend/teamProductions';
 import type { Team, TeamMember } from '../../../backend/teams';
 import { editedWhen, teamMeta } from '../../teams/teamLabels';
@@ -155,9 +156,9 @@ export default function ProductionsSection({
   heading?: boolean;
 }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  // The team door (docs/TEAMS_PLAN.md §6). `useTeamsAvailable` is false offline AND signed out,
-  // so this section grows no overflow menu at all in those builds - which is the rule that "a
-  // user who never opens the door never sees the word team" is made of.
+  // The team doors (docs/TEAMS_PLAN.md §6): the card menu's Share and the Join a team card.
+  // `useTeamsAvailable` is false offline AND signed out, so this section grows neither in those
+  // builds - no overflow menu, no card, no word "team".
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
   const openTeam = useTeamsUi((s) => s.openTeam);
@@ -185,8 +186,8 @@ export default function ProductionsSection({
   // own list by date is not - so team productions get their own band per team, after yours.
   const personal = productions.filter((p) => !p.teamId);
   const teamProductions = productions.filter((p) => p.teamId);
-  // The bands exist once there is a team to show - never for a user in no team, who sees this
-  // section exactly as it always was (§6: the word "team" appears only after the door is opened).
+  // The bands exist once there is a team to show - never for a user in no team, whose only sight
+  // of the word is the signed-in "Join a team" card (docs/TEAMS_PLAN.md §6, stage 4b).
   const showTeams = teamsAvailable && (teamState.teams.length > 0 || teamProductions.length > 0);
   const shown = limit ? personal.slice(0, limit) : personal;
   // Open the record this call MADE, never "the last one in the list": team productions are listed
@@ -549,6 +550,10 @@ export default function ProductionsSection({
             ＋ Create
           </button>
         </div>
+        {/* THE JOIN DOOR, beside the make-one slot and in the dashboard too: the person holding a
+            join code is usually a brand-new account with nothing else on this page. Signed in
+            only - offline and signed out it does not exist (components/teams/JoinTeamCard.tsx). */}
+        {teamsAvailable && <JoinTeamCard />}
         {/* The pack door — where a finished multi-graphic package made OUTSIDE the studio
             arrives: `noacg pack` (the CLI's production file) or a production exported as a
             graphics pack. It installs as a ready production (src/packs/graphicsPack.ts).

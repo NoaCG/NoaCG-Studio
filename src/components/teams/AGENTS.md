@@ -42,6 +42,10 @@ redundancy.
   save state), through ONE external store so Home, the page and the dialogs render one fetch.
 - **`teamLabels.ts`** - "3 members · you own it" and the "edited by" time, printed one way.
 - **`JoinTeamDialog.tsx`** - route-driven, mounted by `App.tsx` on `#/join-team/<code>`.
+- **`JoinTeamCard.tsx`** - Home's "Join a team" card, where a code (or a pasted link) is TYPED. It
+  only navigates to `#/join-team/<code>`, so there is one join dialog, and `App.tsx` never changed
+  for it. It is the one team surface a signed-in account sees before it is in a team - a student
+  holding a code owns nothing else to open a door from (`docs/TEAMS_PLAN.md` stage 4b).
 - **`TeamChip.tsx`** - one component so the amber-outlined chip is identical in every place a
   thing belongs to a team: the dialog, Home's team bands and team production cards, the Teams
   section.
@@ -71,7 +75,8 @@ and the join's Done lands on a list that already has the band, because the join 
 the background tick, so a band that only arrives on the tick fails.
 
 Both places, and the "My productions" heading beside them, are drawn only for an account IN a
-team - never for one that merely could be. That is §6's rule restated for Home: the offline pins
+team - never for one that merely could be. The Join a team card is the deliberate exception, and
+only for a signed-in account. That is §6's rule restated for Home: the offline pins
 in `e2e/auth.spec.ts` cover all three test ids.
 
 A team production is edited through the ordinary production page. Its record lives in the

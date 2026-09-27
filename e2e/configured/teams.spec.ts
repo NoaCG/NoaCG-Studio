@@ -227,6 +227,8 @@ test.describe('teams: the share door', () => {
     const card = page.locator('[data-testid^="production-row-"]').first();
     await expect(card.getByTestId('open-production-name')).toBeVisible();
     await expect(card.getByTestId(TEAM.cardMenu)).toHaveCount(0);
+    // Signed out with a backend, the Join a team card is absent as well: it is for accounts.
+    await expect(page.getByTestId(TEAM.joinCard)).toHaveCount(0);
   });
 
   // A join LINK is the one team surface a signed-out visitor may see, because they arrived on it
@@ -260,6 +262,8 @@ test.describe('teams: the share door', () => {
       // pointing at some earlier run's leftovers. The walk deletes this one at the end.
       const showName = `Teams walk ${Date.now()}`;
       await page.goto('/app#/home/productions');
+      // The join door's positive half: every signed-in account has it, in or out of a team.
+      await expect(page.getByTestId(TEAM.joinCard)).toBeVisible({ timeout: 20_000 });
       await page.getByTestId('new-production-name').fill(showName);
       await page.getByTestId('new-production').click();
       await expect(page.getByTestId('production-page')).toBeVisible();
@@ -303,6 +307,9 @@ test.describe('teams: the share door', () => {
       await page.getByTestId(TEAM.newTeam).click();
       await page.getByTestId(TEAM.newTeamName).fill(name);
       await page.getByTestId(TEAM.newTeamDisplayName).fill('E2E Runner');
+      // The two name boxes say which is the team's and which is yours, and whose storage it costs.
+      await expect(page.getByTestId(TEAM.newTeamExplainer)).toContainText('storage');
+      await shot(page, 'teams-share-create');
       await page.getByTestId(TEAM.createTeam).click();
 
       // The code screen: 8 URL-safe characters (the 0053 recipe), a link built from it, and the
@@ -322,9 +329,15 @@ test.describe('teams: the share door', () => {
       const rotated = (await code.textContent())?.trim() ?? '';
       expect(rotated).toMatch(/^[A-Za-z0-9_-]{8}$/);
 
-      // The link works: re-joining with the same account through the code updates the display
-      // name, which is how a member renames themselves (0053 team_join's on-conflict branch).
-      await page.goto(`/app#/join-team/${rotated}`);
+      // The link works, PASTED into Home's Join a team card rather than opened: people paste
+      // the whole link into a code field as often as the code, and the card takes the code out
+      // of it. Re-joining with the same account updates the display name (0053 team_join's
+      // on-conflict branch).
+      const rotatedLink = await page.getByTestId(TEAM.joinLink).inputValue();
+      await page.getByRole('button', { name: 'Done', exact: true }).click();
+      await page.goto('/app#/home/productions');
+      await page.getByTestId(TEAM.joinCardCode).fill(rotatedLink);
+      await page.getByTestId(TEAM.joinCardGo).click();
       await expect(page.getByTestId(TEAM.joinDialog)).toBeVisible();
       await expect(page.getByTestId(TEAM.joinCodeField)).toHaveValue(rotated);
       await page.getByTestId(TEAM.joinDisplayName).fill('E2E Runner II');
@@ -366,7 +379,9 @@ test.describe('teams: the share door', () => {
         await expect(page.getByTestId(TEAM.joinCode)).toBeVisible({ timeout: 20_000 });
         await page.getByTestId(TEAM.deleteTeam).click();
         await page.getByTestId(TEAM.deleteTeam).click();
-        await expect(page.getByTestId('open-team-details')).toBeVisible({ timeout: 20_000 });
+        // Back on the pick screen. Not `open-team-details`: once the LAST team is gone the footer
+        // offers New team as its primary instead, and the move explainer is on the screen either way.
+        await expect(page.getByTestId('move-explainer')).toBeVisible({ timeout: 20_000 });
       }
       await expect(page.locator('.team-pickrow', { hasText: name })).toHaveCount(0);
 
@@ -443,12 +458,20 @@ test.describe('teams: the share door', () => {
         await expect(owner.locator('.prod-grid').first().getByTestId(`production-row-${showId}`)).toHaveCount(0);
         await shot(owner, 'teams-home-owner');
 
-        // B joins from the link, and Done lands on a Home that ALREADY shows the team's band and
-        // its production - no reload, no search.
+        // B owns no production and holds only the CODE. B types it into Home's Join a team card
+        // - the door that needs no production and no link - and Done lands on a Home that
+        // ALREADY shows the team's band and its production: no reload, no search.
         await signInAs(mate, E2E_TEAMMATE_EMAIL, E2E_TEAMMATE_PASSWORD);
         await dismissWizard(mate);
         await declineAnalytics(mate);
-        await mate.goto(`/app#/join-team/${code}`);
+        await mate.goto('/app#/home');
+        const joinCard = mate.getByTestId(TEAM.joinCard);
+        await expect(joinCard).toBeVisible({ timeout: 20_000 });
+        await expect(mate.getByTestId('no-productions')).toBeVisible();
+        await joinCard.getByTestId(TEAM.joinCardCode).fill(code);
+        await shot(mate, 'teams-join-card');
+        await joinCard.getByTestId(TEAM.joinCardGo).click();
+        await expect(mate.getByTestId(TEAM.joinCodeField)).toHaveValue(code);
         await mate.getByTestId(TEAM.joinDisplayName).fill('Ben Teammate');
         await mate.getByTestId(TEAM.join).click();
         await expect(mate.getByTestId(TEAM.joinDone)).toBeVisible({ timeout: 20_000 });
@@ -486,6 +509,22 @@ test.describe('teams: the share door', () => {
         await owner.reload();
         await expect(owner.getByTestId('dataset-name')).toHaveCount(1, { timeout: 20_000 });
         await expect(owner.getByTestId('production-team-save')).toContainText('edited by Ben Teammate');
+
+        // B gets BACK to the team from Home, owning nothing: the band's door opens the team with
+        // its members, the link to pass on and Leave - and B changes the name teammates see, in
+        // B's own row, with no second trip through a join link.
+        await mate.goto('/app#/home/productions');
+        await mate.locator('[data-testid^="team-band-"]', { hasText: teamName }).getByTestId('team-band-open').click();
+        const teamDialog = mate.getByTestId(TEAM.dialog);
+        await expect(teamDialog.getByTestId(TEAM.members)).toContainText('Anna Owner', { timeout: 20_000 });
+        await expect(teamDialog.getByTestId(TEAM.joinLink)).toHaveValue(new RegExp(`#/join-team/${code}$`));
+        await expect(teamDialog.getByTestId(TEAM.leaveTeam)).toBeVisible();
+        await teamDialog.getByTestId(TEAM.renameMe).click();
+        await teamDialog.getByTestId(TEAM.renameMeField).fill('Ben Renamed');
+        await teamDialog.getByTestId(TEAM.renameMeSave).click();
+        await expect(teamDialog.getByTestId(TEAM.members)).toContainText('Ben Renamed', { timeout: 20_000 });
+        await expect(teamDialog.getByTestId(TEAM.members)).not.toContainText('Ben Teammate');
+        await shot(mate, 'teams-member-back-and-renamed');
       } finally {
         // Deleting the team cascades its productions (0054) and B's membership with them.
         await owner.goto('/app#/home/teams').catch(() => undefined);
