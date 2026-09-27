@@ -92,6 +92,14 @@ other application regressions passed, including the 26 artwork editing cases.
 The appended catalog calibration suite passed all 35 cases and four baseline
 checks, including rendered equivalence.
 
+PR #472's first CI run on `c552714d` reproduced two stale artwork save assertions
+after the later legacy migration fix: they required the old interpreter to remain
+byte-identical. The corrected assertions independently require unchanged animation
+data, exact source outside the owned region and the current interpreter, retaining
+all rendered SPX/CasparCG/OGraf geometry checks. `j-2168` reran all 26 artwork cases
+successfully. No product code changed for this correction; the other eight CI
+browser shards, build, factory and catalog checks passed on that implementation.
+
 `j-2155` repeated all 14 R1.1b and nine usability cases successfully. `j-2162`
 passed the 21 core Out cases, including the final off-grid undo/redo, pause/resume,
 legacy read-only playback and outside-root cut fixes. Its two wizard cases failed
@@ -121,10 +129,11 @@ variants. HTML/CSS fingerprints and the render baseline are unchanged.
 ## Check review and simplification
 
 Review ran inline against merge base `ffd7a3ec5a560e719f18517b0af8b7d2f31eb002`.
-Eleven confirmed finding groups were fixed: repeat-stop cleanup, unseen-layer gates,
+Twelve confirmed finding groups were fixed: repeat-stop cleanup, unseen-layer gates,
 derived Out indexing, transport clock/resume/replay, unsafe reversal ownership,
 cue-aware pose guards, legacy preview migration, custom interpreter tail preservation,
-off-grid history, empty outside-root cleanup and illegal dependency edges.
+off-grid history, empty outside-root cleanup, illegal dependency edges and stale
+legacy-runtime save assertions in the artwork regression suite.
 
 Simplification ran inline: reuse the lossless animation reader, keep migration in
 one pure blocks helper shared by preview/save/export, delegate span upgrades to the
@@ -147,7 +156,7 @@ numerals (349), calibration (35 tests), source/render baselines (four tests) and
 factory (317/317 candidates plus 12 kits). The render baseline was not updated.
 `npm run build` on implementation tip `076d7520` exited 0: 1,900 tests passed,
 three skipped, with TypeScript, lint, dependency, bundle and after-build gates green.
-The final evidence-only commit is rebuilt before its check stamp and landing.
+The final test/evidence correction is rebuilt before its check stamp and landing.
 
 ### Rendered taste review
 
