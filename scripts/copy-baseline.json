@@ -1275,6 +1275,9 @@
     "src/templates/shared/animRuntime.ts": {
       "em-dash": 45
     },
+    "src/templates/shared/animRuntimeLegacy.ts": {
+      "em-dash": 41
+    },
     "src/templates/shared/base.ts": {
       "em-dash": 10
     },
