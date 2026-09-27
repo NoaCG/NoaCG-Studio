@@ -3990,7 +3990,9 @@ function ProductionShell({
             panel opens by itself right after a publish. It used to sit in the right cluster
             among Share and Export, where it read as one more authoring action. */}
         {links}
-        <span className="pd-clock mono">{elapsed(now - openedAt)}</span>
+        {/* `pd-roomy`: shown only while the header has room (playout-dashboard.css, the laptop
+            tier). The production's name outranks a session timer. */}
+        <span className="pd-clock mono pd-roomy">{elapsed(now - openedAt)}</span>
         {/* NOT JOINED, AND ONLY THEN. A healthy production says nothing new here: the line
             appears when the log's channel has never joined, which is the state that used to
             be invisible. Commands do still arrive - the durable road polls every 30 s - so
@@ -4100,8 +4102,13 @@ function ProductionShell({
             <IconUsers /> <span className="pd-share-label">Share</span>
           </button>
         )}
-        <button onClick={onExport} title="Export this production as a package" data-testid="export-production">
-          <IconDownload /> Export…
+        <button
+          onClick={onExport}
+          title="Export this production as a package"
+          aria-label="Export…"
+          data-testid="export-production"
+        >
+          <IconDownload /> <span className="pd-roomy">Export…</span>
         </button>
         <button
           className="pd-allout"

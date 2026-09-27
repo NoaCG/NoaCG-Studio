@@ -67,6 +67,11 @@ block in it is content-sized.** The header, the stage head and the cue rail neve
   (`src/components/AGENTS.md`, NewGraphicButton). That also puts the width of the header between
   it and **■ All out**: a hand reaching for the panic control must never land on navigation.
   **The output heartbeat is shown only when there IS an output** - see `docs/CLOUD_PLAYOUT.md` §3.
+- **ON A LAPTOP THE NAME OUTRANKS THE EXTRAS** (classroom walk, 2026-09-25). At 1366×768 and
+  1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock and
+  Export's word stand down (Export keeps its icon) and the tabs tighten, and under 1366px the
+  logo drops its wordmark. The name is still what shrinks for a state nobody foresaw, never
+  ■ All out, Take or Out. Pinned by `e2e/productions.spec.ts`.
 - **THE SCROLL MODEL (owner report 2026-08-19).** The surface used to be locked to the viewport,
   so a graphic with many fields could not make the page longer and the **editor** — the pane an
   operator changes scores, names and texts in mid-show — grew its own scrollbar instead.
