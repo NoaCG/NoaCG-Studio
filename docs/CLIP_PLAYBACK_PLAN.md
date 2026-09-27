@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Phase 0 is built (§16); nothing visible is.** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phases 0 and 1 are built (§16).** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -143,10 +143,15 @@ Mosart, Cuez and Grass Valley from their documentation's search snippets):
 - **The rundown's width is the operator's.** A drag handle on the divider, from 320px to 60% of the
   window, also moved with the arrow keys; double-click returns it to the default (about 40% at
   1920, 380px at 1366). Remembered per machine as a preference, never in the production.
+  **Built with a narrower default** (owner, 2026-09-27): 23% of the window, never under 380px, so
+  about 440px at 1920. 40% left the 1080p monitors 250px tall, under the 300px the owner had ruled
+  too small on 2026-08-21 (`PLAYOUT_DASHBOARD.md` §2); at 23% they keep 343px.
 - **The monitors keep their rule**: sized from the room that is left, per production and never per
   cue, so they never jump between cues. A wider rundown makes them smaller; the verb column stays.
 - **The cue panel reflows to its own width**, through CSS container queries, never the window's:
-  graphic fields fill as many columns as fit (`repeat(auto-fill, minmax(200px, 1fr))`), and a clip's
+  graphic fields fill as many columns as fit (`repeat(auto-fill, minmax(200px, 1fr))`; built on the
+  grid that already does this, keeping `PLAYOUT_DASHBOARD.md` §2d's measured 250px floor, since a
+  number control is 245px wide and a 200px track lets it paint over its neighbour), and a clip's
   settings put each label above its control below 620px. **Scrolling stays where the contract puts
   it**: the control area (`.pd-control-area`) is the one scroller; the cue panel gets no scroller of
   its own (`PLAYOUT_DASHBOARD.md` §2, the fixed-panes rule).
@@ -706,6 +711,24 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `e2e/playout-fixed-panes.spec.ts` | only the control area scrolls, with the rail narrow and wide |
 | `e2e/playout-rail-width.spec.ts` (new) | drag, keys, reset, limits, reload; a twelve-field graphic at 1366 with the rail at its widest overlaps nothing; the row keeps note, kind (accessible name), clash and state tag; the list does not scroll during a drag or with a menu open |
 | `docs/PLAYOUT_DASHBOARD.md` | §2 and §4 |
+
+**Built 2026-09-27**, as the table says, with these differences worth knowing:
+
+- **The default width is 23% of the window**, never under 380px, by the owner's decision (§6.1).
+- **The re-record job came first.** `.github/workflows/rerecord-screenshots.yml` (#474) re-records
+  a screenshot spec's Linux baselines on a runner, so this phase's changed look needed no failing
+  CI round trip.
+- **The row keeps today's words**: the tag reads `ON AIR` / `PVW` ("as today", §6.2), and a
+  looping clip keeps its `⟲` and a clip its length, both from the record, since neither needs the
+  server. The marks sit right after the name and the dim summary gives way first.
+- **Advanced is remembered for the graphic it was opened on**, and held open (its toggle disabled)
+  while the layer clashes. The clash badge selects the cue, scrolls the repair into view and
+  focuses its button.
+- **The monitors' headers shrink** (`.pd-monitor-name`): at the widest rundown on a 1366 window
+  PROGRAM is 143px wide, and its header ran under TAKE.
+- `.pd-editor` is the container, not the control area, so the hosted page's editor (the same
+  class) reflows by its own width too; it changes nothing it did below 620px.
+- The one-line row rules are scoped to `.pd-rundown`, so the hosted page keeps its two-line rows.
 
 ### Phase 2 - the clock and the server's truth
 
