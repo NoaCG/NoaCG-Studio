@@ -452,7 +452,20 @@ Keep working import/runtime/export behavior until its explicit replacement is pr
 
 ## Usable artwork sequencing, 2026-09-26
 
-The owner pulled basic R1.2b artwork editing ahead of R1.1b: text content, font/size/solid colour, same-parent reorder/duplicate/delete, marquee and multi-object movement. Match the current NoaCG shell branding in this follow-up. The [implementation brief](research/editor-artwork-basics/README.md) records acceptance and evidence; grouping and advanced tools remain in R1.2b. Resume keys, Out and fidelity slices after this bounded journey.
+The owner pulled basic R1.2b artwork editing ahead of R1.1b: text content, font/size/solid colour, same-parent reorder/duplicate/delete, marquee and multi-object movement. Match the current NoaCG shell branding in this follow-up. The [implementation brief](research/editor-artwork-basics/README.md) records acceptance and evidence; grouping and advanced tools remain in R1.2b.
+
+September 27 owner feedback adds a bounded usability correction before R1.1b:
+continuous Play/Pause and Space, Quiz marquee reproduction/fix, discoverable timeline
+layers and Project behavior, and immediate appearance feedback without Apply.
+See the [task acceptance and evidence boundaries](research/editor-artwork-basics/README.md#owner-feedback-2026-09-27).
+Appearance controls use transient revision-aware previews while edited and commit once
+per completed interaction; invalid values, cancellation and stale targets must not mutate
+source. Transport remains local authoring playback with cue boundaries, not production
+Take/Next/Out. Resolve Space playback versus Space-drag pan explicitly and preserve text
+input shortcuts. Timeline remains the single layer list; do not create another layer store
+or turn Project discoverability into R1.4 project implementation. Resume keys, Out and
+fidelity slices after these corrections. In-canvas text editing and artwork copy/paste and
+Alt-drag duplication remain named R1.2b work, preserving the existing reliable text route.
 
 ## Source patches and preview protocol
 
