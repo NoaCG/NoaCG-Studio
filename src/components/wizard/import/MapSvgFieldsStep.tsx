@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { uuid } from '../../../model/id';
+import { fontNameKey } from '../../../model/fonts';
 import type { DraftPatch, WizardDraft } from '../draft/core';
 import type {
   DesignFieldSpec,
@@ -310,6 +311,33 @@ export default function MapSvgFieldsStep({
     [draft.designFields],
   );
 
+  // ── WHEN A FONT LANDS, EVERY TEXT MEASUREMENT BELOW IS TAKEN AGAIN ──
+  // Until the face the artwork names has loaded, the stage lays its text out in a fallback of
+  // another width (the classroom show intro's centred "QUIZ NIGHT": 860 units against 653 in
+  // Oswald, which read as right-aligned), and the runtime re-fits on `document.fonts.ready`. A
+  // face lands when the author picks or uploads one (the draft's fonts), or when a bundled
+  // @font-face the stage's first layout asked for finishes loading (`loadingdone`, which this
+  // listener cannot miss: a LAYOUT effect declared above the measuring ones, so it is attached
+  // before they ask for the face). Only a face the stage's text names counts: a pass is a second
+  // of main thread on a slow laptop, and the step's own UI loads faces too.
+  const [fontsLanded, setFontsLanded] = useState(0);
+  useLayoutEffect(() => {
+    const fonts = document.fonts;
+    if (!fonts) return;
+    const landed = (e: FontFaceSetLoadEvent) => {
+      const asked = new Set<string>();
+      for (const t of stageRef.current?.querySelectorAll('text, tspan') ?? []) {
+        for (const family of getComputedStyle(t).fontFamily.split(',')) asked.add(fontNameKey(family));
+      }
+      if (e.fontfaces.some((f) => asked.has(fontNameKey(f.family)))) setFontsLanded((n) => n + 1);
+    };
+    fonts.addEventListener('loadingdone', landed);
+    return () => fonts.removeEventListener('loadingdone', landed);
+  }, []);
+  const fontKey = `${draft.svgFonts
+    .map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`)
+    .join('|')}#${fontsLanded}`;
+
   // ── GROWTH DEFAULTS ON WHERE THE ARTWORK IS UNAMBIGUOUS (docs/GOALS.md NOW goal 5) ──
   // Measured on the step's own render, and only while the author has not touched a growth
   // control: an authored answer is never recomputed, while the proposal follows the rows (a
@@ -352,7 +380,7 @@ export default function MapSvgFieldsStep({
       cur.on === want.on && cur.shapeId === want.shapeId && (!want.on || (cur.axis ?? 'x') === 'xy');
     if (settled) return;
     onDraft({ svgStretch: want });
-  }, [svg, draft.svgFields, boundMarkerIds, placedLines, draft.svgBehaviour, draft.svgStretch, onDraft]);
+  }, [svg, draft.svgFields, boundMarkerIds, placedLines, draft.svgBehaviour, draft.svgStretch, onDraft, fontKey]);
   useEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage || !growId) {
@@ -360,7 +388,7 @@ export default function MapSvgFieldsStep({
       return;
     }
     setProposed(proposeFollowers(stage, svg, growId, growAxis));
-  }, [svg, growId, growAxis]);
+  }, [svg, growId, growAxis, fontKey]);
 
   // ── WHICH SHAPES ARE WORTH OFFERING AS THE ONE THAT GROWS (owner walk, 2026-09-01) ──
   // A LAYOUT effect, not an ordinary one: the picker's presence depends on this measurement, so
@@ -399,7 +427,7 @@ export default function MapSvgFieldsStep({
       if (fit) fits[lineId] = fit;
     }
     setBoxFits(fits);
-  }, [svg, boundMarkerIds, allMarkerIds, placedLines]);
+  }, [svg, boundMarkerIds, allMarkerIds, placedLines, fontKey]);
 
   // ── WHERE EVERY LAYER SITS, FOR THE UNMATCHED COUNT (fieldAutoMap.ts, `isPlate`) ──
   // The notice says how many layers nothing is using, and without geometry it counts the board's
@@ -410,11 +438,9 @@ export default function MapSvgFieldsStep({
   // A LAYOUT effect, for the reason the grouping above is one: the count is a NUMBER on screen,
   // and measuring after paint would print the inflated one for a frame and then correct it.
   //
-  // It re-runs when a FONT lands, because `uploadFont` below registers the face under the very
-  // family the artwork asks for - so the stage's text stops being laid out in the fallback and
-  // the ink moves under a number the reader is looking at.
+  // It re-runs when a FONT lands (`fontKey` above), because the stage's text stops being laid
+  // out in the fallback and the ink moves under a number the reader is looking at.
   const [layerBoxes, setLayerBoxes] = useState<Map<string, FillLayer['box']>>(new Map());
-  const fontKey = draft.svgFonts.map((f) => `${f.family}:${f.customFont?.asset.path ?? f.fontId ?? ''}`).join('|');
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage) {

@@ -431,6 +431,7 @@ var svgFitWidths = {};                          // id -> that text's width, in t
 var svgFitSizes = {};                           // id -> the font size it was drawn at, in px
 var svgFitRoom = {};                            // id -> { width, lines } the design offers it
 var svgFitAlign = {};                           // id -> { h, v } read off where the line was drawn
+var svgFitPose = {};                            // id -> a copy of the line as drawn, to read it again
 var svgFitExtra = {};                           // id -> WIDTH a growing panel gave this line
 var svgFitShift = {};                           // id -> how far that panel's MIDDLE moved doing it
 var svgFitExtraH = {};                          // id -> HEIGHT a growing panel may still give it
@@ -1725,6 +1726,54 @@ function noacgTextOverflow() {
   return out;
 }
 
+// THE ALIGNMENT IS READ IN THE FACE ON SCREEN, AND READ AGAIN WHEN THE FACE CHANGES. The first
+// pass runs before a bundled @font-face has loaded, so it measures the drawn line in a fallback
+// of another width: the classroom show intro's centred title, start-anchored and 653 units wide
+// in Oswald, measured far wider in Linux's default face, read as 'end' - and svgApplyAnchor then
+// wrote that 'end' onto the node, so the title sat right of centre on air for good once Oswald
+// arrived. So every re-measure reads the alignment again, off COPIES OF THE LINES AS DRAWN
+// (kept from before any pass wrote over them) stood in the lines' places for the reading - a
+// line's own node carries the last pass's anchor, and a kerned headline's per-glyph runs are
+// flattened by the first fit, so neither could be put back by resetting an attribute or two.
+// Every copy stands in at once, so each line is read against the whole design at rest, as the
+// first pass reads it; a block is repainted on its drawn lines, as that pass has it. A line with
+// no box keeps its answer, since nothing could be read in its place.
+function svgRereadAlign() {
+  var nodes = svgFitNodes();
+  var swaps = [];
+  for (var i = 0; i < nodes.length; i++) {
+    var el = nodes[i];
+    if (svgFitPlaced(el)) continue;
+    var drawn = svgFitPose[el.id];
+    if (!drawn) { svgFitPose[el.id] = el.cloneNode(true); continue; }   // the first pass reads el itself
+    if (!svgFitLaidOut(el) || !el.parentNode) continue;
+    var copy = drawn.cloneNode(true);
+    el.parentNode.replaceChild(copy, el);
+    if (svgFitLines[el.id] && svgFitDrawn[el.id] != null) svgShowDrawn(copy, svgFitDrawn[el.id]);
+    swaps.push({ el: el, copy: copy });
+  }
+  for (var j = 0; j < swaps.length; j++) {
+    var s = swaps[j];
+    if (!svgFitLaidOut(s.copy)) continue;
+    delete svgFitAlign[s.el.id];
+    svgAlignOf(s.copy, svgFitContainer(s.copy));
+  }
+  for (var k = 0; k < swaps.length; k++) {
+    var line = swaps[k].el;
+    swaps[k].copy.parentNode.replaceChild(line, swaps[k].copy);
+    // An answer with NO anchor writes nothing (svgApplyAnchor), so the one the last pass wrote
+    // would stand: the line takes its drawn x and text-anchor back instead.
+    if (svgFitAlign[line.id] && svgFitAlign[line.id].anchor == null) {
+      var names = ['x', 'text-anchor'];
+      for (var n = 0; n < names.length; n++) {
+        var was = svgFitPose[line.id].getAttribute(names[n]);
+        if (was == null) line.removeAttribute(names[n]);
+        else line.setAttribute(names[n], was);
+      }
+    }
+  }
+}
+
 // THE ROOM IS THE DESIGN'S, NEVER THE LAST PASS'S. A re-measure has to start from the artwork
 // AT REST: measured while a panel is still grown from the previous pass, the room reads as
 // bigger than the designer drew, the block looks like it already fits, and the growth is
@@ -1734,6 +1783,7 @@ function noacgTextOverflow() {
 function svgRestAndMeasure() {
   if (typeof svgLayoutRest === 'function') svgLayoutRest();
   measureSvgBudgets();
+  svgRereadAlign();                             // after the budgets: it reads the drawn type size
   measureSvgRoom();
 }
 function refitSvgText() {
@@ -1760,6 +1810,9 @@ if (document.readyState === 'loading') {
 }
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(refitSvgText);
+  // And whenever a face lands: in a page still parsing, ready can resolve before any layout has
+  // asked for the face, and the one pass it buys is then taken in the fallback.
+  if (document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refitSvgText);
 }
 // A DESIGN THAT WAS NOT ON SCREEN WHEN IT LOADED FITS WHEN IT ARRIVES. Both passes above run
 // once, at load, and a document that is preloaded hidden (a playout renderer, a control page
