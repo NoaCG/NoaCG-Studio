@@ -447,12 +447,12 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | not proposed |
 | Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | not proposed |
 
-**Planned 2026-09-26, not built.** Loop shipped alone, and the owner asked for the rest to be
-planned before anything is built (2026-09-25). The plan is build 2 of
-[`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) §3, beside the timed cues a clip's end
-drives, and it waits on the owner's pick. Where it differs from the sketch below it wins: fade is
-stored as a word the adapter turns into frames, level is added in dB, audio files become their own
-kind on their own layer, and "then play" becomes a timed cue's Next. The sketch was its input.
+**Planned 2026-09-27, not built.** Loop shipped alone, and the owner asked for the rest to be
+planned before anything is built (2026-09-25). The plan is
+[`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), decided with the owner and reviewed against
+the code and the CasparCG source; it supersedes the sketch below, and its §4 corrects this table
+where they differ (a fade at the end overlaps the clip's last frames; a still never ends; `MIXER
+VOLUME` is not used). The sketch below was its input and is kept as the record of it.
 Each item in it is additive in the record and in protocol v2 (no version bump), and each needs a
 Bridge release:
 

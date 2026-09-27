@@ -1,0 +1,301 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Playout v2 mockup</title>
+<style>
+@font-face { font-family: 'IBM Plex Sans'; src: url('../../../public/fonts/ibm-plex-sans.woff2') format('woff2'); font-weight: 300 700; }
+@font-face { font-family: 'JetBrains Mono'; src: url('../../../public/fonts/jetbrains-mono.woff2') format('woff2'); font-weight: 300 800; }
+:root {
+  --void:#0a0c10; --panel:#141922; --bg-panel:#12141a; --bg-input:#0e1014; --bg3:#1b2230;
+  --border:#262f3c; --border-strong:#33394a; --text:#e8edf2; --mid:#c6ccd6; --dim:#8b98a8; --faint:#6b7382;
+  --amber:#f6a623; --accent-bg:#2a2213; --red:#ef4444; --blue:#60a5fa; --violet:#a78bfa;
+  --mono:'JetBrains Mono', monospace; --ui:'IBM Plex Sans', system-ui, sans-serif;
+  --rw: 640px;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; }
+body { background:var(--void); color:var(--text); font:13px/1.35 var(--ui); overflow:hidden; display:flex; flex-direction:column; }
+.top { height:50px; flex:none; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; padding:0 14px; white-space:nowrap; overflow:hidden; }
+.logo { font-weight:700; font-size:14px; margin-right:6px; } .logo b { color:var(--amber); }
+.btn { border:1px solid var(--border); background:var(--panel); color:var(--mid); border-radius:5px; padding:5px 10px; font-size:12.5px; white-space:nowrap; }
+.btn.amber { background:#6b4a10; color:#f4d9a5; border-color:#7a5613; }
+.tabs { display:flex; border:1px solid var(--border); border-radius:5px; overflow:hidden; margin-left:8px; }
+.tabs span { padding:5px 13px; font-size:12.5px; color:var(--mid); } .tabs span.on { background:var(--amber); color:#1a1204; font-weight:600; }
+.clock { font-family:var(--mono); font-size:12px; color:var(--dim); }
+.spacer { flex:1; }
+.main { flex:1; min-height:0; display:flex; }
+.left { flex:1; min-width:0; padding:12px 14px; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
+.right { width:var(--rw); flex:none; border-left:1px solid var(--border); display:flex; flex-direction:column; background:#0c0e12; position:relative; }
+.splitter { position:absolute; left:-5px; top:0; bottom:0; width:9px; }
+.splitter::after { content:''; position:absolute; left:3px; top:50%; width:3px; height:40px; margin-top:-20px; border-radius:2px; background:#4b5568; }
+/* stage: monitors + the verb column */
+.stage { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 250px; gap:12px; align-items:stretch; }
+.monlabel { font:600 11px var(--mono); letter-spacing:.12em; margin-bottom:5px; display:flex; gap:8px; align-items:center; white-space:nowrap; overflow:hidden; }
+.monlabel .dot { width:7px; height:7px; border-radius:50%; flex:none; }
+.monlabel .sub { font-family:var(--ui); letter-spacing:0; font-weight:400; color:var(--mid); overflow:hidden; text-overflow:ellipsis; }
+.screen { aspect-ratio:16/9; border:2px solid; border-radius:4px; background:#050608; position:relative; overflow:hidden; max-height:var(--mon-max, 400px); }
+.screen.pvw { border-color:#b8860b; } .screen.pgm { border-color:#c0392b; }
+.frame { position:absolute; inset:0; }
+.len { position:absolute; right:8px; bottom:8px; font:600 12px var(--mono); background:rgba(0,0,0,.6); color:#d1d5db; padding:2px 7px; border-radius:3px; }
+.still { position:absolute; left:8px; top:8px; font:600 9.5px var(--mono); letter-spacing:.08em; background:rgba(0,0,0,.55); color:#cbd5e1; padding:2px 6px; border-radius:3px; }
+.pgm-rem { position:absolute; right:8px; bottom:8px; font:800 22px var(--mono); background:rgba(0,0,0,.72); color:#fecaca; padding:2px 10px; border-radius:4px; }
+.verbs { display:flex; flex-direction:column; gap:8px; padding-top:18px; min-height:0; }
+.take { background:#ef4444; color:#fff; font-weight:700; border-radius:5px; text-align:center; padding:11px 0; font-size:14px; }
+.kbd { font:600 9.5px var(--mono); border:1px solid rgba(255,255,255,.35); border-radius:3px; padding:0 4px; margin-left:6px; opacity:.85; }
+.vgrid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.vgrid .btn { text-align:center; padding:8px 0; }
+.dimbtn { opacity:.45; }
+/* the clip clock */
+.cclock { border:1px solid rgba(239,68,68,.55); border-radius:7px; background:linear-gradient(180deg,rgba(239,68,68,.12),rgba(239,68,68,.03)); padding:9px 11px 10px; }
+.cclock.warn { border-color:#ef4444; box-shadow:0 0 0 2px rgba(239,68,68,.35); }
+.cc-k { font:600 10px var(--mono); letter-spacing:.14em; color:#f87171; display:flex; justify-content:space-between; }
+.cc-name { font-weight:600; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cc-big { font:800 52px/1 var(--mono); color:#fff; margin:6px 0 6px; letter-spacing:-.02em; }
+.cclock.warn .cc-big { color:#fca5a5; }
+.bar { height:6px; border-radius:3px; background:#2a1414; overflow:hidden; }
+.bar i { display:block; height:100%; background:#ef4444; }
+.cc-then { font-size:11.5px; color:var(--dim); margin-top:6px; display:flex; justify-content:space-between; font-family:var(--mono); }
+.cc-then b { color:#93c5fd; font-weight:600; }
+.cc-2 { margin-top:7px; padding-top:7px; border-top:1px solid rgba(239,68,68,.25); display:flex; justify-content:space-between; font:12px var(--mono); color:#e9d5ff; }
+.airnote { font-size:11.5px; color:var(--dim); text-align:center; }
+
+/* THE CLIP CLOCK: it takes whatever height is left under the verbs and never more. `container-type:
+   size` gives it size containment, so its content can never push the stage (and the monitors) taller;
+   the number scales with the box (cqh) and the box folds to one row when it is short. */
+.clk { flex:1 1 0; min-height:34px; container-type:size; position:relative; }
+.clk-in { position:absolute; inset:0; border:1px solid rgba(239,68,68,.5); border-radius:7px; background:rgba(239,68,68,.07); padding:7px 11px; display:flex; flex-direction:column; justify-content:center; gap:3px; overflow:hidden; }
+.clk-k { font:600 10px var(--mono); letter-spacing:.1em; color:#f87171; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clk-main { display:flex; align-items:baseline; gap:10px; }
+.clk-lab { font:600 10.5px var(--mono); letter-spacing:.1em; color:var(--dim); white-space:nowrap; }
+.clk-big { font:800 min(56px, 42cqh)/1 var(--mono); color:#fff; letter-spacing:-.02em; }
+.clk-sub { font:12px var(--mono); color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clk-sub b { color:#93c5fd; font-weight:600; }
+.clk.warn .clk-in { border-color:#ef4444; background:rgba(239,68,68,.22); box-shadow:0 0 0 2px rgba(239,68,68,.45); }
+.clk.warn .clk-big { color:#fecaca; }
+@container (max-height: 96px) {
+  .clk-in { flex-direction:row; align-items:center; justify-content:space-between; padding:0 10px; }
+  .clk-k { display:none; }
+  .clk-big { font-size:min(30px, 62cqh); }
+  .clk-sub { display:none; }
+}
+/* inspector */
+.insp { border:1px solid var(--border); border-radius:7px; background:var(--bg-panel); padding:12px 14px 14px; container-type:inline-size; min-height:0; overflow:hidden; }
+.insp-head { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.kick { font:600 11px var(--mono); letter-spacing:.12em; color:var(--amber); }
+.insp-title { font-weight:600; font-size:15px; }
+.meta { color:var(--dim); font-size:12px; } .meta b { color:var(--mid); font-weight:500; }
+.rowset { display:grid; grid-template-columns: 110px minmax(0,1fr); gap:12px 12px; align-items:center; }
+@container (max-width: 620px) { .rowset { grid-template-columns: minmax(0,1fr); gap:4px; } .rowset > .lab { margin-top:6px; } .hint { display:none; } }
+.lab { font:600 10.5px var(--mono); letter-spacing:.1em; color:var(--dim); text-transform:uppercase; }
+.seg { display:inline-flex; border:1px solid var(--border-strong); border-radius:6px; overflow:hidden; flex-wrap:nowrap; }
+.seg span { padding:6px 12px; font-size:12.5px; color:var(--mid); border-right:1px solid var(--border-strong); background:var(--bg-input); white-space:nowrap; }
+.seg span:last-child { border-right:0; }
+.seg span.on { background:var(--accent-bg); color:#ffd58a; box-shadow: inset 0 0 0 1px var(--amber); }
+.seg span.off { color:#4b5563; }
+.seg.small span { padding:4px 10px; font-size:12px; }
+.hint { color:var(--faint); font-size:11.5px; }
+.inline { display:flex; align-items:center; gap:10px 14px; flex-wrap:wrap; }
+.sublab { color:var(--dim); font-size:12px; }
+.slider { width:220px; height:6px; background:var(--bg3); border-radius:3px; position:relative; }
+.slider .fill { position:absolute; left:0; top:0; bottom:0; border-radius:3px; background:linear-gradient(90deg,#3b8f5a,#8bc34a); }
+.slider .knob { position:absolute; top:-5px; width:16px; height:16px; border-radius:50%; background:#e8edf2; border:2px solid #0a0c10; }
+.db { font:600 12.5px var(--mono); }
+.input { background:var(--bg-input); border:1px solid var(--border); border-radius:5px; padding:6px 9px; color:var(--text); font-size:12.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.input.ph { color:var(--faint); }
+.adv { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; color:var(--mid); font-size:12.5px; }
+.adv .sum { color:var(--faint); font-size:12px; margin-left:8px; }
+/* graphic fields: auto-fit to the panel's own width */
+.fields { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:9px 12px; }
+.fld { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.fld .l { font-size:11.5px; color:var(--dim); }
+.ctl { margin-top:12px; border-top:1px solid var(--border); padding-top:10px; }
+.ctl-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.ctl-row .btn { padding:6px 11px; }
+/* rundown */
+.rd-head { display:flex; align-items:center; gap:10px; padding:12px 14px 8px; }
+.rd-head .t { font-weight:600; } .rd-head .n { color:var(--dim); }
+.list { flex:1; overflow:hidden; padding:2px 8px; }
+.r { display:grid; grid-template-columns: 24px 22px minmax(0,1fr) auto 44px; gap:0 9px; align-items:center; height:34px; padding:0 8px 0 4px; border-radius:5px; position:relative; border:1px solid transparent; overflow:hidden; }
+.noserver .r { grid-template-columns: 24px 22px minmax(0,1fr) 44px; }
+.r + .r { margin-top:2px; }
+.r .num { font:11px var(--mono); color:var(--faint); text-align:right; }
+.ic { width:20px; height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+.ic.v { background:rgba(96,165,250,.15); color:var(--blue); } .ic.a { background:rgba(167,139,250,.15); color:var(--violet); } .ic.g { background:rgba(246,166,35,.14); color:var(--amber); } .ic.f { color:var(--mid); font-size:12px; }
+.nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.nm small { color:var(--faint); margin-left:7px; font-size:12px; }
+.glyph { font-size:12px; margin-left:6px; color:var(--dim); }
+.glyph.loop { color:#86efac; } .glyph.next { color:#93c5fd; } .glyph.clear { color:#fca5a5; }
+.t-len { font:12px var(--mono); color:var(--mid); text-align:right; }
+.t-rem { font:800 13px var(--mono); color:#fecaca; text-align:right; }
+.slot { font:11.5px var(--mono); color:var(--dim); text-align:right; }
+.prog { position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(239,68,68,.18); }
+.prog i { display:block; height:100%; background:#ef4444; }
+.r.fold { background:#10141b; border-color:var(--border); }
+.r.fold .nm { font-weight:600; letter-spacing:.02em; }
+.r.fold .mode { font:500 11px var(--ui); color:var(--dim); margin-left:9px; }
+.r.child { margin-left:18px; border-left:2px solid var(--border); border-radius:0 5px 5px 0; }
+.r.onair { background:rgba(239,68,68,.16); border-color:rgba(239,68,68,.65); }
+.r.child.onair { border-left:2px solid var(--red); }
+.r.picked { border-color:var(--amber); box-shadow: inset 0 0 0 1px var(--amber); background:rgba(246,166,35,.07); }
+.r.played .nm, .r.played .t-len { color:#56606e; }
+.queued { font:600 9.5px var(--mono); color:#93c5fd; border:1px solid #1e3a5f; border-radius:8px; padding:0 6px; margin-left:8px; letter-spacing:.04em; }
+.rd-foot { border-top:1px solid var(--border); padding:10px 12px; display:flex; gap:8px; flex-wrap:wrap; }
+.rd-foot .btn { flex:1; text-align:center; }
+</style></head>
+<body data-view="VIEW">
+<div class="top">
+  <div class="logo"><b>▬</b> NoaCG</div>
+  <span class="btn">← Back</span><span class="btn">Home</span><span class="btn">+ New graphic</span>
+  <span style="font-weight:600;margin-left:6px" id="prodname">Evening News</span>
+  <span class="btn" style="font:600 10.5px var(--mono);letter-spacing:.1em">○ NOT PUBLISHED</span>
+  <span class="btn amber">▶ Start production</span><span class="clock">00:12:41</span>
+  <div class="tabs"><span class="on">Playout</span><span>Data</span><span>Audience</span></div>
+  <div class="spacer"></div>
+  <span class="btn" id="playoutbtn">Playout <span style="color:#34d399">●</span></span><span class="btn">Export…</span><span class="btn">■ All out</span>
+</div>
+<div class="main" id="main">
+  <div class="left">
+    <div class="stage">
+      <div>
+        <div class="monlabel" style="color:var(--amber)"><span class="dot" style="background:var(--amber)"></span>PREVIEW <span class="sub" id="pvwsub"></span></div>
+        <div class="screen pvw" id="pvw"></div>
+      </div>
+      <div>
+        <div class="monlabel" style="color:#f87171"><span class="dot" style="background:#ef4444"></span>PROGRAM · ON AIR <span class="sub" id="pgmsub"></span></div>
+        <div class="screen pgm" id="pgm"></div>
+      </div>
+      <div class="verbs" id="verbs"></div>
+    </div>
+    <div class="insp" id="inspector"></div>
+  </div>
+  <div class="right">
+    <div class="splitter"></div>
+    <div class="rd-head"><span class="t">Cue rundown</span><span class="n" id="count"></span><div class="spacer"></div><span class="btn" style="padding:3px 9px">＋ Folder</span></div>
+    <div class="list" id="list"></div>
+    <div class="rd-foot" id="foot"></div>
+  </div>
+</div>
+<script>
+const view = document.body.dataset.view;
+const $ = (id) => document.getElementById(id);
+const icon = { v:'▶', a:'♪', g:'T' };
+const glyph = { loop:'⟲', next:'→', clear:'⌀' };
+const glyphTitle = { loop:'loops', next:'plays the next clip', clear:'clears at the end' };
+const rowHtml = (r, server) => {
+  if (r.fold) return `<div class="r fold ${r.picked?'picked':''}"><span class="num">${r.closed?'▸':'▾'}</span><span class="ic f">▤</span><span class="nm">${r.nm}<span class="mode">${r.mode}</span></span>${server?`<span class="t-len">${r.len||''}</span>`:''}<span class="slot"></span></div>`;
+  const cls = ['r', r.child?'child':'', r.onair?'onair':'', r.picked?'picked':'', r.played?'played':''].join(' ');
+  const g = r.end ? `<span class="glyph ${r.end}" title="${glyphTitle[r.end]}">${glyph[r.end]}</span>` : '';
+  const q = r.queued ? '<span class="queued">NEXT ON SERVER</span>' : '';
+  const time = r.onair && r.rem ? `<span class="t-rem">${r.rem}</span>` : `<span class="t-len">${r.len||''}</span>`;
+  const prog = r.onair && r.p ? `<span class="prog"><i style="width:${r.p}%"></i></span>` : '';
+  return `<div class="${cls}"><span class="num">${r.num}</span><span class="ic ${r.ic}">${icon[r.ic]}</span><span class="nm">${r.nm}${r.sm?`<small>${r.sm}</small>`:''}${g}${q}</span>${server?time:''}<span class="slot">${r.slot}</span>${prog}</div>`;
+};
+const verbs = (clip) => `
+  <div class="take">⟳ TAKE <span class="kbd">SPACE</span></div>
+  <div class="vgrid"><span class="btn dimbtn">⟳ Re-take <span class="kbd">R</span></span><span class="btn">✎ Update <span class="kbd">U</span></span>
+  <span class="btn ${clip?'':'dimbtn'}">${clip?'❚❚ Pause':'» Next'} <span class="kbd">${clip?'P':'N'}</span></span><span class="btn">■ Out <span class="kbd">0</span></span></div>`;
+
+
+const scen = {
+  'hold':       { clip:'HOCKEY_REPORT', rem:'−0:41', pct:77, then:'then holds the last frame' },
+  'hold-warn':  { clip:'HOCKEY_REPORT', rem:'−0:04', pct:98, then:'then holds the last frame', warn:1 },
+  'chain':      { clip:'SPONSOR_BUMPER', rem:'−0:09', pct:40, next:'INTRO_VT', nextLen:'0:20', studio:'−0:29' },
+  'chain-1366': { clip:'SPONSOR_BUMPER', rem:'−0:09', pct:40, next:'INTRO_VT', nextLen:'0:20', studio:'−0:29', small:1 },
+  'chain-warn-1366': { clip:'INTRO_VT', rem:'−0:04', pct:80, studio:'−0:04', then:'then clears to studio', small:1, warn:1, last:1 },
+}[view];
+if (scen) {
+  const chainOn = !!scen.next;
+  $('pvwsub').textContent = 'HOCKEY_REPORT';
+  $('pgmsub').textContent = scen.clip + ' · Hairline';
+  $('pvw').innerHTML = `<div class="frame" style="background:radial-gradient(ellipse at 50% 125%,#e2e8f0 0 35%,#94a3b8 36% 38%,#e2e8f0 39%),#cbd5e1"></div><div style="position:absolute;left:8%;top:34%;font:800 28px var(--ui);color:#1e3a8a;letter-spacing:.04em;line-height:1.05">HOCKEY<br><span style="color:#b91c1c">REPORT</span></div><span class="still">STILL</span><span class="len">3:00</span>`;
+  const pgmWord = scen.clip === 'HOCKEY_REPORT' ? 'HOCKEY' : scen.clip === 'INTRO_VT' ? 'INTRO' : 'SPONSOR';
+  $('pgm').innerHTML = `<div class="frame" style="background:linear-gradient(135deg,#1d3557,#0b132b 55%,#3a0f2e)"></div><div style="position:absolute;left:30%;top:30%;font:800 24px var(--ui);color:#fde68a">${pgmWord}</div><div style="position:absolute;left:7%;bottom:13%;border-left:3px solid var(--amber);padding-left:8px"><div style="font-weight:700;font-size:15px">Alexandra Riva</div><div style="font-size:10px;color:#cbd5e1">Chief Correspondent</div></div><span class="still">STILL</span>`;
+  // One number when nothing follows automatically; the time TO STUDIO first when a clip follows,
+  // and only that number warns, because that is when the director has to cut.
+  const clock = chainOn
+    ? `<div class="clk"><div class="clk-in">
+         <div class="clk-k">● ON AIR 2-10</div>
+         <div class="clk-main"><span class="clk-lab">TO STUDIO</span><span class="clk-big">${scen.studio}</span></div>
+         <div class="clk-sub">clip ${scen.rem} · next <b>${scen.next}</b> ${scen.nextLen}</div></div></div>`
+    : `<div class="clk ${scen.warn?'warn':''}"><div class="clk-in">
+         <div class="clk-k">● ON AIR 2-10 · ${scen.clip}</div>
+         <div class="clk-main">${scen.last?'<span class="clk-lab">TO STUDIO</span>':''}<span class="clk-big">${scen.rem}</span></div>
+         <div class="clk-sub">${scen.then}</div></div></div>`;
+  $('verbs').innerHTML = verbs(true) + clock;
+  $('inspector').innerHTML = `
+    <div class="insp-head"><span class="kick">SERVER CLIP · 6</span><span class="insp-title">HOCKEY_REPORT</span><span class="meta"><b>3:00</b> · PACKAGES/HOCKEY_REPORT · in <b>HOCKEY PACKAGE</b></span></div>
+    <div class="rowset">
+      <span class="lab">At the end</span>
+      <span class="inline"><span class="seg"><span class="on">▮ Hold last frame</span><span>⌀ Clear</span><span>⟲ Loop</span><span>→ Play next</span></span>
+        <span class="hint">The last frame stays on air until you press Out.</span></span>
+      <span class="lab">Fade</span>
+      <span class="inline"><span class="sublab">In</span><span class="seg small"><span class="on">Cut</span><span>Short</span><span>Long</span></span>
+        <span class="sublab">Out</span><span class="seg small"><span>Cut</span><span class="on">Short</span><span>Long</span></span></span>
+      <span class="lab">Level</span>
+      <span class="inline"><span class="slider"><span class="fill" style="width:88%"></span><span class="knob" style="left:calc(88% - 8px)"></span></span><span class="db">0 dB</span><span class="btn" style="padding:3px 8px;font-size:11.5px">Reset</span></span>
+      <span class="lab">Note</span><span class="input ph" style="max-width:520px">e.g. after the intro</span>
+    </div>
+    <div class="adv">▸ <b style="font-weight:600">Advanced</b><span class="sum">Channel 2 · layer 10 · whole clip</span></div>`;
+  const inOpening = scen.clip !== 'HOCKEY_REPORT';
+  const rows = [
+    {fold:1, nm:'OPENING', mode:'plays through', len:'1:05'},
+    {child:1, num:1, ic:'v', nm:'TITLE_SEQUENCE', len:'0:30', end:'next', slot:'2-10', played:1},
+    {child:1, num:2, ic:'v', nm:'SPONSOR_BUMPER', len:'0:15', end:'next', slot:'2-10', played: scen.clip!=='SPONSOR_BUMPER', onair: scen.clip==='SPONSOR_BUMPER', rem:scen.rem, p:scen.pct},
+    {child:1, num:3, ic:'v', nm:'INTRO_VT', len:'0:20', end:'clear', slot:'2-10', queued: scen.clip==='SPONSOR_BUMPER', played: scen.clip==='HOCKEY_REPORT', onair: scen.clip==='INTRO_VT', rem:scen.rem, p:scen.pct},
+    {num:4, ic:'g', nm:'Hairline', sm:'Alexandra Riva', slot:'1-20', onair:1},
+    {num:5, ic:'g', nm:'Scoreboard', sm:'HOME 2 – 1 AWAY', slot:'1-21'},
+    {fold:1, nm:'HOCKEY PACKAGE', mode:'all together', len:'3:00'},
+    {child:1, num:6, ic:'v', nm:'HOCKEY_REPORT', len:'3:00', slot:'2-10', onair: !inOpening, rem:scen.rem, p:scen.pct, picked: inOpening},
+    {child:1, num:7, ic:'a', nm:'HOCKEY_COMMENTARY', len:'3:00', end:'clear', slot:'2-5'},
+    {num:8, ic:'g', nm:'Hairline', sm:'Coach Mäkinen', slot:'1-20'},
+    {num:9, ic:'a', nm:'STING', len:'0:03', end:'clear', slot:'2-5'},
+    {num:10, ic:'a', nm:'MUSIC_BED', len:'3:36', end:'loop', slot:'2-5'},
+    {num:11, ic:'g', nm:'Hairline', sm:'Principal Virtanen', slot:'1-20'},
+    {num:12, ic:'g', nm:'Weather', sm:'Tomorrow · 14°', slot:'1-22'},
+    {fold:1, nm:'CLOSING', mode:'plays through', len:'1:20', closed:1},
+    {num:17, ic:'g', nm:'Credits roll', slot:'1-23'},
+  ];
+  $('count').textContent = '17';
+  $('list').innerHTML = rows.map(r => rowHtml(r, true)).join('');
+  $('foot').innerHTML = '<span class="btn">＋ Graphic</span><span class="btn">＋ From the playout server…</span><span class="btn">＋ Pictures</span>';
+  if (scen.small) { document.documentElement.style.setProperty('--rw','400px'); document.querySelector('.stage').style.gridTemplateColumns='minmax(0,1fr) minmax(0,1fr) 210px'; }
+  else document.documentElement.style.setProperty('--rw','700px');
+}
+
+if (view === 'gfx' || view === 'gfx-wide') {
+  document.body.classList.add('noserver');
+  $('prodname').textContent = 'Quiz Night';
+  $('playoutbtn').innerHTML = 'Playout <span style="color:#6b7382">○</span>';
+  $('pvwsub').textContent = 'Scoreboard';
+  $('pgmsub').textContent = 'Question card';
+  const board = `<div style="position:absolute;left:50%;bottom:12%;transform:translateX(-50%);display:flex;gap:0;font:700 15px var(--ui);box-shadow:0 4px 20px rgba(0,0,0,.5)"><span style="background:#1d4ed8;padding:6px 12px">TEAM RAVENS</span><span style="background:#0f172a;padding:6px 12px;font-family:var(--mono)">12 – 9</span><span style="background:#b91c1c;padding:6px 12px">TEAM OWLS</span></div><div style="position:absolute;left:50%;bottom:4%;transform:translateX(-50%);font:600 9px var(--ui);color:#cbd5e1;letter-spacing:.1em">ROUND 3 OF 5</div>`;
+  $('pvw').innerHTML = `<div class="frame" style="background:#0b0d10"></div>${board}`;
+  $('pgm').innerHTML = `<div class="frame" style="background:#0b0d10"></div><div style="position:absolute;left:8%;right:8%;top:22%;background:#111827;border:2px solid #f59e0b;border-radius:8px;padding:12px 16px"><div style="font:600 10px var(--mono);color:#f59e0b;letter-spacing:.12em">QUESTION 7</div><div style="font:700 16px var(--ui);margin-top:4px">Which planet has the shortest day?</div></div>`;
+  $('verbs').innerHTML = verbs(false) + '<div class="airnote">● 1 on air</div>';
+  const fields = [['Team A','TEAM RAVENS'],['Team B','TEAM OWLS'],['Score A','12'],['Score B','9'],['Round','3'],['Rounds in total','5'],['Team A colour','#1D4ED8'],['Team B colour','#B91C1C'],['Timer (s)','30'],['Sponsor line','Powered by the Student Union'],['Leader highlight','on'],['Title','LIVE SCORE']];
+  $('inspector').innerHTML = `
+    <div class="insp-head"><span class="kick">EDITING PREVIEW CUE · 5</span><span class="insp-title">Scoreboard</span><span class="meta">changes air on ⟳ Take</span></div>
+    <div class="fields">${fields.map(([l,v]) => `<div class="fld"><span class="l">${l}</span><span class="input">${v}</span></div>`).join('')}</div>
+    <div class="ctl"><span class="lab">Controls</span><span class="hint" style="margin-left:8px">as the graphic declared them</span>
+      <div class="ctl-row"><span class="btn">Ravens +1</span><span class="btn">Ravens −1</span><span class="btn">Owls +1</span><span class="btn">Owls −1</span><span class="btn">Next round</span><span class="btn">Start timer</span><span class="btn">Reset scores</span></div></div>
+    <div class="adv">▸ <b style="font-weight:600">Advanced</b><span class="sum">Layer 21 · operator note</span></div>`;
+  const rows = [
+    {fold:1, nm:'OPENING', mode:'one by one'},
+    {child:1, num:1, ic:'g', nm:'Title card', sm:'Quiz Night 2026', slot:'L20', played:1},
+    {child:1, num:2, ic:'g', nm:'Host', sm:'Emma Lindqvist', slot:'L21', played:1},
+    {fold:1, nm:'ROUND 3', mode:'one by one'},
+    {child:1, num:3, ic:'g', nm:'Question card', sm:'Q7 · shortest day', slot:'L22', onair:1},
+    {child:1, num:4, ic:'g', nm:'Answer reveal', sm:'Q7 · Jupiter', slot:'L22'},
+    {child:1, num:5, ic:'g', nm:'Scoreboard', sm:'RAVENS 12 – 9 OWLS', slot:'L23', picked:1},
+    {child:1, num:6, ic:'g', nm:'Question card', sm:'Q8 · largest ocean', slot:'L22'},
+    {child:1, num:7, ic:'g', nm:'Answer reveal', sm:'Q8 · Pacific', slot:'L22'},
+    {fold:1, nm:'ROUND 4', mode:'one by one', closed:1},
+    {fold:1, nm:'FINAL', mode:'one by one', closed:1},
+    {num:24, ic:'g', nm:'Winner', sm:'—', slot:'L24'},
+    {num:25, ic:'g', nm:'Credits roll', slot:'L25'},
+  ];
+  $('count').textContent = '25';
+  $('list').innerHTML = rows.map(r => rowHtml(r, false)).join('');
+  $('foot').innerHTML = '<select class="btn" style="flex:2"><option>Add a graphic from your library…</option></select><span class="btn">＋ New graphic…</span><span class="btn">＋ Pictures</span>';
+  document.documentElement.style.setProperty('--rw', view === 'gfx-wide' ? '860px' : '440px');
+}
+</script>
+</body></html>

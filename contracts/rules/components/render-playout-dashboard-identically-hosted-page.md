@@ -3,7 +3,7 @@ v: 1
 scope: src/components/HostedControlPage.tsx, src/components/home/ProductionPage.tsx
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/components/2026-09-07-render-playout-dashboard-identically-hosted-page.md
 ---

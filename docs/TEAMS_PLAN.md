@@ -233,8 +233,10 @@ The flows:
 - **Invite/join: a join link, and its code.** Creating a team shows a copyable link
   (`/app#/join-team/<code>`) and, second, the code itself for typing into Join a team. The
   mockup's speakable `K7M-Q2R` was never built: 0053 mints mixed-case base64url, so the screen
-  says "capitals count" rather than "read it out" (whether to mint a speakable code is the
-  owner's call: `docs/backlog/the-team-dialog-makes-you-guess-nine-times.md`). Joining asks one
+  says "capitals count" rather than "read it out". **Owner ruling 2026-09-27: the join code stays
+  as it is** - the link first, the code second for typing, and no speakable code, because minting
+  one means a migration and rotating every code already handed out, which breaks every link
+  already pasted in a class chat. Joining asks one
   thing: the display name teammates will see, which a member can change later in the member
   list. Owner can rotate the code. No email invitations yet
   (`docs/backlog/teams-invite-join-code-and-what-a-new-member-sees.md`).
@@ -394,7 +396,7 @@ production's Share door, and a new member owns no production to open one from. W
   back cold by the owner; stage 5's three-context walk is below.
 
 **Stage 4b LANDED 2026-09-27: teams without guessing.** The walk behind the /docs guide found nine
-places the team screens made a reader guess (`docs/backlog/the-team-dialog-makes-you-guess-nine-times.md`),
+places the team screens made a reader guess (the backlog item closed 2026-09-27 with the ruling above),
 and the owner's standard is that teams need no reading. What landed:
 
 - **The code's door.** Home's productions grid carries a **Join a team** card for every signed-in
