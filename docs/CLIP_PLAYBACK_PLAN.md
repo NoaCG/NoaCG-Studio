@@ -401,8 +401,7 @@ the exported controller, a graphics pack) sees the same cues in the same order.
 ## 8. The other surfaces, frozen on purpose
 
 The hosted Control page (phone or tablet), the Presenter link and the exported controller get **no
-new features in these phases** (with the one exception the dashboard rule may ask for: §17, item 1,
-and Q5). They keep doing exactly what they do today, and a spec pins that a
+new features in these phases** (the owner's ruling on the dashboard rule: §17, item 1). They keep doing exactly what they do today, and a spec pins that a
 published production with folders and clip settings still loads on each and lists its graphic cues
 in order. Server cues stay listed and disabled there, as today.
 
@@ -550,7 +549,7 @@ The questions this plan most needs challenged:
    `graphicsPack.ts`, `teamShowMerge.ts`)? Does any AMCP form in §4, §9 or §18 disagree with the
    CasparCG source at `v2.5.0-stable`? Is any case in §18 missing its guard, or any guard untestable
    as described?
-8. **§17's four conflicts with standing rules**: is any other rule in the root, `src/components`,
+8. **§17's standing rules**: is any other rule in the root, `src/components`,
    `src/components/home`, `src/model`, `e2e` or `cli` contracts crossed by a phase?
 
 ## 15. The owner's answers, 2026-09-27
@@ -567,11 +566,9 @@ The questions this plan most needs challenged:
 - **The review**: the plan and the code it touches go to an independent reviewer (Codex) before
   phase 0 starts. §16 is written for that review.
 
-- **Q5 (open, needs: alignment). Folders on the hosted Control page.** The repository's rule is
-  that both dashboards render identically (§17, item 1). Recommendation: in phase 4 the hosted page
-  shows folders as headers with indentation, display only (no folder Take there), which keeps the
-  two dashboards alike for a few lines of code; the alternative is to amend the rule so folders are
-  production-page only.
+- **Q5. The dashboard-parity rule.** Loosened: "It's okay if they look different. We will 100% focus
+  on making sure that the computer view works... Phone is a nice add-on if it works." Recorded as
+  a superseding rule (§17, item 1). Folders stay on the production page.
 
 ## 16. Every file each phase touches
 
@@ -612,7 +609,7 @@ runs these phases awake stands.
 | `src/model/prefs.ts` | one per-device preference, the rail width (a `spx-gfx-*` key; `model/never-rename-persisted-deployed-identifiers-storage`) |
 | `src/components/home/CueRundown.tsx` | one-line rows: kind icon, name plus summary, end mark, length (only when the rundown has a server cue), slot; follows the on-air row |
 | `src/components/home/ServerCueEditor.tsx`, the graphic editor block in `ProductionPage.tsx` (2963-~3185) | the graphic's layer moves under **Advanced** (a `<details>`; the wizard's `details:not([open])` trap in `AGENTS.md` applies to its CSS) |
-| `src/components/HostedControlPage.tsx` | the same row and handle changes, because the dashboard must render identically on both (§17) |
+| `src/components/HostedControlPage.tsx` | nothing required. It shares the `.pd-cue` styles, so the one-line row reaches it; the frozen-surface spec proves it still lists and takes its cues at phone and desktop width, and any row change that hurts it is scoped to the production page (§17, item 1) |
 | `e2e/playout-fixed-panes.spec.ts` | still only the control area scrolls, at every size, with the rail narrow and wide |
 | `e2e/playout-rail-width.spec.ts` (new) | drag, keyboard, reset, the limits, surviving a reload; a twelve-field graphic at 1366 with the rail at its widest overlaps nothing |
 | `docs/PLAYOUT_DASHBOARD.md` | §2 and §4: the rail width and the one-line row |
@@ -669,14 +666,13 @@ runs these phases awake stands.
 | `cli/src/playout/server.ts` | `/act` accepts a batch; the sequence runner's state, per slot, in memory (§6.6) |
 | `cli/src/playout/adapters/casparcg.ts` | `BEGIN … COMMIT` when `VERSION` is 2.4 or later; the sequence runner reading `INFO` and queuing the next `LOADBG … AUTO` |
 | `cli/src/playout/amcp.ts` | `amcpSend` (81) opens one connection per command today; a batch sends `BEGIN`, its lines and `COMMIT` on one connection and reads each reply |
-| `src/control/hostedControl.ts` | if the owner chooses Q5's recommendation: `buildOutputPayload` (289-344) publishes `folders` and each cue's `folderId`, additively, `OutputPayload.v` staying 1 |
-| `src/components/HostedControlPage.tsx` | the same, display only: folder headers and indentation in its rundown (1217-1260) |
+| `src/control/hostedControl.ts`, `src/components/HostedControlPage.tsx` | **not changed**: folders are not published (Q5). `buildOutputPayload` (289-344) copies named fields, so the hosted page keeps listing every cue flat, in order; a spec proves it |
 | `src/export/showExport.ts` (274-278), `src/packs/graphicsPack.ts` (420-448), `api/_lib/me/packageShape.ts` | **not changed**: they copy named fields, so folders do not travel in an export or a pack in these phases. A spec proves a production with folders still exports and packs with every graphic cue in order. |
 | `e2e/playout-folders.spec.ts` (new) | create, rename, drag in and out, collapse, keyboard, delete keeps the cues, a split folder in an old record, the three modes against the timed fake, Loop the folder, All together as one batch |
 | `e2e/production-pack.spec.ts`, `e2e/production-persistence.spec.ts` | a production with folders round-trips a reload and a pack |
 | `cli/test/playout.test.mjs` | the batch, the sequence runner against `_fakeCasparServer.mjs`: each switch queues the next, Out ends it, a new Take ends it |
 | `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | a Bridge release (§17) |
-| `docs/BRIDGE.md`, `docs/PLAYOUT_DASHBOARD.md`, `docs/CLOUD_PLAYOUT.md` §2 (if folders are published) | the new behaviour |
+| `docs/BRIDGE.md`, `docs/PLAYOUT_DASHBOARD.md` | the new behaviour |
 
 ### Not touched by any phase
 
@@ -690,17 +686,19 @@ command log); `src/control/combine.ts` (combined controls resolve cues by id, no
 Found while mapping the files; each needs a decision before the phase it names, and none is
 settled by this plan alone.
 
-1. **`components/render-playout-dashboard-identically-hosted-page`** (an invariant): the playout
-   dashboard renders identically on the hosted `?control=` page and the production page, and "a
-   control added to either belongs on BOTH in the same commit". The owner's Q2 (freeze the phone
-   surfaces) was answered without this rule on the table.
-   - **Phase 1** (row, width) is honoured as the rule says: both pages, which share the `.pd-`
-     classes anyway. The phone breakpoint does not change, so nothing new reaches a phone.
-   - **Phases 2 and 3** (clock, clip settings) need the Bridge, which the hosted page can never
-     reach (§3). The rule is amended in phase 2, through `npm run learn` as the root rules
-     require, to say so: controls that need the operator's own Bridge live only where the Bridge is.
-   - **Phase 4** (folders) is a rundown feature for graphics too, so the rule asks for it on both.
-     Question Q5.
+1. **The dashboard-parity invariant, retired 2026-09-27.** It said the hosted `?control=` page and
+   the production page render identically, and that "a control added to either belongs on BOTH in
+   the same commit". The owner loosened it (Q5): the desktop production page is what must work,
+   and the phone is a nice add-on if it works. It is superseded by
+   `components/build-playout-dashboard-desktop-production-page`: the production page leads, the
+   hosted page is a best-effort companion that may look different or lack controls, a control
+   that needs the Bridge lives only on the production page, and **no change may break what the
+   hosted page already does**. So:
+   - **Phase 1** changes the shared `.pd-` row styles, which the hosted page also wears. Where that
+     helps it, it stays; where it hurts the phone, the change is scoped to the production page.
+     The resize handle is production page only.
+   - **Phases 2, 3 and 4** add nothing to the hosted page. Folders are not published.
+   - Every phase keeps the frozen-surface spec green (§8).
 2. **`backlog/production-page-phases.md`**: the page split is already planned, with the rule that
    `liveCue` and `selectedCueId` never move and that the owner runs the phases awake. Phase 0 runs
    its phases 1 and 2 as written and adds the server-playout module, which moves `livePlayout`
