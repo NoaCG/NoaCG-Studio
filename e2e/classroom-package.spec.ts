@@ -37,7 +37,9 @@ function watchErrors(page: Page): string[] {
 }
 
 async function selectCue(page: Page, label: string): Promise<void> {
-  await page.getByTestId('select-cue').filter({ hasText: label }).first().click();
+  // By the row's NAME: a one-line row also shows its cue's first words, which can name another
+  // graphic ("Quiz Night" on a lower third).
+  await page.getByTestId('select-cue').filter({ has: page.locator('strong', { hasText: label }) }).first().click();
 }
 
 /** The PROGRAM monitor holds one frame per layer, titled with its graphic's name. */

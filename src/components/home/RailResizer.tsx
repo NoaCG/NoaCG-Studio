@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { loadPrefs, savePrefs } from '../../model/prefs';
 
 /**
@@ -111,6 +111,9 @@ export default function RailResizer({
 }) {
   /** Where the drag began: the pointer's x and the width it started from. */
   const drag = useRef<{ x: number; width: number; last: number } | null>(null);
+  // A handle that goes away mid-drag (a workspace tab opened, the page left) must not leave the
+  // whole app wearing the resize cursor with text selection off.
+  useEffect(() => () => document.body.classList.remove('pd-resizing'), []);
 
   return (
     <div

@@ -65,7 +65,8 @@ test('the rundown lifecycle persists: rename, duplicate, reorder, values - close
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(cueRows(page)).toHaveCount(2);
-  await cueRows(page).filter({ hasText: 'Anna Andersson' }).getByTestId('select-cue').click();
+  // By the row's NAME: the copy still carries Anna's values, and a one-line row shows them.
+  await cueRows(page).filter({ has: page.locator('strong', { hasText: 'Anna Andersson' }) }).getByTestId('select-cue').click();
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Anna Andersson');
   await expect(page.getByTestId('cue-note')).toHaveValue('after the intro');
 });
