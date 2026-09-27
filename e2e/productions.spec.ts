@@ -302,6 +302,108 @@ test('the production page fits one 1080p screen, and the preview takes only the 
   expect(fit.frameHeight).toBeLessThanOrEqual(fit.viewportHeight * 0.36);
 });
 
+test('the header shows a two-word production name in full on a school laptop, and never loses ■ All out', async ({
+  page,
+}) => {
+  // Classroom walk, 2026-09-25: at 1366x768 the header read "Quiz ...", and with every student
+  // running their own production that does not tell the teacher which show is open. Measured
+  // before the fix on this exact name: 49 of its 67px at 1366, 0px at 1280. The lower-priority
+  // controls give way first (playout-dashboard.css, the laptop tiers), never the name and never
+  // the panic control.
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  const id = await openProductionWithCurrent(page, 'Quiz Night');
+
+  const check = async (state: string) => {
+    for (const [width, height] of [
+      [1366, 768],
+      [1280, 720],
+    ]) {
+      await page.setViewportSize({ width, height });
+      const m = await page.evaluate(() => {
+        const name = document.querySelector('.pd-header .pd-name') as HTMLElement;
+        const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+        return {
+          shown: name.clientWidth,
+          needed: name.scrollWidth,
+          text: name.textContent,
+          allOutRight: box('[data-testid="verb-out-all"]').right,
+          takeRight: box('[data-testid="verb-take"]').right,
+          outRight: box('[data-testid="verb-out"]').right,
+        };
+      });
+      const at = `${state} at ${width}x${height}`;
+      expect(m.text, at).toBe('Quiz Night');
+      expect(m.shown, `${at}: the name is cut`).toBeGreaterThan(0);
+      expect(m.needed, `${at}: the name is cut`).toBeLessThanOrEqual(m.shown);
+      for (const [what, right] of [
+        ['All out', m.allOutRight],
+        ['Take', m.takeRight],
+        ['Out', m.outRight],
+      ] as const) {
+        expect(right, `${at}: ${what} is past the right edge`).toBeLessThanOrEqual(width);
+      }
+    }
+    // What gave way still works: Export keeps its icon and its name.
+    await expect(page.getByRole('button', { name: 'Export…' })).toBeVisible();
+  };
+
+  await check('unpublished');
+
+  // Published, with the output URL taken, is the WIDER header: ● SHOW, Output links and the
+  // renderer's status. Before the fix it was 1360px wide at 1280, with ■ All out off the screen.
+  await page.evaluate(async (showId: string) => {
+    const { setShowHostedSlug, noteShowOutputOpened } = await import('/src/model/shows.ts');
+    setShowHostedSlug(showId, 'demo-slug');
+    noteShowOutputOpened(showId);
+  }, id);
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('renderer-status')).toBeVisible();
+  await check('published');
+});
+
+test('a production taller than the window never scrolls the page out from under its background', async ({ page }) => {
+  // Filed 2026-09-16 at 1600x1000 with a many-field graphic and the Controls panel open: the
+  // dashboard was 1268px inside a 1000px #root, the WINDOW scrolled, and the page's own ground
+  // showed above the header as a black band. The fixed shell (docs/PLAYOUT_DASHBOARD.md §2) makes
+  // the control area the one scroller, so the document has nothing to scroll; this pins the
+  // symptom itself, whatever layout produces it next.
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await bootstrapGraphic(page, { name: 'Arena Quiz' });
+  await openProductionWithCurrent(page, 'Quiz Night');
+  await page.getByTestId('controls-panel').locator('summary').first().click();
+  const area = page.getByTestId('control-area');
+  // The precondition: the page's content really is taller than the window.
+  expect(await area.evaluate((el) => el.getBoundingClientRect().top + el.scrollHeight)).toBeGreaterThan(1000);
+
+  // Every way an operator moves down the page: the wheel over the control area (whichever box
+  // it ends up scrolling), and the window itself, which is what a keyboard, a find-in-page or a
+  // focused field scrolls.
+  await area.hover();
+  await page.mouse.wheel(0, 2000);
+  await page.evaluate(() => window.scrollTo(0, 10_000));
+
+  const cover = await page.evaluate(() => {
+    const root = document.getElementById('root')!;
+    const r = root.getBoundingClientRect();
+    const dash = document.querySelector('.playout-dashboard')!.getBoundingClientRect();
+    return {
+      docHeight: document.scrollingElement!.scrollHeight,
+      scrollY: window.scrollY,
+      rootTop: r.top,
+      rootBottom: r.bottom,
+      dashBottom: dash.bottom,
+      rootBg: getComputedStyle(root).backgroundColor,
+    };
+  });
+  // The app's own background is painted by #root: it must span everything the document can
+  // scroll to, and the dashboard must end inside it.
+  expect(cover.rootBg).not.toBe('rgba(0, 0, 0, 0)');
+  expect(cover.rootTop + cover.scrollY).toBeLessThanOrEqual(0);
+  expect(cover.rootBottom + cover.scrollY).toBeGreaterThanOrEqual(cover.docHeight);
+  expect(cover.dashBottom).toBeLessThanOrEqual(cover.rootBottom);
+});
+
 test('the /output page answers honestly offline and builds a stage from a payload', async ({ page }) => {
   // The offline build: the renderer names its state instead of spinning (never on real air —
   // this state only exists for a wrong URL or a build with no backend).
