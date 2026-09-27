@@ -21,7 +21,7 @@
 // two adapters at the bottom translate a behaviour draft to pickers and a fill back into it.
 
 import { BEHAVIOUR_WORDS, rolesOf, rowKeys, rowsOf, type RecipeRole } from '../../../templates/behaviours/recipe';
-import { matchRole, withRowKey } from '../../../templates/behaviours/naming';
+import { matchRole, readableName, withRowKey } from '../../../templates/behaviours/naming';
 import type { SvgBehaviourDraft, SvgRecipeRow } from './draft';
 
 /** One box on the mapping step: which role it binds, for which row, from which inventory. */
@@ -340,11 +340,12 @@ export function proposeFill(
   const wordsFirst = (role: RecipeRole, layers: FillLayer[]) =>
     role.numeric ? layers : [...layers.filter((l) => !l.numeric), ...layers.filter((l) => l.numeric)];
 
-  // 1. Names.
+  // 1. Names, each read in the spelling the drop reads it in (naming.ts), worked out once a layer.
+  const names = new Map([...text, ...drawn].map((l) => [l.id, readableName(l.label, roles)]));
   for (const picker of [...empty]) {
     const role = roleOf(picker.role)!;
     const layer = spare(poolOf(role)).find((l) => {
-      const m = matchRole(role, l.label);
+      const m = matchRole(role, names.get(l.id)!);
       return m !== null && m.key === (picker.key ?? '') && fits(role, l);
     });
     if (layer) take(picker, layer, `named “${layer.label}”`);
@@ -512,12 +513,13 @@ export function rowKeysOf(b: SvgBehaviourDraft, text: FillLayer[]): string[] {
   const ids = rowLayerIds(b);
   const recipeId = recipeIdOf(b);
   const rows = rowsOf(recipeId);
-  const rowRole = rows && rolesOf(recipeId).find((r) => r.id === rows.role);
+  const roles = rolesOf(recipeId);
+  const rowRole = rows && roles.find((r) => r.id === rows.role);
   const positional = rowKeys(rows?.keys ?? 'numbers', ids.length);
   if (!rowRole) return positional;
   const named = ids.map((id, i) => {
     const label = text.find((l) => l.id === id)?.label;
-    return (label && matchRole(rowRole, label)?.key) || positional[i];
+    return (label && matchRole(rowRole, readableName(label, roles))?.key) || positional[i];
   });
   return new Set(named).size === named.length ? named : positional;
 }

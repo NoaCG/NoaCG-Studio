@@ -14,6 +14,13 @@
 // role's words are matched against. `Options` has no key token, so it is not row S; `Score 10`
 // is row 10, never row 1. A role without rows is matched against the whole name.
 //
+// THE LOOSE READING (docs/SVG_IMPORT_PLAN.md §2a). A name that reads as NOTHING in a recipe as
+// written gets one more try, spelled out: `AnswerA`, `Score1`, `FullTime`, `Answer.A` and
+// `Answer (A)` are read as `Answer A`, `Score 1`, `Full Time`. Only a name the strict reading
+// leaves unread is retried, and only against the same recipe's roles, so a name that reads today
+// reads exactly as it did (scripts/layer-name-readings.test.mjs pins every one). A glued name the
+// case cannot split (`ANSWERA`, `answera`) stays unread: it is a word as far as anyone can tell.
+//
 // THE SCORER. Every recipe is scored against the same inventory. A recipe is ELIGIBLE when it has
 // DISTINCTIVE evidence - a role words.json marks as evidence of THIS behaviour rather than any
 // (a bar for the vote, a numeric figure for the score, a drawn moment for the quiz or the
@@ -53,8 +60,10 @@ export function withRowKey(label: string, key: string): string {
     .join(' ');
 }
 
-/** Does this name play this role? Returns the row key for a per-row role, `''` for a role
- *  without rows, null for no match. `weak` marks a match that binds the role but is not evidence. */
+/** Does this name play this role, as written? Returns the row key for a per-row role, `''` for a
+ *  role without rows, null for no match. `weak` marks a match that binds the role but is not
+ *  evidence. This is the reading the docs teach and scripts/behaviour-docs.mjs checks the taught
+ *  names against; a caller reading somebody's file passes the name through `readableName` first. */
 export function matchRole(role: RecipeRole, label: string): { key: string; weak: boolean } | null {
   const { key, head } = rowTokenOf(label);
   if (role.perRow) {
@@ -66,6 +75,29 @@ export function matchRole(role: RecipeRole, label: string): { key: string; weak:
   if (role.words.test(label)) return { key: '', weak: false };
   if (role.weak?.test(label)) return { key: '', weak: true };
   return null;
+}
+
+/** The same name spelled out: joined words split where the case or a figure changes (`AnswerA`,
+ *  `Score1`, `Team1Score`, `FullTime`), and dots, hashes, brackets and long dashes read as spaces
+ *  (`Answer.A`, `Score #1`, `Answer (A)`). A figure followed by a lower-case letter is left alone,
+ *  so `1st` never becomes row 1. Colons and slashes are kept: they belong to the prefixes. */
+function spelledOut(label: string): string {
+  return label
+    .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
+    .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .replace(/(\p{L})(\d)/gu, '$1 $2')
+    .replace(/(\d)(\p{Lu})/gu, '$1 $2')
+    .replace(/[\s_.#()[\]\u2013\u2014-]+/g, ' ')
+    .trim();
+}
+
+/** The spelling a recipe reads a name in: as written when ANY of its roles reads it so, else
+ *  spelled out. The check is on the NAME, over every role whatever its pool, on purpose: a name
+ *  then has one reading however it was drawn, and the cost is a name like `VotesBar1` (the total,
+ *  as written) never being retried as a bar - a missed read, never a wrong one. Worked out once
+ *  per layer by a caller that reads many roles (`proposeBinding`, `proposeFill`). */
+export function readableName(label: string, roles: readonly RecipeRole[]): string {
+  return roles.some((r) => !r.countdown && matchRole(r, label)) ? label : spelledOut(label);
 }
 
 /** A binding proposed from names alone: candidate ids by role, per row where the role repeats. */
@@ -118,13 +150,14 @@ function sortKeys(keys: Iterable<string>): string[] {
 export function proposeBinding(svg: SvgImportResult, recipe: BehaviourRecipe): ProposedBinding | null {
   const layers = inventory(svg);
   const roleOf = new Map<string, { role: RecipeRole; key: string; weak: boolean }>();
+  const names = new Map(layers.map((l) => [l.id, readableName(l.label, recipe.roles)]));
   for (const role of recipe.roles) {
     if (role.countdown) continue; // bound by the row's kind, never by a name
     for (const layer of layers) {
       const pool = role.kind === 'field' ? 'text' : role.pool ?? 'drawn';
       if (layer.pool !== pool) continue;
       if (role.numeric && !layer.numeric) continue;
-      const match = matchRole(role, layer.label);
+      const match = matchRole(role, names.get(layer.id)!);
       if (match) roleOf.set(layer.id, { role, key: match.key, weak: match.weak });
     }
   }
