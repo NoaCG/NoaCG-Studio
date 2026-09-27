@@ -1,3 +1,7 @@
+// covers: src/templates/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

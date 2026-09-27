@@ -1,289 +1,270 @@
-// SPRINT FOCUS - the student-critical spec set (added 2026-08, docs/GOALS_ARCHIVE.md "Student release").
+// THE SPEC HEADERS - what each e2e spec covers, read from the spec itself.
 //
-// While the student-release sprint runs, a change that would escalate to the FULL suite runs
-// this set instead (scripts/e2e-affected.mjs, gated on E2E_SPRINT_FOCUS=1), and the nightly
-// verdict classifies failures as focus (fix now) vs paused (drift, swept at sprint end)
-// through scripts/nightly-triage.mjs. Both consumers import THIS list so they cannot drift.
+// Each offline spec (`e2e/*.spec.ts`) says in its LEADING comment block which source paths it
+// covers, the way scripts/gates.mjs reads `// gate:` and `// guards:` off a gate's header:
 //
-// The list is the sprint's definition of "the product": wizard, home/library, productions,
-// control/playout, export, auth/sync, landing, layout. Retire the whole file - together with
-// the E2E_SPRINT_FOCUS env in ci.yml and the focus branch in e2e-affected.mjs - when the
-// sprint ends.
-export const FOCUS = [
-  // Graphics are account-bound: a second account on the same browser must never see the first
-  // one's library. Auth and sync are sprint surfaces, and this is their isolation pin.
-  'account-library.spec.ts',
-  'agent-access.spec.ts',
-  // THE AGENT ROAD'S OWN PANEL. Every other control-panel spec drives a graphic the studio built
-  // from a type; this one drives the proof case an agent AUTHORED against the shipped skill
-  // (e2e/fixtures/agent-made/README.md), so it is the only thing that would catch the derived
-  // panel quietly stopping at the machines the studio writes. It also carries the transport
-  // layout pin, which needs a viewport the suite's default is below.
-  'agent-made-graphics.spec.ts',
-  'analytics.spec.ts',
-  'auth.spec.ts',
-  // CasparCG Connect is a NICE-TO-HAVE over routes that already air (docs/BRIDGE.md),
-  // so it earns a place here for one reason only: it puts a control on the production page and a
-  // section in Settings, both of which ARE student-critical surfaces. What it protects during the
-  // sprint is that those two surfaces keep working, not that CasparCG does.
-  'bridge-connect.spec.ts',
-  'playout-cues.spec.ts',
-  // THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so
-  // a CSS change reaches no MAP row and runs this list instead; without the baselines here, a
-  // change that moves the dashboard would pass its own gate and turn main red. Four screenshots.
-  'playout-baseline.spec.ts',
-  // THE BRIDGE AS AN OGRAF CLIENT (docs/BRIDGE.md §3a): the real Bridge against a fake OGraf
-  // server, every verb's exact Server API request. It shares the playout protocol file with the
-  // two specs above, and nothing under cli/ selects a spec by itself, so without this row the
-  // browser-to-Bridge-to-server proof would never run in the merge gate. Three tests, no catalog.
-  'bridge-ograf.spec.ts',
-  'control.spec.ts',
-  'cross-tab.spec.ts',
-  'data-api.spec.ts',
-  'design-rules-product.spec.ts',
-  // The public docs home: the guides students and operators follow to get on air at all.
-  'docs.spec.ts',
-  'exports.spec.ts',
-  'feedback.spec.ts',
-  'flows.spec.ts',
-  'format.spec.ts',
-  'hosted-control.spec.ts',
-  // SVG IMPORT is how a student's own artwork gets in, so the road belongs to the sprint's
-  // definition of the product. This is the EXPORTER CORPUS spec - six files shaped the way
-  // Illustrator, Figma, Inkscape and Affinity really export, each pinning an answer the importer
-  // used to get wrong (e2e/fixtures/svg-corpus/README.md). Its 2180-line sibling
-  // `import-svg.spec.ts` deliberately stays out: it covers the same road far more slowly, and
-  // merge latency is the bottleneck the sprint is protecting.
-  'import-svg-corpus.spec.ts',
-  // A DATA-LOSS shape on the road every student walks in the class: import your own
-  // artwork, build a production on it, then import your next version under the same name.
-  // Until 2026-09-08 the second import minted a twin library record and quietly detached
-  // the graphic the production's cues were built on. Four import doors, one rule - and the
-  // rule's two halves live in `model/library.ts` and `model/shows.ts`, which are CORE in
-  // e2e-affected.mjs, so a change to either escalates to the full suite and reaches it that
-  // way. The `src/components/wizard/` MAP row is what runs it for a change to the doors.
-  'import-name-collision.spec.ts',
-  'landing.spec.ts',
-  'layout.spec.ts',
-  'library.spec.ts',
-  'library-bulk.spec.ts',
-  // WHICH GRAPHICS BELONG TO WHICH PRODUCTION. It reads the pool's `graphicId` back-link, so
-  // the change most likely to break it is one to model/shows.ts - which escalates to this list
-  // rather than to the mapping, and would otherwise run the two library specs beside it and
-  // never the one written to protect this surface.
-  'library-productions.spec.ts',
-  'local-relay.spec.ts',
-  'motion-presets.spec.ts',
-  'network-resilience.spec.ts',
-  // NOBODY REACHES THE OLD CODE EDITOR (owner, 2026-09-24). A student on a shared lab computer
-  // must never land in AppShell, whatever an earlier visitor ticked, and src/App.tsx - where the
-  // boot routing that decides it lives - is CORE, which resolves to THIS list. Without the row a
-  // later branch could route a hash back to the old editor and still merge green.
-  'no-old-editor.spec.ts',
-  'offline.spec.ts',
-  'ograf-conformance.spec.ts',
-  'ograf-starters.spec.ts',
-  // WHAT PAINTS OVER WHAT. It belongs to the sprint because of the failure that produced it:
-  // a corner notice outranked every dialog in the app, so an undecided first-time visitor
-  // could not press the wizard's own "Add it and go there" - the student's last click before
-  // a production. The offline suite is also the only tier that can hold this: the banner that
-  // caused it exists only on a configured deployment, which is why it went unseen until the
-  // scheduled configured run failed on it.
-  'overlay-layers.spec.ts',
-  'package.spec.ts',
-  'playout-drills.spec.ts',
-  // THE MONITORS AND THE RUNDOWN NEVER MOVE. The dashboard's scroll model lives almost entirely
-  // in src/styles/playout-dashboard.css, and src/styles is CORE, which resolves to THIS list -
-  // so without the row a stylesheet change could bring the page scroll back and still merge.
-  'playout-fixed-panes.spec.ts',
-  // THE RUNDOWN'S WIDTH AND ITS ONE-LINE ROWS (docs/CLIP_PLAYBACK_PLAN.md phase 1). The row layout
-  // and the handle live in the CORE stylesheet and the width in model/prefs.ts, also CORE.
-  'playout-rail-width.spec.ts',
-  'production-audience.spec.ts',
-  'production-chat-intake.spec.ts',
-  'production-controls.spec.ts',
-  'production-data.spec.ts',
-  'production-gate.spec.ts',
-  'production-pack.spec.ts',
-  'production-persistence.spec.ts',
-  'productions.spec.ts',
-  'quiz-pilot.spec.ts',
-  // A two-player quiz: the board, the score and the three looks to pick between, driven through
-  // the pick / reveal arc and the wizard's "Answers shown" choice.
-  'quiz-show.spec.ts',
-  // Every catalog quiz and the imported docs quiz: a key corrected on air lights with Reveal,
-  // the two answer models stay what they are, and a clock-free event takes the fast road.
-  'quiz-live-consistency.spec.ts',
-  'project.spec.ts',
-  'project-format.spec.ts',
-  // The BOOT SURFACE - that opening the studio never paints a screen it was not going to stay
-  // on. It belongs here because of what it guards rather than what it costs: src/App.tsx is a
-  // CORE file, and a CORE escalation resolves to THIS list under E2E_SPRINT_FOCUS, so without
-  // the row a later branch could move the boot decision back into an effect and still get a
-  // green merge gate - the regression would surface only in the nightly full run. The spec is
-  // four fast page loads and drives no catalog.
-  'route-transition-flash.spec.ts',
-  'shows.spec.ts',
-  'snap-recovery.spec.ts',
-  'storage-full.spec.ts',
-  // The 2026-09-12 rehearsal, walked on artwork a STUDENT drew rather than on the shipped
-  // samples: an Illustrator export with the dialog untouched and layer names that honour none
-  // of our conventions, both graphics into one production, and the dashboard reloaded mid-run.
-  // It is the whole sprint goal in one file, so it belongs in the sprint's own set.
-  'student-rehearsal.spec.ts',
-  'sync.spec.ts',
-  'template-deep-link.spec.ts',
-  // THE BRAND CHOOSER (docs/BRAND_PLAN.md). It belongs to the sprint set for the same reason the
-  // logo spec does: it is the road a student's own channel look takes into a graphic, and its
-  // model half (model/brand.ts, model/packets.ts) is CORE - so a change there escalates to THIS
-  // list, and without the row the one spec written to protect the surface would never run.
-  'wizard-brand.spec.ts',
-  'wizard-entry-fit.spec.ts',
-  'wizard-filters.spec.ts',
-  'wizard-finish.spec.ts',
-  'wizard-kit.spec.ts',
-  'wizard-logo.spec.ts',
-  'wizard-preview.spec.ts',
-  'wizard-shell.spec.ts',
-];
+//   // covers: src/components/home/CueRundown.tsx, src/styles/playout-dashboard.css
+//   // covers: src/components/wizard/**, !src/components/wizard/import/**
+//   // covers: none - <why no source change should select this spec>
+//   // focus
+//
+// - `covers:` takes comma-separated globs (`*`, `**`, `?`, `[...]`, `{a,b}`; dotfiles match).
+//   Several lines are a union. A glob written `!glob` EXCLUDES, and only from the globs on its
+//   own line - so one line can say "the wizard except its import folder" without narrowing what
+//   another line of the same spec covers.
+// - `covers: none - <why>` is the honest answer for a spec no source change should select (it
+//   still runs when it is edited itself, on a full escalation and at night). The reason is required.
+// - `focus` puts the spec in the sprint FOCUS set: while E2E_SPRINT_FOCUS=1, a change that would
+//   escalate to the FULL suite runs that set instead (scripts/e2e-affected.mjs), and the nightly
+//   verdict classifies failures as focus vs paused (scripts/nightly-triage.mjs).
+//
+// Configured specs (`e2e/configured/*.spec.ts`) may carry `covers:` too: those globs are the
+// CONFIGURED TRIGGERS - files whose behaviour the offline suite structurally cannot cover, so the
+// affected run prints "also run npm run test:e2e:live:queued". It REPORTS and never runs.
+//
+// Adding or re-mapping a spec therefore edits that spec and nothing shared. What stays central is
+// only what no one spec owns: the full-suite escalation (CORE), the ignore list, the catalog gate's
+// triggers and the known source that selects no spec (CENTRAL), all in scripts/e2e-affected.mjs,
+// and the configured suite's own files (below). `auditSpecHeaders` is the build's refusal
+// (scripts/e2e-affected.test.mjs runs it on the repo).
+//
+// WHEN THE STUDENT-RELEASE SPRINT ENDS: drop the `// focus` lines from the spec headers, the FOCUS
+// export here, the E2E_SPRINT_FOCUS env in ci.yml, the focus branch in e2e-affected.mjs and the
+// focus/paused split in scripts/nightly-triage.mjs.
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// THE CONFIGURED SUITE'S TRIGGERS - files whose behaviour the OFFLINE suite structurally
-// cannot cover, because the thing they change only exists when a backend is configured.
-//
-// `scripts/e2e-affected.mjs` ignores `e2e/configured/**` outright: those specs need a real
-// Supabase project and a throwaway account, so they can neither run in CI nor be selected by
-// the per-merge gate. That is the right call and it leaves a hole - a change to hosted Pro's
-// door or its metering maps to specs that pin its ABSENCE, all of which stay green while the
-// live path breaks. Naming the triggers turns that hole into a printed line: the affected run
-// says "also run npm run test:e2e:live:queued" and it is then a decision rather than an
-// oversight. It REPORTS and never runs - running it would start a dev server on the real .env,
-// which is exactly what the offline pin exists to prevent.
-export const CONFIGURED_TRIGGERS = [
-  // The hosted-Pro door and its wire contract: absent offline, so only the configured suite
-  // can walk it (e2e/configured/pro-wizard.spec.ts).
-  /^src\/ai\/pro\/session\.ts$/,
-  /^src\/ai\/pro\/types\.ts$/,
-  /^api\/_lib\/pro\//,
-  /^api\/ai\/\[\.\.\.path\]\.ts$/,
-  /^scripts\/aiDevPlugin\.mjs$/,
-  /^scripts\/apiRouteTable\.mjs$/,
-  // The step that decides which tiers are offered at all, and the one feature-detection point
-  // the second half of that decision reads.
-  /^src\/components\/wizard\/steps\/AiStep\.tsx$/,
-  /^src\/backend\/config\.ts$/,
-  // The practice library is a FIXTURE SET as well as documentation, and one of its files is
-  // loaded by the configured suite too: e2e/configured/imported-quiz-output.spec.ts drops
-  // `quiz-board.svg` and follows it all the way to a hosted production's output. The offline
-  // plan names the three specs that load the folder (scripts/e2e-affected.mjs), and this row is
-  // the other half - CONFIGURED_TRIGGERS is asked BEFORE the ignore list, which is what makes it
-  // reachable at all for a path under `docs/`.
-  /^docs\/svg-samples\/quiz-board\.svg$/,
-  // THE BEHAVIOUR COMPILER AND ITS RECIPES (docs/SVG_BEHAVIOUR_PLAN.md), for the sharper half
-  // of the same story. These decide how a bound layer is STAMPED - the `data-noacg-role`
-  // token and the look class pair every drawn moment is addressed by - and
-  // e2e/configured/imported-quiz-output.spec.ts is the only thing that reads those stamps on
-  // the far side of the hosted wire. The offline walk reads them too and is migrated with the
-  // compiler, so the two drift SILENTLY: on 2026-09-05 the quiz became a declaration, the id
-  // namespace it used to stamp (`q-sel-2`, `q-lock`) went with it, e2e/import-svg-behaviour.spec.ts
-  // was rewritten in the same commit, and this spec was not. It landed red, and nothing on the
-  // way in had said the configured suite was even reachable from that change.
-  /^src\/templates\/behaviours\//,
-  // WHICH ROAD A COMMAND TAKES, for the same reason. `matchClockWire.ts` decides whether a
-  // graphic's events may ride the broadcast (`eventsNeedServerTime`), and a clock's origin is
-  // read off the row's own server time - so the thing this file gets wrong can only be seen
-  // against a backend (e2e/configured/quiz-output.spec.ts, scorebug-output.spec.ts and
-  // playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
-  // the road.
-  /^src\/control\/matchClockWire\.ts$/,
-  /^src\/templates\/importedDesign\/(behaviour|behaviourRuntime)\.ts$/,
-  /^src\/blocks\/behaviourData\.ts$/,
-  // AGENT ACCESS (docs/AGENT_SAVE.md): the consent page with a session, the loopback handoff,
-  // redeem, a save 201, the deep link after sync and revoke -> 401 only exist against a real
-  // backend (e2e/configured/agent-access.spec.ts). The offline spec can only pin their absence.
-  /^src\/backend\/agentAccess\.ts$/,
-  /^src\/components\/auth\/AgentAccessConsent\.tsx$/,
-  // WHOSE LIBRARY IS ON SCREEN: which account's library the page shows, and that a sign-in's
-  // first sync never pulls or pushes another account's work, is walked against a real backend
-  // by e2e/configured/shared-lab-computer.spec.ts. Offline, account-library.spec.ts has no cloud.
-  // The binding, the key names, the sync guard (`canSync`) and the adopt step that decide it.
-  /^src\/(backend\/(accountLibrary|syncController)|model\/(accountScope|durableStore))\.ts$/,
-  // PASSWORD RECOVERY (docs/backlog/password-reset-link-lands-nowhere.md): the same shape as
-  // agent access. Offline the route is INERT by design and e2e/auth.spec.ts can only pin that
-  // it stays inert; the expired-link card, the resend door and the pre-route fragment key are
-  // only reachable against a real project (e2e/configured/anonymous.spec.ts). A change here
-  // that broke the live path would leave every offline spec green.
-  /^src\/backend\/recoveryLink\.ts$/,
-  /^src\/components\/auth\/PasswordRecoveryPage\.tsx$/,
-  // The TOPBAR's account cluster, for the same reason and with a sharper edge: signed in it
-  // carries three controls the offline build never renders, so the only thing that measures
-  // whether the bar still holds ONE ROW at 1366/1280/1100 is e2e/configured/signed-in-ux.spec.ts.
-  // A width regression here lands with every offline spec green - the ladder in app-shell.css
-  // records that the bar was already 24px over at 1366 before its 1400px step was added.
-  /^src\/components\/auth\/AuthStatus\.tsx$/,
-  /^src\/styles\/(auth|app-shell|mobile)\.css$/,
-  // WHAT AN ACCOUNT IS FOR, and where a save goes in each state. The dialog and the inline gate
-  // only render with a backend, so the sentence they carry (accountCopy.ts) and its two shapes
-  // are pinned in e2e/configured/anonymous.spec.ts alone; the save dialog's signed-in and
-  // signed-out lines are pinned in signed-in-ux.spec.ts and anonymous.spec.ts, and offline
-  // auth.spec.ts can only pin that it says neither.
-  /^src\/components\/auth\/(accountCopy\.ts|SignInDialog\.tsx|SignInPrompt\.tsx)$/,
-  /^src\/components\/save\/SaveDialogs\.tsx$/,
-  /^api\/_lib\/me\/(agentKeys|graphics|graphicShape)\.ts$/,
-  /^api\/_lib\/(principal|agentAccessStore)\.ts$/,
-  /^api\/me\/\[\.\.\.path\]\.ts$/,
-  /^scripts\/meDevPlugin\.mjs$/,
-  // THE HOSTED PLAYOUT WIRE (docs/CLOUD_PLAYOUT.md §3). The follow discipline, the boot
-  // baseline and the renderer that uses both only ever run against a real durable log: offline
-  // there is no production to resolve, no log to follow and no channel to join, so the
-  // mechanism is ABSENT rather than merely untested. Their live coverage is the four /output
-  // walks plus output-realtime-floor and relay-cold-boot, all in the configured suite - so a
-  // change here that the offline plan reports as "covered" is covered by nothing.
-  /^src\/control\/(hostedControl|hostedReceiver|outputRecovery)\.ts$/,
-  /^src\/output\//,
-  // THE TWO ROADS A PUBLISHED VERB TRAVELS (src/control/commandRoads.ts). A broadcast and the
-  // durable insert carry the same command, and the whole question is whether a following surface
-  // applies it once. Offline there is only ever one road, so the reconciliation is ABSENT rather
-  // than untested - and its failure is invisible on screen, which is why the only thing that can
-  // judge it is e2e/configured/playout-both-roads.spec.ts counting entrances on a real backend.
-  // The hosted control page is named for the same reason it has never been named before: it is a
-  // signed-out capability URL with no offline existence at all, and it is now a SENDER on both
-  // roads as well as a follower of them.
-  /^src\/control\/commandRoads\.ts$/,
-  /^src\/components\/HostedControlPage\.tsx$/,
-  /^src\/components\/home\/PayloadStage\.tsx$/,
-  // THE SCHEMA ITSELF. An RPC's body and an RLS policy are invisible to every offline spec by
-  // construction - offline there is no database to refuse anything - and they are where this
-  // product's security boundary actually lives. Migration 0056 moved the command frame into
-  // `control_send_many` and the fast road behind a policy, and the only thing that can judge
-  // either is a walk against a real project (e2e/configured/output-url-cannot-push.spec.ts,
-  // playout-both-roads.spec.ts). A migration that changed a grant and reported "covered" from the
-  // offline plan would be covered by nothing.
-  /^supabase\/migrations\//,
-  // THE PRODUCTION DATA API and the panel that hands out its key (docs/DATA_API.md). Offline
-  // there is no publish, no data_key row and no key to reveal, so the only honest proof that the
-  // revealed string AUTHENTICATES is the configured walk
-  // (e2e/configured/production-data-key.spec.ts). The offline data-api spec pins the refusal
-  // shapes, and production-data.spec.ts pins the button's absence; both are different claims.
-  /^src\/control\/productionDataApi\.ts$/,
-  /^src\/components\/home\/ProductionDataPanel\.tsx$/,
-  /^api\/data\//,
-  /^scripts\/dataDevPlugin\.mjs$/,
-  // TEAMS (docs/TEAMS_PLAN.md §7). The whole feature is absent offline BY DESIGN, so the offline
-  // plan can only ever pin its absence (e2e/auth.spec.ts). Creating a team, reading its join
-  // code, joining by link and leaving all need a real session against migrations 0053/0054, and
-  // e2e/configured/teams.spec.ts is the only thing that walks them - it is also what proves the
-  // test ids the offline pin asserts to be ABSENT are ids something really renders.
-  /^src\/backend\/teams\.ts$/,
-  /^src\/components\/teams\//,
-  /^e2e\/_teams\.ts$/,
-  // The door's two MOUNT POINTS, named individually the way this list names
-  // ProductionDataPanel: the configured walk drives the card's overflow item and the production
-  // header's button, and offline neither exists to be driven. The `join-team` ROUTE needs no row
-  // - `src/app/router.ts` is CORE for the offline plan, and the offline pin fails outright if
-  // that route stops resolving, so it is covered where it is cheap to cover.
-  /^src\/components\/home\/ProductionPage\.tsx$/,
-  /^src\/components\/home\/sections\/ProductionsSection\.tsx$/,
-  // The suite's own files.
-  /^e2e\/configured\//,
-  /^playwright\.live\.config\.ts$/,
-];
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+
+/** Shortest reason a `covers: none - <why>` may give; "nightly" alone is not a reason. */
+const NONE_REASON_MIN = 12;
+
+/** Why a glob is not one this reader accepts, or null when it is. */
+function globProblem(glob) {
+  if (!glob) return 'an empty glob';
+  if (/\s/.test(glob)) return `"${glob}" contains whitespace`;
+  if (glob.includes('\\')) return `"${glob}" uses a backslash - write repo paths with forward slashes`;
+  if (glob.startsWith('/') || glob.startsWith('./')) return `"${glob}" is not repo-relative`;
+  if (glob.split('/').includes('..')) return `"${glob}" climbs out of the repo`;
+  let depth = 0;
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '{') depth++;
+    else if (c === '}' && --depth < 0) return `"${glob}" closes a brace it never opened`;
+    else if (c === '[') {
+      const end = glob.indexOf(']', i);
+      if (end < 0) return `"${glob}" opens a [class] it never closes`;
+      if (glob.slice(i, end).includes('/')) return `"${glob}" puts a slash in a [class] - a class stays inside one path segment`;
+    }
+  }
+  return depth === 0 ? null : `"${glob}" leaves a brace open`;
+}
+
+/**
+ * One glob as a RegExp over repo-relative paths: `*` and `?` stay inside a path segment, `**`
+ * crosses them (`a/**` is everything under `a/`, `a/**\/b` includes `a/b`), `{a,b}` nests and may
+ * hold slashes, `[...]` is a character class. Dotfiles are ordinary names here.
+ */
+export function globToRegExp(glob) {
+  const problem = globProblem(glob);
+  if (problem) throw new Error(`not a glob: ${problem}`);
+  let re = '';
+  let depth = 0;
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === '*' && glob[i + 1] === '*') {
+      i++;
+      if (glob[i + 1] === '/') {
+        i++;
+        re += '(?:.*/)?';
+      } else re += '.*';
+    } else if (c === '*') re += '[^/]*';
+    else if (c === '?') re += '[^/]';
+    else if (c === '{') {
+      depth++;
+      re += '(?:';
+    } else if (c === '}' && depth > 0) {
+      depth--;
+      re += ')';
+    } else if (c === ',' && depth > 0) re += '|';
+    else if (c === '[') {
+      const end = glob.indexOf(']', i);
+      // `[!x]` is the glob spelling of a negated class, `[^x]` the regex one.
+      re += `[${glob.slice(i + 1, end).replace(/^!/, '^')}]`;
+      i = end;
+    } else re += c.replace(/[.+^$()|\\\]]/g, '\\$&');
+  }
+  return new RegExp(`^${re}$`);
+}
+
+/** A `covers:` value split on its top-level commas - a comma inside `{a,b}` belongs to the glob. */
+function splitList(value) {
+  const out = [''];
+  let depth = 0;
+  for (const c of value) {
+    if (c === '{') depth++;
+    else if (c === '}') depth--;
+    if (c === ',' && depth === 0) out.push('');
+    else out[out.length - 1] += c;
+  }
+  return out.map((g) => g.trim());
+}
+
+/** One `covers:` line as a matcher: any include, and none of the same line's excludes. */
+function lineMatcher(globs) {
+  const include = globs.filter((g) => !g.startsWith('!')).map(globToRegExp);
+  const exclude = globs.filter((g) => g.startsWith('!')).map((g) => globToRegExp(g.slice(1)));
+  return { globs, test: (file) => include.some((r) => r.test(file)) && !exclude.some((r) => r.test(file)) };
+}
+
+/**
+ * The declarations in a spec's header: `{ covers: [{ globs, test }], none, focus }`.
+ *
+ * Read from the LEADING comment block only - `//` lines and blank lines before the first line of
+ * code - so prose further down that happens to say "covers" is never a declaration. Inside that
+ * block a line that STARTS like a declaration and does not parse is refused, naming the file and
+ * the line: a misspelt `// cover:` quietly covering nothing is the failure this exists to stop.
+ */
+export function parseSpecHeader(text, file = '<spec>') {
+  const out = { covers: [], none: null, focus: false };
+  const lines = String(text ?? '').split(/\r?\n/);
+  const refuse = (n, why) => {
+    throw new Error(`${file}:${n + 1}: malformed spec header - ${why}`);
+  };
+  let afterCovers = false;
+  for (let n = 0; n < lines.length; n++) {
+    const line = lines[n].trim();
+    if (line === '') continue;
+    if (!line.startsWith('//')) break;
+    const body = line.replace(/^\/\/+\s*/, '');
+    // A covers list wrapped onto the next line would read as prose and quietly cover less, so a
+    // line of bare paths right after a covers line is refused: each line says `covers:` itself.
+    if (afterCovers && /^!?[^\s,]*[/*][^\s,]*(?:\s*,\s*!?[^\s,]+)*,?$/.test(body)) {
+      refuse(n, `a wrapped covers list - start the continuation with its own \`// covers:\`, got \`${line}\``);
+    }
+    afterCovers = false;
+    // What LOOKS like a declaration: the keyword with a colon, a covers keyword followed by a
+    // path, the focus keyword alone or with a colon, or `focus - <reason>`. Prose that merely
+    // starts with the word ("covers the viewport", "focus set, like...") is left alone.
+    const word = /^(?:(covers?|covered)\s*(?::|\S*[/*])|(focus)\s*(?::|$)|(focus)\s+-\s)/i.exec(body);
+    if (!word || (word[3] && !/^focus/.test(body))) continue;
+    if (word[3]) refuse(n, `write the focus flag as \`// focus\` alone, got \`${line}\``);
+    if (word[2]) {
+      if (body !== 'focus') refuse(n, `write the focus flag as \`// focus\` alone, got \`${line}\``);
+      out.focus = true;
+      continue;
+    }
+    const decl = /^covers:\s*(.*)$/.exec(body);
+    if (!decl) refuse(n, `write \`// covers: <glob>, <glob>\`, got \`${line}\``);
+    const value = decl[1].trim();
+    const none = /^none(?:\s+-\s+(.*))?$/.exec(value);
+    if (none) {
+      if (!none[1] || none[1].trim().length < NONE_REASON_MIN) refuse(n, '`covers: none` needs a reason a reader can act on: `// covers: none - <why>`');
+      out.none = none[1].trim();
+      continue;
+    }
+    const globs = splitList(value);
+    for (const glob of globs) {
+      const problem = globProblem(glob.replace(/^!/, ''));
+      if (problem) refuse(n, problem);
+    }
+    if (!globs.some((g) => !g.startsWith('!'))) refuse(n, 'a covers line of exclusions alone covers nothing');
+    out.covers.push(lineMatcher(globs));
+    afterCovers = true;
+  }
+  if (out.none !== null && out.covers.length > 0) {
+    throw new Error(`${file}: malformed spec header - it declares \`covers: none\` and covers globs as well; keep one`);
+  }
+  return out;
+}
+
+/**
+ * Every spec header in one directory, as `Map<spec name, header>`. A header that does not parse
+ * THROWS, and that is deliberate: a planner that skipped it would plan without that spec's
+ * coverage, which is the silent under-run this whole file is arranged to prevent.
+ */
+export function readSpecHeaders(dir = 'e2e', root = ROOT) {
+  const headers = new Map();
+  for (const name of readdirSync(join(root, dir)).filter((f) => f.endsWith('.spec.ts')).sort()) {
+    headers.set(name, parseSpecHeader(readFileSync(join(root, dir, name), 'utf8'), `${dir}/${name}`));
+  }
+  return headers;
+}
+
+/** The offline specs' headers - what the planner selects from. */
+export const SPEC_HEADERS = readSpecHeaders('e2e');
+
+/** Which specs a changed file selects, from the headers: `[{ spec, test }]`, one per spec. */
+export function coverageOf(headers) {
+  return [...headers]
+    .filter(([, h]) => h.covers.length > 0)
+    .map(([spec, h]) => ({ spec, test: (file) => h.covers.some((line) => line.test(file)) }));
+}
+
+export const COVERAGE = coverageOf(SPEC_HEADERS);
+
+/** SPRINT FOCUS - the student-critical spec set (docs/GOALS_ARCHIVE.md "Student release"). */
+export const FOCUS = [...SPEC_HEADERS].filter(([, h]) => h.focus).map(([spec]) => spec);
+
+// THE CONFIGURED SUITE'S OWN FILES. These trigger the configured-suite line for every change, not
+// for one spec's sake, so they are the one part of the trigger list no configured spec's header
+// holds. `e2e/configured/**` is ignored by the offline plan outright (those specs need a real
+// Supabase project and a throwaway account), which is exactly why a change there must still say
+// the configured suite is owed.
+export const CONFIGURED_SUITE_FILES = [/^e2e\/configured\//, /^playwright\.live\.config\.ts$/];
+
+/**
+ * THE CONFIGURED SUITE'S TRIGGERS: its own files, plus every `covers:` line a configured spec
+ * declares. The offline plan pins the ABSENCE of a hosted-only surface, so a change to one of
+ * these reports "covered" while the live path breaks; naming the trigger turns that hole into a
+ * printed line, and it is then a decision rather than an oversight.
+ */
+export const CONFIGURED_HEADERS = readSpecHeaders('e2e/configured');
+export const CONFIGURED_TRIGGERS = [...CONFIGURED_SUITE_FILES, ...[...CONFIGURED_HEADERS.values()].flatMap((h) => h.covers)];
+
+/**
+ * THE BUILD'S REFUSALS, as a pure function so each one can be driven with a fixture.
+ *
+ * 1. Every offline spec declares `covers:` - globs, or `none - <why>` - or a central rule names it.
+ *    A spec in neither place ran only at night, and the branch that added it landed on a gate that
+ *    never ran it (the finding three handoffs repeated before this refusal existed).
+ * 2. Every glob, and every `!` exclusion, matches at least one file in the repository. A rule
+ *    naming a path that moved matches nothing and is silent - the file then falls through to
+ *    whatever else covers it, which is the run-FEWER failure with no alarm attached.
+ * 3. Every spec a central rule names exists on disk.
+ *
+ * @param {{ headers: Map<string, object>, configured?: Map<string, object>, files: string[],
+ *           specsOnDisk: string[], central?: [RegExp, string[]][] }} input
+ * @returns {string[]} one line per problem; empty when the headers are sound
+ */
+export function auditSpecHeaders({ headers, configured = new Map(), files, specsOnDisk, central = [] }) {
+  const problems = [];
+  const onDisk = new Set(specsOnDisk);
+  const centralSpecs = new Set(central.flatMap(([, specs]) => specs));
+  for (const [spec, h] of headers) {
+    if (h.covers.length === 0 && h.none === null && !centralSpecs.has(spec)) {
+      problems.push(`e2e/${spec} declares no \`// covers:\` - name the source it covers (\`// covers: src/area/**\`), or say \`// covers: none - <why>\``);
+    }
+  }
+  const lists = [...[...headers].map(([s, h]) => [`e2e/${s}`, h]), ...[...configured].map(([s, h]) => [`e2e/configured/${s}`, h])];
+  for (const [where, h] of lists) {
+    for (const line of h.covers) {
+      const includes = line.globs.filter((g) => !g.startsWith('!')).map(globToRegExp);
+      for (const glob of line.globs) {
+        const re = globToRegExp(glob.replace(/^!/, ''));
+        if (!files.some((f) => re.test(f))) problems.push(`${where} covers \`${glob}\`, which matches no file in the repository`);
+        // An exclusion that takes nothing away from its own line is a misread waiting to happen.
+        else if (glob.startsWith('!') && !files.some((f) => re.test(f) && includes.some((r) => r.test(f)))) {
+          problems.push(`${where} excludes \`${glob}\`, which removes no file its own covers line includes`);
+        }
+      }
+    }
+  }
+  for (const [rule, specs] of central) {
+    for (const spec of specs) {
+      if (!onDisk.has(spec)) problems.push(`the central rule ${rule} names ${spec}, which is not a spec in e2e/`);
+    }
+  }
+  return problems;
+}

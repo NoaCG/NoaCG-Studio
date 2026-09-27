@@ -1,3 +1,6 @@
+// covers: none - no source path selected this spec when coverage moved into spec headers
+// (2026-09-27); it runs when edited, on a full escalation and at night
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic } from './_create';
 

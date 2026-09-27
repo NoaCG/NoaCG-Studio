@@ -1,3 +1,9 @@
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// It reaches the Import-graphic folder through the import entry and asserts on testids only it
+// renders: PlaceFieldsStep's font field.
+// covers: src/components/wizard/import/**
+
 import { test, expect } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 

@@ -73,25 +73,44 @@ green run - measured, eight of them), and NIGHTLY.
 
 **During the student-release sprint, `npm run test:e2e:focus` is THE student-critical suite
 command** (`--focus`, or `E2E_SPRINT_FOCUS=1`, which is what ci.yml sets): a core-file change runs
-the focus set (`scripts/e2e-lists.mjs`, 34 specs) instead of all 103 files; the nightly still runs
+the focus set (every spec whose header says `// focus`) instead of the whole suite; the nightly still runs
 everything and its verdict separates focus failures from paused-area drift. Prefer the npm script -
 the env-var spelling cannot be baked into a package script, because Windows runs those through
 `cmd.exe` where a `VAR=1 cmd` prefix is a syntax error, which is why every local run escalated to
 103 files while CI quietly ran 34.
 
-When you add a spec, add its mapping in the same commit, or it only ever runs at night. Bootstrap
-non-wizard specs with `createProject` (`e2e/_create.ts`).
+**The mapping lives in each spec's own header**, the way `scripts/gates.mjs` reads `// gate:` and
+`// guards:` off a gate. A spec's leading comment block says which source it covers:
+
+```ts
+// covers: src/components/home/CueRundown.tsx, src/styles/playout-dashboard.css
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+```
+
+Globs take `*`, `**`, `?`, `[...]` and `{a,b}`, and dotfiles match. Several `covers:` lines are a
+union; a `!glob` excludes, and only from the globs on its own line. A spec no source change should
+select says so: `// covers: none - <why>`. `// focus` puts the spec in the sprint focus set. A
+configured spec's `covers:` lines are the configured-suite triggers below. So adding or re-mapping a
+spec edits that spec and nothing shared; `scripts/e2e-lists.mjs` reads the headers and
+`docs/TEST_SELECTION.md` lists what stays central and why.
+
+The build refuses, in `scripts/e2e-affected.test.mjs`: a spec with no `covers:` line (it would run
+only at night), a glob or exclusion that matches no file (a stale path is silent otherwise), a
+central rule naming a spec that does not exist, and a malformed header, named by file and line.
+Bootstrap non-wizard specs with `createProject` (`e2e/_create.ts`).
 
 **A spec that enumerates the catalog must be selected by a `src/templates/` change**, and
 `scripts/e2e-affected.test.mjs` pins that rule rather than trusting the list: it scans `e2e/` for
-specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if the mapping misses
-one. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
+specs importing `CATALOG`, `TYPES`, `KITS` or `PACKS` and fails the build if one of them does not
+cover `src/templates/**`. Six were missing until 2026-08-08, which is how `competition-pack.spec.ts` sat stale.
 
 **Some behaviour has no offline spec at all, and the planner now SAYS so.** `e2e/configured/`
 runs against a real backend and a throwaway account (`npm run test:e2e:live:queued`), so it can
 neither run in CI nor be selected by the affected gate - which left hosted Pro's door, its
 metering and its allowance read-back covered only by offline specs that pin their ABSENCE.
-`CONFIGURED_TRIGGERS` (`scripts/e2e-lists.mjs`) names the files whose coverage lives there; a
+`CONFIGURED_TRIGGERS` (`scripts/e2e-lists.mjs`, built from the configured specs' `covers:` lines)
+names the files whose coverage lives there; a
 change touching one prints a line telling you to run that suite. It is reported, never run:
 starting it would bring up a dev server on the real `.env`, which is what the offline pin exists
 to prevent.
@@ -366,7 +385,7 @@ change is planned honestly - but the override is gone, so ask for it again. The 
 shard means the classifier found nothing in the branch's whole diff against `main` that reaches
 the offline E2E surface - that is the plan being believed, and it is a verdict. What still repays
 the look is disagreeing with it: if the shards were skipped and you know you touched something
-that can reach the app, the map in `scripts/e2e-affected.mjs` is missing a rule, and that is a bug
+that can reach the app, a spec header is missing a `covers:` line, and that is a bug
 to fix rather than a run to re-buy. To override the plan itself, ask for the whole suite as its
 own command: `gh workflow run ci.yml --ref <branch>`. A dispatched run has no `event.before`,
 finds no diff base, and escalates to the FULL suite by design. (A pull request reaches the same
@@ -951,7 +970,7 @@ exists and should be rotated or removed at the source if it is not wanted.
 `scripts/e2e-affected.mjs` is safe because it fails TOWARD running more specs. An entry that runs
 FEWER is therefore the one mistake nothing reports. It has happened twice:
 
-- `src/assets/` maps to a fixed six-spec list written for asset HELPERS (`eraseRegion`,
+- `src/assets/` mapped to a fixed six-spec list written for asset HELPERS (`eraseRegion`,
   `assetInfo`, `lottieSupport`). But `src/assets/gsap.min.js` is the ANIMATION ENGINE, inlined
   into every preview and every export - so upgrading GSAP selected those six specs and never
   `anim-engine.spec.ts`, the one pinning editor-against-runtime motion parity. Fixed in `b250f2c`
@@ -962,7 +981,9 @@ FEWER is therefore the one mistake nothing reports. It has happened twice:
   migration to `enableAdvancedMode`. They waited 60 s on a button that no longer rendered.
 
 Mutation-test a mapping change in both directions before committing it - a guard that can be added
-wrong and still look fine is exactly the kind that is.
+wrong and still look fine is exactly the kind that is. A refactor of the planner itself (not a
+re-mapping) proves it changed nothing with `node scripts/e2e-plan-compare.mjs --sweep`: the old
+planner at a ref against this tree, over recent landings, open branches and every path git knows.
 
 ## The runtime bench measures paint, not layout
 

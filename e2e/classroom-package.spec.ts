@@ -1,3 +1,21 @@
+// The credits roll on imported artwork (docs/END_CREDITS.md): its recipe, the roll engine, the
+// parser it shares with the catalog rolls, the fields list that turns the sample into one box,
+// and its fixture. The classroom walk rides along: its credits are the list the default pace
+// was set by (about thirty seconds), rolled from Illustrator's own output.
+// covers: src/templates/{behaviours/credits.ts,importedDesign/{creditsRoll,artworkFields}.ts,endCredits/shared.ts}
+// covers: e2e/fixtures/credits-roll.svg
+//
+// The classroom package is the other road through real Illustrator output, and the only file
+// anywhere carrying Illustrator 30's look-wrapped lines (svgImport.ts `unwrapLookWrappers`).
+// covers: src/assets/svgImport.ts
+//
+// THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
+// e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore in scripts/e2e-affected.mjs
+// carves it out too. Every file in it maps here, README.md too: the spec pastes the README's
+// English credit list, so the `.md` ignore in scripts/e2e-affected.mjs carves that one file out.
+// downloads.spec.ts rides along because it checks the committed zip still holds these files.
+// covers: docs/tutorials/classroom-package/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

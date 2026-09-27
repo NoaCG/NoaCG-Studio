@@ -1,3 +1,9 @@
+// covers: src/ai/video/**, src/video/**, src/components/video/**, player-host/**
+//
+// The host BUILD is load-bearing for the preview: it inlines the player JS and the bundled
+// video fonts into public/player-host/index.html, which the video specs load.
+// covers: scripts/build-player-host.mjs
+//
 // The Remotion player host (public/player-host/, its own package - built by
 // scripts/build-player-host.mjs) drives untrusted composition modules behind postMessage.
 // These specs pin the protocol: load/loaded, eval + mount error reporting, and the frame

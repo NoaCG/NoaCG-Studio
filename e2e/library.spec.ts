@@ -1,3 +1,12 @@
+// covers: src/templates/**, src/components/{home,save}/**, src/components/NewGraphicButton.tsx
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+//
+// The wizard HEADER is a door out of the wizard, and this spec walks Home -> wizard -> Home
+// through it: splitting the logo and Home into two controls changed both walks while every spec
+// named after the wizard stayed green.
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { showCode } from './_code';

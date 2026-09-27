@@ -1,3 +1,14 @@
+// covers: src/export/**, src/control/**
+// covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/NewGraphicButton.tsx, src/components/{ExportWindow,ExportSurface}.tsx
+// focus
+//
+// The quiz runtime is also the exported control panel's recovery subject and the audience
+// pack's answer boards.
+// covers: src/templates/quiz/**
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openExportWindow, skipOldEditor } from './_create';
 import JSZip from 'jszip';

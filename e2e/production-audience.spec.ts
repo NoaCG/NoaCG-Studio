@@ -1,3 +1,21 @@
+// covers: src/components/home/ProductionAudienceWorkspace.tsx
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// focus
+//
+// The readable audience name is minted by the publish path but READ on the audience surfaces, and
+// rules union rather than shadowing - so this adds to the `src/control/` covers line.
+// covers: src/control/joinName.ts
+//
+// The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
+// the local provider, so the offline suite really does cover it - which is why the seam was
+// built before the backend.
+// covers: src/audience/**
+//
+// The public join page is its own MPA entry, so it needs its own mapping: a change to
+// join.html or src/join/ touches no module the app imports, and would otherwise map to
+// nothing at all.
+// covers: {join.html,src/join/**}
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';

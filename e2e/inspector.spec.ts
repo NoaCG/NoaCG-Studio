@@ -1,3 +1,6 @@
+// covers: src/blocks/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, skipOldEditor } from './_create';
 import { elementPoint } from './_canvas';

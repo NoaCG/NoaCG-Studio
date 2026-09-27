@@ -1,3 +1,26 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// The practice library is a FIXTURE SET as well as documentation, and one of its files is
+// loaded by the configured suite too: e2e/configured/imported-quiz-output.spec.ts drops
+// `quiz-board.svg` and follows it all the way to a hosted production's output. The offline
+// plan selects the three specs that load the folder (their own covers headers), and this line is
+// the other half - CONFIGURED_TRIGGERS is asked BEFORE the ignore list, which is what makes it
+// reachable at all for a path under `docs/`.
+// covers: docs/svg-samples/quiz-board.svg
+//
+// THE BEHAVIOUR COMPILER AND ITS RECIPES (docs/SVG_BEHAVIOUR_PLAN.md), for the sharper half
+// of the same story. These decide how a bound layer is STAMPED - the `data-noacg-role`
+// token and the look class pair every drawn moment is addressed by - and
+// e2e/configured/imported-quiz-output.spec.ts is the only thing that reads those stamps on
+// the far side of the hosted wire. The offline walk reads them too and is migrated with the
+// compiler, so the two drift SILENTLY: on 2026-09-05 the quiz became a declaration, the id
+// namespace it used to stamp (`q-sel-2`, `q-lock`) went with it, e2e/import-svg-behaviour.spec.ts
+// was rewritten in the same commit, and this spec was not. It landed red, and nothing on the
+// way in had said the configured suite was even reachable from that change.
+// covers: src/templates/behaviours/**, src/templates/importedDesign/{behaviour,behaviourRuntime}.ts
+// covers: src/blocks/behaviourData.ts
+
 import { test, expect } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';

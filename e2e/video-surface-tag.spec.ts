@@ -1,3 +1,6 @@
+// covers: none - no source path selected this spec when coverage moved into spec headers
+// (2026-09-27); it runs when edited, on a full escalation and at night
+//
 // The surface tag: what makes the ai.video entitlement reach the video harness at all.
 //
 // POST /api/ai/generate is a general model proxy - an SPX harness call, a brainstorm call and

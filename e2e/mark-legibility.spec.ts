@@ -1,3 +1,7 @@
+// The mark PROBE is read by the Lite legibility gate and by Pro's mark-field trigger, and the
+// trigger rests entirely on `inkSpread` separating one ink from several.
+// covers: src/assets/assetInfo.ts
+//
 // A brand mark nobody can see must not ship silently.
 //
 // The defect, from the owner's blind value-gate ballot (2026-08-14,

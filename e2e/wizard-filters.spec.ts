@@ -1,3 +1,7 @@
+// covers: src/templates/**, src/backend/myEntitlement.ts, src/components/useMyEntitlement.ts
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+
 import { test, expect, type Page } from '@playwright/test';
 import { enableAdvancedMode, finishIntoEditor, startNewProject } from './_create';
 import { chooseCategory, chooseType, pickDesign, resultTotal, revealDesign, shownCount } from './_browse';

@@ -1,3 +1,12 @@
+// covers: src/components/home/ProductionAudienceWorkspace.tsx
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// focus
+//
+// The AUDIENCE plane (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 5). Its whole workflow runs on
+// the local provider, so the offline suite really does cover it - which is why the seam was
+// built before the backend.
+// covers: src/audience/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';

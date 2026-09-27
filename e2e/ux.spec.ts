@@ -1,3 +1,13 @@
+// covers: src/blocks/**, src/templates/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The motion picker mounts in the wizard's Travel box. On 2026-08-23 it grew a direction-arrow
+// row sharing that box's class, this spec broke on the ambiguous locator, and it had not been
+// planned: the picker matches no directory rule, so the surfaces that mount it name it.
+// covers: src/components/MotionPresetPicker.tsx
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

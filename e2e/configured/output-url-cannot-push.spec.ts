@@ -1,3 +1,15 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// THE SCHEMA ITSELF. An RPC's body and an RLS policy are invisible to every offline spec by
+// construction - offline there is no database to refuse anything - and they are where this
+// product's security boundary actually lives. Migration 0056 moved the command frame into
+// `control_send_many` and the fast road behind a policy, and the only thing that can judge
+// either is a walk against a real project (e2e/configured/output-url-cannot-push.spec.ts,
+// playout-both-roads.spec.ts). A migration that changed a grant and reported "covered" from the
+// offline plan would be covered by nothing.
+// covers: supabase/migrations/**
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import {

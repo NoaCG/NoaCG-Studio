@@ -1,3 +1,9 @@
+// covers: src/control/**, src/templates/**
+// focus
+//
+// The browser-output renderer (docs/CLOUD_PLAYOUT.md): its own MPA entry + the stage module.
+// covers: src/output/**
+
 import { test, expect } from '@playwright/test';
 
 // SNAP is the recovery half nothing else exercises (docs/CLOUD_PLAYOUT.md §3,

@@ -1,3 +1,10 @@
+// covers: src/templates/{scoreboards/**,types/{sportsBugs.ts,scoreboard.ts}}
+//
+// This spec iterates the CATALOG, so a design added anywhere under src/templates/ must select it -
+// a new esports design touches no scoreboards path. Measured on 2026-08-08, when ten designs landed
+// with every branch gate green.
+// covers: src/templates/**
+
 import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 

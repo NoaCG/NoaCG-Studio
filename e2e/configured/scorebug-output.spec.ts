@@ -1,3 +1,14 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// WHICH ROAD A COMMAND TAKES, for the same reason. `matchClockWire.ts` decides whether a
+// graphic's events may ride the broadcast (`eventsNeedServerTime`), and a clock's origin is
+// read off the row's own server time - so the thing this file gets wrong can only be seen
+// against a backend (e2e/configured/quiz-output.spec.ts, scorebug-output.spec.ts and
+// playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
+// the road.
+// covers: src/control/matchClockWire.ts
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';

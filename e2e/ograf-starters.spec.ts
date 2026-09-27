@@ -1,3 +1,10 @@
+// focus
+//
+// The free OGraf starters page (/ograf, docs/OGRAF.md): its own files, and it rides on the
+// OGraf target (the download IS that target's build) and on src/templates (a catalog RENAME
+// must fail the card-resolution test, not strand a dead card on a public page).
+// covers: {ograf.html,src/ograf/**,src/export/targets/ograf*,src/templates/**}
+
 import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFile } from 'node:fs/promises';

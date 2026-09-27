@@ -1,3 +1,21 @@
+// covers: src/ai/**, src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+// covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}, src/components/feedback/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
+// one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
+// covers: src/components/AiProviderSettings.tsx
+//
+// The feedback flow. Its OFFLINE contract is that no surface renders at all, which is the half this
+// suite can check; the interactive half is e2e/configured/feedback.spec.ts and needs a configured
+// backend. The button itself lives under src/components/feedback/, so the second covers line names
+// it along with the contract and the client.
+// covers: src/feedback/**
+//
+// The entitlement contract is what the render and AI paths gate on, so a change there can
+// move behaviour in either - and in the admin surface that explains it.
+// covers: src/entitlements/**
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode } from './_create';

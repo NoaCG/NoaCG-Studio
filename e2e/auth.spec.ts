@@ -1,3 +1,21 @@
+// covers: src/components/{AnalyticsConsentBanner,SettingsDialog}.tsx, src/components/auth/**
+// covers: src/backend/**
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+//
+// TEAMS (docs/TEAMS_PLAN.md §7). The offline claim - a build with no backend grows ZERO team
+// UI - is pinned in auth.spec.ts, and the door hangs off the two PRODUCTION surfaces, whose
+// own rule (`src/components/(home|save)/` above) does not name that spec. Rules union, so this
+// adds it rather than replacing what those files already select. `src/backend/teams.ts` needs
+// no row: the `src/backend/` rule already reaches auth.spec.ts.
+// ProductionLinks carries the Start production button, whose offline title auth.spec.ts pins
+// (the page's own auth posture: disabled, a plain reason, no sign-in dialog).
+// covers: {src/components/teams/**,src/components/home/{ProductionPage,ProductionLinks,sections/ProductionsSection}.tsx}
+//
+// The save dialog also names WHERE a graphic goes when a backend is configured, and the
+// offline pin that it names no account at all is in auth.spec.ts.
+// covers: src/components/save/SaveDialogs.tsx
+
 import { test, expect } from '@playwright/test';
 import { FAKE_JOIN_ROUTE, TEAM } from './_teams';
 import { bootstrapGraphic, openWorkingGraphicInEditor } from './_create';

@@ -1,3 +1,7 @@
+// covers: src/blocks/**, src/templates/**
+// covers: src/components/timeline/{StepTimeline.tsx,LegacyTimeline.tsx,Inspector.tsx,PlayoutSimulator.tsx}
+// covers: src/components/timeline/MachineGraph.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';
 import { createProject } from './_create';

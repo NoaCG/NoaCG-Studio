@@ -1,3 +1,6 @@
+// covers: src/components/editorFoundation/**, src/app/router.ts, src/App.tsx, src/templates/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+
 import { test, expect } from '@playwright/test';
 
 test('phone-preview keeps a useful canvas width', async ({ page }) => {

@@ -1,3 +1,9 @@
+// covers: src/templates/**
+//
+// These files are assertions over catalog output, not shared application foundations.
+// Refreshing them should verify the catalog baseline without expanding to every UI flow.
+// covers: e2e/catalog{,-render}-baseline.json
+
 import { test, expect } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

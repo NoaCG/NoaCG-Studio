@@ -1,3 +1,8 @@
+// covers: src/control/**
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/playoutKeys.ts, src/components/{home,save}/**
+// focus
+
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, skipOldEditor } from './_create';
 import { importProofCase, PROOF_TOTALS, PROOF_VOTES } from './_proofCase';

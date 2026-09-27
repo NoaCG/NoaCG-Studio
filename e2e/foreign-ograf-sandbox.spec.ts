@@ -1,3 +1,9 @@
+// A FOREIGN OGraf package on the stage (docs/OGRAF_ECOSYSTEM.md §3): the isolated player, the
+// host document it loads, the ControlMessage -> OGraf call mapping, and the benign and hostile
+// fixtures. The one spec that proves the boundary, and output-first-paint because the stage
+// module is what the published graphics load through as well.
+// covers: {src/output/{stage.ts,foreignOgraf.ts},src/control/ograf{Host.ts,Contract.ts},e2e/fixtures/foreign-ograf/**}
+
 import { test, expect, type Page } from '@playwright/test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';

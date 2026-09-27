@@ -1,3 +1,5 @@
+// covers: src/render/**, api/**
+//
 // Pins the render schedule + limits math (src/render/schedule.ts, limits.ts) — the pure
 // contract both the Export UI and the render worker compute from. Logic-only: modules are
 // imported in-page (Vite serves source), no UI is driven.

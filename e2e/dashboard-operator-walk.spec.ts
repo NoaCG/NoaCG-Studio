@@ -1,3 +1,6 @@
+// covers: none - no source path selected this spec when coverage moved into spec headers
+// (2026-09-27); it runs when edited, on a full escalation and at night
+
 import { test, expect, type Page } from '@playwright/test';
 import { dropSvg, intoExistingProduction, intoProduction, QUIZ_SVG, SCOREBUG_SVG } from './_svg-import';
 import { settleDurableWrites } from './_durable';

@@ -1,3 +1,34 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// WHICH ROAD A COMMAND TAKES, for the same reason. `matchClockWire.ts` decides whether a
+// graphic's events may ride the broadcast (`eventsNeedServerTime`), and a clock's origin is
+// read off the row's own server time - so the thing this file gets wrong can only be seen
+// against a backend (e2e/configured/quiz-output.spec.ts, scorebug-output.spec.ts and
+// playout-both-roads.spec.ts). The offline spec that covers it can judge the RULE and not
+// the road.
+// covers: src/control/matchClockWire.ts
+//
+// THE TWO ROADS A PUBLISHED VERB TRAVELS (src/control/commandRoads.ts). A broadcast and the
+// durable insert carry the same command, and the whole question is whether a following surface
+// applies it once. Offline there is only ever one road, so the reconciliation is ABSENT rather
+// than untested - and its failure is invisible on screen, which is why the only thing that can
+// judge it is e2e/configured/playout-both-roads.spec.ts counting entrances on a real backend.
+// The hosted control page is named for the same reason it has never been named before: it is a
+// signed-out capability URL with no offline existence at all, and it is now a SENDER on both
+// roads as well as a follower of them.
+// covers: src/control/commandRoads.ts, src/components/HostedControlPage.tsx
+// covers: src/components/home/PayloadStage.tsx
+//
+// THE SCHEMA ITSELF. An RPC's body and an RLS policy are invisible to every offline spec by
+// construction - offline there is no database to refuse anything - and they are where this
+// product's security boundary actually lives. Migration 0056 moved the command frame into
+// `control_send_many` and the fast road behind a policy, and the only thing that can judge
+// either is a walk against a real project (e2e/configured/output-url-cannot-push.spec.ts,
+// playout-both-roads.spec.ts). A migration that changed a grant and reported "covered" from the
+// offline plan would be covered by nothing.
+// covers: supabase/migrations/**
+
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';

@@ -1,3 +1,14 @@
+// covers: src/ai/**
+//
+// The pilot brief bank is read by the anchor re-verification (the decay rule) - a bank edit
+// needs that spec and nothing else.
+// covers: benchmarks/creative/**
+//
+// ROUTING and SATISFACTION resolve live against the catalog and the type registry
+// (src/templates/structuralAnchor.ts): a structure the catalog gains or loses moves a route, which
+// is the decay rule this spec enforces.
+// covers: src/templates/**
+//
 // Creative Mode phase A (docs/CREATIVE_MODE_PLAN.md §8, §16): the mode + intent routing
 // contract and the structural-satisfaction check, all free - pure functions and the stub
 // provider through browser imports, no tokens. Every positive assertion has its mutation

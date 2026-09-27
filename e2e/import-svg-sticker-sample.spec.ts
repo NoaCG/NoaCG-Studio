@@ -1,3 +1,10 @@
+// covers: src/{assets/svgImport.ts,templates/importedDesign/**}
+//
+// THE WORKED ILLUSTRATOR EXAMPLE. docs/SVG_AUTHORING.md section 6b is written around this one
+// file, and the spec walks it through the real import wizard - so a change to the sample, or to
+// the importer that reads it, has to re-prove what the guide promises.
+// covers: docs/svg-samples/sticker-lower-third.svg
+
 import { test, expect } from '@playwright/test';
 import { switchToAdvancedMode } from './_create';
 import { fileURLToPath } from 'node:url';

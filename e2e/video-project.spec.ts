@@ -1,3 +1,11 @@
+// covers: src/ai/video/**, src/video/**, src/components/video/**, player-host/**
+// covers: api/{ai/**,_lib/ai*{,/**}}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The host BUILD is load-bearing for the preview: it inlines the player JS and the bundled
+// video fonts into public/player-host/index.html, which the video specs load.
+// covers: scripts/build-player-host.mjs
+//
 // The AI video project flow, end to end on the offline stub provider: create from the
 // wizard, auto-generate, LIVE preview through the sandboxed player host, manual code
 // edits updating the preview, reload restore, save/reopen, and the SPX <-> video shell

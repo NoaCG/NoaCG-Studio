@@ -1,3 +1,15 @@
+// covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
+// covers: src/components/{ExportSurface.tsx,PlayoutCompatibility.tsx}
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// The design rules as a PRODUCT property (docs/DESIGN_RULES_PLAN.md §5 R4): the canonical module,
+// the shared measurement instruments (moved out of the spike so product and bench read one code),
+// and the warn-first product warnings. src/model and src/validation are CORE (full suite), but
+// under the sprint focus that escalation runs the focus set - so the spec is in the focus set
+// (`// focus`) as well, and this line documents the pairing.
+// covers: src/{model/designRules.ts,validation/{designRulesWarnings,readabilityCheck,tickerCheck}.ts}
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { createProject, enableAdvancedMode } from './_create';
 import { settleDurableWrites, awaitDurableReady } from './_durable';

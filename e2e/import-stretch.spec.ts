@@ -1,3 +1,15 @@
+// covers: src/templates/importedDesign/designTypes.ts, src/components/wizard/import/**
+// covers: src/assets/**
+//
+// The Import Graphic flow's Prepare and Text steps are driven from the wizard; mapped from
+// nowhere until 2026-08, these specs ran only at night and auto-placement broke one unseen.
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+//
+// The SVG import family's tests that read only the created template walk Finish's "Edit this
+// graphic" into the new editor (finishIntoNewEditor), so the Finish step and the editor's mount
+// select them too.
+// covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 import { switchToAdvancedMode, finishIntoNewEditor } from './_create';
 import { awaitPreviewRebuild } from './_preview';

@@ -1,3 +1,28 @@
+// covers: src/components/{home,save}/**
+//
+// The only spec whose control block comes from a machine NOBODY here wrote: the derived panel
+// is `controlModel.ts`'s answer to code an agent authored, and a change that narrowed it to the
+// studio's own machines would leave every other control spec green.
+// covers: src/control/**
+//
+// The graphics-pack ROUND TRIP (src/packs/graphicsPack.ts buildPack + the export dialog's
+// download): one spec drives export -> re-import through the real UI, plus the shipped Fight Night
+// pack's install (rundown order included) - so the format owner and both UI ends select it,
+// unioning with the pack-import covers lines.
+// covers: src/{packs/**,components/home/{ProductionExportDialog.tsx,sections/ProductionsSection.tsx}}
+//
+// The AGENT-MADE proof case (e2e/fixtures/agent-made/README.md): one packed production whose
+// two graphics carry machines an agent wrote by hand. Only one spec reads it, and a change to
+// the pack is a change to what that spec asserts.
+// covers: e2e/fixtures/agent-made/**
+//
+// THE AGENT ROAD'S OWN PANEL. Every other control-panel spec drives a graphic the studio built
+// from a type; this one drives the proof case an agent AUTHORED against the shipped skill
+// (e2e/fixtures/agent-made/README.md), so it is the only thing that would catch the derived
+// panel quietly stopping at the machines the studio writes. It also carries the transport
+// layout pin, which needs a viewport the suite's default is below.
+// focus
+
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

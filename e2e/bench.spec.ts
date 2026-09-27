@@ -1,3 +1,5 @@
+// covers: src/blocks/**, src/templates/**, src/assets/**
+
 import { test, expect } from '@playwright/test';
 import { toApp, HELPERS, rules } from './_bench';
 

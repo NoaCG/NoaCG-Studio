@@ -1,3 +1,5 @@
+// covers: src/blocks/**, src/templates/**, src/components/timeline/MachineGraph.tsx
+
 import { enableAdvancedMode } from './_create';
 import { test, expect, type Page } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

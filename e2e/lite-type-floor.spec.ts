@@ -1,3 +1,5 @@
+// covers: src/ai/**
+//
 // A Lite graphic reaches air no smaller than its category's type floor.
 //
 // The gap this closes: `scripts/type-floor.mjs` renders every catalog variant and fails on any

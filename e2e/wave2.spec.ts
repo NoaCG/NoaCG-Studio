@@ -1,3 +1,5 @@
+// covers: src/templates/**
+
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { createProject } from './_create';
 

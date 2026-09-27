@@ -1,3 +1,12 @@
+// A function ADDED, RENAMED or MOVED under api/ai changes what the dev server can reach, and
+// nothing but this spec would notice.
+// covers: api/{ai/**,_lib/ai*{,/**}}
+//
+// The dev server's own route RESOLVER. ai-dev-routes.spec.ts drives the real middleware instead
+// of mocking it, which is the only thing that can prove a route is reachable at all - every
+// other AI spec mocks at the network level, which is why an allowlist hid three surfaces.
+// covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}
+
 import { expect, test } from '@playwright/test';
 
 // THE DEV SERVER SERVES WHAT THE DEPLOYMENT SERVES - proved by driving the real middleware.

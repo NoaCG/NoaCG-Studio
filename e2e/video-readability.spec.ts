@@ -1,3 +1,9 @@
+// covers: src/ai/video/**, src/video/**, src/components/video/**, player-host/**
+//
+// The host BUILD is load-bearing for the preview: it inlines the player JS and the bundled
+// video fonts into public/player-host/index.html, which the video specs load.
+// covers: scripts/build-player-host.mjs
+//
 // Text clipping as a GENERATION gate, not just a bench observation.
 //
 // The failure this pins shipped twice before it was detectable: a hero headline cropped by

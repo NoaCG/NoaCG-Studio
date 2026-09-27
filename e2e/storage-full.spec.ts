@@ -1,3 +1,18 @@
+// covers: src/components/{home,save}/**
+// covers: src/components/wizard/**, !src/components/wizard/import/**
+// focus
+//
+// defaultTemplate.ts left src/model (CORE) for src/templates, so the specs that seed a graphic
+// from it by importing it directly are named here; the templates subset alone would miss
+// storage-full, which builds its own fixture off createDefaultTemplate().
+// covers: src/templates/defaultTemplate.ts
+//
+// WHAT HAPPENS WHEN A WRITE FAILS is its own contract (e2e/storage-full.spec.ts) and it cuts
+// across the storage layer, the two save paths over it, and the surface that announces the
+// failure. It is mapped separately because the failure mode it guards - a door that saves
+// nothing and says nothing - reads as "worked" to every other spec in the suite.
+// covers: src/{model/{library.ts,shows.ts,prefs.ts,storageHealth.ts},store/{saveActions.ts,storageAlert.ts},ai/settings.ts}
+
 import { test, expect, type Page } from '@playwright/test';
 import { armStorageFailure, fillStorage } from './_storage';
 import { pickDesign } from './_browse';

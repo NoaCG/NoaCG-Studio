@@ -1,3 +1,27 @@
+// covers: src/components/HostedControlPage.tsx, src/{model/shows,control/hostedControl}.ts
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
+// covers: src/components/{editorFoundation/EditorFoundation,save/{SaveControls,SaveDialogs}}.tsx
+// focus
+//
+// NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
+// already mapped elsewhere for their own reasons - SettingsDialog to analytics/auth, ProductionPage
+// into the productions set - so those rules are UNION'd with this one rather than replaced. Without
+// this line a change to the link contract would run specs that pin the panels' other contents and
+// never the four diagnosis states, which are the whole point of the feature. The channel table and
+// the per-cue slot helpers live in playoutLink.ts too, and the rundown is what reads them.
+// serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
+// address goes through, and the baselines draw both.
+// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots}.ts
+//
+// ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is named
+// here rather than left to the `src/components/{home,save}/**` covers line: that rule's set does
+// not include this spec, and the ONE button is the whole browser half of the feature.
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer,ProductionLinks}.tsx
+//
+// Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
+// the published payload's playout cues on the hosted page.
+// covers: src/components/home/PlayoutItemPicker.tsx
+
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';

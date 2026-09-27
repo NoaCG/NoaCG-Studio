@@ -1,3 +1,11 @@
+// covers: src/components/{fields/**,SampleDataPanel.tsx,ControlPanel.tsx,HostedControlPage.tsx}
+// covers: src/components/{AssetsPanel.tsx,InsertTemplateDialog.tsx}, src/assets/**
+//
+// This spec CREATES catalog variants and asserts on the markup they emit (Classic Roll's logo
+// slot), so a design's markup changing under it is a real templates dependency; unmapped, a renamed
+// credits row got past a local affected run and red-mained CI on 2026-08-26.
+// covers: src/templates/**
+
 import { enableAdvancedMode, finishIntoEditor } from './_create';
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
 import { awaitPreviewRebuild } from './_preview';

@@ -1,3 +1,9 @@
+// covers: src/ai/**, src/components/wizard/steps/{AiStep.tsx,ai/**}, api/{ai/**,_lib/ai*{,/**}}
+//
+// The shared provider/model/key surface. The tier door is where its WORDING is pinned - the
+// one defect class (a mislabelled tier, a transport offered as a choice) that builds green.
+// covers: src/components/AiProviderSettings.tsx
+
 import { test, expect, type Page } from '@playwright/test';
 
 // THE CREATE-WITH-AI DOOR: one hosted route, plus the secondary switch to the user's own

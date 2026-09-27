@@ -1,3 +1,12 @@
+// CONFIGURED TRIGGERS: a change to a path below prints "also run npm run test:e2e:live:queued"
+// (scripts/e2e-lists.mjs). The offline suite cannot walk what these paths change.
+//
+// WHOSE LIBRARY IS ON SCREEN: which account's library the page shows, and that a sign-in's
+// first sync never pulls or pushes another account's work, is walked against a real backend
+// by e2e/configured/shared-lab-computer.spec.ts. Offline, account-library.spec.ts has no cloud.
+// The binding, the key names, the sync guard (`canSync`) and the adopt step that decide it.
+// covers: src/{backend/{accountLibrary,syncController},model/{accountScope,durableStore}}.ts
+
 import { test, expect, devices, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
