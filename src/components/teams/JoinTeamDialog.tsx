@@ -24,7 +24,6 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { joinTeamByCode, suggestedDisplayName, type Team } from '../../backend/teams';
 import { refreshTeams } from '../../backend/teamProductions';
 import TeamChip from './TeamChip';
-import { joinCodeFrom } from './JoinTeamCard';
 import { useEscapeToClose } from './useEscapeToClose';
 
 export default function JoinTeamDialog({ code }: { code: string }) {
@@ -78,7 +77,7 @@ function Dialog({
   const join = async () => {
     setBusy(true);
     setError(null);
-    const { team, error: err } = await joinTeamByCode(joinCodeFrom(joinCode), displayName);
+    const { team, error: err } = await joinTeamByCode(joinCode, displayName);
     setBusy(false);
     if (!team) {
       setError(err);
@@ -128,7 +127,7 @@ function Dialog({
                   autoCorrect="off"
                   data-testid="join-team-code"
                 />
-                <span className="team-field-hint">Capitals count - type it exactly as it was sent, or paste the whole link.</span>
+                <span className="team-field-hint">Capitals count, so type it exactly as it was sent, or paste the whole link.</span>
               </label>
               <label className="team-field">
                 <span>Your name, as teammates see it</span>

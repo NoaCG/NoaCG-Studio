@@ -127,6 +127,18 @@ export function joinTeamLink(code: string): string {
 }
 
 /**
+ * The join code in whatever was typed or pasted - the inverse of `joinTeamLink`. People paste the
+ * whole LINK as often as the code, often out of a sentence, so a `#/join-team/<code>` anywhere in
+ * the text wins and stops at the first character a minted code cannot hold (0053 mints base64url:
+ * letters, digits, `-`, `_`), so a full stop or a bracket after the link is not part of it.
+ * Otherwise the text with every space taken out. Case is kept: the server compares it exactly.
+ */
+export function joinCodeFrom(text: string): string {
+  const fromLink = /#\/join-team\/([A-Za-z0-9_-]+)/.exec(text);
+  return fromLink ? fromLink[1] : text.replace(/\s+/g, '');
+}
+
+/**
  * Every team the signed-in account can see: the ones it owns and the ones it has joined. RLS is
  * the filter (0053 `teams_select_own`), so there is no user predicate to write here - and no way
  * for this query to answer with somebody else's team.
@@ -228,7 +240,7 @@ export async function joinTeamByCode(
 ): Promise<{ team: Team | null; error: string | null }> {
   const sb = await getSupabase();
   if (!sb) return { team: null, error: 'No backend configured.' };
-  const joinCode = code.trim();
+  const joinCode = joinCodeFrom(code);
   const member = displayName.trim();
   if (!joinCode) return { team: null, error: 'Enter the join code.' };
   if (!member) return { team: null, error: 'Enter the name your teammates will see.' };

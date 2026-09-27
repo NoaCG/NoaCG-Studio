@@ -308,7 +308,7 @@ test.describe('teams: the share door', () => {
       await page.getByTestId(TEAM.newTeamName).fill(name);
       await page.getByTestId(TEAM.newTeamDisplayName).fill('E2E Runner');
       // The two name boxes say which is the team's and which is yours, and whose storage it costs.
-      await expect(page.getByTestId('new-team-explainer')).toContainText('storage');
+      await expect(page.getByTestId(TEAM.newTeamExplainer)).toContainText('storage');
       await shot(page, 'teams-share-create');
       await page.getByTestId(TEAM.createTeam).click();
 
@@ -520,8 +520,8 @@ test.describe('teams: the share door', () => {
         await expect(teamDialog.getByTestId(TEAM.joinLink)).toHaveValue(new RegExp(`#/join-team/${code}$`));
         await expect(teamDialog.getByTestId(TEAM.leaveTeam)).toBeVisible();
         await teamDialog.getByTestId(TEAM.renameMe).click();
-        await teamDialog.getByTestId('rename-me-field').fill('Ben Renamed');
-        await teamDialog.getByTestId('rename-me-save').click();
+        await teamDialog.getByTestId(TEAM.renameMeField).fill('Ben Renamed');
+        await teamDialog.getByTestId(TEAM.renameMeSave).click();
         await expect(teamDialog.getByTestId(TEAM.members)).toContainText('Ben Renamed', { timeout: 20_000 });
         await expect(teamDialog.getByTestId(TEAM.members)).not.toContainText('Ben Teammate');
         await shot(mate, 'teams-member-back-and-renamed');

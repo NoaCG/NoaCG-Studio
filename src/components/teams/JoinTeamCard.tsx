@@ -13,32 +13,20 @@
 
 import { useState } from 'react';
 import { useRouter } from '../../app/router';
+import { joinCodeFrom } from '../../backend/teams';
 import { IconUsers } from '../icons';
-
-/**
- * The join code in whatever was typed or pasted. People paste the whole LINK as often as the code,
- * so a `#/join-team/<code>` anywhere in the text wins; otherwise the text itself, trimmed. Case is
- * kept: a minted code is mixed case (migration 0053) and the server compares it exactly.
- */
-export function joinCodeFrom(text: string): string {
-  const fromLink = /#\/join-team\/([^/?#\s]+)/.exec(text);
-  if (fromLink) {
-    try {
-      return decodeURIComponent(fromLink[1]);
-    } catch {
-      return fromLink[1];
-    }
-  }
-  return text.trim();
-}
 
 export default function JoinTeamCard() {
   const navigate = useRouter((s) => s.navigate);
   const [text, setText] = useState('');
   const code = joinCodeFrom(text);
   // The dialog asks the one remaining question (the name teammates see) and says what happened.
+  // The field empties as it opens, so coming back after the join does not look like nothing
+  // happened.
   const open = () => {
-    if (code) navigate({ view: 'join-team', code });
+    if (!code) return;
+    setText('');
+    navigate({ view: 'join-team', code });
   };
 
   return (

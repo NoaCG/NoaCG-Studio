@@ -54,6 +54,10 @@ export const TEAM = {
   joinCardGo: 'join-team-card-go',
   /** A member changing their own display name, in their own row of the member list. */
   renameMe: 'rename-me',
+  renameMeField: 'rename-me-field',
+  renameMeSave: 'rename-me-save',
+  /** The create screen's line saying what comes next and whose storage a team costs. */
+  newTeamExplainer: 'new-team-explainer',
 } as const;
 
 /** A join link with a code shaped like a real one (8 URL-safe characters, migration 0053) but

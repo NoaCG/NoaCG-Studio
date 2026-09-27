@@ -154,6 +154,8 @@ function Dialog() {
   // the member list is the one thing on that screen a reader is there to check.
   useEffect(() => {
     if (screen === 'team') refreshMembers();
+    // A rename belongs to the team it was started on; another screen or team drops it.
+    setRenaming(null);
   }, [screen, selectedId, refreshMembers]);
 
   const create = async () => {
@@ -225,21 +227,53 @@ function Dialog() {
    * Change your own display name. Re-joining with the team's code IS the rename (migration 0053,
    * `team_join` upserts the name) - there is deliberately no UPDATE policy on `team_members`,
    * because one would also let a member rewrite their own role.
+   *
+   * Both reads are fresh, because the join is an upsert: with the code this dialog opened with,
+   * a rotation elsewhere turns a rename into "no team has that code", and a member the owner
+   * removed meanwhile would be quietly written back into the team.
    */
   const rename = async () => {
-    if (!selected || renaming === null) return;
+    if (!selected || !user || renaming === null) return;
+    const name = renaming.trim();
+    const mine = (m: TeamMember) => m.teamId === selected.id && m.userId === user.id;
     setBusy(true);
     setError(null);
-    const { error: err } = await joinTeamByCode(selected.joinCode, renaming);
-    setBusy(false);
-    if (err) {
-      setError(err);
-      return;
+    try {
+      const [{ teams: now, error: teamsErr }, { members: rows, error: membersErr }] = await Promise.all([
+        listMyTeams(),
+        listMyTeamMembers(),
+      ]);
+      // A read that failed says nothing about membership, so it must not be reported as "removed".
+      if (teamsErr || membersErr) {
+        setError(teamsErr ?? membersErr);
+        return;
+      }
+      const team = now.find((t) => t.id === selected.id);
+      if (!team || !rows.some(mine)) {
+        setRenaming(null);
+        setMembers(rows);
+        setError('You are no longer in this team, so your name in it was not changed.');
+        return;
+      }
+      const { error: err } = await joinTeamByCode(team.joinCode, name);
+      if (err) {
+        setError(err);
+        return;
+      }
+      setRenaming(null);
+      // The list was read a moment ago, so the new name is applied to it rather than fetched again.
+      setMembers(rows.map((m) => (mine(m) ? { ...m, displayName: name } : m)));
+      // "Edited by" on every card reads the member list the team store holds, so it follows too.
+      void refreshTeams();
+    } finally {
+      setBusy(false);
     }
-    setRenaming(null);
-    refreshMembers();
-    // "Edited by" on every card reads the member list the team store holds, so it follows too.
-    void refreshTeams();
+  };
+
+  /** Pick → create, from the body's button or (with no team yet) the footer's primary. */
+  const startNewTeam = () => {
+    setError(null);
+    setScreen('create');
   };
 
   const destroy = async () => {
@@ -315,7 +349,7 @@ function Dialog() {
               loadError={loadError}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              onNew={() => { setError(null); setScreen('create'); }}
+              onNew={startNewTeam}
             />
           )}
 
@@ -330,7 +364,7 @@ function Dialog() {
                   placeholder="e.g. Northvale TV-26"
                   data-testid="new-team-name"
                 />
-                <span className="team-field-hint">What everyone in it sees the team called - a class, a crew, a channel.</span>
+                <span className="team-field-hint">What everyone in it sees the team called, such as a class, a crew or a channel.</span>
               </label>
               <label className="team-field">
                 <span>Your name, as teammates see it</span>
@@ -387,7 +421,7 @@ function Dialog() {
               </div>
               <p className="hint">
                 Anyone in the team can pass the link on. {iAmOwner
-                  ? 'Rotate code makes a new link and code and retires these for joining - everyone already in the team stays. As the owner, the productions the team holds count toward your storage.'
+                  ? 'Rotate code makes a new link and code, and these stop working for joining. Everyone already in the team stays. As the owner, the productions the team holds count toward your storage.'
                   : 'Only the team owner can rotate it. What the team holds counts toward the owner’s storage, not yours.'}
               </p>
 
@@ -469,40 +503,35 @@ function Dialog() {
           {/* A FIRST-TIMER'S PRIMARY IS "NEW TEAM". With no team to pick, Move and the team's
               details are two dead buttons and the one useful move was a quiet text button in the
               body - so it takes the primary's place until there is a team to pick. */}
-          {screen === 'pick' && noTeams && (
+          {screen === 'pick' && (
             <>
               <button onClick={close}>Cancel</button>
               <div className="spacer" />
-              <button
-                className="primary"
-                onClick={() => { setError(null); setScreen('create'); }}
-                data-testid="new-team"
-              >
-                ＋ New team…
-              </button>
-            </>
-          )}
-          {screen === 'pick' && !noTeams && (
-            <>
-              <button onClick={close}>Cancel</button>
-              <div className="spacer" />
-              <button
-                disabled={!selected || busy}
-                onClick={() => { setError(null); setScreen('team'); }}
-                data-testid="open-team-details"
-              >
-                Join code &amp; members
-              </button>
-              {/* The primary: what the reader opened a production's Share door to do. */}
-              <button
-                className="primary"
-                disabled={!selected || busy || !canMove}
-                onClick={() => void move()}
-                title={selected ? `Move this production into “${selected.name}”` : 'Pick a team first'}
-                data-testid="move-to-team"
-              >
-                {busy ? 'Moving…' : 'Move to team'}
-              </button>
+              {noTeams ? (
+                <button className="primary" onClick={startNewTeam} data-testid="new-team">
+                  ＋ New team…
+                </button>
+              ) : (
+                <>
+                  <button
+                    disabled={!selected || busy}
+                    onClick={() => { setError(null); setScreen('team'); }}
+                    data-testid="open-team-details"
+                  >
+                    Join code &amp; members
+                  </button>
+                  {/* The primary: what the reader opened a production's Share door to do. */}
+                  <button
+                    className="primary"
+                    disabled={!selected || busy || !canMove}
+                    onClick={() => void move()}
+                    title={selected ? `Move this production into “${selected.name}”` : 'Pick a team first'}
+                    data-testid="move-to-team"
+                  >
+                    {busy ? 'Moving…' : 'Move to team'}
+                  </button>
+                </>
+              )}
             </>
           )}
           {screen === 'create' && (
@@ -580,6 +609,8 @@ function PickScreen({
   onSelect: (id: string) => void;
   onNew: () => void;
 }) {
+  // The first-timer's case, where New team is the footer's primary instead of a body button.
+  const noTeams = teams?.length === 0 && !loadError;
   return (
     <>
       {teams === null && <p className="hint">Loading your teams…</p>}
@@ -592,7 +623,7 @@ function PickScreen({
           changed.
         </p>
       )}
-      {teams?.length === 0 && !loadError && (
+      {noTeams && (
         <p className="hint" data-testid="no-teams">
           You are not in a team yet. Make one with <strong>New team</strong>, move this production
           into it, and send your teammates the link it gives you.
@@ -623,12 +654,11 @@ function PickScreen({
           })}
         </div>
       )}
-      {/* With no team yet, New team is the footer's primary instead (the dialog's `noTeams`). */}
-      {teams !== null && teams.length > 0 && (
+      {teams !== null && !noTeams && (
         <button className="team-new" onClick={onNew} data-testid="new-team">＋ New team…</button>
       )}
       {/* Why Move is off, said beside the choice it is waiting for rather than in a tooltip. */}
-      {teams !== null && teams.length > 1 && !selectedId && (
+      {teams !== null && teams.length > 0 && !selectedId && (
         <p className="hint" data-testid="pick-a-team">Pick a team above, then press <strong>Move to team</strong>.</p>
       )}
       <p className="hint">
