@@ -101,8 +101,9 @@ For a bounded foreground review, or a host without background mode, use:
 
     node scripts/claude-run.mjs run --cwd <feature-worktree> --prompt-file <absolute-file> --read-only --timeout-seconds 180
 
-An implementation row adds `--agent <definition> --effort <its effort>` as above; `--read-only` keeps
-its Read, Grep and Glob limit. Omit `--read-only` only for an assigned implementation row. The bridge sends stdin, inherits
+Omit `--read-only` only for an assigned implementation row, which adds `--agent <definition>
+--effort <its effort>` as above. A read-only review keeps its Read, Grep and Glob limit with `--agent`
+too (measured 2026-09-27). The bridge sends stdin, inherits
 permissions, records local job/results, and refuses duplicate workers for one worktree. Its
 `status`/`result --cwd <worktree> --id <id>` commands recover receipts. Keep its persistent shell
 session alive until completion. The bridge provides no durable supervision after its host is killed.
