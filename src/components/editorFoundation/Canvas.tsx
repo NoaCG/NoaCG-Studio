@@ -54,6 +54,9 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const gesture = useArtworkGesture(template, session, () => controller.current, linked, drawingSpace);
   const pending = !status.error && (status.pending || status.source !== session.version().source);
   const parkedTime = useRef(time);
+  const cue = session.port.view().cue;
+  const parkedCue = useRef(cue);
+  parkedCue.current = cue;
   parkedTime.current = time;
 
   useEffect(() => {
@@ -84,12 +87,12 @@ export default function Canvas({ template, sampleData, session, time, selection,
     return () => { connectPreview(null); preview.dispose(); if (inspectedController === preview) inspectedController = null; };
   }, [session, onAppearance, connectPreview]);
   useEffect(() => {
-    void controller.current?.load(template, session.version(), sampleData, parkedTime.current).catch(error => {
+    void controller.current?.load(template, session.version(), sampleData, parkedTime.current, parkedCue.current).catch(error => {
       setStatus({ pending: false, error: String(error), request: 0, generation: 0, source: session.version().source });
     });
   }, [template, sampleData, session]);
-  useEffect(() => { controller.current?.seek(time); }, [time]);
-  useEffect(() => { controller.current?.seek(parkedTime.current, 'selection'); }, [selection]);
+  useEffect(() => { controller.current?.seek(time, 'scrub', cue); }, [time, cue]);
+  useEffect(() => { controller.current?.seek(parkedTime.current, 'selection', parkedCue.current); }, [selection]);
 
   return <section className="ef-canvas" aria-label="Graphic canvas">
     <div className="ef-toolbar">
@@ -104,6 +107,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     </div>
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-pending={pending} data-request={status.request} data-generation={status.generation}
+      data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
         if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {

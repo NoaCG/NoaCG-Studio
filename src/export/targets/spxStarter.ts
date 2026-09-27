@@ -1,3 +1,4 @@
+import { prepareOutRuntime } from '../../blocks/animMigration';
 // SPX export: the canonical package. The exported files mirror exactly what you see in the
 // editor (<slug>.html + css/ + js/ + assets), wrapped in one project folder that drops straight
 // into an SPX/CasparCG templates directory. Plug-and-play: relative paths, bundled GSAP.
@@ -45,6 +46,7 @@ export async function buildStarterInto(
   template: Parameters<ExportTarget['build']>[0],
   opts?: { entries?: ControlEntry[]; fileName?: string },
 ): Promise<void> {
+  template = { ...template, js: prepareOutRuntime(template.js) };
   const fileName = opts?.fileName ?? `${slug(template.name)}.html`;
   // The flex-gap shim's reference goes in at export, like the receiver: SPX hands this file to
   // CasparCG's own engine, which on 2.3.x has no flex gap, and the template's code stays as the

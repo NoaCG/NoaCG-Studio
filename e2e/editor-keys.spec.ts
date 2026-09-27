@@ -318,7 +318,8 @@ test('known legacy interpreter upgrades for spans while customized source refuse
     const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
     const t = (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
-    const legacy = ANIM_INTERPRETER_JS.replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
+    const { ANIM_INTERPRETER_PRE_OUT_JS } = await import('/src/templates/shared/animRuntimeLegacy.ts');
+    const legacy = ANIM_INTERPRETER_PRE_OUT_JS.replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
       .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
       .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
     const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(legacy)))).map(n => n.toString(16).padStart(2, '0')).join('');

@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { TimelineView } from './timelineView';
 import type { EditorSession } from './session';
 import LayerBar from './LayerBar';
+import OutControls from './OutControls';
 
 interface Props {
   view: TimelineView; fps: number; time: number; selection: string[];
@@ -9,19 +10,21 @@ interface Props {
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
   playing: boolean; togglePlayback: () => void;
   session: EditorSession; pause: () => void;
+  inspectOut: () => void; playOut: () => void; parkOut: () => void;
 }
-export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause }: Props) {
+export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut }: Props) {
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   const ruler = useRef<HTMLDivElement>(null);
   const tracks = useRef<HTMLDivElement>(null);
   const startTime = useRef<number | null>(null);
-  const extent = Math.max(2, view.duration * 1.15);
+  const extent = Math.max(2, view.duration * 1.15, session.port.view().cue === view.segments.length - 1 ? view.duration + 2 : 0);
+  const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
   const ticks = Array.from({ length: Math.floor(extent / interval) + 1 }, (_, i) => i * interval);
   const display = (value: number) => units === 'seconds' ? value.toFixed(2) + ' s' : Math.round(value * fps) + ' f';
   const fromPointer = (clientX: number) => {
     const box = ruler.current?.getBoundingClientRect();
-    if (box) seek(Math.max(0, Math.min(view.duration, Math.round((clientX - box.left) / box.width * extent * 1e6) / 1e6)));
+    if (box) seek(Math.max(0, Math.min(limit, Math.round((clientX - box.left) / box.width * extent * 1e6) / 1e6)));
   };
   useLayoutEffect(() => {
     const scroller = tracks.current;
@@ -40,12 +43,13 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       <span className="ef-muted">{fps} fps</span></div>
     <div className="ef-transport">
       <button disabled={!!view.reason} onClick={() => seek(0)} aria-label="Go to beginning">|◀</button>
-      <button disabled={!!view.reason} onClick={() => seek(Math.max(0, time - 1 / fps))} aria-label="Previous frame" title="Previous frame">‹|</button>
+      <button disabled={!!view.reason} onClick={() => seek(Math.max(0, (Math.round(time * fps) - 1) / fps))} aria-label="Previous frame" title="Previous frame">‹|</button>
       <button disabled={!!view.reason || !view.duration} onClick={togglePlayback} aria-label={playing ? 'Pause' : 'Play'} title="Space: play/pause. At a cue, replay the current segment.">{playing ? 'Ⅱ Pause' : '▶ Play'}</button>
-      <button disabled={!!view.reason} onClick={() => seek(Math.min(view.duration, time + 1 / fps))} aria-label="Next frame" title="Next frame">|›</button>
+      <button disabled={!!view.reason} onClick={() => seek(Math.min(limit, (Math.round(time * fps) + 1) / fps))} aria-label="Next frame" title="Next frame">|›</button>
       <output data-testid="foundation-clock">{display(time)}</output>
       <span className="ef-muted">{Math.round(time * fps)} frames</span>
       <span className="ef-spacer" />
+      <OutControls session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />
       <label>Ruler <select aria-label="Ruler units" value={units} onChange={event => setUnits(event.target.value as typeof units)}>
         <option value="seconds">Seconds</option><option value="frames">Frames</option>
       </select></label>
@@ -54,7 +58,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     <div className="ef-track-scroll" ref={tracks}>
       <div className="ef-ruler-row"><span className="ef-layer-heading">Layers</span>
         <div ref={ruler} className="ef-ruler" role="slider" aria-label="Playhead" tabIndex={0}
-          aria-valuemin={0} aria-valuemax={view.duration} aria-valuenow={time} aria-valuetext={display(time)}
+          aria-valuemin={0} aria-valuemax={limit} aria-valuenow={time} aria-valuetext={display(time)}
           aria-disabled={!!view.reason} data-testid="foundation-ruler"
           onPointerDown={event => {
             if (view.reason || event.button !== 0) return;
@@ -68,9 +72,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             if (event.key === 'Escape' && startTime.current !== null) { seek(startTime.current); startTime.current = null; return; }
             if (view.reason) return;
             const next = event.key === 'Home' ? 0 : event.key === 'End' ? view.duration :
-              event.key === 'ArrowLeft' ? time - (event.shiftKey ? 10 : 1) / fps :
-              event.key === 'ArrowRight' ? time + (event.shiftKey ? 10 : 1) / fps : null;
-            if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(view.duration, next))); }
+              event.key === 'ArrowLeft' ? (Math.round(time * fps) - (event.shiftKey ? 10 : 1)) / fps :
+              event.key === 'ArrowRight' ? (Math.round(time * fps) + (event.shiftKey ? 10 : 1)) / fps : null;
+            if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
           {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
           {view.segments.filter(s => !s.out).map(s => <span className="ef-flag" key={s.index}

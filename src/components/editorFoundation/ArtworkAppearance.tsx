@@ -27,11 +27,11 @@ function AppearanceField({ template, selector, session, previewCss, previewTempl
   const [draft, setDraft] = useState<string | number | null>(null);
   const [error, setError] = useState('');
   const [reset, setReset] = useState(0);
-  const active = useRef<{ expected: Revision; time: number; values: ArtworkStyle | null; original: string | number; template: SpxTemplate } | null>(null);
+  const active = useRef<{ expected: Revision; time: number; cue?: number; values: ArtworkStyle | null; original: string | number; template: SpxTemplate } | null>(null);
   const invalidNumber = useRef(false);
   const armed = property === 'opacity' && isArmed(parseAnimData(template.js), selector, 'opacity');
   const operations = (values: ArtworkStyle): EditorOperation[] => armed
-    ? [{ kind: 'animation.key', selector, property: 'opacity', ...authoringPosition(template, selector, session.port.view().time), value: values.opacity!, action: 'set' }]
+    ? [{ kind: 'animation.key', selector, property: 'opacity', ...authoringPosition(template, selector, session.port.view().time, session.port.view().cue), value: values.opacity!, action: 'set' }]
     : [{ kind: 'style.set', selector, values }];
   const restore = () => { if (armed) previewTemplate(template); else previewCss(template.css); };
   useEffect(() => () => {
@@ -55,7 +55,7 @@ function AppearanceField({ template, selector, session, previewCss, previewTempl
     if (!edit) return;
     if (!edit.values) { cancel(); return; }
     try {
-      if (armed && edit.time !== session.port.view().time) throw new Error('The playhead moved. Inspect the value again before editing.');
+      if (armed && (edit.time !== session.port.view().time || edit.cue !== session.port.view().cue)) throw new Error('The playhead moved. Inspect the value again before editing.');
       // Clear before execute so revision cleanup cannot cancel a completed edit.
       active.current = null;
       session.execute({ documentId: session.documentId, expected: edit.expected, transactionId: crypto.randomUUID(),
@@ -66,7 +66,7 @@ function AppearanceField({ template, selector, session, previewCss, previewTempl
   const change = (raw: string | number) => {
     setDraft(raw);
     try {
-      if (!active.current) { const expected = session.version(); session.begin(expected); active.current = { expected, time: session.port.view().time, values: null, original: draft ?? value, template }; }
+      if (!active.current) { const expected = session.version(); session.begin(expected); active.current = { expected, time: session.port.view().time, cue: session.port.view().cue, values: null, original: draft ?? value, template }; }
       if (!sameRevision(active.current.expected, session.version())) { cancel(); return; }
       const values: ArtworkStyle = { [property]: property === 'opacity' ? Number(raw) / 100 : property === 'fontSize' ? Number(raw) : raw };
       if (invalidNumber.current || (property === 'fontSize' && !String(raw).trim())) throw new Error('Enter a valid ' + descriptor.label.toLowerCase() + '.');

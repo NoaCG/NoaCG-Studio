@@ -10,6 +10,9 @@ export const foundationRuntime = String.raw`
   var lastRequest = config.requestId;
   var timeline = null;
   var activeStep = -1;
+  var inspected = false;
+  var localTime = 0;
+  var exiting = false;
   var initial = [];
   var initialMotion = {};
   var intervals = [];
@@ -41,6 +44,7 @@ export const foundationRuntime = String.raw`
     if (timeline) timeline.kill();
     timeline = null;
     activeStep = -1;
+    exiting = false;
     if (window.gsap) {
       gsap.globalTimeline.clear();
       initial.forEach(function (entry) {
@@ -55,23 +59,26 @@ export const foundationRuntime = String.raw`
     }
   }
   function build(index) {
-    var step = NOACG_ANIM.steps[index];
+    var step = editorStep(index);
     // Cloning only this transient interpreter input leaves canonical source untouched.
     // Remove calls before building, not just during seek: no callback can fire at t=0.
     return buildStepTimeline(Object.assign({}, step, { calls: [], dynamics: [], loops: undefined }));
+  }
+  function editorStep(index) {
+    return NOACG_ANIM.steps[index] || (index === 1 && NOACG_ANIM.steps.length === 1 ? { duration: 0, ease: 'none', layers: {} } : null);
   }
   function numericPose(element) {
     var pose = {};
     ['x', 'y', 'scaleX', 'scaleY', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
   }
-  function seek(step, time) {
+  function seek(step, time, inspect) {
     if (!config.scrubbable) return;
     if (typeof window.buildStepTimeline !== 'function' || !window.gsap) {
       throw new Error('This source does not expose the supported animation interpreter.');
     }
-    if (!NOACG_ANIM.steps[step]) throw new Error('The requested segment no longer exists.');
-    if (activeStep !== step) {
+    if (!editorStep(step)) throw new Error('The requested segment no longer exists.');
+    if (activeStep !== step || exiting) {
       resetPose();
       config.selectors.forEach(function (selector) {
         var element = document.querySelector(selector);
@@ -88,7 +95,9 @@ export const foundationRuntime = String.raw`
       timeline.pause();
       activeStep = step;
     }
-    var target = Math.max(0, Math.min(time, NOACG_ANIM.steps[step].duration / NOACG_ANIM.speed));
+    inspected = !!inspect;
+    localTime = time;
+    var target = Math.max(0, Math.min(time, editorStep(step).duration / NOACG_ANIM.speed));
     timeline.time(target, true);
     // Same first-frame rule as noacgPaintFirstFrame in the emitted interpreter.
     // A newly paused timeline at zero otherwise leaves its initial .set unapplied.
@@ -100,16 +109,32 @@ export const foundationRuntime = String.raw`
         else gsap.set(selector, { visibility: 'visible' });
       });
     });
-    Object.keys(NOACG_ANIM.steps[step].spans || {}).forEach(function (selector) {
-      var segment = NOACG_ANIM.steps[step];
+    Object.keys(editorStep(step).spans || {}).forEach(function (selector) {
+      var segment = editorStep(step);
       gsap.set(selector, { visibility: noacgSpanVisible(segment.spans[selector], target * NOACG_ANIM.speed, segment.duration) ? 'visible' : 'hidden' });
     });
-    var finalExit = step > 0 && step === NOACG_ANIM.steps.length - 1 &&
-      time >= NOACG_ANIM.steps[step].duration / NOACG_ANIM.speed;
+    var finalExit = !inspect && step > 0 && step === Math.max(1, NOACG_ANIM.steps.length - 1) &&
+      time >= editorStep(step).duration / NOACG_ANIM.speed;
     gsap.set(NOACG_ANIM.root, { opacity: finalExit ? 0 : 1 });
   }
+  function exit(time, start) {
+    if (start) {
+      if (typeof noacgBuildExit !== 'function') throw new Error('Set Out first to upgrade this saved interpreter.');
+      var interrupted = activeStep >= 0 && localTime < editorStep(activeStep).duration / NOACG_ANIM.speed;
+      if (timeline) timeline.kill();
+      noacgStepsPlayed = activeStep + 1;
+      timeline = noacgExitTimeline(interrupted, true);
+      timeline.pause();
+      activeStep = Math.max(1, NOACG_ANIM.steps.length - 1);
+      inspected = false;
+      exiting = true;
+    }
+    localTime = time;
+    timeline.time(time, true);
+    if (time === 0) timeline.render(0, true, true);
+  }
   function measure() {
-    var poseTime = config.scrubbable ? (timeline ? timeline.time() : 0) : config.time;
+    var poseTime = config.scrubbable ? localTime : config.time;
     for (var i = 0; i < activeStep; i++) poseTime += NOACG_ANIM.steps[i].duration / NOACG_ANIM.speed;
     return config.selectors.flatMap(function (selector) {
       var element = document.querySelector(selector);
@@ -124,7 +149,7 @@ export const foundationRuntime = String.raw`
         ? parseFloat(getComputedStyle(target).getPropertyValue('--scale')) || 1 : 1;
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, revision: current, motion: window.gsap ? numericPose(element) : undefined, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, revision: current, motion: window.gsap ? numericPose(element) : undefined, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: corners(target), anchor: anchor(target) }];
     });
@@ -224,7 +249,7 @@ export const foundationRuntime = String.raw`
         if (m.kind === 'apply-css') setCss(m.css);
         else { resetPose(); window.NOACG_ANIM = m.animation; }
         current = m.revision;
-        seek(m.step, m.time);
+        seek(m.step, m.time, m.inspect);
         presented(m.requestId, 'ready');
       } catch (error) { send('error', m.requestId, { message: String(error.message || error) }); }
       return;
@@ -232,7 +257,8 @@ export const foundationRuntime = String.raw`
     if (m.revision.source !== current.source || m.revision.assets !== current.assets) return;
     lastRequest = m.requestId;
     try {
-      if (m.kind === 'seek') seek(m.step, m.time);
+      if (m.kind === 'seek') seek(m.step, m.time, m.inspect);
+      else if (m.kind === 'exit-start' || m.kind === 'exit-time') exit(m.time, m.kind === 'exit-start');
       else if (m.kind === 'preview-css') setCss(m.css);
       else if (m.kind === 'preview-template') {
         resetPose(); setCss(m.css);
@@ -244,7 +270,7 @@ export const foundationRuntime = String.raw`
             if (value === null) element.removeAttribute(name); else element.setAttribute(name, value);
           });
         });
-        window.NOACG_ANIM = m.animation; seek(m.step, m.time);
+        window.NOACG_ANIM = m.animation; seek(m.step, m.time, m.inspect);
       }
       else if (m.kind === 'reset-metrics') { intervals = []; longTasks = []; }
       else return;
@@ -262,7 +288,7 @@ export const foundationRuntime = String.raw`
       initial = Array.from(document.body.querySelectorAll('*')).filter(function (element) {
         return !['SCRIPT', 'STYLE'].includes(element.tagName);
       }).map(function (element) { return { element: element, style: element.getAttribute('style'), transform: element.getAttribute('transform') }; });
-      seek(config.step, config.time);
+      seek(config.step, config.time, config.inspect);
       initialized = true;
       presented(config.requestId, 'ready');
     } catch (error) { send('error', config.requestId, { message: String(error.message || error) }); }

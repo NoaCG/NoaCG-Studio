@@ -1,9 +1,9 @@
 import type { SpxTemplate } from '../model/types';
-import { locateAnimData, parseAnimData, serializeAnimData, type AnimData } from './animData';
+import { losslessAnimData, type AnimData } from './animData';
 import { deleteKeyframe, setKeyframe, moveLayerSpan } from './animEdit';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase } from './baseEdits';
-import { writeAnimData } from '../templates/shared/animRuntime';
+import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'opacity';
 export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; opacity: number }
@@ -11,17 +11,9 @@ export type AnimationOperation =
   | { kind: 'animation.key'; selector: string; step: number; property: NumericProperty; time: number; value: number; action: 'set' | 'remove' | 'disable'; baseValue?: number }
   | { kind: 'layer.move'; selector: string; step: number; delta: number };
 
-function ordered(value: unknown): string {
-  if (Array.isArray(value)) return '[' + value.map(ordered).join(',') + ']';
-  if (value && typeof value === 'object') return '{' + Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => JSON.stringify(k) + ':' + ordered(v)).join(',') + '}';
-  return JSON.stringify(value);
-}
 export function animationSource(template: SpxTemplate): AnimData {
-  const location = locateAnimData(template.js), data = parseAnimData(template.js);
-  if (!location || !data) throw new Error('This source has no supported animation data. Its source is preserved.');
-  if (ordered(JSON.parse(template.js.slice(location.start, location.end))) !== ordered(JSON.parse(serializeAnimData(data)))) {
-    throw new Error('This animation contains data the writer cannot preserve exactly.');
-  }
+  const data = losslessAnimData(template.js);
+  if (!data) throw new Error('This animation contains data the writer cannot preserve exactly.');
   return data;
 }
 export function isArmed(data: AnimData | null, selector: string, property: string) {
@@ -48,6 +40,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   let data = animationSource(template);
   const { selector, step } = operation;
   animationTarget(template, data, selector);
+  if (step === 1 && data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
   if (!Number.isInteger(step) || !data.steps[step]) throw new Error('The target cue no longer exists.');
   if (operation.kind === 'layer.move') {
     if (!selector.startsWith('#')) throw new Error('Visibility spans require a stable layer ID. Its source is preserved.');
@@ -55,6 +48,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   }
   else {
     const { property, time, value, action } = operation;
+    if (step > 0 && step === data.steps.length - 1 && action === 'set' && Number.isFinite(time) && time > data.steps[step].duration) data.steps[step].duration = time;
     if (!['x', 'y', 'scaleX', 'scaleY', 'opacity'].includes(property) || !Number.isFinite(value) || !Number.isFinite(time) || time < 0 || time > data.steps[step].duration || property === 'opacity' && (value < 0 || value > 1)) {
       throw new Error('Enter a finite numeric value and a time inside this cue.');
     }
@@ -82,7 +76,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
       }
     }
   }
-  const js = writeAnimData(template.js, data);
+  const js = step > 0 && step === data.steps.length - 1 ? writeOutData(template.js, data) : writeAnimData(template.js, data);
   if (js === null) throw new Error('The animation region cannot be written without replacing source.');
   return { ...template, js };
 }

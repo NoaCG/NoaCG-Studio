@@ -122,6 +122,11 @@ module.exports = {
 
     // ---- the §3 edge table ----------------------------------------------------------------
     {
+      comment: '§3: preview composition -> the pure animation migration shared with save/export',
+      from: { path: '^src/preview/composeDocument\\.ts$' },
+      to: { path: '^src/blocks/animMigration\\.ts$' },
+    },
+    {
       comment: '§3: templates -> blocks (animData, animMachine, shared runtime)',
       from: { path: '^src/templates/' },
       to: { path: '^src/blocks/' },

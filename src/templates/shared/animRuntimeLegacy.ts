@@ -1,108 +1,11 @@
-// Timeline v2 — the runtime interpreter emitted into every data-driven template
-// (docs/TIMELINE_V2_PLAN.md §2). It reads the NOACG_ANIM data literal and defines the
-// SAME builder globals the whole platform already depends on (buildInTimeline /
-// buildOutTimeline / revealNextStep), so the simulator, wizard thumbnails, control
-// engine, and every export work unchanged. Plain commented ES5, no dependencies beyond
-// the bundled GSAP, no eval — a professional can read it, or delete the whole region
-// and write raw GSAP (the timeline UI then steps aside).
-
-import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
-import { locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
-import { ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
-
-/** The interpreter body — identical in every template. Kept as one exported string so the
- *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
-export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
+// Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
+export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
 // Steps play on the operator's cues: steps[0] on play(), each middle step on one next()
 // press, the last step on stop(). Keyframe times sit on the step's local clock and are
 // divided by the speed knob. A keyframe's ease is the ease INTO it (default: the step's).
 // When the data carries a "machine", the same cues drive its default path, and the state
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
 var noacgStepsPlayed = 0; // how many steps have run (play() = the first)
-var noacgLiveTimeline = null;
-var noacgOutTimeline = null;
-
-// Capability: live-pose-out-v1. Capture before killing or applying any first key.
-function noacgOutActive() { return !!noacgOutTimeline; }
-function noacgRememberEntrance(tl) {
-  if (noacgOutTimeline) noacgOutTimeline.kill();
-  noacgOutTimeline = null;
-  noacgLiveTimeline = tl;
-  return tl;
-}
-
-// Exit motion uses object targets so an older stop() scaffold's killTweensOf('*')
-// cannot destroy a repeated Out. The property setter also runs during silent seek.
-function noacgExitProxy(element, prop, value) {
-  var proxy = {};
-  Object.defineProperty(proxy, 'value', {
-    get: function () { return value; },
-    set: function (next) { value = next; var vars = {}; vars[prop] = next; gsap.set(element, vars); }
-  });
-  return proxy;
-}
-function noacgExitVisible(element, selector) {
-  for (var el = element; el; el = el.parentElement) {
-    var style = getComputedStyle(el);
-    if (style.visibility === 'hidden' || style.display === 'none') return false;
-  }
-  for (var s = noacgStepsPlayed; s < NOACG_ANIM.steps.length - 1; s++) {
-    if ((NOACG_ANIM.steps[s].reveals || []).indexOf(selector) >= 0) return false;
-  }
-  return true;
-}
-function noacgBuildExit(step, interrupted, silent) {
-  var speed = NOACG_ANIM.speed || 1;
-  var entries = [];
-  Object.keys(step.layers).forEach(function (selector) {
-    document.querySelectorAll(selector).forEach(function (element) {
-      if (!noacgExitVisible(element, selector)) return;
-      Object.keys(step.layers[selector]).forEach(function (prop) {
-        var keys = step.layers[selector][prop];
-        if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
-      });
-    });
-  });
-  if (noacgLiveTimeline) noacgLiveTimeline.kill();
-  gsap.killTweensOf('*');
-  var effects = Object.assign({}, step, { layers: {}, spans: undefined, hides: undefined, loops: undefined });
-  if (silent) { effects.calls = []; effects.dynamics = []; }
-  var tl = buildStepTimeline(effects);
-  // Gate only already-visible layers. Object targets survive legacy repeated stop().
-  if (!interrupted) Object.keys(step.spans || {}).forEach(function (selector) {
-    document.querySelectorAll(selector).forEach(function (element) {
-      if (!noacgExitVisible(element, selector)) return;
-      var spans = step.spans[selector], times = [0];
-      var proxy = noacgExitProxy(element, 'visibility', getComputedStyle(element).visibility);
-      spans.forEach(function (span) { times.push(span.start, span.end); });
-      times.sort(function (a, b) { return a - b; }).forEach(function (time) {
-        tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
-      });
-    });
-  });
-  (step.hides || []).forEach(function (selector) {
-    if (step.spans && step.spans[selector] !== undefined) return;
-    document.querySelectorAll(selector).forEach(function (element) {
-      tl.set(noacgExitProxy(element, 'opacity', gsap.getProperty(element, 'opacity')), { value: 0 }, step.duration / speed);
-    });
-  });
-  entries.forEach(function (entry) {
-    var keys = entry.keys;
-    var proxy = noacgExitProxy(entry.element, entry.prop, entry.live);
-    if (interrupted && keys.length > 1 && keys[keys.length - 1].time > keys[0].time) {
-      var last = keys[keys.length - 1];
-      tl.to(proxy, { value: last.value, duration: (last.time - keys[0].time) / speed,
-        ease: last.ease || step.ease }, keys[0].time / speed);
-    } else {
-      tl.set(proxy, { value: keys[0].value }, 0);
-      for (var k = 1; k < keys.length; k++) {
-        tl.to(proxy, { value: keys[k].value, duration: (keys[k].time - keys[k - 1].time) / speed,
-          ease: keys[k].ease || step.ease }, keys[k - 1].time / speed);
-      }
-    }
-  });
-  return tl;
-}
 
 // Visibility is independent of opacity. At an arriving hold keep the interval's
 // endpoint; a new cue's timeline owns its departing zero. Disjoint sets seek both ways.
@@ -283,16 +186,13 @@ function noacgEntranceTimeline() {
   var tl = buildStepTimeline(0);
   tl.set(NOACG_ANIM.root, { opacity: 1 }, 0); // reveal the (CSS-hidden) graphic
   noacgApplyReveals(tl);
-  return noacgRememberEntrance(noacgPaintFirstFrame(tl));
+  return noacgPaintFirstFrame(tl);
 }
 
 // The exit recipe — the Out step plus the off-air cleanup, shared the same way.
-function noacgExitTimeline(interrupted, silent) {
-  if (!silent && noacgOutTimeline) return noacgOutTimeline;
+function noacgExitTimeline() {
   var steps = NOACG_ANIM.steps;
-  var step = steps.length > 1 ? steps[steps.length - 1] : { duration: 0, ease: 'none', layers: {} };
-  if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();
-  var tl = noacgBuildExit(step, interrupted, silent);
+  var tl = buildStepTimeline(steps.length - 1);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
   // (unless the Out step animates them itself). Containment is checked live.
   var root = document.querySelector(NOACG_ANIM.root);
@@ -300,21 +200,17 @@ function noacgExitTimeline(interrupted, silent) {
     (steps[s].reveals || []).forEach(function (selector) {
       var el = document.querySelector(selector);
       if (el && root && !root.contains(el) && !steps[steps.length - 1].layers[selector]) {
-        tl.to(noacgExitProxy(el, 'opacity', gsap.getProperty(el, 'opacity')), { value: 0, duration: Math.min(0.3, step.duration) / (NOACG_ANIM.speed || 1) }, 0);
+        tl.to(selector, { opacity: 0, duration: 0.3 / (NOACG_ANIM.speed || 1) }, 0);
       }
     });
   }
-  if (root) tl.set(noacgExitProxy(root, 'opacity', gsap.getProperty(root, 'opacity')), { value: 0 }); // fully hidden; ready to play again
-  if (!silent) noacgOutTimeline = tl;
-  return noacgPaintFirstFrame(tl);
+  tl.set(NOACG_ANIM.root, { opacity: 0 }); // fully hidden; ready to play again
+  return tl;
 }
 
 // buildInTimeline(): the entrance. Called by play(). With a machine, play() is the built-in
 // reset-and-enter event; without one, the classic linear walk (byte-for-byte).
 function buildInTimeline() {
-  if (noacgOutTimeline) noacgOutTimeline.kill();
-  noacgOutTimeline = null;
-  noacgLiveTimeline = null;
   if (NOACG_ANIM.machine) return noacgMachinePlay();
   noacgStepsPlayed = 1;
   var tl = noacgEntranceTimeline();
@@ -330,7 +226,6 @@ function revealNextStep() {
   // graphic the viewer is already watching, so a frame of the previous step's end pose is the
   // most visible case of all (noacgPaintFirstFrame above).
   var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
-  noacgLiveTimeline = tl;
   noacgTrackPath();
   return tl;
 }
@@ -338,7 +233,6 @@ function revealNextStep() {
 // buildOutTimeline(): the exit. Called by stop() — the built-in event that is legal from
 // EVERY state (an operator can always take the graphic off air).
 function buildOutTimeline() {
-  if (noacgOutTimeline) return noacgOutTimeline;
   if (NOACG_ANIM.machine) return noacgMachineStop();
   var tl = noacgExitTimeline();
   noacgResetPointers();
@@ -841,9 +735,6 @@ function noacgCanonicalPath(group, targetId) {
 // Return the graphic to its CSS rest: clear every inline style the animations wrote.
 // Self-contained (no editor needed), so snap works identically in exports.
 function noacgResetGraphic() {
-  if (noacgOutTimeline) noacgOutTimeline.kill();
-  noacgOutTimeline = null;
-  noacgLiveTimeline = null;
   var root = document.querySelector(NOACG_ANIM.root);
   if (root) {
     gsap.set(root, { clearProps: 'all' });
@@ -923,123 +814,3 @@ function noacgMachineState() {
   }
   return out;
 }`;
-
-/** The data block's header comment — emitted above the literal (JSON carries no comments,
- *  so the explanation lives here, where hand edits preserve it). */
-const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order — the first on ▶ play(), each
-// middle step on one » next() press (SPX Continue), the last on ■ stop(). Each layer's
-// properties are keyframe lists on the step's local clock: { "time", "value", "ease" }.
-// "reveals" names the layers that first become visible in that step; "hides" names the
-// layers that leave in it; "calls" fires named template functions (a clock engine's
-// startClock/stopClock) at their moment on the step's clock; "loops" makes a layer's track
-// repeat (repeat -1 = forever, yoyo = breathe back and forth); "dynamics" adds MEASURED
-// motion — a named builder function (defined below, outside this block) reads the DOM and
-// returns the tween, which is how a marquee travels exactly one track-width no matter how
-// much text the operator types. An optional "machine" adds a STATE GRAPH over the steps:
-// parallel groups of states (each state's content is a timeline — the steps are the default
-// path's, in order), transitions fired by operator events (noacgDispatch) or timers, and
-// instant snap to any state (noacgSnap). Without it the steps ARE the machine: a linear
-// walk driven by play/next/stop. The timeline UI reads and writes this block — and so can
-// you: edit a number and press play.`;
-
-/** Emit the full marked ANIMATION region for a data-driven template. */
-export function emitAnimRegion(data: AnimData): string {
-  return `${ANIMATION_MARK_OPEN}
-${DATA_HEADER}
-var NOACG_ANIM = ${serializeAnimData(data)};
-
-${ANIM_INTERPRETER_JS}
-${ANIMATION_MARK_CLOSE}`;
-}
-
-/** THE UPGRADE GATE: true when a template's frozen interpreter carries the state-machine
- *  engine. spliceAnimData replaces only the data literal — a saved template keeps whatever
- *  interpreter it was emitted with — so machine-bearing data must NEVER be spliced under an
- *  older interpreter that can't run it. A machine writer checks this first and re-emits the
- *  whole region (replaceRegionWithAnimData) when it is false. */
-export function hasMachineRuntime(js: string): boolean {
-  return /function noacgDispatch/.test(js);
-}
-
-/** Same pairing idea for TRANSITION STYLES: a `style` on an arrow needs the interpreter
- *  that consumes it (noacgStyleTimeline) — under an older one it would parse and silently
- *  never play. */
-export function hasTransitionStyleRuntime(js: string): boolean {
-  return /function noacgStyleTimeline/.test(js);
-}
-
-/** The 'cut' style landed after the first style runtime: a frozen interpreter with styles
- *  but no cut would silently play the entry timeline instead, so a cut-bearing write must
- *  re-emit the region. The emitted `known` map is the marker. */
-export function hasCutStyleRuntime(js: string): boolean {
-  return hasTransitionStyleRuntime(js) && /\bcut: 1\b/.test(js);
-}
-
-/** The materialised entrance/exit edges landed after the first style runtime: a styled
- *  lifecycle edge needs the interpreter whose play()/stop() consult it (noacgLifecycleEdge) —
- *  under an older one the style would parse and silently never play. */
-export function hasLifecycleStyleRuntime(js: string): boolean {
-  return /function noacgLifecycleEdge/.test(js);
-}
-
-/** Does any arrow carry a transition style (the reserved fields, now consumed)? */
-export function dataUsesTransitionStyles(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) => g.transitions.some((t) => t.style !== undefined));
-}
-
-/** Does a LIFECYCLE edge carry a style (the newest pairing check — see above)? */
-export function dataUsesLifecycleStyle(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) =>
-    g.transitions.some((t) => t.trigger === 'lifecycle' && t.style !== undefined),
-  );
-}
-
-/** Does any arrow carry the 'cut' style specifically (the newer pairing check)? */
-export function dataUsesCutStyle(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) => g.transitions.some((t) => t.style === 'cut'));
-}
-
-/**
- * THE machine-safe write — what every editing surface should use.
- *
- * `spliceAnimData` replaces only the object literal, so a saved template keeps whatever
- * interpreter it was emitted with. That is fine until the data grows a MACHINE: machine-bearing
- * data under a pre-machine interpreter would parse and then do nothing. When that pairing would
- * break, re-emit the whole region instead (the same move the `hides` early-exit makes) — and
- * identically when the data grows a transition STYLE the frozen interpreter cannot play.
- */
-export function writeAnimData(js: string, data: AnimData): string | null {
-  if (data.steps.some(step => step.spans) && !js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
-    return writeOutData(js, data);
-  }
-  if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesTransitionStyles(data) && !hasTransitionStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesCutStyle(data) && !hasCutStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesLifecycleStyle(data) && !hasLifecycleStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  return spliceAnimData(js, data);
-}
-
-/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
-export function writeOutData(js: string, data: AnimData): string | null {
-  const text = js.replace(/\r\n/g, '\n');
-  const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
-  if (!location || start < 0 || end < location.end) return null;
-  const prefix = text.slice(start, location.start).trim();
-  if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\nvar NOACG_ANIM =`.replace(/\r\n/g, '\n')) return null;
-  const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
-  if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
-  const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
-    .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
-    .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
-    .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
-  if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim())) return null;
-  return replaceRegionWithAnimData(js, data);
-}
-
-/** Swap a template's marked region for the data-driven emit (the converter's writer). */
-export function replaceRegionWithAnimData(js: string, data: AnimData): string | null {
-  const start = js.indexOf(ANIMATION_MARK_OPEN);
-  const end = js.indexOf(ANIMATION_MARK_CLOSE);
-  if (start === -1 || end === -1) return null;
-  return js.slice(0, start) + emitAnimRegion(data) + js.slice(end + ANIMATION_MARK_CLOSE.length);
-}

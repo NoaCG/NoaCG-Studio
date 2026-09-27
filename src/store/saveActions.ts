@@ -21,6 +21,13 @@ import { commitDurableWrites } from '../model/durableStore';
 import { normalizeThread } from '../model/aiThread';
 import { useDocKindStore } from './docKindStore';
 import { validateProjectFormat } from '../model/projectFormat';
+import { prepareOutRuntime } from '../blocks/animMigration';
+
+function prepareEmptyOut() {
+  const store = useTemplateStore.getState();
+  const js = prepareOutRuntime(store.template.js);
+  if (js !== store.template.js) store.applyTemplate({ ...store.template, js });
+}
 
 /** Persist the working slot's save link NOW — the autosave subscription only fires on a
  *  template change, and a Save that changes nothing else must still survive a reload. */
@@ -52,6 +59,8 @@ export async function saveCurrentGraphic(opts?: {
    *  folder would disagree. ONE write, not two - `updateGraphic` sets `template.name` from it. */
   name?: string;
 }): Promise<'saved' | 'needs-name' | 'failed'> {
+  if (!useTemplateStore.getState().saved.graphicId) return 'needs-name';
+  prepareEmptyOut();
   const s = useTemplateStore.getState();
   if (!s.saved.graphicId) return 'needs-name';
   s.setSaved({ ...s.saved, status: 'saving' });
@@ -82,6 +91,7 @@ export async function saveCurrentGraphic(opts?: {
 
 /** First save or Save As: mint a new library record and link the working document to it. */
 export async function saveGraphicAs(name: string, _dest: SaveDestination): Promise<{ ok: boolean; error: string | null }> {
+  prepareEmptyOut();
   const s = useTemplateStore.getState();
   const { doc, error } = createGraphic(s.template, {
     name,

@@ -35,6 +35,8 @@ export class PreviewController {
   private inputStamps = new Map<string, number>();
   private ready = false;
   private targetTime = 0;
+  private targetCue: number | undefined;
+  private exitMode: 'start' | 'running' | null = null;
   private inputAt = 0;
   private kind = 'load';
   private timeout: ReturnType<typeof setTimeout> | undefined;
@@ -104,7 +106,7 @@ export class PreviewController {
     this.ready = true;
     this.report(message, false);
     // Source update / undo waits for matching readiness, then restores the latest pose.
-    if (!wasReady) this.seek(this.targetTime, 'restore');
+    if (!wasReady) this.seek(this.targetTime, 'restore', this.targetCue);
     else if (this.queued) this.flush();
   };
   private envelope(revision: Revision): Envelope {
@@ -119,7 +121,9 @@ export class PreviewController {
       this.ready = false;
     }, 10000);
   }
-  async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number) {
+  async load(template: SpxTemplate, revision: Revision, sampleData: Record<string, string>, time: number, cue?: number) {
+    this.exitMode = null;
+    this.targetCue = cue;
     cancelAnimationFrame(this.pendingFrame);
     this.pendingFrame = 0;
     this.queued = false;
@@ -154,7 +158,7 @@ export class PreviewController {
       JSON.stringify(previousTemplate.resolution) === JSON.stringify(template.resolution);
     this.template = template;
     this.digest = digest;
-    const position = segmentAt(view.segments, time);
+    const position = { ...segmentAt(view.segments, time, cue), inspect: cue !== undefined };
     if (cssOnly) {
       this.expected = this.envelope(revision);
       this.iframe.contentWindow?.postMessage({ ...this.expected, kind: 'apply-css',
@@ -189,15 +193,23 @@ export class PreviewController {
   /** A transient stylesheet never becomes the document or a history entry. */
   previewCss(css: string, kind = 'drag') {
     this.pendingCss = inlineAssetRefs(css, this.resolvedAssets);
-    this.seek(this.targetTime, kind);
+    this.seek(this.targetTime, kind, this.targetCue);
   }
   previewTemplate(template: SpxTemplate, kind = 'drag') {
     if (!this.draftMotion && template.js === this.template?.js && template.html === this.template?.html) { this.previewCss(template.css, kind); return; }
     this.draftMotion = template.js !== this.template?.js || template.html !== this.template?.html;
     this.pendingTemplate = template;
-    this.seek(this.targetTime, kind);
+    this.seek(this.targetTime, kind, this.targetCue);
   }
-  seek(time: number, kind = 'scrub') {
+  startExit() {
+    if (this.exitMode || !this.ready || !this.expected) return false;
+    this.exitMode = 'start';
+    return true;
+  }
+  isExiting() { return this.exitMode !== null; }
+  stopExit() { this.exitMode = null; }
+  seek(time: number, kind = 'scrub', cue?: number) {
+    this.targetCue = cue;
     this.targetTime = time;
     if (!this.ready || !this.template || !this.expected) return;
     this.queuedInputAt = this.inputStamps.get(kind) ?? performance.timeOrigin + performance.now();
@@ -219,7 +231,9 @@ export class PreviewController {
     this.inFlight = true;
     this.inputAt = this.queuedInputAt;
     this.kind = this.queuedKind;
-    const position = segmentAt(this.timeline!.segments, this.targetTime);
+    const position = { ...segmentAt(this.timeline!.segments, this.targetTime, this.targetCue), inspect: this.targetCue !== undefined };
+    const exitKind = this.exitMode === 'start' ? 'exit-start' : this.exitMode === 'running' ? 'exit-time' : null;
+    if (exitKind) { position.time = Math.max(0, this.targetTime - this.timeline!.out); this.exitMode = 'running'; }
     this.expected = this.envelope(this.expected.revision);
     const css = this.pendingCss;
     this.pendingCss = null;
@@ -231,7 +245,7 @@ export class PreviewController {
       return node?.namespaceURI === 'http://www.w3.org/2000/svg' ? [{ selector: part.selector,
         attributes: Object.fromEntries(['x', 'y', 'cx', 'cy'].map(name => [name, node.getAttribute(name)])) }] : [];
     }) : [];
-    this.iframe.contentWindow?.postMessage({ ...this.expected, kind: draft ? 'preview-template' : css === null ? 'seek' : 'preview-css',
+    this.iframe.contentWindow?.postMessage({ ...this.expected, kind: exitKind ?? (draft ? 'preview-template' : css === null ? 'seek' : 'preview-css'),
       css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry } : {}), ...position }, '*');
   }
   resetMetrics() {

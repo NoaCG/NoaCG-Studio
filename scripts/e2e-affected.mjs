@@ -109,7 +109,7 @@ const MAP = [
     /^src\/components\/(SettingsDialog|home\/(HomePage|GraphicRow|GraphicControlPage)|editorFoundation\/(EditorFoundation|openNewEditor)|video\/VideoAppShell|wizard\/(CreationWizard|steps\/(EntryStep|FinishStep)))\.tsx?$/,
     ['no-old-editor.spec.ts'],
   ],
-  [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout|artworkEdits|artworkLayers|editorAnimation|animData|animEdit)\.ts$|^src\/templates\/shared\/animRuntime\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts', 'editor-usability.spec.ts', 'editor-keys.spec.ts']],
+  [/^src\/components\/editorFoundation\/|^src\/blocks\/(baseEdits|designLayout|artworkEdits|artworkLayers|editorAnimation|editorOut|animData|animEdit)\.ts$|^src\/templates\/shared\/animRuntime\.ts$|^src\/components\/wizard\/(CreationWizard|steps\/FinishStep)\.tsx$/, ['editor-base-edits.spec.ts', 'editor-usability.spec.ts', 'editor-keys.spec.ts', 'editor-out.spec.ts']],
   [/^src\/components\/editorFoundation\/|^src\/app\/router\.ts$|^src\/App\.tsx$|^src\/templates\//, ['editor-foundation.spec.ts', 'editor-alpha-entry.spec.ts']],
   [/^src\/components\/brand\/|^src\/components\/home\/(HomePage|sections\/LooksSection)\.tsx$|^src\/model\/(brand|packets)\.ts$/, ['brand-editor.spec.ts']],
   [/^(?:terms|privacy)\.html$|^src\/legal\.css$/, ['legal.spec.ts']],

@@ -1,8 +1,9 @@
+import { readTimeline } from './timelineView';
 import type { SpxTemplate } from '../../model/types';
 import { applyOperations, type EditorOperation } from './operations';
 
 export interface Revision { source: number; assets: number }
-export interface ViewState { selectedParts: string[]; time: number }
+export interface ViewState { selectedParts: string[]; time: number; cue?: number }
 export interface DocumentPort {
   read(): SpxTemplate;
   view(): ViewState;
@@ -92,6 +93,7 @@ export class EditorSession {
       if (request.operations.some(op => op.kind === 'layer.create' || op.kind === 'layer.duplicate')) {
         this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
       }
+      if (request.operations.some(op => op.kind === 'out.set')) this.port.restore({ ...this.port.view(), time: readTimeline(this.current).out, cue: undefined });
       if (request.operations.some(op => op.kind === 'layer.delete')) this.port.restore({ ...this.port.view(), selectedParts: [] });
     } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);

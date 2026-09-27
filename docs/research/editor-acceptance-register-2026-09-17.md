@@ -304,6 +304,20 @@ body move. New full-cue layers still need the following Out/trim controls for a
 complete create-from-scratch timing workflow. This does not close any whole row,
 claim owner acceptance, or switch the default editor. R1.1c is the next bounded task.
 
+## R1.1c scoped engineering receipt, September 27
+
+The [bounded spec, reproductions, verification and R1.1d handoff](editor-r1-1c/README.md)
+records permanent/empty Out, Set Out, reverse/manual keys, explicit Out inspection,
+held sides and live-pose interruption. It follows the landed September 27
+corrections. The receipt owns the final checks and landing status.
+
+D01/D02 and the relevant B03/B05/B07/B13 portions gain scoped engineering evidence;
+no whole row is closed. Numeric keys, inherited channels, explicit spans, speed,
+FPS and source/undo contracts remain in force. Trim and the wider nested wizard
+fixture move to R1.1d. Next, loops, full easing/multi-key/cross-cue authoring,
+physical devices, receiving hosts and owner acceptance remain open. The default
+editor is unchanged.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.
