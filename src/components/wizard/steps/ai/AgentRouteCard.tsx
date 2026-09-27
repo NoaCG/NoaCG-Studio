@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, useEffect, useId, useState } from 'react';
 import { copyLink } from '../../../home/copyLink';
 
 /**
@@ -70,6 +70,9 @@ function CopyableCommand({ label, text, testId }: { label: string; text: string;
     const t = window.setTimeout(() => setSaid(null), 1600);
     return () => window.clearTimeout(t);
   }, [said]);
+  // The accessible name carries the same word the button shows, so a failed copy is announced
+  // as one rather than hidden behind a fixed label.
+  const shown = said === 'copied' ? 'Copied' : said === 'failed' ? 'Select and copy' : 'Copy';
   return (
     <div className="ai-agent-cmd-wrap">
       <span className="ai-agent-cmd-label">{label}</span>
@@ -78,10 +81,10 @@ function CopyableCommand({ label, text, testId }: { label: string; text: string;
         type="button"
         className="ai-agent-copy"
         data-testid={`${testId}-copy`}
-        aria-label={`Copy the ${label} install lines`}
+        aria-label={`${shown} the ${label} install lines`}
         onClick={() => void copyCommand(text).then((ok) => setSaid(ok ? 'copied' : 'failed'))}
       >
-        {said === 'copied' ? 'Copied' : said === 'failed' ? 'Select and copy' : 'Copy'}
+        {shown}
       </button>
     </div>
   );
@@ -89,35 +92,32 @@ function CopyableCommand({ label, text, testId }: { label: string; text: string;
 
 interface Props {
   /**
-   * Whether the NoaCG-run route is on offer here. The closing line for somebody
-   * with no agent has to be true in BOTH builds: on a hosted studio nothing needs installing,
-   * but on a self-hosted one the only road left is their own provider account, and "nothing to
-   * install" there would send them to a Generate button that stays disabled until a key is
-   * stored.
+   * Whether the NoaCG-run route is on offer here, or `undefined` while the build has not said.
+   * The closing line for somebody with no agent has to be true in BOTH builds: on a hosted
+   * studio nothing needs installing, but on a self-hosted one the only road left is their own
+   * provider account, and "nothing to install" there would send them to a Generate button that
+   * stays disabled until a key is stored. Until the answer lands the line is not shown at all,
+   * so neither claim flashes up and then turns out untrue.
    */
-  hostedOffered: boolean;
+  hostedOffered: boolean | undefined;
 }
 
 const AgentRouteCard = forwardRef<HTMLElement, Props>(function AgentRouteCard({ hostedOffered }, ref) {
+  const titleId = useId();
   return (
-    <section
-      className="ai-agent-route"
-      data-testid="ai-agent-route"
-      ref={ref}
-      aria-labelledby="ai-agent-route-title"
-    >
+    <section className="ai-agent-route" data-testid="ai-agent-route" ref={ref} aria-labelledby={titleId}>
       <div className="ai-agent-route-head">
         {/* The block's one amber: the same tag the entry card wears for Beta, because it is the
             same job - one word the eye reads before the sentence. */}
         <span className="wz-beta-tag">Recommended</span>
-        <h3 id="ai-agent-route-title" className="ai-agent-route-title">
+        <h3 id={titleId} className="ai-agent-route-title">
           Make graphics with your coding agent
         </h3>
       </div>
       <ol className="ai-agent-steps" data-testid="ai-agent-route-body">
         <li>Use Claude Code, Codex or another compatible coding agent.</li>
         <li>
-          Install the NoaCG CLI. Run the two lines for your agent once.
+          Install the NoaCG CLI for your agent. Run its two lines once.
           <div className="ai-agent-cmds">
             <CopyableCommand label="Claude Code" text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
             <CopyableCommand label="Codex" text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
@@ -140,11 +140,13 @@ const AgentRouteCard = forwardRef<HTMLElement, Props>(function AgentRouteCard({ 
         Your agent checks each graphic with NoaCG&apos;s validator and live playout test before it
         saves it. You need the agent&apos;s own subscription and a terminal, and no key.
       </p>
-      <p className="hint ai-agent-route-foot">
-        {hostedOffered
-          ? 'No coding agent? Use the built-in generator below. Nothing to install.'
-          : 'No coding agent? The built-in generator below runs on your own AI provider account: tick “Use your own AI account instead” under AI settings.'}
-      </p>
+      {hostedOffered !== undefined && (
+        <p className="hint ai-agent-route-foot">
+          {hostedOffered
+            ? 'No coding agent? Use the built-in generator below. Nothing to install.'
+            : 'No coding agent? The built-in generator below runs on your own AI provider account: add its key under AI settings.'}
+        </p>
+      )}
     </section>
   );
 });

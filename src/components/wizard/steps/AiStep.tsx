@@ -1136,7 +1136,7 @@ export default function AiStep({
           actually REACH, which is now only the Lite path: ORing in a server's "Pro is
           available" made this card promise "nothing to install" while the sheet under it said
           the opposite. */}
-      <AgentRouteCard ref={agentRouteRef} hostedOffered={liteOffered} />
+      <AgentRouteCard ref={agentRouteRef} hostedOffered={hostedResolved ? liteOffered : undefined} />
 
       {/* THE BUILT-IN GENERATOR, LABELLED AS THE BUILT-IN OPTION, SAYS IT IS STILL IN TESTING
           (owner, 2026-08-29 - the same fact the Entry card leads with, said once more where
@@ -1666,10 +1666,10 @@ export default function AiStep({
               </div>
               {/* FIRST in the sheet: the route that needs no account and no key.
                   A pointer rather than a second copy of the card, so there is one place the
-                  commands live and this line only reveals it. */}
+                  commands live and this line only scrolls to it. */}
               <p className="hint ai-agent-pointer" data-testid="ai-agent-pointer">
-                Have Claude Code or Codex? Your own agent is the recommended route, and it needs
-                no account and no key.{' '}
+                Have Claude Code, Codex or another coding agent? It is the recommended route, and
+                it needs no account and no key.{' '}
                 <button type="button" className="link-btn" onClick={revealAgentRoute}>Show me ›</button>
               </p>
               <p className="hint" data-testid="ai-hosted-note">{hostedNote}</p>
@@ -1687,8 +1687,8 @@ export default function AiStep({
                   <span className="dlg-check-title">Use your own AI account instead</span>
                   <span className="dlg-check-desc">
                     Run it on your own account with OpenAI, Anthropic, Google or Hugging Face: any
-                    model that provider offers, at that provider’s prices. If you have Claude Code
-                    or Codex, you do not need this.
+                    model that provider offers, at that provider’s prices. If you have Claude Code,
+                    Codex or another coding agent, you do not need this.
                   </span>
                 </span>
               </label>

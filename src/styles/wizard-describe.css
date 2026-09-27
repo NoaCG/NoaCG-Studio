@@ -217,15 +217,16 @@
   gap: 6px 10px;
   margin-bottom: 10px;
 }
-/* Resets the panel's uppercase label so this reads as the step's title, not another section. */
-.ai-agent-route .ai-agent-route-title {
+.ai-agent-route-title {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0;
-  text-transform: none;
   color: var(--text);
 }
+/* The generator's head is longer than a plain "Create with AI", so in a narrow column its testing
+   caution wraps onto a second line rather than being cut to "Still in testing - resul…", and the
+   ⓘ keeps its place at the end of the row. */
+.ai-builtin .wz-sec-head .muted { white-space: normal; }
 .ai-agent-steps {
   margin: 0;
   padding: 0;
@@ -248,7 +249,7 @@
   width: 18px;
   height: 18px;
   border: 1px solid var(--border-strong);
-  border-radius: 50%;
+  border-radius: 4px;              /* the wizard rail's square number chip, not a second shape */
   font-family: var(--font-mono);
   font-size: 10.5px;
   line-height: 16px;

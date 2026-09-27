@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/steps/ai/AgentRouteCard.tsx, e2e/ai-tiers.spec.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/wizard/2026-09-07-say-user-own-coding-agent-route.md
 ---

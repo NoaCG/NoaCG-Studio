@@ -124,8 +124,10 @@ test("the user's own coding agent is the recommended route, first and above the 
   expect(pointerFirst).toBe(true);
   // And the own-account switch tells a coding-agent user they do not need it.
   await expect(sheet.getByTestId('ai-own-key')).toContainText('you do not need this');
-  // The card has no Hide, and the sheet's pointer scrolls back up to it.
+  // The card has no Hide, and the sheet's pointer scrolls back up to it from down the step.
   await expect(page.getByTestId('ai-agent-route-toggle')).toHaveCount(0);
+  await sheet.getByTestId('ai-own-key').scrollIntoViewIfNeeded();
+  await expect(body).not.toBeInViewport();
   await sheet.getByRole('button', { name: 'Show me' }).click();
   await expect(body).toBeInViewport();
 });
