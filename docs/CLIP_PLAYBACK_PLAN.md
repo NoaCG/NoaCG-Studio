@@ -1,8 +1,9 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, 2026-09-27. Nothing in it is built, and it is not yet approved.** It comes from an owner
-planning session and is written to be read twice: by the owner, and by a second, independent
-reviewer before anything is built (§14 says what to challenge). Once approved it replaces §3
+**Draft, 2026-09-27. Nothing in it is built.** It comes from an owner planning session; the owner
+has answered its four questions (§15) and approved the design, and it now waits on one independent
+review of the plan AND the code it touches before phase 0 starts (§14 says what to challenge, §16
+lists every file each phase touches). Once approved it replaces §3
 ("Build 2: basic media") of [`RUNDOWN_AUTOMATION_PLAN.md`](RUNDOWN_AUTOMATION_PLAN.md) and closes
 the open half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md).
 
@@ -13,9 +14,11 @@ their source:
 | File | Shows |
 |---|---|
 | `today-1600.png` | the production page as it is today, a server clip selected |
-| `clip-on-air-1920.png` | a clip on air at full HD: the clip clock, the minimal rundown, a clip's settings |
-| `clip-last-seconds-1920.png` | the same clip in its last seconds, the clock in its warning state |
-| `clip-on-air-1366.png` | the same page at the 1366×768 floor, rundown dragged narrow |
+| `clock-single-clip-1920.png` | full HD: one clip on air that holds its last frame; the clock, the minimal rundown, a clip's settings |
+| `clock-single-clip-last-seconds-1920.png` | the same clip in its last seconds: the clock's warning |
+| `clock-clip-then-clip-1920.png` | a clip that plays the next clip automatically: `TO STUDIO` big, the clip's own time small |
+| `clock-clip-then-clip-1366.png` | the same at the 1366×768 floor: the clock folded to one thin row, rundown dragged narrow |
+| `clock-last-clip-last-seconds-1366.png` | the last clip of that sequence in its final seconds, at 1366 |
 | `graphics-only-1920.png` | a quiz production with no playout server: twelve fields and seven controls |
 | `graphics-only-wide-rundown-1920.png` | the same production with the rundown dragged wide |
 
@@ -88,7 +91,7 @@ than 2.0.x", so the source is the authority. **Every line still needs the real 2
 |---|---|---|
 | A clip that reaches its end without `LOOP` keeps showing its **last frame** until something replaces it. | `core/producer/layer.cpp`, `receive()`: an empty frame falls back to `last_frame()` | Hold last frame is today's behaviour and the default. |
 | `LOADBG c-l <clip> [transition] AUTO` plays the background by itself when the foreground ends. One background per layer. | `layer.cpp`, `auto_play_`; `AMCPCommandsImpl.cpp`, `loadbg_command` | The server can chain one clip ahead with the page closed. The page queues the next as each one starts. |
-| With a MIX (or any) transition, AUTO starts the transition **that many frames before the end**, so the transition finishes on the last frame. | `transition_producer.cpp`, `auto_play_delta()` returns the duration | A clip set to Clear with a 25-frame fade starts fading 1 s before its end, and loses its last second. Said on screen. |
+| With a MIX (or any) transition, AUTO starts the transition **that many frames before the end**, so the transition finishes on the last frame. | `transition_producer.cpp`, `auto_play_delta()` returns the duration | A clip set to Clear with a Long (1 s) fade starts fading 1 s before its end, and loses its last second. Said on screen. |
 | A MIX transition **crossfades the audio** too. | `transition_producer.cpp`, `audio_transform.volume` | Fades are sound and picture together, with nothing extra. |
 | `EMPTY` is a transparent colour producer (`#00000000`), not an empty layer. | `color/color_producer.cpp`, `get_hex_color` | "Clear" leaves a transparent layer. Invisible on air; `INFO` reports a colour producer. |
 | `LOADBG` without `AUTO` sets `auto_play_ = false`. | `layer.cpp`, `load()` | Queuing EMPTY without AUTO cancels a pending switch. |
@@ -118,7 +121,7 @@ Mosart, Cuez and Grass Valley from their documentation's search snippets):
 
 ### 6.1 One screen, sized by the operator
 
-- **Design target 1920×1080. Floor 1366×768**, as the layout contract already says (question Q1).
+- **Design target 1920×1080. Floor 1366×768**, as the layout contract already says (owner, Q1).
   Below the floor the existing phone layout takes over, unchanged in behaviour.
 - **The rundown's width is the operator's.** A drag handle on the divider, from 320px to 60% of the
   window; double-click returns it to the default (about 40% at 1920, 380px at 1366). Remembered per
@@ -172,30 +175,47 @@ unless the operator scrolled by hand in the last ten seconds.
 - **One small `STILL` tag** on a server clip's picture, because the page cannot play the server's
   video: it shows the clip's thumbnail. An operator who does not know that could wait for a picture
   to move.
-- **PREVIEW** shows a clip's length in its corner (`3:00`). **PROGRAM** shows the remaining time of
-  the clip ending soonest, large (`-0:09`), because that is where the operator's eyes are.
+- **PREVIEW** shows a clip's length, small, in its corner (`3:00`). **PROGRAM** shows no time at
+  all: the clip clock sits right beside it (§6.4), and one number is clearer than two.
 
 ### 6.4 The clip clock
 
-The owner called the countdown "one of the most important things when you play a clip". It gets
-its own place: **under the verb buttons, beside PROGRAM**, in the column the 2026-08-21 layout
-contract left free. It appears only while a server clip or audio file is on air.
+The owner called the countdown "one of the most important things when you play a clip", so the
+operator can count the director back to the studio. Owner review of 2026-09-27 set its shape: **a
+clear number, and nothing that moves the rest of the page.**
 
-- **Large remaining time** (`-0:09`, 52px at 1920, 40px at 1366), the clip's name and slot, its
-  length, and a progress bar.
-- **What happens at zero**, in words: `then → STUDIO_BG ⟲`, `then holds the last frame`,
-  `then clears`.
-- **The last ten seconds** turn the border red; **the last five** pulse it
-  (`clip-last-seconds-1920.png`). Colour is never the only signal: the digits count too.
-- **At zero on Hold** the clock counts up in amber, `HOLDING +0:03`, so nobody forgets a frozen
-  frame on air.
-- **Paused** reads `PAUSED -0:09`.
-- **A second running file** (a music bed under a VT) gets one small line underneath:
-  `♪ 2-5 MUSIC_BED -2:31`. The big number is always the file ending soonest; a looping file never
-  takes it.
+**Where.** Under the verb buttons, beside PROGRAM, in the column the 2026-08-21 layout contract
+left free. It appears only while a server clip or audio file is on air, and it takes **only the
+height left in that column**: its bottom edge is PROGRAM's bottom edge, never lower. In CSS it is a
+flex item of the verb column with `container-type: size`, so its content can never make the stage,
+and so the monitors, taller. Its number scales with its own height (`cqh` units). When less than
+about 96px is left, as at 1366×768, it folds to **one thin row**: the label and the number, nothing
+else (`clock-clip-then-clip-1366.png`).
+
+**What it shows** depends on what happens at the end of the clip:
+
+| When the clip ends it... | The clock shows | Warns (red, then pulsing) |
+|---|---|---|
+| **holds the last frame** or **clears** | one big number, the clip's remaining time, and one small line: `then holds the last frame` / `then clears to studio` (`clock-single-clip-1920.png`) | on that number |
+| **plays the next clip** automatically (Play next, or a Play-through folder) | **`TO STUDIO`** as the big number: this clip's remaining time plus the length of every clip that will follow it automatically, up to the one that holds or clears. One small line: `clip -0:09 · next INTRO_VT 0:20` (`clock-clip-then-clip-1920.png`) | on **TO STUDIO only**. The clip's own countdown never warns when another clip follows, because nothing happens on air at that moment |
+| **loops** | the clip's remaining time, small, and `loops until Out`. No studio time: there is none | never |
+
+- **The warning**: the last ten seconds turn the box red; the last five pulse it
+  (`clock-single-clip-last-seconds-1920.png`, `clock-last-clip-last-seconds-1366.png`). Colour is
+  never the only signal: the digits count too.
+- **At zero on Hold** the number turns amber and counts up, `HOLDING +0:03`, so nobody forgets a
+  frozen frame on air. **On Clear** it disappears with the clip.
+- **Paused** reads `PAUSED -0:09`, and the studio time stops with it.
+- **One clock, one clip.** It follows the server clip or audio file the operator took last (for an
+  All-together folder, its longest file). Any other server file on air shows its remaining time on
+  its own rundown row, never as a second line in the clock: the owner's shows do not run a separate
+  sound against a video, and a second line would crowd the one number that matters.
 - **Where the number comes from**: the server's own `INFO`, read twice a second (§6.7), with the
-  page's clock filling in between reads so the seconds tick evenly. With a Bridge too old to
-  answer `INFO`, the clock counts from the Take and the clip's length and says `estimated`.
+  page's clock filling in between reads so the seconds tick evenly. With a Bridge too old to answer
+  `INFO`, the clock counts from the Take and the clip's length and says `estimated`.
+- **TO STUDIO is computed, and says so when it cannot be**: it adds the lengths the server listed
+  (trimmed where the clip is trimmed). A clip with no known length in the chain makes it read
+  `TO STUDIO ?` rather than a wrong number.
 
 ### 6.5 The cue panel (left of the rundown, where graphics are edited today)
 
@@ -215,8 +235,9 @@ its room back.
 | **Note** | free text | - |
 
 Under **Advanced**, closed by default, with a one-line summary when closed
-(`Channel 2 · layer 10 · whole clip`): channel, layer, start at and end at (trim), the length in
-frames of Short and Long, and the kind (movie or audio) when the server's word was wrong.
+(`Channel 2 · layer 10 · whole clip`): channel, layer, start at and end at (trim), and the kind
+(movie or audio) when the server's word was wrong. Short is half a second and Long one second,
+turned into the channel's own frames by the adapter (§17, case 7); they are not settings.
 
 **A folder.** Its name, **How it plays** (One by one / Play through / All together), for Play
 through **At the end** (As the last clip says / Loop the folder), and a small picture of what airs
@@ -234,7 +255,7 @@ At the end, except the folder's last clip, which keeps its own Hold / Clear / Lo
   starts that many frames before the end (§4), and the setting says so.
 - **Loop**: `PLAY … LOOP`, as shipped.
 - **Play next**: when this clip ends, the server plays the **next clip or audio cue on the same slot**,
-  looking past any graphics in between (question Q3), and never past the end of the clip's folder.
+  looking past any graphics in between (owner, Q3), and never past the end of the clip's folder.
   The Take queues it with `LOADBG c-l <next> [MIX n] AUTO`. The target is named where the choice is
   made (`Then plays: STUDIO_BG, cue 3`) and in the clip clock. When there is no such clip, the
   button is disabled and says why ("the next cue is a graphic", "the next clip plays on 2-5").
@@ -275,9 +296,24 @@ Two audio files at once need one moved to another layer in Advanced.
 - **Folders do not nest.** One level of indentation, which the owner called important, and nothing
   deeper.
 
-**Who queues the next file in a Play-through folder**: the page, when `INFO` shows the switch
-happened, sends the next `LOADBG … AUTO`. If the page is closed, the server still plays the file
-already queued, then holds its last frame. The folder's panel says so.
+**Who queues the next file in a sequence** (Play next more than one clip deep, or a Play-through
+folder): **the Bridge, not the page.** The page hands the Bridge the whole list once, at the Take
+(`sequence`, §9). The Bridge queues the first follower with the Take, watches the slot with `INFO`,
+and queues the next file each time the server switches. Only the server ever switches.
+
+*Why not the page*, which is what the CasparCG Client does: a browser slows the timers of a tab
+that is hidden. Chrome's "intensive throttling" allows a hidden tab's chained timers to run about
+once a minute after five minutes hidden, so a folder of 20-second clips, run from a tab the
+operator switched away from, would stall after the queued one and hold a frozen frame on air. The
+Bridge is an ordinary local process that nothing throttles, and it is already running whenever a
+server cue can be taken. It also means two pages open on one show never both queue.
+
+*The cost*: the Bridge has so far kept no state (`BRIDGE.md` §3, "Stateless"). A sequence is the
+one exception, deliberately small: per slot, the list still to play and the file it last queued,
+in memory only. It is reported by `/state`, so any page sees it. A Bridge restart forgets it; the
+server still plays the file already queued, then holds its last frame, and the page says the
+sequence stopped. Out, All out, or a new Take on the slot ends the sequence in the Bridge before
+anything is sent to the server.
 
 ### 6.7 The server tells the truth
 
@@ -306,7 +342,7 @@ Nothing in §6.2 to §6.7 that belongs to the server appears unless the producti
 **Graphics are not neglected, and should not look it.** A graphics-only production gets the wider
 and denser rundown, folders for rounds and segments, one press for two graphics, and a cue panel
 that fits a twelve-field scoreboard. The next graphics-first work after these phases is the timed
-cues of `RUNDOWN_AUTOMATION_PLAN.md` §2 (question Q4).
+cues of `RUNDOWN_AUTOMATION_PLAN.md` §2 (owner, Q4).
 
 ### 6.9 Any playout system, not only CasparCG
 
@@ -374,7 +410,7 @@ clip clock takes its place in the stacked column, and the existing phone spec mu
 **Rejected: switching the phone surfaces off.** The owner offered it. The Control page is how a
 second operator or a presenter's phone joins a live show, which is outcome 5's "no one person a
 single point of failure". Freezing costs one spec per phase; switching off costs a feature somebody
-may rely on in a show. Question Q2.
+may rely on in a show. The owner chose freezing (Q2): "no need to remove if it works".
 
 ## 9. Bridge and protocol
 
@@ -383,8 +419,9 @@ Additive in protocol v2 (`src/control/playoutProtocol.ts`, mirrored in `cli/src/
 
 - `take` on media gains `end?`, `next?` (the item to queue), `fadeIn?`, `levelDb?`, `trimIn?`,
   `trimOut?`; `out` gains `fadeOut?`; `update` on a media slot may carry `levelDb` alone.
-- A new verb **`queue`**: `LOADBG c-l <item> [MIX n] AUTO`, or `LOADBG c-l EMPTY` to cancel, for
-  the page's Play-through chain.
+- A new verb **`sequence`**: `{ slot, items: [...], end }`, taken with the first item. The Bridge
+  plays the first, queues the second with `LOADBG c-l <item> [MIX n] AUTO`, and runs the rest as
+  §6.6 says. `out`, `clear` and a new `take` on the slot end it. Its state is in `/state`.
 - A new route **`POST /state`** `{ target, channel }` → the layers' state from `INFO`, parsed by the
   adapter into protocol words (`file`, `elapsed`, `length`, `paused`, `loop`, `queued`), never raw
   XML, so an OBS adapter can answer the same shape.
@@ -430,7 +467,7 @@ Each lands on its own, through the queue, with its own owner-queue item.
 | later | Graphics attached to a clip at an offset | medium | needs the timed cues of `RUNDOWN_AUTOMATION_PLAN.md` §2 | - |
 | later | Load (first frame on air, paused) and preloading the next clip | small | only if the take delay measured on the real server is visible | - |
 
-**Order**: 0 → 1 → 2 → 3 → 4, then the timed graphics cues (question Q4). Phase 2 comes before 3
+**Order**: 0 → 1 → 2 → 3 → 4, then the timed graphics cues (owner, Q4). Phase 2 comes before 3
 because the clock helps every clip that already exists, and because Clear and Play next must not
 ship until the page can see the server do them.
 
@@ -490,7 +527,9 @@ folders; a NoaCG-side playlist timer.
 The questions this plan most needs challenged:
 
 1. **Is `INFO` polling twice a second sound** as the source of truth (load on the server, the
-   Bridge's connection per command, a slow answer), or does it need one held connection?
+   Bridge's connection per command, a slow answer), or does it need one held connection? And is the
+   Bridge's one piece of state, a running sequence (§6.6), the right place for it, against a
+   page-side queue plus a warning to keep the tab visible?
 2. **Play next "looking past graphics"**: is it clear enough to an operator which clip it will play,
    and does limiting it to the same slot and the same folder remove every surprising case?
 3. **Is the flat cue list with `folderId` enough** to keep every older reader correct, and do the
@@ -502,18 +541,101 @@ The questions this plan most needs challenged:
 6. **Does the per-clip `AF` level really survive the server's own switch**, and is resetting the
    mixer on every manual Take safe when two cues share a slot?
 
-## 15. Questions for the owner
+## 15. The owner's answers, 2026-09-27
 
-Each carries its reason, `needs: alignment`, and a recommendation.
+- **Q1. The screen.** Full HD is the design target, and the page must still work at 1366×768.
+- **Q2. The phone surfaces.** Frozen: they keep working with no new features. "No need to remove if
+  it works."
+- **Q3. Play next.** Plays the next clip on the same slot and looks past graphics, as recommended.
+- **Q4. The order.** Phases 0 to 4 as recommended, then the timed graphics cues.
+- **The clip clock** (design review): it must fit under the buttons and never reach below the
+  monitors; one clear number matters most; show what comes next only when something follows
+  automatically, with the clip's own time and the time to the studio kept apart, and warn on the
+  time to the studio; no second line for a sound running against a video. §6.4 is written to that.
+- **The review**: the plan and the code it touches go to an independent reviewer (Codex) before
+  phase 0 starts. §16 is written for that review.
 
-- **Q1. The screen floor.** Design for 1920×1080, and keep 1366×768 as the smallest window that must
-  still work (the class laptops, your ruling of 2026-08-21)? Or raise the floor to full HD?
-  *Recommendation: keep 1366×768 as the floor; the mockup at 1366 shows it still fits.*
-- **Q2. The phone surfaces.** Keep them working but frozen (no new features, one spec pinning them),
-  or switch them off for now? *Recommendation: freeze.*
-- **Q3. Play next.** Should it look past graphics to the next clip on the same slot, or play only if
-  the very next cue is a clip? *Recommendation: look past graphics, name the target on screen, never
-  leave the clip's folder.*
-- **Q4. The order.** Clips (phases 0 to 4) first, then the timed graphics cues of build 1?
-  *Recommendation: yes; clips are the named blocker, and phase 1 already gives graphics the new
-  layout.*
+## 17. What could go wrong, case by case
+
+Each case names the guard the build must have, and the phase whose specs pin it. "Source" means
+checked in the CasparCG source (§4); "server" means it goes on §12's list for the real server.
+
+**On the server**
+
+1. **A new Take onto a slot with a queued follower.** `PLAY c-l "<clip>"` loads its own background
+   first, which replaces the queued one and switches `AUTO` off (source: `load()` sets
+   `auto_play_` from the new command). The Bridge also ends its sequence for the slot before
+   sending. Pinned in phase 3 (unit) and phase 4 (e2e). Server: confirm on 2.5.0.
+2. **Out during a sequence.** `STOP` empties the foreground and switches `AUTO` off (source:
+   `stop()`), but the queued background stays loaded. NoaCG never sends a bare `PLAY c-l` without a
+   name, so it is never played. An Out with a fade sends `PLAY c-l EMPTY MIX n`, which replaces the
+   background too. Pinned in phase 3 (unit: no nameless PLAY is ever written).
+3. **Pause during a sequence.** A paused clip does not advance, so `AUTO` does not fire until
+   Resume; `INFO` reports `paused`, and the clock and TO STUDIO stop. Pinned in phase 4 (e2e with
+   the timed fake server).
+4. **Loop and Play next together.** They are one control (At the end), so they cannot both be set.
+   A looping clip never ends, so nothing queued behind it would ever play.
+5. **A still image.** A still has no length (2.3.2 lists it as `1 1/25`,
+   `cli/src/playout/amcp.ts:218-221`), so `AUTO` behind it would fire at once. At the end, Play next
+   and fades on the end are offered for movies and audio only; a still keeps Hold and Out.
+6. **Trim and `AUTO`.** `AUTO` counts the producer's own frames; with `IN`/`OUT` set, that should
+   be the trimmed length. Server: confirm, or trim is not offered on a clip set to Play next.
+7. **Fade lengths at other frame rates.** `MIX n` counts the channel's frames, so 12 frames is half a
+   second at 25p and a quarter at 50p. The adapter converts Short (0.5 s) and Long (1 s) to frames
+   with the channel's own rate, read once from `INFO <channel>` and cached per target. Pinned in
+   phase 3 (unit, 25p and 50p).
+8. **The mixer level leaks to the next clip.** `MIXER VOLUME` outlives the clip on its layer
+   (source). Every manual Take writes `MIXER c-l VOLUME 1` before its `PLAY`; the stored level rides
+   in the clip's own `AF`. Pinned in phase 3 (unit: the line order).
+9. **Another client takes the layer** (the CasparCG Client, a second NoaCG). `INFO` shows a file the
+   rundown did not send: the row reads `replaced on the server` and the clock goes. The Bridge ends
+   its sequence for that slot. Pinned in phase 2 (e2e).
+10. **2.3 servers.** No `BEGIN … COMMIT`: an All-together folder goes one command after another. The
+    adapter declares `batch` only when `VERSION` says 2.4 or later. Server: whether 2.3 is still in
+    use anywhere.
+
+**In the Bridge and the network**
+
+11. **The Bridge stops or restarts mid-sequence.** The server plays the file already queued and
+    holds. The page's `/state` calls fail: the clock reads `no answer from NoaCG Bridge` over its
+    last known number, and the row keeps ON AIR with the same note. Pinned in phase 2 (e2e: Bridge
+    goes away mid-clip).
+12. **An old Bridge.** `/health` has no `features`: every new control is greyed with "Update NoaCG
+    Bridge to use this", and a Take sends exactly today's line. Pinned in phase 3 (e2e with a fake
+    0.4 Bridge).
+13. **`INFO` answers slowly.** The poll never overlaps itself: the next one waits for the last. The
+    clock keeps counting from the last good answer and marks itself `estimated` after 3 s without
+    one.
+14. **A Take the server has not started yet.** The first `INFO` after a Take can still show the old
+    file. The page trusts its own accepted Take for one second before `INFO` may overrule it.
+
+**In the page**
+
+15. **Twice-a-second updates re-rendering the whole page.** The production page is one large
+    component; a poll that sets its state would re-render all of it twice a second. The server
+    state lives in its own small store (phase 0), and only the clock, the rows' time and the
+    on-air marks subscribe to it. Pinned in phase 2 by a render-count check in the e2e spec.
+16. **A hidden tab.** The page's own polling slows when the tab is hidden (see §6.6), which only
+    delays the display; the server and the Bridge carry on. On return the page reads `/state` at
+    once.
+17. **Reload mid-clip.** The page reads `/state` and matches each slot's file to the rundown's
+    server cues on that slot. Two cues of the same file on one slot are ambiguous: the page marks
+    the first and says `matched by file name`. Pinned in phase 2 (e2e: reload mid-clip).
+18. **Two operators on one show.** Both pages poll and both show the same truth; only the Bridge
+    queues sequences, so nothing is sent twice. A Take from either replaces the slot, as today.
+19. **Keyboard.** Arrow keys walk visible rows only: a collapsed folder is one row, and Space on a
+    folder row takes the folder. `P` pauses a server clip (a new key; H stays reserved for the
+    timed cues' Hold). Pinned in phase 4 and phase 3.
+
+**In the record**
+
+20. **A cue whose `folderId` names no folder** (a folder deleted on another machine, an old pack):
+    read as no folder. Deleting a folder keeps its cues and clears their `folderId`.
+21. **A folder's cues no longer contiguous** (an older build moved one out of the middle): the page
+    shows each run of the folder's cues as it stands, never reorders on read, and the next move in
+    this build puts them back together. Pinned in phase 4 (e2e: a record with a split folder).
+22. **An older build saves the show.** Every new field is optional and passes through untouched,
+    and `loop` is still written beside `end: 'loop'` (§7). Pinned in phase 3 and 4 by reading a
+    record written by this build with the previous build's normaliser (fixture in the spec).
+23. **The hosted page, the exported controller and packs.** They read the flat cue list and ignore
+    the new fields. Pinned in each phase by the frozen-surface spec (§8).

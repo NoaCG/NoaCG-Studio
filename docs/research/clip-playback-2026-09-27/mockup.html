@@ -27,7 +27,7 @@ body { background:var(--void); color:var(--text); font:13px/1.35 var(--ui); over
 .splitter { position:absolute; left:-5px; top:0; bottom:0; width:9px; }
 .splitter::after { content:''; position:absolute; left:3px; top:50%; width:3px; height:40px; margin-top:-20px; border-radius:2px; background:#4b5568; }
 /* stage: monitors + the verb column */
-.stage { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 250px; gap:12px; align-items:start; }
+.stage { display:grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 250px; gap:12px; align-items:stretch; }
 .monlabel { font:600 11px var(--mono); letter-spacing:.12em; margin-bottom:5px; display:flex; gap:8px; align-items:center; white-space:nowrap; overflow:hidden; }
 .monlabel .dot { width:7px; height:7px; border-radius:50%; flex:none; }
 .monlabel .sub { font-family:var(--ui); letter-spacing:0; font-weight:400; color:var(--mid); overflow:hidden; text-overflow:ellipsis; }
@@ -37,7 +37,7 @@ body { background:var(--void); color:var(--text); font:13px/1.35 var(--ui); over
 .len { position:absolute; right:8px; bottom:8px; font:600 12px var(--mono); background:rgba(0,0,0,.6); color:#d1d5db; padding:2px 7px; border-radius:3px; }
 .still { position:absolute; left:8px; top:8px; font:600 9.5px var(--mono); letter-spacing:.08em; background:rgba(0,0,0,.55); color:#cbd5e1; padding:2px 6px; border-radius:3px; }
 .pgm-rem { position:absolute; right:8px; bottom:8px; font:800 22px var(--mono); background:rgba(0,0,0,.72); color:#fecaca; padding:2px 10px; border-radius:4px; }
-.verbs { display:flex; flex-direction:column; gap:8px; padding-top:18px; }
+.verbs { display:flex; flex-direction:column; gap:8px; padding-top:18px; min-height:0; }
 .take { background:#ef4444; color:#fff; font-weight:700; border-radius:5px; text-align:center; padding:11px 0; font-size:14px; }
 .kbd { font:600 9.5px var(--mono); border:1px solid rgba(255,255,255,.35); border-radius:3px; padding:0 4px; margin-left:6px; opacity:.85; }
 .vgrid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
@@ -56,6 +56,26 @@ body { background:var(--void); color:var(--text); font:13px/1.35 var(--ui); over
 .cc-then b { color:#93c5fd; font-weight:600; }
 .cc-2 { margin-top:7px; padding-top:7px; border-top:1px solid rgba(239,68,68,.25); display:flex; justify-content:space-between; font:12px var(--mono); color:#e9d5ff; }
 .airnote { font-size:11.5px; color:var(--dim); text-align:center; }
+
+/* THE CLIP CLOCK: it takes whatever height is left under the verbs and never more. `container-type:
+   size` gives it size containment, so its content can never push the stage (and the monitors) taller;
+   the number scales with the box (cqh) and the box folds to one row when it is short. */
+.clk { flex:1 1 0; min-height:34px; container-type:size; position:relative; }
+.clk-in { position:absolute; inset:0; border:1px solid rgba(239,68,68,.5); border-radius:7px; background:rgba(239,68,68,.07); padding:7px 11px; display:flex; flex-direction:column; justify-content:center; gap:3px; overflow:hidden; }
+.clk-k { font:600 10px var(--mono); letter-spacing:.1em; color:#f87171; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clk-main { display:flex; align-items:baseline; gap:10px; }
+.clk-lab { font:600 10.5px var(--mono); letter-spacing:.1em; color:var(--dim); white-space:nowrap; }
+.clk-big { font:800 min(56px, 42cqh)/1 var(--mono); color:#fff; letter-spacing:-.02em; }
+.clk-sub { font:12px var(--mono); color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.clk-sub b { color:#93c5fd; font-weight:600; }
+.clk.warn .clk-in { border-color:#ef4444; background:rgba(239,68,68,.22); box-shadow:0 0 0 2px rgba(239,68,68,.45); }
+.clk.warn .clk-big { color:#fecaca; }
+@container (max-height: 96px) {
+  .clk-in { flex-direction:row; align-items:center; justify-content:space-between; padding:0 10px; }
+  .clk-k { display:none; }
+  .clk-big { font-size:min(30px, 62cqh); }
+  .clk-sub { display:none; }
+}
 /* inspector */
 .insp { border:1px solid var(--border); border-radius:7px; background:var(--bg-panel); padding:12px 14px 14px; container-type:inline-size; min-height:0; overflow:hidden; }
 .insp-head { display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
@@ -173,21 +193,33 @@ const verbs = (clip) => `
   <div class="vgrid"><span class="btn dimbtn">⟳ Re-take <span class="kbd">R</span></span><span class="btn">✎ Update <span class="kbd">U</span></span>
   <span class="btn ${clip?'':'dimbtn'}">${clip?'❚❚ Pause':'» Next'} <span class="kbd">${clip?'P':'N'}</span></span><span class="btn">■ Out <span class="kbd">0</span></span></div>`;
 
-if (view === 'clip' || view === 'clip-small' || view === 'clip-warn') {
-  const warn = view === 'clip-warn';
+
+const scen = {
+  'hold':       { clip:'HOCKEY_REPORT', rem:'−0:41', pct:77, then:'then holds the last frame' },
+  'hold-warn':  { clip:'HOCKEY_REPORT', rem:'−0:04', pct:98, then:'then holds the last frame', warn:1 },
+  'chain':      { clip:'SPONSOR_BUMPER', rem:'−0:09', pct:40, next:'INTRO_VT', nextLen:'0:20', studio:'−0:29' },
+  'chain-1366': { clip:'SPONSOR_BUMPER', rem:'−0:09', pct:40, next:'INTRO_VT', nextLen:'0:20', studio:'−0:29', small:1 },
+  'chain-warn-1366': { clip:'INTRO_VT', rem:'−0:04', pct:80, studio:'−0:04', then:'then clears to studio', small:1, warn:1, last:1 },
+}[view];
+if (scen) {
+  const chainOn = !!scen.next;
   $('pvwsub').textContent = 'HOCKEY_REPORT';
-  $('pgmsub').textContent = 'SPONSOR_BUMPER · Hairline';
+  $('pgmsub').textContent = scen.clip + ' · Hairline';
   $('pvw').innerHTML = `<div class="frame" style="background:radial-gradient(ellipse at 50% 125%,#e2e8f0 0 35%,#94a3b8 36% 38%,#e2e8f0 39%),#cbd5e1"></div><div style="position:absolute;left:8%;top:34%;font:800 28px var(--ui);color:#1e3a8a;letter-spacing:.04em;line-height:1.05">HOCKEY<br><span style="color:#b91c1c">REPORT</span></div><span class="still">STILL</span><span class="len">3:00</span>`;
-  $('pgm').innerHTML = `<div class="frame" style="background:linear-gradient(135deg,#1d3557,#0b132b 55%,#3a0f2e)"></div><div style="position:absolute;left:30%;top:30%;font:800 24px var(--ui);color:#fde68a">SPONSOR</div><div style="position:absolute;left:7%;bottom:13%;border-left:3px solid var(--amber);padding-left:8px"><div style="font-weight:700;font-size:15px">Alexandra Riva</div><div style="font-size:10px;color:#cbd5e1">Chief Correspondent</div></div><span class="still">STILL</span><span class="pgm-rem">${warn?'−0:04':'−0:09'}</span>`;
-  $('verbs').innerHTML = verbs(true) + `
-   <div class="cclock ${warn?'warn':''}">
-     <div class="cc-k"><span>● ON AIR · 2-10</span><span>of 0:15</span></div>
-     <div class="cc-name">SPONSOR_BUMPER</div>
-     <div class="cc-big">${warn?'−0:04':'−0:09'}</div>
-     <div class="bar"><i style="width:${warn?73:40}%"></i></div>
-     <div class="cc-then"><span>then</span><b>→ STUDIO_BG ⟲</b></div>
-     <div class="cc-2"><span>♪ 2-5 MUSIC_BED</span><span>−2:31</span></div>
-   </div>`;
+  const pgmWord = scen.clip === 'HOCKEY_REPORT' ? 'HOCKEY' : scen.clip === 'INTRO_VT' ? 'INTRO' : 'SPONSOR';
+  $('pgm').innerHTML = `<div class="frame" style="background:linear-gradient(135deg,#1d3557,#0b132b 55%,#3a0f2e)"></div><div style="position:absolute;left:30%;top:30%;font:800 24px var(--ui);color:#fde68a">${pgmWord}</div><div style="position:absolute;left:7%;bottom:13%;border-left:3px solid var(--amber);padding-left:8px"><div style="font-weight:700;font-size:15px">Alexandra Riva</div><div style="font-size:10px;color:#cbd5e1">Chief Correspondent</div></div><span class="still">STILL</span>`;
+  // One number when nothing follows automatically; the time TO STUDIO first when a clip follows,
+  // and only that number warns, because that is when the director has to cut.
+  const clock = chainOn
+    ? `<div class="clk"><div class="clk-in">
+         <div class="clk-k">● ON AIR 2-10</div>
+         <div class="clk-main"><span class="clk-lab">TO STUDIO</span><span class="clk-big">${scen.studio}</span></div>
+         <div class="clk-sub">clip ${scen.rem} · next <b>${scen.next}</b> ${scen.nextLen}</div></div></div>`
+    : `<div class="clk ${scen.warn?'warn':''}"><div class="clk-in">
+         <div class="clk-k">● ON AIR 2-10 · ${scen.clip}</div>
+         <div class="clk-main">${scen.last?'<span class="clk-lab">TO STUDIO</span>':''}<span class="clk-big">${scen.rem}</span></div>
+         <div class="clk-sub">${scen.then}</div></div></div>`;
+  $('verbs').innerHTML = verbs(true) + clock;
   $('inspector').innerHTML = `
     <div class="insp-head"><span class="kick">SERVER CLIP · 6</span><span class="insp-title">HOCKEY_REPORT</span><span class="meta"><b>3:00</b> · PACKAGES/HOCKEY_REPORT · in <b>HOCKEY PACKAGE</b></span></div>
     <div class="rowset">
@@ -202,19 +234,20 @@ if (view === 'clip' || view === 'clip-small' || view === 'clip-warn') {
       <span class="lab">Note</span><span class="input ph" style="max-width:520px">e.g. after the intro</span>
     </div>
     <div class="adv">▸ <b style="font-weight:600">Advanced</b><span class="sum">Channel 2 · layer 10 · whole clip</span></div>`;
+  const inOpening = scen.clip !== 'HOCKEY_REPORT';
   const rows = [
     {fold:1, nm:'OPENING', mode:'plays through', len:'1:05'},
     {child:1, num:1, ic:'v', nm:'TITLE_SEQUENCE', len:'0:30', end:'next', slot:'2-10', played:1},
-    {child:1, num:2, ic:'v', nm:'SPONSOR_BUMPER', len:'0:15', end:'next', slot:'2-10', onair:1, rem: warn?'−0:04':'−0:09', p: warn?73:40},
-    {child:1, num:3, ic:'v', nm:'STUDIO_BG', len:'0:20', end:'loop', slot:'2-10', queued:1},
+    {child:1, num:2, ic:'v', nm:'SPONSOR_BUMPER', len:'0:15', end:'next', slot:'2-10', played: scen.clip!=='SPONSOR_BUMPER', onair: scen.clip==='SPONSOR_BUMPER', rem:scen.rem, p:scen.pct},
+    {child:1, num:3, ic:'v', nm:'INTRO_VT', len:'0:20', end:'clear', slot:'2-10', queued: scen.clip==='SPONSOR_BUMPER', played: scen.clip==='HOCKEY_REPORT', onair: scen.clip==='INTRO_VT', rem:scen.rem, p:scen.pct},
     {num:4, ic:'g', nm:'Hairline', sm:'Alexandra Riva', slot:'1-20', onair:1},
     {num:5, ic:'g', nm:'Scoreboard', sm:'HOME 2 – 1 AWAY', slot:'1-21'},
     {fold:1, nm:'HOCKEY PACKAGE', mode:'all together', len:'3:00'},
-    {child:1, num:6, ic:'v', nm:'HOCKEY_REPORT', len:'3:00', slot:'2-10', picked:1},
+    {child:1, num:6, ic:'v', nm:'HOCKEY_REPORT', len:'3:00', slot:'2-10', onair: !inOpening, rem:scen.rem, p:scen.pct, picked: inOpening},
     {child:1, num:7, ic:'a', nm:'HOCKEY_COMMENTARY', len:'3:00', end:'clear', slot:'2-5'},
     {num:8, ic:'g', nm:'Hairline', sm:'Coach Mäkinen', slot:'1-20'},
     {num:9, ic:'a', nm:'STING', len:'0:03', end:'clear', slot:'2-5'},
-    {num:10, ic:'a', nm:'MUSIC_BED', len:'3:36', end:'loop', slot:'2-5', onair:1, rem:'−2:31', p:30},
+    {num:10, ic:'a', nm:'MUSIC_BED', len:'3:36', end:'loop', slot:'2-5'},
     {num:11, ic:'g', nm:'Hairline', sm:'Principal Virtanen', slot:'1-20'},
     {num:12, ic:'g', nm:'Weather', sm:'Tomorrow · 14°', slot:'1-22'},
     {fold:1, nm:'CLOSING', mode:'plays through', len:'1:20', closed:1},
@@ -223,7 +256,7 @@ if (view === 'clip' || view === 'clip-small' || view === 'clip-warn') {
   $('count').textContent = '17';
   $('list').innerHTML = rows.map(r => rowHtml(r, true)).join('');
   $('foot').innerHTML = '<span class="btn">＋ Graphic</span><span class="btn">＋ From the playout server…</span><span class="btn">＋ Pictures</span>';
-  if (view === 'clip-small') { document.documentElement.style.setProperty('--rw','400px'); document.querySelector('.stage').style.gridTemplateColumns='minmax(0,1fr) minmax(0,1fr) 200px'; document.querySelector('.cc-big').style.fontSize='40px'; }
+  if (scen.small) { document.documentElement.style.setProperty('--rw','400px'); document.querySelector('.stage').style.gridTemplateColumns='minmax(0,1fr) minmax(0,1fr) 210px'; }
   else document.documentElement.style.setProperty('--rw','700px');
 }
 
