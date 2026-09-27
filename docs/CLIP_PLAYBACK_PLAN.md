@@ -730,7 +730,7 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `src/control/playoutProtocol.ts` and its mirror | `MediaPlayback`, `sequence` |
 | `cli/src/playout/server.ts` | `readAction` (185-207) validates the descriptor and `sequence`; the per-slot serial queue and the runner's state |
 | `cli/src/playout/runner.ts` (new) | the sequence runner of §6.10, with an injectable clock |
-| `cli/src/playout/adapters/casparcg.ts` | `casparLine` (43-81) becomes the lines for an action: `PLAY … [IN] [OUT] [MIX n] [AF "volume=…"] [LOOP]`, `LOADBG … AUTO` for Clear and followers, `CLEAR`/`PLAY EMPTY MIX` for Out with a follower, `LOADBG EMPTY` after a refused `PLAY`; fades and ramps converted with the channel's frame rate, read once per target and channel and read again when the channel's format changes |
+| `cli/src/playout/adapters/casparcg.ts` | `casparLine` (43-81) becomes the lines for an action: `PLAY … [IN] [OUT] [MIX n] [AF "volume=…"] [LOOP]`, `LOADBG … AUTO` for Clear and followers, `CLEAR`/`PLAY EMPTY MIX` for Out with a follower, `LOADBG EMPTY` after a refused `PLAY`; fades converted with the channel's frame rate, read once per target and channel and read again when the channel's format changes |
 | `cli/src/playout/adapters/ograf.ts` | refuses media playback fields and a level-only `update` (332) |
 | `cli/test/playout.test.mjs`, `cli/test/runner.test.mjs` (new) | every line and its order; the exact old line for a legacy action; 25p, 50p, 29.97 and interlaced conversions; every runner case of §18 against the fake, fault-injected |
 | `e2e/playout-cues.spec.ts` | each setting's action; a legacy `loop: true` cue still loops; audio on layer 5; a cue with a fade on an old Bridge cannot be taken and says why |
