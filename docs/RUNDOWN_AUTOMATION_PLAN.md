@@ -470,6 +470,12 @@ four files named in §2.8.
 
 ## 3. Build 2: basic media
 
+> **Being replanned, 2026-09-27.** The owner's planning session widened this build into clip
+> settings, a clip countdown, folders and a resizable rundown:
+> [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), a draft awaiting a second opinion and the
+> owner's answers. Once approved it replaces this section, and build 1 drops its `At clip end`
+> choice. Until then this section stands as written.
+
 Outcome 5's criterion reads "clips and audio play reliably from the rundown through CasparCG, with
 volume, loop and the other attributes a production genuinely needs" (`docs/GOALS.md:159-161`).
 Loop shipped on 2026-09-25. The rule stays `BRIDGE.md` §5a's: **use the server's own parameter,
