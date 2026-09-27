@@ -13,10 +13,11 @@
 // `timeline` covers line.
 // covers: src/blocks/animData.ts
 
-import { test, expect, type CDPSession, type Page, type FrameLocator } from '@playwright/test';
+import { test, expect, type CDPSession, type ConsoleMessage, type Page, type FrameLocator } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { chooseType, pickDesign } from './_browse';
 import { dropSvg } from './_svg-import';
+import { PREVIEW_CMD_TYPE } from '../src/preview/previewProtocol';
 
 // The wizard's live preview must FEEL live: every choice lands in the composed iframe,
 // rapid changes settle on the LAST choice, and the lifecycle demo on the Animation step
@@ -457,6 +458,28 @@ async function quiet(page: Page) {
     .toBe(true);
 }
 
+/** The console line a preview document writes when the demo's Out reaches it, with its clock. */
+const DEMO_OUT = '[preview-demo-out]';
+
+/**
+ * Have every preview document say when it is told to stop - the lifecycle demo's Out, which takes
+ * the graphic off air on purpose. Listened for INSIDE the documents, because the frame is
+ * sandboxed and the parent's postMessage into it cannot be watched from outside; the time is the
+ * document's own `Date.now()`, the moment its exit starts, on the same clock as the film.
+ */
+async function noteDemoOuts(page: Page) {
+  await page.addInitScript(
+    ({ type, marker }) => {
+      if (window === window.parent) return;
+      window.addEventListener('message', (ev) => {
+        const msg = ev.data;
+        if (msg && typeof msg === 'object' && msg.type === type && msg.cmd === 'stop') console.log(`${marker} ${Date.now()}`);
+      });
+    },
+    { type: PREVIEW_CMD_TYPE, marker: DEMO_OUT },
+  );
+}
+
 /**
  * Run `action` (a step change) throttled, and FILM the page while the rebuilt document lands:
  * the compositor's own screencast, which sends a frame for every paint however busy the page's
@@ -466,7 +489,8 @@ async function quiet(page: Page) {
  * Returns the FIRST blank window in ms (from the first painted frame with no artwork to the next
  * frame with it), how many frames were filmed, and the timeline for the log. The first window
  * is the one the reader sees on a step change: the Animation step's lifecycle demo takes the
- * graphic off air on purpose a little later, and that is not a blank.
+ * graphic off air on purpose a little later, and that is not a blank - so a window that BEGINS
+ * after a document was sent the demo's Out (see `noteDemoOuts`) is never counted.
  */
 async function blankAcross(
   page: Page,
@@ -485,15 +509,24 @@ async function blankAcross(
     cdp.send('Page.screencastFrameAck', { sessionId: f.sessionId }).catch(() => {});
   };
   cdp.on('Page.screencastFrame', onFrame);
+  const outs: number[] = [];
+  const onConsole = (m: ConsoleMessage) => {
+    const text = m.text();
+    if (text.startsWith(DEMO_OUT)) outs.push(Number(text.slice(DEMO_OUT.length)));
+  };
+  page.on('console', onConsole);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN });
   await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 70 });
   // The screencast opens on the current picture; the step change is timed from after it.
   await expect.poll(() => shots.length, { timeout: 10_000 }).toBeGreaterThan(0);
   const t0 = Date.now();
   await action();
-  // Film until the new document has landed and had time to run its entrance.
+  // Film until the new document has landed and had time to run its entrance. The budget runs
+  // from the click's return, not from t0: under the slowdown on a busy machine the click alone
+  // has taken 29 s (a queued run on 2026-09-27), which left five frames and no landing filmed.
+  const acted = Date.now();
   let landedAt: number | null = null;
-  while (Date.now() - t0 < 25_000) {
+  while (Date.now() - acted < 25_000) {
     const { rev, pending } = await docStamp(page);
     if (landedAt === null && rev !== revBefore && !pending) landedAt = Date.now();
     if (landedAt !== null && Date.now() - landedAt >= 3000) break;
@@ -504,7 +537,9 @@ async function blankAcross(
   const stoppedAt = Date.now();
   await cdp.send('Page.stopScreencast');
   cdp.off('Page.screencastFrame', onFrame);
+  page.off('console', onConsole);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  const demoOut = outs.find((t) => t >= t0) ?? Infinity;
 
   const shares = await inkShares(
     page,
@@ -521,9 +556,10 @@ async function blankAcross(
   for (let i = 0; i < shots.length; i++) {
     const at = Math.round(shots[i].t - t0);
     const ink = shares[i] > INK;
-    lines.push(`${at}ms ${(shares[i] * 100).toFixed(1)}% ${ink ? 'ink' : 'BLANK'}`);
+    const afterOut = shots[i].t >= demoOut;
+    lines.push(`${at}ms ${(shares[i] * 100).toFixed(1)}% ${ink ? 'ink' : 'BLANK'}${afterOut ? ' (demo out)' : ''}`);
     if (at < 0) continue; // the picture before the step change
-    if (!ink && blankFrom === null) blankFrom = at;
+    if (!ink && blankFrom === null && !afterOut) blankFrom = at;
     if (ink && blankFrom !== null && blankMs === 0) blankMs = Math.max(1, at - blankFrom);
   }
   if (blankFrom !== null && blankMs === 0) blankMs = stoppedAt - t0 - blankFrom; // never came back
@@ -533,6 +569,7 @@ async function blankAcross(
 test('the preview keeps the artwork on the stage across a step change', async ({ page }) => {
   // The demo laptop's screen, and the road the students walk: the docs' quiz example, imported.
   await page.setViewportSize({ width: 1366, height: 768 });
+  await noteDemoOuts(page);
   await page.goto('/app');
   await dropSvg(page, QUIZ_EXAMPLE_SVG);
   await quiet(page);
@@ -569,6 +606,15 @@ test('the preview keeps the artwork on the stage across a step change', async ({
   // start from nothing on purpose and ramp through the 3% line in two or three frames, exactly
   // as they did before. The limit sits between the two with room for a slower machine; the
   // afterimage itself is held however long the load takes.
+  //
+  // MEASURED 2026-09-28: the detector read the lifecycle demo as the blank. The entrance's lowest
+  // filmed frame sits right on the 3% line (3.1% after the 21.9% afterimage, then up), so in most
+  // runs no entrance frame read as blank at all, and the first blank window was the demo's own Out
+  // a second later: a fade from 21.9% down to the 0.5% guide and back, 582 to 699 ms. 9 of 10
+  // runs failed that way on unchanged code, and about 20 of 68 in the queue's logs since 09-22,
+  // every one after Fields -> Animation (the only direction with the demo). A window that begins
+  // after the demo's Out reached a document is no longer counted; one that began before it still
+  // runs to its end, so a real blank is measured whole.
   expect(forward.blankMs, 'blank after Fields -> Animation').toBeLessThan(400);
   expect(back.blankMs, 'blank after Animation -> Fields').toBeLessThan(400);
 });
