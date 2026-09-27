@@ -25,10 +25,14 @@ import { parkFocusOffControls } from './_keys';
 // Everything else on screen is a function of the seeded record.
 //
 // Baselines are per platform (`-win32`, `-linux`), because fonts rasterise differently. To
-// re-record after a deliberate change: `--update-snapshots` locally writes the `-win32` ones; for
-// `-linux`, push, let CI's shard fail on the old picture, and take the `*-actual.png` files from
-// that run's `test-results-<shard>` artifact (`gh run download <id> -n test-results-<shard>`),
-// renamed to `<name>-chromium-linux.png`. Both sets come from the same commit.
+// re-record after a deliberate change, from the same pushed commit:
+//
+//   npx playwright test e2e/playout-baseline.spec.ts --update-snapshots      # -win32, locally
+//   gh workflow run rerecord-screenshots.yml --ref <branch>                  # -linux, on a runner
+//   rm e2e/playout-baseline.spec.ts-snapshots/*-linux.png                    # download won't overwrite
+//   gh run download <run-id> -n linux-screenshots -D e2e/playout-baseline.spec.ts-snapshots
+//
+// The run's summary says which pictures changed. Look at both sets before committing them.
 
 const BRIDGE = 'http://127.0.0.1:8899';
 const TOKEN = 'e2e-token';

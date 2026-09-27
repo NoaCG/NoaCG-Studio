@@ -76,7 +76,16 @@ for (const name of [...codexSkills].filter((n) => !claudeSkills.includes(n))) dr
 // instruction files.
 const handWritten = [];
 (function walk(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+  // A directory can vanish between listing and reading: the build runs this audit's test beside
+  // tests that create and delete `.tmp-*` directories in the checkout.
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  for (const entry of entries) {
     if (['node_modules', '.git', 'dist', '.claude'].includes(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
