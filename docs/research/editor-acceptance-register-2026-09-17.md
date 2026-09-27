@@ -51,6 +51,18 @@ run's two failures and passing isolated rerun, production measurements and rende
 evidence. This closes the bounded basic-artwork implementation task; full B02/B04,
 R1.1b/c/d, owner usability acceptance and default-switch acceptance remain open.
 
+2026-09-27 owner review of the landed artwork slice: title/colour/size, rectangle
+creation/duplication, opacity and Ctrl-selection worked; reorder appeared to work but
+was not confidently confirmed. Apply was hard to discover, continuous playback was
+unavailable, Quiz marquee selection failed with a blue screen, and layers/Project were
+not discoverable. This is partial owner evidence, not full B02/B04/B13 acceptance.
+Source inspection confirms the triangle is Next frame and Space currently pans;
+Quiz and Project symptoms still require browser reproduction. The next bounded slice
+repairs transport, selection/discoverability and immediate appearance interaction before
+R1.1b. [Full observations, future tasks and acceptance](editor-artwork-basics/README.md#owner-feedback-2026-09-27).
+Save/reopen, undo/redo, exports and brand consistency were not explicitly accepted by
+this review; retain their engineering evidence without claiming owner confirmation.
+
 ## Evidence in hand
 
 Default catalog/SVG routes walked; source-changing drag/undo trials; F4 30-layer/300-key

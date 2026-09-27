@@ -12,7 +12,8 @@ The owner authorized pulling basic R1.2b tools ahead of R1.1b: text content,
 font/size/solid colour, layer order/duplicate/delete, marquee and multi-object
 movement. Match the current NoaCG logo, typography and theme tokens.
 Basic opacity also belongs to the retained static-authoring checkpoint.
-Then resume R1.1b, R1.1c and R1.1d; remaining R1.2b tools stay in R1.2b.
+The September 27 review adds the bounded usability corrections below before resuming
+R1.1b, R1.1c and R1.1d; remaining R1.2b tools stay in R1.2b.
 
 ## Boundaries and decisions
 
@@ -182,13 +183,66 @@ Owner acceptance, physical-phone checks and named receiving-host acceptance stay
 open. Browser-executed export packages are evidence for the package behavior,
 not for a real playout installation. This remains the opt-in Alpha editor.
 
+## Owner feedback 2026-09-27
+
+PR #453 merged as `6d6a7051` on September 26 at 22:18 UTC. The owner subsequently
+tried Hairline and Quiz and reported clear improvements. The exact browser/deployed
+revision of that review was not captured. The original wording is retained in the
+[answered review item](../../acceptance/owner-queue/2026-09-27-editor-artwork-basics.md).
+
+- Confirmed by the owner: changing title, colour and size; rectangle creation and
+  duplication; opacity; Ctrl-selecting texts. Hairline selection/movement worked.
+- Tentative: send backward/bring forward appeared to work. Do not call this a firm pass.
+- Friction: Apply text/appearance was hard to find. Prefer immediate appearance
+  changes; direct canvas typing is desirable, with reliability ahead of that refinement.
+- Reported failures: Space did not play; the apparent Play button advanced one frame;
+  Quiz could not be marquee-selected/moved and the screen went blue during the drag.
+  Ctrl-selection still worked. The layer list was not found, and Project appeared inert.
+- Quiz A/B/C/D labels were not editable, also matching the owner's playout experience;
+  this is not a request to expose behavior-owned content. Inspect source before deciding
+  whether any particular label is unsupported; do not infer its ownership from the report.
+- Requested later: artwork Ctrl/Cmd-C then Ctrl/Cmd-V duplication and Alt-drag copies.
+- No explicit owner verdict on save/reopen, undo/redo, exports or complete branding
+  consistency. The prior engineering results remain evidence, not complete owner acceptance.
+
+Source inspection after the report: `Timeline.tsx` labels the triangle Next frame
+and advances `time + 1 / fps`; it has no continuous play control. `Canvas.tsx`
+handles Space for pan. `Timeline.tsx` already renders Layers and source-derived rows;
+`EditorFoundation.tsx` toggles Project state. These establish implementation and
+discoverability gaps, not a reproduced cause for the Quiz blue screen or Project symptom.
+Those symptoms have not been reproduced in this documentation-only follow-up.
+
 ## Next bounded outcome
 
-Resume R1.1b from updated `origin/main` containing this implementation. Let users
-animate the graphic they just customized: visible/editable numeric keys and
-layer bar-body movement, using the same operation/session/preview boundaries.
-Follow the exact scope and closing IDs in `docs/EDITOR_PLAN.md`,
-`docs/EDITOR_REBUILD_PLAN.md` and the acceptance register. R1.1c then owns Set Out,
-hold/interruption and the complete entrance/exit journey; R1.1d widens imported
-artwork fidelity and first-user evidence. Owner feedback is asynchronous and
-does not block the next engineering slice or authorize the default-editor switch.
+Make the existing customization workflow usable before adding keys. Reproduce owner
+reports on updated main through the real Hairline and Quiz entry routes, including a
+new rectangle, at desktop/laptop/125% layouts. Record route, revision, viewport and
+failure before changing code; if reproduction fails, record the attempt without
+claiming a fix. Keep B02/B04/B11/B13 scoped to the corrected portions.
+
+| Order / task | Why and observable acceptance |
+|---|---|
+| 1. Continuous authoring playback | Users must see the existing animation. Separate Play/Pause from frame-step controls. Button and Space advance artwork and clock over multiple frames, pause/resume and stop at the authored cue/end boundary. Ignore playback shortcuts in text/numeric inputs and modals; resolve bare Space versus Space-drag pan without triggering both. Test Hairline and Quiz, including after a source edit; playback must not mutate source/history or issue production actions. If a visible pane appears frozen, measure its requestAnimationFrame before blaming runtime. |
+| 2. Quiz marquee and movement | The selection workflow must work beyond Hairline. Reproduce the blue-screen symptom without assuming browser text selection is its cause. Drag from available blank space to select supported Quiz artwork, move the selection, cancel, undo/redo and save/reopen. Ctrl/Shift selection continues to work, background/ancestor hits do not steal intended marquee gestures, and quiz behavior/source remain intact. A giant full-screen overlay must not obscure feedback. |
+| 3. Layer and Project discoverability | A new rectangle must be findable without guessing. Keep Layers in the timeline as contracted; make its rows visible and reachable with usable canvas space at all three viewports. Canvas and row selection agree; the new rectangle can be found, selected and reordered through the existing supported operation. Reproduce Project's apparently inert button and make its supported open/close state visible; full project/assets workflows remain R1.4/R1.2b. |
+| 4. Immediate appearance editing | Remove the extra Apply step for font, size, colour/fill and opacity. Valid changes appear immediately while editing; commit one undo transaction per completed interaction, not per keystroke or drag sample. Invalid intermediate input, Escape/cancel and revision changes preserve source. Verify text and rectangles, switching selections, undo/redo and save/reopen. Reuse the registry/source writers and transient previews; this does not auto-publish to production. |
+
+The current separate text box may remain for this slice, with its completion action
+clear. Do not trade reliable edits for a rushed rich-text overlay. After the four
+corrections, resume R1.1b numeric keys and layer bar-body movement, then R1.1c Set Out,
+hold/interruption and export parity, followed by R1.1d fidelity and first-user evidence.
+
+Named R1.2b follow-ups, not forgotten polish:
+
+- Direct in-canvas editing for supported plain live text: preserve caret/selection,
+  IME, line breaks, zoom/parent transforms, Escape, history and operator defaults.
+  Retain a Properties fallback and preserve outlined/mixed/behavior-driven source.
+- Artwork copy/paste and Alt-drag duplication: Ctrl/Cmd-C/V works on eligible selected
+  artwork; native copy/paste inside text controls remains native. Alt-drag moves a copy
+  while keeping the original, with one atomic undo and cancellation. Reuse duplicate
+  identity/reference rules, preserve field/motion bindings, and explicitly refuse unsafe
+  sources. Resolve Alt-drag copying versus existing Alt-scale-from-anchor by gesture target.
+
+Owner feedback is asynchronous. Implement and prove these corrections before another
+useful workflow review; do not ask the owner to reproduce technical failures again as a
+routine gate. This feedback does not authorize the default-editor switch.
