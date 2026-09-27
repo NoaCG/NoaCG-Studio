@@ -10,7 +10,7 @@
 //    Chromium prints it on two A4 pages, headings in Oswald like the graphics: page 1 is what to
 //    do, and page 2, after the README's one `---`, is the layer names of every graphic. The
 //    Markdown is the small subset the README uses (headings, bullets, bold, inline code, one
-//    table, one code block, one `---` as the page break), converted here so the repo needs no
+//    table, code blocks, one `---` as the page break), converted here so the repo needs no
 //    Markdown package for two pages.
 // 2. The zip: Illustrator/, SVG/, Previews/, README.md and README.pdf inside one folder named
 //    NoaCG-SVG-examples, written to public/downloads/NoaCG-SVG-examples.zip, which the site
@@ -98,7 +98,7 @@ function markdownToHtml(md) {
   return out.join('\n');
 }
 
-// The page: A4, one column of type, a code block in two columns so page 1 holds it all.
+// The page: A4, one column of type; a code block, if the README ever has one, runs in two columns.
 const page = (body) => `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><style>
   @font-face { font-family: Oswald; src: url('${pathToFileURL(path.join(ROOT, 'public', 'fonts', 'oswald.woff2'))}'); }
