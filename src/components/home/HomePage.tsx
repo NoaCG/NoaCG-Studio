@@ -23,6 +23,7 @@ import { checkTemplateLegibility } from '../../validation/designRulesWarnings';
 import type { ProjectLegibility } from '../../model/designRules';
 import type { ValidationIssue, ValidationResult } from '../../validation/validateTemplate';
 import { graphicKindLabel, type SpxTemplate } from '../../model/types';
+import { DOWNLOADS_URL } from '../../downloads/links';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import AuthStatus from '../auth/AuthStatus';
@@ -338,7 +339,9 @@ export default function HomePage({ route }: { route: Route }) {
                 )}
               </div>
               {searchRow}
-              {searchFiltered.length === 0 && videos.length === 0 && productions.length === 0 && (
+              {/* An EMPTY LIBRARY, not an empty search result: see the same gate in the Graphics
+                  section below. */}
+              {graphics.length === 0 && videos.length === 0 && productions.length === 0 && (
                 <EmptyHint onNew={() => navigate({ view: 'new' })} />
               )}
               <div className="home-shelf">
@@ -527,15 +530,24 @@ function PublishSheet({
   );
 }
 
+// THE FIRST-RUN HINT names every way in, in the owner's order (2026-09-27): your AI coding agent
+// with the NoaCG CLI, your own SVG, a template. A new user should know what NoaCG does and start
+// within half a minute, and the two installable tools should be findable from the first screen
+// rather than only from the account menu and Playout settings. The link goes to the one public
+// page that explains both (src/downloads/links.ts), never to a tool directly.
 function EmptyHint({ onNew }: { onNew: () => void }) {
   return (
     <div className="panel-section">
       <h3>Nothing saved yet</h3>
       <p className="hint">
-        Create a graphic with <strong>+ New graphic</strong> — it lands here, ready to add to a
-        production, and syncs across your devices while you are signed in.
+        Make your first graphic with <strong>+ New graphic</strong>. Use your AI coding agent with
+        the NoaCG CLI, import your own SVG, or start from a template. It lands here, ready to add
+        to a production, and syncs across your devices while you are signed in.
       </p>
       <button className="primary" onClick={onNew}>+ New graphic</button>
+      <p className="hint">
+        Get the NoaCG CLI and NoaCG Bridge from <a href={DOWNLOADS_URL}>Downloads</a>.
+      </p>
     </div>
   );
 }
