@@ -107,6 +107,9 @@ keys, including keys outside the new interval; body movement still moves keys an
 spans together. Bounds, adjacent intervals and a one-frame minimum are checked
 before committing. Zero-duration Out receives an empty interval set when spans
 are materialized, preserving a valid serialized document.
+Row controls have an isolated stacking context so scrolled-off handles cannot
+intercept the sticky ruler. `j-2204` reproduced the interception and changed
+selection before the fix; the regression checks the hit target, selection and seek.
 
 ## Rendered review
 
@@ -138,19 +141,79 @@ height. The SVG clips at its own original viewBox, matching the source raster.
 - `j-2184`: reproduced a dangling-reference ID collision while its other eight
   focused tests passed. `j-2185`: all nine focused tests passed after reserving
   names from HTML references as well as existing IDs, CSS and scripts.
+- `j-2190` and `j-2193` reproduced escaped/attribute CSS reference hazards when
+  assigning IDs. The final guard reads normalized CSS without rewriting it,
+  reserves escaped dangling names, and refuses identity-sensitive attribute rules.
+  `j-2194`: all nine focused tests passed on the corrected source (49.5 seconds).
+- `j-2195`: full affected browser run: 1,029 passed, 545 configured skips, two
+  startup timeouts (18.5 minutes). Both timed out waiting for the wizard to mount,
+  before their layout assertion; screenshots were blank startup frames. The
+  unchanged complete wizard-entry spec then passed all 18 tests in `j-2198`
+  (37.4 seconds). No wizard code, assertion or timeout was changed. The original
+  full command remains a failed run; the focused rerun resolves its two failures.
+  Its separate catalog calibration gate passed all 35 tests (3.7 minutes).
 - `j-2183`: full rendered catalog battery passed: 526 type-floor variants, 528
   overflow variants against baseline, 526 field-coverage variants (105 variants
   retain explicitly undriven field types), 349 numeral variants, 317/317 factory
   candidates and 12 kits. All six taste frames were opened. Catalog emit matched
   all 528 stored fingerprints; no catalog baseline was changed.
 - The implementation build exited 0 with 1,908 tests passed and three skipped;
-  TypeScript, lint, dependency, bundle and after-build gates passed. Final affected
-  suite, committed-tip build and production-bundle measurements follow below.
+  TypeScript, lint, dependency, bundle and after-build gates passed.
+- `j-2199`: build passed on product-code commit `4071646e`, again with 1,908
+  tests passed and three skipped, including the corrected owner-checkpoint route.
+- `j-2200`: production measurements passed catalog and SVG rows, then exposed a
+  stale benchmark assertion on F4: its existing X tracks correctly change JS keys,
+  but the runner required changed CSS. The runner now compares the combined
+  HTML/CSS/JS source and checks that one undo restores all three exactly.
+  Product code and performance thresholds were unchanged.
+- `j-2201`/`j-2202` and the `j-2203` diagnostic exposed the scrolled trim-handle
+  interception through a wrong SVG benchmark selection. Those incomplete timing
+  runs are not final evidence. The runner now checks the displayed pose, intended
+  `#f0`/`#f1` targets and source/undo, so a drag of some other artwork cannot pass.
+- `j-2206`: all 98 editor regressions passed after isolating timeline-row stacking
+  (6.6 minutes). This includes the ten final fidelity/trim cases, numeric keys,
+  body movement, Out/interruption, base/text/appearance, Space/pan, save/reopen,
+  executable packages and all three editor layouts.
+- `j-2207`: target-correct production catalog/SVG measurements passed, but F4
+  drag feedback measured 29.3 Hz against the 30 Hz floor. `j-2208` profiled that
+  workload and identified repeated HTML ancestor-matrix/corner work. Measurement
+  now reuses each layer's geometry within that single pose, never across frames.
+- `j-2209`: a rotation-only edit after scrubbing changed source but not the sampled
+  SVG angle (0 degrees of the expected 30-degree change). Rotation now joins
+  position/scale in the existing base-transform pose invalidation. Its regression
+  also checks that one undo restores the earlier angle.
+- `j-2211`: all 99 editor regressions passed on the final runtime corrections
+  (2.5 minutes), including all eleven actual-wizard fidelity/trim cases. Product
+  commit `6908c5da` was then compiled successfully with `npm run build:vercel` for
+  production-bundle measurements.
+- `j-2212`: all nine production-bundle measurements passed, with unchanged
+  thresholds, intended selection and exact single-undo source restoration.
+  [Raw measurements](production-bundle/latency-built.json) include the build SHA,
+  source hashes, Windows/Chromium version and Ryzen 7 5800H environment. Catalog
+  feedback was 58.1/59.4/58.1 Hz, SVG 57.9/56.8/59.2 Hz and F4 36.0/37.8/35.1 Hz
+  at 1920/1366/1093 respectively. Maximum pointer-release latency was 109 ms;
+  selection maximum was 73.4 ms. Frame p95 stayed at 16.7–16.8 ms with no iframe
+  long tasks. This is browser acknowledgement timing, not physical photon timing.
+  All fourteen final frames were opened: nine fixture/layout frames, three tool
+  frames, phone and wizard Finish. The ruler remains clear after row scrolling;
+  selected text, added artwork and F4's grid retain their positions after undo.
+  Laptop inspectors scroll and phone controls wrap. The SVG retains its authored
+  clip masks; these performance fixtures do not replace the actual-wizard proof.
+- `j-2214`: isolated trim transaction/feedback check passed (15 seconds total).
+  Its [24 samples](built/trim-feedback.json) measured 17.3 ms median, 28.6 ms p95
+  and 45.6 ms maximum from pointer event to handle geometry after two animation
+  frames. The six-worker regression run's earlier sample had a 100.1 ms maximum;
+  the isolated run separates gesture timing from that concurrent test load.
 
-Review and simplification ran inline over the merge-base diff against
+Review and simplification ran inline over the final 62-file merge-base diff against
 `ca12699d72598cd41b478f3fe6c0f055f254f749`. Confirmed fixes cover selected-group hit
 testing, hidden descendants in nested discovery, preserving existing stable class
-targets, competing inline rotation, and dangling-reference identity collisions.
+targets, competing inline rotation, and identity/reference collisions (including
+escaped CSS and ID attribute selectors), and scrolled trim controls intercepting
+the ruler. Verification additionally found the rotation refresh and repeated
+geometry work described above. These eight product findings and the benchmark's
+CSS-only transaction assertion form the nine confirmed review findings.
+All nine are fixed and verified; no performance threshold was relaxed.
 Simplification reuses the source registry, numeric-property adapters, canonical
 animation writer and existing gesture/history transaction. Identity remapping
 runs only when an ID actually changed; no extra scene or history abstraction was
