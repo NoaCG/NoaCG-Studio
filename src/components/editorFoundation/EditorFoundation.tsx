@@ -13,6 +13,7 @@ import { readTimeline, segmentAt } from './timelineView';
 import { sameRevision } from './session';
 import type { PreviewController } from './PreviewController';
 import type { RenderedPart } from './protocol';
+import type { SpxTemplate } from '../../model/types';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
@@ -30,6 +31,7 @@ export default function EditorFoundation() {
   const preview = useRef<PreviewController | null>(null);
   const connectPreview = useCallback((controller: PreviewController | null) => { preview.current = controller; }, []);
   const previewCss = useCallback((css: string) => { preview.current?.previewCss(css, 'appearance'); }, []);
+  const previewTemplate = useCallback((template: SpxTemplate) => { preview.current?.previewTemplate(template, 'appearance'); }, []);
   const [playing, setPlaying] = useState(false);
   const playback = useRef<{ from: number; end: number; expected: ReturnType<typeof session.version>; session: typeof session } | null>(null);
   const view = useMemo(() => readTimeline(template), [template]);
@@ -112,10 +114,10 @@ export default function EditorFoundation() {
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} />
-      <Inspector view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} />
+      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} />
     </div>
-    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); seek(next); }} select={select} playing={playing} togglePlayback={togglePlayback}
+    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); seek(next); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
-    <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Base edits preserve motion · Key authoring follows separately</span></footer>
+    <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;
 }

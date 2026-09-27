@@ -5,6 +5,7 @@ import { parseTransform } from '../assets/svgGeometry';
 import { parseAnimData } from './animData';
 import { addCatalogLine, appendCss, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
+import { artworkNode, artworkRange } from './artworkEdits';
 
 export interface BaseValues {
   selector: string; target: string; mode: 'placed' | 'svg' | 'flow' | 'absolute';
@@ -85,9 +86,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   })) ?? []);
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
-  if (svg && ['x', 'y', 'xPercent', 'yPercent', 'transform'].some(key => owned.has(key))) {
-    throw new Error('This SVG position is animated. Use its existing animation controls to preserve that motion.');
-  }
+  if (svg && ['xPercent', 'yPercent', 'transform'].some(key => owned.has(key))) throw new Error('This SVG uses an unsupported position channel. Its source is preserved.');
   // Existing independent transforms are not ours to replace. Our declarations are marked
   // by the readable custom properties, so reopening requires no hidden metadata.
   for (const property of ['translate', 'scale']) {
@@ -141,11 +140,37 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
   if (Object.entries(patch).every(([key, value]) => value === base[key as keyof BasePatch])) return template;
   const x = precise(patch.x ?? base.x), y = precise(patch.y ?? base.y);
+  let html = template.html;
+  const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
+  if (svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
+    // Numeric SVG geometry remains independent of GSAP's transform channels.
+    // Moving its authored coordinates preserves motion instead of writing a CSS
+    // translate that GSAP would fold into (and then overwrite in) its own matrix.
+    const node = artworkNode(template, selector), tag = node.tagName.toLowerCase();
+    if (!['rect', 'text', 'image', 'circle', 'ellipse'].includes(tag)) throw new Error('Base offsets on this animated SVG shape require a geometry adapter. Its source is preserved.');
+    const axes = tag === 'circle' || tag === 'ellipse' ? ['cx', 'cy'] : ['x', 'y'];
+    const values = axes.map(axis => node.getAttribute(axis) ?? '0');
+    if (values.some(value => !/^-?(?:\d+\.?\d*|\.\d+)$/.test(value))) throw new Error('This SVG uses nonnumeric or multiple placement coordinates. Its source is preserved.');
+    const matrix = parseTransform(node.getAttribute('transform')), determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+    if (Math.abs(determinant) < 1e-8) throw new Error('This SVG transform is singular. Restore a nonzero scale first.');
+    const dx = x - base.x, dy = y - base.y;
+    const local = [(matrix.d * dx - matrix.c * dy) / determinant, (-matrix.b * dx + matrix.a * dy) / determinant];
+    const range = artworkRange(html, node);
+    const opening = html.slice(range.start, range.content);
+    let changed = opening;
+    axes.forEach((axis, index) => {
+      const value = String(precise(Number(values[index]) + local[index]));
+      const attr = new RegExp('(\\s' + axis + '\\s*=\\s*)(["\'])(.*?)\\2');
+      if (node.hasAttribute(axis) && !attr.test(changed)) throw new Error('This SVG uses an unsupported coordinate attribute. Its source is preserved.');
+      changed = attr.test(changed) ? changed.replace(attr, '$1"' + value + '"') : changed.replace(/\s*\/?>$/, match => ' ' + axis + '="' + value + '"' + match);
+    });
+    html = html.slice(0, range.start) + changed + html.slice(range.content);
+  }
   let css = template.css;
   if (!new RegExp(esc(base.target) + '\\s*\\{').test(css)) {
     css = appendCss(css, 'Base artwork placement; animation keeps ownership of transform.', base.target + ' {}');
   }
-  if (patch.x !== undefined || patch.y !== undefined) {
+  if (!svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
     if (base.mode === 'placed' || base.mode === 'absolute') {
       css = setCssDeclaration(css, base.target, 'left', placementCss(x, base.scaled));
       css = setCssDeclaration(css, base.target, 'top', placementCss(y, base.scaled));
@@ -168,7 +193,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     css = setCssDeclaration(css, base.target, '--base-scale-y', String(precise(patch.scaleY ?? base.scaleY)));
     css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
   }
-  return { ...template, css };
+  return { ...template, html, css };
 }
 
 export type CreationKind = 'text' | 'rectangle' | 'ellipse';

@@ -7,34 +7,45 @@ import { FieldControl } from '../fields/FieldControl';
 import ArtworkTextEditor from './ArtworkTextEditor';
 import { sameRevision, type EditorSession, type Revision } from './session';
 import type { RenderedPart } from './protocol';
+import { isArmed } from '../../blocks/editorAnimation';
+import { parseAnimData } from '../../blocks/animData';
+import { authoringPosition } from './animationAuthoring';
+import { AnimationButtons } from './AnimationProperties';
+import type { EditorOperation } from './operations';
 
 interface Props {
   template: SpxTemplate; selector: string; session: EditorSession;
   appearance?: RenderedPart['appearance']; previewCss: (css: string) => void;
+  previewTemplate: (template: SpxTemplate) => void;
 }
 
 /** A field owns its draft until blur/Enter (or a discrete choice). Preview never
  * writes the document; cleanup discards it when selection or revision changes. */
-function AppearanceField({ template, selector, session, previewCss, descriptor, value, property, testId }: Omit<Props, 'appearance'> & {
+function AppearanceField({ template, selector, session, previewCss, previewTemplate, descriptor, value, property, testId }: Omit<Props, 'appearance'> & {
   descriptor: FieldDescriptor; value: string | number; property: keyof ArtworkStyle; testId: string;
 }) {
   const [draft, setDraft] = useState<string | number | null>(null);
   const [error, setError] = useState('');
   const [reset, setReset] = useState(0);
-  const active = useRef<{ expected: Revision; values: ArtworkStyle | null; original: string | number; template: SpxTemplate } | null>(null);
+  const active = useRef<{ expected: Revision; time: number; values: ArtworkStyle | null; original: string | number; template: SpxTemplate } | null>(null);
   const invalidNumber = useRef(false);
+  const armed = property === 'opacity' && isArmed(parseAnimData(template.js), selector, 'opacity');
+  const operations = (values: ArtworkStyle): EditorOperation[] => armed
+    ? [{ kind: 'animation.key', selector, property: 'opacity', ...authoringPosition(template, selector, session.port.view().time), value: values.opacity!, action: 'set' }]
+    : [{ kind: 'style.set', selector, values }];
+  const restore = () => { if (armed) previewTemplate(template); else previewCss(template.css); };
   useEffect(() => () => {
     if (!active.current || active.current.template !== template) return;
     session.cancel(false);
-    if (session.port.read() === template) previewCss(template.css);
+    if (session.port.read() === template) { if (armed) previewTemplate(template); else previewCss(template.css); }
     active.current = null;
     setDraft(null); setError(''); setReset(n => n + 1);
-  }, [session, template, previewCss]);
+  }, [session, template, previewCss, previewTemplate, armed]);
   const cancel = () => {
     const original = active.current?.original ?? null;
     if (active.current) {
       session.cancel(false);
-      if (session.port.read() === template) previewCss(template.css);
+      if (session.port.read() === template) restore();
     }
     active.current = null; invalidNumber.current = false;
     setDraft(original); setError(''); setReset(n => n + 1);
@@ -44,26 +55,29 @@ function AppearanceField({ template, selector, session, previewCss, descriptor, 
     if (!edit) return;
     if (!edit.values) { cancel(); return; }
     try {
+      if (armed && edit.time !== session.port.view().time) throw new Error('The playhead moved. Inspect the value again before editing.');
       // Clear before execute so revision cleanup cannot cancel a completed edit.
       active.current = null;
       session.execute({ documentId: session.documentId, expected: edit.expected, transactionId: crypto.randomUUID(),
-        operations: [{ kind: 'style.set', selector, values: edit.values }] });
+        operations: operations(edit.values) });
       setDraft(null); setError('');
     } catch (cause) { session.cancel(false); cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const change = (raw: string | number) => {
     setDraft(raw);
     try {
-      if (!active.current) { const expected = session.version(); session.begin(expected); active.current = { expected, values: null, original: draft ?? value, template }; }
+      if (!active.current) { const expected = session.version(); session.begin(expected); active.current = { expected, time: session.port.view().time, values: null, original: draft ?? value, template }; }
       if (!sameRevision(active.current.expected, session.version())) { cancel(); return; }
       const values: ArtworkStyle = { [property]: property === 'opacity' ? Number(raw) / 100 : property === 'fontSize' ? Number(raw) : raw };
       if (invalidNumber.current || (property === 'fontSize' && !String(raw).trim())) throw new Error('Enter a valid ' + descriptor.label.toLowerCase() + '.');
-      const patch = session.preview([{ kind: 'style.set', selector, values }]);
-      active.current.values = values; previewCss(patch.template.css); setError('');
+      const patch = session.preview(operations(values));
+      active.current.values = values;
+      if (armed) previewTemplate(patch.template); else previewCss(patch.template.css);
+      setError('');
       if (descriptor.kind === 'select') finish();
     } catch (cause) {
       if (active.current) active.current.values = null;
-      if (session.port.read() === template) previewCss(template.css);
+      if (session.port.read() === template) restore();
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   };
@@ -78,7 +92,7 @@ function AppearanceField({ template, selector, session, previewCss, descriptor, 
     invalidNumber.current = input.value === '' || !input.validity.valid;
     if (invalidNumber.current) {
       if (active.current) active.current.values = null;
-      previewCss(template.css);
+      restore();
     }
   }} onClick={event => {
     if ((event.target as HTMLElement).closest('button')) finish();
@@ -109,6 +123,7 @@ export default function ArtworkAppearance(props: Props) {
     {(text || shape) && <>
       <AppearanceField {...props} property={text ? 'color' : 'fill'} descriptor={{ key: 'appearance-color', label: text ? 'Text colour' : 'Solid fill', kind: 'color', defaultValue: '#ffffff' }} value={hex} testId="artwork-colour" />
       <AppearanceField {...props} property="opacity" descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }} value={Math.round((appearance?.opacity ?? 1) * 100)} testId="artwork-opacity" />
+      <AnimationButtons {...props} property="opacity" label="Opacity" />
       <p className="ef-muted">Changes preview immediately. Enter or leave the field to finish; Escape cancels.</p>
     </>}
   </>;

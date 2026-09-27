@@ -18,8 +18,37 @@ import {
 import { filterKeysUsed, normalizeFilterTrack, withFilterComponent } from './filterTrack';
 
 /** Two stored times match within half a serializer step. */
-const EPS = 0.005;
+const EPS = 0.0005;
 const round = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Move a cue-local visibility set and every key by the same stored delta.
+ * Refuse crossing instead of clipping, stretching or overwriting keys. */
+export function moveLayerSpan(data: AnimData, index: number, selector: string, delta: number): AnimData {
+  const step = data.steps[index];
+  if (!step || !Number.isFinite(delta)) throw new Error('Choose a finite move inside one cue.');
+  delta = round(delta);
+  if (delta === 0) return data;
+  const spans = step.spans?.[selector] ?? [{ start: 0, end: step.duration }];
+  const keys = Object.values(step.layers[selector] ?? {}).flat();
+  const times = [...spans.flatMap(s => [s.start, s.end]), ...keys.map(k => k.time)];
+  if (!times.length) throw new Error('This layer has no visible span in this cue.');
+  if (times.some(t => round(t + delta) < 0 || round(t + delta) > step.duration)) {
+    throw new Error('This move crosses a cue boundary. Cross-cue movement is not available yet; no keys or spans changed.');
+  }
+  const next = clone(data), target = next.steps[index];
+  const reveal = data.steps.findIndex((s, i) => i > 0 && s.reveals?.includes(selector));
+  const hide = data.steps.findIndex(s => s.hides?.includes(selector));
+  if (data.steps.some(cue => cue.spans?.[selector] === undefined && cue.hides?.includes(selector))) {
+    throw new Error('This legacy layer hides at a cue endpoint. Moving it cannot preserve that held pose yet; no keys or spans changed.');
+  }
+  next.steps.forEach((cue, i) => {
+    if (cue.spans?.[selector] !== undefined) return;
+    cue.spans = { ...cue.spans, [selector]: (reveal >= 0 && i < reveal || hide >= 0 && i > hide) ? [] : [{ start: 0, end: cue.duration }] };
+  });
+  target.spans = { ...target.spans, [selector]: spans.map(s => ({ start: round(s.start + delta), end: round(s.end + delta) })) };
+  for (const track of Object.values(target.layers[selector] ?? {})) for (const key of track) key.time = round(key.time + delta);
+  return next;
+}
 
 function clone(data: AnimData): AnimData {
   return JSON.parse(JSON.stringify(data)) as AnimData;

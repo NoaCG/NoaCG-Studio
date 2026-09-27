@@ -6,13 +6,17 @@ import { slotSize } from '../../blocks/designLayout';
 import type { EditorSession } from './session';
 import type { EditorOperation } from './operations';
 import ArtworkAppearance from './ArtworkAppearance';
+import AnimationProperties from './AnimationProperties';
 import type { RenderedPart } from './protocol';
 interface Props {
+  time: number;
+  pause: () => void;
   view: TimelineView; template: SpxTemplate; selection: string[];
   select: (selector: string | null, toggle: boolean) => void;
   session: EditorSession; linked: boolean; setLinked: (value: boolean) => void;
   appearance?: RenderedPart['appearance'];
   previewCss: (css: string) => void;
+  previewTemplate: (template: SpxTemplate) => void;
 }
 function Numeric({ label, value, commit }: { label: string; value: number; commit: (value: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -27,7 +31,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss }: Props) {
+function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]);
@@ -50,7 +54,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
     const other = axis === 'scaleX' ? 'scaleY' : 'scaleX';
     change({ [axis]: value / 100, ...(linked ? { [other]: base[axis] === 0 ? value / 100 : base[other] * value / 100 / base[axis] } : {}) });
   };
-  return <aside className="ef-inspector" aria-label="Inspector">
+  return <aside className="ef-inspector" aria-label="Inspector" onFocusCapture={pause} onPointerDownCapture={pause}>
     <div className="ef-toolbar" role="tablist" aria-label="Inspector view">
       <button role="tab" aria-selected={tab === 'properties'} onClick={() => setTab('properties')}>Properties</button>
       <button role="tab" aria-selected={tab === 'outline'} onClick={() => setTab('outline')}>Outline</button>
@@ -64,29 +68,31 @@ function Inspector({ view, template, selection, select, session, linked, setLink
       <h2>{part?.label ?? 'Graphic'}</h2>
       {selection.length > 1 && <p>{selection.length} layers selected</p>}
       {part ? <>
-        {selection.length === 1 && <ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} />}
+        {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
+          <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} />
+          <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">
           <button onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
           <button onClick={() => execute({ kind: 'layer.delete', selector: part.selector })} disabled={selection.length !== 1}>Delete</button>
           <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'backward' })} disabled={selection.length !== 1}>Send backward</button>
           <button onClick={() => execute({ kind: 'layer.reorder', selector: part.selector, direction: 'forward' })} disabled={selection.length !== 1}>Bring forward</button>
         </div>
-        {base && selection.length === 1 && <>
+        {base && selection.length === 1 && <details><summary>Edit base values (preserve motion)</summary>
           <span className="ef-section-label">{base.mode === 'flow' ? 'Layout offset' : 'Position'} · base</span>
           <div className="ef-number-row">
-            <Numeric key={part.selector + 'x'} label={base.mode === 'flow' ? 'Layout offset X' : 'Position X'} value={base.x} commit={x => change({ x })} />
-            <Numeric key={part.selector + 'y'} label={base.mode === 'flow' ? 'Layout offset Y' : 'Position Y'} value={base.y} commit={y => change({ y })} />
+            <Numeric key={part.selector + 'x'} label={base.mode === 'flow' ? 'Base Layout offset X' : 'Base Position X'} value={base.x} commit={x => change({ x })} />
+            <Numeric key={part.selector + 'y'} label={base.mode === 'flow' ? 'Base Layout offset Y' : 'Base Position Y'} value={base.y} commit={y => change({ y })} />
           </div>
           <span className="ef-section-label">Scale · base</span>
-          {base.scaleReason ? <p className="ef-muted">{base.scaleReason}</p> : <><div className="ef-number-row"><Numeric label="Scale X %" value={base.scaleX * 100} commit={x => scale('scaleX', x)} />
-            <Numeric label="Scale Y %" value={base.scaleY * 100} commit={y => scale('scaleY', y)} /></div>
-          <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
+          {base.scaleReason ? <p className="ef-muted">{base.scaleReason}</p> : <><div className="ef-number-row"><Numeric label="Base Scale X %" value={base.scaleX * 100} commit={x => scale('scaleX', x)} />
+            <Numeric label="Base Scale Y %" value={base.scaleY * 100} commit={y => scale('scaleY', y)} /></div>
+          </>}
           {box && <><span className="ef-section-label">Text box · reflow</span><div className="ef-number-row">
             <Numeric label="Box width" value={box.width} commit={width => execute({ kind: 'box.resize', selector: part.selector, width, height: box.height })} />
             <Numeric label="Box height" value={box.height} commit={height => execute({ kind: 'box.resize', selector: part.selector, width: box.width, height })} />
           </div></>}
           <p className="ef-muted">Base edits preserve existing motion. Position uses the parent’s coordinates.</p>
-        </>}
+        </details>}
         {capability.reason && <p className="ef-muted">{capability.reason}</p>}
         {error && <p role="alert">{error}</p>}
         <span className="ef-section-label">Source layer</span>

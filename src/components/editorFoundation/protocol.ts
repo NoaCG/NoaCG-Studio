@@ -1,4 +1,5 @@
 import type { Revision } from './session';
+import type { NumericPose } from '../../blocks/editorAnimation';
 export const EDITOR_MESSAGE = 'noacg-editor-foundation-v1';
 export interface Envelope {
   type: typeof EDITOR_MESSAGE; documentId: string; revision: Revision;
@@ -11,7 +12,7 @@ export interface RenderedPart {
   parent?: [number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
-  appearance?: { fontFamily: string; fontSize: number; color: string; fill: string; opacity: number };
+  appearance?: { fontFamily: string; fontSize: number; color: string; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number; time?: number; revision?: Revision };
 }
 export interface PreviewReply extends Envelope {
   drawingSpace?: [number, number, number, number, number, number] | null;

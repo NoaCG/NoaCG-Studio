@@ -19,6 +19,14 @@ export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every t
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
 var noacgStepsPlayed = 0; // how many steps have run (play() = the first)
 
+// Visibility is independent of opacity. At an arriving hold keep the interval's
+// endpoint; a new cue's timeline owns its departing zero. Disjoint sets seek both ways.
+function noacgSpanVisible(spans, time, duration) {
+  return spans.some(function (span) {
+    return time >= span.start && (time < span.end || time === duration && span.end === duration);
+  });
+}
+
 // Build one step's GSAP timeline from its keyframe data. The first keyframe of a track
 // is the starting state, applied instantly at the step start (it "holds backward" —
 // the familiar keyframe convention); later keyframes tween from the previous one.
@@ -27,6 +35,14 @@ function buildStepTimeline(index) {
   var step = typeof index === 'number' ? NOACG_ANIM.steps[index] : index;
   var speed = NOACG_ANIM.speed || 1;
   var tl = gsap.timeline();
+  Object.keys(step.spans || {}).forEach(function (selector) {
+    var spans = step.spans[selector];
+    var times = [0];
+    spans.forEach(function (span) { times.push(span.start, span.end); });
+    times.sort(function (a, b) { return a - b; }).forEach(function (time) {
+      tl.set(selector, { visibility: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
+    });
+  });
   Object.keys(step.layers).forEach(function (selector) {
     var tracks = step.layers[selector];
     Object.keys(tracks).forEach(function (prop) {
@@ -72,6 +88,7 @@ function buildStepTimeline(index) {
   // so a layer can leave before the final Out. Replay re-arms it (resetGraphic clears the
   // inline props, then step 0 shows it again).
   (step.hides || []).forEach(function (selector) {
+    if (step.spans && step.spans[selector] !== undefined) return;
     tl.set(selector, { opacity: 0 }, step.duration / speed);
   });
   // Step calls: named template functions fire at their moment on the step's clock (the
@@ -129,6 +146,7 @@ function noacgApplyReveals(tl) {
   for (var s = 1; s < steps.length - 1; s++) {
     (steps[s].reveals || []).forEach(function (selector) {
       var tracks = steps[s].layers[selector];
+      if (steps[0].spans && steps[0].spans[selector] !== undefined) return;
       var hidden = false;
       if (tracks) Object.keys(tracks).forEach(function (prop) {
         if (!tracks[prop].length) return;
@@ -894,6 +912,16 @@ export function dataUsesCutStyle(data: AnimData): boolean {
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
+  if (data.steps.some(step => step.spans) && !js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
+    // Only the known interpreter is replaceable. A hand-edited region is source,
+    // not a disposable implementation detail of the visual controls.
+    const legacy = ANIM_INTERPRETER_JS
+      .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
+      .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
+      .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
+    if (!js.replace(/\r\n/g, '\n').includes(legacy.replace(/\r\n/g, '\n'))) return null;
+    return replaceRegionWithAnimData(js, data);
+  }
   if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);
   if (dataUsesTransitionStyles(data) && !hasTransitionStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
   if (dataUsesCutStyle(data) && !hasCutStyleRuntime(js)) return replaceRegionWithAnimData(js, data);

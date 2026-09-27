@@ -52,7 +52,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     return new Set(parts.filter(part => parts.some(other => other !== part && doc.querySelector(part.selector)?.contains(doc.querySelector(other.selector) ?? null))).map(part => part.selector));
   }, [template.html, template.fields]);
   const gesture = useArtworkGesture(template, session, () => controller.current, linked, drawingSpace);
-  const pending = status.pending || status.source !== session.version().source;
+  const pending = !status.error && (status.pending || status.source !== session.version().source);
   const parkedTime = useRef(time);
   parkedTime.current = time;
 
@@ -143,7 +143,10 @@ export default function Canvas({ template, sampleData, session, time, selection,
         event.currentTarget.setPointerCapture(event.pointerId);
         if (gesture.tool !== 'select') { gesture.begin({ x, y }); return; }
         if (selected.length === 1) {
-          const handle = selected[0].corners?.findIndex(p => Math.hypot(p.x - x, p.y - y) * scale <= 8) ?? -1;
+          // Keep a draggable centre even when Fit makes a small layer narrower
+          // than the normal handle hit area.
+          const radius = Math.min(8, selected[0].width * scale / 4, selected[0].height * scale / 4);
+          const handle = selected[0].corners?.findIndex(p => Math.hypot(p.x - x, p.y - y) * scale <= radius) ?? -1;
           if (handle >= 0) { gesture.begin({ x, y }, selected[0], handle); return; }
         }
         const hits = parts.filter(p => p.selector !== rootSelector && x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height)
@@ -212,7 +215,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
       {editing && selection[0] === editing.selector && sameRevision(editing.revision, session.version()) && <div className="ef-inline-text">
         <ArtworkTextEditor selector={editing.selector} text={editing.text} session={session} close={() => setEditing(null)} autoFocus />
       </div>}
-      {pending && <span className="ef-stage-status" role="status">Preparing preview…</span>}
+      {(status.pending || status.source !== session.version().source) && <span className="ef-stage-status" role="status">Preparing preview…</span>}
       {status.error && <div className="ef-stage-error" role="alert">{status.error}
         <button onClick={() => void controller.current?.load(template, session.version(), sampleData, time)}>Reload preview</button>
       </div>}
