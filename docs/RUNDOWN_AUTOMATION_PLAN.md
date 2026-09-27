@@ -7,6 +7,9 @@ and the unplanned half of [`backlog/video-through-playout-wrapper.md`](backlog/v
 (the clip attributes a show needs, which `BRIDGE.md` §5a left open on 2026-09-25). They are one
 plan because a clip ending is the most natural auto-advance trigger there is.
 
+**Updated 2026-09-27:** build 2 was planned in full with the owner and now lives in
+[`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md); §3 summarises it, and it is built before build 1.
+
 Every claim about the code cites `file:line`, checked at `19518e21`.
 
 ---
@@ -15,8 +18,8 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 
 | # | What | Size | For | Recommendation |
 |---|---|---|---|---|
-| **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Build now.** It is the gap felt in every show. |
-| **Build 2** | Basic media: clip and audio level, fade in and out, audio files as their own kind on their own layer, and a clip that ends on the server by itself. (§3) | standard | both | **Build right after 1.** It closes outcome 5's "basic media" criterion. |
+| **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Build after build 2** (owner, 2026-09-27). It is the gap felt in every show. |
+| **Build 2** | Clip and audio playback: a clip's ending, fades, level and trim, audio on its own layer, folders, the clip clock and a resizable rundown. (§3, and `CLIP_PLAYBACK_PLAN.md`) | large, five phases | both | **Decided 2026-09-27: build first**, then build 1. |
 | 6 | Cues from a spreadsheet: one cue per row, with an optional duration column. | small | your productions | **Next after build 2.** |
 | 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Later**, by letting a combined control reach server cues, not as a new concept. |
 | 9 | As-run log export. | small | TV station, sponsors | **Later**, as a CSV of the last seven days. |
@@ -25,14 +28,14 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 | 5 | Back-timing to a hard out. | small | TV station | **Not now.** A rundown of graphics is not a show's running order. |
 | 11 | Switcher automation (ATEM). | weeks | TV station | **No.** Still the wrong layer; Companion (item 7) reaches the switcher. |
 
-**Your three picks** (the owner-queue item asks the same):
+**Your picks** (the owner-queue item asks the same):
 
 1. Build 1 as specified in §2, or change a default first. The defaults most worth a look are the
    5-second late limit (§2.5), the H key holding the soonest countdown (§2.8), and that an auto
-   action never moves your selection (§2.1).
-2. Build 2's attribute list (§3.1): anything a show of yours needs that is missing, or anything
-   listed that is not worth it.
-3. The order of items 5 to 11 after that.
+   action never moves your selection (§2.1). **Still open**; build 1 now comes after build 2.
+2. ~~Build 2's attribute list~~ **Answered 2026-09-27**: planned with the owner as
+   `CLIP_PLAYBACK_PLAN.md` (§3 below), built first.
+3. The order of items 5 to 11 after that. **Still open.**
 
 ---
 
@@ -468,102 +471,38 @@ four files named in §2.8.
 
 ---
 
-## 3. Build 2: basic media
+## 3. Build 2: clip and audio playback - decided 2026-09-27
 
-> **Being replanned, 2026-09-27.** The owner's planning session widened this build into clip
-> settings, a clip countdown, folders and a resizable rundown:
-> [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), a draft awaiting a second opinion and the
-> owner's answers. Once approved it replaces this section, and build 1 drops its `At clip end`
-> choice. Until then this section stands as written.
+**Replaced by [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md)**, planned with the owner on
+2026-09-27 and revised after an independent review of the plan against the code and the CasparCG
+2.5.0 source. The build-2 section that stood here was its input; git keeps it. In short:
 
-Outcome 5's criterion reads "clips and audio play reliably from the rundown through CasparCG, with
-volume, loop and the other attributes a production genuinely needs" (`docs/GOALS.md:159-161`).
-Loop shipped on 2026-09-25. The rule stays `BRIDGE.md` §5a's: **use the server's own parameter,
-never a timer in the page**, wherever the server has one.
+- **Why.** Clips are the named blocker: "one reason I can't use it in my productions". Outcome 5's
+  basic-media criterion asks for clips and audio from the rundown with volume, loop and the other
+  attributes a production needs.
+- **Goal.** One operator runs graphics, clips and audio from one rundown on a 1920×1080 screen (and
+  still at 1366×768), with each clip's ending, fades, level and sequence carried out by the server,
+  and a countdown the operator can trust.
+- **Non-goals.** No video through the web; no timer in the page that fires or queues a clip; no live
+  level changes on air yet; no same-frame promise for separate video and audio files; no mixer,
+  routing or recording items; no new features on the phone surfaces, which keep working.
+- **Key decisions.** A clip's settings open in the panel left of the rundown: **At the end** (Hold
+  last frame by default, Clear, Loop, Play next, which looks past graphics to the next clip on the
+  same slot), **Fade** in and out, **Level** in dB, trim under Advanced. Audio files get their own
+  kind and layer. **Folders** play one by one, through, or all together. The **clip clock** beside
+  PROGRAM shows one number, and TO STUDIO when clips follow automatically, read from the server's
+  `INFO`. The rundown is resizable and one line per row. Sequences are run by NoaCG Bridge, not the
+  page. The phone Control page may differ from the desktop dashboard (a superseding rule of
+  2026-09-27).
+- **Phases.** 0 safety net and the page split; 1 layout for everyone; 2 the clock and the server's
+  truth; 3 clip settings and sequences; 4 folders. Then build 1's timed cues for graphics.
+- **Acceptance, observable on a CasparCG server:** `CLIP_PLAYBACK_PLAN.md` §11, with the ten
+  measurements the real server must answer first in its §12.
 
-### 3.1 What a show needs, attribute by attribute
-
-| Attribute | Native AMCP (CasparCG 2.3-2.5) | Recommendation |
-|---|---|---|
-| Level | `MIXER c-l VOLUME <gain> [frames]` | **Build.** Per clip, in dB, 0 dB by default, and changeable while on air with Update. The goal names it. |
-| Fade in / fade out | `PLAY c-l "CLIP" MIX <n>` / `PLAY c-l EMPTY MIX <n>` | **Build.** `none / short / long` per clip, the §5a sketch. |
-| Audio files as their own kind | `PLAY` plays an audio file on any layer | **Build.** Today an audio file lands on the clip layer and replaces the VT. |
-| End on the server by itself | `LOADBG c-l EMPTY [MIX n] AUTO` / `LOADBG c-l "NEXT" [MIX n] AUTO` | **Build**, as the native form of build 1's clip-end actions (§3.4). |
-| Loop | `PLAY ... LOOP` | Shipped 2026-09-25. |
-| Pause / resume | `PAUSE` / `RESUME` | Shipped 2026-09-22. |
-| Stills | `PLAY c-l "STILL"` | Already works as a media cue; it has no length, so only `After n s` times it. |
-| Position readout from the server | OSC | **Not in this plan.** It is Bridge milestone 2 (`docs/BRIDGE.md` §9). Build 1's countdown, derived from the Take, is the interim readout. |
-| Loop switched while playing, seek, trim, in and out points | `CALL c-l LOOP`, `SEEK`, `IN`, `OUT`, `LENGTH` | **Not proposed.** Nothing in a school show needs them live; a trimmed clip is an edit. |
-| A playlist engine, audio mixing beyond one level per clip | - | **Not proposed.** Each is a dedicated playout tool's feature, and neither is what sends an operator back to one. |
-
-### 3.2 The record
-
-On `PlayoutItem`, additive and optional, `Show.version` still 2:
-
-```ts
-/** Added in build 1 (§2.2): the server's kind word from its list. Absent on an item saved before
- *  it, which build 2 treats as a movie for its layer. */
-mediaKind?: 'movie' | 'still' | 'audio';
-/** Level in dB, -60 to 0. Absent = 0 dB. */
-levelDb?: number;
-/** Fade in on Take and out on Out. Absent = none. The ADAPTER turns the word into its own units. */
-fade?: 'short' | 'long';
-```
-
-- **Audio files get their own default layer**, `PLAYOUT_AUDIO_LAYER = 5`, beside
-  `PLAYOUT_CLIP_LAYER = 10`, so a bed survives a VT and a VT survives a sting. One audio file at a
-  time on it by default; the operator moves one to another layer when a show needs a bed and a sting
-  together.
-- **Fade is a word, not frames.** CasparCG counts `MIX` in channel frames, which the page does not
-  know, and an OGraf renderer has no fade at all. The CasparCG adapter maps `short` to 12 frames and
-  `long` to 25, §5a's numbers.
-- **Level is in dB** because operators think in dB; CasparCG's linear gain is the adapter's business
-  (`10^(dB/20)`).
-
-### 3.3 Protocol and adapters
-
-Additive in protocol v2, so `PLAYOUT_V` stays 2, and each needs a Bridge release:
-
-- `take` on media gains `levelDb?` and `fade?`; `out` gains `fade?`; `update` on a media slot may
-  carry `levelDb` instead of `data`.
-- **A mixer setting outlives its clip on a CasparCG layer**, so the adapter sends the level on EVERY
-  media Take, 0 dB included, before the `PLAY`, or a clip would inherit the last one's level.
-- **`/health` gains `features`** (additive), and the page offers Level, Fade and native end only when
-  the running Bridge lists them, with "Update NoaCG Bridge to use level and fade" otherwise. An older
-  Bridge would otherwise accept the fields, ignore them, and let the page claim a level it never set.
-- **Any adapter**: each attribute is a capability. The OGraf adapter declares none of them, and the
-  editor hides what the item's adapter cannot do.
-
-### 3.4 How it meets build 1
-
-Build 1 fires a clip's end from the page, a few hundred milliseconds after the clip's last frame,
-which can show that frame frozen for a moment. Build 2 moves the end onto the server where the
-adapter can:
-
-- A clip timed `At clip end → Out`: the Take also sends `LOADBG c-l EMPTY [MIX n] AUTO`, so the
-  server clears the layer at the last frame, with the page closed.
-- `At clip end → Next`, when the armed next cue is a media cue on the same slot **at the same
-  level**: the Take sends `LOADBG c-l "NEXT" [MIX n] AUTO`, and the server switches with no gap. A
-  layer has one background, so this chains one clip ahead; the next clip's own Take-by-fire queues
-  the one after. At a different level the native switch is not used and build 1's page fire takes
-  the next clip, because the layer's mixer level would either stay the old clip's through the
-  switch or change under the clip still playing.
-- **The log still records it.** The page fires as in build 1 but skips the Bridge command the server
-  already carried out, so the markers, the activity log and every other surface stay true.
-- **Manual** on such a clip sends `LOADBG c-l EMPTY` without `AUTO`, which should replace the pending
-  background and cancel the switch. **The build measures this on a real 2.5 server first**
-  (`e2e/configured/bridge-real-server.spec.ts` is the home for it); if it does not cancel, native end
-  is offered only without Manual, and the chip says so.
-
-### 3.5 Acceptance
-
-- `e2e/playout-cues.spec.ts` grows the exact action envelopes: level on every media Take, fade on
-  Take and Out, an audio file added to layer 5, and Update on a playing clip carrying only
-  `levelDb`.
-- The CasparCG adapter's unit tests pin the AMCP lines: `MIXER` before `PLAY`, `MIX n` placement,
-  the `LOADBG ... AUTO` forms.
-- The real-server measurement above, and a `desktop` owner-queue item: a show's clip with a fade and
-  a bed under it, from `/app` through the Bridge to CasparCG.
+**What this changes in build 1 (§2):** its `At clip end` choice is dropped, because a clip's end now
+belongs to the clip and its folder (`CLIP_PLAYBACK_PLAN.md` §6.6). Build 1 keeps timed cues for
+graphics and comes after build 2. Item 8 below (audio cues) is covered for CasparCG by build 2, and
+item 10 (linked cues) partly by an All-together folder.
 
 ---
 
