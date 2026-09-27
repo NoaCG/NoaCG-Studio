@@ -269,6 +269,19 @@ test('scrolled trim handles cannot intercept the sticky ruler', async ({ page })
   expect(Number(await ruler.getAttribute('aria-valuenow'))).toBeCloseTo(.8, 3);
 });
 
+test('rotation-only edits refresh an already sampled SVG pose', async ({ page }) => {
+  await imported(page); await select(page, '#logo');
+  const angle = () => page.frameLocator('iframe[title="Foundation graphic preview"]').locator('#logo').evaluate(el => {
+    const m = (el as SVGGraphicsElement).getScreenCTM()!; return Math.atan2(m.b, m.a) * 180 / Math.PI;
+  });
+  await execute(page, [{ kind: 'base.set', selector: '#logo', values: { rotation: 15 } }]);
+  await seek(page, .4); await seek(page, .8); const before = await angle();
+  await execute(page, [{ kind: 'base.set', selector: '#logo', values: { rotation: 45 } }]);
+  expect(await angle() - before).toBeCloseTo(30, 3);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect(await angle()).toBeCloseTo(before, 3);
+});
+
 test('completed pointer trims keep clipped keys while the body moves them in one transaction', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await select(page, '#card');
   await page.evaluate(() => {
