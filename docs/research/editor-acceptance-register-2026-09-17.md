@@ -285,6 +285,25 @@ This advances only the specified portions of B02/B04/B11/B13. Full tasks, owner
 acceptance and the default-editor switch remain open. Numeric keys and bar-body
 movement are next in R1.1b; Out changes and advanced tools were not included.
 
+## R1.1b scoped engineering receipt, September 27
+
+The [bounded spec, evidence and R1.1c handoff](editor-r1-1b/README.md) records numeric
+X/Y/Scale/Opacity key authoring and cue-local layer body movement. It follows the
+landed September 27 usability corrections, superseding the historical continuation
+text above. Final integration/build/landing status lives in that receipt.
+
+| Portion | Scoped evidence and remaining acceptance |
+|---|---|
+| B03 / D03 | Armed numeric and canvas changes share the runtime-value adapter; unarmed axes keep base semantics. Animated scale and translated/rotated/scaled SVG parent cases are covered. Full transforms, broader nested identity and physical-device acceptance remain open. |
+| B05 | Separate property stopwatches/diamonds, one first key, before-first hold, last removal, interpolated disable/undo, inheritance and explicit base preservation are covered. Grouped Position conversion, precision scrubbing, full property rows and shortcuts remain open. |
+| B06 / D04 | An explicit cue-local visibility set and its keys move together with preserved offsets; undo/redo/cancel and unsupported-operation refusal are covered. Full-cue legacy bars refuse boundary-crossing movement. Trim, multi-key and cross-cue tools remain open. |
+| B13 / D04 | Disjoint intervals, static legacy layers, arriving/departing cue sides and local executable SPX/CasparCG/OGraf samples are covered. Set Out, interrupted exit, Next and receiving-host parity remain open. |
+
+The proved text-and-box entrance uses imported explicit intervals with room for a
+body move. New full-cue layers still need the following Out/trim controls for a
+complete create-from-scratch timing workflow. This does not close any whole row,
+claim owner acceptance, or switch the default editor. R1.1c is the next bounded task.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

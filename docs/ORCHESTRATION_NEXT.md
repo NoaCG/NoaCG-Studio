@@ -60,6 +60,8 @@ subscriptions while one persistent orchestrator stays in authoritative control.
 2. **`fable high` wave rows** for direction-turning work, as the ladder already says: difficult
    architecture, design judgement, high-risk decisions, debugging that survived two genuine
    attempts, conflicting evidence.
+   *Superseded 2026-09-26: Fable no longer implements or owns a row. Such rows run on Opus and
+   consult `design-consult`; see `docs/HARNESS_ROUTING.md`, "Fable: consult only".*
 3. **Escalation reviewer** for the highest-risk diffs (section 5's ladder).
 4. **The weekly coherence session** - judgement-dense, bounded, and the place where "the agents
    getting dumber" is actually diagnosed.

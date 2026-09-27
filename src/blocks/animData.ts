@@ -69,6 +69,8 @@ export interface AnimLoop {
 /** One step — the timeline's "clip". steps[0] plays on ▶ Play, the middle steps each on
  *  one » Next press, the last on ■ Stop (the Out step). */
 export interface AnimStep {
+  /** Explicit visibility sets in stored seconds. Missing selectors retain legacy visibility. */
+  spans?: Record<string, { start: number; end: number }[]>;
   name: string;
   /** Step length in speed-relative seconds (playback divides by `speed`). */
   duration: number;
@@ -454,6 +456,13 @@ function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
   if (!revealsAllowed && (step.reveals !== undefined || step.hides !== undefined)) return false;
   if (step.reveals !== undefined && !Array.isArray(step.reveals)) return false;
   if (step.hides !== undefined && !Array.isArray(step.hides)) return false;
+  if (step.spans !== undefined) {
+    if (!step.spans || typeof step.spans !== 'object' || Array.isArray(step.spans)) return false;
+    for (const [selector, spans] of Object.entries(step.spans)) {
+      if (!selector || !Array.isArray(spans)) return false;
+      if (spans.some(s => !s || !Number.isFinite(s.start) || !Number.isFinite(s.end) || s.start < 0 || s.end <= s.start || s.end > step.duration)) return false;
+    }
+  }
   if (step.calls !== undefined) {
     if (!Array.isArray(step.calls)) return false;
     for (const c of step.calls) {
@@ -668,6 +677,12 @@ function serializeStep(step: AnimStep, indent: string, label = ''): string[] {
   lines.push(`${i1}"name": ${JSON.stringify(step.name)},`);
   lines.push(`${i1}"duration": ${round(step.duration)},`);
   lines.push(`${i1}"ease": ${JSON.stringify(step.ease)},`);
+  if (step.spans) {
+    lines.push(`${i1}"spans": {`);
+    const entries = Object.entries(step.spans).sort(([a], [b]) => a.localeCompare(b));
+    entries.forEach(([selector, spans], index) => lines.push(`${i2}${JSON.stringify(selector)}: [${spans.map(s => `{ "start": ${round(s.start)}, "end": ${round(s.end)} }`).join(', ')}]${index < entries.length - 1 ? ',' : ''}`));
+    lines.push(`${i1}},`);
+  }
   if (step.reveals && step.reveals.length > 0) {
     lines.push(`${i1}"reveals": [${step.reveals.map((s) => JSON.stringify(s)).join(', ')}],`);
   }

@@ -3,12 +3,15 @@ import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
 
 export interface Segment { index: number; name: string; start: number; duration: number; out: boolean }
-export interface LayerBar { selector: string; start: number; end: number }
+export interface LayerBar { selector: string; start: number; end: number; step: number }
 export interface TimelineView {
   data: AnimData | null; parts: TemplatePart[]; segments: Segment[];
   bars: LayerBar[]; duration: number; out: number; reason: string | null;
 }
+const views = new WeakMap<SpxTemplate, TimelineView>();
 export function readTimeline(template: SpxTemplate): TimelineView {
+  const cached = views.get(template);
+  if (cached) return cached;
   const data = parseAnimData(template.js);
   const parts = getTemplateParts(template.html, template.fields);
   let cursor = 0;
@@ -19,17 +22,24 @@ export function readTimeline(template: SpxTemplate): TimelineView {
     return segment;
   });
   const out = segments.find(s => s.out)?.start ?? cursor;
-  const bars = parts.map(part => {
+  const bars = parts.flatMap(part => {
     const reveal = data?.steps.findIndex((s, i) => i > 0 && !!s.reveals?.includes(part.selector)) ?? -1;
     const hide = data?.steps.findIndex(s => !!s.hides?.includes(part.selector)) ?? -1;
-    return { selector: part.selector, start: reveal >= 0 ? segments[reveal].start : 0,
-      end: hide >= 0 ? segments[hide].start + segments[hide].duration : cursor };
+    return segments.flatMap(segment => {
+      const spans = data!.steps[segment.index].spans?.[part.selector];
+      if (spans) return spans.map(span => ({ selector: part.selector, step: segment.index,
+        start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
+      if (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide) return [];
+      return [{ selector: part.selector, step: segment.index, start: segment.start, end: segment.start + segment.duration }];
+    });
   });
   const reason = !data ? 'This source has no supported timeline. Its artwork and code are preserved.'
     : data.steps.some(s => s.dynamics?.length || Object.keys(s.loops ?? {}).length)
       ? 'Measured motion and local loops remain in the existing editor. Scrubbing is unavailable here.'
       : null;
-  return { data, parts, segments, bars, duration: cursor, out, reason };
+  const view = { data, parts, segments, bars, duration: cursor, out, reason };
+  views.set(template, view);
+  return view;
 }
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */
 export function segmentAt(segments: Segment[], time: number): { step: number; time: number } {

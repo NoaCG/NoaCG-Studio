@@ -44,6 +44,8 @@ export class PreviewController {
   private queuedInputAt = 0;
   private queuedKind = 'scrub';
   private pendingCss: string | null = null;
+  private pendingTemplate: SpxTemplate | null = null;
+  private draftMotion = false;
   private resolvedAssets: SpxTemplate['assets'] = [];
   private monitoringFrame = 0;
   private lastFrame = 0;
@@ -123,6 +125,8 @@ export class PreviewController {
     this.queued = false;
     this.inFlight = true;
     this.pendingCss = null;
+    this.pendingTemplate = null;
+    this.draftMotion = false;
     const epoch = ++this.loadEpoch;
     const previousEnvelope = this.expected;
     const previousTemplate = this.template;
@@ -150,18 +154,18 @@ export class PreviewController {
       JSON.stringify(previousTemplate.resolution) === JSON.stringify(template.resolution);
     this.template = template;
     this.digest = digest;
+    const position = segmentAt(view.segments, time);
     if (cssOnly) {
       this.expected = this.envelope(revision);
       this.iframe.contentWindow?.postMessage({ ...this.expected, kind: 'apply-css',
-        previous: previousEnvelope.revision, css: inlineAssetRefs(template.css, this.resolvedAssets) }, '*');
+        previous: previousEnvelope.revision, css: inlineAssetRefs(template.css, this.resolvedAssets), ...position }, '*');
     } else if (keyOnly) {
       this.expected = this.envelope(revision);
       this.iframe.contentWindow?.postMessage({ ...this.expected, kind: 'apply',
-        previous: previousEnvelope.revision, animation: parseAnimData(template.js) }, '*');
+        previous: previousEnvelope.revision, animation: parseAnimData(template.js), ...position }, '*');
     } else {
       ++this.generation;
       this.expected = this.envelope(revision);
-      const position = segmentAt(view.segments, time);
       const adapters = Object.fromEntries(view.parts.flatMap(p => {
         try { return [[p.selector, baseValues(template, p.selector)]]; } catch { return []; }
       }));
@@ -185,6 +189,12 @@ export class PreviewController {
   /** A transient stylesheet never becomes the document or a history entry. */
   previewCss(css: string, kind = 'drag') {
     this.pendingCss = inlineAssetRefs(css, this.resolvedAssets);
+    this.seek(this.targetTime, kind);
+  }
+  previewTemplate(template: SpxTemplate, kind = 'drag') {
+    if (!this.draftMotion && template.js === this.template?.js && template.html === this.template?.html) { this.previewCss(template.css, kind); return; }
+    this.draftMotion = template.js !== this.template?.js || template.html !== this.template?.html;
+    this.pendingTemplate = template;
     this.seek(this.targetTime, kind);
   }
   seek(time: number, kind = 'scrub') {
@@ -213,7 +223,16 @@ export class PreviewController {
     this.expected = this.envelope(this.expected.revision);
     const css = this.pendingCss;
     this.pendingCss = null;
-    this.iframe.contentWindow?.postMessage({ ...this.expected, kind: css === null ? 'seek' : 'preview-css', css, ...position }, '*');
+    const draft = this.pendingTemplate;
+    this.pendingTemplate = null;
+    const document = draft ? new DOMParser().parseFromString(draft.html, 'text/html') : null;
+    const geometry = document ? this.timeline!.parts.flatMap(part => {
+      const node = document.querySelector(part.selector);
+      return node?.namespaceURI === 'http://www.w3.org/2000/svg' ? [{ selector: part.selector,
+        attributes: Object.fromEntries(['x', 'y', 'cx', 'cy'].map(name => [name, node.getAttribute(name)])) }] : [];
+    }) : [];
+    this.iframe.contentWindow?.postMessage({ ...this.expected, kind: draft ? 'preview-template' : css === null ? 'seek' : 'preview-css',
+      css: draft ? inlineAssetRefs(draft.css, this.resolvedAssets) : css, ...(draft ? { animation: parseAnimData(draft.js), geometry } : {}), ...position }, '*');
   }
   resetMetrics() {
     this.metrics.samples = []; this.metrics.frameIntervals = []; this.metrics.longTasks = [];

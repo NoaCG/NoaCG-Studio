@@ -1,0 +1,88 @@
+import type { SpxTemplate } from '../model/types';
+import { locateAnimData, parseAnimData, serializeAnimData, type AnimData } from './animData';
+import { deleteKeyframe, setKeyframe, moveLayerSpan } from './animEdit';
+import { artworkNode, editArtworkStyle } from './artworkEdits';
+import { baseValues, editBase } from './baseEdits';
+import { writeAnimData } from '../templates/shared/animRuntime';
+
+export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'opacity';
+export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; opacity: number }
+export type AnimationOperation =
+  | { kind: 'animation.key'; selector: string; step: number; property: NumericProperty; time: number; value: number; action: 'set' | 'remove' | 'disable'; baseValue?: number }
+  | { kind: 'layer.move'; selector: string; step: number; delta: number };
+
+function ordered(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(ordered).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => JSON.stringify(k) + ':' + ordered(v)).join(',') + '}';
+  return JSON.stringify(value);
+}
+export function animationSource(template: SpxTemplate): AnimData {
+  const location = locateAnimData(template.js), data = parseAnimData(template.js);
+  if (!location || !data) throw new Error('This source has no supported animation data. Its source is preserved.');
+  if (ordered(JSON.parse(template.js.slice(location.start, location.end))) !== ordered(JSON.parse(serializeAnimData(data)))) {
+    throw new Error('This animation contains data the writer cannot preserve exactly.');
+  }
+  return data;
+}
+export function isArmed(data: AnimData | null, selector: string, property: string) {
+  return !!data?.steps.some(step => step.layers[selector]?.[property]?.length);
+}
+export function sequenceAuthoringReason(data: AnimData | null): string | null {
+  if (!data) return 'This source has no supported animation data.';
+  return data.machine || data.steps.some(step => step.calls?.length || step.dynamics?.length || Object.keys(step.loops ?? {}).length)
+    ? 'This sequence has calls, measured motion, loops or state-machine ownership. Canvas edits base placement; its animation is preserved.' : null;
+}
+export function animationTarget(template: SpxTemplate, data: AnimData, selector: string) {
+  const node = artworkNode(template, selector);
+  if (node.matches(data.root)) throw new Error('The graphic root is owned by playback. Animate an artwork layer.');
+  const reason = sequenceAuthoringReason(data);
+  if (reason) throw new Error(reason);
+  for (const step of data.steps) for (const [target, tracks] of Object.entries(step.layers)) {
+    if (!node.matches(target)) continue;
+    if (target !== selector || ['transform', 'xPercent', 'yPercent', 'autoAlpha', 'scale'].some(p => p in tracks)) {
+      throw new Error('Another source channel owns this transform or visibility. Edit that source to preserve it.');
+    }
+  }
+}
+export function applyAnimation(template: SpxTemplate, operation: AnimationOperation): SpxTemplate {
+  let data = animationSource(template);
+  const { selector, step } = operation;
+  animationTarget(template, data, selector);
+  if (!Number.isInteger(step) || !data.steps[step]) throw new Error('The target cue no longer exists.');
+  if (operation.kind === 'layer.move') {
+    if (!selector.startsWith('#')) throw new Error('Visibility spans require a stable layer ID. Its source is preserved.');
+    data = moveLayerSpan(data, step, selector, operation.delta);
+  }
+  else {
+    const { property, time, value, action } = operation;
+    if (!['x', 'y', 'scaleX', 'scaleY', 'opacity'].includes(property) || !Number.isFinite(value) || !Number.isFinite(time) || time < 0 || time > data.steps[step].duration || property === 'opacity' && (value < 0 || value > 1)) {
+      throw new Error('Enter a finite numeric value and a time inside this cue.');
+    }
+    if (data.steps.some(s => s.layers[selector]?.[property]?.some(k => typeof k.value !== 'number'))) throw new Error('This property contains nonnumeric source.');
+    if (action === 'set') data = setKeyframe(data, step, selector, property, time, value);
+    else {
+      if (action === 'remove' && !data.steps[step].layers[selector]?.[property]?.some(k => Math.abs(k.time - time) < .0005)) throw new Error('There is no key at this time.');
+      if (action === 'disable' && !isArmed(data, selector, property)) throw new Error('This property has no animation to disable.');
+      if (action === 'remove') data = deleteKeyframe(data, step, selector, property, time);
+      else if (action === 'disable') {
+        for (let index = 0; index < data.steps.length; index++) {
+          for (const key of [...(data.steps[index].layers[selector]?.[property] ?? [])]) data = deleteKeyframe(data, index, selector, property, key.time);
+        }
+      } else throw new Error('Unknown animation operation.');
+      if (!isArmed(data, selector, property)) {
+        const js = writeAnimData(template.js, data);
+        if (js === null) throw new Error('The animation region cannot be written.');
+        template = { ...template, js };
+        if (property === 'opacity') template = editArtworkStyle(template, selector, { opacity: value });
+        else {
+          if (!Number.isFinite(operation.baseValue)) throw new Error('A current rendered base pose is required to remove the last key.');
+          baseValues(template, selector);
+          template = editBase(template, selector, { [property]: operation.baseValue });
+        }
+      }
+    }
+  }
+  const js = writeAnimData(template.js, data);
+  if (js === null) throw new Error('The animation region cannot be written without replacing source.');
+  return { ...template, js };
+}

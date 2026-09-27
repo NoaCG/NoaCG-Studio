@@ -274,7 +274,8 @@ QUEUE  Then, as your LAST THREE actions and in this order: /check; write
 ```
 SESSION <2> - brand creator home
 BRANCH <tool>/<2>-brand-creator
-MODEL  fable high - a creation surface a non-technical producer uses once and trusts; UI/UX work
+MODEL  opus high - a creation surface a non-technical producer uses once and trusts; UI/UX work;
+       consult design-consult for the taste call
 START  on <1> landing
 TOUCHES src/components/home/sections/LooksSection.tsx (becomes BrandsSection), src/components/home/BrandEditor.tsx (new),
        src/components/home/HomePage.tsx (chip label + route), src/styles/*.css (home section),

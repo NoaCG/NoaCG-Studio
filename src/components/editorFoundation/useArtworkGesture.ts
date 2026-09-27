@@ -5,6 +5,8 @@ import type { EditorSession, Revision } from './session';
 import type { EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
+import { authoredTransform, displayedBase, requireCurrentPose } from './animationAuthoring';
+import { animationSource, animationTarget } from '../../blocks/editorAnimation';
 
 type Point = { x: number; y: number };
 export function inverseDelta(matrix: number[], point: Point): Point {
@@ -16,6 +18,7 @@ interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: number; creation?: Creation;
   members?: { base: BaseValues; part: RenderedPart }[];
+  time: number;
 }
 export function useArtworkGesture(template: SpxTemplate, session: EditorSession, preview: () => PreviewController | null,
   linked: boolean, drawingSpace: PreviewReply['drawingSpace']) {
@@ -24,7 +27,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   const [error, setError] = useState('');
   const current = useRef<Gesture | null>(null);
   const cancel = () => {
-    if (current.current) { session.cancel(); preview()?.previewCss(template.css, 'cancel'); }
+    if (current.current) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
     current.current = null; setDraft(null); setTool('select');
   };
   const begin = (point: Point, part?: RenderedPart, handle?: number, selected?: RenderedPart[]) => {
@@ -32,7 +35,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
     try {
       const expected = session.version();
       const base = part ? baseValues(template, part.selector) : undefined;
-      if (handle !== undefined && base?.scaleReason) throw new Error(base.scaleReason);
+      if (part) requireCurrentPose(part.appearance, session.port.view().time, expected);
+      if (handle !== undefined && base?.scaleReason) animationTarget(template, animationSource(template), base.selector);
       if (handle !== undefined && base && (base.scaleX === 0 || base.scaleY === 0)) {
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');
       }
@@ -45,7 +49,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
       const creation = !base && tool !== 'select' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
-      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members };
+      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time: session.port.view().time };
     } catch (cause) { setError(String(cause instanceof Error ? cause.message : cause)); }
   };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
@@ -57,12 +61,12 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       gesture.moved = true;
       if (gesture.members?.length && gesture.handle === undefined) {
         const constrained = modifiers.shiftKey ? Math.abs(delta.x) >= Math.abs(delta.y) ? { x: delta.x, y: 0 } : { x: 0, y: delta.y } : delta;
-        gesture.operations = gesture.members.map(({ base, part }) => {
+        gesture.operations = gesture.members.flatMap(({ base, part }) => {
           const change = inverseDelta(part.parent ?? [1, 0, 0, 1], constrained);
-          return { kind: 'base.set', selector: base.selector, values: { x: base.x + change.x, y: base.y + change.y } };
+          return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, part.appearance, 'x') + change.x, y: displayedBase(base, part.appearance, 'y') + change.y }, gesture.time);
         });
         preview()?.noteInput('drag');
-        preview()?.previewCss(session.preview(gesture.operations).template.css);
+        if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
         return;
       }
       if (gesture.creation && drawingSpace) {
@@ -76,7 +80,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         gesture.operations = [{ kind: 'layer.create', geometry }]; setDraft(geometry);
         return;
       }
-      const base = gesture.base!, part = gesture.part!;
+      const originalBase = gesture.base!, part = gesture.part!;
+      const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY'] as const).map(p => [p, displayedBase(originalBase, part.appearance, p)])) };
       let change = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
       let values = { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY };
       if (gesture.handle !== undefined && part.corners) {
@@ -94,9 +99,9 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         change = Math.abs(change.x) >= Math.abs(change.y) ? { x: change.x, y: 0 } : { x: 0, y: change.y };
         values = { ...values, x: base.x + change.x, y: base.y + change.y };
       }
-      gesture.operations = [{ kind: 'base.set', selector: base.selector, values }];
+      gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, values, gesture.time);
       preview()?.noteInput('drag');
-      preview()?.previewCss(session.preview(gesture.operations).template.css);
+      if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
     } catch (cause) { cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const end = () => {
@@ -109,7 +114,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         preview()?.noteInput('commit');
         session.execute({ documentId: session.documentId, expected: gesture.expected, transactionId: crypto.randomUUID(), operations: gesture.operations });
       } else session.cancel();
-    } catch (cause) { preview()?.previewCss(template.css, 'cancel'); session.cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
+    } catch (cause) { preview()?.previewTemplate(template, 'cancel'); session.cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
     current.current = null; setDraft(null); if (gesture.creation) setTool('select');
     return gesture.moved;
   };

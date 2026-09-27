@@ -590,7 +590,8 @@ it knows. The complaint is sameness, and sameness is what many small independent
 converge on. So:
 
 - **Cadence.** One drawing row per week, on the orchestrator's Tuesday rhythm, routed as a
-  design row (`fable high` in the orchestrator's terms: a judgement about a look, not volume).
+  design row (`opus high`, consulting `design-consult` for the taste call: a judgement about a
+  look, not volume).
 - **Input.** The top unclaimed item of §6. The row's prompt names the item, the genre, the
   reference convention from §3 and the register from §8. It does not say "make something
   different"; that is the sentence this document exists to retire.
