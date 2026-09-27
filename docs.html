@@ -96,42 +96,34 @@
           <h2>Getting started</h2>
           <p>
             NoaCG Studio makes broadcast graphics in the browser: lower thirds, scoreboards,
-            tickers, quiz boards, countdowns. A lower third is the name strap that sits under a
-            speaker. Putting one of these on air, meaning into the picture the audience sees,
-            works two ways. One is a <strong>live production</strong> you drive from an online
-            dashboard. The other is an <strong>exported package</strong> that runs offline in
-            whatever system your studio already uses.
+            tickers, quiz boards, countdowns. You make a graphic one of three ways, then put it on
+            air in the system your studio already uses.
           </p>
-          <ol>
-            <li>Open <a href="/app#/new">the studio</a>. The creation wizard offers three
-              starting points: a template from the catalog, your own artwork, or a description
-              for AI.</li>
-            <li>Set the colors, typefaces, logo and motion beside a live preview. Every change
-              writes real HTML, CSS and JavaScript. You can open it, or never look at it.</li>
-            <li>Finish, then either export a package straight away, or collect graphics into a
-              production and <a href="#dashboard">run the show</a>.</li>
-          </ol>
+          <!-- The three ways to start, in the owner's order (2026-09-27): the coding agent first,
+               because it is the recommended way to make graphics and the people it is for are
+               the least likely to scroll to "For developers"; then your own artwork; then a
+               template. One sentence and one door each, so a new reader can choose in about 30
+               seconds. The install commands stay in #claude-code, never here: a second copy is
+               the one that goes stale. -->
+          <div class="callout">
+            <span class="lbl">Three ways to start</span>
+            <ol>
+              <li><strong>Your coding agent.</strong> Use Claude Code or Codex with the
+                <strong>NoaCG CLI</strong>, prompt the graphic you want, and it appears in your
+                NoaCG library. <a href="#claude-code">Set up your agent&nbsp;&rarr;</a></li>
+              <li><strong>Your own design.</strong> Name the layers in Illustrator, save an SVG,
+                import it and choose what it does.
+                <a href="#first-graphic">Import an SVG&nbsp;&rarr;</a> or
+                <a href="/downloads#svg-examples">get the SVG examples&nbsp;&rarr;</a></li>
+              <li><strong>A template.</strong> Pick one from the catalog and set its text, colors
+                and logo. <a href="/app#/new">Open the studio&nbsp;&rarr;</a></li>
+            </ol>
+          </div>
           <p>
-            Have a design ready? <a href="#first-graphic">Import an SVG</a> walks it from the file
-            to air.
-          </p>
-          <p>
-            The guides below cover the rest: what each kind of graphic asks you to type, bringing
-            your own design in as an SVG, connecting playout systems, live data, and letting a
-            coding agent do the authoring.
-          </p>
-          <!-- The agent route is named HERE as well as in its own section, because the people
-               it is for are the least likely to scroll to "For developers": they already have
-               the tool open and would otherwise start in the studio without knowing there was a
-               second door. It states what the CLI gives the agent and links to the guide; the
-               install commands stay in one place. -->
-          <p class="callout">
-            <span class="lbl">Have Claude Code or Codex?</span>
-            Drive NoaCG from the agent you already use. You describe the graphic in your own
-            terminal instead of in the wizard, and the <strong>NoaCG CLI</strong> gives the agent
-            the contract to build to, the validator to check itself against, and a way to save the
-            result into your library. One prompt sets it up:
-            <a href="#claude-code">Make graphics with Claude Code, Codex or any coding agent</a>.
+            <strong>On air:</strong> OBS and vMix show a graphic as a
+            <a href="#browser-source">browser source</a>, and
+            <a href="/downloads#bridge">NoaCG Bridge</a> lets the playout dashboard load it on
+            CasparCG.
           </p>
         </section>
 
@@ -2113,6 +2105,17 @@ CG 1-20 STOP</code></pre>
         <!-- ═══════════════════════ AGENTS ═══════════════════════ -->
         <section id="claude-code">
           <h2>Make graphics with Claude Code, Codex or any coding agent</h2>
+          <!-- The same four steps the studio's Create with AI step shows
+               (src/components/wizard/steps/ai/AgentRouteCard.tsx), so a reader who met them there
+               finds them here unchanged. The commands themselves stay below, in one place. -->
+          <ol>
+            <li>Use Claude Code, Codex or another compatible coding agent.</li>
+            <li>Install the NoaCG CLI for your agent. <a href="#agent-install">One prompt</a>
+              does the setup, or run the commands under <a href="#agent-setup">Reference</a>.</li>
+            <li>Prompt the graphic you want. In Claude Code you can also type
+              <code>/noacg:graphic</code>.</li>
+            <li>It appears in your NoaCG library, ready for a rundown.</li>
+          </ol>
           <p>
             A coding agent can write HTML, CSS and JavaScript for a graphic. That code on its own
             has no operator controls, no events an operator can press, and no promise about how it

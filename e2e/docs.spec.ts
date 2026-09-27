@@ -493,6 +493,27 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(callout.locator('a[href="#claude-code"]')).toHaveCount(1);
   // The install commands stay in ONE place. A second copy here is the thing that goes stale.
   await expect(callout).not.toContainText('npx');
+
+  // Owner, 2026-09-27: a new reader should understand NoaCG and start in about 30 seconds, with
+  // the CLI, SVG import and Bridge easy to find. So the callout is the three ways to start in
+  // his order - the coding agent, your own SVG, a template - each with its own door, and the
+  // line under it names both roads to air. The order is the point, so it is pinned by position.
+  const ways = callout.locator('ol > li');
+  await expect(ways).toHaveCount(3);
+  await expect(ways.nth(0).locator('a[href="#claude-code"]')).toHaveCount(1);
+  await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
+  await expect(ways.nth(1).locator('a[href="/downloads#svg-examples"]')).toHaveCount(1);
+  await expect(ways.nth(2).locator('a[href="/app#/new"]')).toHaveCount(1);
+  const start = page.locator('#getting-started');
+  await expect(start.locator('a[href="#browser-source"]')).toHaveCount(1);
+  await expect(start.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
+
+  // The agent guide opens with the same steps the studio's Create with AI card shows
+  // (AgentRouteCard.tsx), before any of the explanation, so the two never tell it differently.
+  const opening = page.locator('#claude-code > ol').first();
+  await expect(opening.locator('li')).toHaveCount(4);
+  await expect(opening).toContainText('Install the NoaCG CLI for your agent');
+  await expect(opening).toContainText('It appears in your NoaCG library');
 });
 
 // PRINTING. The page is a dark one and a browser drops backgrounds by default, so without the
