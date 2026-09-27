@@ -22,7 +22,7 @@
 // A BOARD VERB IS OFFERED ONLY WHEN THE ARTWORK DRAWS ITS MOMENT, the rule the quiz follows for
 // its audience branch. A board with no Full time layer gets no Full time button and no `final`
 // state, and one with no flash on any team gets no Clear flash: a press that moves the state chip
-// and nothing on air is a button that lies (docs/tutorials/classroom-package's score tracker draws
+// and nothing on air is a button that lies (docs/tutorials/svg-examples' scoreboard draws
 // two flashes and no Full time, on purpose). The arrow goes with the button, because an event an
 // arrow carries and no control declares still becomes a plain button of its own. A tracker saved
 // before this rule keeps its Full time until it is imported again: taking a state out of a saved

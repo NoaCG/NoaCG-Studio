@@ -1,25 +1,25 @@
 #!/usr/bin/env node
-// PACKS THE NOACG CLASSROOM PACKAGE: the README as a two-page PDF, then the whole folder as a zip.
+// PACKS THE NOACG SVG EXAMPLES: the README as a two-page PDF, then the whole folder as a zip.
 //
-//   node scripts/illustrator/pack-classroom-package.mjs [--copy-to <file.zip>]...
+//   node scripts/illustrator/pack-svg-examples.mjs [--copy-to <file.zip>]...
 //
-// Run it after scripts/illustrator/build-classroom-package.jsx has drawn the graphics in
-// Illustrator, and again after any change to docs/tutorials/classroom-package/README.md.
+// Run it after scripts/illustrator/build-svg-examples.jsx has drawn the graphics in Illustrator,
+// and again after any change to docs/tutorials/svg-examples/README.md.
 //
-// 1. README.md -> README.pdf. README.md is the source and README.pdf is what a student opens from
-//    the learning platform. Chromium prints it on two A4 pages, headings in Oswald like the
-//    graphics: page 1 is what to do, and page 2, after the README's one `---`, is the layer names
-//    of every graphic. The Markdown is the small subset the README uses (headings, bullets, bold,
-//    inline code, one table, one code block, one `---` as the page break), converted here so the
-//    repo needs no Markdown package for two pages.
-// 2. The zip: Illustrator/, SVG/, Previews/, README.md, README.pdf and credits-english.txt (cut
-//    from the README's paste example, never stored on its own) inside one folder named
-//    NoaCG-classroom-package, written to public/downloads/NoaCG-classroom-package.zip, which the
-//    site serves at /downloads/NoaCG-classroom-package.zip (linked from /downloads and /docs).
-//    Each --copy-to writes the same bytes to another place, such as the owner's Downloads folder.
+// 1. README.md -> README.pdf. README.md is the source and README.pdf is what most people open.
+//    Chromium prints it on two A4 pages, headings in Oswald like the graphics: page 1 is what to
+//    do, and page 2, after the README's one `---`, is the layer names of every graphic. The
+//    Markdown is the small subset the README uses (headings, bullets, bold, inline code, one
+//    table, code blocks, one `---` as the page break), converted here so the repo needs no
+//    Markdown package for two pages.
+// 2. The zip: Illustrator/, SVG/, Previews/, README.md and README.pdf inside one folder named
+//    NoaCG-SVG-examples, written to public/downloads/NoaCG-SVG-examples.zip, which the site
+//    serves at /downloads/NoaCG-SVG-examples.zip (SVG_EXAMPLES_ZIP_URL in src/downloads/links.ts,
+//    linked from /downloads#svg-examples and /docs). Each --copy-to writes the same bytes to
+//    another place.
 //
 // It drives a headless Chromium for the print, so run it through the job queue on the laptop:
-//   node scripts/jobs.mjs add "node scripts/illustrator/pack-classroom-package.mjs" --cost 0.25
+//   node scripts/jobs.mjs add "node scripts/illustrator/pack-svg-examples.mjs" --cost 0.25
 import { readFileSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -28,8 +28,8 @@ import { chromium } from '@playwright/test';
 import { escapeHtml } from '../behaviour-docs.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'classroom-package');
-const ZIP_NAME = 'NoaCG-classroom-package';
+const PACKAGE = path.join(ROOT, 'docs', 'tutorials', 'svg-examples');
+const ZIP_NAME = 'NoaCG-SVG-examples';
 const ZIP_OUT = path.join(ROOT, 'public', 'downloads', `${ZIP_NAME}.zip`);
 /** README.pdf's page count: what to do, then the layer names. */
 const PAGES = 2;
@@ -98,7 +98,7 @@ function markdownToHtml(md) {
   return out.join('\n');
 }
 
-// The page: A4, one column of type, the paste example in two columns so page 1 holds it all.
+// The page: A4, one column of type; a code block, if the README ever has one, runs in two columns.
 const page = (body) => `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><style>
   @font-face { font-family: Oswald; src: url('${pathToFileURL(path.join(ROOT, 'public', 'fonts', 'oswald.woff2'))}'); }
@@ -136,7 +136,7 @@ async function writePdf() {
     const pages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
     if (pages !== PAGES) throw new Error(`README.pdf would be ${pages} pages - the README is ${PAGES}, shorten the page that overflows`);
     writeFileSync(path.join(PACKAGE, 'README.pdf'), pdf);
-    console.log(`pack-classroom-package: README.pdf, ${PAGES} pages`);
+    console.log(`pack-svg-examples: README.pdf, ${PAGES} pages`);
   } finally {
     await browser.close();
   }
@@ -163,35 +163,17 @@ function addTree(zip, abs, rel) {
   }
 }
 
-/**
- * THE ENGLISH CREDITS AS A PLAIN TEXT FILE, cut from README.md's one code block, so README.md
- * stays the only place the list is written. A student who copies the list out of README.pdf gets
- * whatever the PDF viewer makes of it: the empty line before the closing line is lost, so "Quiz
- * Night 2026" rolls as a second producer (measured on noacg.studio, 2026-09-25), and a viewer
- * that keeps soft wraps can split a long line in two. Notepad copies the file exactly. CRLF, so
- * an old Notepad shows it as lines too; the credits box reads either.
- */
-function creditsText() {
-  const md = readFileSync(path.join(PACKAGE, 'README.md'), 'utf8').replace(/\r\n/g, '\n');
-  const block = /```\n([\s\S]*?)\n```/.exec(md);
-  if (!block) throw new Error('README.md has no code block to cut credits-english.txt from');
-  // No newline after the last line: select-all and copy then carries exactly the list the README
-  // shows, with no empty line at the end of the credits box.
-  return block[1].replace(/\n/g, '\r\n');
-}
-
 async function writeZip(copies) {
   const zip = new JSZip();
   for (const entry of CONTENTS) addTree(zip, path.join(PACKAGE, entry), `${ZIP_NAME}/${entry}`);
-  zip.file(`${ZIP_NAME}/credits-english.txt`, creditsText(), ENTRY);
   const bytes = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 9 } });
   mkdirSync(path.dirname(ZIP_OUT), { recursive: true });
   writeFileSync(ZIP_OUT, bytes);
-  console.log(`pack-classroom-package: ${path.relative(ROOT, ZIP_OUT)}, ${Object.keys(zip.files).filter((f) => !zip.files[f].dir).length} files, ${bytes.length} bytes`);
+  console.log(`pack-svg-examples: ${path.relative(ROOT, ZIP_OUT)}, ${Object.keys(zip.files).filter((f) => !zip.files[f].dir).length} files, ${bytes.length} bytes`);
   for (const copy of copies) {
     mkdirSync(path.dirname(copy), { recursive: true });
     writeFileSync(copy, bytes);
-    console.log(`pack-classroom-package: copied to ${copy}`);
+    console.log(`pack-svg-examples: copied to ${copy}`);
   }
 }
 

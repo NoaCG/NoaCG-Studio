@@ -1,20 +1,22 @@
 // The public Downloads page (downloads.html + src/downloads/): NoaCG Bridge and the NoaCG CLI.
 // It borrows the docs stylesheet and copy buttons, and the landing links it from its nav, a band
-// and its footer, so both of those specs ride along. public/downloads/ holds the classroom
-// package zip the page links, and downloads.spec.ts fetches it.
+// and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
+// zip the page links, and downloads.spec.ts fetches it.
 // covers: {downloads.html,src/downloads/**,public/downloads/**}
 //
-// THE CLASSROOM PACKAGE (docs/tutorials/classroom-package/) is a fixture set for the same reason:
-// e2e/classroom-package.spec.ts imports its SVG/ files, so the ignore in scripts/e2e-affected.mjs
-// carves it out too. Every file in it maps here, README.md too: the spec pastes the README's
-// English credit list, so the `.md` ignore in scripts/e2e-affected.mjs carves that one file out.
+// THE SVG EXAMPLES (docs/tutorials/svg-examples/) are a fixture set: e2e/svg-examples.spec.ts
+// imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out, and
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
-// covers: docs/tutorials/classroom-package/**
+// covers: docs/tutorials/svg-examples/**
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import JSZip from 'jszip';
+import { SVG_EXAMPLES_URL, SVG_EXAMPLES_ZIP_URL } from '../src/downloads/links';
+
+/** The seven graphics the SVG examples package ships, by file name. */
+const EXAMPLES = ['title', 'lower-third', 'quiz', 'scoreboard', 'countdown', 'ticker', 'end-credits'];
 
 // THE DOWNLOADS PAGE (/downloads, downloads.html + src/downloads/). NoaCG ships two things you
 // install - NoaCG Bridge and the NoaCG CLI - and a visitor has to be able to find both from the
@@ -156,32 +158,38 @@ test('the Bridge card says which browsers work, and what to do about one that ke
   await expect(page.getByTestId('download-bridge')).toContainText('LoopbackNetworkAccessAllowedForUrls');
 });
 
-test('the classroom package sits under the two tools and its zip is served from /downloads', async ({ page, request }) => {
+test('the SVG examples sit under the two tools and their zip is served from /downloads', async ({ page, request }) => {
   await fakeChannels(page, 'down');
-  await page.goto('/downloads#classroom');
-  const card = page.getByTestId('download-classroom');
+  await page.goto('/downloads#svg-examples');
+  const card = page.getByTestId('download-svg-examples');
   await expect(card).toBeVisible();
-  // Example material for a lesson, not a third tool: the heading still counts two tools.
+  // Example files, not a third tool: the heading still counts two tools.
   await expect(page.locator('h1')).toHaveText('Two tools you can install');
   await expect(card).toContainText('Illustrator');
-  await expect(card.getByTestId('classroom-download')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
-  const zip = await request.get('/downloads/NoaCG-classroom-package.zip');
+  await expect(card.getByTestId('svg-examples-download')).toHaveAttribute('href', SVG_EXAMPLES_ZIP_URL);
+  // The anchor a later surface (the Import step) links to is this card.
+  expect(SVG_EXAMPLES_URL).toBe('/downloads#svg-examples');
+  const zip = await request.get(SVG_EXAMPLES_ZIP_URL);
   expect(zip.status()).toBe(200);
   const bytes = await zip.body();
   // A zip starts with "PK": the server did not answer with the downloads page instead.
   expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
   expect(bytes.length).toBeGreaterThan(100_000);
-  // The zip is committed, so it can go stale: every SVG and the README in it are the repo's own.
+  // The zip is committed, so it can go stale: every SVG and the README in it are the repo's own,
+  // and it holds an Illustrator file for each.
   const zipped = await JSZip.loadAsync(bytes);
-  for (const file of ['README.md', 'SVG/show-intro.svg', 'SVG/name-tag.svg', 'SVG/quiz.svg', 'SVG/score-tracker.svg', 'SVG/end-credits.svg']) {
-    const inZip = await zipped.file(`NoaCG-classroom-package/${file}`)?.async('string');
-    const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/classroom-package/${file}`, import.meta.url)), 'utf8');
-    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-classroom-package.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  for (const file of ['README.md', ...EXAMPLES.map((name) => `SVG/${name}.svg`)]) {
+    const inZip = await zipped.file(`NoaCG-SVG-examples/${file}`)?.async('string');
+    const inRepo = readFileSync(fileURLToPath(new URL(`../docs/tutorials/svg-examples/${file}`, import.meta.url)), 'utf8');
+    expect(inZip?.replace(/\r\n/g, '\n'), `${file} in the zip - repack with scripts/illustrator/pack-svg-examples.mjs`).toBe(inRepo.replace(/\r\n/g, '\n'));
+  }
+  for (const name of EXAMPLES) {
+    expect(zipped.file(`NoaCG-SVG-examples/Illustrator/${name}.ai`), `${name}.ai in the zip`).not.toBeNull();
   }
 
   // The same zip is linked from the docs, beside the layer names it teaches.
   await page.goto('/docs#svg-layers');
-  await expect(page.getByTestId('docs-classroom-package')).toHaveAttribute('href', '/downloads/NoaCG-classroom-package.zip');
+  await expect(page.getByTestId('docs-svg-examples')).toHaveAttribute('href', SVG_EXAMPLES_ZIP_URL);
 });
 
 test('the top bar is the landing top bar, with Downloads as the current page', async ({ page }) => {

@@ -5,8 +5,8 @@
   NoaCG itself runs in the browser and needs nothing installed. Two optional tools sit beside it,
   and a new visitor could not find either: NoaCG Bridge was linked only from Settings -> Playout,
   and the CLI only from one landing section. This page names both, says what each is FOR, and
-  gets each one onto a machine. Under the two tools sits the classroom package: example graphics
-  for a lesson, a zip rather than a program.
+  gets each one onto a machine. Under the two tools sits the SVG examples package: layered
+  example graphics to open, learn the layer names from and import, a zip rather than a program.
 
   ONE VERSION, TWO CHANNELS. Both tools are built from one package (cli/package.json), and each
   ships through its own channel: the Bridge as NoaCG-Bridge.exe on a GitHub Release tagged
@@ -226,28 +226,31 @@
       </section>
     </div>
 
-    <!-- THE CLASSROOM PACKAGE. Not a tool to install, so it sits under the two cards rather
-         than beside them: a zip of example graphics for a lesson. docs/tutorials/classroom-package
-         is its source and scripts/illustrator/pack-classroom-package.mjs writes the zip into
-         public/downloads/. `id="classroom"` is an address a teacher can share. -->
+    <!-- THE SVG EXAMPLES. Not a tool to install, so it sits under the two cards rather than
+         beside them: a zip of layered example graphics, each named to the one layer-naming
+         system. docs/tutorials/svg-examples is its source, scripts/illustrator/build-svg-examples.jsx
+         draws it in Illustrator and scripts/illustrator/pack-svg-examples.mjs writes the zip into
+         public/downloads/. `id="svg-examples"` is an address: SVG_EXAMPLES_URL in
+         src/downloads/links.ts names it for every surface that links here. -->
     <div class="doc-body dl-extra">
-      <section class="dl-card" id="classroom" data-testid="download-classroom">
-        <p class="kicker">For teachers and students</p>
-        <h2>Classroom package</h2>
+      <section class="dl-card" id="svg-examples" data-testid="download-svg-examples">
+        <p class="kicker">For your own designs</p>
+        <h2>SVG examples</h2>
         <p class="dl-what">
-          Five show graphics to open in Illustrator, copy and run live in NoaCG: a show intro, a
-          name tag, a quiz, a score tracker and end credits that roll. Each one comes as an
-          Illustrator file and as the SVG it saves, with a picture of every state and a one-page
-          README with the steps.
+          Seven graphics to open in Illustrator and learn from: a title, a lower third, a quiz, a
+          scoreboard, a countdown, a ticker and end credits. Open one, see how its layers are
+          named, change it, save it as SVG and import it into NoaCG, which finds the fields and
+          the moments from the layer names. Each one comes as an Illustrator file and as the SVG
+          it saves, with a picture of every state and a short README with the steps.
         </p>
-        <p class="dl-meta">NoaCG-classroom-package.zip &middot; Illustrator (.ai), SVG, PNG and PDF</p>
+        <p class="dl-meta">NoaCG-SVG-examples.zip &middot; Illustrator (.ai), SVG, PNG and PDF</p>
         <p class="dl-actions">
           <a
             class="btn btn-amber"
-            href="/downloads/NoaCG-classroom-package.zip"
+            href="/downloads/NoaCG-SVG-examples.zip"
             download
-            data-testid="classroom-download"
-          >Download the package</a>
+            data-testid="svg-examples-download"
+          >Download the examples</a>
         </p>
         <p class="dl-more"><a href="/docs#svg-layers">How to name the layers, in the docs</a></p>
       </section>

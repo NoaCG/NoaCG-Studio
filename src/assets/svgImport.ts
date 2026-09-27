@@ -855,7 +855,7 @@ function dropIdleSpacePreserve(svg: Element): void {
  *     <tspan class="st1"><tspan x="0" y="0">Juontaja:</tspan></tspan>
  *     <tspan class="st4"><tspan x="0" y="50">Maija Meikäläinen</tspan></tspan>
  *
- * (measured 2026-09-24 on docs/tutorials/classroom-package/SVG/end-credits.svg). Everything
+ * (measured 2026-09-24 on the Illustrator-drawn end-credits.svg now in docs/tutorials/svg-examples/SVG/). Everything
  * downstream reads a line as a DIRECT child of its `<text>`: `hoistRunStyle` and
  * `markWrappedBlock` both give up on a line parked inside a wrapper, and the block was flattened
  * to one value in one look, which threw away both the lines and the two looks a credits sample

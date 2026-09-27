@@ -54,9 +54,9 @@
     </g>
   </g>
   <g id="Text">
-    <text id="Team_1" class="st4" transform="translate(663.68 111.2)"><tspan x="0" y="0">EMMA</tspan></text>
+    <text id="Team_1" class="st4" transform="translate(664.8 111.2)"><tspan x="0" y="0">HOME</tspan></text>
     <text id="Score_1" class="st2" transform="translate(891.5 119.3)"><tspan x="0" y="0">0</tspan></text>
-    <text id="Team_2" class="st4" transform="translate(1181.76 111.2)"><tspan x="0" y="0">LEO</tspan></text>
+    <text id="Team_2" class="st4" transform="translate(1165.14 111.2)"><tspan x="0" y="0">AWAY</tspan></text>
     <text id="Score_2" class="st2" transform="translate(995.5 119.3)"><tspan x="0" y="0">0</tspan></text>
   </g>
 </svg>

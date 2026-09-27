@@ -1,30 +1,31 @@
-// BUILDS THE NOACG CLASSROOM PACKAGE IN ILLUSTRATOR, the way a student would draw it by hand.
+// BUILDS THE NOACG SVG EXAMPLES IN ILLUSTRATOR, the way a person would draw them by hand.
 //
-// Five graphics in one simple look (navy plates, yellow accents, Oswald): Show intro, Name tag,
-// Quiz, Score tracker and End credits. For each one it draws the artwork natively (rectangles and
-// point type), puts it on the layers the NoaCG layer-naming system teaches (Text, Moments, Board;
-// src/templates/behaviours/layer-names.json), saves the .ai into Illustrator/, writes the SVG into
-// SVG/ with exportFile(ExportType.SVG), which is the same SVG export plug-in that
-// "File > Save a Copy > SVG" runs, with the settings the NoaCG docs teach, and writes a PNG of
-// every state into Previews/.
+// Seven graphics in one simple look (navy plates, yellow accents, Oswald): a title, a lower third,
+// a quiz, a scoreboard, a countdown, a ticker and end credits. For each one it draws the artwork
+// natively (rectangles and point type), puts it on the layers the NoaCG layer-naming system
+// teaches (Text, Moments, Board; src/templates/behaviours/layer-names.json), saves the .ai into
+// Illustrator/, writes the SVG into SVG/ with exportFile(ExportType.SVG), which is the same SVG
+// export plug-in that "File > Save a Copy > SVG" runs, with the settings the NoaCG docs teach, and
+// writes a PNG of every state into Previews/. The package is the one /downloads#svg-examples
+// offers (src/downloads/links.ts).
 //
 // A graphic with no moments gets NO Moments layer: Illustrator's SVG save drops an empty layer
 // anyway (measured 2026-09-24, the retired owner rulings), so the .ai and the SVG say the same thing.
 //
 // Run it from Illustrator (File > Scripts > Other Script...) or through COM on Windows:
 //   $ai = New-Object -ComObject Illustrator.Application
-//   $ai.DoJavaScriptFile("<repo>\scripts\illustrator\build-classroom-package.jsx")
-// It writes into docs/tutorials/classroom-package/ and its log to noacg-classroom-package.log in
-// the system temp folder. Then `node scripts/illustrator/pack-classroom-package.mjs` writes the
-// README PDF and the zip. Needs the Oswald family installed (free from Google Fonts).
+//   $ai.DoJavaScriptFile("<repo>\scripts\illustrator\build-svg-examples.jsx")
+// It writes into docs/tutorials/svg-examples/ and its log to noacg-svg-examples.log in the system
+// temp folder. Then `node scripts/illustrator/pack-svg-examples.mjs` writes the README PDF and the
+// zip. Needs the Oswald family installed (free from Google Fonts).
 //
 // ExtendScript is ES3: no let, no arrow functions, and non-ASCII text is written as \u escapes
 // because Illustrator reads a script without a byte-order mark as the system code page.
 
 #target illustrator
 var REPO = new File($.fileName).parent.parent.parent;
-var OUT = REPO.fsName + "/docs/tutorials/classroom-package";
-var LOG = new File(Folder.temp.fsName + "/noacg-classroom-package.log");
+var OUT = REPO.fsName + "/docs/tutorials/svg-examples";
+var LOG = new File(Folder.temp.fsName + "/noacg-svg-examples.log");
 LOG.encoding = "UTF-8"; LOG.open("w"); LOG.close();
 // Appends and closes every line, so a run that stops half way still says where.
 function log(s) { LOG.open("a"); LOG.writeln(s); LOG.close(); }
@@ -80,7 +81,7 @@ function capHeight(font, size) {
   return capCache[key];
 }
 
-// Point type, never area type: one click with the Type tool, which is what a student makes.
+// Point type, never area type: one click with the Type tool, which is what a person makes.
 // box = [x, y, w, h] the text sits in; align "left" (inset from the box's left edge) or
 // "center". The capitals are centred vertically in the box unless a baseline is given.
 function label(parent, name, contents, font, size, colour, box, align, inset, baseline) {
@@ -188,21 +189,21 @@ function finish(d, slug, states, fullFrame) {
   log("built " + slug);
 }
 
-// ---- 1. Show intro: full frame, the show's name and one line under it ---------------------------
-function buildShowIntro() {
+// ---- 1. Title: full frame, the show's name and one line under it --------------------------------
+function buildTitle() {
   var d = newDoc(["Text", "Board"]);
   var T = d.layers["Text"], B = d.layers["Board"];
   var TB = [260, 400, 1400, 220], SB = [660, 640, 600, 80];
   rect(B, "Panel", 0, 0, 1920, 1080, NAVY);
   rect(B, "Title box", TB[0], TB[1], TB[2], TB[3], YELLOW);
   rect(B, "Subtitle box", SB[0], SB[1], SB[2], SB[3], NAVY_2);
-  label(T, "Title", "QUIZ NIGHT", BOLD, 140, NAVY, TB, "center");
+  label(T, "Title", "THE WEEKLY SHOW", BOLD, 140, NAVY, TB, "center");
   label(T, "Subtitle", "EPISODE 1", MEDIUM, 44, WHITE, SB, "center");
-  finish(d, "show-intro", [{ file: "show-intro", show: [] }], true);
+  finish(d, "title", [{ file: "title", show: [] }], true);
 }
 
-// ---- 2. Name tag: ONE lower third, retyped for the host and both guests -------------------------
-function buildNameTag() {
+// ---- 2. Lower third: ONE name tag, retyped for every person on screen ---------------------------
+function buildLowerThird() {
   var d = newDoc(["Text", "Board"]);
   var T = d.layers["Text"], B = d.layers["Board"];
   var P = [140, 820, 820, 150];
@@ -210,7 +211,7 @@ function buildNameTag() {
   rect(B, "Accent", P[0], P[1], 16, P[3], YELLOW);
   label(T, "Name", "Maija Meik\u00e4l\u00e4inen", BOLD, 60, WHITE, P, "left", 50, 895);
   label(T, "Role", "HOST", REGULAR, 34, YELLOW, P, "left", 50, 942);
-  finish(d, "name-tag", [{ file: "name-tag", show: [] }], false);
+  finish(d, "lower-third", [{ file: "lower-third", show: [] }], false);
 }
 
 // ---- 3. Quiz: a lower third, low in the frame so the contestants stay visible -------------------
@@ -259,8 +260,8 @@ function buildQuiz() {
   ], false);
 }
 
-// ---- 4. Score tracker: top of the frame, two players ----------------------------------------------
-function buildScoreTracker() {
+// ---- 4. Scoreboard: top of the frame, two teams ---------------------------------------------------
+function buildScoreboard() {
   var d = newDoc(["Text", "Moments", "Board"]);
   var T = d.layers["Text"], M = d.layers["Moments"], B = d.layers["Board"];
   var TB1 = [560, 50, 300, 90], SB1 = [860, 50, 96, 90], SB2 = [964, 50, 96, 90], TB2 = [1060, 50, 300, 90];
@@ -269,7 +270,7 @@ function buildScoreTracker() {
   rect(B, "Middle", 956, 50, 8, 90, NAVY);
   rect(B, "Score box 1", SB1[0], SB1[1], SB1[2], SB1[3], YELLOW);
   rect(B, "Score box 2", SB2[0], SB2[1], SB2[2], SB2[3], YELLOW);
-  // NoaCG flashes a player's tab for a moment when that player gets +1.
+  // NoaCG flashes a team's tab for a moment when that team gets +1.
   moment(M, "Flash 1", function (g) {
     rect(g, "", 560, 148, 300, 44, YELLOW);
     label(g, "", "+1 POINT", BOLD, 26, NAVY, [560, 148, 300, 44], "center");
@@ -278,39 +279,85 @@ function buildScoreTracker() {
     rect(g, "", 1060, 148, 300, 44, YELLOW);
     label(g, "", "+1 POINT", BOLD, 26, NAVY, [1060, 148, 300, 44], "center");
   });
-  label(T, "Team 1", "EMMA", MEDIUM, 40, WHITE, TB1, "center");
+  label(T, "Team 1", "HOME", MEDIUM, 40, WHITE, TB1, "center");
   label(T, "Score 1", "0", BOLD, 60, NAVY, SB1, "center");
-  label(T, "Team 2", "LEO", MEDIUM, 40, WHITE, TB2, "center");
+  label(T, "Team 2", "AWAY", MEDIUM, 40, WHITE, TB2, "center");
   label(T, "Score 2", "0", BOLD, 60, NAVY, SB2, "center");
-  finish(d, "score-tracker", [
-    { file: "score-tracker-1-scores", show: [] },
-    { file: "score-tracker-2-point-for-1", show: ["Flash 1"] },
-    { file: "score-tracker-3-point-for-2", show: ["Flash 2"] }
+  finish(d, "scoreboard", [
+    { file: "scoreboard-1-scores", show: [] },
+    { file: "scoreboard-2-point-for-1", show: ["Flash 1"] },
+    { file: "scoreboard-3-point-for-2", show: ["Flash 2"] }
   ], false);
 }
 
-// ---- 5. End credits: a Heading and ONE Credits text that rolls -----------------------------------
+// ---- 5. Countdown: a card in the middle of the frame, before the show starts ---------------------
+// The clock is the one text drawn as a time (05:00), whatever it is called; its sample is the
+// length of the count. The Timer bar is drawn at full length and left visible: NoaCG drains it as
+// the clock runs. Warning, Paused and Time up are hidden groups NoaCG shows at those moments.
+function buildCountdown() {
+  var d = newDoc(["Text", "Moments", "Board"]);
+  var T = d.layers["Text"], M = d.layers["Moments"], B = d.layers["Board"];
+  var P = [560, 300, 800, 480], BAR = [660, 680, 600, 12];
+  rect(B, "Panel", P[0], P[1], P[2], P[3], NAVY);
+  rect(B, "Accent", P[0], P[1], P[2], 8, YELLOW);
+  rect(B, "Track", BAR[0], BAR[1], BAR[2], BAR[3], NAVY_2);
+  label(B, "static:Status", "STARTING IN", MEDIUM, 30, WHITE, P, "center", 0, 470);
 
-// The default list, in the Finnish order: the people in the studio first, then the crew, the
-// chief roles last, then the production's name and the year. A line ending in ":" is a title and
-// the names go under it. The names are made up. Studio-ohjaaja (the floor manager) is added
-// because every multi-camera studio crew has one.
+  rect(M, "Timer bar", BAR[0], BAR[1], BAR[2], BAR[3], YELLOW);
+  moment(M, "Warning", function (g) { frame(g, "", P[0], P[1], P[2], P[3], RED, 8); });
+  moment(M, "Paused", function (g) {
+    rect(g, "", 860, 712, 200, 44, NAVY_2);
+    label(g, "", "PAUSED", BOLD, 26, WHITE, [860, 712, 200, 44], "center");
+  });
+  moment(M, "Time up", function (g) {
+    rect(g, "", 800, 712, 320, 44, YELLOW);
+    label(g, "", "STARTING NOW", BOLD, 26, NAVY, [800, 712, 320, 44], "center");
+  });
+
+  label(T, "Title", "THE WEEKLY SHOW", BOLD, 56, YELLOW, P, "center", 0, 410);
+  label(T, "Clock", "05:00", BOLD, 150, WHITE, P, "center", 0, 640);
+  finish(d, "countdown", [
+    { file: "countdown-1-running", show: [] },
+    { file: "countdown-2-warning", show: ["Warning"] },
+    { file: "countdown-3-paused", show: ["Paused"] },
+    { file: "countdown-4-time-up", show: ["Time up"] }
+  ], false);
+}
+
+// ---- 6. Ticker: a strip along the bottom edge, a kicker and one line of news ----------------------
+function buildTicker() {
+  var d = newDoc(["Text", "Board"]);
+  var T = d.layers["Text"], B = d.layers["Board"];
+  var P = [0, 960, 1920, 80], KB = [0, 960, 220, 80];
+  rect(B, "Panel", P[0], P[1], P[2], P[3], NAVY);
+  rect(B, "Kicker box", KB[0], KB[1], KB[2], KB[3], YELLOW);
+  label(T, "Kicker", "NEWS", BOLD, 40, NAVY, KB, "center");
+  label(T, "Story", "Doors open at 18:00 in the main hall", MEDIUM, 38, WHITE, [220, 960, 1700, 80], "left", 40);
+  finish(d, "ticker", [{ file: "ticker", show: [] }], false);
+}
+
+// ---- 7. End credits: a Heading and ONE Credits text that rolls -----------------------------------
+
+// The default list: the people in the studio first, then the crew, the director and the producer
+// last, then the production's name and the year. A line ending in ":" is a title and the names go
+// under it. The names are made up. README.md shows the same list, so what the reader sees there
+// is what the graphic rolls.
 var CREDITS = [
-  ["Juontaja:", "Maija Meik\u00e4l\u00e4inen"],
-  ["Vieraat:", "Ville Virtanen", "Aino Aalto"],
-  ["Kuvaajat:", "Eero Eskola", "Liisa Lahti", "Pekka Peltola"],
-  ["Studio-ohjaaja:", "Olli Ojala"],
-  ["Kuvamiksaaja:", "Sanna Salo"],
-  ["Kuvaussihteeri:", "Riikka Rinne"],
-  ["\u00c4\u00e4nitarkkailija:", "Timo Toivonen"],
-  ["Valaisija:", "Kaisa Koski"],
-  ["Kuvatarkkailija:", "Heikki Honkanen"],
-  ["Grafiikka:", "Jussi J\u00e4rvi"],
-  ["Lavastus:", "Noora Nurmi"],
-  ["Maskeeraus:", "Mira M\u00e4ki"],
-  ["Ohjaaja:", "Anna Anttila"],
-  ["Tuottaja:", "Mika M\u00e4kel\u00e4"],
-  ["Quiz Night 2026"]
+  ["Host:", "Maija Meik\u00e4l\u00e4inen"],
+  ["Guests:", "Ville Virtanen", "Aino Aalto"],
+  ["Camera:", "Eero Eskola", "Liisa Lahti", "Pekka Peltola"],
+  ["Floor manager:", "Olli Ojala"],
+  ["Vision mixer:", "Sanna Salo"],
+  ["Production assistant:", "Riikka Rinne"],
+  ["Sound:", "Timo Toivonen"],
+  ["Lighting:", "Kaisa Koski"],
+  ["Vision engineer:", "Heikki Honkanen"],
+  ["Graphics:", "Jussi J\u00e4rvi"],
+  ["Set design:", "Noora Nurmi"],
+  ["Make-up:", "Mira M\u00e4ki"],
+  ["Director:", "Anna Anttila"],
+  ["Producer:", "Mika M\u00e4kel\u00e4"],
+  ["The Weekly Show 2026"]
 ];
 
 function buildEndCredits() {
@@ -321,7 +368,7 @@ function buildEndCredits() {
   rect(B, "Panel", 0, 0, 1920, 1080, NAVY);
   // The roll runs inside this plate, so the list appears at its bottom edge and leaves at its top.
   rect(B, "Credits box", BOX[0], BOX[1], BOX[2], BOX[3], NAVY_2);
-  label(T, "Heading", "TEKIJ\u00c4T", BOLD, 64, YELLOW, [0, 90, 1920, 90], "center");
+  label(T, "Heading", "CREDITS", BOLD, 64, YELLOW, [0, 90, 1920, 90], "center");
 
   // ONE point text, one paragraph per line. The text itself carries the name look, and every
   // title line gets the title look, so the first title and the name under it show NoaCG both.
@@ -358,10 +405,12 @@ function buildEndCredits() {
 }
 
 try {
-  buildShowIntro();
-  buildNameTag();
+  buildTitle();
+  buildLowerThird();
   buildQuiz();
-  buildScoreTracker();
+  buildScoreboard();
+  buildCountdown();
+  buildTicker();
   buildEndCredits();
   log("ok");
 } catch (e) {
