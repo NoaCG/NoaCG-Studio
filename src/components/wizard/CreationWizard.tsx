@@ -313,6 +313,9 @@ export default function CreationWizard() {
    *  pass down the same walk minting a second library record under the same name, whether the
    *  second pass came from a resume or from pressing Export twice without leaving Finish. */
   const madeThisOpen = useRef<MadeGraphic | null>(null);
+  /** True while the entry's New production waits for its durable write, so a second press in
+   *  that window does not mint a second "Untitled production". */
+  const creatingProduction = useRef(false);
   // Prepare step's content-width slider (Import graphic, stretch mode): preview-only demo
   // text pushed into the live preview — never part of the draft or the created template.
   const [stretchDemo, setStretchDemo] = useState<string | null>(null);
@@ -1826,8 +1829,11 @@ export default function CreationWizard() {
                   // model's own "Untitled production" floor, and it waits for the durable write
                   // like every other create path so the production survives a reload. A failed
                   // write says so and lands on the list, which shows what is actually saved.
+                  if (creatingProduction.current) return;
+                  creatingProduction.current = true;
                   const { show, error: written } = createShowNamedChecked('');
                   const error = written ?? (await commitDurableWrites());
+                  creatingProduction.current = false;
                   if (error) {
                     raiseStorageAlert({
                       action: `Creating the production “${show.name}”`,
