@@ -1,0 +1,151 @@
+# RE-RECORD A SCREENSHOT SPEC'S LINUX BASELINES, for a branch that changed a page's look on
+# purpose.
+#
+# WHY THIS EXISTS. A screenshot baseline is per platform (`-win32`, `-linux`), because fonts
+# rasterise differently, and the Linux pictures can only come from a Linux runner. Before this
+# job the only way to get them was to push, let an E2E shard FAIL on the old picture, download
+# that shard's `test-results` artifact and rename every `*-actual.png` by hand: a red CI round
+# trip for every deliberate change of look. Phase 0 of docs/CLIP_PLAYBACK_PLAN.md needed that
+# twice in one session (runs 36322859093 and 36325195220 existed only to fail), and phases 1 to 4
+# change the production page's look on purpose again.
+#
+# WHAT IT DOES. It sets up exactly as ci.yml's E2E shards do (the same two composite actions, so
+# the browser and the fonts are the ones the shards compare against), runs the ONE spec offline
+# with `--update-snapshots=changed`, and uploads that spec's `*-linux.png` files under their final
+# names. `changed` rewrites a picture that no longer matches and writes one that is missing, and
+# leaves a matching picture alone, so an untouched picture comes back byte-identical to the
+# committed one and the download is always the complete, right set. A picture whose test was
+# renamed or removed is still in that set, because it is still committed; delete it by hand.
+#
+#   gh workflow run rerecord-screenshots.yml --ref <branch>            # e2e/playout-baseline.spec.ts
+#   gh workflow run rerecord-screenshots.yml --ref <branch> -f spec=<file.spec.ts>
+#   rm e2e/<file.spec.ts>-snapshots/*-linux.png
+#   gh run download <run-id> -n linux-screenshots -D e2e/<file.spec.ts>-snapshots
+#
+# The `rm` is needed: `gh run download` refuses to overwrite an existing file. Both lines work in
+# bash and in PowerShell. The run's summary lists which pictures changed and repeats the two
+# commands. Look at the pictures before committing them: a re-record accepts whatever the page
+# drew. Record the `-win32` set locally from the same commit
+# (`npx playwright test <spec> --update-snapshots`), so both platforms describe the same code.
+#
+# It commits nothing and needs no write permission: a job that pushed to the branch would push
+# with a token whose commits start no CI run, and the pictures are a claim somebody has to read.
+#
+# PROVEN BEFORE IT LANDED the way catalog-gates.yml was: `workflow_dispatch` only works once the
+# file is on the default branch, so the branch that added it carried a temporary push trigger and
+# a commit that deleted `mixed-1366x768-chromium-linux.png`. Run 36331223686 (45 s, cache warm)
+# listed that picture as new in its summary and uploaded all four; the regenerated one and the
+# three untouched ones were byte-identical to the committed pictures. Then both were reverted.
+# The empty-spec fallback in "Which spec" is what let that push run; it also covers `-f spec=`.
+
+name: rerecord-screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: 'The screenshot spec to re-record, a file name under e2e/ (e2e/ prefix optional).'
+        required: false
+        default: 'playout-baseline.spec.ts'
+
+# A newer dispatch for the same branch and spec supersedes the one in flight: its pictures are
+# the ones wanted, and the older run's would describe a commit the branch has moved past.
+concurrency:
+  group: rerecord-screenshots-${{ github.ref }}-${{ inputs.spec || 'playout-baseline.spec.ts' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rerecord:
+    name: Re-record Linux screenshots
+    runs-on: ubuntu-latest
+    # 30 and not the shards' 20: a cache miss on node_modules is a full `npm ci` (6.4 min mean,
+    # 10.1 min p90 in the node-modules action), and a missing picture is captured until two
+    # consecutive frames agree, which is slower than comparing against one.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: ./.github/actions/node-modules
+
+      - uses: ./.github/actions/playwright-chromium
+
+      # The input reaches the shell through the environment, never through `${{ }}` inside a run
+      # block, and is checked to be a plain file name before it is used as one. The anchored
+      # filter comes from `specFilterArg`, as in ci.yml's shards: Playwright's positional
+      # arguments are regexes over the path, so a bare name would also select a spec whose name
+      # ends in this one.
+      - name: Which spec
+        id: spec
+        env:
+          INPUT_SPEC: ${{ inputs.spec }}
+        run: |
+          SPEC="${INPUT_SPEC:-playout-baseline.spec.ts}"
+          SPEC="${SPEC#e2e/}"
+          if [[ ! "$SPEC" =~ ^[A-Za-z0-9_-][A-Za-z0-9._-]*\.spec\.ts$ || "$SPEC" == *..* ]]; then
+            echo "::error title=Bad spec::Not a spec file name under e2e/: '$SPEC'"; exit 1
+          fi
+          if [ ! -f "e2e/$SPEC" ]; then echo "::error title=Bad spec::No such spec: e2e/$SPEC"; exit 1; fi
+          echo "spec=$SPEC" >> "$GITHUB_OUTPUT"
+
+      - name: Re-record
+        env:
+          SPEC: ${{ steps.spec.outputs.spec }}
+        run: |
+          FILTER="$(node -e 'import("./scripts/e2e-spec-names.mjs").then((m) => console.log(m.specFilterArg(process.argv[1])))' "$SPEC")"
+          npm run test:e2e -- "$FILTER" --update-snapshots=changed
+
+      # `--untracked-files=all` so a new picture is listed by name even when the whole snapshot
+      # directory is new, rather than as the directory.
+      - name: Say what changed
+        env:
+          SPEC: ${{ steps.spec.outputs.spec }}
+        run: |
+          CHANGED="$(git status --porcelain --untracked-files=all -- "e2e/$SPEC-snapshots" | grep -- '-linux\.png$' || true)"
+          {
+            echo "### Linux screenshots for \`e2e/$SPEC\`"
+            echo
+            if [ -z "$CHANGED" ]; then
+              echo "Every picture matched the committed one; nothing to commit."
+            else
+              echo "Re-recorded (\`M\` changed, \`??\` new):"
+              echo
+              echo '```'
+              echo "$CHANGED"
+              echo '```'
+            fi
+            echo
+            echo "Take the complete set into the branch with (\`gh run download\` will not overwrite a file):"
+            echo
+            echo '```'
+            echo "rm e2e/$SPEC-snapshots/*-linux.png"
+            echo "gh run download $GITHUB_RUN_ID -n linux-screenshots -D e2e/$SPEC-snapshots"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "${CHANGED:-No picture changed.}"
+
+      # Only after a green run, on purpose: a spec with a failing test yields a partial set, which
+      # is not a set to commit. Its evidence goes up as `test-results` below instead.
+      - name: Upload the pictures
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-screenshots
+          path: e2e/${{ steps.spec.outputs.spec }}-snapshots/*-linux.png
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload failure evidence
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
