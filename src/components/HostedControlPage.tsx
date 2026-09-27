@@ -132,6 +132,28 @@ const LOG_HISTORY_SPAN = 400;
 /** A graphic's machine state as a renderer reports it and as a monitor stage reads it. */
 type MachineReport = { groups?: Record<string, string> } | null;
 
+type AiredMap = Record<string, Record<string, string>>;
+
+/** What each graphic shows once a renderer command has run: the baseline the unsent-changes
+ *  warning is judged against. */
+function airedAfter(prev: AiredMap, graphic: string, msg: ControlEventRow['msg']): AiredMap {
+  if (msg.t === 'update') return { ...prev, [graphic]: { ...prev[graphic], ...msg.data } };
+  // AN ACCEPTED EVENT'S PAYLOAD IS ALSO WHAT AIR SHOWS. A goal's +1 rides moved through the same
+  // field path an update takes, so leaving it out of this baseline was wrong twice: the
+  // unsent-changes chip announced "1 change not on air yet" about a figure the press had just
+  // aired, and a combined control's delayed step counts from this map - so two presses of one
+  // `+1` both read the figure before the first and the score froze one short. The in-app page has
+  // always merged it here (`rememberAired`).
+  if (msg.t === 'event' && msg.payload) return { ...prev, [graphic]: { ...prev[graphic], ...msg.payload } };
+  // Off air: forget it, or the next take would compare against a stale baseline.
+  if (msg.t === 'stop' && prev[graphic]) {
+    const next = { ...prev };
+    delete next[graphic];
+    return next;
+  }
+  return prev;
+}
+
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +275,22 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * the picture that was already there. `PayloadStage` counts them as `data-plays` and
    * e2e/configured/playout-both-roads.spec.ts reads that count on this very page.
    */
+  /**
+   * THE LOG ROWS THE PROGRAM MONITOR REPLAYS OVER THE RENDERER'S REPORT when it recovers
+   * (`restoreProgram`). A renderer reports its state 800 ms after its last change, so a tab
+   * reloaded straight after a press reads a report from BEFORE that press. The `/output`
+   * renderer's own boot recovery therefore replays every row after the report's baseline
+   * (control/outputRecovery.ts), and this monitor now does the same. Without it, a tab reloaded
+   * moments after the next question's lock rebuilt the PREVIOUS question's reveal, and its Reveal
+   * correct, greyed on that stale reveal, never lit the new key here while air lit it (configured
+   * run 36279794719).
+   *
+   * Read BEFORE the page shows the production, so no stage can come up, and no button can be
+   * pressed, ahead of the rows its recovery needs. Every stage built before this page applies a
+   * command of its own gets them (development StrictMode builds the stage twice); after that the
+   * recovery reads what the page has seen since, and this is null.
+   */
+  const bootReplay = useRef<ControlSendItem[] | null>(null);
   const applied = useRef(createAppliedOnce());
   const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     for (const item of items) {
@@ -268,27 +306,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
         // actually reached air rather than only what its own buttons sent.
         programRef.current?.apply([{ graphic: item.graphic, msg }]);
+        // The monitor has moved past the boot snapshot, so a later rebuild recovers from what
+        // this page has seen since, not from the boot's replay.
+        bootReplay.current = null;
         // …and remember what it put on air, which is what makes "not sent yet" honest.
-        if (msg.t === 'update') {
-          setAiredData((prev) => ({ ...prev, [item.graphic]: { ...prev[item.graphic], ...msg.data } }));
-        } else if (msg.t === 'event' && msg.payload) {
-          // AN ACCEPTED EVENT'S PAYLOAD IS ALSO WHAT AIR SHOWS. A goal's +1 rides moved through
-          // the same field path an update takes, so leaving it out of this baseline was wrong
-          // twice: the unsent-changes chip announced "1 change not on air yet" about a figure the
-          // press had just aired, and a combined control's delayed step counts from this map —
-          // so two presses of one `+1` both read the figure before the first and the score froze
-          // one short. The in-app page has always merged it here (`rememberAired`); this page's
-          // own ⚡ button quietly worked around the gap by counting from its staged echo instead.
-          setAiredData((prev) => ({ ...prev, [item.graphic]: { ...prev[item.graphic], ...msg.payload } }));
-        } else if (msg.t === 'stop') {
-          // Off air: forget it, or the next take would compare against a stale baseline.
-          setAiredData((prev) => {
-            if (!prev[item.graphic]) return prev;
-            const next = { ...prev };
-            delete next[item.graphic];
-            return next;
-          });
-        }
+        setAiredData((prev) => airedAfter(prev, item.graphic, msg));
       }
     }
   }, []);
@@ -297,21 +319,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-
-  /**
-   * THE LOG ROWS THE PROGRAM MONITOR'S FIRST RECOVERY STILL HAS TO REPLAY (`restoreProgram`),
-   * emptied by the recovery that applies them. A renderer reports its state 800 ms after its last
-   * change, so a tab reloaded straight after a press reads a report from BEFORE that press. The
-   * `/output` renderer's own boot recovery therefore replays every row after the report's
-   * baseline (control/outputRecovery.ts), and this monitor now does the same. Without it, a tab
-   * reloaded moments after the next question's lock rebuilt the PREVIOUS question's reveal, and
-   * its Reveal correct, greyed on that stale reveal, never lit the new key here while air lit it
-   * (configured run 36279794719).
-   *
-   * Read BEFORE the page shows the production, so no stage can come up, and no button can be
-   * pressed, ahead of the rows its recovery needs.
-   */
-  const bootReplay = useRef<ControlEventRow[]>([]);
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -333,9 +340,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             : [];
         if (!live) return;
         // A read that did not reach the head replays nothing: the report stands, as it did before.
-        bootReplay.current = (rows ?? []).filter(
-          (row) => onAir.includes(row.graphic) && !alreadyInSnapshot(snapshotAt, row.graphic, row.id),
-        );
+        // Renderer commands only: which cue is live comes off the row, already current, and
+        // 'staged' and 'live' rows are not commands.
+        bootReplay.current = (rows ?? []).flatMap((row) => {
+          const msg = row.msg;
+          if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live') return [];
+          if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
+          return [{ graphic: row.graphic, msg }];
+        });
       }
       setShow(resolved);
       if (!resolved) return;
@@ -356,13 +368,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // 0034), seeded before following so old rows can never overwrite a newer fact.
       setLiveCue(resolved.liveCue);
       setMachineState(Object.fromEntries(Object.entries(resolved.live).map(([g, report]) => [g, report?.state ?? null])));
-      // The unsent baseline starts at what each live graphic REPORTED applying — a page opened
-      // mid-show must not announce changes against an empty baseline it never saw aired.
+      // The unsent baseline starts at what each live graphic REPORTED applying, and what the rows
+      // after that report aired — a page opened mid-show must not announce changes against a
+      // baseline it never saw aired.
       setAiredData(
-        Object.fromEntries(
-          Object.entries(resolved.live)
-            .map(([graphic, report]) => [graphic, report?.data ?? {}] as const)
-            .filter(([, data]) => Object.keys(data).length > 0),
+        (bootReplay.current ?? []).reduce(
+          (aired, item) => airedAfter(aired, item.graphic, item.msg),
+          Object.fromEntries(
+            Object.entries(resolved.live)
+              .map(([graphic, report]) => [graphic, report?.data ?? {}] as const)
+              .filter(([, data]) => Object.keys(data).length > 0),
+          ) as AiredMap,
         ),
       );
       // A cue id means nothing to an operator; they wrote the NAME, so that is what the log
@@ -548,24 +564,27 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   reportsRef.current = resolved?.live ?? {};
   const restoreProgram = useCallback(() => {
     const replay = bootReplay.current;
-    bootReplay.current = [];
     for (const [graphic, cueId] of Object.entries(liveCueRef.current)) {
       if (!cueId) continue;
-      const data = airedRef.current[graphic] ?? reportsRef.current[graphic]?.data;
+      // At boot the snapshot is the REPORT, which the rows below were read against; later it is
+      // what this page has seen since.
+      const data = replay ? reportsRef.current[graphic]?.data : (airedRef.current[graphic] ?? reportsRef.current[graphic]?.data);
       const groups = machineStateRef.current[graphic]?.groups;
+      const rows = (replay ?? []).filter((item) => item.graphic === graphic);
       const dataItem = data ? [{ graphic, msg: { t: 'update' as const, data } }] : [];
       programRef.current?.apply([
         ...dataItem,
-        groups ? { graphic, msg: { t: 'snap' as const, snap: groups } } : { graphic, msg: { t: 'play' as const } },
+        ...(groups
+          ? [{ graphic, msg: { t: 'snap' as const, snap: groups } }]
+          : rows.length > 0
+            ? [] // a graphic that never reported replays its own entrance below
+            : [{ graphic, msg: { t: 'play' as const } }]),
         ...dataItem,
+        // …then what air did after that report.
+        ...rows,
       ]);
-      // …then what air did after that report, through the same door the follow uses. Cue rows
-      // stay out: which cue is live came off the row, already current.
-      applyCommand(
-        replay.filter((row) => row.graphic === graphic && row.msg.t !== 'cue').map((row) => ({ graphic, msg: row.msg })),
-      );
     }
-  }, [applyCommand]);
+  }, []);
 
   /**
    * ONE effect drives the PREVIEW stage, from what the page has already derived: the cue on
