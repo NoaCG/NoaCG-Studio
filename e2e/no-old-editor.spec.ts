@@ -165,6 +165,27 @@ test('Settings has no Advanced mode switch', async ({ page }) => {
   await expectOldEditorNeverShown(page);
 });
 
+// HOME'S EMPTY-LIBRARY HINT is the first thing a new user reads on Home, and its button is one
+// more door on Home that must lead to the wizard, never an editor. It names all three ways to
+// start (the same three the wizard's Entry step offers) and sends the reader to Downloads for
+// the CLI and the Bridge, since the CLI way needs the CLI installed first (PR #487).
+test('an empty library\'s hint names the three ways in, links Downloads and opens the wizard', async ({ page }) => {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
+  const hint = page.locator('.panel-section', { has: page.getByRole('heading', { name: 'Nothing saved yet' }) });
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText('Use your AI coding agent with the NoaCG CLI');
+  await expect(hint).toContainText('import your own SVG');
+  await expect(hint).toContainText('start from a template');
+  await expect(hint).toContainText('Get the NoaCG CLI and NoaCG Bridge from Downloads.');
+  await expect(hint.getByRole('link', { name: 'Downloads' })).toHaveAttribute('href', '/downloads');
+
+  await hint.getByRole('button', { name: '+ New graphic' }).click();
+  await expect(page.getByTestId('creation-wizard')).toBeVisible();
+  await expect(page).toHaveURL(/#\/new$/);
+  await expectOldEditorNeverShown(page);
+});
+
 test('Finish offers a production, an export and the new editor, and no code editor', async ({ page }) => {
   await page.goto('/app#/new');
   await expect(page.getByTestId('creation-wizard')).toBeVisible({ timeout: 30_000 });

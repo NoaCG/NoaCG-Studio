@@ -8,6 +8,11 @@
 // imports their SVG/ files, so the ignore in scripts/e2e-affected.mjs carves the folder out, and
 // downloads.spec.ts rides along because it checks the committed zip still holds these files.
 // covers: docs/tutorials/svg-examples/**
+//
+// THE LANDING PAGE (index.html + src/landing/) carries the ways into this page - its nav, the
+// per-section download links, the footer - and the tests below assert them. Without this line a
+// landing change planned landing.spec.ts alone and broke main here (PR #477, reverted by #479).
+// covers: src/landing/**, index.html
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
