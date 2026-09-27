@@ -8,6 +8,7 @@ import { importSvgMarkup, isSvgFile, type SvgImportResult } from '../../../asset
 import { isTemplateFile, type ImportedTemplateResult } from '../../../model/importTemplate';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import SectionHead from '../SectionHead';
+import { SVG_EXAMPLES_URL } from '../../../downloads/links';
 
 interface Props {
   art: DesignArt | null;
@@ -266,9 +267,38 @@ export default function ImportDesignStep({
       />
 
       {/* ONE LINE PER THING, AND AN ⓘ FOR THE REST (GOALS goal 4): the drop zone carries one
-          line; what each format buys lives behind this dot. */}
+          line; what each format buys lives behind this dot.
+          THE SUMMARY IS THE WORKFLOW (owner, 2026-09-27): the SVG road should be obvious without
+          opening anything, so the one visible line walks it in order and links the layered
+          example package, which shows what "named layers" means better than any sentence. It
+          opens in a new tab so the walk underneath survives. No new block: the owner ruled
+          against adding text to this step, so the line replaced "the artwork you already made".
+          The link keeps the line's muted colour and only its underline is tinted: the amber
+          "?" on the export strip below is the step's one accent, and an amber link beside it
+          would make two.
+          One line from 1280 up (e2e/import-svg.spec.ts measures it). Narrower, it WRAPS rather
+          than ellipsizing like other section heads: cut off, the link is the first thing lost,
+          and the docs shot (1040 wide) would publish a sentence with its end missing. The title
+          holds together so it does not break into "Your / design" beside the wrapped line. */}
       {!art && !templateFile && !svg && (
-        <SectionHead title="Your design" summary="the artwork you already made" testid="import-design-why">
+        <SectionHead
+          title={<span style={{ whiteSpace: 'nowrap' }}>Your design</span>}
+          summary={
+            <span style={{ whiteSpace: 'normal' }}>
+              Name your layers, save the SVG, drop it here, then choose what it does.{' '}
+              <a
+                href={SVG_EXAMPLES_URL}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: 'inherit' }}
+                data-testid="import-design-examples"
+              >
+                Example files
+              </a>
+            </span>
+          }
+          testid="import-design-why"
+        >
           <p>
             An <strong>SVG</strong> from Illustrator, Figma or Inkscape is the best import. It
             stays pixel-exact, and its text layers become editable fields on their own.

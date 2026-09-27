@@ -139,6 +139,43 @@ test('svg import: the export rules lead the drop step, above the zone', async ({
   await expect(page.getByTestId('import-svg-export-why')).toBeVisible();
 });
 
+// THE WORKFLOW IN ONE VISIBLE LINE (owner, 2026-09-27: the SVG road should be obvious - name the
+// layers, import the SVG, say how it behaves). Before a drop, the step's summary line walks that
+// road in order and links the layered example package on /downloads. It is the one line the
+// section head allows (GOALS goal 4), so it must fit whole, never ellipsized, at 1366x768 and at
+// 1280, the two laptop widths the wizard is walked at.
+test('svg import: the design step says the workflow in one line and links the example files', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/app');
+  await expect(page.locator('.wz-modal')).toBeVisible();
+  await page.locator('[data-entry="import-graphic"]').click();
+
+  const line = page.locator('.wz-sec-head .muted', { has: page.getByTestId('import-design-examples') });
+  await expect(line).toBeVisible();
+  await expect(line).toContainText('Name your layers');
+  await expect(line).toContainText('SVG');
+  await expect(line).toContainText('choose what it does');
+  const examples = line.locator('a[href^="/downloads"]');
+  await expect(examples).toBeVisible();
+  await expect(examples).toHaveAttribute('href', '/downloads#svg-examples');
+
+  for (const size of [{ width: 1366, height: 768 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(size);
+    const fit = await line.evaluate((el) => {
+      const link = el.querySelector('a')!.getBoundingClientRect();
+      const box = el.getBoundingClientRect();
+      return { overflow: el.scrollWidth - el.clientWidth, linkInside: link.right <= box.right + 0.5 };
+    });
+    expect(fit.overflow, `summary ellipsized at ${size.width}`).toBeLessThanOrEqual(0);
+    expect(fit.linkInside, `example link cut off at ${size.width}`).toBe(true);
+  }
+
+  // It belongs to the empty step: once a file is in, the card below says what was found instead.
+  await page.locator('.wz-drop input[type="file"]').setInputFiles(FIXTURE);
+  await expect(page.getByTestId('import-svg-card')).toBeVisible();
+  await expect(page.getByTestId('import-design-examples')).toHaveCount(0);
+});
+
 test('svg import: mapping — labels from layer names, all on by default, edits carried to the template', async ({ page }) => {
   await dropSvg(page);
   await page.locator('.wz-next').click();
