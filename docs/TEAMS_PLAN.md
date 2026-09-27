@@ -222,15 +222,22 @@ Mockups (single-file HTML, dark control-room, amber accent, under `docs/design/t
 
 The flows:
 
-- **Entry point - one, inside the production surface.** A signed-in user's production page
-  (and the productions section's per-card menu) gains "Share with a team...". That dialog is
-  the only door: create a team (name it, get the join code) or pick an existing team. A user
-  who never opens it never sees the word "team" anywhere. Signed-out or offline builds do not
-  render the item.
-- **Invite/join: a join code and link.** Creating a team shows a short code (e.g.
-  `K7M-Q2R`) and a copyable link (`/app#/join-team/<code>`); the teacher reads the code out or
-  pastes the link in the class chat. Joining asks one thing: the display name teammates will
-  see. Owner can rotate the code. No email invitations in v1 (no SMTP; §5 dependency).
+- **Entry points - making a team hangs off a production, joining one does not.** A signed-in
+  user's production page (and the productions section's per-card menu) gains "Share with a
+  team...": create a team (name it, get the join link) or pick an existing team. Joining is
+  Home's **Join a team** card, beside New production, where a code or a pasted link is entered
+  (stage 4b below). Signed-out or offline builds render neither. *Amended 2026-09-27:* the
+  original rule was that a user who never opens the share door never sees the word "team"; it
+  left a student holding a code with nowhere to type it, so a signed-in account now sees the one
+  card, and nothing else of teams until it is in one.
+- **Invite/join: a join link, and its code.** Creating a team shows a copyable link
+  (`/app#/join-team/<code>`) and, second, the code itself for typing into Join a team. The
+  mockup's speakable `K7M-Q2R` was never built: 0053 mints mixed-case base64url, so the screen
+  says "capitals count" rather than "read it out" (whether to mint a speakable code is the
+  owner's call: `docs/backlog/the-team-dialog-makes-you-guess-nine-times.md`). Joining asks one
+  thing: the display name teammates will see, which a member can change later in the member
+  list. Owner can rotate the code. No email invitations yet
+  (`docs/backlog/teams-invite-join-code-and-what-a-new-member-sees.md`).
 - **Team productions in Home.** The productions section lists team productions after personal
   ones, each wearing a team chip (team name, amber-outlined) and "edited by <name>" in the
   meta line. Opening one is the same production page.
@@ -385,6 +392,25 @@ production's Share door, and a new member owns no production to open one from. W
   team's button opens the dialog that has the list). The two-context walk in
   `e2e/configured/teams.spec.ts` covers join, find, move, a member's edit and its "edited by" read
   back cold by the owner; stage 5's three-context walk is below.
+
+**Stage 4b LANDED 2026-09-27: teams without guessing.** The walk behind the /docs guide found nine
+places the team screens made a reader guess (`docs/backlog/the-team-dialog-makes-you-guess-nine-times.md`),
+and the owner's standard is that teams need no reading. What landed:
+
+- **The code's door.** Home's productions grid carries a **Join a team** card for every signed-in
+  account (`components/teams/JoinTeamCard.tsx`): a code, or a whole pasted link, opens the same
+  join dialog a link does. Before it, the code could be redeemed only by somebody who already held
+  the link. `e2e/auth.spec.ts` pins the card absent offline, and the signed-out walk absent without
+  a session.
+- **The way back** was stage 4's (the team band and the Teams section); the two-account walk now
+  proves it for a member who owns no production, typing the code on Home, then opening the team
+  from its band: members, the link to pass on, Leave, and a rename.
+- **The screens explain themselves.** With no team yet, the share dialog's primary is New team; with
+  several and none picked, a line says to pick one. The create screen says which name box is the
+  team's and which is yours, and that the team's productions count toward the owner's storage (§8
+  ruling 4 - a sentence, since enforcement is not live). A member changes their own name in their
+  row of the member list (re-joining with the code is the rename, 0053). The team screen leads with
+  the link and shows the code second, without promising it can be read aloud.
 
 **Stage 5 LANDED 2026-09-27** as the "three accounts" walk in `e2e/configured/teams.spec.ts`, green
 in `configured-suite.yml` against a local stack. It walks GOALS outcome 5's list instead of the

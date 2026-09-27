@@ -139,6 +139,9 @@ test('offline / no-backend: a production grows no team door, on its page or on i
   await expect(page.getByTestId(TEAM.teamProductions)).toHaveCount(0);
   await expect(page.getByTestId('home-nav-productions')).toBeVisible();
   await expect(page.getByTestId(TEAM.navTeams)).toHaveCount(0);
+  // The join door that a signed-in account sees without owning anything (Join a team) - the
+  // same productions grid is on screen, so its absence is the gate's doing too.
+  await expect(page.getByTestId(TEAM.joinCard)).toHaveCount(0);
   // And the section's own route resolves to a surface that exists instead of to the section.
   await page.goto('/app#/home/teams');
   await expect(page.getByTestId('home-page')).toBeVisible();

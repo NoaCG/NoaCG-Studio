@@ -1,9 +1,10 @@
-// The join door: `/app#/join-team/<code>` (docs/TEAMS_PLAN.md §6, mockup screen 3).
+// The join dialog: `/app#/join-team/<code>` (docs/TEAMS_PLAN.md §6, mockup screen 3).
 //
-// A teacher reads the code out or pastes this link in the class chat; a student opens it in their
-// OWN account and answers one question - the name their teammates will see. There is no email
-// invitation and cannot be one until SMTP is provisioned (§5), which is exactly why the code is
-// the capability: it works on the day, in a room, with nothing provisioned.
+// Two ways lead here and they are one errand: a teacher pastes the team's LINK in the class chat,
+// or a student types the CODE into Home's "Join a team" card (JoinTeamCard.tsx), which navigates
+// to this route. Either way the student is in their OWN account and answers one question - the
+// name their teammates will see. There are no email invitations yet (§5), which is why the code
+// is the capability: it works on the day, with nothing provisioned.
 //
 // THE ONE PLACE A TEAM SURFACE PROMPTS FOR SIGN-IN. Everywhere else, teams render nothing at all
 // to a signed-out visitor (§6: a user who never opens the door never sees the word "team"). Here
@@ -23,6 +24,7 @@ import SignInPrompt from '../auth/SignInPrompt';
 import { joinTeamByCode, suggestedDisplayName, type Team } from '../../backend/teams';
 import { refreshTeams } from '../../backend/teamProductions';
 import TeamChip from './TeamChip';
+import { joinCodeFrom } from './JoinTeamCard';
 import { useEscapeToClose } from './useEscapeToClose';
 
 export default function JoinTeamDialog({ code }: { code: string }) {
@@ -76,7 +78,7 @@ function Dialog({
   const join = async () => {
     setBusy(true);
     setError(null);
-    const { team, error: err } = await joinTeamByCode(joinCode, displayName);
+    const { team, error: err } = await joinTeamByCode(joinCodeFrom(joinCode), displayName);
     setBusy(false);
     if (!team) {
       setError(err);
@@ -121,8 +123,12 @@ function Dialog({
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value)}
                   placeholder="e.g. K7MQ2R4a"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
                   data-testid="join-team-code"
                 />
+                <span className="team-field-hint">Capitals count - type it exactly as it was sent, or paste the whole link.</span>
               </label>
               <label className="team-field">
                 <span>Your name, as teammates see it</span>
@@ -134,6 +140,10 @@ function Dialog({
                   placeholder="e.g. Ben Karlsson"
                   data-testid="join-team-display-name"
                 />
+                <span className="team-field-hint">
+                  Shown beside your edits instead of your email. You can change it later in the
+                  team’s member list.
+                </span>
               </label>
               <p className="hint">
                 {email ? <>You are signed in as <strong>{email}</strong>. </> : null}

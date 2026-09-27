@@ -47,6 +47,13 @@ export const TEAM = {
   productionTeam: 'production-team',
   moveToTeam: 'move-to-team',
   moved: 'team-moved',
+  /** Home's "Join a team" card - where a code is TYPED - and its field. Unlike stage 4's places
+   *  it is drawn for every signed-in account, team or not, and for nobody else. */
+  joinCard: 'join-team-card',
+  joinCardCode: 'join-team-card-code',
+  joinCardGo: 'join-team-card-go',
+  /** A member changing their own display name, in their own row of the member list. */
+  renameMe: 'rename-me',
 } as const;
 
 /** A join link with a code shaped like a real one (8 URL-safe characters, migration 0053) but

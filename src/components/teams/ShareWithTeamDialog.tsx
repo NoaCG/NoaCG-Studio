@@ -1,12 +1,13 @@
-// "Share with a team…" - THE ONE TEAM DOOR (docs/TEAMS_PLAN.md §6, mockup
+// "Share with a team…" - THE TEAM DIALOG (docs/TEAMS_PLAN.md §6, mockup
 // `docs/design/teams/teams-share-dialog.html`).
 //
-// Everything a team is reached from here: make one, move a production into it, read out its join
-// code, see who is in it, rotate the code, leave, delete. The FIRST door hangs off a PRODUCTION
-// (the thing a team is for) rather than off the account, so a user who never opens it never sees
-// the word "team" anywhere - the plan's §6 rule. Once somebody IS in a team, Home shows it: the
-// Teams section and the team bands on the productions list open this same dialog on that team
-// (`openTeam`), because "where is the team I was invited to" must never need a search.
+// Everything a team is done from here: make one, move a production into it, pass on its join
+// link, see who is in it, change your own name in it, rotate the code, leave, delete. Making a
+// team hangs off a PRODUCTION (the thing a team is for); JOINING one is Home's "Join a team" card
+// (JoinTeamCard.tsx), which a signed-in account sees without owning anything. Once somebody IS in
+// a team, Home shows it: the Teams section and the team bands on the productions list open this
+// same dialog on that team (`openTeam`), because "where is the team I was invited to" must never
+// need a search.
 //
 // MOVING is stage 4's verb (backend/teamProductions.ts `moveProductionToTeam`): the production
 // goes to `team_productions` and leaves the personal list in the same step, and it appears in the
@@ -27,6 +28,7 @@ import { copyLink } from '../home/copyLink';
 import {
   createTeam,
   deleteTeam,
+  joinTeamByCode,
   joinTeamLink,
   leaveTeam,
   listMyTeamMembers,
@@ -96,6 +98,8 @@ function Dialog() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** Your own display name while it is being changed on the team screen, else null. */
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const [newTeamName, setNewTeamName] = useState('');
   const [displayName, setDisplayName] = useState(() => suggestedDisplayName(user?.email));
@@ -103,6 +107,8 @@ function Dialog() {
   const selected = teams?.find((t) => t.id === selectedId) ?? null;
   const iAmOwner = Boolean(selected && user && selected.ownerId === user.id);
   const selectedMembers = selected ? ofTeam(members, selected.id) : [];
+  /** Loaded, asked successfully, and empty: the first-timer, whose one useful move is New team. */
+  const noTeams = teams !== null && teams.length === 0 && !loadError;
 
   useEscapeToClose(close);
 
@@ -215,6 +221,27 @@ function Dialog() {
     void refreshTeams();
   };
 
+  /**
+   * Change your own display name. Re-joining with the team's code IS the rename (migration 0053,
+   * `team_join` upserts the name) - there is deliberately no UPDATE policy on `team_members`,
+   * because one would also let a member rewrite their own role.
+   */
+  const rename = async () => {
+    if (!selected || renaming === null) return;
+    setBusy(true);
+    setError(null);
+    const { error: err } = await joinTeamByCode(selected.joinCode, renaming);
+    setBusy(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setRenaming(null);
+    refreshMembers();
+    // "Edited by" on every card reads the member list the team store holds, so it follows too.
+    void refreshTeams();
+  };
+
   const destroy = async () => {
     if (!selected) return;
     setBusy(true);
@@ -303,6 +330,7 @@ function Dialog() {
                   placeholder="e.g. Northvale TV-26"
                   data-testid="new-team-name"
                 />
+                <span className="team-field-hint">What everyone in it sees the team called - a class, a crew, a channel.</span>
               </label>
               <label className="team-field">
                 <span>Your name, as teammates see it</span>
@@ -312,10 +340,14 @@ function Dialog() {
                   placeholder="e.g. Ben Karlsson"
                   data-testid="new-team-display-name"
                 />
+                <span className="team-field-hint">
+                  YOUR name, not the team’s: what teammates see beside your edits instead of your
+                  email. You can change it later in the member list.
+                </span>
               </label>
-              <p className="hint">
-                Teammates see this name and nothing else - email addresses are never shown. You
-                get a join code to read out or paste in the class chat.
+              <p className="hint" data-testid="new-team-explainer">
+                Next you get a link to send your teammates. As the team’s owner, the productions
+                it holds count toward your storage.
               </p>
             </>
           )}
@@ -335,28 +367,70 @@ function Dialog() {
                 </p>
               )}
               {moved?.warning && <p className="status-bad">{moved.warning}</p>}
+              {/* THE LINK LEADS, because it is the half nobody can get wrong: it opens the join
+                  dialog with the code already in it. The code is second and smaller - it is for
+                  typing into Home's "Join a team" card, and it is mixed case with 0/O and 1/l in
+                  its alphabet (migration 0053), so this screen does not offer it for reading aloud. */}
               <div className="team-codewrap">
-                <span className="team-codelabel">Join code</span>
-                <div className="team-code mono" data-testid="team-join-code">{selected.joinCode}</div>
+                <span className="team-codelabel">Invite with this link</span>
                 <div className="team-linkrow">
                   <input readOnly value={joinTeamLink(selected.joinCode)} data-testid="team-join-link" />
                   <button onClick={copy} data-testid="copy-team-link">
                     {copied ? '✓ Copied' : 'Copy link'}
                   </button>
                 </div>
+                <p className="team-code-alt">
+                  Or they type this code under <strong>Join a team</strong> on their Home. Capitals
+                  count:{' '}
+                  <span className="team-code mono" data-testid="team-join-code">{selected.joinCode}</span>
+                </p>
               </div>
               <p className="hint">
-                Anyone in the team can pass the code on. {iAmOwner
-                  ? 'Rotating it makes a new one and retires this one for joining - everyone already in the team stays.'
-                  : 'Only the team owner can rotate it.'}
+                Anyone in the team can pass the link on. {iAmOwner
+                  ? 'Rotate code makes a new link and code and retires these for joining - everyone already in the team stays. As the owner, the productions the team holds count toward your storage.'
+                  : 'Only the team owner can rotate it. What the team holds counts toward the owner’s storage, not yours.'}
               </p>
 
               <span className="team-codelabel">In this team</span>
               <div className="team-members" data-testid="team-members">
                 {members === null && <p className="hint">Loading members…</p>}
-                {selectedMembers.map((m) => (
+                {selectedMembers.map((m) => m.userId === user?.id && renaming !== null ? (
+                  <div className="team-member" key={m.userId}>
+                    <input
+                      autoFocus
+                      className="team-member-rename"
+                      value={renaming}
+                      aria-label="Your name, as teammates see it"
+                      onChange={(e) => setRenaming(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renaming.trim() && !busy) void rename();
+                      }}
+                      data-testid="rename-me-field"
+                    />
+                    <button
+                      className="primary"
+                      disabled={busy || !renaming.trim()}
+                      onClick={() => void rename()}
+                      data-testid="rename-me-save"
+                    >
+                      Save
+                    </button>
+                    <button disabled={busy} onClick={() => setRenaming(null)}>Cancel</button>
+                  </div>
+                ) : (
                   <div className="team-member" key={m.userId}>
                     <span className="team-member-name">{m.displayName}</span>
+                    {m.userId === user?.id && (
+                      <button
+                        className="link-inline"
+                        disabled={busy}
+                        onClick={() => { setError(null); setRenaming(m.displayName); }}
+                        title="Change the name your teammates see"
+                        data-testid="rename-me"
+                      >
+                        Change my name
+                      </button>
+                    )}
                     <span className={`team-member-role${m.role === 'owner' ? ' owner' : ''}`}>
                       {m.userId === user?.id ? 'You' : m.role === 'owner' ? 'Owner' : 'Member'}
                     </span>
@@ -390,7 +464,23 @@ function Dialog() {
         </div>
 
         <div className="dlg-foot team-dialog-foot">
-          {screen === 'pick' && (
+          {/* A FIRST-TIMER'S PRIMARY IS "NEW TEAM". With no team to pick, Move and the team's
+              details are two dead buttons and the one useful move was a quiet text button in the
+              body - so it takes the primary's place until there is a team to pick. */}
+          {screen === 'pick' && noTeams && (
+            <>
+              <button onClick={close}>Cancel</button>
+              <div className="spacer" />
+              <button
+                className="primary"
+                onClick={() => { setError(null); setScreen('create'); }}
+                data-testid="new-team"
+              >
+                ＋ New team…
+              </button>
+            </>
+          )}
+          {screen === 'pick' && !noTeams && (
             <>
               <button onClick={close}>Cancel</button>
               <div className="spacer" />
@@ -502,8 +592,8 @@ function PickScreen({
       )}
       {teams?.length === 0 && !loadError && (
         <p className="hint" data-testid="no-teams">
-          You are not in a team yet. Make one, and the join code it gives you is the whole
-          invitation - read it out, or paste the link in the class chat.
+          You are not in a team yet. Make one with <strong>New team</strong>, move this production
+          into it, and send your teammates the link it gives you.
         </p>
       )}
       {teams !== null && teams.length > 0 && (
@@ -531,7 +621,14 @@ function PickScreen({
           })}
         </div>
       )}
-      <button className="team-new" onClick={onNew} data-testid="new-team">＋ New team…</button>
+      {/* With no team yet, New team is the footer's primary instead (the dialog's `noTeams`). */}
+      {teams !== null && teams.length > 0 && (
+        <button className="team-new" onClick={onNew} data-testid="new-team">＋ New team…</button>
+      )}
+      {/* Why Move is off, said beside the choice it is waiting for rather than in a tooltip. */}
+      {teams !== null && teams.length > 1 && !selectedId && (
+        <p className="hint" data-testid="pick-a-team">Pick a team above, then press <strong>Move to team</strong>.</p>
+      )}
       <p className="hint">
         A team owns productions, never libraries: joining shares nothing from anybody’s saved
         graphics. Every member can edit a team production’s rundown, republish its graphics and
@@ -542,7 +639,7 @@ function PickScreen({
       <p className="hint" data-testid="move-explainer">
         Moving takes the production out of your own list and into the team’s, where every member
         sees it on their Home straight away. Its published links stay the same. Only the team
-        owner can delete it.
+        owner can delete it, and it counts toward the owner’s storage.
       </p>
     </>
   );

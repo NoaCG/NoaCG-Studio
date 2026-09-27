@@ -78,6 +78,8 @@
   color: var(--text-faint);
 }
 .team-field input { width: 100%; }
+/* What a field is FOR, under it - the create screen's two name boxes are not the same box. */
+.team-field-hint { font-size: 11.5px; line-height: 1.45; color: var(--text-dim); }
 
 /* Picking a team. Rows are real buttons with role="radio", so the keyboard reaches them and a
    screen reader is told it is a choice - the mockup's dot is the visual half of that, not the
@@ -124,15 +126,16 @@
   font-weight: 600;
 }
 
-/* The join code, which somebody reads out loud across a classroom. Big, monospaced and tracked
-   so O/0 and I/l are told apart at the back of the room; the dashed amber frame marks it as the
-   thing to copy rather than the thing to read past. */
+/* The invitation: the LINK leads (it cannot be mistyped), the code follows in one line for typing
+   into Home's Join a team card. The code is mixed case with 0/O and 1/l in its alphabet
+   (migration 0053), so it is set in mono and tracked to be copied exactly, not styled as
+   something to read across a room. The dashed amber frame marks the block as the thing to pass on. */
 .team-codewrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 10px;
-  padding: 16px 14px 14px;
+  padding: 14px 14px 12px;
   border: 1px dashed var(--accent-line);
   border-radius: 10px;
   background: var(--accent-bg);
@@ -145,15 +148,17 @@
   text-transform: uppercase;
   color: var(--text-faint);
 }
+.team-code-alt { margin: 0; font-size: 12px; line-height: 1.7; color: var(--text-dim); }
 .team-code {
-  font-size: 28px;
+  padding: 1px 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: .16em;
+  letter-spacing: .12em;
   color: var(--accent-2);
-  text-shadow: 0 0 22px rgb(246 166 35 / .4);
-  /* The code is the one string here somebody retypes from a screen, so it must be selectable
-     as text however it is reached. */
+  white-space: nowrap;
+  /* The one string here somebody retypes, so one click selects all of it. */
   user-select: all;
 }
 .team-linkrow { display: flex; gap: 8px; width: 100%; }
@@ -201,6 +206,14 @@
 /* Remove sits AFTER the role label, so the role stays in one column down the list and the
    button does not shove it around as names change length. */
 .team-member-remove { flex: none; margin-left: 0; }
+.team-member .link-inline { font-size: 12px; }
+/* Changing your own name happens in your own row, so the list is where the answer shows up. */
+.team-member-rename { flex: 1; min-width: 0; }
+
+/* Home's Join a team card (JoinTeamCard.tsx): the make-one slot's dashed skin, with the people
+   icon in the title so it reads as the team door without a word of copy. */
+.team-join-card > strong { display: inline-flex; align-items: center; gap: 7px; }
+.team-join-card .prod-card-stats strong { font-size: inherit; }
 
 /* ── Team productions on Home (stage 4) ────────────────────────────────────────────────────────
    One band per team under "Shared with my teams": the team's own head row (chip, member count,
