@@ -125,17 +125,32 @@ export const ANSWER_BOARD_MACHINE: TypeMachine = {
   },
 };
 
+/**
+ * THE TWO ANSWER MODELS, NAMED WHERE THE OPERATOR READS THEM. A board picks with the letter chosen
+ * in the cue plus Select answer, and has a lock beat; a show board (quizShow.ts) picks in one press
+ * per letter and has none. Both stay, because they are two show formats rather than one drifted
+ * into two: the lock is a beat the designer drew (the sealed pick, the audience result after the
+ * verdict), and a buzzer-speed show would only be slowed by it (docs/backlog/
+ * quiz-control-questions-the-answer-key-fix-left-open.md, 2026-09-27). So the first section's
+ * heading says which model this is - "Pick, then lock" here, "Pick, one press" there - and the
+ * reveal sits under the same "Reveal" heading on both.
+ */
+export const ANSWER_PICK_SECTION = 'Pick, then lock';
+/** The same heading on an imported quiz whose lock option is off: Reveal works straight from a
+ *  pick, so the lock is there but optional (behaviours/quiz.ts). */
+export const ANSWER_PICK_LOCK_OPTIONAL_SECTION = 'Pick, lock optional';
+
 /** The buttons every answer board's control page carries, in the sequence an operator runs. */
 export const ANSWER_BOARD_CONTROLS: TypeControlEvent[] = [
-  { event: 'select', label: 'Select answer', section: 'Answer', order: 1, payload: ['selectedAnswer'] },
-  { event: 'lock', label: 'Lock it in', section: 'Answer', order: 2 },
-  { event: 'revealChoice', label: 'Reveal choice', section: 'Answer', order: 3 },
+  { event: 'select', label: 'Select answer', section: ANSWER_PICK_SECTION, order: 1, payload: ['selectedAnswer'] },
+  { event: 'lock', label: 'Lock it in', section: ANSWER_PICK_SECTION, order: 2 },
+  { event: 'revealChoice', label: 'Reveal choice', section: ANSWER_PICK_SECTION, order: 3 },
   // The reveal CARRIES the answer key, the way Select carries the pick: the key the operator can
   // see in the cue is the one that lights, even when it was corrected on air and never sent with
   // Update (owner, 2026-09-22: a key changed live "does not always update the live graphic").
   // It stays a setup value in the wizard, because `judge` is on the default path (setupFields).
-  { event: 'judge', label: 'Reveal correct', section: 'Answer', order: 4, payload: ['correctAnswer'] },
-  { event: 'audience', label: 'Show audience result', section: 'Answer', order: 5, payload: ['audienceResults'] },
+  { event: 'judge', label: 'Reveal correct', section: 'Reveal', order: 4, payload: ['correctAnswer'] },
+  { event: 'audience', label: 'Show audience result', section: 'Reveal', order: 5, payload: ['audienceResults'] },
 ];
 
 /** Every answer board promises the same three parts, whatever its row count. */

@@ -8,6 +8,7 @@ import type { SpxField } from '../model/types';
 import type { FieldDescriptor, FieldKind } from '../model/fieldModel';
 import { parseAnimData } from '../blocks/animData';
 import { deriveMachine, machineControls, walkEntry, type ControlButton } from '../blocks/animMachine';
+import { upgradeControls } from './controlUpgrades';
 import { slug } from '../model/slug';
 import { readPublishedProfile } from '../model/profile';
 import { splitBoundWrites, type PressVerb, type TreeWrite } from '../model/productionData';
@@ -78,10 +79,11 @@ export function fieldDescriptors(
 
 export type { ControlButton } from '../blocks/animMachine';
 
-/** The event buttons a template's control surfaces render (empty without an explicit machine). */
+/** The event buttons a template's control surfaces render (empty without an explicit machine).
+ *  A graphic saved on an older control declaration gets today's buttons (controlUpgrades.ts). */
 export function eventButtons(js: string): ControlButton[] {
   const machine = parseAnimData(js)?.machine;
-  return machine ? machineControls(machine) : [];
+  return machine ? machineControls(upgradeControls(machine, js)) : [];
 }
 
 /** A number field's value moved by a delta — the ONE arithmetic behind every "+1" a control

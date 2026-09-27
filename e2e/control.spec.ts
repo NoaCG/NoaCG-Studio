@@ -176,10 +176,11 @@ test('the Control tab renders labeled event buttons from the machine and fires t
   await page.getByTestId('dock-tab-control').click();
 
   // The quiz type's declared controls, by section, wearing their labels.
-  const section = page.locator('.ctl-event-section', { hasText: 'Answer' });
+  const section = page.locator('.ctl-event-section', { hasText: 'Pick, then lock' });
   await expect(section.getByRole('button', { name: '⚡ Select answer' })).toBeVisible();
   await expect(section.getByRole('button', { name: '⚡ Lock it in' })).toBeVisible();
-  await expect(section.getByRole('button', { name: '⚡ Reveal correct' })).toBeVisible();
+  const reveal = page.locator('.ctl-event-section', { hasText: 'Reveal correct' });
+  await expect(reveal.getByRole('button', { name: '⚡ Reveal correct' })).toBeVisible();
 
   // Play, then Select — the event rides the store into the preview's machine.
   await page.locator('.ctl-actions').getByRole('button', { name: '▶ Play' }).click();

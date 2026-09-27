@@ -334,7 +334,7 @@ Two to six answers. The operator gets Select answer, Lock it in and Reveal corre
 
 `Side 1`, `Player 1`, `Joukkue 1`, `Lag 1` work as well as `Team 1`; `Points 1`, `Goals 1`, `Team 1 Score`, `Pisteet 1`, `Poäng 1` work as well as `Score 1`; `Goal 1`, `Scored 1`, `Maali 1`, `Mål 1` work as well as `Flash 1`; `Final`, `Game over`, `Loppu`, `Full tid` work as well as `Full time`.
 
-Two to eight teams. The operator gets a +1 and a −1 under each team's own name, plus Clear flash, Full time and New game.
+Two to eight teams. The operator gets a +1 and a −1 under each team's own name, plus New game, Clear flash when you draw a flash and Full time when you draw a Full time layer.
 <!-- behaviour:score:end -->
 
 **The score layer must hold a plain figure** — `0`, `12`. That is what makes it a number field

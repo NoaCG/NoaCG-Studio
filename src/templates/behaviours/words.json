@@ -124,7 +124,7 @@
   "score": {
     "name": "The score tracker",
     "verbs": "a point, a flash, full time",
-    "buttons": "a +1 and a −1 under each team's own name, plus Clear flash, Full time and New game",
+    "buttons": "a +1 and a −1 under each team's own name, plus New game, Clear flash when you draw a flash and Full time when you draw a Full time layer",
     "rows": {
       "role": "team",
       "keys": "numbers",

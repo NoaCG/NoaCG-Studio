@@ -73,15 +73,19 @@ const QUIZ_SHOW_MACHINE: TypeMachine = {
   },
 };
 
+// The heading names this board's answer model against the classic board's "Pick, then lock"
+// (answerBoard.ts ANSWER_PICK_SECTION says why both models stay).
+const PICK_SECTION = 'Pick, one press';
+
 const QUIZ_SHOW_CONTROLS: TypeControlEvent[] = [
   ...LETTERS.map((letter, i): TypeControlEvent => ({
     event: pickEvent(letter),
     label: `Pick ${letter}`,
-    section: 'Contestant picks',
+    section: PICK_SECTION,
     order: i + 1,
     set: { selectedAnswer: letter },
   })),
-  { event: 'clearPick', label: 'Clear pick', section: 'Contestant picks', order: 5, set: { selectedAnswer: '' } },
+  { event: 'clearPick', label: 'Clear pick', section: PICK_SECTION, order: 5, set: { selectedAnswer: '' } },
   // The reveal carries the answer key, exactly as on the classic boards (answerBoard.ts): the key
   // in the cue is the one that lights, even when it was corrected on air without an Update.
   { event: 'judge', label: 'Reveal correct answer', section: 'Reveal', order: 6, payload: ['correctAnswer'] },

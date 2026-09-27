@@ -18,6 +18,15 @@
 // with the flash (`adjust`), `−1` per row as the correction that also takes the flash down, Clear
 // flash, Full time, and New game - which zeroes every score through `set`, the only road that can
 // say "make it this", so the operator's own boxes move with the board.
+//
+// A BOARD VERB IS OFFERED ONLY WHEN THE ARTWORK DRAWS ITS MOMENT, the rule the quiz follows for
+// its audience branch. A board with no Full time layer gets no Full time button and no `final`
+// state, and one with no flash on any team gets no Clear flash: a press that moves the state chip
+// and nothing on air is a button that lies (docs/tutorials/classroom-package's score tracker draws
+// two flashes and no Full time, on purpose). The arrow goes with the button, because an event an
+// arrow carries and no control declares still becomes a plain button of its own. A tracker saved
+// before this rule keeps its Full time until it is imported again: taking a state out of a saved
+// machine is a graph change, not the control dressing control/controlUpgrades.ts re-derives.
 
 import { scoreboardType } from '../types/scoreboard';
 import type { TypeBranch, TypeControlEvent, TypeGroup, TypeMachine } from '../types/graphicType';
@@ -64,6 +73,14 @@ function scoreMachine(ctx: RecipeContext): TypeMachine {
   const flag = catalogGroup('flag');
   const result = catalogGroup('result');
   const op = (from: string, to: string, event: string) => ({ from, to, trigger: 'operator' as const, event });
+  const resultGroup: TypeGroup = {
+    id: 'result',
+    initial: 'live',
+    states: [
+      stateOf(result, 'live', [op('final', 'live', NEW_GAME_EVENT), op('live', 'live', NEW_GAME_EVENT)]),
+      stateOf(result, 'final', [op('live', 'final', FINAL_EVENT)]),
+    ],
+  };
   return withRepaint({
     parallel: [
       {
@@ -71,7 +88,7 @@ function scoreMachine(ctx: RecipeContext): TypeMachine {
         initial: 'none',
         states: [
           stateOf(flag, 'none', [
-            op('shown', 'none', CLEAR_EVENT),
+            ...(drawsFlash(ctx) ? [op('shown', 'none', CLEAR_EVENT)] : []),
             // Both ends, so a correction and a new game are legal wherever the board is - an event
             // with no arrow out of the current state is DROPPED, and a minus button that silently
             // does nothing is worse than none.
@@ -84,17 +101,17 @@ function scoreMachine(ctx: RecipeContext): TypeMachine {
           stateOf(flag, 'shown', rows.flatMap((i) => [op('none', 'shown', scoreEvent(i)), op('shown', 'shown', scoreEvent(i))])),
         ],
       },
-      {
-        id: 'result',
-        initial: 'live',
-        states: [
-          stateOf(result, 'live', [op('final', 'live', NEW_GAME_EVENT), op('live', 'live', NEW_GAME_EVENT)]),
-          stateOf(result, 'final', [op('live', 'final', FINAL_EVENT)]),
-        ],
-      },
+      // No Full time drawn, no match result to track: the group would only ever hold `live`.
+      ...(drawsFinal(ctx) ? [resultGroup] : []),
     ],
   });
 }
+
+/** Whether the designer drew a Full time moment. */
+const drawsFinal = (ctx: RecipeContext): boolean => ctx.bound('final');
+
+/** Whether any team's flash is drawn - Clear flash has something to take down only then. */
+const drawsFlash = (ctx: RecipeContext): boolean => ctx.rows.some((key) => ctx.bound('team.flash', key));
 
 function scoreControls(ctx: RecipeContext): TypeControlEvent[] {
   const perRow = ctx.rows.flatMap((key, i): TypeControlEvent[] => {
@@ -110,8 +127,8 @@ function scoreControls(ctx: RecipeContext): TypeControlEvent[] {
   return [
     ...perRow,
     // Ordered past any row's pair: the board's own verbs come last on every surface.
-    { event: CLEAR_EVENT, label: 'Clear flash', section: 'Board', order: 900 },
-    { event: FINAL_EVENT, label: 'Full time', section: 'Board', order: 901, destructive: true },
+    ...(drawsFlash(ctx) ? [{ event: CLEAR_EVENT, label: 'Clear flash', section: 'Board', order: 900 }] : []),
+    ...(drawsFinal(ctx) ? [{ event: FINAL_EVENT, label: 'Full time', section: 'Board', order: 901, destructive: true }] : []),
     {
       event: NEW_GAME_EVENT,
       label: 'New game',
@@ -139,9 +156,9 @@ export const scoreRecipe: BehaviourRecipe = {
   path: () => ({ entrance: 'On air' }),
   machine: scoreMachine,
   controls: scoreControls,
-  paint: () => [
+  paint: (ctx) => [
     { look: 'team.flash', rows: 'team', when: { state: ['flag/shown'], facts: ['score:moved'] }, enter: 'pop' },
-    { look: 'final', when: { state: ['result/final'] } },
+    ...(drawsFinal(ctx) ? [{ look: 'final', when: { state: ['result/final'] } }] : []),
   ],
   // Every team's figure is a number in ONE group, so "moved" is the row that rose most recently.
   artworkKinds: (ctx) => Object.fromEntries(ctx.rows.flatMap((key) => {
