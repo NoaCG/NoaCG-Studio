@@ -131,7 +131,9 @@ test('each install block copies its two lines whole, and says so', async ({ page
   await openAiSettings(page);
   const body = page.getByTestId('ai-agent-route-body');
   await expect(body).toBeVisible();
-  const clipboard = () => page.evaluate(() => navigator.clipboard.readText());
+  // Windows returns native CRLF even when writeText receives LF. Check the full
+  // command text, independent of the operating system's newline representation.
+  const clipboard = () => page.evaluate(async () => (await navigator.clipboard.readText()).replace(/\r\n/g, '\n'));
 
   const claude = body.getByTestId('ai-agent-cmd-claude-copy');
   await expect(claude).toHaveText('Copy');

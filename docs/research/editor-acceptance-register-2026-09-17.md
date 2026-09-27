@@ -272,6 +272,19 @@ Full B03/B04, broad R1.1d identity fixtures, physical phones, first-time users, 
 acceptance and the original blank-stage report remain open. The [R1.1a owner feedback](editor-r1-1a/README.md#owner-feedback-2026-09-20)
 is not an acceptance verdict. No R1.1b keys/bar/Out authoring was implemented. This is engineering progress, not workflow-review readiness; continue with the usable-static-authoring follow-up.
 
+## September 27 bounded usability corrections
+
+The [implementation and verification receipt](editor-artwork-basics/usability-corrections.md)
+covers the owner's four corrections before R1.1b: continuous authoring playback,
+Quiz marquee/movement, timeline Layers and Project discoverability, and immediate
+appearance editing. Hairline and House Quiz routes cover desktop, laptop and
+125% equivalent layouts, cancellation, exact history and save/reopen. The original
+blue-screen symptom was not reproduced and is not claimed fixed.
+
+This advances only the specified portions of B02/B04/B11/B13. Full tasks, owner
+acceptance and the default-editor switch remain open. Numeric keys and bar-body
+movement are next in R1.1b; Out changes and advanced tools were not included.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

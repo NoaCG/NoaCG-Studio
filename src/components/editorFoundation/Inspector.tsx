@@ -12,6 +12,7 @@ interface Props {
   select: (selector: string | null, toggle: boolean) => void;
   session: EditorSession; linked: boolean; setLinked: (value: boolean) => void;
   appearance?: RenderedPart['appearance'];
+  previewCss: (css: string) => void;
 }
 function Numeric({ label, value, commit }: { label: string; value: number; commit: (value: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -26,7 +27,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked, appearance }: Props) {
+function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]);
@@ -63,7 +64,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
       <h2>{part?.label ?? 'Graphic'}</h2>
       {selection.length > 1 && <p>{selection.length} layers selected</p>}
       {part ? <>
-        {selection.length === 1 && <ArtworkAppearance key={part.selector + ':' + session.version().source} template={template} selector={part.selector} session={session} appearance={appearance} />}
+        {selection.length === 1 && <ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} />}
         <div className="ef-edit-actions">
           <button onClick={() => execute({ kind: 'layer.duplicate', selector: part.selector })} disabled={selection.length !== 1}>Duplicate</button>
           <button onClick={() => execute({ kind: 'layer.delete', selector: part.selector })} disabled={selection.length !== 1}>Delete</button>

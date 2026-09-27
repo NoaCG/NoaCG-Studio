@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession } from './session';
 import { PreviewController } from './PreviewController';
@@ -7,6 +7,8 @@ import { useArtworkGesture, pointerPoint } from './useArtworkGesture';
 import { artworkText } from '../../blocks/artworkEdits';
 import ArtworkTextEditor from './ArtworkTextEditor';
 import { sameRevision, type Revision } from './session';
+import { editorShortcutsLive } from '../spaceKey';
+import { getTemplateParts } from '../../model/structure';
 
 let inspectedController: PreviewController | null = null;
 /** Read-only instrumentation entry point used by the acceptance harness. */
@@ -20,8 +22,10 @@ interface Props {
   setSelection: (selection: string[]) => void;
   onAppearance: (appearance: Record<string, RenderedPart['appearance']>) => void;
   rootSelector?: string;
+  connectPreview: (preview: PreviewController | null) => void;
+  togglePlayback: () => void; pause: () => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, rootSelector }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, rootSelector, connectPreview, togglePlayback, pause }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
@@ -33,14 +37,20 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [editing, setEditing] = useState<{ selector: string; text: string; revision: Revision } | null>(null);
   const [marquee, setMarquee] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const marqueeStart = useRef<{ x: number; y: number; selection: string[]; additive: boolean; revision: Revision } | null>(null);
+  const marqueeStart = useRef<{ x: number; y: number; selection: string[]; additive: boolean; revision: Revision; hit?: string; moved: boolean } | null>(null);
   const clickSelection = useRef<string | null>(null);
   const space = useRef(false);
+  const spaceTap = useRef(false);
   const drag = useRef<{ x: number; y: number; pan: typeof pan } | null>(null);
   const { width, height } = template.resolution;
   const fit = Math.max(0.01, Math.min((size.width - 80) / width, (size.height - 64) / height));
   const scale = fit * zoom;
   const selected = parts.filter(part => selection.includes(part.selector));
+  const containers = useMemo(() => {
+    const doc = new DOMParser().parseFromString(template.html, 'text/html');
+    const parts = getTemplateParts(template.html, template.fields);
+    return new Set(parts.filter(part => parts.some(other => other !== part && doc.querySelector(part.selector)?.contains(doc.querySelector(other.selector) ?? null))).map(part => part.selector));
+  }, [template.html, template.fields]);
   const gesture = useArtworkGesture(template, session, () => controller.current, linked, drawingSpace);
   const pending = status.pending || status.source !== session.version().source;
   const parkedTime = useRef(time);
@@ -69,9 +79,10 @@ export default function Canvas({ template, sampleData, session, time, selection,
         request: reply?.requestId ?? 0, generation: reply?.generation ?? 0, source: reply?.revision.source ?? 0 });
     });
     controller.current = preview;
+    connectPreview(preview);
     inspectedController = preview;
-    return () => { preview.dispose(); if (inspectedController === preview) inspectedController = null; };
-  }, [session, onAppearance]);
+    return () => { connectPreview(null); preview.dispose(); if (inspectedController === preview) inspectedController = null; };
+  }, [session, onAppearance, connectPreview]);
   useEffect(() => {
     void controller.current?.load(template, session.version(), sampleData, parkedTime.current).catch(error => {
       setStatus({ pending: false, error: String(error), request: 0, generation: 0, source: session.version().source });
@@ -94,20 +105,34 @@ export default function Canvas({ template, sampleData, session, time, selection,
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-pending={pending} data-request={status.request} data-generation={status.generation}
       onKeyDown={event => {
-        if (event.code === 'Space') { event.preventDefault(); space.current = true; }
+        if (!editorShortcutsLive(event.target)) return;
+        if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault(); event.stopPropagation(); space.current = true;
+          spaceTap.current = !event.repeat;
+        }
         if (event.key === 'Escape') {
+          spaceTap.current = false;
+          if (drag.current) { setPan(drag.current.pan); drag.current = null; }
           clickSelection.current = null;
           if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }
           else if (gesture.active() || gesture.tool !== 'select') gesture.cancel(); else select(null, false);
         }
       }}
-      onKeyUp={event => { if (event.code === 'Space') space.current = false; }}
-      onBlur={() => { space.current = false; }}
+      onKeyUp={event => {
+        if (event.code !== 'Space') return;
+        const tapped = spaceTap.current;
+        space.current = false; spaceTap.current = false;
+        if (tapped && editorShortcutsLive(event.target)) { event.preventDefault(); event.stopPropagation(); togglePlayback(); }
+      }}
+      onBlur={() => { space.current = false; spaceTap.current = false; }}
       onPointerDown={event => {
+        if ((event.target as HTMLElement).closest('.ef-inline-text, .ef-stage-error')) return;
+        event.preventDefault(); pause();
         setEditing(null);
         clickSelection.current = null;
         event.currentTarget.focus();
         if (event.button === 1 || space.current) {
+          spaceTap.current = false;
           event.preventDefault();
           drag.current = { x: event.clientX, y: event.clientY, pan };
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -125,8 +150,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
           .sort((a, b) => a.width * a.height - b.width * b.height || Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || parts.indexOf(b) - parts.indexOf(a));
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
         const hit = hits[index], additive = event.shiftKey || event.ctrlKey || event.metaKey;
-        if (!hit) {
-          marqueeStart.current = { x, y, selection: [...selection], additive, revision: session.version() };
+        if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {
+          marqueeStart.current = { x, y, selection: [...selection], additive, revision: session.version(), hit: hit?.selector, moved: false };
           if (!additive) setSelection([]);
           return;
         }
@@ -135,6 +160,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (!additive && !event.altKey) gesture.begin({ x, y }, hit, undefined, selection.includes(hit.selector) ? selected : [hit]);
       }}
       onDoubleClick={event => {
+        if ((event.target as HTMLElement).closest('.ef-inline-text')) return;
         if (pending || gesture.tool !== 'select') return;
         const point = pointerPoint(event, size, pan, scale, width, height);
         const hits = parts.filter(p => point.x >= p.x && point.x <= p.x + p.width && point.y >= p.y && point.y <= p.y + p.height).sort((a, b) => a.width * a.height - b.width * b.height);
@@ -148,6 +174,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (start) {
           if (!sameRevision(start.revision, session.version())) { marqueeStart.current = null; setMarquee(null); return; }
           const p = pointerPoint(event, size, pan, scale, width, height);
+          if (!start.moved && Math.hypot(p.x - start.x, p.y - start.y) * scale < 3) return;
+          start.moved = true;
           const rect = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), width: Math.abs(p.x - start.x), height: Math.abs(p.y - start.y) };
           setMarquee(rect);
           const hits = parts.filter(part => part.selector !== rootSelector && part.x >= rect.x && part.y >= rect.y && part.x + part.width <= rect.x + rect.width && part.y + part.height <= rect.y + rect.height).map(p => p.selector);
@@ -159,12 +187,14 @@ export default function Canvas({ template, sampleData, session, time, selection,
         else gesture.move(pointerPoint(event, size, pan, scale, width, height), event);
       }}
       onPointerUp={() => {
+        const start = marqueeStart.current;
+        if (start?.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
         marqueeStart.current = null; setMarquee(null); drag.current = null;
         const moved = gesture.end();
         if (!moved && clickSelection.current) select(clickSelection.current, false);
         clickSelection.current = null;
       }}
-      onLostPointerCapture={() => { clickSelection.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
+      onLostPointerCapture={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
       onPointerCancel={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; gesture.cancel(); if (marqueeStart.current) setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }}>
       <div className="ef-artboard" style={{ width, height,
         transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) translate(-50%,-50%) scale(' + scale + ')' }}>
@@ -189,6 +219,6 @@ export default function Canvas({ template, sampleData, session, time, selection,
       {gesture.error && <div className="ef-stage-error" role="alert">{gesture.error}</div>}
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
-      <span>{gesture.tool === 'select' ? 'Shift: constrain · Alt: scale from anchor · Space: pan' : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
+      <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain' : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
   </section>;
 }

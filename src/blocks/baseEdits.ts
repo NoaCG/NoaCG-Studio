@@ -73,7 +73,9 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg' && node.tagName.toLowerCase() !== 'svg';
   const target = placed ? '#' + placed.wrapperId : selector;
   const left = length(template.css, target, 'left'), top = length(template.css, target, 'top');
-  const mode = placed ? 'placed' : svg ? 'svg' : left && top ? 'absolute' : part.kind === 'line' ? 'flow' : null;
+  // Panels and ordinary blocks (including Quiz answer rows) use the same guarded
+  // flow offset as text. Their existing animation still owns transform.
+  const mode = placed ? 'placed' : svg ? 'svg' : left && top ? 'absolute' : ['line', 'panel', 'block'].includes(part.kind) ? 'flow' : null;
   if (!mode) throw new Error('This layer has no supported base placement. Its source is preserved.');
   const styles = matchingStyles(template.css, doc.querySelector(target)!);
   const targetNode = doc.querySelector(target)!;

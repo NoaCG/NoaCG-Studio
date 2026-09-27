@@ -27,7 +27,9 @@
 .ef-release { color: var(--ef-muted); font-size: 10px; white-space: nowrap; }
 .ef-document-strip { padding: 4px 12px; background: var(--bg-app); border-bottom: 1px solid var(--ef-border); }
 .ef-document-tab { background: var(--accent-bg); border: 1px solid var(--accent-line); padding: 4px 14px; border-radius: 3px; }
-.ef-workspace { display: grid; grid-template-columns: 230px minmax(0, 1fr) 280px; min-height: 0; }
+.ef-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: 0; position: relative; }
+.ef-project-open .ef-workspace { grid-template-columns: 230px minmax(0, 1fr) 280px; }
+.ef-project[hidden] { display: none; }
 .ef-project, .ef-inspector { background: var(--ef-panel); min-height: 0; overflow: auto; }
 .ef-project { padding: 14px 12px; border-right: 1px solid var(--ef-border); }
 .ef-current-graphic { padding: 10px; border: 1px solid var(--accent-line); background: var(--accent-bg); }
@@ -41,7 +43,8 @@
 .ef-toolbar { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); background: var(--bg-panel); }
 .ef-toolbar select { width: auto; }
 .ef-tool { border: 1px solid var(--accent-line); background: var(--accent-bg); padding: 4px 10px; border-radius: 3px; color: var(--accent); }
-.ef-viewport { position: relative; overflow: hidden; min-height: 0; touch-action: none; background: var(--bg-deepest); }
+.ef-viewport { position: relative; overflow: hidden; min-height: 0; touch-action: none; user-select: none; background: var(--bg-deepest); }
+.ef-inline-text { user-select: text; }
 .ef-artboard {
   position: absolute; left: 50%; top: 50%; transform-origin: center;
   background-color: var(--bg-panel);
@@ -55,7 +58,7 @@
 .ef-stage-error { color: var(--warn); display: grid; gap: 10px; }
 .ef-caption { justify-content: space-between; padding: 3px 10px; color: var(--ef-muted); font-size: 10px; gap: 20px; }
 .ef-inspector { border-left: 1px solid var(--ef-border); }
-.ef-inspector .ef-toolbar { position: sticky; top: 0; }
+.ef-inspector .ef-toolbar { position: sticky; top: 0; z-index: 1; }
 .ef-shell [aria-selected=true], .ef-outline-item[aria-pressed=true] { border-color: var(--accent-line); background: var(--accent-bg); }
 .ef-toolbar button[aria-pressed=true] { border-color: var(--accent-line); background: var(--accent-bg); }
 .ef-number-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -103,7 +106,7 @@
 .ef-playhead-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }
 .ef-status { justify-content: space-between; padding: 3px 12px; color: var(--ef-muted); border-top: 1px solid var(--ef-border); font-size: 10px; }
 @media (max-width: 1500px) {
-  .ef-workspace { grid-template-columns: minmax(0, 1fr) 280px; position: relative; }
+  .ef-workspace, .ef-project-open .ef-workspace { grid-template-columns: minmax(0, 1fr) 280px; position: relative; }
   .ef-project { display: none; }
   .ef-project-open .ef-project { display: block; position: absolute; z-index: 4; top: 0; bottom: 0; left: 0; width: 230px; box-shadow: 8px 0 24px #0006; }
 }

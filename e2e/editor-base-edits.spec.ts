@@ -59,7 +59,7 @@ test('B04 basic opacity preserves motion and survives history and reopening', as
   await seed(page);
   const original = await source(page);
   await page.getByRole('spinbutton', { name: /Opacity %/ }).fill('60');
-  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await page.getByRole('spinbutton', { name: /Opacity %/ }).press('Enter');
   await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).opacity)).toBe('0.6');
   expect((await source(page)).js).toBe(original.js);
   const changed = await source(page);
@@ -93,7 +93,7 @@ for (const name of ['catalog', 'svg']) test('B04 artwork content, appearance and
   await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption({ label: 'Archivo' });
   await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('42');
   await page.locator('.ef-appearance-field .grow').fill('#22aa77');
-  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await page.locator('.ef-appearance-field .grow').press('Enter');
   await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => {
     const css = getComputedStyle(el); return [css.fontFamily.includes('Archivo'), css.fontSize, el.namespaceURI?.includes('svg') ? css.fill : css.color];
   })).toEqual([true, '42px', 'rgb(34, 170, 119)']);
@@ -166,7 +166,7 @@ test('B04 solid fill and reference-sensitive refusal preserve source atomically'
   const board = (await page.locator('.ef-artboard').boundingBox())!;
   await page.mouse.click(board.x + board.width / 2, board.y + board.height / 3); await ready(page);
   await page.locator('.ef-appearance-field .grow').fill('#ee7722');
-  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await page.locator('.ef-appearance-field .grow').press('Enter');
   await expect.poll(async () => (await preview(page)).locator('#rectangle-1').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(238, 119, 34)');
   await page.evaluate(async () => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
@@ -431,7 +431,7 @@ for (const name of ['catalog', 'svg']) test('B04 edited ' + name + ' survives sa
   await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption('oswald');
   await page.getByRole('textbox', { name: 'Font size', exact: true }).fill('40');
   await page.locator('.ef-appearance-field .grow').fill('#eeaa44');
-  await page.getByRole('button', { name: 'Apply appearance' }).click();
+  await page.locator('.ef-appearance-field .grow').press('Enter');
   await expect.poll(async () => (await preview(page)).locator('#f0').evaluate(el => getComputedStyle(el).fontSize)).toBe('40px');
   await numeric(page, name === 'catalog' ? 'Layout offset X' : 'Position X', 40);
   await numeric(page, 'Scale X %', 150);
