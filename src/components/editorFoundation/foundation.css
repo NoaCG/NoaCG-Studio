@@ -100,7 +100,7 @@
 .ef-layer-number { color: var(--text-dim); font-size: 10px; }
 .ef-layer-icon { color: var(--text-mid); width: 12px; }
 .ef-track.is-selected { background: var(--accent-bg); }
-.ef-track-lane { position: relative; margin-right: 28px; background: repeating-linear-gradient(90deg,transparent,transparent calc(10% - 1px),#ffffff06 10%); }
+.ef-track-lane { position: relative; isolation: isolate; margin-right: 28px; background: repeating-linear-gradient(90deg,transparent,transparent calc(10% - 1px),#ffffff06 10%); }
 .ef-shell .ef-bar { position: absolute; top: 5px; height: 20px; min-height: 0; background: var(--bg-3); border: 1px solid var(--border-strong); border-radius: 2px; padding: 1px 7px; text-align: left; font-size: 10px; overflow: hidden; white-space: nowrap; cursor: pointer; }
 .ef-track.is-selected .ef-bar { background: var(--accent-tint); border-color: var(--accent); }
 .ef-playhead-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--accent); pointer-events: none; }

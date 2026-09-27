@@ -257,6 +257,18 @@ test('unnamed and duplicate identities are minted atomically and never during dr
   expect.soft(result.unnamedError).toContain('references'); expect.soft(result.reservedCssId).toBe('#artwork-2');
 });
 
+test('scrolled trim handles cannot intercept the sticky ruler', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 }); await imported(page); await select(page, '#f0');
+  const ruler = page.getByRole('slider', { name: 'Playhead' }), box = (await ruler.boundingBox())!;
+  const percent = await page.locator('.ef-out').evaluate(el => parseFloat((el as HTMLElement).style.left));
+  const point = { x: box.x + box.width * percent / 100 - .01, y: box.y + 20 };
+  const intercept = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.ef-trim')?.getAttribute('aria-label') ?? null, point);
+  expect.soft(intercept).toBeNull();
+  await page.mouse.click(point.x, point.y); await ready(page);
+  await expect(page.locator('.ef-track[data-selector="#f0"] .ef-layer')).toHaveAttribute('aria-pressed', 'true');
+  expect(Number(await ruler.getAttribute('aria-valuenow'))).toBeCloseTo(.8, 3);
+});
+
 test('completed pointer trims keep clipped keys while the body moves them in one transaction', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 }); await imported(page); await select(page, '#card');
   await page.evaluate(() => {
