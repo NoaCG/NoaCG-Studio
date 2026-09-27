@@ -128,6 +128,26 @@ baseline checks, including rendered equivalence of every catalog variant.
 The catalog source baseline update changes only the JavaScript fingerprints for
 all 528 variants; HTML/CSS fingerprints and render baselines remain unchanged.
 
+The remaining catalog battery runs against this worktree's server on port 5262,
+one repository-queued browser job at a time. `j-2127` passed type floors for 526
+variants; `j-2128` passed overflow against the existing baseline for 528 variants;
+`j-2129` passed field coverage for 526 variants. The field probe explicitly leaves
+unsupported field types in 105 variants undriven, so those fields are not claimed
+verified by that check.
+`j-2130` passed numeral stability for 349 live-number variants and `j-2131` passed
+all factory candidate gates.
+
+Check scope: 29 changed files against `c49825a2`. Review ran inline, with ten
+confirmed corrections fixed; simplification ran inline, retaining the existing
+operation registry, source writers and single preview queue, caching timeline
+derivation and keeping the new controls local to the foundation editor. Verification
+ran inline with the queued evidence above. The final production build, exact-tip
+check stamp and landing verdict are recorded by the merge queue and PR checks.
+
+Not checked: physical 125% displays, receiving hosts, owner workflow acceptance,
+whole-row completion or production performance. The 125% layout uses the equivalent
+CSS viewport; the local package tests execute the exported runtimes in Chromium.
+
 ## Next bounded task: R1.1c
 
 Implement permanent Out and Set Out at the playhead, with empty/manual/reverse exit,
