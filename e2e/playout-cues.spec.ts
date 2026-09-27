@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
+import { settleDurableWrites } from './_durable';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -591,6 +592,100 @@ test('a take on a slot another cue holds replaces it, and a channel the studio d
   await expect(pick).toHaveValue('5');
   await expect(pick.locator('option:checked')).toHaveText('5 · not in Settings');
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('5-10');
+});
+
+// CHARACTERISATION (docs/CLIP_PLAYBACK_PLAN.md §10, phase 0): today's exact wire for every verb on
+// a server clip and a server template, pinned before the production page is split, so the moved
+// code can be held to it byte for byte. It also pins the one behaviour phase 2 will change on
+// purpose: what is up on the server is PAGE MEMORY, so a reload forgets it and sends nothing.
+test('every verb sends the same action after a drag reorder and after a reload, and a reload forgets what is up', async ({ page }) => {
+  await seedSettings(page, TWO_CHANNELS);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-field-ids').fill('f0');
+  await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  await page.keyboard.press('Escape');
+
+  // The drag: the clip, dropped on the first row, moves to the top of the rundown.
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(2)).toContainText('GIORNO');
+  await rows.nth(2).dragTo(rows.nth(0));
+  await expect(rows.nth(0)).toContainText('GIORNO');
+  await expect(rows.nth(1)).toContainText('Hairline');
+  await expect(rows.nth(2)).toContainText('HOUSE_STRAP');
+  const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  const CLIP_SLOT = { adapter: 'casparcg', channel: 2, layer: 10 };
+  const STRAP_SLOT = { adapter: 'casparcg', channel: 1, layer: 21 };
+  const CLIP_ITEM = { kind: 'media', name: 'GIORNO' };
+  const STRAP_ITEM = { kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP' };
+
+  // The clip: Take, Pause, Resume, Out - one action each, exactly these.
+  await clip.getByTestId('select-cue').click();
+  let mark = bridge.actions.length;
+  await page.getByTestId('verb-take').click();
+  await expect(clip).toContainText('ON AIR');
+  await page.getByTestId('playout-pause').click();
+  await page.getByTestId('playout-resume').click();
+  await page.getByTestId('verb-out').click();
+  await expect(clip).not.toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length - mark).toBe(4);
+  expect(bridge.actions.slice(mark)).toEqual([
+    { verb: 'take', item: CLIP_ITEM, slot: CLIP_SLOT },
+    { verb: 'pause', slot: CLIP_SLOT, item: CLIP_ITEM },
+    { verb: 'resume', slot: CLIP_SLOT, item: CLIP_ITEM },
+    { verb: 'out', slot: CLIP_SLOT, item: CLIP_ITEM },
+  ]);
+
+  // The template: Take with its data, Update, Next, Out.
+  await strap.getByTestId('select-cue').click();
+  await page.getByTestId('playout-cue-editor').getByTestId('cue-field-f0').fill('Anna');
+  mark = bridge.actions.length;
+  await page.getByTestId('verb-take').click();
+  await expect(strap).toContainText('ON AIR');
+  await page.getByTestId('playout-cue-editor').getByTestId('cue-field-f0').fill('Ben');
+  await page.getByTestId('verb-update').click();
+  await page.getByTestId('verb-next').click();
+  await page.getByTestId('verb-out').click();
+  await expect(strap).not.toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length - mark).toBe(4);
+  expect(bridge.actions.slice(mark)).toEqual([
+    { verb: 'take', item: STRAP_ITEM, slot: STRAP_SLOT, data: { f0: 'Anna' } },
+    { verb: 'update', slot: STRAP_SLOT, data: { f0: 'Ben' } },
+    { verb: 'next', slot: STRAP_SLOT, item: STRAP_ITEM },
+    { verb: 'out', slot: STRAP_SLOT, item: STRAP_ITEM },
+  ]);
+
+  // Up again, then a reload. The order is the record's; what is on the server is not.
+  await clip.getByTestId('select-cue').click();
+  await page.getByTestId('verb-take').click();
+  await expect(clip).toContainText('ON AIR');
+  await expect(page.getByTestId('verb-out-all')).toBeEnabled();
+  mark = bridge.actions.length;
+  await settleDurableWrites(page);
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(rows.nth(0)).toContainText('GIORNO');
+  await expect(rows.nth(2)).toContainText('HOUSE_STRAP');
+  await expect(clip).not.toContainText('ON AIR');
+  await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
+  await expect(page.getByTestId('verb-out-all')).toBeDisabled();
+  await clip.getByTestId('select-cue').click();
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
+  await expect(page.getByTestId('playout-clip-transport')).toHaveCount(0);
+  expect(bridge.actions.length - mark, 'a reload sends nothing to the server').toBe(0);
+
+  // …and the same Take, byte for byte.
+  await page.getByTestId('verb-take').click();
+  await expect(clip).toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length - mark).toBe(1);
+  expect(lastAction(bridge)).toEqual({ verb: 'take', item: CLIP_ITEM, slot: CLIP_SLOT });
 });
 
 test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, since the old copy already came off', async ({ page }) => {

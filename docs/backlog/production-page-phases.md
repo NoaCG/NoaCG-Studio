@@ -4,8 +4,10 @@
 the order are there; this file is the evidence and the remaining work).
 
 **Status.** Phase 0 landed on 2026-08-28: the three READ-ONLY pieces the report named are out,
-2,968 -> 2,541 lines, zero behaviour change. Every phase below is still to run, and each is
-session-sized with its own proof. **The owner runs these awake** - the file is the surface the
+2,968 -> 2,541 lines, zero behaviour change. Phases 1 and 2 landed on 2026-09-27 as part of the
+clip playback plan's phase 0 (docs/CLIP_PLAYBACK_PLAN.md §16), together with the server cue
+editor and `control/serverPlayout.ts`, 4,165 -> 3,480 lines. Phases 3 to 5 are still to run, and
+each is session-sized with its own proof. **The owner runs these awake** - the file is the surface the
 2026-09-12 production plays out from, and every phase past this one moves state that decides
 what Take airs.
 
@@ -91,7 +93,15 @@ could not travel with its markup, and phase 3 exists only because of that.
 
 ---
 
-## 3. Phase 1 - the cue rundown (`home/CueRundown.tsx`)
+## 3. Phase 1 - the cue rundown (`home/CueRundown.tsx`) - DONE (2026-09-27)
+
+Landed as the second step of the clip playback plan's phase 0 (docs/CLIP_PLAYBACK_PLAN.md §16).
+It also owns `pickerOpen` and the picture input, which were added to the rail after this plan
+was written and are read nowhere else. The page hands it the server's on-air map read-only, the
+same way as `liveCue`. No spec covered the drag reorder, so `e2e/playout-cues.spec.ts` now drags
+a row and pins every server verb's action after it; the move changed no screenshot in
+`e2e/playout-baseline.spec.ts`.
+
 
 **Move:** the `<aside className="pd-rail">` block - the rundown rows, the drag reorder, the row
 overflow menu, and the rail foot (add graphic, new graphic, add pictures).
@@ -109,7 +119,15 @@ own menu state. `uploadPictures` stays on the page: it writes `note` and reads `
 assertions in `e2e/production-controls.spec.ts`. Any cue path with no spec gets one in the same
 commit - check drag-reorder coverage first.
 
-## 4. Phase 2 - the two monitors (`home/PlayoutMonitors.tsx`)
+## 4. Phase 2 - the two monitors (`home/PlayoutMonitors.tsx`) - DONE (2026-09-27)
+
+Landed as the third step of the clip playback plan's phase 0. `programRef` is the page's, handed
+in as a prop, and the measurement is still keyed on the node. `previewOverflow` is measured in the
+monitor, which owns the frame and its messages, and reported through `onOverflow` to the page,
+which keeps the value because the editor's field marks read it; the rest of the monitor's state
+lives in the monitor. Proved by the specs named below (`output-cold-boot` needs the configured
+backend and did not run) and the unchanged baselines.
+
 
 **Move:** the `.pd-monitors` block - the PREVIEW iframe with its fit arithmetic, and the PROGRAM
 frame wrapping `ProgramStage`.

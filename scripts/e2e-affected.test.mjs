@@ -96,6 +96,15 @@ test('a deleted spec plans nothing, and a spec still on disk is planned', () => 
   assert.deepEqual(planFor(['e2e/gone.spec.ts']).specs, ['gone.spec.ts']);
 });
 
+test('a screenshot baseline plans the spec that compares against it, and only that', () => {
+  const picture = 'e2e/playout-baseline.spec.ts-snapshots/mixed-1366x768-chromium-linux.png';
+  const { mode, specs, unmapped } = planFor([picture], { specsOnDisk: ['playout-baseline.spec.ts'] });
+  assert.equal(mode, 'subset');
+  assert.deepEqual(specs, ['playout-baseline.spec.ts']);
+  assert.deepEqual(unmapped, []);
+  assert.equal(planFor([picture], { specsOnDisk: [] }).mode, 'none', 'a removed spec has no pictures left to compare');
+});
+
 test('a failed suite is not hidden by a catalog gate that passes afterwards', () => {
   const run = fakeRunner(1, 0);
   const { status, runs } = runPlan(SUBSET_WITH_CATALOG, run);

@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Nothing in it is built.** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phase 0 is built (§16); nothing visible is.** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -680,6 +680,18 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `e2e/playout-baseline.spec.ts` (new) | screenshots of a graphics-only and a mixed production at 1920×1080 and 1366×768 |
 | `e2e/hosted-control.spec.ts` | the hosted page lists server cues disabled with their address (nothing asserts it today, 1261-1292) |
 | `docs/backlog/production-page-phases.md` | its phases 1 and 2 marked done |
+
+**Built 2026-09-27**, as the table says, with three differences worth knowing:
+
+- `src/control/playoutSlots.ts` (new) holds `slotAddress` and `compareSlots`, re-exported from
+  `playoutLink.ts`, so `serverPlayout.ts` imports nothing but types and that file and runs in Node.
+  `scripts/server-playout.test.mjs` (new) pins the moved rules there, and
+  `cli/test/fake-caspar-server.test.mjs` (new) pins the fake against §4 through the real adapter.
+- The hosted page cannot be mounted by an offline spec (it needs the backend), so its assertion
+  pins the published payload and the page's own source for the server-cue list, the way
+  `hosted-control.spec.ts` already pins the page's Next and Update wiring.
+- The baselines are in the focus list (`scripts/e2e-lists.mjs`), because a stylesheet change is
+  CORE and reaches no map row. Re-recording them is described at the head of the spec.
 
 ### Phase 1 - layout for everyone
 

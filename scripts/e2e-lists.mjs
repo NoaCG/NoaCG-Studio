@@ -28,6 +28,10 @@ export const FOCUS = [
   // sprint is that those two surfaces keep working, not that CasparCG does.
   'bridge-connect.spec.ts',
   'playout-cues.spec.ts',
+  // THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so
+  // a CSS change reaches no MAP row and runs this list instead; without the baselines here, a
+  // change that moves the dashboard would pass its own gate and turn main red. Four screenshots.
+  'playout-baseline.spec.ts',
   // THE BRIDGE AS AN OGRAF CLIENT (docs/BRIDGE.md §3a): the real Bridge against a fake OGraf
   // server, every verb's exact Server API request. It shares the playout protocol file with the
   // two specs above, and nothing under cli/ selects a spec by itself, so without this row the

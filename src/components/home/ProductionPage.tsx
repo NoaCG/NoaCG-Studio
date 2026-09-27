@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { saveAs } from 'file-saver';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
@@ -11,7 +11,6 @@ import {
   loadShows,
   MAX_PLAYOUT_LAYER,
   MIN_PLAYOUT_LAYER,
-  moveShowCue,
   nextFreeLayer,
   noteShowOutputOpened,
   removeShowCue,
@@ -22,33 +21,23 @@ import {
   setShowOutputSlug,
   setShowProfile,
   updateShowCue,
-  addPlayoutItem,
   playoutItemOf,
   removePlayoutItem,
-  setPlayoutItemChannel,
-  setPlayoutItemLoop,
-  setPlayoutItemFields,
-  setPlayoutItemLayer,
   type PlayoutItem,
   type Show,
   type ShowCue,
 } from '../../model/shows';
 import {
   act,
-  channelLabel,
-  channelOf,
-  channelTitle,
-  compareSlots,
-  defaultChannelFor,
   itemSlot,
   loadPlayoutSettings,
   playoutConfigured,
-  slotAddress,
   subscribeTargetStatus,
   type PlayoutResult,
 } from '../../control/playoutLink';
-import type { PlayoutAction, Slot } from '../../control/playoutProtocol';
-import { graphicKindLabel, type Resolution } from '../../model/types';
+import { runServerVerb, serverCueLive, serverLayers, type ServerVerb } from '../../control/serverPlayout';
+import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
+import type { Resolution } from '../../model/types';
 import {
   diffResolved,
   replacementPatch,
@@ -164,9 +153,9 @@ import {
   type ClockSpec,
   type SpeakingClockPair,
 } from '../../control/matchClockWire';
-import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
+import { type ProgramStageHandle } from './ProgramStage';
+import PlayoutMonitors from './PlayoutMonitors';
 import { composeDocument } from '../../preview/composeDocument';
-import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import { isBackendConfigured } from '../../backend/config';
 import { useAuthState } from '../auth/useAuthState';
 import { useAuthUi } from '../auth/authUi';
@@ -174,7 +163,8 @@ import ActionLog from './ActionLog';
 import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
 import ProductionLinks from './ProductionLinks';
-import PlayoutItemPicker from './PlayoutItemPicker';
+import CueRundown, { nameList } from './CueRundown';
+import ServerCueEditor from './ServerCueEditor';
 import { FieldRow } from '../fields/FieldControl';
 import { isImageAsset } from '../../assets/assetUtils';
 import { importImageFile } from '../../assets/imageImport';
@@ -188,7 +178,6 @@ import {
 } from '../../templates/picture';
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
-import LibMenu from './LibMenu';
 import { copyLink } from './copyLink';
 import { IconDownload, IconTv, IconUsers } from '../icons';
 import PlayoutSettingsDialog, { PlayoutTargetButton } from '../PlayoutSettingsDialog';
@@ -218,12 +207,6 @@ function elapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
-}
-
-/** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
-function nameList(names: string[]): string {
-  if (names.length <= 2) return names.join(' and ');
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 /**
@@ -347,14 +330,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const [stagedCueId, setStagedCueId] = useState<string | null>(null);
   const [spaceMode, setSpaceMode] = useSpaceMode();
-  const [addPick, setAddPick] = useState('');
-  /** The hidden file input behind "＋ Add pictures…". */
-  const pictureInput = useRef<HTMLInputElement>(null);
-  const [menuCueId, setMenuCueId] = useState<string | null>(null);
-  /** Which removal in the open row menu is ARMED (`cue` / `graphic`). A cue holds values somebody
-   *  typed and there is no undo behind the rundown, so a removal that also takes uploaded
-   *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
-  const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | null>(null);
   /** Which cue the editor is pointed at: the one on PREVIEW (the default — edits air on Take),
    *  or the one already ON AIR on that layer, where ✎ Update pushes edits live (§2). */
   const [editTarget, setEditTarget] = useState<'preview' | 'air'>('preview');
@@ -366,20 +341,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
-  /** What this page believes is up on the PLAYOUT SERVER, by playout item id -> the cue that
-   *  put it there and the SLOT it was taken to (docs/BRIDGE.md §5). Page state, like the
-   *  log-free half of `liveCue` before publishing: a server cue is one command through NoaCG
-   *  Bridge, and nothing reports back what the server holds - so the row says ON AIR from the
-   *  moment the command was accepted, and a refused one never marks it.
-   *
-   *  The slot is remembered rather than re-derived because the item's channel and layer stay
-   *  editable while it is on air: Out, Update and All out must reach where the cue IS, not where
-   *  its editor now points, or a channel changed mid-show would strand the clip on air. */
-  const [livePlayout, setLivePlayout] = useState<Record<string, { cueId: string; slot: Slot }>>({});
+  /** What this page believes is up on the PLAYOUT SERVER (control/serverPlayout.ts says what
+   *  it is and why the slot is remembered), in the store's OWNERSHIP part. One store per page, so
+   *  it lives exactly as long as the state it replaced. The page never reads the TIMING part: a
+   *  clock ticking twice a second must not re-render the whole surface
+   *  (control/serverPlayoutStore.ts). */
+  const [serverPlayout] = useState(createServerPlayoutStore);
+  const serverOnAir = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   /**
    * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
    *
@@ -1256,7 +1227,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // every surface (the exported controller has always edited the selection), while the monitor
   // shows the PREVIEW cue. In 'take' mode those are one cue; in 'preview-then-take' mode they
   // differ whenever the operator has walked on from what is on PREVIEW. ──
-  const previewIframe = useRef<HTMLIFrameElement>(null);
   const poolGraphic = selectedCue ? graphicByPoolId.get(selectedCue.sourceId) ?? null : null;
   const editorKey = poolGraphic ? `${poolGraphic.id}:${poolGraphic.savedAt}` : '';
   const previewGraphic = previewCue ? graphicByPoolId.get(previewCue.sourceId) ?? null : null;
@@ -1293,64 +1263,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const settleData = previewCue
     ? JSON.stringify(withBoundValues(cueGraphicName(previewCue) ?? '', cueView(previewCue).values))
     : '';
-  const settlePreview = useCallback((data: string) => {
-    postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
-  }, []);
-  useEffect(() => {
-    if (!previewDoc || !settleData) return;
-    const t = setTimeout(() => settlePreview(settleData), 150);
-    return () => clearTimeout(t);
-  }, [previewDoc, settleData, settlePreview]);
-  /**
-   * WHICH OF THE VALUES BEING TYPED DO NOT FIT — the warn half of the owner's fit ruling
-   * (docs/SVG_IMPORT_PLAN.md §3). The graphic on PREVIEW has already settled with exactly the
-   * values a Take would air, so asking IT is asking the only thing that knows: whether the copy
-   * fits is a measurement of the rendered artwork, not a property of the string.
-   *
-   * Same request/reply round trip the machine state uses, for the same reason — this iframe
-   * carries no `allow-same-origin`, so nothing here can read the document directly. It is
-   * polled rather than answered once because the answer moves without any command: a webfont
-   * arriving re-measures every budget, and the ladder re-runs.
-   */
+  /** Which of the values being typed PREVIEW says do not fit - measured by the monitor
+   *  (PlayoutMonitors), read here by the editor's field marks. */
   const [previewOverflow, setPreviewOverflow] = useState<string[]>([]);
-  useEffect(() => {
-    if (!previewDoc) {
-      setPreviewOverflow([]);
-      return;
-    }
-    const onMessage = (ev: MessageEvent) => {
-      if (ev.source !== previewIframe.current?.contentWindow) return;
-      const msg = ev.data as PreviewStateMessage | undefined;
-      if (!msg || msg.type !== PREVIEW_STATE_TYPE) return;
-      const next = Array.isArray(msg.overflow) ? msg.overflow.map(String) : [];
-      setPreviewOverflow((prev) => (prev.join(',') === next.join(',') ? prev : next));
-    };
-    window.addEventListener('message', onMessage);
-    const tick = () => postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'state' });
-    const handle = window.setInterval(tick, 500);
-    return () => {
-      window.removeEventListener('message', onMessage);
-      window.clearInterval(handle);
-    };
-  }, [previewDoc]);
-  // The frame sizes itself in CSS from the graphic's own aspect ratio; the measurement drives
-  // ONE number, the inner scale. (Sizing the frame from the measurement made the observed box
-  // depend on the value it produced — a late observer left a right-sized frame around a
-  // wrongly scaled graphic.) Keyed on the NODE, not the document: the Data tab unmounts this
-  // subtree, and an effect keyed on the unchanged previewDoc never measured the remounted
-  // frame — the observer's last tick on the detaching node had left stageW at 0, so the
-  // returning preview rendered a 1920px document unscaled and showed its empty corner.
-  const [stageBox, setStageBox] = useState({ width: 0, height: 0 });
-  const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!stageEl) return;
-    const measure = () => setStageBox({ width: stageEl.clientWidth, height: stageEl.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(stageEl);
-    return () => ro.disconnect();
-  }, [stageEl]);
-
+  const notePreviewOverflow = useCallback((next: string[]) => {
+    setPreviewOverflow((prev) => (prev.join(',') === next.join(',') ? prev : next));
+  }, []);
   /**
    * THE STAGE THE PRODUCTION DRAWS ON - both monitors' shape, and never the selected cue's.
    *
@@ -1374,7 +1292,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [poolResolutionKey, library],
   );
-  const stageAspect = `${stage.width} / ${stage.height}`;
 
   /**
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
@@ -1418,16 +1335,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const ownsPlayout = useRef(sub === null);
   if (sub === null) ownsPlayout.current = true;
   const keepPlayout = ownsPlayout.current;
-  // CONTAIN, not width-fill (`Math.min`, the same arithmetic as src/output/stage.ts): the frame
-  // is the production's shape now, so a cue of another shape has to fit inside it rather than
-  // overflow its height.
-  const fit =
-    previewTemplate && stageBox.width && stageBox.height
-      ? Math.min(
-          stageBox.width / previewTemplate.resolution.width,
-          stageBox.height / previewTemplate.resolution.height,
-        )
-      : 0;
 
   const selectCue = useCallback(
     (cueId: string) => {
@@ -1833,23 +1740,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The studio's playout settings as they stand: read on render, like the door below, so the
    *  channel names follow Settings -> Playout the moment it closes. One localStorage read. */
   const playoutSettings = loadPlayoutSettings();
-  /** The server cues this page has put up, by channel and then front to back - named on the
-   *  PROGRAM header and cleared by All out, but never drawn: they play on the server, not in a
-   *  browser. Each carries the slot it was TAKEN to, whichever channel that is. */
-  const livePlayoutLayers = playoutItems
-    .map((item) => ({ item, live: livePlayout[item.id] ?? null }))
-    .map((l) => ({ ...l, cue: l.live ? (cues.find((c) => c.id === l.live!.cueId) ?? null) : null }))
-    .filter((l): l is { item: PlayoutItem; live: { cueId: string; slot: Slot }; cue: ShowCue } => !!l.cue)
-    .map((l) => ({ slot: l.live.slot, name: l.item.name, cue: l.cue, label: l.cue.label }))
-    .sort((a, b) => compareSlots(a.slot, b.slot));
+  /** The server cues this page has put up, by channel and then front to back. */
+  const livePlayoutLayers = serverLayers(serverOnAir, playoutItems, cues);
 
   const selectedGraphic = selectedCue ? cueGraphicName(selectedCue) : null;
   /** A cue over the playout server's library, and whether THIS cue is what this page last put
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
-  /** Its channel, read once for the editor's pick (the graphics channel when no server cue is selected). */
-  const selectedPlayoutChannel = channelOf(playoutSettings, selectedPlayoutItem ?? {});
-  const selectedPlayoutLive = !!selectedPlayoutItem && !!selectedCue && livePlayout[selectedPlayoutItem.id]?.cueId === selectedCue.id;
+  const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
   const selectedLayerLive = !!selectedLayerCueId || selectedPlayoutLive;
@@ -1902,85 +1800,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     flushTimer.current = setTimeout(flushDraft, 300);
   };
 
-  /**
-   * ONE VERB ON THE PLAYOUT SERVER (docs/BRIDGE.md §5). A cue over the server's own library is
-   * one command through NoaCG Bridge - a template is CG-added with its values as JSON, a clip
-   * is played - and never a row in the command log: nothing renders it, the /output page would
-   * have nothing to do with it, and a phone cannot reach the operator's Bridge. The action
-   * carries no page state, so the same object is what a log row would carry later.
-   *
-   * The outcome is reported as itself: a server that refused, a file that is gone, a Bridge
-   * that is not running each get their own sentence in the note line, and nothing marks the
-   * row ON AIR on anything but an accepted take.
-   */
-  /** Forget that an item is up on the server: its Out was accepted, or nothing of it is left. */
-  const dropLivePlayout = (itemId: string) =>
-    setLivePlayout((m) => {
-      const next = { ...m };
-      delete next[itemId];
-      return next;
-    });
-
-  const playoutVerb = async (
-    cue: ShowCue,
-    verb: 'take' | 'update' | 'next' | 'out' | 'pause' | 'resume',
-    label: string,
-  ): Promise<boolean> => {
+  /** ONE VERB ON THE PLAYOUT SERVER: control/serverPlayout.ts decides what it sends and how the
+   *  on-air map moves, through NoaCG Bridge with the settings as they stand now. The note line
+   *  says how it went, whichever way that was. */
+  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string): Promise<boolean> => {
     const item = playoutItemFor(cue);
     if (!item) return false;
     flushDraft();
     const settings = loadPlayoutSettings();
-    // A take goes where the cue is set to play now; every later verb goes where the take WENT.
-    const live = livePlayout[item.id];
-    const slot = verb !== 'take' && live ? live.slot : itemSlot(settings, item);
-    const itemRef = { kind: item.kind, name: item.name };
-    // A RE-TAKE after the cue was moved to another channel or layer: its first copy is still up
-    // where it went, and nothing else knows it is there. Take that one off first, so the move is
-    // a move and not a second copy stranded on the old slot.
-    let movedOff = false;
-    if (verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot)) {
-      const off = await act(settings, { verb: 'out', slot: live.slot, item: itemRef });
-      if (off.state !== 'ok') {
-        setNote(`${label} did not reach the playout server: ${item.name} is still on ${slotAddress(live.slot)} - ${off.detail}`);
-        return false;
-      }
-      movedOff = true;
-    }
-    const values = cueView(cue).values;
-    const action: PlayoutAction =
-      verb === 'take'
-        ? {
-            verb,
-            item: itemRef,
-            slot,
-            ...(item.kind === 'template' ? { data: values } : {}),
-            // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
-            ...(item.kind === 'media' && item.loop ? { loop: true } : {}),
-          }
-        : verb === 'update'
-          ? { verb, slot, data: values }
-          : { verb, slot, item: itemRef };
-    const result = await act(settings, action);
-    if (result.state !== 'ok') {
-      setNote(`${label} did not reach the playout server: ${result.detail}`);
-      // The old copy already came off above, so nothing of this item is up anywhere now; a
-      // row still saying ON AIR would be the one thing on the page that is not true.
-      if (movedOff) dropLivePlayout(item.id);
-      return false;
-    }
-    setNote(`✓ ${label}: ${item.name} on ${slotAddress(slot)}`);
-    if (verb === 'take') {
-      // One slot holds one thing: a take REPLACES whatever another item of this rundown had up
-      // on the same channel and layer, on the server and so here too - two clips on 2-10 do not
-      // both stay ON AIR.
-      setLivePlayout((m) => {
-        const next: typeof m = {};
-        for (const [id, l] of Object.entries(m)) if (slotAddress(l.slot) !== slotAddress(slot)) next[id] = l;
-        return { ...next, [item.id]: { cueId: cue.id, slot } };
-      });
-    }
-    if (verb === 'out') dropLivePlayout(item.id);
-    return true;
+    const outcome = await runServerVerb({
+      verb,
+      cue,
+      item,
+      label,
+      live: serverOnAir[item.id],
+      slotNow: itemSlot(settings, item),
+      values: () => cueView(cue).values,
+      act: (action) => act(settings, action),
+    });
+    setNote(outcome.note);
+    if (outcome.onAir) serverPlayout.ownership.set(outcome.onAir);
+    return outcome.ok;
   };
 
   const takeCue = async (cue: ShowCue) => {
@@ -2090,7 +1930,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const isLast = cues.filter((c) => c.sourceId === cue.sourceId).length === 1;
     if (isLast && entry) await takeOffAir(entry.name);
     // A server cue that is up goes off with its row, the same courtesy a graphic gets.
-    if (cue.source === 'playout' && livePlayout[cue.sourceId]?.cueId === cue.id) await playoutVerb(cue, 'out', 'Out');
+    if (serverCueLive(serverOnAir, playoutItemFor(cue), cue)) await playoutVerb(cue, 'out', 'Out');
     setDraft(null);
     setShows(removeShowCue(show.id, cue.id));
   };
@@ -2101,7 +1941,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const entry = graphicByPoolId.get(poolId);
     if (!entry) {
       // The same gesture over a playout item: its cues go, and whatever is up goes off first.
-      const live = cues.find((c) => c.id === livePlayout[poolId]?.cueId);
+      const live = cues.find((c) => c.id === serverOnAir[poolId]?.cueId);
       if (live) await playoutVerb(live, 'out', 'Out');
       if (playoutItems.some((i) => i.id === poolId)) {
         setDraft(null);
@@ -2752,103 +2592,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             into the empty column beside PROGRAM, which spends that width and gives the monitors
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
-        <div
-          className="pd-monitors"
-          style={{ ['--pd-ar' as string]: stage.width / stage.height }}
-        >
-          <div className="pd-monitor pd-pvw">
-            <h2>
-              <span className="pd-dot" aria-hidden="true" />
-              PREVIEW
-              <span className="pd-what" data-testid="preview-what">
-                {previewCue
-                  ? cueView(previewCue).label
-                  : spaceMode === 'preview-then-take'
-                    ? PREVIEW_EMPTY_LABEL
-                    : 'nothing selected'}
-              </span>
-            </h2>
-            <div className="pd-screen">
-              {previewDoc && previewTemplate ? (
-                <div
-                  className="pd-frame"
-                  ref={setStageEl}
-                  style={{ aspectRatio: stageAspect }}
-                  data-testid="production-preview"
-                >
-                  <iframe
-                    ref={previewIframe}
-                    title="Cue preview"
-                    sandbox="allow-scripts"
-                    srcDoc={previewDoc}
-                    onLoad={() => settlePreview(settleData)}
-                    style={{
-                      position: 'absolute',
-                      // CENTRED IN THE STAGE, the same way src/output/stage.ts centres its own:
-                      // origin at the frame's middle, then translated back by half the SCALED
-                      // size. Percentage translates would compound with the scale.
-                      left: '50%',
-                      top: '50%',
-                      width: previewTemplate.resolution.width,
-                      height: previewTemplate.resolution.height,
-                      border: 0,
-                      transformOrigin: '0 0',
-                      transform: `translate(${(-previewTemplate.resolution.width * (fit || 1)) / 2}px, ${
-                        (-previewTemplate.resolution.height * (fit || 1)) / 2
-                      }px) scale(${fit || 1})`,
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }}>
-                  <p className="hint">
-                    {cues.length === 0
-                      ? 'Add a cue to preview it here.'
-                      : 'SPACE on the selected cue shows it here.'}
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="pd-monitor pd-pgm">
-            <h2>
-              <span className="pd-dot" aria-hidden="true" />
-              PROGRAM · ON AIR
-              {/* The names can run past the monitor's width and end in an ellipsis, so the title
-                  carries them whole. The badge names EVERY live layer, in the names' order: with a
-                  quiz and a score both up it used to show one layer beside two names. */}
-              <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
-                {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
-              </span>
-              {liveLayers.length > 0 && (
-                <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
-              )}
-              {/* Server cues are up on the playout box, not in this monitor - named, never drawn. */}
-              {livePlayoutLayers.length > 0 && (
-                <span
-                  className="pd-layer-badge pd-server-badge"
-                  title="Playing on the playout server through NoaCG Bridge - not shown on this monitor"
-                  data-testid="playout-on-air"
-                >
-                  server: {livePlayoutLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
-                </span>
-              )}
-            </h2>
-            <div className="pd-screen">
-              <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
-                <ProgramStage
-                  ref={programRef}
-                  show={show}
-                  library={library}
-                  empty={liveLayers.length === 0}
-                  onState={noteMachineState}
-                  onReady={restoreProgram}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PlayoutMonitors
+          stage={stage}
+          previewDoc={previewDoc}
+          previewTemplate={previewTemplate}
+          previewLabel={
+            previewCue
+              ? cueView(previewCue).label
+              : spaceMode === 'preview-then-take'
+                ? PREVIEW_EMPTY_LABEL
+                : 'nothing selected'
+          }
+          settleData={settleData}
+          hasCues={cues.length > 0}
+          liveLayers={liveLayers}
+          serverLayers={livePlayoutLayers}
+          show={show}
+          library={library}
+          programRef={programRef}
+          onState={noteMachineState}
+          onReady={restoreProgram}
+          onOverflow={notePreviewOverflow}
+        />
 
         {/* The verbs, with the keys that fire them. All out lives in the header — it is the
             panic control and must not sit beside the ones used every minute. */}
@@ -3185,141 +2950,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </div>
         )}
 
-        {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip
-            that lives on the CasparCG box and airs through NoaCG Bridge. Its editor is the same
-            shape as a graphic's - the title, the fields, the note and the layer - with the
-            server's state where the unsent line would be, because "connected" or "not answering"
-            is the fact an operator needs before pressing Take on something nothing here shows. */}
+        {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY: its editor (home/ServerCueEditor). */}
         {editingCue && editingView && selectedPlayoutItem && (
-          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="playout-cue-editor">
-            <div className="pd-editor-head">
-              <span className="pd-editor-kicker">
-                {selectedPlayoutItem.kind === 'media' ? 'SERVER CLIP' : 'SERVER TEMPLATE'}
-                {editingIsLive ? ' · ON AIR' : ''}
-                {editingCueNo > 0 ? ` · ${editingCueNo}` : ''}
-              </span>
-              <input
-                className="pd-cue-title"
-                value={editingView.label}
-                onChange={(e) => editDraft({ label: e.target.value })}
-                aria-label="Cue name"
-                data-testid="cue-label"
-              />
-              <span
-                className={bridgeStatus && bridgeStatus.state !== 'ok' ? 'pd-editor-fate pd-unsent-note' : 'muted pd-editor-fate'}
-                data-testid="playout-cue-status"
-                data-state={bridgeStatus?.state ?? 'pending'}
-              >
-                {bridgeStatus === null
-                  ? 'asking the playout server…'
-                  : bridgeStatus.state === 'ok'
-                    ? `CasparCG${bridgeStatus.version ? ` ${bridgeStatus.version}` : ''} · connected`
-                    : bridgeStatus.detail}
-              </span>
-            </div>
-            <p className="hint pd-server-where" data-testid="playout-cue-where">
-              <code>{selectedPlayoutItem.name}</code> plays on the playout server, on{' '}
-              <code>{slotAddress(itemSlot(playoutSettings, selectedPlayoutItem))}</code>, through NoaCG
-              Bridge. It is not shown on the PROGRAM monitor here.
-            </p>
-            {selectedPlayoutItem.kind === 'template' && (
-              <div className="pd-band-fields" data-testid="playout-cue-fields">
-                {(selectedPlayoutItem.fields ?? []).map((f) => (
-                  <FieldRow
-                    key={f.field}
-                    descriptor={{ key: f.field, label: `${f.field.toUpperCase()} · ${f.title}`, kind: 'text', defaultValue: f.value }}
-                    value={String(editingView.values[f.field] ?? f.value)}
-                    onChange={(v) => editDraft({ values: { [f.field]: String(v) } })}
-                    testIdPrefix="cue-field"
-                  />
-                ))}
-                <AddFieldRow
-                  onAdd={(id) =>
-                    setShows(
-                      setPlayoutItemFields(show.id, selectedPlayoutItem.id, [
-                        ...(selectedPlayoutItem.fields ?? []).filter((f) => f.field !== id),
-                        { field: id, title: id.toUpperCase(), value: '' },
-                      ]),
-                    )
-                  }
-                />
-              </div>
-            )}
-            {/* LOOP, the one clip option: CasparCG repeats the file itself (`PLAY … LOOP`), so a
-                looping background or sting needs nothing from this page until Out. It is read
-                at Take, so a change while the clip is up says it applies to the next one. */}
-            {selectedPlayoutItem.kind === 'media' && (
-              <label className="pd-clip-loop" data-testid="playout-loop-row">
-                <input
-                  type="checkbox"
-                  checked={selectedPlayoutItem.loop === true}
-                  onChange={(e) => setShows(setPlayoutItemLoop(show.id, selectedPlayoutItem.id, e.target.checked))}
-                  data-testid="playout-loop"
-                />
-                <span>Loop</span>
-                <span className="muted">
-                  {editingIsLive
-                    ? 'repeats until Out · a change applies at the next Take'
-                    : 'repeats until Out, instead of playing once'}
-                </span>
-              </label>
-            )}
-            {selectedPlayoutItem.kind === 'media' && editingIsLive && (
-              <div className="row pd-clip-transport" data-testid="playout-clip-transport">
-                <button onClick={() => void playoutVerb(editingCue, 'pause', 'Pause')} data-testid="playout-pause">
-                  ⏸ Pause
-                </button>
-                <button onClick={() => void playoutVerb(editingCue, 'resume', 'Resume')} data-testid="playout-resume">
-                  ▶ Resume
-                </button>
-              </div>
-            )}
-            {/* WHERE IT PLAYS, as a CasparCG client puts it: the channel, then the layer. The
-                channel is a pick from the channels Settings names, never a typed number; a
-                channel this studio does not name (a production made elsewhere, a row removed
-                since) stays listed as itself rather than silently moving the cue. */}
-            <div className="pd-cue-meta pd-cue-meta--slot" data-testid="cue-meta">
-              <label className="pd-field pd-field-note">
-                <span>Operator note</span>
-                <input
-                  value={editingView.note}
-                  placeholder="e.g. after the intro"
-                  onChange={(e) => editDraft({ note: e.target.value })}
-                  data-testid="cue-note"
-                />
-              </label>
-              <label className="pd-field pd-field-channel">
-                <span>Channel</span>
-                <select
-                  value={selectedPlayoutChannel}
-                  onChange={(e) => setShows(setPlayoutItemChannel(show.id, selectedPlayoutItem.id, Number(e.target.value)))}
-                  data-testid="playout-channel"
-                >
-                  {playoutSettings.channels.map((row) => (
-                    <option key={row.channel} value={row.channel}>
-                      {channelLabel(playoutSettings, row.channel)}
-                    </option>
-                  ))}
-                  {!playoutSettings.channels.some((row) => row.channel === selectedPlayoutChannel) && (
-                    <option value={selectedPlayoutChannel}>
-                      {selectedPlayoutChannel} · not in Settings
-                    </option>
-                  )}
-                </select>
-              </label>
-              <label className="pd-field pd-field-layer">
-                <span>Layer</span>
-                <input
-                  type="number"
-                  min={MIN_PLAYOUT_LAYER}
-                  max={MAX_PLAYOUT_LAYER}
-                  value={selectedPlayoutItem.layer}
-                  onChange={(e) => setShows(setPlayoutItemLayer(show.id, selectedPlayoutItem.id, Number(e.target.value)))}
-                  data-testid="playout-layer"
-                />
-              </label>
-            </div>
-          </div>
+          <ServerCueEditor
+            showId={show.id}
+            item={selectedPlayoutItem}
+            view={editingView}
+            live={editingIsLive}
+            cueNo={editingCueNo}
+            bridgeStatus={bridgeStatus}
+            playoutSettings={playoutSettings}
+            onEdit={editDraft}
+            onTransport={(verb, label) => void playoutVerb(editingCue, verb, label)}
+            setShows={setShows}
+          />
         )}
 
         {/* GRAPHIC ACTIONS — the machine's own verbs, rendered from the metadata that travels
@@ -3514,334 +3158,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         </div>
       </section>
 
-      <aside className={`pd-rail${sub ? ' pd-offstage' : ''}`}>
-        <div className="pd-rail-head">
-          <h2>Cue rundown</h2>
-          <span className="muted">{cues.length}</span>
-          <div className="spacer" />
-          <button
-            className="pd-icon"
-            title="Add a cue on the selected graphic"
-            disabled={!poolGraphic}
-            onClick={() => {
-              if (!poolGraphic) return;
-              const { shows: next, cueId } = addShowCue(show.id, poolGraphic.id);
-              setShows(next);
-              if (cueId) selectCue(cueId);
-            }}
-            data-testid="add-cue"
-          >
-            ＋
-          </button>
-        </div>
-
-        {cues.length === 0 && (
-          <p className="hint" data-testid="no-cues">
-            No cues yet. Add a graphic below, then add cues on it.
-          </p>
-        )}
-
-        <div className="pd-cues" data-testid="cue-list">
-          {cues.map((cue, i) => {
-            const view = cueView(cue);
-            const cueGraphic = cueGraphicName(cue);
-            const poolEntry = graphicByPoolId.get(cue.sourceId);
-            const playoutItem = playoutItemFor(cue);
-            const cueIsLive =
-              (!!cueGraphic && liveCue[cueGraphic] === cue.id) || (!!playoutItem && livePlayout[playoutItem.id]?.cueId === cue.id);
-            const isSelected = cue.id === (selectedCue?.id ?? '');
-            // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
-            // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.
-            const isPreviewed = cue.id === (previewCue?.id ?? '');
-            // Removal wording, decided per row. How many cues the graphic has says whether this
-            // one takes the graphic with it (shows.ts removeShowCue) and whether removing the
-            // graphic outright is a distinct gesture at all; pictures live ONLY in their pool
-            // graphic, so losing it loses the uploads and the operator has to be told.
-            const siblingCues = cues.filter((c) => c.sourceId === cue.sourceId).length;
-            const pictures = poolEntry?.type === 'picture' ? poolEntry.template.assets.length : 0;
-            const clashWith = poolEntry
-              ? (clashes.get(graphicLayer(poolEntry)) ?? []).filter((g) => g.id !== poolEntry.id)
-              : [];
-            return (
-              <div
-                key={cue.id}
-                className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}`}
-                data-testid={`cue-${cue.id}`}
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData('text/noacg-cue', cue.id)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const from = e.dataTransfer.getData('text/noacg-cue');
-                  const fromIndex = cues.findIndex((c) => c.id === from);
-                  if (fromIndex < 0 || fromIndex === i) return;
-                  flushDraft();
-                  // moveShowCue steps by one, so walk it to the drop position — the store keeps
-                  // one mutation shape and the drag stays a pure view concern.
-                  let next = shows;
-                  const step = fromIndex < i ? 1 : -1;
-                  for (let k = fromIndex; k !== i; k += step) next = moveShowCue(show.id, from, step);
-                  setShows(next);
-                }}
-              >
-                <span className="pd-grip" aria-hidden="true">⣿</span>
-                <span className="pd-cue-no">{cueIsLive ? '●' : i + 1}</span>
-                {/* aria-current, not aria-selected: this is a list of cues the operator moves a
-                    cursor through, and "the one I am holding" is exactly what current means. It
-                    is also the non-visual half of the ring the CSS draws — a tally colour tells a
-                    screen reader nothing. */}
-                <button
-                  className="pd-cue-label"
-                  onClick={() => selectCue(cue.id)}
-                  data-testid="select-cue"
-                  aria-current={isSelected ? 'true' : undefined}
-                >
-                  <strong>{view.label}</strong>
-                  <span className="muted">
-                    {/* The LAYER, and the one place a shared layer is announced now that the
-                        layer list is gone (§5): two graphics on one number replace each other on
-                        air, so both rows wear the warning colour where the operator is already
-                        looking. The repair — the editor's one-click "Move to layer N" — stays
-                        beside the number itself. */}
-                    {poolEntry && (
-                      <span
-                        className={`pd-cue-layer${clashWith.length ? ' clash' : ''}`}
-                        title={
-                          clashWith.length
-                            ? `Shares layer ${graphicLayer(poolEntry)} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other.`
-                            : `${poolEntry.name} airs on layer ${graphicLayer(poolEntry)}`
-                        }
-                        data-testid="cue-layer"
-                      >
-                        L{graphicLayer(poolEntry)}
-                      </span>
-                    )}
-                    {/* A server item wears its CasparCG address, channel and layer, the way the
-                        server itself writes it (`2-10`): a rundown that airs on two channels
-                        has to say which one at a glance. The kind word says where it lives,
-                        since the label is the operator's and the name is the server's. */}
-                    {playoutItem && (
-                      <span
-                        className="pd-cue-layer"
-                        title={`${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`}
-                        data-testid="cue-layer"
-                      >
-                        {slotAddress(itemSlot(playoutSettings, playoutItem))}
-                      </span>
-                    )}
-                    {poolEntry || playoutItem ? ' · ' : ''}
-                    {/* The KIND beside the name: the label above is the operator's own word for
-                        the cue, so this is what says "that one is the scoreboard" at a glance. */}
-                    {poolEntry ? `${graphicKindLabel(poolEntry.type)} · ` : ''}
-                    {playoutItem ? `${playoutItem.kind === 'media' ? (playoutItem.loop ? 'Server clip ⟲ loop' : 'Server clip') : 'Server template'} · ` : ''}
-                    {view.note || cueGraphic || playoutItem?.name || 'missing graphic'}
-                  </span>
-                </button>
-                {cueIsLive ? (
-                  <span className="pd-tag air">ON AIR</span>
-                ) : isPreviewed ? (
-                  <span className="pd-tag pvw">PVW</span>
-                ) : null}
-                <div className="pd-cue-menu-host">
-                  <button
-                    className="pd-icon pd-cue-more"
-                    onClick={() => {
-                      setArmedRemove(null);
-                      setMenuCueId((m) => (m === cue.id ? null : cue.id));
-                    }}
-                    title="More"
-                    aria-label={`More actions for ${view.label}`}
-                    data-testid="cue-menu"
-                  >
-                    ⋯
-                  </button>
-                  {/* The rundown SCROLLS, so the last cue's ⋯ is at the bottom of the rail by
-                      arithmetic — the same defect the library's bulk bar had, on the surface an
-                      operator uses live. The shell measures which way to open. */}
-                  <LibMenu
-                    open={menuCueId === cue.id}
-                    onClose={() => {
-                      setArmedRemove(null);
-                      setMenuCueId(null);
-                    }}
-                    testid="cue-actions-menu"
-                  >
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        flushDraft();
-                        const v = cueView(cue);
-                        const { shows: next, cueId } = addShowCue(show.id, cue.sourceId, {
-                          label: `${v.label} copy`,
-                          values: v.values,
-                          note: v.note || undefined,
-                        });
-                        setShows(next);
-                        setMenuCueId(null);
-                        if (cueId) selectCue(cueId);
-                      }}
-                    >
-                      Duplicate
-                    </button>
-                    {/* Removing the LAST cue removes the graphic too, so the label says so
-                        rather than letting it be discovered. A picture graphic carries the
-                        uploads themselves, which is the one removal that destroys content
-                        with no copy in the library — it asks twice, naming the count. */}
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        if (siblingCues === 1 && pictures > 0 && armedRemove !== 'cue') {
-                          setArmedRemove('cue');
-                          return;
-                        }
-                        void removeCue(cue);
-                        setArmedRemove(null);
-                        setMenuCueId(null);
-                      }}
-                      title={
-                        siblingCues === 1
-                          ? `The last cue on ${cueGraphic ?? playoutItem?.name ?? 'this graphic'}. The graphic leaves the production with it.`
-                          : 'Remove this cue; the graphic and its other cues stay'
-                      }
-                      data-testid="delete-cue"
-                    >
-                      {armedRemove === 'cue'
-                        ? `Also deletes ${pictures} picture${pictures === 1 ? '' : 's'}. Confirm?`
-                        : siblingCues === 1
-                          ? 'Remove cue and graphic'
-                          : 'Remove cue'}
-                    </button>
-                    {/* One gesture for getting a graphic out of the production. Offered only
-                        where it differs from the item above: with a single cue, that one
-                        already takes the graphic. */}
-                    {siblingCues > 1 && (
-                      <button
-                        role="menuitem"
-                        onClick={() => {
-                          if (armedRemove !== 'graphic') {
-                            setArmedRemove('graphic');
-                            return;
-                          }
-                          void removeGraphic(cue.sourceId);
-                          setArmedRemove(null);
-                          setMenuCueId(null);
-                        }}
-                        title={`Remove ${cueGraphic ?? playoutItem?.name ?? 'this graphic'} from the production, with every cue prepared against it`}
-                        data-testid="delete-graphic"
-                      >
-                        {armedRemove === 'graphic'
-                          ? `Remove ${siblingCues} cues${pictures > 0 ? ` and ${pictures} pictures` : ''}. Confirm?`
-                          : `Remove graphic and its ${siblingCues} cues`}
-                      </button>
-                    )}
-                  </LibMenu>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* The foot is how graphics GET IN. It used to carry a layer list as well — a second
-            list of the same graphics, in a corner the rundown wanted for itself. The layer is
-            typed beside the graphic's content, every rundown row wears its number, and removal
-            lives in the row's ⋯ menu, so the rundown is the only list (§5). */}
-        <div className="pd-rail-foot">
-          <div className="row">
-            <select value={addPick} onChange={(e) => setAddPick(e.target.value)} data-testid="add-graphic-pick">
-              <option value="">Add a graphic from your library…</option>
-              {library.map((g) => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </select>
-            <button
-              disabled={!addPick}
-              onClick={() => {
-                const doc = library.find((g) => g.id === addPick);
-                if (!doc) return;
-                const { shows: next } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-                setShows(next);
-                setAddPick('');
-              }}
-              data-testid="add-graphic"
-            >
-              ＋ Add
-            </button>
-          </div>
-          <button
-            className="pd-new-graphic"
-            onClick={() => {
-              useTemplateStore.setState({ pendingProductionId: show.id });
-              navigate({ view: 'new' });
-            }}
-            title="Create a new graphic for this production - the wizard uses its look and adds it here"
-            data-testid="production-new-graphic"
-          >
-            ＋ New graphic for this production…
-          </button>
-          {/* Pictures, straight into the rundown — one still per cue, on the production's own
-              picture layer. The editor is never opened for this, which is the whole point.
-              A real <button> driving a hidden input, so it is the same control as its sibling
-              rather than a label wearing a button's clothes. */}
-          <button
-            className="pd-new-graphic"
-            onClick={() => pictureInput.current?.click()}
-            title={`Add pictures to this production. Each one becomes a cue (up to ${MAX_PICTURES}).`}
-            data-testid="add-pictures"
-          >
-            ＋ Add pictures…
-          </button>
-          {/* The playout server's own library - templates and clips already on the CasparCG box,
-              through NoaCG Bridge (docs/BRIDGE.md §5). Present only once a server is configured
-              under Settings -> Playout: a dead door on the busiest surface would be worse than none. */}
-          {playoutConfigured(loadPlayoutSettings()) && (
-            <div className="pd-links-host">
-              <button
-                className="pd-new-graphic"
-                onClick={() => setPickerOpen((o) => !o)}
-                title="Add a template or a clip that is already on the playout server"
-                data-testid="add-from-server"
-              >
-                ＋ From the playout server…
-              </button>
-              <PlayoutItemPicker
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                library={library}
-                onAdd={(item) => {
-                  // The studio's default channel for its kind: a clip to the clip channel, a
-                  // template to the graphics one. The graphics channel is stored as NO channel,
-                  // which is what "graphics channel" has always meant on this record.
-                  const settings = loadPlayoutSettings();
-                  const channel = defaultChannelFor(settings, item.kind);
-                  const { shows: next, cueId } = addPlayoutItem(show.id, {
-                    adapter: 'casparcg',
-                    ...item,
-                    ...(channel === settings.channel ? {} : { channel }),
-                  });
-                  setShows(next);
-                  if (cueId) selectCue(cueId);
-                }}
-              />
-            </div>
-          )}
-          <input
-            ref={pictureInput}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              // COPIED out of the live FileList first: clearing `value` empties that list in
-              // place, so reading it afterwards hands the handler nothing at all.
-              const files = Array.from(e.target.files ?? []);
-              // Cleared so choosing the SAME file again still fires a change event.
-              e.target.value = '';
-              void uploadPictures(files);
-            }}
-            data-testid="add-pictures-input"
-          />
-        </div>
-      </aside>
+      <CueRundown
+        show={show}
+        cues={cues}
+        graphicByPoolId={graphicByPoolId}
+        library={library}
+        playoutSettings={playoutSettings}
+        liveCue={liveCue}
+        serverOnAir={serverOnAir}
+        selectedCueId={selectedCue?.id ?? null}
+        previewCueId={previewCue?.id ?? null}
+        selectedGraphicId={poolGraphic?.id ?? null}
+        clashes={clashes}
+        offstage={!!sub}
+        cueView={cueView}
+        cueGraphicName={cueGraphicName}
+        playoutItemFor={playoutItemFor}
+        selectCue={selectCue}
+        removeCue={removeCue}
+        removeGraphic={removeGraphic}
+        uploadPictures={uploadPictures}
+        flushDraft={flushDraft}
+        setShows={setShows}
+      />
       </>)}
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {playoutSettingsOpen && (
@@ -4130,36 +3469,6 @@ function ProductionShell({
         </div>
       )}
       <main className="pd-body">{children}</main>
-    </div>
-  );
-}
-
-/** One box to name a field a server template takes when NoaCG did not make it - the id on the
- *  wire, as FIELDS.md or the template's author names it. */
-function AddFieldRow({ onAdd }: { onAdd: (id: string) => void }) {
-  const [id, setId] = useState('');
-  const submit = () => {
-    const clean = id.trim();
-    if (!clean) return;
-    onAdd(clean);
-    setId('');
-  };
-  return (
-    <div className="field-row pd-add-field">
-      <input
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') submit();
-        }}
-        placeholder="Add a field id, e.g. f2"
-        spellCheck={false}
-        aria-label="Field id"
-        data-testid="playout-add-field"
-      />
-      <button onClick={submit} disabled={!id.trim()} data-testid="playout-add-field-go">
-        ＋ Field
-      </button>
     </div>
   );
 }

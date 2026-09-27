@@ -97,6 +97,12 @@ const isEntrypoint =
   resolve(process.argv[1]).replaceAll('\\', '/').toLowerCase() ===
     resolve(fileURLToPath(import.meta.url)).replaceAll('\\', '/').toLowerCase();
 
+// THE PRODUCTION PAGE AND THE PARTS SPLIT OUT OF IT (docs/backlog/production-page-phases.md).
+// A row that selects specs for a behaviour of ProductionPage.tsx has to select them for the file
+// that behaviour moved to as well, so the list is named once, here, and spliced into those rows. A
+// part split out later is added here and nowhere else.
+const PRODUCTION_PAGE_PARTS = 'ProductionPage|CueRundown|PlayoutMonitors|ServerCueEditor';
+
 // ── Source-area → spec globs ────────────────────────────────────────────────
 // Order does not matter; every matching rule contributes its specs (union).
 const MAP = [
@@ -297,7 +303,7 @@ const MAP = [
   // which road a clock-free graphic's events take. Its sources are the two control lists, the
   // imported quiz recipe, the road rule and its clock test, and the two pages that send.
   [/^src\/(templates\/(types\/(answerBoard|quizShow)|behaviours\/quiz)|control\/(hostedControl|matchClockWire))\.ts$/, ['quiz-live-consistency.spec.ts']],
-  [/^src\/components\/(home\/ProductionPage|HostedControlPage)\.tsx$/, ['quiz-live-consistency.spec.ts']],
+  [new RegExp(`^src/components/(home/(${PRODUCTION_PAGE_PARTS})|HostedControlPage)\\.tsx$`), ['quiz-live-consistency.spec.ts']],
   // THE QUIZ SHOW SET: the show board (answer count as a field, no lock), the two-player duel
   // score, and the three game-show families they ship in. quiz-show.spec.ts is the only place
   // the pick / reveal arc, the hidden rows and the duel runtime's leader mark are driven. The
@@ -357,7 +363,7 @@ const MAP = [
   // count-from-zero fix changed an infographic emit, every branch plan skipped the one spec that
   // compares the two representations, and the mismatch surfaced in the nightly. The pin lives in
   // scripts/e2e-affected.test.mjs and is derived from that import rather than from this list.
-  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts', 'quiz-show.spec.ts', 'quiz-live-consistency.spec.ts']],
+  [/^src\/templates\//, ['anim-engine.spec.ts', 'catalog-baseline.spec.ts', 'package.spec.ts', 'images.spec.ts', 'stage-fit-determinism.spec.ts', 'import-svg.spec.ts', 'import-svg-corpus.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'graphic-types.spec.ts', 'bench.spec.ts', 'house.spec.ts', 'wave2.spec.ts', 'timeline-v2.spec.ts', 'wizard-brand.spec.ts', 'wizard-filters.spec.ts', 'wizard-logo.spec.ts', 'wizard-preview.spec.ts', 'format.spec.ts', 'ux.spec.ts', 'state-machine.spec.ts', 'machine-graph.spec.ts', 'template-pack-10.spec.ts', 'stream-notification.spec.ts', 'creative-routing.spec.ts', 'ai-retrieval.spec.ts', 'snap-recovery.spec.ts', 'lite-parity.spec.ts', 'competition-pack.spec.ts', 'holding-pack.spec.ts', 'full-frame-offering.spec.ts', 'public-service.spec.ts', 'template-escaping.spec.ts', 'sports.spec.ts', 'audience-pack.spec.ts', 'community.spec.ts', 'library.spec.ts', 'library-productions.spec.ts', 'exports.spec.ts', 'wizard-kit.spec.ts', 'lite-field-paint.spec.ts', 'lite-line-content.spec.ts', 'wizard-setup-fields.spec.ts', 'end-credits.spec.ts', 'counting-settle.spec.ts', 'productions.spec.ts', 'quiz-show.spec.ts', 'quiz-live-consistency.spec.ts', 'playout-baseline.spec.ts']],
   // The Import-graphic capability lives behind its own folder and its own index
   // (src/components/wizard/import/, docs/ARCHITECTURE.md §5), so a
   // change inside it selects the import road's own specs and the four others that assert on
@@ -435,7 +441,8 @@ const MAP = [
   // Ctrl+C and the arrows for the canvas, the timeline, every modal and every focused control, so
   // the set of specs a change to it can move is not a list anybody would keep correct. It
   // escalates, and that is the decision rather than an omission.
-  [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts']],
+  // playout-baseline draws a production page's cue editor, whose every box is a field control.
+  [/^src\/components\/(fields|SampleDataPanel|ControlPanel|HostedControlPage)/, ['control.spec.ts', 'shows.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'images.spec.ts', 'ux.spec.ts', 'video-inputs.spec.ts', 'import-graphic.spec.ts', 'playout-baseline.spec.ts']],
   // The playout dashboard's VERB KEYS, shared by the in-app production page and the hosted
   // control page. Named here rather than left to the components fallback because the spec that
   // actually presses them (playout-drills) is not in either surface's own row - the keymap is a
@@ -459,7 +466,7 @@ const MAP = [
   // reports one, so that spec is the only thing that would catch it going quiet. It is also the
   // only one, which is why it is worth saying twice: a FOCUS run drops it, so a change to that
   // warning is not verified by `test:e2e:focus` - use the full affected plan for it.
-  [/^src\/components\/(home|save)\//, ['motion-presets.spec.ts', 'library.spec.ts', 'library-bulk.spec.ts', 'library-productions.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'agent-made-graphics.spec.ts']],
+  [/^src\/components\/(home|save)\//, ['motion-presets.spec.ts', 'library.spec.ts', 'library-bulk.spec.ts', 'library-productions.spec.ts', 'hosted-control.spec.ts', 'productions.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'production-persistence.spec.ts', 'playout-drills.spec.ts', 'storage-full.spec.ts', 'wizard-kit.spec.ts', 'control-panel-types.spec.ts', 'pack-import.spec.ts', 'import-svg-behaviour.spec.ts', 'student-rehearsal.spec.ts', 'agent-made-graphics.spec.ts', 'playout-baseline.spec.ts']],
   // The graphics-pack door: the format/importer, the shipped pack + its sources and build
   // script, and the shared multi-template save path (also the wizard kit's, hence
   // wizard-kit rides along on templateSet changes).
@@ -606,25 +613,30 @@ const MAP = [
   // the whole point of the feature.
   // The channel table and the per-cue slot helpers live in playoutLink.ts too, and the rundown
   // is what reads them.
-  [/^src\/control\/(playoutLink|playoutProtocol)\.ts$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
+  // serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
+  // address goes through, and the baselines draw both.
+  [
+    /^src\/control\/(playoutLink|playoutProtocol|serverPlayout|serverPlayoutStore|playoutSlots)\.ts$/,
+    ['bridge-connect.spec.ts', 'playout-cues.spec.ts', 'playout-baseline.spec.ts'],
+  ],
   [/^src\/components\/(SettingsDialog|BridgePairPage)\.tsx$/, ['bridge-connect.spec.ts']],
   // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is
   // named here rather than left to the components/home rule above: that rule's set does not
   // include this spec, and the ONE button is the whole browser half of the feature.
-  [/^src\/components\/home\/(ProductionPage|ProductionLinks)\.tsx$/, ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
+  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS}|ProductionLinks)\\.tsx$`), ['bridge-connect.spec.ts', 'playout-cues.spec.ts']],
   // The dashboard's fixed shell: the control area is the one scroller and the monitors and the
   // rundown sit beside it (docs/PLAYOUT_DASHBOARD.md §2). The stylesheet half is CORE and reaches
   // the spec through the FOCUS list; the exported controller carries its own copy of the shell,
   // which the spec's third surface drives. `HostedControlPage.tsx` is deliberately NOT here: its
   // DOM needs a configured backend, so no offline spec can mount it, and its copy of the wrapper
   // is held by the parity contract (docs/CONTROL_PANEL_PARITY.md) instead.
-  [/^src\/components\/home\/ProductionPage\.tsx$/, ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
+  [new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`), ['playout-fixed-panes.spec.ts', 'playout-nav.spec.ts']],
   // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
   // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
   // header door and the Back/Home pair beside it.
   [
     /^src\/(components\/(PlayoutSettingsDialog|PlayoutSettingsPanel)\.tsx|control\/playoutSystems\.ts)$/,
-    ['bridge-connect.spec.ts', 'playout-nav.spec.ts'],
+    ['bridge-connect.spec.ts', 'playout-nav.spec.ts', 'playout-baseline.spec.ts'],
   ],
   [/^src\/control\/productionControllerHtml\.ts$/, ['playout-fixed-panes.spec.ts']],
   // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
@@ -640,7 +652,7 @@ const MAP = [
   // escalation and reading as covered by everything in general.
   [
     /^src\/components\/NewGraphicButton\.tsx$/,
-    ['project.spec.ts', 'library.spec.ts', 'control.spec.ts', 'productions.spec.ts', 'wizard-kit.spec.ts'],
+    ['project.spec.ts', 'library.spec.ts', 'control.spec.ts', 'productions.spec.ts', 'wizard-kit.spec.ts', 'playout-baseline.spec.ts'],
   ],
   // THE SURFACES THE OLD EDITOR'S SPECS WERE MOVED ONTO (2026-09-25). Those specs used to stand
   // in the old code editor to reach an export, a production or the save dialog; they now open the
@@ -652,7 +664,7 @@ const MAP = [
     ['exports.spec.ts', 'control.spec.ts', 'local-relay.spec.ts', 'ograf-conformance.spec.ts', 'render.spec.ts', 'template-pack-10.spec.ts', 'template-pack-4.spec.ts', 'production-controls.spec.ts'],
   ],
   [
-    /^src\/components\/home\/ProductionPage\.tsx$/,
+    new RegExp(`^src/components/home/(${PRODUCTION_PAGE_PARTS})\\.tsx$`),
     ['bridge-connect.spec.ts', 'cross-tab.spec.ts', 'playout-cues.spec.ts', 'playout-drills.spec.ts', 'production-audience.spec.ts', 'production-chat-intake.spec.ts', 'production-controls.spec.ts', 'production-data.spec.ts', 'productions.spec.ts', 'quiz-pilot.spec.ts'],
   ],
   [
@@ -875,6 +887,13 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null } = {
     if (/^e2e\/[^/]+\.spec\.ts$/.test(file)) {
       const name = file.replace(/^e2e\//, '');
       if (!onDisk || onDisk.has(name)) specs.add(name); // a deleted spec has nothing left to run
+      continue;
+    }
+    // A spec's screenshot baselines (`<name>.spec.ts-snapshots/`) are that spec's own input: a
+    // re-recorded picture runs the spec that compares against it, and nothing else.
+    const baselineOf = /^e2e\/([^/]+\.spec\.ts)-snapshots\//.exec(file)?.[1];
+    if (baselineOf) {
+      if (!onDisk || onDisk.has(baselineOf)) specs.add(baselineOf);
       continue;
     }
     if (CORE.some((r) => r.test(file))) {
