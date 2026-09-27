@@ -1,11 +1,11 @@
-// The hero entrance - one choreographed timeline, about 1.5s to settled. Order tells the
-// story: brand first, headline (masked line reveals), supporting copy, the CTAs, then the
-// program monitor.
+// The hero entrance — one choreographed timeline, ~1.6s to settled. Order tells the
+// product story: brand first, headline (masked line reveals), supporting copy, CTAs,
+// export chips, and finally the live editor demo landing like a graphic taking air.
 // Beats overlap so it reads as one move, not a slideshow.
 import { gsap } from './gsap';
 import { EASE } from './lang';
 
-export function runHeroEntrance(): void {
+export function runHeroEntrance(onDemoLanded: () => void): void {
   const tl = gsap.timeline({ defaults: { ease: EASE.reveal } });
 
   tl
@@ -43,11 +43,19 @@ export function runHeroEntrance(): void {
       { y: 0, opacity: 1, duration: 0.5, stagger: 0.07 },
       0.72,
     )
-    // The program monitor lands last, like a graphic taking air.
     .fromTo(
-      '.pgm',
-      { y: 20, scale: 0.97, opacity: 0 },
-      { y: 0, scale: 1, opacity: 1, duration: 0.9, ease: EASE.major },
-      0.6,
-    );
+      '.platforms > *',
+      { y: 10, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.45, stagger: 0.035 },
+      0.86,
+    )
+    // The showcase monitor lands last: subtle scale-up, the biggest surface on screen.
+    .fromTo(
+      '.showcase',
+      { y: 26, scale: 0.97, opacity: 0 },
+      { y: 0, scale: 1, opacity: 1, duration: 1.0, ease: EASE.major },
+      0.95,
+    )
+    // Start the graphics loop just as the panel settles, so it goes on air seamlessly.
+    .call(onDemoLanded, undefined, 1.45);
 }
