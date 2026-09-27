@@ -425,8 +425,8 @@ test('the video card is greyed and says in words that it is not recommended yet'
   expect(tone.video.fill).toBe('rgba(0, 0, 0, 0)');
 
   // Offline nothing is gated, so the greyed door still opens: greyed is "not yet", not broken.
-  // Signed out (configured builds) the same button is `disabled` and its hint adds
-  // "Sign in to try it." - the configured suite's anonymous visitor is where that state lives.
+  // Known signed out (configured builds) the same button opens the sign-in dialog instead and
+  // its hint adds "Sign in to try it."; while auth is still loading it behaves as signed in.
   await expect(card).toBeEnabled();
   await expect(card.locator('.hint')).not.toContainText('Sign in');
 });
@@ -451,6 +451,17 @@ test('New production from a fresh profile opens an empty production, ready to ad
   expect(shows).toHaveLength(1);
   expect(shows[0]).toMatchObject({ name: 'Untitled production', graphics: 0 });
   expect(page.url()).toContain(shows[0].id);
+
+  // It SURVIVES A RELOAD. The door waits for the durable write like every other create path,
+  // so the production the page just opened is still there, and still this one, after a reload.
+  await page.reload();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  await expect(page.getByText('No cues yet.')).toBeVisible();
+  const afterReload = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().map((s) => s.id);
+  });
+  expect(afterReload).toEqual([shows[0].id]);
 });
 
 test('Open Playout goes to the productions list with none, and to the last used production', async ({ page }) => {

@@ -124,9 +124,6 @@
 .wz-entry-wrap .wz-entry .wz-entry-card--muted strong { color: var(--text-dim); }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted .hint { color: var(--text-faint); }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted:hover { border-color: var(--border-strong); }
-/* Disabled (signed out) it is the same greyed card, not a second, fainter state: the card
-   already reads as unavailable, and base.css's 0.45 opacity would make its reason unreadable. */
-.wz-entry-wrap .wz-entry .wz-entry-card--muted:disabled { opacity: 1; cursor: not-allowed; border-color: var(--border); }
 
 /* A laptop narrower than the four-column measure (a 1024px window, a split screen) goes back
    to two by two rather than squeezing four titles onto two lines each. */

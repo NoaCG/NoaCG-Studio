@@ -1821,11 +1821,20 @@ export default function CreationWizard() {
                     last ? { view: 'production', id: last.id } : { view: 'home', section: 'productions' },
                   );
                 }}
-                onNewProduction={() => {
+                onNewProduction={async () => {
                   // The same create Home's "New production" card runs, unnamed, so it takes the
-                  // model's own "Untitled production" floor. A failed write has no production to
-                  // open, so it lands on the list, which shows what is actually saved.
-                  const { show, error } = createShowNamedChecked('');
+                  // model's own "Untitled production" floor, and it waits for the durable write
+                  // like every other create path so the production survives a reload. A failed
+                  // write says so and lands on the list, which shows what is actually saved.
+                  const { show, error: written } = createShowNamedChecked('');
+                  const error = written ?? (await commitDurableWrites());
+                  if (error) {
+                    raiseStorageAlert({
+                      action: `Creating the production “${show.name}”`,
+                      error,
+                      outcome: 'Nothing was added. Free some room, then press “New production” again.',
+                    });
+                  }
                   closeGallery();
                   useRouter.getState().navigate(
                     error ? { view: 'home', section: 'productions' } : { view: 'production', id: show.id },

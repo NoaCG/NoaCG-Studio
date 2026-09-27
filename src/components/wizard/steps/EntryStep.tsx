@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
+import { useAuthUi } from '../../auth/authUi';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -49,7 +50,8 @@ export default function EntryStep({
   onOpenPlayout,
   onNewProduction,
 }: Props) {
-  const { signedIn } = useAuthState();
+  const { needsSignIn } = useAuthState();
+  const openSignIn = useAuthUi((s) => s.openSignIn);
   /** Is there anything to continue? Home holds graphics, productions and videos, so any of
    *  them counts. On a first-ever visit there is nothing, and offering the loudest card on
    *  the screen as a door to an empty room is a false lead - creation leads instead. */
@@ -178,10 +180,11 @@ export default function EntryStep({
         </button>
         {/* THE VIDEO DOOR IS GREYED, NOT HIDDEN (owner, 2026-09-27). It makes a rendered FILE in
             the separate Video workspace, not a live graphic, and it is not ready to recommend.
-            It keeps its place so nobody wonders where it went, and it is closed to a signed-out
-            visitor, who is told why in the card itself because a disabled button shows no
-            tooltip. `signedIn` is true offline, where nothing is gated, and false while a
-            configured session is still resolving.
+            It keeps its place so nobody wonders where it went. A visitor we KNOW is signed out
+            (`needsSignIn`, never true offline or while a session is still resolving) cannot
+            enter the Video workspace: pressing the card opens the sign-in dialog instead, so
+            "Sign in to try it." is a door and not a disabled dead end. While auth is loading
+            the card behaves as signed in, and VideoStep keeps its own sign-in gate.
             ITS ACCESSIBLE NAME IS THE MODE'S FULL NAME, "Video or animation with AI", the name
             the Video step, the Videos section and the video specs use; the visible title drops
             "with AI" only because four titles share one laptop row. The note stays announced
@@ -189,8 +192,7 @@ export default function EntryStep({
             (scripts/landing-shots.mjs crops by it). */}
         <button
           className="wz-entry-card wz-entry-card--muted wz-entry-card--video"
-          onClick={onVideo}
-          disabled={!signedIn}
+          onClick={needsSignIn ? () => openSignIn('Sign in to try video or animation with AI.') : onVideo}
           aria-label="Video or animation with AI"
           aria-describedby="wz-video-note"
           data-entry="video"
@@ -201,7 +203,7 @@ export default function EntryStep({
           </span>
           <span className="hint" id="wz-video-note">
             Not recommended yet. It renders a video file, not a live graphic.
-            {!signedIn && ' Sign in to try it.'}
+            {needsSignIn && ' Sign in to try it.'}
           </span>
         </button>
       </div>
