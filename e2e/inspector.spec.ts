@@ -319,8 +319,10 @@ test('filter track: every keyframe keeps the same shape, so the runtime really i
   expect(brightness).toBeGreaterThan(1);
   expect(brightness).toBeLessThan(2);
 
-  // The editor no longer steps: it reports an in-between too (linear vs the preview's eased
-  // curve, which is the documented contract — they agree exactly at keyframe times).
-  expect(result.midEditor).toContain('blur(6px)');
-  expect(result.midEditor).toContain('brightness(1.5)');
+  // The editor no longer steps, and it reads the SAME eased in-between the runtime renders: both
+  // evaluate the step's ease through the shared ease source (templates/shared/easeRuntime.ts).
+  const editorNums = (result.midEditor.match(/-?[\d.]+/g) ?? []).map(Number);
+  expect(editorNums).toHaveLength(2);
+  expect(Math.abs(editorNums[0] - blur)).toBeLessThan(0.01);
+  expect(Math.abs(editorNums[1] - brightness)).toBeLessThan(0.01);
 });

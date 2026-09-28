@@ -139,8 +139,8 @@ export function setKeyframe(
  * the sampled value and eases in with the first part of the curve, and the segment's destination
  * key eases in with the rest (`slice(E, 0, s)` and `slice(E, s, 1)`, templates/shared/easeRuntime.ts).
  * Neither half relies on the step default, and no other key changes. Stored values keep the
- * serializer's 3 decimals, so the result is exact to one stored unit, and checked against the
- * editor's own sampling. Anything without an exact form throws with the reason; `data` is never
+ * serializer's 3 decimals, so a split is exact to one stored unit and refused where that rounding
+ * would move the curve further. Anything without an exact form throws with the reason; `data` is never
  * mutated, so a caller's source and history stay as they were.
  */
 export function splitKeyframeSegment(data: AnimData, stepIndex: number, selector: string, prop: string, time: number): AnimData {
@@ -152,6 +152,11 @@ export function splitKeyframeSegment(data: AnimData, stepIndex: number, selector
   if (step.loops?.[selector]?.[prop]) throw new Error('A looping track keeps its cycle and is not split. Its source is preserved.');
   const from = keys[at - 1], to = keys[at], ease = to.ease || step.ease;
   if (typeof from.value !== 'number' || typeof to.value !== 'number') throw new Error('Only numeric tracks split exactly. Its source is preserved.');
+  // An Out that interrupts the entrance tweens straight to the last exit key with THAT key's ease
+  // (noacgBuildExit), so rewriting it would change the interrupted exit.
+  if (stepIndex > 0 && stepIndex === data.steps.length - 1 && at === keys.length - 1) {
+    throw new Error('The last exit segment also shapes an interrupted Out, so it is not split. Its source is preserved.');
+  }
   const next = clone(data), edited = next.steps[stepIndex].layers[selector][prop];
   const destination = edited[track.indexOf(to)];
   // A flat segment is constant under any ease, so its split is exact whatever the curve.
@@ -162,19 +167,22 @@ export function splitKeyframeSegment(data: AnimData, stepIndex: number, selector
     if (!curve || parseEase(ease)?.kind === 'steps') throw new Error(`The ease "${ease}" has no exact split form yet. Its source is preserved.`);
     const s = (t - from.time) / (to.time - from.time), progress = curve(s);
     if (!(Math.abs(progress) >= 1e-9 && Math.abs(1 - progress) >= 1e-9)) throw new Error(SAME_VALUE);
-    const value = round(from.value + (to.value - from.value) * progress), range = BOUNDED_RANGES[prop];
+    const exact = from.value + (to.value - from.value) * progress, value = round(exact), range = BOUNDED_RANGES[prop];
     if (range && (value < range[0] || value > range[1])) {
       throw new Error('At that moment the curve is outside the range this property can show, so no key can hold the split value. Its source is preserved.');
     }
+    // Storing `value` instead of `exact` moves the left half by (value - exact) * E(x) / E(s) and
+    // the right half by (value - exact) * (1 - E(x)) / (1 - E(s)). Where the curve rescales by a
+    // tiny span that amplifies the rounding past one stored unit, so the split is refused.
+    let reach = 0;
+    for (let i = 1; i <= 4000; i++) {
+      reach = Math.max(reach, Math.abs(curve(s * i / 4000) / progress), Math.abs((1 - curve(s + (1 - s) * i / 4000)) / (1 - progress)));
+    }
+    if (!(Math.abs(value - exact) * reach <= 0.001)) throw new Error('This split cannot be stored exactly at the saved precision. Its source is preserved.');
     edited.push({ time: t, value, ease: sliceEase(ease, 0, s) });
     destination.ease = sliceEase(ease, s, 1);
   }
   edited.sort((a, b) => a.time - b.time);
-  for (let i = 0; i <= 200; i++) {
-    const sample = from.time + (to.time - from.time) * i / 200;
-    const before = resolveValue(data, selector, prop, stepIndex, sample), after = resolveValue(next, selector, prop, stepIndex, sample);
-    if (!(Math.abs(Number(after) - Number(before)) <= 0.001)) throw new Error('This split cannot be stored exactly at the saved precision. Its source is preserved.');
-  }
   return next;
 }
 

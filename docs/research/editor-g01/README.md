@@ -18,13 +18,23 @@ Measured against the bundled GSAP 3.15.0 (`src/assets/gsap.min.js`) in Node.
 
 | # | Divergence | Evidence |
 |---|---|---|
-| 1 | `cubic-bezier(...)` is not a GSAP ease. A tween given it silently plays GSAP's default `power1.out` (0.75 at 50%). The interpreter passes key eases to GSAP as raw strings. | `gsap.parseEase` returns undefined; tween reads 64.0 at 40% where the bezier is elsewhere |
-| 2 | The editor sampler `resolveValue` interpolates linearly. X -80 to 0 with `power2.out` reads -40 at 50%; the runtime shows -10. | `src/blocks/animEval.ts`; earlier probe in the 2026-09-17 baseline supplement |
-| 3 | Out reversal maps `steps(1)` to `steps(1,true)`. GSAP's `steps(1)` jumps at 50% and `steps(1,true)` is at its end value from the first frame, so the reversed exit is wrong by the whole move. | max error 1 over 205,098 samples |
-| 4 | Out reversal refuses `back`, `bounce`, `elastic` and `cubic-bezier` entrances although exact mirrors exist. | `mirrorEase` accepts only power/sine/expo/circ |
+| 1 | `cubic-bezier(...)` is not a GSAP ease. `gsap.parseEase` returns undefined and a tween given it silently plays GSAP's default `power1.out`. The interpreter handed every key ease to GSAP as a raw string. | Node probe; `j-2282` below |
+| 2 | The editor sampler `resolveValue` interpolated linearly. X -80 to 0 with `power2.out` read -40 at 50%; the runtime shows -10. | Node test before the fix; `j-2283` below |
+| 3 | Out reversal mapped `steps(1)` to `steps(1,true)`. GSAP's `steps(1)` jumps at 50% and `steps(1,true)` is at its end value from the first frame, so the reversed exit was wrong by the whole move. | max error 1 over 205,098 samples; `j-2283` below |
+| 4 | Out reversal refused `back`, `bounce`, `elastic` and `cubic-bezier` entrances although exact mirrors exist. | `j-2282` below |
 | 5 | Inserting a key inside an eased segment changes the curve: the new key inherits the step default and the next key's ease runs over a shorter span. | `setKeyframe` in `src/blocks/animEdit.ts` |
 
-Items 1 and 3 are reproduced again in executable form by the first queued browser run below.
+The focused browser spec [editor-ease.spec.ts](../../../e2e/editor-ease.spec.ts) was written
+first and queued on the unmodified product code:
+
+- `j-2282`: all 18 tests failed. In the simulator, SPX, CasparCG, OGraf and single-file
+  export, all eight key eases of the fixture reached GSAP as strings, including
+  `cubic-bezier(0.3,-0.4,0.6,1.5)`. Reversal of back/bounce/elastic/bezier/slice entrances
+  refused, the split capability and the interpreter upgrade did not exist, and the editor's
+  Yes, reverse left the source unchanged for the same entrance.
+- `j-2283`: editor sampling differed from the executed simulator by up to 269.4 px on X, and
+  a `steps(1)` entrance reversed into an exit that differed from the mirrored entrance by
+  899.998 px (the whole move).
 
 ## Decisions
 
@@ -66,7 +76,7 @@ Items 1 and 3 are reproduced again in executable form by the first queued browse
 | Split at 40% | Dense samples, endpoints and left/right boundary velocities agree before and after in editor sampling, simulator and executable exports. Neighbouring key sides and the step default are unchanged. | Equal-endpoint slice with motion between, stepped or unrecognized ease, looping or non-numeric track, time not strictly inside a segment, bounded value outside 0..1, or a result outside one quantum. |
 | Reversal | Named `.in`/`.out` pairs, back, bounce, elastic, cubic-bezier and slice reverse exactly; Out at time u equals In at end - u densely in simulator and exports; ease ownership moves to the reversed destination key. | Stepped and unrecognized eases refuse with the existing message. |
 | Piecewise and bounds | Bounce/back peaks and overshoot survive split and reversal; opacity is clamped identically in sampler and runtime; flat (equal-endpoint) segments split exactly. | As above. |
-| Upgrade and pairing | A pre-G01 saved graphic upgrades once in preview, save and export and plays new forms correctly. | Custom interpreter: write refused, export blocked by validation. |
+| Upgrade and pairing | A pre-G01 saved graphic upgrades once in preview, save and every package export and plays new forms correctly. If it already carries a cubic-bezier or slice key, validation asks for one save first, because the video render path does not upgrade. | Custom interpreter: write refused, export blocked by validation. |
 | Preserved behaviour | Set Out still refuses before the last In key. R1.1b numeric keys and body moves, R1.1c Out and interruption, R1.1d nested identities and trims, speed, FPS, save/reopen and export parity all pass their existing regressions. | Unchanged. |
 
 Non-goals: Step/Next, cross-cue authoring, ease or multi-key UI, a Hold key form, graph

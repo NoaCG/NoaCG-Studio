@@ -227,7 +227,9 @@ export function sliceEase(text: string, from: number, to: number): string {
   const base = e.kind === 'slice' ? e.base : e;
   const a = e.kind === 'slice' ? e.from + (e.to - e.from) * from : from;
   const b = e.kind === 'slice' ? e.from + (e.to - e.from) * to : to;
-  if (a === 0 && b === 1) return base.text;
+  // Any part of a straight line, rescaled, is the same line: no slice, no runtime requirement.
+  const straight = base.kind === 'none' || base.kind === 'family' && (base.name === 'linear' || base.name === 'power0');
+  if (straight || a === 0 && b === 1) return base.text;
   const curve = easeCurve(base.text)!, result = `slice(${base.text},${written(a)},${written(b)})`;
   // Ends that meet (or all but meet, where rescaling would amplify rounding) carry no motion.
   if (!(Math.abs(curve(b) - curve(a)) >= 1e-9) || !parseEase(result)) throw new Error(SAME_VALUE);

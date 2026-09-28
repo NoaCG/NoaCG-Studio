@@ -1,4 +1,4 @@
-// guards: src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts, src/blocks/animEval.ts, src/blocks/animEdit.ts, src/blocks/editorOut.ts, src/assets/gsap.min.js
+// guards: src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/blocks/animEval.ts, src/blocks/animEdit.ts, src/blocks/filterTrack.ts, src/blocks/editorOut.ts, src/model/contentHash.ts, src/assets/gsap.min.js, e2e/fixtures/interpreter-pre-g01.js
 //
 // G01 SHARED EASING, THE MATHEMATICS. One ease grammar is emitted into every template's
 // interpreter and compiled by the editor (src/templates/shared/easeRuntime.ts). This pins what
@@ -31,7 +31,7 @@ async function load(entry) {
 
 const ease = await load('src/templates/shared/easeRuntime.ts');
 const { resolveValue } = await load('src/blocks/animEval.ts');
-const { splitKeyframeSegment } = await load('src/blocks/animEdit.ts');
+const { splitKeyframeSegment, setFilterComponent } = await load('src/blocks/animEdit.ts');
 const runtime = await load('src/templates/shared/animRuntime.ts');
 
 // The bundled GSAP, as every export ships it. Its UMD wrapper fills `exports`.
@@ -130,6 +130,8 @@ test('a slice is the rescaled part of its ease, and flattens rather than nests',
     assert.equal(part(0), 0); assert.equal(part(1), 1);
   }
   assert.equal(ease.sliceEase('slice(expo.out,0.2,0.7)', 0, 0.4), 'slice(expo.out,0.2,0.4)');
+  // Part of a straight line is the same line: no slice, so no runtime requirement.
+  for (const text of ['none', 'linear', 'linear.in', 'power0.inOut']) assert.equal(ease.sliceEase(text, 0.4, 1), text);
   assert.equal(ease.sliceEase('power2.out', 0, 1), 'power2.out');
   assert.throws(() => ease.sliceEase('steps(4)', 0, 0.4), /no exact split form/);
   assert.throws(() => ease.sliceEase('customEase', 0, 0.4), /no exact split form/);
@@ -164,6 +166,12 @@ test('the editor sampler reads the eased, clamped value the runtime renders', ()
   const peak = Math.max(...GRID.map(p => sample(data, 'opacity', p)));
   assert.equal(peak, 1);
   assert.ok(0 + 1 * gsap.parseEase('back.out(1.6)')(0.5) > 1, 'the unclamped curve does overshoot');
+  // A back ease overshoots a filter's blur below zero mid-curve; composing another function there
+  // carries the blur at the smallest value CSS accepts, never a negative one it would drop.
+  const filtered = { version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration: 1, ease: 'back.out(1.7)', layers: { '#a': { filter: [{ time: 0, value: 'blur(8px)' }, { time: 1, value: 'blur(0px)' }] } } }] };
+  assert.match(String(resolveValue(filtered, '#a', 'filter', 0, 0.7)), /blur\(-/, 'the eased reading does overshoot');
+  const composed = setFilterComponent(filtered, 0, '#a', 'brightness', 1.3, 0.7).steps[0].layers['#a'].filter.find(k => k.time === 0.7).value;
+  assert.equal(composed, 'blur(0px) brightness(1.3)');
   // Unrecognized strings keep the legacy linear reading for display.
   const legacy = { ...probe, steps: [{ ...probe.steps[0], layers: { '#a': { x: [{ time: 0, value: -80 }, { time: 1, value: 0, ease: 'Power2.easeOut' }] } } }] };
   assert.equal(resolveValue(legacy, '#a', 'x', 0, 0.5), -40);
@@ -202,6 +210,24 @@ test('a split at 40 percent keeps samples, endpoints, boundary velocity and neig
   }
 });
 
+test('every split it accepts stays within one stored quantum, short halves included', () => {
+  let accepted = 0;
+  for (const [ease, from, to, duration] of [['elastic.out(1.5, 0.15)', -1920, 1920, 5], ['back.out(1.6)', 0, 100, 1], ['bounce.out', -900, 0, 2], ['cubic-bezier(0.3,-0.4,0.6,1.5)', 0, 360, 1.5], ['expo.inOut', 0.5, 1, 1]]) {
+    const data = { version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration, ease: 'none', layers: { '#a': { x: [{ time: 0, value: from }, { time: duration, value: to, ease }] } } }] };
+    for (let i = 1; i < 125; i++) {
+      const at = Math.round(duration * i / 125 * 1000) / 1000;
+      let split;
+      try { split = splitKeyframeSegment(data, 0, '#a', 'x', at); } catch { continue; }
+      accepted++;
+      for (let j = 0; j <= 4000; j++) {
+        const t = duration * j / 4000;
+        assert.ok(Math.abs(resolveValue(split, '#a', 'x', 0, t) - resolveValue(data, '#a', 'x', 0, t)) <= 0.001, `${ease} split at ${at}: sample ${t}`);
+      }
+    }
+  }
+  assert.ok(accepted > 500, `most splits are accepted (${accepted})`);
+});
+
 test('splits refuse atomically where no exact form exists, and a flat segment always splits', () => {
   const refuse = (mutate, prop, at, pattern) => {
     const data = fixture(); mutate(data);
@@ -222,6 +248,14 @@ test('splits refuse atomically where no exact form exists, and a flat segment al
   refuse(() => {}, 'z', 0.4, /strictly inside/);
   refuse(d => { d.steps[0].loops = { '#box': { x: { repeat: -1 } } }; }, 'x', 0.32, /loop/i);
   refuse(d => { box(d).filter = [{ time: 0, value: 'blur(0px)' }, { time: 1, value: 'blur(8px)', ease: 'power2.out' }]; }, 'filter', 0.4, /numeric/i);
+  // Just before back.out first crosses its end value, the rest of the curve rescales by a tiny
+  // span, so the stored key's rounding would show: refused rather than stored inexactly.
+  refuse(d => { box(d).x = [{ time: 0, value: 0 }, { time: 1, value: 100, ease: 'back.out(1.6)' }]; }, 'x', 0.36, /saved precision/);
+  // An interrupted Out tweens to the last exit key with that key's ease alone.
+  const exit = d => { d.steps[1].duration = 1; d.steps[1].layers = { '#box': { x: [{ time: 0, value: 0 }, { time: 0.5, value: -300, ease: 'power2.in' }, { time: 1, value: -900, ease: 'expo.in' }] } }; };
+  const withExit = fixture(); exit(withExit);
+  assert.throws(() => splitKeyframeSegment(withExit, 1, '#box', 'x', 0.8), /interrupted Out/);
+  assert.equal(splitKeyframeSegment(withExit, 1, '#box', 'x', 0.2).steps[1].layers['#box'].x.length, 4, 'earlier exit segments still split');
   // A flat segment is constant under ANY ease, so its split is exact even for an unrecognized one.
   const flat = fixture();
   box(flat).y = [{ time: 0, value: 5 }, { time: 1, value: 5, ease: 'customEase' }];

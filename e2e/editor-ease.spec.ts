@@ -1,4 +1,4 @@
-// covers: src/templates/shared/{easeRuntime,animRuntime}.ts
+// covers: src/templates/shared/{easeRuntime,animRuntime,animRuntimeLegacy}.ts
 // covers: src/blocks/{animEval,animEdit,editorOut,animMigration,editorAnimation,animData}.ts
 // covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js
 //
@@ -106,8 +106,9 @@ const TOLERANCE = [2e-3, 2e-3, 2e-3, 2e-3, 2e-3];
 function near(actual: Pose[], expected: Pose[], label: string, tolerance = TOLERANCE) {
   let worst = { error: 0, at: -1, prop: '' };
   actual.forEach((pose, i) => pose.forEach((v, p) => {
+    // A NaN on either side is a failure, never a pass.
     const error = Math.abs(v - expected[i][p]) - tolerance[p];
-    if (error > worst.error) worst = { error, at: i, prop: PROPS[p] };
+    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: PROPS[p] };
   }));
   expect(worst, `${label}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
 }
@@ -121,7 +122,8 @@ for (const target of TARGETS) test('editor sampling equals the executed runtime 
     return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
   }, { data, times });
   const run = await execute(page, await template(page, data), target, times, [0], [2, 1]);
-  expect.soft(run.handed, 'every recognized ease reaches GSAP as the shared function').toEqual(Array(run.handed.length).fill('function'));
+  expect(run.handed.length, 'the fixture tweens reached GSAP').toBe(8);
+  expect.soft(run.handed, 'every recognized ease reaches GSAP as the shared function').toEqual(Array(8).fill('function'));
   near(run.entering, reference, target);
 });
 
@@ -243,23 +245,35 @@ test('a saved pre-G01 interpreter upgrades to play exact eases; a custom one blo
   const legacy = readFileSync(new URL('./fixtures/interpreter-pre-g01.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const data = entrance();
   const t = await template(page, data);
+  // Played, not just read: the preview and an exported package of the OLD saved source upgrade
+  // it on the way out and play the cubic-bezier and every other key as the editor samples them.
+  const times = grid(2, .05);
+  const reference = await page.evaluate(async ({ data, times }) => {
+    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
+  }, { data, times });
+  const saved = await page.evaluate(async ({ js, legacy }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => legacy), { js: t.js, legacy });
+  expect(saved).not.toContain('function noacgEase(');
+  for (const target of ['simulator', 'spx']) near((await execute(page, { ...t, js: saved }, target, times, [0], [2, 1])).entering, reference, 'pre-G01 source in ' + target);
   const result = await page.evaluate(async ({ t, legacy }) => {
     const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
     const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
     const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
-    const old = t.js.replace(ANIM_INTERPRETER_JS, legacy);
+    const old = t.js.replace(ANIM_INTERPRETER_JS, () => legacy);
     const custom = old.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;');
     const data = parseAnimData(old)!;
     const upgraded = prepareOutRuntime(old), written = writeAnimData(old, data), refused = writeAnimData(custom, data);
+    const ease = (js: string) => validateTemplate({ ...t, js }).errors.filter(e => e.rule === 'ease').map(e => e.message);
     return {
       replaced: old !== t.js, upgraded: upgraded.includes(ANIM_INTERPRETER_JS), written: !!written && written.includes(ANIM_INTERPRETER_JS),
+      once: prepareOutRuntime(upgraded) === upgraded, saveFirst: ease(old).some(m => m.includes('Save the graphic once')),
       refused, customKept: prepareOutRuntime(custom) === custom,
       blocked: validateTemplate({ ...t, js: custom }).errors.some(e => e.rule === 'ease'),
       current: validateTemplate(t).errors.filter(e => e.rule === 'ease').map(e => e.message),
     };
   }, { t, legacy });
-  expect(result).toEqual({ replaced: true, upgraded: true, written: true, refused: null, customKept: true, blocked: true, current: [] });
+  expect(result).toEqual({ replaced: true, upgraded: true, written: true, once: true, saveFirst: true, refused: null, customKept: true, blocked: true, current: [] });
 });
 
 test('Set Out reverse in the editor writes mirrored destination eases as one undo', async ({ page }) => {
