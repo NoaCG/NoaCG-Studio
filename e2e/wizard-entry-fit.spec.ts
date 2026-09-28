@@ -3,6 +3,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { contrastRatio, parseCssColor } from '../src/model/cssVars';
+import { evaluateInPage } from './_evaluate';
 
 // The Entry step's HEIGHT BUDGET. Step 0 is the app's first screen, and it has to fit a
 // short laptop window whole: `.wz-hero` carries the comment "every vertical margin here is
@@ -189,8 +190,8 @@ test('the phone reads top to bottom: four equal cards, then the Playout row', as
 
   // The four-column row is a DESKTOP measure. On a phone the same four cards stack in the same
   // order, one size, each title on ONE line with its icon leading it - a wrapped title is what
-  // turned these cards into screen-tall ragged blocks before - and the Playout row closes the
-  // column with both actions side by side.
+  // turned these cards into screen-tall ragged blocks before - and the Run the show card closes
+  // the column, stacked like the Home row: its copy, then New production full width under it.
   const layout = await page.evaluate(() => {
     const cards = [...document.querySelectorAll<HTMLElement>('.wz-entry .wz-entry-card')].map((el) => {
       const r = el.getBoundingClientRect();
@@ -213,7 +214,8 @@ test('the phone reads top to bottom: four equal cards, then the Playout row', as
       playoutTop: Math.round(playout.top),
       playoutLeft: Math.round(playout.left),
       playoutWidth: Math.round(playout.width),
-      actionsSideBySide: Math.abs(open.top - create.top) < 1 && open.right <= create.left + 0.5,
+      newProductionUnderCopy:
+        create.top >= open.bottom - 0.5 && Math.abs(create.width - open.width) < 1,
     };
   });
   const { cards } = layout;
@@ -226,11 +228,11 @@ test('the phone reads top to bottom: four equal cards, then the Playout row', as
     expect(c.titleHeight, `${c.entry}: title wrapped`).toBeLessThan(c.titleLineHeight * 1.6);
     expect(c.iconRight, `${c.entry}: icon before title`).toBeLessThanOrEqual(c.titleLeft);
   }
-  // The Playout row comes after the last card and is flush with the column.
+  // Run the show comes after the last card and is flush with the column.
   expect(layout.playoutTop).toBeGreaterThan(cards[3].bottom);
   expect(layout.playoutLeft).toBe(cards[0].left);
   expect(layout.playoutWidth).toBe(cards[0].width);
-  expect(layout.actionsSideBySide).toBe(true);
+  expect(layout.newProductionUnderCopy).toBe(true);
 });
 
 // ── WHAT THE STEP SAYS (re-design/handoff.md §2a) ───────────────────────────────────────
@@ -271,6 +273,22 @@ test('the hero intro is the owner copy: make graphics, then every route to air a
   await expect(hero.locator('svg, img')).toHaveCount(0);
   await expect(page.locator('.wz-header .brand-home')).toBeVisible();
 });
+
+/** What a CSS value resolves to, read off a throwaway element rather than a real control, whose
+ *  transitioned border or fill could be sampled mid-fade. */
+function resolveToken(page: Page, property: string, value: string) {
+  return page.evaluate(
+    ([p, v]) => {
+      const probe = document.createElement('div');
+      probe.style.setProperty(p, v);
+      document.body.append(probe);
+      const resolved = getComputedStyle(probe).getPropertyValue(p);
+      probe.remove();
+      return resolved;
+    },
+    [property, value],
+  );
+}
 
 /** Land on the Entry step with the Home row showing. The row appears only when there IS saved
  *  work - a first-ever visit gets no door to an empty room - so seed one graphic and reload. */
@@ -342,20 +360,8 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
   // mid-fade: this spec first asked the hovered card and got `rgb(235,160,36)` on its way to
   // `rgb(246,166,35)`, and then held every later assertion to the wrong colour. No literal is
   // written down either way, so a repaint of the palette moves the test with it.
-  const token = (property: string, value: string) =>
-    page.evaluate(
-      ([p, v]) => {
-        const probe = document.createElement('div');
-        probe.style.setProperty(p, v);
-        document.body.append(probe);
-        const resolved = getComputedStyle(probe).getPropertyValue(p);
-        probe.remove();
-        return resolved;
-      },
-      [property, value],
-    );
-  const amber = await token('border-color', 'var(--accent)');
-  const fill = await token('background-color', 'var(--bg-2)');
+  const amber = await resolveToken(page, 'border-color', 'var(--accent)');
+  const fill = await resolveToken(page, 'background-color', 'var(--bg-2)');
 
   const IDENTITY = ['none', 'matrix(1, 0, 0, 1, 0, 0)'];
   const resting = await styleOf('.wz-continue-row');
@@ -432,6 +438,102 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
       }),
     )
     .toEqual({ border: amber, background: fill, outline: 'none' });
+});
+
+test('Run the show is a card you press, on the Home row chassis, and still fits 1366x768', async ({ page }) => {
+  // The owner (2026-09-28): "Run the show" was a text row with two small buttons beside four
+  // cards you press, which broke the screen. It is now the Home row's pressable card: the body
+  // opens the latest production and NAMES it, New production is a sibling button beside it.
+  // Seeded with saved work AND a production whose name is long enough to need the ellipsis, the
+  // heaviest the step gets: Home row, four cards and this card must all still fit.
+  await entryWithSavedWork(page);
+  await evaluateInPage(page, async () => {
+    const { createShowNamedChecked } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    createShowNamedChecked('Friday night studio magazine with the regional news and the weather after it');
+    await commitDurableWrites();
+  });
+  await page.goto('/app');
+  await expect(page.locator('[data-entry="open-playout"]')).toContainText('your latest production');
+  expect(await stepOverflowPx(page)).toBe(0);
+
+  const shape = await page.evaluate(() => {
+    const home = document.querySelector('[data-testid="wz-continue"] .wz-continue-row')!;
+    const run = document.querySelector('[data-testid="wz-playout"]')!;
+    const look = (el: Element) => {
+      const cs = getComputedStyle(el);
+      return {
+        border: `${cs.borderTopWidth} ${cs.borderTopStyle} ${cs.borderTopColor}`,
+        radius: cs.borderTopLeftRadius,
+        background: cs.backgroundColor,
+        padding: cs.padding,
+        height: Math.round(el.getBoundingClientRect().height),
+        width: Math.round(el.getBoundingClientRect().width),
+      };
+    };
+    const body = run.querySelector('[data-entry="open-playout"]')!.getBoundingClientRect();
+    const create = run.querySelector('[data-entry="new-production"]')!.getBoundingClientRect();
+    const name = run.querySelector<HTMLElement>('.wz-playout-name')!;
+    return {
+      home: look(home),
+      run: look(run),
+      gridWidth: Math.round(document.querySelector('.wz-entry')!.getBoundingClientRect().width),
+      nested: !!run.querySelector('[data-entry="open-playout"] button'),
+      buttons: run.querySelectorAll('button').length,
+      bodyBeforeCreate: body.right <= create.left + 0.5,
+      sameLine: Math.abs(body.top + body.height / 2 - (create.top + create.height / 2)) < 4,
+      nameClipped: name.scrollWidth > name.clientWidth,
+    };
+  });
+  // THE SAME CARD as the Home row: border, corner, fill, padding, height and full grid width.
+  expect(shape.run).toEqual(shape.home);
+  expect(shape.run.width).toBe(shape.gridWidth);
+  // Two controls, siblings - a button nested in a button is invalid markup.
+  expect(shape.nested).toBe(false);
+  expect(shape.buttons).toBe(2);
+  expect(shape.bodyBeforeCreate).toBe(true);
+  expect(shape.sameLine).toBe(true);
+  // A long name stops at an ellipsis rather than growing the card out of the budget.
+  expect(shape.nameClipped).toBe(true);
+
+  const amber = await resolveToken(page, 'border-color', 'var(--accent)');
+  const fill = await resolveToken(page, 'background-color', 'var(--bg-2)');
+  const rowStyle = () =>
+    page.evaluate(() => {
+      const row = getComputedStyle(document.querySelector('[data-testid="wz-playout"]')!);
+      const body = getComputedStyle(document.querySelector('[data-entry="open-playout"]')!);
+      const create = getComputedStyle(document.querySelector('[data-entry="new-production"]')!);
+      return { border: row.borderColor, background: row.backgroundColor, outline: body.outlineStyle, create: create.borderColor };
+    });
+  const resting = await rowStyle();
+
+  // HOVER answers as the Home row does: the body lights the whole card, New production lights
+  // only itself.
+  await page.hover('[data-entry="open-playout"]');
+  await expect.poll(async () => {
+    const { border, background } = await rowStyle();
+    return { border, background };
+  }).toEqual({ border: amber, background: fill });
+  await page.hover('[data-entry="new-production"]');
+  await expect.poll(async () => {
+    const { border, background, create } = await rowStyle();
+    return { rowAmber: border === amber, background, create };
+  }).toEqual({ rowAmber: false, background: resting.background, create: amber });
+  await page.mouse.move(0, 0);
+
+  // THE KEYBOARD: one stop for the body, one for New production, then out of the card. Reached
+  // by real Tab presses from the video card (see the Home row test for why not `.focus()`).
+  await page.locator('[data-entry="video"]').evaluate((el: HTMLElement) => el.focus());
+  const active = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.entry ?? null);
+  await page.keyboard.press('Tab');
+  expect(await active()).toBe('open-playout');
+  await expect.poll(rowStyle).toEqual({ border: amber, background: fill, outline: 'none', create: resting.create });
+  await page.keyboard.press('Tab');
+  expect(await active()).toBe('new-production');
+  await page.keyboard.press('Tab');
+  expect(
+    await page.evaluate(() => !!document.activeElement?.closest('[data-testid="wz-playout"]')),
+  ).toBe(false);
 });
 
 test('the video card is greyed, and the grey is its whole caveat', async ({ page }) => {
@@ -513,11 +615,14 @@ test('New production from a fresh profile opens an empty production, ready to ad
   expect(afterReload).toEqual([shows[0].id]);
 });
 
-test('Open Playout goes to the productions list with none, and to the last used production', async ({ page }) => {
+test('Run the show opens the productions list with none, and names and opens the last used production', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
+  const card = page.locator('[data-entry="open-playout"]');
   // NONE: there is no production to open, so the list is the honest landing, where making one
-  // is a press away.
-  await page.locator('[data-entry="open-playout"]').click();
+  // is a press away - and the card says so before the press rather than surprising anyone.
+  await expect(card).toContainText('Run the show');
+  await expect(card).toContainText('You have no production yet, so this opens your productions list.');
+  await card.click();
   await expect(page.getByTestId('home-page')).toBeVisible();
   expect(page.url()).toContain('#/home/productions');
 
@@ -534,9 +639,31 @@ test('Open Playout goes to the productions list with none, and to the last used 
   });
   await page.goto('/app#/new');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await page.locator('[data-entry="open-playout"]').click();
+  // The card NAMES what the press opens, so it is not a guess.
+  await expect(card).toContainText('Open “Older show”, your latest production');
+  await expect(card).not.toContainText('no production yet');
+  await card.click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   expect(page.url()).toContain(`#/production/${lastId}`);
+});
+
+test('Run the show follows a production that arrives while the step is open', async ({ page }) => {
+  // Team productions land from the server AFTER the step mounts. A card that read the list once
+  // would keep saying "no production yet", or name one that has since gone, and open the wrong
+  // thing; it re-reads on every data change, as Home does.
+  await entryStepAt(page, 1366, 768);
+  const card = page.locator('[data-entry="open-playout"]');
+  await expect(card).toContainText('no production yet');
+  const id = await evaluateInPage(page, async () => {
+    const { createShowNamedChecked } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { show } = createShowNamedChecked('Arrived later');
+    await commitDurableWrites();
+    return show.id;
+  });
+  await expect(card).toContainText('Open “Arrived later”');
+  await card.click();
+  expect(page.url()).toContain(`#/production/${id}`);
 });
 
 test('the Import card names the file types its own drop zone takes', async ({ page }) => {

@@ -1816,16 +1816,12 @@ export default function CreationWizard() {
                   closeGallery();
                   useRouter.getState().navigate({ view: 'home', section });
                 }}
-                onOpenPlayout={() => {
-                  // "Last used" is the production saved most recently: every rundown edit,
-                  // publish and graphic add stamps `updatedAt`, so it is the one the user
-                  // touched last without a second record to keep in step. Nothing records which
-                  // production this browser last OPENED, so a team production another member
-                  // saved later wins; a per-browser "last opened" record would be a new store.
-                  const last = loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+                onOpenPlayout={(productionId) => {
+                  // EntryStep picks the production (the one it names on the card), so the
+                  // press opens exactly what the card said it would.
                   closeGallery();
                   useRouter.getState().navigate(
-                    last ? { view: 'production', id: last.id } : { view: 'home', section: 'productions' },
+                    productionId ? { view: 'production', id: productionId } : { view: 'home', section: 'productions' },
                   );
                 }}
                 onNewProduction={async () => {

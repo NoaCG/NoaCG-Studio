@@ -71,11 +71,10 @@
 .wz-continue-card .wz-entry-icon { width: 24px; height: 24px; }
 .wz-continue-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wz-continue-card .hint { min-width: 0; }
-/* The step's ONE secondary button: the Home row's shortcuts and the Playout row's actions.
-   Never amber - the start cards are what the step recommends. */
+/* The step's ONE secondary button: the Home row's shortcuts and Run the show's New production.
+   Never amber at rest - the start cards are what the step recommends. */
 .wz-continue-jump { display: flex; gap: 8px; flex: 0 0 auto; }
-.wz-continue-jump button,
-.wz-playout-actions button {
+.wz-continue-jump button {
   padding: 8px 16px;
   font-size: 14px;
   border-radius: 4px;
@@ -83,8 +82,7 @@
   color: var(--text-mid);
   background: none;
 }
-.wz-continue-jump button:hover,
-.wz-playout-actions button:hover { color: var(--text); border-color: var(--accent); }
+.wz-continue-jump button:hover { color: var(--text); border-color: var(--accent); }
 .wz-beta-tag {
   display: inline-block;
   font-family: "JetBrains Mono", Consolas, monospace;
@@ -135,26 +133,25 @@
   .wz-entry-wrap .wz-entry { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ── THE PLAYOUT ROW: the other half of the product, under the cards ─────────────────────
-   Flush with the grid and the Home row (same 1180px measure), set apart by a rule rather than
-   boxed: it is the step's closing line, not a fifth card. */
-.wz-playout {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  max-width: 1180px;
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+/* ── RUN THE SHOW: the other half of the product, under the cards ────────────────────────
+   It WEARS THE HOME ROW'S CLASSES (`.wz-continue-row`, `-card`, `-jump`), so its border, fill,
+   amber hover, keyboard ring and the shortcut standing down are the Home row's rules above,
+   not a copy of them. This only places it: the grid's 1180px measure, and the same 10px under
+   the cards as the Home row has over them, so the four sit centred between the two rows and
+   this reads as part of the set rather than a footer. */
+.wz-playout { max-width: 1180px; margin-top: 10px; }
+/* The production's name is the card's promise, so it reads in the title's colour. A long name
+   stops at an ellipsis (the full one is its tooltip) rather than wrapping the hint: the card's
+   height is part of the step's 1366x768 budget. */
+.wz-playout-name {
+  display: inline-block;
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+  color: var(--text);
 }
-.wz-playout-text { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-.wz-playout-text .wz-entry-icon { flex: 0 0 auto; color: var(--accent); }
-.wz-playout-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* The card title's size: "Run the show" is half the headline's promise, not a footnote. */
-.wz-playout-copy strong { font-size: 17px; font-weight: 600; }
-/* The two actions wear the step's one secondary button (the Home row's rule, above). */
-.wz-playout-actions { display: flex; gap: 8px; flex: 0 0 auto; }
 
 @media (max-width: 768px) {
   /* THE HERO IS DESKTOP-SIZED (42/18, `.wz-wizard` above) and a phone cannot afford it: at
@@ -168,21 +165,10 @@
      three-line reserve stays, so the four are still one size stacked. */
   .wz-entry-wrap .wz-entry { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .wz-entry-wrap .wz-entry .wz-entry-card { padding: 14px 16px; }
-  /* The Playout row stacks: copy on top, the two actions side by side under it, each half the
-     width, so both are thumb-sized and neither wraps its label. */
-  .wz-playout {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    /* Flush with the cards, which mobile.css insets 4px each side. */
-    width: auto;
-    align-self: stretch;
-    margin: 12px 4px 0;
-  }
-  /* Beside a two-line hint the icon belongs to the title, not the middle of the block. */
-  .wz-playout-text { align-items: flex-start; }
-  .wz-playout-text .wz-entry-icon { margin-top: 1px; }
-  .wz-playout-actions button { flex: 1; }
+  /* Run the show stacks exactly as the Home row does (below), New production full width under
+     its copy. Flush with the cards, which mobile.css insets 4px each side. No top margin: the
+     grid's own 16px bottom padding (mobile.css) matches the Home row's gap over the cards. */
+  .wz-playout { width: auto; align-self: stretch; margin: 0 4px; }
   /* The Home row stacks: two shortcut buttons beside a two-line description leave the
      description a sliver, and the shortcuts are the row's real value on a phone. */
   .wz-continue-row { flex-direction: column; align-items: stretch; gap: 10px; }
