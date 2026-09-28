@@ -125,11 +125,11 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   // what "left" means here and is the half of this assertion the previous version was missing -
   // adjacency alone was satisfied by the pair sitting together at the far right.
   //
-  // WHICH control is Home differs by surface and that is not drift: on Home the crumb beside
-  // the logo says so, and elsewhere a labelled Home button does. The logo itself is never Home -
-  // it is the site root on every surface.
+  // WHICH control is Home differs by surface and that is not drift: on Home's dashboard it is
+  // the shell nav's current-page item (e2e/wizard-shell.spec.ts), and elsewhere a labelled Home
+  // button. The logo itself is never Home - it is the site root on every surface.
   const orderOnEverySurface = [
-    { hash: '#/home', door: 'home-new-project', afterSelector: '.tpl-name' },
+    { hash: '#/home', door: 'home-new-project', afterSelector: '[data-testid="home-door"]' },
     { hash: `#/control/${ids.graphicId}`, door: 'control-new-project', afterSelector: '[data-testid="control-home"]' },
     { hash: `#/production/${ids.showId}`, door: 'new-graphic', afterSelector: '[data-testid="production-home"]' },
     { hash: '#/video', door: 'new-graphic', afterSelector: '[data-testid="open-home"]' },
@@ -168,7 +168,7 @@ test('the wizard door is on every /app surface, beside Home', async ({ page }) =
   }
 });
 
-test('the wizard mounts the same door: a guarded start-over mid-walk, a no-op on Entry', async ({ page }) => {
+test('the wizard mounts the same door: a guarded start-over mid-walk, the inert current page on Entry', async ({ page }) => {
   // Owner walk, 2026-08-28: inside the wizard "the only way to get back to the starting
   // Wizard page is by pressing the X" - and ✕ discards the draft. The header now carries the
   // shared NewGraphicButton, in the shared order (logo -> Home -> + New graphic).
@@ -183,8 +183,10 @@ test('the wizard mounts the same door: a guarded start-over mid-walk, a no-op on
   );
   expect(beforeDoor).toBe('wz-home');
 
-  // On the front page the door is a NO-OP, not a reset - and even with a DIRTY working
-  // document the unsaved-changes guard must not appear, because proceeding changes nothing.
+  // On the front page the door is the CURRENT PAGE, an inert item rather than a button
+  // (e2e/wizard-shell.spec.ts pins the marking): a press is not a reset, and even with a DIRTY
+  // working document the unsaved-changes guard must not appear, because nothing would change.
+  await expect(door).toHaveAttribute('aria-current', 'page');
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     useTemplateStore.setState((s) => ({ saved: { ...s.saved, dirty: true } }));

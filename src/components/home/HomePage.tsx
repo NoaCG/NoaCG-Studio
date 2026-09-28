@@ -235,26 +235,38 @@ export default function HomePage({ route }: { route: Route }) {
   return (
     <div className="app home-page" data-testid="home-page">
       <header className="topbar">
-        {/* THE LOGO IS THE SITE ROOT on every surface, Home included: it used to navigate to
-            Home, which on Home did nothing at all. A real <a>, so middle-click and ⌘-click open
-            the front page in a new tab like any logo. */}
-        <a className="brand brand-home" href="/" title="NoaCG Studio front page">
-          <BrandLogo size={24} />
-        </a>
-        <span className="divider-dot" aria-hidden="true">·</span>
-        {/* The topbar says WHERE you are, not just that you are home (handoff §5a): a routed
-            section is a page, and the crumb is the only thing that says which one. */}
-        <span className="tpl-name">
-          Home{section ? ` · ${sections.find((s) => s.id === section)?.label}` : ''}
-        </span>
-        {/* The wizard door in the SHARED LEFT ORDER (owner walk, 2026-08-29) - logo, Home,
-            ＋ New graphic. On Home the crumb beside the logo IS the Home control, so the door
-            follows it; on the other shells a Home button sits there. It was right-clustered
-            here, which put the most-used control on the surface in the one place it is not on
-            any other. It also stops being `primary`: the owner's ruling on the same walk was
-            "I like the blue one, it doesn't need to be yellow" - amber is the on-air accent
-            (Brand §3), and creating a graphic is not an on-air act. */}
-        <NewGraphicButton testid="home-new-project" />
+        {/* THE SHELL NAV, the same group the wizard's header wears (owner, 2026-09-28): logo,
+            Home, + New graphic, in the same positions to the pixel, so moving between Home and
+            the wizard never moves a door. The page you stand on is marked current and is NOT a
+            button: on the dashboard that is Home. In a section Home is a real door again - the
+            dashboard is another page, and the section rail has no entry for it - while the rail
+            marks the section itself as current.
+            THE LOGO IS THE SITE ROOT on every surface, Home included: a real <a>, so middle-click
+            and ⌘-click open the front page in a new tab like any logo.
+            + New graphic sits in the SHARED LEFT ORDER (owner walk, 2026-08-29) and is not
+            `primary`: "I like the blue one, it doesn't need to be yellow" - amber is the on-air
+            accent (Brand §3), and creating a graphic is not an on-air act. */}
+        <nav className="shell-nav" aria-label="Studio">
+          <a className="brand brand-home" href="/" title="NoaCG Studio front page">
+            <BrandLogo size={24} />
+          </a>
+          <span className="divider-dot" aria-hidden="true">·</span>
+          {section === null ? (
+            <span className="shell-door" data-testid="home-door" aria-current="page">
+              Home
+            </span>
+          ) : (
+            <button
+              className="shell-door"
+              data-testid="home-door"
+              title="Home: your productions, recent graphics and videos"
+              onClick={() => navigate({ view: 'home', section: null })}
+            >
+              Home
+            </button>
+          )}
+          <NewGraphicButton className="shell-door" testid="home-new-project" />
+        </nav>
         <div className="spacer" />
         {/* Settings must be reachable WITHOUT an account - offline builds have no account at
             all. Signed in, the PROFILE button carries it
@@ -280,6 +292,7 @@ export default function HomePage({ route }: { route: Route }) {
             <button
               key={s.id}
               className={s.id === section ? 'active' : ''}
+              aria-current={s.id === section ? 'page' : undefined}
               onClick={() => navigate({ view: 'home', section: s.id })}
               data-testid={`home-nav-${s.id}`}
             >
@@ -540,8 +553,8 @@ function EmptyHint({ onNew }: { onNew: () => void }) {
     <div className="panel-section">
       <h3>Nothing saved yet</h3>
       <p className="hint">
-        Make your first graphic with <strong>+ New graphic</strong>. Use your AI coding agent with
-        the NoaCG CLI, import your own SVG, or start from a template. It lands here, ready to add
+        Make your first graphic with <strong>+ New graphic</strong>. Start from a template, import
+        your own SVG, or use your AI coding agent with the NoaCG CLI. It lands here, ready to add
         to a production, and syncs across your devices while you are signed in.
       </p>
       <button className="primary" onClick={onNew}>+ New graphic</button>

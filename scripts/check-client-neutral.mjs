@@ -82,7 +82,7 @@ const ALLOWED = [
   { file: 'index.html', line: 'CasparCG, OBS, vMix and SPX', why: 'the local-file targets named beside each other in the no-lock-in section' },
   { file: 'ograf.html', line: '<li>Free and open source · also exports to SPX, CasparCG, OBS, vMix</li>', why: 'target list on the OGraf starters page' },
   { file: 'ograf.html', line: 'the same graphics exist for SPX, CasparCG, OBS and vMix.', why: 'target list on the OGraf starters page' },
-  { file: 'src/components/wizard/steps/EntryStep.tsx', line: 'CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.', why: 'target list in the entry hero' },
+  { file: 'src/components/wizard/steps/EntryStep.tsx', line: 'templates for OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.', why: 'target list in the entry hero' },
   { file: 'src/components/wizard/steps/FinishStep.tsx', line: 'Just the files: OGraf, CasparCG, SPX, LiveOS, an OBS/vMix overlay', why: 'target list on the export door' },
   { file: 'src/components/wizard/import/ImportDesignStep.tsx', line: "? 'Name it, then send it to a production or export it: OGraf, CasparCG, SPX, LiveOS or an OBS/vMix overlay. Your file is kept exactly as you wrote it.'", why: 'target list on the import finish line' },
   { file: 'src/components/home/sections/ProductionsSection.tsx', line: 'title="Export every graphic of this production — OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"', why: 'target list on the export button' },

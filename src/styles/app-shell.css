@@ -32,6 +32,48 @@
 .topbar .topbar-meta { font-size: 11px; margin-left: 6px; white-space: nowrap; }
 .topbar .divider-dot { color: #3d4756; margin: 0 -2px; user-select: none; }
 .topbar .spacer { flex: 1; }
+/* THE SHELL NAV - logo, Home, + New graphic - worn by Home's topbar AND the wizard's header
+   (owner, 2026-09-28: the two are one bar, the doors in the same places). Its spacing is its
+   OWN, not the bar's gap: the topbar's gap steps down a width ladder and the wizard's does not,
+   so the doors would sit a few pixels apart on the two surfaces if either bar spaced them. Two
+   classes deep, so the wizard's 15px `.wz-wizard button` and the topbar ladder's padding never
+   reach a door. The height (18px line + 10px padding + 2px border = 30px) is the brand
+   lockup's, so neither bar grows - the wizard Entry step's height is a measured budget.
+   THE CURRENT PAGE is the same box, flat: no fill, no border, full-strength text and the amber
+   bar the Home rail's current section also wears in amber. It is not a button, so it has no
+   hover and no pointer. Same weight in both states, so marking a door current never moves the
+   one after it. e2e/wizard-shell.spec.ts measures all of this against both bars. */
+.shell-nav { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.shell-nav .divider-dot { color: #3d4756; margin: 0 -2px; user-select: none; }
+.shell-nav > .shell-door {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.shell-nav > .shell-door[aria-current='page'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: default;
+}
+.shell-nav > .shell-door[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
 /* Armed Reset — the amber on-air accent signals the pending confirm (Brand Manual §5).
    NOT scoped to the topbar: three surfaces now arm a destructive button the same way (the
    topbar's Reset, an entry's ✕ on the graphic control page, and a value's or a binding's ✕ on

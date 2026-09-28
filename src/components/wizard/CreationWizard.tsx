@@ -1635,53 +1635,55 @@ export default function CreationWizard() {
             the left rail (re-design/handoff.md §2) — six labelled pills across the top could
             never say what a step was FOR, and they wrapped to four rows on a phone. */}
         <div className="wz-header">
-          <div className="wz-title">
-            {/* The logo is the SITE ROOT here exactly as it is on the editor's topbar; the
-                Home door is the button beside it. Home has to stay one press away from every
-                step (✕ only rewinds to the front page), which is why the pair travels
-                together rather than the lockup doing both jobs. */}
+          {/* THE SHELL NAV, the same group Home's topbar wears (owner, 2026-09-28): logo, Home,
+              + New graphic, in the same positions to the pixel, so moving between Home and the
+              wizard never moves a door. The page you stand on is marked current and is NOT a
+              button - here that is + New graphic on the front page (Entry). The logo is the SITE
+              ROOT; Home has to stay one press from every step (✕ only rewinds to the front
+              page). Mid-walk + New graphic is a guarded START-OVER - `#/new` through
+              requestSwitch rewinds to the front page with the draft kept, so Back returns to the
+              step; ✕ stays the door that discards. */}
+          <nav className="shell-nav" aria-label="Studio">
             <a className="brand brand-home" href="/" title="NoaCG Studio front page">
               <BrandLogo size={24} />
             </a>
-            <span className="wz-title-sep">·</span>
-            <span className="wz-title-step">
-              {mode === 'ai' ? 'Create with AI'
-                : mode === 'video' ? 'Video with AI'
-                : mode === 'design' || mode === 'svg' || mode === 'file' ? 'Import graphic'
-                : kit ? `${kit.pack.name} kit`
-                : 'New graphic'}
-            </span>
-            {/* Once a design is chosen it names the thing being built, so the header answers
-                "what am I working on" without the reader looking at the preview. */}
-            {variant && step < finishStep && <span className="wz-title-doc">· {variant.name}</span>}
-          </div>
-          {/* THE HOME DOOR, its own control beside the title rather than a job the logo does.
-              It sits OUTSIDE `.wz-title` so the brand keeps its "lockup · what you are making"
-              reading — inside, its separator ended up between Home and the step name and named
-              neither. Home has to stay one press from every step: ✕ only rewinds to the front
-              page, so without it a reader three steps in had no way back to their work. */}
-          <button
-            className="home-btn wz-home"
-            data-testid="wz-home"
-            title="Home: your graphics, productions, control panels and videos"
-            onClick={() => {
-              closeGallery();
-              useRouter.getState().navigate({ view: 'home', section: null });
-            }}
-          >
-            Home
-          </button>
-          {/* The same door every shell mounts, in the shared order (logo -> Home -> + New
-              graphic; owner, 2026-08-28: "there's not the new graphic button, which is the
-              one we are used to using"). Mid-walk it is a guarded START-OVER - `#/new` through
-              requestSwitch rewinds to the front page with the draft kept, so Back returns to
-              the step - and on the front page itself it is a no-op (the check lives in the
-              component). ✕ stays the door that discards. */}
-          <NewGraphicButton
-            className="wz-new"
-            testid="wz-new-graphic"
-            title="Start a new graphic - back to the wizard's front page"
-          />
+            <span className="divider-dot" aria-hidden="true">·</span>
+            <button
+              className="shell-door wz-home"
+              data-testid="wz-home"
+              title="Home: your graphics, productions, control panels and videos"
+              onClick={() => {
+                closeGallery();
+                useRouter.getState().navigate({ view: 'home', section: null });
+              }}
+            >
+              Home
+            </button>
+            <NewGraphicButton
+              className="shell-door wz-new"
+              testid="wz-new-graphic"
+              title="Start a new graphic - back to the wizard's front page"
+              current={step === 0}
+            />
+          </nav>
+          {/* WHAT IS BEING MADE, once a card has said: the crumb continues from the current
+              door (+ New graphic › Create with AI › the design). On Entry nothing is chosen
+              yet and the current door already says "New graphic", so the crumb stands down. */}
+          {step > 0 && (
+            <div className="wz-title">
+              <span className="wz-title-sep" aria-hidden="true">›</span>
+              <span className="wz-title-step">
+                {mode === 'ai' ? 'Create with AI'
+                  : mode === 'video' ? 'Video with AI'
+                  : mode === 'design' || mode === 'svg' || mode === 'file' ? 'Import graphics'
+                  : kit ? `${kit.pack.name} kit`
+                  : 'Start from a template'}
+              </span>
+              {/* Once a design is chosen it names the thing being built, so the header answers
+                  "what am I working on" without the reader looking at the preview. */}
+              {variant && step < finishStep && <span className="wz-title-doc">· {variant.name}</span>}
+            </div>
+          )}
           {/* HOW FAR ALONG — from the SECOND step onward. On Entry there is no answer to give:
               no mode is chosen yet, so the denominator is not even the same number for every
               door (Create with AI is 3 steps, a kit is 2), and "Step 1 / 6" on a screen whose
