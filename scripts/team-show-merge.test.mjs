@@ -76,7 +76,8 @@ test('both new graphics are kept, and the other lists still merge per item', () 
 
 // ── FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §7 and §18 case 21). A folder's cues stand together in the
 // flat list. The merge can tear them apart, empty a folder, or leave a cue naming a folder that is
-// gone; whatever it did, the result is settled and anything moved is reported as the folders.
+// gone; whatever it did, the result is settled, and a settle is reported as GATHERED - never as a
+// change of ours that theirs replaced, which it is not.
 
 const cue = (id, folderId) => ({ id, sourceId: 'g', label: id, values: {}, ...(folderId ? { folderId } : {}) });
 const folder = (id, extra = {}) => ({ id, name: id, mode: 'manual', ...extra });
@@ -88,21 +89,21 @@ test('one teammate folders A and B while the other orders A, C, B, D: the folder
   const base = rundown([cue('A'), cue('B'), cue('C'), cue('D')]);
   const ours = rundown([cue('A', 'F'), cue('B', 'F'), cue('C'), cue('D')], [folder('F')]);
   const theirs = rundown([cue('A'), cue('C'), cue('B'), cue('D')]);
-  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  const { doc, lost, gathered } = mergeTeamShow(base, ours, theirs, AT);
   // Without the gathering this is A(F) C B(F) D: one folder in two runs.
   assert.equal(order(doc), 'A(F) B(F) C D');
   assert.deepEqual(doc.folders.map((f) => f.id), ['F']);
-  assert.deepEqual(lost, ['the folders']);
+  assert.deepEqual([lost, gathered], [[], true]);
 });
 
 test('two teammates adding folders at once keep both, and nothing is reported', () => {
   const base = rundown([cue('A'), cue('B'), cue('C'), cue('D')]);
   const ours = rundown([cue('A', 'F'), cue('B', 'F'), cue('C'), cue('D')], [folder('F')]);
   const theirs = rundown([cue('A'), cue('B'), cue('C', 'G'), cue('D', 'G')], [folder('G', { mode: 'together' })]);
-  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  const { doc, lost, gathered } = mergeTeamShow(base, ours, theirs, AT);
   assert.equal(order(doc), 'A(F) B(F) C(G) D(G)');
   assert.deepEqual(doc.folders.map((f) => [f.id, f.mode]), [['G', 'together'], ['F', 'manual']]);
-  assert.deepEqual(lost, []);
+  assert.deepEqual([lost, gathered], [[], false]);
 });
 
 test('a split that came whole from one side is gathered too, however the lists merged', () => {
@@ -111,10 +112,10 @@ test('a split that came whole from one side is gathered too, however the lists m
   const base = rundown([cue('A', 'F'), cue('B', 'F'), cue('C')], [folder('F')]);
   const ours = rundown([cue('A', 'F'), cue('B', 'F'), cue('C')], [folder('F', { name: 'Round 1' })]);
   const theirs = rundown([cue('A', 'F'), cue('C'), cue('B', 'F')], [folder('F')]);
-  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  const { doc, lost, gathered } = mergeTeamShow(base, ours, theirs, AT);
   assert.equal(order(doc), 'A(F) B(F) C');
   assert.equal(doc.folders[0].name, 'Round 1');
-  assert.deepEqual(lost, ['the folders']);
+  assert.deepEqual([lost, gathered], [[], true]);
 });
 
 test('a folder the merge leaves with no cues goes, and a cue naming a removed folder is in none', () => {
@@ -122,10 +123,10 @@ test('a folder the merge leaves with no cues goes, and a cue naming a removed fo
   const base = rundown([cue('A', 'F'), cue('B', 'F'), cue('C')], [folder('F')]);
   const ours = rundown([cue('A'), cue('B'), cue('C')]);
   const theirs = rundown([cue('A', 'F'), cue('B', 'F'), cue('E', 'F'), cue('C')], [folder('F')]);
-  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  const { doc, lost, gathered } = mergeTeamShow(base, ours, theirs, AT);
   assert.equal(order(doc), 'A B E C');
   assert.equal(doc.folders, undefined);
-  assert.deepEqual(lost, ['the folders']);
+  assert.deepEqual([lost, gathered], [[], true]);
   // Theirs removed both cues of the folder ours made: no folder is left with nothing in it.
   const b2 = rundown([cue('A'), cue('B'), cue('C')]);
   const o2 = rundown([cue('A', 'F'), cue('B', 'F'), cue('C')], [folder('F')]);
@@ -139,7 +140,8 @@ test('a merge that keeps every folder whole reports nothing, and settling is ide
   const base = rundown([cue('A', 'F'), cue('B', 'F'), cue('C')], [folder('F')]);
   const ours = rundown([cue('A', 'F'), cue('B', 'F'), cue('C'), cue('D')], [folder('F')]);
   const theirs = rundown([cue('C'), cue('A', 'F'), cue('B', 'F')], [folder('F')]);
-  const { doc, lost } = mergeTeamShow(base, ours, theirs, AT);
+  const { doc, lost, gathered } = mergeTeamShow(base, ours, theirs, AT);
+  assert.equal(gathered, false);
   // Our D goes after C, the cue it followed on our side (the merge's own rule), clear of the folder.
   assert.equal(order(doc), 'C D A(F) B(F)');
   assert.deepEqual(lost, []);

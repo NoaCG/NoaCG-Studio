@@ -28,7 +28,7 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
-import { serverCueLive } from '../../control/serverPlayout';
+import { serverCueLive, type ThroughRole } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
 import { effectiveEnd, segmentSeconds } from '../../control/cuePlayback';
@@ -54,8 +54,6 @@ function scrolledLately(at: number): boolean {
   return Date.now() - at < FOLLOW_PAUSE_MS;
 }
 
-/** A clip's place in a Play-through folder, which decides what its row and its panel say of its end. */
-export type ThroughRole = 'middle' | 'last' | 'loop-last' | 'loop-alone';
 
 /** Where a drag is aimed, and what it would do there. */
 interface Aim {

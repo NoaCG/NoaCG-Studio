@@ -65,6 +65,8 @@ import {
   takeBlocker,
   serverLayers,
   throughFolderOf,
+  throughPlaces,
+  type ThroughRole,
   togetherNote,
   togetherPlan,
   type GraphicMember,
@@ -207,7 +209,7 @@ import ActionLog from './ActionLog';
 import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
 import ProductionLinks from './ProductionLinks';
-import CueRundown, { nameList, type ThroughRole } from './CueRundown';
+import CueRundown, { nameList } from './CueRundown';
 import RailResizer, { useRailWidth } from './RailResizer';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
@@ -820,6 +822,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     () => folderAir({ folders, cues, items: playoutItems, ownership: serverOwnership, liveCue, graphicName: cueGraphicName }),
     [folders, cues, playoutItems, serverOwnership, liveCue, cueGraphicName],
   );
+  /** Every clip's place in its Play-through folder, worked out once per rundown: what its row, its
+   *  panel and the two-slot check read. */
+  const places = useMemo(() => throughPlaces(cues, playoutItems, folders), [cues, playoutItems, folders]);
   // The server's state is re-asked every few seconds while a playout server is SET UP - one
   // loopback request, so the header's Playout control shows whether CasparCG answers, and the
   // editor can say "connected" or name the hop before a server cue's Take. Nothing is asked of a
@@ -2335,21 +2340,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** Where a Play-through folder plays: its own slot, else layer 10 on the clip channel. */
   const folderSlotOf = (folder: ShowFolder) => slotAddress(folderSlot(playoutSettings, folder));
-  /** The Play-through folder a cue plays in, by its id: what the two-slot check reads. */
-  const throughFolderIdOf = (cueId: string) => {
-    const c = cues.find((x) => x.id === cueId);
-    return c ? throughFolderOf(c, cues, playoutItems, folders)?.id : undefined;
-  };
-  /** A clip's place in its Play-through folder, which its row and its panel say. */
-  const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => {
-    const folder = throughFolderOf(cue, cues, playoutItems, folders);
-    if (!folder) return null;
-    const members = rundown.members.get(folder.id) ?? [];
-    const at = members.findIndex((c) => c.id === cue.id);
-    const loop = folder.end === 'loop';
-    const role: ThroughRole = members.length === 1 ? (loop ? 'loop-alone' : 'last') : at < members.length - 1 ? 'middle' : loop ? 'loop-last' : 'last';
-    return { folder, role };
-  };
+  const throughFolderIdOf = (cueId: string) => places.get(cueId)?.folder.id;
+  const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => places.get(cue.id) ?? null;
   /**
    * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
    * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never

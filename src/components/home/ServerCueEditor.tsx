@@ -33,7 +33,7 @@ import {
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';
-import type { ThroughRole } from './CueRundown';
+import type { ThroughRole } from '../../control/serverPlayout';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
 export interface ThroughPlace {

@@ -1023,6 +1023,8 @@ export function setFolderPlayback(
     const inRange = (n: number, min: number, max: number) => Number.isInteger(n) && n >= min && n <= max;
     if (typeof patch.channel === 'number' && !inRange(patch.channel, MIN_PLAYOUT_CHANNEL, MAX_PLAYOUT_CHANNEL)) return false;
     if (typeof patch.layer === 'number' && !inRange(patch.layer, MIN_PLAYOUT_LAYER, MAX_PLAYOUT_LAYER)) return false;
+    // What it was, so choosing what is already chosen writes nothing (and saves nothing to a team).
+    const before = JSON.stringify([folder.end, folder.slot]);
     if (patch.end === 'loop') folder.end = 'loop';
     else if (patch.end === null) delete folder.end;
     const slot: { channel?: number; layer?: number } = { ...(folder.slot ?? {}) };
@@ -1033,7 +1035,7 @@ export function setFolderPlayback(
     }
     if (Object.keys(slot).length) folder.slot = slot;
     else delete folder.slot;
-    return true;
+    return JSON.stringify([folder.end, folder.slot]) !== before;
   });
 }
 

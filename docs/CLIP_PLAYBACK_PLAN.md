@@ -1040,6 +1040,10 @@ differences and decisions worth knowing:
   have a test that fails without the fix. The menu case is out of reach of a press on this page (an
   outside press closes the menu) and the team save needs a team backend, so those two were checked
   by reading.
+- **A merge that puts a folder back together says so on its own line** ("A folder the two versions had
+  pulled apart is back together in the rundown."), never as a change of the operator's that theirs
+  replaced, which it is not. A one-clip Play-through folder may loop on any Bridge, since it goes
+  out as a plain looping take.
 - **One sentence is loose**: Play next's "the next clip is in another folder" is also what a clip in
   no folder hears when the next clip on its layer is in a folder.
 - **Measured on the real servers** (§12, items 8, 11 and 12): no black at any switch of a looping

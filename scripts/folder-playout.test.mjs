@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const serverPlayout = await import('../src/control/serverPlayout.ts');
-const { clockRank, folderRun, folderRunBlocker, folderTakeBlocker, playNextTarget, runServerVerb, runTogether, sequenceAction, takeBlocker, throughFolderOf, togetherNote, togetherPlan } = serverPlayout;
+const { clockRank, folderRun, folderRunBlocker, folderTakeBlocker, playNextTarget, runServerVerb, runTogether, sequenceAction, takeBlocker, throughFolderOf, throughPlaces, togetherNote, togetherPlan } = serverPlayout;
 const { asFolderMember, takePlayback } = await import('../src/control/cuePlayback.ts');
 const { NO_OWNERSHIP, airClash, applyAccepted, applyReading, clipClock, clockedClip } = await import('../src/control/serverState.ts');
 const { folderAir, folderAirWords } = await import('../src/control/folderAir.ts');
@@ -124,6 +124,18 @@ test('takeBlocker knows folders: a member takes by its folder\'s rules, a folder
   const two = [cue('a', 'a', 'N'), cue('b', 'b', 'N')];
   assert.equal(takeBlocker(other[0], two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
   assert.equal(takeBlocker({ id: 'N', name: 'Next' }, two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
+});
+
+test("each clip's place in its Play-through folder, in one pass, agrees with throughFolderOf", () => {
+  const items = [vt('a', 10), vt('b', 10), vt('c', 10), { ...vt('still', 0), mediaKind: 'still', frames: undefined }];
+  const cues = [cue('a', 'a', 'T'), cue('b', 'b', 'T'), cue('logo', 'still', 'T'), cue('c', 'c', 'L'), cue('x', 'a'), cue('gone', 'b', 'GONE')];
+  const folders = [through(), { id: 'L', name: 'One', mode: 'through', end: 'loop' }, { id: 'T', name: 'Twice', mode: 'manual' }];
+  const places = throughPlaces(cues, items, folders);
+  assert.deepEqual([...places].map(([id, p]) => [id, p.folder.id, p.role]), [['a', 'T', 'middle'], ['b', 'T', 'middle'], ['c', 'L', 'loop-alone']]);
+  for (const c of cues) assert.equal(places.get(c.id)?.folder, throughFolderOf(c, cues, items, folders), c.id);
+  assert.equal(throughPlaces(cues, items, [through({ end: 'loop' })]).get('b').role, 'middle');
+  assert.equal(throughPlaces([cue('a', 'a', 'T'), cue('b', 'b', 'T')], items, [through({ end: 'loop' })]).get('b').role, 'loop-last');
+  assert.equal(throughPlaces([cue('a', 'a', 'T'), cue('b', 'b', 'T')], items, [through()]).get('b').role, 'last');
 });
 
 test('a folder that loops sends `loop`, and only then: a sequence that ends is the action it always was', async () => {

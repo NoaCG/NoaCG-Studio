@@ -749,11 +749,16 @@ test('Play through with Loop the folder from a clip in it: the rotation, and the
   await expect(page.getByTestId('clip-clock-then')).toContainText('loops until Out');
 });
 
-test('a one-clip Play-through folder sends a plain take on its slot, with the server loop when it loops', async ({ page }) => {
+test('a one-clip Play-through folder sends a plain take on its slot, with the server loop when it loops, on any Bridge', async ({ page }) => {
   await seedSettings(page);
-  const fake = await fakeBridge(page, { features: ['state', 'playback', 'sequence', 'sequence-loop'], version: '0.6.0' });
-  await production(page, CLIPS, { folders: [{ labels: ['BRAVO'], mode: 'through', end: 'loop', layer: 12 }] });
+  // Bridge 0.5.0, which cannot loop a sequence: one clip that loops is a plain looping take, so
+  // Loop the folder is offered all the same.
+  const fake = await fakeBridge(page);
+  await production(page, CLIPS, { folders: [{ labels: ['BRAVO'], mode: 'through', layer: 12 }] });
   await holdFolder(page, 'Folder 1');
+  await expect(page.getByTestId('folder-end-loop')).toBeEnabled();
+  await page.getByTestId('folder-end-loop').click();
+  await parkFocusOffControls(page);
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await page.keyboard.press(' ');
   await expect(cue(page, 'BRAVO')).toContainText('ON AIR');
@@ -1109,6 +1114,15 @@ test('§18 case 22: every writer of the rundown keeps each folder whole, and an 
       return `${text.trim()}${whole ? '' : '  (NOT WHOLE)'}`;
     };
     const out: Record<string, string> = { start: read() };
+    // Choosing what a folder already has writes nothing.
+    let writes = 0;
+    window.addEventListener('spx-data-changed', () => (writes += 1));
+    const fid = now().folders![0].id;
+    m.setFolderPlayback(id, fid, { end: null, channel: null, layer: null });
+    m.setFolderCollapsed(id, fid, false);
+    m.renameFolder(id, fid, 'Block');
+    m.setFolderMode(id, fid, 'manual');
+    out.noop = `${writes} writes`;
     m.removeShowCue(id, cueOf('BRAVO').id);
     out.removeCue = read();
     // One step at the folder's edge steps out of it; one step onto it from outside steps over it.
@@ -1143,6 +1157,7 @@ test('§18 case 22: every writer of the rundown keeps each folder whole, and an 
   });
   expect(steps).toEqual({
     start: 'Hairline Strap [Block: ALPHA BRAVO CHARLIE DELTA]',
+    noop: '0 writes',
     removeCue: 'Hairline Strap [Block: ALPHA CHARLIE DELTA]',
     stepOut: 'Hairline Strap [Block: ALPHA CHARLIE] DELTA',
     stepOver: 'Hairline [Block: ALPHA CHARLIE] Strap DELTA',

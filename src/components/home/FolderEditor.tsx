@@ -77,7 +77,9 @@ export default function FolderEditor({
   useEffect(() => setRefusal(null), [folder.id, mode]);
   const words = folderAirWords(air, missed);
   const throughOff = offerBlocked(ability, NEEDS.through);
-  const loopOff = offerBlocked(ability, NEEDS.folderLoop);
+  // One clip that loops is a plain looping take, which any Bridge plays; only a run of several needs
+  // a Bridge that can loop a sequence.
+  const loopOff = members.length > 1 ? offerBlocked(ability, NEEDS.folderLoop) : null;
   const last = members[members.length - 1];
   const lastItem = last?.source === 'playout' ? items.find((i) => i.id === last.sourceId) : undefined;
   const lastEnd = last && lastItem ? effectiveEnd(last, lastItem) : 'hold';

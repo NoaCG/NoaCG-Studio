@@ -296,9 +296,9 @@ export function takeBlocker(
  *  folder), and is sent only then: a sequence that ends is the action it always was. */
 export function sequenceAction(members: readonly SequenceMember[], slot: Slot, loop = false): Extract<PlayoutAction, { verb: 'sequence' }> {
   const entries: SequenceEntry[] = members.map(({ cue, item }, i) => {
-    const { loop, playback } = takePlayback(cue, item);
+    const { loop: ownLoop, playback } = takePlayback(cue, item);
     const last = i === members.length - 1;
-    const p = { ...(last && loop ? { end: 'loop' as const } : {}), ...(playback ?? {}) };
+    const p = { ...(last && ownLoop ? { end: 'loop' as const } : {}), ...(playback ?? {}) };
     return {
       item: { kind: 'media', name: item.name },
       cueId: cue.id,
@@ -327,6 +327,43 @@ export function throughFolderOf(
   const id = folderIdOf(cue, liveFolderIds(cues, folders));
   const folder = id ? folders?.find((f) => f.id === id) : undefined;
   return folder?.mode === 'through' && !throughRefusal(cue, items) ? folder : undefined;
+}
+
+/** A clip's place in a Play-through folder, which decides what its row and its panel say of its end. */
+export type ThroughRole = 'middle' | 'last' | 'loop-last' | 'loop-alone';
+
+/**
+ * Every clip that plays in a Play-through folder, with the folder and its place in it, in one pass
+ * over the rundown - by the rule of `throughFolderOf` - so the rows, the panel and the two-slot
+ * check read it without searching the rundown once per cue.
+ */
+export function throughPlaces(
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  folders: readonly ShowFolder[] | undefined,
+): ReadonlyMap<string, { folder: ShowFolder; role: ThroughRole }> {
+  const live = liveFolderIds(cues, folders);
+  const byFolder = new Map<string, ShowCue[]>();
+  for (const c of cues) {
+    const id = folderIdOf(c, live);
+    if (id) byFolder.set(id, [...(byFolder.get(id) ?? []), c]);
+  }
+  const out = new Map<string, { folder: ShowFolder; role: ThroughRole }>();
+  const seen = new Set<string>();
+  for (const folder of folders ?? []) {
+    // A folder id written twice is read once, the first entry winning, as everywhere.
+    if (seen.has(folder.id)) continue;
+    seen.add(folder.id);
+    const members = byFolder.get(folder.id);
+    if (folder.mode !== 'through' || !members) continue;
+    const loop = folder.end === 'loop';
+    members.forEach((c, at) => {
+      if (throughRefusal(c, items)) return;
+      const role: ThroughRole = members.length === 1 ? (loop ? 'loop-alone' : 'last') : at < members.length - 1 ? 'middle' : loop ? 'loop-last' : 'last';
+      out.set(c.id, { folder, role });
+    });
+  }
+  return out;
 }
 
 /** What a Take of a Play-through folder plays: its members in play order, each as the folder plays
