@@ -1,6 +1,7 @@
 // covers: src/components/wizard/steps/{AiStep.tsx,ai/**}
 
 import { expect, test, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { createProject } from './_create';
 
 // Create with AI is disclosed through the public Terms and Privacy pages linked during
@@ -45,7 +46,7 @@ test('Create with AI sends the first remote generation without an interruptive n
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
+  await chooseNoacgAgent(page);
   await page.locator('.wz-step textarea').fill('A clean news lower third for a reporter.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 

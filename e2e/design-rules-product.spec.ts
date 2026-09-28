@@ -11,6 +11,7 @@
 // covers: src/{model/designRules.ts,validation/{designRulesWarnings,readabilityCheck,tickerCheck}.ts}
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { createProject, enableAdvancedMode } from './_create';
 import { settleDurableWrites, awaitDurableReady } from './_durable';
 
@@ -119,6 +120,7 @@ async function openAiStep(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
 }
 
 // A generation runs the real quality gate (live bench); same honest budget ai.spec carries.

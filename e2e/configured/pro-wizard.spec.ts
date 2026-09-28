@@ -13,6 +13,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { SUPABASE_URL, haveCreds, settleSync, signIn } from './_helpers';
 import { startNewProject } from '../_create';
+import { chooseNoacgAgent } from '../_ai-step';
 
 // The wizard door to hosted profile `pro` closed on 2026-09-10. The decision receipt is
 // docs/backlog/one-noacg-ai-harness-not-lite-and-pro.md. Tests that drove the removed radio
@@ -49,6 +50,7 @@ async function openAiStep(page: Page): Promise<void> {
     await consent.getByRole('button', { name: 'No thanks' }).click();
     await expect(consent).toHaveCount(0);
   }
+  await chooseNoacgAgent(page);
   await expect(page.getByRole('button', { name: /AI settings/ })).toBeVisible();
 }
 

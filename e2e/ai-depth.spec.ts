@@ -2,6 +2,7 @@
 // covers: scripts/{aiDevPlugin.mjs,apiRouteTable.mjs}
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 
 // Era 3: the Describe-it step's example prompts + brainstorm chat (gateway mocked).
 
@@ -9,6 +10,7 @@ async function openAiStep(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
 }
 
 test.beforeEach(async ({ page }) => {

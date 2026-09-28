@@ -2,6 +2,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 
 // NoaCG Pro - the pipeline as an execution TIER of the ONE Create-with-AI step
 // (docs/NOACG_PRO_PLAN.md §7): no separate wizard card, the tier is chosen under
@@ -53,6 +54,7 @@ async function openAiSettings(page: Page) {
   // There is no separate Pro entry card - Create with AI is the one AI door.
   await expect(page.locator('[data-entry="pro"]')).toHaveCount(0);
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   const button = page.getByRole('button', { name: /AI settings/ });
   const sheet = page.getByTestId('ai-settings');
   await expect(async () => {

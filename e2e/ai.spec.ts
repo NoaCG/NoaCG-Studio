@@ -17,6 +17,7 @@
 // covers: src/entitlements/**
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode } from './_create';
 import { durableValue } from './_storage';
@@ -183,10 +184,17 @@ function toolResponse(route: Route, template: unknown) {
 // waits get an explicit, honest budget instead - needing longer than this IS a real bug.
 const GENERATED = { timeout: 25_000 };
 
-async function openAiStep(page: Page) {
+/** Press the Entry card and stop on the step's arrival state: the coding-agent route alone. */
+async function arriveOnAiStep(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await expect(page.getByTestId('ai-agent-route')).toBeVisible();
+}
+
+async function openAiStep(page: Page) {
+  await arriveOnAiStep(page);
+  await chooseNoacgAgent(page);
 }
 
 /**
@@ -199,7 +207,10 @@ async function finishInEditor(page: Page): Promise<void> {
   await page.getByTestId('wz-finish-editor').click();
 }
 
-test.beforeEach(async ({ page }) => {
+/** The tag of a test that never walks into an editor, so the Advanced opt-in below is not its. */
+const NO_EDITOR = '@no-editor';
+
+test.beforeEach(async ({ page }, testInfo) => {
   // A generation plus its benches, then a project create with a preview rebuild, sits at
   // 10-15 s per test and was observed over 30 s under worker contention - the suite-wide
   // 30 s cap is the wrong ceiling for this file.
@@ -212,7 +223,10 @@ test.beforeEach(async ({ page }) => {
   );
   // These specs finish through the Finish step's EDITOR door, which has been Advanced-only
   // since step 6 (docs/GOALS_ARCHIVE.md "Student release"; FinishStep `showEditorDoor`) - the same
-  // opt-in every other editor-walking spec makes.
+  // opt-in every other editor-walking spec makes. That opt-in now SKIPS the test (e2e/_create.ts,
+  // the old editor is closed), so a test that never reaches an editor is tagged NO_EDITOR and
+  // stays out of it - otherwise it would be skipped along with the rest and prove nothing.
+  if (testInfo.tags.includes(NO_EDITOR)) return;
   await enableAdvancedMode(page);
 });
 
@@ -235,34 +249,90 @@ test('harness off (the toggle): one raw model call, no design stage', async ({ p
   await expect(page.locator('.topbar .tpl-name')).toHaveText('Test Slate');
 });
 
-test('the step opens by saying it is still in testing, with the rest behind its ⓘ', async ({ page }) => {
-  // The same fact the Entry card leads with (e2e/wizard-entry-fit.spec.ts), said once more
-  // where a generation is about to be spent. It reuses the step's OWN convention - one visible
-  // line, an ⓘ for the rest (SectionHead) - rather than adding a second notice pattern, which
-  // is the whole reason the tier paragraph moved behind the ⓘ with it.
-  await openAiStep(page);
-  const head = page.locator('.wz-step .wz-sec-head').first();
-  await expect(head).toContainText('Create with AI');
-  await expect(head).toContainText('Still in testing - results vary');
+const NOACG_WARNING = "The NoaCG agent's results are not yet proven to be consistently good.";
 
-  // AND IT IS READ, NOT CLIPPED. `.wz-sec-head .muted` is one nowrap line with an ellipsis, so
-  // a caution too wide for the form column would still satisfy every text assertion above
-  // while showing the reader "Still in testing - resul…". Measure it.
-  const clipped = await head.locator('.muted').evaluate(
-    (el) => el.scrollWidth - el.clientWidth,
-  );
-  expect(clipped, 'the testing line is cut off by the section head').toBeLessThanOrEqual(1);
+test('the step opens on the coding-agent route alone; the NoaCG agent is one click away, with its warning', { tag: NO_EDITOR }, async ({ page }) => {
+  // Owner, 2026-09-28: the step carried too much information. On arrival the user's own coding
+  // agent is the first and ONLY primary content; the one other thing is a secondary button into
+  // the NoaCG agent with a plain warning under it (wizard/open-create-step-user-own-coding).
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await arriveOnAiStep(page);
+  const step = page.locator('.wz-step');
+  const choose = page.getByTestId('ai-noacg-choose');
+  const warning = page.getByTestId('ai-noacg-warning');
+  await expect(choose).toHaveText('No, I want to try the NoaCG agent');
+  await expect(warning).toHaveText(NOACG_WARNING);
+  // Secondary, not the step's primary: the card is what the eye should land on.
+  await expect(choose).not.toHaveClass(/primary/);
+  // Both fit the budget laptop without a scroll, or the choice is hidden below the fold.
+  await expect(choose).toBeInViewport();
+  await expect(warning).toBeInViewport();
+  // A plain warning in BODY text, not a muted hint: it reads in the same colour as the card title.
+  const colours = await page.evaluate(() => ({
+    warning: getComputedStyle(document.querySelector('[data-testid="ai-noacg-warning"]')!).color,
+    title: getComputedStyle(document.querySelector('.ai-agent-route-title')!).color,
+  }));
+  expect(colours.warning).toBe(colours.title);
 
-  // The fuller sentence is one click away, not on screen by default.
-  await expect(page.getByTestId('ai-testing-why-body')).toHaveCount(0);
-  await page.getByTestId('ai-testing-why').click();
-  const why = page.getByTestId('ai-testing-why-body');
-  await expect(why).toContainText('still in a testing phase');
-  // It has to separate the two claims, or "in testing" reads as "might ship you something
-  // broken" - which is the one thing the platform's gate does guarantee against.
+  // NOTHING ELSE COMPETES before the choice: none of the generator's surfaces is in the DOM.
+  for (const selector of [
+    '[data-testid="ai-builtin"]', '.wz-drop', '.wz-step textarea', '[data-testid="ai-format-resolution"]',
+    '[data-testid="ai-settings"]', '[data-testid="more-control-toggle"]', '.wz-sec-head',
+  ]) {
+    await expect(page.locator(selector), `${selector} shows before the choice`).toHaveCount(0);
+  }
+  // And no caveat of the old kind anywhere on the step: no Beta, no testing note, no tag.
+  await expect(step).not.toContainText(/Beta|in testing|testing phase|Recommended/i);
+
+  // ONE CLICK: the section opens with its head carrying the same warning, and focus moves to it
+  // rather than falling to the body when the button it replaced unmounts.
+  await choose.click();
+  const section = page.getByTestId('ai-builtin');
+  await expect(section).toBeFocused();
+  await expect(page.getByTestId('ai-noacg-door')).toHaveCount(0);
+  const head = section.locator('.wz-sec-head');
+  await expect(head).toContainText('NoaCG agent');
+  await expect(head).toContainText(NOACG_WARNING);
+  // AND IT IS READ, NOT CLIPPED. `.wz-sec-head .muted` is one nowrap line with an ellipsis
+  // elsewhere; this longer line must wrap instead of showing "…not yet prov…". Measure it.
+  const clipped = await head.locator('.muted').evaluate((el) => el.scrollWidth - el.clientWidth);
+  expect(clipped, 'the warning is cut off by the section head').toBeLessThanOrEqual(1);
+  // The ⓘ says what the NoaCG agent does, with no testing-phase language.
+  await page.getByTestId('ai-noacg-why').click();
+  const why = page.getByTestId('ai-noacg-why-body');
   await expect(why).toContainText('validated and exercised in a live playout test');
-  // …and name the settled alternative, so the caution ends somewhere useful.
   await expect(why).toContainText('start from a template or import your own artwork');
+  await expect(why).not.toContainText(/testing phase/);
+  // Every generator surface is back.
+  await expect(page.locator('.wz-drop')).toBeVisible();
+  await expect(page.locator('.wz-step textarea')).toBeVisible();
+  await expect(page.getByTestId('ai-format-resolution')).toBeVisible();
+  await expect(page.getByTestId('more-control-toggle')).toBeVisible();
+  await expect(page.getByRole('button', { name: /AI settings/ })).toBeVisible();
+
+  // The choice is not stored: leaving the step and opening it again shows the agent route first.
+  await page.getByRole('button', { name: '← Back' }).click();
+  await page.locator('[data-entry="ai"]').click();
+  await expect(page.getByTestId('ai-noacg-choose')).toBeVisible();
+  await expect(page.getByTestId('ai-builtin')).toHaveCount(0);
+});
+
+test('a template dropped before the choice opens the NoaCG agent with the file on its import card', { tag: NO_EDITOR }, async ({ page }) => {
+  // The no-AI "open as code" import lives behind the NoaCG agent's drop zone, and somebody
+  // holding an .html should not have to know that: a drop anywhere on the step before the
+  // choice opens the section with the file already in it.
+  await arriveOnAiStep(page);
+  const dataTransfer = await page.evaluateHandle((html) => {
+    const dt = new DataTransfer();
+    dt.items.add(new File([html], 'test-slate.html', { type: 'text/html' }));
+    return dt;
+  }, VALID_TEMPLATE.html);
+  const card = page.getByTestId('ai-agent-route');
+  await card.dispatchEvent('dragover', { dataTransfer });
+  await card.dispatchEvent('drop', { dataTransfer });
+  await expect(page.getByTestId('ai-builtin')).toBeVisible();
+  await expect(page.getByTestId('import-format-detection')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Open as code \(no AI\)/ })).toBeVisible();
 });
 
 test('the harness checkbox is on by default', async ({ page }) => {
@@ -834,6 +904,7 @@ test('cost: no history means no number, and history is reported as tokens and se
   });
   await page.reload();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   const expectation = page.getByTestId('ai-expectation');
   await expect(expectation).toContainText('25 s'); // the median of 20 s and 30 s
   await expect(expectation).toContainText('13k in'); // …and of the input tokens (≥10k: no decimal)

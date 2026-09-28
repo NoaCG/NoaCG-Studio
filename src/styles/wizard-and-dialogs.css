@@ -1924,15 +1924,6 @@ details:not([open]) > *:not(summary) { display: none; }
    walk needs. `.active` marks it open the same way every other toggle here does. */
 .wz-sec-head { display: flex; align-items: baseline; gap: 8px; }
 .wz-sec-head .muted { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* "Still in testing - results vary." ONE class for the one fact, on both surfaces that say
-   it: the Entry card's AI hint and the AI step's own section head. It is brighter and heavier
-   than the copy around it, and NOT amber — the Beta tag beside the title on the entry card
-   already spends that card's one accent, and two amber marks on one card read as decoration
-   rather than as a caution. In the section head it also has to beat `.muted`, whose slot is
-   otherwise a neutral descriptor ("where this graphic will be watched") and reads as one.
-   Weight costs width there, and that line is nowrap with an ellipsis — e2e/ai.spec.ts
-   measures that it is not cut off. */
-.wz-testing-note { color: var(--text); font-weight: 600; }
 .wz-why-btn {
   flex: 0 0 auto;
   width: 22px;

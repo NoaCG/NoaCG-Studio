@@ -225,6 +225,13 @@ type Turn = TalkTurn | PastTurn;
 const CONVERSATION_TURNS = 10;
 
 /**
+ * The plain warning beside the NoaCG agent, before the choice and on its head after it (owner,
+ * 2026-09-28). It replaced the "Still in testing - results vary" note and the Beta tag: a
+ * statement of what is known, said where the reader decides, with no edition language.
+ */
+const NOACG_AGENT_WARNING = "The NoaCG agent's results are not yet proven to be consistently good.";
+
+/**
  * The example briefs this step offers, by tier.
  *
  * ALL THREE BANKS LIVE IN `src/ai/examplePrompts.ts`, and this step only chooses between them.
@@ -404,6 +411,25 @@ export default function AiStep({
   const agentRouteRef = useRef<HTMLElement>(null);
   const revealAgentRoute = () =>
     agentRouteRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  // THE NOACG AGENT IS A CHOICE, NOT THE PAGE (owner, 2026-09-28: "too much information"). On
+  // arrival the step is the agent route and one secondary button; everything the built-in
+  // generator owns - format, viewing, drop zone, composer, settings, thread - renders only once
+  // the reader chooses it. Local state, never stored: the step stays mounted across Finish
+  // (CreationWizard), so a chosen generator survives the round trip, and every fresh opening
+  // shows the agent route first again.
+  const [noacgChosen, setNoacgChosen] = useState(false);
+  const noacgHeadRef = useRef<HTMLDivElement>(null);
+  const chooseNoacg = () => {
+    if (noacgChosen) return;
+    setNoacgChosen(true);
+    // After the commit that mounts the section: the button that had focus is gone, so focus
+    // moves to the section it opened rather than falling to the document body.
+    requestAnimationFrame(() => {
+      const head = noacgHeadRef.current;
+      head?.focus({ preventScroll: true });
+      head?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  };
 
   useEffect(() => {
     if (liteStatus === undefined || settingsAutoOpened.current) return;
@@ -1128,40 +1154,56 @@ export default function AiStep({
   const refined = Boolean(originals[selected]) && alternatives[selected] !== originals[selected];
 
   return (
-    <div>
-      {/* THE RECOMMENDED ROUTE COMES FIRST (owner, 2026-09-27): the user's own coding agent,
-          the four steps and the install lines, before the drop zone, the brief and any key.
-          Never gated on an account - a visitor with no account is exactly who owns a better
-          road than the one that asks for one. `hostedOffered` is the route a visitor can
-          actually REACH, which is now only the Lite path: ORing in a server's "Pro is
-          available" made this card promise "nothing to install" while the sheet under it said
-          the opposite. */}
-      <AgentRouteCard ref={agentRouteRef} hostedOffered={hostedResolved ? liteOffered : undefined} />
+    <div
+      // A picture or a template dropped on the step BEFORE the choice is still honoured: the
+      // no-AI "open as code" import lives behind the NoaCG agent's drop zone, and a reader
+      // holding an .html should not have to know that. The drop opens the section with the
+      // file already in it. Once chosen, the section's own drop zone owns the gesture.
+      onDragOver={noacgChosen ? undefined : (e) => e.preventDefault()}
+      onDrop={noacgChosen ? undefined : (e) => {
+        e.preventDefault();
+        chooseNoacg();
+        void addFiles(e.dataTransfer.files);
+      }}
+    >
+      {/* THE RECOMMENDED ROUTE COMES FIRST AND ALONE (owner, 2026-09-27 and 2026-09-28): the
+          user's own coding agent, the four steps and the install lines. Never gated on an
+          account - a visitor with no account is exactly who owns a better road than the one
+          that asks for one. */}
+      <AgentRouteCard ref={agentRouteRef} />
 
-      {/* THE BUILT-IN GENERATOR, LABELLED AS THE BUILT-IN OPTION, SAYS IT IS STILL IN TESTING
-          (owner, 2026-08-29 - the same fact the Entry card leads with, said once more where
-          the reader is about to spend a generation). It reuses the step's OWN convention rather
-          than adding a second notice pattern: SectionHead's summary is the one always-visible
-          line, and the ⓘ holds the rest (GOALS goal 4). The heading keeps the door's name,
-          "Create with AI", because that is what the Entry card called it. */}
-      <div className="panel-section ai-builtin" data-testid="ai-builtin">
+      {!noacgChosen ? (
+        // THE ONE OTHER THING ON ARRIVAL: a secondary button and the plain truth about where it
+        // leads, in body text rather than a muted hint, so it reads as a statement and not as
+        // the "still testing" whisper it replaced. No tag, no ⓘ, no amber.
+        <div className="ai-noacg-door" data-testid="ai-noacg-door">
+          <button type="button" data-testid="ai-noacg-choose" onClick={chooseNoacg}>
+            No, I want to try the NoaCG agent
+          </button>
+          <p className="ai-noacg-warning" data-testid="ai-noacg-warning">{NOACG_AGENT_WARNING}</p>
+        </div>
+      ) : (
+      <>
+      {/* THE NOACG AGENT, CHOSEN: its head carries the same warning as its one always-visible
+          line (SectionHead's summary), and the ⓘ says what it does. */}
+      <div
+        className="panel-section ai-builtin"
+        data-testid="ai-builtin"
+        ref={noacgHeadRef}
+        tabIndex={-1}
+      >
         <SectionHead
-          title="Built-in Create with AI"
-          summary={<span className="wz-testing-note">Still in testing - results vary</span>}
-          testid="ai-testing-why"
+          title="NoaCG agent"
+          summary={<span className="ai-noacg-warning">{NOACG_AGENT_WARNING}</span>}
+          testid="ai-noacg-why"
         >
           <p>
-            This door is still in a testing phase. What comes back varies from one brief to the
-            next: some land close to finished, others come back plainer than a catalog design.
-            What does <strong>not</strong> vary is whether it works - every result is validated
-            and exercised in a live playout test before you can create it, so a broken graphic
-            never reaches air. If you need a settled result today, start from a template or
-            import your own artwork instead.
-          </p>
-          <p>
             Describe the graphic you need and NoaCG designs one for you, here in the browser.
-            Every result lands as clean, editable code. If you have Claude Code, Codex or another
-            compatible coding agent, the route above is the better way to make a graphic today.
+            Every result is validated and exercised in a live playout test before you can create
+            it, so a broken graphic never reaches air, and it lands as clean, editable code. What
+            varies is the design: some results land close to finished, others come back plainer
+            than a catalog design. If you need a settled result today, start from a template or
+            import your own artwork instead.
           </p>
         </SectionHead>
         {liteMode && liteStatus?.allowance && (
@@ -2106,7 +2148,8 @@ export default function AiStep({
           )}
         </>
       )}
-
+      </>
+      )}
     </div>
   );
 }

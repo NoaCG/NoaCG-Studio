@@ -2,6 +2,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { enableAdvancedMode } from './_create';
 import { previewFrame } from './_frame';
 import { awaitPreviewRebuild } from './_preview';
@@ -114,6 +115,7 @@ async function openAiStep(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
 }
 
 test('a brief becomes a customized graphic adapted from a proven design', async ({ page }) => {

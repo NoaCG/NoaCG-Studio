@@ -2,6 +2,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode } from './_create';
 
@@ -67,7 +68,7 @@ async function openLite(page: Page): Promise<void> {
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
+  await chooseNoacgAgent(page);
 }
 
 test.beforeEach(async ({ page }) => {
