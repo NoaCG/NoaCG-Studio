@@ -116,20 +116,36 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 /* ── Two-column shell: sticky section nav beside the content ── */
 .doc-grid { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px; padding: 30px 0 90px; align-items: start; }
 .doc-nav { position: sticky; top: 26px; font-family: var(--read); }
-.doc-nav .group {
-  font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
-  color: var(--faint); margin: 18px 0 6px;
-}
-.doc-nav .group:first-child { margin-top: 0; }
 .doc-nav a {
   display: block; font-size: 14px; color: var(--dim); padding: 5px 0 5px 12px;
   border-left: 2px solid var(--line);
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 .doc-nav a:hover { color: var(--paper); }
+/* Five topic heads, each a step up from the pages under it. The head of the topic being read
+   lights up too, so a folded topic still says where the reader is. */
+.doc-nav-topic > a, .doc-nav-head > a { font-size: 15px; padding-top: 7px; padding-bottom: 7px; }
+.doc-nav-topic.is-current > a, .doc-nav-topic.is-current > .doc-nav-head > a { color: var(--paper); }
 .doc-nav a.is-active { color: var(--amber); border-left-color: var(--amber); }
-/* The Graphics topic's own pages, indented under it. The rail stays one continuous line, so the
-   sub-links read as part of the topic above rather than as a new group. */
+/* docs.ts wraps a head that has pages under it in a row with a fold toggle. */
+.doc-nav-head { display: flex; align-items: center; }
+.doc-nav-head > a { flex: 1; min-width: 0; }
+.doc-nav-toggle {
+  flex: none; width: 30px; height: 30px; display: grid; place-items: center;
+  background: none; border: 0; border-radius: 6px; color: var(--faint); cursor: pointer;
+}
+.doc-nav-toggle::before {
+  content: ""; width: 6px; height: 6px; margin-top: -3px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform 0.15s ease, margin 0.15s ease;
+}
+.doc-nav-toggle[aria-expanded="true"]::before { transform: rotate(-135deg); margin-top: 3px; }
+.doc-nav-toggle:hover { color: var(--paper); }
+.doc-nav-toggle:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
+/* A topic's own pages, indented under it. The rail stays one continuous line, so the sub-links
+   read as part of the topic above rather than as a new group. */
+.doc-nav-sub a:last-child { padding-bottom: 8px; }
+.doc-nav-sub[hidden] { display: none; }
 .doc-nav-sub a { font-size: 13px; line-height: 1.45; padding: 2px 0 2px 24px; }
 .doc-nav-sub .sub-group {
   font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;

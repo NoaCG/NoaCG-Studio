@@ -30,8 +30,11 @@ code that implements it. Where something is expected rather than measured, the p
 
 ## Structure
 
-- **The left nav carries main topics, and Graphics' own pages indented under it** (owner,
-  2026-09-21, replacing the main-topics-only rule of 2026-08-26). Graphics is one topic: how to
+- **The left nav shows five topics first, each topic's pages indented under it** (owner,
+  2026-08-26 "only the most important information on the left", and 2026-09-21 for the type
+  pages). A topic's head links to its first section; `docs.ts` folds every topic but the one
+  being read and adds a toggle, and without the module every link shows. A new guide goes under
+  the topic it belongs to, never as a sixth head without a reason. Graphics is one topic: how to
   import an SVG, then one page per graphic type. Each type page is a nested
   `<section class="doc-type">` inside `#graphics`, headed by an `h3.doc-kind`, and it carries the
   same parts in the same order: the rendered example with its download link, the drawn layer
