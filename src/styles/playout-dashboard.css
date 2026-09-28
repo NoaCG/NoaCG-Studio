@@ -1661,6 +1661,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    list - the ON AIR / PVW tag, the clip length (only when the rundown has a server clip), the
    slot, and the ⋯. The name gives way last: the summary shrinks away first. */
 .pd-rundown .pd-cues { gap: 3px; }
+/* THE EMPTY RUNDOWN'S LINE sits where the first row would: in from the rail edge by the list's own
+   inset (`.pd-cues`, 12px), its text at a row's height. Flush against the edge, it made the page a
+   new production opens on - a first-time user's first look at Playout - read as unfinished. */
+.pd-rundown .pd-cues-empty { margin: 0; padding: 8px 12px 0; }
 /* `flex: none`: the list is a flex column, and a one-line row's content is shorter than its
    height, so without it the rows shrink to fit the list instead of the list scrolling. */
 .pd-rundown .pd-cue { flex: none; height: 34px; padding: 0 6px 0 7px; gap: 7px; border-radius: 6px; }

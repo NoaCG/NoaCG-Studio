@@ -21,6 +21,11 @@ async function entryStepAt(page: Page, width: number, height: number) {
   await expect(page.locator('[data-entry="video"]')).toBeVisible();
 }
 
+/** The start cards in the owner's order (2026-09-28): make graphics first - a template, your own
+ *  artwork, AI - then the greyed video door. Desktop row and phone stack alike. */
+const OWNER_ORDER = ['template', 'import-graphic', 'ai', 'video'];
+const OWNER_TITLES = ['Start from a template', 'Import graphics', 'Create with AI', 'Video or animation'];
+
 /** How far `.wz-step`'s content exceeds its scrollport. 0 means the whole step is on screen. */
 async function stepOverflowPx(page: Page): Promise<number> {
   return page.locator('.wz-step').evaluate((el) => el.scrollHeight - el.clientHeight);
@@ -96,8 +101,8 @@ test('the whole step, Playout row included, is inside the scrollport at 1366x768
 test('the four start cards are one row of equal cards, in the owner order', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
 
-  // THE ORDER IS THE RANKING (owner, 2026-09-27): your own AI coding agent, your own artwork,
-  // a template, then the greyed video door. SAME SIZE AND SAME TREATMENT: no card is tinted
+  // THE ORDER IS THE RANKING (owner, 2026-09-28): make graphics first - a template, your own
+  // artwork, AI - then the greyed video door. SAME SIZE AND SAME TREATMENT: no card is tinted
   // as the primary any more - the old tinted template border made one card of four look
   // different, which is what the owner reported. Geometry, because a ragged row is invisible
   // to any assertion about which elements exist.
@@ -124,7 +129,8 @@ test('the four start cards are one row of equal cards, in the owner order', asyn
       };
     }),
   );
-  expect(cards.map((c) => c.entry)).toEqual(['ai', 'import-graphic', 'template', 'video']);
+  expect(cards.map((c) => c.entry)).toEqual(OWNER_ORDER);
+  await expect(page.locator('.wz-entry .wz-entry-card strong')).toHaveText(OWNER_TITLES);
   expect(cards.some((c) => c.primary)).toBe(false);
 
   const round = (n: number) => Math.round(n);
@@ -210,7 +216,7 @@ test('the phone reads top to bottom: four equal cards, then the Playout row', as
     };
   });
   const { cards } = layout;
-  expect(cards.map((c) => c.entry)).toEqual(['ai', 'import-graphic', 'template', 'video']);
+  expect(cards.map((c) => c.entry)).toEqual(OWNER_ORDER);
   expect(new Set(cards.map((c) => c.left)).size).toBe(1);
   expect(new Set(cards.map((c) => c.width)).size).toBe(1);
   expect(new Set(cards.map((c) => c.height)).size, `heights ${cards.map((c) => c.height)}`).toBe(1);
@@ -231,19 +237,24 @@ test('the phone reads top to bottom: four equal cards, then the Playout row', as
 // differences that were closed - and, just as importantly, the three divergences from the
 // reference that are DELIBERATE, so nobody restores the picture over the decision.
 
-test('the hero names both routes to air and EVERY export target, in the sentence', async ({ page }) => {
+test('the hero intro is the owner copy: make graphics, then every route to air and EVERY export target', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
   const hero = page.locator('.wz-hero');
   // The landing page's headline, verbatim - the app repeating the promise word for word is
   // what makes the two surfaces read as one product.
   await expect(hero.locator('.wz-hero-title')).toHaveText('Create live graphics. Run the show.');
   const sub = hero.locator('.wz-hero-sub');
-  // THE CONTROLLER ROUTE IS NAMED, AND SO IS ITS MECHANISM. The step used to promise export
-  // alone; naming the controller without saying how it reaches air reads as a platform the
-  // studio has to move onto, when what it actually costs them is one browser source.
-  await expect(sub).toContainText('Our controller runs the show live');
-  await expect(sub).toContainText('one browser source your playout client loads once');
-  // …and NOT as an "HTML overlay": that phrase is the name of an export TARGET (a folder of
+  // THE INTRO IS THE OWNER'S, VERBATIM (2026-09-28): the product flow in reading order - make
+  // graphics first, then use them however the production works. It names every route to air:
+  // the browser source NoaCG plays itself, NoaCG Playout driving CasparCG through NoaCG Bridge,
+  // and the downloaded templates.
+  await expect(sub).toHaveText(
+    'Start from a template, create graphics with AI, or import your own SVGs. Then use them ' +
+      'however your production works: play them directly from NoaCG through a browser source, ' +
+      'connect NoaCG Playout to CasparCG with NoaCG Bridge, or download the graphics as HTML ' +
+      'templates for OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.',
+  );
+  // …and the live route is NOT an "HTML overlay": that phrase is the name of an export TARGET (a folder of
   // files), so reusing it for the live URL would make one term mean two products on one screen.
   await expect(sub).not.toContainText('HTML overlay');
   // EVERY TARGET, not a sample of three: naming SPX, CasparCG and OGraf alone read as the whole
@@ -422,14 +433,14 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
     .toEqual({ border: amber, background: fill, outline: 'none' });
 });
 
-test('the video card is greyed and says in words that it is not recommended yet', async ({ page }) => {
+test('the video card is greyed, and the grey is its whole caveat', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
-  // Owner, 2026-09-27: the video door stays, the same size as the others, but greyed with a
-  // short plain note. It makes a rendered FILE, not a live graphic, and says both.
+  // Owner, 2026-09-27: the video door stays, the same size as the others, but greyed. It makes
+  // a rendered FILE, not a live graphic, and says so. Owner, 2026-09-28: no "Not recommended
+  // yet" sentence - the grey says "not yet", and a second caveat in words hedged the first screen.
   const card = page.locator('[data-entry="video"]');
-  await expect(card.locator('.hint')).toContainText('Not recommended yet');
-  await expect(card.locator('.hint')).toContainText('not a live graphic');
-  // One signal, not two: the note replaces the old Beta tag.
+  await expect(card.locator('.hint')).toHaveText('Renders a video file, not a live graphic.');
+  await expect(card.locator('.hint')).not.toContainText(/recommend/i);
   await expect(card.locator('.wz-beta-tag')).toHaveCount(0);
 
   // GREYED means quieter than its row-mates in the two things a reader scans: the title and
@@ -551,55 +562,30 @@ test('the AI card carries no tier or paid-edition copy', async ({ page }) => {
   await expect(hint).not.toContainText(/NoaCG Lite|free with|included|free account/i);
 });
 
-test('the AI door is marked Beta inside its title', async ({ page }) => {
+test('no start card carries a caveat, and every card holds its copy in the reserve', async ({ page }) => {
   await entryStepAt(page, 1366, 768);
-  // The tag lives INSIDE the title, so the card's fixed-height title row is what has to absorb
-  // it - a tag that wrapped the title would push this card's copy off the y its row-mates' sit
-  // at. (The video door carried one too until it was greyed; its note replaced it.)
-  await expect(page.locator('[data-entry="ai"] .wz-beta-tag')).toHaveText('Beta');
-  const rows = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
-    els.map((el) => {
-      const strong = el.querySelector('strong')!;
-      return {
-        entry: (el as HTMLElement).dataset.entry,
-        titleHeight: strong.getBoundingClientRect().height,
-        lineHeight: parseFloat(getComputedStyle(strong).lineHeight),
-        hintTop: Math.round(el.querySelector('.hint')!.getBoundingClientRect().top - el.getBoundingClientRect().top),
-      };
-    }),
+  // Owner, 2026-09-28: the first screen must be understandable at once, so Create with AI lost
+  // its Beta tag and its "Still in testing - results vary." line (and the Video card its "Not
+  // recommended yet"). A caveat on one door of four reads as "this one is different" - the same
+  // report that took the tinted border off the Import card.
+  const row = page.locator('.wz-entry');
+  await expect(row.locator('.wz-beta-tag')).toHaveCount(0);
+  await expect(page.getByTestId('ai-testing-note')).toHaveCount(0);
+  await expect(row.locator('.wz-testing-note')).toHaveCount(0);
+  await expect(page.locator('[data-entry="ai"] strong')).toHaveText('Create with AI');
+  await expect(row).not.toContainText(/beta|still in testing|results vary|not recommended/i);
+
+  // Every description fits the card's three reserved lines at the budget width: a fourth line
+  // grows the row and pushes the Playout row below the fold (the budget every other test here
+  // guards). Measured, rather than trusting the copy to stay short.
+  const lines = await row.locator('.wz-entry-card .hint').evaluateAll((els) =>
+    els.map((el) => el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)),
   );
-  for (const row of rows) {
-    expect(row.titleHeight, `${row.entry}: title wrapped`).toBeLessThan(row.lineHeight * 1.6);
-    expect(row.hintTop, `${row.entry}: description offset`).toBe(rows[0].hintTop);
+  for (const [i, n] of lines.entries()) {
+    expect(n, `${OWNER_ORDER[i]} hint needs ${n.toFixed(2)} lines of its 3-line reserve`).toBeLessThanOrEqual(3.05);
   }
-});
 
-test('the AI door says in words that it is still in testing', async ({ page }) => {
-  await entryStepAt(page, 1366, 768);
-  // Owner, 2026-08-29: "we should have a warning about the AI creations... they're still in
-  // the testing phase". The Beta tag alone is a label a reader carries their own meaning into;
-  // what this door owes them before they open it is that the RESULT is not settled. Plainest
-  // words, one line, and it LEADS the description - a caution after two sentences of what the
-  // door does is a caution nobody reaches.
-  const note = page.getByTestId('ai-testing-note');
-  await expect(note).toHaveText('Still in testing - results vary.');
-  const hint = page.locator('[data-entry="ai"] .hint');
-  await expect(hint).toContainText('Still in testing');
-  expect((await hint.innerText()).trim().startsWith('Still in testing')).toBe(true);
-
-  // IT COSTS THE ENTRY GRID NOTHING. The note is inline inside `.hint`, so the card's three
-  // reserved description lines still hold the whole of the copy; a fourth line grows the row
-  // and pushes the Playout row below the fold (the budget every other test in this file
-  // guards). Measure the hint against the reserve rather than trusting the copy to stay short.
-  const fits = await hint.evaluate((el) => {
-    const lineHeight = parseFloat(getComputedStyle(el).lineHeight);
-    return { lines: el.getBoundingClientRect().height / lineHeight, lineHeight };
-  });
-  expect(fits.lines, `the AI hint needs ${fits.lines.toFixed(2)} lines of its 3-line reserve`)
-    .toBeLessThanOrEqual(3.05);
-
-  // The door is still OPEN. The owner offered disabling it too; labelling was chosen, and a
-  // disabled card would be a pillar quietly removed rather than a caution added.
+  // Dropping the caveat never meant closing the door: Create with AI is open.
   await expect(page.locator('[data-entry="ai"]')).toBeEnabled();
 });
 

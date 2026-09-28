@@ -22,22 +22,37 @@ import { useTemplateStore } from '../store/templateStore';
  *
  * The WIZARD mounts this door too (owner, 2026-08-28): mid-walk it is a guarded START-OVER -
  * `#/new` rewinds the walk to the front page WITHOUT clearing the draft, so browser Back
- * returns to the step with everything still in it, and nothing is silently lost. On the front
- * page itself the press is a NO-OP, checked here before the guard runs: proceeding would
- * change nothing, so even a dirty document must not raise the unsaved-changes dialog for it.
+ * returns to the step with everything still in it, and nothing is silently lost.
+ *
+ * `current` is the wizard's FRONT PAGE, where this door already stands (owner, 2026-09-28: the
+ * page you are on is shown as current and is not a clickable button). It renders the same label
+ * in the same box as a marked, inert `aria-current="page"` item rather than a button that does
+ * nothing, so the bar keeps its geometry and nobody presses a door into the room they are in.
+ * The press is still a no-op if a stray one lands on the button form at `#/new`, checked before
+ * the guard runs: proceeding would change nothing, so even a dirty document must not raise the
+ * unsaved-changes dialog for it.
  */
 export default function NewGraphicButton({
   className,
   testid,
   productionId,
   title,
+  current = false,
 }: {
   className?: string;
   testid?: string;
   productionId?: string;
   title?: string;
+  current?: boolean;
 }) {
   const navigate = useRouter((s) => s.navigate);
+  if (current) {
+    return (
+      <span className={className} data-testid={testid ?? 'new-graphic'} data-door="new-graphic" aria-current="page">
+        + New graphic
+      </span>
+    );
+  }
   return (
     <button
       className={className}

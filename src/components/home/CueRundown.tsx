@@ -232,7 +232,7 @@ export default function CueRundown({
       </div>
 
       {cues.length === 0 && (
-        <p className="hint" data-testid="no-cues">
+        <p className="hint pd-cues-empty" data-testid="no-cues">
           No cues yet. Add a graphic below, then add cues on it.
         </p>
       )}

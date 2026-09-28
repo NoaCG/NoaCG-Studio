@@ -1090,6 +1090,51 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await expect.poll(poolCount).toBe(0);
 });
 
+test('an empty production reads as a start: its empty line sits like a row, and Start production waits for a cue', async ({
+  page,
+}) => {
+  // The wizard's New production lands a first-time user on this page, so it is their first look
+  // at Playout. Two details made it read as unfinished: the "No cues yet" line flush against the
+  // rail's edge, and Start production lit amber with nothing to run. The production is made from
+  // Home here, the door this spec covers; the wizard's door has its own spec.
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/home/productions');
+  await page.getByTestId('new-production-name').fill('First show');
+  await page.getByTestId('new-production').click();
+  await expect(page.getByTestId('production-page')).toBeVisible();
+  const empty = page.getByTestId('no-cues');
+  await expect(empty).toBeVisible();
+
+  /** Where an element's TEXT starts (or a row's box), from the rundown rail's left edge. */
+  const insetOf = (el: Element) => {
+    const rail = document.getElementById('pd-rundown')!.getBoundingClientRect();
+    if (el.classList.contains('pd-cue')) return el.getBoundingClientRect().left - rail.left;
+    const text = document.createRange();
+    text.selectNodeContents(el);
+    return text.getBoundingClientRect().left - rail.left;
+  };
+  const emptyInset = await empty.evaluate(insetOf);
+
+  // ZERO CUES: publishing an empty production works (it mints the links early), but it runs
+  // nothing, so the button is not the page's call to action. Offline it is also disabled, for
+  // its own stated reason.
+  const start = page.getByTestId('production-publish');
+  await expect(start).not.toHaveClass(/\bprimary\b/);
+
+  await page.getByTestId('add-pictures-input').setInputFiles([pictureFile('Opening slide.png')]);
+  const row = page.getByTestId('cue-list').locator('.pd-cue').first();
+  await expect(row).toBeVisible();
+  await expect(empty).toHaveCount(0);
+
+  // The first cue is there to take, and the amber comes with it.
+  await expect(start).toHaveClass(/\bprimary\b/);
+
+  // The empty line started where the row now does: the list's own inset, not the rail edge.
+  const rowInset = await row.evaluate(insetOf);
+  expect(rowInset).toBeGreaterThan(6);
+  expect(Math.abs(emptyInset - rowInset), `empty line at ${emptyInset}px, row at ${rowInset}px`).toBeLessThanOrEqual(1);
+});
+
 test('a match clock survives a renderer reboot: the wire carries the instant the value was true', async ({ page }) => {
   // docs/CLOUD_PLAYOUT.md §3. A clock is the one value that keeps moving with nobody commanding
   // it, so a snapshot of the commands cannot rebuild it — a browser source reloaded at 67

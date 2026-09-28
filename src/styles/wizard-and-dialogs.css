@@ -137,12 +137,10 @@
   .wz-wizard .wz-header .avatar-btn.account-pill { width: auto; }
   .wz-wizard .wz-header .account-pill .account-avatar { width: 24px; height: 24px; }
 }
-/* The wizard header's Home door and the + New graphic door beside it (the shared shell order:
-   logo -> Home -> + New graphic). Sized so the header's ROW HEIGHT is still set by the brand
-   lockup (30px) and not by these buttons - the Entry step's vertical budget at 1366x768 is
-   measured to the pixel (e2e/wizard-entry-fit.spec.ts), and a taller header spends it. */
-.wz-wizard .wz-home,
-.wz-wizard .wz-new { padding: 5px 10px; font-size: 13px; white-space: nowrap; }
+/* The wizard header's logo, Home door and + New graphic door are the SHELL NAV, sized once for
+   this header and Home's topbar together (`.shell-nav`, app-shell.css). Its 30px row is the
+   brand lockup's, so the header does not grow - the Entry step's vertical budget at 1366x768
+   is measured to the pixel (e2e/wizard-entry-fit.spec.ts), and a taller header spends it. */
 
 /* THE HOME BUTTON CARRIES NO GLYPH. It was 🏠 - the last pictographic emoji on the chrome after
    src/components/icons.tsx replaced the rest, a coloured cartoon that differs per platform and
@@ -853,9 +851,9 @@
   white-space: nowrap;
 }
 
-/* Wizard header brand line */
+/* Wizard header crumb: what is being made, after the shell nav, from the second step on. */
 .wz-title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
-.wz-title-sep { color: var(--border); }
+.wz-title-sep { color: var(--text-faint); }
 .wz-title-step { font-size: 14px; color: var(--text); font-weight: 500; white-space: nowrap; }
 /* The design being built, once one is chosen — dimmer than the mode, and the first thing to
    ellipsize, so a long catalog name can never push the step counter or the ✕ off the row. */

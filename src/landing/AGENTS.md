@@ -6,22 +6,25 @@ The landing is the static `index.html` at `/` (no React); it loads motion.ts as 
 output and real screenshots only, and roadmap features are tagged planned/coming, never shown as
 shipped.
 
-**The page is short on purpose.** A stranger should understand NoaCG in about thirty seconds:
-the hero, then NoaCG Playout and NoaCG Bridge, then the three ways to start (coding agent, own
-SVG artwork, templates, in that order), then OGraf and free/open source. Every claim about a
-playout target is held to the current state in `docs/GOALS.md` outcomes 5 and 6: only a proven
-route is marked proven, and an untested target is said to be untested. Add a section only when
-it answers something a first-time visitor needs; detail belongs in `/docs`.
+**The page is short on purpose, and it reads in the product's order: create, then play.** A
+stranger should understand NoaCG in about thirty seconds: the hero, then step 1, the three ways
+to create (a template, your own SVGs, your AI coding agent - the wizard's card order), then step 2, the three ways to use them (NoaCG Playout with NoaCG Bridge to
+CasparCG, OBS and browser sources, export packages), then OGraf and free/open source. The
+wizard's intro (`EntryStep.tsx`) is the owner's wording of the same story; borrow from it rather
+than writing a second version. Every claim about a playout target is held to the current state
+in `docs/GOALS.md` outcomes 5 and 6: no route wears a badge, and an untested target is said to be
+untested. Add a section only when it answers something a first-time visitor needs; detail belongs
+in `/docs`.
 
 **Every product screenshot is GENERATED, never hand-taken** - `node scripts/landing-shots.mjs`
-drives the running app and writes `public/landing/shot-*.png` (the wizard's steps, the export
-dialog, Home, and the playout dashboard). Re-run it after any change to those surfaces: a stale
-PNG cannot fail a build, so the only thing keeping the policy true is that re-taking the picture
-costs one command. Its two deliberate liberties are documented in the file - a shot may be CUT
-to a stated selector so a full-height app pane does not end in a band of empty panel, and the AI
-step's `/api/ai/lite/status` is answered so the shot shows the hosted default rather than a dev
-checkout's fallback. The page itself takes the same framing liberty once: the playout shot is
-shown through a fixed-ratio frame (`.shot-frame`) that crops the empty panel under it.
+drives the running app and writes `public/landing/shot-*.png` (the template library, the SVG
+import's text step, and the playout dashboard). Re-run it after any change to those surfaces: a
+stale PNG cannot fail a build, so the only thing keeping the policy true is that re-taking the
+picture costs one command. It makes only the shots the page shows: one the page stops using
+leaves the script and `public/landing/` in the same change. The on-air frames (`shot-strap`,
+`shot-markets`, `shot-title`) are captures of graphics on air, not generated. The page takes one
+framing liberty: the playout shot is shown through a fixed-ratio frame (`.shot-frame`) that crops
+the empty panel under it.
 
 - **gsap.ts** - evaluates the vendored UMD via `?raw` (it can't be ESM-imported; its global
   branch throws in strict mode).

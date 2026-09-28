@@ -61,33 +61,31 @@ test('the landing CTA opens the wizard even for a visitor with work in progress'
   await expect(page.locator('iframe.preview-frame')).toBeVisible();
 });
 
-test('the landing says what NoaCG is, where it plays out, and the three ways in', async ({ page }) => {
-  // The page's job is that a stranger understands NoaCG in about thirty seconds (owner,
-  // 2026-09-27): what it makes, NoaCG Playout and NoaCG Bridge near the top, then the three ways to
-  // start in a fixed order. A capability nobody can discover does not exist, and a claim that runs
-  // ahead of docs/GOALS.md outcomes 5 and 6 is not allowed on the page.
+test('the landing reads create first, then play or export', async ({ page }) => {
+  // The page's job is that a stranger understands NoaCG in about thirty seconds, in the product's
+  // own order (owner, 2026-09-28): first make graphics, then choose how to play or export them.
+  // A capability nobody can discover does not exist, and a claim that runs ahead of
+  // docs/GOALS.md outcomes 5 and 6 is not allowed on the page.
   await page.goto('/');
 
   // Free and open source in the hero, with the licence named further down.
   await expect(page.locator('.hero')).toContainText(/free (?:and|&) open source/i);
   await expect(page.locator('#free')).toContainText('AGPL-3.0');
 
-  // Playout and Bridge come straight after the hero. Only the CasparCG route through the Bridge is
-  // marked proven, because it is the only production-proven one; the Bridge's download is linked.
-  const playout = page.locator('#playout');
-  await expect(page.locator('main > section').first()).toHaveAttribute('id', 'playout');
-  await expect(playout).toContainText('NoaCG Bridge');
-  await expect(playout.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
-  await expect(playout.locator('.proven')).toHaveCount(1);
-  await expect(playout.locator('.route', { has: page.locator('.proven') })).toContainText('CasparCG');
-  await expect(playout).toContainText('not yet tested');
+  // Step 1 then step 2, straight after the hero, and the nav in the same order.
+  const sections = page.locator('main > section');
+  await expect(sections.nth(0)).toHaveAttribute('id', 'start');
+  await expect(sections.nth(1)).toHaveAttribute('id', 'playout');
+  const sectionLinks = page.locator('header nav a.gh[href^="#"]');
+  await expect(sectionLinks.nth(0)).toHaveAttribute('href', '#start');
+  await expect(sectionLinks.nth(1)).toHaveAttribute('href', '#playout');
 
-  // The three ways, in order: the coding agent, your own artwork, templates.
+  // Create: the three ways, in the wizard's card order - a template, your own SVGs, your agent.
   const ways = page.locator('#start .way');
   await expect(ways).toHaveCount(3);
-  await expect(ways.nth(0)).toHaveAttribute('id', 'agents');
+  await expect(ways.nth(0)).toHaveAttribute('id', 'templates');
   await expect(ways.nth(1)).toHaveAttribute('id', 'artwork');
-  await expect(ways.nth(2)).toHaveAttribute('id', 'templates');
+  await expect(ways.nth(2)).toHaveAttribute('id', 'agents');
   const agents = page.locator('#agents');
   await expect(agents).toContainText('Claude Code');
   await expect(agents).toContainText('NoaCG CLI');
@@ -95,6 +93,20 @@ test('the landing says what NoaCG is, where it plays out, and the three ways in'
   const artwork = page.locator('#artwork');
   await expect(artwork).toContainText('SVG');
   await expect(artwork.locator('a[href="/docs#svg"]')).toHaveCount(1);
+
+  // Play or export: exactly three routes - NoaCG Playout with the Bridge to CasparCG, OBS and
+  // browser sources, export packages - and no route wears a "proven" badge. The untested
+  // export targets are said to be untested; the Bridge's download is linked.
+  const playout = page.locator('#playout');
+  const routes = playout.locator('.route');
+  await expect(routes).toHaveCount(3);
+  await expect(routes.nth(0)).toContainText('NoaCG Bridge');
+  await expect(routes.nth(0)).toContainText('CasparCG');
+  await expect(routes.nth(1)).toContainText('browser source');
+  await expect(routes.nth(2)).toContainText('Export');
+  await expect(routes.nth(2)).toContainText('not yet tested');
+  await expect(playout).not.toContainText(/proven/i);
+  await expect(playout.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
 
   // OGraf has its own section, reachable from the nav, linking the starters page, and every
   // direction card is marked as direction rather than shown as shipped. The number of dashed

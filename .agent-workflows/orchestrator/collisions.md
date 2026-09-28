@@ -22,8 +22,9 @@ resolves it with judgement, not with a merge.
   forbid a row that discovers it needs an unallocated one from taking it and saying so.
 - **A shared CHECK - two rows that change one FLOW, not one file.** Ask of every pair: do these
   rows change the same user-visible FLOW? If so they share its tests whatever their file lists say.
-  Measure it: run `node scripts/e2e-affected.mjs --list` over each row's `TOUCHES`; an intersection
-  is a collision. Always pass `--list`: bare, it RUNS the whole suite on the one browser slot.
+  Measure it: run `node scripts/e2e-affected.mjs --list --files` over each row's `TOUCHES`; an
+  intersection is a collision. Always pass `--list`: bare, it RUNS the whole suite on the one
+  browser slot.
 - **A renamed or re-signatured shared export.** One session changes it, another writes callers.
   Such a session is **sequential by construction**, whatever the file sets say.
 - **A build gate** lands alone (core). An allowlist note in a prompt does not cover this: the
