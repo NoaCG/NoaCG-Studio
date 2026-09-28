@@ -8,7 +8,9 @@ wave-state file says which is which.
 **Launch directly; a chip only when the start IS the owner's decision.** `hosts.md` selects the
 execution route. **In Claude Code the PRIMARY launch path is the Agent tool**, with its existing
 definitions below. Native Codex uses its subagents, or the authenticated Claude CLI selecting these
-same definitions with `--agent` (`hosts.md`).
+same definitions with `--agent` (`hosts.md`). A Claude Code on the web coordinator reads the cloud
+section of `hosts.md` first: rows there start on a stale base, have no Agent tool (so no
+`design-consult`) and may lack GitHub tools.
 
 **Record every launch**, initial rows and refills alike, with
 `node scripts/wave-launch.mjs record` with letter, branch, size and the returned identity fields
