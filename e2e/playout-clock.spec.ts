@@ -16,6 +16,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
+import { evaluateInPage } from './_evaluate';
 
 const BRIDGE = 'http://127.0.0.1:8899';
 const TOKEN = 'e2e-token';
@@ -202,7 +203,8 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
 async function productionWithClips(page: Page): Promise<void> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
-  await page.evaluate(async () => {
+  // evaluateInPage: the function ends in a store mutation, the window e2e/_evaluate.ts closes.
+  await evaluateInPage(page, async () => {
     const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Evening News')!;
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
