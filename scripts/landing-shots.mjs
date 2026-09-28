@@ -8,6 +8,12 @@
 // a build. So every landing screenshot is produced here, by driving the real app the way the
 // e2e suite does, and the file names below are the contract index.html references.
 //
+// ONLY WHAT THE PAGE SHOWS. A shot index.html stops using leaves this file AND public/landing/
+// in the same change (2026-09-28: six went when the page became create-then-play), because a
+// generated picture nobody displays still costs a capture on every run and reads as a promise
+// that it is on the page. The on-air frames (shot-strap, shot-markets, shot-title) are captures
+// of graphics on air, not of the app, and are not made here.
+//
 // Deliberately NOT part of the e2e suite: it produces artifacts, it asserts nothing. It writes
 // straight into public/landing/ because the output IS the committed asset - reviewing the diff
 // on those PNGs is how a stale screenshot gets caught.
@@ -34,7 +40,7 @@ const wanted = only ? new Set(only.split(',').map((s) => s.trim())) : null;
 
 /**
  * The landing renders these at ~500-800 CSS px wide, so 1.5x of a 1440 pane (2160px) is already
- * ~3x the display size - crisp on any panel. 2x was ~2.3 MB of PNG for nine pictures on a page
+ * ~3x the display size - crisp on any panel. 2x was ~2.3 MB of PNG for the pictures on a page
  * whose whole pitch is that it loads.
  */
 const VIEWPORT = { width: 1440, height: 900 };
@@ -47,10 +53,6 @@ const browser = await chromium.launch();
  *
  * `run(page)` returns what to capture:
  *   a locator      - that element
- *   { cutBelow }   - the viewport, cut off just under that selector's last match. Every one of
- *                    these surfaces is a full-height app pane, so a straight viewport grab ends
- *                    in a band of empty panel (or worse, half a row). The cut is FRAMING, not
- *                    editing: nothing above it is touched or rearranged.
  *   null           - the whole viewport
  *
  * `size` overrides the viewport for surfaces whose content wants a different shape.
@@ -58,6 +60,13 @@ const browser = await chromium.launch();
 async function shot(name, run, size = VIEWPORT) {
   if (wanted && !wanted.has(name)) return;
   const context = await browser.newContext({ viewport: size, deviceScaleFactor: SCALE });
+  // A visitor who has already answered the optional-analytics question. The dev server carries
+  // the ambient .env, so the backend is configured and the one-time consent card would sit over
+  // the bottom right of every shot - a question asked once, not the surface being shown. It also
+  // keeps the captures from reporting milestones. Key and value: src/backend/events.ts.
+  await context.addInitScript(() => {
+    localStorage.setItem('noacg.analytics.consent', 'declined-v1');
+  });
   const page = await context.newPage();
   page.setDefaultTimeout(30_000);
   try {
@@ -65,15 +74,12 @@ async function shot(name, run, size = VIEWPORT) {
     // `animations: 'disabled'` parks CSS/Web animations at their end state, which is what a
     // settled product surface looks like. GSAP is rAF-driven and unaffected - every shot below
     // waits for whatever it needs instead.
-    const opts = { path: join(outDir, `${name}.png`), animations: 'disabled' };
-    if (target && target.cutBelow) {
-      const box = await page.locator(target.cutBelow).last().boundingBox();
-      if (!box) throw new Error(`nothing matched ${target.cutBelow}`);
-      const bottom = Math.min(size.height, Math.ceil(box.y + box.height + (target.pad ?? 22)));
-      await page.screenshot({ ...opts, clip: { x: 0, y: 0, width: size.width, height: bottom } });
-    } else {
-      await (target ?? page).screenshot(opts);
+    // The pre-answer above is a copy of the app's key and version, so a bumped version would put
+    // the card back silently. It would be in the picture, so refuse the picture.
+    if (await page.getByTestId('analytics-consent').isVisible()) {
+      throw new Error('the analytics consent card is on screen - update the key/value above from src/backend/events.ts');
     }
+    await (target ?? page).screenshot({ path: join(outDir, `${name}.png`), animations: 'disabled' });
     console.log(`✓ ${name}.png`);
   } catch (e) {
     console.error(`✗ ${name}.png — ${(e ?? '').message ?? e}`);
@@ -99,16 +105,7 @@ async function settlePreviews(page, ms = 1200) {
   await page.waitForTimeout(ms);
 }
 
-// ── 1. Entry: the ways to start ──────────────────────────────────────────────
-await shot('shot-wizard-entry', async (page) => {
-  await openWizard(page);
-  await page.locator('[data-entry="template"]').waitFor();
-  await settlePreviews(page, 500);
-  // The Playout row closes the step (the other half of the product), so the frame ends under it.
-  return { cutBelow: '[data-testid="wz-playout"]', pad: 34 };
-});
-
-// ── 2. Browse: the faceted template storefront, live previews on every card ──
+// ── 1. Browse: the faceted template storefront, live previews on every card ──
 await shot('shot-wizard-browse', async (page) => {
   await openWizard(page);
   await page.locator('[data-entry="template"]').click();
@@ -118,71 +115,7 @@ await shot('shot-wizard-browse', async (page) => {
   return modal(page);
 });
 
-// ── 3. Style: brand controls beside the live graphic ─────────────────────────
-await shot('shot-wizard-style', async (page) => {
-  await openWizard(page);
-  await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-browse-search').fill('House Strap');
-  await page.locator('.wz-variant', { hasText: 'House Strap' }).first().click();
-  // Fields → Style.
-  await page.locator('.wz-next').click(); // Fields
-  await page.locator('.wz-next').click(); // Style
-  // Open the typeface disclosure: the palette alone leaves the form column half empty, and
-  // the font library is half of what this step answers.
-  await page.locator('summary', { hasText: 'Typeface' }).first().click();
-  // The preview frames the whole 1920×1080 canvas by default; a lower third is a band across
-  // a fraction of it. The step's own control is what a person presses here too.
-  await page.locator('button', { hasText: 'Zoom to graphic' }).first().click();
-  await settlePreviews(page, 2000);
-  return modal(page);
-});
-
-// ── 4. Create with AI: the one AI door ───────────────────────────────────────
-//
-// The status route is answered so the step renders the HOSTED default - NoaCG Lite, included,
-// no key. A dev checkout serves no Lite, so the step falls back to the bring-your-own-key
-// surface and names a third-party model; publishing that as "how Create with AI looks" would
-// describe a deployment nobody visits. Nothing else is stubbed.
-await shot('shot-wizard-ai', async (page) => {
-  await page.route('**/api/ai/lite/status', (route) =>
-    route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        profile: 'lite',
-        enabled: true,
-        available: true,
-        requiresSignIn: false,
-        supportedCategories: ['lower-third', 'title-card', 'ticker', 'scoreboard'],
-        limits: {
-          promptCharacters: 600,
-          conversationTurns: 6,
-          conversationCharacters: 2400,
-          fields: 2,
-          logos: 1,
-          logoBytes: 512_000,
-        },
-      }),
-    }),
-  );
-  await openWizard(page);
-  await page.locator('[data-entry="ai"]').click();
-  await page.locator('.wz-drop, [data-testid="ai-prompt"]').first().waitFor();
-  await settlePreviews(page, 700);
-  // The settings panel opens ITSELF when nothing is configured (wizard/AGENTS.md), so the
-  // frame ends on the composer row rather than through the middle of a tier list.
-  return { cutBelow: '.wz-body button:has-text("AI settings")', pad: 10 };
-});
-
-// ── 5. Video or animation: the second workspace's door ───────────────────────
-await shot('shot-wizard-video', async (page) => {
-  await openWizard(page);
-  await page.locator('[data-entry="video"]').click();
-  await page.getByTestId('video-step').waitFor();
-  await settlePreviews(page, 700);
-  return { cutBelow: '[data-testid="video-create"]', pad: 26 };
-});
-
-// ── 6. Import graphic: fields placed on your own artwork ─────────────────────
+// ── 2. Import graphic: fields placed on your own artwork ─────────────────────
 //
 // The artwork is DRAWN IN THE PAGE and handed to the real file input, because the flow
 // measures whatever image it is given and a checked-in fixture would be one more picture
@@ -260,7 +193,7 @@ await shot('shot-wizard-import', async (page) => {
   return null;
 });
 
-// ── 7 + 8. The playout dashboard and Home, off a seeded production ───────────
+// ── 3. The playout dashboard, off a seeded production ────────────────────────
 //
 // Seeding runs the app's own create path (buildDraftTemplate → the library → the production),
 // so the dashboard shows real graphics with their real field values - not a mock.
@@ -314,31 +247,5 @@ await shot('shot-playout', async (page) => {
   await settlePreviews(page, 2500);
   return null;
 }, { width: 1440, height: 820 });
-
-await shot('shot-home', async (page) => {
-  await seedProduction(page);
-  await page.goto(`${base}/app#/home`);
-  await page.locator('.home-page').waitFor();
-  await settlePreviews(page, 2500);
-  return { cutBelow: '.home-shelf-card', pad: 30 };
-}, { width: 1440, height: 820 });
-
-// ── 9. Export: one package for whichever system you run ──────────────────────
-await shot('shot-export', async (page) => {
-  await openWizard(page);
-  await page.locator('[data-entry="template"]').click();
-  await page.locator('.wz-browse-search').fill('House Strap');
-  await page.locator('.wz-variant', { hasText: 'House Strap' }).first().click();
-  await page.getByTestId('wz-skip-to-finish').click();
-  await page.getByTestId('wz-finish-export').click();
-  // Creating formats through Prettier on a cold module - the same 20 s the import spec documents.
-  await page.getByTestId('export-window').waitFor({ timeout: 40_000 });
-  await settlePreviews(page, 1200);
-  // The dialog scrolls on past the targets into the per-engine compatibility report. The
-  // targets ARE the claim being made here; the report is a thing you read once you have picked.
-  return { cutBelow: '.export-window-body label.issue', pad: 4 };
-  // Narrower than the rest on purpose: the dialog is a fixed width, so on a 1440 window the
-  // shot is half empty shell and the target list lands unreadably small on the page.
-}, { width: 1080, height: 900 });
 
 await browser.close();
