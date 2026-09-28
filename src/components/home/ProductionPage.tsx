@@ -1918,9 +1918,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** ONE VERB ON THE PLAYOUT SERVER: control/serverPlayout.ts decides what it sends and how the
    *  on-air map moves, through NoaCG Bridge with the settings as they stand now. The note line
    *  says how it went, whichever way that was. */
-  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string): Promise<boolean> => {
+  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     const item = playoutItemFor(cue);
     if (!item) return false;
+    // A Take never goes the old way with a setting dropped (docs/CLIP_PLAYBACK_PLAN.md §6.9). SPACE,
+    // the button and Re-take all come through here, so the check is made once, where it cannot be
+    // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
+    if (verb === 'take') {
+      const blocked = takeBlockerFor(cue);
+      if (blocked) {
+        setNote(`${label} was not sent: ${blocked}`);
+        return false;
+      }
+    }
     flushDraft();
     const settings = loadPlayoutSettings();
     // Play next: the clips a Take plays one after another, found in the rundown as it stands NOW
@@ -1942,6 +1952,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       values: () => cueView(cue).values,
       act: (action) => act(settings, action),
       sequence: members,
+      ...(options.cut ? { cut: true } : {}),
     });
     setNote(outcome.note);
     const readable = stateReadable(bridgeStatus);
@@ -2103,7 +2114,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  clears both; nothing is cleared that this rundown did not put there, so another client's
    *  layers on the same server stay where they are. */
   const outAll = async () => {
-    for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out');
+    // The panic control cuts, as it always did, whatever fade out a clip is set to.
+    for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     if (liveLayers.length === 0) return;
     cancelCombines('All out');
     const cleared = liveLayers.map((l) => l.graphic);
@@ -2157,10 +2169,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
-   *  names the hop, and the key stays quiet rather than sending a command that will fail. Nor
-   *  while it carries a setting this Bridge or server cannot honour. */
-  const canTake =
-    !!selectedCue && !(selectedCue.source === 'playout' && bridgeStatus !== null && bridgeStatus.state !== 'ok') && !selectedTakeBlocked;
+   *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting
+   *  this Bridge or server cannot honour holds up only the take itself (`playoutVerb`), never taking
+   *  the cue off or staging it on PREVIEW. */
+  const canTake = !!selectedCue && !(selectedCue.source === 'playout' && bridgeStatus !== null && bridgeStatus.state !== 'ok');
 
   // The number fields the ± LIVE NUMBERS block bumps: operator-visible `number` fields that no
   // ⚡ event carries as payload. A payload field (the spotlight index, a focused row) is set by
@@ -2832,9 +2844,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               airs nothing) exists only in 'preview-then-take' mode, on a cue not yet on PREVIEW. */}
           <button
             className={face.className}
-            disabled={selectedCueIsLive ? !selectedLayerLive : !canTake}
+            disabled={selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked)}
             onClick={() => onVerb('take')}
-            title={!selectedCueIsLive && selectedTakeBlocked ? selectedTakeBlocked : face.title}
+            title={spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title}
             data-testid="verb-take"
           >
             {face.text} <kbd>SPACE</kbd>

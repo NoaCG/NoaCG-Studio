@@ -518,6 +518,62 @@ test('§18 case 11: a restarted Bridge has no sequence; a dropped connection is 
   assert.deepEqual([onAir(caspar).file, onAir(caspar).loop], ['C', true]);
 });
 
+test('a round that goes wrong is logged and never thrown: the Bridge outlives it', async (t) => {
+  const caspar = await server(t);
+  const logged = [];
+  const memory = new SlotMemoryBank('b1', () => caspar.clock.now());
+  const adapter = createCasparcgAdapter(() => caspar.clock.now());
+  const broken = { ...adapter, state: async () => { throw new Error('boom'); } };
+  const runner = new SequenceRunner({ memory, adapters: [broken], log: (l) => logged.push(l) });
+  const server2 = createBridgeServer({ token: TOKEN, origins: [], adapters: [adapter], version: '0.5.0', memory, runner }, () => {});
+  await new Promise((r) => server2.listen(0, '127.0.0.1', r));
+  t.after(() => new Promise((r) => server2.close(r)));
+  const port = server2.address().port;
+  await fetch(`http://127.0.0.1:${port}/act`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` },
+    body: JSON.stringify({ target: { adapter: 'casparcg', host: '127.0.0.1', port: caspar.port }, action: { verb: 'sequence', slot: AT, entries: [entry('A'), entry('B'), entry('C')] } }),
+  });
+  await runner.round();
+  assert.deepEqual(logged, ["the sequence runner's round failed: boom"]);
+  // And the next round runs, rather than the runner staying stuck as busy.
+  await runner.round();
+  assert.equal(logged.length, 2);
+});
+
+test('a follower the server refused with the take is reported and never tried again', async (t) => {
+  const caspar = await server(t, {
+    intercept: (line) => (line === 'LOADBG 2-10 EMPTY AUTO' || line.startsWith('LOADBG 2-10 "GONE"') ? '404 LOADBG FAILED\r\n' : undefined),
+  });
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  // A sequence whose second file is not on the server: the first plays, the reply says the rest did not.
+  const seq = await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('GONE', undefined, 10)] });
+  assert.equal(seq.body.ok, true);
+  assert.match(seq.body.warning, /^the server refused what was to follow it: CasparCG has no such file/);
+  await run(caspar, runner, 3_000);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('LOADBG 2-10 "GONE"')).length, 1, 'the refused file was not queued again');
+  assert.equal((await state()).body.slots[0].sequence, undefined);
+  // A Clear at the end the server refused: the same.
+  const take = await act({ verb: 'take', item: { kind: 'media', name: 'B' }, slot: AT, playback: { end: 'clear' } });
+  assert.match(take.body.warning, /refused what was to follow it/);
+  await run(caspar, runner, 3_000);
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 EMPTY AUTO').length, 1, 'the refused clear was not queued again');
+});
+
+test('one reading a round for a channel, however many of its layers run a sequence', async (t) => {
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B'), entry('C')] });
+  await act({ verb: 'sequence', slot: { ...AT, layer: 11 }, entries: [entry('B'), entry('C'), entry('D')] });
+  caspar.advance(2_000);
+  const before = caspar.seen.filter((l) => l.startsWith('INFO')).length;
+  for (let i = 0; i < 4; i += 1) {
+    caspar.advance(RUNNER_INTERVAL_MS);
+    await runner.round();
+  }
+  assert.equal(caspar.seen.filter((l) => l.startsWith('INFO')).length - before, 4);
+});
+
 /** One command from somebody else's client: its own connection, its own reply. */
 async function fakeClient(port, line) {
   const { createConnection } = await import('node:net');

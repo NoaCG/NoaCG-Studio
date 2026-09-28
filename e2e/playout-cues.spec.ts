@@ -448,6 +448,13 @@ test('each setting goes out with its Take: Clear with a fade, a fade in, a level
   // While it is up, a change says it waits for the next Take.
   await expect(page.getByTestId('clip-end-hint')).toContainText('applies at the next Take');
 
+  // All out, the panic control, cuts whatever the fade out says.
+  await page.getByTestId('verb-out-all').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 10 }, item: { kind: 'media', name: 'GIORNO' } });
+  await expect(cue).not.toContainText('ON AIR');
+  await page.getByTestId('verb-take').click();
+  await expect(cue).toContainText('ON AIR');
+
   // Out fades as the cue's fade out says, rather than cutting.
   await page.getByTestId('verb-out').click();
   await expect.poll(() => lastAction(bridge)).toEqual({
@@ -560,6 +567,31 @@ test('a cue with a setting an old Bridge cannot play is not taken, and says why;
   await expect(page.getByTestId('playout-take-blocked')).toHaveCount(0);
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } });
+});
+
+test('a cue on air that the Bridge can no longer take still comes OFF by SPACE, and is never re-taken the old way', async ({ page }) => {
+  // The Bridge in front of the server changes mid-show (an older one started): the cue on air has a
+  // fade it cannot play. Re-take would send it the old way, so it does not; taking it off is not
+  // held up by it.
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, { ...PLAYS_EVERYTHING });
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-fade-in-short').click();
+  await page.getByTestId('verb-take').click();
+  const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  await expect(cue).toContainText('ON AIR');
+  const sent = bridge.actions.length;
+  delete bridge.features;
+  delete bridge.capabilities;
+  await expect(page.getByTestId('playout-take-blocked')).toBeVisible({ timeout: 10_000 });
+  await parkFocusOffControls(page);
+  await page.keyboard.press('r');
+  await expect(page.getByTestId('production-note')).toContainText('Take was not sent: This cue fades.');
+  expect(bridge.actions.length).toBe(sent);
+  await page.keyboard.press(' ');
+  await expect(cue).not.toContainText('ON AIR');
+  expect(bridge.actions.slice(sent)).toEqual([{ verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 10 }, item: { kind: 'media', name: 'GIORNO' } }]);
 });
 
 test('a server that cannot do a setting has it off, named by its version', async ({ page }) => {

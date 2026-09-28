@@ -280,6 +280,7 @@ export async function runServerVerb({
   values,
   act,
   sequence,
+  cut,
 }: {
   verb: ServerVerb;
   cue: ShowCue;
@@ -292,6 +293,8 @@ export async function runServerVerb({
   /** A Take of a cue that plays next: the clips it plays one after another, the cue first
    *  (`sequenceMembers`). The Bridge runs them (docs/CLIP_PLAYBACK_PLAN.md §6.10). */
   sequence?: readonly SequenceMember[];
+  /** Out as a cut whatever the cue's fade out says: All out, the panic control. */
+  cut?: boolean;
 }): Promise<ServerVerbOutcome> {
   const slot = verb !== 'take' && live ? live.slot : slotNow;
   const accepted: AcceptedVerb[] = [];
@@ -322,7 +325,7 @@ export async function runServerVerb({
   const action =
     verb === 'take' && sequence && sequence.length > 1
       ? sequenceAction(sequence, slot)
-      : serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined, cue);
+      : serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined, cut ? undefined : cue);
   const result = await act(action);
   if (result.state !== 'ok') return { ok: false, note: `${label} did not reach the playout server: ${result.detail}`, accepted };
   took(verb, slot, result);

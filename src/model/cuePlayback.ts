@@ -52,13 +52,17 @@ export function fileSeconds(item: Pick<PlayoutItem, 'frames' | 'fps'>): number |
   return item.frames / item.fps;
 }
 
+/** How long a file plays from `start` to `end` in it: the end clamped to the file's length, never
+ *  below nothing; unknown when neither an end nor the file's length is known. The one trim rule the
+ *  rundown, Play next's two-second check and TO STUDIO all count with. */
+export function playedSeconds(whole: number | undefined, start = 0, end?: number): number | undefined {
+  const stop = end === undefined ? whole : whole === undefined ? end : Math.min(end, whole);
+  return stop === undefined ? undefined : Math.max(0, stop - start);
+}
+
 /** How long the cue plays its file: the trim when it has one, within the file's length. */
 export function segmentSeconds(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutItem, 'frames' | 'fps'>): number | undefined {
-  const whole = fileSeconds(item);
-  const start = cue.playback?.trimIn ?? 0;
-  const end = cue.playback?.trimOut ?? whole;
-  if (end === undefined) return undefined;
-  return Math.max(0, Math.min(end, whole ?? end) - start);
+  return playedSeconds(fileSeconds(item), cue.playback?.trimIn, cue.playback?.trimOut);
 }
 
 /** Why a trim cannot be kept, or null: the start comes before the end, and both lie in the file

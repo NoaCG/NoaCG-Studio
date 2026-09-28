@@ -33,7 +33,7 @@
 // every RUNNER_INTERVAL_MS. A test calls it itself after moving the fake server's clock.
 
 import type { PlayoutAdapter } from './adapters/casparcg.js';
-import type { Slot, Target } from './protocol.js';
+import type { CasparSlot, Slot, SlotState, Target } from './protocol.js';
 import type { SlotMemoryBank, SlotReading } from './slots.js';
 
 /** Whether the clip on the slot was PLAYed from part way in and has not reached its segment yet. */
@@ -68,12 +68,44 @@ export class SequenceRunner {
     this.log = options.log ?? (() => {});
   }
 
-  /** Read every running sequence's slot once, and queue what each needs next. */
+  /**
+   * Read every channel a sequence runs on once, and queue what each of its slots needs next. A
+   * round never throws: it runs off a timer in a process that must outlive any one mistake, so
+   * whatever goes wrong is logged and the next round starts afresh.
+   */
   async round(): Promise<void> {
     if (this.busy) return;
     this.busy = true;
     try {
-      for (const { target, slot, run } of this.memory.runningSequences()) await this.step(target, slot, run.generation);
+      // One reading per channel, however many of its layers run a sequence.
+      const channels = new Map<string, { target: Target; channel: number; slots: { slot: CasparSlot; planned: number }[] }>();
+      for (const { target, slot, run } of this.memory.runningSequences()) {
+        if (slot.adapter !== 'casparcg') {
+          this.memory.sequenceEnded(target, slot);
+          continue;
+        }
+        const key = `${JSON.stringify(target)} ${slot.channel}`;
+        const group = channels.get(key) ?? { target, channel: slot.channel, slots: [] };
+        group.slots.push({ slot, planned: run.generation });
+        channels.set(key, group);
+      }
+      for (const { target, channel, slots } of channels.values()) {
+        const adapter = this.byId.get(target.adapter);
+        if (!adapter?.state || !adapter.follow) {
+          for (const { slot } of slots) this.memory.sequenceEnded(target, slot);
+          continue;
+        }
+        // The reading also moves the slots' memory on: a switch the server made by itself makes the
+        // next entry the one on air, and something nobody here started ends the sequence (./slots.ts).
+        const read = await adapter.state(target, channel);
+        // A reading that failed - a dropped connection, a slow server - changes nothing: the next
+        // round reads again. Only what the server SAYS ends a sequence.
+        if (!read.ok) continue;
+        const layers = this.memory.annotate(target, channel, read.value);
+        for (const { slot, planned } of slots) await this.step(adapter, target, slot, planned, read.value, layers);
+      }
+    } catch (e) {
+      this.log(`the sequence runner's round failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       this.busy = false;
     }
@@ -91,26 +123,15 @@ export class SequenceRunner {
     this.timer = undefined;
   }
 
-  private async step(target: Target, slot: Slot, planned: number): Promise<void> {
-    const adapter = this.byId.get(target.adapter);
-    if (slot.adapter !== 'casparcg' || !adapter?.state || !adapter.follow) {
-      this.memory.sequenceEnded(target, slot);
-      return;
-    }
-    // The reading also moves the slot's memory on: a switch the server made by itself makes the
-    // next entry the one on air, and something nobody here started ends the sequence (./slots.ts).
-    const read = await adapter.state(target, slot.channel);
-    // A reading that failed - a dropped connection, a slow server - changes nothing: the next round
-    // reads again. Only what the server SAYS ends a sequence.
-    if (!read.ok) return;
-    const layers = this.memory.annotate(target, slot.channel, read.value);
+  /** One slot of a channel just read: what its sequence needs next, queued in the slot's own queue. */
+  private async step(adapter: PlayoutAdapter, target: Target, slot: CasparSlot, planned: number, readings: SlotReading[], layers: SlotState[]): Promise<void> {
     const run = this.memory.sequence(target, slot);
     if (!run || run.generation !== planned || this.memory.generation(target, slot) !== planned) return;
     if (run.queued !== undefined) return;
     const here = layers.find((l) => l.layer === slot.layer);
     // Still arriving, not inside its segment yet, or paused: nothing is queued now (rule 4, and
     // adapters/casparcg.ts `startsPartWay`). Resume re-stamps the sequence.
-    if (!here || here.arriving || here.paused || startingOn(read.value, slot)) return;
+    if (!here || here.arriving || here.paused || startingOn(readings, slot)) return;
     const on = run.entries[run.index];
     // A still never ends, whatever the list said: a sequence cannot go on from one.
     if (here.producer === 'still') {

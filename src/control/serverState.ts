@@ -22,7 +22,7 @@ import type { CasparSlot, SequenceEntry, Slot, SlotState, StateReply } from './p
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
-import { effectiveEnd } from '../model/cuePlayback.ts';
+import { effectiveEnd, playedSeconds } from '../model/cuePlayback.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
 export interface UnidentifiedItem {
@@ -416,10 +416,7 @@ function entryCue(e: SequenceEntry, cues: readonly ShowCue[]): ShowCue | undefin
 /** How long an entry plays, from what the Bridge was told: its trim within its file's length. */
 export function entrySeconds(e: SequenceEntry): number | null {
   const whole = e.media?.seconds;
-  if (!(whole > 0)) return null;
-  const start = e.playback?.trim?.in ?? 0;
-  const end = Math.min(e.playback?.trim?.out ?? whole, whole);
-  return Math.max(0, end - start);
+  return whole > 0 ? (playedSeconds(whole, e.playback?.trim?.in, e.playback?.trim?.out) ?? null) : null;
 }
 
 /**

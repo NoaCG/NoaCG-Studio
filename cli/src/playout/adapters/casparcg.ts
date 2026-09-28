@@ -465,7 +465,9 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
     for (let i = 1; i < lines.length; i++) {
       const r = await send(target, lines[i]);
       if (!r.ok) {
-        return { ok: true, value: { warning: `The server refused the second half: ${r.error.detail}` }, raw: raws.join('; '), sent: i };
+        // Said after the page's "<label>: <clip> is on 2-10, but …": what was to follow the clip -
+        // its Clear at the end, or the next file - did not go on the server.
+        return { ok: true, value: { warning: `the server refused what was to follow it: ${r.error.detail}` }, raw: raws.join('; '), sent: i };
       }
       raws.push(r.raw);
     }

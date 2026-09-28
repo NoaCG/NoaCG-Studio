@@ -528,15 +528,18 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           if (r.ok && action.verb === 'take') {
             instance = memory.started(target, slot, action.item, action.cueId);
             // A Clear at the end that could not go with the take (the clip starts part way in) is
-            // the runner's to queue, once the clip is running: a run of this one entry.
-            if (action.playback?.end === 'clear' && !r.value.follower) {
+            // the runner's to queue, once the clip is running: a run of this one entry. One the
+            // server REFUSED is not tried again: the reply's warning has already said so.
+            if (action.playback?.end === 'clear' && !r.value.follower && !r.value.warning) {
               memory.sequenceStarted(target, slot, [{ item: action.item, ...(action.cueId ? { cueId: action.cueId } : {}), playback: action.playback }], false);
             }
           }
           if (r.ok && action.verb === 'sequence') {
             const [first] = action.entries;
             instance = memory.started(target, slot, first.item, first.cueId);
-            memory.sequenceStarted(target, slot, action.entries, !!r.value.follower);
+            // The second file refused: the first plays out by itself and nothing is retried; the
+            // reply's warning says so, and the reading shows no sequence.
+            if (!r.value.warning) memory.sequenceStarted(target, slot, action.entries, !!r.value.follower);
           }
           if (r.ok && r.value.follower !== undefined) memory.setFollower(target, slot, r.value.follower);
           if (!r.ok && r.follower === null) memory.setFollower(target, slot, null);
