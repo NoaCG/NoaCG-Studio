@@ -17,7 +17,7 @@
 // The public docs home: the guides students and operators follow to get on air at all.
 // focus
 
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 // The public docs home lives at /docs (docs.html - static, indexed, no React; the tenth MPA
@@ -58,6 +58,74 @@ test('every section-nav link points at a section that exists', async ({ page }) 
     const href = await links.nth(i).getAttribute('href');
     await expect(page.locator(`section[id="${href!.slice(1)}"]`)).toHaveCount(1);
   }
+});
+
+// "Only the most important information on the left" (owner, 2026-08-26): a newcomer's first view
+// of the nav is the five topic heads, and a topic's pages unfold when it is being read or its
+// toggle is pressed. Every page stays one click away, and without the module every link shows.
+const TOPICS = ['Getting started', 'Make a graphic', 'Put it on air', 'Run the show', 'Coding agents & the CLI'];
+
+// Scroll a section to the top and wait for the nav to highlight it. The page can still grow above
+// the section while it settles (fonts and pictures arriving), so the scroll repeats until it holds.
+async function readSection(page: Page, id: string) {
+  await expect(async () => {
+    await page.locator(`section[id="${id}"]`).evaluate((el) => el.scrollIntoView({ behavior: 'instant' }));
+    await expect(page.locator(`.doc-nav a[href="#${id}"]`)).toHaveClass(/is-active/, { timeout: 1000 });
+  }).toPass();
+}
+
+test('the section nav opens on five topics and unfolds the one being read', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/docs');
+  const nav = page.locator('.doc-nav');
+  await expect(nav.locator('a:visible')).toHaveText(TOPICS);
+  await expect(nav.locator('a[href="#quiz"]')).toBeHidden();
+
+  // Reading a type page unfolds its topic and highlights the page, and only that topic is open.
+  await readSection(page, 'quiz');
+  await expect(nav.locator('a[href="#quiz"]')).toBeVisible();
+  await expect(nav.locator('a[href="#teams"]')).toBeHidden();
+
+  // A folded topic opens on its toggle without moving the page.
+  const show = nav.locator('.doc-nav-topic', { has: page.locator('a[href="#dashboard"]') });
+  await show.locator('.doc-nav-toggle').click();
+  await expect(show.locator('.doc-nav-toggle')).toHaveAttribute('aria-expanded', 'true');
+  await expect(nav.locator('a[href="#teams"]')).toBeVisible();
+
+  // Scrolling on into the next topic moves the fold with the reader.
+  await readSection(page, 'dashboard');
+  await expect(show).toHaveClass(/is-current/);
+  await expect(nav.locator('a[href="#teams"]')).toBeVisible();
+  await expect(nav.locator('a[href="#quiz"]')).toBeHidden();
+});
+
+test('on a phone the nav above the text stays five topics and unfolds only on a tap', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/docs');
+  const nav = page.locator('.doc-nav');
+  await expect(nav.locator('a:visible')).toHaveText(TOPICS);
+  // A deep link still lands on its section: the nav above it folds before the page scrolls
+  // there, and does not unfold behind the reader and push the text away.
+  const deep = await page.context().newPage();
+  await deep.setViewportSize({ width: 390, height: 844 });
+  await deep.goto('/docs#quiz');
+  await expect(deep.locator('.doc-nav a[href="#quiz"]')).toHaveClass(/is-active/);
+  await expect(deep.locator('.doc-nav a[href="#quiz"]')).toBeHidden();
+  await deep.close();
+  const graphics = nav.locator('.doc-nav-topic', { has: page.locator('a[href="#graphics"]') });
+  await graphics.locator('.doc-nav-toggle').click();
+  await expect(nav.locator('a[href="#tickers"]')).toBeVisible();
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+  test('every nav link shows, so nothing hides behind the module', async ({ page }) => {
+    await page.goto('/docs');
+    const links = page.locator('.doc-nav a[href^="#"]');
+    const count = await links.count();
+    expect(count).toBeGreaterThan(TOPICS.length);
+    for (let i = 0; i < count; i++) await expect(links.nth(i)).toBeVisible();
+  });
 });
 
 // The Graphics topic: how to import an SVG, then one page per graphic type (owner, 2026-09-21:

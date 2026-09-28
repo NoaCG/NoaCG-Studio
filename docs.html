@@ -55,39 +55,51 @@
     </div>
 
     <div class="doc-grid">
+      <!-- Five topics, and only the five show at first: "only the most important information on
+           the left" (owner, 2026-08-26). Each topic's head links to its first section and its
+           other pages sit indented under it (owner, 2026-09-21, for the graphic types). docs.ts
+           folds every list but the one being read and adds a toggle to each; without the
+           module every link shows, so nothing here depends on it. -->
       <nav class="doc-nav" aria-label="Sections">
-        <p class="group">Start</p>
-        <a href="#getting-started">Getting started</a>
-        <p class="group">Make a graphic</p>
-        <a href="#graphics">Graphics</a>
-        <!-- The Graphics topic's own pages, indented under it so a reader can go straight to a
-             type (owner, 2026-09-21, replacing the main-topics-only rule of 2026-08-26). -->
-        <div class="doc-nav-sub">
-          <a href="#first-graphic">Import an SVG</a>
-          <a href="#svg">Prepare the file</a>
-          <a href="#svg-layers">Layer names</a>
-          <p class="sub-group">Types</p>
-          <a href="#scoreboards">Scoreboard</a>
-          <a href="#quiz">Quiz</a>
-          <a href="#svg-vote">Live vote</a>
-          <a href="#countdowns">Countdown</a>
-          <a href="#end-credits">End credits</a>
-          <a href="#tickers">Ticker</a>
+        <div class="doc-nav-topic">
+          <a href="#getting-started">Getting started</a>
         </div>
-        <a href="#artwork">Pictures, logos &amp; Lottie</a>
-        <p class="group">Connect playout</p>
-        <a href="#export">Which package do I want</a>
-        <a href="#browser-source">OBS, vMix &amp; browser sources</a>
-        <a href="#casparcg">CasparCG</a>
-        <p class="group">Run the show</p>
-        <a href="#dashboard">The playout dashboard</a>
-        <a href="#teams">Working with other people</a>
-        <a href="#audience">Audience join pages</a>
-        <a href="#behaviour">Graphics with behaviour</a>
-        <a href="#data">Live data</a>
-        <a href="#data-example">One show, worked through</a>
-        <p class="group">For developers</p>
-        <a href="#claude-code">Coding agents &amp; the CLI</a>
+        <div class="doc-nav-topic">
+          <a href="#graphics">Make a graphic</a>
+          <div class="doc-nav-sub" id="nav-graphics">
+            <a href="#first-graphic">Import an SVG</a>
+            <a href="#svg">Prepare the file</a>
+            <a href="#svg-layers">Layer names</a>
+            <a href="#artwork">Pictures, logos &amp; Lottie</a>
+            <p class="sub-group">Types</p>
+            <a href="#scoreboards">Scoreboard</a>
+            <a href="#quiz">Quiz</a>
+            <a href="#svg-vote">Live vote</a>
+            <a href="#countdowns">Countdown</a>
+            <a href="#end-credits">End credits</a>
+            <a href="#tickers">Ticker</a>
+          </div>
+        </div>
+        <div class="doc-nav-topic">
+          <a href="#export">Put it on air</a>
+          <div class="doc-nav-sub" id="nav-playout">
+            <a href="#browser-source">OBS, vMix &amp; browser sources</a>
+            <a href="#casparcg">CasparCG</a>
+          </div>
+        </div>
+        <div class="doc-nav-topic">
+          <a href="#dashboard">Run the show</a>
+          <div class="doc-nav-sub" id="nav-show">
+            <a href="#teams">Working with other people</a>
+            <a href="#audience">Audience join pages</a>
+            <a href="#behaviour">Graphics with behaviour</a>
+            <a href="#data">Live data</a>
+            <a href="#data-example">One show, worked through</a>
+          </div>
+        </div>
+        <div class="doc-nav-topic">
+          <a href="#claude-code">Coding agents &amp; the CLI</a>
+        </div>
       </nav>
 
       <div class="doc-body">

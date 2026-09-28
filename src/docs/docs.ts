@@ -1,6 +1,7 @@
-// The docs page's one enhancement: highlight the section-nav link for the section on
-// screen. The page is complete without this module — plain anchors already work — so
-// everything here is progressive and silently stands down when it has nothing to do.
+// The docs page's section nav: fold each topic's pages under its head, and highlight the
+// link for the section on screen. The page is complete without this module (every link
+// shows and plain anchors already work), so everything here is progressive and silently
+// stands down when it has nothing to do.
 
 const nav = document.querySelector('.doc-nav');
 if (nav) {
@@ -10,18 +11,61 @@ if (nav) {
     byId.has(s.id),
   );
 
+  // A newcomer's first view is the five topic heads. Each topic with pages under it gets a
+  // toggle, and while the nav is sticky beside the text the topic being read opens itself,
+  // so the highlighted link is always on screen. Where the nav sits above the text (a
+  // phone) it only opens on a tap: growing it there would push the text the reader is on.
+  const sticky = window.matchMedia('(min-width: 901px)');
+  const topics = Array.from(nav.querySelectorAll<HTMLElement>('.doc-nav-topic'));
+  const setOpen = (topic: HTMLElement, open: boolean) => {
+    const sub = topic.querySelector<HTMLElement>('.doc-nav-sub');
+    const toggle = topic.querySelector<HTMLButtonElement>('.doc-nav-toggle');
+    if (!sub || !toggle) return;
+    sub.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+  for (const topic of topics) {
+    const head = topic.querySelector<HTMLAnchorElement>(':scope > a');
+    const sub = topic.querySelector<HTMLElement>('.doc-nav-sub');
+    if (!head || !sub) continue;
+    const row = document.createElement('div');
+    row.className = 'doc-nav-head';
+    topic.insertBefore(row, head);
+    row.appendChild(head);
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'doc-nav-toggle';
+    toggle.setAttribute('aria-controls', sub.id);
+    toggle.setAttribute('aria-label', `Pages under ${head.textContent ?? ''}`);
+    toggle.addEventListener('click', () => setOpen(topic, sub.hidden));
+    row.appendChild(toggle);
+    setOpen(topic, false);
+  }
+
   let active: HTMLAnchorElement | null = null;
+  let activeTopic: HTMLElement | null = null;
+  const openActiveTopic = () => {
+    if (sticky.matches) for (const topic of topics) setOpen(topic, topic === activeTopic);
+  };
   const activate = (id: string) => {
     const link = byId.get(id);
     if (!link || link === active) return;
     active?.classList.remove('is-active');
     link.classList.add('is-active');
     active = link;
+    const topic = link.closest<HTMLElement>('.doc-nav-topic');
+    if (topic === activeTopic) return;
+    activeTopic?.classList.remove('is-current');
+    topic?.classList.add('is-current');
+    activeTopic = topic;
+    openActiveTopic();
   };
+  sticky.addEventListener('change', openActiveTopic);
 
   // The section being read is the last one whose top has crossed the upper third of the
-  // viewport. A plain scroll listener (rAF-coalesced) over nine rect reads is cheap, works
-  // for keyboard, anchor and drag scrolling alike, and needs no observer bookkeeping.
+  // viewport. A plain scroll listener (rAF-coalesced) over a couple of dozen rect reads is
+  // cheap, works for keyboard, anchor and drag scrolling alike, and needs no observer
+  // bookkeeping.
   let queued = false;
   const update = () => {
     queued = false;
