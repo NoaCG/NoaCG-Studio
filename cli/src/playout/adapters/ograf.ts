@@ -259,8 +259,10 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
   return {
     id: 'ograf',
 
+    // No target capabilities: the Server API has nothing like CasparCG's INFO to read a clip's
+    // position from, so `/state` refuses an OGraf target and the page offers no clock for it.
     capabilities() {
-      return { lists: ['template'], thumbnails: false, verbs: ['take', 'update', 'next', 'out', 'clear'] };
+      return { lists: ['template'], thumbnails: false, verbs: ['take', 'update', 'next', 'out', 'clear'], target: [] };
     },
 
     async status(target) {

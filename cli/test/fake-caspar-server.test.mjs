@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { amcpSend } from '../dist/playout/amcp.js';
-import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
+import { casparcgAdapter, slotReading } from '../dist/playout/adapters/casparcg.js';
+import { parseInfo } from '../dist/playout/info.js';
 import { fakeCasparServer, manualClock, tokenize } from './_fakeCasparServer.mjs';
 
 const MEDIA = {
@@ -193,7 +194,7 @@ test('the AUTO check runs before the pause check: paused inside the MIX window i
 
 test('IN, OUT and LENGTH play a segment of the file, and INFO reports the segment apart from the file', async (t) => {
   const { caspar, send } = await start(t);
-  // 250 frames in, 375 frames long at the clip's 25 fps: seconds 10 to 25 of GIORNO.
+  // 250 frames in, 375 frames long at channel 1's 25 fps: seconds 10 to 25 of GIORNO.
   await send('PLAY 1-10 "GIORNO" IN 250 LENGTH 375');
   caspar.advance(6_000);
   const l = caspar.layer(1, 10);
@@ -201,12 +202,34 @@ test('IN, OUT and LENGTH play a segment of the file, and INFO reports the segmen
   assert.equal(l.foreground.position, 6);
   const info = await send('INFO 1');
   assert.equal(info.code, 201);
-  const xml = info.lines[0];
-  assert.match(xml, /<layer_10><foreground><producer>ffmpeg<\/producer><file><name>GIORNO<\/name>/);
-  // file/time is the position in the WHOLE file and the whole file's length; file/clip the segment.
-  assert.match(xml, /<time>16<\/time><time>60<\/time><clip>10<\/clip><clip>15<\/clip>/);
+  // Read the way the Bridge reads the real server: file/time is the position in the WHOLE file,
+  // file/clip the segment, so the reading is 6 s into a 15 s segment - not 16 s into 60.
+  const [layer] = parseInfo(info.lines[0]).layers.map(slotReading);
+  assert.deepEqual(layer, { layer: 10, producer: 'video', file: 'GIORNO', segment: { start: 10, length: 15 }, position: 6, paused: false, loop: false });
   caspar.advance(20_000);
   assert.equal(caspar.layer(1, 10).foreground.ended, true);
+});
+
+test('the frames of IN, SEEK and LENGTH are the CHANNEL\'s, not the file\'s, as on the real 2.5.0', async (t) => {
+  const { caspar, send } = await start(t);
+  // GIORNO is 25 fps; channel 2 is 50p. The real server took `SEEK 250 LENGTH 375` there as 5 s in
+  // and 7.5 s long (cli/test/fixtures/info/video-trimmed.json).
+  await send('PLAY 2-10 "GIORNO" SEEK 250 LENGTH 375');
+  assert.deepEqual(caspar.layer(2, 10).foreground.segment, { start: 5, length: 7.5 });
+});
+
+test('INFO says what waits behind a clip, and whether it plays by itself', async (t) => {
+  const { send } = await start(t);
+  await send('PLAY 2-10 "GIORNO"');
+  await send('LOADBG 2-10 "INTRO_VT"');
+  let [layer] = parseInfo((await send('INFO 2')).lines[0]).layers.map(slotReading);
+  assert.deepEqual(layer.queued, { file: 'INTRO_VT', auto: false });
+  await send('LOADBG 2-10 "INTRO_VT" AUTO');
+  [layer] = parseInfo((await send('INFO 2')).lines[0]).layers.map(slotReading);
+  assert.deepEqual(layer.queued, { file: 'INTRO_VT', auto: true });
+  await send('STOP 2-10');
+  [layer] = parseInfo((await send('INFO 2')).lines[0]).layers.map(slotReading);
+  assert.equal(layer.producer, 'empty');
 });
 
 test('a command on a channel the server does not have is refused, and an unknown one is a 400', async (t) => {
