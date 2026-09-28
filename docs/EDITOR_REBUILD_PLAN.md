@@ -223,12 +223,12 @@ and playback. Simulator and emitted interpreters must distinguish the one-step f
 
 Rename Step inline and drag flags with snapping; no duration/insertion forms. In begins at
 zero. Nonempty segments have at least one frame; an entirely empty graphic may have Out at
-zero. Refuse duplicate Step flags and Step after Out. Set Out on an empty exit always offers
-reverse/manual, including a repeat invocation at the same boundary after No or Escape.
-Before R1.2a's shared Bezier gate, refuse Set Out earlier than the last In key atomically with
-a clear reason. Existing source is preserved; other unsupported cross-curve changes also
-refuse until exact repartition is supported. Later Next sequences apply the same last-pre-Out
-key safety check until the supported curve can be split exactly.
+zero. Refuse duplicate Step flags and Step after Out. A Set Out that leaves the exit empty always
+offers reverse/manual, including a repeat invocation at the same boundary after No or Escape.
+Set Out earlier than the last In key splits each crossed segment exactly and moves the rest
+of the last pre-Out segment into Out (owner decision 2026-09-28; see D01). A crossed segment
+without an exact split refuses the whole move atomically with a clear reason. Existing source
+is preserved; other unsupported cross-curve changes still refuse.
 
 A flag marks BOTH the end of the preceding segment and the start of the segment waiting
 for its command. Play/Take runs In and parks at the first flag. At a Step flag, Next plays
@@ -299,6 +299,9 @@ split a crossing curve using exact boundary sampling and preserved tangent/easin
 Do not approximate an unsupported curve or shift unrelated keys silently. Dependencies in
 custom code/calls/dynamics require a capability explanation before a move, with no partial edit.
 Minimum one-frame nonempty segments, ordered flags and collision checks keep source/runtime valid.
+Set Out at playhead is the first flag move built this way (R1.2a.1): crossed tracks split at the
+boundary with the shared exact split, a copy of the boundary value starts the exit, visibility
+bars are clipped and carried, and a crossed track whose Out keys start with a jump refuses.
 
 Retain step-local `NOACG_ANIM` clocks behind this continuous visual surface. Compile visual
 boundaries to step-local times and reveal/hide ownership atomically. If the current source
@@ -345,6 +348,13 @@ ordinary editable exit keys; No writes NO animation keys and leaves Out ready fo
 authoring. Neither route opens a duration form. The user sets timing with keys/bar ends.
 An empty exit is a valid instant cut, clearly shown until the user authors exit motion.
 
+Owner decision 2026-09-28: Set Out may land before the last In key. The graphic then holds the
+pose at the new boundary, and the rest of the entrance plays when Out is pressed: each crossed
+segment splits exactly (G01), later keys move into Out at their absolute times, and existing
+Out keys shift with the flag as before. It is one undo. If any crossed segment has no exact
+split, the whole move refuses with source and history unchanged. Such an exit has keys, so the
+reverse/manual choice is not offered for it.
+
 For simple In over [a,b], mirror each key to outStart + (b - keyTime), preserve stagger and
 values, and reverse easing as E_rev(u) = 1 - E(1-u). Reverse Hold discontinuities exactly;
 for supported named eases, swapping .in/.out IS the exact mirror (.inOut is self-mirroring).
@@ -375,7 +385,9 @@ motion/loops and build an interrupted exit without the authored starting .set().
 When Out interrupts In/Next/loop, tween EACH supported exit track from that live value to its
 final exit key. Use its authored finite exit timing (hold the live value through any leading
 delay, then tween to the final-key time), speed and final-segment ease; intermediate exit
-waypoints are bypassed for this interruption policy. A settled normal Out retains authored
+waypoints are bypassed for this interruption policy. A final ease that is a slice of a curve
+plays as that whole curve here, since stretched over the live distance a slice can swing far
+past its end (R1.2a.1). A settled normal Out retains authored
 exit keys. This is an explicit interruption policy, not a claim to exactly reverse an
 unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims.
 Never reveal unseen layers; static visible layers without exit tracks clear at exit completion.
@@ -432,8 +444,9 @@ Before R1.2a, define and consume the SAME serialized cubic-bezier ease string in
 and sampler (for example cubic-bezier(x1,y1,x2,y2), with monotonic x and finite coordinates).
 Use shared parsing/evaluation and exact split/mirror mapping; exports bundle the implementation
 locally. A new string that GSAP silently defaults while the sampler recognizes it is a failure.
-This is representation support, not a new Bezier graph UI. Until this gate passes, Set Out
-cannot cross the last In key. Closing test: split an eased segment at 40%, compare dense
+This is representation support, not a new Bezier graph UI. With this gate passed, Set Out
+crosses the last In key through these exact splits (R1.2a.1). Closing test: split an eased
+segment at 40%, compare dense
 samples/endpoints/tangents before/after in inspector, simulator and export; reverse named
 .in/.out presets and verify ease ownership moves to the correct destination key.
 

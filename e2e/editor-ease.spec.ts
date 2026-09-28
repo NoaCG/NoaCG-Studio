@@ -1,11 +1,13 @@
 // covers: src/templates/shared/{easeRuntime,animRuntime,animRuntimeLegacy}.ts
 // covers: src/blocks/{animEval,animEdit,editorOut,animMigration,editorAnimation,animData}.ts
-// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js
+// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js, e2e/fixtures/interpreter-shared-ease-v1.js
+// covers: e2e/fixtures/out-text-and-box.json
 //
 // G01 shared easing: the editor's sampler, exact split and exact reversal against the SAME
 // evaluator executed by the bundled runtime in the simulator and in every exported package.
 // Numbers are dense samples, not endpoints: GSAP silently plays power1.out for an ease it
-// cannot read, and only a mid-segment sample can see that.
+// cannot read, and only a mid-segment sample can see that. R1.2a.1's Set Out across the last In
+// key reuses the split, so its In-then-Out playback is compared here on one absolute clock.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -37,20 +39,21 @@ async function open(page: Page) {
 }
 
 /** A complete template around one animation literal, built from the running app's modules. */
-async function template(page: Page, data: Data) {
-  return page.evaluate(async (data: Data) => {
+async function template(page: Page, data: Data, title = false) {
+  return page.evaluate(async ({ data, title }) => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
     const { runtimeJs } = await import('/src/templates/shared/base.ts');
     return { ...store.template, fps: 25, fields: [], layers: [],
-      html: '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div></div></body></html>',
-      css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}',
+      html: `<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div>${title ? '<div id="title" data-gfx>Text and box</div>' : ''}</div></body></html>`,
+      css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}#title{position:absolute;left:500px;top:420px;width:320px;height:100px;font:40px Arial;color:#111}',
       js: runtimeJs('Ease fixture', emitAnimRegion(data as never)) };
-  }, data);
+  }, { data, title });
 }
 
-/** Load a template in `target` and sample #box through its own play/stop timelines. */
-async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number]) {
+/** Load a template in `target` and sample its layers (#box unless told) through its own play/stop
+ *  timelines. Out is pressed after In completes, or at `interruptAt` while it still plays. */
+async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number], { layers = ['#box'], interruptAt }: { layers?: string[]; interruptAt?: number } = {}) {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (target === 'simulator' || target === 'single-file') {
@@ -76,7 +79,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
       });
     } else await output.goto('http://ease-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, times, exitTimes, durations }) => {
+  const result = await output.evaluate(async ({ target, times, exitTimes, durations, layers, interruptAt }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number; getChildren(n: boolean, tw: boolean, tl: boolean): { vars: { ease?: unknown }; targets(): Element[]; duration(): number }[] };
     const w = window as unknown as { play(): void; stop(): void; gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('ease-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -87,28 +90,31 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
     };
     const timeline = (d: number) => w.gsap.globalTimeline.getChildren(false, false, true).filter(x => Math.abs(x.duration() - d) < .0001).pop()!;
     const box = document.querySelector('#box')!;
-    const pose = () => ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(box, p))).concat(Number(getComputedStyle(box).opacity));
+    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(e, p))).concat(Number(getComputedStyle(e).opacity)); });
     await command('play'); const entry = timeline(durations[0]); entry.pause();
     // Which eases reached GSAP as strings: a recognized one must arrive as the shared function.
     const handed = entry.getChildren(true, true, false).filter(x => x.targets().includes(box) && x.duration() > 0).map(x => typeof x.vars.ease === 'function' ? 'function' : String(x.vars.ease));
     const entering = times.map(t => { entry.time(t, true); return pose(); });
-    entry.progress(1, true); await command('stop');
+    if (interruptAt === undefined) entry.progress(1, true); else entry.time(interruptAt, true);
+    const held = pose(); await command('stop'); const released = pose();
     const exit = timeline(durations[1]); exit.pause();
     const leaving = exitTimes.map(t => { exit.time(t, true); return pose(); });
-    return { entering, leaving, handed };
-  }, { target, times, exitTimes, durations });
+    return { entering, leaving, handed, held, released };
+  }, { target, times, exitTimes, durations, layers, interruptAt });
   await output.close();
   return result;
 }
 
 const grid = (end: number, step = .02) => Array.from({ length: Math.round(end / step) + 1 }, (_, i) => Math.round(i * step * 1000) / 1000);
 const TOLERANCE = [2e-3, 2e-3, 2e-3, 2e-3, 2e-3];
+/** A pose may hold several layers of PROPS in a row. */
+const label = (p: number) => PROPS[p % PROPS.length] + (p >= PROPS.length ? ' (layer ' + Math.floor(p / PROPS.length) + ')' : '');
 function near(actual: Pose[], expected: Pose[], label: string, tolerance = TOLERANCE) {
   let worst = { error: 0, at: -1, prop: '' };
   actual.forEach((pose, i) => pose.forEach((v, p) => {
     // A NaN on either side is a failure, never a pass.
-    const error = Math.abs(v - expected[i][p]) - tolerance[p];
-    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: PROPS[p] };
+    const error = Math.abs(v - expected[i][p]) - tolerance[p % tolerance.length];
+    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: label(p) };
   }));
   expect(worst, `${label}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
 }
@@ -200,6 +206,65 @@ for (const target of TARGETS) test('exact reversal plays the entrance backwards 
   const t = { ...(await template(page, data)), js: reversed.js };
   const run = await execute(page, t, target, times, times.map(x => Math.round((1.5 - x) * 1000) / 1000), [1.5, 1.5]);
   near(run.leaving, run.entering, target + ' Out(1.5 - t) against In(t)');
+});
+
+/** R1.2a.1 (scripts/out-boundary.test.mjs uses it too): a text-and-box entrance whose keys run past 1.2 s, eased with back, bounce,
+ *  cubic-bezier and elastic, a box track that starts after 1.2 s, and a title Out that begins
+ *  where its entrance ends. */
+function textAndBox(): Data {
+  return JSON.parse(readFileSync(new URL('./fixtures/out-text-and-box.json', import.meta.url), 'utf8')) as Data;
+}
+
+/** Set Out at `time` through the editor's own operation. */
+const setOut = (page: Page, t: Awaited<ReturnType<typeof template>>, time: number) =>
+  page.evaluate(async ({ t, time }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time }), { t, time });
+
+for (const target of TARGETS) test('Set Out before the last In key plays In then Out as the original in ' + target, async ({ page }) => {
+  await open(page);
+  const out = 1.2, h = .01;
+  const original = await template(page, textAndBox(), true);
+  const crossed = await setOut(page, original, out);
+  // One absolute clock: In plays to its boundary and Out continues from there.
+  const absolute = [...new Set([...grid(3), out - h, out, out + h])].sort((a, b) => a - b);
+  const play = async (t: unknown, boundary: number, durations: [number, number]) => {
+    const run = await execute(page, t, target, absolute.filter(u => u <= boundary),
+      absolute.filter(u => u > boundary).map(u => Math.round((u - boundary) * 1000) / 1000), durations, { layers: ['#box', '#title'] });
+    return [...run.entering, ...run.leaving];
+  };
+  const before = await play(original, 2, [2, 1]), after = await play(crossed, out, [out, 1.8]);
+  near(after, before, target + ' In then Out on one clock', [1e-3 + 1e-6]);
+  // Boundary velocity on both sides of the new hold, the right side now played by Out. The values
+  // alone allow 0.2 units/s here; the stored rounding moves smoothly, so the velocities agree closer.
+  const at = (u: number) => absolute.indexOf(u);
+  for (let p = 0; p < before[0].length; p++) for (const [a, b] of [[out - h, out], [out, out + h]]) {
+    const v0 = (before[at(b)][p] - before[at(a)][p]) / h, v1 = (after[at(b)][p] - after[at(a)][p]) / h;
+    expect(Math.abs(v1 - v0), `${label(p)} velocity ${a}..${b}: ${v0} vs ${v1}`).toBeLessThan(.05 + Math.abs(v0) * 1e-3);
+  }
+});
+
+for (const target of TARGETS) test('Out interrupting an In shortened across its keys plays each track to its end on the whole curve in ' + target, async ({ page }) => {
+  await open(page);
+  const out = 1.2, cut = .4, times = grid(1.8, .05);
+  const crossed = await setOut(page, await template(page, textAndBox(), true), out);
+  const run = await execute(page, crossed, target, [cut], times, [out, 1.8], { layers: ['#box', '#title'], interruptAt: cut });
+  // D02: the first frame of the interrupted Out is the live pose.
+  near([run.released], [run.held], target + ' no jump when Out interrupts', [1, 1, 1, .01, .01]);
+  // Then each exit track tweens from that pose to its last key over its span. A sliced last ease
+  // plays as the whole curve it was cut from; stretched as a slice it would swing far past its end.
+  const expected = await page.evaluate(async ({ js, held, times, props }) => {
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { easeCurve, parseEase } = await import('/src/templates/shared/easeRuntime.ts');
+    const exit = parseAnimData(js)!.steps[1];
+    return times.map(t => ['#box', '#title'].flatMap((selector, layer) => props.map((prop, i) => {
+      const keys = exit.layers[selector]?.[prop], live = held[layer * props.length + i];
+      if (!keys || keys.length < 2) return live;
+      const first = keys[0], last = keys[keys.length - 1], text = last.ease || exit.ease, parsed = parseEase(text);
+      const curve = easeCurve(parsed?.kind === 'slice' ? parsed.base.text : text)!;
+      const value = live + (Number(last.value) - live) * curve(Math.min(1, Math.max(0, (t - first.time) / (last.time - first.time))));
+      return prop === 'opacity' ? Math.min(1, Math.max(0, value)) : value;
+    })));
+  }, { js: crossed.js, held: run.held, times, props: PROPS });
+  near(run.leaving, expected, target + ' interrupted exit');
 });
 
 test('reversal and split refuse atomically where no exact form exists', async ({ page }) => {

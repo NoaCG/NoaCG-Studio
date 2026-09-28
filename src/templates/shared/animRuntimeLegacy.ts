@@ -3,6 +3,9 @@
 // kept a second time verbatim; e2e/fixtures/interpreter-pre-g01.js holds its text for the tests
 // proving that a graphic saved with it upgrades once and then plays exact eases.
 export const ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH = '61a45be2c0511';
+// The interpreter emitted from G01 (PR #505) until an interrupted exit learned to play a sliced
+// last ease as its whole curve. e2e/fixtures/interpreter-shared-ease-v1.js holds its text.
+export const ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH = 'f4df1ba19eb48';
 
 // Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
 export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----

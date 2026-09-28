@@ -157,7 +157,7 @@ them. Unsupported foreign source is preserved; required named fixtures must rece
 
 | Decision | Closing test and failure condition | Slice / tasks |
 |---|---|---|
-| D01 permanent Out | Empty-exit In/Out document has identical source/flags/behavior after save/reopen; legacy one-step In gets a distinct derived empty exit and materializes it plus interpreter upgrade on first supported save/export, never replaying In on Out. Out always sits at the end of the last pre-Out segment. Set Out after No/Escape reoffers reverse while keys remain absent; existing keys are never silently replaced. | R1.1c / B05/B13 |
+| D01 permanent Out | Empty-exit In/Out document has identical source/flags/behavior after save/reopen; legacy one-step In gets a distinct derived empty exit and materializes it plus interpreter upgrade on first supported save/export, never replaying In on Out. Out always sits at the end of the last pre-Out segment. Set Out after No/Escape reoffers reverse while keys remain absent; existing keys are never silently replaced. Owner decision 2026-09-28: Set Out before the last In key splits each crossed segment exactly and moves the rest into Out at its absolute times as one undo; In then Out matches the original in editor, simulator and exports, and any crossed segment without an exact split refuses with unchanged source/history. | R1.1c; crossing R1.2a.1 / B05/B13 |
 | D02 live-pose interruption | At 40% of In trigger Out; dispatch discontinuity is <1 px per position channel and <1 opacity percentage point, measured before first advancing frame. Each supported exit track starts at its live value and reaches its final exit key; finite completion hides all visible layers. Simulator and exported package both pass. Old owned runtime re-emits on write; external source sentinels survive. Repeat/replay cannot resurrect a layer. | R1.1c / B07/B13; repeat Next/loop in R1.2a/c |
 | D03 Position adapter | Base Layout offset +40 px on a flow-laid catalog line preserves sibling layout and exact existing motion tracks; control is labelled as offset. Placed/absolute/SVG targets show parent coordinates and persist inverse-mapped runtime values. Test parent translate(100,80)/rotate(30)/scale(2), numeric/canvas agreement, animation, undo/save/reopen/export; no view-space coordinates leak into source. | R1.1a core, R1.1d nested / B03/B05 |
 | D04 additive spans | Optional per-step selector visibility intervals round-trip; missing spans preserve legacy behavior. Static/no-key and disjoint intervals, forward/backward seek and held cue sides agree in simulator/export. Bar-body moves carry keys with relative offsets; later trim changes only spans, retaining clipped keys. Parser/serializer preserve spans; older runtime re-emits before consuming them. | R1.0 read-only bars; R1.1b writes/body; R1.1d trim / B02/B06/B13 |
@@ -173,7 +173,7 @@ before broadening the editor. R1.5 repeats fuller SVG and collection-to-rundown 
 
 | Gate | Must close before | Closing test / receipt |
 |---|---|---|
-| G01 shared ease strings and exact reversal | R1.2a | Shared cubic-bezier and named bounce/back evaluators in sampler and interpreter/export; exact piecewise/mirrored/sliced evaluation or explicit refusal, including equal-endpoint cases; split at 40% and compare dense samples/endpoints/tangents. Named .in/.out swap mirrors exactly; incoming ease moves to the other key in the reversed segment. Unsupported ease is preserved/refused, never silently defaulted. Until this gate passes Set Out before the last In key refuses atomically with unchanged source/history. |
+| G01 shared ease strings and exact reversal | R1.2a | Shared cubic-bezier and named bounce/back evaluators in sampler and interpreter/export; exact piecewise/mirrored/sliced evaluation or explicit refusal, including equal-endpoint cases; split at 40% and compare dense samples/endpoints/tangents. Named .in/.out swap mirrors exactly; incoming ease moves to the other key in the reversed segment. Unsupported ease is preserved/refused, never silently defaulted. Set Out before the last In key uses this split (R1.2a.1); a crossed segment without an exact form refuses the whole move atomically with unchanged source/history. |
 | G02 playhead-at-flag edit side | First relevant flag editing, complete R1.2a | Existing held layer edits the arriving segment; a layer whose bar starts there edits departing local zero. Mixed selection is atomic and each target segment is identified. No early reveal, off-by-one or mutation of the wrong step. |
 | G03 unnamed SVG identity | R1.1d | First committed edit mints collision-free IDs in that transaction; inspection/cancel creates none. Nested unnamed/duplicate-ID fixtures, references, tracks and operator fields survive undo/redo/save/reopen without unrelated source changes. |
 | G04 everyday tools allocation | R1.2b | Close E05-E07/B04 in full: typography/long-text fit, image/logo replacement, canvas tools, duplicate/delete/reorder/align/distribute/group movement and field/source/export parity. R1.1a has verified its creation portion; basic content/type/colour belongs to its usable-static-authoring follow-up. Rich typography/fit and the remaining everyday tools stay in R1.2b. |
@@ -345,6 +345,18 @@ proven in the simulator and executed SPX, CasparCG, OGraf and single-file export
 unrecognized and non-representable cases refuse atomically. The G01 row stays open: Set Out
 still refuses before the last In key, and R1.2a's ease UI, Hold form and multi-key work have
 not started. No whole row is closed and the default editor is unchanged.
+
+## R1.2a.1 scoped Set Out crossing receipt, 2026-09-28
+
+The [bounded spec, reproduction and verification](editor-r1-2a-1/README.md) record the owner
+decision of 2026-09-28: Set Out may cross the last In key. Each crossed segment splits exactly
+at the boundary, the rest of the entrance moves into Out at its absolute times, visibility bars
+are clipped and carried, and In then Out plays as before in editor sampling, the simulator and
+executed SPX, CasparCG, OGraf and single-file exports. It is one undo; anything without an exact
+form refuses with source and history unchanged. An interrupted Out now plays a sliced last ease
+as its whole curve. D01/D02, G01 and the relevant B05/B07/B13 portions gain scoped engineering
+evidence; the G01 row's Set Out clause is closed, while the ease menu, Hold and multi-key
+selection (R1.2a.2) remain open. No whole row is closed and the default editor is unchanged.
 
 ## Optional P-GPU evidence
 
