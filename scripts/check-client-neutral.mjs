@@ -75,7 +75,6 @@ const SCANNED = [
 const ALLOWED = [
   // ── Target lists: the client named beside its peers, which IS the anything-goes promise. ──
   { file: 'index.html', line: '<span class="chip on">SPX Graphics</span>', why: 'export-target chip, listed beside OBS/vMix/CasparCG/OGraf/H2R/LiveOS' },
-  { file: 'index.html', line: '<img src="/landing/shot-export.png" alt="The export dialog listing packages for SPX, OBS and vMix overlays, H2R, CasparCG, OGraf and LiveOS" loading="lazy" />', why: 'alt text describing a screenshot of the target list' },
   { file: 'app.html', line: 'content="The NoaCG Studio app: create on-air lower thirds, tickers, scoreboards and more without code, run them live from your browser, and export to OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix."', why: 'target list in the page description' },
   { file: 'app.html', line: '<meta property="og:description" content="Create live graphics. Run the show. Premium on-air graphics, driven live from your browser or exported for OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix." />', why: 'target list in the share description' },
   // Kept on a source line of its own so a reflow of the prose around it cannot move the match.
