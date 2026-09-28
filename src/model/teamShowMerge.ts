@@ -17,16 +17,25 @@
 // `playoutItems` are arrays of objects with an `id`, and each item gets the same three-way rule.
 // Only the same ITEM changed differently on both sides is a conflict, and there theirs stands.
 //
+// FOLDERS STAY WHOLE (docs/CLIP_PLAYBACK_PLAN.md §7). A folder's cues stand together in the flat cue
+// list, and a merge can tear them apart - one teammate folders A and B while the other orders A, C,
+// B, D - or leave a folder no cue names, or a cue naming a folder that is gone. So the merged record
+// is settled at the end, whichever side each list came from, and anything that moved is reported as
+// the folders.
+//
 // Pure - no storage, no clock beyond the stamp it is given - so the one place it can be wrong is
-// here, on a page of code.
+// here, on a page of code. Its one runtime import is the folder rules, which are pure too; the `.ts`
+// is what lets Node resolve it.
 
 import type { Show } from './shows';
+import { settleFolders } from './showFolders.ts';
 
 /** A top-level field's readable name, for the "your change to … was replaced" line. */
 const FIELD_LABEL: Record<string, string> = {
   name: 'the name',
   graphics: 'the graphics',
   cues: 'the rundown',
+  folders: 'the folders',
   datasets: 'the data tables',
   playoutItems: 'the playout items',
   data: 'the production data',
@@ -199,6 +208,15 @@ export function mergeTeamShow(base: Show, ours: Show, theirs: Show, at: string):
       continue;
     }
     lost.push(FIELD_LABEL[key] ?? key); // Theirs stands; `doc` already holds it.
+  }
+  // Whichever side the cues and the folders came from, and however they merged, each folder's cues
+  // end up together where its first cue stands, and no folder is left empty or named by nobody.
+  const settled = settleFolders((doc.cues ?? []) as NonNullable<Show['cues']>, doc.folders as Show['folders']);
+  if (settled.changed) {
+    if (doc.cues !== undefined) doc.cues = settled.cues;
+    if (settled.folders.length) doc.folders = settled.folders;
+    else delete doc.folders;
+    if (!lost.includes(FIELD_LABEL.folders)) lost.push(FIELD_LABEL.folders);
   }
   doc.updatedAt = at;
   return { doc: doc as unknown as Show, lost };
