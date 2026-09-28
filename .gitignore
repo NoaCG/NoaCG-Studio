@@ -139,6 +139,11 @@ sweep-*.json
 .claude/launch.json
 .claude/dev-port.json
 
+# Every session's feature worktrees (and the orchestrator's home) live here. Each is its own git
+# checkout, so the primary checkout must not list them as untracked: the cloud Stop hook
+# (Claude Code on the web) flags any untracked path, and `git add -A` there would stage them.
+.claude/worktrees/
+
 # Locally installed third-party agent skills (npx skills add ...) - vendor content,
 # reinstallable on demand, never committed. The skills this repo OWNS are re-included by
 # name below: git cannot un-ignore a path inside an ignored DIRECTORY, so this ignores the

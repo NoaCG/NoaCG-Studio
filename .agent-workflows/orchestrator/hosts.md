@@ -116,6 +116,45 @@ retained as a boolean supervisor-presence field for compatibility) and keeps sta
 terminal receipt exists. Ownership locks are retained on unconfirmed termination for manual recovery.
 Result status and denied tools matter; a claimed success still needs independent verification.
 
+## Claude Code on the web (cloud container)
+
+Measured 2026-09-28 in a claude.ai cloud session (CLI 2.1.283, `CLAUDE_CODE_REMOTE`), coordinator
+plus Agent-tool rows with `isolation: worktree` in one container (PRs #493-#498, then row F).
+Observations `claude-cloud-*` in `scripts/harness-capabilities.json`.
+
+- **GitHub from a row** (recorded; the fix awaits the owner). Rows had no `gh` and no
+  `mcp__github__*` while the coordinator had both; the server's instructions reached the rows, its
+  tools did not, and the rows' `tools:` allowlist names none. The candidate fix adds to the three
+  `.claude/agents/wave-row*.md` `tools:` lines only the eight tools the cloud path of `queue-merge.md`
+  uses: `create_pull_request`, `pull_request_read`, `actions_run_trigger`, `actions_get`,
+  `actions_list`, `get_job_logs`, `enable_pr_auto_merge`, `disable_pr_auto_merge`. Merge, file-write,
+  push and branch tools stay out. It changes tool availability in our own definitions, not the
+  permission mode or `.claude/settings.json`. Even so, the row that wrote it was refused the commit
+  as a shared-configuration change (2026-09-28), so the owner decides. A definition loads at launch,
+  so no row can test its own. Probe before deciding: the coordinator launches a `general-purpose`
+  agent to run ToolSearch `select:mcp__github__pull_request_read` plus one read. Two skill-forked
+  `general-purpose` reviewers (depth 2) got no MCP tools either, which fits a platform that withholds
+  MCP tools from every subagent. Until rows have the tools, a row stops at push with its reviewed
+  tip, and the coordinator runs that cloud path for it. Never `curl` with `$GH_TOKEN`: the permission
+  system refuses it as credential exploration, correctly.
+- **No subagents inside a row** (recorded). `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` drops the
+  Agent tool although the allowlist names it, so a cloud row cannot consult, `design-consult` or
+  delegate; skill forks (`/check`'s review) still run. Plan cloud rows that need no consult, or the
+  coordinator consults and passes the answer in the prompt.
+- **Stale base and registry** (recorded). Isolation branches rows from the primary checkout's HEAD -
+  the session branch at an old main - and the agent registry is read there. Before launching,
+  fast-forward the session branch to `origin/main` (`git merge --ff-only`, if it has no commits of
+  its own), and keep `git fetch origin main && git reset --hard origin/main` as each row's FIRST line.
+- **Branch deletion is an owner action** (recorded). The git proxy answers HTTP 403 to
+  `git push origin --delete` of any branch but the session's own; the GitHub MCP has no delete tool.
+- **A red `Reviewed` while the dispatch waits for a runner is by design.** It polls ~150 s for
+  `noacg/reviewed`; `scripts/cloud-queue.mjs` re-runs it once its run finishes, and at its 40-minute
+  bound logs a warning to re-run it by hand.
+- **Watch loop** (recorded). A background `wave-watch.mjs` cannot wake an ended turn. What worked:
+  `mcp__Claude_Code_Remote__send_later` check-ins, `subscribe_pr_activity` webhooks and Agent
+  completion notifications. Those route to the coordinator's session, so rows are not given them.
+- **Stop hook** (fixed, `.gitignore`). The cloud Stop hook flagged `.claude/worktrees/` as untracked.
+
 ## Codex overnight execution
 
 Use the same candidates, collision check, horizon and report as Claude. A ten-hour request gets
