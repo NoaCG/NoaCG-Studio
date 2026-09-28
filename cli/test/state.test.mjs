@@ -235,7 +235,7 @@ test('/state reads a channel, and every action\'s reply carries the slot\'s gene
   const at = { adapter: 'casparcg', channel: 2, layer: 10 };
 
   const take = await call('/act', { target: casparTarget, action: { verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: at, cueId: 'cue-1' } });
-  assert.deepEqual([take.body.ok, take.body.generation, take.body.instance], [true, 1, 'b1.1']);
+  assert.deepEqual([take.body.ok, take.body.generation, take.body.session, take.body.instance], [true, 1, 'b1', 'b1.1']);
   caspar.advance(4_000);
   let state = await call('/state', { target: casparTarget, channel: 2 });
   assert.equal(state.body.ok, true);

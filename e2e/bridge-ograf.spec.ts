@@ -89,7 +89,9 @@ test('the Bridge names the OGraf adapter, and status and list read the server, i
     const health = await page.evaluate(async (url) => (await fetch(url)).json(), `${r.bridge}/health`);
     expect(health).toMatchObject({ ok: true, agent: 'noacg-bridge', v: 2, adapters: ['casparcg', 'ograf'] });
 
-    expect(await call(page, r, '/status', {})).toEqual({ ok: true, v: 2, version: 'Fake OGraf Server 1.0.0', raw: '200' });
+    // No capabilities: the Server API has no reading of a clip's position, so the page offers no
+    // clock for an OGraf target (docs/CLIP_PLAYBACK_PLAN.md §6.9).
+    expect(await call(page, r, '/status', {})).toEqual({ ok: true, v: 2, version: 'Fake OGraf Server 1.0.0', raw: '200', capabilities: [] });
     expect(r.fake.requests).toEqual([{ method: 'GET', path: '/' }]);
 
     r.fake.requests.length = 0;
@@ -135,7 +137,14 @@ test('take, update, next, out and All out each put exactly the standard request 
     const step = async (action: Record<string, unknown>, wire: unknown[], raw: string) => {
       r.fake.requests.length = 0;
       const reply = await act(page, r, action);
-      expect(reply, `${String(action.verb)} answered`).toEqual({ ok: true, v: 2, raw });
+      // Every accepted action also says the slot's generation and the Bridge session that counted
+      // it, and a take its instance (docs/CLIP_PLAYBACK_PLAN.md §6.7): bookkeeping of the Bridge's
+      // own, which changes nothing that goes to the server.
+      const { generation, session, instance, ...answer } = reply as Record<string, unknown>;
+      expect(answer, `${String(action.verb)} answered`).toEqual({ ok: true, v: 2, raw });
+      expect(typeof generation).toBe('number');
+      expect(typeof session).toBe('string');
+      expect(typeof instance).toBe(action.verb === 'take' ? 'string' : 'undefined');
       expect(r.fake.requests, `${String(action.verb)} on the wire`).toEqual(wire);
     };
 
@@ -155,7 +164,7 @@ test('take, update, next, out and All out each put exactly the standard request 
       ],
       'load 200 Loaded OK (gi-1); playAction 200 Playing',
     );
-    // The Bridge remembers nothing: each later verb asks the target what it holds.
+    // The Bridge remembers nothing it acts on: each later verb asks the target what it holds.
     await step(
       { verb: 'update', slot: SLOT, data: { f0: 'Grace Hopper', f1: 'Admiral' } },
       [targetRead, { method: 'POST', path: AT('updateAction'), body: on({ data: { f0: 'Grace Hopper', f1: 'Admiral' } }), contentType: JSON_BODY }],

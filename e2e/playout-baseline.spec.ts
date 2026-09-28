@@ -156,6 +156,9 @@ async function expectPage(page: Page, name: string): Promise<void> {
       page.locator('[data-testid="action-log"] summary .muted'),
       page.locator('.prod-log-time'),
       page.locator('.pd-monitors iframe'),
+      // A clip on air counts down in the clip clock and in its row (docs/CLIP_PLAYBACK_PLAN.md §6.4).
+      page.locator('.pd-clipclock-time'),
+      page.locator('.pd-cue.on-air [data-testid="cue-length"]'),
     ],
     animations: 'disabled',
     caret: 'hide',

@@ -21,12 +21,17 @@ import { compareSlots, slotAddress } from './playoutSlots.ts';
 export interface ServerLive {
   cueId: string;
   slot: Slot;
+  /** The Bridge's own id for this playback (./serverState.ts): a reading showing another id, or
+   *  none, on this slot means something else plays there now. Absent from a Bridge that gives none. */
+  instance?: string;
+  /** When this page learned it is up, on its own clock (ms): the clip clock follows the latest. */
+  takenAt?: number;
 }
 
 /**
- * What this page believes is up on the PLAYOUT SERVER, by playout item id. Page state, like the
- * log-free half of `liveCue` before publishing: nothing reports back what the server holds - so
- * the row says ON AIR from the moment the command was accepted, and a refused one never marks it.
+ * What this page believes is up on the PLAYOUT SERVER, by playout item id. It moves on an accepted
+ * command, so the row says ON AIR from that moment and a refused one never marks it - and, where
+ * the Bridge can read the server, on what the server reports (./serverState.ts `applyReading`).
  *
  * The slot is remembered rather than re-derived because the item's channel and layer stay
  * editable while it is on air: Out, Update and All out must reach where the cue IS, not where its
@@ -44,10 +49,16 @@ export function serverCueLive(onAir: ServerOnAir, item: PlayoutItem | null, cue:
 /** One slot holds one thing: a take REPLACES whatever another item of this rundown had up on the
  *  same channel and layer, on the server and so here too - two clips on 2-10 do not both stay ON
  *  AIR. */
-export function withTaken(onAir: ServerOnAir, itemId: string, cueId: string, slot: Slot): ServerOnAir {
+export function withTaken(
+  onAir: ServerOnAir,
+  itemId: string,
+  cueId: string,
+  slot: Slot,
+  extra: Pick<ServerLive, 'instance' | 'takenAt'> = {},
+): ServerOnAir {
   const next: Record<string, ServerLive> = {};
   for (const [id, l] of Object.entries(onAir)) if (slotAddress(l.slot) !== slotAddress(slot)) next[id] = l;
-  return { ...next, [itemId]: { cueId, slot } };
+  return { ...next, [itemId]: { cueId, slot, ...extra } };
 }
 
 /** Forget that an item is up on the server: its Out was accepted, or nothing of it is left. */
@@ -77,8 +88,9 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
 }
 
 /** The one action a verb sends. The action carries no page state, so the same object is what a
- *  log row would carry later. */
-export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>): PlayoutAction {
+ *  log row would carry later. A take names its cue, which the Bridge keeps with what it started
+ *  so a reading can say which cue is up after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). */
+export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string): PlayoutAction {
   const itemRef = { kind: item.kind, name: item.name };
   return verb === 'take'
     ? {
@@ -88,18 +100,30 @@ export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, va
         ...(item.kind === 'template' ? { data: values } : {}),
         // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
         ...(item.kind === 'media' && item.loop ? { loop: true } : {}),
+        ...(cueId ? { cueId } : {}),
       }
     : verb === 'update'
       ? { verb, slot, data: values }
       : { verb, slot, item: itemRef };
 }
 
-/** What one verb came to: whether it reached the server, the note line's sentence, and how the
- *  on-air map moves because of it (absent when it does not). */
+/** One action the Bridge accepted, with what it said about the slot afterwards. */
+export interface AcceptedVerb {
+  verb: ServerVerb;
+  slot: Slot;
+  generation?: number;
+  /** The Bridge session that counted `generation`. */
+  session?: string;
+  instance?: string;
+}
+
+/** What one verb came to: whether it reached the server, the note line's sentence, and every
+ *  action the Bridge accepted on the way, in order - what the page folds into its store
+ *  (./serverState.ts `applyAccepted`). A refused action is never in it. */
 export interface ServerVerbOutcome {
   ok: boolean;
   note: string;
-  onAir?: (onAir: ServerOnAir) => ServerOnAir;
+  accepted: AcceptedVerb[];
 }
 
 /**
@@ -134,37 +158,33 @@ export async function runServerVerb({
   act: (action: PlayoutAction) => Promise<PlayoutResult>;
 }): Promise<ServerVerbOutcome> {
   const slot = verb !== 'take' && live ? live.slot : slotNow;
+  const accepted: AcceptedVerb[] = [];
+  const took = (v: ServerVerb, at: Slot, r: PlayoutResult) =>
+    accepted.push({
+      verb: v,
+      slot: at,
+      ...(r.generation !== undefined ? { generation: r.generation } : {}),
+      ...(r.session ? { session: r.session } : {}),
+      ...(r.instance ? { instance: r.instance } : {}),
+    });
   // A RE-TAKE after the cue was moved to another channel or layer: its first copy is still up
   // where it went, and nothing else knows it is there. Take that one off first, so the move is a
   // move and not a second copy stranded on the old slot.
-  let movedOff = false;
   if (verb === 'take' && live && slotAddress(live.slot) !== slotAddress(slot)) {
     const off = await act(serverAction('out', item, live.slot, {}));
     if (off.state !== 'ok') {
       return {
         ok: false,
         note: `${label} did not reach the playout server: ${item.name} is still on ${slotAddress(live.slot)} - ${off.detail}`,
+        accepted,
       };
     }
-    movedOff = true;
+    // Accepted: nothing of this item is up anywhere now, whatever the take below comes to - a row
+    // still saying ON AIR after a refused take would be the one thing on the page that is not true.
+    took('out', live.slot, off);
   }
-  const result = await act(serverAction(verb, item, slot, values()));
-  if (result.state !== 'ok') {
-    return {
-      ok: false,
-      note: `${label} did not reach the playout server: ${result.detail}`,
-      // The old copy already came off above, so nothing of this item is up anywhere now; a row
-      // still saying ON AIR would be the one thing on the page that is not true.
-      ...(movedOff ? { onAir: (m: ServerOnAir) => withoutItem(m, item.id) } : {}),
-    };
-  }
-  return {
-    ok: true,
-    note: `✓ ${label}: ${item.name} on ${slotAddress(slot)}`,
-    ...(verb === 'take'
-      ? { onAir: (m: ServerOnAir) => withTaken(m, item.id, cue.id, slot) }
-      : verb === 'out'
-        ? { onAir: (m: ServerOnAir) => withoutItem(m, item.id) }
-        : {}),
-  };
+  const result = await act(serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined));
+  if (result.state !== 'ok') return { ok: false, note: `${label} did not reach the playout server: ${result.detail}`, accepted };
+  took(verb, slot, result);
+  return { ok: true, note: `✓ ${label}: ${item.name} on ${slotAddress(slot)}`, accepted };
 }

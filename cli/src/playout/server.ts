@@ -391,7 +391,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           send(
             200,
             r.ok
-              ? { ok: true, v: PLAYOUT_V, raw: r.raw, generation, ...(instance ? { instance } : {}) }
+              ? { ok: true, v: PLAYOUT_V, raw: r.raw, generation, session: memory.session, ...(instance ? { instance } : {}) }
               : { ok: false, v: PLAYOUT_V, error: r.error },
             true,
           );

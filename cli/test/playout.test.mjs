@@ -236,10 +236,15 @@ test('every request names its target, and an action reaches AMCP as exactly one 
       action: { verb: 'take', item: { kind: 'template', name: 'BK/SB01' }, slot: { adapter: 'casparcg', channel: 2, layer: 30 }, data: { f0: 'Home', f1: '3' } },
     });
     assert.equal(res.status, 200);
-    // The reply carries the slot's generation and the take's instance (docs/CLIP_PLAYBACK_PLAN.md
-    // §6.7); the LINE on the wire is exactly what it was before either existed.
+    // The reply carries the slot's generation, the session that counted it and the take's instance
+    // (docs/CLIP_PLAYBACK_PLAN.md §6.7); the LINE on the wire is exactly what it was before any
+    // of them existed.
     const reply = await res.json();
-    assert.deepEqual({ ...reply, instance: typeof reply.instance }, { ok: true, v: PLAYOUT_V, raw: '202 CG OK', generation: 1, instance: 'string' });
+    assert.deepEqual(
+      { ...reply, instance: typeof reply.instance, session: typeof reply.session },
+      { ok: true, v: PLAYOUT_V, raw: '202 CG OK', generation: 1, session: 'string', instance: 'string' },
+    );
+    assert.ok(reply.instance.startsWith(`${reply.session}.`), 'an instance id starts with its session');
     assert.deepEqual(caspar.seen, ['CG 2-30 ADD 1 "BK/SB01" 1 "{\\"f0\\":\\"Home\\",\\"f1\\":\\"3\\"}"']);
   });
   await caspar.close();

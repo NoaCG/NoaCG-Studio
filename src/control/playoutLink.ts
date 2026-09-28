@@ -27,11 +27,15 @@ import {
   PLAYOUT_V,
   type AdapterId,
   type AgentError,
+  type BridgeFeature,
   type ItemKind,
   type CasparSlot,
   type CasparTarget,
   type ListItem,
   type PlayoutAction,
+  type SlotState,
+  type StateReply,
+  type TargetCapability,
 } from './playoutProtocol';
 
 const STORE_KEY = 'spx-gfx-caspar';
@@ -55,6 +59,9 @@ const ACT_TIMEOUT_MS = 9000;
 /** A list waits past the server's own scanner timeout (about 5 s on 2.5.0) so a missing scanner
  *  is reported as itself rather than as silence. */
 const LIST_TIMEOUT_MS = 16000;
+/** A state reading: INFO answers in about 2 ms on the real 2.5.0 (measured 2026-09-28), so this is
+ *  generous, and short enough that a stalled Bridge shows as `estimated` within the clock's 3 s. */
+const STATE_TIMEOUT_MS = 1500;
 
 export interface PlayoutSettings {
   /** Where NoaCG Bridge is listening. Loopback, on the operator's own machine. The stored key
@@ -310,6 +317,21 @@ export interface PlayoutResult {
   version?: string;
   /** The server's own status line, when there was one. */
   raw?: string;
+  /** What the Bridge understands beyond the routes every v2 Bridge answers (`/health`). */
+  features?: BridgeFeature[];
+  /** What the target can do (`/status`). */
+  capabilities?: TargetCapability[];
+  /** An accepted action's slot generation, the Bridge session that counted it, and a take's
+   *  instance (docs/CLIP_PLAYBACK_PLAN.md §6.7). */
+  generation?: number;
+  session?: string;
+  instance?: string;
+}
+
+/** Whether the page may ask this Bridge what the server holds: the Bridge reads state, and the
+ *  server it was last asked about can be read (plan §6.9 - both have to say yes). */
+export function stateReadable(status: PlayoutResult | null): boolean {
+  return status?.state === 'ok' && !!status.features?.includes('state') && !!status.capabilities?.includes('state');
 }
 
 interface BridgeReply {
@@ -318,11 +340,19 @@ interface BridgeReply {
   agent?: string;
   version?: string;
   adapters?: AdapterId[];
+  features?: BridgeFeature[];
+  capabilities?: TargetCapability[];
   error?: AgentError;
   items?: ListItem[];
   png?: string;
   raw?: string;
   token?: string;
+  generation?: number;
+  instance?: string;
+  channel?: number;
+  session?: string;
+  observedAt?: number;
+  slots?: SlotState[];
 }
 
 type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
@@ -379,19 +409,33 @@ function noBridge(reason: string): PlayoutResult {
  * permission prompt standing in the way? Null means "a current Bridge answered".
  */
 export async function reachBridge(bridgeUrl: string): Promise<PlayoutResult | null> {
+  return (await probeBridge(bridgeUrl)).unreachable;
+}
+
+/** `reachBridge`, and what a current Bridge said it understands. */
+async function probeBridge(bridgeUrl: string): Promise<{ unreachable: PlayoutResult | null; features: BridgeFeature[] }> {
   const health = await callBridge(bridgeUrl, '/health', null, BRIDGE_TIMEOUT_MS);
   if ('http' in health) {
     const { agent, v } = health.body;
-    if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) return null;
+    if (agent === 'noacg-bridge' && typeof v === 'number' && v >= MIN_PLAYOUT_V) {
+      return { unreachable: null, features: Array.isArray(health.body.features) ? health.body.features : [] };
+    }
     if (agent === 'noacg-bridge' || agent === 'noacg-caspar') {
       return {
-        state: 'outdated',
-        detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
+        unreachable: {
+          state: 'outdated',
+          detail: `The NoaCG Bridge on ${bridgeUrl} is too old for this page${health.body.version ? ` (version ${health.body.version})` : ''}. Download the current NoaCG Bridge from the Downloads page, start it, then try again.`,
+        },
+        features: [],
       };
     }
-    return { state: 'bridge', detail: `Something is listening on ${bridgeUrl}, but it is not NoaCG Bridge.` };
+    return { unreachable: { state: 'bridge', detail: `Something is listening on ${bridgeUrl}, but it is not NoaCG Bridge.` }, features: [] };
   }
+  return { unreachable: await unreachableBridge(bridgeUrl, health), features: [] };
+}
 
+/** Why no Bridge answered: the permission prompt, a browser that forbids it, or nothing there. */
+async function unreachableBridge(bridgeUrl: string, health: Call): Promise<PlayoutResult> {
   const gated = localNetworkGateApplies(window.location.origin, bridgeUrl);
   const permission = gated ? await localNetworkPermission() : 'granted';
   // Three different situations, and only one of them has a prompt to answer. Telling a Safari
@@ -445,7 +489,21 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
       },
     };
   }
-  if (body.ok) return { result: { state: 'ok', detail: 'Connected.', version: body.version, raw: body.raw }, body };
+  if (body.ok) {
+    return {
+      result: {
+        state: 'ok',
+        detail: 'Connected.',
+        version: body.version,
+        raw: body.raw,
+        ...(Array.isArray(body.capabilities) ? { capabilities: body.capabilities } : {}),
+        ...(typeof body.generation === 'number' ? { generation: body.generation } : {}),
+        ...(typeof body.session === 'string' ? { session: body.session } : {}),
+        ...(typeof body.instance === 'string' ? { instance: body.instance } : {}),
+      },
+      body,
+    };
+  }
   const error = body.error;
   if (!error) return { result: { state: 'bridge', detail: `NoaCG Bridge answered ${http} with no reason.` } };
   if (error.code === 'no-media-scanner') return { result: { state: 'scanner', detail: error.detail, raw: error.raw }, body };
@@ -471,7 +529,7 @@ async function through(
   if (!playoutConfigured(settings)) {
     return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
   }
-  const unreachable = await reachBridge(settings.agentUrl);
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
   if (unreachable) return { result: unreachable };
   const call = await callBridge(
     settings.agentUrl,
@@ -480,7 +538,94 @@ async function through(
     hop === 'list' ? LIST_TIMEOUT_MS : ACT_TIMEOUT_MS,
     settings.agentToken,
   );
-  return readReply(settings, call);
+  const reply = readReply(settings, call);
+  return reply.result.state === 'ok' ? { ...reply, result: { ...reply.result, features } } : reply;
+}
+
+/**
+ * ONE READING OF A CHANNEL (docs/CLIP_PLAYBACK_PLAN.md §6.7): what each of its layers holds, with
+ * the Bridge's generation and instance on every slot. Straight to `/state`, without the `/health`
+ * probe every other request makes first: this one runs twice a second, and the status poll already
+ * says whether the Bridge is there.
+ */
+export async function readState(settings: PlayoutSettings, channel: number): Promise<{ result: PlayoutResult; reply?: StateReply }> {
+  if (!playoutConfigured(settings)) {
+    return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
+  }
+  const call = await callBridge(settings.agentUrl, '/state', { target: targetOf(settings), channel }, STATE_TIMEOUT_MS, settings.agentToken);
+  const { result, body } = readReply(settings, call);
+  if (result.state !== 'ok' || !body || !Array.isArray(body.slots) || typeof body.session !== 'string') return { result };
+  return {
+    result,
+    reply: { ok: true, channel: body.channel ?? channel, session: body.session, observedAt: body.observedAt ?? 0, slots: body.slots },
+  };
+}
+
+export interface ServerStatePoll {
+  stop: () => void;
+  /** Read now: after an action, or when the tab comes back into view. */
+  wake: () => void;
+}
+
+/**
+ * THE POLL (plan §6.7): each channel in turn, then a pause - never a second round while one is
+ * still out, so a slow Bridge slows the readings rather than stacking them. Twice a second while
+ * `busy()` says something is up on a rundown slot, every few seconds otherwise.
+ *
+ * It only READS. What a reading changes is the caller's, and nothing in here can send a command:
+ * no timer on the page ever fires or queues a clip.
+ */
+export function pollServerState(options: {
+  read: (channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
+  channels: () => number[];
+  busy: () => boolean;
+  onReading: (channel: number, reply: StateReply, receivedAt: number) => void;
+  busyMs?: number;
+  idleMs?: number;
+}): ServerStatePoll {
+  const busyMs = options.busyMs ?? 500;
+  const idleMs = options.idleMs ?? 3000;
+  let alive = true;
+  let running = false;
+  let again = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const round = async () => {
+    timer = undefined;
+    running = true;
+    const started = performance.now();
+    for (const channel of options.channels()) {
+      const { reply } = await options.read(channel);
+      if (!alive) return;
+      // A failed reading changes nothing: the clock goes on counting, and says `estimated` once
+      // no reading has landed for a while (./serverState.ts `isEstimated`).
+      if (reply) options.onReading(channel, reply, performance.now());
+    }
+    running = false;
+    if (!alive) return;
+    if (again) {
+      again = false;
+      void round();
+      return;
+    }
+    const pace = options.busy() ? busyMs : idleMs;
+    timer = setTimeout(() => void round(), Math.max(0, pace - (performance.now() - started)));
+  };
+  void round();
+  return {
+    stop: () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    },
+    wake: () => {
+      if (!alive) return;
+      if (running) {
+        again = true;
+        return;
+      }
+      if (timer) clearTimeout(timer);
+      void round();
+    },
+  };
 }
 
 /** The Test connection button: a real AMCP VERSION, round-tripped. */
@@ -501,7 +646,7 @@ export async function libraryThumbnail(settings: PlayoutSettings, name: string):
 }
 
 /** One verb on the server. The action carries no page state, so it is exactly what a log row
- *  would carry later. */
+ *  would carry later. An accepted one carries the slot's generation, and a take its instance. */
 export async function act(settings: PlayoutSettings, action: PlayoutAction): Promise<PlayoutResult> {
   return (await through(settings, '/act', { action })).result;
 }

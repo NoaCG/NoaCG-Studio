@@ -211,6 +211,9 @@ export interface ActReply {
   raw: string;
   /** The slot's generation after this action: a reading older than it is from before it. */
   generation?: number;
+  /** The Bridge process that counted it. A restarted Bridge counts from zero again, so a
+   *  generation only compares with readings from the same session. */
+  session?: string;
   /** A take's instance id, which the slot's readings carry for as long as it plays. */
   instance?: string;
 }

@@ -32,11 +32,18 @@ import {
   itemSlot,
   loadPlayoutSettings,
   playoutConfigured,
+  pollServerState,
+  readState,
+  stateReadable,
   subscribeTargetStatus,
   type PlayoutResult,
+  type ServerStatePoll,
 } from '../../control/playoutLink';
 import { runServerVerb, serverCueLive, serverLayers, type ServerVerb } from '../../control/serverPlayout';
 import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
+import { applyAccepted, applyReading, followedClip } from '../../control/serverState';
+import ClipClock from './ClipClock';
+import { itemSeconds } from './clipLength';
 import type { Resolution } from '../../model/types';
 import {
   diffResolved,
@@ -343,12 +350,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
   /** What this page believes is up on the PLAYOUT SERVER (control/serverPlayout.ts says what
-   *  it is and why the slot is remembered), in the store's OWNERSHIP part. One store per page, so
-   *  it lives exactly as long as the state it replaced. The page never reads the TIMING part: a
-   *  clock ticking twice a second must not re-render the whole surface
-   *  (control/serverPlayoutStore.ts). */
+   *  it is and why the slot is remembered), in the store's OWNERSHIP part, with what the server
+   *  itself reports (control/serverState.ts). One store per page, so it lives exactly as long as
+   *  the state it replaced. The page never reads the TIMING part: a clock ticking twice a second
+   *  must not re-render the whole surface (control/serverPlayoutStore.ts) - the clip clock and the
+   *  rows' remaining times subscribe to it themselves. */
   const [serverPlayout] = useState(createServerPlayoutStore);
-  const serverOnAir = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
+  const serverOwnership = useSyncExternalStore(serverPlayout.ownership.subscribe, serverPlayout.ownership.get);
+  const serverOnAir = serverOwnership.onAir;
+  /** How many times this page has rendered - published on its root as `data-renders`, which is how
+   *  e2e/playout-clock.spec.ts proves the server's readings do not re-render it. */
+  const renders = useRef(0);
+  renders.current += 1;
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
@@ -730,6 +743,51 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setBridgeStatus(null);
     return subscribeTargetStatus(settings, setBridgeStatus);
   }, [playoutSettingsRev]);
+
+  // ── THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.7). While this production has server cues
+  // and both the Bridge and the server can say what is playing, ask what each channel the rundown
+  // uses holds - twice a second while something is up there, every few seconds otherwise, and at
+  // once when the tab comes back into view - and fold each reading into the store. The page
+  // re-renders only when OWNERSHIP moves (a clip ended or was replaced on the server); the clock
+  // and the rows follow TIMING on their own. The poll only reads: nothing here can air a clip.
+  const statePoll = useRef<ServerStatePoll | null>(null);
+  const serverReadable = stateReadable(bridgeStatus);
+  const hasServerItems = playoutItems.length > 0;
+  const rundownRef = useRef({ cues, playoutItems });
+  rundownRef.current = { cues, playoutItems };
+  useEffect(() => {
+    if (!serverReadable || !hasServerItems) return;
+    const poll = pollServerState({
+      read: (channel) => readState(loadPlayoutSettings(), channel),
+      channels: () => {
+        const settings = loadPlayoutSettings();
+        const channels = new Set(rundownRef.current.playoutItems.map((i) => itemSlot(settings, i).channel));
+        for (const l of Object.values(serverPlayout.ownership.get().onAir)) if (l.slot.adapter === 'casparcg') channels.add(l.slot.channel);
+        return [...channels].sort((a, b) => a - b);
+      },
+      busy: () => {
+        const own = serverPlayout.ownership.get();
+        return Object.keys(own.onAir).length > 0 || own.unidentified.length > 0;
+      },
+      onReading: (channel, reply, receivedAt) => {
+        const settings = loadPlayoutSettings();
+        const { cues: rundownCues, playoutItems: items } = rundownRef.current;
+        serverPlayout.apply((parts) =>
+          applyReading(parts, reply, { channel, now: receivedAt, cues: rundownCues, items, slotOf: (i) => itemSlot(settings, i) }),
+        );
+      },
+    });
+    statePoll.current = poll;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') poll.wake();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      poll.stop();
+      statePoll.current = null;
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [serverReadable, hasServerItems, playoutSettingsRev, serverPlayout]);
 
   // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
   const [draft, setDraft] = useState<CueDraft | null>(null);
@@ -1834,13 +1892,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       cue,
       item,
       label,
-      live: serverOnAir[item.id],
+      // Read from the store as it stands now, not from this render: a reading may have moved it
+      // while the verb was waiting its turn.
+      live: serverPlayout.ownership.get().onAir[item.id],
       slotNow: itemSlot(settings, item),
       values: () => cueView(cue).values,
       act: (action) => act(settings, action),
     });
     setNote(outcome.note);
-    if (outcome.onAir) serverPlayout.ownership.set(outcome.onAir);
+    const readable = stateReadable(bridgeStatus);
+    for (const accepted of outcome.accepted) {
+      serverPlayout.apply((parts) =>
+        applyAccepted(parts, {
+          ...accepted,
+          itemId: item.id,
+          cueId: cue.id,
+          length: itemSeconds(item),
+          loop: !!item.loop,
+          now: performance.now(),
+          readable,
+        }),
+      );
+    }
+    // Read the server at once rather than at the next half second: the clock and the rows then
+    // show the server's own word for the clip that was just taken.
+    if (outcome.accepted.length) statePoll.current?.wake();
     return outcome.ok;
   };
 
@@ -2520,6 +2596,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (key === 'update' && editingIsLive) void updateLive();
     if (key === 'next' && selectedLayerLive && nextMoves) void nextLive();
     if (key === 'out' && selectedLayerLive) void outLive();
+    // A server clip's transport. Only the cue this page has up on the server: nothing to pause
+    // anywhere else, and a panel or a key pressing it on another cue must not reach the slot.
+    if ((key === 'pause' || key === 'resume') && selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media') {
+      void playoutVerb(selectedCue, key, key === 'pause' ? 'Pause' : 'Resume');
+    }
     // Walk the rundown. Selecting a cue is the same act as clicking it - in 'take' mode it
     // goes to PREVIEW and in the other mode it does not, and nothing airs either way - so an
     // operator can line the next item up and take it without touching the mouse.
@@ -2557,6 +2638,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
+      renders={renders.current}
       sub={sub ?? null}
       onTab={() => navigate({ view: 'production', id: show.id })}
       links={
@@ -2633,6 +2715,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           hasCues={cues.length > 0}
           liveLayers={liveLayers}
           serverLayers={livePlayoutLayers}
+          previewServer={previewCue ? playoutItemFor(previewCue) : null}
+          programClip={followedClip(serverOwnership, playoutItems)?.item ?? null}
           show={show}
           library={library}
           programRef={programRef}
@@ -2641,6 +2725,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onOverflow={notePreviewOverflow}
         />
 
+        {/* THE VERB COLUMN: the verbs, and under them the clip clock while a server clip is on
+            air (docs/CLIP_PLAYBACK_PLAN.md §6.4). The clock takes only the height the column has
+            left beside PROGRAM; on a phone this wrapper stands down so the verbs stay pinned to
+            the bottom and the clock sits in the stacked column. */}
+        <div className="pd-verbcol">
         {/* The verbs, with the keys that fire them. All out lives in the header — it is the
             panic control and must not sit beside the ones used every minute. */}
         <div className="pd-verbs" data-testid="production-verbs">
@@ -2728,17 +2817,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               container so the two stack at the bar's end below 1366px instead of the checkbox
               wrapping alone to the far left. */}
           <span className="pd-verb-aside">
+            {/* What is up, graphics and server cues alike: a clip on the playout server is on air
+                too, and "nothing on air" beside its running clock would be the one untrue line. */}
             <span className="pd-onair-line" data-testid="live-cue-chip">
-              {liveLayers.length === 0 ? (
+              {liveLayers.length === 0 && livePlayoutLayers.length === 0 ? (
                 <span className="muted">○ nothing on air</span>
               ) : (
                 <>
-                  on air: <span className="pd-onair">● {liveLayers.map((l) => l.label).join(' · ')}</span>
+                  on air:{' '}
+                  <span className="pd-onair">● {[...liveLayers, ...livePlayoutLayers].map((l) => l.label).join(' · ')}</span>
                 </>
               )}
             </span>
             <SpaceModeToggle mode={spaceMode} onChange={changeSpaceMode} testId="space-mode" />
           </span>
+        </div>
+        <ClipClock store={serverPlayout} items={playoutItems} cues={cues} />
         </div>
         </div>
 
@@ -3015,7 +3109,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             bridgeStatus={bridgeStatus}
             playoutSettings={playoutSettings}
             onEdit={editDraft}
-            onTransport={(verb, label) => void playoutVerb(editingCue, verb, label)}
+            onTransport={onVerb}
             setShows={setShows}
           />
         )}
@@ -3219,7 +3313,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         library={library}
         playoutSettings={playoutSettings}
         liveCue={liveCue}
-        serverOnAir={serverOnAir}
+        serverOwnership={serverOwnership}
+        serverTiming={serverPlayout.timing}
         selectedCueId={selectedCue?.id ?? null}
         previewCueId={previewCue?.id ?? null}
         selectedGraphicId={poolGraphic?.id ?? null}
@@ -3302,6 +3397,7 @@ function ProductionShell({
   onKey,
   links,
   playoutTarget,
+  renders,
   children,
 }: {
   show: Show;
@@ -3326,6 +3422,8 @@ function ProductionShell({
   links: React.ReactNode;
   /** The Playout settings door with its connection dot (components/PlayoutSettingsDialog.tsx). */
   playoutTarget: React.ReactNode;
+  /** The page's render count, for the spec that proves a clip's clock does not re-render it. */
+  renders?: number;
   children: React.ReactNode;
 }) {
   // The verb keys (docs/PLAYOUT_DASHBOARD.md §2) come from the SHARED keymap, so the hosted
@@ -3352,7 +3450,7 @@ function ProductionShell({
   const rail = useRailWidth(body);
 
   return (
-    <div className="app playout-dashboard" data-testid="production-page">
+    <div className="app playout-dashboard" data-testid="production-page" data-renders={renders}>
       <header className="pd-header">
         <a className="brand brand-home" href="/" title="NoaCG Studio front page">
           <BrandLogo size={22} />

@@ -21,8 +21,8 @@ import { FieldRow } from '../fields/FieldControl';
  *
  * Moved out of ProductionPage with its behaviour unchanged (docs/CLIP_PLAYBACK_PLAN.md §16,
  * phase 0). Props only: the cue's edits go to the page's draft through `onEdit`, the item's own
- * settings to the record through `setShows`, and Pause and Resume back to the page, which owns
- * every verb.
+ * settings to the record through `setShows`, and Pause and Resume back to the page as named
+ * verbs, since the page owns every verb.
  */
 export default function ServerCueEditor({
   showId,
@@ -48,7 +48,9 @@ export default function ServerCueEditor({
   bridgeStatus: PlayoutResult | null;
   playoutSettings: PlayoutSettings;
   onEdit: (patch: { label?: string; note?: string; values?: Record<string, string> }) => void;
-  onTransport: (verb: 'pause' | 'resume', label: string) => void;
+  /** Pause and Resume, as NAMED verbs through the page's one dispatcher (`onVerb`), so a key or a
+   *  hardware panel reaches them the same way this button does. */
+  onTransport: (verb: 'pause' | 'resume') => void;
   setShows: (shows: Show[]) => void;
 }) {
   /** The channel it is set to play on, for the pick. */
@@ -83,7 +85,10 @@ export default function ServerCueEditor({
       <p className="hint pd-server-where" data-testid="playout-cue-where">
         <code>{item.name}</code> plays on the playout server, on{' '}
         <code>{slotAddress(itemSlot(playoutSettings, item))}</code>, through NoaCG
-        Bridge. It is not shown on the PROGRAM monitor here.
+        Bridge.{' '}
+        {item.kind === 'media'
+          ? 'The monitors here show its still picture, marked STILL, never the moving video.'
+          : 'It is not shown on the PROGRAM monitor here.'}
       </p>
       {item.kind === 'template' && (
         <div className="pd-band-fields" data-testid="playout-cue-fields">
@@ -129,10 +134,10 @@ export default function ServerCueEditor({
       )}
       {item.kind === 'media' && live && (
         <div className="row pd-clip-transport" data-testid="playout-clip-transport">
-          <button onClick={() => onTransport('pause', 'Pause')} data-testid="playout-pause">
+          <button onClick={() => onTransport('pause')} data-testid="playout-pause">
             ⏸ Pause
           </button>
-          <button onClick={() => onTransport('resume', 'Resume')} data-testid="playout-resume">
+          <button onClick={() => onTransport('resume')} data-testid="playout-resume">
             ▶ Resume
           </button>
         </div>
