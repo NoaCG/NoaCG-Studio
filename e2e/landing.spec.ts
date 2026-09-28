@@ -24,7 +24,14 @@ import { createProject } from './_create';
 
 test('root shows the landing page, not the editor', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('h1')).toContainText('Make broadcast graphics');
+  // One headline on both surfaces: the wizard's first screen repeats it word for word
+  // (e2e/wizard-entry-fit.spec.ts pins the wizard's side).
+  await expect(page.locator('h1')).toHaveText(/^\s*Create live graphics\.\s+Run the show\.\s*$/);
+  // The lede tells the whole story on the first screen: the three ways in and both roads to air.
+  const lede = page.locator('.hero .lede');
+  for (const phrase of ['template', 'SVG', 'AI coding agent', 'browser source', 'NoaCG Playout', 'CasparCG', 'NoaCG Bridge']) {
+    await expect(lede).toContainText(phrase);
+  }
   // Every "Start creating" call to action lands on the CREATION WIZARD (`#/new`), not on
   // whatever document happened to be open last. Arriving from the marketing page means
   // "I want to make something"; dropping a returning visitor straight into an old project

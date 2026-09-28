@@ -384,15 +384,22 @@
       <div class="hero">
         <div class="hero-text">
           <p class="kicker"><span class="beta-chip">Beta</span> Free and open source · In your browser</p>
-          <!-- Each .hl is an overflow mask; the entrance slides .hl-in up through it. -->
+          <!-- Each .hl is an overflow mask; the entrance slides .hl-in up through it.
+               THE HEADLINE IS THE WIZARD'S, WORD FOR WORD (src/components/wizard/steps/
+               EntryStep.tsx): a visitor reaches that screen seconds after reading this one.
+               Change one only together with the other. -->
           <h1>
-            <span class="hl"><span class="hl-in">Make broadcast graphics.</span></span>
-            <span class="hl"><span class="hl-in"><em>Run them live.</em></span></span>
+            <span class="hl"><span class="hl-in">Create live graphics.</span></span>
+            <span class="hl"><span class="hl-in"><em>Run the show.</em></span></span>
           </h1>
+          <!-- The lede tells the whole story the two steps below expand: what it makes, the
+               three ways in (in the cards' order), and the two roads to air, in the wizard
+               intro's words. -->
           <p class="lede">
-            NoaCG Studio makes lower thirds, scoreboards, tickers and title cards for live shows
-            and streams. Put them in a rundown in NoaCG Playout and take them to air through
-            CasparCG, OBS or any browser source.
+            Lower thirds, scoreboards and title cards for live shows and streams. Start from a
+            template, import your own SVGs, or have your AI coding agent make them. Then play them
+            straight from NoaCG through a browser source, or connect NoaCG Playout to CasparCG
+            with NoaCG Bridge.
           </p>
           <div class="cta-row">
             <a class="btn btn-amber" href="/app#/new">Start creating<span class="arr" aria-hidden="true">→</span></a>
@@ -425,9 +432,6 @@
              landing on the right place. -->
         <p class="kicker" id="how" data-reveal>Step 1 · Create</p>
         <h2 data-reveal>Make a graphic the way you already work.</h2>
-        <p class="sub" data-reveal>
-          Start from a template, import your own SVGs, or ask your AI coding agent.
-        </p>
         <div class="ways" data-reveal-group>
           <article class="way" id="templates">
             <div class="way-shot">
@@ -452,10 +456,9 @@
               <span class="n">2</span>
               <h3>With your own SVGs</h3>
               <p>
-                Draw it in Illustrator or any tool that saves SVG. Name the layers, keep text as
-                text, export SVG and import it. Text layers become fields the operator edits.
-                Then choose how it behaves, such as a scoreboard that counts or a quiz that
-                reveals.
+                Draw it in Illustrator or any tool that saves SVG, and import it. Its text becomes
+                fields the operator edits, and you choose how it behaves, such as a scoreboard
+                that counts.
               </p>
               <p class="go"><a href="/docs#svg">Prepare your file →</a></p>
             </div>
@@ -470,9 +473,9 @@
               <span class="n">3</span>
               <h3>With your AI coding agent</h3>
               <p>
-                Use Claude Code or Codex with the NoaCG CLI. The agent builds the graphic, the CLI
-                tests it in a live playout check and saves it to your library. Ask for a set and it
-                arrives as a production with a rundown. Saving needs a free account.
+                Use Claude Code or Codex with the NoaCG CLI. The agent builds the graphic, and the
+                CLI checks that it plays and saves it to your library. Ask for a set and you get a
+                production with its rundown. Saving needs a free account.
               </p>
               <p class="go"><a href="/downloads#cli">Install the CLI →</a> <a href="/docs#agent-install">Set up your agent →</a></p>
             </div>
@@ -492,9 +495,9 @@
         <p class="kicker" id="live" data-reveal>Step 2 · Play or export</p>
         <h2 data-reveal>Then use them however your production works.</h2>
         <p class="sub" data-reveal>
-          NoaCG Playout is the operator page: a cue rundown, preview and program monitors, and
-          Take, Update and Out on the keyboard. You can change names and scores while a graphic is
-          on air.
+          NoaCG Playout is the operator's screen: a rundown, preview and program
+          monitors, and Take, Update and Out on the keyboard. Names and scores can change while a
+          graphic is on air.
         </p>
         <figure class="screen playout-shot" data-reveal="major">
           <div class="screen-top"><i></i><i></i><i></i><span class="screen-name">NoaCG Playout</span></div>
@@ -536,8 +539,8 @@
         <h2 data-reveal>OGraf compatible.</h2>
         <p class="sub" data-reveal>
           <a href="https://ograf.ebu.io/" target="_blank" rel="noopener noreferrer">OGraf</a> is
-          the EBU's open standard for web graphics. Every NoaCG graphic exports as an OGraf
-          package that any renderer supporting the standard can load.
+          the EBU's open standard for web graphics. NoaCG graphics export as OGraf packages for
+          renderers that support the standard.
         </p>
         <div class="feats" data-reveal-group>
           <div class="feat">
@@ -560,9 +563,8 @@
         <h2 data-reveal>Everything in the studio is free.</h2>
         <p class="sub" data-reveal>
           The source is open under the AGPL-3.0. Exported graphics are plain HTML, CSS and
-          JavaScript with their fonts and images, and keep working without NoaCG. You need an
-          account only for what our service runs for you, such as publishing an output URL or
-          running AI. We would like to
+          JavaScript and keep working without NoaCG. You need an account only for what our
+          service runs for you, such as publishing an output URL or running AI. We would like to
           <a href="mailto:contact.noacg@gmail.com">hear what you think</a>.
         </p>
       </section>
