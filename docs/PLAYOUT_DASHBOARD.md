@@ -291,7 +291,8 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   did not, and the capped monitors are what put a monitor under the pointer where a gap used to
   be.
 - **The verb bar shows its keyboard shortcuts** as chips: TAKE `SPACE`, Re-take `R`,
-  Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown. `■ All out` lives in the header,
+  Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown; a server clip's Pause carries `P`
+  (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
 - **There is no PREVIEW verb on the two React surfaces** (owner, 2026-08-22 — "you can drop
   preview"). Selection already IS the preview gesture, and their PVW monitor is a local stage
@@ -554,8 +555,53 @@ no server cue.
   renders to prove the page stays still while the clock moves, and that the verbs and All out are
   right after a clip ends on the server.
 - **Nothing on the page airs by time.** The poll reads, the clock draws; no timer fires or queues a
-  clip. Pause and Resume are named verbs in the keymap (no key until phase 3's `P`), dispatched by
-  the page's `onVerb` like every other.
+  clip. Pause and Resume are named verbs in the keymap, dispatched by the page's `onVerb` like every
+  other, and `P` toggles them (§2h).
+
+### 2h. A clip's settings and Play next (built 2026-09-28)
+
+`docs/CLIP_PLAYBACK_PLAN.md` §6.4 to §6.6 and §6.9, phase 3, with NoaCG Bridge 0.5.0. A server clip
+or audio file's editor has the same shape as before, with its settings where a graphic's fields
+would be. None of it appears for a graphic or a server template.
+
+- **At the end**: Hold last frame (the default and every older cue), Clear, Loop, Play next, as one
+  row of four buttons with what the choice does after it in muted type (`Clears the layer at its
+  end, fading out over its last 0.5 s`, `Then plays STUDIO_BG (cue 5, after 2 graphics)`). A still
+  has no end, and says so in place of the buttons.
+- **Play next** plays the next clip or audio cue on the same channel and layer, looking past
+  graphics and anything on another layer, found in the rundown as it stands at the Take. When
+  nothing qualifies the button is off and the line says why: nothing after it on its layer, a
+  still, a clip under two seconds, one whose kind or length the server's list has not given. A
+  clip whose own Play next cannot be found cannot be taken, and says so, rather than holding in
+  silence. The Bridge runs the sequence (`BRIDGE.md` §3), so it plays on with the tab hidden or
+  closed.
+- **Fade**: In and Out, each Cut, Short (0.5 s) or Long (1 s). The incoming clip's fade in is the
+  mix between two clips; the fade out is used when a clip ends into nothing, on Out and on Clear.
+- **Level**: a slider from -60 to +6 dB with its value and Reset. It applies at the next Take, as
+  the clip's own audio filter, and says so while the clip is up. There is no live fader.
+- **Advanced** (closed, `Channel 2 · layer 10 · whole clip`): the channel and layer, which belong to
+  the file and every cue of it, Start at and End at in the file (`1:05.5` or `65.5`; refused in
+  place when the end comes first or either lies past the file's end), and, on an item saved before
+  the server's kind was kept and not in its list, the kind.
+- **Only what the Bridge and the server can do is offered.** A control that would add a setting is
+  off, saying why in its tooltip, unless the Bridge lists the feature and the server the capability
+  (`BRIDGE.md` §3a); Hold, Cut and Reset are always there, so a cue is never stuck. A cue that
+  already carries a setting nobody here can play has Take off, and the editor and the Take button's
+  tooltip say what would let it go (`This cue clears at its end and fades. Update NoaCG Bridge to
+  take it, or set it to Hold and set its fades to Cut.`). A cue with no setting of its own sends
+  exactly what it always did.
+- **The clock** (§2g) reads **`TO STUDIO`** while another clip follows: the time until the run ends
+  on air, every fade's overlap taken off (three 10-second clips with two 1-second fades end after
+  28 seconds), `?` when a length is unknown, and the warning is on it alone. The clip's own time goes
+  small beside what plays next: `clip -0:09 · next INTRO_VT 0:20`. A run that ends in a loop has no
+  studio time; the clip's own time is the number, with `then loops until Out`. A clip set to Clear
+  reads `then clears to studio`, and the clock goes when the layer empties.
+- **ON AIR follows the server**: when the server switches to the next clip by itself its row takes
+  ON AIR, the one after it wears `NEXT ON SERVER`, and the selection stays where the operator left
+  it.
+- **`P`** pauses the clip on air, or resumes it: the selected cue's clip when it is the one up, else
+  the one the clock follows. It is bound only while Playout is on screen, never while typing, and a
+  held key does not repeat it (`components/playoutKeys.ts`).
 
 ## 3. Layout — phone
 
@@ -573,10 +619,11 @@ that scrolls sideways is a layout bug, not a scrolling affordance.
 
 **One line a row, 34px** (`docs/CLIP_PLAYBACK_PLAN.md` §6.2, built 2026-09-27), so about twenty
 rows show at 1080p where two-line rows showed ten. Left to right: drag grip, number (`●` while on
-air), the **kind icon** (`T` a graphic, `▶` a server clip; its accessible name and tooltip say
-the kind and the graphic in words, "Lower third · Hairline", "Server clip · 2-10"), the **bold
-label**, its marks (`⟲` a looping clip; `✎` a cue with an operator note, the note in its tooltip
-and accessible name), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
+air), the **kind icon** (`T` a graphic, `▶` a server clip, `♪` a server audio file; its accessible
+name and tooltip say the kind and the graphic in words, "Lower third · Hairline", "Server clip ·
+2-10"), the **bold label**, its marks (what a clip does at its end: `⟲` loops, `→` plays the next,
+`⌀` clears, nothing for Hold; `✎` a cue with an operator note, the note in its tooltip and
+accessible name), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
 item's own name). Then, in the same place on every row so they read down the list: the ON AIR /
 PVW tag, the clip's length (a column only when the rundown has a server clip), the **slot**
 (`L20`, or `2-10` for a server cue) and the `⋯`. What the old second line carried is moved, never

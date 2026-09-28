@@ -231,25 +231,41 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 | No DNS rebinding | The `Host` header must itself be loopback. A name that resolves to `127.0.0.1` from a page's own domain does not get in. |
 | One-time pairing | `/pair` spends the code the Bridge printed and carried in the link it opened: two minutes, first use only, origin-checked. |
 | No AMCP of unknown shape from the page | The page never composes AMCP text. It sends a target, an item, a slot and a verb (§3a); the adapter writes the one line. `/amcp` takes one raw line for the terminal route and refuses an embedded CR or LF; every quoted argument is escaped the way the server's tokenizer reads it, and a reply is capped at 8 MB. |
-| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the pairing code in memory, and, per slot and also only in memory, a counter and the id of what it last started there (below). Nothing it keeps ever sends a command by itself. |
+| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the pairing code in memory, and, per slot and also only in memory, a counter, the id of what it last started there, what it queued behind it, and the sequence it runs there (below). The one thing it ever sends by itself is the next file of a sequence the page started. |
 
-**What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2). Reading the
-server's state honestly needs two facts only the process that sent the commands can hold:
+**What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2; the runner
+since 0.5.0). Reading the server's state honestly, and playing one clip after another with the page
+closed, need facts only the process that sent the commands can hold:
 
-- **A generation.** Every Take, Out, Clear, Pause and Resume on a slot moves the slot's counter
-  BEFORE its command is sent; Update and Next change nothing the clock shows and leave it. The
-  action's reply carries the new number and so does every reading, and a reading taken while an
-  action is still on its way reports the number from before it. The page ignores a reading older
-  than the last action it saw accepted, so an answer that left the server before a Take or a Pause
-  can never undo it on screen.
+- **A generation.** Every Take, Out, Clear, Pause, Resume and new sequence on a slot moves the
+  slot's counter BEFORE its command is sent; Update and Next change nothing the clock shows and
+  leave it. The action's reply carries the new number and so does every reading, and a reading
+  taken while an action is still on its way reports the number from before it. The page ignores a
+  reading older than the last action it saw accepted, so an answer that left the server before a
+  Take or a Pause can never undo it on screen.
 - **An instance.** What this Bridge last started on the slot: an id (`<session>.<n>`), the item, and
   the cue id the page named. A reading carries it only while the slot still plays that item and
   nobody restarted it, so the page can tell its own clip from another client's, and put a clip back
-  on its cue after a reload, wherever the cue's item is set to play now.
+  on its cue after a reload, wherever the cue's item is set to play now. In a sequence it follows
+  the file on air, and names that file's cue.
+- **A follower.** What the Bridge queued behind the clip with `LOADBG … AUTO` that has not aired:
+  Out then clears the layer instead of stopping it, and a refused Take disarms it (§3b).
+- **A sequence, and the runner that plays it** (`cli/src/playout/runner.ts`,
+  `CLIP_PLAYBACK_PLAN.md` §6.10). A layer has one background, so the server can only ever hold the
+  NEXT file; something has to queue each one after that. A browser slows a hidden tab's timers to
+  about once a minute, so that something is the Bridge, which reads a slot with a sequence on it
+  four times a second and, when it sees the server switch, queues the next file. Its rules: one
+  serial queue per slot for every command, the page's and its own; work planned under a
+  generation is dropped unsent once the generation moves, so a late `LOADBG … AUTO` never reaches a
+  layer that was taken off, where it would play at once; nothing is queued onto a paused clip, since
+  the server checks AUTO before pause; the slot is read once more right before a file is queued, so
+  another client's or another Bridge's take ends the sequence and nothing is sent; a member after
+  the first plays at least two seconds, so the next is always queued in time.
 
 A restarted Bridge remembers nothing. Its session id is new and its readings carry no instances, so
-the page shows whatever the server holds as unidentified rather than guessing from the file name.
-Phase 3's sequence runner (`CLIP_PLAYBACK_PLAN.md` §6.10) will keep its queue beside this.
+the page shows whatever the server holds as unidentified rather than guessing from the file name,
+and says that Play next stopped there. What the server already had queued still plays by the
+server's own rule.
 
 ### 3a. The playout protocol (v2)
 
@@ -266,10 +282,23 @@ so the version stayed 2:
 - **slot** - `{ adapter: 'casparcg', channel, layer }` or `{ adapter: 'ograf', rendererId,
   renderTarget }`, where on it. Channels and layers exist only inside the casparcg slot; an OGraf
   `renderTarget` is the renderer's own shallow identifier, shaped by its `renderTargetSchema`.
-- **verb** - `take` (with `data` for a template, `loop` for a clip, and the page's `cueId`), `update`
-  (data), `next`, `out`, `pause`, `resume`, and `clear` (remove at once, no exit: OGraf's All out).
-  A slot-only verb may name the `item` the page believes is in the slot, because `out` on a
-  template plays its exit through the CG layer where `out` on a clip stops the video layer.
+- **verb** - `take` (with `data` for a template, `loop` for a clip, the page's `cueId`, and a
+  clip's `playback`), `update` (data), `next`, `out` (with a clip's `fadeOut`), `pause`, `resume`,
+  `clear` (remove at once, no exit: OGraf's All out), and `sequence` (0.5.0: several files played
+  one after another, below). A slot-only verb may name the `item` the page believes is in the slot,
+  because `out` on a template plays its exit through the CG layer where `out` on a clip stops the
+  video layer.
+- **playback** (0.5.0, `CLIP_PLAYBACK_PLAN.md` §9) - how a clip plays, in seconds, never frames:
+  `end` (`hold`, `clear`, `loop`; a following file is a sequence, not an ending), `fadeIn`,
+  `fadeOut` (used by Clear at the end), `gain` (linear, from the cue's dB), `trim` (`in`, `out`,
+  seconds into the file). Every field is optional, and an action without one is sent exactly as it
+  always was. A field the Bridge does not know is refused by name, never dropped, and so is one on
+  the wrong verb: an update carrying a level would look applied and change nothing.
+- **sequence** - `{ slot, entries: [{ item, cueId, playback, media: { kind, seconds } }] }`, at
+  least two. The first plays at once and the Bridge runs the rest (§3). `media` is what the
+  server's own list says the file is: the Bridge refuses a still (it never ends), a file of unknown
+  length, and a member after the first shorter than two seconds, and only the last entry may have
+  an ending of its own.
 
 Routes, all JSON:
 
@@ -281,22 +310,25 @@ Routes, all JSON:
 | `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`), and for OGraf the `renderers` it can play on |
 | `POST /thumbnail` | yes | `{ target, name }` -> a clip's PNG, base64 (`THUMBNAIL RETRIEVE`) |
 | `POST /state` | yes | `{ target, channel }` -> what each layer of the channel holds, one `SlotState` per layer (`INFO <channel>`); not logged, since it runs twice a second |
-| `POST /act` | yes | `{ target, action }` -> one command; the reply carries the slot's `generation`, the Bridge's `session` and, for a take, its `instance` |
+| `POST /act` | yes | `{ target, action }` -> one action, one or more commands; the reply carries the slot's `generation`, the Bridge's `session`, for a take or a sequence its `instance`, and a `warning` when a later command of the action was refused after the first went through |
 | `POST /amcp` | yes | one raw line, the terminal's route |
 
 **Two lists, two questions** (0.4.2, `CLIP_PLAYBACK_PLAN.md` §6.9). `features` on `/health` is what
 this Bridge build understands; it names no server, so it says nothing about one. `capabilities` on
-`/status` is what the named target can do, from its adapter and its version. Today each list is
-either empty or `['state']`: a CasparCG 2.3 or later can be read, an OGraf target cannot. The page
-asks for state only when both lists say yes; a Bridge from before 0.4.2 sends neither, and the page
-then counts a clip from its own Take and says so.
+`/status` is what the named target can do, from its adapter and its version. 0.5.0 lists the
+features `state`, `playback` and `sequence`; a CasparCG 2.3 or later has the capabilities `state`,
+`end`, `fade`, `trim`, `level` and `sequence`, an older one only `end` (Clear at the end is a plain
+`LOADBG … EMPTY AUTO`), and an OGraf target none. The page offers a control only when both lists
+say yes, and a cue that already carries a setting the running Bridge or its server cannot honour
+cannot be taken and says why: it is never sent the old way with the setting dropped. A Bridge from
+before 0.4.2 sends neither list, and the page then counts a clip from its own Take and says so.
 
 **`SlotState`**, per layer, in the protocol's words rather than CasparCG's: `producer` (`video`,
 `still`, `colour`, `html`, `empty`, `other`), `file`, a clip's `segment` (its start in the file and
 its length, seconds) and `position` (seconds into the SEGMENT, never into the file), `paused`,
 `loop`, a MIX's `transition.progress`, what is `queued` behind it and whether it plays by itself,
 the slot's `generation`, and, while this Bridge's take still plays there, its `instance` and
-`cueId`. `arriving` says the server has accepted this Bridge's Take but the layer still shows what
+`cueId`, and, while a sequence runs, the entries still to play (`sequence.next`). `arriving` says the server has accepted this Bridge's Take but the layer still shows what
 it held before: CasparCG answers a `PLAY` before the clip is on the layer (measured, below). The
 reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading.
 
@@ -348,13 +380,49 @@ server - and any local page could learn as much from how fast a refused connecti
 | update | `CG c-l UPDATE 1 "<json data>"` |
 | next | `CG c-l NEXT 1` |
 | out (template) / out (clip or url) | `CG c-l STOP 1` / `STOP c-l` |
-| take `media` | `PLAY c-l "NAME"` (+ `LOOP`) |
+| take `media` | `PLAY c-l "NAME"` (+ `LOOP`); with playback, `PLAY c-l "NAME" [IN a] [OUT b] [MIX n] [AF "volume=g"] [LOOP]`, and for Clear at the end then `LOADBG c-l EMPTY [MIX n] AUTO` |
+| sequence | `PLAY` the first entry as above, then `LOADBG c-l "NEXT" [IN] [OUT] [MIX n] [AF] [LOOP] AUTO` for the second; the runner queues each later one the same way, and after the last its own Clear |
+| out `media` with `fadeOut` / with a follower queued | `PLAY c-l EMPTY MIX n` / `CLEAR c-l` |
+| a refused take with a follower of a sequence queued | then `LOADBG c-l EMPTY`, without AUTO |
 | pause / resume | `PAUSE c-l` / `RESUME c-l` |
 | list template / media | `TLS` / `CLS` |
 | state | `INFO c` (the whole channel), on a 2.3 or later server |
 
 The data is JSON, which is what SPX sends and what every NoaCG export reads (its shim also takes
 CasparCG's XML). Field ids are the export's own `f0`, `f1`, ... as `FIELDS.md` documents them.
+
+**A clip's playback, as lines** (0.5.0, measured on 2.5.0 and 2.3 on 2026-09-28; the captures are
+`p3-*.json` and `format-*.json` under `cli/test/fixtures/info/`, and `cli/test/playout.test.mjs` pins
+every line and its order):
+
+- **Times become the channel's frames at the rate INFO reports** (`framerate`, a fraction), read
+  once per target and channel and refreshed by every reading the Bridge makes. For an interlaced
+  format that rate is already the field rate, which is what `MIX`, `SEEK` and `LENGTH` count:
+  `MIX 50` took a second on 1080p50 and 1080i50 alike, 1.67 s at 29.97 and 0.83 s at 59.94. A fade
+  is at least one frame.
+- **The level is `AF "volume=<gain>"`**, four decimals, on the clip itself. -12 dB (`0.2512`)
+  measured 12.0 dB quieter than the same clip at 0 dB on both versions, through a Take and through
+  an automatic switch, with the layer's `MIXER VOLUME` still at 1. No action ever sends `MIXER`.
+- **Clear at the end** is the empty colour queued behind the clip. With a fade the server starts
+  the mix that many frames before the end (0.5 s for `MIX 25`) so it finishes on the last frame; the
+  outgoing clip's file fields vanish from INFO the moment the fade starts.
+- **Behind a clip that starts part way in, nothing is queued with the take.** A `LOADBG … AUTO`
+  sent within about 60 ms of `PLAY … IN n` (or `SEEK n`) fires at once on both versions: the
+  follower airs and the trimmed clip never does; from about 90 ms on it waits for the trimmed end.
+  Such a take plays its clip alone, and the runner queues its Clear or its next file once INFO shows
+  the clip inside its segment.
+- **Disarming**, measured: `LOADBG c-l EMPTY` without AUTO and `CLEAR c-l` each stop a queued file
+  from airing; a refused `PLAY` (`404`) leaves it armed until one of them; `PLAY c-l EMPTY MIX n`
+  fades the clip out and replaces the queued file.
+- **Pause and AUTO:** paused before a follower's MIX window it waits; paused inside it the MIX
+  freezes and carries on at Resume; a follower queued onto a clip already paused in its last frames
+  starts at once. PAUSE lands about two frames after it is sent.
+- **Preloading is not worth building yet:** a direct Take reaches its first frame about 115 ms after
+  `202 PLAY OK` on 2.5.0 (95 ms on 2.3) with no black between clips, and a preloaded one about 55 ms,
+  but a preload would take the layer's one background, which a sequence needs.
+- **2.3 names no producer inside a transition**, so a MIX and a fade to empty are read off what the
+  transition carries (a colour, a clip's segment, a path). Its AUTO cut dropped about 40 ms of sound
+  and held the outgoing clip's last frame one extra frame; 2.5.0's was clean.
 
 **Reading `INFO`** (`cli/src/playout/info.ts`, `slotReading` in `adapters/casparcg.ts`). Measured on
 the real 2.5.0 on 2026-09-28, with every capture kept under `cli/test/fixtures/info/` and the parser
@@ -467,7 +535,9 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   channel with the output URL; a second output page on another channel is a later slice.
 - **Layers.** A server template takes the next free layer counted across graphics and templates,
   like a graphic. Clips share layer 10, below every graphic, on purpose: one clip at a time, and
-  a strap never disappears behind a rolling VT.
+  a strap never disappears behind a rolling VT. Audio files (the server's own word for them, kept
+  since 2026-09-28) play on layer 5, below the clips, so a sting never knocks a VT off and a music
+  bed survives both.
 - **Fields.** A template NoaCG exported brings its fields back from the library, matched by its
   export slug (`HOUSE_STRAP/HOUSE_STRAP` on the server was exported from the graphic whose slug
   is `house_strap`). Any other template takes the field ids the operator types (`f0, f1`), and the
@@ -525,20 +595,20 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Play once / stop | `PLAY c-l "CLIP"` / `STOP c-l` | since 2026-09-22 |
 | Pause / resume | `PAUSE c-l` / `RESUME c-l` | since 2026-09-22 |
 | **Loop** | `PLAY c-l "CLIP" LOOP` | **2026-09-25**: a Loop box in the clip's cue editor (`PlayoutItem.loop`, additive). Protocol v2 already carried `loop`, so the Bridge 0.4 on the Releases page plays it with no new download. |
-| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | planned, build 2 |
-| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | planned, build 2 |
-| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | planned, build 2, as the native form of a timed cue's Next |
-| Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | planned, build 2, as the native form of a timed cue's Out |
-| Level | `MIXER c-l VOLUME <0-1> <frames>` | planned, build 2, in dB per clip |
+| Fade in | `PLAY c-l "CLIP" MIX <frames>` (also `PUSH`, `WIPE`, `SLIDE`, with an easing) | **2026-09-28** (Bridge 0.5.0): Fade In, Short or Long, as `MIX` |
+| Fade out | `PLAY c-l EMPTY MIX <frames>` (mixes the layer to nothing, then it is empty) | **2026-09-28**: Fade Out, on Out and on Clear at the end |
+| Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | **2026-09-28**: At the end, Play next, run by the Bridge (§3) |
+| Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | **2026-09-28**: At the end, Clear |
+| Level | `AF "volume=<gain>"` on the clip (`MIXER c-l VOLUME` is a layer gain that outlives the clip, and is not used) | **2026-09-28**: Level in dB, applied at the next Take |
 | Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | not proposed |
-| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | not proposed |
+| Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | **2026-09-28**: Start at and End at under Advanced, as `IN`/`OUT` |
 
-**Planned 2026-09-27, not built.** Loop shipped alone, and the owner asked for the rest to be
-planned before anything is built (2026-09-25). The plan is
-[`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), decided with the owner and reviewed against
-the code and the CasparCG source; it supersedes the sketch below, and its §4 corrects this table
-where they differ (a fade at the end overlaps the clip's last frames; a still never ends; `MIXER
-VOLUME` is not used). The sketch below was its input and is kept as the record of it.
+**Built 2026-09-28** (phase 3 of [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), NoaCG Bridge
+0.5.0): every row above but the live loop switch. Each setting belongs to the cue, not the shared
+file; the lines are in §3b and what the operator sees in `PLAYOUT_DASHBOARD.md` §2h. The plan was
+decided with the owner and reviewed against the code and the CasparCG source; its §4 corrects the
+sketch below where they differ (a fade at the end overlaps the clip's last frames; a still never
+ends; `MIXER VOLUME` is not used). The sketch was its input and is kept as the record of it.
 Each item in it is additive in the record and in protocol v2 (no version bump), and each needs a
 Bridge release:
 

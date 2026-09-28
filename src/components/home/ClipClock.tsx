@@ -97,9 +97,12 @@ export default function ClipClock({
   if (!c) return null;
   const words = clockWords(c);
   const said = words.label ? `${words.label} ${words.number}` : words.number;
+  // TO STUDIO is a label, not a state: drawn smaller than HOLDING or PAUSED, so the number it names
+  // keeps most of the column (the approved mockup, docs/research/clip-playback-2026-09-27).
+  const small = words.label === 'TO STUDIO';
   // How many digit-widths the line needs: the number is sized to fit the column's width, and a
-  // word before it is drawn at a little under half the number's size.
-  const fit = words.number.length + (words.label ? words.label.length * 0.45 + 0.6 : 0);
+  // word before it is drawn at a little under half the number's size (TO STUDIO at under a third).
+  const fit = words.number.length + (words.label ? words.label.length * (small ? 0.3 : 0.45) + 0.6 : 0);
   return (
     <div
       className={`pd-clipclock pd-clipclock--${c.phase}`}
@@ -130,7 +133,7 @@ export default function ClipClock({
           )}
         </div>
         <div className="pd-clipclock-time" style={{ ['--clk-fit' as string]: fit }} data-testid="clip-clock-time">
-          {words.label && <span className="pd-clipclock-label">{words.label} </span>}
+          {words.label && <span className={`pd-clipclock-label${small ? ' pd-clipclock-label--small' : ''}`}>{words.label} </span>}
           <span className="pd-clipclock-num">{words.number}</span>
         </div>
         <div className="pd-clipclock-then" data-testid="clip-clock-then">

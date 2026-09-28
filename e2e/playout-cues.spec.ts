@@ -429,6 +429,9 @@ test('each setting goes out with its Take: Clear with a fade, a fade in, a level
   await page.getByTestId('clip-trim-out').fill('20');
   await page.getByTestId('clip-trim-out').press('Enter');
   await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:05–0:20');
+  // The row and PREVIEW read what the cue plays, not the whole minute of the file.
+  await expect(cue.getByTestId('cue-length')).toHaveText('0:15');
+  await expect(page.getByTestId('preview-length')).toHaveText('0:15');
 
   await page.getByTestId('verb-take').click();
   await expect(cue).toContainText('ON AIR');

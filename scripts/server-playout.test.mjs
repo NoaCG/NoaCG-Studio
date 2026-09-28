@@ -518,11 +518,11 @@ test('PLAY NEXT: the next clip on the same slot, past graphics and other slots, 
   const sting = vt('sting', 3, { layer: 5, mediaKind: 'audio' });
   const b = vt('b', 10);
   const items = [a, sting, b];
-  const cues = [cue('1', 'a'), graphic('lt'), cue('2', 'sting'), graphic('bug'), cue('3', 'b')];
+  const cues = [cue('1', 'a'), graphic('lt'), cue('2', 'sting', 'STING'), graphic('bug'), cue('3', 'b', 'B')];
   const t = playNextTarget(cues, items, '1', address);
   assert.equal(t.ok, true);
   assert.equal(t.next.cue.id, '3');
-  assert.equal(nextClipWords(t.next), '3 (cue 5, after 2 graphics and a clip on 2-5)');
+  assert.equal(nextClipWords(t.next), 'B (cue 5, after 2 graphics and STING on 2-5)');
   assert.deepEqual(playNextTarget(cues, items, '3', address), { ok: false, reason: 'no clip after this one plays on 2-10' });
   // The reasons it is off, each in words (plan §6.6).
   const still = vt('s', 10, { mediaKind: 'still', frames: 0 });

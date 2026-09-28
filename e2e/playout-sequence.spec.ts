@@ -146,10 +146,11 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
         instance = `${fake.session}.${++count}`;
         const entries: Entry[] =
           a.verb === 'sequence'
-            ? (a.entries as { item: { name: string }; cueId?: string; playback?: { fadeIn?: number }; media: { seconds: number } }[]).map((e) => ({
+            ? (a.entries as { item: { name: string }; cueId?: string; playback?: { fadeIn?: number; trim?: { in?: number; out?: number } }; media: { seconds: number } }[]).map((e) => ({
                 file: e.item.name,
                 cueId: e.cueId,
-                length: e.media.seconds,
+                // The part of the file the entry plays, as the server reports its segment.
+                length: Math.min(e.playback?.trim?.out ?? e.media.seconds, e.media.seconds) - (e.playback?.trim?.in ?? 0),
                 fadeIn: e.playback?.fadeIn ?? 0,
                 raw: e,
               }))
@@ -208,7 +209,7 @@ test('Play next names the clip it plays, past what it skips, and is off with the
   await select(page, 'OPENER');
   await expect(page.getByTestId('clip-end-next')).toBeEnabled();
   await page.getByTestId('clip-end-next').click();
-  await expect(page.getByTestId('clip-end-hint')).toHaveText('Then plays GIORNO (cue 4, after a clip on 2-5)');
+  await expect(page.getByTestId('clip-end-hint')).toHaveText('Then plays GIORNO (cue 4, after STING on 2-5)');
   await expect(row(page, 'OPENER').getByRole('img', { name: 'Plays the next clip on its layer' })).toBeVisible();
 
   // GIORNO: the next on its layer is a second and a half, too short to queue the one after it in time.

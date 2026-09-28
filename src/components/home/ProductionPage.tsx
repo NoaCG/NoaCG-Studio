@@ -2798,6 +2798,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           liveLayers={liveLayers}
           serverLayers={livePlayoutLayers}
           previewServer={previewCue ? playoutItemFor(previewCue) : null}
+          previewSeconds={(() => {
+            const item = previewCue ? playoutItemFor(previewCue) : null;
+            return previewCue && item ? segmentSeconds(previewCue, item) : undefined;
+          })()}
           programClip={followedClip(serverOwnership, playoutItems)?.item ?? null}
           show={show}
           library={library}

@@ -29,11 +29,11 @@ import type { LiveCueMap } from '../../control/hostedControl';
 import { serverCueLive } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
-import { effectiveEnd } from '../../model/cuePlayback';
+import { effectiveEnd, segmentSeconds } from '../../model/cuePlayback';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
 import { SlotRemaining } from './ClipClock';
-import { clipLength } from './clipLength';
+import { lengthText } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
@@ -312,7 +312,8 @@ export default function CueRundown({
                 .slice(0, 2)
                 .join(' · ') || cueGraphic || ''
             : (playoutItem?.name ?? 'missing graphic');
-          const length = playoutItem?.kind === 'media' ? clipLength(playoutItem) : '';
+          // What the cue plays of its file: a trimmed clip reads its own length.
+          const length = playoutItem?.kind === 'media' ? lengthText(segmentSeconds(cue, playoutItem)) : '';
           // WHAT HAPPENS AT ITS END, after the name (plan §6.2): loops, plays the next, clears. Hold
           // is the default and wears nothing. Read by the loop rule of the record (model/cuePlayback.ts).
           const end = playoutItem?.kind === 'media' ? effectiveEnd(cue, playoutItem) : 'hold';

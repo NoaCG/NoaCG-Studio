@@ -124,7 +124,7 @@ export interface NextClip {
   item: PlayoutItem;
   /** Its place in the rundown, 1-based. */
   cueNo: number;
-  /** What was looked past on the way, for the sentence: `2 graphics`, `a clip on 1-5`. */
+  /** What was looked past on the way, for the sentence: `2 graphics`, `STING on 2-5`. */
   skipped: string;
 }
 
@@ -151,7 +151,7 @@ export function playNextTarget(
   if (item.mediaKind === 'still') return { ok: false, reason: 'a still never ends, so nothing plays after it' };
   const address = addressOf(item);
   let graphics = 0;
-  const elsewhere: string[] = [];
+  const elsewhere: { label: string; address: string }[] = [];
   for (let i = at + 1; i < cues.length; i++) {
     const c = cues[i];
     const it = c.source === 'playout' ? items.find((x) => x.id === c.sourceId) : undefined;
@@ -161,7 +161,7 @@ export function playNextTarget(
     }
     const there = addressOf(it);
     if (there !== address) {
-      elsewhere.push(there);
+      elsewhere.push({ label: c.label, address: there });
       continue;
     }
     if (it.mediaKind === 'still') return { ok: false, reason: `the next cue on ${address} is a still, which never ends` };
@@ -171,7 +171,7 @@ export function playNextTarget(
     if (length < MIN_SEQUENCE_MEMBER_S) return { ok: false, reason: `the next clip is shorter than ${MIN_SEQUENCE_MEMBER_S} seconds` };
     const parts = [
       ...(graphics ? [count(graphics, 'graphic', 'graphics')] : []),
-      ...(elsewhere.length ? [elsewhere.length === 1 ? `a clip on ${elsewhere[0]}` : `${elsewhere.length} clips on other layers`] : []),
+      ...(elsewhere.length ? [elsewhere.length === 1 ? `${elsewhere[0].label} on ${elsewhere[0].address}` : `${elsewhere.length} cues on other layers`] : []),
     ];
     return { ok: true, next: { cue: c, item: it, cueNo: i + 1, skipped: parts.join(' and ') } };
   }

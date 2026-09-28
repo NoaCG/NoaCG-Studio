@@ -6,7 +6,7 @@ import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
-import { clipLength } from './clipLength';
+import { lengthText } from './clipLength';
 import { useServerThumbnail } from './serverThumbnail';
 
 /**
@@ -49,6 +49,7 @@ export default function PlayoutMonitors({
   liveLayers,
   serverLayers,
   previewServer = null,
+  previewSeconds,
   programClip = null,
   show,
   library,
@@ -74,6 +75,8 @@ export default function PlayoutMonitors({
   /** The server item on PREVIEW, when the previewed cue is one: its still and, for a clip, its
    *  length in the corner (plan §6.3). */
   previewServer?: PlayoutItem | null;
+  /** How long the PREVIEW cue plays its file: the part its trim leaves, or the whole file. */
+  previewSeconds?: number;
   /** The server clip the clip clock follows: its still sits under the graphics on PROGRAM. */
   programClip?: PlayoutItem | null;
   show: Show;
@@ -204,9 +207,9 @@ export default function PlayoutMonitors({
             <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }} data-testid="preview-server">
               <ServerStill thumb={previewThumb} testId="preview" />
               <p className="hint pd-frame-server-name">{previewServer.name}</p>
-              {previewServer.kind === 'media' && clipLength(previewServer) && (
+              {previewServer.kind === 'media' && lengthText(previewSeconds) && (
                 <span className="pd-frame-length" title="The clip's length" data-testid="preview-length">
-                  {clipLength(previewServer)}
+                  {lengthText(previewSeconds)}
                 </span>
               )}
             </div>

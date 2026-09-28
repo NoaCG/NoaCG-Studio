@@ -14,7 +14,12 @@ export function itemSeconds(item: Pick<PlayoutItem, 'frames' | 'fps'>): number |
  * disagree about it.
  */
 export function clipLength(item: Pick<PlayoutItem, 'frames' | 'fps'>): string {
-  const seconds = itemSeconds(item);
+  return lengthText(itemSeconds(item));
+}
+
+/** A length in seconds as the operator reads it, the same way; '' when it is not known. What a cue
+ *  plays of its file (its trim) reads through this, so a trimmed clip shows its own length. */
+export function lengthText(seconds: number | undefined): string {
   if (seconds === undefined) return '';
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);

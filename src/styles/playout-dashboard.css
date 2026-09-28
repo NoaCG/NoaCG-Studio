@@ -565,8 +565,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   font-size: clamp(14px, min(42cqh, calc((100cqw - 24px) / (var(--clk-fit, 5) * 0.62))), 64px);
   white-space: nowrap;
 }
-/* HOLDING and PAUSED are a word before the number, a little under half its size. */
+/* HOLDING and PAUSED are a word before the number, a little under half its size. TO STUDIO names
+   the number rather than a state, and is smaller still, never under a readable 9px. */
 .pd-clipclock-label { font-size: 0.42em; letter-spacing: 0.08em; }
+.pd-clipclock-label--small { font-size: max(9px, 0.28em); }
 .pd-clipclock-then { font-family: var(--mono, monospace); font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The last ten seconds turn it red, the last five pulse it. The digits count either way, so the
    colour is never the only thing saying so. */
