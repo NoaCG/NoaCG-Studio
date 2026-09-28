@@ -30,7 +30,8 @@
   white-space: nowrap;
 }
 .topbar .topbar-meta { font-size: 11px; margin-left: 6px; white-space: nowrap; }
-.topbar .divider-dot { color: #3d4756; margin: 0 -2px; user-select: none; }
+.topbar .divider-dot,
+.shell-nav .divider-dot { color: #3d4756; margin: 0 -2px; user-select: none; }
 .topbar .spacer { flex: 1; }
 /* THE SHELL NAV - logo, Home, + New graphic - worn by Home's topbar AND the wizard's header
    (owner, 2026-09-28: the two are one bar, the doors in the same places). Its spacing is its
@@ -39,12 +40,11 @@
    classes deep, so the wizard's 15px `.wz-wizard button` and the topbar ladder's padding never
    reach a door. The height (18px line + 10px padding + 2px border = 30px) is the brand
    lockup's, so neither bar grows - the wizard Entry step's height is a measured budget.
-   THE CURRENT PAGE is the same box, flat: no fill, no border, full-strength text and the amber
-   bar the Home rail's current section also wears in amber. It is not a button, so it has no
+   THE CURRENT PAGE is the same box, flat: no fill, no border, full-strength text and an amber
+   bar - amber marks "you are here" on the Home rail's current section too. It is not a button, so it has no
    hover and no pointer. Same weight in both states, so marking a door current never moves the
    one after it. e2e/wizard-shell.spec.ts measures all of this against both bars. */
 .shell-nav { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
-.shell-nav .divider-dot { color: #3d4756; margin: 0 -2px; user-select: none; }
 .shell-nav > .shell-door {
   position: relative;
   display: inline-flex;
