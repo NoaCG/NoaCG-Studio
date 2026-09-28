@@ -1,3 +1,15 @@
+---
+v: 2
+source: derived
+kind: finding
+raised: 2026-09-28
+state: unstarted
+found: "Home's topbar and the wizard header share `.shell-nav` at identical pixels, but the production dashboard, control page, video shell and editor bars still hand-lay logo, Home and + New graphic on their own gap and button ladder, so the doors shift a few pixels between those surfaces"
+size: standard
+touches: src/components/home/ProductionPage.tsx, src/components/home/GraphicControlPage.tsx, src/components/video/VideoAppShell.tsx, src/components/AppShell.tsx
+covered-by: e2e/project.spec.ts, e2e/wizard-shell.spec.ts
+needs-owner: none
+---
 # Put the shared shell nav on every studio bar, not only Home and the wizard
 
 **Filed:** 2026-09-28. **Source:** row A of the 2026-09-28 wave (wizard entry nav), owner feedback
