@@ -5,6 +5,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { settleDurableWrites } from './_durable';
+import { evaluateInPage } from './_evaluate';
 import { mkdirSync } from 'node:fs';
 import { dropSvg } from './_svg-import';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +33,8 @@ async function seek(page: Page, frames: number) {
 async function fixture(page: Page, oneStep = false) {
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  await page.evaluate(async oneStep => {
+  // Ends on a store mutation, the evaluate that failed the nightly as a false navigation (#465).
+  await evaluateInPage(page, async (oneStep: boolean) => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
     const { runtimeJs } = await import('/src/templates/shared/base.ts');

@@ -15,6 +15,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { awaitVideoPreview, expectOfflineAi, reloadVideoShell } from './_video';
 import { enableAdvancedMode, startNewProject } from './_create';
 import { armStorageFailure, fillStorage } from './_storage';
+import { evaluateInPage } from './_evaluate';
 
 /** The player host iframe's content (Playwright reaches into sandboxed frames). */
 function player(page: Page) {
@@ -502,15 +503,17 @@ test('video: a modal takes the shortcuts - Ctrl+Z behind My videos leaves the pr
   // Make something UNDOABLE: patchSettings snapshots history (setSource deliberately does
   // not - Monaco owns keystroke undo). Without a real undo target this test would pass no
   // matter what the guard did.
+  // evaluateInPage, not page.evaluate: the patch below ends on a store mutation, the evaluate that
+  // failed the nightly as a false navigation (#465).
   const state = () =>
-    page.evaluate(async () => {
+    evaluateInPage(page, async () => {
       const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
       const s = useVideoProjectStore.getState();
       return { fps: s.project.fps, depth: s.history.length };
     });
   const original = await state();
   expect(original.fps).not.toBe(50); // the premise: 50 is a real change, so undo has something to rewind
-  await page.evaluate(async () => {
+  await evaluateInPage(page, async () => {
     const { useVideoProjectStore } = await import('/src/store/videoProjectStore.ts');
     useVideoProjectStore.getState().patchSettings({ fps: 50 });
   });
