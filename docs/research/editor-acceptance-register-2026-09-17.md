@@ -334,6 +334,18 @@ receiving hosts and full workflow acceptance remain open. Step/Next, cross-cue,
 full easing/multi-key and advanced tools remain later slices. The default editor
 is unchanged.
 
+## G01 scoped easing receipt, 2026-09-28
+
+The [bounded spec, reproductions and verification](editor-g01/README.md) give G01's
+evaluator portion scoped engineering evidence. One ease grammar and evaluator now runs in
+editor sampling and inside every emitted interpreter. Named eases match GSAP 3.15 bit for
+bit, and cubic-bezier and slice forms no longer fall to GSAP's silent default. Exact 40% splits
+and exact reversal, including bounce/back/elastic/bezier and destination-key ownership, are
+proven in the simulator and executed SPX, CasparCG, OGraf and single-file exports. Stepped,
+unrecognized and non-representable cases refuse atomically. The G01 row stays open: Set Out
+still refuses before the last In key, and R1.2a's ease UI, Hold form and multi-key work have
+not started. No whole row is closed and the default editor is unchanged.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

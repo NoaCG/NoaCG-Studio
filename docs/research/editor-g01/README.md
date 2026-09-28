@@ -88,3 +88,100 @@ Verification: a Node test pinned against the bundled GSAP for the mathematics; a
 queued browser spec executing the bundled runtime in simulator and exported packages;
 affected editor regressions; catalog JS fingerprints re-recorded (interpreter text only);
 build, `/check`, `/queue-merge` and the deployed revision.
+
+## Implementation
+
+- [easeRuntime.ts](../../../src/templates/shared/easeRuntime.ts) holds the grammar and curves as
+  one `String.raw` ES5 source, plus the editor-only algebra: `mirrorEase`, `sliceEase` and
+  `needsEaseRuntime`. The editor compiles the emitted text once, lazily, with `new Function`.
+  It does not port it.
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts) emits that source in the
+  region and wraps every key, loop, interrupted/settled exit and transition ease in
+  `noacgEaseOf`. Dynamics builders get `noacgEaseForBuilder`, which keeps the step's string
+  unless GSAP cannot read it. `hasEaseRuntime` and `dataUsesExactEase` pair data with the
+  runtime. `writeAnimData` re-emits a known body for exact forms, and `writeOutData` also
+  recognizes the pre-G01 body by content hash. That body's text is kept only as the
+  [test fixture](../../../e2e/fixtures/interpreter-pre-g01.js).
+- [animEval.ts](../../../src/blocks/animEval.ts) samples through the shared curve and holds
+  opacity in 0..1. [animEdit.ts](../../../src/blocks/animEdit.ts) adds
+  `splitKeyframeSegment`. [editorOut.ts](../../../src/blocks/editorOut.ts) uses the shared
+  mirror. [validateTemplate.ts](../../../src/validation/validateTemplate.ts) blocks export for
+  exact eases under an interpreter that cannot play them.
+- The split refuses what it cannot keep exact: stepped or unrecognized eases, equal-endpoint
+  slices, a bounded value outside its range, looping or string tracks, times on or outside the
+  segment, and the last exit segment. An interrupted Out tweens with that segment's ease alone.
+  It also refuses when the stored 3-decimal rounding would move the curve by more than one
+  stored unit. That deviation is exactly the rounding times `E(x)/E(s)` on the left half and
+  `(1-E(x))/(1-E(s))` on the right, so the check bounds it rather than sampling it.
+- The [animEval contract](../../../contracts/rules/blocks/duplicates-only-interpreter-timeline-semantics-first.md)
+  replaces the retired "interpolate linearly" rule.
+
+## Verification receipt
+
+- `scripts/ease-runtime.test.mjs` (build gate, under 3 s): every accepted named ease equals
+  GSAP 3.15 bit for bit on 5,100+ points; strict grammar; bezier against GSAP's degree-3
+  curves; mirrors against 1 - E(1 - u); slices; sampler clamping; 40% splits of every fixture
+  track with dense samples, endpoints, both boundary velocities and neighbouring sides; all
+  refusals with the input unchanged; a sweep holding every accepted split of elastic, back,
+  bounce, bezier and expo segments within one stored unit on 4,001 samples; interpreter
+  emission, ease-site coverage, ES5 text and pre-G01 upgrade/custom refusal.
+- `j-2284`: the focused browser spec passed 19/19 on the implementation (40.2 s, one worker).
+  Editor sampling equals simulator, SPX, CasparCG, OGraf and single-file playback within 2e-3
+  on dense samples. Splits at 40% keep samples, endpoints and boundary velocities in all five.
+  Reversal plays In backwards within 2e-3 in all five. Refusals are atomic, and the real editor's
+  Yes, reverse writes the mirrored destination eases as one undo.
+- Mutation checks: `j-2285` broke the bounce mirror and the ownership assertion failed. With
+  that assertion soft, `j-2286` shows the executed comparison failing by 230.3 px on its own.
+- `j-2287`: TypeScript clean. `j-2291`: catalog fingerprints re-recorded. Exactly 528 JS
+  hashes moved and no HTML/CSS hash, the same shape as R1.1c.
+- `j-2288`: the editor regressions plus anim-engine and this spec: 118 passed, 12 configured
+  skips. One R1.1d fidelity check compared today's wizard output with its pre-G01 baseline
+  byte for byte. It now requires every byte outside the interpreter to match and the
+  interpreter to be the recorded body's upgrade. `j-2292`: all 11 fidelity/trim cases passed.
+- `j-2293`: the full affected run (validation is core, so the whole suite) with 3 workers:
+  1,084 passed, 544 configured skips, 2 failed. The inspector's filter check still expected the
+  retired linear sampler; it now requires the editor to equal the runtime. The wizard-finish
+  production-seed check failed once under load and passed alone. The appended catalog
+  calibration suite passed 35/35.
+- `j-2294`: G01, inspector, wizard-finish and Out specs after the review fixes: 58 passed, nine
+  configured skips.
+- `j-2296`: the final editor regressions (all nine editor/G01 specs, anim-engine and
+  inspector, two workers): 120 passed, 20 configured old-editor skips, none failed.
+- `j-2297`: the full catalog battery against this worktree's own dev server (the interpreter is
+  shared template machinery). Type-floor passed 526 variants and overflow 528 against its
+  baseline with no regressions. Field coverage passed 526, with 105 variants whose fields stay
+  explicitly undriven. Numerals passed 349. Catalog specs passed 35 plus four source/render
+  baseline tests, and the factory passed 317/317 candidates. No catalog baseline other than
+  the JS fingerprints changed.
+- `j-2298`: [taste frames](taste/) for Hairline (lt01) and Quiz (qz02). All six were opened.
+  Hairline's name leads its role and keeps its shared left edge beside the amber rule; the long
+  strings grow right from that anchor. Quiz's question stays centred above even, padded plates.
+  The amber reveal marks Mars, and long strings keep every glyph inside their plates. This
+  matches the R1.1c and R1.1d frames. It is regression evidence on the grey bed, not a
+  receiving-host check.
+
+## Review and simplification
+
+Review was delegated to four independent reviewers: evaluator, interpreter/upgrade,
+authoring semantics, and tests/scope. Each reviewed the merge-base diff against
+`fb491735071652f7c9785fe805880eb5ae6a79eb` and listed the files it read. A second agent then
+tried to refute each finding against the code. Ten distinct findings were reported and all
+ten are addressed:
+
+- Confirmed and fixed: a split of the last exit segment would have changed the interrupted
+  Out, and now refuses. An eased filter reading could carry a negative blur into a new key;
+  carried functions now stay in the range CSS accepts. The exactness check could miss a short
+  half, and a dense sweep then showed it could also miss an elastic peak; it now bounds the
+  exact deviation instead of sampling it. The inspector check still expected the linear
+  sampler. Export validation blocked an upgradable older runtime with a message naming an
+  internal function; it now asks for one save, and custom interpreters keep the
+  technical message. The precision refusal had no test.
+- Refuted as defects, but cheap and adopted: a straight-line ease now splits into itself,
+  not a slice. Comparisons now fail on NaN. The upgrade test plays the upgraded graphic in the
+  simulator and an SPX package. Covers and guards now name the legacy hash, filter and
+  fixture files.
+
+Simplification ran inline: the reversal test applies Out once, and the editor journey reuses
+the spec's fixture builder. Nothing else in the diff duplicates an existing helper. The
+split, sampler and mirror reuse the source writer, history transaction and lossless reader;
+there is no second animation model.

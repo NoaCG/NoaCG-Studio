@@ -186,7 +186,8 @@ for (const target of TARGETS) test('exact reversal plays the entrance backwards 
   const reversed = await page.evaluate(async t => {
     const { applyOut } = await import('/src/blocks/editorOut.ts');
     const { parseAnimData } = await import('/src/blocks/animData.ts');
-    return { js: applyOut(t as never, { kind: 'out.reverse' }).js, data: parseAnimData(applyOut(t as never, { kind: 'out.reverse' }).js) as unknown as Data };
+    const js = applyOut(t as never, { kind: 'out.reverse' }).js;
+    return { js, data: parseAnimData(js) as unknown as Data };
   }, await template(page, data));
   const out = reversed.data.steps[1].layers['#box'];
   // Ownership: the ease INTO each reversed key is the mirror of the original segment's ease.
@@ -278,18 +279,12 @@ test('a saved pre-G01 interpreter upgrades to play exact eases; a custom one blo
 
 test('Set Out reverse in the editor writes mirrored destination eases as one undo', async ({ page }) => {
   await open(page);
-  await evaluateInPage(page, async () => {
-    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
-    const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    store.applyTemplate({ ...store.template, fps: 25, fields: [], layers: [],
-      html: '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div></div></body></html>',
-      css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}',
-      js: runtimeJs('Ease fixture', emitAnimRegion({ version: 2, root: '.fixture', speed: 1, steps: [{ name: 'In', duration: 1, ease: 'none', layers: { '#box': {
-        x: [{ time: 0, value: -900 }, { time: .4, value: -300, ease: 'back.out(1.6)' }, { time: 1, value: 0, ease: 'bounce.out' }],
-        opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
-      } } }] })) }, { resetSampleData: true });
-  });
+  const t = await template(page, { version: 2, root: '.fixture', speed: 1, steps: [{ name: 'In', duration: 1, ease: 'none', layers: { '#box': {
+    x: [{ time: 0, value: -900 }, { time: .4, value: -300, ease: 'back.out(1.6)' }, { time: 1, value: 0, ease: 'bounce.out' }],
+    opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
+  } } }] });
+  // Ends on a store mutation, the evaluate that failed the nightly as a false navigation (#465).
+  await evaluateInPage(page, async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true }), t);
   await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
   const read = () => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js);
   const ruler = page.getByRole('slider', { name: 'Playhead' });
