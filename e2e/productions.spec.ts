@@ -1093,13 +1093,14 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
 test('an empty production reads as a start: its empty line sits like a row, and Start production waits for a cue', async ({
   page,
 }) => {
-  // The wizard's New production lands a first-time user HERE, so this empty page is their first
-  // look at Playout. Two details made it read as unfinished: the "No cues yet" line flush against
-  // the rail's edge, and Start production lit amber with nothing to run.
+  // The wizard's New production lands a first-time user on this page, so it is their first look
+  // at Playout. Two details made it read as unfinished: the "No cues yet" line flush against the
+  // rail's edge, and Start production lit amber with nothing to run. The production is made from
+  // Home here, the door this spec covers; the wizard's door has its own spec.
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto('/app');
-  await expect(page.getByTestId('creation-wizard')).toBeVisible();
-  await page.locator('[data-entry="new-production"]').click();
+  await page.goto('/app#/home/productions');
+  await page.getByTestId('new-production-name').fill('First show');
+  await page.getByTestId('new-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   const empty = page.getByTestId('no-cues');
   await expect(empty).toBeVisible();
