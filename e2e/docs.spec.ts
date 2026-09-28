@@ -120,10 +120,14 @@ test('on a phone the nav above the text stays five topics and unfolds only on a 
 // Where a link into the page leaves its target once the scroll has stopped: the distance from
 // the target's top to the line its scroll margin asks for. It waits for the scroll to START
 // (every target here is far down) and then to hold still, so a smooth scroll is read at its end.
+// A link that never scrolls reads as NaN rather than hanging to the test's timeout.
 async function landedOffset(page: Page, id: string) {
   return page.evaluate(async (id) => {
     const pause = () => new Promise((resolve) => setTimeout(resolve, 250));
-    while (window.scrollY === 0) await pause();
+    for (let i = 0; window.scrollY === 0; i++) {
+      if (i === 40) return NaN;
+      await pause();
+    }
     let last = -1;
     while (window.scrollY !== last) {
       last = window.scrollY;
@@ -157,6 +161,32 @@ for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) 
     });
   }
 }
+
+// The cause, checked for every shot rather than at two anchors: with no picture allowed to
+// arrive, each frame already holds the box its width/height attributes promise.
+test('every docs screenshot reserves its height before it loads', async ({ page }) => {
+  await page.route('**/docs/*.png', () => {});
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/docs');
+    const boxes = await page.locator('.doc-shot img').evaluateAll((imgs) =>
+      (imgs as HTMLImageElement[]).map((img) => ({
+        src: img.getAttribute('src'),
+        loaded: img.naturalWidth > 0,
+        width: img.clientWidth,
+        gap: Math.abs(img.clientHeight - (img.clientWidth * Number(img.getAttribute('height'))) / Number(img.getAttribute('width'))),
+      })),
+    );
+    expect(boxes.length).toBeGreaterThan(20);
+    for (const box of boxes) {
+      const name = `${box.src} at ${width} wide`;
+      expect(box.loaded, name).toBe(false);
+      // An unreserved box is 0x0, which fits any ratio, so it has to be a real width as well.
+      expect(box.width, name).toBeGreaterThan(200);
+      expect(box.gap, name).toBeLessThan(2);
+    }
+  }
+});
 
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
