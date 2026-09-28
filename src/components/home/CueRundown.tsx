@@ -241,7 +241,8 @@ export default function CueRundown({
   const dragWhat = useRef<Movable | null>(null);
   const [aim, setAim] = useState<Aim | null>(null);
   const scrolledAt = useRef(-Infinity);
-  const menuOpen = menuRowId !== null || pickerOpen;
+  // A menu counts while its row is drawn: one left open on a row a collapse then hid holds nothing still.
+  const menuOpen = (menuRowId !== null && rundown.rows.some((r) => r.id === menuRowId)) || pickerOpen;
   const liveIds = new Set(
     cues
       .filter((cue) => {
@@ -329,7 +330,14 @@ export default function CueRundown({
     }
     void moveRundown(what, plan.place);
   };
-  const markFor = (rowId: string) => (aim?.rowId === rowId && aim.plan ? (aim.plan.refused ? { refused: true as const } : aim.plan.mark) : null);
+  /** A row's drop mark: the line where the drop LANDS, which for a folder moved beside another is that
+   *  folder's edge rather than the row under the pointer; a refusal on the row under the pointer. */
+  const markFor = (rowId: string) => {
+    const plan = aim?.plan;
+    if (!plan) return null;
+    if (plan.refused) return aim.rowId === rowId ? { refused: true as const } : null;
+    return plan.mark.rowId === rowId ? plan.mark : null;
+  };
 
   /** The folders a cue could be moved into from its menu: every other folder there is. */
   const otherFolders = (folderId: string | null) => [...rundown.folders.values()].filter((f) => f.id !== folderId);

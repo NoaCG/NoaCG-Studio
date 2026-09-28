@@ -117,6 +117,13 @@ test('takeBlocker knows folders: a member takes by its folder\'s rules, a folder
   assert.equal(takeBlocker(cues[2], cues, items, address, BRIDGE_06, folders), null);
   // Without folders, nothing changed.
   assert.equal(takeBlocker(cues[0], cues, items, address, BRIDGE_05), null);
+
+  // A mode this build does not know reads as One by one here too, as it is drawn: its Take is off,
+  // never sent down another mode's path.
+  const other = [{ id: 'N', name: 'Next', mode: 'rotate' }];
+  const two = [cue('a', 'a', 'N'), cue('b', 'b', 'N')];
+  assert.equal(takeBlocker(other[0], two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
+  assert.equal(takeBlocker({ id: 'N', name: 'Next' }, two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
 });
 
 test('a folder that loops sends `loop`, and only then: a sequence that ends is the action it always was', async () => {
@@ -299,4 +306,15 @@ test('one function lights every folder, from what is up and never from the clock
   assert.deepEqual(folderAirWords({ ...air.A, onAir: [], lit: 'off' }, 1).tag, 'NOT TAKEN');
   assert.equal(folderAirWords({ ...air.A, onAir: [], lit: 'off' }, 0), null);
   // Readings that move only the clock hand the page the same ownership object, so this never runs twice a second.
+
+  // Whether it loops is the server's word, never the record's: a page that learned the take from a
+  // reading (after a reload) sees the last clip of a run that ends, even once the folder is set to loop
+  // for its next Take, and a one-clip folder the server loops.
+  const ctx = { channel: 2, now: 0, cues: [cue('a', 'a', 'T'), cue('b', 'b', 'T')], items: [vt('a', 10), vt('b', 10)], slotOf: (i) => slot(i.channel, i.layer) };
+  const read = (s) => applyReading({ ownership: NO_OWNERSHIP, timing: {} }, { ok: true, channel: 2, session: 's1', observedAt: 0, slots: [{ layer: 10, producer: 'video', paused: false, generation: 1, instance: 's1.1', segment: { start: 0, length: 10 }, position: 2, ...s }] }, ctx).ownership;
+  const last = read({ file: 'B', cueId: 'b', loop: false });
+  const lit = (ownership, folder) => folderAir({ folders: [folder], cues: ctx.cues, items: ctx.items, ownership, liveCue: {}, graphicName: () => null }).T;
+  assert.equal(lit(last, through({ end: 'loop' })).looping, false);
+  const alone = read({ file: 'A', cueId: 'a', loop: true });
+  assert.equal(lit(alone, through()).looping, true);
 });

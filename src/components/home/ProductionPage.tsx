@@ -2361,7 +2361,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const blocked = takeBlocker(target, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue);
     if (blocked) return blocked;
     const clash = (plan: { slot: string; cueIds: readonly string[]; folderId?: string }) => airClash(plan, serverOwnership, cues, throughFolderIdOf);
-    if ('mode' in target) {
+    if (!('sourceId' in target)) {
       const members = rundown.members.get(target.id) ?? [];
       if (folderMode(target) === 'through') return clash({ slot: folderSlotOf(target), cueIds: members.map((c) => c.id), folderId: target.id });
       for (const c of members) {
@@ -3107,7 +3107,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         />
       }
       onAllOut={() => void outAll()}
-      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0}
+      // A folder's Take still being sent counts: All out is what stops it before any of it lands.
+      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       renders={renders.current}

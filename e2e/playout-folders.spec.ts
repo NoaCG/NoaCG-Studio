@@ -542,8 +542,14 @@ test('a pointer in the gap between rows keeps its aim, and a folder dragged onto
   await expect.poll(() => drawn(page)).toEqual(['[Folder 1]', '  Hairline', '  ALPHA', '[Folder 2]', '  BRAVO', '  CHARLIE']);
   const writes = await countWrites(page);
 
-  // Folder 1 down onto a member of Folder 2: after Folder 2, never inside it.
-  await drag(page, folder(page, 'Folder 1'), cue(page, 'BRAVO'), 'middle');
+  // Folder 1 down onto a member of Folder 2: after Folder 2, never inside it - and the line is drawn
+  // there, under Folder 2's last cue, not on the row under the pointer.
+  await pickUp(page, folder(page, 'Folder 1'));
+  await aimAt(page, cue(page, 'BRAVO'), 'middle');
+  await expect(cue(page, 'CHARLIE')).toHaveAttribute('data-drop', 'after');
+  await expect(cue(page, 'CHARLIE')).toHaveAttribute('data-drop-inside', 'false');
+  await expect(cue(page, 'BRAVO')).not.toHaveAttribute('data-drop');
+  await page.mouse.up();
   await expect.poll(() => drawn(page)).toEqual(['[Folder 2]', '  BRAVO', '  CHARLIE', '[Folder 1]', '  Hairline', '  ALPHA']);
   // And onto Folder 2's header, top third: before it.
   await drag(page, folder(page, 'Folder 1'), folder(page, 'Folder 2'), 'top');
@@ -1227,4 +1233,31 @@ test('with a Play-through and an All-together folder up, the server readings red
   const moved = (await pageRenders()) - p0;
   expect(moved, `the page rendered ${moved} times over six readings`).toBe(0);
   expect(await headers()).toEqual(h0);
+});
+
+test('All out stops a folder Take that has put nothing up yet', async ({ page }) => {
+  await seedSettings(page);
+  const fake = await fakeBridge(page);
+  await production(page, TOGETHER_MEDIA, {
+    graphics: [{ name: 'Strap' }],
+    folders: [{ labels: ['VT', 'BED', 'Strap'], name: 'Opening', mode: 'together' }],
+  });
+  await holdFolder(page, 'Opening');
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  // The first take is slow to answer: nothing of the folder is on air yet.
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  fake.gate = (a) => (a.verb === 'take' && a.slot.layer === 10 ? held : undefined);
+  await page.keyboard.press(' ');
+  await expect.poll(() => fake.actions.length).toBe(1);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+  // The panic control is there for it, and it stops the rest.
+  await expect(page.getByTestId('verb-out-all')).toBeEnabled();
+  await page.getByTestId('verb-out-all').click();
+  release();
+  await expect.poll(() => sent(fake)).toEqual(['take 2-10 VT', 'out 2-10']);
+  await page.waitForTimeout(500);
+  expect(sent(fake)).toEqual(['take 2-10 VT', 'out 2-10']);
+  await expect(cue(page, 'Strap')).not.toContainText('ON AIR');
+  await expect(cue(page, 'VT')).not.toContainText('ON AIR');
 });

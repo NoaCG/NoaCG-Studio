@@ -349,7 +349,11 @@ export class SlotMemoryBank {
     }
     const restarted = same && !r.loop && backBy(RESTART_JUMP_S);
     if (same && !restarted) {
-      inst.lastPosition = r.position;
+      // Just after a take, the same file further in than the time since it is the OLD copy still on
+      // the layer, not near enough its end to read as arriving. Kept as the position, it would make the
+      // new copy's start look like a switch to a queued copy of the same file.
+      const oldCopy = age < LOADING_GRACE_MS && r.position !== undefined && r.position > age / 1000 + SWITCH_JUMP_S;
+      if (!oldCopy) inst.lastPosition = r.position;
       return false;
     }
     // Something else plays there - another client's take, a restart, or nothing (a Clear at the end

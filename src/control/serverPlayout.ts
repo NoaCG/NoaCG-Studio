@@ -16,7 +16,7 @@ import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
 import { MAX_SEQUENCE_ENTRIES, MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
-import { folderIdOf, folderMembers, liveFolderIds, throughRefusal } from '../model/showFolders.ts';
+import { folderIdOf, folderMembers, folderMode, liveFolderIds, throughRefusal } from '../model/showFolders.ts';
 import {
   asFolderMember,
   effectiveEnd,
@@ -267,7 +267,9 @@ export function takeBlocker(
   folders: readonly ShowFolder[] = [],
   graphicOf: FolderRundown['graphicOf'] = () => null,
 ): string | null {
-  if ('mode' in target) {
+  // A folder by what it lacks: every cue names its source, and no folder does. Its mode cannot tell
+  // them apart, since a folder record from another build may have none.
+  if (!('sourceId' in target)) {
     const blockerOf = (c: ShowCue) => takeBlocker(c, cues, items, addressOf, ability, folders, graphicOf);
     return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf });
   }
@@ -506,8 +508,10 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
  * its plan; Play through by its run, and neither while NoaCG Bridge is not there to send it to.
  */
 export function folderTakeBlocker(folder: Pick<ShowFolder, 'id' | 'mode' | 'end' | 'name'>, members: readonly ShowCue[], r: FolderRundown): string | null {
-  if (folder.mode === 'manual') return 'Take each cue in this folder.';
-  if (folder.mode === 'together') {
+  // Read as it is drawn: a mode this build does not know is One by one here too.
+  const mode = folderMode(folder);
+  if (mode === 'manual') return 'Take each cue in this folder.';
+  if (mode === 'together') {
     const plan = togetherPlan(members, r);
     return plan.ok ? null : plan.reason;
   }

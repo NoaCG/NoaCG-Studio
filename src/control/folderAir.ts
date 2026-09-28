@@ -11,7 +11,7 @@
 // scripts/server-playout.test.mjs runs them in Node without a browser.
 
 import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
-import { folderMembers } from '../model/showFolders.ts';
+import { folderMembers, folderMode } from '../model/showFolders.ts';
 import { effectiveEnd } from './cuePlayback.ts';
 import { serverCueLive } from './serverPlayout.ts';
 import { slotRun, type ServerOwnership } from './serverState.ts';
@@ -67,21 +67,22 @@ export function folderAir(input: FolderAirInput): Readonly<Record<string, Folder
     let following = 0;
     let looping = false;
     let slot: string | undefined;
-    if (folder.mode === 'through') {
+    const mode = folderMode(folder);
+    if (mode === 'through') {
       for (const cue of onAir) {
         const item = input.items.find((i) => i.id === cue.sourceId);
         const live = item ? input.ownership.onAir[item.id] : undefined;
         if (!item || item.kind !== 'media' || !live) continue;
-        const run = slotRun(input.ownership, live, folder.end === 'loop' ? 'loop' : effectiveEnd(cue, item));
+        const run = slotRun(input.ownership, live, effectiveEnd(cue, item));
         following = run.following;
         looping = run.loops;
         slot = slotAddress(live.slot);
       }
     }
-    const lit = !onAir.length ? 'off' : folder.mode === 'together' && onAir.length < members.length ? 'partial' : 'on';
+    const lit = !onAir.length ? 'off' : mode === 'together' && onAir.length < members.length ? 'partial' : 'on';
     const ids = new Set(members.map((c) => c.id));
-    const stopped = folder.mode === 'through' && input.ownership.unidentified.some((u) => u.sequenceStopped && !!u.cueId && ids.has(u.cueId));
-    out[folder.id] = { mode: folder.mode, total: members.length, onAir: onAir.map((c) => c.id), lit, following, looping, ...(slot ? { slot } : {}), stopped };
+    const stopped = mode === 'through' && input.ownership.unidentified.some((u) => u.sequenceStopped && !!u.cueId && ids.has(u.cueId));
+    out[folder.id] = { mode, total: members.length, onAir: onAir.map((c) => c.id), lit, following, looping, ...(slot ? { slot } : {}), stopped };
   }
   return out;
 }

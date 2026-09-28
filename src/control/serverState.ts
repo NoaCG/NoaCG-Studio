@@ -291,7 +291,9 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     if (mine) delete onAir[mine[0]];
     const own = ownCue(s);
     if (own) {
-      onAir[own.item.id] = { cueId: own.cue.id, slot, instance: s.instance, takenAt: now };
+      // What it does at its end is unknown from here, except the server's own LOOP: a one-clip folder or
+      // a looping clip taken before a reload loops whatever its cue says now.
+      onAir[own.item.id] = { cueId: own.cue.id, slot, instance: s.instance, takenAt: now, ...(s.loop ? { end: 'loop' as const } : {}) };
       for (const [id, r] of Object.entries(replaced)) if (id === own.item.id || slotAddress(r.slot) === a) delete replaced[id];
       continue;
     }

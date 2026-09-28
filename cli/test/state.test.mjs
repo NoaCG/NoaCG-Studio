@@ -278,6 +278,38 @@ test('just after a take the layer may not hold the clip yet: that is arriving, n
   assert.equal(s.instance, undefined);
 });
 
+test('the old copy of a file still on the layer after a take is not the new copy switching to the next entry', () => {
+  // A sequence [A, A] taken while an earlier take of A is still up, a third of a second in. Until the
+  // new PLAY lands, the layer shows the OLD copy moving on from there - not far enough ahead of the
+  // time since the take to read as arriving. Its position must not be taken for the new copy's: the new
+  // copy's start at 0 would then look like the server switching to the queued second A, and the run
+  // would be one entry ahead of the server from then on.
+  let now = 10_000;
+  const m = new SlotMemoryBank('s1', () => now);
+  takeOn(m, 'cue-old');
+  now += 300;
+  m.annotate(target, 2, [reading({ position: 0.3 })]);
+  // The sequence: PLAY A, and the second A queued behind it with AUTO.
+  m.advance(target, slot(2, 10));
+  m.settled(target, slot(2, 10));
+  m.started(target, slot(2, 10), clip, 'cue-1');
+  m.sequenceStarted(target, slot(2, 10), [{ item: clip, cueId: 'cue-1' }, { item: clip, cueId: 'cue-2' }], true);
+  // The old copy, 0.3 s + 0.25 s in, a quarter of a second after the take: it reads as this take.
+  now += 250;
+  let [s] = m.annotate(target, 2, [reading({ position: 0.55 })]);
+  assert.equal(s.instance, 's1.2');
+  // The new copy lands at its start: still the FIRST entry, with the second still to play.
+  now += 100;
+  [s] = m.annotate(target, 2, [reading({ position: 0.02 })]);
+  assert.deepEqual([s.instance, s.cueId, s.sequence?.next.map((e) => e.cueId)], ['s1.2', 'cue-1', ['cue-2']]);
+  // And the real switch, at the end of the first copy, is still seen.
+  now += 9_000;
+  [s] = m.annotate(target, 2, [reading({ position: 9.02 })]);
+  now += 1_000;
+  [s] = m.annotate(target, 2, [reading({ position: 0.05 })]);
+  assert.deepEqual([s.cueId, s.sequence?.next ?? []], ['cue-2', []]);
+});
+
 test('another file, an empty layer or a cleared one ends the instance; a loop may wrap', () => {
   // Every reading here comes well after its take: each look at the clock moves it past the grace.
   let t = 0;

@@ -1028,6 +1028,18 @@ differences and decisions worth knowing:
   keeps reading until Out. A switch to the same file is seen by the position jumping back more than
   0.1 s. `loop` is refused on any verb but `take` and `sequence`, and the page and the Bridge share
   `MAX_SEQUENCE_ENTRIES` (100).
+- **An adversarial review before landing** (four reviewers, each finding put to a skeptic) found
+  seven defects, all fixed: a folder record with no mode, or one this build does not
+  know, could be taken as All together while it was drawn as One by one (a folder is now told from a
+  cue by having no source, and every reader goes through `folderMode`); All out was off while a
+  folder's Take was still being sent with nothing landed; the header could say a folder loops from
+  the record rather than the server; just after a Take, the old copy of the same file still on the
+  layer could make the Bridge think the next copy had started; a folder dragged beside another drew
+  its line on the row under the pointer; a menu left open on a row a collapse hid held the list
+  still; and a refused team save that merged twice reported only the first merge's losses. Five
+  have a test that fails without the fix. The menu case is out of reach of a press on this page (an
+  outside press closes the menu) and the team save needs a team backend, so those two were checked
+  by reading.
 - **One sentence is loose**: Play next's "the next clip is in another folder" is also what a clip in
   no folder hears when the next clip on its layer is in a folder.
 - **Measured on the real servers** (§12, items 8, 11 and 12): no black at any switch of a looping
