@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
 import { useAuthUi } from '../../auth/authUi';
+import { Svg } from '../../icons';
 import { loadGraphics } from '../../../model/library';
 import { loadShows } from '../../../model/shows';
 import { hasCurrentVideoProject, listSavedVideoProjects } from '../../../model/videoProject';
@@ -104,7 +105,7 @@ export default function EntryStep({
       <div className="wz-continue" data-testid="wz-continue">
         <div className="wz-continue-row">
           <button className="wz-entry-card wz-continue-card" onClick={() => onHome(null)} data-entry="continue">
-            <span className="wz-entry-icon">⌂</span>
+            <IconHome />
             <span className="wz-continue-text">
               <strong>Home</strong>
               <span className="hint">
@@ -188,10 +189,9 @@ export default function EntryStep({
             ITS ACCESSIBLE NAME IS THE MODE'S FULL NAME, "Video or animation with AI", the name
             the Video step, the Videos section and the video specs use; the visible title drops
             "with AI" only because four titles share one laptop row. The note stays announced
-            as the description. `--video` stays as the card's stable hook
-            (scripts/landing-shots.mjs crops by it). */}
+            as the description. */}
         <button
-          className="wz-entry-card wz-entry-card--muted wz-entry-card--video"
+          className="wz-entry-card wz-entry-card--muted"
           onClick={needsSignIn ? () => openSignIn('Sign in to try video or animation with AI.') : onVideo}
           aria-label="Video or animation with AI"
           aria-describedby="wz-video-note"
@@ -236,28 +236,17 @@ export default function EntryStep({
 /* ── THE ENTRY ICONS: ONE DRAWN SET ──────────────────────────────────────────────────────────
    The cards used to wear Unicode glyphs (▤ ✦ ▦ ▶), which render in whatever font the platform
    has, at four different weights, and read as generic placeholders (owner, 2026-09-27). These
-   are drawn for this screen on one grid: 24-unit viewBox, 1.6 stroke, round joins, drawing
-   `currentColor` like the house set in components/icons.tsx. The four cards share ONE idea -
-   the same 18x15 screen, and what goes on it: a terminal prompt (your coding agent), a vector
-   path with its anchors (your artwork), a lower third (a template), a play mark (a rendered
-   video). The Playout row's rundown marks its on-air line with the one filled dot. */
+   are drawn for this screen on the house set's wrapper (components/icons.tsx `Svg`: 24-unit
+   viewBox, round joins, `currentColor`), a size up and a lighter 1.6 stroke. The four cards
+   share ONE idea - the same 18x15 screen, and what goes on it: a terminal prompt (your coding
+   agent), a vector path with its anchors (your artwork), a lower third (a template), a play
+   mark (a rendered video). The Playout row's rundown marks its on-air line with the one filled
+   dot, and the Home row wears a house on the same grid. */
 function EntryIcon({ children }: { children: ReactNode }) {
   return (
-    <svg
-      className="wz-entry-icon"
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <Svg className="wz-entry-icon" size={22} strokeWidth={1.6}>
       {children}
-    </svg>
+    </Svg>
   );
 }
 
@@ -302,6 +291,14 @@ function IconVideo() {
     <ScreenIcon>
       <path d="M10.25 9.25v5.5L14.75 12z" />
     </ScreenIcon>
+  );
+}
+
+function IconHome() {
+  return (
+    <EntryIcon>
+      <path d="M3.5 11L12 4l8.5 7M6 9v10.5h12V9M10 19.5v-5h4v5" />
+    </EntryIcon>
   );
 }
 

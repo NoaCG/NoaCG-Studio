@@ -891,14 +891,12 @@
 .wz-hero-title span { color: var(--amber); }
 .wz-hero-sub { font-size: 15px; line-height: 1.5; color: var(--text-dim); margin: 0; max-width: 720px; }
 
-/* TWO BY TWO (re-design/handoff.md §2a). One row of narrow cards made four tall ragged
-   columns of text; two rows of wide ones read as four choices. It also retires the fixed
-   240px width budget: the cards now SHARE the column, so the rail taking 216px off the step
-   costs a little card width instead of wrapping the row and overflowing the step.
-   e2e/wizard-entry-fit.spec.ts remains the guard on the step's HEIGHT. */
+/* THE ENTRY STEP'S CARD GRID. The cards SHARE the row's width rather than each taking a fixed
+   one, so a narrower step costs a little card width instead of wrapping and overflowing. The
+   column count per window width (four, two below 1100px, one on a phone) lives with the rest
+   of the step in wizard-entry.css; e2e/wizard-entry-fit.spec.ts guards the step's height. */
 .wz-entry {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   /* EQUAL ROWS. Without this the grid sizes each row to its tallest card, so the one card
      with a longer description made its whole row taller than the row beneath it (measured at
      1366x768 before the fix: 179px against 138px) and the four cards read as two pairs. */
@@ -946,18 +944,6 @@
    grows. Scoped to the grid, because the Finish doors reserve their own smaller number and a
    shared value would spend the step height they are short of. */
 .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.4em); }
-/* NO HOLE ON AN ODD COUNT. The default studio offers three mode cards (Advanced mode adds a
-   fourth), and a three-card 2-column grid leaves an empty cell that reads as a card that
-   failed to render. The odd LAST card spans the row instead — which restores the plain 2x2
-   the moment the fourth card appears, with no JavaScript deciding anything. */
-.wz-entry .wz-entry-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-/* …AND IT SIZES TO ITS OWN COPY. Both rules above it exist to make two cards SHARING a row
-   line up — the reserved three lines of hint, and the equal row heights. A card that spans
-   the row has no row-mate to line up with, so both rules stop being alignment and become a
-   card two empty lines taller than its text: measured at 1366x768, "Import graphic" drew one
-   line of copy inside a 130px box, which reads as content that failed to load. */
-.wz-entry:has(> .wz-entry-card:last-child:nth-child(odd)) { grid-auto-rows: auto; }
-.wz-entry .wz-entry-card:last-child:nth-child(odd) .hint { min-height: 0; }
 
 /* ── ONE GRAPHIC, OR A WHOLE KIT ─────────────────────────────────────────────────────────
    The Browse step's first question, as a segmented control. Two options in one bordered
