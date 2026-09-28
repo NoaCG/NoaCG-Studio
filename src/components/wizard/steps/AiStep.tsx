@@ -420,7 +420,6 @@ export default function AiStep({
   const [noacgChosen, setNoacgChosen] = useState(false);
   const noacgHeadRef = useRef<HTMLDivElement>(null);
   const chooseNoacg = () => {
-    if (noacgChosen) return;
     setNoacgChosen(true);
     // After the commit that mounts the section: the button that had focus is gone, so focus
     // moves to the section it opened rather than falling to the document body.
