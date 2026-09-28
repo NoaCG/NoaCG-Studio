@@ -18,8 +18,8 @@ interface Props {
    * of them again is a stop the reference removes.
    */
   onHome: (section?: string | null) => void;
-  /** The production used last, or the productions list when there is none. */
-  onOpenPlayout: () => void;
+  /** Open this production, or the productions list when `productionId` is null (none saved). */
+  onOpenPlayout: (productionId: string | null) => void;
   /** Make an empty production and open its rundown. */
   onNewProduction: () => void;
 }
@@ -62,6 +62,15 @@ export default function EntryStep({
       loadShows().length > 0 ||
       listSavedVideoProjects().length > 0 ||
       hasCurrentVideoProject(),
+    [],
+  );
+  /** The production the Run the show card opens and names. "Last used" is the one saved most
+   *  recently: every rundown edit, publish and graphic add stamps `updatedAt`, so it is the one
+   *  the user touched last without a second record to keep in step. Nothing records which
+   *  production this browser last OPENED, so a team production another member saved later
+   *  wins; a per-browser "last opened" record would be a new store. */
+  const lastProduction = useMemo(
+    () => loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null,
     [],
   );
 
@@ -207,24 +216,42 @@ export default function EntryStep({
         </button>
       </div>
 
-      {/* ── THE PLAYOUT ROW (owner, 2026-09-27): nobody should have to make a graphic before
-             they can have a rundown. Two plain actions that work on a first-ever visit with
-             nothing saved: "Open Playout" goes to the production used last, or to the
-             productions list when there is none; "New production" makes an empty one and
-             opens its rundown, where its own add-graphics control is waiting.
-             A ROW, NOT A FIFTH CARD: it is the other half of the product, running the show,
-             not a way to start a graphic. Its buttons are secondary, never amber - the cards
-             above are what the step recommends. ── */}
-      <div className="wz-playout" data-testid="wz-playout">
-        <span className="wz-playout-text">
+      {/* ── RUN THE SHOW (owner, 2026-09-27 and 2026-09-28): nobody should have to make a
+             graphic before they can have a rundown, and the rundown is one press from here.
+             A PRESSABLE CARD ON THE HOME ROW'S CHASSIS: the owner found a text row with two
+             small buttons broke the screen, where everything else is a card you press. The body
+             opens the production used last and NAMES it, so the press is not a guess; with none
+             saved it opens the productions list and says so. "New production" is a SIBLING
+             button, never nested, and works on a first-ever visit: it makes an empty production
+             and opens its rundown. Full width under the four start cards rather than a fifth
+             card in their row: running the show is the other half of the product, not a way to
+             start a graphic. ── */}
+      <div className="wz-continue-row wz-playout" data-testid="wz-playout">
+        <button
+          className="wz-entry-card wz-continue-card"
+          onClick={() => onOpenPlayout(lastProduction?.id ?? null)}
+          data-entry="open-playout"
+        >
           <IconRundown />
-          <span className="wz-playout-copy">
+          <span className="wz-continue-text">
             <strong>Run the show</strong>
-            <span className="hint">Line up graphics in a production and take them to air.</span>
+            {lastProduction ? (
+              <span className="hint">
+                Open “
+                <span className="wz-playout-name" title={lastProduction.name}>
+                  {lastProduction.name}
+                </span>
+                ”, your latest production, and take its graphics to air.
+              </span>
+            ) : (
+              <span className="hint">
+                Line up graphics in a production and take them to air. You have no production
+                yet, so this opens your productions list.
+              </span>
+            )}
           </span>
-        </span>
-        <span className="wz-playout-actions">
-          <button onClick={onOpenPlayout} data-entry="open-playout">Open Playout</button>
+        </button>
+        <span className="wz-continue-jump">
           <button onClick={onNewProduction} data-entry="new-production">New production</button>
         </span>
       </div>
