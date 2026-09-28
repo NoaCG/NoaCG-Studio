@@ -35,12 +35,13 @@
 //      connection, and on 2026-09-28 it lapsed: push, fetch and the GitHub tools all failed with
 //      "could not read Username for 'https://github.com'", and a finished row sat unlanded until
 //      the owner reconnected. `git ls-remote --heads origin main` (read-only; the repository is
-//      private, so reading it needs the connection too) runs once, printed FIRST, with prompts off
-//      and a 6-second cap. A refusal prints a banner the session must relay to the owner before
-//      anything else; a timeout or a proxy/DNS failure says it is the network instead; success
-//      prints nothing. Neither a credential nor git's own text is ever echoed - only a fixed label.
-//      A start hook cannot catch a lapse DURING the session: the orchestrator's watch loop
-//      should re-run that probe before launching a row or queueing a landing.
+//      private, so reading it needs the connection too) runs first in this hook, with prompts off
+//      and a 6-second cap, on every SessionStart (a resume or compact re-probes too; it costs
+//      about a second). A refusal prints a banner the session must relay to the owner before
+//      anything else; a timeout, proxy, DNS or server failure says it is the network instead;
+//      success prints nothing. Neither a credential nor git's own text is ever echoed - only a
+//      fixed label. A start hook cannot catch a lapse DURING the session: the orchestrator's
+//      watch loop should re-run that probe before launching a row or queueing a landing.
 //
 //   4. Nothing else.
 //
@@ -185,18 +186,20 @@ const RECONNECT_URL = 'https://claude.ai/connect-github';
 
 /**
  * What git's error text means, in order, as fixed labels - the label is printed, never the text.
- * The two unmistakable account messages come first; then the network, because the egress proxy's
- * own refusal ("CONNECT tunnel failed, response 403", measured 2026-09-28) carries a 403 that is
- * a blocked route, not a refused account; then the generic auth refusals.
+ * Account refusals first, then the network, then this checkout's own setup. The egress proxy's own
+ * refusal ("CONNECT tunnel failed, response 403", measured 2026-09-28) is a blocked route, not a
+ * refused account, and a bare 403 is left unclassified: the git proxy answers 403 to policy
+ * refusals too.
  */
 const SIGNS = [
-  [/could not read (Username|Password)/i, 'auth', 'git has no GitHub credentials: "could not read Username"'],
+  [/could not read (Username|Password)/i, 'auth', 'GitHub asked for credentials git does not have: "could not read Username"'],
   [/not connected a GitHub account/i, 'auth', 'the session owner has no connected GitHub account'],
-  [/CONNECT tunnel failed|proxy/i, 'network', 'the proxy refused or dropped the connection'],
-  [/Could not resolve host/i, 'network', 'github.com did not resolve'],
-  [/Failed to connect|Connection (refused|reset|timed out)|Operation timed out|RPC failed|early EOF|SSL/i, 'network', 'the connection to github.com failed'],
-  [/Authentication failed|Invalid username or (password|token)|\b40[13]\b|Permission denied \(publickey\)/i, 'auth', 'GitHub refused the credentials'],
-  [/Repository not found/i, 'auth', 'GitHub hides the repository from these credentials'],
+  [/Authentication failed|Invalid username or (password|token)|error: 401\b|Permission denied \(publickey\)/i, 'auth', 'GitHub refused the credentials'],
+  [/CONNECT tunnel failed|from proxy after CONNECT|Proxy CONNECT aborted/i, 'network', 'the proxy refused or dropped the connection'],
+  [/Could not resolve (host|proxy)/i, 'network', 'github.com did not resolve'],
+  [/error: 5\d\d\b/i, 'network', 'GitHub answered with a server error'],
+  [/Failed to connect|Connection (refused|reset|timed out)|Operation timed out|RPC failed|early EOF|hung up|Empty reply|not closed cleanly|recv error|transfer closed|SSL/i, 'network', 'the connection to github.com failed'],
+  [/does not appear to be a git repository|No such remote|not a git repository/i, 'local', "this checkout's origin is not a remote the check can reach"],
 ];
 
 /** `git ls-remote` against origin, prompts off, killed at the cap. Replaced in tests. */
@@ -214,27 +217,30 @@ function lsRemoteOrigin(root, timeout) {
 /**
  * Step 3: one line about GitHub access, empty when it works. Never throws.
  * @param {string} root the checkout whose `origin` is probed
- * @param {(root: string, timeout: number) => { status: number | null, stderr?: string, error?: { code?: string } }} [probe]
+ * @param {{ probe?: (root: string, timeout: number) => { status: number | null, stderr?: string, error?: { code?: string } }, timeoutMs?: number }} [options]
  */
-export function githubAccessLine(root, probe = lsRemoteOrigin) {
+export function githubAccessLine(root, { probe = lsRemoteOrigin, timeoutMs = GITHUB_PROBE_TIMEOUT_MS } = {}) {
   let res;
   try {
-    res = probe(root, GITHUB_PROBE_TIMEOUT_MS);
-  } catch {
-    res = { status: null };
+    res = probe(root, timeoutMs);
+  } catch (error) {
+    res = { status: null, error };
   }
   if (res.status === 0) return '';
   const unreachable = (why) => `GITHUB UNREACHABLE - ${why}; that looks like the network, not a disconnected account.`
     + ' Push, pull requests and landing may fail. Re-run `git ls-remote origin main` before relying on GitHub,'
     + ` and if it still fails, tell the owner FIRST, before any other work (and reconnect at ${RECONNECT_URL} if it turns out to be the account).`;
-  if (res.error?.code === 'ETIMEDOUT') return unreachable(`\`git ls-remote origin\` did not answer within ${GITHUB_PROBE_TIMEOUT_MS / 1000} s`);
+  const couldNotRun = (why) => `GitHub check could not run (${why}); it says nothing about the GitHub connection.`;
+  if (res.error?.code === 'ETIMEDOUT') return unreachable(`\`git ls-remote origin\` did not answer within ${timeoutMs / 1000} s`);
+  if (res.error) return couldNotRun('git did not start');
   const [, kind, why] = SIGNS.find(([sign]) => sign.test(res.stderr ?? '')) ?? [];
+  if (kind === 'local') return couldNotRun(why);
   if (kind === 'network') return unreachable(why);
   if (kind === 'auth') {
     return `GITHUB NOT CONNECTED - push, pull requests and landing will fail (${why}). Reconnect at ${RECONNECT_URL} before starting work.`
       + ' Tell the owner this FIRST, as the opening line of your first reply, before any other work.';
   }
-  return `GITHUB CHECK FAILED - \`git ls-remote origin\` exited ${res.status ?? 'abnormally'} for a reason this check does not recognise.`
+  return `GITHUB CHECK FAILED - \`git ls-remote origin\` exited ${res.status ?? 'abnormally'} for a reason this check does not recognise (neither a clear refusal nor a clear network error).`
     + ` Push and landing may fail: tell the owner FIRST, before any other work, and suggest reconnecting at ${RECONNECT_URL}.`;
 }
 
@@ -263,7 +269,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // The checkout this hook ships in - the settings start it from the current checkout's top level.
   const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
   const cloud = process.env.CLAUDE_CODE_REMOTE === 'true';
-  // First, so a lapsed connection is the first thing the session reads.
+  // First in this hook's output; a sibling hook may still print above it, so the banner itself
+  // tells the session to relay it first.
   const github = cloud ? githubAccessLine(root) : '';
   if (github) console.log(github);
   // A person running this by hand has no hook event to pipe in; waiting on the terminal would hang.
