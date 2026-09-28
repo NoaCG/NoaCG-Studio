@@ -430,7 +430,7 @@ test('a reading the page cannot fold ends that round, never the poll', async () 
 // ── Phase 3: a clip's settings, Play next and TO STUDIO (docs/CLIP_PLAYBACK_PLAN.md §6.4-§6.9, §7) ──
 
 const playback = await import('../src/model/cuePlayback.ts');
-const { playNextTarget, sequenceMembers, sequenceAction, nextClipWords } = await import('../src/control/serverPlayout.ts');
+const { playNextTarget, sequenceMembers, sequenceAction, nextClipWords, takeBlocker } = await import('../src/control/serverPlayout.ts');
 const { pauseTarget, toStudioSeconds } = await import('../src/control/serverState.ts');
 
 const vt = (id, seconds, extra = {}) => ({ id, adapter: 'casparcg', kind: 'media', name: id.toUpperCase(), layer: 10, channel: 2, mediaKind: 'movie', frames: seconds * 25, fps: 25, ...extra });
@@ -488,13 +488,62 @@ test('a cue the running Bridge or server cannot honour is not taken, and says wh
     playback.playbackBlocker(playback.playbackNeeds(clearFade, item), { ...ok, capabilities: ['end'], version: '2.2.0 Dev' }),
     'This cue fades, which CasparCG 2.2.0 cannot do. To take it, set its fades to Cut.',
   );
-  assert.equal(playback.playbackBlocker(playback.playbackNeeds({ playback: { levelDb: -12 } }, item), { state: 'ok' }), 'This cue plays at -12 dB. Update NoaCG Bridge to take it, or reset its level.');
+  assert.equal(playback.playbackBlocker(playback.playbackNeeds({ playback: { levelDb: -12 } }, item), { state: 'ok' }), 'This cue plays at −12 dB. Update NoaCG Bridge to take it, or reset its level.');
   // Not asked yet: it waits rather than risking the old way.
   assert.equal(playback.playbackBlocker(playback.playbackNeeds(clearFade, item), null), 'Asking NoaCG Bridge what it can play…');
   // A control is offered only when both say yes.
-  assert.equal(playback.offerBlocked(ok, 'playback', 'fade'), null);
-  assert.equal(playback.offerBlocked({ state: 'ok', capabilities: ok.capabilities }, 'playback', 'fade'), 'Update NoaCG Bridge to set this.');
-  assert.equal(playback.offerBlocked({ ...ok, capabilities: [] }, 'sequence', 'sequence'), 'CasparCG 2.5.0 cannot do this.');
+  assert.equal(playback.offerBlocked(ok, playback.NEEDS.fade), null);
+  assert.equal(playback.offerBlocked({ state: 'ok', capabilities: ok.capabilities }, playback.NEEDS.fade), 'Update NoaCG Bridge to set this.');
+  assert.equal(playback.offerBlocked({ ...ok, capabilities: [] }, playback.NEEDS.next), 'CasparCG 2.5.0 cannot do this.');
+});
+
+test('a Take is held up by a setting nobody here can honour, and by a Play next that cannot be played', () => {
+  const a = vt('a', 10);
+  const b = vt('b', 10);
+  const ok = { state: 'ok', features: ['state', 'playback', 'sequence'], capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'], version: '2.5.0' };
+  const next = withPlayback(cue('1', 'a'), { end: 'next' });
+  assert.equal(takeBlocker(next, [next, cue('2', 'b')], [a, b], address, ok), null);
+  // A graphic and a legacy clip are never held up.
+  assert.equal(takeBlocker(graphic('lt'), [], [a], address, null), null);
+  assert.equal(takeBlocker(cue('1', 'a'), [cue('1', 'a')], [a], address, null), null);
+  assert.equal(
+    takeBlocker(next, [next], [a], address, ok),
+    'This cue plays the next clip, but no clip after this one plays on 2-10. Set another ending to take it.',
+  );
+  // A clip it plays next with a setting the server cannot do holds up the Take too, named.
+  const faded = withPlayback(cue('2', 'b', 'Studio'), { fadeIn: 'short' });
+  assert.equal(
+    takeBlocker(next, [next, faded], [a, b], address, { ...ok, capabilities: ['end', 'sequence'], version: '2.2.0' }),
+    'Studio, which this cue plays next: This cue fades, which CasparCG 2.2.0 cannot do. To take it, set its fades to Cut.',
+  );
+});
+
+test('a sequence member is a movie or audio file of known length, at least 2 seconds after the first', () => {
+  const plain = {};
+  assert.equal(playback.memberProblem(plain, vt('a', 10), false), null);
+  assert.equal(playback.memberProblem(plain, vt('a', 10, { mediaKind: 'audio' }), false), null);
+  assert.equal(playback.memberProblem(plain, vt('a', 10, { mediaKind: 'still' }), false), 'still');
+  assert.equal(playback.memberProblem(plain, vt('a', 10, { mediaKind: undefined }), false), 'kind');
+  assert.equal(playback.memberProblem(plain, vt('a', 10, { frames: undefined, fps: undefined }), false), 'length');
+  // A trim that plays nothing has no length; one that plays a second is too short to follow...
+  assert.equal(playback.memberProblem({ playback: { trimIn: 10 } }, vt('a', 10), true), 'length');
+  assert.equal(playback.memberProblem({ playback: { trimIn: 9 } }, vt('a', 10), false), 'short');
+  // ...but the first clip is already running when the next is queued.
+  assert.equal(playback.memberProblem({ playback: { trimIn: 9 } }, vt('a', 10), true), null);
+  assert.equal(playback.memberProblem({ playback: { trimOut: 2 } }, vt('a', 10), false), null);
+});
+
+test('the clip clock says the ending the Take sent, not one chosen for the cue since', () => {
+  const a = vt('a', 10);
+  const timing = { '2-10': { producer: 'video', file: 'A', segment: { start: 0, length: 10 }, position: 2, paused: false, loop: false, at: 0, source: 'server' } };
+  const cues = [withPlayback(cue('1', 'a'), { end: 'clear' })];
+  const taken = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), takenAt: 0, end: 'hold' } } };
+  assert.equal(clipClock(taken, timing, [a], cues, 0).end, 'hold');
+  // After a reload the page has only the cue to go on.
+  const reloaded = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), takenAt: 0 } } };
+  assert.equal(clipClock(reloaded, timing, [a], cues, 0).end, 'clear');
+  const accepted = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, end: 'clear' });
+  assert.equal(accepted.ownership.onAir.a.end, 'clear');
 });
 
 test('a trim is checked against itself and the file; times read the way an operator writes them (§18 case 6)', () => {
@@ -619,7 +668,8 @@ test('a reading that shows the sequence\'s next entry moves ON AIR to that cue, 
   assert.deepEqual(Object.keys(parts.ownership.onAir), ['a']);
   // The server switched by itself: the same instance, now naming cue 2.
   parts = applyReading(parts, reading({ producer: 'video', file: 'B', segment: { start: 0, length: 10 }, position: 1, cueId: '2' }), { ...ctx, now: 11_000 });
-  assert.deepEqual(parts.ownership.onAir, { b: { cueId: '2', slot: slot(2, 10), instance: 's1.1', takenAt: 0 } });
+  // Its ending is what the Take sent for it: the entry says none, so it holds.
+  assert.deepEqual(parts.ownership.onAir, { b: { cueId: '2', slot: slot(2, 10), instance: 's1.1', takenAt: 0, end: 'hold' } });
   assert.deepEqual(parts.ownership.sequences, {});
   // Out ends it on the page at once.
   const out = applyAccepted(taken, { verb: 'out', slot: slot(2, 10), generation: 2, session: 's1', itemId: 'a', cueId: '1', now: 1 });

@@ -654,21 +654,27 @@ export function setPlayoutItemMediaKind(showId: string, itemId: string, mediaKin
   });
 }
 
-/** What the server's list says of a media file an older item saved without: its kind and length.
- *  Only a missing fact is filled, so nothing the operator chose is overwritten. */
-export function fillPlayoutItemFacts(showId: string, itemId: string, facts: { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }): Show[] {
+/** What the server's list says of media files older items saved without, by item id: their kind
+ *  and length, in one write. Only a missing fact is filled, so nothing the operator chose is
+ *  overwritten. */
+export function fillPlayoutItemFacts(
+  showId: string,
+  facts: ReadonlyMap<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>,
+): Show[] {
   return patchShow(showId, (show) => {
-    const item = show.playoutItems?.find((i) => i.id === itemId);
-    if (!item || item.kind !== 'media') return false;
     let changed = false;
-    if (facts.mediaKind && !item.mediaKind) {
-      item.mediaKind = facts.mediaKind;
-      changed = true;
-    }
-    if (facts.frames && facts.fps && !(item.frames && item.fps)) {
-      item.frames = facts.frames;
-      item.fps = facts.fps;
-      changed = true;
+    for (const item of show.playoutItems ?? []) {
+      const f = facts.get(item.id);
+      if (!f || item.kind !== 'media') continue;
+      if (f.mediaKind && !item.mediaKind) {
+        item.mediaKind = f.mediaKind;
+        changed = true;
+      }
+      if (f.frames && f.fps && !(item.frames && item.fps)) {
+        item.frames = f.frames;
+        item.fps = f.fps;
+        changed = true;
+      }
     }
     return changed;
   });

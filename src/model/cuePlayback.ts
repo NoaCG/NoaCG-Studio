@@ -2,11 +2,12 @@
 // the cue's settings read back as what the operator chose, turned into what goes to NoaCG Bridge,
 // and checked against what the running Bridge and its server can do.
 //
-// PLAIN FUNCTIONS OVER PLAIN DATA that import nothing but types, so scripts/server-playout.test.mjs
-// runs every rule here in Node without a browser (plan §10). Keep it that way: the store, the link
-// and React stay out of this file.
+// PLAIN FUNCTIONS OVER PLAIN DATA that import nothing but types and the protocol's own pure rules,
+// so scripts/server-playout.test.mjs runs every rule here in Node without a browser (plan §10). Keep
+// it that way: the store, the link and React stay out of this file. The `.ts` on the one runtime
+// import is what lets Node resolve it.
 
-import type { MediaPlayback, TargetCapability } from '../control/playoutProtocol';
+import { MIN_SEQUENCE_MEMBER_S, playedSeconds, type MediaPlayback, type TargetCapability } from '../control/playoutProtocol.ts';
 import type { ClipFade, CuePlayback, PlayoutItem, PlayoutMediaKind, ShowCue } from './shows';
 
 /** What a clip does at its end, as the operator chooses it. */
@@ -19,10 +20,6 @@ export const FADE_SECONDS: Record<ClipFade, number> = { short: 0.5, long: 1 };
 /** The Level slider's range, in dB (plan §6.5). */
 export const MIN_LEVEL_DB = -60;
 export const MAX_LEVEL_DB = 6;
-
-/** The shortest clip that may follow another in a sequence: the Bridge queues each next file
- *  while the one before it plays, reading four times a second (cli/src/playout/runner.ts). */
-export const MIN_SEQUENCE_MEMBER_S = 2;
 
 /** The server's list word (`MOVIE`, `STILL`, `AUDIO`) as the record keeps it, or nothing. */
 export function mediaKindOf(word: string | undefined): { mediaKind?: PlayoutMediaKind } {
@@ -42,8 +39,13 @@ export function effectiveEnd(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutI
 }
 
 /** A level in dB as the linear gain the clip's audio filter takes: 10^(dB/20). */
-export function levelGain(db: number): number {
+function levelGain(db: number): number {
   return 10 ** (db / 20);
+}
+
+/** `−12 dB`, `+3 dB`, `0 dB`: a level as the slider and every sentence about it read it. */
+export function dbText(db: number): string {
+  return `${db > 0 ? '+' : db < 0 ? '−' : ''}${Math.abs(db)} dB`;
 }
 
 /** The file's whole length in seconds from the server's list, when it gave one. */
@@ -52,17 +54,29 @@ export function fileSeconds(item: Pick<PlayoutItem, 'frames' | 'fps'>): number |
   return item.frames / item.fps;
 }
 
-/** How long a file plays from `start` to `end` in it: the end clamped to the file's length, never
- *  below nothing; unknown when neither an end nor the file's length is known. The one trim rule the
- *  rundown, Play next's two-second check and TO STUDIO all count with. */
-export function playedSeconds(whole: number | undefined, start = 0, end?: number): number | undefined {
-  const stop = end === undefined ? whole : whole === undefined ? end : Math.min(end, whole);
-  return stop === undefined ? undefined : Math.max(0, stop - start);
-}
-
-/** How long the cue plays its file: the trim when it has one, within the file's length. */
+/** How long the cue plays its file: the trim when it has one, within the file's length (the
+ *  protocol's `playedSeconds`, the rule the Bridge counts with too). */
 export function segmentSeconds(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutItem, 'frames' | 'fps'>): number | undefined {
   return playedSeconds(fileSeconds(item), cue.playback?.trimIn, cue.playback?.trimOut);
+}
+
+/** Why a cue's clip cannot play in a sequence (docs/CLIP_PLAYBACK_PLAN.md §6.10): a still, a kind
+ *  or a file length the server's list has not given, or - after the first - too short to queue the
+ *  next in time. The Bridge refuses an entry by the same rule (cli/src/playout/server.ts `readEntry`). */
+export type MemberProblem = 'still' | 'kind' | 'length' | 'short';
+
+export function memberProblem(
+  cue: Pick<ShowCue, 'playback'>,
+  item: Pick<PlayoutItem, 'mediaKind' | 'frames' | 'fps'>,
+  first: boolean,
+): MemberProblem | null {
+  if (item.mediaKind === 'still') return 'still';
+  if (!item.mediaKind) return 'kind';
+  const whole = fileSeconds(item);
+  const length = whole === undefined ? undefined : playedSeconds(whole, cue.playback?.trimIn, cue.playback?.trimOut);
+  if (!length) return 'length';
+  if (!first && length < MIN_SEQUENCE_MEMBER_S) return 'short';
+  return null;
 }
 
 /** Why a trim cannot be kept, or null: the start comes before the end, and both lie in the file
@@ -136,16 +150,26 @@ export interface PlaybackNeed {
   undo: string;
 }
 
+/** What each setting asks of the Bridge and its server: the one table both the editor's controls
+ *  (`offerBlocked`) and the Take's check (`playbackNeeds`) read, so they can never disagree. */
+export const NEEDS = {
+  clear: { feature: 'playback', capability: 'end', what: 'clears at its end', undo: 'set it to Hold' },
+  next: { feature: 'sequence', capability: 'sequence', what: 'plays the next clip', undo: 'set it to Hold' },
+  fade: { feature: 'playback', capability: 'fade', what: 'fades', undo: 'set its fades to Cut' },
+  level: { feature: 'playback', capability: 'level', what: 'plays at a level of its own', undo: 'reset its level' },
+  trim: { feature: 'playback', capability: 'trim', what: 'is trimmed', undo: 'clear its start and end' },
+} as const satisfies Record<string, PlaybackNeed>;
+
 /** What this cue needs beyond a plain Take (plan §6.9). None for a legacy cue or a Loop. */
 export function playbackNeeds(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutItem, 'loop' | 'mediaKind'>): PlaybackNeed[] {
   const p = cue.playback;
   const end = effectiveEnd(cue, item);
   const needs: PlaybackNeed[] = [];
-  if (end === 'clear') needs.push({ feature: 'playback', capability: 'end', what: 'clears at its end', undo: 'set it to Hold' });
-  if (end === 'next') needs.push({ feature: 'sequence', capability: 'sequence', what: 'plays the next clip', undo: 'set it to Hold' });
-  if (p?.fadeIn || p?.fadeOut) needs.push({ feature: 'playback', capability: 'fade', what: 'fades', undo: 'set its fades to Cut' });
-  if (p?.levelDb) needs.push({ feature: 'playback', capability: 'level', what: `plays at ${p.levelDb > 0 ? '+' : ''}${p.levelDb} dB`, undo: 'reset its level' });
-  if (p?.trimIn !== undefined || p?.trimOut !== undefined) needs.push({ feature: 'playback', capability: 'trim', what: 'is trimmed', undo: 'clear its start and end' });
+  if (end === 'clear') needs.push(NEEDS.clear);
+  if (end === 'next') needs.push(NEEDS.next);
+  if (p?.fadeIn || p?.fadeOut) needs.push(NEEDS.fade);
+  if (p?.levelDb) needs.push({ ...NEEDS.level, what: `plays at ${dbText(p.levelDb)}` });
+  if (p?.trimIn !== undefined || p?.trimOut !== undefined) needs.push(NEEDS.trim);
   return needs;
 }
 
@@ -186,11 +210,11 @@ export function playbackBlocker(needs: readonly PlaybackNeed[], ability: Playbac
  * it (plan §6.9: the page offers a control only when both say yes). Going back to a default is never
  * off: that is how a cue with a setting nobody here can play is made takeable again.
  */
-export function offerBlocked(ability: PlaybackAbility | null, feature: PlaybackNeed['feature'], capability: TargetCapability): string | null {
+export function offerBlocked(ability: PlaybackAbility | null, need: Pick<PlaybackNeed, 'feature' | 'capability'>): string | null {
   if (!ability) return 'Asking NoaCG Bridge what it can play…';
   if (ability.state !== 'ok') return 'Connect NoaCG Bridge and the playout server to set this.';
-  if (!ability.features?.includes(feature)) return 'Update NoaCG Bridge to set this.';
-  if (!ability.capabilities?.includes(capability)) {
+  if (!ability.features?.includes(need.feature)) return 'Update NoaCG Bridge to set this.';
+  if (!ability.capabilities?.includes(need.capability)) {
     return `${ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'This playout server'} cannot do this.`;
   }
   return null;

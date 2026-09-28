@@ -16,11 +16,13 @@ import {
 } from '../../model/shows';
 import {
   clockOf,
+  dbText,
   effectiveEnd,
   FADE_SECONDS,
   fileSeconds,
   MAX_LEVEL_DB,
   MIN_LEVEL_DB,
+  NEEDS,
   offerBlocked,
   parseClock,
   trimProblem,
@@ -231,7 +233,6 @@ export default function ServerCueEditor({
       </div>
       {media && (
         <ClipAdvanced
-          key={cue.id}
           item={item}
           cue={cue}
           channel={channel}
@@ -253,8 +254,6 @@ const FADE_WORDS: { value: ClipFade | undefined; word: string }[] = [
   { value: 'long', word: 'Long' },
 ];
 
-/** `-12 dB`, `+3 dB`, `0 dB`. */
-const dbText = (db: number) => `${db > 0 ? '+' : db < 0 ? '−' : ''}${Math.abs(db)} dB`;
 
 /**
  * At the end, Fade and Level (plan §6.5): what the operator changes most, always in view. Each
@@ -292,11 +291,11 @@ function ClipSettings({
   const offEnd = (e: ClipEnd): string | null => {
     if (e === 'hold' || e === end) return null;
     if (e === 'loop') return null;
-    if (e === 'clear') return offerBlocked(ability, 'playback', 'end');
-    return offerBlocked(ability, 'sequence', 'sequence') ?? (playNext && !playNext.ok ? `Play next is off: ${playNext.reason}.` : null);
+    if (e === 'clear') return offerBlocked(ability, NEEDS.clear);
+    return offerBlocked(ability, NEEDS.next) ?? (playNext && !playNext.ok ? `Play next is off: ${playNext.reason}.` : null);
   };
-  const fadeOff = offerBlocked(ability, 'playback', 'fade');
-  const levelOff = offerBlocked(ability, 'playback', 'level');
+  const fadeOff = offerBlocked(ability, NEEDS.fade);
+  const levelOff = offerBlocked(ability, NEEDS.level);
   const fadeOutWords = p.fadeOut ? `, fading out over its last ${FADE_SECONDS[p.fadeOut]} s` : '';
   const hint =
     end === 'hold'
@@ -465,7 +464,7 @@ function ClipAdvanced({
   }, [trimIn, trimOut]);
   const whole = fileSeconds(item);
   const trimmed = trimIn !== undefined || trimOut !== undefined;
-  const trimOff = trimmed ? null : offerBlocked(ability, 'playback', 'trim');
+  const trimOff = trimmed ? null : offerBlocked(ability, NEEDS.trim);
   const summary = `Channel ${channel} · layer ${item.layer} · ${trimmed ? `${clockOf(trimIn ?? 0)}–${trimOut !== undefined ? clockOf(trimOut) : 'end'}` : 'whole clip'}${item.mediaKind ? '' : ' · kind not known'}`;
   /** Read both boxes, check them against each other and the file, and keep them only when they hold. */
   const commit = () => {

@@ -3,6 +3,7 @@ import type { PlayoutItem, ShowCue } from '../../model/shows';
 import { slotAddress } from '../../control/playoutLink';
 import type { ServerPlayoutStore, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { clipClock, clockedClip, clockText, remainingAt, type ClipClock as ClockData } from '../../control/serverState';
+import { lengthText } from './clipLength';
 
 /**
  * The time now, re-read every `ms` while `on`: what a number that counts between two readings of
@@ -36,11 +37,12 @@ const THEN: Record<'hold' | 'loop' | 'clear', string> = {
 function clockWords(c: ClockData): { label?: string; number: string; then: string } {
   const left = c.remaining === null ? '?:??' : clockText(c.remaining);
   if (c.end === 'next') {
-    const next = c.next ? `next ${c.next.label}${c.next.length !== null ? ` ${clockText(c.next.length)}` : ''}` : '';
-    if (c.toStudio === undefined) {
+    // The next clip's length reads as its rundown row reads it.
+    const next = c.next ? `next ${c.next.label}${c.next.length !== null ? ` ${lengthText(c.next.length)}` : ''}` : '';
+    if (c.finally === 'loop') {
       return { ...(c.phase === 'paused' ? { label: 'PAUSED' } : {}), number: `-${left}`, then: `${next} · then loops until Out` };
     }
-    const studio = c.toStudio === null ? '?' : `-${clockText(c.toStudio)}`;
+    const studio = c.toStudio == null ? '?' : `-${clockText(c.toStudio)}`;
     return c.phase === 'paused'
       ? { label: 'PAUSED', number: studio, then: `to studio · clip -${left} · ${next}` }
       : { label: 'TO STUDIO', number: studio, then: `clip -${left} · ${next}` };

@@ -52,6 +52,9 @@ export interface ActContext {
 export interface ActDone {
   follower?: Follower | null;
   warning?: string;
+  /** What should follow the clip was held back, for the runner to queue once the clip is running
+   *  (`startsPartWay`): a take's Clear at the end, or a sequence's second file. */
+  held?: true;
 }
 
 /** An action's result. A refused take can still have disarmed the slot's follower. */
@@ -190,12 +193,12 @@ function timed(p: MediaPlayback | undefined): boolean {
  * Behind such a clip nothing is queued with the take: the runner queues it once INFO shows the clip
  * inside its segment (`slotReading`'s `starting`).
  */
-export function startsPartWay(p: MediaPlayback | undefined): boolean {
+function startsPartWay(p: MediaPlayback | undefined): boolean {
   return (p?.trim?.in ?? 0) > 0;
 }
 
 /** Whether an action's lines need the channel's rate: any fade or trim it carries. */
-export function needsRate(action: PlayoutAction): boolean {
+function needsRate(action: PlayoutAction): boolean {
   if (action.verb === 'take') return timed(action.playback);
   if (action.verb === 'out') return action.fadeOut !== undefined;
   if (action.verb === 'sequence') return action.entries.some((e) => timed(e.playback));
@@ -405,7 +408,7 @@ async function send(target: CasparTarget, line: string, listing = false, timeout
  *  this Bridge reads, 2.3 and later: a fade or a trim is counted in the channel's frames, read
  *  from INFO, and a sequence is run by watching INFO. `IN`, `OUT` and `AF` are in the 2.3.3 and
  *  2.5.0 sources and were measured on both on this machine. */
-export function casparCapabilities(version: string | undefined): TargetCapability[] {
+function casparCapabilities(version: string | undefined): TargetCapability[] {
   return readsState(version) ? ['state', 'end', 'fade', 'trim', 'level', 'sequence'] : ['end'];
 }
 
@@ -449,6 +452,11 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       return { ok: false, error: { hop: 'target', code: 'unsupported', detail: `${targetName(target)} did not say channel ${channel}'s frame rate, so a fade or a trim cannot be counted in its frames.` } };
     }
     return { ok: true, value: r.value.rate, raw: r.raw };
+  }
+
+  /** The channel's rate when the lines about to be written count time, and nothing when they do not. */
+  async function rateWhen(needed: boolean, target: CasparTarget, channel: number): Promise<AdapterResult<number | undefined>> {
+    return needed ? rateOf(target, channel) : { ok: true, value: undefined, raw: '' };
   }
 
   /** Send an action's lines in order. The first is the action itself: refused, nothing else goes,
@@ -523,13 +531,9 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
     async act(target, action, context = {}) {
       let lines: string[];
       try {
-        let rate: number | undefined;
-        if (needsRate(action)) {
-          const r = await rateOf(target, (action.slot as CasparSlot).channel);
-          if (!r.ok) return r;
-          rate = r.value;
-        }
-        lines = casparLines(action, { rate, follower: context.follower });
+        const rate = await rateWhen(needsRate(action), target, (action.slot as CasparSlot).channel);
+        if (!rate.ok) return rate;
+        lines = casparLines(action, { rate: rate.value, follower: context.follower });
       } catch (e) {
         return { ok: false, error: failure(target, e, false) };
       }
@@ -544,7 +548,10 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
       else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
       else if (action.verb === 'out') follower = null;
-      return { ok: true, value: { ...r.value, ...(follower !== undefined ? { follower } : {}) }, raw: r.raw };
+      const held =
+        (action.verb === 'take' && action.playback?.end === 'clear' && startsPartWay(action.playback)) ||
+        (action.verb === 'sequence' && startsPartWay(action.entries[0].playback));
+      return { ok: true, value: { ...r.value, ...(follower !== undefined ? { follower } : {}), ...(held ? { held: true as const } : {}) }, raw: r.raw };
     },
 
     async state(target, channel) {
@@ -556,13 +563,9 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       if (slot.adapter !== 'casparcg') return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'A CasparCG command needs a casparcg slot.' } };
       let line: string;
       try {
-        let rate: number | undefined;
-        if (followTimed(next)) {
-          const r = await rateOf(target, slot.channel);
-          if (!r.ok) return r;
-          rate = r.value;
-        }
-        line = followLine(slot, next, rate);
+        const rate = await rateWhen(followTimed(next), target, slot.channel);
+        if (!rate.ok) return rate;
+        line = followLine(slot, next, rate.value);
       } catch (e) {
         return { ok: false, error: failure(target, e, false) };
       }

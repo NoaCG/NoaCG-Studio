@@ -25,6 +25,7 @@ import {
   removePlayoutItem,
   fillPlayoutItemFacts,
   type PlayoutItem,
+  type PlayoutMediaKind,
   type Show,
   type ShowCue,
 } from '../../model/shows';
@@ -46,12 +47,13 @@ import {
   sequenceAction,
   sequenceMembers,
   serverCueLive,
+  takeBlocker,
   serverLayers,
   type ServerVerb,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { applyAccepted, applyReading, followedClip, pauseTarget } from '../../control/serverState';
-import { effectiveEnd, mediaKindOf, playbackBlocker, playbackNeeds, segmentSeconds } from '../../model/cuePlayback';
+import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../model/cuePlayback';
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
@@ -771,12 +773,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     void (async () => {
       const { items } = await listLibrary(loadPlayoutSettings(), 'media');
       if (!items) return;
-      let next: Show[] | null = null;
+      const byName = new Map(items.map((x) => [x.name.toLowerCase(), x] as const));
+      const facts = new Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>();
       for (const m of missing) {
-        const found = items.find((x) => x.name.toLowerCase() === m.name.toLowerCase());
-        if (found) next = fillPlayoutItemFacts(show.id, m.id, { ...mediaKindOf(found.kind), frames: found.frames, fps: found.fps });
+        const found = byName.get(m.name.toLowerCase());
+        if (found) facts.set(m.id, { ...mediaKindOf(found.kind), frames: found.frames, fps: found.fps });
       }
-      if (next) setShows(next);
+      if (facts.size) setShows(fillPlayoutItemFacts(show.id, facts));
     })();
   }, [bridgeOk, show, playoutItems, playoutSettingsRev]);
 
@@ -1965,6 +1968,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // The take's own count until the server's first reading: the part of the file it plays.
           length: segmentSeconds(cue, item),
           loop: effectiveEnd(cue, item) === 'loop',
+          // What this take sent for its end, which the clock says until the next Take.
+          end: effectiveEnd(cue, item),
           now: performance.now(),
           readable,
           ...(accepted.verb === 'take' && members ? { sequence: sequenceAction(members, accepted.slot).entries.slice(1) } : {}),
@@ -2156,17 +2161,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * nobody here can honour is never dropped on the way to air, and a Play next whose clips cannot be
    * found is never taken as a Hold.
    */
-  const takeBlockerFor = (cue: ShowCue | null): string | null => {
-    const item = cue ? playoutItemFor(cue) : null;
-    if (!cue || item?.kind !== 'media') return null;
-    const blocked = playbackBlocker(playbackNeeds(cue, item), playbackAbility);
-    if (blocked) return blocked;
-    if (effectiveEnd(cue, item) === 'next') {
-      const chain = sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(itemSlot(playoutSettings, i)));
-      if (!chain.ok) return `This cue plays the next clip, but ${chain.reason}. Set another ending to take it.`;
-    }
-    return null;
-  };
+  const takeBlockerFor = (cue: ShowCue | null): string | null =>
+    cue ? takeBlocker(cue, cues, playoutItems, (i) => slotAddress(itemSlot(playoutSettings, i)), playbackAbility) : null;
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
    *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting

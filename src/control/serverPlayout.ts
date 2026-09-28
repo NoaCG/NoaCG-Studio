@@ -14,9 +14,19 @@
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
-import type { PlayoutAction, SequenceEntry, Slot } from './playoutProtocol';
+import { MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
-import { effectiveEnd, fileSeconds, MIN_SEQUENCE_MEMBER_S, outFade, segmentSeconds, takePlayback } from '../model/cuePlayback.ts';
+import {
+  effectiveEnd,
+  fileSeconds,
+  memberProblem,
+  outFade,
+  playbackBlocker,
+  playbackNeeds,
+  takePlayback,
+  type ClipEnd,
+  type PlaybackAbility,
+} from '../model/cuePlayback.ts';
 
 /** One item up on the server: the cue that put it there and the SLOT it was taken to. */
 export interface ServerLive {
@@ -27,6 +37,9 @@ export interface ServerLive {
   instance?: string;
   /** When this page learned it is up, on its own clock (ms): the clip clock follows the latest. */
   takenAt?: number;
+  /** What the Take sent for the clip's end, which the clip clock says: the cue's setting may have
+   *  changed since, and applies only at the next Take. Absent after a reload. */
+  end?: ClipEnd;
 }
 
 /**
@@ -55,7 +68,7 @@ export function withTaken(
   itemId: string,
   cueId: string,
   slot: Slot,
-  extra: Pick<ServerLive, 'instance' | 'takenAt'> = {},
+  extra: Pick<ServerLive, 'instance' | 'takenAt' | 'end'> = {},
 ): ServerOnAir {
   const next: Record<string, ServerLive> = {};
   for (const [id, l] of Object.entries(onAir)) if (slotAddress(l.slot) !== slotAddress(slot)) next[id] = l;
@@ -164,11 +177,16 @@ export function playNextTarget(
       elsewhere.push({ label: c.label, address: there });
       continue;
     }
-    if (it.mediaKind === 'still') return { ok: false, reason: `the next cue on ${address} is a still, which never ends` };
-    if (!it.mediaKind) return { ok: false, reason: `the next clip on ${address} is not in the server's list yet, so its kind is not known` };
-    const length = segmentSeconds(c, it);
-    if (length === undefined) return { ok: false, reason: `the next clip on ${address} has no known length` };
-    if (length < MIN_SEQUENCE_MEMBER_S) return { ok: false, reason: `the next clip is shorter than ${MIN_SEQUENCE_MEMBER_S} seconds` };
+    const problem = memberProblem(c, it, false);
+    if (problem) {
+      const reason = {
+        still: `the next cue on ${address} is a still, which never ends`,
+        kind: `the next clip on ${address} is not in the server's list yet, so its kind is not known`,
+        length: `the next clip on ${address} has no known length`,
+        short: `the next clip is shorter than ${MIN_SEQUENCE_MEMBER_S} seconds`,
+      }[problem];
+      return { ok: false, reason };
+    }
     const parts = [
       ...(graphics ? [count(graphics, 'graphic', 'graphics')] : []),
       ...(elsewhere.length ? [elsewhere.length === 1 ? `${elsewhere[0].label} on ${elsewhere[0].address}` : `${elsewhere.length} cues on other layers`] : []),
@@ -214,12 +232,38 @@ export function sequenceMembers(
     }
     members.push({ cue: t.next.cue, item: t.next.item });
   }
-  if (members.length > 1) {
-    // Every member's kind and length go to the Bridge, which refuses a sequence without them.
-    if (!item.mediaKind) return { ok: false, reason: 'this clip is not in the server\'s list yet, so its kind is not known' };
-    if (fileSeconds(item) === undefined) return { ok: false, reason: 'this clip has no known length' };
-  }
+  // Every member's kind and length go to the Bridge, which refuses a sequence without them: the
+  // followers were checked on the way, and the first is checked here by the same rule.
+  const first = members.length > 1 ? memberProblem(cue, item, true) : null;
+  if (first === 'kind') return { ok: false, reason: 'this clip is not in the server\'s list yet, so its kind is not known' };
+  if (first) return { ok: false, reason: 'this clip has no known length' };
   return { ok: true, members };
+}
+
+/**
+ * WHY A TAKE OF THIS CUE WOULD NOT GO, or null (docs/CLIP_PLAYBACK_PLAN.md §6.9): a setting of its own
+ * or of a clip it plays next that the running Bridge or its server cannot honour, or a Play next whose
+ * clips cannot be found in the rundown as it stands. Such a cue is never taken the old way in silence.
+ */
+export function takeBlocker(
+  cue: ShowCue,
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  addressOf: (item: PlayoutItem) => string,
+  ability: PlaybackAbility | null,
+): string | null {
+  const item = cue.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  if (item?.kind !== 'media') return null;
+  const own = playbackBlocker(playbackNeeds(cue, item), ability);
+  if (own) return own;
+  if (effectiveEnd(cue, item) !== 'next') return null;
+  const chain = sequenceMembers(cues, items, cue.id, addressOf);
+  if (!chain.ok) return `This cue plays the next clip, but ${chain.reason}. Set another ending to take it.`;
+  for (const m of chain.members.slice(1)) {
+    const blocked = playbackBlocker(playbackNeeds(m.cue, m.item), ability);
+    if (blocked) return `${m.cue.label}, which this cue plays next: ${blocked}`;
+  }
+  return null;
 }
 
 /** The sequence action for a chain of members (plan §9): each entry with the playback its own
@@ -233,7 +277,8 @@ export function sequenceAction(members: readonly SequenceMember[], slot: Slot): 
       item: { kind: 'media', name: item.name },
       cueId: cue.id,
       ...(Object.keys(p).length ? { playback: p } : {}),
-      media: { kind: item.mediaKind === 'audio' ? 'audio' : 'movie', seconds: fileSeconds(item) ?? 0 },
+      // Known for every member: `sequenceMembers` checked each by the Bridge's own rule.
+      media: { kind: item.mediaKind === 'audio' ? 'audio' : 'movie', seconds: fileSeconds(item) as number },
     };
   });
   return { verb: 'sequence', slot, entries };

@@ -26,7 +26,8 @@
 // server already had queued plays by the server's own rule.
 
 import { randomBytes } from 'node:crypto';
-import type { ItemRef, SequenceEntry, Slot, SlotState, Target } from './protocol.js';
+import type { ActResult } from './adapters/casparcg.js';
+import type { ItemRef, PlayoutAction, SequenceEntry, Slot, SlotState, Target } from './protocol.js';
 
 /** One INFO layer as the adapter read it, before the Bridge adds what only it knows. `starting` is
  *  the Bridge's own: a clip PLAYed from part way in that has not reached its segment yet, behind
@@ -119,6 +120,13 @@ export function playsItem(item: ItemRef, reported: string | undefined): boolean 
   return got === want || got.endsWith(`/${want}`);
 }
 
+/** Nothing of this Bridge's is left on the slot: no take, no sequence, nothing queued behind it. */
+function forget(m: SlotMemory): void {
+  delete m.instance;
+  delete m.sequence;
+  delete m.follower;
+}
+
 /** What a reading says of this Bridge's own take on the slot, while it still has one. */
 function owned(m: SlotMemory): Pick<SlotState, 'instance' | 'cueId' | 'sequence'> {
   if (!m.instance) return {};
@@ -138,7 +146,7 @@ export class SlotMemoryBank {
   private readonly slots = new Map<string, SlotMemory>();
 
   /** The Bridge's clock in ms, injectable so a test moves time itself (plan §10). */
-  readonly now: () => number;
+  private readonly now: () => number;
 
   constructor(session = randomBytes(4).toString('hex'), now: () => number = () => performance.now()) {
     this.session = session;
@@ -219,10 +227,34 @@ export class SlotMemoryBank {
 
   /** An Out or a Clear the server accepted: nothing of this Bridge's is left on the slot. */
   ended(target: Target, slot: Slot): void {
-    const m = this.memory(target, slot);
-    delete m.instance;
-    delete m.sequence;
-    delete m.follower;
+    forget(this.memory(target, slot));
+  }
+
+  /**
+   * What an action's answer leaves on the slot: the instance a take or a sequence started, the run
+   * the runner owns, what now waits behind the clip. Called INSIDE the slot's serial queue, so the
+   * next command queued for the slot - the runner's included - always sees it. Returns a take's
+   * instance id.
+   */
+  acted(target: Target, slot: Slot, action: PlayoutAction, r: ActResult): string | undefined {
+    let instance: string | undefined;
+    if (r.ok && (action.verb === 'out' || action.verb === 'clear')) this.ended(target, slot);
+    if (r.ok && action.verb === 'take') {
+      instance = this.started(target, slot, action.item, action.cueId);
+      // A Clear at the end held back because the clip starts part way in is the runner's to queue
+      // once the clip runs: a run of this one entry.
+      if (r.value.held) this.sequenceStarted(target, slot, [{ item: action.item, ...(action.cueId ? { cueId: action.cueId } : {}), playback: action.playback }], false);
+    }
+    if (r.ok && action.verb === 'sequence') {
+      const [first] = action.entries;
+      instance = this.started(target, slot, first.item, first.cueId);
+      // The second file refused: the first plays out by itself and nothing is retried; the reply's
+      // warning says so, and the reading shows no sequence.
+      if (!r.value.warning) this.sequenceStarted(target, slot, action.entries, !!r.value.follower);
+    }
+    if (r.ok && r.value.follower !== undefined) this.setFollower(target, slot, r.value.follower);
+    if (!r.ok && r.follower === null) this.setFollower(target, slot, null);
+    return instance;
   }
 
   /** What this Bridge has queued behind the clip on the slot, as far as it knows. */
@@ -291,23 +323,19 @@ export class SlotMemoryBank {
       m.instance = { id: inst.id, item: next.item, startedAt: inst.startedAt, ...(next.cueId ? { cueId: next.cueId } : {}), lastPosition: r.position };
       return false;
     }
-    // A Clear at the end of the last entry has played out: the layer is empty, as it was told to be.
-    if (seq && seq.queued === 'clear' && !holds) {
-      delete m.instance;
-      delete m.sequence;
-      delete m.follower;
-      return false;
-    }
     const restarted = same && !r.loop && jumpedBack;
     if (same && !restarted) {
       inst.lastPosition = r.position;
       return false;
     }
-    // Something else plays there - another client's take, a restart, or nothing: nothing of this
-    // Bridge's is left, and a sequence it was running ends without another command (§6.10, rule 6).
-    delete m.instance;
-    delete m.sequence;
-    if (!holds) delete m.follower;
+    // Something else plays there - another client's take, a restart, or nothing (a Clear at the end
+    // that has played out, as it was told to): nothing of this Bridge's is left, and a sequence it
+    // was running ends without another command (§6.10, rule 6). Behind somebody else's clip the
+    // follower may still wait; on an empty layer nothing does.
+    if (holds) {
+      delete m.instance;
+      delete m.sequence;
+    } else forget(m);
     return false;
   }
 
@@ -333,11 +361,7 @@ export class SlotMemoryBank {
       if (!Number.isInteger(layer) || seen.has(layer)) continue;
       // A layer the server has not made yet, just after a take onto a cleared channel: arriving too.
       const arriving = !!m.instance && this.now() - m.instance.startedAt < LOADING_GRACE_MS;
-      if (!m.inFlight && !arriving) {
-        delete m.instance;
-        delete m.sequence;
-        delete m.follower;
-      }
+      if (!m.inFlight && !arriving) forget(m);
       out.push({
         layer,
         producer: 'empty',

@@ -24,7 +24,9 @@ import { amcpSend } from './amcp.js';
 import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import {
+  MIN_SEQUENCE_MEMBER_S,
   PLAYOUT_V,
+  playedSeconds,
   type AgentError,
   type BridgeFeature,
   type ItemKind,
@@ -35,7 +37,7 @@ import {
   type Slot,
   type Target,
 } from './protocol.js';
-import { MIN_SEQUENCE_MEMBER_S, SequenceRunner } from './runner.js';
+import { SequenceRunner } from './runner.js';
 import { SlotMemoryBank } from './slots.js';
 import { secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
@@ -224,7 +226,7 @@ function readFade(v: unknown, name: string): number {
  * does not know is REFUSED, never dropped: a take without it would air something other than what
  * the cue says (§6.9).
  */
-export function readPlayback(v: unknown): MediaPlayback | undefined {
+function readPlayback(v: unknown): MediaPlayback | undefined {
   if (v === undefined) return undefined;
   if (!isRecord(v)) throw new UsageError('A playback is an object.');
   for (const key of Object.keys(v)) {
@@ -259,11 +261,16 @@ export function readPlayback(v: unknown): MediaPlayback | undefined {
   return out;
 }
 
-/** The length in seconds of the part of a file a playback plays. */
-function segmentSeconds(seconds: number, p: MediaPlayback | undefined): number {
-  const start = p?.trim?.in ?? 0;
-  const end = Math.min(p?.trim?.out ?? seconds, seconds);
-  return end - start;
+/** The page's cue id, kept with the instance and handed back on readings. Opaque here, and bounded,
+ *  since it is echoed to every page that reads the slot - a sequence entry's as much as a take's. */
+function readCueId(v: unknown): { cueId?: string } {
+  const cueId = typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : undefined;
+  return cueId ? { cueId } : {};
+}
+
+/** A playback as an action carries it: an empty one is no playback at all. */
+function playbackField(p: MediaPlayback | undefined): { playback?: MediaPlayback } {
+  return p && Object.keys(p).length ? { playback: p } : {};
 }
 
 /** One entry of a sequence, and the refusals that keep a sequence one that can run (§6.10). */
@@ -283,15 +290,14 @@ function readEntry(v: unknown, index: number, count: number): SequenceEntry {
   if (!last && playback?.end !== undefined && playback.end !== 'hold') {
     throw new UsageError(`${n} ends by "${playback.end}", but only the last entry has an ending of its own: the next file plays after it.`);
   }
-  const length = segmentSeconds(seconds, playback);
+  const length = playedSeconds(seconds, playback?.trim?.in, playback?.trim?.out) ?? 0;
   if (!(length > 0) || (playback?.trim?.in ?? 0) >= seconds) throw new UsageError(`${n}'s trim lies outside its ${seconds} s file.`);
   // The first entry is taken with the second queued behind it at once; every later one must last
   // long enough for the runner to queue the one after it in time.
   if (index > 0 && length < MIN_SEQUENCE_MEMBER_S) {
     throw new UsageError(`${n} plays ${Math.round(length * 100) / 100} s; a clip in a sequence after the first plays at least ${MIN_SEQUENCE_MEMBER_S} s.`);
   }
-  const cueId = typeof v.cueId === 'string' && v.cueId.trim() ? v.cueId.trim().slice(0, 200) : undefined;
-  return { item, ...(cueId ? { cueId } : {}), ...(playback && Object.keys(playback).length ? { playback } : {}), media: { kind: media.kind, seconds } };
+  return { item, ...readCueId(v.cueId), ...playbackField(playback), media: { kind: media.kind, seconds } };
 }
 
 /** An action from a body, validated field by field: what goes to a live channel is never
@@ -306,9 +312,6 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   if (a.fadeOut !== undefined && a.verb !== 'out') throw new UsageError(`A ${String(a.verb)} carries no fadeOut: only Out fades a clip away.`);
   switch (a.verb) {
     case 'take': {
-      // The page's cue id, kept with the instance and handed back on readings. Opaque here, and
-      // bounded, since it is echoed to every page that reads the slot.
-      const cueId = typeof a.cueId === 'string' && a.cueId.trim() ? a.cueId.trim().slice(0, 200) : undefined;
       const item = readItem(a.item);
       const playback = readPlayback(a.playback);
       if (playback && item.kind !== 'media') throw new UsageError(`Only a clip carries playback; this is a ${item.kind}.`);
@@ -319,8 +322,8 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
         slot,
         data: stringMap(a.data),
         loop: a.loop === true,
-        ...(cueId ? { cueId } : {}),
-        ...(playback && Object.keys(playback).length ? { playback } : {}),
+        ...readCueId(a.cueId),
+        ...playbackField(playback),
       };
     }
     case 'update': {
@@ -514,35 +517,21 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           const moves = action.verb !== 'update' && action.verb !== 'next';
           if (moves) memory.advance(target, slot, action.verb === 'pause' || action.verb === 'resume');
           let r: ActResult;
+          let instance: string | undefined;
           try {
             // One at a time per slot, behind whatever the runner is sending there. What waits behind
-            // the clip is read when the action's turn comes, not when it arrived.
-            r = await memory.serial(target, slot, () => adapter.act(target, action, { follower: memory.follower(target, slot) }));
+            // the clip is read when the action's turn comes, not when it arrived, and what the
+            // answer leaves on the slot is recorded before the next command's turn.
+            r = await memory.serial(target, slot, async () => {
+              const done = await adapter.act(target, action, { follower: memory.follower(target, slot) });
+              instance = memory.acted(target, slot, action, done);
+              return done;
+            });
           } finally {
             // Answered or not, the action is no longer in flight: readings count it from here.
             if (moves) memory.settled(target, slot);
           }
           log(`${at} ${action.verb} -> ${r.ok ? r.raw : `${r.error.code} ${r.error.raw ?? ''}`.trim()}${r.ok && r.value.warning ? ` (${r.value.warning})` : ''}`);
-          let instance: string | undefined;
-          if (r.ok && (action.verb === 'out' || action.verb === 'clear')) memory.ended(target, slot);
-          if (r.ok && action.verb === 'take') {
-            instance = memory.started(target, slot, action.item, action.cueId);
-            // A Clear at the end that could not go with the take (the clip starts part way in) is
-            // the runner's to queue, once the clip is running: a run of this one entry. One the
-            // server REFUSED is not tried again: the reply's warning has already said so.
-            if (action.playback?.end === 'clear' && !r.value.follower && !r.value.warning) {
-              memory.sequenceStarted(target, slot, [{ item: action.item, ...(action.cueId ? { cueId: action.cueId } : {}), playback: action.playback }], false);
-            }
-          }
-          if (r.ok && action.verb === 'sequence') {
-            const [first] = action.entries;
-            instance = memory.started(target, slot, first.item, first.cueId);
-            // The second file refused: the first plays out by itself and nothing is retried; the
-            // reply's warning says so, and the reading shows no sequence.
-            if (!r.value.warning) memory.sequenceStarted(target, slot, action.entries, !!r.value.follower);
-          }
-          if (r.ok && r.value.follower !== undefined) memory.setFollower(target, slot, r.value.follower);
-          if (!r.ok && r.follower === null) memory.setFollower(target, slot, null);
           const generation = memory.generation(target, slot);
           send(
             200,

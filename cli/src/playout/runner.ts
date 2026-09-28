@@ -33,20 +33,16 @@
 // every RUNNER_INTERVAL_MS. A test calls it itself after moving the fake server's clock.
 
 import type { PlayoutAdapter } from './adapters/casparcg.js';
-import type { CasparSlot, Slot, SlotState, Target } from './protocol.js';
+import type { CasparSlot, SlotState, Target } from './protocol.js';
 import type { SlotMemoryBank, SlotReading } from './slots.js';
 
-/** Whether the clip on the slot was PLAYed from part way in and has not reached its segment yet. */
-function startingOn(readings: SlotReading[], slot: Slot): boolean {
-  return slot.adapter === 'casparcg' && !!readings.find((l) => l.layer === slot.layer)?.starting;
+/** Whether the clip on a layer was PLAYed from part way in and has not reached its segment yet. */
+function startingOn(readings: SlotReading[], layer: number): boolean {
+  return !!readings.find((l) => l.layer === layer)?.starting;
 }
 
 /** Four readings a second while a sequence runs. INFO answers in about 2 ms on the real 2.5.0. */
 export const RUNNER_INTERVAL_MS = 250;
-
-/** The shortest member after the first: long enough that the runner, reading four times a second,
- *  always queues the next file well before this one ends (§6.10, rule 3). */
-export const MIN_SEQUENCE_MEMBER_S = 2;
 
 export interface RunnerOptions {
   memory: SlotMemoryBank;
@@ -126,12 +122,18 @@ export class SequenceRunner {
   /** One slot of a channel just read: what its sequence needs next, queued in the slot's own queue. */
   private async step(adapter: PlayoutAdapter, target: Target, slot: CasparSlot, planned: number, readings: SlotReading[], layers: SlotState[]): Promise<void> {
     const run = this.memory.sequence(target, slot);
-    if (!run || run.generation !== planned || this.memory.generation(target, slot) !== planned) return;
-    if (run.queued !== undefined) return;
+    if (!run) return;
+    // The sequence is still the one planned, unmoved, with nothing queued behind the entry on air.
+    // Asked again inside the queue, since an Out, a Take or the re-read below may move it on.
+    const current = () => {
+      const now = this.memory.sequence(target, slot);
+      return !!now && now.generation === planned && this.memory.generation(target, slot) === planned && now.index === run.index && now.queued === undefined;
+    };
+    if (!current()) return;
     const here = layers.find((l) => l.layer === slot.layer);
     // Still arriving, not inside its segment yet, or paused: nothing is queued now (rule 4, and
     // adapters/casparcg.ts `startsPartWay`). Resume re-stamps the sequence.
-    if (!here || here.arriving || here.paused || startingOn(readings, slot)) return;
+    if (!here || here.arriving || here.paused || startingOn(readings, slot.layer)) return;
     const on = run.entries[run.index];
     // A still never ends, whatever the list said: a sequence cannot go on from one.
     if (here.producer === 'still') {
@@ -149,10 +151,6 @@ export class SequenceRunner {
     await this.memory.serial(target, slot, async () => {
       // Checked again inside the queue: an Out or a Take that arrived while this was being decided
       // has moved the generation, and the line is dropped unsent (rule 2).
-      const current = () => {
-        const now = this.memory.sequence(target, slot);
-        return !!now && now.generation === planned && this.memory.generation(target, slot) === planned && now.index === run.index && now.queued === undefined;
-      };
       if (!current()) return;
       // And the slot is read once more, right before the line goes: another Bridge or client may
       // have taken it since the reading this was decided on, and no generation of ours says so
@@ -160,7 +158,7 @@ export class SequenceRunner {
       const check = await adapter.state!(target, slot.channel);
       if (!check.ok) return;
       const again = this.memory.annotate(target, slot.channel, check.value).find((l) => l.layer === slot.layer);
-      if (!current() || !again || again.paused || again.arriving || again.instance === undefined || startingOn(check.value, slot)) return;
+      if (!current() || !again || again.paused || again.arriving || again.instance === undefined || startingOn(check.value, slot.layer)) return;
       const r = await adapter.follow!(
         target,
         slot,

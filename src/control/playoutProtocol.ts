@@ -82,6 +82,19 @@ export interface MediaPlayback {
   trim?: { in?: number; out?: number };
 }
 
+/** The shortest a member of a sequence after the first may play, seconds: the Bridge queues each
+ *  next file while the one before it plays, reading four times a second, so this is always in
+ *  time. The page offers Play next and the Bridge accepts a sequence by this one number. */
+export const MIN_SEQUENCE_MEMBER_S = 2;
+
+/** How long a file plays from `start` to `end` in it, seconds: the end clamped to the file's
+ *  length, never below nothing; unknown when neither an end nor the file's length is known. The one
+ *  trim rule both sides count with - the Bridge's refusals, the page's Play next and TO STUDIO. */
+export function playedSeconds(whole: number | undefined, start = 0, end?: number): number | undefined {
+  const stop = end === undefined ? whole : whole === undefined ? end : Math.min(end, whole);
+  return stop === undefined ? undefined : Math.max(0, stop - start);
+}
+
 /** One file of a sequence: what plays, how, the cue it came from, and what the server's own list
  *  says the file is. A still never ends, so it can never be one. */
 export interface SequenceEntry {

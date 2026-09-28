@@ -18,11 +18,11 @@
 //              the clip clock and the rows' remaining times read it.
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
-import type { CasparSlot, SequenceEntry, Slot, SlotState, StateReply } from './playoutProtocol';
+import { playedSeconds, type CasparSlot, type SequenceEntry, type Slot, type SlotState, type StateReply } from './playoutProtocol.ts';
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
-import { effectiveEnd, playedSeconds } from '../model/cuePlayback.ts';
+import { effectiveEnd, type ClipEnd } from '../model/cuePlayback.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
 export interface UnidentifiedItem {
@@ -259,7 +259,16 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
       const own = ownCue(s);
       if (own) {
         delete onAir[mine[0]];
-        onAir[own.item.id] = { cueId: own.cue.id, slot: mine[1].slot, instance: s.instance, ...(mine[1].takenAt !== undefined ? { takenAt: mine[1].takenAt } : {}) };
+        // Its ending is what the Take sent for it, in the entries the page already had (an entry
+        // that says none holds); not among them, the clock reads its cue.
+        const sent = ownership.sequences[a]?.find((e) => e.cueId === own.cue.id);
+        onAir[own.item.id] = {
+          cueId: own.cue.id,
+          slot: mine[1].slot,
+          instance: s.instance,
+          ...(mine[1].takenAt !== undefined ? { takenAt: mine[1].takenAt } : {}),
+          ...(sent ? { end: sent.playback?.end ?? 'hold' } : {}),
+        };
         continue;
       }
     }
@@ -308,6 +317,8 @@ export function applyAccepted(
     readable: boolean;
     /** A take that started a sequence: the entries after the first, which the clock counts ahead. */
     sequence?: readonly SequenceEntry[];
+    /** What the take sent for the clip's end. */
+    end?: ClipEnd;
   },
 ): ServerParts {
   const { ownership, timing } = parts;
@@ -327,7 +338,7 @@ export function applyAccepted(
     sequences = a.verb === 'take' && a.sequence?.length ? { ...rest, [at]: a.sequence } : rest;
   }
   if (a.verb === 'take') {
-    onAir = withTaken(onAir, a.itemId, a.cueId, a.slot, { ...(a.instance ? { instance: a.instance } : {}), takenAt: a.now });
+    onAir = withTaken(onAir, a.itemId, a.cueId, a.slot, { ...(a.instance ? { instance: a.instance } : {}), takenAt: a.now, ...(a.end ? { end: a.end } : {}) });
     delete replaced[a.itemId];
     for (const [id, r] of Object.entries(replaced)) if (slotAddress(r.slot) === at) delete replaced[id];
     unidentified = unidentified.filter((u) => slotAddress(u.slot) !== at);
@@ -414,7 +425,7 @@ function entryCue(e: SequenceEntry, cues: readonly ShowCue[]): ShowCue | undefin
 }
 
 /** How long an entry plays, from what the Bridge was told: its trim within its file's length. */
-export function entrySeconds(e: SequenceEntry): number | null {
+function entrySeconds(e: SequenceEntry): number | null {
   const whole = e.media?.seconds;
   return whole > 0 ? (playedSeconds(whole, e.playback?.trim?.in, e.playback?.trim?.out) ?? null) : null;
 }
@@ -487,7 +498,9 @@ export function clipClock(
   const slot = slotAddress(best.live.slot);
   const t = timing[slot];
   const cueOnAir = cues.find((c) => c.id === best.live.cueId);
-  const loop = t ? t.loop : cueOnAir ? effectiveEnd(cueOnAir, best.item) === 'loop' : !!best.item.loop;
+  // What the Take sent for its end; after a reload, what its cue says now.
+  const cueEnd: ClipEnd = best.live.end ?? (cueOnAir ? effectiveEnd(cueOnAir, best.item) : best.item.loop ? 'loop' : 'hold');
+  const loop = t ? t.loop : cueEnd === 'loop';
   const remaining = remainingAt(t, now);
   const following = ownership.sequences[slot] ?? [];
   const last = following[following.length - 1];
@@ -500,14 +513,14 @@ export function clipClock(
         : Math.max(0, p - t.segment.length)
       : 0;
   // A clip follows: the warning is on TO STUDIO, and there is none when the sequence ends looping.
-  const toStudio = following.length ? (sequenceEnd === 'loop' ? undefined : toStudioSeconds(remaining, following)) : undefined;
+  const toStudio = following.length && sequenceEnd !== 'loop' ? toStudioSeconds(remaining, following) : undefined;
   const counted = following.length ? toStudio : remaining;
   // PAUSED first: a paused loop has to say so as plainly as a paused clip does.
   const phase: ClipClock['phase'] = t?.paused
     ? 'paused'
-    : loop || (following.length > 0 && toStudio === undefined)
+    : loop || sequenceEnd === 'loop'
       ? 'looping'
-      : counted === null || counted === undefined
+      : counted == null
         ? 'counting'
         : counted <= 0
           ? 'holding'
@@ -521,7 +534,7 @@ export function clipClock(
     ? 'next'
     : loop
       ? 'loop'
-      : cueOnAir && effectiveEnd(cueOnAir, best.item) === 'clear'
+      : cueEnd === 'clear'
         ? 'clear'
         : 'hold';
   const upNext = following[0];
