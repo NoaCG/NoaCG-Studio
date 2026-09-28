@@ -1712,9 +1712,15 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-cue-mark { flex: none; font-size: 12px; color: var(--text-dim); }
 /* NEXT ON SERVER after the name (plan §6.2): the clip waits on its slot behind the one playing. The
-   clip blue of the kind icon, so it reads as the server's word rather than a tally. */
+   clip blue of the kind icon, so it reads as the server's word rather than a tally. On a narrow
+   rundown it gives way BEFORE the name does - a far larger shrink factor, down to `NEXT…`, its
+   tooltip saying the rest - since at 1366 with an end mark beside it the name went down to "STU…". */
 .pd-cue-next {
-  flex: none;
+  flex: 0 100 auto;
+  min-width: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--mono, monospace);
   font-size: 9px;
   font-weight: 700;

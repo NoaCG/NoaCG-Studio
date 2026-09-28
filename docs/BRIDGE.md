@@ -741,21 +741,41 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   another client marked the cue `replaced on the server`; Out cleared it. The first run is also what
   found the `202 PLAY OK` race of §3b: a fresh Take dropped off air for one reading, and a re-take of
   the same file read as someone else's restart.
+- **On the real 2.5.0 and 2.3, 2026-09-28, for 0.5.0**: the measurements of §3b (fade timing, the
+  level through a FILE consumer and ffmpeg's volumedetect, disarming, pause around a MIX, `IN` and
+  `OUT` under AUTO, frame rates in four formats, Take to first frame). Then the built 0.5.0 Bridge,
+  through its own HTTP route and a logging proxy in front of 2.5.0, with `INFO` sampled every 50 ms:
+  a three-clip sequence with 1-second fades and a Clear with a half-second fade out (each MIX began
+  1 s before the end of the clip before, the clear fade 0.5 s before the last one's, never a frame
+  of nothing between); a first clip trimmed to start 4 s in, seven times, three of them with the
+  runner's reading forced into the first 90 ms (it read the clip as not yet started and queued
+  nothing, and the trimmed clip aired every time); Out in the middle (`CLEAR 2-10`, nothing aired in
+  the 28 s after); a single take with a Clear, a fade out and -12 dB (the channel's peak meter fell
+  to a quarter); a refused replacement take (`404`, then `LOADBG 2-10 EMPTY`, and the queued clip
+  never aired); a Pause the moment the next clip came up (eleven readings while paused, nothing
+  queued, the rest queued 107 ms after Resume). Two things the run showed: INFO can still show a
+  queued file for about 80 ms after the `LOADBG` that replaced it, so a reading just after an action
+  may carry the new generation with the old background for one reading; and a queued Clear is a
+  nameless colour, so a reading never shows it as queued.
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
-  the 501 mapping, pairing, the refusals), `cli/test/state.test.mjs` (the `INFO` parser against the
-  real captures, the segment arithmetic, generations, instances, the arriving window, `/state`'s
-  token and origin), `e2e/bridge-connect.spec.ts` (Settings, pairing, the one button, each hop),
-  `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope, the scanner-missing and
-  Bridge-missing sentences), `e2e/playout-clock.spec.ts` (the clock, the rows and the server's word
-  with `/state` faked at the network layer).
+  the 501 mapping, pairing, the refusals, every playback line and its order, the conversions, no
+  `MIXER`), `cli/test/runner.test.mjs` (every runner case of `CLIP_PLAYBACK_PLAN.md` §18 against a
+  stateful fake server with each fault injected), `cli/test/state.test.mjs` (the `INFO` parser
+  against the real captures, the segment arithmetic, generations, instances, the arriving window,
+  `/state`'s token and origin), `e2e/bridge-connect.spec.ts` (Settings, pairing, the one button,
+  each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope and each
+  setting's, the scanner-missing and Bridge-missing sentences, a cue an old Bridge cannot play),
+  `e2e/playout-sequence.spec.ts` (Play next and TO STUDIO), `e2e/playout-clock.spec.ts` (the clock,
+  the rows and the server's word with `/state` faked at the network layer, and `P`).
 - **In production, 2026-09-25** (an operator, Firefox on Windows, a school laptop set to forget
   everything on close): the Bridge paired and drove a multi-channel show. Firefox's prompt came
   once at pairing and again in the production tab when clips were first listed (§1b-ff).
 - **NOT verified**: the hosted-origin permission prompt in Chrome on `https://noacg.studio`
   (needs a person at the keyboard); that the Firefox and Chrome policies in §1b-ff silence the
   prompt on that laptop; a Linux server (whether its media scanner is running there); Safari;
-  SmartScreen on a machine that never saw the exe; a genuine 2.3.3. Loop through `PLAY … LOOP`
-  is pinned in the adapter's tests and was not run against the real server this time.
+  SmartScreen on a machine that never saw the exe; a genuine 2.3.3; the level heard on an audio
+  output (it was measured on a recording and the peak meter); phase 3 driven from the page itself on
+  the real server, which is the owner's check.
 
 ---
 
