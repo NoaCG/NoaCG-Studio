@@ -565,6 +565,9 @@ the rundown, or for ten seconds after a hand scrolled it. Only the list scrolls,
   themselves, so its wording names the count ("Also deletes 3 pictures. Confirm?").
 - The rail's foot is how graphics GET IN: the library picker, `＋ New graphic for this
   production…`, `＋ Add pictures…`. Nothing else belongs there.
+- **An empty rundown's line sits where the first row would** (2026-09-28): "No cues yet" is in
+  from the rail edge by the list's own inset, not flush against it. The wizard's New production
+  lands a first-time user on exactly this page, so it is their first look at Playout.
 
 ## 5. Layers — an explicit number, not an ordering game
 
@@ -617,6 +620,11 @@ If this surface replaces the production dashboard, it carries the dashboard's tw
 **Publish / republish**, and both capability links — the **output URL** (the browser source) and
 the **control page URL** (to operate from another device). They belong in the header's menu, one
 click from the operator, never on a page they have to navigate away to.
+
+**▶ Start production is amber only once there is a cue to take** (2026-09-28). With an empty
+rundown it is a plain button whose tooltip says there is nothing to run yet. It still works:
+publishing an empty production mints the links, so the output URL can be set up in OBS or
+CasparCG before the graphics exist. It is just not the page's call to action until then.
 
 **ONE LINE PER CAPABILITY, the explanation behind its own ▸.** The panel grew a paragraph under
 every row and became a page: five explanations between five rows put the CONTROL PAGE — the link
