@@ -451,101 +451,101 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
   }
 
   return {
-  id: 'casparcg',
+    id: 'casparcg',
 
-  capabilities(version) {
-    return {
-      lists: ['template', 'media'],
-      thumbnails: true,
-      verbs: ['take', 'update', 'next', 'out', 'pause', 'resume', 'sequence'],
-      target: casparCapabilities(version),
-    };
-  },
+    capabilities(version) {
+      return {
+        lists: ['template', 'media'],
+        thumbnails: true,
+        verbs: ['take', 'update', 'next', 'out', 'pause', 'resume', 'sequence'],
+        target: casparCapabilities(version),
+      };
+    },
 
-  async status(target) {
-    const r = await send(target, 'VERSION');
-    if (!r.ok) return r;
-    return { ok: true, value: { version: parseVersion(r.value) }, raw: r.raw };
-  },
+    async status(target) {
+      const r = await send(target, 'VERSION');
+      if (!r.ok) return r;
+      return { ok: true, value: { version: parseVersion(r.value) }, raw: r.raw };
+    },
 
-  async list(target, kind, path) {
-    if (kind !== 'template' && kind !== 'media') {
-      return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: `CasparCG has no list of kind "${kind}".` } };
-    }
-    const sub = path?.trim() ? ` ${amcpQuote(path.trim())}` : '';
-    const r = await send(target, `${kind === 'template' ? 'TLS' : 'CLS'}${sub}`, true);
-    if (!r.ok) return r;
-    const items: ListItem[] =
-      kind === 'template'
-        ? parseTls(r.value.lines).map((t) => ({ name: t.name, kind: 'template' }))
-        : parseCls(r.value.lines).map((m) => ({
-            name: m.name,
-            kind: m.kind,
-            frames: m.frames,
-            fps: m.fps,
-            bytes: m.bytes,
-            changed: m.changed,
-          }));
-    return { ok: true, value: items, raw: r.raw };
-  },
-
-  async thumbnail(target, name) {
-    if (!name.trim()) return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'No file name given.' } };
-    const r = await send(target, `THUMBNAIL RETRIEVE ${amcpQuote(name.trim())}`, true);
-    if (!r.ok) return r;
-    return { ok: true, value: { png: r.value.lines[0] ?? '' }, raw: r.raw };
-  },
-
-  async act(target, action, context = {}) {
-    let lines: string[];
-    try {
-      let rate: number | undefined;
-      if (needsRate(action)) {
-        const r = await rateOf(target, (action.slot as CasparSlot).channel);
-        if (!r.ok) return r;
-        rate = r.value;
+    async list(target, kind, path) {
+      if (kind !== 'template' && kind !== 'media') {
+        return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: `CasparCG has no list of kind "${kind}".` } };
       }
-      lines = casparLines(action, { rate, follower: context.follower });
-    } catch (e) {
-      return { ok: false, error: failure(target, e, false) };
-    }
-    // A take that replaces a clip with a follower of a sequence behind it: if the server refuses the
-    // new file, that follower is still armed and would air when the old clip ends.
-    const media = (action.verb === 'take' && action.item.kind === 'media') || action.verb === 'sequence';
-    const disarm = media && !!context.follower && context.follower.file !== 'EMPTY';
-    const r = await sendLines(target, action.slot, lines, disarm);
-    if (!r.ok) return r;
-    // What waits behind the clip now. A PLAY of a file empties the background; a queued line fills it.
-    let follower: ActDone['follower'];
-    if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
-    else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
-    else if (action.verb === 'out') follower = null;
-    return { ok: true, value: { ...r.value, ...(follower !== undefined ? { follower } : {}) }, raw: r.raw };
-  },
+      const sub = path?.trim() ? ` ${amcpQuote(path.trim())}` : '';
+      const r = await send(target, `${kind === 'template' ? 'TLS' : 'CLS'}${sub}`, true);
+      if (!r.ok) return r;
+      const items: ListItem[] =
+        kind === 'template'
+          ? parseTls(r.value.lines).map((t) => ({ name: t.name, kind: 'template' }))
+          : parseCls(r.value.lines).map((m) => ({
+              name: m.name,
+              kind: m.kind,
+              frames: m.frames,
+              fps: m.fps,
+              bytes: m.bytes,
+              changed: m.changed,
+            }));
+      return { ok: true, value: items, raw: r.raw };
+    },
 
-  async state(target, channel) {
-    const r = await readChannel(target, channel);
-    return r.ok ? { ok: true, value: r.value.layers, raw: r.raw } : r;
-  },
+    async thumbnail(target, name) {
+      if (!name.trim()) return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'No file name given.' } };
+      const r = await send(target, `THUMBNAIL RETRIEVE ${amcpQuote(name.trim())}`, true);
+      if (!r.ok) return r;
+      return { ok: true, value: { png: r.value.lines[0] ?? '' }, raw: r.raw };
+    },
 
-  async follow(target, slot, next) {
-    if (slot.adapter !== 'casparcg') return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'A CasparCG command needs a casparcg slot.' } };
-    let line: string;
-    try {
-      let rate: number | undefined;
-      if (followTimed(next)) {
-        const r = await rateOf(target, slot.channel);
-        if (!r.ok) return r;
-        rate = r.value;
+    async act(target, action, context = {}) {
+      let lines: string[];
+      try {
+        let rate: number | undefined;
+        if (needsRate(action)) {
+          const r = await rateOf(target, (action.slot as CasparSlot).channel);
+          if (!r.ok) return r;
+          rate = r.value;
+        }
+        lines = casparLines(action, { rate, follower: context.follower });
+      } catch (e) {
+        return { ok: false, error: failure(target, e, false) };
       }
-      line = followLine(slot, next, rate);
-    } catch (e) {
-      return { ok: false, error: failure(target, e, false) };
-    }
-    const r = await send(target, line);
-    if (!r.ok) return r;
-    return { ok: true, value: { follower: { file: 'entry' in next ? next.entry.item.name : 'EMPTY' } }, raw: r.raw };
-  },
+      // A take that replaces a clip with a follower of a sequence behind it: if the server refuses the
+      // new file, that follower is still armed and would air when the old clip ends.
+      const media = (action.verb === 'take' && action.item.kind === 'media') || action.verb === 'sequence';
+      const disarm = media && !!context.follower && context.follower.file !== 'EMPTY';
+      const r = await sendLines(target, action.slot, lines, disarm);
+      if (!r.ok) return r;
+      // What waits behind the clip now. A PLAY of a file empties the background; a queued line fills it.
+      let follower: ActDone['follower'];
+      if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
+      else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
+      else if (action.verb === 'out') follower = null;
+      return { ok: true, value: { ...r.value, ...(follower !== undefined ? { follower } : {}) }, raw: r.raw };
+    },
+
+    async state(target, channel) {
+      const r = await readChannel(target, channel);
+      return r.ok ? { ok: true, value: r.value.layers, raw: r.raw } : r;
+    },
+
+    async follow(target, slot, next) {
+      if (slot.adapter !== 'casparcg') return { ok: false, error: { hop: 'agent', code: 'usage', detail: 'A CasparCG command needs a casparcg slot.' } };
+      let line: string;
+      try {
+        let rate: number | undefined;
+        if (followTimed(next)) {
+          const r = await rateOf(target, slot.channel);
+          if (!r.ok) return r;
+          rate = r.value;
+        }
+        line = followLine(slot, next, rate);
+      } catch (e) {
+        return { ok: false, error: failure(target, e, false) };
+      }
+      const r = await send(target, line);
+      if (!r.ok) return r;
+      return { ok: true, value: { follower: { file: 'entry' in next ? next.entry.item.name : 'EMPTY' } }, raw: r.raw };
+    },
   };
 }
 
