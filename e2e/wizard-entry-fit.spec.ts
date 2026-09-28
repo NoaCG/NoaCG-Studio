@@ -56,7 +56,8 @@ for (const [label, width, height] of [['desktop', 1366, 768], ['phone', 390, 844
     const rail = page.locator('.wz-rail');
     await expect(rail).toBeVisible();
     await expect(rail.locator('.wz-dot')).toHaveCount(3);
-    await expect(page.locator('.wz-step button.primary')).toHaveText('Create');
+    // The step opens on the coding-agent route alone; the generator's Create waits behind it.
+    await expect(page.getByTestId('ai-agent-route')).toBeVisible();
 
     const layout = await page.evaluate(() => {
       const railRect = document.querySelector('.wz-rail')!.getBoundingClientRect();

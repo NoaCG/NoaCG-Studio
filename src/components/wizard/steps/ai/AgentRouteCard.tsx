@@ -3,23 +3,22 @@ import { copyLink } from '../../../home/copyLink';
 
 /**
  * THE USER'S OWN CODING AGENT IS THE RECOMMENDED WAY TO MAKE GRAPHICS WITH NOACG, SO IT IS THE
- * FIRST AND LARGEST THING THE CREATE WITH AI STEP SHOWS.
+ * ONLY THING THE CREATE WITH AI STEP SHOWS ON ARRIVAL.
  *
  * Owner, 2026-08-26: "steer users to their own Claude Code - better and cheaper - before any
  * key entry"; re-confirmed 2026-09-03: "That is the preferred way of using AI with NoaCG."
  * The receipt is docs/backlog/byo-key-and-create-with-ai-guidance.md. Owner, 2026-09-27: the
- * one-line card was too small, and the built-in generator under it read as the recommended AI
- * workflow, which it is not today. So the route is no longer a disclosure: the four steps and
- * the install lines are always on screen, above the generator, and the generator below is
- * labelled as the built-in option. Why the agent wins: a Claude Code or Codex subscription holds
- * a frontier model and an agent loop, and the NoaCG CLI lets that agent scaffold, validate,
- * screenshot and save into the user's library (docs/AGENT_CLI.md), with no key and no second
- * bill.
+ * one-line card was too small, so the four steps and the install lines are always on screen.
+ * Owner, 2026-09-28: the step still said too much, so this card is now its whole first screen
+ * and the NoaCG agent (the built-in generator) waits behind one secondary button under it
+ * (AiStep.tsx). With nothing beside it left to outrank, the card wears no Recommended tag, and
+ * that button replaces its old "No coding agent?" closing line. Why the agent wins: a Claude
+ * Code or Codex subscription holds a frontier model and an agent loop, and the NoaCG CLI lets
+ * that agent scaffold, validate, screenshot and save into the user's library
+ * (docs/AGENT_CLI.md), with no key and no second bill.
  *
  * WHAT THIS IS NOT: an execution tier. Nothing here runs in the studio - the agent runs on
- * the user's machine - so this is copy and a link, never a radio beside the generator. Nor is
- * it a brush-off: the closing line tells somebody with no agent that the generator below is
- * theirs, and the generator keeps every control it had.
+ * the user's machine - so this is copy and a link, never a radio beside the generator.
  *
  * WHAT IT PROMISES IS ONLY WHAT EXISTS. Every command is the Distribution table of
  * docs/AGENT_CLI.md, verbatim; `/noacg:graphic` is the plugin's command; the link is the docs
@@ -90,26 +89,11 @@ function CopyableCommand({ label, text, testId }: { label: string; text: string;
   );
 }
 
-interface Props {
-  /**
-   * Whether the NoaCG-run route is on offer here, or `undefined` while the build has not said.
-   * The closing line for somebody with no agent has to be true in BOTH builds: on a hosted
-   * studio nothing needs installing, but on a self-hosted one the only road left is their own
-   * provider account, and "nothing to install" there would send them to a Generate button that
-   * stays disabled until a key is stored. Until the answer lands the line is not shown at all,
-   * so neither claim flashes up and then turns out untrue.
-   */
-  hostedOffered: boolean | undefined;
-}
-
-const AgentRouteCard = forwardRef<HTMLElement, Props>(function AgentRouteCard({ hostedOffered }, ref) {
+const AgentRouteCard = forwardRef<HTMLElement>(function AgentRouteCard(_props, ref) {
   const titleId = useId();
   return (
     <section className="ai-agent-route" data-testid="ai-agent-route" ref={ref} aria-labelledby={titleId}>
       <div className="ai-agent-route-head">
-        {/* The block's one amber: the same tag the entry card wears for Beta, because it is the
-            same job - one word the eye reads before the sentence. */}
-        <span className="wz-beta-tag">Recommended</span>
         <h3 id={titleId} className="ai-agent-route-title">
           Make graphics with your coding agent
         </h3>
@@ -140,13 +124,6 @@ const AgentRouteCard = forwardRef<HTMLElement, Props>(function AgentRouteCard({ 
         Your agent checks each graphic with NoaCG&apos;s validator and live playout test before it
         saves it. You need the agent&apos;s own subscription and a terminal, and no key.
       </p>
-      {hostedOffered !== undefined && (
-        <p className="hint ai-agent-route-foot">
-          {hostedOffered
-            ? 'No coding agent? Use the built-in generator below. Nothing to install.'
-            : 'No coding agent? The built-in generator below runs on your own AI provider account: add its key under AI settings.'}
-        </p>
-      )}
     </section>
   );
 });

@@ -28,6 +28,7 @@
 // covers: src/components/{editorFoundation/EditorFoundation,wizard/steps/FinishStep}.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { switchToAdvancedMode, skipOldEditor, finishIntoNewEditor } from './_create';
 import { lowerThirdPng } from './_png';
 import { pickDesign } from './_browse';
@@ -4569,6 +4570,7 @@ test('wizard exits: "Open as code" on the AI card goes to Finish in the default 
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles(PLAIN_TEMPLATE);
   // No format metadata in the file, so the card asks for the project format first.
   await expect(page.getByTestId('import-format-detection')).toContainText('uncertain');

@@ -5,6 +5,7 @@
 // covers: src/components/AiProviderSettings.tsx
 
 import { test, expect, type Page } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 
 // THE CREATE-WITH-AI DOOR: one hosted route, plus the secondary switch to the user's own
 // account. There is no tier or model choice on the hosted route.
@@ -75,6 +76,7 @@ async function openAiSettings(page: Page) {
   await page.locator('.wz-modal').waitFor({ state: 'visible', timeout: 10_000 });
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await expect(page.getByTestId('ai-settings')).toBeVisible();
 }
 
@@ -93,13 +95,15 @@ test("the user's own coding agent is the recommended route, first and above the 
   // Owner, 2026-08-26 and 2026-09-03 (docs/backlog/byo-key-and-create-with-ai-guidance.md):
   // steer users to their own Claude Code before any key entry. Owner, 2026-09-27: it is the
   // RECOMMENDED route, so it is the step's first block, always open, above the built-in
-  // generator - never a one-line disclosure the generator outranks.
+  // generator - never a one-line disclosure the generator outranks. Owner, 2026-09-28: and on
+  // arrival it is ALONE, the NoaCG agent one secondary button under it (e2e/ai.spec.ts pins
+  // the arrival state). With nothing to outrank it wears no tag.
   await openAiSettings(page);
   const route = page.getByTestId('ai-agent-route');
-  await expect(route).toContainText('Recommended');
+  await expect(route).not.toContainText('Recommended');
   await expect(route).toContainText('Claude Code, Codex or another compatible coding agent');
   await expect(route).toContainText('ready for a rundown');
-  await expect(page.getByTestId('ai-builtin')).toContainText('Built-in');
+  await expect(page.getByTestId('ai-builtin')).toContainText('NoaCG agent');
   const routeFirst = await page.evaluate(() => {
     const card = document.querySelector('[data-testid="ai-agent-route"]');
     const builtin = document.querySelector('[data-testid="ai-builtin"]');
@@ -112,9 +116,10 @@ test("the user's own coding agent is the recommended route, first and above the 
   await expect(body).toContainText('claude plugin install noacg@noacg-studio');
   await expect(body).toContainText('codex plugin add noacg@noacg-studio');
   await expect(body.getByRole('link')).toHaveAttribute('href', '/docs#agent-install');
-  // Honest about what it needs, and no brush-off for somebody with no agent.
+  // Honest about what it needs. Somebody with no agent is answered by the button under the card
+  // they have just pressed, so the card no longer carries a "No coding agent?" line of its own.
   await expect(route).toContainText('a terminal');
-  await expect(route).toContainText('No coding agent?');
+  await expect(route).not.toContainText('No coding agent?');
   // In the sheet the pointer comes BEFORE the hosted note and own-account switch.
   const sheet = page.getByTestId('ai-settings');
   const pointerFirst = await sheet.evaluate((el) => {

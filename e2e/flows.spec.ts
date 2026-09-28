@@ -3,6 +3,7 @@
 // focus
 
 import { test, expect, type Page, type FrameLocator } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, switchToAdvancedMode } from './_create';
 import { pickDesign } from './_browse';
@@ -126,6 +127,7 @@ test('import graphics: image lands in the logo slot', async ({ page }) => {
   await page.goto('/app');
   // Images enter through "Create with AI"; the catalog continuation designs around them.
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   // A valid 1×1 fully opaque black RGBA PNG.
   await page.locator('.wz-drop input[type="file"]').setInputFiles({
     name: 'team-logo.png',

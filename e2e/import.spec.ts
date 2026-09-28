@@ -2,6 +2,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { awaitPreviewRebuild } from './_preview';
 import { enableAdvancedMode, finishIntoEditor, startNewProject, switchToAdvancedMode } from './_create';
 import JSZip from 'jszip';
@@ -52,6 +53,7 @@ async function dropTemplate(page: Page, name: string, buffer: Buffer) {
   await expect(page.locator('.wz-modal')).toBeVisible();
   // Import lives inside "Create with AI": drop the file, then the no-AI byte-faithful open.
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles({ name, mimeType: 'text/html', buffer });
   // Foreign SPX does not carry a universal FPS field. NoaCG must say so and require an
   // explicit project-format confirmation instead of silently assigning its default.
@@ -125,6 +127,7 @@ test('import round-trip: an exported Starter zip re-imports as the same code', a
   // Re-import the zip through the wizard (inside "Create with AI", no AI involved).
   await startNewProject(page);
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles({
     name: 'hairline_spx.zip',
     mimeType: 'application/zip',
@@ -177,6 +180,7 @@ test('import zip: a NoaCG graphic package (the agent door\'s dual package) keeps
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await page.locator('.wz-drop input[type="file"]').setInputFiles({ name: 'football-scoreboard.zip', mimeType: 'application/zip', buffer: zipBuffer });
   await page.getByRole('button', { name: /Open as code \(no AI\)/ }).click();
   await expect(page.locator('.wz-modal')).toBeHidden();

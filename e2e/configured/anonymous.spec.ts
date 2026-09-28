@@ -20,6 +20,7 @@ import { test, expect } from '@playwright/test';
 import { dismissWizard, SUPABASE_URL } from './_helpers';
 import { enableAdvancedMode, bootstrapGraphic, openWorkingGraphicInEditor } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
+import { chooseNoacgAgent } from '../_ai-step';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from '../../src/components/auth/accountCopy';
 
 // Era 5.6 — the open editor. With a backend CONFIGURED, an anonymous visitor can still do the whole
@@ -78,6 +79,10 @@ test.describe('anonymous visitor (open editor)', () => {
     // The entry card has no edition or pricing language in configured mode either.
     await expect(page.locator('[data-entry="ai"] .hint')).not.toContainText(/NoaCG Lite|Free with|included/);
     await page.locator('[data-entry="ai"]').click();
+    // The gate belongs to the NoaCG agent: the step opens on the coding-agent route, which no
+    // account gates, and the sign-in ask appears once the visitor chooses the NoaCG agent.
+    await expect(page.getByTestId('signin-prompt')).toHaveCount(0);
+    await chooseNoacgAgent(page);
 
     const prompt = page.getByTestId('signin-prompt');
     await expect(prompt).toBeVisible();

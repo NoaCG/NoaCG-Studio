@@ -198,11 +198,11 @@
 .ai-settings-head h2 { font-size: 14px; }
 
 /* THE AGENT ROUTE (steps/ai/AgentRouteCard.tsx): the user's own coding agent is the RECOMMENDED
-   way to make graphics with NoaCG, so it is the step's first and largest block, always open,
-   above the built-in generator. A raised panel with a sentence-case title (the only one on the
+   way to make graphics with NoaCG, so it is the step's first block and, until the reader chooses
+   the NoaCG agent, the whole step. A raised panel with a sentence-case title (the only one on the
    step - every other head is the small uppercase label), four numbered steps, and the two
-   install blocks side by side where the column is wide enough. The Recommended tag is the
-   block's one amber; links keep the app's link colour, not a second accent. */
+   install blocks side by side where the column is wide enough. It wears no tag: with nothing
+   beside it to outrank, the docs link is its one amber. */
 .ai-agent-route {
   margin: 0 0 18px;
   padding: 14px 16px 12px;
@@ -223,10 +223,20 @@
   font-weight: 600;
   color: var(--text);
 }
-/* The generator's head is longer than a plain "Create with AI", so in a narrow column its testing
-   caution wraps onto a second line rather than being cut to "Still in testing - resul…", and the
-   ⓘ keeps its place at the end of the row. */
+/* THE NOACG AGENT'S DOOR (AiStep.tsx, owner 2026-09-28): one secondary button under the card and
+   the warning under it, stacked because the warning is a sentence and a shared row breaks the
+   moment it wraps. The warning is BODY text, not a muted hint - a grey line under a grey button
+   is the "still testing" whisper it replaced - and never amber (the one accent) or status red
+   (it is not an error). */
+.ai-noacg-door { margin: 0 0 8px; }
+.ai-noacg-door .ai-noacg-warning { margin: 8px 0 0; }
+.ai-noacg-warning { color: var(--text); font-weight: 500; font-size: 13px; }
+/* Once chosen, the same warning is the section head's one line. It is longer than the head's
+   usual summary, so in a narrow column it wraps rather than being cut to "…not yet prov…", and
+   the ⓘ keeps its place at the end of the row. The section takes focus when it opens, so the
+   reader's focus does not fall to the body; the ring is not drawn for that programmatic move. */
 .ai-builtin .wz-sec-head .muted { white-space: normal; }
+.ai-builtin:focus { outline: none; }
 .ai-agent-steps {
   margin: 0;
   padding: 0;

@@ -6,6 +6,7 @@
 // covers: src/components/wizard/import/**
 
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { readFileSync } from 'node:fs';
 import { awaitPreviewRebuild } from './_preview';
 import { createProject, finishIntoEditor, enableAdvancedMode, startNewProject } from './_create';
@@ -91,6 +92,7 @@ test('aspect changes select a valid resolution and route switches preserve the c
   await pickFormat(page, 'browse-format', 'landscape-2160p', 60);
   await page.getByRole('button', { name: '← Back' }).click();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   await expect(page.getByTestId('ai-format-resolution')).toHaveValue('landscape-2160p');
   await expect(page.getByTestId('ai-format-fps')).toHaveValue('60');
 });
@@ -252,7 +254,7 @@ test('Create with AI receives and produces the selected 4K60 format', async ({ p
   await enableAdvancedMode(page);
   await page.goto('/app');
   await page.locator('[data-entry="ai"]').click();
-  await expect(page.getByRole('heading', { name: /Create with AI/ })).toBeVisible();
+  await chooseNoacgAgent(page);
   await pickFormat(page, 'ai-format', 'landscape-2160p', 60);
   await page.locator('.wz-step textarea').fill('A clean lower third for a presenter.');
   await page.getByRole('button', { name: 'Create', exact: true }).click();

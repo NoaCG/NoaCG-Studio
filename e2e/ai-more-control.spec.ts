@@ -3,6 +3,7 @@
 // covers: src/components/wizard/**, !src/components/wizard/import/**
 
 import { test, expect, type Page, type Route } from '@playwright/test';
+import { chooseNoacgAgent } from './_ai-step';
 import { enableAdvancedMode } from './_create';
 
 // Create with AI — the "More control" structured setup: category pinning, user-defined
@@ -71,6 +72,7 @@ async function openAiStep(page: Page) {
   await page.goto('/app');
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -176,6 +178,7 @@ test('collapsing sections and closing the wizard preserve the entered setup', as
   await page.getByRole('button', { name: '+ New graphic' }).click();
   await expect(page.locator('.wz-modal')).toBeVisible();
   await page.locator('[data-entry="ai"]').click();
+  await chooseNoacgAgent(page);
   // A non-empty draft opens the panel by itself, summarizing the picked category.
   await expect(page.getByTestId('more-control')).toBeVisible();
   await expect(page.locator('.mc-cat.selected')).toContainText('Quiz');
