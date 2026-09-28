@@ -144,7 +144,7 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 .doc-nav-toggle:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; }
 /* A topic's own pages, indented under it. The rail stays one continuous line, so the sub-links
    read as part of the topic above rather than as a new group. */
-.doc-nav-sub { padding-bottom: 6px; }
+.doc-nav-sub a:last-child { padding-bottom: 8px; }
 .doc-nav-sub[hidden] { display: none; }
 .doc-nav-sub a { font-size: 13px; line-height: 1.45; padding: 2px 0 2px 24px; }
 .doc-nav-sub .sub-group {
