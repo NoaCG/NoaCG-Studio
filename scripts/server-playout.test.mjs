@@ -1,4 +1,4 @@
-// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts, src/control/serverStatePoll.ts, src/model/cuePlayback.ts
+// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts, src/control/serverStatePoll.ts, src/control/cuePlayback.ts
 //
 // What a server cue sends, what the page then believes is up on the playout server, and what a
 // reading of the server does to that belief (docs/BRIDGE.md §5, docs/CLIP_PLAYBACK_PLAN.md §6.4 and
@@ -429,7 +429,7 @@ test('a reading the page cannot fold ends that round, never the poll', async () 
 
 // ── Phase 3: a clip's settings, Play next and TO STUDIO (docs/CLIP_PLAYBACK_PLAN.md §6.4-§6.9, §7) ──
 
-const playback = await import('../src/model/cuePlayback.ts');
+const playback = await import('../src/control/cuePlayback.ts');
 const { playNextTarget, sequenceMembers, sequenceAction, nextClipWords, takeBlocker } = await import('../src/control/serverPlayout.ts');
 const { pauseTarget, toStudioSeconds } = await import('../src/control/serverState.ts');
 

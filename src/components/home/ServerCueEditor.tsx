@@ -28,7 +28,7 @@ import {
   trimProblem,
   type ClipEnd,
   type PlaybackAbility,
-} from '../../model/cuePlayback';
+} from '../../control/cuePlayback';
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';

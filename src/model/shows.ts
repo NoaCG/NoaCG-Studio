@@ -44,7 +44,7 @@ export interface ShowCue {
 }
 
 /** A fade's length as the operator picks it. Short is half a second and Long one second
- *  (model/cuePlayback.ts `FADE_SECONDS`), converted to the channel's frames by the Bridge. */
+ *  (control/cuePlayback.ts `FADE_SECONDS`), converted to the channel's frames by the Bridge. */
 export type ClipFade = 'short' | 'long';
 
 /**
@@ -54,7 +54,7 @@ export type ClipFade = 'short' | 'long';
  */
 export interface CuePlayback {
   /** What happens at the end. Absent = hold, unless the legacy `PlayoutItem.loop` says loop
-   *  (model/cuePlayback.ts `effectiveEnd`). This build writes it explicitly once the operator
+   *  (control/cuePlayback.ts `effectiveEnd`). This build writes it explicitly once the operator
    *  chooses, and never writes `PlayoutItem.loop`. `next` plays the next clip on the same slot. */
   end?: 'hold' | 'clear' | 'loop' | 'next';
   fadeIn?: ClipFade;
@@ -101,7 +101,7 @@ export interface PlayoutItem {
   channel?: number;
   /** ADDITIVE OPTIONAL, LEGACY since 2026-09-28. A clip that LOOPS: its Take sends CasparCG's own
    *  `PLAY … LOOP`. Written by builds from 2026-09-25 to 2026-09-27 and still READ, for every cue
-   *  of the item that has no ending of its own (`ShowCue.playback.end`, model/cuePlayback.ts
+   *  of the item that has no ending of its own (`ShowCue.playback.end`, control/cuePlayback.ts
    *  `effectiveEnd`). This build never writes it, and removes it once every cue of the item has an
    *  explicit ending, so an older build can still turn a loop on for cues nobody set here and can
    *  never re-enable one this build turned off. A template never carries it. */

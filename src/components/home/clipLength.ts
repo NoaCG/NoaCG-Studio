@@ -1,5 +1,5 @@
 import type { PlayoutItem } from '../../model/shows';
-import { fileSeconds } from '../../model/cuePlayback';
+import { fileSeconds } from '../../control/cuePlayback';
 
 /**
  * A clip's length as the operator reads it (`3:00`, `1:02:05`), or '' when the server gave none.

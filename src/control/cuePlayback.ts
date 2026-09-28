@@ -7,8 +7,8 @@
 // it that way: the store, the link and React stay out of this file. The `.ts` on the one runtime
 // import is what lets Node resolve it.
 
-import { MIN_SEQUENCE_MEMBER_S, playedSeconds, type MediaPlayback, type TargetCapability } from '../control/playoutProtocol.ts';
-import type { ClipFade, CuePlayback, PlayoutItem, PlayoutMediaKind, ShowCue } from './shows';
+import { MIN_SEQUENCE_MEMBER_S, playedSeconds, type MediaPlayback, type TargetCapability } from './playoutProtocol.ts';
+import type { ClipFade, CuePlayback, PlayoutItem, PlayoutMediaKind, ShowCue } from '../model/shows';
 
 /** What a clip does at its end, as the operator chooses it. */
 export type ClipEnd = NonNullable<CuePlayback['end']>;

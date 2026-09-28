@@ -53,7 +53,7 @@ import {
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { applyAccepted, applyReading, followedClip, pauseTarget } from '../../control/serverState';
-import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../model/cuePlayback';
+import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';

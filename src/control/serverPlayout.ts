@@ -26,7 +26,7 @@ import {
   takePlayback,
   type ClipEnd,
   type PlaybackAbility,
-} from '../model/cuePlayback.ts';
+} from './cuePlayback.ts';
 
 /** One item up on the server: the cue that put it there and the SLOT it was taken to. */
 export interface ServerLive {
@@ -106,7 +106,7 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
  * log row would carry later. A take names its cue, which the Bridge keeps with what it started
  * so a reading can say which cue is up after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7).
  *
- * A clip's take carries how the cue plays it (model/cuePlayback.ts `takePlayback`): a cue with no
+ * A clip's take carries how the cue plays it (./cuePlayback.ts `takePlayback`): a cue with no
  * setting of its own sends exactly the action it always sent, and a looping one the old `loop`. Its
  * Out fades when the cue has a fade out. `cue` is the cue whose settings apply: the one taken, and
  * for Out the one on air.

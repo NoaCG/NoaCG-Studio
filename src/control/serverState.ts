@@ -22,7 +22,7 @@ import { playedSeconds, type CasparSlot, type SequenceEntry, type Slot, type Slo
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
-import { effectiveEnd, type ClipEnd } from '../model/cuePlayback.ts';
+import { effectiveEnd, type ClipEnd } from './cuePlayback.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
 export interface UnidentifiedItem {

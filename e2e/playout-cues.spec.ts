@@ -25,7 +25,7 @@
 // A clip's settings (docs/CLIP_PLAYBACK_PLAN.md phase 3): At the end, fades, level and trim, each as
 // it goes out with the Take, the loop rule of the record, audio on its own layer, and a cue a Bridge
 // or server cannot honour kept off air with the reason.
-// covers: src/model/cuePlayback.ts
+// covers: src/control/cuePlayback.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';

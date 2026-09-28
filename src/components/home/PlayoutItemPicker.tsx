@@ -4,7 +4,7 @@ import { clipLength } from './clipLength';
 import { slug } from '../../model/slug';
 import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField, PlayoutMediaKind } from '../../model/shows';
-import { mediaKindOf } from '../../model/cuePlayback';
+import { mediaKindOf } from '../../control/cuePlayback';
 import type { ListItem } from '../../control/playoutProtocol';
 import { listLibrary, loadPlayoutSettings, type PlayoutResult } from '../../control/playoutLink';
 import { serverThumbnail } from './serverThumbnail';

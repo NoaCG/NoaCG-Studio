@@ -1,6 +1,6 @@
 // covers: src/components/home/{ProductionPage,CueRundown,ServerCueEditor,ClipClock}.tsx
-// covers: src/control/{serverPlayout,serverState,playoutLink,playoutProtocol}.ts
-// covers: src/model/{cuePlayback,shows}.ts
+// covers: src/control/{cuePlayback,serverPlayout,serverState,playoutLink,playoutProtocol}.ts
+// covers: src/model/shows.ts
 // focus
 //
 // PLAY NEXT (docs/CLIP_PLAYBACK_PLAN.md §6.4, §6.6 and §6.10, phase 3): a clip that plays the next
