@@ -35,12 +35,11 @@
       <!-- The landing's top bar (index.html), so moving between the two pages keeps the header
            still. The section links point back at the landing; Docs is the current page. -->
       <nav>
-        <a class="gh" href="/#how">How it works</a>
-        <a class="gh" href="/#live">Going live</a>
+        <a class="gh" href="/#start">Create</a>
+        <a class="gh" href="/#playout">Play or export</a>
         <a class="gh" href="/#ograf">OGraf</a>
         <a href="/docs" aria-current="page">Docs</a>
         <a class="gh" href="/downloads">Downloads</a>
-        <a class="gh" href="mailto:contact.noacg@gmail.com">Contact</a>
         <a class="btn btn-amber" href="/app#/new">Start creating</a>
       </nav>
     </header>
@@ -112,8 +111,9 @@
             <ol>
               <li><strong>A template.</strong> Pick a design from the catalog, then set its text,
                 colors and logo. <a href="/app#/new">Open the studio&nbsp;&rarr;</a></li>
-              <li><strong>Your own design.</strong> Name the layers in Illustrator, save an SVG
-                and import it. <a href="#first-graphic">Import an SVG&nbsp;&rarr;</a> or
+              <li><strong>Your own design.</strong> Name the layers in Illustrator, save an SVG,
+                import it and choose what it does.
+                <a href="#first-graphic">Import an SVG&nbsp;&rarr;</a> or
                 <a href="/downloads#svg-examples">get the SVG examples&nbsp;&rarr;</a></li>
               <li><strong>Your coding agent.</strong> Use Claude Code or Codex with the
                 <strong>NoaCG CLI</strong>. Describe the graphic you want, and it appears in your
@@ -1237,7 +1237,7 @@ Storm warning issued</code></pre>
             live. Any source that can load a web page can show it.
           </p>
           <ul>
-            <li>Copy the URL from the <strong>Links</strong> button in the production page header.
+            <li>Copy the URL from the <strong>Output links</strong> button in the production page header.
               It ends <code>&hellip;/output?production=&lt;slug&gt;</code>, where the slug is a
               random id made when you publish. You never type it.</li>
             <li>Load it once and leave it up. The operator cues the graphics, so there is no need
@@ -1320,7 +1320,7 @@ Storm warning issued</code></pre>
           <ul>
             <li><code>1-20</code> is channel 1, layer 20. Use whatever your rundown expects.</li>
             <li>Put your own production's URL in place of the quoted one. It is behind the
-              <strong>Links</strong> button on the production page.</li>
+              <strong>Output links</strong> button on the production page.</li>
             <li>The URL is a <strong>capability</strong>: anyone who has it can show the
               production, but not operate it. Treat it like a password.</li>
             <li>Load it <strong>once</strong> at the start and leave it up. Graphics are cued from
@@ -1340,7 +1340,7 @@ Storm warning issued</code></pre>
           </table></div>
           <h4 id="casparcg-2-3">On 2.3.x</h4>
           <ul>
-            <li>The engine rejects modern JavaScript and drops modern CSS <em>without an
+            <li>The engine rejects modern JavaScript syntax and drops modern CSS <em>without an
               error</em>.</li>
             <li>The production output page is built for this engine and brings what it lacks, so
               the live route needs nothing from you.</li>
@@ -1498,8 +1498,9 @@ CG 1-20 STOP</code></pre>
           <h3 id="production-make">Making one</h3>
           <ol>
             <li>In your library, press <strong>+ Production</strong> on a graphic's row. Pick a
-              production you already have, or type a name under
-              <strong>New production&hellip;</strong> to make one with that graphic in it.</li>
+              production you already have, or type a name in the
+              <strong>New production&hellip;</strong> field to make one with that graphic in
+              it.</li>
             <li>Add the show's other graphics the same way. A graphic you are still making goes
               in from the wizard's <a href="#first-finish">Finish step</a>, in one press.</li>
             <li>Build the rundown on the production page. A cue is a graphic plus the values it
@@ -1509,14 +1510,14 @@ CG 1-20 STOP</code></pre>
               control page for operating from another device.</li>
           </ol>
           <p>
-            Both links are behind the <strong>Links</strong> button in the header, each with a Copy
+            Both links are behind the <strong>Output links</strong> button in the header, each with a Copy
             button. Publishing needs an account, because the published pages live in your cloud
             space. Everything before it works offline.
           </p>
           <p>
             The header reads <strong>NOT PUBLISHED</strong> before you publish and
             <strong>SHOW</strong> after. To send later changes to the output, press
-            <strong>&#10227; Publish changes</strong> in the Links panel.
+            <strong>&#10227; Publish changes</strong> in the Output links panel.
           </p>
 
           <h3 id="production-run">Running it</h3>
@@ -1524,7 +1525,7 @@ CG 1-20 STOP</code></pre>
             <li><strong>Preview, then take.</strong> The page has two panes. Preview is what you
               are checking, program is what the audience sees. Select a cue, check it in preview,
               then press <strong>Take</strong>. Selecting and previewing never reach air, and an
-              edit airs only when you send it, never while you type.</li>
+              edit airs only on a take, never while you type.</li>
             <li><strong>Any browser can drive it</strong>, including an OBS dock or a phone at the
               desk.</li>
             <li><strong>It recovers by itself.</strong> Every command is saved in order. After a
@@ -1551,7 +1552,7 @@ CG 1-20 STOP</code></pre>
           <h3 id="teams-links">Running a show together needs no accounts</h3>
           <p>
             Publish the production and it makes links that work for whoever holds them. All of
-            them are behind the <strong>Links</strong> button in the production page header, each
+            them are behind the <strong>Output links</strong> button in the production page header, each
             with a Copy button.
           </p>
           <ul>
@@ -1569,8 +1570,8 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             Links do not settle who may <strong>edit the rundown</strong>, who may
-            <strong>republish a changed graphic</strong>, or whose account the show belongs to.
-            That is still the one account that made it. A team is how that changes.
+            <strong>republish a changed graphic</strong>, or whose account the show goes away
+            with. That is still the one account that made it. A team is how that changes.
           </p>
 
           <h3 id="teams-make">Make a team</h3>
@@ -1724,7 +1725,7 @@ CG 1-20 STOP</code></pre>
             air.
           </p>
           <p>
-            The link is behind the same <strong>Links</strong> button as the output URL. Its name
+            The link is behind the same <strong>Output links</strong> button as the output URL. Its name
             comes from the production's name at the first publish, and the
             <strong>Readable name</strong> row changes it to something you can say out loud. Do
             that before you give the link out: a new name breaks the old one, and everybody
@@ -1797,7 +1798,7 @@ CG 1-20 STOP</code></pre>
           </p>
           <p>
             Data updates and operator commands go into the same log, and they apply in the order
-            they arrive.
+            they arrive. So an operator's change made after a feed update wins.
           </p>
 
           <h3 id="data-typed">Type it on the dashboard</h3>
@@ -2095,7 +2096,7 @@ CG 1-20 STOP</code></pre>
               you do. An unpublished production shows <strong>&#9654; Start
               production</strong> in the header and has no links to give out at all. Publishing
               is free and needs an account.</li>
-            <li><strong>Take the audience link.</strong> <strong>Links</strong> in the header,
+            <li><strong>Take the audience link.</strong> <strong>Output links</strong> in the header,
               then <strong>Audience link</strong>. It reads
               <code>noacg.studio/join/&lt;name&gt;</code>, and the name came from the
               production's own name at that first publish. The <strong>Readable name</strong> row

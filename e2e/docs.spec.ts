@@ -40,7 +40,7 @@ test('/docs serves the static docs home, not the app', async ({ page }) => {
 test('the top bar is the landing top bar, with a readable button', async ({ page }) => {
   await page.goto('/docs');
   const nav = page.locator('header.top nav');
-  await expect(nav.locator('a')).toHaveText(['How it works', 'Going live', 'OGraf', 'Docs', 'Downloads', 'Contact', 'Start creating']);
+  await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', 'Docs', 'Downloads', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/docs');
   // The header's link colour once outranked the button's own, which painted the label grey on
   // amber. The label has to stay the landing's near-black.
@@ -534,6 +534,9 @@ test('the docs page prints as it reads, in ink rather than in white', async ({ p
     return { color: cs.color, background: cs.backgroundColor };
   });
   expect(ink).toEqual({ color: 'rgb(0, 0, 0)', background: 'rgb(255, 255, 255)' });
+  // The prose has its own colour (`--text`), and it has to be redeclared for print too, or the
+  // body copy prints near-white on white while the headings look fine.
+  await expect(page.locator('#getting-started > p').first()).toHaveCSS('color', 'rgb(22, 24, 28)');
 
   // The nav is a screen affordance and its grid track goes with it, or every sheet carries an
   // empty column down the left.

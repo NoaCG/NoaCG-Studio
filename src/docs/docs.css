@@ -36,6 +36,7 @@
   --glow: #ffc65c;
   --paper: #e8edf2;
   --text: #cdd2d9;
+  --caption: #9aa3b1;
   --dim: #b7bcc4;
   --faint: #7c8798;
   --line: rgba(232, 237, 242, 0.09);
@@ -155,8 +156,8 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 h2 { font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 16px; scroll-margin-top: 24px; }
 h3 { font-size: 21px; font-weight: 600; line-height: 1.3; margin: 40px 0 10px; scroll-margin-top: 24px; }
 h4 { font-family: var(--read); font-size: 17px; font-weight: 600; margin: 28px 0 6px; scroll-margin-top: 24px; }
-.doc-body h2, .doc-body h3 { font-family: "Space Grotesk", Arial, sans-serif; color: var(--paper); }
-.doc-body h4 { color: var(--paper); }
+.doc-body h2, .doc-body h3 { font-family: "Space Grotesk", Arial, sans-serif; }
+.doc-body h2, .doc-body h3, .doc-body h4 { color: var(--paper); }
 /* The measure: prose never runs wider than about 70 characters. A table, a picture or a
    command block keeps the whole column. */
 .doc-body p, .doc-body ul, .doc-body ol, .doc-body h3, .doc-body h4, .callout, .doc-shot figcaption { max-width: var(--measure); }
@@ -277,7 +278,7 @@ td strong { color: var(--paper); }
    left edge, where the caption starts. */
 .doc-shot.tall img { width: auto; max-width: min(100%, 440px); }
 .doc-shot figcaption {
-  margin-top: 10px; font-size: 14px; color: #9aa3b1; line-height: 1.55;
+  margin-top: 10px; font-size: 14px; color: var(--caption); line-height: 1.55;
 }
 .doc-shot figcaption strong { color: var(--text); }
 .doc-shot figcaption a { color: var(--amber); }
@@ -394,7 +395,9 @@ footer a:hover { color: var(--paper); }
     --void: #ffffff;
     --panel: #ffffff;
     --paper: #000000;
+    --text: #16181c;
     --dim: #16181c;
+    --caption: #55606e;
     --faint: #55606e;
     --line: #b9c0c9;
     --amber: #7a4e00;
