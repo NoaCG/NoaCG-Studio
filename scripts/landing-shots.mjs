@@ -74,8 +74,12 @@ async function shot(name, run, size = VIEWPORT) {
     // `animations: 'disabled'` parks CSS/Web animations at their end state, which is what a
     // settled product surface looks like. GSAP is rAF-driven and unaffected - every shot below
     // waits for whatever it needs instead.
-    const opts = { path: join(outDir, `${name}.png`), animations: 'disabled' };
-    await (target ?? page).screenshot(opts);
+    // The pre-answer above is a copy of the app's key and version, so a bumped version would put
+    // the card back silently. It would be in the picture, so refuse the picture.
+    if (await page.getByTestId('analytics-consent').isVisible()) {
+      throw new Error('the analytics consent card is on screen - update the key/value above from src/backend/events.ts');
+    }
+    await (target ?? page).screenshot({ path: join(outDir, `${name}.png`), animations: 'disabled' });
     console.log(`✓ ${name}.png`);
   } catch (e) {
     console.error(`✗ ${name}.png — ${(e ?? '').message ?? e}`);

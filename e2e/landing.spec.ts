@@ -76,8 +76,9 @@ test('the landing reads create first, then play or export', async ({ page }) => 
   const sections = page.locator('main > section');
   await expect(sections.nth(0)).toHaveAttribute('id', 'start');
   await expect(sections.nth(1)).toHaveAttribute('id', 'playout');
-  await expect(page.locator('header nav a.gh[href^="#"]').nth(0)).toHaveAttribute('href', '#start');
-  await expect(page.locator('header nav a.gh[href^="#"]').nth(1)).toHaveAttribute('href', '#playout');
+  const sectionLinks = page.locator('header nav a.gh[href^="#"]');
+  await expect(sectionLinks.nth(0)).toHaveAttribute('href', '#start');
+  await expect(sectionLinks.nth(1)).toHaveAttribute('href', '#playout');
 
   // Create: the three ways, in the wizard's card order - a template, your own SVGs, your agent.
   const ways = page.locator('#start .way');
