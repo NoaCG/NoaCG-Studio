@@ -210,6 +210,32 @@ test('Out with a fade mixes to nothing and takes the queued follower with it', a
   assert.deepEqual(airedFiles(caspar, files), ['EMPTY']);
 });
 
+test('Out sent while the sequence Take is still being answered takes the follower that Take queued', async (t) => {
+  // The Take's LOADBG is held at the server, so the Out arrives while nothing is known of B yet. It
+  // waits its turn in the slot's queue and reads what waits behind the clip then: B, so the layer is
+  // cleared whole rather than stopped with B still armed.
+  let hold = true;
+  let release;
+  const caspar = await server(t, {
+    intercept: async (line) => {
+      if (hold && line.startsWith('LOADBG 2-10 "B"')) await new Promise((r) => (release = r));
+      return undefined;
+    },
+  });
+  const { act, runner } = await bridgeOver(t, caspar);
+  const take = act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')] });
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  const out = act({ verb: 'out', slot: AT, item: { kind: 'media', name: 'A' } });
+  await new Promise((r) => setTimeout(r, 20));
+  hold = false;
+  release();
+  assert.equal((await take).body.ok, true);
+  assert.equal((await out).body.ok, true);
+  assert.equal(caspar.seen.at(-1), 'CLEAR 2-10');
+  const files = await watch(caspar, runner, 20_000);
+  assert.deepEqual(airedFiles(caspar, files), []);
+});
+
 test('§18 case 1: a queue decided before Out never reaches the emptied layer, nor one a new Take holds', async (t) => {
   // The runner's reading is answered from BEFORE the Out and delivered after it: the one moment a
   // runner could decide to queue onto a layer that has since been emptied - where LOADBG … AUTO
