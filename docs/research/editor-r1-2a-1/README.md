@@ -84,3 +84,96 @@ now repartition instead of refusing.
 | Transactions | One Set Out is one undo; redo, Escape (no prompt when the exit has keys), save/reopen and a second save agree; an open reverse choice closes when the exit gains keys. | A refused Set Out adds no history and shows the reason. |
 | Interruption | Out during the shortened In starts from the live pose (<1 px, <.01 opacity), then plays each track to its last key on the whole curve, in the simulator and exports. | Unchanged. |
 | Preserved | R1.1b keys and body moves, R1.1c Out/reverse/manual/empty/interruption, R1.1d nested identities and trims, and G01 pass. Only assertions that encoded the lifted refusals change. A graphic saved with the G01 interpreter upgrades once, by content hash. | Machines, calls, dynamics, loops, custom interpreters: unchanged. |
+
+## Implementation
+
+- [editorOut.ts](../../../src/blocks/editorOut.ts): `moveOutBoundary(data, boundary, contains?)` is
+  the pure repartition. `applyOut` snaps the playhead, keeps the one-frame check and passes a
+  `contains` answered lazily from the template's document. It reuses `splitKeyframeSegment`,
+  `clone`, `round` and `EPS` from [animEdit.ts](../../../src/blocks/animEdit.ts), so the split
+  and the move agree on when a key already sits at the boundary.
+- [OutControls.tsx](../../../src/components/editorFoundation/OutControls.tsx) decides the prompt
+  from the result template (memoised `readTimeline`) and closes an open choice otherwise.
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts): `noacgWholeEase` at the one
+  interrupted-exit ease site. The G01 body is known by content hash
+  (`ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH` in `animRuntimeLegacy.ts`, text in
+  `e2e/fixtures/interpreter-shared-ease-v1.js`) and upgrades on preview, save and export.
+- Tests: [out-boundary.test.mjs](../../../scripts/out-boundary.test.mjs) (build gate) and the
+  R1.2a.1 cases in [editor-ease.spec.ts](../../../e2e/editor-ease.spec.ts) and
+  [editor-out.spec.ts](../../../e2e/editor-out.spec.ts), all reading
+  `e2e/fixtures/out-text-and-box.json`. Frames of the timeline before and after a crossing at
+  1.20 s are in [built](built/).
+
+## Review and simplification
+
+`/check` review ran as one workflow: four read-only reviewers (repartition and split semantics;
+Out and interruption at runtime; undo, history and UI; tests and scope), each followed by one
+agent trying to refute its findings (8 agents, merge base `188da0648`, every agent listed what it
+read). Fifteen findings merge to twelve distinct ones: ten confirmed and fixed, one refuted, one
+split between its two refuters.
+
+- Confirmed on the spec's own fixture: an interrupted Out stretched the moved `slice(back.out)`
+  over the live distance and overshot by about 750 px. Fixed in the interpreter as above; the new
+  executed test fails by 441 px with the fix reverted.
+- Out bars on a layer with no bars on the moved cue shifted without a lead, hiding the layer over
+  the moved part (also reachable through trim then Add Step). Fixed with a leading interval.
+- A reverse choice left open stayed open with a stale revision after a crossing Set Out. Fixed;
+  the new UI test fails with the fix reverted.
+- Keys stored past a cue's end let a later Out cross. They now refuse.
+- The hold-visibility check ignored the runtime's parent and autoAlpha gate. Refusals added.
+- The executed velocity check could not fail once values agreed; its tolerance is now tighter
+  than the value check implies. Stale plan, register and README text was corrected.
+- Refuted: a trimmed graphic's reverse choice refusing after Set Out. The dead end predates this
+  branch and manual Out works; it is recorded in the handoff.
+- Split: Out pressed at an earlier Step flag, after Set Out inside a Next cue, plays that cue's
+  moved motion from the split pose. One refuter confirmed it, the other showed that any keyed Out
+  already does this from an earlier flag and that no stated criterion covers it. Not changed here;
+  it is a product question for Step/Next editing, recorded in the handoff.
+
+Simplify ran as four parallel cleanup reviewers (reuse, simplification, efficiency, altitude).
+Adopted: shared `round`/`EPS`/`clone`, one instant-cut rule, one "crosses an Out key" message,
+a lazy hidden-parent check, the Next-cue reveal refusal narrowed to layers outside the root when
+the document is known, the memoised prompt read, one shared fixture file and one refusal helper.
+Skipped with reasons: consolidating the per-spec export harnesses and the rolldown loader into
+shared helpers (older duplication; a shared e2e helper widens the affected run to the whole
+suite), and moving the repartition into `animEdit.ts` (noted in the handoff for cross-cue work).
+
+## Verification receipt
+
+- Reproduction first: the refusal above in Node, then `j-2301`, the new browser tests queued on
+  the unmodified code: all 11 new tests failed on "Set Out cannot move before the last In key",
+  and the 42 existing Out and G01 tests passed, including the edited refusal matrix.
+- `scripts/out-boundary.test.mjs` (build gate, 11 tests): dense samples on the concatenated ruler
+  within one stored unit at nine boundaries, both velocities at `b`, untouched keys, explicit
+  moved eases, joins and merges, bars in eight shapes plus Out-only bars, Next cues, the G01 body
+  upgrade, and every refusal atomic. Nine mutations (default ease, jump refusal, Out bars, Out
+  shift, hold key, Out-only lead, keys past the end, hidden parent, autoAlpha) each fail it.
+- `j-2313` (final code): the Out and ease specs, 59 passed. In the simulator, SPX, CasparCG,
+  OGraf and single-file exports, In then Out after Set Out at 1.20 s equals the original within
+  1e-3 on 154 absolute samples of both layers, with both boundary velocities agreeing within
+  0.05 + 0.1%. Out at 40% of the shortened In starts from the live pose (under 1 px and .01) and
+  then follows the whole-curve policy within 2e-3 in all five. The UI crossing is one undo with
+  redo, Escape, no prompt, save/reopen and a second save byte-identical; a refused crossing names
+  `steps(4)` and leaves source and history unchanged; an open reverse choice closes.
+- Browser mutations: shifting no Out keys (`j-2303`) was stopped by the ordering guard; copying the
+  entrance's first value into Out (`j-2304`) failed the executed comparison by about 2000 px;
+  reverting the whole-curve interpreter change and the prompt fix (`j-2309`) failed both new
+  tests (441 px; the stale choice stayed open).
+- `j-2305` before review: editor regressions, anim-engine and inspector, 131 passed, 20 configured
+  old-editor skips.
+- `j-2318`: the full affected run with 3 workers, 68 spec files: 472 passed, 306 configured skips
+  (one quarantined spec left out by the planner), then the catalog calibration suite 35/35; its
+  own verdict was "Overall: passed". The runner then recorded the job as dead without an exit
+  code (`reapedAsDead`), so that verdict is read from the log.
+- Catalog: `check-catalog-emit` re-recorded exactly 528 JS fingerprints and no HTML/CSS row. The
+  battery against this worktree's own server: type-floor 526 and catalog specs 35 plus 4 baseline
+  tests (`j-2319`, whose later legs lost the server); then `j-2327` overflow 528 with no
+  regression, field coverage 526 (105 variants explicitly undriven, as before), numerals 349,
+  factory 317/317 and the [taste frames](taste/) for Hairline (lt01) and Quiz (qz02). All six
+  frames were opened and read as in the R1.1c, R1.1d and G01 frames.
+- `j-2325`: `npm run build` exited 0 with 1,981 Node tests passing and the TypeScript, lint,
+  dependency, bundle, prerender and after-build gates green.
+
+Not checked: physical 125% displays, receiving-host fonts, a real OGraf host, and the two
+first-time-user trials, which stay pending as before. This is scoped engineering evidence, not
+owner acceptance; the default editor is unchanged.
