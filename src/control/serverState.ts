@@ -194,6 +194,13 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     const s = byLayer.get(layer);
     if (s?.queued) queued[a] = s.queued;
     const mine = Object.entries(onAir).find(([, l]) => slotAddress(l.slot) === a);
+    if (mine?.[1].instance && s?.instance === mine[1].instance && (s.arriving || !holdsSomething(s))) {
+      // Just taken, and not on the layer yet: the server answers PLAY before the clip is there,
+      // and meanwhile the layer shows what it held before. The Bridge still vouches for the take,
+      // so it stays up and the take's own count stands until the clip's first real reading.
+      if (timing[a]) nextTiming[a] = timing[a];
+      continue;
+    }
     if (!holdsSomething(s)) {
       // Off air on the server: whatever was up leaves ON AIR, and a note that the slot was replaced
       // has nothing left to say.

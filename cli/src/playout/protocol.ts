@@ -164,6 +164,10 @@ export interface SlotState {
   /** What this Bridge started here and still sees playing: its id, and the cue the page named. */
   instance?: string;
   cueId?: string;
+  /** This Bridge's take on the slot is not on the layer yet: the server answers a PLAY before the
+   *  clip is there, and for a moment the layer still shows what it held before (nothing, or the
+   *  previous clip). The rest of the reading is that previous content, not the take's. */
+  arriving?: boolean;
   /** The slot's action counter as of this reading. Every Take, Out and Clear moves it first. */
   generation: number;
 }

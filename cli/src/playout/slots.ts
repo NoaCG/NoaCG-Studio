@@ -27,18 +27,36 @@ interface Instance {
   id: string;
   cueId?: string;
   item: ItemRef;
+  /** When the take was accepted, on this Bridge's clock (ms). */
+  startedAt: number;
   /** The last position a reading showed, to catch the same file restarted by somebody else. */
   lastPosition?: number;
 }
 
 interface SlotMemory {
   generation: number;
+  /** Actions sent and not yet answered. A reading taken meanwhile is from BEFORE them. */
+  inFlight: number;
   instance?: Instance;
 }
 
 /** How far a playing clip may go BACK between two readings before it counts as restarted. A
  *  reading is late by milliseconds, never by this much. */
 const RESTART_JUMP_S = 0.75;
+
+/**
+ * How long after a take the slot may still show what it held BEFORE it. The server answers
+ * `202 PLAY OK` before the clip is on the layer. Measured on 2.5.0 (2026-09-28): an INFO a few
+ * milliseconds after the reply showed the layer empty, or - on a re-take of the same file - that
+ * file still at its END (position 30 of 30), and one about 130 ms after showed the cut into the new
+ * clip at 0 (cli/test/fixtures/info/video-just-played.json). So within this window a reading that
+ * cannot be the new clip yet - nothing, another file, or further in than the time since the take -
+ * is the take ARRIVING: it ends nothing and restarts nothing. After the window the same reading
+ * means what it says. A file loading from slow storage has a second and a half.
+ */
+export const LOADING_GRACE_MS = 1500;
+/** How far ahead of the time since the take a new clip's first reading may be: frame rounding. */
+const ARRIVAL_SLACK_S = 0.5;
 
 function targetKey(target: Target): string {
   return target.adapter === 'ograf' ? `ograf ${target.baseUrl}` : `casparcg ${target.host}:${target.port}`;
@@ -68,15 +86,19 @@ export class SlotMemoryBank {
   private count = 0;
   private readonly slots = new Map<string, SlotMemory>();
 
-  constructor(session = randomBytes(4).toString('hex')) {
+  /** The Bridge's clock in ms, injectable so a test moves time itself (plan §10). */
+  private readonly now: () => number;
+
+  constructor(session = randomBytes(4).toString('hex'), now: () => number = () => performance.now()) {
     this.session = session;
+    this.now = now;
   }
 
   private memory(target: Target, slot: Slot): SlotMemory {
     const key = `${targetKey(target)} ${slotKey(slot)}`;
     let m = this.slots.get(key);
     if (!m) {
-      m = { generation: 0 };
+      m = { generation: 0, inFlight: 0 };
       this.slots.set(key, m);
     }
     return m;
@@ -86,15 +108,35 @@ export class SlotMemoryBank {
     return this.memory(target, slot).generation;
   }
 
-  /** Before a Take, Out or Clear is sent: the slot's generation moves first. */
+  /** Before a Take, Out or Clear is sent: the slot's generation moves first, and until `settled`
+   *  the action counts as in flight. */
   advance(target: Target, slot: Slot): number {
-    return ++this.memory(target, slot).generation;
+    const m = this.memory(target, slot);
+    m.inFlight += 1;
+    return ++m.generation;
+  }
+
+  /** The action `advance` announced has been answered, whichever way. */
+  settled(target: Target, slot: Slot): void {
+    const m = this.memory(target, slot);
+    m.inFlight = Math.max(0, m.inFlight - 1);
+  }
+
+  /**
+   * The generation a READING of the slot carries. While an action is in flight its answer - and so
+   * the instance a take will be given - is not known yet, so the reading is reported as from before
+   * it and the page sets it aside. Measured the hard way on 2.5.0 (2026-09-28): the page's regular
+   * poll landed between a Take's generation moving and its instance being recorded, read "your clip
+   * is not there" under the new number, and took a clip that had just gone on air off the rows.
+   */
+  private readingGeneration(m: SlotMemory): number {
+    return m.generation - m.inFlight;
   }
 
   /** A take the server accepted: this is now what the Bridge started on the slot. */
   started(target: Target, slot: Slot, item: ItemRef, cueId?: string): string {
     const id = `${this.session}.${++this.count}`;
-    this.memory(target, slot).instance = { id, item, ...(cueId ? { cueId } : {}) };
+    this.memory(target, slot).instance = { id, item, startedAt: this.now(), ...(cueId ? { cueId } : {}) };
     return id;
   }
 
@@ -116,17 +158,25 @@ export class SlotMemoryBank {
       seen.add(r.layer);
       const m = this.memory(target, { adapter: 'casparcg', channel, layer: r.layer });
       const inst = m.instance;
-      if (inst) {
+      let arriving = false;
+      // With an action in flight the reading is from before it: it judges nothing.
+      if (inst && !m.inFlight) {
+        const age = this.now() - inst.startedAt;
         const same = r.producer !== 'empty' && r.producer !== 'colour' && playsItem(inst.item, r.file);
+        // Just taken, and what the layer shows cannot be the new clip yet (see LOADING_GRACE_MS).
+        arriving = age < LOADING_GRACE_MS && (!same || (r.position !== undefined && r.position > age / 1000 + ARRIVAL_SLACK_S));
         const restarted =
           same && !r.loop && inst.lastPosition !== undefined && r.position !== undefined && r.position < inst.lastPosition - RESTART_JUMP_S;
-        if (same && !restarted) inst.lastPosition = r.position;
+        if (arriving) {
+          // Nothing to learn from it: the next reading is the clip's own.
+        } else if (same && !restarted) inst.lastPosition = r.position;
         else delete m.instance;
       }
       out.push({
         ...r,
-        generation: m.generation,
+        generation: this.readingGeneration(m),
         ...(m.instance ? { instance: m.instance.id, ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}) } : {}),
+        ...(arriving ? { arriving: true } : {}),
       });
     }
     const prefix = `${targetKey(target)} ${channel}-`;
@@ -134,8 +184,17 @@ export class SlotMemoryBank {
       if (!key.startsWith(prefix)) continue;
       const layer = Number(key.slice(prefix.length));
       if (!Number.isInteger(layer) || seen.has(layer)) continue;
-      delete m.instance;
-      out.push({ layer, producer: 'empty', paused: false, loop: false, generation: m.generation });
+      // A layer the server has not made yet, just after a take onto a cleared channel: arriving too.
+      const arriving = !!m.instance && this.now() - m.instance.startedAt < LOADING_GRACE_MS;
+      if (!m.inFlight && !arriving) delete m.instance;
+      out.push({
+        layer,
+        producer: 'empty',
+        paused: false,
+        loop: false,
+        generation: this.readingGeneration(m),
+        ...(m.instance ? { instance: m.instance.id, ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}), ...(arriving ? { arriving: true } : {}) } : {}),
+      });
     }
     return out.sort((a, b) => a.layer - b.layer);
   }

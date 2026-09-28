@@ -21,7 +21,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
-import type { PlayoutAdapter } from './adapters/casparcg.js';
+import type { AdapterResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import {
   PLAYOUT_V,
@@ -382,7 +382,13 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           // was already on its way reports the older number and the page can set it aside.
           const moves = action.verb === 'take' || action.verb === 'out' || action.verb === 'clear';
           if (moves) memory.advance(target, action.slot);
-          const r = await adapter.act(target, action);
+          let r: AdapterResult<null>;
+          try {
+            r = await adapter.act(target, action);
+          } finally {
+            // Answered or not, the action is no longer in flight: readings count it from here.
+            if (moves) memory.settled(target, action.slot);
+          }
           log(`${at} ${action.verb} -> ${r.ok ? r.raw : `${r.error.code} ${r.error.raw ?? ''}`.trim()}`);
           let instance: string | undefined;
           if (r.ok && action.verb === 'take') instance = memory.started(target, action.slot, action.item, action.cueId);

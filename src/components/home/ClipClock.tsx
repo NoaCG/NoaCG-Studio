@@ -59,7 +59,10 @@ export default function ClipClock({
   const ownership = useSyncExternalStore(store.ownership.subscribe, store.ownership.get);
   const timing = useSyncExternalStore(store.timing.subscribe, store.timing.get);
   const up = Object.keys(ownership.onAir).some((id) => items.find((i) => i.id === id)?.kind === 'media');
-  const now = useNow(up);
+  // Ten times a second: the number an operator counts a director out by changes on the second,
+  // within a tenth of when the server's does (measured against a real 2.5.0 at four a second, it
+  // could show a second late for up to a quarter of one).
+  const now = useNow(up, 100);
   /** Its own render count, published beside the page's: the spec proves this one moves and that
    *  one does not. */
   const renders = useRef(0);

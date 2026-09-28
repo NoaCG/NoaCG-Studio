@@ -12,11 +12,10 @@ import { useServerThumbnail } from './serverThumbnail';
 /**
  * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
  * STILL, because the page never has the server's moving video and an operator who does not know
- * that could wait for a picture to move. Nothing is drawn until the thumbnail arrives, so the tag
- * is never on an empty frame.
+ * that could wait for a picture to move. Nothing is drawn without a thumbnail (a server whose media
+ * scanner is not running has none to give), so the tag is never on an empty frame.
  */
-function ServerStill({ name, testId }: { name: string; testId: string }) {
-  const thumb = useServerThumbnail(name);
+function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }) {
   if (!thumb) return null;
   return (
     <>
@@ -86,6 +85,8 @@ export default function PlayoutMonitors({
   onOverflow: (keys: string[]) => void;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
+  const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
+  const programThumb = useServerThumbnail(programClip?.name ?? null);
   const settlePreview = useCallback((data: string) => {
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
   }, []);
@@ -201,7 +202,7 @@ export default function PlayoutMonitors({
             // A cue over the playout server's own library: its still and length, since the page
             // has no way to render the server's template or video itself.
             <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }} data-testid="preview-server">
-              {previewServer.kind === 'media' && <ServerStill key={previewServer.name} name={previewServer.name} testId="preview" />}
+              <ServerStill thumb={previewThumb} testId="preview" />
               <p className="hint pd-frame-server-name">{previewServer.name}</p>
               {previewServer.kind === 'media' && clipLength(previewServer) && (
                 <span className="pd-frame-length" title="The clip's length" data-testid="preview-length">
@@ -250,12 +251,15 @@ export default function PlayoutMonitors({
         </h2>
         <div className="pd-screen">
           <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
-            {programClip && <ServerStill key={programClip.name} name={programClip.name} testId="program" />}
+            <ServerStill thumb={programClip ? programThumb : null} testId="program" />
+            {/* With nothing but a server clip up and no picture of it to show, PROGRAM says so
+                rather than standing blank - or claiming nothing is on air. */}
             <ProgramStage
               ref={programRef}
               show={show}
               library={library}
-              empty={liveLayers.length === 0 && !programClip}
+              empty={liveLayers.length === 0 && !(programClip && programThumb)}
+              emptyLabel={programClip ? `${programClip.name} plays on the server` : undefined}
               onState={onState}
               onReady={onReady}
             />

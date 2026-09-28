@@ -232,6 +232,17 @@ test('a clip ended on the server leaves ON AIR; another client\'s take is "repla
   assert.deepEqual(restarted.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'GIORNO' }]);
 });
 
+test('a clip the server has not put on the layer yet stays up, with the take\'s own count', () => {
+  // The server answers PLAY before the clip is on the layer, and the Bridge keeps vouching for its
+  // instance through that moment: an empty reading carrying it is "arriving", not "ended".
+  const parts = taken();
+  const arriving = applyReading(parts, reply([{ layer: 10, producer: 'empty', paused: false, loop: false, generation: 1, instance: 's1.1', cueId: 'c-clip' }]), ctx(1100));
+  assert.equal(arriving.ownership, parts.ownership);
+  assert.equal(arriving.timing['2-10'], parts.timing['2-10'], 'the take\'s estimate stands');
+  // Without the instance the same empty reading is the clip gone.
+  assert.deepEqual(applyReading(parts, reply([{ layer: 10, producer: 'empty', paused: false, loop: false, generation: 1 }]), ctx(1100)).ownership.onAir, {});
+});
+
 test('after a reload the instance and its cue match the row exactly; nothing is guessed from a name', () => {
   const matched = applyReading(START, reply([reading({ instance: 's1.4', cueId: 'c-clip' })]), ctx(500));
   assert.deepEqual(matched.ownership.onAir, { clip: { cueId: 'c-clip', slot: slot(2, 10), instance: 's1.4', takenAt: 500 } });

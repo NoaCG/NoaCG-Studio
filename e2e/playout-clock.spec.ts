@@ -62,6 +62,9 @@ interface FakeSlot {
   instance?: string;
   cueId?: string;
   queued?: { file: string; auto: boolean };
+  /** Readings left in which the clip is not on the layer yet: the real server answers PLAY before
+   *  it is, and the Bridge keeps vouching for its instance meanwhile (cli/src/playout/slots.ts). */
+  arriving?: number;
 }
 
 interface Fake {
@@ -76,13 +79,17 @@ interface Fake {
   /** Hold the next `/state` answer until released: a reading from before a Take landing after it. */
   holdNext: boolean;
   hold: { release: () => void } | null;
+  /** How many readings after a take show the layer still empty while the clip loads. */
+  arriveAfter: number;
+  /** A server with no media scanner running: THUMBNAIL gives nothing. */
+  noThumbnails: boolean;
 }
 
 /** The clips' lengths, as the server's list would give them. */
 const LENGTHS: Record<string, number> = { OPENER: 15, GIORNO: 60 };
 
 async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
-  const fake: Fake = { old: false, gone: false, session: 'b0a1', generation: {}, slots: {}, stateCalls: 0, holdNext: false, hold: null, ...init };
+  const fake: Fake = { old: false, gone: false, session: 'b0a1', generation: {}, slots: {}, stateCalls: 0, holdNext: false, hold: null, arriveAfter: 0, noThumbnails: false, ...init };
   let count = 0;
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -116,7 +123,12 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
     if (path === '/status') {
       return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', ...(fake.old ? {} : { capabilities: ['state'] }) });
     }
-    if (path === '/thumbnail') return json(route, { ok: true, v: 2, png: PNG });
+    if (path === '/thumbnail') {
+      if (fake.noThumbnails) {
+        return json(route, { ok: false, v: 2, error: { hop: 'target', code: 'no-media-scanner', detail: 'The media scanner is not running.', raw: '501 THUMBNAIL FAILED' } });
+      }
+      return json(route, { ok: true, v: 2, png: PNG });
+    }
     if (path === '/state') {
       fake.stateCalls += 1;
       if (fake.old) return json(route, { ok: false, v: 2, error: { hop: 'agent', code: 'usage', detail: 'No route /state.' } });
@@ -128,6 +140,10 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
         const s = fake.slots[addr];
         const common = { layer: Number(addr.split('-')[1]), generation: fake.generation[addr] ?? 0 };
         if (!s) return { ...common, producer: 'empty', paused: false, loop: false };
+        if (s.arriving) {
+          s.arriving -= 1;
+          return { ...common, producer: 'empty', paused: false, loop: false, instance: s.instance, cueId: s.cueId };
+        }
         return {
           ...common,
           producer: 'video',
@@ -165,6 +181,7 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
           loop: !!a.loop,
           instance,
           ...(a.cueId ? { cueId: a.cueId } : {}),
+          ...(fake.arriveAfter ? { arriving: fake.arriveAfter } : {}),
         };
       }
       if (a.verb === 'out') fake.slots[addr] = undefined;
@@ -248,6 +265,35 @@ test('the clock counts the segment the server reports, warns at 10 and 5, then h
   await expect(clock(page)).toHaveAttribute('data-phase', 'holding');
   await expect(clockTime(page)).toHaveText(/^HOLDING \+0:0\d$/);
   await expect(clockTime(page)).toHaveText('HOLDING +0:01', { timeout: 4000 });
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
+});
+
+test('a clip the server has not put on the layer yet stays ON AIR, counting from the Take', async ({ page }) => {
+  // Measured on the real 2.5.0: the first reading after `202 PLAY OK` can show the layer empty.
+  // The Bridge still vouches for its instance then, and the page keeps the clip up; treating that
+  // reading as "ended" took every freshly taken clip off air on the real server.
+  await seedSettings(page);
+  const fake = await fakeBridge(page, { arriveAfter: 3 });
+  await productionWithClips(page);
+  // Watch the row itself, from before the Take: once ON AIR, it must not leave it for a single
+  // moment while the clip arrives. (Watching from after the Take would miss a first reading that
+  // lands at once, and a later one that puts the row back would hide it.)
+  await row(page, 'OPENER').evaluate((el) => {
+    const w = window as unknown as { droppedOffAir: number };
+    w.droppedOffAir = 0;
+    let wasOn = false;
+    new MutationObserver(() => {
+      if (el.classList.contains('on-air')) wasOn = true;
+      else if (wasOn) w.droppedOffAir += 1;
+    }).observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+  await take(page, 'OPENER');
+  const calls = fake.stateCalls;
+  await expect.poll(() => fake.stateCalls, { timeout: 15_000 }).toBeGreaterThan(calls + 3);
+  expect(await page.evaluate(() => (window as unknown as { droppedOffAir: number }).droppedOffAir), 'times the row left ON AIR').toBe(0);
+  await expect(row(page, 'OPENER')).toContainText('ON AIR');
+  await expect(clock(page)).toHaveAttribute('data-phase', 'counting');
+  await expect(clock(page)).toHaveAttribute('data-estimated', 'false');
   await expect(page.getByTestId('verb-out')).toBeEnabled();
 });
 
@@ -442,6 +488,19 @@ test('a server clip shows as a STILL: its picture and length on PREVIEW, its pic
   await expect(page.getByTestId('program-still-tag')).toHaveText('STILL');
   // PROGRAM shows no time: the clock beside it does.
   await expect(page.locator('.pd-pgm [data-testid="preview-length"]')).toHaveCount(0);
+});
+
+test('with no picture to show, PROGRAM names the server clip instead of standing blank', async ({ page }) => {
+  // A server whose media scanner is not running has no thumbnails (measured on the real 2.5.0).
+  await seedSettings(page);
+  await fakeBridge(page, { noThumbnails: true });
+  await productionWithClips(page);
+  await take(page, 'OPENER');
+  const program = page.locator('.pd-pgm');
+  await expect(program).toContainText('OPENER plays on the server');
+  await expect(program).not.toContainText('Nothing on air');
+  await expect(page.getByTestId('program-still-tag')).toHaveCount(0);
+  await expect(page.getByTestId('preview-server')).toContainText('OPENER');
 });
 
 test('the tab coming back into view reads the server at once', async ({ page }) => {
