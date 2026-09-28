@@ -201,6 +201,6 @@ test('the top bar is the landing top bar, with Downloads as the current page', a
   await fakeChannels(page, 'down');
   await page.goto('/downloads');
   const nav = page.locator('header.top nav');
-  await expect(nav.locator('a')).toHaveText(['How it works', 'Going live', 'OGraf', 'Docs', 'Downloads', 'Contact', 'Start creating']);
+  await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', 'Docs', 'Downloads', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/downloads');
 });
