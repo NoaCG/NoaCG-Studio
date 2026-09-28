@@ -40,7 +40,7 @@ test('/docs serves the static docs home, not the app', async ({ page }) => {
 test('the top bar is the landing top bar, with a readable button', async ({ page }) => {
   await page.goto('/docs');
   const nav = page.locator('header.top nav');
-  await expect(nav.locator('a')).toHaveText(['How it works', 'Going live', 'OGraf', 'Docs', 'Downloads', 'Contact', 'Start creating']);
+  await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', 'Docs', 'Downloads', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/docs');
   // The header's link colour once outranked the button's own, which painted the label grey on
   // amber. The label has to stay the landing's near-black.
@@ -495,15 +495,16 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(callout).not.toContainText('npx');
 
   // Owner, 2026-09-27: a new reader should understand NoaCG and start in about 30 seconds, with
-  // the CLI, SVG import and Bridge easy to find. So the callout is the three ways to start in
-  // his order - the coding agent, your own SVG, a template - each with its own door, and the
-  // line under it names both roads to air. The order is the point, so it is pinned by position.
+  // the CLI, SVG import and Bridge easy to find. So the callout is the three ways to start, each
+  // with its own door, and the list under it names both roads to air. The order is the studio's
+  // first screen (owner, 2026-09-28, EntryStep.tsx) - a template, your own SVG, AI - so a reader
+  // who starts here recognises it. The order is the point, so it is pinned by position.
   const ways = callout.locator('ol > li');
   await expect(ways).toHaveCount(3);
-  await expect(ways.nth(0).locator('a[href="#claude-code"]')).toHaveCount(1);
+  await expect(ways.nth(0).locator('a[href="/app#/new"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="/downloads#svg-examples"]')).toHaveCount(1);
-  await expect(ways.nth(2).locator('a[href="/app#/new"]')).toHaveCount(1);
+  await expect(ways.nth(2).locator('a[href="#claude-code"]')).toHaveCount(1);
   const start = page.locator('#getting-started');
   await expect(start.locator('a[href="#browser-source"]')).toHaveCount(1);
   await expect(start.locator('a[href="/downloads#bridge"]')).toHaveCount(1);
@@ -533,6 +534,9 @@ test('the docs page prints as it reads, in ink rather than in white', async ({ p
     return { color: cs.color, background: cs.backgroundColor };
   });
   expect(ink).toEqual({ color: 'rgb(0, 0, 0)', background: 'rgb(255, 255, 255)' });
+  // The prose has its own colour (`--text`), and it has to be redeclared for print too, or the
+  // body copy prints near-white on white while the headings look fine.
+  await expect(page.locator('#getting-started > p').first()).toHaveCSS('color', 'rgb(22, 24, 28)');
 
   // The nav is a screen affordance and its grid track goes with it, or every sheet carries an
   // empty column down the left.
