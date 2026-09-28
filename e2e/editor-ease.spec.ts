@@ -1,6 +1,6 @@
 // covers: src/templates/shared/{easeRuntime,animRuntime}.ts
 // covers: src/blocks/{animEval,animEdit,editorOut,animMigration,editorAnimation,animData}.ts
-// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**
+// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js
 //
 // G01 shared easing: the editor's sampler, exact split and exact reversal against the SAME
 // evaluator executed by the bundled runtime in the simulator and in every exported package.
