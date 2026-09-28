@@ -1,7 +1,7 @@
 // covers: src/components/editorFoundation/**
 // covers: src/blocks/{baseEdits,designLayout,artworkEdits,artworkLayers,svgIdentity,editorAnimation,editorOut,animData,animEdit}.ts
-// covers: src/model/structure.ts, src/templates/shared/animRuntime.ts
-// covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx
+// covers: src/model/structure.ts, src/templates/shared/{animRuntime,easeRuntime}.ts
+// covers: src/components/wizard/{CreationWizard,steps/FinishStep}.tsx, e2e/fixtures/interpreter-pre-g01.js
 
 import { test, expect, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -49,9 +49,13 @@ test('actual wizard exposes nested artwork and independent trim handles', async 
   await imported(page);
   const original = await source(page);
   mkdirSync(evidence + '/baseline', { recursive: true });
+  // The baseline was recorded before G01 changed the emitted interpreter. Everything else must
+  // match byte for byte; the interpreter must be exactly the recorded one's upgrade.
+  const interpreter = await page.evaluate(async () => (await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS);
+  const recorded = readFileSync(new URL('./fixtures/interpreter-pre-g01.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   for (const ext of ['html', 'css', 'js'] as const) {
     const path = evidence + '/baseline/wizard.' + ext;
-    if (existsSync(path)) expect(original[ext].replace(/\r\n/g, '\n')).toBe(readFileSync(path, 'utf8').replace(/\r\n/g, '\n')); else writeFileSync(path, original[ext]);
+    if (existsSync(path)) expect(original[ext].replace(/\r\n/g, '\n')).toBe(readFileSync(path, 'utf8').replace(/\r\n/g, '\n').replace(recorded, () => interpreter)); else writeFileSync(path, original[ext]);
   }
   if (!existsSync(evidence + '/baseline/wizard.png')) await page.screenshot({ path: evidence + '/baseline/wizard.png' });
   const frame = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;

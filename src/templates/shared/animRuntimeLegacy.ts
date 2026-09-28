@@ -1,3 +1,9 @@
+// The interpreter emitted from PR #472 (R1.1c) until G01 added the shared ease runtime. It is
+// recognized by content hash (model/contentHash.ts over the trimmed LF body) instead of being
+// kept a second time verbatim; e2e/fixtures/interpreter-pre-g01.js holds its text for the tests
+// proving that a graphic saved with it upgrades once and then plays exact eases.
+export const ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH = '61a45be2c0511';
+
 // Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
 export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
 // Steps play on the operator's cues: steps[0] on play(), each middle step on one next()

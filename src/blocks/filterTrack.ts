@@ -22,6 +22,8 @@ export interface FilterFunc {
   css: string;
   /** The no-op value — what the function contributes when it isn't doing anything. */
   identity: number;
+  /** The smallest value CSS accepts; below it the browser drops the whole filter declaration. */
+  min?: number;
   /** Render one value as its CSS function call. */
   format: (v: number) => string;
   /** Pull this function's number out of a composed filter string, if present. */
@@ -42,6 +44,7 @@ export const FILTER_FUNCS: FilterFunc[] = [
     key: 'blur',
     css: 'blur',
     identity: 0,
+    min: 0,
     format: (v) => `blur(${v}px)`,
     parse: (f) => numberIn('blur', f),
   },
@@ -49,6 +52,7 @@ export const FILTER_FUNCS: FilterFunc[] = [
     key: 'brightness',
     css: 'brightness',
     identity: 1,
+    min: 0,
     format: (v) => `brightness(${v})`,
     parse: (f) => numberIn('brightness', f),
   },
@@ -56,6 +60,7 @@ export const FILTER_FUNCS: FilterFunc[] = [
     key: 'saturate',
     css: 'saturate',
     identity: 1,
+    min: 0,
     format: (v) => `saturate(${v})`,
     parse: (f) => numberIn('saturate', f),
   },
@@ -73,6 +78,7 @@ export const FILTER_FUNCS: FilterFunc[] = [
     key: 'glow',
     css: 'drop-shadow',
     identity: 0,
+    min: 0,
     format: (v) => `drop-shadow(0px 0px ${v}px)`,
     parse: (f) => numberIn('drop-shadow', f),
   },
@@ -141,6 +147,9 @@ export function sameFilterShape(a: string, b: string): boolean {
 /** Set ONE function's value on a composed string, leaving the others as they are. */
 export function withFilterComponent(current: number | string | null, key: string, value: number): string {
   const parts = parseFilter(current);
+  // A reading taken mid-curve can overshoot (back, elastic): the functions carried along stay in
+  // the range CSS accepts, or the new key would drop the whole filter.
+  for (const f of FILTER_FUNCS) if (f.min !== undefined) parts[f.key] = Math.max(f.min, parts[f.key]);
   parts[key] = value;
   const keys = new Set(filterKeysUsed([{ time: 0, value: typeof current === 'string' ? current : '' }]));
   keys.add(key);

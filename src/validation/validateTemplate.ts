@@ -6,12 +6,15 @@ import { animDataFault, parseAnimData } from '../blocks/animData';
 import { allTimelines, validateMachine } from '../blocks/animMachine';
 import {
   dataUsesCutStyle,
+  dataUsesExactEase,
   dataUsesLifecycleStyle,
   dataUsesTransitionStyles,
   hasCutStyleRuntime,
+  hasEaseRuntime,
   hasLifecycleStyleRuntime,
   hasMachineRuntime,
   hasTransitionStyleRuntime,
+  writeOutData,
 } from '../templates/shared/animRuntime';
 import { DATA_FTYPES, type SpxTemplate } from '../model/types';
 import {
@@ -355,6 +358,19 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
           rule: 'machine',
           message:
             'The entrance or exit edge carries a style, but the interpreter in this template predates the materialised play/stop edges — re-emit the ANIMATION region (replaceRegionWithAnimData) so the styled change can play.',
+        });
+      }
+
+      // The same pairing rule for EXACT eases: cubic-bezier and slice exist only in the shared ease
+      // runtime, and under an older interpreter GSAP would play its default curve without a word.
+      // A known older body is upgraded by save (and by preview and the zip exports), but not by
+      // the video render, so it still blocks here, with the remedy the reader can actually take.
+      if (dataUsesExactEase(data) && !hasEaseRuntime(template.js)) {
+        errors.push({
+          rule: 'ease',
+          message: writeOutData(template.js, data) !== null
+            ? 'A key uses a cubic-bezier or slice ease that this graphic\'s older animation runtime cannot play. Save the graphic once to update its runtime, then export.'
+            : 'A key uses a cubic-bezier or slice ease, but the interpreter in this template is custom and predates the shared ease runtime, so it would play a different curve. Re-emit the ANIMATION region (replaceRegionWithAnimData) so the ease plays as authored.',
         });
       }
 

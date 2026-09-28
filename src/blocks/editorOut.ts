@@ -3,18 +3,11 @@ import type { SpxTemplate } from '../model/types';
 import type { AnimData, AnimKeyframe } from './animData';
 import { animationSource, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
+import { mirrorEase } from '../templates/shared/easeRuntime';
 
 export type OutOperation = { kind: 'out.set'; time: number } | { kind: 'out.reverse' };
 export const hasExitKeys = (data: AnimData) => data.steps.length > 1 && Object.values(data.steps[data.steps.length - 1].layers).some(tracks => Object.values(tracks).some(keys => keys.length));
 const lastTime = (data: AnimData['steps'][number]) => Math.max(0, ...Object.values(data.layers).flatMap(tracks => Object.values(tracks).flatMap(keys => keys.map(key => key.time))));
-
-function mirrorEase(ease: string) {
-  if (ease === 'none' || ease === 'linear') return ease;
-  if (ease === 'steps(1)') return 'steps(1,true)';
-  if (ease === 'steps(1,true)') return 'steps(1)';
-  if (!/^(power[1-4]|sine|expo|circ)\.(in|out|inOut)$/.test(ease)) throw new Error('This entrance uses an ease that cannot yet be reversed exactly. Its source is preserved.');
-  return ease.replace(/\.(in|out)$/, (_, side) => side === 'in' ? '.out' : '.in');
-}
 function held(data: AnimData, selector: string) {
   let visible = !data.steps.slice(1, -1).some(step => step.reveals?.includes(selector));
   for (const step of data.steps.slice(0, -1)) {

@@ -3,7 +3,7 @@ v: 1
 scope: src/blocks/animEval.ts
 kind: trap
 fires: contract
-status: active
+status: retired
 since: 2026-09-07
 record: contracts/records/blocks/2026-09-07-deliberately-only-logic-duplicated-runtime-interpreter.md
 ---
