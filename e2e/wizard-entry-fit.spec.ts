@@ -3,6 +3,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { contrastRatio, parseCssColor } from '../src/model/cssVars';
+import { evaluateInPage } from './_evaluate';
 
 // The Entry step's HEIGHT BUDGET. Step 0 is the app's first screen, and it has to fit a
 // short laptop window whole: `.wz-hero` carries the comment "every vertical margin here is
@@ -446,7 +447,7 @@ test('Run the show is a card you press, on the Home row chassis, and still fits 
   // Seeded with saved work AND a production whose name is long enough to need the ellipsis, the
   // heaviest the step gets: Home row, four cards and this card must all still fit.
   await entryWithSavedWork(page);
-  await page.evaluate(async () => {
+  await evaluateInPage(page, async () => {
     const { createShowNamedChecked } = await import('/src/model/shows.ts');
     const { commitDurableWrites } = await import('/src/model/durableStore.ts');
     createShowNamedChecked('Friday night studio magazine with the regional news and the weather after it');
@@ -644,6 +645,25 @@ test('Run the show opens the productions list with none, and names and opens the
   await card.click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   expect(page.url()).toContain(`#/production/${lastId}`);
+});
+
+test('Run the show follows a production that arrives while the step is open', async ({ page }) => {
+  // Team productions land from the server AFTER the step mounts. A card that read the list once
+  // would keep saying "no production yet", or name one that has since gone, and open the wrong
+  // thing; it re-reads on every data change, as Home does.
+  await entryStepAt(page, 1366, 768);
+  const card = page.locator('[data-entry="open-playout"]');
+  await expect(card).toContainText('no production yet');
+  const id = await evaluateInPage(page, async () => {
+    const { createShowNamedChecked } = await import('/src/model/shows.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const { show } = createShowNamedChecked('Arrived later');
+    await commitDurableWrites();
+    return show.id;
+  });
+  await expect(card).toContainText('Open “Arrived later”');
+  await card.click();
+  expect(page.url()).toContain(`#/production/${id}`);
 });
 
 test('the Import card names the file types its own drop zone takes', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuthState } from '../../auth/useAuthState';
 import { useAuthUi } from '../../auth/authUi';
 import { Svg } from '../../icons';
@@ -68,10 +68,20 @@ export default function EntryStep({
    *  recently: every rundown edit, publish and graphic add stamps `updatedAt`, so it is the one
    *  the user touched last without a second record to keep in step. Nothing records which
    *  production this browser last OPENED, so a team production another member saved later
-   *  wins; a per-browser "last opened" record would be a new store. */
+   *  wins; a per-browser "last opened" record would be a new store.
+   *  RE-READ ON EVERY `spx-data-changed` (Home's rule): team productions arrive from the server
+   *  after the step mounts and leave on sign-out, and a card naming a production that is gone,
+   *  or missing one that just arrived, would open the wrong thing. */
+  const [dataRev, setDataRev] = useState(0);
+  useEffect(() => {
+    const onData = () => setDataRev((r) => r + 1);
+    window.addEventListener('spx-data-changed', onData);
+    return () => window.removeEventListener('spx-data-changed', onData);
+  }, []);
   const lastProduction = useMemo(
     () => loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null,
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `dataRev` is the model's change signal
+    [dataRev],
   );
 
   return (
