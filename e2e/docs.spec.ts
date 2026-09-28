@@ -117,6 +117,47 @@ test('on a phone the nav above the text stays five topics and unfolds only on a 
   await expect(nav.locator('a[href="#tickers"]')).toBeVisible();
 });
 
+// Where a link into the page leaves its target once the scroll has stopped: the distance from
+// the target's top to the line its scroll margin asks for. It waits for the scroll to START
+// (every target here is far down) and then to hold still, so a smooth scroll is read at its end.
+async function landedOffset(page: Page, id: string) {
+  return page.evaluate(async (id) => {
+    const pause = () => new Promise((resolve) => setTimeout(resolve, 250));
+    while (window.scrollY === 0) await pause();
+    let last = -1;
+    while (window.scrollY !== last) {
+      last = window.scrollY;
+      await pause();
+    }
+    const target = document.getElementById(id)!;
+    return target.getBoundingClientRect().top - parseFloat(getComputedStyle(target).scrollMarginTop);
+  }, id);
+}
+
+// The app, the landing and the downloads page link into /docs sections. A lazy screenshot whose
+// box was not reserved before it loaded (a `width: auto` cap) grew by its whole height after the
+// browser had already aimed the scroll, and every link below it landed that far short: 448px for
+// #tickers at 1366 wide, 347px at 390. #tickers sits below the end-credits picture and
+// #example-vote below the phone-sized audience picture, the two shots that were capped that way.
+for (const size of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    test(`a deep link lands on its heading at ${size.width} wide, ${reducedMotion === 'reduce' ? 'without' : 'with'} smooth scrolling`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.emulateMedia({ reducedMotion });
+      for (const id of ['tickers', 'example-vote']) {
+        await page.goto('about:blank');
+        await page.goto(`/docs#${id}`);
+        expect(Math.abs(await landedOffset(page, id)), `/docs#${id}`).toBeLessThan(3);
+      }
+      // The same from the section nav, the in-page route, to a topic below both pictures.
+      await page.goto('about:blank');
+      await page.goto('/docs');
+      await page.locator('.doc-nav a[href="#claude-code"]').click();
+      expect(Math.abs(await landedOffset(page, 'claude-code')), 'nav link to #claude-code').toBeLessThan(3);
+    });
+  }
+}
+
 test.describe('without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
   test('every nav link shows, so nothing hides behind the module', async ({ page }) => {

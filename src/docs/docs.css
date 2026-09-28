@@ -278,6 +278,11 @@ td strong { color: var(--paper); }
    caption says what to look at in it, since a reader who has never used the product cannot
    tell which part of a screenshot is the point. */
 .doc-shot { margin: 18px 0 20px; }
+/* Every shot is lazy, so its box must be the right height BEFORE it loads: an explicit width
+   plus `height: auto` lets the width/height attributes reserve it. `width: auto` would not - an
+   unloaded image has no size to be auto from, so the box sits at 2px and grows on load, and
+   every link into a section below it (/docs#tickers, #example-vote) landed that many pixels
+   short. The narrow variants below cap with a fixed width for the same reason. */
 .doc-shot img {
   display: block; width: 100%; height: auto; border: 1px solid var(--line);
   border-radius: 8px; background: rgba(20, 25, 34, 0.55);
@@ -288,11 +293,11 @@ td strong { color: var(--paper); }
    scale for the same reason: this one is not shrunk to a third on the way in. Only the IMAGE
    narrows - the caption keeps the column, because narrowed to match it starts 90px in from
    every other line on the page and reads as an indent. */
-.doc-shot.phone img { width: auto; max-width: 360px; margin: 0 auto; }
+.doc-shot.phone img { width: 360px; max-width: 100%; margin: 0 auto; }
 /* A PORTRAIT picture of a graphic (the credits card). At the column's full width it is taller
    than a laptop screen and pushes its own layer panel out of view, so it is capped and set on the
    left edge, where the caption starts. */
-.doc-shot.tall img { width: auto; max-width: min(100%, 440px); }
+.doc-shot.tall img { width: 440px; max-width: 100%; }
 .doc-shot figcaption {
   margin-top: 10px; font-size: 14px; color: var(--caption); line-height: 1.55;
 }
