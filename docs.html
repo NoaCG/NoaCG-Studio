@@ -337,10 +337,11 @@
                 <code>static:Letter A</code>. A text that is a single letter, like the A on a quiz
                 row, starts unticked whatever it is called.</li>
               <li>The spelling does not matter, the words do. Capitals, spaces, underscores and
-                dashes are all the same to NoaCG, so <code>Answer A</code>, <code>answer_a</code>
-                and <code>ANSWER-A</code> are one name, and so are <code>AnswerA</code> and
-                <code>Score1</code>. The synonyms in the table below work too, and the common words
-                also work in Finnish, Swedish, German and Spanish: <code>Antwort A</code>,
+                dashes are all the same to NoaCG. So <code>Answer A</code>, <code>answer_a</code>
+                and <code>ANSWER-A</code> are one name. <code>AnswerA</code> is Answer A too, and
+                <code>Score1</code> is Score 1.</li>
+              <li>The synonyms in the table below work too. The common words also work in
+                Finnish, Swedish, German and Spanish: <code>Antwort A</code>,
                 <code>Puntos 1</code>. The three layers can be called <code>Text</code>,
                 <code>Moments</code> and <code>Board</code> in your own language, because NoaCG
                 reads the names inside them. The examples use one spelling so that you can copy
@@ -529,15 +530,23 @@
             <h4 id="svg-layers-credits">Credits: one pasted list</h4>
             <p>
               End credits are one text layer named <code>Credits</code>, never a layer per name.
-              The operator pastes the whole list into one box. A line ending in <code>:</code> is
-              a title and the lines under it are its names; <code>Director: Anna Ahonen</code> on
-              one line is the same thing, a tab from a spreadsheet works too, and a blank line
-              starts a new section. What you type into the layer in Illustrator is the sample, and
-              it is how you style the roll: the first line ending in <code>:</code> is what every
-              title will look like, and the line under it is what every name will look like.
-              On Take the list rolls from the bottom of the frame to the top at the Scroll speed
-              the operator sets, about thirty lines in thirty seconds at 100. Draw a plate named
-              <code>Credits box</code> and the roll runs inside it.
+              The operator pastes the whole list into one box.
+            </p>
+            <ul>
+              <li>A line ending in <code>:</code> is a title, and the lines under it are its
+                names. <code>Director: Anna Ahonen</code> on one line is the same thing.</li>
+              <li>A tab from a spreadsheet works in place of the colon.</li>
+              <li>A blank line starts a new section.</li>
+            </ul>
+            <p>
+              What you type into the layer in Illustrator is the sample, and it is how you style
+              the roll. The first line ending in <code>:</code> is what every title will look like.
+              The line under it is what every name will look like.
+            </p>
+            <p>
+              On Take the list rolls from the bottom of the frame to the top, at the Scroll speed
+              the operator sets. At 100 that is about thirty lines in thirty seconds. Draw a plate
+              named <code>Credits box</code> and the roll runs inside it.
             </p>
           </section>
 
@@ -952,10 +961,12 @@
             </figure>
             <h4 id="credits-colon">A scrolling roll</h4>
             <p>
-              The Credits text is one box for the whole roll, however many names a show has, and on
-              Take it rolls from the bottom of the frame to the top at the Scroll speed the
+              The Credits text is one box for the whole roll, however many names a show has. On
+              Take it rolls from the bottom of the frame to the top, at the Scroll speed the
               operator sets. Draw a plate named <code>Credits box</code> and the roll runs inside it.
-              What you type into the layer in Illustrator is the sample: the first line ending in
+            </p>
+            <p>
+              What you type into the layer in Illustrator is the sample. The first line ending in
               <code>:</code> is what every title looks like, and the line under it is what every
               name looks like. The catalog credits designs read the same box, written like this:
             </p>
@@ -1890,20 +1901,26 @@ CG 1-20 STOP</code></pre>
         <section id="data-example">
           <h2>One show, worked through</h2>
           <p>
-            Production data, bindings and tables all answer the same question. Where does the
-            number on screen come from? They are much easier to tell apart with a rundown around
-            them, so here is a small one. <strong>Hall Cup</strong> is a school sports night with
-            four graphics, one data tree, one table and a hall full of phones. Everything
-            below is that show, photographed as it was built.
+            Production data, bindings and tables all answer one question: where does the number
+            on screen come from? They are easier to tell apart in a real show, so here is a small
+            one.
+          </p>
+          <p>
+            <strong>Hall Cup</strong> is a school sports night. It has four graphics, one data
+            tree, one table and a hall full of phones. Every picture below was taken while
+            building it.
           </p>
 
           <h3 id="example-pool">The four graphics</h3>
           <p>
-            Make each one from the catalog. On the wizard's <strong>Finish</strong> step the
-            <strong>Production</strong> box is where the graphic goes: for the first, choose
-            <strong>&#65291; New production&hellip;</strong> and call it <strong>Hall Cup</strong>;
-            for the other three, pick Hall Cup out of the same list.
+            Make each one from the catalog. On the wizard's <strong>Finish</strong> step, the
+            <strong>Production</strong> box says where the graphic goes.
           </p>
+          <ul>
+            <li>For the first graphic, choose <strong>&#65291; New production&hellip;</strong>
+              and call it <strong>Hall Cup</strong>.</li>
+            <li>For the other three, pick Hall Cup from the same list.</li>
+          </ul>
           <div class="doc-table"><table>
             <tr><th>Graphic</th><th>Catalog category</th><th>What it asks you to type</th></tr>
             <tr><td><strong>Match Strip</strong><br /><small>the bug that stays up</small></td>
@@ -1920,8 +1937,8 @@ CG 1-20 STOP</code></pre>
               <td>Name, Title</td></tr>
           </table></div>
           <p>
-            Those field names matter more than they look. They are the words the rest of this
-            example binds by, which is also why the two scoreboards use the same four.
+            The field names matter. The rest of this example binds by them, which is why the two
+            scoreboards use the same four.
           </p>
 
           <h3 id="example-tree">The tree: what the whole show knows</h3>
@@ -1942,36 +1959,38 @@ CG 1-20 STOP</code></pre>
             <img src="/docs/data-tree.png" width="1668" height="635" loading="lazy"
               alt="The Production data panel listing five values with their paths: match.teamA, match.scoreA, match.teamB, match.scoreB and tickerItems." />
             <figcaption>
-              <strong>Five values, five addresses.</strong> The panel flattens whatever you paste
-              into one row per value, and the grey text on the left is the address of that row.
+              <strong>Five values, five addresses.</strong> The panel shows one row per value.
+              The grey text on the left is that row's address.
             </figcaption>
           </figure>
           <p>
-            That address is a <strong>path</strong>. Dots walk down the tree, so the number 2
-            lives at <code>match.scoreA</code> and the three ticker lines live together at
-            <code>tickerItems</code>. You never have to paste JSON to get one. The row at the
-            bottom adds a path and a value by hand, and a path that does not exist yet is created
-            on the way down.
+            That address is a <strong>path</strong>. Dots walk down the tree. The number 2 lives
+            at <code>match.scoreA</code>, and the three ticker lines live together at
+            <code>tickerItems</code>.
+          </p>
+          <p>
+            You do not have to paste JSON. The row at the bottom adds a path and a value by hand.
+            If the path does not exist yet, it is created.
           </p>
           <ul>
             <li><strong>The type is kept.</strong> <code>4</code> is a number, <code>true</code>
               is a boolean, <code>[1, 2]</code> is a list, and anything else is text. Number rows
-              get &minus; and + buttons. A list is one line per item, which is exactly what a
-              ticker's text box takes.</li>
+              get &minus; and + buttons. A list is one line per item, which is what a ticker's
+              text box takes.</li>
             <li><strong>This is state, not a command.</strong> Nothing on this panel plays, stops
-              or takes a graphic. That is the whole rule of <a href="#data">Live data</a>, and it
-              is what lets a feed run all night without ever airing anything.</li>
-            <li><strong>Keep the numbers you want to start from.</strong>
-              <strong>&#11015; Save as seed</strong> writes the current tree onto the production
-              itself, and <strong>&#10226; Reset to seed</strong> puts it back. Worth doing
-              before the first rehearsal, because the live tree is otherwise this browser's own
-              until the production is published.</li>
+              or takes a graphic. That is the rule of <a href="#data">Live data</a>. It is why a
+              feed can run all night without putting anything on air.</li>
+            <li><strong>Save the numbers you want to start from.</strong>
+              <strong>&#11015; Save as seed</strong> stores the current tree in the production
+              itself. <strong>&#10226; Reset to seed</strong> puts it back. Do it before the first
+              rehearsal: until the production is published, the live tree exists only in this
+              browser.</li>
           </ul>
 
           <h3 id="example-bindings">The bindings: which field reads which path</h3>
           <p>
-            A path does nothing on its own. A <strong>binding</strong> is what points one field
-            of one graphic at one path. Scroll to <strong>Bindings</strong> and press
+            A path does nothing on its own. A <strong>binding</strong> points one field of one
+            graphic at one path. Scroll to <strong>Bindings</strong> and press
             <strong>Bind all by title</strong>.
           </p>
           <figure class="doc-shot">
@@ -1979,90 +1998,97 @@ CG 1-20 STOP</code></pre>
               alt="The Bindings list: both scoreboards bound to the same four paths and House Wire's Ticker items bound to tickerItems, each reading its value back, with House Strap's two fields left unbound." />
             <figcaption>
               <strong>Nine bound, four left alone.</strong> Both scoreboards landed on the same
-              four paths, because they ask for the same four things. The right-hand column is
-              what each field is showing at this moment, so a mistyped path reads as a blank here
-              instead of as a mystery on air.
+              four paths, because they ask for the same four things. The right-hand column shows
+              what each field shows right now. A mistyped path shows up here as a blank, not as a
+              surprise on air.
             </figcaption>
           </figure>
           <p>
-            It matched by the words. "Score A" found <code>match.scoreA</code> because the last
-            part of that path is the field's own title once case, spaces and punctuation are
-            ignored, and "Ticker items" found <code>tickerItems</code> the same way. Nothing was
-            guessed. Where two paths match one title the row stays empty and says which two it
-            found, because a binding that is right half the time is worse than a box you fill in
-            once.
+            It matched by the words. "Score A" found <code>match.scoreA</code>: the last part of
+            that path is the field's title, once case, spaces and punctuation are ignored.
+            "Ticker items" found <code>tickerItems</code> the same way.
           </p>
           <p>
-            The strap's <strong>Name</strong> and <strong>Title</strong> matched nothing, and
-            that is the correct answer rather than a gap. A guest's name is not something the
-            whole show shares. Click any row's box to pick a path out of the list, or type one,
-            and press the <strong>&#10005;</strong> twice to unbind it again.
+            Nothing was guessed. If two paths match one title, the row stays empty and names both.
+            A binding that is right half the time is worse than a box you fill in once.
+          </p>
+          <p>
+            The strap's <strong>Name</strong> and <strong>Title</strong> matched nothing. That is
+            the correct answer, not a gap: a guest's name is not something the whole show shares.
+          </p>
+          <p>
+            To bind a row by hand, click its box and pick a path from the list, or type one. To
+            unbind it, press <strong>&#10005;</strong> twice.
           </p>
 
           <h3 id="example-air">One value, every graphic</h3>
           <p>
             Press + beside <code>match.scoreA</code> on the Data tab. Both scoreboards now say 3,
-            whichever of them is on air and whichever was cued first. That is what binding is
-            for. The score is the show's, not any one cue's, and nobody has to remember to retype
-            it on the half-time card.
+            whichever of them is on air and whichever was cued first.
           </p>
           <p>
-            You do not have to leave the Playout tab to move it either. A bound field is shown
-            there read-only, with the path it follows beside it, and the
-            <strong>&plusmn; LIVE NUMBERS</strong> row underneath moves the shared value with one
-            press.
+            That is what binding is for. The score belongs to the show, not to one cue. Nobody has
+            to remember to retype it on the half-time card.
+          </p>
+          <p>
+            You can also change it from the Playout tab. A bound field shows there read-only, with
+            its path beside it. The <strong>&plusmn; LIVE NUMBERS</strong> row underneath changes
+            the shared value with one press.
           </p>
           <figure class="doc-shot">
             <img src="/docs/data-cue.png" width="1103" height="1077" loading="lazy"
               alt="The Match Strip cue on the Playout tab: four read-only fields each labelled with the production-data path it follows, and a row of plus and minus buttons for Score A and Score B." />
             <figcaption>
               <strong>The same values, on the operator's screen.</strong> The chain and the path
-              mean the box is not yours to type in. It says what the tree says. The presses under
-              it act on air immediately, and nothing else about the graphic changes.
+              mean you cannot type in the box. It shows what the tree says. The buttons under it
+              change what is on air at once, and nothing else about the graphic changes.
             </figcaption>
           </figure>
-          <p>
-            Where the tree lives depends on one thing. An unpublished production keeps it in the
-            browser you are sitting at, which is why the seed is worth saving. A
-            <a href="#dashboard">published</a> production keeps it with the production, so every
-            operator and every feed is looking at the same numbers, and the
-            <a href="#data-api">Data API</a> writes into exactly this tree.
-          </p>
+          <p>Where the tree lives depends on one thing, publishing:</p>
+          <ul>
+            <li>An <strong>unpublished</strong> production keeps it in the browser you are using.
+              That is why the seed is worth saving.</li>
+            <li>A <a href="#dashboard">published</a> production keeps it with the production.
+              Every operator and every feed sees the same numbers, and the
+              <a href="#data-api">Data API</a> writes into this same tree.</li>
+          </ul>
 
           <h3 id="example-tables">The table: rows an operator picks from</h3>
           <p>
-            Hall Cup interviews three people, and their names belong to no particular moment in
-            the show. That is what a <strong>table</strong> is for. It is a bank of rows,
-            nothing is live about it, and an operator loads the row they want when they want it.
+            Hall Cup interviews three people. Their names belong to no particular moment in the
+            show. That is what a <strong>table</strong> is for: a bank of rows, none of them live.
+            The operator loads the row they want, when they want it.
           </p>
           <p>
             Under <strong>Tables</strong>, choose <strong>Line-up / roster</strong> and press
-            <strong>&#65291; New table</strong>. Call it Interviews. The shape arrives with
-            Name, Number and Position; rename <strong>Position</strong> to
+            <strong>&#65291; New table</strong>. Call it Interviews. It starts with the columns
+            Name, Number and Position. Rename <strong>Position</strong> to
             <strong>Title</strong>, remove <strong>Number</strong>, and type the rows.
           </p>
           <figure class="doc-shot">
             <img src="/docs/data-table.png" width="1668" height="555" loading="lazy"
               alt="The Interviews table on the Data tab: two columns called Name and Title, with three rows of guests." />
             <figcaption>
-              <strong>Two columns, three rows.</strong> The column names are not decoration. They
-              are the strap's field titles, which is the whole of how a row finds its way into a
-              graphic.
+              <strong>Two columns, three rows.</strong> The column names are the strap's field
+              titles. That is how a row finds its way into a graphic.
             </figcaption>
           </figure>
+          <p>The matching is by words again:</p>
+          <ul>
+            <li>A column called Title loads into the field called Title.</li>
+            <li>A column that matches no field is carried along and ignored.</li>
+            <li>A field that no column names keeps whatever it had.</li>
+          </ul>
           <p>
-            The binding is the words again. A column called Title loads into the field called
-            Title, a column matching nothing is carried along and ignored, and a field no column
-            names keeps whatever it had. That is why a spreadsheet already using your field names
-            needs no mapping step: <strong>&#11014; Import CSV / JSON</strong> takes it as it is,
-            and says afterwards which of its columns actually matched. <strong>&#11015; Blank
-            CSV</strong> goes the other way and hands you a file with the right header row to
-            fill in.
+            So a spreadsheet that already uses your field names needs no mapping step.
+            <strong>&#11014; Import CSV / JSON</strong> takes it as it is, and then says which of
+            its columns matched. <strong>&#11015; Blank CSV</strong> goes the other way: it gives
+            you a file with the right header row to fill in.
           </p>
           <p>
             Now go back to the <strong>Playout</strong> tab and select the House Strap cue. It
-            has grown a <strong>Load data row</strong> control. Picking a guest fills the cue you
-            are editing, which is the preview, and nothing more. The name reaches air when you
+            now has a <strong>Load data row</strong> control. Picking a guest fills the cue you
+            are editing, which is the preview, and nothing more. The name goes on air when you
             press <strong>&#10227; Take</strong>, like everything else.
           </p>
 
@@ -2081,10 +2107,13 @@ CG 1-20 STOP</code></pre>
               <td>The guest list</td></tr>
           </table></div>
           <p>
-            A score belongs in the tree because two graphics show it and it changes while one of
-            them is on air. A guest's name belongs in a table because only one graphic ever shows it
-            and the operator decides which one. When both would work, the question that settles
-            it is whether more than one graphic needs the same value at the same time.
+            A score belongs in the tree. Two graphics show it, and it changes while one of them is
+            on air. A guest's name belongs in a table. Only one graphic ever shows it, and the
+            operator decides which guest.
+          </p>
+          <p>
+            When both would work, ask one question: does more than one graphic need the same value
+            at the same time? If it does, use the tree.
           </p>
 
           <!-- THE SECOND HALF. Kept in this section rather than in #audience because it is the
@@ -2092,109 +2121,132 @@ CG 1-20 STOP</code></pre>
                it grows. #audience states the capability and its rules; this states the road. -->
           <h3 id="audience-no-chat">An audience with no Twitch and no YouTube</h3>
           <p>
-            The first panel on the Audience tab is <strong>Chat sources</strong>, and it asks for
-            a Twitch channel or a YouTube video. Most people running a hall, a school event or a
-            club night have neither, and they are not missing anything. Those two are a way of
-            pulling an <em>existing</em> chat into the same inbox. The room's own page is the
-            intake, and it is what Hall Cup uses.
+            The first panel on the Audience tab is <strong>Chat sources</strong>. It asks for a
+            Twitch channel or a YouTube video. Most people running a hall, a school event or a
+            club night have neither, and they are not missing anything.
           </p>
           <p>
-            Add two more graphics to the production first, both from the catalog:
-            <strong>House Question</strong> (Audience &amp; questions) for the messages, and
-            <strong>House Vote</strong> (Live votes) for the poll. Then:
+            Those two only pull an <em>existing</em> chat into the same inbox. The room's own join
+            page takes messages without them, and that is what Hall Cup uses.
+          </p>
+          <p>
+            First add two more graphics from the catalog: <strong>House Question</strong>
+            (Audience &amp; questions) for the messages, and <strong>House Vote</strong> (Live
+            votes) for the poll. Then:
           </p>
           <ol>
-            <li><strong>Publish the production.</strong> Nothing audience-related exists before
-              you do. An unpublished production shows <strong>&#9654; Start
-              production</strong> in the header and has no links to give out at all. Publishing
-              is free and needs an account.</li>
-            <li><strong>Take the audience link.</strong> <strong>Output links</strong> in the header,
-              then <strong>Audience link</strong>. It reads
-              <code>noacg.studio/join/&lt;name&gt;</code>, and the name came from the
-              production's own name at that first publish. The <strong>Readable name</strong> row
-              below it changes the name to something you can say out loud. Do that before you
-              hand the link out, because a new name stops the old one working.</li>
+            <li><strong>Publish the production.</strong> Nothing for the audience exists until you
+              do. An unpublished production shows <strong>&#9654; Start production</strong> in
+              the header and has no links to give out. Publishing is free and needs an
+              account.</li>
+            <li><strong>Get the audience link.</strong> Press <strong>Output links</strong> in the
+              header, then <strong>Audience link</strong>. It reads
+              <code>noacg.studio/join/&lt;name&gt;</code>. The name comes from the production's
+              name when you first published it.</li>
+            <li><strong>Give it a name you can say.</strong> The <strong>Readable name</strong>
+              row below the link changes it to something you can read out loud. Do this before
+              you hand the link out, because a new name stops the old link working.</li>
             <li><strong>Give it to the room.</strong> Read it out, put it on a holding slide, or
-              print a QR code of it. There is no app to install and nothing to sign in to, which
-              is the point.</li>
+              print a QR code of it. There is no app to install and nothing to sign in to.</li>
             <li><strong>Open the door.</strong> On the Audience tab, tick <strong>Accepting
-              messages</strong>. Until you do, every phone that has the link says the production
-              is not taking part right now. Hall Cup leaves the mode beside it on
-              <strong>Questions</strong>; <strong>Comments</strong> is the same door asking for
-              something shorter. Worth knowing before you pick. The heading on the viewer's page
-              reads "Send us your question" in both, and nothing changes it yet.</li>
+              messages</strong>. Until you do, every phone with the link says the production is
+              not taking part right now.</li>
           </ol>
+          <p>
+            Hall Cup leaves the mode beside that tick box on <strong>Questions</strong>.
+            <strong>Comments</strong> works the same way and asks for something shorter. In both,
+            the heading on the viewer's page reads "Send us your question", and nothing changes
+            that yet.
+          </p>
           <figure class="doc-shot phone">
             <img src="/docs/audience-join.png" width="1140" height="1332" loading="lazy"
               alt="The viewer's page on a phone: the production name, the heading Send us your question, a box for a name, a box for the question, and a Send button." />
             <figcaption>
               <strong>The whole of what the room gets.</strong> A name they can leave blank, a
-              box, and Send. This is the page itself, not a mock-up of it. The studio draws the
-              same thing under <strong>What viewers see</strong> on the Audience tab, from the
-              same code the phones run.
+              box, and Send. This is the real page, not a mock-up. The studio shows the same thing
+              under <strong>What viewers see</strong> on the Audience tab, drawn by the same code
+              the phones run.
             </figcaption>
           </figure>
           <p>
-            Nothing a viewer sends can air by itself. Every arrival lands in the inbox on that
-            same tab, where an operator edits a broadcast version of it, which never touches what
-            was actually sent, and presses <strong>&rarr; Send to rundown</strong>. That adds an
-            ordinary cue to the House Question graphic, and the cue goes to air on Take like any
-            other. There is no setting anywhere that skips those two steps.
+            Nothing a viewer sends can go on air by itself. Every message lands in the inbox on
+            the same tab. From there it takes two steps to reach air:
+          </p>
+          <ol>
+            <li>The operator presses <strong>&rarr; Send to rundown</strong>. That adds an
+              ordinary cue to the House Question graphic.</li>
+            <li>The operator takes that cue, like any other.</li>
+          </ol>
+          <p>
+            No setting skips those two steps. Before sending, the operator can edit a broadcast
+            version of the message. What the viewer actually sent is never changed.
           </p>
           <figure class="doc-shot">
             <img src="/docs/audience-inbox.png" width="1662" height="425" loading="lazy"
               alt="The moderation inbox: filter tabs reading Inbox, Approved, Shortlist and All, then two arrivals, each with an editable name and message and a row of buttons ending in Send to rundown." />
             <figcaption>
-              <strong>The inbox, and the only road out of it.</strong> The two boxes on each row
+              <strong>The inbox, and the only way out of it.</strong> The two boxes on each row
               are the broadcast version, yours to tidy. Shortlist, Approve and Reject sort the
-              pile; Now and Next point the presenter's own screen at one; Send to rundown is the
-              only one that reaches the rundown, and even that does not reach air.
+              pile. Now and Next point the presenter's screen at one message. Only Send to rundown
+              reaches the rundown, and even that does not reach air.
             </figcaption>
           </figure>
           <p>
-            <strong>Rehearse it before the room exists.</strong> On an unpublished production the
-            bar carries <strong>&#10227; Simulate 3 arrivals</strong>, which invents submissions
-            so you can practise the whole moderation round with nobody watching. The rows it
-            makes say "(rehearsal)" in their own text, so they cannot be mistaken for anybody's
-            words. The button is absent on a published production, because there a real audience
-            is sending.
+            <strong>Rehearse before the room exists.</strong> On an unpublished production the bar
+            has <strong>&#10227; Simulate 3 arrivals</strong>. It makes up messages so you can
+            practise the whole moderation round with nobody watching.
+          </p>
+          <p>
+            Each made-up message says "(rehearsal)" in its text, so nobody can mistake it for a
+            real one. A published production has no such button, because a real audience is
+            sending there.
           </p>
 
           <h4 id="example-vote">Putting a vote to the room</h4>
           <p>
-            Type a question under <strong>Put a question to the room</strong>, give it two to
-            eight options on their own lines, and press <strong>Open voting</strong>. Every phone
-            holding the link switches to the ballot at once, and a viewer can change their mind
-            while it is open.
+            Type a question under <strong>Put a question to the room</strong>. Give it two to
+            eight options, one per line, and press <strong>Open voting</strong>. Every phone with
+            the link switches to the ballot at once. A viewer can change their vote while voting
+            is open.
           </p>
           <figure class="doc-shot">
             <img src="/docs/audience-vote.png" width="1626" height="245" loading="lazy"
               alt="An open poll on the Audience tab: the question, its three options with a bar and a count each, and the buttons that stage the counts to a graphic or close the voting." />
             <figcaption>
-              <strong>The counts live here and nowhere else.</strong> The join page never shows a
-              tally, in any mode. The reveal is a graphic, on air, at the moment the operator
-              chooses.
+              <strong>The counts are here and nowhere else.</strong> The join page never shows a
+              tally, in any mode. The result reaches the room as a graphic, on air, when the
+              operator chooses.
             </figcaption>
           </figure>
           <p>
             <strong>Stage counts to a graphic</strong> writes the question, the options and the
-            numbers into a cue for House Vote, and Take airs it. Press it again while the round is
-            still open and that same cue is updated rather than duplicated, so the rundown does not fill up with one row
-            per refresh. The figures on air move when the operator shows the result, not while
-            the room is still voting, which is what keeps a reveal a reveal. A board you
-            <a href="#svg-vote">drew yourself</a> can carry a <strong>Live figures</strong> layer,
-            and the Audience tab then offers a tick box to run the percentages live instead. A
-            catalog board like House Vote has no such layer, so the tick box is not on screen
-            for this show.
+            counts into a cue for House Vote. Take puts it on air. Press the button again while
+            voting is still open and the same cue is updated, not copied, so the rundown does
+            not fill up with one row per refresh.
           </p>
-          <p class="callout truth">
+          <p>
+            The figures on air change when the operator shows the result, not while the room is
+            still voting. That keeps a reveal a reveal.
+          </p>
+          <p>
+            A board you <a href="#svg-vote">drew yourself</a> can have a <strong>Live
+            figures</strong> layer. The Audience tab then offers a tick box to show the
+            percentages live instead. A catalog board like House Vote has no such layer, so this
+            show does not get the tick box.
+          </p>
+          <div class="callout truth">
             <span class="lbl">What was and was not run</span>
-            Everything in this section was driven in the studio: the tree, the bindings, the table
-            and its load, the inbox, and a vote from opening it to staging the counts. The one
-            step taken on trust is the published <code>noacg.studio/join/&lt;name&gt;</code>
-            link itself, which needs an account and the hosted backend. The page a phone loads
-            there is the page in the picture above, drawn by the same code.
-          </p>
+            <p>
+              Everything in this section was run in the studio: the tree, the bindings, the table
+              and loading a row, the inbox, and a vote from opening it to staging the counts.
+            </p>
+            <p>
+              One step is taken on trust: the published
+              <code>noacg.studio/join/&lt;name&gt;</code> link itself, which needs an account and
+              the hosted backend. The page a phone loads there is the one in the picture above,
+              drawn by the same code.
+            </p>
+          </div>
         </section>
 
         <!-- ═══════════════════════ AGENTS ═══════════════════════ -->
@@ -2212,24 +2264,27 @@ CG 1-20 STOP</code></pre>
             <li>It appears in your NoaCG library, ready for a rundown.</li>
           </ol>
           <p>
-            A coding agent can write HTML, CSS and JavaScript for a graphic. That code on its own
-            has no operator controls, no events an operator can press, and no promise about how it
-            behaves in a playout system. The <strong>NoaCG CLI</strong> is what closes that gap. It
-            hands the agent the contract a graphic has to meet, runs the studio's own validator
-            over what the agent wrote, and saves the result into your library once it passes.
+            A coding agent can already write HTML, CSS and JavaScript. On its own, that code has
+            no operator controls, no buttons an operator can press, and no promise about how it
+            behaves in a playout system. The <strong>NoaCG CLI</strong> adds what is missing:
           </p>
+          <ul>
+            <li>It gives the agent the contract a NoaCG graphic has to meet.</li>
+            <li>It checks what the agent wrote with the studio's own validator.</li>
+            <li>It saves the graphic into your library once it passes.</li>
+          </ul>
           <p>
-            What lands there is an ordinary NoaCG graphic. It goes into a
-            <a href="#dashboard">production</a>, answers the operator events its own
-            <a href="#behaviour">behaviour</a> defines, and takes <a href="#data">live data</a>
+            The result is an ordinary NoaCG graphic. You put it in a
+            <a href="#dashboard">production</a>, operate it with the buttons its
+            <a href="#behaviour">behaviour</a> defines, and feed it <a href="#data">live data</a>
             from a sheet or an API.
           </p>
 
           <h3 id="agent-install">Paste this to your agent and start building</h3>
           <p>
-            One prompt does the setup. Your agent works out which install it needs, runs it,
-            checks that it worked, and then asks you what to make. It runs a couple of install
-            commands that you have to approve.
+            One prompt does the setup. Your agent picks the install it needs, runs it, checks that
+            it worked and asks you what to make. It runs a couple of install commands that you
+            have to approve.
           </p>
           <pre class="prompt"><code>Set up NoaCG Studio so you can build broadcast graphics for me, then ask me what to make.
 
@@ -2255,155 +2310,177 @@ CG 1-20 STOP</code></pre>
 The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt; --screenshots
 ./shots", fix what it reports, then "npx -y @noacg/cli save &lt;dir&gt;". Saving needs
 "npx -y @noacg/cli login" once, which opens a browser for me to approve.</code></pre>
+          <p>You need:</p>
+          <ul>
+            <li>Node.js 20 or newer.</li>
+            <li>Chrome or Edge installed on the system. The validator runs it in the background,
+              with no window.</li>
+            <li>An account, but only when you save a graphic into a library.</li>
+          </ul>
           <p>
-            It needs Node.js 20 or newer and a system Chrome or Edge, which the validator drives
-            in headless mode. No account is needed until you save a graphic into a library. The
-            install commands the prompt runs are written out one by one under
-            <a href="#agent-setup">Reference</a>, for anyone who would rather run them by hand.
+            To run the install commands by hand instead, see <a href="#agent-setup">Reference</a>.
           </p>
 
           <h3 id="agent-loop">Then describe the graphic you want</h3>
           <p>
-            "Make me a clean scoreboard for a floorball stream: home, away, period, clock." In
-            Claude Code, <code>/noacg:graphic</code> starts the same thing.
+            For example: "Make me a clean scoreboard for a floorball stream: home, away, period,
+            clock." In Claude Code, <code>/noacg:graphic</code> starts the same thing.
           </p>
           <p>
-            The part that makes that work is the <code>noacg-graphic</code> skill. It teaches the
-            agent how a NoaCG graphic is put together, which tools to reach for, how to validate
-            what it wrote, and how to save the result into your library. It says nothing about
-            how the graphic should look, which stays the agent's job. The plugin carries it from
-            your next session on, and <code>noacg docs</code> prints the same reference texts
-            before then.
+            The <code>noacg-graphic</code> skill tells the agent how a NoaCG graphic is built,
+            which tools to use, how to validate it and how to save it. It says nothing about how
+            the graphic should look. That stays the agent's job.
           </p>
-          <p>Working from that, the agent:</p>
+          <p>
+            The plugin brings the skill from your next session on. Until then,
+            <code>noacg docs</code> prints the same texts.
+          </p>
+          <p>The agent then works in five steps:</p>
           <ol>
-            <li><strong>Scaffolds</strong> a starting package when the graphic needs a type's
-              fields and operator events. This step is optional: it can also author from scratch
-              against the contract.</li>
-            <li><strong>Authors</strong> the graphic itself, the way it normally writes code.</li>
-            <li><strong>Validates</strong> it against the studio's own gate and a live playout
-              bench, with off-air, on-air and stress screenshots, so it can see what it made.</li>
-            <li><strong>Iterates</strong> on the findings, which read the way a compiler reports
-              errors, until they are clean.</li>
-            <li><strong>Saves</strong> it into your NoaCG library and prints the link.</li>
+            <li><strong>Scaffold.</strong> It creates a starting package with the fields and
+              operator events of a graphic type. This step is optional. It can also write from
+              scratch against the contract.</li>
+            <li><strong>Author.</strong> It writes the graphic, the way it writes any code.</li>
+            <li><strong>Validate.</strong> The studio's own checks run, then a live playout test.
+              The agent gets screenshots off air, on air and with doubled text, so it can see what
+              it made.</li>
+            <li><strong>Fix.</strong> It works through the findings until there are none. They
+              read like compiler errors.</li>
+            <li><strong>Save.</strong> The graphic goes into your NoaCG library, and the agent
+              prints its link.</li>
           </ol>
           <p>
-            Saving is the one step that needs you. Run <code>noacg login</code> once per machine
-            and approve it in the browser. The key it stores can only create graphics in your
-            library, and Settings, under Account, Agent access, revokes it.
+            Saving is the one step that needs you. Log in once per machine, and approve it in the
+            browser that opens:
           </p>
           <pre><code>npx @noacg/cli login</code></pre>
           <p>
-            <code>save</code> refuses a graphic that does not pass validation. What it saves is
-            editable in the studio like any other graphic, and exports to every target NoaCG
-            supports.
+            The key it stores can only save graphics to your library and send packages to your
+            Home. To revoke it, go to Settings, then Account, then Agent access.
+          </p>
+          <p>
+            <code>save</code> refuses a graphic that does not pass validation. A saved graphic is
+            editable in the studio like any other, and exports to every target NoaCG supports.
           </p>
 
           <h3 id="agent-package">Ask for a whole package</h3>
           <p>
-            "Make me the graphics for a fight night: opener, name straps, fight bug, round card."
+            For example: "Make me the graphics for a fight night: opener, name straps, fight bug,
+            round card."
+          </p>
+          <p>
             The agent builds each graphic, then sends them together with
             <code>noacg pack --save</code>. The package appears on your Home under
-            <strong>Waiting to install</strong>. Press <strong>Install</strong> and the production
+            <strong>Waiting to install</strong>. Press <strong>Install</strong>. The production
             opens with its layers and running order, ready to operate.
           </p>
 
           <h3 id="agent-setup">Reference</h3>
           <p>
-            <strong>The install commands, one by one.</strong> These are what the prompt above
-            runs. There are three ways to install, and they are all the same package.
+            <strong>The install commands, one by one.</strong> These are the commands the prompt
+            above runs. All three routes install the same package.
           </p>
           <p>
-            <strong>Claude Code.</strong> The plugin carries the <code>noacg-graphic</code> skill
-            and a <code>/noacg:graphic</code> command, with nothing to install first. It runs
-            nothing until a graphic is being made. The skill drives the CLI from the terminal, so a
-            session about anything else pays nothing for it.
+            <strong>Claude Code.</strong> The plugin brings the <code>noacg-graphic</code> skill
+            and the <code>/noacg:graphic</code> command. Nothing needs installing first. It runs
+            nothing until you make a graphic, because the skill drives the CLI from the terminal.
+            A session about something else pays nothing for it.
           </p>
           <pre><code>claude plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
           <pre><code>claude plugin install noacg@noacg-studio</code></pre>
           <p>
-            Want the <code>noacg</code> tool present in every session, with a browser kept warm
-            between calls? A second, optional plugin adds the always-on MCP server. It costs a
-            process and some context in every session, which is why it is separate.
+            An optional second plugin adds an MCP server that is always on. It puts the
+            <code>noacg</code> tool in every session and keeps a browser warm between calls. It
+            costs a process and some context in every session, which is why it is separate.
           </p>
           <pre><code>claude plugin install noacg-mcp@noacg-studio</code></pre>
           <p><strong>Codex.</strong> The same plugin, from the same repository.</p>
           <pre><code>codex plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
           <pre><code>codex plugin add noacg@noacg-studio</code></pre>
           <p>
-            <strong>Any other agent that speaks MCP.</strong> Register the server over stdio:
-            command <code>npx</code>, arguments <code>-y @noacg/cli mcp</code>. It brings the
-            tools, and the contract text comes with them as the server's own resources.
+            <strong>Any other agent that speaks MCP.</strong> Register the server over stdio,
+            with the command <code>npx</code> and the arguments <code>-y @noacg/cli mcp</code>.
+            It brings the tools, and the contract text comes with them as the server's resources.
           </p>
           <pre><code>npx -y @noacg/cli mcp</code></pre>
           <p>
-            A plugin loads at the start of a session, so the one it was installed from does not
-            have it. That is why the prompt above uses <code>npx</code> for the first graphic.
+            A plugin loads when a session starts, so the session you installed it from does not
+            have it yet. That is why the prompt above uses <code>npx</code> for the first graphic.
           </p>
           <p>
-            <strong>The package.</strong> All three routes above are one npm package,
-            <a href="https://www.npmjs.com/package/@noacg/cli"><code>@noacg/cli</code></a>,
-            installing one command, <code>noacg</code>. You can also run it yourself.
+            <strong>The package.</strong> All three routes install one npm package,
+            <a href="https://www.npmjs.com/package/@noacg/cli"><code>@noacg/cli</code></a>. It
+            gives you one command, <code>noacg</code>. You can also install it yourself:
           </p>
           <pre><code>npm i -g @noacg/cli</code></pre>
           <p>
-            Every command also works as <code>npx @noacg/cli &lt;command&gt;</code> with nothing
-            installed. The loop by hand is three of them:
+            Or run any command with nothing installed, as
+            <code>npx @noacg/cli &lt;command&gt;</code>. The loop by hand is three commands:
           </p>
           <pre><code>npx @noacg/cli scaffold --type scoreboard --design neutral --out my-scorebug</code></pre>
           <pre><code>npx @noacg/cli validate my-scorebug --screenshots shots</code></pre>
           <pre><code>npx @noacg/cli save my-scorebug</code></pre>
           <p>
-            <code>scaffold</code> creates the directory relative to where you run the command, and
-            it has to be new or empty. <code>noacg types</code> lists the graphic types the
-            deployment knows, with their fields and operator events, which is where a
+            <code>scaffold</code> creates the <code>--out</code> folder relative to where you
+            run it. The folder has to be new or empty. <code>noacg types</code> lists the
+            graphic types the deployment knows, with their fields and operator events. That is where a
             <code>--type</code> value comes from.
           </p>
           <p>
-            <strong>The MCP server without the skill.</strong> For the tools in Claude Code but
-            not the plugin:
+            <strong>The MCP server without the skill.</strong> This gives Claude Code the tools
+            without the plugin, for the folder you run it in:
           </p>
           <pre><code>claude mcp add noacg -- npx -y @noacg/cli mcp</code></pre>
+          <p>To have it in every folder, add <code>--scope user</code> before the name:</p>
+          <pre><code>claude mcp add --scope user noacg -- npx -y @noacg/cli mcp</code></pre>
           <p>
-            That registers it for the directory you run it in; add <code>--scope user</code> to
-            have it everywhere. The server exposes one tool, <code>noacg</code>, whose
-            <code>command</code> is the CLI verb (types, scaffold, validate, inspect, screenshot,
-            docs, save), so an agent can read the contract through <code>docs</code> before it
-            has a deployment or a key. A server registered this way runs in every session of that
-            scope; the <code>noacg</code> plugin runs no server at all, and its skill drives the
-            CLI from the terminal.
+            A server added this way runs in every session of that scope. The <code>noacg</code>
+            plugin runs no server at all: its skill drives the CLI from the terminal.
+          </p>
+          <p>
+            The server has one tool, <code>noacg</code>. Its <code>command</code> is the CLI
+            verb: types, scaffold, validate, inspect, screenshot, docs or save. So an agent can
+            read the contract through <code>docs</code> before it has a deployment or a key.
           </p>
           <p>
             <strong>Which files to edit.</strong> A package holds sources and generated files.
-            Edit <code>&lt;name&gt;.html</code>, <code>css/template.css</code>,
+            Edit the sources: <code>&lt;name&gt;.html</code>, <code>css/template.css</code>,
             <code>js/template.js</code>, and the <code>images/</code> and <code>fonts/</code>
-            folders. Leave <code>&lt;name&gt;.ograf.json</code>, <code>graphic.mjs</code>,
-            <code>FIELDS.md</code>, <code>README.md</code> and <code>controlpanel.html</code>
-            alone. <code>validate</code> rewrites them from the sources, so an edit made there is
-            lost.
+            folders.
           </p>
           <p>
-            <strong>Which deployment it talks to.</strong> <code>https://noacg.studio</code> by
-            default. <code>NOACG_URL</code> points it at a local dev server or a self-hosted one
-            instead. <code>NOACG_BROWSER</code> names a Chromium executable when the system Chrome
-            or Edge is not the one to use, and <code>NOACG_AGENT_KEY</code> supplies a key in CI,
-            where nothing can open a consent page in a browser.
+            Leave the generated files alone: <code>&lt;name&gt;.ograf.json</code>,
+            <code>graphic.mjs</code>, <code>FIELDS.md</code>, <code>README.md</code>,
+            <code>GETTING-ON-AIR.md</code> and <code>controlpanel.html</code>.
+            <code>validate</code> rewrites them from the sources, so an edit made there is lost.
           </p>
           <p>
-            <strong>When something fails for a reason the findings do not explain</strong>,
-            <code>doctor</code> prints what the tool resolved: which browser it will drive, which
-            deployment <code>NOACG_URL</code> points at, the bridge version it found there, and
-            whether a key is held.
+            <strong>Which deployment it talks to.</strong> <code>https://noacg.studio</code>,
+            unless you set one of these environment variables:
+          </p>
+          <ul>
+            <li><code>NOACG_URL</code> points it at a local dev server or a self-hosted one.</li>
+            <li><code>NOACG_BROWSER</code> names a Chromium executable, when the system Chrome or
+              Edge is not the one to use.</li>
+            <li><code>NOACG_AGENT_KEY</code> supplies a key in CI, where nothing can open a
+              consent page in a browser.</li>
+          </ul>
+          <p>
+            <strong>When something fails and the findings do not say why</strong>, run
+            <code>doctor</code>. It prints which browser it will drive, which deployment
+            <code>NOACG_URL</code> points at, the bridge version it found there, and whether a key
+            is held.
           </p>
           <pre><code>npx @noacg/cli doctor</code></pre>
           <p>
             <strong>What the package is.</strong>
             The folder is at the same time a valid <strong>SPX</strong> package and an
-            <strong>EBU OGraf v1</strong> graphic. Zip it and it also imports through the studio's
-            Import door, or plays in any OGraf renderer.
-            Those two are what the folder satisfies with no build step; the graphic itself is
-            plain HTML, CSS and JavaScript, so the same sources also export to CasparCG, an OBS or
-            vMix overlay, H2R and LiveOS. The full reference is
+            <strong>EBU OGraf v1</strong> graphic, with no build step. Zip it and it imports
+            through the studio's Import door, or plays in any OGraf renderer.
+          </p>
+          <p>
+            The graphic itself is plain HTML, CSS and JavaScript. So the same sources also export
+            to CasparCG, an OBS or vMix overlay, H2R and LiveOS. The full reference is
             <a href="https://github.com/NoaCG/NoaCG-Studio/blob/main/docs/AGENT_CLI.md">AGENT_CLI.md</a>.
           </p>
         </section>
