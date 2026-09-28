@@ -19,7 +19,13 @@ export type PlayoutVerb =
   | 'next'
   | 'out'
   | 'select-prev'
-  | 'select-next';
+  | 'select-next'
+  // A server clip's Pause and Resume. Named verbs through the same dispatcher as the rest, so a
+  // key, a button or a hardware panel reaches them one way (docs/backlog/companion-and-stream-deck.md).
+  // No key yet: `P` comes with phase 3 of docs/CLIP_PLAYBACK_PLAN.md, bound only while playout is on
+  // screen. The hosted page has no server cues to pause, and its dispatcher ignores both.
+  | 'pause'
+  | 'resume';
 
 /**
  * True when the keystroke belongs to whatever the operator is typing into, not to the verbs.

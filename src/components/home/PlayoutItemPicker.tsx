@@ -5,12 +5,8 @@ import { slug } from '../../model/slug';
 import type { GraphicDoc } from '../../model/library';
 import type { PlayoutField } from '../../model/shows';
 import type { ListItem } from '../../control/playoutProtocol';
-import {
-  libraryThumbnail,
-  listLibrary,
-  loadPlayoutSettings,
-  type PlayoutResult,
-} from '../../control/playoutLink';
+import { listLibrary, loadPlayoutSettings, type PlayoutResult } from '../../control/playoutLink';
+import { serverThumbnail } from './serverThumbnail';
 
 /**
  * "From the playout server…" - the rundown's door into the PLAYOUT SERVER'S OWN LIBRARY
@@ -292,10 +288,6 @@ export function folderView(
   };
 }
 
-/** The in-memory thumbnail cache: by name and the server's own timestamp, so a re-encoded
- *  clip gets a fresh picture and an unchanged one costs nothing on the next open. */
-const thumbs = new Map<string, Promise<string | null>>();
-
 function PickerRow({
   item,
   leaf,
@@ -321,13 +313,8 @@ function PickerRow({
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
-      const key = `${item.name}:${item.changed ?? ''}`;
-      let p = thumbs.get(key);
-      if (!p) {
-        p = libraryThumbnail(loadPlayoutSettings(), item.name);
-        thumbs.set(key, p);
-      }
-      void p.then((url) => setThumb(url));
+      // The cache the monitors share (./serverThumbnail.ts), keyed by the server's timestamp.
+      void serverThumbnail(item.name, item.changed).then((url) => setThumb(url));
     });
     io.observe(el);
     return () => io.disconnect();

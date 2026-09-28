@@ -70,12 +70,16 @@ interface FakeBridge {
   templates: string[];
   /** What CLS lists; the default is one movie and one still at the top of the media folder. */
   media?: { name: string; kind: string; frames?: number; fps?: number }[];
+  /** Every action as sent, WITHOUT a take's `cueId`: the envelope each verb has always sent. */
   actions: unknown[];
+  /** The cue id each take named, in order (docs/CLIP_PLAYBACK_PLAN.md §6.7), kept apart so the
+   *  envelopes above stay pinned exactly as they were. */
+  cueIds: string[];
   thumbnails: string[];
 }
 
 async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promise<FakeBridge> {
-  const state: FakeBridge = { templates: ['BK/SB01', 'HOUSE_STRAP/HOUSE_STRAP', 'HAIRLINE'], actions: [], thumbnails: [], ...options };
+  const state: FakeBridge = { templates: ['BK/SB01', 'HOUSE_STRAP/HOUSE_STRAP', 'HAIRLINE'], actions: [], cueIds: [], thumbnails: [], ...options };
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -143,7 +147,9 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       }
     }
     if (path === '/act') {
-      state.actions.push(body.action);
+      const { cueId, ...sent } = (body.action ?? {}) as { cueId?: string };
+      state.actions.push(sent);
+      if (cueId) state.cueIds.push(cueId);
       const act = body.action as { verb?: string; slot?: { channel?: number } } | undefined;
       if (act?.verb === 'take' && state.refuseTakeOnChannel !== undefined && act.slot?.channel === state.refuseTakeOnChannel) {
         await json(route, 200, {
@@ -238,7 +244,11 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
     item: { kind: 'media', name: 'GIORNO' },
     slot: { adapter: 'casparcg', channel: 1, layer: 10 },
   });
-  // Named on the PROGRAM header, never drawn: it plays on the server.
+  // The take names its cue, which the Bridge keeps with what it started so a reading can match
+  // the slot back to this row after a reload. Only a take carries it.
+  const cueId = await cue.getAttribute('data-testid');
+  expect(bridge.cueIds).toEqual([cueId!.replace(/^cue-/, '')]);
+  // Named on the PROGRAM header: it plays on the server.
   await expect(page.getByTestId('playout-on-air')).toContainText('GIORNO');
   await expect(page.getByTestId('production-note')).toContainText('✓ Take: GIORNO on 1-10');
 

@@ -17,7 +17,20 @@ import {
   type AmcpReply,
   type AmcpTarget,
 } from '../amcp.js';
-import type { AgentError, CasparTarget, ItemKind, ListItem, PlayoutAction, PlayoutRenderer, PlayoutVerb, Target } from '../protocol.js';
+import { parseInfo, type InfoLayer } from '../info.js';
+import type { SlotReading } from '../slots.js';
+import type {
+  AgentError,
+  CasparTarget,
+  ItemKind,
+  ListItem,
+  PlayoutAction,
+  PlayoutRenderer,
+  PlayoutVerb,
+  SlotState,
+  Target,
+  TargetCapability,
+} from '../protocol.js';
 import { UsageError } from '../../output.js';
 
 export type AdapterResult<T> = { ok: true; value: T; raw: string } | { ok: false; error: AgentError };
@@ -26,18 +39,80 @@ export type AdapterResult<T> = { ok: true; value: T; raw: string } | { ok: false
  *  the targets that name it. OBS and vMix implement this same shape (adapters/ograf.ts does). */
 export interface PlayoutAdapter<T extends Target = Target> {
   id: T['adapter'];
-  capabilities(): { lists: ItemKind[]; thumbnails: boolean; verbs: PlayoutVerb[] };
+  /** `target` is what `/status` reports for a server of this `version` (docs/CLIP_PLAYBACK_PLAN.md
+   *  §6.9): the page offers a control only when the target can honour it. */
+  capabilities(version?: string): { lists: ItemKind[]; thumbnails: boolean; verbs: PlayoutVerb[]; target: TargetCapability[] };
   status(target: T): Promise<AdapterResult<{ version: string }>>;
   list(target: T, kind: ItemKind, path?: string): Promise<AdapterResult<ListItem[]>>;
   /** Where the library can play, for a target that has renderers of its own (OGraf). */
   renderers?(target: T): Promise<AdapterResult<PlayoutRenderer[]>>;
   thumbnail(target: T, name: string): Promise<AdapterResult<{ png: string }>>;
   act(target: T, action: PlayoutAction): Promise<AdapterResult<null>>;
+  /** What each layer of one channel holds, for a target that can say (`/state`). */
+  state?(target: T, channel: number): Promise<AdapterResult<SlotReading[]>>;
+}
+
+const PRODUCERS: Record<string, SlotState['producer']> = { ffmpeg: 'video', image: 'still', color: 'colour', html: 'html', empty: 'empty' };
+
+/** Milliseconds are the finest the clock needs; INFO writes positions like 0.5999999999999996. */
+const ms = (s: number) => Math.round(s * 1000) / 1000;
+
+/**
+ * One INFO layer in the protocol's words (docs/CLIP_PLAYBACK_PLAN.md §6.7).
+ *
+ * THE SEGMENT ARITHMETIC. `file/time` is the position in the WHOLE file and the whole file's
+ * length; the part that plays is `file/clip`, its start and its length. So a clip trimmed to 7.5 s
+ * starting 5 s into a 30 s file, 1.04 s in, reads time [6.04, 30] and clip [5, 7.5]: the position
+ * is 6.04 - 5 = 1.04 and 6.46 s remain - never 30 - 6.04. Measured on 2.5.0 (the `video-trimmed`
+ * fixture), where `SEEK 250 LENGTH 375` on a 25 fps file in a 50p channel read back as a start of
+ * 5 s and a length of 7.5 s: those frames count in the CHANNEL's rate, not the file's.
+ */
+export function slotReading(l: InfoLayer): SlotReading {
+  const fg = l.foreground;
+  // A MIX under way wraps the incoming producer, and the file fields beside it are the incoming
+  // clip's.
+  const inner = fg.producer === 'transition' ? (fg.transition?.producer ?? '') : fg.producer;
+  const producer = PRODUCERS[inner] ?? 'other';
+  const file = producer === 'video' ? (fg.name ?? fg.path) : producer === 'still' || producer === 'html' ? fg.path : undefined;
+  let segment: SlotReading['segment'];
+  let position: number | undefined;
+  if (producer === 'video' && fg.clip && fg.time && fg.clip[1] > 0) {
+    const [start, length] = fg.clip;
+    segment = { start: ms(start), length: ms(length) };
+    position = ms(Math.min(length, Math.max(0, fg.time[0] - start)));
+  }
+  const tr = fg.producer === 'transition' && fg.transition && fg.transition.type !== 'cut' && fg.transition.frame[1] > 0 ? fg.transition : undefined;
+  const bg = l.background;
+  const queued = bg.producer !== 'empty' ? (bg.name ?? bg.path) : undefined;
+  return {
+    layer: l.layer,
+    producer,
+    ...(file ? { file } : {}),
+    ...(segment ? { segment, position } : {}),
+    paused: fg.paused === true,
+    loop: fg.loop === true,
+    ...(tr ? { transition: { progress: ms(Math.min(1, tr.frame[0] / tr.frame[1])) } } : {}),
+    // `frames_left` is written on the foreground only while the background waits with AUTO.
+    ...(queued ? { queued: { file: queued, auto: fg.framesLeft !== undefined } } : {}),
+  };
+}
+
+/** Whether a server of this version answers INFO in the shape `parseInfo` reads: 2.3 and later.
+ *  The shape is measured on 2.5.0; 2.3 writes the same producer state, and a field a version lacks
+ *  reads as absent rather than failing the reading. */
+export function readsState(version: string | undefined): boolean {
+  const m = /^(\d+)\.(\d+)/.exec(version ?? '');
+  return !!m && (Number(m[1]) > 2 || (Number(m[1]) === 2 && Number(m[2]) >= 3));
 }
 
 /** A cue waits the default; a list waits past the server's own scanner timeout so the 501
  *  arrives and is read, rather than the wait ending first and reporting silence. */
 export const LIST_TIMEOUT_MS = 12_000;
+
+/** A state reading gives up before the page does (its own wait is 1.5 s, src/control/playoutLink.ts),
+ *  so a server that stops answering never holds more than one INFO per channel at a time: the page
+ *  asks again only after this one has ended. INFO answers in about 2 ms on 2.5.0. */
+export const STATE_TIMEOUT_MS = 1200;
 
 /** The AMCP line for one action. Pure and exported so the tests pin every verb's exact text. */
 export function casparLine(action: PlayoutAction): string {
@@ -135,9 +210,9 @@ function refusal(target: CasparTarget, reply: AmcpReply, listing: boolean): Agen
 
 /** One line to the server. A LISTING waits out the scanner's own timeout and reads a 501 as
  *  the scanner missing; a cue waits the default and reads a 501 as a refusal. */
-async function send(target: CasparTarget, line: string, listing = false): Promise<AdapterResult<AmcpReply>> {
+async function send(target: CasparTarget, line: string, listing = false, timeoutMs?: number): Promise<AdapterResult<AmcpReply>> {
   try {
-    const reply = await amcpSend(amcpTarget(target, listing ? LIST_TIMEOUT_MS : undefined), line);
+    const reply = await amcpSend(amcpTarget(target, timeoutMs ?? (listing ? LIST_TIMEOUT_MS : undefined)), line);
     if (reply.code >= 200 && reply.code < 300) return { ok: true, value: reply, raw: reply.status };
     return { ok: false, error: refusal(target, reply, listing) };
   } catch (e) {
@@ -148,11 +223,12 @@ async function send(target: CasparTarget, line: string, listing = false): Promis
 export const casparcgAdapter: PlayoutAdapter<CasparTarget> = {
   id: 'casparcg',
 
-  capabilities() {
+  capabilities(version) {
     return {
       lists: ['template', 'media'],
       thumbnails: true,
       verbs: ['take', 'update', 'next', 'out', 'pause', 'resume'],
+      target: readsState(version) ? ['state'] : [],
     };
   },
 
@@ -200,5 +276,22 @@ export const casparcgAdapter: PlayoutAdapter<CasparTarget> = {
     const r = await send(target, line);
     if (!r.ok) return r;
     return { ok: true, value: null, raw: r.raw };
+  },
+
+  async state(target, channel) {
+    if (!Number.isInteger(channel) || channel < 1) {
+      return { ok: false, error: { hop: 'agent', code: 'usage', detail: `Channel must be a whole number from 1, got "${channel}".` } };
+    }
+    // The whole channel: 2.5.0 answers `INFO c-l` with the channel's document anyway.
+    const r = await send(target, `INFO ${channel}`, false, STATE_TIMEOUT_MS);
+    if (!r.ok) return r;
+    try {
+      return { ok: true, value: parseInfo(r.value.lines[0] ?? '').layers.map(slotReading), raw: r.raw };
+    } catch (e) {
+      return {
+        ok: false,
+        error: { hop: 'target', code: 'unsupported', detail: `${targetName(target)} answered INFO in a shape this Bridge cannot read: ${(e as Error).message}`, raw: r.raw },
+      };
+    }
   },
 };

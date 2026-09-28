@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Phases 0 and 1 are built (§16).** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phases 0, 1 and 2 are built (§16).** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -117,6 +117,22 @@ real 2.5.0 server** (§12). Paths are under `src/`.
 | `MIXER c-l VOLUME` is a **layer** gain that multiplies with the clip's own `AF` gain and outlives the clip. | `AMCPCommandsImpl.cpp:1308`, the mixer commands | NoaCG does not send it in these phases (§6.6). |
 | **`INFO <channel>`** reports each layer's foreground and background. For the video producer, `file/time` is the **position in the whole file** and the **whole file's** length; the played segment is `file/clip` (start and length). `paused`, `loop` and the producer's name are there too. | `layer.cpp` `state_`; `modules/ffmpeg/producer/av_producer.cpp:1006-1007` | The countdown is computed from the segment, never from `file/time` alone (§6.7). |
 | `BEGIN … COMMIT` batches commands, but is **not a transaction**: it can answer `202 COMMIT PARTIAL` after applying the successful ones; `BEGIN` has no reply of its own; a one-command batch takes a shortcut. Not in 2.3.3. | `protocol/amcp/AMCPProtocolStrategy.cpp:215`, `AMCPCommandQueue.cpp:115` | Not used in these phases (§6.6, "All together"). |
+
+**Measured on the real 2.5.0, 2026-09-28** (phase 2; `cli/test/fixtures/info/README.md`,
+`BRIDGE.md` §3b). The `INFO` rows above held, with three things the source did not show:
+
+- **`SEEK`, `IN`, `OUT` and `LENGTH` count frames at the CHANNEL's rate**, not the file's: `SEEK 250
+  LENGTH 375` on a 25 fps file in a 50p channel is 5 s in and 7.5 s long. Phase 3's trim, like its
+  fades, converts seconds with the channel's rate.
+- **`INFO` is one data line of XML** after `201 INFO OK`, its own line breaks bare LF, and `INFO
+  c-l` answers the whole channel. A queued background is a `transition` producer wrapping its file,
+  and `frames_left` appears on the foreground only while that background waits with `AUTO`.
+- **`202 PLAY OK` comes before the clip is on the layer.** For about a tenth of a second the layer
+  still shows what it held before: nothing, or, on a re-take of the same file, that file at its
+  end. A reading in that window must not end or restart anything (§6.7, `arriving`).
+- **2.3 answers `INFO` the same way**, read from this machine's 2.3 build (`2.3.2 4de6d18f Dev`):
+  the same segment for the same trim, with no `<format>` element and a clip named with its
+  extension, so a reading is matched to an item without the extension.
 
 ## 5. What other tools do
 
@@ -343,6 +359,12 @@ a clip the server ended or switched by itself, and **`replaced on the server`** 
 something this Bridge did not start. After a reload, a slot whose `instance` this Bridge recorded
 is matched to its cue exactly; anything else is shown as **an unidentified item on 2-10**, never
 guessed from the file name.
+
+**As built in phase 2** (`src/control/playoutProtocol.ts`), the shape differs from the sketch above
+in four ways: each slot carries its `layer`, since the reply is per channel; `producer` has
+`empty` too, what a `STOP` leaves; `observedAt` and the Bridge's `session` are on the reply, not on
+each slot; and a slot adds `cueId` (the cue the page named on its Take, so a reload finds the row)
+and `arriving` (the Bridge's Take is accepted but not on the layer yet, §4's measured race).
 
 ### 6.8 A production with no playout server
 
@@ -599,8 +621,14 @@ Each is a measurement in `e2e/configured/bridge-real-server.spec.ts` (which runs
 `BRIDGE_REAL=1`), or a line in that phase's owner check:
 
 1. `INFO <channel>` on 2.5.0 for a video, a trimmed video, a still, an audio file, a looping clip, a
-   paused clip, a clip with a queued background and a MIX in progress: kept as fixtures.
-2. How long `INFO` takes to answer, and whether four readings a second disturb playout.
+   paused clip, a clip with a queued background and a MIX in progress: kept as fixtures. **Done
+   2026-09-28**: eighteen captures in `cli/test/fixtures/info/`, captured by hand with a throwaway
+   script rather than in the configured spec, and read by `cli/test/state.test.mjs`. §4 records
+   what they settled.
+2. How long `INFO` takes to answer, and whether four readings a second disturb playout. **Half done
+   2026-09-28**: a median 1.5 ms and at most 3 ms over forty readings a quarter of a second apart
+   (`info-timing.json`). Whether the rate ever costs a frame on air needs the channel's output
+   watched, and is in phase 2's owner check.
 3. Clear with a fade: the fade overlaps the clip's last frames.
 4. `AF "volume=…"`: the measured level of a clip at -12 dB against 0 dB, through a manual Take and
    an automatic switch.
@@ -621,7 +649,9 @@ layer; sequences run by the Bridge with generations and disarm; folders in three
 split between Bridge and target; the phone surfaces frozen and pinned.
 
 **Later:** a live fader per slot; graphics attached to a clip; frame-exact All together; Load and
-preloading, if measured; Invoke; a second-channel preview.
+preloading, if measured; Invoke; a second-channel preview; Bitfocus Companion and a Stream Deck
+with live feedback, through the Bridge (`backlog/companion-and-stream-deck.md`: every action is a
+named verb and every state plain data from one store, kept so from phase 2).
 
 **Not built:** a clip end that takes a graphic; a NOW / NEXT strip; state and ends columns; mixer,
 route, record and stream items; raw AMCP command items; transitions other than MIX; nested
@@ -752,6 +782,45 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `cli/BRIDGE_CHANGELOG.md`, `cli/package.json` | the release; its notes follow `cli/write-every-published-text-person-who` |
 | `docs/BRIDGE.md` | §3, §3a, §3b, §5, §9 |
 
+**Built 2026-09-28**, as the table says, with these differences worth knowing:
+
+- **The parser is its own file**, `cli/src/playout/info.ts`, not part of `amcp.ts`: `INFO`'s answer
+  is XML, and the line protocol stays about lines. The per-slot generations and instances are
+  `cli/src/playout/slots.ts` (new), the Bridge's one piece of memory beside its token (`BRIDGE.md`
+  §3). Their tests are `cli/test/state.test.mjs` (new) against the real captures in
+  `cli/test/fixtures/info/` (§12, items 1 and 2), and the fake server now answers `INFO` in the real
+  shape.
+- **The page's side is `src/control/serverState.ts` (new)**: plain functions that fold a reading or
+  an accepted action into the store's two parts, and the clip clock's answer as data (`clipClock`).
+  A fold that changes nothing hands back the same object, which is what keeps the page from
+  re-rendering. `scripts/server-playout.test.mjs` tests them in Node.
+- **The real server showed a race the plan did not have** (§4): `202 PLAY OK` comes before the clip
+  is on the layer. The first readings after a Take would have taken a fresh clip off air, and a
+  re-take of the same file read as somebody else restarting it. The Bridge marks such a reading
+  `arriving` for up to 1.5 s, and a reading taken while an action is still in flight reports the
+  generation from before it.
+- **A Take carries the cue's id** (`cueId`, additive), kept with the instance, so a reload finds
+  the row by instance rather than by the item alone.
+- **Pause and Resume became named verbs** (`pause`, `resume` in `components/playoutKeys.ts`) with no
+  key yet, dispatched by `onVerb` like the rest, for the hardware panel filed in
+  `backlog/companion-and-stream-deck.md`.
+- `src/components/home/serverThumbnail.ts` (new) is the one thumbnail cache the picker, PREVIEW and
+  PROGRAM share. PROGRAM's still sits under the output stage, and with no picture PROGRAM names the
+  clip rather than saying nothing is on air.
+- **The version** was already 0.4.2 and unreleased (the CLI's own changes), so the Bridge ships as
+  0.4.2 without a bump.
+- `e2e/playout-baseline.spec.ts` masks the clock's number and an on-air row's time, which move.
+- `cli/test/caspar.test.mjs` needed no change.
+- **The poll is its own file**, `src/control/serverStatePoll.ts` (new), so Node tests it: never two
+  readings out, and a reading the page cannot fold ends that round rather than the poll.
+- **Found by the review before landing**: a still got a clock that could never count (the clock now
+  follows a clip or audio file only, by the server's reading or, before it, the list's length);
+  Pause and Resume now move the generation too, so a reading from before a Pause cannot restart the
+  clock; a paused loop says PAUSED; and an instance of this Bridge's for a cue of the rundown names
+  that cue wherever it plays, which covers a re-take whose reading beats its answer, another tab of
+  the same production, and a cue moved to another layer while it was up. 2.3 was read as well as
+  2.5.0 (§4).
+
 ### Phase 3 - clip settings and sequences
 
 | File | Change |
@@ -810,8 +879,9 @@ renderer (`/output`); the database and its migrations; the Presenter page.
    may break what the hosted page already does** (§8).
 2. **`backlog/production-page-phases.md`**: phase 0 runs its phases 1 and 2 as written; `liveCue`
    and `selectedCueId` never move.
-3. **The Bridge keeps no state** (`BRIDGE.md` §3): the sequence runner is the one exception (§6.10),
-   recorded in `BRIDGE.md` in phase 3.
+3. **The Bridge keeps no state** (`BRIDGE.md` §3), with two exceptions, both in memory: since phase
+   2 each slot's generation and instance (§6.7), recorded in `BRIDGE.md` §3; from phase 3 the
+   sequence runner (§6.10), kept beside them.
 4. **Bridge releases** are routine and need no owner (`GOALS.md`, "Autonomous work"). Their notes
    follow `cli/write-every-published-text-person-who`.
 5. **Owner checks only where a person must judge** (`root/verify-proportion-change-against-spec-acceptance`):
@@ -862,6 +932,16 @@ breaks it on purpose.
 | 17 | Reload mid-clip, same file twice, adjacent identical clips | matched by instance; otherwise an unidentified item | e2e: each, including a same-file retake by another client |
 | 18 | TO STUDIO wrong with crossfades or trims | segment lengths minus overlaps; `?` when unknown | unit and e2e: 3×10 s with two 1 s MIXes reads 0:28 |
 | 19 | Keyboard | `P` and folder steps in `playoutKeys.ts` | e2e: folder selection, every Space mode, a held `P`, focus in a field, Data and Audience open |
+
+**Built in phase 2** (2026-09-28), each with its guard broken on purpose to see the test fail:
+case 14 (`e2e/playout-clock.spec.ts`, "a reading from before a Take that lands after it is
+ignored"; the Bridge's half, a reading taken while a Take is in flight, in
+`cli/test/state.test.mjs`); case 15 (the same spec's render count, with the page's clock frozen so
+its own timers cannot pass for the store's, and "a clip ended on the server takes the row, Out and
+All out with it"); the page's half of case 16 ("the tab coming back into view reads the server at
+once"; the Bridge's half comes with the runner); case 17 ("a reload finds its own clip by
+instance", a same-file take by another client, a restarted Bridge's unidentified item, and a
+same-file re-take by this page that must not read as a restart).
 
 **The record**
 

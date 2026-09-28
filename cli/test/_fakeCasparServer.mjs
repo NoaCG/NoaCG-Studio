@@ -17,7 +17,10 @@
 //     AUTO exactly as they were;
 //   - `LOADBG` without AUTO switches AUTO off; `STOP` empties the foreground and switches AUTO off
 //     but keeps the background; `CLEAR c-l` removes both;
-//   - a looping clip never ends, so AUTO behind it never fires.
+//   - a looping clip never ends, so AUTO behind it never fires;
+//   - `IN`, `SEEK`, `OUT` and `LENGTH` count frames at the CHANNEL's rate, not the file's: on the
+//     real 2.5.0 a 25 fps file on a 50p channel took `SEEK 250 LENGTH 375` as 5 s in and 7.5 s
+//     long (measured 2026-09-28, cli/test/fixtures/info/video-trimmed.json).
 // Anything the model does not know is answered `400 ERROR`, never guessed.
 //
 // TIME IS INJECTED. `clock.now()` is milliseconds; the fake reads it and never schedules
@@ -26,11 +29,13 @@
 // automatic switch is placed at the instant it was due, not at the instant it was noticed - so a
 // test that jumps the clock by a minute sees the same state as one that crept up on it.
 //
-// `INFO <channel>` is answered from the model as XML, on one line. Its field names follow the
-// server's `state_` keys as §4 describes them (`file/name`, `file/path`, `file/time`,
-// `file/clip`, `paused`, `loop`, `producer`), but it is THIS FAKE'S rendering, not a capture: the
-// real 2.5.0 answers are recorded separately as fixtures (§12, item 1), and a parser is pinned
-// against those, never against this.
+// `INFO <channel>` is answered from the model as XML, on one line, in the SHAPE the real 2.5.0
+// answered on 2026-09-28 (cli/test/fixtures/info/): `ffmpeg` for a clip or an audio file with
+// `file/clip`, `file/time` and `file/name`; `image` with `file/path`; `color`; `html` with
+// `file/path`; `empty` after a STOP; a queued background as a `transition` wrapping its file; and
+// `frames_left` on the foreground only while the background waits with AUTO. It is still this
+// fake's rendering, not a capture - the parser is pinned against the captures themselves, and this
+// shape only has to be one the parser reads the same way.
 
 import { createServer } from 'node:net';
 import { StringDecoder } from 'node:string_decoder';
@@ -167,14 +172,15 @@ export async function fakeCasparServer(options = {}) {
     };
     const mix = flag('MIX') ? arg('MIX') ?? 0 : undefined;
     if (!first.quoted && first.text.toUpperCase() === 'EMPTY') {
-      return { producer: 'colour', file: '#00000000', start: 0, length: Infinity, loop: false, mix };
+      return { producer: 'colour', file: 'EMPTY', start: 0, length: Infinity, loop: false, mix };
     }
     if (!first.quoted && first.text.toUpperCase() === '[HTML]') {
       return { producer: 'html', file: tokens[1]?.text ?? '', start: 0, length: Infinity, loop: false, mix };
     }
     const m = media.get(first.text.toUpperCase());
     if (!m) return null;
-    const fps = m.fps ?? fpsOf(channel);
+    // The channel's frames, whatever the file's own rate (see the head of this file).
+    const fps = fpsOf(channel);
     const lengthFrames = arg('LENGTH');
     if (m.kind === 'still') {
       return {
@@ -302,18 +308,35 @@ export async function fakeCasparServer(options = {}) {
     }
   }
 
-  /** One producer as INFO's XML - see the head of this file for what this is and is not. */
-  function producerXml(p, at, running) {
-    if (!p) return '<producer>empty</producer>';
-    if (p.producer === 'colour') return `<producer>color</producer><color>${xmlEscape(p.file)}</color>`;
-    if (p.producer === 'html') return `<producer>html</producer><url>${xmlEscape(p.file)}</url>`;
-    if (p.producer === 'still') return `<producer>image</producer><file><path>${xmlEscape(p.file)}</path></file>`;
-    const pos = running ? position(p, at) : 0;
+  /** A foreground as INFO's XML - see the head of this file for what this is and is not. */
+  function foregroundXml(l, at) {
+    const p = l.foreground;
+    if (!p) return '<paused>false</paused><producer>empty</producer>';
+    const paused = `<paused>${p.pausedAt !== null}</paused>`;
+    if (p.producer === 'colour') return `<color>${xmlEscape(p.file)}</color>${paused}<producer>color</producer>`;
+    if (p.producer === 'html') return `<file><path>${xmlEscape(p.file)}</path></file>${paused}<producer>html</producer>`;
+    if (p.producer === 'still') return `<file><path>media\\${xmlEscape(p.file)}.png</path></file>${paused}<producer>image</producer>`;
+    const framesLeft = l.background && l.auto ? `<frames_left>${Math.max(0, Math.round((p.length - position(p, at)) * fpsOf(l.channel)))}</frames_left>` : '';
     return (
-      `<producer>ffmpeg</producer><file><name>${xmlEscape(p.file)}</name>` +
-      `<time>${num(p.start + pos)}</time><time>${num(p.whole)}</time>` +
-      `<clip>${num(p.start)}</clip><clip>${num(p.length)}</clip></file>` +
-      `<loop>${p.loop}</loop><paused>${running && p.pausedAt !== null}</paused>`
+      `<file><clip>${num(p.start)}</clip><clip>${num(p.length)}</clip><name>${xmlEscape(p.file)}</name>` +
+      `<path>media/${xmlEscape(p.file)}.mp4</path><time>${num(p.start + position(p, at))}</time><time>${num(p.whole)}</time></file>` +
+      `${framesLeft}<loop>${p.loop}</loop>${paused}<producer>ffmpeg</producer>`
+    );
+  }
+
+  /** A background as INFO's XML: a queued file sits inside a `transition` producer, as on 2.5.0. */
+  function backgroundXml(l) {
+    const p = l.background;
+    if (!p) return '<producer>empty</producer>';
+    const file =
+      p.producer === 'video' || p.producer === 'audio'
+        ? `<file><clip>${num(p.start)}</clip><clip>0</clip><name>${xmlEscape(p.file)}</name><time>0</time><time>0</time></file>`
+        : `<file><path>${xmlEscape(p.file)}</path></file>`;
+    const inner = p.producer === 'still' ? 'image' : p.producer === 'colour' ? 'color' : p.producer === 'html' ? 'html' : 'ffmpeg';
+    const frames = p.mix === undefined ? 0 : p.mix;
+    return (
+      `${file}<loop>${p.loop}</loop><producer>transition</producer>` +
+      `<transition><frame>0</frame><frame>${frames}</frame><producer>${inner}</producer><type>${p.mix === undefined ? 'cut' : 'mix'}</type></transition>`
     );
   }
 
@@ -322,13 +345,9 @@ export async function fakeCasparServer(options = {}) {
     const rows = [...layers.values()]
       .filter((l) => l.channel === channel)
       .sort((a, b) => a.layer - b.layer)
-      .map(
-        (l) =>
-          `<layer_${l.layer}><foreground>${producerXml(l.foreground, at, true)}</foreground>` +
-          `<background>${producerXml(l.background, at, false)}<auto>${l.auto}</auto></background></layer_${l.layer}>`,
-      )
+      .map((l) => `<layer_${l.layer}><background>${backgroundXml(l)}</background><foreground>${foregroundXml(l, at)}</foreground></layer_${l.layer}>`)
       .join('');
-    return `<?xml version="1.0" encoding="utf-8"?><channel><framerate>${fpsOf(channel)}</framerate><stage><layer>${rows}</layer></stage></channel>`;
+    return `<?xml version="1.0" encoding="utf-8"?><channel><format>fake</format><framerate>${fpsOf(channel)}</framerate><framerate>1</framerate><stage><layer>${rows}</layer></stage></channel>`;
   }
 
   /** What a layer holds right now, as the model sees it - what tests assert on. */

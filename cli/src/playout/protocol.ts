@@ -66,7 +66,10 @@ export interface ItemRef {
  * through the CG layer, where `out` on a clip stops the video layer.
  */
 export type PlayoutAction =
-  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean }
+  /** `cueId` names the page's cue, which the Bridge keeps with what it started so a reading can
+   *  match the slot back to its cue after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). A Bridge
+   *  from before it reads the action field by field and never sees it. */
+  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
   | { verb: 'next' | 'out' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. */
@@ -111,6 +114,14 @@ export interface AgentError {
   raw?: string;
 }
 
+/** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a
+ *  Bridge that lists none is older than all of them. It says nothing about any server. */
+export type BridgeFeature = 'state';
+
+/** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
+ *  a request that names a target can say. The page offers a control only when both lists say yes. */
+export type TargetCapability = 'state';
+
 /** What `GET /health` answers, to any origin and without a token. */
 export interface HealthReply {
   ok: true;
@@ -118,6 +129,7 @@ export interface HealthReply {
   v: number;
   version: string;
   adapters: AdapterId[];
+  features?: BridgeFeature[];
 }
 
 export interface StatusReply {
@@ -125,6 +137,53 @@ export interface StatusReply {
   /** The target's own version string. */
   version: string;
   raw: string;
+  capabilities?: TargetCapability[];
+}
+
+/**
+ * What one slot holds, as the Bridge read it off the server (`POST /state`,
+ * docs/CLIP_PLAYBACK_PLAN.md §6.7). Times are seconds. A clip's `segment` is the part of the file
+ * that plays - its start in the file and its length - and `position` is how far into the SEGMENT
+ * it is, so a trimmed clip counts down its own length, never the file's.
+ */
+export interface SlotState {
+  /** The slot's layer; the channel is the request's. */
+  layer: number;
+  /** `empty` after a STOP, `colour` after `PLAY … EMPTY`; nothing is on air in either. */
+  producer: 'video' | 'still' | 'colour' | 'html' | 'empty' | 'other';
+  /** A clip's or audio file's name as it was played; a still's or a page's path. */
+  file?: string;
+  segment?: { start: number; length: number };
+  position?: number;
+  paused: boolean;
+  loop: boolean;
+  /** While a MIX into this clip is running, how far it has got, 0 to 1. */
+  transition?: { progress: number };
+  /** The file waiting behind it (`LOADBG`), and whether it plays by itself at the end (`AUTO`). */
+  queued?: { file: string; auto: boolean };
+  /** What this Bridge started here and still sees playing: its id, and the cue the page named. */
+  instance?: string;
+  cueId?: string;
+  /** This Bridge's take on the slot is not on the layer yet: the server answers a PLAY before the
+   *  clip is there, and for a moment the layer still shows what it held before (nothing, or the
+   *  previous clip). The rest of the reading is that previous content, not the take's. */
+  arriving?: boolean;
+  /** The slot's action counter as of this reading. Every Take, Out, Clear, Pause and Resume moves
+   *  it first. */
+  generation: number;
+}
+
+/** `POST /state` with `{ target, channel }`: every layer the channel holds, and every layer this
+ *  Bridge acted on there even when the server no longer reports it. */
+export interface StateReply {
+  ok: true;
+  channel: number;
+  /** This Bridge process. Every instance id starts with it, so an instance from before a restart
+   *  can be told from one somebody else started. */
+  session: string;
+  /** The Bridge's own monotonic clock at the reading, ms. */
+  observedAt: number;
+  slots: SlotState[];
 }
 
 /** One renderer an OGraf server offers, with the targets it reports and the schema a render
@@ -155,6 +214,13 @@ export interface ThumbnailReply {
 export interface ActReply {
   ok: true;
   raw: string;
+  /** The slot's generation after this action: a reading older than it is from before it. */
+  generation?: number;
+  /** The Bridge process that counted it. A restarted Bridge counts from zero again, so a
+   *  generation only compares with readings from the same session. */
+  session?: string;
+  /** A take's instance id, which the slot's readings carry for as long as it plays. */
+  instance?: string;
 }
 
 export interface ErrorReply {

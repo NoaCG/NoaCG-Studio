@@ -1,0 +1,10 @@
+{
+  "note": "CasparCG 2.3 (the build in the 2.3.3 LTS folder reports 2.3.2 4de6d18f Dev), channel 1 at 1080p50: the 25 fps clip trimmed with SEEK 250 LENGTH 375, about 0.9 s in. The same segment as 2.5.0, and the file named WITH its extension.",
+  "commands": [
+    "PLAY 1-10 \"NOACG_FIXTURE/COUNT30\" SEEK 250 LENGTH 375"
+  ],
+  "capturedAt": "2026-09-28T10:28:10.487Z",
+  "server": "2.3.2 4de6d18f Dev",
+  "channelFormat": "1080p5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <stage>\n      <layer>\n         <layer_10>\n            <background>\n               <producer>empty</producer>\n            </background>\n            <foreground>\n               <file>\n                  <clip>5</clip>\n                  <clip>7.5</clip>\n                  <name>NOACG_FIXTURE/COUNT30.mp4</name>\n                  <path>C:/casparcg/media//NOACG_FIXTURE/COUNT30.mp4</path>\n                  <streams>\n                     <file>\n                        <streams_0>\n                           <fps>25</fps>\n                           <fps>1</fps>\n                        </streams_0>\n                        <streams_1>\n                           <fps>0</fps>\n                           <fps>0</fps>\n                        </streams_1>\n                     </file>\n                  </streams>\n                  <time>5.9400000000000004</time>\n                  <time>30.02</time>\n               </file>\n               <loop>false</loop>\n               <paused>false</paused>\n               <producer>ffmpeg</producer>\n            </foreground>\n         </layer_10>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

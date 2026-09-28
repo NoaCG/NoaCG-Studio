@@ -1,23 +1,31 @@
 // THE PLAYOUT SERVER'S STATE ON THE PAGE, in two parts that change at two speeds
 // (docs/CLIP_PLAYBACK_PLAN.md §10, "two kinds of server state").
 //
-//   OWNERSHIP  what this page put up, and on which slot (./serverPlayout `ServerOnAir`). It moves
-//              only when an action is accepted - and, once the Bridge reports the server's own
-//              state, when the server switches by itself. It is what the verbs, All out and the
+//   OWNERSHIP  which cue is up on which slot (./serverPlayout `ServerOnAir`), and what else the
+//              server says that changes only on an action or a switch: the last accepted
+//              generation per slot, a cue replaced on the server, an unidentified item, what waits
+//              to play next (./serverState `ServerOwnership`). It is what the verbs, All out and the
 //              rundown's ON AIR read.
-//   TIMING     where each clip is in its segment, by slot address. The Bridge will read it twice
-//              a second (plan §6.7, phase 2); nothing writes it before then.
+//   TIMING     where each slot's clip is in its segment, by slot address, from the Bridge's reading
+//              twice a second or the page's own count from its Take (./serverState `SlotTiming`).
 //
 // Each part is its own subscription, so a consumer re-renders only for the part it reads: the
-// clip clock and the rows' remaining time will subscribe to TIMING, and nothing that decides what
-// a verb may do ever will. A page that re-rendered twice a second would retype every field it
-// holds (plan §18, case 15).
+// clip clock and the rows' remaining times subscribe to TIMING, and nothing that decides what a
+// verb may do ever does. A page that re-rendered twice a second would retype every field it holds
+// (plan §18, case 15).
+//
+// Both parts are plain data, so everything a hardware panel would light - on air, the clip's
+// remaining time, HOLDING, PAUSED, the 10 and 5 second warnings, NEXT ON SERVER - is read from here
+// through ./serverState's functions, never from inside a component
+// (docs/backlog/companion-and-stream-deck.md).
 //
 // No React in here: a surface reads a part with `useSyncExternalStore(part.subscribe, part.get)`.
 // Kept plain so a Node test can import it, and one store is made per page, so it lives exactly as
 // long as the state it replaced.
 
-import type { ServerOnAir } from './serverPlayout';
+import { NO_OWNERSHIP, type ServerOwnership, type ServerParts, type ServerTiming } from './serverState.ts';
+
+export type { ServerOwnership, ServerTiming };
 
 /** One independently subscribed value. `get` and `subscribe` keep their identity for the part's
  *  whole life, which `useSyncExternalStore` needs. */
@@ -48,29 +56,24 @@ function storePart<T>(initial: T): StorePart<T> {
   };
 }
 
-/** Where one clip is in the segment on air, as the Bridge last read it off the server. A stand-in
- *  until phase 2 puts the protocol's own `SlotState` (plan §6.7) here. */
-export interface SlotTiming {
-  /** Seconds into the segment. */
-  position: number;
-  /** The segment's length in seconds. */
-  length: number;
-  paused: boolean;
-  /** When the Bridge read it, on the Bridge's own clock (ms). */
-  observedAt: number;
-}
-
-/** TIMING, keyed by slot address (`2-10`). */
-export type ServerTiming = Readonly<Record<string, SlotTiming>>;
-
 export interface ServerPlayoutStore {
-  ownership: StorePart<ServerOnAir>;
+  ownership: StorePart<ServerOwnership>;
   timing: StorePart<ServerTiming>;
+  /** Move both parts at once with one of ./serverState's folds. Each part's listeners hear only
+   *  its own change, so a reading that moved only the clock reaches only the clock. */
+  apply: (fold: (parts: ServerParts) => ServerParts) => void;
 }
 
 export function createServerPlayoutStore(): ServerPlayoutStore {
+  const ownership = storePart<ServerOwnership>(NO_OWNERSHIP);
+  const timing = storePart<ServerTiming>({});
   return {
-    ownership: storePart<ServerOnAir>({}),
-    timing: storePart<ServerTiming>({}),
+    ownership,
+    timing,
+    apply: (fold) => {
+      const next = fold({ ownership: ownership.get(), timing: timing.get() });
+      timing.set(next.timing);
+      ownership.set(next.ownership);
+    },
   };
 }

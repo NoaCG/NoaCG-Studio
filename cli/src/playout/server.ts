@@ -14,15 +14,26 @@
 //     attacker's own domain would reach in (DNS rebinding)
 //   - bodies are capped, `/amcp` takes one line and refuses an embedded CR or LF
 //
-// State the Bridge keeps: its token (a file), and the pairing code in memory. NoaCG owns every
+// State the Bridge keeps: its token (a file), the pairing code in memory, and per slot the
+// generation and the instance it started there (./slots.ts), also in memory. NoaCG owns every
 // setting; each request names its target.
 
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
 import { amcpSend } from './amcp.js';
-import type { PlayoutAdapter } from './adapters/casparcg.js';
+import type { AdapterResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
-import { PLAYOUT_V, type AgentError, type ItemKind, type PlayoutAction, type RenderTargetId, type Slot, type Target } from './protocol.js';
+import {
+  PLAYOUT_V,
+  type AgentError,
+  type BridgeFeature,
+  type ItemKind,
+  type PlayoutAction,
+  type RenderTargetId,
+  type Slot,
+  type Target,
+} from './protocol.js';
+import { SlotMemoryBank } from './slots.js';
 import { secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
 import { UsageError } from '../output.js';
@@ -34,6 +45,9 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 /** A pairing code is spent on first use or forgotten after this. */
 export const PAIRING_TTL_MS = 2 * 60_000;
+
+/** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -87,6 +101,8 @@ export interface BridgeOptions {
   /** The current pairing code, if one is armed: minted at start, spent by /pair, forgotten
    *  after PAIRING_TTL_MS. A fresh one means a fresh start of the Bridge. */
   pairing?: Pairing;
+  /** The slots' generations and instances. A test hands in its own to fix the session id. */
+  memory?: SlotMemoryBank;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -187,8 +203,12 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
   switch (a.verb) {
-    case 'take':
-      return { verb: 'take', item: readItem(a.item), slot, data: stringMap(a.data), loop: a.loop === true };
+    case 'take': {
+      // The page's cue id, kept with the instance and handed back on readings. Opaque here, and
+      // bounded, since it is echoed to every page that reads the slot.
+      const cueId = typeof a.cueId === 'string' && a.cueId.trim() ? a.cueId.trim().slice(0, 200) : undefined;
+      return { verb: 'take', item: readItem(a.item), slot, data: stringMap(a.data), loop: a.loop === true, ...(cueId ? { cueId } : {}) };
+    }
     case 'update': {
       const data = stringMap(a.data);
       if (!data) throw new UsageError('An update carries data.');
@@ -211,6 +231,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
 /** Build the Bridge's HTTP server. Exported so a test can drive it on port 0. */
 export function createBridgeServer(options: BridgeOptions, log: (line: string) => void): Server {
   const byId = new Map(options.adapters.map((a) => [a.id, a]));
+  const memory = options.memory ?? new SlotMemoryBank();
 
   return createServer((req, res) => {
     const origin = req.headers.origin;
@@ -246,7 +267,11 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
     // merely started for a different deployment. The reply carries presence, the protocol
     // version and the adapters, and nothing else: no token, no studio, no playout server.
     if (url === '/health' && req.method === 'GET') {
-      send(200, { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()] }, true);
+      send(
+        200,
+        { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: options.version, adapters: [...byId.keys()], features: [...BRIDGE_FEATURES] },
+        true,
+      );
       return;
     }
 
@@ -298,7 +323,36 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/status') {
           const r = await adapter.status(target);
           log(`${at} status -> ${r.ok ? r.raw : r.error.code}`);
-          send(200, r.ok ? { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
+          send(
+            200,
+            r.ok
+              ? { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw, capabilities: adapter.capabilities(r.value.version).target }
+              : { ok: false, v: PLAYOUT_V, error: r.error },
+            true,
+          );
+          return;
+        }
+        if (url === '/state') {
+          // What each layer of one channel holds (docs/CLIP_PLAYBACK_PLAN.md §6.7), read off the
+          // server and annotated with what only this Bridge knows. Asked twice a second while a
+          // server cue is up, so it is not logged: the log is for commands.
+          const channel = body.channel;
+          if (typeof channel !== 'number' || !Number.isInteger(channel) || channel < 1) throw new UsageError('A state reading names a whole channel from 1.');
+          if (!adapter.state) {
+            const error: AgentError = { hop: 'agent', code: 'unsupported', detail: `A ${target.adapter} target cannot report what it is playing.` };
+            send(200, { ok: false, v: PLAYOUT_V, error }, true);
+            return;
+          }
+          const r = await adapter.state(target, channel);
+          if (!r.ok) {
+            send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
+            return;
+          }
+          send(
+            200,
+            { ok: true, v: PLAYOUT_V, channel, session: memory.session, observedAt: Math.round(performance.now()), slots: memory.annotate(target, channel, r.value) },
+            true,
+          );
           return;
         }
         if (url === '/list') {
@@ -324,9 +378,30 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         }
         if (url === '/act') {
           const action = readAction(body);
-          const r = await adapter.act(target, action);
+          // Every action that changes what the clock shows - a Take, Out, Clear, Pause or Resume -
+          // moves the slot's generation BEFORE it is sent, so a reading that was already on its
+          // way reports the older number and the page can set it aside.
+          const moves = action.verb !== 'update' && action.verb !== 'next';
+          if (moves) memory.advance(target, action.slot);
+          let r: AdapterResult<null>;
+          try {
+            r = await adapter.act(target, action);
+          } finally {
+            // Answered or not, the action is no longer in flight: readings count it from here.
+            if (moves) memory.settled(target, action.slot);
+          }
           log(`${at} ${action.verb} -> ${r.ok ? r.raw : `${r.error.code} ${r.error.raw ?? ''}`.trim()}`);
-          send(200, r.ok ? { ok: true, v: PLAYOUT_V, raw: r.raw } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
+          let instance: string | undefined;
+          if (r.ok && action.verb === 'take') instance = memory.started(target, action.slot, action.item, action.cueId);
+          if (r.ok && (action.verb === 'out' || action.verb === 'clear')) memory.ended(target, action.slot);
+          const generation = memory.generation(target, action.slot);
+          send(
+            200,
+            r.ok
+              ? { ok: true, v: PLAYOUT_V, raw: r.raw, generation, session: memory.session, ...(instance ? { instance } : {}) }
+              : { ok: false, v: PLAYOUT_V, error: r.error },
+            true,
+          );
           return;
         }
         if (url === '/amcp') {

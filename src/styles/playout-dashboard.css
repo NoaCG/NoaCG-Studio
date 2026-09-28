@@ -496,6 +496,127 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
     min-height: clamp(44px, calc((var(--pd-monitor-h) - 25px - 12px) / 3), 88px);
   }
 }
+
+/* ── THE VERB COLUMN, and THE CLIP CLOCK under it (docs/CLIP_PLAYBACK_PLAN.md §6.4) ───────────
+   The column holds the verbs and, only while a server clip is on air, the clock. The clock takes
+   the height the column has LEFT beside PROGRAM and never more: `container-type: size` means
+   nothing inside it can make it, or the stage head, taller - its number scales with the box
+   (`cqh`) instead, and below 96px of room it folds to one thin row. With no clock the verbs keep
+   the whole column, exactly as before it existed. NOT `.pd-clock`: that is the header's session
+   timer, which the phone hides. */
+.pd-verbcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+@media (min-width: 1366px) {
+  .pd-stagehead .pd-verbcol { gap: 6px; }
+  .pd-stagehead .pd-verbs { flex: 1 1 auto; }
+  /* A clock is up: the verbs keep their own height and hand the rest of the column to it. */
+  .pd-stagehead .pd-verbcol:has(.pd-clipclock) .pd-verbs { flex: none; align-content: start; }
+  .pd-stagehead .pd-verbcol:has(.pd-clipclock) .pd-verb { min-height: 40px; }
+}
+.pd-clipclock {
+  --clk: #f1f5f9;
+  container-type: size;
+  flex: 1 1 0;
+  min-height: 34px;
+  max-width: 300px;
+  box-sizing: border-box;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.06);
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.pd-clipclock-in {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 7px 11px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+.pd-clipclock-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: #ef4444;
+  white-space: nowrap;
+}
+.pd-clipclock-head .pd-dot { background: #ef4444; }
+.pd-clipclock-where { flex: none; }
+.pd-clipclock-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); letter-spacing: 0.04em; }
+.pd-clipclock-est { margin-left: auto; flex: none; font-weight: 600; letter-spacing: 0.04em; color: var(--amber); }
+.pd-clipclock-time {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25em;
+  font-family: var(--mono, monospace);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--clk);
+  /* The number is the box: as tall as the room allows and as wide as the column, never wider.
+     `--clk-fit` is how many digit-widths the line holds (ClipClock.tsx), and a mono digit is about
+     0.62em, so `-0:59` gets a big number and `HOLDING +0:03` or an hour-long clip a smaller one. */
+  font-size: clamp(14px, min(42cqh, calc((100cqw - 24px) / (var(--clk-fit, 5) * 0.62))), 64px);
+  white-space: nowrap;
+}
+/* HOLDING and PAUSED are a word before the number, a little under half its size. */
+.pd-clipclock-label { font-size: 0.42em; letter-spacing: 0.08em; }
+.pd-clipclock-then { font-family: var(--mono, monospace); font-size: 11px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The last ten seconds turn it red, the last five pulse it. The digits count either way, so the
+   colour is never the only thing saying so. */
+.pd-clipclock--warning,
+.pd-clipclock--final { --clk: #fee2e2; border-color: #ef4444; background: rgba(239, 68, 68, 0.24); }
+.pd-clipclock--final { animation: pd-clipclock-pulse 1s ease-in-out infinite; }
+@keyframes pd-clipclock-pulse {
+  50% { background: rgba(239, 68, 68, 0.46); }
+}
+/* At the end of a clip that holds: amber, counting up, since it is still on air. */
+.pd-clipclock--holding { --clk: #f8c675; border-color: rgba(246, 166, 35, 0.75); background: rgba(246, 166, 35, 0.1); }
+.pd-clipclock--paused { --clk: #cbd5e1; border-color: var(--border); background: rgba(255, 255, 255, 0.03); }
+/* A loop has no end to count to: its own time, small, and never a warning. */
+.pd-clipclock--looping { border-color: var(--border); background: rgba(255, 255, 255, 0.03); }
+.pd-clipclock--looping .pd-clipclock-time { font-size: clamp(14px, min(26cqh, 10cqw), 28px); color: var(--text-dim); }
+@media (prefers-reduced-motion: reduce) {
+  .pd-clipclock--final { animation: none; }
+}
+/* Too little height for three lines: the line under the number goes first, then the head and the
+   number share ONE thin row. */
+@container (max-height: 96px) {
+  .pd-clipclock-then { display: none; }
+}
+@container (max-height: 60px) {
+  .pd-clipclock-in { flex-direction: row; align-items: center; gap: 10px; padding: 0 10px; }
+  .pd-clipclock-head { flex: 1 1 auto; min-width: 0; }
+  .pd-clipclock-time { flex: none; font-size: clamp(13px, 55cqh, 24px); }
+}
+
+/* ── A SERVER CLIP'S PICTURE on a monitor (plan §6.3) ─────────────────────────────────────────
+   Its thumbnail, marked STILL - the page never has the server's moving video - and on PREVIEW the
+   clip's length in the corner. PROGRAM shows no time: the clock sits right beside it. On PROGRAM
+   the still sits UNDER the output stage, so graphics on air draw over it as they would on the
+   channel. */
+.pd-frame-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.pd-frame-still ~ .pd-frame-server-name { display: none; }
+.pd-still-tag,
+.pd-frame-length {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--mono, monospace);
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(12, 14, 18, 0.82);
+  color: #e8edf2;
+  pointer-events: none;
+}
+.pd-still-tag { left: 8px; top: 8px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; border: 1px solid rgba(255, 255, 255, 0.2); }
+.pd-frame-length { right: 8px; bottom: 8px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pd-monitor { display: flex; flex-direction: column; min-width: 0; }
 .pd-monitor h2 {
   margin: 0 0 5px;
@@ -1588,9 +1709,42 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   color: var(--text-dim);
 }
 .pd-cue-mark { flex: none; font-size: 12px; color: var(--text-dim); }
+/* NEXT ON SERVER after the name (plan §6.2): the clip waits on its slot behind the one playing. The
+   clip blue of the kind icon, so it reads as the server's word rather than a tally. */
+.pd-cue-next {
+  flex: none;
+  font-family: var(--mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  color: #93c5fd;
+  border: 1px solid rgba(96, 165, 250, 0.5);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+/* Said where the ON AIR tag stood until something else took the slot on the server. */
+.pd-cue-replaced { flex: none; font-size: 11px; font-style: italic; color: var(--amber); white-space: nowrap; }
+/* UNIDENTIFIED ITEMS above the rows: on a rundown slot, but no cue here can be named for them. A
+   dashed amber box, never a row: there is nothing to select, take or reorder. */
+.pd-unidentified { flex: none; margin: 0 12px 6px; display: flex; flex-direction: column; gap: 3px; }
+.pd-unidentified-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 7px 0 9px;
+  border: 1px dashed rgba(246, 166, 35, 0.6);
+  border-radius: 6px;
+  background: rgba(246, 166, 35, 0.06);
+  font-size: 12px;
+}
+.pd-unidentified-what { flex: none; color: var(--amber); font-weight: 600; }
 .pd-cue-len {
   flex: none;
-  width: 38px;
+  /* Room for a running clip's remaining time, `-12:34`, as well as its length. */
+  width: 46px;
   text-align: right;
   font-family: var(--mono, monospace);
   font-size: 11.5px;
@@ -1646,6 +1800,12 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      screen, which is the whole phone layout. `display: contents` also drops its desktop
      padding, so that needs no unsetting. */
   .pd-stagehead { display: contents; }
+  /* The verb column stands down for the same reason: the verbs keep their pinned place at the
+     bottom, and the clip clock sits in the stacked column, straight under the monitors (plan §8:
+     no design work on the phone, only a place). Its size has to be given here, since the box it
+     takes its height from on a desktop is gone. */
+  .pd-verbcol { display: contents; }
+  .pd-clipclock { order: 1; flex: none; height: 64px; max-width: none; margin: 10px 12px 0; }
   .pd-monitors { order: 1; padding: 10px 12px 0; }
   .pd-rail { order: 2; border-top: 1px solid var(--border); margin-top: 10px; }
   .pd-editor { order: 3; margin: 10px 12px 0; }

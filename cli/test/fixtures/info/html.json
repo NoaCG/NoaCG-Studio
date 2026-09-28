@@ -1,0 +1,10 @@
+{
+  "note": "A web page on 2-20 through the HTML producer.",
+  "commands": [
+    "PLAY 2-20 [HTML] \"about:blank\""
+  ],
+  "capturedAt": "2026-09-28T08:03:55.356Z",
+  "server": "2.5.0 69e8ad5 Stable",
+  "channelFormat": "1080p5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <format>1080p5000</format>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <output>\n      <port>\n         <port_600>\n            <consumer>screen</consumer>\n            <screen>\n               <always_on_top>false</always_on_top>\n               <index>0</index>\n               <key_only>false</key_only>\n               <name>Screen consumer</name>\n            </screen>\n         </port_600>\n      </port>\n   </output>\n   <stage>\n      <layer>\n         <layer_20>\n            <background>\n               <producer>empty</producer>\n            </background>\n            <foreground>\n               <file>\n                  <path>about:blank</path>\n               </file>\n               <paused>false</paused>\n               <producer>html</producer>\n            </foreground>\n         </layer_20>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

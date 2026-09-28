@@ -1,11 +1,31 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
 import type { GraphicDoc } from '../../model/library';
-import type { Show } from '../../model/shows';
+import type { PlayoutItem, Show } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
 import type { ServerLayer } from '../../control/serverPlayout';
 import { slotAddress } from '../../control/playoutLink';
 import { postPreviewCmd, PREVIEW_STATE_TYPE, type PreviewStateMessage } from '../../preview/previewProtocol';
 import ProgramStage, { type ProgramStageHandle } from './ProgramStage';
+import { clipLength } from './clipLength';
+import { useServerThumbnail } from './serverThumbnail';
+
+/**
+ * A SERVER CLIP'S PICTURE on a monitor (docs/CLIP_PLAYBACK_PLAN.md §6.3): its thumbnail, marked
+ * STILL, because the page never has the server's moving video and an operator who does not know
+ * that could wait for a picture to move. Nothing is drawn without a thumbnail (a server whose media
+ * scanner is not running has none to give), so the tag is never on an empty frame.
+ */
+function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }) {
+  if (!thumb) return null;
+  return (
+    <>
+      <img className="pd-frame-still" src={thumb} alt="" data-testid={`${testId}-still`} />
+      <span className="pd-still-tag" title="A still picture of the clip. The server plays the video; this page never shows it moving." data-testid={`${testId}-still-tag`}>
+        STILL
+      </span>
+    </>
+  );
+}
 
 /**
  * THE TWO MONITORS of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2): PREVIEW, which
@@ -28,6 +48,8 @@ export default function PlayoutMonitors({
   hasCues,
   liveLayers,
   serverLayers,
+  previewServer = null,
+  programClip = null,
   show,
   library,
   programRef,
@@ -47,8 +69,13 @@ export default function PlayoutMonitors({
   hasCues: boolean;
   /** The graphics up on air, each with the cue that put it there, front to back. */
   liveLayers: { layer: number; label: string }[];
-  /** The server cues this page put up - named on PROGRAM's header, never drawn. */
+  /** The server cues this page put up - named on PROGRAM's header. */
   serverLayers: Pick<ServerLayer, 'slot' | 'label'>[];
+  /** The server item on PREVIEW, when the previewed cue is one: its still and, for a clip, its
+   *  length in the corner (plan §6.3). */
+  previewServer?: PlayoutItem | null;
+  /** The server clip the clip clock follows: its still sits under the graphics on PROGRAM. */
+  programClip?: PlayoutItem | null;
   show: Show;
   library: GraphicDoc[];
   programRef: Ref<ProgramStageHandle>;
@@ -58,6 +85,8 @@ export default function PlayoutMonitors({
   onOverflow: (keys: string[]) => void;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
+  const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
+  const programThumb = useServerThumbnail(programClip?.name ?? null);
   const settlePreview = useCallback((data: string) => {
     postPreviewCmd(previewIframe.current?.contentWindow, { cmd: 'settle', data });
   }, []);
@@ -169,6 +198,18 @@ export default function PlayoutMonitors({
                 }}
               />
             </div>
+          ) : previewServer ? (
+            // A cue over the playout server's own library: its still and length, since the page
+            // has no way to render the server's template or video itself.
+            <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }} data-testid="preview-server">
+              <ServerStill thumb={previewThumb} testId="preview" />
+              <p className="hint pd-frame-server-name">{previewServer.name}</p>
+              {previewServer.kind === 'media' && clipLength(previewServer) && (
+                <span className="pd-frame-length" title="The clip's length" data-testid="preview-length">
+                  {clipLength(previewServer)}
+                </span>
+              )}
+            </div>
           ) : (
             <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }}>
               <p className="hint">
@@ -188,17 +229,20 @@ export default function PlayoutMonitors({
           {/* The names can run past the monitor's width and end in an ellipsis, so the title
               carries them whole. The badge names EVERY live layer, in the names' order: with a
               quiz and a score both up it used to show one layer beside two names. */}
+          {/* With only server cues up the badge beside it names them; "nothing on air" would not
+              be true of a clip playing on the server. */}
           <span className="pd-what" title={liveLayers.map((l) => `${l.label} (layer ${l.layer})`).join(', ')}>
-            {liveLayers.length === 0 ? 'nothing on air' : liveLayers.map((l) => l.label).join(' · ')}
+            {liveLayers.length > 0 ? liveLayers.map((l) => l.label).join(' · ') : serverLayers.length > 0 ? '' : 'nothing on air'}
           </span>
           {liveLayers.length > 0 && (
             <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
           )}
-          {/* Server cues are up on the playout box, not in this monitor - named, never drawn. */}
+          {/* Server cues are up on the playout box: named here, and a clip's STILL drawn under the
+              graphics - never its moving video. */}
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title="Playing on the playout server through NoaCG Bridge - not shown on this monitor"
+              title="Playing on the playout server through NoaCG Bridge. A clip shows here as its still picture, never its moving video."
               data-testid="playout-on-air"
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
@@ -207,11 +251,15 @@ export default function PlayoutMonitors({
         </h2>
         <div className="pd-screen">
           <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
+            <ServerStill thumb={programClip ? programThumb : null} testId="program" />
+            {/* With nothing but a server clip up and no picture of it to show, PROGRAM says so
+                rather than standing blank - or claiming nothing is on air. */}
             <ProgramStage
               ref={programRef}
               show={show}
               library={library}
-              empty={liveLayers.length === 0}
+              empty={liveLayers.length === 0 && !(programClip && programThumb)}
+              emptyLabel={programClip ? `${programClip.name} plays on the server` : undefined}
               onState={onState}
               onReady={onReady}
             />

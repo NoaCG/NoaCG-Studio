@@ -10,8 +10,8 @@
 // never the four diagnosis states, which are the whole point of the feature. The channel table and
 // the per-cue slot helpers live in playoutLink.ts too, and the rundown is what reads them.
 // serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
-// address goes through, and the baselines draw both.
-// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots}.ts
+// address goes through, and serverState.ts what the clip clock draws; the baselines draw all three.
+// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,serverState,playoutSlots}.ts
 //
 // PLAYOUT SETTINGS from the production header: the dialog, the form it shares with Settings, and
 // the system list. bridge-connect drives the form through a fake Bridge; playout-nav owns the
@@ -156,6 +156,9 @@ async function expectPage(page: Page, name: string): Promise<void> {
       page.locator('[data-testid="action-log"] summary .muted'),
       page.locator('.prod-log-time'),
       page.locator('.pd-monitors iframe'),
+      // A clip on air counts down in the clip clock and in its row (docs/CLIP_PLAYBACK_PLAN.md §6.4).
+      page.locator('.pd-clipclock-time'),
+      page.locator('.pd-cue.on-air [data-testid="cue-length"]'),
     ],
     animations: 'disabled',
     caret: 'hide',

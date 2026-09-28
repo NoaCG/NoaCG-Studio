@@ -21,6 +21,8 @@ const ProgramStage = forwardRef<
     show: Show;
     library: GraphicDoc[];
     empty: boolean;
+    /** What an empty monitor says; "Nothing on air" unless the page knows better. */
+    emptyLabel?: string;
     /** Machine-state replies from the monitor's documents, with the values that did not fit —
      *  see PayloadStage. */
     onState?: (
@@ -32,7 +34,7 @@ const ProgramStage = forwardRef<
     onReady?: () => void;
   }
 >(
-  function ProgramStage({ show, library, empty, onState, onReady }, ref) {
+  function ProgramStage({ show, library, empty, emptyLabel, onState, onReady }, ref) {
     const [payload, setPayload] = useState<OutputPayload | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +66,7 @@ const ProgramStage = forwardRef<
         ref={ref}
         payload={payload}
         error={error}
-        emptyLabel={empty ? 'Nothing on air' : undefined}
+        emptyLabel={empty ? (emptyLabel ?? 'Nothing on air') : undefined}
         onState={onState}
         onReady={onReady}
       />

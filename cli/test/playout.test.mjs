@@ -163,7 +163,16 @@ test('presence answers any origin without a token and says nothing about the stu
     const health = await fetch(`${base}/health`, { headers: { Origin: 'https://another-noacg.example' } });
     assert.equal(health.status, 200);
     assert.equal(health.headers.get('access-control-allow-origin'), 'https://another-noacg.example');
-    assert.deepEqual(await health.json(), { ok: true, agent: 'noacg-bridge', v: PLAYOUT_V, version: '0.0.0-test', adapters: ['casparcg'] });
+    // `features` says what this Bridge understands and nothing about any server: the one route that
+    // answers without a token still names no studio.
+    assert.deepEqual(await health.json(), {
+      ok: true,
+      agent: 'noacg-bridge',
+      v: PLAYOUT_V,
+      version: '0.0.0-test',
+      adapters: ['casparcg'],
+      features: ['state'],
+    });
 
     const noToken = await fetch(`${base}/status`, { method: 'POST', headers: { Origin: 'https://noacg.studio' } });
     assert.equal(noToken.status, 401);
@@ -227,7 +236,15 @@ test('every request names its target, and an action reaches AMCP as exactly one 
       action: { verb: 'take', item: { kind: 'template', name: 'BK/SB01' }, slot: { adapter: 'casparcg', channel: 2, layer: 30 }, data: { f0: 'Home', f1: '3' } },
     });
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { ok: true, v: PLAYOUT_V, raw: '202 CG OK' });
+    // The reply carries the slot's generation, the session that counted it and the take's instance
+    // (docs/CLIP_PLAYBACK_PLAN.md §6.7); the LINE on the wire is exactly what it was before any
+    // of them existed.
+    const reply = await res.json();
+    assert.deepEqual(
+      { ...reply, instance: typeof reply.instance, session: typeof reply.session },
+      { ok: true, v: PLAYOUT_V, raw: '202 CG OK', generation: 1, session: 'string', instance: 'string' },
+    );
+    assert.ok(reply.instance.startsWith(`${reply.session}.`), 'an instance id starts with its session');
     assert.deepEqual(caspar.seen, ['CG 2-30 ADD 1 "BK/SB01" 1 "{\\"f0\\":\\"Home\\",\\"f1\\":\\"3\\"}"']);
   });
   await caspar.close();

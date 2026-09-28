@@ -26,9 +26,12 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
-import { serverCueLive, type ServerOnAir } from '../../control/serverPlayout';
+import { serverCueLive } from '../../control/serverPlayout';
+import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
+import { namesItem } from '../../control/serverState';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
+import { SlotRemaining } from './ClipClock';
 import { clipLength } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 
@@ -62,6 +65,13 @@ function scrolledLately(at: number): boolean {
  * or the server address is the slot at the row's end (still the clash warning when two graphics
  * share a layer), and ON AIR / PVW stay as words beside the tint. e2e/playout-rail-width.spec.ts
  * holds that table.
+ *
+ * THE SERVER'S WORD (plan §6.2 and §6.7, phase 2): a clip that is up counts its remaining time in
+ * the length column, a clip waiting on the server behind another wears NEXT ON SERVER, a cue whose
+ * slot something else took over says it was replaced on the server, and whatever stands on a
+ * rundown slot that no cue here put there is listed above the rows as an unidentified item. The
+ * rows read the store's OWNERSHIP part as a prop; each remaining time subscribes to the TIMING
+ * part itself, so the list around it never redraws with the clock.
  */
 export default function CueRundown({
   show,
@@ -70,7 +80,8 @@ export default function CueRundown({
   library,
   playoutSettings,
   liveCue,
-  serverOnAir,
+  serverOwnership,
+  serverTiming,
   selectedCueId,
   previewCueId,
   selectedGraphicId,
@@ -94,8 +105,10 @@ export default function CueRundown({
   playoutSettings: PlayoutSettings;
   /** Which cue is on air on each graphic's layer. Read-only here. */
   liveCue: LiveCueMap;
-  /** What this page put up on the playout server, by item id. Read-only here. */
-  serverOnAir: ServerOnAir;
+  /** What this page put up on the playout server, and what the server says besides. Read-only. */
+  serverOwnership: ServerOwnership;
+  /** Where each server clip is, for the remaining times - subscribed to by those cells alone. */
+  serverTiming: StorePart<ServerTiming>;
   /** The rundown's cursor: the selected cue, or the first when none is. */
   selectedCueId: string | null;
   /** The cue on PREVIEW, which in 'preview-then-take' mode the cursor may have left. */
@@ -144,6 +157,8 @@ export default function CueRundown({
   }, [graphicByPoolId]);
   /** The length column is there only when the rundown holds a server clip (plan §6.8). */
   const timed = cues.some((c) => playoutItemFor(c)?.kind === 'media');
+  const serverOnAir = serverOwnership.onAir;
+  const replacedCues = new Map(Object.values(serverOwnership.replaced).map((r) => [r.cueId, r] as const));
 
   // ── THE LIST FOLLOWS THE AIR (plan §6.2). A cue that goes on air off-screen is scrolled into
   // view, so a take from the keys, a combined control or another operator never leaves the
@@ -219,6 +234,27 @@ export default function CueRundown({
         </p>
       )}
 
+      {/* UNIDENTIFIED ITEMS (plan §6.7): something plays on a slot this rundown uses, and nothing
+          says which cue put it there - another client's take, or this page's own from before a
+          Bridge restart. Named by its slot and file, never matched to a cue by its name. */}
+      {serverOwnership.unidentified.length > 0 && (
+        <div className="pd-unidentified" data-testid="server-unidentified">
+          {serverOwnership.unidentified.map((u) => (
+            <div
+              key={slotAddress(u.slot)}
+              className="pd-unidentified-row"
+              title={`${slotAddress(u.slot)} plays ${u.file ?? 'something'} on the playout server, and this page cannot say which cue put it there. Take a cue on that slot to replace it.`}
+            >
+              <span className="pd-unidentified-what">Unidentified item on {slotAddress(u.slot)}</span>
+              {u.file && <span className="pd-cue-sum">{u.file}</span>}
+              <span className="pd-cue-len">
+                <SlotRemaining timing={serverTiming} slot={slotAddress(u.slot)} fallback="" />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div
         ref={list}
         className={`pd-cues${timed ? ' pd-cues--timed' : ''}`}
@@ -268,6 +304,12 @@ export default function CueRundown({
             : (playoutItem?.name ?? 'missing graphic');
           const length = playoutItem?.kind === 'media' ? clipLength(playoutItem) : '';
           const loops = playoutItem?.kind === 'media' && !!playoutItem.loop;
+          // Where this clip is up, if it is: the slot it was TAKEN to, whatever its editor says now.
+          const upAt = cueIsLive && playoutItem?.kind === 'media' ? serverOnAir[playoutItem.id]?.slot : undefined;
+          // Waiting on the server behind whatever plays on its slot (`LOADBG`).
+          const next = !cueIsLive && playoutItem?.kind === 'media' ? serverOwnership.queued[address] : undefined;
+          const nextHere = !!next && !!playoutItem && namesItem(playoutItem.name, next.file);
+          const replaced = replacedCues.get(cue.id);
           return (
             <div
               key={cue.id}
@@ -331,8 +373,31 @@ export default function CueRundown({
                     ✎
                   </span>
                 )}
+                {/* NEXT ON SERVER, after the name (plan §6.2): this clip waits behind whatever
+                    plays on its slot, and plays by itself at the end when the server says AUTO. */}
+                {nextHere && (
+                  <span
+                    className="pd-cue-next"
+                    title={next!.auto ? `Queued on ${address}: it plays by itself when the clip before it ends.` : `Loaded on ${address} behind the clip that plays there.`}
+                    data-testid="cue-next-on-server"
+                  >
+                    NEXT ON SERVER
+                  </span>
+                )}
                 {summary && summary !== view.label && <span className="pd-cue-sum">{summary}</span>}
               </button>
+              {/* The row was ON AIR until something else took its slot on the server: said next
+                  to where the ON AIR tag stood, so the operator sees it where they last looked -
+                  and beside PVW too, since the cue may well be the one on PREVIEW again. */}
+              {replaced && !cueIsLive && (
+                <span
+                  className="pd-cue-replaced"
+                  title={`Replaced on the server: ${slotAddress(replaced.slot)} now plays ${replaced.file ?? 'something else'}, which this page did not take. Take the cue again to put it back.`}
+                  data-testid="cue-replaced"
+                >
+                  replaced on the server
+                </span>
+              )}
               {cueIsLive ? (
                 <span className="pd-tag air">ON AIR</span>
               ) : isPreviewed ? (
@@ -340,7 +405,8 @@ export default function CueRundown({
               ) : null}
               {timed && (
                 <span className="pd-cue-len" data-testid="cue-length">
-                  {length}
+                  {/* While the clip is up, the time it has LEFT, counting between readings. */}
+                  {upAt ? <SlotRemaining timing={serverTiming} slot={slotAddress(upAt)} fallback={length} /> : length}
                 </span>
               )}
               {/* The LAYER, and the one place a shared layer is announced now that the layer
