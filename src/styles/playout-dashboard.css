@@ -1780,6 +1780,157 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-rundown button.pd-cue-layer.clash:hover { background: rgba(246, 166, 35, 0.18); }
 .pd-rundown .pd-cue-more { width: 22px; height: 22px; }
 
+/* ── A RUNDOWN'S FOLDERS (docs/CLIP_PLAYBACK_PLAN.md §6.2, phase 4) ──
+   Every rule here starts at `.pd-rundown`: the hosted page shares `.pd-cue` and draws no folders,
+   so nothing a folder needs may reach it (scripts/folder-css-scope.test.mjs holds that).
+   A folder's cues sit in from the rail by one step, under their header. */
+.pd-rundown .pd-cue.in-folder { margin-left: 12px; }
+/* THE HEADER is a row of its own, one line like a cue's, a shade lighter so it reads as the heading
+   of what follows rather than as another cue. The tally, the cursor and the range take the same
+   properties they take on a cue row, so they stack the same way. */
+.pd-rundown .pd-folder {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 6px 0 7px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(203, 213, 225, 0.06);
+  cursor: pointer;
+}
+.pd-rundown .pd-folder .pd-cue-label strong { font-weight: 700; }
+.pd-rundown .pd-folder:hover .pd-cue-more { opacity: 1; }
+/* Collapsed with something of it on air: the header carries the tally its hidden rows would. */
+.pd-rundown .pd-folder.on-air { border-color: rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.09); }
+.pd-rundown .pd-folder.selected { outline: 2px solid #cfd8e6; outline-offset: 1px; }
+.pd-rundown .pd-folder.selected::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: #cfd8e6;
+}
+.pd-rundown .pd-folder.selected .pd-cue-label strong { color: #ffffff; }
+/* The selected cue is hidden under this collapsed header: a dashed ring, so the cursor is never lost
+   and never mistaken for the header being held. */
+.pd-rundown .pd-folder.holds-cursor:not(.selected) { outline: 1px dashed #cfd8e6; outline-offset: 1px; }
+/* THE RANGE: a wash over the row's own colour, never its border or background colour, which the
+   tally owns. */
+.pd-rundown :is(.pd-cue, .pd-folder).in-range { background-image: linear-gradient(rgba(207, 216, 230, 0.1), rgba(207, 216, 230, 0.1)); }
+.pd-rundown .pd-folder-toggle {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: #aeb6c4;
+  font-size: 15px;
+  line-height: 1;
+}
+.pd-rundown .pd-folder-toggle:hover { color: var(--text); background: rgba(203, 213, 225, 0.1); }
+.pd-rundown .pd-cue-kind--folder { color: #cbd5e1; background: rgba(203, 213, 225, 0.14); font-size: 11px; }
+.pd-rundown .pd-folder-cont { flex: none; font-size: 11.5px; font-style: italic; color: var(--text-dim); }
+.pd-rundown .pd-folder-count {
+  flex: none;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(203, 213, 225, 0.1);
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+/* Part of a folder on air, and a folder Take that missed a cue: outlined, so the solid red of ON AIR
+   stays the one mark for "all of it is up". */
+.pd-rundown .pd-tag.part { color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.8); }
+.pd-rundown .pd-tag.miss { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+/* WHERE A DRAG LANDS: a line at the row's edge, in the cursor's colour - in by a step when it lands
+   inside a folder, and across the header's box when it lands in a collapsed one. Red and dashed when
+   it cannot land there; the note under the list says why. */
+.pd-rundown :is(.pd-cue, .pd-folder)[data-drop]::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: #cfd8e6;
+  pointer-events: none;
+}
+.pd-rundown :is(.pd-cue, .pd-folder)[data-drop='before']::after { top: -3px; }
+.pd-rundown :is(.pd-cue, .pd-folder)[data-drop='after']::after { bottom: -3px; }
+.pd-rundown .pd-folder[data-drop='after'][data-drop-inside='true']::after { left: 12px; bottom: -3px; }
+.pd-rundown .pd-cue.in-folder[data-drop][data-drop-inside='false']::after { left: -12px; }
+.pd-rundown :is(.pd-cue, .pd-folder)[data-drop='into']::after {
+  top: -1px;
+  bottom: -1px;
+  height: auto;
+  background: none;
+  border: 2px solid #cfd8e6;
+  border-radius: 6px;
+}
+.pd-rundown :is(.pd-cue, .pd-folder)[data-drop='refused']::after {
+  top: -1px;
+  bottom: -1px;
+  height: auto;
+  background: none;
+  border: 2px dashed var(--danger);
+  border-radius: 6px;
+}
+/* The end of the list, while a row is dragged: the one way out below a folder that ends the list. */
+.pd-rundown .pd-drop-end {
+  flex: none;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.pd-rundown .pd-drop-end[data-drop='into'] { border: 2px solid #cfd8e6; color: var(--text); }
+.pd-rundown .pd-drop-end[data-drop='refused'] { border: 2px dashed var(--danger); }
+.pd-rundown .pd-rundown-note { flex: none; margin: 0; padding: 6px 12px 0; font-size: 12px; }
+/* The range's count and its verb, under the list while a shift-click selection stands. */
+.pd-rundown .pd-range-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 12px 0;
+  padding: 5px 6px 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-2, #14161c);
+  font-size: 12px;
+}
+.pd-rundown .pd-range-bar .spacer { flex: 1; }
+.pd-rundown .pd-range-bar button { padding: 3px 10px; font-size: 12px; }
+.pd-rundown .pd-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The foot is how graphics get in: the library picker, a new graphic, pictures. */
 .pd-rail-foot { flex: none; border-top: 1px solid var(--border); padding: 9px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .pd-new-graphic { width: 100%; }
@@ -2211,6 +2362,25 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-clip-trim .pd-field { width: 110px; }
 .pd-clip-trim-note { margin: 6px 0 0; font-size: 12px; }
 .pd-clip-kind { margin-top: 8px; max-width: 260px; }
+/* A FOLDER'S PANEL (home/FolderEditor): the clip settings' rows, then what airs where, one line a cue. */
+.pd-folder-editor .pd-tag.part { color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.8); }
+.pd-folder-editor .pd-tag.miss { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+.pd-folder-editor .pd-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.pd-folder-editor .pd-field-layer input { width: 64px; }
+.pd-folder-editor .pd-folder-where {
+  margin: 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  counter-reset: where;
+  display: grid;
+  gap: 3px;
+  font-size: 12.5px;
+}
+.pd-folder-editor .pd-folder-where li { display: flex; align-items: baseline; gap: 10px; min-width: 0; counter-increment: where; }
+.pd-folder-editor .pd-folder-where li::before { content: counter(where); min-width: 16px; text-align: right; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pd-folder-editor .pd-folder-where-cue { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-folder-editor .pd-folder-where .pd-cue-layer { flex: none; font-family: var(--mono, monospace); font-size: 11px; color: var(--text-dim); }
 .pd-add-field { display: flex; gap: 6px; align-items: center; }
 .pd-add-field input { flex: 1; min-width: 0; }
 /* On the PROGRAM header, what is up on the server - a badge beside the layer badge, dimmer:

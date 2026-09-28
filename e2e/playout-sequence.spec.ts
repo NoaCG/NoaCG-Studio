@@ -7,163 +7,16 @@
 // clip on its layer, found in the rundown as it stands at the Take and named where the choice is
 // made; one Take sends the whole run to NoaCG Bridge as a sequence; the clip clock counts TO STUDIO
 // with every fade's overlap taken off; the server's own switch moves ON AIR down the rundown; and Out
-// in the middle stops it. The Bridge is faked at the network layer, and its `/state` answers from a
-// model of what the Bridge's runner does - each file after the one before, a fade in starting that
-// long before the end - on a clock the test moves. The runner itself is tested against a stateful fake
-// CasparCG in cli/test/runner.test.mjs.
+// in the middle stops it. The Bridge is faked at the network layer (e2e/_fakeBridge.ts, shared with
+// e2e/playout-folders.spec.ts), and its `/state` answers from a model of what the Bridge's runner
+// does - each file after the one before, a fade in starting that long before the end - on a clock the
+// test moves. The runner itself is tested against a stateful fake CasparCG in cli/test/runner.test.mjs.
 
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
-
-const BRIDGE = 'http://127.0.0.1:8899';
-const TOKEN = 'e2e-token';
-
-async function seedSettings(page: Page): Promise<void> {
-  await page.addInitScript(
-    ([bridge, token]) => {
-      localStorage.setItem(
-        'spx-gfx-caspar',
-        JSON.stringify({
-          agentUrl: bridge,
-          agentToken: token,
-          host: '127.0.0.1',
-          amcpPort: 5250,
-          channel: 1,
-          layer: 20,
-          v: 1,
-          channels: [
-            { channel: 1, name: 'Graphics' },
-            { channel: 2, name: 'Inserts' },
-          ],
-          clipChannel: 2,
-        }),
-      );
-    },
-    [BRIDGE, TOKEN] as const,
-  );
-}
-
-interface Entry {
-  file: string;
-  cueId?: string;
-  length: number;
-  fadeIn: number;
-  raw: unknown;
-}
-
-/** What the Bridge runs on one slot: the files, when the first started, and a pause. */
-interface Run {
-  entries: Entry[];
-  startedAt: number;
-  pausedAt?: number;
-  instance: string;
-}
-
-interface Fake {
-  session: string;
-  generation: Record<string, number>;
-  runs: Record<string, Run | undefined>;
-  /** Moves the fake's clock ahead of the wall's, as a clip playing on would. */
-  skew: number;
-  actions: { verb: string; [k: string]: unknown }[];
-  /** What the server's list (`CLS`) answers. */
-  list: { name: string; kind: string; frames?: number; fps?: number }[];
-}
-
-async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
-  const fake: Fake = { session: 'b5', generation: {}, runs: {}, skew: 0, actions: [], list: [], ...init };
-  let count = 0;
-  const now = () => Date.now() + fake.skew;
-  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
-  const json = (route: Route, body: unknown) => route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  /** Which entry is on air after `t` seconds, and how far into it: each starts its fade in before the
-   *  one before it ends, the last holds at its end. */
-  const where = (run: Run, t: number) => {
-    let start = 0;
-    let k = 0;
-    for (let i = 1; i < run.entries.length; i++) {
-      const next = start + run.entries[i - 1].length - run.entries[i].fadeIn;
-      if (t < next) break;
-      start = next;
-      k = i;
-    }
-    return { k, position: Math.min(run.entries[k].length, t - start) };
-  };
-  await page.route(`${BRIDGE}/**`, async (route) => {
-    const req = route.request();
-    const path = new URL(req.url()).pathname;
-    if (path === '/health') {
-      return json(route, { ok: true, agent: 'noacg-bridge', v: 2, version: '0.5.0', adapters: ['casparcg'], features: ['state', 'playback', 'sequence'] });
-    }
-    const body = JSON.parse(req.postData() || '{}') as { channel?: number; kind?: string; action?: Record<string, unknown> & { verb: string; slot: { channel: number; layer: number } } };
-    if (path === '/status') {
-      return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'] });
-    }
-    if (path === '/list') return json(route, { ok: true, v: 2, items: body.kind === 'media' ? fake.list : [] });
-    if (path === '/state') {
-      const channel = body.channel ?? 1;
-      const slots = Object.entries(fake.runs)
-        .filter(([addr]) => addr.startsWith(`${channel}-`))
-        .map(([addr, run]) => {
-          const common = { layer: Number(addr.split('-')[1]), generation: fake.generation[addr] ?? 0 };
-          if (!run) return { ...common, producer: 'empty', paused: false, loop: false };
-          const t = ((run.pausedAt ?? now()) - run.startedAt) / 1000;
-          const { k, position } = where(run, t);
-          const on = run.entries[k];
-          const rest = run.entries.slice(k + 1);
-          return {
-            ...common,
-            producer: 'video',
-            file: on.file,
-            segment: { start: 0, length: on.length },
-            position,
-            paused: run.pausedAt !== undefined,
-            loop: false,
-            instance: run.instance,
-            ...(on.cueId ? { cueId: on.cueId } : {}),
-            ...(rest.length ? { sequence: { next: rest.map((e) => e.raw) }, queued: { file: rest[0].file, auto: true } } : {}),
-          };
-        });
-      return json(route, { ok: true, v: 2, channel, session: fake.session, observedAt: Date.now(), slots });
-    }
-    if (path === '/act') {
-      const a = body.action!;
-      fake.actions.push(a);
-      const addr = `${a.slot.channel}-${a.slot.layer}`;
-      if (a.verb === 'pause' || a.verb === 'resume') {
-        const run = fake.runs[addr];
-        if (run && a.verb === 'pause' && run.pausedAt === undefined) run.pausedAt = now();
-        if (run && a.verb === 'resume' && run.pausedAt !== undefined) {
-          run.startedAt += now() - run.pausedAt;
-          run.pausedAt = undefined;
-        }
-      }
-      if (a.verb !== 'update' && a.verb !== 'next') fake.generation[addr] = (fake.generation[addr] ?? 0) + 1;
-      let instance: string | undefined;
-      if (a.verb === 'take' || a.verb === 'sequence') {
-        instance = `${fake.session}.${++count}`;
-        const entries: Entry[] =
-          a.verb === 'sequence'
-            ? (a.entries as { item: { name: string }; cueId?: string; playback?: { fadeIn?: number; trim?: { in?: number; out?: number } }; media: { seconds: number } }[]).map((e) => ({
-                file: e.item.name,
-                cueId: e.cueId,
-                // The part of the file the entry plays, as the server reports its segment.
-                length: Math.min(e.playback?.trim?.out ?? e.media.seconds, e.media.seconds) - (e.playback?.trim?.in ?? 0),
-                fadeIn: e.playback?.fadeIn ?? 0,
-                raw: e,
-              }))
-            : [{ file: (a.item as { name: string }).name, cueId: a.cueId as string | undefined, length: 10, fadeIn: 0, raw: null }];
-        fake.runs[addr] = { entries, startedAt: now(), instance };
-      }
-      if (a.verb === 'out') fake.runs[addr] = undefined;
-      return json(route, { ok: true, v: 2, raw: '202 OK', generation: fake.generation[addr], session: fake.session, ...(instance ? { instance } : {}) });
-    }
-    return json(route, { ok: true, v: 2, items: [] });
-  });
-  return fake;
-}
+import { fakeBridge, seedSettings } from './_fakeBridge';
 
 /** A production: its graphic, then the given server media, each on its own item. */
 async function production(page: Page, media: Record<string, unknown>[]): Promise<void> {

@@ -24,8 +24,8 @@ export function folderMode(folder: Pick<ShowFolder, 'mode'>): ShowFolder['mode']
   return folder.mode === 'through' || folder.mode === 'together' ? folder.mode : 'manual';
 }
 
-/** A new folder's name: `Folder N`, one past the highest N in use, so a removal never hands a name
- *  back and two folders made one after another are never both `Folder 3`. */
+/** A new folder's name: `Folder N`, one past the highest N in use, so two folders made one after
+ *  another are never both `Folder 3`, and a name in use is never given twice. */
 export function nextFolderName(folders: readonly Pick<ShowFolder, 'name'>[] | undefined): string {
   let highest = 0;
   for (const f of folders ?? []) {
@@ -253,8 +253,10 @@ export function placeInOrder<T extends FolderMember>(
     at = 'before' in place ? i : i + 1;
   } else {
     const run = runOf(rest, folderTarget!);
-    if (!run) return null;
-    at = 'beforeFolder' in place ? run[0] : run[1] + 1;
+    if (run) at = 'beforeFolder' in place ? run[0] : run[1] + 1;
+    // The folder's last cue leaving it, above or below: it stays where it stands, in no folder.
+    else if ('cueId' in what && moving[0].folderId === folderTarget) at = whole.indexOf(moving[0]);
+    else return null;
   }
   let block: T[];
   if ('folderId' in what) {

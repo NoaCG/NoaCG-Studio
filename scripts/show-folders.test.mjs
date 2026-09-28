@@ -180,6 +180,10 @@ test('a drag moves a cue in or out of a folder, or a whole folder, in one step',
   assert.equal(move('A B(F) C(F) D', { cueId: 'C' }, { beforeFolder: 'F' }), 'A C B(F) D');
   assert.equal(move('A B(F) C(F)', { cueId: 'B' }, { afterFolder: 'F' }), 'A C(F) B');
   assert.equal(move('A B(F) C(F)', { cueId: 'B' }, { end: true }), 'A C(F) B');
+  // Its last cue out, above or below it: the cue stays where it stands, in none, and the folder goes.
+  assert.equal(move('A C(F) B', { cueId: 'C' }, { afterFolder: 'F' }), 'A C B');
+  assert.equal(move('A C(F) B', { cueId: 'C' }, { beforeFolder: 'F' }), 'A C B');
+  assert.equal(placeInOrder(parse('A C(F) B'), foldersOf(parse('C(F)')), { cueId: 'C' }, { into: 'F' }), null);
   // A whole folder, past a cue, and beside another folder but never inside it.
   assert.equal(move('A B(F) C(F) D', { folderId: 'F' }, { after: 'D' }), 'A D B(F) C(F)');
   // Dropped before a cue inside another folder, it lands right after that folder instead.

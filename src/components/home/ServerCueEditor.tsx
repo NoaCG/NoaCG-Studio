@@ -15,6 +15,7 @@ import {
   type ShowCue,
 } from '../../model/shows';
 import {
+  asFolderMember,
   clockOf,
   dbText,
   effectiveEnd,
@@ -32,6 +33,14 @@ import {
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';
+import type { ThroughRole } from './CueRundown';
+
+/** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
+export interface ThroughPlace {
+  folderName: string;
+  slot: string;
+  role: ThroughRole;
+}
 
 /**
  * A cue over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
@@ -62,6 +71,7 @@ export default function ServerCueEditor({
   playoutSettings,
   takeBlocked,
   playNext,
+  through,
   onEdit,
   onTransport,
   setShows,
@@ -85,6 +95,8 @@ export default function ServerCueEditor({
   takeBlocked: string | null;
   /** Where Play next would go from this cue, found in the rundown as it stands; null for a template. */
   playNext: PlayNext | null;
+  /** The clip plays in a Play-through folder, which decides its end and its slot. */
+  through: ThroughPlace | null;
   onEdit: (patch: { label?: string; note?: string; values?: Record<string, string> }) => void;
   /** Pause and Resume, as NAMED verbs through the page's one dispatcher (`onVerb`), so a key or a
    *  hardware panel reaches them the same way this button does. */
@@ -156,9 +168,19 @@ export default function ServerCueEditor({
         </span>
       </div>
       <p className="hint pd-server-where" data-testid="playout-cue-where">
-        <code>{item.name}</code> plays on the playout server, on{' '}
-        <code>{slotAddress(itemSlot(playoutSettings, item))}</code>, through NoaCG
-        Bridge.{' '}
+        {through ? (
+          <>
+            <code>{item.name}</code> plays on the playout server on <code>{through.slot}</code>, the slot of {through.folderName}, through NoaCG Bridge. A
+            Take here plays {through.folderName} from this clip to its end
+            {through.role === 'loop-last' || through.role === 'loop-alone' ? ', and starts it over after its last clip until Out' : ''}.{' '}
+          </>
+        ) : (
+          <>
+            <code>{item.name}</code> plays on the playout server, on{' '}
+            <code>{slotAddress(itemSlot(playoutSettings, item))}</code>, through NoaCG
+            Bridge.{' '}
+          </>
+        )}
         {media
           ? 'The monitors here show its still picture, marked STILL, never the moving video.'
           : 'It is not shown on the PROGRAM monitor here.'}
@@ -200,6 +222,7 @@ export default function ServerCueEditor({
           live={live}
           ability={ability}
           playNext={playNext}
+          through={through}
           set={(patch) => setShows(setCuePlayback(showId, cue.id, patch))}
         />
       )}
@@ -235,6 +258,7 @@ export default function ServerCueEditor({
         <ClipAdvanced
           item={item}
           cue={cue}
+          through={through}
           channel={channel}
           ability={ability}
           channelPick={channelPick}
@@ -248,6 +272,13 @@ export default function ServerCueEditor({
 }
 
 const END_WORDS: Record<ClipEnd, string> = { hold: 'Hold last frame', clear: 'Clear', loop: 'Loop', next: 'Play next' };
+
+/** What a Play-through folder says of a clip's end in place of its own choice (plan §6.5). */
+const FOLDER_END_WORDS: Partial<Record<ThroughRole, { glyph: string; words: string }>> = {
+  middle: { glyph: '→', words: 'Plays the next, set by the folder' },
+  'loop-last': { glyph: '⟲', words: 'Starts the folder over, set by the folder' },
+  'loop-alone': { glyph: '⟲', words: 'Loops until Out, set by the folder' },
+};
 const FADE_WORDS: { value: ClipFade | undefined; word: string }[] = [
   { value: undefined, word: 'Cut' },
   { value: 'short', word: 'Short' },
@@ -265,6 +296,7 @@ function ClipSettings({
   live,
   ability,
   playNext,
+  through,
   set,
 }: {
   item: PlayoutItem;
@@ -272,9 +304,15 @@ function ClipSettings({
   live: boolean;
   ability: PlaybackAbility | null;
   playNext: PlayNext | null;
+  through: ThroughPlace | null;
   set: (patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null }) => void;
 }) {
-  const end = effectiveEnd(cue, item);
+  // The last clip of a Play-through folder keeps its own ending, but Play next never leaves the
+  // folder, so a stored Play next reads as Hold there; the record is not rewritten.
+  const lastInFolder = through?.role === 'last';
+  const end = lastInFolder ? effectiveEnd(asFolderMember(cue, item, true), item) : effectiveEnd(cue, item);
+  const folderEnd = through ? FOLDER_END_WORDS[through.role] : undefined;
+  const ends = (Object.keys(END_WORDS) as ClipEnd[]).filter((e) => !lastInFolder || e !== 'next');
   const still = item.mediaKind === 'still';
   const p = cue.playback ?? {};
   const levelDb = p.levelDb ?? 0;
@@ -307,7 +345,8 @@ function ClipSettings({
           : playNext?.ok
             ? `Then plays ${nextClipWords(playNext.next)}`
             : `Plays the next clip, but ${playNext?.reason ?? 'none is found'}`;
-  const nextOff = !still && end !== 'next' && playNext && !playNext.ok ? ` · Play next is off: ${playNext.reason}` : '';
+  const nextOff = !still && !through && end !== 'next' && playNext && !playNext.ok ? ` · Play next is off: ${playNext.reason}` : '';
+  const storedNext = lastInFolder && cue.playback?.end === 'next' ? ' · Play next does not leave the folder' : '';
   return (
     <div className="pd-clip-settings" data-testid="clip-settings">
       <div className="pd-clip-row">
@@ -318,9 +357,13 @@ function ClipSettings({
           <span className="muted pd-clip-hint" data-testid="clip-end-still">
             A still has no end: it holds until Out.
           </span>
+        ) : folderEnd ? (
+          <span className="pd-clip-hint" data-testid="clip-end-folder">
+            {folderEnd.glyph} {folderEnd.words}
+          </span>
         ) : (
           <div className="ctl-segmented" role="radiogroup" aria-labelledby={`clip-end-${cue.id}`} data-testid="clip-end">
-            {(Object.keys(END_WORDS) as ClipEnd[]).map((e) => {
+            {ends.map((e) => {
               const off = offEnd(e);
               return (
                 <button
@@ -340,9 +383,10 @@ function ClipSettings({
             })}
           </div>
         )}
-        {!still && (
+        {!still && !folderEnd && (
           <span className="muted pd-clip-hint" data-testid="clip-end-hint">
             {hint}
+            {storedNext}
             {nextOff}
             {nextApplies}
           </span>
@@ -434,6 +478,7 @@ const KIND_WORDS: { value: PlayoutMediaKind; word: string }[] = [
 function ClipAdvanced({
   item,
   cue,
+  through,
   channel,
   ability,
   channelPick,
@@ -443,6 +488,7 @@ function ClipAdvanced({
 }: {
   item: PlayoutItem;
   cue: ShowCue;
+  through: ThroughPlace | null;
   channel: number;
   ability: PlaybackAbility | null;
   channelPick: React.ReactNode;
@@ -503,6 +549,11 @@ function ClipAdvanced({
             {channelPick}
             {layerBox}
           </div>
+          {through && (
+            <p className="muted pd-clip-trim-note" data-testid="clip-folder-slot">
+              In {through.folderName} it plays on {through.slot}. Its own slot is for a Take outside the folder.
+            </p>
+          )}
           <div className="pd-clip-trim" title={trimOff ?? undefined}>
             <label className="pd-field">
               <span>Start at</span>
