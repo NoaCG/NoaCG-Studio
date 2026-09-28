@@ -94,6 +94,21 @@ test('2.3 answers INFO in the same shape, and names a clip WITH its extension', 
   assert.deepEqual(looping.queued, { file: 'NOACG_FIXTURE/COUNT30.mp4', auto: true });
 });
 
+test('the wrap of a looping folder, read on both servers (phase 4, 2026-09-28)', () => {
+  for (const v of ['', 'v2.3-']) {
+    // The very first reading after an AUTO switch into a clip queued with IN already reads its trimmed
+    // start: never a position before the segment, which would make the runner queue the next file early.
+    const [into] = fixture(`p4-${v}auto-into-in`).slots;
+    assert.deepEqual([into.segment, into.position], [{ start: 1, length: 3 }, 0], v || '2.5.0');
+    assert.ok(playsItem({ kind: 'media', name: 'NOACG_FIXTURE/T5' }, into.file), v || '2.5.0');
+    // The last clip on air with the first queued behind it, as the runner leaves a wrap.
+    const [wrap] = fixture(`p4-${v}wrap-queued`).slots;
+    assert.ok(playsItem({ kind: 'media', name: 'NOACG_FIXTURE/C3' }, wrap.file), v || '2.5.0');
+    assert.equal(wrap.queued.auto, true, v || '2.5.0');
+    assert.ok(playsItem({ kind: 'media', name: 'NOACG_FIXTURE/A3' }, wrap.queued.file), v || '2.5.0');
+  }
+});
+
 test('a playing clip: the segment, and the position INTO it', () => {
   assert.deepEqual(fixture('video-playing').slots, [
     { layer: 10, producer: 'video', file: 'NOACG_FIXTURE/COUNT30', segment: { start: 0, length: 30 }, position: 1.08, paused: false, loop: false },

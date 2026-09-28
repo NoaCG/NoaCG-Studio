@@ -1,0 +1,13 @@
+{
+  "note": "The last clip of a looping Play-through folder (C3) on air with the first (A3) queued behind it with AUTO, as the runner leaves it before a wrap: frames_left counts down on the foreground and the background is A3.",
+  "commands": [
+    "PLAY 1-10 \"NOACG_FIXTURE/C3\"",
+    1500,
+    "LOADBG 1-10 \"NOACG_FIXTURE/A3\" AUTO",
+    200
+  ],
+  "capturedAt": "2026-09-28T18:44:19.653Z",
+  "server": "2.3.2 4de6d18f Dev",
+  "channelFormat": "1080p5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>194914912</volume>\n         <volume>194914576</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <stage>\n      <layer>\n         <layer_10>\n            <background>\n               <file>\n                  <clip>0</clip>\n                  <clip>0</clip>\n                  <name>NOACG_FIXTURE/A3.mp4</name>\n                  <path>C:/casparcg/media//NOACG_FIXTURE/A3.mp4</path>\n                  <time>0</time>\n                  <time>0</time>\n               </file>\n               <loop>false</loop>\n               <producer>transition</producer>\n               <transition>\n                  <frame>0</frame>\n                  <frame>0</frame>\n                  <type>cut</type>\n               </transition>\n            </background>\n            <foreground>\n               <file>\n                  <clip>0</clip>\n                  <clip>3</clip>\n                  <name>NOACG_FIXTURE/C3.mp4</name>\n                  <path>C:/casparcg/media//NOACG_FIXTURE/C3.mp4</path>\n                  <streams>\n                     <file>\n                        <streams_0>\n                           <fps>25</fps>\n                           <fps>1</fps>\n                        </streams_0>\n                        <streams_1>\n                           <fps>0</fps>\n                           <fps>0</fps>\n                        </streams_1>\n                     </file>\n                  </streams>\n                  <time>1.6399999999999999</time>\n                  <time>3</time>\n               </file>\n               <frames_left>69</frames_left>\n               <loop>false</loop>\n               <paused>false</paused>\n               <producer>ffmpeg</producer>\n            </foreground>\n         </layer_10>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

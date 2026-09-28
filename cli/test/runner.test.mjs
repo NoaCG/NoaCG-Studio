@@ -901,9 +901,9 @@ test('Loop the folder: the server refuses the first file at the wrap; the last h
 });
 
 test('behind a file the server switched to that starts part way in, nothing is queued until it runs', async (t) => {
-  // Measured for PLAY … IN (§4). Whether the same window follows an AUTO switch into a file with IN is
-  // for the real server to say (§12); the fake models it here, and the runner's guard - reading that the
-  // clip has not reached its segment - covers the wrap and a Play next follower alike.
+  // Measured for PLAY … IN (§4). After an AUTO switch into a file with IN the real server shows no such
+  // window (measured 2026-09-28, fixtures/info/p4-auto-into-in.json); the fake models it anyway, so the
+  // runner's guard - reading that the clip has not reached its segment - is proven at the wrap too.
   const caspar = await server(t, { autoStarting: true });
   const { act, runner } = await bridgeOver(t, caspar);
   await act({ verb: 'sequence', slot: AT, entries: [entry('A', { trim: { in: 2 } }), entry('B')], loop: true });

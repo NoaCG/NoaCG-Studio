@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Phases 0 to 3 are built (§16).** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phases 0 to 4 are built (§16).** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -661,12 +661,28 @@ Each is a measurement in `e2e/configured/bridge-real-server.spec.ts` (which runs
 7. `AUTO` with `IN`/`OUT`: the follower starts at the trimmed end. **Done 2026-09-28**, with the
    early-queue finding in §4: queued at least 90 ms after the `PLAY`, it starts at the trimmed end,
    and a follower trimmed with `IN` airs at its own trimmed start.
-8. The gap between two cues of an All-together folder sent one after another.
+8. The gap between two cues of an All-together folder sent one after another. **Done 2026-09-28**:
+   the page sends them one after another through the Bridge, each waiting for its answer. A video
+   on layer 10 and its own WAV on layer 5 started within one frame of each other on 2.5.0 (the audio
+   20 ms ahead in all ten tries) and within two on 2.3 (0 to 40 ms, the audio ahead): the WAV reaches
+   the layer sooner than the video, whose first frame takes longer (item 9). INFO counts in frames,
+   so a frame is the resolution. Frame-exact All together (BEGIN/COMMIT) stays for later.
 9. The delay between Take and first frame, to decide on preloading. **Done 2026-09-28**: about
    115 ms from `202 PLAY OK` to the clip on the layer on 2.5.0 (95 ms on 2.3), about 55 ms
    preloaded, with no black between clips either way. Preloading is not built: it would take the
    layer's one background, which a sequence needs.
 10. Whether 2.3 servers are still in use anywhere NoaCG plays out.
+11. Loop the folder across two wraps. **Done 2026-09-28**, through the Bridge's runner on both
+    versions: three 3-second clips ran A, B, C, A, B, C, A with each clip on the layer for its
+    3 seconds and no black at any switch, the wrap included, in a FILE consumer's recording read with
+    ffmpeg's blackdetect (black only before the Take and after Out). The same with the middle clip
+    trimmed with `IN` and `OUT`: it played its 3-second segment on every lap.
+12. An AUTO switch into a clip trimmed with `IN`, and a `LOADBG … AUTO` sent just after it (the
+    wrap's race). **Done 2026-09-28**: the first INFO answer after the switch already reads the
+    trimmed start, on both versions, and a follower queued 27 to 57 ms after the switch started at
+    the end of the segment (3.001 to 3.008 s after the switch on 2.5.0, 3.021 to 3.024 s on 2.3),
+    never early. Unlike a `PLAY … IN` (§4), an AUTO switch opens no window, so the fake server's
+    `autoStarting` stays off by default. Captured as `p4-auto-into-in` in `cli/test/fixtures/info/`.
 
 ## 13. Decisions
 
@@ -928,6 +944,96 @@ knowing:
 | `scripts/team-show-merge.test.mjs` | the existing merge tests grow the folder cases: one teammate folders A and B, the other orders A, C, B, D; the result is gathered and reported; two teammates adding folders at once keep both |
 | `docs/PLAYOUT_DASHBOARD.md`, `docs/BRIDGE.md` | the new behaviour |
 
+**Built 2026-09-28**, as the table says, with NoaCG Bridge 0.6.0 for Loop the folder, and these
+differences and decisions worth knowing:
+
+- **The record** is `Show.folders` (`id`, `name`, `mode`, and for Play through `end: 'loop'` and a
+  `slot`, plus `collapsed`) and `ShowCue.folderId`, both optional, so the version stays 2. A folder
+  has no member list: its cues stand together in the flat cue list. Reading tolerates what an older
+  build or a whole-record write can leave: a `folderId` naming no folder reads as none, a folder no
+  cue names is not drawn, and a folder in two runs shows its later run as `(continued)`. Nothing
+  reorders on read; the next folder writer settles the record (drop what is dangling, then gather).
+  The pure steps are `src/model/showFolders.ts`, the rows as drawn `src/model/rundownRows.ts`.
+- **Writers found beyond the table** (§14, question 3): the Audience workspace's stage tally and
+  the page's picture upload both append through `addShowCue`/`addGraphicToShow`; the whole-record
+  paths - a sync pull and its conflict copy (`upsertShow`), a team production applied from the
+  server, another tab's write adopted by the durable store, and moving a production to a team -
+  write records as they come. None of them does folder work, and none needs to: an append never
+  lands in a folder, and a record they bring is read as above. The new `moveInRundown` is the one
+  writer every drag goes through, so a drag is one write, where the old walk wrote once per step.
+- **The last cue leaving a folder takes the folder with it**, whichever way it leaves; a removal,
+  a server item's removal, a graphic's removal and a whole-rundown replacement all drop a folder
+  left with no cue.
+- **Duplicate goes right after the original everywhere**, in its folder when it is in one, and now
+  carries the cue's playback, which it used to drop. `e2e/productions.spec.ts` changed one line.
+- **A new folder** is One by one, named one past the highest `Folder N` in use, and does not move
+  the cursor. It comes from a shift-click range (its own state beside `selectedCueId`, owner answer
+  1; a collapsed header stands for its hidden cues) or from a cue's menu; a cue made into a new folder
+  leaves its old one and lands right after it.
+- **Where a drop lands** is read from the third of the row under the pointer: the middle third is
+  the old drag exactly, the top and bottom thirds land before and after and join that row's folder,
+  a header's top third lands above the folder, the rest of it first in an open folder or last in a
+  collapsed one. A folder never goes inside another; dropped on another folder's row it lands beside
+  that folder. A pointer in the gap between rows keeps its aim, and while a row is dragged the list
+  ends with a strip to drop it at the end. A drop that cannot land (a graphic, still, template or
+  missing file into a Play-through folder) says why under the list while it hovers and after, and
+  writes nothing.
+- **Collapse is stored on the record**, so it follows the production to a teammate; the list never
+  opens a folder by itself. A collapsed header carries the tally, the clash badge and "replaced on
+  the server" of the cues it hides, and a dashed ring when the selected cue is one of them.
+- **The keys walk the rows as drawn**: a header is a stop, a collapsed folder is one step, and a
+  `(continued)` run is a stop of its own. A held key fires once on a header (`VerbPress`), since a
+  folder's Take is several actions; `NO_REPEAT` is unchanged, so a held SPACE on a cue row still
+  repeats as it did on both React surfaces. `folder-new` and `folder-toggle` are named verbs with no
+  key yet, for a Companion button.
+- **A held header reads as "no cue selected"** to every cue verb, the editor and the graphic's
+  actions, by the null path an empty rundown already takes. `selectedCueId` still holds one cue,
+  the folder's first, so the cursor stays put if the folder goes. No Take changes the selection.
+- **SPACE on a header takes or takes off in both Space modes**, never previews: the same
+  `spaceAction` with `previewed: true`, so the table the hosted page and the exported controller
+  share is untouched. PREVIEW shows a Play-through or All-together folder's first cue ("first in
+  Block A") and says a One-by-one folder has nothing to preview.
+- **One by one** is tidiness only: TAKE is off with "Take each cue in this folder.", its cues are
+  taken one at a time exactly as outside a folder, and TAKE OFF, `0` and Out on the header take off
+  only its own cues, each server cue with its own fade out and its graphics together.
+- **Play through** plays on the folder's slot, layer 10 on the clip channel unless the panel sets
+  one (owner answer 2). A clip before the last gives up its own ending and keeps its fades; the last
+  keeps its own ending, with a stored Play next read as Hold ("Play next does not leave the folder").
+  A Take on a clip in the folder plays from it to the end, rotated when the folder loops, and a
+  one-clip folder is a plain take. Loop the folder needs NoaCG Bridge 0.6.0 (`sequence-loop`): with
+  an older Bridge the Take is off and says so rather than stopping after the last clip. The page
+  reads the folder's loop only from the Bridge's `sequence.loop`, never from the slot's own `loop`.
+  A folder moved to another slot while it plays is taken off its old slot first. One file never airs
+  on two slots through this page: another cue of a file that a folder has up elsewhere is refused
+  with where it is.
+- **All together** checks everything before it sends anything - a file or graphic gone, two server
+  cues on one slot, two cues of one graphic, two graphics on one layer, NoaCG Bridge not there, any
+  cue's own Take check, and a cue set to Play next - then sends the server cues in rundown order and
+  then the graphics, each awaiting its answer, with no retry. A cue that did not go up says NOT
+  TAKEN on its own row with the reason, and the note line counts what went up. Out and All out stop
+  a Take still being sent: what lands after is taken back off (cut, after All out) and nothing after
+  it is sent. The clip clock follows the longest file that ends.
+- **What a header shows** is one pure function (`src/control/folderAir.ts`) over the ownership part
+  and `liveCue`, never the timing part, so a reading that only moves a clip's position renders
+  nothing but the clock and the rows (pinned with both kinds of folder up). A Companion button can
+  light from the same data.
+- **Folder writes that report** (make, move, remove) wait for the durable write and claim its
+  failure on the line under the list; renaming, the mode, the end, the slot and collapsing are
+  background writes that report nothing.
+- **Every folder style starts at `.pd-rundown`** (or the folder panel), pinned by
+  `scripts/folder-css-scope.test.mjs`, so the hosted page's rows draw as they did.
+- **The Bridge**: `sequence` takes `loop`; the entry after the last is the first; a reading's
+  `sequence` lists every other entry in the order they come round, with `loop: true`; no entry of a
+  looping run carries an ending, the two-second minimum covers the first entry too, and the runner
+  keeps reading until Out. A switch to the same file is seen by the position jumping back more than
+  0.1 s. `loop` is refused on any verb but `take` and `sequence`, and the page and the Bridge share
+  `MAX_SEQUENCE_ENTRIES` (100).
+- **One sentence is loose**: Play next's "the next clip is in another folder" is also what a clip in
+  no folder hears when the next clip on its layer is in a folder.
+- **Measured on the real servers** (§12, items 8, 11 and 12): no black at any switch of a looping
+  folder, the wrap included; a video and its own audio file sent one after another start within a
+  frame or two; and after an AUTO switch into a clip trimmed with `IN`, nothing is queued early.
+
 ### Not touched by any phase
 
 The editor (`src/components/editorFoundation/**`, `src/editor/**`, `src/App.tsx`), the
@@ -1028,6 +1134,18 @@ case 16 is the runner playing with nobody reading `/state`.
 | 23 | An older build edits loop | §7's precedence; this build never writes `item.loop` | e2e: edits through the shipped `setPlayoutItemLoop`, then this build reads |
 | 24 | Level applied twice | no `MIXER VOLUME` is ever sent; the level is the clip's `AF` | unit: no MIXER line in any action; real server: measured level (§12, item 4) |
 | 25 | The frozen surfaces | each checked for what it does today (§8) | e2e: hosted page, export and pack with folders and playback settings |
+
+**Built in phase 4** (2026-09-28), each guard broken on purpose to see its test fail, in
+`e2e/playout-folders.spec.ts` unless named: case 19's folder half (the walk over the rows as drawn,
+a held SPACE and a held `0` on a folder, both Space modes); case 20 and 21's rundown half (an
+orphan and an empty folder drawn as nothing, a split folder's `(continued)` run held by the keys
+and gathered by the next drag in one write) with the merge half in
+`scripts/team-show-merge.test.mjs`; case 22 through every writer against the durable store (a
+removal, a step, the appends, a server item's and a graphic's removal, a whole-rundown replacement)
+and the property tests of `scripts/show-folders.test.mjs`; case 25 as one test building the
+published payload, two export packages and a pack from a production with folders, none of which
+carries one. The Loop-the-folder runner cases are in `cli/test/runner.test.mjs`, each guard broken
+by editing `cli/dist`.
 
 ## 19. The review of revision 1, and what was done
 

@@ -261,6 +261,12 @@ closed, need facts only the process that sent the commands can hold:
   the server checks AUTO before pause; the slot is read once more right before a file is queued, so
   another client's or another Bridge's take ends the sequence and nothing is sent; a member after
   the first plays at least two seconds, so the next is always queued in time.
+- **A sequence that starts over** (0.6.0, a Play-through folder set to Loop the folder,
+  `CLIP_PLAYBACK_PLAN.md` §6.6). With `loop` the entry after the last is the first, so the runner
+  queues the first file again while the last one plays, and keeps reading the slot until Out. No
+  entry of a looping run carries an ending, and the two-second minimum covers the first entry too,
+  since it follows the last. The runner sees a switch to the same file (a folder of one file twice)
+  by its position jumping back more than 0.1 s.
 
 A restarted Bridge remembers nothing. Its session id is new and its readings carry no instances, so
 the page shows whatever the server holds as unidentified rather than guessing from the file name,
@@ -285,7 +291,7 @@ so the version stayed 2:
 - **verb** - `take` (with `data` for a template, `loop` for a clip, the page's `cueId`, and a
   clip's `playback`), `update` (data), `next`, `out` (with a clip's `fadeOut`), `pause`, `resume`,
   `clear` (remove at once, no exit: OGraf's All out), and `sequence` (0.5.0: several files played
-  one after another, below). A slot-only verb may name the `item` the page believes is in the slot,
+  one after another, below; 0.6.0: `loop` to start over after the last). A slot-only verb may name the `item` the page believes is in the slot,
   because `out` on a template plays its exit through the CG layer where `out` on a clip stops the
   video layer.
 - **playback** (0.5.0, `CLIP_PLAYBACK_PLAN.md` §9) - how a clip plays, in seconds, never frames:
@@ -294,8 +300,10 @@ so the version stayed 2:
   seconds into the file). Every field is optional, and an action without one is sent exactly as it
   always was. A field the Bridge does not know is refused by name, never dropped, and so is one on
   the wrong verb: an update carrying a level would look applied and change nothing.
-- **sequence** - `{ slot, entries: [{ item, cueId, playback, media: { kind, seconds } }] }`, at
-  least two. The first plays at once and the Bridge runs the rest (§3). `media` is what the
+- **sequence** - `{ slot, entries: [{ item, cueId, playback, media: { kind, seconds } }], loop? }`, at
+  least two and at most 100 (`MAX_SEQUENCE_ENTRIES`, shared with the page). `loop: true` (0.6.0,
+  feature `sequence-loop`) starts the run over after its last entry until Out; `loop` on any verb
+  but `take` and `sequence` is refused. The first plays at once and the Bridge runs the rest (§3). `media` is what the
   server's own list says the file is: the Bridge refuses a still (it never ends), a file of unknown
   length, and a member after the first shorter than two seconds, and only the last entry may have
   an ending of its own.
@@ -316,7 +324,8 @@ Routes, all JSON:
 **Two lists, two questions** (0.4.2, `CLIP_PLAYBACK_PLAN.md` §6.9). `features` on `/health` is what
 this Bridge build understands; it names no server, so it says nothing about one. `capabilities` on
 `/status` is what the named target can do, from its adapter and its version. 0.5.0 lists the
-features `state`, `playback` and `sequence`; a CasparCG 2.3 or later has the capabilities `state`,
+features `state`, `playback` and `sequence`, and 0.6.0 adds `sequence-loop` (a 0.5.0 Bridge would
+read a sequence's `loop` field by field and drop it, so the page never sends one without the word); a CasparCG 2.3 or later has the capabilities `state`,
 `end`, `fade`, `trim`, `level` and `sequence`, an older one only `end` (Clear at the end is a plain
 `LOADBG … EMPTY AUTO`), and an OGraf target none. The page offers a control only when both lists
 say yes, and a cue that already carries a setting the running Bridge or its server cannot honour
@@ -328,7 +337,8 @@ before 0.4.2 sends neither list, and the page then counts a clip from its own Ta
 its length, seconds) and `position` (seconds into the SEGMENT, never into the file), `paused`,
 `loop`, a MIX's `transition.progress`, what is `queued` behind it and whether it plays by itself,
 the slot's `generation`, and, while this Bridge's take still plays there, its `instance` and
-`cueId`, and, while a sequence runs, the entries still to play (`sequence.next`). `arriving` says the server has accepted this Bridge's Take but the layer still shows what
+`cueId`, and, while a sequence runs, the entries still to play (`sequence.next`; for a looping run,
+every other entry in the order they come round, and `sequence.loop`). `arriving` says the server has accepted this Bridge's Take but the layer still shows what
 it held before: CasparCG answers a `PLAY` before the clip is on the layer (measured, below). The
 reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading.
 
@@ -757,6 +767,15 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   queued file for about 80 ms after the `LOADBG` that replaced it, so a reading just after an action
   may carry the new generation with the old background for one reading; and a queued Clear is a
   nameless colour, so a reading never shows it as queued.
+- **On the real 2.5.0 and 2.3, 2026-09-28, for 0.6.0**: the built Bridge through its own HTTP
+  route, with `INFO` read over one open connection about every 20 ms. A looping run of three
+  3-second clips went A, B, C, A, B, C, A, each on the layer for its 3 seconds, with no black at any
+  switch, the wrap included, in a FILE consumer's recording read with ffmpeg's blackdetect; the same
+  with the middle clip trimmed with `IN` and `OUT`, which played its segment on every lap. After an
+  AUTO switch into a clip trimmed with `IN`, the first reading already shows the trimmed start, and
+  a follower queued 27 to 57 ms later waited for the end of the segment: unlike a `PLAY … IN`, the
+  switch opens no window. A video and its own WAV taken one after another, as an All-together folder
+  sends them, started within one frame on 2.5.0 and two on 2.3, the audio ahead.
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
   the 501 mapping, pairing, the refusals, every playback line and its order, the conversions, no
   `MIXER`), `cli/test/runner.test.mjs` (every runner case of `CLIP_PLAYBACK_PLAN.md` §18 against a
@@ -786,9 +805,9 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   probe of 5250); `--install-startup`. **Layer and clip position no longer need OSC**: `/state`
   reads them from `INFO` (0.4.2, §3a and §3b), which answers in about 1.5 ms, and the page polls it.
   A streaming `GET /events` would only matter if polling ever proved too slow or too costly.
-- **Clip playback, phases 3 and 4** (`CLIP_PLAYBACK_PLAN.md` §11): how a clip ends, fades, level
-  and trim, the sequence runner in the Bridge that plays the next clip, then folders. Each is a
-  Bridge release.
+- **Clip playback** (`CLIP_PLAYBACK_PLAN.md` §11) is built through its phase 4, folders, with
+  Loop the folder in 0.6.0. What is left there is later work: frame-exact All together, a live
+  fader, Load and preloading, and the timed graphics cues.
 - **A hardware panel** (`docs/backlog/companion-and-stream-deck.md`): Bitfocus Companion and a
   Stream Deck driving the same named verbs and showing the same state the page draws, through this
   Bridge's local HTTP.

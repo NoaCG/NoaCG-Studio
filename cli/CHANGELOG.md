@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.5.0 - unreleased
+## 0.6.0 - unreleased
 
 **New: `noacg pack --save`.** Sends several graphics as one package to your NoaCG Home, with
 their layers and an optional `--rundown` of cues. Press Install on Home → Productions and the

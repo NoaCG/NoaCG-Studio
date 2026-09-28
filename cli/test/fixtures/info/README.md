@@ -67,3 +67,20 @@ Not captured as a file, and recorded in docs/BRIDGE.md §3b: a follower queued w
 of `PLAY … IN n` fires at once on both versions; the level measured 12.0 dB apart with ffmpeg's
 volumedetect on a FILE consumer's recording; and a Take reached the layer about 115 ms after
 `202 PLAY OK` on 2.5.0 (95 ms on 2.3), about 55 ms preloaded.
+
+## Phase 4: a folder that plays through, and starts over (2026-09-28)
+
+The same two servers, for docs/CLIP_PLAYBACK_PLAN.md §12 item 8 and the Play-through checks. The
+media were three 3-second clips in plain colours with a tone each (`A3`, `B3`, `C3`), a 5-second
+test pattern with a tone (`T5`), and a 5-second picture with its own WAV beside it (`VT5`,
+`VT5A`), made with the ffmpeg beside the server and removed afterwards. On 2.3 the channel is 1,
+on 2.5.0 it is 2, layer 10.
+
+- `p4-auto-into-in` (and `p4-v2.3-auto-into-in`): the first INFO answer after an AUTO switch from
+  `A3` into `T5` queued with `IN 50 OUT 200`, read over one open connection as fast as the server
+  answers. The incoming clip already reads its trimmed start, `file/time` 1 and `file/clip` [1, 3],
+  inside the cut transition: no reading shows a position before the segment. A `LOADBG ... AUTO`
+  sent 27 to 57 ms after the switch started the next file 3.001 to 3.008 s after it on 2.5.0 and
+  3.021 to 3.024 s on 2.3, at the end of the trimmed segment and never early.
+- `p4-wrap-queued` (and `p4-v2.3-wrap-queued`): the last clip of a looping folder on air with the
+  first queued behind it with AUTO, as the runner leaves it before a wrap.

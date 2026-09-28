@@ -1,6 +1,6 @@
 # Rundown automation and basic media - the plan
 
-**Plan, 2026-09-26. Nothing in it is built.** It answers two owner asks at once:
+**Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4); build 1 is not.** It answers two owner asks at once:
 [`backlog/rundown-cue-timing-and-automation.md`](backlog/rundown-cue-timing-and-automation.md)
 (cue durations, auto-advance and the rest of rundown automation, planned before anything is built)
 and the unplanned half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md)
@@ -19,7 +19,7 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 | # | What | Size | For | Recommendation |
 |---|---|---|---|---|
 | **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Build after build 2** (owner, 2026-09-27). It is the gap felt in every show. |
-| **Build 2** | Clip and audio playback: a clip's ending, fades, level and trim, audio on its own layer, folders, the clip clock and a resizable rundown. (§3, and `CLIP_PLAYBACK_PLAN.md`) | large, five phases | both | **Decided 2026-09-27: build first**, then build 1. |
+| **Build 2** | Clip and audio playback: a clip's ending, fades, level and trim, audio on its own layer, folders, the clip clock and a resizable rundown. (§3, and `CLIP_PLAYBACK_PLAN.md`) | large, five phases | both | **Decided 2026-09-27: build first**, then build 1. **Built 2026-09-28.** |
 | 6 | Cues from a spreadsheet: one cue per row, with an optional duration column. | small | your productions | **Next after build 2.** |
 | 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Later**, by letting a combined control reach server cues, not as a new concept. |
 | 9 | As-run log export. | small | TV station, sponsors | **Later**, as a CSV of the last seven days. |
@@ -471,7 +471,7 @@ four files named in §2.8.
 
 ---
 
-## 3. Build 2: clip and audio playback - decided 2026-09-27
+## 3. Build 2: clip and audio playback - decided 2026-09-27, built 2026-09-28
 
 **Replaced by [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md)**, planned with the owner on
 2026-09-27 and revised after an independent review of the plan against the code and the CasparCG

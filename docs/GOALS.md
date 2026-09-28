@@ -152,8 +152,8 @@ Each outcome carries its priority (now, next, later). List order is not priority
   production and its rundown belong to the team, not to one account.
 - **Current state:** CasparCG with NoaCG Bridge is production-proven and the main production path;
   OBS and browser sources are proven; vMix exports exist but are unproven in vMix; SPX is unproven
-  on a real SPX server. Bridge lists the server's clips and cues them from the rundown, with loop;
-  volume is not built. Teams exist, and a three-member walk on a local backend proves members
+  on a real SPX server. Bridge cues the server's clips from the rundown with each clip's ending,
+  fades, level, trim, Play next and folders; the owner's check on a real production is open. Teams exist, and a three-member walk on a local backend proves members
   adding graphics from their own libraries and one playing the production out with its creator
   signed out. Saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
