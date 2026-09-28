@@ -60,6 +60,53 @@ export interface ItemRef {
 }
 
 /**
+ * How a media file plays (docs/CLIP_PLAYBACK_PLAN.md §9): one descriptor for a take and for each
+ * entry of a sequence. Every field is optional, and an action without one plays exactly as it did
+ * before any of them existed. Times are SECONDS, never frames: the adapter converts them with the
+ * channel's own rate. A Bridge refuses a field its adapter cannot honour, naming the hop, and never
+ * drops one.
+ */
+export interface MediaPlayback {
+  /** What the file does at its end: `clear` empties the layer (fading for `fadeOut`), `loop`
+   *  repeats it until Out. Absent = it holds its last frame. Playing another file next is a
+   *  `sequence`, never an ending. */
+  end?: 'hold' | 'clear' | 'loop';
+  /** A MIX into this file from whatever the layer showed before it. */
+  fadeIn?: number;
+  /** The fade to nothing when the file ends into nothing: `clear` at its end. Out carries its own. */
+  fadeOut?: number;
+  /** A linear gain on the file's own sound, from the cue's level (10^(dB/20)). Absent = 1. It goes
+   *  out with the file, so it stays with the file when the server switches to it by itself. */
+  gain?: number;
+  /** The part of the file that plays, seconds into the file. */
+  trim?: { in?: number; out?: number };
+}
+
+/** The shortest a member of a sequence after the first may play, seconds: the Bridge queues each
+ *  next file while the one before it plays, reading four times a second, so this is always in
+ *  time. The page offers Play next and the Bridge accepts a sequence by this one number. */
+export const MIN_SEQUENCE_MEMBER_S = 2;
+
+/** How long a file plays from `start` to `end` in it, seconds: the end clamped to the file's
+ *  length, never below nothing; unknown when neither an end nor the file's length is known. The one
+ *  trim rule both sides count with - the Bridge's refusals, the page's Play next and TO STUDIO. */
+export function playedSeconds(whole: number | undefined, start = 0, end?: number): number | undefined {
+  const stop = end === undefined ? whole : whole === undefined ? end : Math.min(end, whole);
+  return stop === undefined ? undefined : Math.max(0, stop - start);
+}
+
+/** One file of a sequence: what plays, how, the cue it came from, and what the server's own list
+ *  says the file is. A still never ends, so it can never be one. */
+export interface SequenceEntry {
+  item: ItemRef;
+  cueId?: string;
+  playback?: MediaPlayback;
+  /** The server's word for the file and its whole length in seconds, from its list. The Bridge
+   *  refuses a member that could not be queued ahead in time (docs/CLIP_PLAYBACK_PLAN.md §6.10). */
+  media: { kind: 'movie' | 'audio'; seconds: number };
+}
+
+/**
  * One operator verb. Each one is one command on the target, and the payload carries no page
  * state, so the same object can later travel as a row in the durable command log. A slot-only
  * verb may name the `item` the page believes is in the slot: `out` on a template plays its exit
@@ -68,12 +115,18 @@ export interface ItemRef {
 export type PlayoutAction =
   /** `cueId` names the page's cue, which the Bridge keeps with what it started so a reading can
    *  match the slot back to its cue after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). A Bridge
-   *  from before it reads the action field by field and never sees it. */
-  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string }
+   *  from before it reads the action field by field and never sees it. `playback` is for media
+   *  only; a Bridge that does not list the `playback` feature must never be sent one. */
+  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
-  | { verb: 'next' | 'out' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
+  | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
+  /** `fadeOut` fades a clip to nothing rather than cutting it. */
+  | { verb: 'out'; slot: Slot; item?: ItemRef; fadeOut?: number }
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. */
-  | { verb: 'clear'; slot: Slot };
+  | { verb: 'clear'; slot: Slot }
+  /** Play the first entry now and each of the rest when the one before it ends, run by the Bridge
+   *  (Play next, docs/CLIP_PLAYBACK_PLAN.md §6.10). Needs the `sequence` feature and capability. */
+  | { verb: 'sequence'; slot: Slot; entries: SequenceEntry[] };
 
 export type PlayoutVerb = PlayoutAction['verb'];
 
@@ -115,12 +168,15 @@ export interface AgentError {
 }
 
 /** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a
- *  Bridge that lists none is older than all of them. It says nothing about any server. */
-export type BridgeFeature = 'state';
+ *  Bridge that lists none is older than all of them. It says nothing about any server.
+ *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
- *  a request that names a target can say. The page offers a control only when both lists say yes. */
-export type TargetCapability = 'state';
+ *  a request that names a target can say. The page offers a control only when both lists say yes.
+ *  `end` is a clip's Clear at its end, `fade` its fades, `trim` its start and end in the file,
+ *  `level` its gain, and `sequence` playing one file after another. */
+export type TargetCapability = 'state' | 'end' | 'fade' | 'trim' | 'level' | 'sequence';
 
 /** What `GET /health` answers, to any origin and without a token. */
 export interface HealthReply {
@@ -168,6 +224,9 @@ export interface SlotState {
    *  clip is there, and for a moment the layer still shows what it held before (nothing, or the
    *  previous clip). The rest of the reading is that previous content, not the take's. */
   arriving?: boolean;
+  /** A sequence this Bridge runs on the slot: the entries still to play after the one on air, in
+   *  order. The slot's `cueId` is the entry on air. */
+  sequence?: { next: SequenceEntry[] };
   /** The slot's action counter as of this reading. Every Take, Out, Clear, Pause and Resume moves
    *  it first. */
   generation: number;
@@ -221,6 +280,9 @@ export interface ActReply {
   session?: string;
   /** A take's instance id, which the slot's readings carry for as long as it plays. */
   instance?: string;
+  /** The action happened, and a later part of it did not: a clip on air whose Clear at the end the
+   *  server refused, say. One sentence for the operator. */
+  warning?: string;
 }
 
 export interface ErrorReply {

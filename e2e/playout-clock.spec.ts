@@ -17,6 +17,7 @@ import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { settleDurableWrites } from './_durable';
 import { evaluateInPage } from './_evaluate';
+import { holdKeyRepeats, parkFocusOffControls } from './_keys';
 
 const BRIDGE = 'http://127.0.0.1:8899';
 const TOKEN = 'e2e-token';
@@ -84,13 +85,15 @@ interface Fake {
   arriveAfter: number;
   /** A server with no media scanner running: THUMBNAIL gives nothing. */
   noThumbnails: boolean;
+  /** Every verb the page sent, in order. */
+  verbs: string[];
 }
 
 /** The clips' lengths, as the server's list would give them. */
 const LENGTHS: Record<string, number> = { OPENER: 15, GIORNO: 60 };
 
 async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
-  const fake: Fake = { old: false, gone: false, session: 'b0a1', generation: {}, slots: {}, stateCalls: 0, holdNext: false, hold: null, arriveAfter: 0, noThumbnails: false, ...init };
+  const fake: Fake = { old: false, gone: false, session: 'b0a1', generation: {}, slots: {}, stateCalls: 0, holdNext: false, hold: null, arriveAfter: 0, noThumbnails: false, verbs: [], ...init };
   let count = 0;
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -167,6 +170,7 @@ async function fakeBridge(page: Page, init: Partial<Fake> = {}): Promise<Fake> {
     }
     if (path === '/act') {
       const a = body.action!;
+      fake.verbs.push(a.verb);
       const addr = `${a.slot.channel}-${a.slot.layer}`;
       if (a.verb === 'take' || a.verb === 'out') fake.generation[addr] = (fake.generation[addr] ?? 0) + 1;
       let instance: string | undefined;
@@ -534,4 +538,46 @@ test('on a phone the clock sits in the stacked column, and the verbs stay pinned
   expect(clockBox!.y + clockBox!.height, 'above the rundown').toBeLessThanOrEqual(rail!.y + 1);
   // Never inside the verb bar pinned to the bottom of the screen.
   expect(await page.getByTestId('production-verbs').locator('[data-testid="clip-clock"]').count()).toBe(0);
+});
+
+test('P pauses the clip on air and P again resumes it; held, typed into a box, or off the Playout screen it does nothing more', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §18 case 19: the key is a named verb in the one keymap
+  // (components/playoutKeys.ts), a toggle, and bound only while playout is on screen.
+  await seedSettings(page);
+  const fake = await fakeBridge(page);
+  await productionWithClips(page);
+  await take(page, 'GIORNO');
+  // The selection walks on ahead while a clip plays: P still reaches the clip on air, the one the
+  // clock follows.
+  await row(page, 'OPENER').getByTestId('select-cue').click();
+  await parkFocusOffControls(page);
+  await page.keyboard.press('p');
+  await expect.poll(() => fake.verbs.at(-1)).toBe('pause');
+  await expect(clock(page)).toHaveAttribute('data-phase', 'paused');
+  await page.keyboard.press('p');
+  await expect.poll(() => fake.verbs.at(-1)).toBe('resume');
+  await expect(clock(page)).not.toHaveAttribute('data-phase', 'paused');
+
+  // A HELD P is one press: an auto-repeating toggle would pause and resume the clip over and over.
+  const before = fake.verbs.length;
+  await holdKeyRepeats(page, 8, 'KeyP', 'p');
+  await page.waitForTimeout(400);
+  expect(fake.verbs.slice(before)).toEqual([]);
+
+  // Typing a p into the note is typing.
+  await page.getByTestId('cue-note').click();
+  await page.keyboard.type('pp');
+  await expect(page.getByTestId('cue-note')).toHaveValue('pp');
+  await page.waitForTimeout(300);
+  expect(fake.verbs.slice(before)).toEqual([]);
+
+  // On the Data workspace the monitors are not on screen, and the key is not the operator's.
+  await parkFocusOffControls(page);
+  const url = page.url();
+  await page.evaluate(() => (location.hash = `${location.hash}/data`));
+  await expect(page.getByTestId('tab-data')).toHaveAttribute('aria-current', 'page');
+  await page.keyboard.press('p');
+  await page.waitForTimeout(400);
+  expect(fake.verbs.slice(before)).toEqual([]);
+  expect(page.url()).not.toBe(url);
 });

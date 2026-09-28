@@ -22,10 +22,11 @@ export type PlayoutVerb =
   | 'select-next'
   // A server clip's Pause and Resume. Named verbs through the same dispatcher as the rest, so a
   // key, a button or a hardware panel reaches them one way (docs/backlog/companion-and-stream-deck.md).
-  // No key yet: `P` comes with phase 3 of docs/CLIP_PLAYBACK_PLAN.md, bound only while playout is on
-  // screen. The hosted page has no server cues to pause, and its dispatcher ignores both.
+  // The hosted page has no server cues to pause, and its dispatcher ignores all three.
   | 'pause'
-  | 'resume';
+  | 'resume'
+  // `P`: pause the server clip on air, or resume it (docs/CLIP_PLAYBACK_PLAN.md §16, phase 3).
+  | 'pause-toggle';
 
 /**
  * True when the keystroke belongs to whatever the operator is typing into, not to the verbs.
@@ -66,6 +67,9 @@ const KEY_MAP: Record<string, PlayoutVerb> = {
   u: 'update',
   n: 'next',
   '0': 'out',
+  // A TOGGLE, so a held key must not repeat it: an auto-repeating P would pause and resume the clip
+  // on air ten times a second (see NO_REPEAT).
+  p: 'pause-toggle',
   // Walking the rundown from the keyboard is what makes the whole surface operable without a
   // mouse - and, since a Stream Deck is a keyboard emulator, what makes these verbs reachable
   // from one. Form controls keep their own arrows (`typingInto` covers input, textarea, select
@@ -73,6 +77,9 @@ const KEY_MAP: Record<string, PlayoutVerb> = {
   arrowup: 'select-prev',
   arrowdown: 'select-next',
 };
+
+/** Verbs a held key fires once, not once per auto-repeat: each press means the opposite of the last. */
+const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle']);
 
 /**
  * Bind the verb keys while the playout surface is the one ON SCREEN. Never while typing - the
@@ -100,6 +107,7 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb) => void, enabled =
       const verb = KEY_MAP[e.key.toLowerCase()];
       if (!verb) return;
       e.preventDefault();
+      if (e.repeat && NO_REPEAT.has(verb)) return;
       onKey(verb);
     };
     window.addEventListener('keydown', onKeyDown);

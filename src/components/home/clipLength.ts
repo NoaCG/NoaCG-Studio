@@ -1,11 +1,5 @@
 import type { PlayoutItem } from '../../model/shows';
-
-/** A clip's length in seconds from the server's list, or undefined when the server gave none: a
- *  still, a template, or an item saved before lengths were kept. */
-export function itemSeconds(item: Pick<PlayoutItem, 'frames' | 'fps'>): number | undefined {
-  if (!item.frames || !item.fps || item.frames <= 0 || item.fps <= 0) return undefined;
-  return item.frames / item.fps;
-}
+import { fileSeconds } from '../../control/cuePlayback';
 
 /**
  * A clip's length as the operator reads it (`3:00`, `1:02:05`), or '' when the server gave none.
@@ -14,7 +8,13 @@ export function itemSeconds(item: Pick<PlayoutItem, 'frames' | 'fps'>): number |
  * disagree about it.
  */
 export function clipLength(item: Pick<PlayoutItem, 'frames' | 'fps'>): string {
-  const seconds = itemSeconds(item);
+  // The server's list length, by the model's one rule (none for a still or an older item).
+  return lengthText(fileSeconds(item));
+}
+
+/** A length in seconds as the operator reads it, the same way; '' when it is not known. What a cue
+ *  plays of its file (its trim) reads through this, so a trimmed clip shows its own length. */
+export function lengthText(seconds: number | undefined): string {
   if (seconds === undefined) return '';
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);

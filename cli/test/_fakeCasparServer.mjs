@@ -20,7 +20,10 @@
 //   - a looping clip never ends, so AUTO behind it never fires;
 //   - `IN`, `SEEK`, `OUT` and `LENGTH` count frames at the CHANNEL's rate, not the file's: on the
 //     real 2.5.0 a 25 fps file on a 50p channel took `SEEK 250 LENGTH 375` as 5 s in and 7.5 s
-//     long (measured 2026-09-28, cli/test/fixtures/info/video-trimmed.json).
+//     long (measured 2026-09-28, cli/test/fixtures/info/video-trimmed.json);
+//   - a clip PLAYed from part way in (`IN` or `SEEK`) has not reached its segment for its first
+//     STARTING_MS: INFO shows the file at 0, and a `LOADBG … AUTO` queued then fires at once, so the
+//     follower airs and the trimmed clip never does (measured on 2.5.0 and 2.3, 2026-09-28).
 // Anything the model does not know is answered `400 ERROR`, never guessed.
 //
 // TIME IS INJECTED. `clock.now()` is milliseconds; the fake reads it and never schedules
@@ -84,6 +87,10 @@ export function tokenize(line) {
   return out;
 }
 
+/** How long a clip PLAYed from part way in takes to reach its segment (measured: a follower queued
+ *  at 30 and 60 ms fired early, one at 90 ms did not). */
+export const STARTING_MS = 80;
+
 const xmlEscape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0');
 
@@ -95,15 +102,17 @@ const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0'
  *   templates - template names, for TLS and `CG … ADD`.
  *   channels  - `{ 1: { fps: 25 }, … }`; a command on any other channel is refused.
  *   version   - what VERSION answers.
- *   intercept - `(line, { tokens }) => string | undefined | Promise<…>`: FAULT INJECTION. A string
- *               is sent as the whole reply and the command is NOT applied; undefined lets it
- *               through. It may await first, which is how a test delays a reply.
+ *   intercept - `(line, { tokens, answer }) => string | undefined | Promise<…>`: FAULT INJECTION.
+ *               A string is sent as the whole reply and the command is NOT applied (unless it came
+ *               from `answer()`, which applies it at that moment); undefined lets it through. It
+ *               may await first, which is how a test delays a reply.
  */
 export async function fakeCasparServer(options = {}) {
   const clock = options.clock ?? manualClock();
   const media = new Map(Object.entries(options.media ?? {}).map(([name, m]) => [name.toUpperCase(), { name, ...m }]));
   const templates = options.templates ?? [];
-  const channels = options.channels ?? { 1: { fps: 25 } };
+  // Copied, so `setRate` can change a channel's format mid-test the way `SET <c> MODE` would.
+  const channels = Object.fromEntries(Object.entries(options.channels ?? { 1: { fps: 25 } }).map(([c, v]) => [c, { ...v }]));
   const version = options.version ?? '2.5.0 fake Stable';
   /** `"<channel>-<layer>"` -> the layer's state. */
   const layers = new Map();
@@ -134,6 +143,8 @@ export async function fakeCasparServer(options = {}) {
     if (!bg || !l.auto) return null;
     // `load()`: AUTO onto an empty layer plays at once.
     if (!fg) return bg.loadedAt;
+    // Queued while a clip PLAYed part way in has not reached its segment: it fires at once.
+    if (fg.startingUntil !== undefined && bg.loadedAt < fg.startingUntil) return bg.loadedAt;
     if (fg.loop || !Number.isFinite(fg.length)) return null;
     // A `MIX n` starts `n` frames before the end (at least one) so it finishes on the last
     // frame; a cut switches once the last frame has been shown.
@@ -252,7 +263,7 @@ export async function fakeCasparServer(options = {}) {
         // layer - its background and its AUTO with it - is exactly as it was.
         const p = producerFor(args, channel);
         if (!p) return reply.notFound(cmd);
-        l.foreground = { ...p, loadedAt: now, startedAt: now, pausedAt: null, playedAt: now };
+        l.foreground = { ...p, loadedAt: now, startedAt: now, pausedAt: null, playedAt: now, ...(p.start > 0 ? { startingUntil: now + STARTING_MS } : {}) };
         l.background = null;
         l.auto = false;
         return reply.ok(cmd);
@@ -317,9 +328,11 @@ export async function fakeCasparServer(options = {}) {
     if (p.producer === 'html') return `<file><path>${xmlEscape(p.file)}</path></file>${paused}<producer>html</producer>`;
     if (p.producer === 'still') return `<file><path>media\\${xmlEscape(p.file)}.png</path></file>${paused}<producer>image</producer>`;
     const framesLeft = l.background && l.auto ? `<frames_left>${Math.max(0, Math.round((p.length - position(p, at)) * fpsOf(l.channel)))}</frames_left>` : '';
+    // Not in its segment yet: the file reads at 0 (see STARTING_MS).
+    const time = p.startingUntil !== undefined && at < p.startingUntil ? 0 : p.start + position(p, at);
     return (
       `<file><clip>${num(p.start)}</clip><clip>${num(p.length)}</clip><name>${xmlEscape(p.file)}</name>` +
-      `<path>media/${xmlEscape(p.file)}.mp4</path><time>${num(p.start + position(p, at))}</time><time>${num(p.whole)}</time></file>` +
+      `<path>media/${xmlEscape(p.file)}.mp4</path><time>${num(time)}</time><time>${num(p.whole)}</time></file>` +
       `${framesLeft}<loop>${p.loop}</loop>${paused}<producer>ffmpeg</producer>`
     );
   }
@@ -347,7 +360,10 @@ export async function fakeCasparServer(options = {}) {
       .sort((a, b) => a.layer - b.layer)
       .map((l) => `<layer_${l.layer}><background>${backgroundXml(l)}</background><foreground>${foregroundXml(l, at)}</foreground></layer_${l.layer}>`)
       .join('');
-    return `<?xml version="1.0" encoding="utf-8"?><channel><format>fake</format><framerate>${fpsOf(channel)}</framerate><framerate>1</framerate><stage><layer>${rows}</layer></stage></channel>`;
+    // A whole rate is `n/1`; 29.97 is written the way the server does, `30000/1001`.
+    const fps = fpsOf(channel);
+    const [num, den] = Number.isInteger(fps) ? [fps, 1] : [Math.round(fps * 1001), 1001];
+    return `<?xml version="1.0" encoding="utf-8"?><channel><format>fake</format><framerate>${num}</framerate><framerate>${den}</framerate><stage><layer>${rows}</layer></stage></channel>`;
   }
 
   /** What a layer holds right now, as the model sees it - what tests assert on. */
@@ -391,13 +407,15 @@ export async function fakeCasparServer(options = {}) {
         // than waiting out its timeout, and the error is kept for the test to read.
         queue = queue.then(async () => {
           const tokens = tokenize(line);
-          const injected = options.intercept ? await options.intercept(line, { tokens }) : undefined;
-          let answer = injected;
-          if (answer === undefined) {
+          // `answer()` applies the command NOW and hands back its reply, so an intercept can take a
+          // reading at one moment and deliver it later - a slow answer from before something else.
+          const applyNow = () => {
             settle();
-            answer = apply(line, tokens);
-          }
-          if (!socket.destroyed) socket.write(answer, 'utf8');
+            return apply(line, tokens);
+          };
+          const injected = options.intercept ? await options.intercept(line, { tokens, answer: applyNow }) : undefined;
+          const sent = injected === undefined ? applyNow() : injected;
+          if (!socket.destroyed) socket.write(sent, 'utf8');
         }).catch((error) => {
           errors.push(error);
           socket.destroy();
@@ -419,6 +437,12 @@ export async function fakeCasparServer(options = {}) {
       return commands.map((c) => c.line);
     },
     layer,
+    /** Change a channel's frame rate, as a format change would: every frame count after it is in
+     *  the new rate, and INFO says so. */
+    setRate(channel, fps) {
+      settle();
+      channels[channel] = { ...channels[channel], fps };
+    },
     /** Move a manual clock and settle the model to it. */
     advance(ms) {
       clock.advance(ms);

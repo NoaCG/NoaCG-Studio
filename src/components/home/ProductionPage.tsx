@@ -23,26 +23,39 @@ import {
   updateShowCue,
   playoutItemOf,
   removePlayoutItem,
+  fillPlayoutItemFacts,
   type PlayoutItem,
+  type PlayoutMediaKind,
   type Show,
   type ShowCue,
 } from '../../model/shows';
 import {
   act,
   itemSlot,
+  listLibrary,
   loadPlayoutSettings,
   playoutConfigured,
   readState,
+  slotAddress,
   stateReadable,
   subscribeTargetStatus,
   type PlayoutResult,
 } from '../../control/playoutLink';
-import { runServerVerb, serverCueLive, serverLayers, type ServerVerb } from '../../control/serverPlayout';
+import {
+  playNextTarget,
+  runServerVerb,
+  sequenceAction,
+  sequenceMembers,
+  serverCueLive,
+  takeBlocker,
+  serverLayers,
+  type ServerVerb,
+} from '../../control/serverPlayout';
 import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { applyAccepted, applyReading, followedClip } from '../../control/serverState';
+import { applyAccepted, applyReading, followedClip, pauseTarget } from '../../control/serverState';
+import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
-import { itemSeconds } from './clipLength';
 import type { Resolution } from '../../model/types';
 import {
   diffResolved,
@@ -742,6 +755,33 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setBridgeStatus(null);
     return subscribeTargetStatus(settings, setBridgeStatus);
   }, [playoutSettingsRev]);
+
+  // ── WHAT AN OLDER CLIP IS (docs/CLIP_PLAYBACK_PLAN.md §7, §18 case 5). A clip saved before its kind
+  // was kept - or its length, by a record made elsewhere - learns both from the server's own list,
+  // once per production and Bridge, as soon as the Bridge answers: an audio file then plays as one,
+  // a still keeps its Hold, and Play next can check a follower's length. Only a missing fact is
+  // filled, and a file the list does not have stays unknown, which Play next says.
+  const learntFacts = useRef<string | null>(null);
+  const bridgeOk = bridgeStatus?.state === 'ok';
+  useEffect(() => {
+    if (!bridgeOk || !show) return;
+    // A still has no length to learn.
+    const missing = playoutItems.filter((i) => i.kind === 'media' && (!i.mediaKind || (i.mediaKind !== 'still' && !(i.frames && i.fps))));
+    const key = `${show.id} ${playoutSettingsRev}`;
+    if (!missing.length || learntFacts.current === key) return;
+    learntFacts.current = key;
+    void (async () => {
+      const { items } = await listLibrary(loadPlayoutSettings(), 'media');
+      if (!items) return;
+      const byName = new Map(items.map((x) => [x.name.toLowerCase(), x] as const));
+      const facts = new Map<string, { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }>();
+      for (const m of missing) {
+        const found = byName.get(m.name.toLowerCase());
+        if (found) facts.set(m.id, { ...mediaKindOf(found.kind), frames: found.frames, fps: found.fps });
+      }
+      if (facts.size) setShows(fillPlayoutItemFacts(show.id, facts));
+    })();
+  }, [bridgeOk, show, playoutItems, playoutSettingsRev]);
 
   // ── THE SERVER'S TRUTH (docs/CLIP_PLAYBACK_PLAN.md §6.7). While this production has server cues
   // and both the Bridge and the server can say what is playing, ask what each channel the rundown
@@ -1881,11 +1921,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** ONE VERB ON THE PLAYOUT SERVER: control/serverPlayout.ts decides what it sends and how the
    *  on-air map moves, through NoaCG Bridge with the settings as they stand now. The note line
    *  says how it went, whichever way that was. */
-  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string): Promise<boolean> => {
+  const playoutVerb = async (cue: ShowCue, verb: ServerVerb, label: string, options: { cut?: boolean } = {}): Promise<boolean> => {
     const item = playoutItemFor(cue);
     if (!item) return false;
+    // A Take never goes the old way with a setting dropped (docs/CLIP_PLAYBACK_PLAN.md §6.9). SPACE,
+    // the button and Re-take all come through here, so the check is made once, where it cannot be
+    // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
+    if (verb === 'take') {
+      const blocked = takeBlockerFor(cue);
+      if (blocked) {
+        setNote(`${label} was not sent: ${blocked}`);
+        return false;
+      }
+    }
     flushDraft();
     const settings = loadPlayoutSettings();
+    // Play next: the clips a Take plays one after another, found in the rundown as it stands NOW
+    // (docs/CLIP_PLAYBACK_PLAN.md §6.6). The Take is off with the reason when they cannot be found.
+    const chain =
+      verb === 'take' && item.kind === 'media' && effectiveEnd(cue, item) === 'next'
+        ? sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(itemSlot(settings, i)))
+        : null;
+    const members = chain?.ok && chain.members.length > 1 ? chain.members : undefined;
     const outcome = await runServerVerb({
       verb,
       cue,
@@ -1897,6 +1954,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       slotNow: itemSlot(settings, item),
       values: () => cueView(cue).values,
       act: (action) => act(settings, action),
+      sequence: members,
+      ...(options.cut ? { cut: true } : {}),
     });
     setNote(outcome.note);
     const readable = stateReadable(bridgeStatus);
@@ -1906,10 +1965,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           ...accepted,
           itemId: item.id,
           cueId: cue.id,
-          length: itemSeconds(item),
-          loop: !!item.loop,
+          // The take's own count until the server's first reading: the part of the file it plays.
+          length: segmentSeconds(cue, item),
+          loop: effectiveEnd(cue, item) === 'loop',
+          // What this take sent for its end, which the clock says until the next Take.
+          end: effectiveEnd(cue, item),
           now: performance.now(),
           readable,
+          ...(accepted.verb === 'take' && members ? { sequence: sequenceAction(members, accepted.slot).entries.slice(1) } : {}),
         }),
       );
     }
@@ -2056,7 +2119,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  clears both; nothing is cleared that this rundown did not put there, so another client's
    *  layers on the same server stay where they are. */
   const outAll = async () => {
-    for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out');
+    // The panic control cuts, as it always did, whatever fade out a clip is set to.
+    for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     if (liveLayers.length === 0) return;
     cancelCombines('All out');
     const cleared = liveLayers.map((l) => l.graphic);
@@ -2084,8 +2148,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const cueImages = editorTemplate
     ? editorTemplate.assets.filter((a) => isImageAsset(a.path)).map((a) => ({ value: a.path }))
     : [];
+  /** What the Bridge and its server can do, for a cue's settings: null while it is still being
+   *  asked, and a studio with no Bridge set up says so rather than being asked forever. */
+  const playbackAbility = bridgeStatus ?? (playoutIsConfigured ? null : { state: 'config' as const });
+  /** Where Play next goes from a server clip, by the rundown as it stands (plan §6.6). */
+  const playNextFor = (cue: ShowCue | null) => {
+    const item = cue ? playoutItemFor(cue) : null;
+    return cue && item?.kind === 'media' ? playNextTarget(cues, playoutItems, cue.id, (i) => slotAddress(itemSlot(playoutSettings, i))) : null;
+  };
+  /**
+   * Why a server clip cannot be taken with this Bridge and server, or null (plan §6.9): a setting
+   * nobody here can honour is never dropped on the way to air, and a Play next whose clips cannot be
+   * found is never taken as a Hold.
+   */
+  const takeBlockerFor = (cue: ShowCue | null): string | null =>
+    cue ? takeBlocker(cue, cues, playoutItems, (i) => slotAddress(itemSlot(playoutSettings, i)), playbackAbility) : null;
+  const selectedTakeBlocked = takeBlockerFor(selectedCue);
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
-   *  names the hop, and the key stays quiet rather than sending a command that will fail. */
+   *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting
+   *  this Bridge or server cannot honour holds up only the take itself (`playoutVerb`), never taking
+   *  the cue off or staging it on PREVIEW. */
   const canTake = !!selectedCue && !(selectedCue.source === 'playout' && bridgeStatus !== null && bridgeStatus.state !== 'ok');
 
   // The number fields the ± LIVE NUMBERS block bumps: operator-visible `number` fields that no
@@ -2600,6 +2682,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if ((key === 'pause' || key === 'resume') && selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media') {
       void playoutVerb(selectedCue, key, key === 'pause' ? 'Pause' : 'Resume');
     }
+    // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the
+    // one the clip clock follows (control/serverState.ts `pauseTarget`). Read from the store at the
+    // press, not from a render, since the page does not follow a clip's timing.
+    if (key === 'pause-toggle') {
+      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, selectedCue?.id ?? null);
+      const cue = target ? cues.find((c) => c.id === target.cueId) : undefined;
+      if (target && cue) void playoutVerb(cue, target.paused ? 'resume' : 'pause', target.paused ? 'Resume' : 'Pause');
+    }
     // Walk the rundown. Selecting a cue is the same act as clicking it - in 'take' mode it
     // goes to PREVIEW and in the other mode it does not, and nothing airs either way - so an
     // operator can line the next item up and take it without touching the mouse.
@@ -2716,6 +2806,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           liveLayers={liveLayers}
           serverLayers={livePlayoutLayers}
           previewServer={previewCue ? playoutItemFor(previewCue) : null}
+          previewSeconds={(() => {
+            const item = previewCue ? playoutItemFor(previewCue) : null;
+            return previewCue && item ? segmentSeconds(previewCue, item) : undefined;
+          })()}
           programClip={followedClip(serverOwnership, playoutItems)?.item ?? null}
           show={show}
           library={library}
@@ -2746,9 +2840,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               airs nothing) exists only in 'preview-then-take' mode, on a cue not yet on PREVIEW. */}
           <button
             className={face.className}
-            disabled={selectedCueIsLive ? !selectedLayerLive : !canTake}
+            disabled={selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked)}
             onClick={() => onVerb('take')}
-            title={face.title}
+            title={spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title}
             data-testid="verb-take"
           >
             {face.text} <kbd>SPACE</kbd>
@@ -3101,13 +3195,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* A cue over the PLAYOUT SERVER'S OWN LIBRARY: its editor (home/ServerCueEditor). */}
         {editingCue && editingView && selectedPlayoutItem && (
           <ServerCueEditor
+            key={editingCue.id}
             showId={show.id}
             item={selectedPlayoutItem}
+            cue={editingCue}
             view={editingView}
             live={editingIsLive}
             cueNo={editingCueNo}
             bridgeStatus={bridgeStatus}
+            ability={playbackAbility}
             playoutSettings={playoutSettings}
+            takeBlocked={editingCue.id === selectedCue?.id ? selectedTakeBlocked : takeBlockerFor(editingCue)}
+            playNext={playNextFor(editingCue)}
             onEdit={editDraft}
             onTransport={onVerb}
             setShows={setShows}

@@ -12,6 +12,29 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.5.0 - 2026-09-28
+
+**Clips play the way their cue says.** Until now a clip from the server could only play once or
+loop. Each clip on the production page now has its own settings: what happens at its end (hold the
+last frame, clear the layer, loop, or play the next clip), a fade in and a fade out, a sound level in
+dB, and where in the file it starts and ends. The CasparCG server does the work itself. The level
+goes with the clip as the clip's own audio filter, so a clip keeps its level when the server switches
+to it, and nothing touches the layer's mixer.
+
+**Play next.** A clip set to Play next hands over to the next clip on the same layer by itself,
+with no gap, even with the NoaCG tab in the background or closed: NoaCG Bridge queues each next clip
+on the server while the one before it plays. Out in the middle stops the whole run and nothing else
+airs. The clock on the production page counts down TO STUDIO, the time until the last clip ends,
+with the fades taken off.
+
+**Audio files** play on their own layer, below the clips, so a sting never knocks a video off.
+
+Download the new Bridge to use these settings. With an older Bridge every existing cue still plays
+exactly as it did, and a cue with one of the new settings says it needs the new Bridge instead of
+playing without it. The settings need CasparCG 2.3 or newer, except Clear at the end, which any
+version can do. If NoaCG Bridge is closed while clips play one after another, the clip on air and
+the one already queued behind it still play, and nothing after them starts.
+
 ## 0.4.2 - 2026-09-28
 
 **A countdown for the clip on air.** Until now the production page only knew what it had asked

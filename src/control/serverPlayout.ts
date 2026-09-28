@@ -14,8 +14,19 @@
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
-import type { PlayoutAction, Slot } from './playoutProtocol';
+import { MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
+import {
+  effectiveEnd,
+  fileSeconds,
+  memberProblem,
+  outFade,
+  playbackBlocker,
+  playbackNeeds,
+  takePlayback,
+  type ClipEnd,
+  type PlaybackAbility,
+} from './cuePlayback.ts';
 
 /** One item up on the server: the cue that put it there and the SLOT it was taken to. */
 export interface ServerLive {
@@ -26,6 +37,9 @@ export interface ServerLive {
   instance?: string;
   /** When this page learned it is up, on its own clock (ms): the clip clock follows the latest. */
   takenAt?: number;
+  /** What the Take sent for the clip's end, which the clip clock says: the cue's setting may have
+   *  changed since, and applies only at the next Take. Absent after a reload. */
+  end?: ClipEnd;
 }
 
 /**
@@ -54,7 +68,7 @@ export function withTaken(
   itemId: string,
   cueId: string,
   slot: Slot,
-  extra: Pick<ServerLive, 'instance' | 'takenAt'> = {},
+  extra: Pick<ServerLive, 'instance' | 'takenAt' | 'end'> = {},
 ): ServerOnAir {
   const next: Record<string, ServerLive> = {};
   for (const [id, l] of Object.entries(onAir)) if (slotAddress(l.slot) !== slotAddress(slot)) next[id] = l;
@@ -87,24 +101,187 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
     .sort((a, b) => compareSlots(a.slot, b.slot));
 }
 
-/** The one action a verb sends. The action carries no page state, so the same object is what a
- *  log row would carry later. A take names its cue, which the Bridge keeps with what it started
- *  so a reading can say which cue is up after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). */
-export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string): PlayoutAction {
+/**
+ * The one action a verb sends. The action carries no page state, so the same object is what a
+ * log row would carry later. A take names its cue, which the Bridge keeps with what it started
+ * so a reading can say which cue is up after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7).
+ *
+ * A clip's take carries how the cue plays it (./cuePlayback.ts `takePlayback`): a cue with no
+ * setting of its own sends exactly the action it always sent, and a looping one the old `loop`. Its
+ * Out fades when the cue has a fade out. `cue` is the cue whose settings apply: the one taken, and
+ * for Out the one on air.
+ */
+export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string, cue?: Pick<ShowCue, 'playback'>): PlayoutAction {
   const itemRef = { kind: item.kind, name: item.name };
-  return verb === 'take'
-    ? {
-        verb,
-        item: itemRef,
-        slot,
-        ...(item.kind === 'template' ? { data: values } : {}),
-        // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
-        ...(item.kind === 'media' && item.loop ? { loop: true } : {}),
-        ...(cueId ? { cueId } : {}),
-      }
-    : verb === 'update'
-      ? { verb, slot, data: values }
-      : { verb, slot, item: itemRef };
+  if (verb === 'take') {
+    const media = item.kind === 'media' ? takePlayback(cue ?? {}, item) : { loop: false };
+    return {
+      verb,
+      item: itemRef,
+      slot,
+      ...(item.kind === 'template' ? { data: values } : {}),
+      // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
+      ...(media.loop ? { loop: true } : {}),
+      ...(cueId ? { cueId } : {}),
+      ...('playback' in media && media.playback ? { playback: media.playback } : {}),
+    };
+  }
+  if (verb === 'update') return { verb, slot, data: values };
+  const fade = verb === 'out' && item.kind === 'media' ? outFade(cue) : undefined;
+  return { verb, slot, item: itemRef, ...(fade !== undefined ? { fadeOut: fade } : {}) } as PlayoutAction;
+}
+
+/** The clip after this one that plays next on its slot, found in the rundown as it stands now. */
+export interface NextClip {
+  cue: ShowCue;
+  item: PlayoutItem;
+  /** Its place in the rundown, 1-based. */
+  cueNo: number;
+  /** What was looked past on the way, for the sentence: `2 graphics`, `STING on 2-5`. */
+  skipped: string;
+}
+
+export type PlayNext = { ok: true; next: NextClip } | { ok: false; reason: string };
+
+const count = (n: number, one: string, many: string) => `${n === 1 ? 'a' : n} ${n === 1 ? one : many}`;
+
+/**
+ * PLAY NEXT'S TARGET (docs/CLIP_PLAYBACK_PLAN.md §6.6): the next clip or audio cue after this one
+ * that plays on the same slot, looking past graphics and anything on another slot (owner, Q3),
+ * resolved from the rundown as it stands - at the Take, and wherever the choice is made. When no
+ * clip qualifies, the reason, in the words the editor shows beside the disabled choice.
+ */
+export function playNextTarget(
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  cueId: string,
+  addressOf: (item: PlayoutItem) => string,
+): PlayNext {
+  const at = cues.findIndex((c) => c.id === cueId);
+  const cue = cues[at];
+  const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  if (!cue || !item || item.kind !== 'media') return { ok: false, reason: 'only a clip or an audio file plays the next one' };
+  if (item.mediaKind === 'still') return { ok: false, reason: 'a still never ends, so nothing plays after it' };
+  const address = addressOf(item);
+  let graphics = 0;
+  const elsewhere: { label: string; address: string }[] = [];
+  for (let i = at + 1; i < cues.length; i++) {
+    const c = cues[i];
+    const it = c.source === 'playout' ? items.find((x) => x.id === c.sourceId) : undefined;
+    if (!it || it.kind !== 'media') {
+      graphics += 1;
+      continue;
+    }
+    const there = addressOf(it);
+    if (there !== address) {
+      elsewhere.push({ label: c.label, address: there });
+      continue;
+    }
+    const problem = memberProblem(c, it, false);
+    if (problem) {
+      const reason = {
+        still: `the next cue on ${address} is a still, which never ends`,
+        kind: `the next clip on ${address} is not in the server's list yet, so its kind is not known`,
+        length: `the next clip on ${address} has no known length`,
+        short: `the next clip is shorter than ${MIN_SEQUENCE_MEMBER_S} seconds`,
+      }[problem];
+      return { ok: false, reason };
+    }
+    const parts = [
+      ...(graphics ? [count(graphics, 'graphic', 'graphics')] : []),
+      ...(elsewhere.length ? [elsewhere.length === 1 ? `${elsewhere[0].label} on ${elsewhere[0].address}` : `${elsewhere.length} cues on other layers`] : []),
+    ];
+    return { ok: true, next: { cue: c, item: it, cueNo: i + 1, skipped: parts.join(' and ') } };
+  }
+  return { ok: false, reason: `no clip after this one plays on ${address}` };
+}
+
+/** `STUDIO_BG (cue 5, after 2 graphics)` - where Play next's choice is made (plan §6.6). */
+export function nextClipWords(next: NextClip): string {
+  return `${next.cue.label} (cue ${next.cueNo}${next.skipped ? `, after ${next.skipped}` : ''})`;
+}
+
+/** One member of a sequence, as the rundown gives it. */
+export interface SequenceMember {
+  cue: ShowCue;
+  item: PlayoutItem;
+}
+
+/**
+ * The clips a Take of this cue plays one after another: the cue, its Play next target, that
+ * clip's own target while it too says Play next, and so on. Stopped at a member whose own target
+ * cannot be found, which then plays by Hold; the TAKEN cue's own must be found, or the Take says
+ * why. A single member means no sequence: the cue does not play next.
+ */
+export function sequenceMembers(
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  cueId: string,
+  addressOf: (item: PlayoutItem) => string,
+): { ok: true; members: SequenceMember[] } | { ok: false; reason: string } {
+  const cue = cues.find((c) => c.id === cueId);
+  const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  if (!cue || !item) return { ok: false, reason: 'the cue is not in the rundown' };
+  const members: SequenceMember[] = [{ cue, item }];
+  while (effectiveEnd(members[members.length - 1].cue, members[members.length - 1].item) === 'next') {
+    const last = members[members.length - 1];
+    const t = playNextTarget(cues, items, last.cue.id, addressOf);
+    if (!t.ok) {
+      if (members.length === 1) return { ok: false, reason: t.reason };
+      break;
+    }
+    members.push({ cue: t.next.cue, item: t.next.item });
+  }
+  // Every member's kind and length go to the Bridge, which refuses a sequence without them: the
+  // followers were checked on the way, and the first is checked here by the same rule.
+  const first = members.length > 1 ? memberProblem(cue, item, true) : null;
+  if (first === 'kind') return { ok: false, reason: 'this clip is not in the server\'s list yet, so its kind is not known' };
+  if (first) return { ok: false, reason: 'this clip has no known length' };
+  return { ok: true, members };
+}
+
+/**
+ * WHY A TAKE OF THIS CUE WOULD NOT GO, or null (docs/CLIP_PLAYBACK_PLAN.md §6.9): a setting of its own
+ * or of a clip it plays next that the running Bridge or its server cannot honour, or a Play next whose
+ * clips cannot be found in the rundown as it stands. Such a cue is never taken the old way in silence.
+ */
+export function takeBlocker(
+  cue: ShowCue,
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  addressOf: (item: PlayoutItem) => string,
+  ability: PlaybackAbility | null,
+): string | null {
+  const item = cue.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
+  if (item?.kind !== 'media') return null;
+  const own = playbackBlocker(playbackNeeds(cue, item), ability);
+  if (own) return own;
+  if (effectiveEnd(cue, item) !== 'next') return null;
+  const chain = sequenceMembers(cues, items, cue.id, addressOf);
+  if (!chain.ok) return `This cue plays the next clip, but ${chain.reason}. Set another ending to take it.`;
+  for (const m of chain.members.slice(1)) {
+    const blocked = playbackBlocker(playbackNeeds(m.cue, m.item), ability);
+    if (blocked) return `${m.cue.label}, which this cue plays next: ${blocked}`;
+  }
+  return null;
+}
+
+/** The sequence action for a chain of members (plan §9): each entry with the playback its own
+ *  cue sets, and the last with its own ending. */
+export function sequenceAction(members: readonly SequenceMember[], slot: Slot): Extract<PlayoutAction, { verb: 'sequence' }> {
+  const entries: SequenceEntry[] = members.map(({ cue, item }, i) => {
+    const { loop, playback } = takePlayback(cue, item);
+    const last = i === members.length - 1;
+    const p = { ...(last && loop ? { end: 'loop' as const } : {}), ...(playback ?? {}) };
+    return {
+      item: { kind: 'media', name: item.name },
+      cueId: cue.id,
+      ...(Object.keys(p).length ? { playback: p } : {}),
+      // Known for every member: `sequenceMembers` checked each by the Bridge's own rule.
+      media: { kind: item.mediaKind === 'audio' ? 'audio' : 'movie', seconds: fileSeconds(item) as number },
+    };
+  });
+  return { verb: 'sequence', slot, entries };
 }
 
 /** One action the Bridge accepted, with what it said about the slot afterwards. */
@@ -147,6 +324,8 @@ export async function runServerVerb({
   slotNow,
   values,
   act,
+  sequence,
+  cut,
 }: {
   verb: ServerVerb;
   cue: ShowCue;
@@ -156,6 +335,11 @@ export async function runServerVerb({
   slotNow: Slot;
   values: () => Record<string, string>;
   act: (action: PlayoutAction) => Promise<PlayoutResult>;
+  /** A Take of a cue that plays next: the clips it plays one after another, the cue first
+   *  (`sequenceMembers`). The Bridge runs them (docs/CLIP_PLAYBACK_PLAN.md §6.10). */
+  sequence?: readonly SequenceMember[];
+  /** Out as a cut whatever the cue's fade out says: All out, the panic control. */
+  cut?: boolean;
 }): Promise<ServerVerbOutcome> {
   const slot = verb !== 'take' && live ? live.slot : slotNow;
   const accepted: AcceptedVerb[] = [];
@@ -183,8 +367,15 @@ export async function runServerVerb({
     // still saying ON AIR after a refused take would be the one thing on the page that is not true.
     took('out', live.slot, off);
   }
-  const result = await act(serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined));
+  const action =
+    verb === 'take' && sequence && sequence.length > 1
+      ? sequenceAction(sequence, slot)
+      : serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined, cut ? undefined : cue);
+  const result = await act(action);
   if (result.state !== 'ok') return { ok: false, note: `${label} did not reach the playout server: ${result.detail}`, accepted };
   took(verb, slot, result);
+  // On air, and part of it did not go through (a Clear at the end the server refused): said as the
+  // one untrue thing a tick would otherwise hide.
+  if (result.warning) return { ok: true, note: `${label}: ${item.name} is on ${slotAddress(slot)}, but ${result.warning}`, accepted };
   return { ok: true, note: `✓ ${label}: ${item.name} on ${slotAddress(slot)}`, accepted };
 }

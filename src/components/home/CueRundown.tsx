@@ -29,10 +29,11 @@ import type { LiveCueMap } from '../../control/hostedControl';
 import { serverCueLive } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
+import { effectiveEnd, segmentSeconds } from '../../control/cuePlayback';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
 import { SlotRemaining } from './ClipClock';
-import { clipLength } from './clipLength';
+import { lengthText } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
@@ -247,6 +248,13 @@ export default function CueRundown({
             >
               <span className="pd-unidentified-what">Unidentified item on {slotAddress(u.slot)}</span>
               {u.file && <span className="pd-cue-sum">{u.file}</span>}
+              {/* The Bridge restarted during a Play next: what the server had queued still plays,
+                  and nothing after it (plan §6.10, rule 7). */}
+              {u.sequenceStopped && (
+                <span className="pd-cue-sum" data-testid="server-sequence-stopped">
+                  Play next stopped: NoaCG Bridge restarted
+                </span>
+              )}
               <span className="pd-cue-len">
                 <SlotRemaining timing={serverTiming} slot={slotAddress(u.slot)} fallback="" />
               </span>
@@ -288,7 +296,9 @@ export default function CueRundown({
           const kind = poolEntry
             ? { glyph: 'T', tone: 'graphic', name: `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` }
             : playoutItem?.kind === 'media'
-              ? { glyph: '▶', tone: 'clip', name: `Server clip · ${address}` }
+              ? playoutItem.mediaKind === 'audio'
+                ? { glyph: '♪', tone: 'clip', name: `Server audio · ${address}` }
+                : { glyph: '▶', tone: 'clip', name: `Server clip · ${address}` }
               : playoutItem
                 ? { glyph: 'T', tone: 'server', name: `Server template · ${address}` }
                 : { glyph: '?', tone: 'missing', name: 'Missing graphic' };
@@ -302,8 +312,19 @@ export default function CueRundown({
                 .slice(0, 2)
                 .join(' · ') || cueGraphic || ''
             : (playoutItem?.name ?? 'missing graphic');
-          const length = playoutItem?.kind === 'media' ? clipLength(playoutItem) : '';
-          const loops = playoutItem?.kind === 'media' && !!playoutItem.loop;
+          // What the cue plays of its file: a trimmed clip reads its own length.
+          const length = playoutItem?.kind === 'media' ? lengthText(segmentSeconds(cue, playoutItem)) : '';
+          // WHAT HAPPENS AT ITS END, after the name (plan §6.2): loops, plays the next, clears. Hold
+          // is the default and wears nothing. Read by the loop rule of the record (control/cuePlayback.ts).
+          const end = playoutItem?.kind === 'media' ? effectiveEnd(cue, playoutItem) : 'hold';
+          const endMark =
+            end === 'loop'
+              ? { glyph: '⟲', says: 'Loops until Out', testid: 'cue-loop' }
+              : end === 'next'
+                ? { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' }
+                : end === 'clear'
+                  ? { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' }
+                  : null;
           // Where this clip is up, if it is: the slot it was TAKEN to, whatever its editor says now.
           const upAt = cueIsLive && playoutItem?.kind === 'media' ? serverOnAir[playoutItem.id]?.slot : undefined;
           // Waiting on the server behind whatever plays on its slot (`LOADBG`).
@@ -359,11 +380,12 @@ export default function CueRundown({
                 aria-current={isSelected ? 'true' : undefined}
               >
                 <strong>{view.label}</strong>
-                {/* A clip that LOOPS says so after its name: it is what happens at its end, and
-                    Out is the only thing that stops it. */}
-                {loops && (
-                  <span className="pd-cue-mark" role="img" aria-label="Loops until Out" title="Loops until Out" data-testid="cue-loop">
-                    ⟲
+                {/* What the clip does at its end, after its name: a loop is stopped by Out alone, a
+                    clip that plays the next one hands over by itself, and a clear leaves the layer
+                    empty. */}
+                {endMark && (
+                  <span className="pd-cue-mark" role="img" aria-label={endMark.says} title={endMark.says} data-testid={endMark.testid}>
+                    {endMark.glyph}
                   </span>
                 )}
                 {/* The OPERATOR NOTE ("after the intro") is a mark with the note in its tooltip

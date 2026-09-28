@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Phases 0, 1 and 2 are built (§16).** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phases 0 to 3 are built (§16).** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -133,6 +133,21 @@ real 2.5.0 server** (§12). Paths are under `src/`.
 - **2.3 answers `INFO` the same way**, read from this machine's 2.3 build (`2.3.2 4de6d18f Dev`):
   the same segment for the same trim, with no `<format>` element and a clip named with its
   extension, so a reading is matched to an item without the extension.
+
+**Measured again for phase 3, 2026-09-28**, on 2.5.0 and 2.3 (§12, `BRIDGE.md` §3b; captures
+`p3-*.json` and `format-*.json` in `cli/test/fixtures/info/`). The source's rows above held, with
+four things it did not show:
+
+- **A follower queued with `AUTO` within about 60 ms of `PLAY … IN n` (or `SEEK n`) fires at once**,
+  on both versions: it airs and the trimmed clip never does. From about 90 ms it waits for the
+  trimmed end. So nothing is queued with the Take behind a clip that starts part way in; the Bridge
+  queues it once `INFO` shows the clip inside its segment.
+- **INFO's `framerate` is what `MIX`, `SEEK` and `LENGTH` count, interlaced or not**: 50 on 1080i50
+  as on 1080p50, 60000/1001 on 1080i5994. Seconds are multiplied by it as it stands.
+- **2.3 writes a transition without naming the producer inside it**, so a MIX and a fade to empty
+  are read off what the transition carries.
+- **`AF "volume=0.2512"` is 12.0 dB quieter** than the same clip at 0 dB, through a Take and through
+  an automatic switch, on both versions, with the layer's own volume untouched.
 
 ## 5. What other tools do
 
@@ -629,15 +644,28 @@ Each is a measurement in `e2e/configured/bridge-real-server.spec.ts` (which runs
    2026-09-28**: a median 1.5 ms and at most 3 ms over forty readings a quarter of a second apart
    (`info-timing.json`). Whether the rate ever costs a frame on air needs the channel's output
    watched, and is in phase 2's owner check.
-3. Clear with a fade: the fade overlaps the clip's last frames.
+3. Clear with a fade: the fade overlaps the clip's last frames. **Done 2026-09-28**: `MIX 25` began
+   0.50 s before the end (0.51 s on 2.3) and `MIX 50` 1.0 s, and the layer was the empty colour
+   after.
 4. `AF "volume=…"`: the measured level of a clip at -12 dB against 0 dB, through a manual Take and
-   an automatic switch.
+   an automatic switch. **Done 2026-09-28**: recorded with a FILE consumer and measured with ffmpeg's
+   volumedetect, -23.0 dB mean at 0 dB and -35.0 dB at `volume=0.2512`, 12.0 dB apart in every case
+   on both versions; `MIXER … VOLUME` still read 1.
 5. `LOADBG` without `AUTO` cancels a queued clip; `CLEAR c-l` removes a queued follower; a refused
-   `PLAY` leaves the old follower armed until the disarm.
-6. Pause just before, at, and after the MIX threshold of a clip with a follower queued.
-7. `AUTO` with `IN`/`OUT`: the follower starts at the trimmed end.
+   `PLAY` leaves the old follower armed until the disarm. **Done 2026-09-28**: all three, on both
+   versions, and `PLAY c-l EMPTY MIX n` also replaces the queued file.
+6. Pause just before, at, and after the MIX threshold of a clip with a follower queued. **Done
+   2026-09-28**: before the window the follower waits; inside it the MIX freezes and carries on at
+   Resume; a follower queued onto a clip already paused in its last frames starts at once. PAUSE
+   lands about two frames after it is sent.
+7. `AUTO` with `IN`/`OUT`: the follower starts at the trimmed end. **Done 2026-09-28**, with the
+   early-queue finding in §4: queued at least 90 ms after the `PLAY`, it starts at the trimmed end,
+   and a follower trimmed with `IN` airs at its own trimmed start.
 8. The gap between two cues of an All-together folder sent one after another.
-9. The delay between Take and first frame, to decide on preloading.
+9. The delay between Take and first frame, to decide on preloading. **Done 2026-09-28**: about
+   115 ms from `202 PLAY OK` to the clip on the layer on 2.5.0 (95 ms on 2.3), about 55 ms
+   preloaded, with no black between clips either way. Preloading is not built: it would take the
+   layer's one background, which a sequence needs.
 10. Whether 2.3 servers are still in use anywhere NoaCG plays out.
 
 ## 13. Decisions
@@ -841,6 +869,43 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
 | `e2e/playout-sequence.spec.ts` (new) | Play next's target and reasons; TO STUDIO with overlaps; Out mid-sequence |
 | `cli/BRIDGE_CHANGELOG.md`, `cli/package.json`, `docs/BRIDGE.md` | the release; §3 records the runner as the Bridge's one piece of state |
 
+**Built 2026-09-28**, as the table says, with NoaCG Bridge 0.5.0, and these differences worth
+knowing:
+
+- **The runner is its own file, `cli/src/playout/runner.ts`**, and what it remembers - the sequence,
+  the follower queued behind a clip, the serial queue per slot - is in `cli/src/playout/slots.ts`
+  beside the generations and instances. Its tests are `cli/test/runner.test.mjs`: every runner case
+  of §18 against the stateful fake, each guard broken on purpose to see its test fail.
+- **The real server found a race the source did not show** (§4): behind a clip that starts part way
+  in, a follower queued with the Take airs at once. Such a take plays its clip alone, and the runner
+  queues its follower - or its Clear at the end - once the clip is inside its segment. The fake
+  server models the window.
+- **The runner reads the slot once more right before it queues**, since no generation of its own
+  moves when another client or another Bridge takes the slot (§6.10, rules 6 and 8).
+- **2.3's transitions name no producer**, so a MIX read as something unknown there, which the runner
+  would have taken for another client's content; the wrapped producer is now read off what the
+  transition carries.
+- **A cue whose only setting is Loop goes out as the old `loop` field**, which every Bridge
+  understands, so it needs no new Bridge; `playback` carries only what a newer Bridge must honour.
+  A fade out on a clip that holds is Out's, not the Take's.
+- **A sequence entry carries the server's word for its file and its length** (`media`), so the
+  Bridge refuses a still, an unknown length and a member under two seconds, and the page's clock
+  counts TO STUDIO from the Bridge's own list of what is left after a reload.
+- **Pause and Resume keep a running sequence** and move the generation, so a queue decided on a
+  reading from before a Pause is dropped; Take, Out, Clear and a new sequence end it.
+- **Out with a follower queued sends `CLEAR c-l`**, and a refused replacement Take is followed by
+  `LOADBG c-l EMPTY` only when a file of a sequence was queued: a Clear at the end left armed is the
+  old cue's own ending.
+- **Play next skips anything on another slot**, not only graphics, and says what it skipped. A
+  member whose own Play next cannot be found ends the run by holding; the TAKEN cue's must be found,
+  or its Take is off with the reason.
+- **An older item learns its kind and length from the server's list** once per production when the
+  Bridge answers, and the kind can be named under Advanced when the list does not have the file.
+- **`P` acts on the selected cue's clip when it is the one up, else the clip the clock follows**
+  (`pauseTarget` in `serverState.ts`), so it reaches the clip on air while the selection walks on.
+- The version: the CLI's unreleased 0.4.2 notes and this Bridge ship as **0.5.0**, since the
+  Bridge had already released 0.4.2.
+
 ### Phase 4 - folders
 
 | File | Change |
@@ -942,6 +1007,16 @@ All out with it"); the page's half of case 16 ("the tab coming back into view re
 once"; the Bridge's half comes with the runner); case 17 ("a reload finds its own clip by
 instance", a same-file take by another client, a restarted Bridge's unidentified item, and a
 same-file re-take by this page that must not read as a restart).
+
+**Built in phase 3** (2026-09-28), each guard broken on purpose to see its test fail: cases 1 to 11
+in `cli/test/runner.test.mjs` (case 1 twice, a queue decided before Out, a new Take or a Pause, and
+one waiting in the slot's queue; case 3 before, at and inside the MIX window; case 10 including a
+queue decided just before the other Bridge's take), the page's halves of cases 4 to 6 and 18 in
+`scripts/server-playout.test.mjs` and `e2e/playout-sequence.spec.ts`, case 12 in
+`e2e/playout-cues.spec.ts` (a 0.4 Bridge and a 2.2 server), case 13 and 24 in
+`cli/test/playout.test.mjs`, case 19's `P` in `e2e/playout-clock.spec.ts` (held, typing, on Data), and
+case 23 in `e2e/playout-cues.spec.ts` through the shipped `setPlayoutItemLoop`. The Bridge's half of
+case 16 is the runner playing with nobody reading `/state`.
 
 **The record**
 

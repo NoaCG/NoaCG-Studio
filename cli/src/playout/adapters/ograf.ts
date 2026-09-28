@@ -332,6 +332,20 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
     },
 
     async act(target, action) {
+      // A field this adapter cannot honour is refused before anything is sent, with the hop named,
+      // never dropped: taking the graphic without it would air something the cue did not ask for
+      // (docs/CLIP_PLAYBACK_PLAN.md §6.9). The Server API has no fades, levels or sequences.
+      const unhonoured =
+        action.verb === 'sequence'
+          ? 'a sequence'
+          : action.verb === 'take' && action.playback
+            ? "a clip's playback (its ending, fades, level or trim)"
+            : action.verb === 'out' && action.fadeOut !== undefined
+              ? 'a fade out'
+              : '';
+      if (unhonoured) {
+        return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: `The OGraf adapter cannot play ${unhonoured}, so nothing was sent.` } };
+      }
       const root = apiOf(target);
       if (!('api' in root)) return root;
       const { api } = root;
@@ -351,7 +365,7 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
         const r = await call(api, clearRequest(slot), budget, true);
         if (!r.ok) return r;
         const cleared = isRecord(r.body) && Array.isArray(r.body.graphicInstances) ? r.body.graphicInstances.length : 0;
-        return { ok: true, value: null, raw: `clear ${r.status} (${cleared} cleared)` };
+        return { ok: true, value: {}, raw: `clear ${r.status} (${cleared} cleared)` };
       }
 
       if (action.verb === 'take') {
@@ -375,7 +389,7 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
         if (!played.ok) {
           return { ok: false, error: { ...played.error, detail: `"${action.item.name}" is loaded (${instanceId}) but did not play: ${played.error.detail}` } };
         }
-        return { ok: true, value: null, raw: `${answer.raw} (${instanceId}); ${played.raw}` };
+        return { ok: true, value: {}, raw: `${answer.raw} (${instanceId}); ${played.raw}` };
       }
 
       // update, next and out act on what the render target holds now.
@@ -383,7 +397,7 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
       if (!found.ok) return found;
       if (found.value.length === 0) {
         // Out's purpose is already met; update and next have nothing to act on.
-        if (action.verb === 'out') return { ok: true, value: null, raw: `${found.raw}; nothing to stop` };
+        if (action.verb === 'out') return { ok: true, value: {}, raw: `${found.raw}; nothing to stop` };
         return { ok: false, error: { hop: 'target', code: 'not-found', detail: `Nothing is loaded on that render target of renderer "${slot.rendererId}". Take the graphic first.`, raw: found.raw } };
       }
       const route = action.verb === 'update' ? 'updateAction' : action.verb === 'next' ? 'playAction' : 'stopAction';
@@ -393,7 +407,7 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
         if (!r.ok) return r;
         raws.push(r.raw);
       }
-      return { ok: true, value: null, raw: raws.join('; ') };
+      return { ok: true, value: {}, raw: raws.join('; ') };
     },
   };
 }
