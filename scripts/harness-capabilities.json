@@ -211,6 +211,16 @@
       "claim": "The cloud container's git proxy answered HTTP 403 to git push origin --delete <another branch>, while pushing the session's own new branch worked; the github MCP server offers create_branch and no delete-branch tool. Deleting a stale remote branch stays an owner action from a cloud session.",
       "reprobe": "From a cloud session, git push origin --delete on a disposable branch the session did not create; and ToolSearch for a delete-branch tool on the github server.",
       "source": "The 2026-09-28 cloud wave coordinator; the coordinator's tool inventory in the same session"
+    },
+    {
+      "id": "claude-cloud-git-auth-lapses-mid-session",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "In a cloud session, remote git access worked at a row's start (git fetch origin main) and had lapsed about an hour later: git fetch and git push --dry-run both failed with 'could not read Username for https://github.com: terminal prompts disabled', and the agent proxy reported no relay failure. A row that ends up there commits and reports its branch; the coordinator pushes it from its own checkout, which shares the repository and its refs.",
+      "reprobe": "In a cloud row, git push --dry-run origin HEAD at its start and again after an hour of work.",
+      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28"
     }
   ]
 }
