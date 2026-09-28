@@ -205,15 +205,22 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
   await page.goto('/app');
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
 
-  /** Whichever bar this surface wears, and where it puts the brand mark. */
+  /** Whichever bar this surface wears, and where it puts the brand mark and the two doors
+   *  beside it (owner, 2026-09-28: logo, Home and + New graphic in the same positions). */
   const bar = () =>
     page.evaluate(() => {
       const el = document.querySelector('.wz-header') ?? document.querySelector('.topbar')!;
       const logo = el.querySelector('.brand-home svg')!.getBoundingClientRect();
+      const box = (sel: string) => {
+        const r = el.querySelector(sel)!.getBoundingClientRect();
+        return [r.x, r.y, r.width, r.height].map(Math.round);
+      };
       return {
         height: Math.round(el.getBoundingClientRect().height),
         logoX: Math.round(logo.x),
         logoY: Math.round(logo.y),
+        home: box('[data-testid="wz-home"], [data-testid="home-door"]'),
+        newGraphic: box('[data-testid="wz-new-graphic"], [data-testid="home-new-project"]'),
       };
     });
 
@@ -229,9 +236,20 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
   await expect(page.getByTestId('home-page')).toBeVisible();
   const onHome = await bar();
 
-  // Not "close enough": both bars carry the same 32px content row and the same BrandLogo in the
-  // same `.brand-home`, so identical padding is identical geometry. A delta here is the lurch.
+  // Not "close enough": both bars carry the same 32px content row and the same `.shell-nav`
+  // (BrandLogo, Home, + New graphic) with its own spacing, so identical padding is identical
+  // geometry - whichever of the two doors is the current page. A delta here is the lurch.
   expect(inWizard).toEqual(onHome);
+  // And it holds across the topbar's width ladder, which steps the bar's own gap down.
+  for (const width of [1100, 1600]) {
+    await page.setViewportSize({ width, height: 768 });
+    const homeAt = await bar();
+    await page.getByTestId('home-new-project').click();
+    await expect(page.getByTestId('creation-wizard')).toBeVisible();
+    expect(await bar(), `the two bars at ${width}px`).toEqual(homeAt);
+    await page.getByTestId('wz-home').click();
+    await expect(page.getByTestId('home-page')).toBeVisible();
+  }
 
   // And the wizard's header is the one that moved. The ten-odd DIALOGS that borrow `.wz-header`
   // keep the roomier dialog padding, which is what the `.wz-wizard` scope on the rule protects -
@@ -244,6 +262,53 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
     () => getComputedStyle(document.querySelector('.settings-modal .wz-header')!).padding,
   );
   expect(dialogPad).not.toBe(wizardPad);
+});
+
+test('the page you stand on is marked current and is not a button, on the wizard and on Home', async ({ page }) => {
+  // Owner, 2026-09-28: Wizard and Home share one top bar, and the CURRENT page is shown as
+  // current rather than as a clickable button. On Entry + New graphic used to be a button whose
+  // press did nothing; on Home, Home was a dim crumb that looked like neither.
+  await wizard(page);
+  const current = (scope: string) =>
+    page.evaluate((sel) => {
+      const bar = document.querySelector(sel)!;
+      return [...bar.querySelectorAll('.shell-nav [aria-current="page"]')].map((el) => ({
+        tag: el.tagName.toLowerCase(),
+        text: el.textContent!.trim(),
+        cursor: getComputedStyle(el).cursor,
+      }));
+    }, scope);
+
+  // THE WIZARD'S FRONT PAGE: + New graphic is current, Home is a real door.
+  await expect.poll(() => current('.wz-header')).toEqual([{ tag: 'span', text: '+ New graphic', cursor: 'default' }]);
+  await expect(page.locator('.wz-header').getByRole('button', { name: '+ New graphic' })).toHaveCount(0);
+  await expect(page.getByTestId('wz-home')).toHaveJSProperty('tagName', 'BUTTON');
+  // Nothing is chosen on Entry, and the current door already says "New graphic": no crumb.
+  await expect(page.locator('.wz-header .wz-title')).toHaveCount(0);
+
+  // MID-WALK the front page is another page, so + New graphic is a door again (the guarded
+  // start-over, e2e/project.spec.ts) and the crumb continues from it with the chosen mode.
+  await page.locator('[data-entry="template"]').click();
+  await expect(counter(page)).toBeVisible();
+  await expect.poll(() => current('.wz-header')).toEqual([]);
+  await expect(page.getByTestId('wz-new-graphic')).toHaveJSProperty('tagName', 'BUTTON');
+  await expect(page.locator('.wz-header .wz-title-step')).toHaveText('Start from a template');
+  await page.locator('.wz-header .gallery-close').click();
+
+  // HOME'S DASHBOARD: Home is current, + New graphic is the door.
+  await page.getByTestId('wz-home').click();
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect.poll(() => current('.home-page .topbar')).toEqual([{ tag: 'span', text: 'Home', cursor: 'default' }]);
+  await expect(page.getByTestId('home-new-project')).toHaveJSProperty('tagName', 'BUTTON');
+
+  // A HOME SECTION is its own page: the rail marks it current, and Home in the bar is the way
+  // back to the dashboard (the rail has no entry for it).
+  await page.getByTestId('home-nav-graphics').click();
+  await expect(page.getByTestId('home-nav-graphics')).toHaveAttribute('aria-current', 'page');
+  await expect.poll(() => current('.home-page .topbar')).toEqual([]);
+  await page.getByTestId('home-door').click();
+  await expect.poll(() => current('.home-page .topbar')).toEqual([{ tag: 'span', text: 'Home', cursor: 'default' }]);
+  await expect(page.getByTestId('home-nav-graphics')).not.toHaveAttribute('aria-current', 'page');
 });
 
 test('a cold entry from the landing page paints nothing under the wizard', async ({ page }) => {

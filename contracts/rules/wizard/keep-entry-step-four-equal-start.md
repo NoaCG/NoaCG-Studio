@@ -3,7 +3,7 @@ v: 1
 scope: src/components/wizard/steps/EntryStep.tsx, e2e/wizard-entry-fit.spec.ts
 kind: invariant
 fires: contract
-status: active
+status: retired
 since: 2026-09-27
 supersedes: wizard/keep-entry-step-three-cards-template
 record: contracts/records/wizard/2026-09-27-keep-entry-step-four-equal-start.md

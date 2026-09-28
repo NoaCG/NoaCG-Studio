@@ -40,7 +40,7 @@ interface Props {
  *  - there is no Blank card. Blank's only outcome was the old code editor, which no door opens
  *    any more (owner, 2026-09-24).
  *
- * "Import graphic" is deliberately its own card and a MANUAL path — no AI anywhere in it.
+ * "Import graphics" is deliberately its own card and a MANUAL path — no AI anywhere in it.
  */
 export default function EntryStep({
   onTemplates,
@@ -67,7 +67,7 @@ export default function EntryStep({
 
   return (
     <div className="wz-entry-wrap">
-      {/* THE HERO IS A HEADLINE AND TWO LINES (re-design/handoff.md §2a) — nothing else. No
+      {/* THE HERO IS A HEADLINE AND ITS INTRO (re-design/handoff.md §2a) — nothing else. No
           second brand mark (the topbar wears one two inches higher) and no row of export-target
           chips (a row of small bordered pills reads as filters or status in this app). */}
       <div className="wz-hero">
@@ -82,15 +82,17 @@ export default function EntryStep({
         <a className="wz-editor-alpha" href="/app?editor=foundation#/editor-foundation">
           Open editor <span className="wz-beta-tag">Alpha</span>
         </a>
-        {/* THE SUBTITLE CARRIES BOTH ROUTES TO AIR, and every export target rather than a
-            sample of three. The controller route names its MECHANISM (one browser source the
-            playout client loads once), because that is the answer to "do I have to change my
-            setup". It says BROWSER SOURCE, never "HTML overlay", which is the name of an export
-            TARGET. */}
+        {/* THE INTRO IS THE OWNER'S, VERBATIM (2026-09-28): the product flow in reading order -
+            make graphics first (the three ways the cards below offer), then use them however
+            the production works. It names EVERY route to air - the browser source NoaCG plays
+            itself, NoaCG Playout driving CasparCG through NoaCG Bridge, and the downloaded
+            templates - and every export target rather than a sample of three. It says BROWSER
+            SOURCE, never "HTML overlay", which is the name of an export TARGET. */}
         <p className="wz-hero-sub">
-          Choose your graphics, then pick who drives them. Our controller runs the show live
-          through one browser source your playout client loads once, or export them for OGraf,
-          CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.
+          Start from a template, create graphics with AI, or import your own SVGs. Then use them
+          however your production works: play them directly from NoaCG through a browser source,
+          connect NoaCG Playout to CasparCG with NoaCG Bridge, or download the graphics as HTML
+          templates for OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix.
         </p>
       </div>
 
@@ -122,9 +124,10 @@ export default function EntryStep({
       </div>
       )}
 
-      {/* FOUR EQUAL CARDS (owner, 2026-09-27). The three ways to start, in the order the owner
-          ranks them - your own AI coding agent through the NoaCG CLI, your own artwork, a
-          template - then the video door as a fourth card of the same size, greyed.
+      {/* FOUR EQUAL CARDS, in the owner's order (2026-09-28): the three ways to make graphics -
+          a template, your own artwork, AI - then the video door as a fourth card of the same
+          size, greyed. The intro above names the same three ways; its sentence order is the
+          owner's copy and is not meant to match the row.
 
           SAME SIZE AND SAME TREATMENT means no card is tinted as the primary: the order says
           which one leads, and a tinted border on one card read as "this one is different",
@@ -132,42 +135,13 @@ export default function EntryStep({
           blocks - a title row with its icon, then a description reserving three lines - so
           every card's copy starts at the same y and the row is one height. A card that needs a
           fourth line needs shorter copy: the step's height is a budget at 1366x768
-          (e2e/wizard-entry-fit.spec.ts). Phones stack the same four in the same order. */}
+          (e2e/wizard-entry-fit.spec.ts). Phones stack the same four in the same order.
+
+          NO CAVEATS ON THE CARDS (owner, 2026-09-28): Create with AI carries no Beta tag and no
+          "still in testing" line, and the greyed Video card no "not recommended" sentence. A
+          first screen that hedges its doors is not understandable at once; the grey is the
+          Video card's whole signal. */}
       <div className="wz-entry">
-        <button className="wz-entry-card" onClick={onAi} data-entry="ai">
-          <span className="wz-entry-head">
-            <IconAgent />
-            {/* BETA: the adapt-first pipeline is shipped and metered, but it is the least
-                settled surface in the studio. */}
-            <strong>
-              Create with AI <span className="wz-beta-tag">Beta</span>
-            </strong>
-          </span>
-          {/* THE TESTING PHASE IS SAID IN WORDS, NOT ONLY AS A TAG (owner, 2026-08-29), and it
-              LEADS the hint, inline, so the three reserved lines still hold the whole card. The
-              rest names the route the studio recommends first: the user's own coding agent
-              driving the NoaCG CLI (the AI step's AgentRouteCard says how). */}
-          <span className="hint">
-            <span className="wz-testing-note" data-testid="ai-testing-note">
-              Still in testing - results vary.
-            </span>{' '}
-            Use your own AI coding agent with the NoaCG CLI, or describe it here.
-          </span>
-        </button>
-        <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
-          <span className="wz-entry-head">
-            <IconVector />
-            <strong>Import graphic</strong>
-          </span>
-          {/* A MANUAL path: a designer wants their drawing made broadcast-ready, not
-              regenerated. SVG leads because its text layers arrive as fields on their own;
-              .html / .zip are named because the same drop zone takes a finished template
-              (ImportDesignStep's `accept`), and this card is where its owner looks. */}
-          <span className="hint">
-            SVG from Illustrator, no AI. Its text layers become fields. PNG, JPEG, .html or .zip
-            work too.
-          </span>
-        </button>
         <button className="wz-entry-card" onClick={onTemplates} data-entry="template">
           <span className="wz-entry-head">
             <IconTemplate />
@@ -179,16 +153,41 @@ export default function EntryStep({
             Pick a design, one graphic or a whole kit. Then set its fields, style and motion.
           </span>
         </button>
+        <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">
+          <span className="wz-entry-head">
+            <IconVector />
+            <strong>Import graphics</strong>
+          </span>
+          {/* A MANUAL path: a designer wants their drawing made broadcast-ready, not
+              regenerated. SVG leads because its text layers arrive as fields on their own;
+              .html / .zip are named because the same drop zone takes a finished template
+              (ImportDesignStep's `accept`), and this card is where its owner looks. */}
+          <span className="hint">
+            SVG from Illustrator, no AI. Its text layers become fields. PNG, JPEG, .html or .zip
+            work too.
+          </span>
+        </button>
+        <button className="wz-entry-card" onClick={onAi} data-entry="ai">
+          <span className="wz-entry-head">
+            <IconAgent />
+            <strong>Create with AI</strong>
+          </span>
+          {/* The route the studio recommends first: the user's own coding agent driving the
+              NoaCG CLI (the AI step's AgentRouteCard says how), then describing it here. */}
+          <span className="hint">
+            Use your own AI coding agent with the NoaCG CLI, or describe it here.
+          </span>
+        </button>
         {/* THE VIDEO DOOR IS GREYED, NOT HIDDEN (owner, 2026-09-27). It makes a rendered FILE in
-            the separate Video workspace, not a live graphic, and it is not ready to recommend.
-            It keeps its place so nobody wonders where it went. A visitor we KNOW is signed out
+            the separate Video workspace, not a live graphic, and it keeps its place so nobody
+            wonders where it went. A visitor we KNOW is signed out
             (`needsSignIn`, never true offline or while a session is still resolving) cannot
             enter the Video workspace: pressing the card opens the sign-in dialog instead, so
             "Sign in to try it." is a door and not a disabled dead end. While auth is loading
             the card behaves as signed in, and VideoStep keeps its own sign-in gate.
             ITS ACCESSIBLE NAME IS THE MODE'S FULL NAME, "Video or animation with AI", the name
             the Video step, the Videos section and the video specs use; the visible title drops
-            "with AI" only because four titles share one laptop row. The note stays announced
+            "with AI" only because four titles share one laptop row. The hint stays announced
             as the description. */}
         <button
           className="wz-entry-card wz-entry-card--muted"
@@ -202,7 +201,7 @@ export default function EntryStep({
             <strong>Video or animation</strong>
           </span>
           <span className="hint" id="wz-video-note">
-            Not recommended yet. It renders a video file, not a live graphic.
+            Renders a video file, not a live graphic.
             {needsSignIn && ' Sign in to try it.'}
           </span>
         </button>
@@ -238,8 +237,8 @@ export default function EntryStep({
    has, at four different weights, and read as generic placeholders (owner, 2026-09-27). These
    are drawn for this screen on the house set's wrapper (components/icons.tsx `Svg`: 24-unit
    viewBox, round joins, `currentColor`), a size up and a lighter 1.6 stroke. The four cards
-   share ONE idea - the same 18x15 screen, and what goes on it: a terminal prompt (your coding
-   agent), a vector path with its anchors (your artwork), a lower third (a template), a play
+   share ONE idea - the same 18x15 screen, and what goes on it: a lower third (a template), a
+   vector path with its anchors (your artwork), a terminal prompt (your coding agent), a play
    mark (a rendered video). The Playout row's rundown marks its on-air line with the one filled
    dot, and the Home row wears a house on the same grid. */
 function EntryIcon({ children }: { children: ReactNode }) {

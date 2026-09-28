@@ -174,9 +174,7 @@ test('an empty library\'s hint names the three ways in, links Downloads and open
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const hint = page.locator('.panel-section', { has: page.getByRole('heading', { name: 'Nothing saved yet' }) });
   await expect(hint).toBeVisible();
-  await expect(hint).toContainText('Use your AI coding agent with the NoaCG CLI');
-  await expect(hint).toContainText('import your own SVG');
-  await expect(hint).toContainText('start from a template');
+  await expect(hint).toContainText('Start from a template, import your own SVG, or use your AI coding agent with the NoaCG CLI.');
   await expect(hint).toContainText('Get the NoaCG CLI and NoaCG Bridge from Downloads.');
   await expect(hint.getByRole('link', { name: 'Downloads' })).toHaveAttribute('href', '/downloads');
 
