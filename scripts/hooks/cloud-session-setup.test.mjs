@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { aliasPinnedChromium, freshen } from './cloud-session-setup.mjs';
+import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine } from './cloud-session-setup.mjs';
 
 /** A browsers folder shaped like the cloud image's: build 1194 in the old `chrome-linux` layout. */
 function imageWith1194() {
@@ -150,3 +150,87 @@ test('freshness says so when origin cannot be reached, and moves nothing', () =>
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// --- Step 3: GitHub access ---------------------------------------------------------------------
+//
+// The probe is injected: each stub returns what spawnSync returns for that case, with the stderr
+// git prints for it (the first and the proxy one measured 2026-09-28 in a cloud container). No
+// test touches the network.
+
+const probeReturning = (res) => ({
+  probe: (_root, timeout) => {
+    assert.equal(timeout, GITHUB_PROBE_TIMEOUT_MS, 'the probe is always capped');
+    return res;
+  },
+});
+const failedWith = (stderr) => probeReturning({ status: 128, stderr });
+
+test('a working GitHub connection prints nothing', () => {
+  assert.equal(githubAccessLine('/repo', probeReturning({ status: 0, stderr: '' })), '');
+});
+
+test('a lapsed GitHub connection prints the reconnect banner, to be relayed first', () => {
+  for (const stderr of [
+    "fatal: could not read Username for 'https://github.com': terminal prompts disabled\n",
+    'error: session owner has not connected a GitHub account\n',
+    "remote: Invalid username or token.\nfatal: Authentication failed for 'https://github.com/NoaCG/NoaCG-Studio/'\n",
+    "fatal: unable to access 'https://github.com/NoaCG/NoaCG-Studio/': The requested URL returned error: 401\n",
+  ]) {
+    const line = githubAccessLine('/repo', failedWith(stderr));
+    assert.match(line, /^GITHUB NOT CONNECTED - push, pull requests and landing will fail/);
+    assert.match(line, /Reconnect at https:\/\/claude\.ai\/connect-github before starting work/);
+    assert.match(line, /Tell the owner this FIRST/);
+    assert.ok(!line.includes('\n'), 'one line');
+  }
+});
+
+test('a probe that times out says it is the network, not the account', () => {
+  const timedOut = { status: null, signal: 'SIGKILL', error: Object.assign(new Error('spawnSync git ETIMEDOUT'), { code: 'ETIMEDOUT' }) };
+  const line = githubAccessLine('/repo', probeReturning(timedOut));
+  assert.match(line, /^GITHUB UNREACHABLE - `git ls-remote origin` did not answer within 6 s/);
+  assert.match(line, /network, not a disconnected account/);
+});
+
+test("the proxy's own 403, DNS, a GitHub 5xx and a dropped transfer are the network, not the account", () => {
+  const cases = [
+    ["fatal: unable to access 'https://github.com/x.git/': CONNECT tunnel failed, response 403\n", /the proxy refused/],
+    ["fatal: unable to access 'https://github.com/x.git/': Could not resolve host: github.com\n", /github.com did not resolve/],
+    ["fatal: unable to access 'https://github.com/x.git/': The requested URL returned error: 502\n", /server error/],
+    ['fatal: the remote end hung up unexpectedly\n', /connection to github.com failed/],
+  ];
+  for (const [stderr, why] of cases) {
+    const line = githubAccessLine('/repo', failedWith(stderr));
+    assert.match(line, /^GITHUB UNREACHABLE - /);
+    assert.match(line, why);
+  }
+});
+
+test("this checkout's own setup is not blamed on the connection, and git output is never echoed", () => {
+  assert.match(githubAccessLine('/repo', failedWith("fatal: 'origin' does not appear to be a git repository\n")), /^GitHub check could not run/);
+  assert.match(githubAccessLine('/repo', { probe: () => { throw new Error('spawn git ENOENT'); } }), /^GitHub check could not run/);
+  const secret = 'ghp_SECRETSECRETSECRET';
+  const line = githubAccessLine('/repo', failedWith(`fatal: something odd at https://x-access-token:${secret}@github.com\n`));
+  assert.match(line, /^GITHUB CHECK FAILED - `git ls-remote origin` exited 128/);
+  assert.ok(!line.includes(secret));
+  // A bare 403 may be the git proxy's policy refusal as well as an account one: unclassified.
+  assert.match(githubAccessLine('/repo', failedWith('The requested URL returned error: 403\n')), /^GITHUB CHECK FAILED/);
+});
+
+test('the real probe is quiet on a reachable origin, and a hung one is killed at the cap', () => {
+  const { base, worktree } = staleWorktree();
+  const ssh = process.env.GIT_SSH_COMMAND;
+  try {
+    assert.equal(githubAccessLine(worktree), '');
+    // A remote that never answers: git's ssh transport runs a command that just sleeps.
+    run(worktree, 'remote', 'set-url', 'origin', 'ssh://hung.invalid/x.git');
+    process.env.GIT_SSH_COMMAND = 'sleep 5; true';
+    const started = Date.now();
+    assert.match(githubAccessLine(worktree, { timeoutMs: 500 }), /^GITHUB UNREACHABLE - `git ls-remote origin` did not answer within 0.5 s/);
+    assert.ok(Date.now() - started < 3000, 'the cap holds');
+  } finally {
+    if (ssh === undefined) delete process.env.GIT_SSH_COMMAND;
+    else process.env.GIT_SSH_COMMAND = ssh;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
