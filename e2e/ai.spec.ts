@@ -322,12 +322,22 @@ test('a template dropped before the choice opens the NoaCG agent with the file o
   // holding an .html should not have to know that: a drop anywhere on the step before the
   // choice opens the section with the file already in it.
   await arriveOnAiStep(page);
+  const card = page.getByTestId('ai-agent-route');
+  // Text dragged out of an install block is not a choice: only a FILE opens the section.
+  const textOnly = await page.evaluateHandle(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', 'claude plugin install noacg@noacg-studio');
+    return dt;
+  });
+  await card.dispatchEvent('drop', { dataTransfer: textOnly });
+  await expect(page.getByTestId('ai-noacg-choose')).toBeVisible();
+  await expect(page.getByTestId('ai-builtin')).toHaveCount(0);
+
   const dataTransfer = await page.evaluateHandle((html) => {
     const dt = new DataTransfer();
     dt.items.add(new File([html], 'test-slate.html', { type: 'text/html' }));
     return dt;
   }, VALID_TEMPLATE.html);
-  const card = page.getByTestId('ai-agent-route');
   await card.dispatchEvent('dragover', { dataTransfer });
   await card.dispatchEvent('drop', { dataTransfer });
   await expect(page.getByTestId('ai-builtin')).toBeVisible();

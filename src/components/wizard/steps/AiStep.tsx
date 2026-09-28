@@ -1158,9 +1158,13 @@ export default function AiStep({
       // A picture or a template dropped on the step BEFORE the choice is still honoured: the
       // no-AI "open as code" import lives behind the NoaCG agent's drop zone, and a reader
       // holding an .html should not have to know that. The drop opens the section with the
-      // file already in it. Once chosen, the section's own drop zone owns the gesture.
-      onDragOver={noacgChosen ? undefined : (e) => e.preventDefault()}
+      // file already in it. Once chosen, the section's own drop zone owns the gesture. Only a
+      // FILE drag is accepted: text dragged out of an install block is not a choice.
+      onDragOver={noacgChosen ? undefined : (e) => {
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+      }}
       onDrop={noacgChosen ? undefined : (e) => {
+        if (e.dataTransfer.files.length === 0) return;
         e.preventDefault();
         chooseNoacg();
         void addFiles(e.dataTransfer.files);
