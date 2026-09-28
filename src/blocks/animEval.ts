@@ -1,11 +1,21 @@
 // Timeline v2 — the editor-side playhead value resolver (docs/TIMELINE_V2_PLAN.md,
-// decision 11). Deliberately the ONLY logic duplicated from the runtime interpreter,
+// decision 11). Deliberately the ONLY timeline logic duplicated from the runtime interpreter,
 // and deliberately tiny: the preview iframe runs the real interpreter for everything
 // that plays; this resolver answers "what is this property at (step, t)" for the
-// Inspector and the timeline's static rendering. Parity with the interpreter is pinned
-// by e2e/anim-engine.spec.ts.
+// Inspector, the timeline's static rendering and exact splits. The CURVE is not duplicated:
+// it comes from the shared ease source the interpreter emits (templates/shared/easeRuntime.ts).
+// Parity with the interpreter is pinned by e2e/anim-engine.spec.ts and e2e/editor-ease.spec.ts.
 
 import type { AnimData, AnimKeyframe, AnimLoop } from './animData';
+import { easeCurve } from '../templates/shared/easeRuntime';
+
+/** Properties the renderer cannot take outside a range, whatever the curve does on the way. */
+export const BOUNDED_RANGES: Readonly<Record<string, readonly [number, number]>> = { opacity: [0, 1], autoAlpha: [0, 1] };
+/** The value as the renderer shows it: a bounded number is held inside its range. */
+function settled(prop: string, value: number | string): number | string {
+  const range = BOUNDED_RANGES[prop];
+  return range && typeof value === 'number' ? Math.min(range[1], Math.max(range[0], value)) : value;
+}
 
 /** Fold a query time into one pass of a looping track, mirroring GSAP's repeat/yoyo/
  *  repeatDelay math, so the resolver reports exactly what the repeating sub-timeline shows.
@@ -85,8 +95,9 @@ function lerpNumbersInString(a: string, b: string, f: number): string {
  * Resolve a property's value at (stepIndex, localT) — localT in SPEED-RELATIVE seconds
  * (the stored clock). Semantics mirror the interpreter:
  * - within a step, the first keyframe holds backward to the step start;
- * - between keyframes, numbers interpolate (LINEARLY here — the eased in-between value
- *   is the preview's job; at keyframe times the two always agree exactly);
+ * - between keyframes, numbers follow the segment's ease through the SHARED curve the
+ *   interpreter plays, and opacity stays in 0..1 as the renderer keeps it. An ease outside the
+ *   shared grammar keeps the old linear reading, for display only: exact edits refuse it;
  * - STRINGS interpolate too, when both sides have the same shape — `blur(0px) brightness(1)`
  *   → `blur(8px) brightness(1.4)` lerps each number in place, exactly as GSAP does at runtime,
  *   so the Inspector's number tracks the preview instead of stepping. Strings whose shapes
@@ -109,27 +120,28 @@ export function resolveValue(
     // hold-backward default below still applies.
     const loop = data.steps[stepIndex]?.loops?.[selector]?.[prop];
     const t = loop && kfs.length > 1 ? loopedTime(kfs, loop, localT) : localT;
-    if (t <= kfs[0].time) return kfs[0].value;
+    if (t <= kfs[0].time) return settled(prop, kfs[0].value);
     for (let i = 1; i < kfs.length; i++) {
       if (t < kfs[i].time) {
         const a = kfs[i - 1];
         const b = kfs[i];
         const f = (t - a.time) / (b.time - a.time);
+        const eased = easeCurve(b.ease || data.steps[stepIndex].ease)?.(f) ?? f;
         if (typeof a.value === 'number' && typeof b.value === 'number') {
-          return a.value + (b.value - a.value) * f;
+          return settled(prop, a.value + (b.value - a.value) * eased);
         }
         if (typeof a.value === 'string' && typeof b.value === 'string') {
-          return lerpNumbersInString(a.value, b.value, f);
+          return lerpNumbersInString(a.value, b.value, eased);
         }
         return a.value;
       }
     }
-    return kfs[kfs.length - 1].value;
+    return settled(prop, kfs[kfs.length - 1].value);
   }
   // Inherit from earlier steps: the last keyframe value before this step.
   for (let s = stepIndex - 1; s >= 0; s--) {
     const prev = trackAt(data, s, selector, prop);
-    if (prev.length > 0) return prev[prev.length - 1].value;
+    if (prev.length > 0) return settled(prop, prev[prev.length - 1].value);
   }
   return null; // design state — the stylesheet's value
 }

@@ -5,7 +5,8 @@
 // numbers), rounded to the same 3 decimals the serializer writes.
 
 import type { AnimData, AnimKeyframe, AnimLayerTracks, AnimStep } from './animData';
-import { resolveValue } from './animEval';
+import { BOUNDED_RANGES, resolveValue } from './animEval';
+import { easeCurve, parseEase, SAME_VALUE, sliceEase } from '../templates/shared/easeRuntime';
 import {
   freshStateId,
   isWalkEdge,
@@ -129,6 +130,50 @@ export function setKeyframe(
     if (ease) kf.ease = ease;
     track.push(kf);
     track.sort((a, b) => a.time - b.time);
+  }
+  return next;
+}
+
+/**
+ * Split one segment of a numeric track at `time` WITHOUT changing its motion: the new key holds
+ * the sampled value and eases in with the first part of the curve, and the segment's destination
+ * key eases in with the rest (`slice(E, 0, s)` and `slice(E, s, 1)`, templates/shared/easeRuntime.ts).
+ * Neither half relies on the step default, and no other key changes. Stored values keep the
+ * serializer's 3 decimals, so the result is exact to one stored unit, and checked against the
+ * editor's own sampling. Anything without an exact form throws with the reason; `data` is never
+ * mutated, so a caller's source and history stay as they were.
+ */
+export function splitKeyframeSegment(data: AnimData, stepIndex: number, selector: string, prop: string, time: number): AnimData {
+  const step = data.steps[stepIndex];
+  const track = step?.layers[selector]?.[prop] ?? [];
+  const t = round(time), keys = [...track].sort((a, b) => a.time - b.time);
+  const at = keys.findIndex((key, i) => i > 0 && keys[i - 1].time < t - EPS && t < key.time - EPS);
+  if (!step || at < 0) throw new Error('A split needs a time strictly inside one segment of an existing track.');
+  if (step.loops?.[selector]?.[prop]) throw new Error('A looping track keeps its cycle and is not split. Its source is preserved.');
+  const from = keys[at - 1], to = keys[at], ease = to.ease || step.ease;
+  if (typeof from.value !== 'number' || typeof to.value !== 'number') throw new Error('Only numeric tracks split exactly. Its source is preserved.');
+  const next = clone(data), edited = next.steps[stepIndex].layers[selector][prop];
+  const destination = edited[track.indexOf(to)];
+  // A flat segment is constant under any ease, so its split is exact whatever the curve.
+  if (from.value === to.value) {
+    edited.push({ time: t, value: from.value, ease });
+  } else {
+    const curve = easeCurve(ease);
+    if (!curve || parseEase(ease)?.kind === 'steps') throw new Error(`The ease "${ease}" has no exact split form yet. Its source is preserved.`);
+    const s = (t - from.time) / (to.time - from.time), progress = curve(s);
+    if (!(Math.abs(progress) >= 1e-9 && Math.abs(1 - progress) >= 1e-9)) throw new Error(SAME_VALUE);
+    const value = round(from.value + (to.value - from.value) * progress), range = BOUNDED_RANGES[prop];
+    if (range && (value < range[0] || value > range[1])) {
+      throw new Error('At that moment the curve is outside the range this property can show, so no key can hold the split value. Its source is preserved.');
+    }
+    edited.push({ time: t, value, ease: sliceEase(ease, 0, s) });
+    destination.ease = sliceEase(ease, s, 1);
+  }
+  edited.sort((a, b) => a.time - b.time);
+  for (let i = 0; i <= 200; i++) {
+    const sample = from.time + (to.time - from.time) * i / 200;
+    const before = resolveValue(data, selector, prop, stepIndex, sample), after = resolveValue(next, selector, prop, stepIndex, sample);
+    if (!(Math.abs(Number(after) - Number(before)) <= 0.001)) throw new Error('This split cannot be stored exactly at the saved precision. Its source is preserved.');
   }
   return next;
 }
