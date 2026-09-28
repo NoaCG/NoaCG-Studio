@@ -146,6 +146,7 @@ Observations `claude-cloud-*` in `scripts/harness-capabilities.json`.
 - **Remote git access can lapse mid-session** (recorded). Row F fetched at its start; about an hour
   later fetch and push both failed with `could not read Username`. The row commits and reports its
   branch; the coordinator pushes it from its own checkout (same repository, same refs).
+  Start warns `GITHUB NOT CONNECTED`; re-probe `git ls-remote origin main` before a launch or queue.
 - **Branch deletion is an owner action** (recorded). The git proxy answers HTTP 403 to
   `git push origin --delete` of any branch but the session's own; the GitHub MCP has no delete tool.
 - **A red `Reviewed` before the stamp is by design.** It waits 150 s for `noacg/reviewed`, which
