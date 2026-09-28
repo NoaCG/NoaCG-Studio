@@ -2,6 +2,7 @@
 // focus
 
 import { test, expect, type Page } from '@playwright/test';
+import { contrastRatio, parseCssColor } from '../src/model/cssVars';
 
 // The Entry step's HEIGHT BUDGET. Step 0 is the app's first screen, and it has to fit a
 // short laptop window whole: `.wz-hero` carries the comment "every vertical margin here is
@@ -167,12 +168,11 @@ for (const width of [1101, 1125, 1150]) {
         const range = document.createRange();
         range.selectNodeContents(el.querySelector('strong')!);
         const textRight = Math.max(...[...range.getClientRects()].map((r) => r.right));
-        return { entry: (el as HTMLElement).dataset.entry, room: inner - textRight };
+        return { entry: (el as HTMLElement).dataset.entry, room: inner - textRight, top: Math.round(el.getBoundingClientRect().top) };
       }),
     );
     expect(fit.length).toBe(4);
-    const top = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
-    expect(new Set(top).size, 'four columns, one row').toBe(1);
+    expect(new Set(fit.map((c) => c.top)).size, 'four columns, one row').toBe(1);
     for (const c of fit) expect(c.room, `${c.entry}: title room ${c.room.toFixed(1)}px`).toBeGreaterThanOrEqual(0);
   });
 }
@@ -443,33 +443,23 @@ test('the video card is greyed and says in words that it is not recommended yet'
         fill: getComputedStyle(el).backgroundColor,
       };
     };
-    // WCAG relative luminance of an `rgb()`/`rgba()` string, and the first painted background
-    // behind an element (the card itself is transparent).
-    const lum = (color: string) => {
-      const [r, g, b] = color.match(/[\d.]+/g)!.slice(0, 3).map((v) => {
-        const c = Number(v) / 255;
-        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    };
-    const paintedBehind = (el: Element | null) => {
-      for (; el; el = el.parentElement) {
-        const bg = getComputedStyle(el).backgroundColor;
-        if (!/^rgba\(.*,\s*0\)$/.test(bg)) return bg;
-      }
-      return 'rgb(0, 0, 0)';
-    };
+    // The hint's colour and the first painted background behind it (the card is transparent).
     const hint = document.querySelector('[data-entry="video"] .hint')!;
-    const [hi, lo] = [lum(getComputedStyle(hint).color), lum(paintedBehind(hint))].sort((a, b) => b - a);
-    return { video: read('video'), other: read('import-graphic'), hintContrast: (hi + 0.05) / (lo + 0.05) };
+    let behind = 'rgb(0, 0, 0)';
+    for (let el: Element | null = hint; el; el = el.parentElement) {
+      const bg = getComputedStyle(el).backgroundColor;
+      if (!/^rgba\(.*,\s*0\)$/.test(bg)) { behind = bg; break; }
+    }
+    return { video: read('video'), other: read('import-graphic'), hintColor: getComputedStyle(hint).color, behind };
   });
+  const hintContrast = contrastRatio(parseCssColor(tone.hintColor)!, parseCssColor(tone.behind)!);
   expect(tone.video.title).not.toBe(tone.other.title);
   expect(tone.video.icon).not.toBe(tone.other.icon);
   expect(tone.video.fill).toBe('rgba(0, 0, 0, 0)');
   // …BUT ITS WORDS STAY READABLE. The description is the card's only explanation, and signed
   // out it ends in "Sign in to try it.", the door itself, so it meets the 4.5:1 body text needs
   // (the fainter hint grey it once wore measured 3.7:1).
-  expect(tone.hintContrast, `video hint contrast ${tone.hintContrast.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+  expect(hintContrast, `video hint contrast ${hintContrast}:1`).toBeGreaterThanOrEqual(4.5);
 
   // Offline nothing is gated, so the greyed door still opens: greyed is "not yet", not broken.
   // Known signed out (configured builds) the same button opens the sign-in dialog instead and
