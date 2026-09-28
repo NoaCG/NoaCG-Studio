@@ -495,15 +495,16 @@ test('Getting started points a coding-agent owner at the CLI', async ({ page }) 
   await expect(callout).not.toContainText('npx');
 
   // Owner, 2026-09-27: a new reader should understand NoaCG and start in about 30 seconds, with
-  // the CLI, SVG import and Bridge easy to find. So the callout is the three ways to start in
-  // his order - the coding agent, your own SVG, a template - each with its own door, and the
-  // line under it names both roads to air. The order is the point, so it is pinned by position.
+  // the CLI, SVG import and Bridge easy to find. So the callout is the three ways to start, each
+  // with its own door, and the list under it names both roads to air. The order is the studio's
+  // first screen (owner, 2026-09-28, EntryStep.tsx) - a template, your own SVG, AI - so a reader
+  // who starts here recognises it. The order is the point, so it is pinned by position.
   const ways = callout.locator('ol > li');
   await expect(ways).toHaveCount(3);
-  await expect(ways.nth(0).locator('a[href="#claude-code"]')).toHaveCount(1);
+  await expect(ways.nth(0).locator('a[href="/app#/new"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="#first-graphic"]')).toHaveCount(1);
   await expect(ways.nth(1).locator('a[href="/downloads#svg-examples"]')).toHaveCount(1);
-  await expect(ways.nth(2).locator('a[href="/app#/new"]')).toHaveCount(1);
+  await expect(ways.nth(2).locator('a[href="#claude-code"]')).toHaveCount(1);
   const start = page.locator('#getting-started');
   await expect(start.locator('a[href="#browser-source"]')).toHaveCount(1);
   await expect(start.locator('a[href="/downloads#bridge"]')).toHaveCount(1);

@@ -1,12 +1,25 @@
 /* NoaCG Studio docs — same brand system as the landing (index.html):
    dark control-room ground, one amber "on-air" accent, restrained glow
    (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). The page is static and fully readable
-   with no JavaScript; src/docs/docs.ts only highlights the section nav. */
+   with no JavaScript; src/docs/docs.ts only highlights the section nav.
+
+   READING COMFORT (owner, 2026-09-28: "I get tired after a few paragraphs"). The prose is set
+   in IBM Plex Sans, the brand's reading face (BRAND-MANUAL.md §4), at 17px on 1.65, in
+   `--text` (12.5:1 on the ground; the old #b7bcc4 at 15px read as dim), and no prose line is
+   wider than `--measure`, about 70 characters. Space Grotesk stays on the header, h1-h3 and
+   the wordmark, where it is display type and the landing's own. Pictures, tables and the
+   layer panels keep the full 780px column: they are looked at, not read line by line. */
 
 @font-face {
   font-family: "Space Grotesk";
   src: url("/fonts/space-grotesk.woff2") format("woff2");
   font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("/fonts/ibm-plex-sans.woff2") format("woff2");
+  font-weight: 100 700;
   font-display: swap;
 }
 @font-face {
@@ -22,10 +35,13 @@
   --amber: #f6a623;
   --glow: #ffc65c;
   --paper: #e8edf2;
+  --text: #cdd2d9;
   --dim: #b7bcc4;
   --faint: #7c8798;
   --line: rgba(232, 237, 242, 0.09);
   --mono: "JetBrains Mono", Consolas, monospace;
+  --read: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --measure: 570px;
   color-scheme: dark;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -92,13 +108,13 @@ header.top nav a[aria-current="page"] { color: var(--paper); }
   letter-spacing: 0.28em; text-transform: uppercase; color: var(--amber);
 }
 h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; letter-spacing: -0.02em; margin: 12px 0 14px; }
-.lede { font-size: 17px; color: var(--dim); }
+.lede { font-family: var(--read); font-size: 19px; line-height: 1.6; color: var(--text); max-width: var(--measure); }
 .lede a, .doc-body p a, .doc-body li a, .doc-body td a { color: var(--amber); }
 .lede a:hover, .doc-body p a:hover, .doc-body li a:hover, .doc-body td a:hover { color: var(--glow); }
 
 /* ── Two-column shell: sticky section nav beside the content ── */
 .doc-grid { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px; padding: 30px 0 90px; align-items: start; }
-.doc-nav { position: sticky; top: 26px; }
+.doc-nav { position: sticky; top: 26px; font-family: var(--read); }
 .doc-nav .group {
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
   color: var(--faint); margin: 18px 0 6px;
@@ -132,32 +148,37 @@ h1 { font-size: clamp(32px, 4.5vw, 46px); font-weight: 700; line-height: 1.08; l
 }
 
 /* ── Content ── */
-.doc-body { max-width: 780px; min-width: 0; }
-.doc-body section { padding: 26px 0 6px; }
-.doc-body section + section { border-top: 1px solid var(--line); margin-top: 28px; }
-h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 6px 0 10px; scroll-margin-top: 24px; }
-h3 { font-size: 17px; font-weight: 700; margin: 26px 0 8px; scroll-margin-top: 24px; }
-h4 { font-size: 16px; font-weight: 700; margin: 22px 0 8px; scroll-margin-top: 24px; }
-.doc-body p, .doc-body li { font-size: 15px; color: var(--dim); }
-.doc-body p { margin: 10px 0; }
-.doc-body p strong, .doc-body li strong { color: var(--paper); }
-.doc-body ol, .doc-body ul { margin: 10px 0 14px 22px; }
-.doc-body li { margin: 6px 0; }
-.doc-body li::marker { color: var(--faint); font-family: var(--mono); font-size: 13px; }
+.doc-body { max-width: 780px; min-width: 0; font-family: var(--read); font-size: 17px; line-height: 1.65; color: var(--text); }
+.doc-body section { padding: 40px 0 8px; }
+.doc-body section + section { border-top: 1px solid var(--line); margin-top: 40px; }
+/* Space Grotesk from 21px up only: below that it is a display face doing a text face's job. */
+h2 { font-size: 30px; font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 16px; scroll-margin-top: 24px; }
+h3 { font-size: 21px; font-weight: 600; line-height: 1.3; margin: 40px 0 10px; scroll-margin-top: 24px; }
+h4 { font-family: var(--read); font-size: 17px; font-weight: 600; margin: 28px 0 6px; scroll-margin-top: 24px; }
+.doc-body h2, .doc-body h3 { font-family: "Space Grotesk", Arial, sans-serif; color: var(--paper); }
+.doc-body h4 { color: var(--paper); }
+/* The measure: prose never runs wider than about 70 characters. A table, a picture or a
+   command block keeps the whole column. */
+.doc-body p, .doc-body ul, .doc-body ol, .doc-body h3, .doc-body h4, .callout, .doc-shot figcaption { max-width: var(--measure); }
+.doc-body p { margin: 0 0 1em; }
+.doc-body p strong, .doc-body li strong { color: var(--paper); font-weight: 600; }
+.doc-body ol, .doc-body ul { margin: 0 0 1.1em 24px; }
+.doc-body li { margin: 8px 0; }
+.doc-body li::marker { color: var(--faint); font-family: var(--mono); font-size: 14px; }
 
 /* A SHELF SECTION holds one guide per graphic kind, so a kind's heading has to read as the top
    of a guide rather than as one more sub-head. It carries the rule the section boundary would
    have given it, and its own sub-heads drop to h4. */
 .doc-body h3.doc-kind {
-  font-size: 21px; letter-spacing: -0.01em;
-  margin-top: 38px; padding-top: 26px; border-top: 1px solid var(--line);
+  font-size: 24px; letter-spacing: -0.01em; max-width: none;
+  margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--line);
 }
 /* A section INSIDE a section (the Graphics topic's pages) is a page of that topic, not a new
    topic: it takes none of the top-level spacing or rule. A type page's h3.doc-kind draws its
    own rule, and the how-to pages sit under a plain h3. */
 .doc-body section section { padding: 0; }
 .doc-body section section + section { border-top: 0; margin-top: 0; }
-.doc-body section.doc-sub > h3 { font-size: 21px; letter-spacing: -0.01em; margin-top: 38px; }
+.doc-body section.doc-sub > h3 { font-size: 24px; letter-spacing: -0.01em; margin-top: 48px; }
 /* The shelf's own contents list. No markers and no indent: it is a set of doors, not prose.
    The links keep the body's amber, so they read as the same kind of link as every other. */
 .doc-body .doc-kinds { list-style: none; margin-left: 0; }
@@ -166,7 +187,7 @@ h4 { font-size: 16px; font-weight: 700; margin: 22px 0 8px; scroll-margin-top: 2
 
 /* Inline code + command blocks */
 code {
-  font-family: var(--mono); font-size: 13px; color: var(--paper);
+  font-family: var(--mono); font-size: 0.86em; color: var(--paper);
   background: rgba(232, 237, 242, 0.06); padding: 1px 6px; border-radius: 4px;
 }
 pre {
@@ -213,12 +234,12 @@ pre.prompt {
 /* Tables (export settings, versions, troubleshooting) */
 .doc-table { width: 100%; overflow-x: auto; margin: 14px 0; }
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 8px 12px; border: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+th, td { text-align: left; padding: 9px 12px; border: 1px solid var(--line); font-size: 15px; line-height: 1.55; vertical-align: top; }
 th {
   font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--faint); background: rgba(20, 25, 34, 0.6);
 }
-td { color: var(--dim); }
+td { color: var(--text); }
 td strong { color: var(--paper); }
 
 /* The table of every layer name (generated into #svg-layers by scripts/behaviour-docs.mjs). A
@@ -256,9 +277,9 @@ td strong { color: var(--paper); }
    left edge, where the caption starts. */
 .doc-shot.tall img { width: auto; max-width: min(100%, 440px); }
 .doc-shot figcaption {
-  margin-top: 8px; font-size: 13px; color: var(--faint); line-height: 1.55;
+  margin-top: 10px; font-size: 14px; color: #9aa3b1; line-height: 1.55;
 }
-.doc-shot figcaption strong { color: var(--dim); }
+.doc-shot figcaption strong { color: var(--text); }
 .doc-shot figcaption a { color: var(--amber); }
 .doc-shot figcaption a:hover { color: var(--glow); }
 
@@ -332,8 +353,10 @@ td strong { color: var(--paper); }
    someone tries it). */
 .callout {
   margin: 16px 0; padding: 13px 17px; border: 1px solid var(--line); border-left: 3px solid var(--amber);
-  border-radius: 0 8px 8px 0; background: rgba(20, 25, 34, 0.55); font-size: 14px; color: var(--dim);
+  border-radius: 0 8px 8px 0; background: rgba(20, 25, 34, 0.55); font-size: 16px; line-height: 1.6;
+  color: var(--text);
 }
+.callout > :last-child { margin-bottom: 0; }
 .callout strong { color: var(--paper); }
 .callout.truth { border-left-color: var(--faint); }
 .callout .lbl {
