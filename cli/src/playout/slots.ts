@@ -81,6 +81,12 @@ export function playsItem(item: ItemRef, reported: string | undefined): boolean 
   return got === want || got.endsWith(`/${want}`);
 }
 
+/** What a reading says of this Bridge's own take on the slot, while it still has one. */
+function owned(m: SlotMemory): Pick<SlotState, 'instance' | 'cueId'> {
+  if (!m.instance) return {};
+  return { instance: m.instance.id, ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}) };
+}
+
 export class SlotMemoryBank {
   /** This process. An instance id starts with it, so a page can tell a restart from a takeover. */
   readonly session: string;
@@ -173,12 +179,7 @@ export class SlotMemoryBank {
         } else if (same && !restarted) inst.lastPosition = r.position;
         else delete m.instance;
       }
-      out.push({
-        ...r,
-        generation: this.readingGeneration(m),
-        ...(m.instance ? { instance: m.instance.id, ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}) } : {}),
-        ...(arriving ? { arriving: true } : {}),
-      });
+      out.push({ ...r, generation: this.readingGeneration(m), ...owned(m), ...(arriving ? { arriving: true } : {}) });
     }
     const prefix = `${targetKey(target)} ${channel}-`;
     for (const [key, m] of this.slots) {
@@ -194,7 +195,8 @@ export class SlotMemoryBank {
         paused: false,
         loop: false,
         generation: this.readingGeneration(m),
-        ...(m.instance ? { instance: m.instance.id, ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}), ...(arriving ? { arriving: true } : {}) } : {}),
+        ...owned(m),
+        ...(arriving ? { arriving: true } : {}),
       });
     }
     return out.sort((a, b) => a.layer - b.layer);

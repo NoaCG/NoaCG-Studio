@@ -44,7 +44,7 @@ function decode(s: string): string {
  * carries none), no namespaces, no CDATA. Anything else is refused rather than half-read, so a
  * future server that changes the shape says so instead of reporting an empty channel.
  */
-export function parseXml(src: string): XmlNode {
+function parseXml(src: string): XmlNode {
   let i = 0;
   const root: XmlNode = { name: '#root', text: '', children: [] };
   const stack: XmlNode[] = [root];

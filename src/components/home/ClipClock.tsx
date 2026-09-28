@@ -22,7 +22,7 @@ function useNow(on: boolean, ms = 250): number {
 
 /** The number, the word before it when there is one (HOLDING, PAUSED), and the line under it
  *  (plan §6.4, for phase 2's two endings: hold and loop). */
-export function clockWords(c: ClockData): { label?: string; number: string; then: string } {
+function clockWords(c: ClockData): { label?: string; number: string; then: string } {
   const left = c.remaining === null ? '?:??' : clockText(c.remaining);
   switch (c.phase) {
     case 'holding':
