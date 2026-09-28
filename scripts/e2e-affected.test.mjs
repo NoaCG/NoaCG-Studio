@@ -1117,3 +1117,78 @@ test('a new spec with a covers header is planned for its file with no edit to th
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+// ── --files: classify PATHS with no git call at all ─────────────────────────
+//
+// THE RULE: the orchestrator's collision pass needs to know which specs a row's TOUCHES maps to
+// BEFORE any branch exists, so there is no ref to diff yet - `node scripts/e2e-affected.mjs
+// --list <file>` used to fail with a git error (`fatal: ambiguous argument '<file>...HEAD'`).
+// `--files` answers through the exact same
+// `planFor` index a ref diff uses, so it cannot drift from what the ref mode would have reported
+// for an identical file list, and ref mode itself takes none of these paths.
+const E2E_AFFECTED_CLI = fileURLToPath(new URL('./e2e-affected.mjs', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('../', import.meta.url));
+
+test('--files needs at least one path', () => {
+  const r = parseArgs(['--files']);
+  assert.equal(r.ok, false);
+  assert.match(r.message, /--files needs at least one path/);
+});
+
+test('--files accepts any number of paths, unlike ref mode\'s single positional', () => {
+  const r = parseArgs(['--files', 'a.ts', 'b.ts', 'c.ts']);
+  assert.equal(r.ok, true);
+  assert.equal(r.base, undefined);
+  assert.deepEqual(r.files, ['a.ts', 'b.ts', 'c.ts']);
+});
+
+test('ref mode is unchanged by --files: a lone base ref still parses exactly as before', () => {
+  assert.deepEqual(parseArgs(['abc123']), { ok: true, flags: new Set(), base: 'abc123' });
+  const r = parseArgs(['abc123', 'def456']);
+  assert.equal(r.ok, false);
+  assert.match(r.message, /at most one base ref/);
+});
+
+test('--files maps a covered path through the same index a ref diff would use', () => {
+  const out = JSON.parse(
+    execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', 'src/legal.css'], {
+      encoding: 'utf8',
+      cwd: REPO_ROOT,
+    }),
+  );
+  const direct = planFor(['src/legal.css']);
+  assert.equal(out.mode, 'subset');
+  assert.deepEqual(out.specs, direct.specs);
+  assert.deepEqual(out.specs, ['legal.spec.ts']);
+  assert.equal(out.base, null, '--files has no diff base to report');
+});
+
+test('--files reports an unmapped path exactly like the ref mode does', () => {
+  const unknown = 'totally-unmapped-fixture-path.xyz';
+  const direct = planFor([unknown]);
+  assert.equal(direct.mode, 'full', 'the fixture path must actually be unmapped, or this test proves nothing');
+  const out = JSON.parse(
+    execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--json', '--files', unknown], {
+      encoding: 'utf8',
+      cwd: REPO_ROOT,
+    }),
+  );
+  assert.equal(out.mode, 'full');
+});
+
+// A first draft of `--files` destructured only `{ mode, specs, catalog, unmapped }` from
+// `planFor`, silently dropping `configured` - the flag that says a change reaches ONLY a
+// configured deployment (e2e/configured/**, hosted Pro's wire contract) and prints the manual,
+// not-runnable-in-CI suite it needs (ref mode does the same, on stdout, never in `--json`). A row
+// whose TOUCHES lands only there would get no signal at all from the collision pass - the exact
+// quiet failure `configured` exists to prevent.
+test('--files prints the CONFIGURED-deployment notice, exactly like the ref mode does', () => {
+  const file = 'e2e/configured/pro-wizard.spec.ts';
+  assert.equal(planFor([file]).configured, true, 'fixture must actually raise the flag, or this test proves nothing');
+  const out = execFileSync(process.execPath, [E2E_AFFECTED_CLI, '--list', '--files', file], {
+    encoding: 'utf8',
+    cwd: REPO_ROOT,
+  });
+  assert.match(out, /CONFIGURED deployment/);
+  assert.match(out, /test:e2e:live:queued/);
+});

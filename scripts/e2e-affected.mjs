@@ -12,6 +12,10 @@
 //                                        # is a merge of main; --no-integration opts out)
 //   npm run test:e2e:affected -- --list  # print the plan without running Playwright
 //   npm run test:e2e:affected -- --json  # print the plan as JSON, for CI to branch on
+//   node scripts/e2e-affected.mjs --list --files <path> [<path>...]
+//                                        # map PATHS (not a diff) through the SAME `// covers:`
+//                                        # index, for planning BEFORE any branch exists - the
+//                                        # orchestrator's collision pass (no git call at all)
 //   npm run test:e2e:affected -- --help  # the accepted flags, generated from the one list
 //
 // AN ARGUMENT THIS CLI DOES NOT RECOGNISE IS AN ERROR, not a no-op (see `parseArgs`): a
@@ -882,6 +886,7 @@ const KNOWN_FLAGS = new Map([
   ['--no-integration', 'force the plain branch-only diff, never the fork point'],
   ['--json', 'print the plan as one JSON object and run nothing (implies --list)'],
   ['--list', 'print the plan and run nothing'],
+  ['--files', 'classify the given PATHS instead of a git diff - no ref, no repository state'],
   ['--help', 'print this and exit'],
 ]);
 
@@ -890,8 +895,11 @@ function usage() {
   const rows = [...KNOWN_FLAGS].map(([f, why]) => `  ${f.padEnd(18)}${why}`);
   return [
     'usage: node scripts/e2e-affected.mjs [<base-ref>] [flags]',
+    '       node scripts/e2e-affected.mjs --files <path> [<path>...] [flags]',
     '',
     'With no base ref the diff is against the merge-base with main, plus the working tree.',
+    '--files maps PATHS through the same `// covers:` index a diff would, with no git call at',
+    'all - for planning before any branch exists (the orchestrator collision pass).',
     '',
     ...rows,
   ].join('\n');
@@ -915,10 +923,15 @@ function usage() {
  * for the same reason the first unknown flag is: the old code silently used the first and
  * dropped the rest, so `e2e-affected <old> <new>` planned from a base its author had corrected.
  *
+ * `--files` changes what the positionals MEAN, not the git ref rule above: with it present they
+ * are PATHS to classify (one or more, no upper bound - the orchestrator hands it a whole row's
+ * `TOUCHES`), and the ref mode's "at most one" limit does not apply. Without `--files`, ref mode
+ * is exactly as it was.
+ *
  * Pure and exported so the refusal is testable without a git repository or a Playwright install.
  *
  * @param {string[]} args  process.argv.slice(2)
- * @returns {{ ok: true, flags: Set<string>, base: string|undefined }
+ * @returns {{ ok: true, flags: Set<string>, base: string|undefined, files?: string[] }
  *          | { ok: false, message: string, help: boolean }}
  */
 export function parseArgs(args) {
@@ -937,6 +950,21 @@ export function parseArgs(args) {
       ].join('\n'),
     };
   }
+  if (flags.includes('--help')) return { ok: false, help: true, message: usage() };
+  if (flags.includes('--files')) {
+    if (positional.length === 0) {
+      return {
+        ok: false,
+        help: false,
+        message: [
+          'e2e-affected: --files needs at least one path.',
+          '',
+          usage(),
+        ].join('\n'),
+      };
+    }
+    return { ok: true, flags: new Set(flags), base: undefined, files: positional };
+  }
   if (positional.length > 1) {
     return {
       ok: false,
@@ -949,8 +977,58 @@ export function parseArgs(args) {
       ].join('\n'),
     };
   }
-  if (flags.includes('--help')) return { ok: false, help: true, message: usage() };
   return { ok: true, flags: new Set(flags), base: positional[0] };
+}
+
+/**
+ * THE NARRATION a classified plan gets printed with - shared between a live diff (about to run
+ * what it names) and `--files` (only asking what a diff WOULD say for that same file list). One
+ * function so the two cannot drift into describing an identical `planFor` result differently,
+ * which a first draft of `--files` already did once by copying the checks without the words:
+ * `hypothetical` is the one thing they say differently, because `--files` never runs anything.
+ *
+ * @param {(...a: unknown[]) => void} log
+ * @param {ReturnType<typeof planFor>} plan
+ * @param {{ count: number, noun: string, hypothetical: boolean }} opts  `count` and `noun` name
+ *   the input list ("N changed files" for a diff, "N path(s)" for `--files`).
+ */
+function narratePlan(log, { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied }, { count, noun, hypothetical }) {
+  // Printed before mode 'none' returns: a change confined to hosted Pro's wire contract or to
+  // e2e/configured/ leaves this gate with nothing to run, and that verdict on its own reads as
+  // "covered" when the covering suite is the one that never ran.
+  if (configured) {
+    log('e2e-affected: this change touches behaviour only a CONFIGURED deployment has - run `npm run test:e2e:live:queued` (needs .env + a throwaway test account; not runnable in CI).');
+  }
+  if (unmapped.length > 0) {
+    log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
+    for (const f of unmapped) log('  -', f);
+  }
+  if (focusApplied) {
+    log(`e2e-affected: SPRINT FOCUS - a core/unmapped ${hypothetical ? 'path' : 'change'} would run the full suite (${specFilesOnDisk().length} files); running the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
+  }
+  if (mode === 'full') {
+    log(
+      hypothetical
+        ? `e2e-affected: core/unmapped path(s) detected - the FULL suite would run (${count} path(s)).`
+        : `e2e-affected: core/unmapped change detected - running the FULL suite (${count} changed files).`,
+    );
+  } else if (mode === 'none') {
+    log(
+      hypothetical
+        ? 'e2e-affected: these paths touch nothing the offline e2e suite covers.'
+        : 'e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.',
+    );
+  } else if (plan.length > 0) {
+    log(`e2e-affected: ${count} ${noun} -> ${plan.length} spec files:`);
+    for (const s of plan) log('  -', s);
+  }
+  if (catalogAffected) {
+    log(
+      hypothetical
+        ? 'e2e-affected: catalog/bench-affecting path detected - would also run npm run test:e2e:catalog.'
+        : 'e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.',
+    );
+  }
 }
 
 /** Everything the CLI does: resolve the diff, classify it, report it, and run what it named. */
@@ -996,6 +1074,25 @@ function main() {
   // loud, on every path including --json: `measured` writes to stderr precisely because ci.yml
   // captures this script's stdout whole and hands it to `JSON.parse`.
   measured(specFilesOnDisk().length, 'e2e spec files on disk');
+
+  // --files: classify PATHS through the SAME index `planFor` uses for a diff, with no git call at
+  // all. This is the orchestrator's collision pass: it needs to know which specs a row's
+  // `TOUCHES` shares with another row BEFORE either branch exists, so there is no ref to diff yet
+  // and `changedFilesSince` would have nothing to ask git. The narration below is `narratePlan`,
+  // the same function ref mode calls further down, so this cannot drift into describing an
+  // identical `planFor` result differently.
+  if (has('--files')) {
+    const changed = [...new Set(parsed.files)].map((f) => f.replace(/\\/g, '/'));
+    const plan = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+    narratePlan(log, plan, { count: changed.length, noun: 'path(s)', hypothetical: true });
+    if (asJson) {
+      emitJson({ mode: plan.mode, specs: plan.specs, catalog: plan.catalog, base: null, changedFiles: changed });
+      return 0;
+    }
+    // --files answers a planning question, not "run this now": it has no branch to run Playwright
+    // against, so unlike ref mode it does not fall through into `runPlan` when --list is absent.
+    return 0;
+  }
 
   // --all is "the whole suite, with no diff at all" - what `main` and an unusable diff base both
   // want. It lived as a hand-written `{"mode":"full",...}` literal inside ci.yml, which meant the
@@ -1052,40 +1149,21 @@ function main() {
     return 0;
   }
 
-  const { mode, specs: plan, catalog: catalogAffected, configured, unmapped, focusApplied } = planFor(changed, {
-    sprintFocus,
-    specsOnDisk: specFilesOnDisk(),
-  });
+  const planResult = planFor(changed, { sprintFocus, specsOnDisk: specFilesOnDisk() });
+  const { mode, specs: plan, catalog: catalogAffected } = planResult;
   const full = mode === 'full';
 
-  // Printed BEFORE the 'none' early return below: a change confined to hosted Pro's wire
-  // contract or to e2e/configured/ leaves this gate with nothing to run, and that verdict on
-  // its own reads as "covered" when the covering suite is the one that never ran.
-  if (configured) {
-    log('e2e-affected: this change touches behaviour only a CONFIGURED deployment has - run `npm run test:e2e:live:queued` (needs .env + a throwaway test account; not runnable in CI).');
-  }
-
-  if (unmapped.length > 0) {
-    log(`e2e-affected: no mapping for these files (falling back to the ${focusApplied ? 'SPRINT FOCUS set' : 'full suite'}):`);
-    for (const f of unmapped) log('  -', f);
-  }
-
-  if (focusApplied) {
-    log(`e2e-affected: SPRINT FOCUS - a core/unmapped change would run the full suite (${specFilesOnDisk().length} files); running the ${plan.length}-spec student-critical set instead (npm run test:e2e:focus; nightly still runs everything).`);
-  }
-  if (full) {
-    log(`e2e-affected: core/unmapped change detected - running the FULL suite (${changed.length} changed files).`);
-  } else if (mode === 'none') {
-    if (asJson) emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
-    log('e2e-affected: changes touch nothing the offline e2e suite covers - nothing to run.');
+  // A change confined to hosted Pro's wire contract or to e2e/configured/ leaves this gate with
+  // nothing to run, so the 'none' verdict below has to be printed BEFORE it returns, or it reads
+  // as "covered" when the covering suite is the one that never ran; `mode === 'none'` always
+  // means `catalogAffected` is false (see `planFor`), so returning here early loses no message
+  // `narratePlan` would otherwise have printed.
+  if (asJson && mode === 'none') {
+    emitJson({ mode: 'none', specs: [], catalog: false, base, changedFiles: changed });
     return 0;
-  } else if (plan.length > 0) {
-    log(`e2e-affected: ${changed.length} changed files -> ${plan.length} spec files:`);
-    for (const s of plan) log('  -', s);
   }
-  if (catalogAffected) {
-    log('e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.');
-  }
+  narratePlan(log, planResult, { count: changed.length, noun: 'changed files', hypothetical: false });
+  if (mode === 'none') return 0;
 
   if (asJson) {
     // `mode` is only ever none/subset/full; the catalog gate rides alongside as its own flag,
