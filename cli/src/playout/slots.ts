@@ -28,8 +28,14 @@
 import { randomBytes } from 'node:crypto';
 import type { ItemRef, SequenceEntry, Slot, SlotState, Target } from './protocol.js';
 
-/** One INFO layer as the adapter read it, before the Bridge adds what only it knows. */
-export type SlotReading = Omit<SlotState, 'instance' | 'cueId' | 'generation' | 'sequence'>;
+/** One INFO layer as the adapter read it, before the Bridge adds what only it knows. `starting` is
+ *  the Bridge's own: a clip PLAYed from part way in that has not reached its segment yet, behind
+ *  which nothing may be queued (adapters/casparcg.ts `startsPartWay`). It never goes to the page. */
+export type SlotReading = Omit<SlotState, 'instance' | 'cueId' | 'generation' | 'sequence'> & { starting?: boolean };
+
+/** One file the runner plays on a slot. A take that owes its Clear at the end is a run of one
+ *  entry with no list facts; a sequence's entries carry them. */
+export type RunEntry = Omit<SequenceEntry, 'media'> & { media?: SequenceEntry['media'] };
 
 interface Instance {
   id: string;
@@ -52,7 +58,7 @@ export interface SequenceRun {
   /** The generation it runs under. Take, Out, Clear and a new sequence end it; Pause and Resume
    *  keep it and re-stamp it, so work planned before them is still dropped. */
   generation: number;
-  entries: SequenceEntry[];
+  entries: RunEntry[];
   /** The entry on air. */
   index: number;
   /** What the runner has queued behind it: the next entry's index, or `clear` for the last
@@ -120,7 +126,8 @@ function owned(m: SlotMemory): Pick<SlotState, 'instance' | 'cueId' | 'sequence'
   return {
     instance: m.instance.id,
     ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}),
-    ...(seq && seq.index < seq.entries.length - 1 ? { sequence: { next: seq.entries.slice(seq.index + 1) } } : {}),
+    // Only a sequence has entries after the first, and each came with the server's list facts.
+    ...(seq && seq.index < seq.entries.length - 1 ? { sequence: { next: seq.entries.slice(seq.index + 1) as SequenceEntry[] } } : {}),
   };
 }
 
@@ -202,9 +209,10 @@ export class SlotMemoryBank {
     return id;
   }
 
-  /** A sequence the server accepted: its first entry plays, and the runner owns the rest. Called
-   *  after `started`, under the generation the sequence's own action moved to. */
-  sequenceStarted(target: Target, slot: Slot, entries: SequenceEntry[], queuedNext: boolean): void {
+  /** A sequence the server accepted - or a take that still owes its Clear: its first entry plays,
+   *  and the runner owns what follows. Called after `started`, under the generation the action moved
+   *  to. `queuedNext` says the action already queued the second entry. */
+  sequenceStarted(target: Target, slot: Slot, entries: RunEntry[], queuedNext: boolean): void {
     const m = this.memory(target, slot);
     m.sequence = { generation: m.generation, entries, index: 0, ...(queuedNext ? { queued: 1 } : {}) };
   }
@@ -312,7 +320,7 @@ export class SlotMemoryBank {
   annotate(target: Target, channel: number, readings: SlotReading[]): SlotState[] {
     const out: SlotState[] = [];
     const seen = new Set<number>();
-    for (const r of readings) {
+    for (const { starting: _starting, ...r } of readings) {
       seen.add(r.layer);
       const m = this.memory(target, { adapter: 'casparcg', channel, layer: r.layer });
       const arriving = this.observe(m, r);

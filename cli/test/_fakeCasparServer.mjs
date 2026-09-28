@@ -20,7 +20,10 @@
 //   - a looping clip never ends, so AUTO behind it never fires;
 //   - `IN`, `SEEK`, `OUT` and `LENGTH` count frames at the CHANNEL's rate, not the file's: on the
 //     real 2.5.0 a 25 fps file on a 50p channel took `SEEK 250 LENGTH 375` as 5 s in and 7.5 s
-//     long (measured 2026-09-28, cli/test/fixtures/info/video-trimmed.json).
+//     long (measured 2026-09-28, cli/test/fixtures/info/video-trimmed.json);
+//   - a clip PLAYed from part way in (`IN` or `SEEK`) has not reached its segment for its first
+//     STARTING_MS: INFO shows the file at 0, and a `LOADBG … AUTO` queued then fires at once, so the
+//     follower airs and the trimmed clip never does (measured on 2.5.0 and 2.3, 2026-09-28).
 // Anything the model does not know is answered `400 ERROR`, never guessed.
 //
 // TIME IS INJECTED. `clock.now()` is milliseconds; the fake reads it and never schedules
@@ -84,6 +87,10 @@ export function tokenize(line) {
   return out;
 }
 
+/** How long a clip PLAYed from part way in takes to reach its segment (measured: a follower queued
+ *  at 30 and 60 ms fired early, one at 90 ms did not). */
+export const STARTING_MS = 80;
+
 const xmlEscape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0');
 
@@ -136,6 +143,8 @@ export async function fakeCasparServer(options = {}) {
     if (!bg || !l.auto) return null;
     // `load()`: AUTO onto an empty layer plays at once.
     if (!fg) return bg.loadedAt;
+    // Queued while a clip PLAYed part way in has not reached its segment: it fires at once.
+    if (fg.startingUntil !== undefined && bg.loadedAt < fg.startingUntil) return bg.loadedAt;
     if (fg.loop || !Number.isFinite(fg.length)) return null;
     // A `MIX n` starts `n` frames before the end (at least one) so it finishes on the last
     // frame; a cut switches once the last frame has been shown.
@@ -254,7 +263,7 @@ export async function fakeCasparServer(options = {}) {
         // layer - its background and its AUTO with it - is exactly as it was.
         const p = producerFor(args, channel);
         if (!p) return reply.notFound(cmd);
-        l.foreground = { ...p, loadedAt: now, startedAt: now, pausedAt: null, playedAt: now };
+        l.foreground = { ...p, loadedAt: now, startedAt: now, pausedAt: null, playedAt: now, ...(p.start > 0 ? { startingUntil: now + STARTING_MS } : {}) };
         l.background = null;
         l.auto = false;
         return reply.ok(cmd);
@@ -319,9 +328,11 @@ export async function fakeCasparServer(options = {}) {
     if (p.producer === 'html') return `<file><path>${xmlEscape(p.file)}</path></file>${paused}<producer>html</producer>`;
     if (p.producer === 'still') return `<file><path>media\\${xmlEscape(p.file)}.png</path></file>${paused}<producer>image</producer>`;
     const framesLeft = l.background && l.auto ? `<frames_left>${Math.max(0, Math.round((p.length - position(p, at)) * fpsOf(l.channel)))}</frames_left>` : '';
+    // Not in its segment yet: the file reads at 0 (see STARTING_MS).
+    const time = p.startingUntil !== undefined && at < p.startingUntil ? 0 : p.start + position(p, at);
     return (
       `<file><clip>${num(p.start)}</clip><clip>${num(p.length)}</clip><name>${xmlEscape(p.file)}</name>` +
-      `<path>media/${xmlEscape(p.file)}.mp4</path><time>${num(p.start + position(p, at))}</time><time>${num(p.whole)}</time></file>` +
+      `<path>media/${xmlEscape(p.file)}.mp4</path><time>${num(time)}</time><time>${num(p.whole)}</time></file>` +
       `${framesLeft}<loop>${p.loop}</loop>${paused}<producer>ffmpeg</producer>`
     );
   }

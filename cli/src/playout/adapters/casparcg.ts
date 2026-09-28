@@ -59,7 +59,7 @@ export type ActResult = { ok: true; value: ActDone; raw: string } | { ok: false;
 
 /** What the sequence runner queues behind the entry on air: the next entry (`last` when nothing
  *  follows it, so its own Loop applies), or the last entry's own Clear with the fade it ends on. */
-export type FollowWith = { entry: SequenceEntry; last: boolean } | { clear: { fadeOut?: number } };
+export type FollowWith = { entry: Pick<SequenceEntry, 'item' | 'playback'>; last: boolean } | { clear: { fadeOut?: number } };
 
 /** What every adapter answers, for its own kind of target. The Bridge hands each adapter only
  *  the targets that name it. OBS and vMix implement this same shape (adapters/ograf.ts does). */
@@ -98,8 +98,13 @@ const ms = (s: number) => Math.round(s * 1000) / 1000;
 export function slotReading(l: InfoLayer): SlotReading {
   const fg = l.foreground;
   // A MIX under way wraps the incoming producer, and the file fields beside it are the incoming
-  // clip's.
-  const inner = fg.producer === 'transition' ? (fg.transition?.producer ?? '') : fg.producer;
+  // clip's. 2.5.0 names the wrapped producer; 2.3 does not (measured 2026-09-28,
+  // `p3-v2.3-clear-fade-mid`, `p3-v2.3-paused-inside-window`), so there it is read off what the
+  // transition carries: a colour, a clip's segment, or a path.
+  const inner =
+    fg.producer !== 'transition'
+      ? fg.producer
+      : fg.transition?.producer || (fg.color !== undefined ? 'color' : fg.clip || fg.name ? 'ffmpeg' : fg.path ? 'image' : '');
   const producer = PRODUCERS[inner] ?? 'other';
   const file = producer === 'video' ? (fg.name ?? fg.path) : producer === 'still' || producer === 'html' ? fg.path : undefined;
   let segment: SlotReading['segment'];
@@ -112,6 +117,11 @@ export function slotReading(l: InfoLayer): SlotReading {
   const tr = fg.producer === 'transition' && fg.transition && fg.transition.type !== 'cut' && fg.transition.frame[1] > 0 ? fg.transition : undefined;
   const bg = l.background;
   const queued = bg.producer !== 'empty' ? (bg.name ?? bg.path) : undefined;
+  // A clip PLAYed from part way in has not reached its segment yet: for its first tens of
+  // milliseconds INFO shows the file at 0, before the segment's start, and a follower queued with
+  // AUTO then fires at once, so the trimmed clip never airs (measured on 2.5.0 and 2.3,
+  // 2026-09-28: early at 30 and 60 ms, right from 90 ms). Nothing is queued behind it until it has.
+  const starting = producer === 'video' && !!fg.clip && !!fg.time && fg.clip[0] > 0 && fg.time[0] < fg.clip[0] - 0.001;
   return {
     layer: l.layer,
     producer,
@@ -122,6 +132,7 @@ export function slotReading(l: InfoLayer): SlotReading {
     ...(tr ? { transition: { progress: ms(Math.min(1, tr.frame[0] / tr.frame[1])) } } : {}),
     // `frames_left` is written on the foreground only while the background waits with AUTO.
     ...(queued ? { queued: { file: queued, auto: fg.framesLeft !== undefined } } : {}),
+    ...(starting ? { starting: true } : {}),
   };
 }
 
@@ -172,6 +183,17 @@ function timed(p: MediaPlayback | undefined): boolean {
   return !!p && (p.fadeIn !== undefined || p.fadeOut !== undefined || p.trim !== undefined);
 }
 
+/**
+ * Whether a clip is PLAYed from part way into its file. Measured on 2.5.0 and 2.3 (2026-09-28): a
+ * `LOADBG … AUTO` sent within about 60 ms of `PLAY … IN n` (or `SEEK n`) fires at once, so the
+ * follower airs and the trimmed clip never does; from about 90 ms it waits for the trimmed end.
+ * Behind such a clip nothing is queued with the take: the runner queues it once INFO shows the clip
+ * inside its segment (`slotReading`'s `starting`).
+ */
+export function startsPartWay(p: MediaPlayback | undefined): boolean {
+  return (p?.trim?.in ?? 0) > 0;
+}
+
 /** Whether an action's lines need the channel's rate: any fade or trim it carries. */
 export function needsRate(action: PlayoutAction): boolean {
   if (action.verb === 'take') return timed(action.playback);
@@ -217,7 +239,7 @@ function clearLine(at: string, fadeOut: number | undefined, rate: number | undef
 
 /** The line that queues a sequence's entry behind the clip on air, to play when it ends. Its fade in
  *  is the MIX into it: the incoming clip decides the transition (docs/CLIP_PLAYBACK_PLAN.md §6.6). */
-function queueLine(at: string, entry: SequenceEntry, last: boolean, rate: number | undefined): string {
+function queueLine(at: string, entry: Pick<SequenceEntry, 'item' | 'playback'>, last: boolean, rate: number | undefined): string {
   return `LOADBG ${at} ${mediaName(entry.item)}${mediaParams(entry.playback, last && entry.playback?.end === 'loop', rate)} AUTO`;
 }
 
@@ -255,7 +277,9 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
         const p = action.playback;
         const play = `PLAY ${at} ${mediaName(item)}${mediaParams(p, !!action.loop, rate)}`;
         // Clear at the end: the empty layer waits behind the clip and plays by itself when it ends.
-        return p?.end === 'clear' ? [play, clearLine(at, p.fadeOut, rate)] : [play];
+        // Behind a clip that starts part way in it would play at once, so the runner queues it
+        // once the clip is running (see `startsPartWay`).
+        return p?.end === 'clear' && !startsPartWay(p) ? [play, clearLine(at, p.fadeOut, rate)] : [play];
       }
       throw new UsageError(`CasparCG cannot take an item of kind "${String(item.kind)}".`);
     }
@@ -264,10 +288,8 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
       // rest when it sees the switch (./runner.ts).
       const [first, second] = action.entries;
       if (!first || !second) throw new UsageError('A sequence plays at least two files.');
-      return [
-        `PLAY ${at} ${mediaName(first.item)}${mediaParams(first.playback, false, rate)}`,
-        queueLine(at, second, action.entries.length === 2, rate),
-      ];
+      const play = `PLAY ${at} ${mediaName(first.item)}${mediaParams(first.playback, false, rate)}`;
+      return startsPartWay(first.playback) ? [play] : [play, queueLine(at, second, action.entries.length === 2, rate)];
     }
     case 'update':
       return [`CG ${at} UPDATE 1 ${amcpQuote(JSON.stringify(action.data))}`];

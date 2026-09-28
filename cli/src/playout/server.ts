@@ -525,7 +525,14 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           log(`${at} ${action.verb} -> ${r.ok ? r.raw : `${r.error.code} ${r.error.raw ?? ''}`.trim()}${r.ok && r.value.warning ? ` (${r.value.warning})` : ''}`);
           let instance: string | undefined;
           if (r.ok && (action.verb === 'out' || action.verb === 'clear')) memory.ended(target, slot);
-          if (r.ok && action.verb === 'take') instance = memory.started(target, slot, action.item, action.cueId);
+          if (r.ok && action.verb === 'take') {
+            instance = memory.started(target, slot, action.item, action.cueId);
+            // A Clear at the end that could not go with the take (the clip starts part way in) is
+            // the runner's to queue, once the clip is running: a run of this one entry.
+            if (action.playback?.end === 'clear' && !r.value.follower) {
+              memory.sequenceStarted(target, slot, [{ item: action.item, ...(action.cueId ? { cueId: action.cueId } : {}), playback: action.playback }], false);
+            }
+          }
           if (r.ok && action.verb === 'sequence') {
             const [first] = action.entries;
             instance = memory.started(target, slot, first.item, first.cueId);

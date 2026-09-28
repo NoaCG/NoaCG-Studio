@@ -1,0 +1,16 @@
+{
+  "note": "Channel 2 switched to 1080i5000 with SET 2 MODE: INFO says framerate 50/1 (the field rate), and SEEK 250 LENGTH 100 reads file/clip [5, 2], so frames count at 50 a second.",
+  "commands": [
+    "SET 2 MODE 1080i5000",
+    1500,
+    "CLEAR 2-10",
+    "PLAY 2-10 \"NOACG_FIXTURE/A10\" MIX 50",
+    4140,
+    "PLAY 2-10 \"NOACG_FIXTURE/A10\" SEEK 250 LENGTH 100",
+    600
+  ],
+  "capturedAt": "2026-09-28T11:58:34.950Z",
+  "server": "2.5.0 69e8ad5 Stable",
+  "channelFormat": "1080i5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <format>1080i5000</format>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>215078496</volume>\n         <volume>215078496</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <output>\n      <port>\n         <port_600>\n            <consumer>screen</consumer>\n            <screen>\n               <always_on_top>false</always_on_top>\n               <index>0</index>\n               <key_only>false</key_only>\n               <name>Screen consumer</name>\n            </screen>\n         </port_600>\n      </port>\n   </output>\n   <stage>\n      <layer>\n         <layer_10>\n            <background>\n               <producer>empty</producer>\n            </background>\n            <foreground>\n               <file>\n                  <clip>5</clip>\n                  <clip>2</clip>\n                  <name>NOACG_FIXTURE/A10</name>\n                  <path>media/NOACG_FIXTURE\\A10.mp4</path>\n                  <streams>\n                     <file>\n                        <streams_0>\n                           <fps>25</fps>\n                           <fps>1</fps>\n                        </streams_0>\n                        <streams_1>\n                           <fps>0</fps>\n                           <fps>0</fps>\n                        </streams_1>\n                     </file>\n                  </streams>\n                  <time>5.46</time>\n                  <time>10</time>\n               </file>\n               <loop>false</loop>\n               <paused>false</paused>\n               <producer>ffmpeg</producer>\n            </foreground>\n         </layer_10>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

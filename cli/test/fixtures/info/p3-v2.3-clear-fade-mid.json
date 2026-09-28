@@ -1,0 +1,12 @@
+{
+  "note": "CasparCG 2.3 (the build in the 2.3.3 LTS folder reports 2.3.2 4de6d18f Dev), channel 1: clear with a fade, SHORT3 with EMPTY queued MIX 25 AUTO, 6 frames into the fade; unlike 2.5.0 the transition element has no direction and no producer.",
+  "commands": [
+    "PLAY 1-10 \"NOACG_FIXTURE/SHORT3\"",
+    "LOADBG 1-10 EMPTY MIX 25 AUTO",
+    2860
+  ],
+  "capturedAt": "2026-09-28T12:02:27.914Z",
+  "server": "2.3.2 4de6d18f Dev",
+  "channelFormat": "1080p5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>163610744</volume>\n         <volume>163610744</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <stage>\n      <layer>\n         <layer_10>\n            <background>\n               <producer>empty</producer>\n            </background>\n            <foreground>\n               <color>EMPTY</color>\n               <paused>false</paused>\n               <producer>transition</producer>\n               <transition>\n                  <frame>6</frame>\n                  <frame>25</frame>\n                  <type>mix</type>\n               </transition>\n            </foreground>\n         </layer_10>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

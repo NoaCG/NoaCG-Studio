@@ -122,6 +122,15 @@ test('Clear at the end queues the empty layer behind the clip, fading for the fa
   assert.deepEqual(take({ fadeOut: 1 }), ['PLAY 2-10 "VT"']);
 });
 
+test('behind a clip that starts part way in, nothing is queued with the take', () => {
+  // Measured on 2.5.0 and 2.3: `LOADBG … AUTO` within about 60 ms of `PLAY … IN n` fires at once and
+  // the trimmed clip never airs. The runner queues it once INFO shows the clip inside its segment.
+  assert.deepEqual(casparLines({ verb: 'take', item: clip('VT'), slot: clipSlot, playback: { end: 'clear', trim: { in: 2 } } }, { rate: 50 }), ['PLAY 2-10 "VT" IN 100']);
+  assert.deepEqual(casparLines({ verb: 'take', item: clip('VT'), slot: clipSlot, playback: { end: 'clear', trim: { out: 8 } } }, { rate: 50 }), ['PLAY 2-10 "VT" OUT 400', 'LOADBG 2-10 EMPTY AUTO']);
+  const entry = (name, playback) => ({ item: clip(name), media: { kind: 'movie', seconds: 10 }, ...(playback ? { playback } : {}) });
+  assert.deepEqual(casparLines({ verb: 'sequence', slot: clipSlot, entries: [entry('A', { trim: { in: 1 } }), entry('B')] }, { rate: 50 }), ['PLAY 2-10 "A" IN 50']);
+});
+
 test('Out fades to nothing, clears a queued follower with it, or stops as it always did', () => {
   assert.deepEqual(casparLines({ verb: 'out', slot: clipSlot, item: clip('VT'), fadeOut: 0.5 }, { rate: 50 }), ['PLAY 2-10 EMPTY MIX 25']);
   // A fade out replaces whatever waited behind the clip, so a follower goes with it.
@@ -181,7 +190,7 @@ test('the level is the clip\'s own audio filter, four decimals, and no action ev
     { verb: 'sequence', slot: clipSlot, entries: [{ ...entry, item: clip('A') }, entry] },
   ].flatMap((a) => casparLines(a, { rate: 50, follower: { file: 'X' } }));
   every.push(followLine(clipSlot, { entry, last: true }, 50), followLine(clipSlot, { clear: { fadeOut: 1 } }, 50), disarmLine(clipSlot));
-  assert.ok(every.length >= 12);
+  assert.ok(every.length >= 11);
   for (const line of every) assert.ok(!/^MIXER\b/.test(line), line);
 });
 

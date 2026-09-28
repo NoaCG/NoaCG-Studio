@@ -152,6 +152,38 @@ test('while a sequence runs, a reading says which entry is on air and what is st
   assert.deepEqual([after.producer, after.instance], ['colour', undefined]);
 });
 
+test('§12 item 7: behind a first clip that starts part way in, the follower waits until that clip runs', async (t) => {
+  // Measured on both versions: a follower queued with the take would air at once and the trimmed
+  // clip never would. The take plays it alone; the runner queues the next once INFO shows it inside
+  // its segment.
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A', { trim: { in: 2 } }), entry('B')] });
+  assert.deepEqual(caspar.seen.filter((l) => !l.startsWith('INFO')), ['PLAY 2-10 "A" IN 100']);
+  await runner.round();
+  assert.ok(!caspar.seen.some((l) => l.startsWith('LOADBG')), 'nothing is queued before A reaches its segment');
+  const files = await watch(caspar, runner, 20_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B']);
+  // A plays its 8 trimmed seconds, then B.
+  assert.equal(files.indexOf('B'), 8_000 / 50 - 1);
+});
+
+test('Clear at the end of a clip that starts part way in is queued once the clip runs', async (t) => {
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  const take = await act({ verb: 'take', item: { kind: 'media', name: 'A' }, slot: AT, cueId: 'cue-A', playback: { end: 'clear', fadeOut: 0.5, trim: { in: 7 } } });
+  assert.equal(take.body.ok, true);
+  assert.deepEqual(caspar.seen.filter((l) => !l.startsWith('INFO')), ['PLAY 2-10 "A" IN 350']);
+  await runner.round();
+  const files = await watch(caspar, runner, 6_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'EMPTY'], 'A plays its last 3 seconds, then the layer clears');
+  assert.equal(caspar.seen.filter((l) => !l.startsWith('INFO')).at(-1), 'LOADBG 2-10 EMPTY MIX 25 AUTO');
+  // The runner's part is over once the clear is queued and has played.
+  const reads = caspar.seen.filter((l) => l.startsWith('INFO')).length;
+  await run(caspar, runner, 2_000);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('INFO')).length, reads);
+});
+
 test('Out in the middle stops the sequence, and nothing else airs', async (t) => {
   const caspar = await server(t);
   const { act, runner } = await bridgeOver(t, caspar);

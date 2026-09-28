@@ -1,0 +1,14 @@
+{
+  "note": "A10 playing with B10 queued AUTO, then LOADBG EMPTY without AUTO: the colour producer replaces the queued clip in the background, frames_left is gone, and B10 never airs.",
+  "commands": [
+    "PLAY 2-10 \"NOACG_FIXTURE/A10\"",
+    "LOADBG 2-10 \"NOACG_FIXTURE/B10\" AUTO",
+    1010,
+    "LOADBG 2-10 EMPTY",
+    200
+  ],
+  "capturedAt": "2026-09-28T11:45:03.520Z",
+  "server": "2.5.0 69e8ad5 Stable",
+  "channelFormat": "1080p5000",
+  "reply": "201 INFO OK\r\n<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<channel>\n   <format>1080p5000</format>\n   <framerate>50</framerate>\n   <framerate>1</framerate>\n   <mixer>\n      <audio>\n         <volume>214951824</volume>\n         <volume>214951824</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n         <volume>0</volume>\n      </audio>\n   </mixer>\n   <output>\n      <port>\n         <port_600>\n            <consumer>screen</consumer>\n            <screen>\n               <always_on_top>false</always_on_top>\n               <index>0</index>\n               <key_only>false</key_only>\n               <name>Screen consumer</name>\n            </screen>\n         </port_600>\n      </port>\n   </output>\n   <stage>\n      <layer>\n         <layer_10>\n            <background>\n               <color>EMPTY</color>\n               <producer>transition</producer>\n               <transition>\n                  <direction>from_left</direction>\n                  <frame>0</frame>\n                  <frame>0</frame>\n                  <producer>color</producer>\n                  <type>cut</type>\n               </transition>\n            </background>\n            <foreground>\n               <file>\n                  <clip>0</clip>\n                  <clip>10</clip>\n                  <name>NOACG_FIXTURE/A10</name>\n                  <path>media/NOACG_FIXTURE\\A10.mp4</path>\n                  <streams>\n                     <file>\n                        <streams_0>\n                           <fps>25</fps>\n                           <fps>1</fps>\n                        </streams_0>\n                        <streams_1>\n                           <fps>0</fps>\n                           <fps>0</fps>\n                        </streams_1>\n                     </file>\n                  </streams>\n                  <time>1.04</time>\n                  <time>10</time>\n               </file>\n               <loop>false</loop>\n               <paused>false</paused>\n               <producer>ffmpeg</producer>\n            </foreground>\n         </layer_10>\n      </layer>\n   </stage>\n</channel>\n\r\n"
+}

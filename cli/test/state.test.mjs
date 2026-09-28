@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { test } from 'node:test';
-import { casparcgAdapter, readsState, slotReading } from '../dist/playout/adapters/casparcg.js';
+import { casparcgAdapter, framesAt, readsState, slotReading } from '../dist/playout/adapters/casparcg.js';
 import { parseInfo } from '../dist/playout/info.js';
 import { createBridgeServer } from '../dist/playout/server.js';
 import { LOADING_GRACE_MS, playsItem, SlotMemoryBank } from '../dist/playout/slots.js';
@@ -23,18 +23,63 @@ function fixture(name) {
   return { ...f, body, slots: parseInfo(body).layers.map(slotReading) };
 }
 
+/** What INFO's `framerate` reads for each channel format captured (§18 case 7, measured
+ *  2026-09-28): for an interlaced format it is already the FIELD rate, which is what MIX, SEEK and
+ *  LENGTH count, so seconds are multiplied by it as it stands. */
+const RATES = { '1080p5000': 50, '1080i5000': 50, '1080p2997': 30000 / 1001, '1080i5994': 60000 / 1001 };
+
 test('every captured INFO answer parses, and the channel says its own rate', () => {
   const names = readdirSync(FIXTURES).filter((f) => f.endsWith('.json') && f !== 'info-timing.json');
-  assert.ok(names.length >= 19, `only ${names.length} fixtures`);
+  assert.ok(names.length >= 33, `only ${names.length} fixtures`);
   for (const name of names) {
     const f = fixture(name.replace(/\.json$/, ''));
     assert.ok(['2.5.0 69e8ad5 Stable', '2.3.2 4de6d18f Dev'].includes(f.server), `${name}: ${f.server}`);
     const info = parseInfo(f.body);
     // 2.3 writes no <format>; both write the rate.
-    if (f.server.startsWith('2.5')) assert.equal(info.format, '1080p5000', name);
-    assert.equal(info.fps, 50, name);
+    if (f.server.startsWith('2.5')) assert.equal(info.format, f.channelFormat, name);
+    assert.ok(Math.abs(info.fps - RATES[f.channelFormat]) < 1e-9, `${name}: ${info.fps}`);
   }
   assert.deepEqual(fixture('empty-channel').slots, []);
+});
+
+test('a fade or a trim counts at the rate INFO reports, interlaced or not', () => {
+  // MIX 50 took about a second on 1080p50 and 1080i50 alike, 1.67 s at 29.97 and 0.83 s at 59.94;
+  // `SEEK 250 LENGTH 100` read back 5 s and 2 s at 50, 8.34 s and 3.34 s at 29.97.
+  assert.deepEqual(fixture('format-1080i5000').slots[0].segment, { start: 5, length: 2 });
+  assert.deepEqual(fixture('format-1080p2997').slots[0].segment, { start: 8.342, length: 3.337 });
+  assert.deepEqual(fixture('format-1080i5994').slots[0].segment, { start: 4.171, length: 1.668 });
+  for (const [name, rate] of [['format-1080i5000', 50], ['format-1080p2997', 30000 / 1001], ['format-1080i5994', 60000 / 1001]]) {
+    const { fps } = parseInfo(fixture(name).body);
+    assert.equal(framesAt(1, fps), Math.round(rate), name);
+  }
+});
+
+test("phase 3's captures: every parameter, a clear with a fade, a disarmed follower, a trimmed one", () => {
+  // `PLAY … IN 50 OUT 400 MIX 25 AF "volume=0.5012" LOOP` and its LOADBG twin were accepted by both
+  // versions and read back as the segment they name, at 50p.
+  assert.deepEqual(fixture('p3-full-play').slots[0].segment, { start: 1, length: 7 });
+  assert.equal(fixture('p3-full-play').slots[0].loop, true);
+  for (const name of ['p3-full-loadbg', 'p3-v2.3-full-loadbg']) {
+    const [s] = fixture(name).slots;
+    assert.deepEqual([s.segment, s.loop, s.queued.auto], [{ start: 1, length: 7 }, true, true], name);
+  }
+  // Clear with a fade: the outgoing clip's fields are gone the moment the fade starts, and the layer
+  // is the empty colour - on 2.3 too, whose transition names no producer.
+  for (const name of ['p3-clear-fade-mid', 'p3-v2.3-clear-fade-mid']) {
+    assert.deepEqual(fixture(name).slots[0], { layer: 10, producer: 'colour', paused: false, loop: false, transition: { progress: 0.24 } }, name);
+  }
+  assert.equal(fixture('p3-clear-fade-after').slots[0].producer, 'colour');
+  // A pause inside a follower's MIX freezes the MIX; 2.3 reads the same once its unnamed transition
+  // is read by the file it carries.
+  for (const name of ['p3-paused-inside-window', 'p3-v2.3-paused-inside-window']) {
+    const [s] = fixture(name).slots;
+    assert.deepEqual([s.producer, s.paused, s.transition], ['video', true, { progress: 0.52 }], name);
+    assert.ok(playsItem({ kind: 'media', name: 'NOACG_FIXTURE/B10' }, s.file), name);
+  }
+  // A follower queued with IN airs at its trimmed start.
+  assert.deepEqual(fixture('p3-trimmed-follower-airing').slots[0].segment, { start: 5, length: 3 });
+  // `LOADBG c-l EMPTY` without AUTO: the follower is gone and nothing waits to play by itself.
+  assert.equal(fixture('p3-disarmed').slots[0].queued, undefined);
 });
 
 test('2.3 answers INFO in the same shape, and names a clip WITH its extension', () => {

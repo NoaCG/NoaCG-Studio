@@ -34,7 +34,12 @@
 
 import type { PlayoutAdapter } from './adapters/casparcg.js';
 import type { Slot, Target } from './protocol.js';
-import type { SlotMemoryBank } from './slots.js';
+import type { SlotMemoryBank, SlotReading } from './slots.js';
+
+/** Whether the clip on the slot was PLAYed from part way in and has not reached its segment yet. */
+function startingOn(readings: SlotReading[], slot: Slot): boolean {
+  return slot.adapter === 'casparcg' && !!readings.find((l) => l.layer === slot.layer)?.starting;
+}
 
 /** Four readings a second while a sequence runs. INFO answers in about 2 ms on the real 2.5.0. */
 export const RUNNER_INTERVAL_MS = 250;
@@ -103,8 +108,9 @@ export class SequenceRunner {
     if (!run || run.generation !== planned || this.memory.generation(target, slot) !== planned) return;
     if (run.queued !== undefined) return;
     const here = layers.find((l) => l.layer === slot.layer);
-    // Still arriving, or paused: nothing is queued now (rule 4). Resume re-stamps the sequence.
-    if (!here || here.arriving || here.paused) return;
+    // Still arriving, not inside its segment yet, or paused: nothing is queued now (rule 4, and
+    // adapters/casparcg.ts `startsPartWay`). Resume re-stamps the sequence.
+    if (!here || here.arriving || here.paused || startingOn(read.value, slot)) return;
     const on = run.entries[run.index];
     // A still never ends, whatever the list said: a sequence cannot go on from one.
     if (here.producer === 'still') {
@@ -133,7 +139,7 @@ export class SequenceRunner {
       const check = await adapter.state!(target, slot.channel);
       if (!check.ok) return;
       const again = this.memory.annotate(target, slot.channel, check.value).find((l) => l.layer === slot.layer);
-      if (!current() || !again || again.paused || again.arriving || again.instance === undefined) return;
+      if (!current() || !again || again.paused || again.arriving || again.instance === undefined || startingOn(check.value, slot)) return;
       const r = await adapter.follow!(
         target,
         slot,
