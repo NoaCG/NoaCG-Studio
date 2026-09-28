@@ -1,4 +1,5 @@
 import { type Page, type Route } from '@playwright/test';
+import { playedSeconds } from '../src/control/playoutProtocol';
 
 // A FAKE NOACG BRIDGE AT THE NETWORK LAYER, for the playout specs that drive server clips
 // (docs/CLIP_PLAYBACK_PLAN.md §10): `/health`, `/status`, `/list`, `/act` and `/state`, answered from
@@ -205,8 +206,8 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart'>
             ? (a.entries as { item: { name: string }; cueId?: string; playback?: { fadeIn?: number; trim?: { in?: number; out?: number } }; media: { seconds: number } }[]).map((e) => ({
                 file: e.item.name,
                 cueId: e.cueId,
-                // The part of the file the entry plays, as the server reports its segment.
-                length: Math.min(e.playback?.trim?.out ?? e.media.seconds, e.media.seconds) - (e.playback?.trim?.in ?? 0),
+                // The part of the file the entry plays, by the one trim rule the page and the Bridge count with.
+                length: playedSeconds(e.media.seconds, e.playback?.trim?.in, e.playback?.trim?.out) ?? e.media.seconds,
                 fadeIn: e.playback?.fadeIn ?? 0,
                 raw: e,
               }))

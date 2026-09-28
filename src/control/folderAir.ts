@@ -11,7 +11,7 @@
 // scripts/server-playout.test.mjs runs them in Node without a browser.
 
 import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
-import { folderMembers, folderMode } from '../model/showFolders.ts';
+import { folderMode, membersByFolder } from '../model/showFolders.ts';
 import { effectiveEnd } from './cuePlayback.ts';
 import { serverCueLive } from './serverPlayout.ts';
 import { slotRun, type ServerOwnership } from './serverState.ts';
@@ -60,9 +60,10 @@ export function cueOnAir(cue: ShowCue, input: Pick<FolderAirInput, 'items' | 'ow
 /** Every folder that reads as present, by id; a folder no cue names has no entry. */
 export function folderAir(input: FolderAirInput): Readonly<Record<string, FolderAir>> {
   const out: Record<string, FolderAir> = {};
+  const byFolder = membersByFolder(input.cues, input.folders);
   for (const folder of input.folders) {
-    const members = folderMembers(input.cues, input.folders, folder.id);
-    if (!members.length || out[folder.id]) continue;
+    const members = byFolder.get(folder.id);
+    if (!members || out[folder.id]) continue;
     const onAir = members.filter((c) => cueOnAir(c, input));
     let following = 0;
     let looping = false;

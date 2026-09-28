@@ -52,6 +52,7 @@ import {
   stateReadable,
   subscribeTargetStatus,
   type PlayoutResult,
+  type PlayoutSettings,
 } from '../../control/playoutLink';
 import {
   clockRank,
@@ -64,7 +65,6 @@ import {
   serverCueLive,
   takeBlocker,
   serverLayers,
-  throughFolderOf,
   throughPlaces,
   type ThroughRole,
   togetherNote,
@@ -79,7 +79,7 @@ import {
 import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
 import { airClash, applyAccepted, applyReading, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
-import { folderAir } from '../../control/folderAir';
+import { cueOnAir, folderAir } from '../../control/folderAir';
 import { pollServerState, type ServerStatePoll } from '../../control/serverStatePoll';
 import ClipClock from './ClipClock';
 import type { Resolution } from '../../model/types';
@@ -882,16 +882,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!serverReadable || !hasServerItems) return;
     /** Each Play-through folder's slot: it plays there, not on its clips' own slots, so a reload in
      *  the middle of one has to read it even when no item of the rundown uses that channel. */
-    const folderSlots = () => {
-      const settings = loadPlayoutSettings();
-      return rundownRef.current.folders.filter((f) => folderMode(f) === 'through').map((f) => folderSlot(settings, f));
-    };
+    const folderSlots = (settings: PlayoutSettings) =>
+      rundownRef.current.folders.filter((f) => folderMode(f) === 'through').map((f) => folderSlot(settings, f));
     const poll = pollServerState({
       read: (channel) => readState(loadPlayoutSettings(), channel),
       channels: () => {
         const settings = loadPlayoutSettings();
         const channels = new Set(rundownRef.current.playoutItems.map((i) => itemSlot(settings, i).channel));
-        for (const s of folderSlots()) channels.add(s.channel);
+        for (const s of folderSlots(settings)) channels.add(s.channel);
         for (const l of Object.values(serverPlayout.ownership.get().onAir)) if (l.slot.adapter === 'casparcg') channels.add(l.slot.channel);
         return [...channels].sort((a, b) => a - b);
       },
@@ -903,7 +901,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const settings = loadPlayoutSettings();
         const { cues: rundownCues, playoutItems: items } = rundownRef.current;
         serverPlayout.apply((parts) =>
-          applyReading(parts, reply, { channel, now: receivedAt, cues: rundownCues, items, slotOf: (i) => itemSlot(settings, i), alsoSlots: folderSlots() }),
+          applyReading(parts, reply, { channel, now: receivedAt, cues: rundownCues, items, slotOf: (i) => itemSlot(settings, i), alsoSlots: folderSlots(settings) }),
         );
       },
     });
@@ -2068,7 +2066,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     flushDraft();
     const settings = loadPlayoutSettings();
-    const through = verb === 'take' && item.kind === 'media' ? throughFolderOf(cue, cues, playoutItems, folders) : undefined;
+    const through = verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
     const run = through ? folderRun(through, cues, playoutItems, cue.id) : null;
     if (run && !run.ok) return { ok: false, note: `${label} was not sent: ${run.reason}`, accepted: [] };
     const first: SequenceMember = run?.ok ? run.run.members[0] : { cue, item };
@@ -2365,7 +2363,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const item = playoutItemFor(target);
     if (!item) return null;
-    const through = throughFolderOf(target, cues, playoutItems, folders);
+    const through = places.get(target.id)?.folder;
     if (through) {
       const run = folderRun(through, cues, playoutItems, target.id);
       return clash({ slot: folderSlotOf(through), cueIds: run.ok ? run.run.members.map((m) => m.cue.id) : [target.id], folderId: through.id });
@@ -2392,8 +2390,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Like a server cue's: a folder with a server cue in it waits while the Bridge says the server is
    *  not there. */
   const folderCanTake = !heldMembers.some((c) => c.source === 'playout') || bridgeStatus === null || bridgeStatus.state === 'ok';
-  /** The TAKE button's face and state with a folder held: the same decision SPACE runs. */
-  const folderFace = takeFace(folderSpace);
+  /** The TAKE button, which IS the key: with a folder held its face, state and title are the
+   *  folder's, from the same decision SPACE runs. */
+  const takeButton = selectedFolder
+    ? {
+        face: takeFace(folderSpace),
+        disabled: folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked,
+        title:
+          folderSpace === 'take-off'
+            ? `Take all of ${folderName(selectedFolder)} off. SPACE does the same`
+            : (selectedFolderBlocked ?? `Take ${folderName(selectedFolder)}. SPACE does the same`),
+      }
+    : {
+        face,
+        disabled: selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked),
+        title: spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title,
+      };
 
   /** Run a folder's Take once at a time, and let Out and All out stop it. */
   const runFolder = async (folderId: string, work: (run: { stop: null | 'out' | 'all-out' }) => Promise<void>) => {
@@ -2464,12 +2476,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     });
   };
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
-  const cueOnAirNow = (cue: ShowCue) => {
-    const item = playoutItemFor(cue);
-    if (item) return serverCueLive(serverPlayout.ownership.get().onAir, item, cue);
-    const graphic = cueGraphicName(cue);
-    return !!graphic && liveCueRef.current[graphic] === cue.id;
-  };
+  const cueOnAirNow = (cue: ShowCue) =>
+    cueOnAir(cue, { items: playoutItems, ownership: serverPlayout.ownership.get(), liveCue: liveCueRef.current, graphicName: cueGraphicName });
   /** Out on a folder takes all of it off - each server cue with its own fade out, its graphics
    *  together - and nothing that is not in it. A Take of it still being sent stops. */
   const outFolder = async (folder: ShowFolder) => {
@@ -3185,9 +3193,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           hasCues={cues.length > 0}
           emptyHint={
             selectedFolder && spaceMode === 'take' && !previewCue
-              ? heldMembers.length
-                ? `${folderName(selectedFolder)} plays one by one: select a cue in it to see it here.`
-                : undefined
+              ? `${folderName(selectedFolder)} plays one by one: select a cue in it to see it here.`
               : undefined
           }
           liveLayers={liveLayers}
@@ -3227,31 +3233,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               airs nothing) exists only in 'preview-then-take' mode, on a cue not yet on PREVIEW. */}
           {/* A held folder row wears the folder's face: TAKE starts it by how it plays, TAKE OFF takes
               all of it off. One by one's TAKE is off: each of its cues is taken on its own. */}
-          {selectedFolder ? (
-            <button
-              className={folderFace.className}
-              disabled={folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked}
-              onClick={() => onVerb('take')}
-              title={
-                folderSpace === 'take-off'
-                  ? `Take all of ${folderName(selectedFolder)} off. SPACE does the same`
-                  : (selectedFolderBlocked ?? `Take ${folderName(selectedFolder)}. SPACE does the same`)
-              }
-              data-testid="verb-take"
-            >
-              {folderFace.text} <kbd>SPACE</kbd>
-            </button>
-          ) : (
-            <button
-              className={face.className}
-              disabled={selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked)}
-              onClick={() => onVerb('take')}
-              title={spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title}
-              data-testid="verb-take"
-            >
-              {face.text} <kbd>SPACE</kbd>
-            </button>
-          )}
+          <button
+            className={takeButton.face.className}
+            disabled={takeButton.disabled}
+            onClick={() => onVerb('take')}
+            title={takeButton.title}
+            data-testid="verb-take"
+          >
+            {takeButton.face.text} <kbd>SPACE</kbd>
+          </button>
           {/* RE-TAKE is secondary: replaying the entrance of a cue that is already on air. It
               never becomes the primary button. It is always PRESENT and greys out when it does
               not apply, like every other verb on this bar — a control that appears and

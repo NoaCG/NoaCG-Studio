@@ -16,7 +16,7 @@ import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
 import { MAX_SEQUENCE_ENTRIES, MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
-import { folderIdOf, folderMembers, folderMode, liveFolderIds, throughRefusal } from '../model/showFolders.ts';
+import { folderIdOf, folderMembers, folderMode, liveFolderIds, membersByFolder, throughRefusal } from '../model/showFolders.ts';
 import {
   asFolderMember,
   effectiveEnd,
@@ -165,7 +165,8 @@ export function playNextTarget(
   addressOf: (item: PlayoutItem) => string,
   folders: readonly Pick<ShowFolder, 'id'>[] = [],
 ): PlayNext {
-  const live = liveFolderIds(cues, folders);
+  // A production with no folders has none to stay inside.
+  const live = folders.length ? liveFolderIds(cues, folders) : new Set<string>();
   const at = cues.findIndex((c) => c.id === cueId);
   const cue = cues[at];
   const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
@@ -332,6 +333,14 @@ export function throughFolderOf(
 /** A clip's place in a Play-through folder, which decides what its row and its panel say of its end. */
 export type ThroughRole = 'middle' | 'last' | 'loop-last' | 'loop-alone';
 
+/** What a Play-through folder says of a clip's end in place of the clip's own choice (plan §6.5), on
+ *  its row and in its panel alike. The last clip of a folder that ends says its own. */
+export const THROUGH_END: Partial<Record<ThroughRole, { glyph: string; words: string }>> = {
+  middle: { glyph: '→', words: 'Plays the next, set by the folder' },
+  'loop-last': { glyph: '⟲', words: 'Starts the folder over, set by the folder' },
+  'loop-alone': { glyph: '⟲', words: 'Loops until Out, set by the folder' },
+};
+
 /**
  * Every clip that plays in a Play-through folder, with the folder and its place in it, in one pass
  * over the rundown - by the rule of `throughFolderOf` - so the rows, the panel and the two-slot
@@ -342,12 +351,7 @@ export function throughPlaces(
   items: readonly PlayoutItem[],
   folders: readonly ShowFolder[] | undefined,
 ): ReadonlyMap<string, { folder: ShowFolder; role: ThroughRole }> {
-  const live = liveFolderIds(cues, folders);
-  const byFolder = new Map<string, ShowCue[]>();
-  for (const c of cues) {
-    const id = folderIdOf(c, live);
-    if (id) byFolder.set(id, [...(byFolder.get(id) ?? []), c]);
-  }
+  const byFolder = membersByFolder(cues, folders);
   const out = new Map<string, { folder: ShowFolder; role: ThroughRole }>();
   const seen = new Set<string>();
   for (const folder of folders ?? []) {
@@ -476,6 +480,12 @@ export type TogetherPlan =
   | { ok: true; server: readonly SequenceMember[]; graphics: readonly GraphicMember[] }
   | { ok: false; reason: string };
 
+/** The first two positions of a list that clash, earliest first, or null: what a folder's Take names. */
+function firstPair(list: readonly unknown[], clash: (i: number, j: number) => boolean): [number, number] | null {
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) if (clash(i, j)) return [i, j];
+  return null;
+}
+
 /** Why a folder with a server cue cannot be taken for want of NoaCG Bridge, or null. */
 function bridgeGate(first: ShowCue | undefined, ability: PlaybackAbility | null): string | null {
   if (!first) return null;
@@ -505,27 +515,21 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
       graphics.push({ cue, graphic: g.name, layer: g.layer });
     }
   }
-  for (let i = 0; i < server.length; i++) {
-    for (let j = i + 1; j < server.length; j++) {
-      const at = r.addressOf(server[i].item);
-      if (at === r.addressOf(server[j].item)) {
-        return { ok: false, reason: `${server[i].cue.label} and ${server[j].cue.label} both play on ${at}, which holds one thing at a time. Move one of them to another layer to take this folder.` };
-      }
-    }
+  const addresses = server.map((m) => r.addressOf(m.item));
+  const sameSlot = firstPair(server, (i, j) => addresses[i] === addresses[j]);
+  if (sameSlot) {
+    const [a, b] = sameSlot;
+    return { ok: false, reason: `${server[a].cue.label} and ${server[b].cue.label} both play on ${addresses[a]}, which holds one thing at a time. Move one of them to another layer to take this folder.` };
   }
-  for (let i = 0; i < graphics.length; i++) {
-    for (let j = i + 1; j < graphics.length; j++) {
-      if (graphics[i].graphic === graphics[j].graphic) {
-        return { ok: false, reason: `${graphics[i].cue.label} and ${graphics[j].cue.label} are both cues of ${graphics[i].graphic}, which shows one cue at a time. Keep one of them in this folder.` };
-      }
-    }
+  const sameGraphic = firstPair(graphics, (i, j) => graphics[i].graphic === graphics[j].graphic);
+  if (sameGraphic) {
+    const [a, b] = sameGraphic.map((i) => graphics[i]);
+    return { ok: false, reason: `${a.cue.label} and ${b.cue.label} are both cues of ${a.graphic}, which shows one cue at a time. Keep one of them in this folder.` };
   }
-  for (let i = 0; i < graphics.length; i++) {
-    for (let j = i + 1; j < graphics.length; j++) {
-      if (graphics[i].layer === graphics[j].layer) {
-        return { ok: false, reason: `${graphics[i].cue.label} and ${graphics[j].cue.label} both air on layer ${graphics[i].layer}. Give one of their graphics another layer to take this folder.` };
-      }
-    }
+  const sameLayer = firstPair(graphics, (i, j) => graphics[i].layer === graphics[j].layer);
+  if (sameLayer) {
+    const [a, b] = sameLayer.map((i) => graphics[i]);
+    return { ok: false, reason: `${a.cue.label} and ${b.cue.label} both air on layer ${a.layer}. Give one of their graphics another layer to take this folder.` };
   }
   const gate = bridgeGate(server[0]?.cue, r.ability);
   if (gate) return { ok: false, reason: gate };

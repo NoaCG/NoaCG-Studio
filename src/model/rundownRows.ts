@@ -88,7 +88,9 @@ export function rundownView(record: { cues?: readonly ShowCue[]; folders?: reado
         rows.push(header);
       }
       header.runCues.push(cue);
-      members.set(folderId, [...(members.get(folderId) ?? []), cue]);
+      const list = members.get(folderId);
+      if (list) list.push(cue);
+      else members.set(folderId, [cue]);
     }
     if (header?.folder.collapsed === true) rowOf.set(cue.id, header.id);
     else {

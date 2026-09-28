@@ -18,6 +18,7 @@ import {
   appendCue,
   foldSelection,
   insertAfter,
+  liveFolderIds,
   nextFolderName,
   placeInOrder,
   placeRefusal,
@@ -961,7 +962,8 @@ export function addFolderFromSelection(showId: string, cueIds: readonly string[]
     const settled = settleFolders(show.cues ?? [], show.folders);
     const cues = foldSelection(settled.cues, new Set(cueIds), id);
     if (!cues) return false;
-    const present = settled.folders.filter((f) => cues.some((c) => c.folderId === f.id));
+    const live = liveFolderIds(cues, settled.folders);
+    const present = settled.folders.filter((f) => live.has(f.id));
     const folder: ShowFolder = { id, name: name?.trim() || nextFolderName(present), mode: 'manual' };
     show.cues = cues;
     show.folders = [...settled.folders, folder];

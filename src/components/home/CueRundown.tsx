@@ -28,10 +28,10 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
-import { serverCueLive, type ThroughRole } from '../../control/serverPlayout';
+import { serverCueLive, THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
-import { effectiveEnd, segmentSeconds } from '../../control/cuePlayback';
+import { asFolderMember, effectiveEnd, segmentSeconds, type ClipEnd } from '../../control/cuePlayback';
 import type { FolderAir } from '../../control/folderAir';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
@@ -54,6 +54,13 @@ function scrolledLately(at: number): boolean {
   return Date.now() - at < FOLLOW_PAUSE_MS;
 }
 
+
+/** A clip's own end on its row, after its name; Hold is the default and wears nothing. */
+const END_MARKS: Partial<Record<ClipEnd, { glyph: string; says: string; testid: string }>> = {
+  loop: { glyph: '⟲', says: 'Loops until Out', testid: 'cue-loop' },
+  next: { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' },
+  clear: { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' },
+};
 
 /** Where a drag is aimed, and what it would do there. */
 interface Aim {
@@ -441,7 +448,7 @@ export default function CueRundown({
                 missed={missed}
                 selected={heldFolderRowId !== null && cursorRowId === row.id}
                 holdsCursor={hiddenSelected ? hiddenSelected.label : null}
-                inRange={members.length > 0 && members.every((c) => range.has(c.id))}
+                inRange={members.every((c) => range.has(c.id))}
                 timed={timed}
                 slot={folderMode(folder) === 'through' ? folderSlotOf(folder) : null}
                 clash={
@@ -522,29 +529,13 @@ export default function CueRundown({
           // WHAT HAPPENS AT ITS END, after the name (plan §6.2): loops, plays the next, clears. Hold
           // is the default and wears nothing. Read by the loop rule of the record (control/cuePlayback.ts);
           // in a Play-through folder, by the folder.
-          const end = through
-            ? through.role === 'middle'
-              ? 'folder-next'
-              : through.role === 'last'
-                ? effectiveEnd(cue, playoutItem!) === 'next'
-                  ? 'hold'
-                  : effectiveEnd(cue, playoutItem!)
-                : 'folder-loop'
-            : playoutItem?.kind === 'media'
-              ? effectiveEnd(cue, playoutItem)
-              : 'hold';
-          const endMark =
-            end === 'loop'
-              ? { glyph: '⟲', says: 'Loops until Out', testid: 'cue-loop' }
-              : end === 'next'
-                ? { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' }
-                : end === 'folder-next'
-                  ? { glyph: '→', says: 'Plays the next, set by the folder', testid: 'cue-next-mark' }
-                  : end === 'folder-loop'
-                    ? { glyph: '⟲', says: 'Starts the folder over, set by the folder', testid: 'cue-loop' }
-                    : end === 'clear'
-                      ? { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' }
-                      : null;
+          // The last clip of a folder that ends keeps its own ending, with Play next read as Hold, as its
+          // panel says (control/cuePlayback.ts asFolderMember).
+          const folderEnd = through ? THROUGH_END[through.role] : undefined;
+          const ownEnd = playoutItem?.kind === 'media' ? effectiveEnd(through?.role === 'last' ? asFolderMember(cue, playoutItem, true) : cue, playoutItem) : 'hold';
+          const endMark = folderEnd
+            ? { glyph: folderEnd.glyph, says: folderEnd.words, testid: through!.role === 'middle' ? 'cue-next-mark' : 'cue-loop' }
+            : (END_MARKS[ownEnd] ?? null);
           // Where this clip is up, if it is: the slot it was TAKEN to, whatever its editor says now.
           const upAt = cueIsLive && playoutItem?.kind === 'media' ? serverOnAir[playoutItem.id]?.slot : undefined;
           // Waiting on the server behind whatever plays on its slot (`LOADBG`). In a folder's run the
@@ -557,6 +548,7 @@ export default function CueRundown({
           const miss = !cueIsLive ? takeMisses[cue.id] : undefined;
           const rowMenuId = row.id;
           const inFolder = !!row.folderId;
+          const ownFolder = row.folderId ? rundown.folders.get(row.folderId) : undefined;
           const takesRange = range.has(cue.id) && rangeCount > 1;
           const drop = markFor(row.id);
           return (
@@ -749,7 +741,7 @@ export default function CueRundown({
                   >
                     {takesRange ? `New folder from the ${rangeCount} selected cues` : 'New folder from this cue'}
                   </button>
-                  {otherFolders(row.folderId).map((f) => {
+                  {menuRowId === rowMenuId && otherFolders(row.folderId).map((f) => {
                     const refused = placeRefusal(show, { cueId: cue.id }, { into: f.id });
                     return (
                       <button
@@ -769,17 +761,17 @@ export default function CueRundown({
                       </button>
                     );
                   })}
-                  {row.folderId && rundown.folders.get(row.folderId) && (
+                  {ownFolder && (
                     <button
                       role="menuitem"
                       onClick={() => {
                         setMenuRowId(null);
-                        void moveRundown({ cueId: cue.id }, { afterFolder: row.folderId! });
+                        void moveRundown({ cueId: cue.id }, { afterFolder: ownFolder.id });
                       }}
-                      title={`Put ${view.label} right after ${folderName(rundown.folders.get(row.folderId)!)}, in no folder`}
+                      title={`Put ${view.label} right after ${folderName(ownFolder)}, in no folder`}
                       data-testid="cue-out-of-folder"
                     >
-                      Take out of ▤ {folderName(rundown.folders.get(row.folderId)!)}
+                      Take out of ▤ {folderName(ownFolder)}
                     </button>
                   )}
                   {/* Removing the LAST cue removes the graphic too, so the label says so

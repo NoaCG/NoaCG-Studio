@@ -33,7 +33,7 @@ import {
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';
-import type { ThroughRole } from '../../control/serverPlayout';
+import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
 export interface ThroughPlace {
@@ -273,12 +273,6 @@ export default function ServerCueEditor({
 
 const END_WORDS: Record<ClipEnd, string> = { hold: 'Hold last frame', clear: 'Clear', loop: 'Loop', next: 'Play next' };
 
-/** What a Play-through folder says of a clip's end in place of its own choice (plan §6.5). */
-const FOLDER_END_WORDS: Partial<Record<ThroughRole, { glyph: string; words: string }>> = {
-  middle: { glyph: '→', words: 'Plays the next, set by the folder' },
-  'loop-last': { glyph: '⟲', words: 'Starts the folder over, set by the folder' },
-  'loop-alone': { glyph: '⟲', words: 'Loops until Out, set by the folder' },
-};
 const FADE_WORDS: { value: ClipFade | undefined; word: string }[] = [
   { value: undefined, word: 'Cut' },
   { value: 'short', word: 'Short' },
@@ -311,7 +305,7 @@ function ClipSettings({
   // folder, so a stored Play next reads as Hold there; the record is not rewritten.
   const lastInFolder = through?.role === 'last';
   const end = lastInFolder ? effectiveEnd(asFolderMember(cue, item, true), item) : effectiveEnd(cue, item);
-  const folderEnd = through ? FOLDER_END_WORDS[through.role] : undefined;
+  const folderEnd = through ? THROUGH_END[through.role] : undefined;
   const ends = (Object.keys(END_WORDS) as ClipEnd[]).filter((e) => !lastInFolder || e !== 'next');
   const still = item.mediaKind === 'still';
   const p = cue.playback ?? {};

@@ -46,6 +46,27 @@ export function folderIdOf(cue: FolderMember, live: ReadonlySet<string>): string
   return cue.folderId && live.has(cue.folderId) ? cue.folderId : undefined;
 }
 
+/** Each folder that reads as present, with its cues in rundown order across every run of a split
+ *  folder; a cue whose folderId names no folder is in none. */
+export function membersByFolder<T extends FolderMember>(cues: readonly T[], folders: readonly Pick<ShowFolder, 'id'>[] | undefined): Map<string, T[]> {
+  const live = liveFolderIds(cues, folders);
+  const out = new Map<string, T[]>();
+  for (const c of cues) {
+    const id = folderIdOf(c, live);
+    if (!id) continue;
+    const members = out.get(id);
+    if (members) members.push(c);
+    else out.set(id, [c]);
+  }
+  return out;
+}
+
+/** A cue in `folderId`, or in none: every writer's one way to set or clear a cue's folder. */
+function withFolder<T extends FolderMember>(cue: T, folderId: string | undefined): T {
+  const { folderId: _was, ...rest } = cue;
+  return (folderId ? { ...rest, folderId } : rest) as T;
+}
+
 /** Whether every folder's cues stand together in the flat list. */
 export function foldersContiguous(cues: readonly FolderMember[]): boolean {
   const closed = new Set<string>();
@@ -68,7 +89,12 @@ export function foldersContiguous(cues: readonly FolderMember[]): boolean {
 export function gatherFolders<T extends FolderMember>(cues: readonly T[]): readonly T[] {
   if (foldersContiguous(cues)) return cues;
   const byFolder = new Map<string, T[]>();
-  for (const c of cues) if (c.folderId) byFolder.set(c.folderId, [...(byFolder.get(c.folderId) ?? []), c]);
+  for (const c of cues) {
+    if (!c.folderId) continue;
+    const members = byFolder.get(c.folderId);
+    if (members) members.push(c);
+    else byFolder.set(c.folderId, [c]);
+  }
   const placed = new Set<string>();
   const out: T[] = [];
   for (const c of cues) {
@@ -98,11 +124,7 @@ export function pruneFolders<T extends FolderMember, F extends Pick<ShowFolder, 
   const keptFolders = unique.length === all.length && all.length === live.size ? all : unique.filter((f) => live.has(f.id));
   let keptCues: readonly T[] = cues;
   if (cues.some((c) => c.folderId && !live.has(c.folderId))) {
-    keptCues = cues.map((c) => {
-      if (!c.folderId || live.has(c.folderId)) return c;
-      const { folderId: _orphan, ...rest } = c;
-      return rest as T;
-    });
+    keptCues = cues.map((c) => (!c.folderId || live.has(c.folderId) ? c : withFolder(c, undefined)));
   }
   return { cues: keptCues, folders: keptFolders, changed: keptCues !== cues || keptFolders !== all };
 }
@@ -168,8 +190,7 @@ export function foldSelection<T extends FolderMember>(cues: readonly T[], ids: R
 
 /** An append: at the end, in no folder, so it never lands inside one. */
 export function appendCue<T extends FolderMember>(cues: readonly T[], cue: T): T[] {
-  const { folderId: _none, ...loose } = cue;
-  return [...cues, loose as T];
+  return [...cues, withFolder(cue, undefined)];
 }
 
 /** Right after the cue `afterId`, in that cue's folder, so the folder's run goes on through it; at
@@ -177,18 +198,12 @@ export function appendCue<T extends FolderMember>(cues: readonly T[], cue: T): T
 export function insertAfter<T extends FolderMember>(cues: readonly T[], afterId: string, cue: T): T[] {
   const at = cues.findIndex((c) => c.id === afterId);
   if (at < 0) return appendCue(cues, cue);
-  const { folderId: _none, ...loose } = cue;
-  const placed = (cues[at].folderId ? { ...loose, folderId: cues[at].folderId } : loose) as T;
-  return [...cues.slice(0, at + 1), placed, ...cues.slice(at + 1)];
+  return [...cues.slice(0, at + 1), withFolder(cue, cues[at].folderId), ...cues.slice(at + 1)];
 }
 
 /** Remove a folder and keep its cues where they stand, in no folder. */
 export function unfold<T extends FolderMember>(cues: readonly T[], folderId: string): T[] {
-  return cues.map((c) => {
-    if (c.folderId !== folderId) return c;
-    const { folderId: _gone, ...rest } = c;
-    return rest as T;
-  });
+  return cues.map((c) => (c.folderId === folderId ? withFolder(c, undefined) : c));
 }
 
 /** What a drag moves: one cue, or a whole folder with its cues. */
@@ -264,9 +279,7 @@ export function placeInOrder<T extends FolderMember>(
     at = clearOfFolders(rest, at);
     block = moving;
   } else {
-    const folderId = joins(whole, place);
-    const { folderId: _was, ...loose } = moving[0];
-    block = [(folderId ? { ...loose, folderId } : loose) as T];
+    block = [withFolder(moving[0], joins(whole, place))];
   }
   const out = [...rest.slice(0, at), ...block, ...rest.slice(at)];
   const same = out.length === cues.length && out.every((c, i) => c.id === cues[i].id && c.folderId === cues[i].folderId);
@@ -295,8 +308,7 @@ export function stepInOrder<T extends FolderMember>(
       [whole[i], whole[i + dir]] = [whole[i + dir], whole[i]];
       return whole;
     }
-    const { folderId: _left, ...loose } = cue;
-    whole[i] = loose as T;
+    whole[i] = withFolder(cue, undefined);
     return whole;
   }
   if (!next) return null;
@@ -313,8 +325,7 @@ export function stepInOrder<T extends FolderMember>(
 /** A folder's cues in rundown order, across every run of a split folder; none for a folder that reads
  *  as absent, and never a cue whose folderId names no folder. */
 export function folderMembers<T extends FolderMember>(cues: readonly T[], folders: readonly Pick<ShowFolder, 'id'>[] | undefined, folderId: string): T[] {
-  const live = liveFolderIds(cues, folders);
-  return cues.filter((c) => folderIdOf(c, live) === folderId);
+  return membersByFolder(cues, folders).get(folderId) ?? [];
 }
 
 /**

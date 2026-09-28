@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, PLAYOUT_CLIP_LAYER, type PlayoutItem, type ShowCue, type ShowFolder } from '../../model/shows';
+import { MAX_PLAYOUT_LAYER, MIN_PLAYOUT_LAYER, PLAYOUT_CLIP_LAYER, playoutItemOf, type PlayoutItem, type ShowCue, type ShowFolder } from '../../model/shows';
 import { folderMode } from '../../model/showFolders';
 import { folderName } from '../../model/rundownRows';
 import { NEEDS, offerBlocked, effectiveEnd, type PlaybackAbility } from '../../control/cuePlayback';
 import { folderAirWords, type FolderAir } from '../../control/folderAir';
-import { channelLabel, type PlayoutSettings } from '../../control/playoutLink';
+import { channelLabel, slotAddress, type PlayoutSettings } from '../../control/playoutLink';
+import { useDeferredEdits } from './useDeferredEdits';
 
 const MODES: { mode: ShowFolder['mode']; word: string }[] = [
   { mode: 'manual', word: 'One by one' },
@@ -71,25 +72,25 @@ export default function FolderEditor({
 }) {
   const mode = folderMode(folder);
   const name = folderName(folder);
-  const [draftName, setDraftName] = useState(folder.name);
   const [refusal, setRefusal] = useState<string | null>(null);
-  useEffect(() => setDraftName(folder.name), [folder.name]);
   useEffect(() => setRefusal(null), [folder.id, mode]);
+  // The name box is one edit, one write: a teammate's rename never lands mid-word (./useDeferredEdits).
+  const nameEdits = useDeferredEdits((_key, text) => {
+    const next = text.trim();
+    if (next && next !== folder.name) onRename(next);
+  });
   const words = folderAirWords(air, missed);
   const throughOff = offerBlocked(ability, NEEDS.through);
   // One clip that loops is a plain looping take, which any Bridge plays; only a run of several needs
   // a Bridge that can loop a sequence.
   const loopOff = members.length > 1 ? offerBlocked(ability, NEEDS.folderLoop) : null;
   const last = members[members.length - 1];
-  const lastItem = last?.source === 'playout' ? items.find((i) => i.id === last.sourceId) : undefined;
+  const pool = { playoutItems: [...items] };
+  const itemOf = (c: ShowCue) => playoutItemOf(pool, c);
+  const lastItem = last ? itemOf(last) : null;
   const lastEnd = last && lastItem ? effectiveEnd(last, lastItem) : 'hold';
-  const allAudio = members.length > 0 && members.every((c) => items.find((i) => i.id === c.sourceId)?.mediaKind === 'audio');
-  const address = `${slot.channel}-${slot.layer}`;
-  const commitName = () => {
-    const next = draftName.trim();
-    if (next && next !== folder.name) onRename(next);
-    else setDraftName(folder.name);
-  };
+  const allAudio = members.length > 0 && members.every((c) => itemOf(c)?.mediaKind === 'audio');
+  const address = slotAddress(slot);
   const modeHint =
     mode === 'manual'
       ? 'Tidiness only: each cue is taken on its own and sends what it sends outside a folder.'
@@ -104,13 +105,14 @@ export default function FolderEditor({
         </span>
         <input
           className="pd-cue-title"
-          value={draftName}
+          value={nameEdits.text(folder.id, folder.name)}
           aria-label="Folder name"
-          onChange={(e) => setDraftName(e.target.value)}
-          onBlur={commitName}
+          onChange={(e) => nameEdits.type(folder.id, e.target.value)}
+          onBlur={nameEdits.flush}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') commitName();
+            if (e.key === 'Enter') nameEdits.flush();
           }}
+          {...(nameEdits.dirty(folder.id) ? { 'data-dirty': 'true' } : {})}
           data-testid="folder-name-input"
         />
         {words && (
