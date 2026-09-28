@@ -346,6 +346,18 @@ unrecognized and non-representable cases refuse atomically. The G01 row stays op
 still refuses before the last In key, and R1.2a's ease UI, Hold form and multi-key work have
 not started. No whole row is closed and the default editor is unchanged.
 
+## R1.2a.1 scoped Set Out crossing receipt, 2026-09-28
+
+The [bounded spec, reproduction and verification](editor-r1-2a-1/README.md) record the owner
+decision of 2026-09-28: Set Out may cross the last In key. Each crossed segment splits exactly
+at the boundary, the rest of the entrance moves into Out at its absolute times, visibility bars
+are clipped and carried, and In then Out plays as before in editor sampling, the simulator and
+executed SPX, CasparCG, OGraf and single-file exports. It is one undo; anything without an exact
+form refuses with source and history unchanged. An interrupted Out now plays a sliced last ease
+as its whole curve. D01/D02, G01 and the relevant B05/B07/B13 portions gain scoped engineering
+evidence; the G01 row's Set Out clause is closed, while the ease menu, Hold and multi-key
+selection (R1.2a.2) remain open. No whole row is closed and the default editor is unchanged.
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

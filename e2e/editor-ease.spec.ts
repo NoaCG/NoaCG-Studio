@@ -1,6 +1,7 @@
 // covers: src/templates/shared/{easeRuntime,animRuntime,animRuntimeLegacy}.ts
 // covers: src/blocks/{animEval,animEdit,editorOut,animMigration,editorAnimation,animData}.ts
 // covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js, e2e/fixtures/interpreter-shared-ease-v1.js
+// covers: e2e/fixtures/out-text-and-box.json
 //
 // G01 shared easing: the editor's sampler, exact split and exact reversal against the SAME
 // evaluator executed by the bundled runtime in the simulator and in every exported package.
@@ -52,7 +53,7 @@ async function template(page: Page, data: Data, title = false) {
 
 /** Load a template in `target` and sample its layers (#box unless told) through its own play/stop
  *  timelines. Out is pressed after In completes, or at `interruptAt` while it still plays. */
-async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number], layers = ['#box'], interruptAt?: number) {
+async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number], { layers = ['#box'], interruptAt }: { layers?: string[]; interruptAt?: number } = {}) {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (target === 'simulator' || target === 'single-file') {
@@ -106,12 +107,14 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
 
 const grid = (end: number, step = .02) => Array.from({ length: Math.round(end / step) + 1 }, (_, i) => Math.round(i * step * 1000) / 1000);
 const TOLERANCE = [2e-3, 2e-3, 2e-3, 2e-3, 2e-3];
+/** A pose may hold several layers of PROPS in a row. */
+const label = (p: number) => PROPS[p % PROPS.length] + (p >= PROPS.length ? ' (layer ' + Math.floor(p / PROPS.length) + ')' : '');
 function near(actual: Pose[], expected: Pose[], label: string, tolerance = TOLERANCE) {
   let worst = { error: 0, at: -1, prop: '' };
   actual.forEach((pose, i) => pose.forEach((v, p) => {
-    // A NaN on either side is a failure, never a pass. A pose may hold several layers of PROPS.
+    // A NaN on either side is a failure, never a pass.
     const error = Math.abs(v - expected[i][p]) - tolerance[p % tolerance.length];
-    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: PROPS[p % PROPS.length] + (p >= PROPS.length ? ' (layer ' + Math.floor(p / PROPS.length) + ')' : '') };
+    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: label(p) };
   }));
   expect(worst, `${label}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
 }
@@ -205,42 +208,27 @@ for (const target of TARGETS) test('exact reversal plays the entrance backwards 
   near(run.leaving, run.entering, target + ' Out(1.5 - t) against In(t)');
 });
 
-/** R1.2a.1: a text-and-box entrance whose keys run past 1.2 s, eased with back, bounce,
+/** R1.2a.1 (scripts/out-boundary.test.mjs uses it too): a text-and-box entrance whose keys run past 1.2 s, eased with back, bounce,
  *  cubic-bezier and elastic, a box track that starts after 1.2 s, and a title Out that begins
  *  where its entrance ends. */
 function textAndBox(): Data {
-  return { version: 2, root: '.fixture', speed: 1, steps: [
-    { name: 'In', duration: 2, ease: 'power1.inOut', layers: {
-      '#box': {
-        x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'power2.out' }, { time: 2, value: 0, ease: 'back.out(1.6)' }],
-        y: [{ time: 0, value: 0 }, { time: .8, value: -120, ease: 'bounce.out' }, { time: 2, value: 0, ease: 'cubic-bezier(0.3,-0.4,0.6,1.5)' }],
-        scaleX: [{ time: 1.4, value: .8 }, { time: 1.9, value: 1, ease: 'back.out(1.6)' }],
-        opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'sine.out' }],
-      },
-      '#title': {
-        x: [{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: 'bounce.out' }],
-        rotation: [{ time: 0, value: -20 }, { time: 2, value: 0, ease: 'elastic.out(1, 0.7)' }],
-        scaleX: [{ time: .4, value: .5 }, { time: 1.8, value: 1 }],
-        opacity: [{ time: 0, value: 0 }, { time: 1.5, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
-      },
-    } },
-    { name: 'Out', duration: 1, ease: 'none', layers: { '#title': {
-      x: [{ time: 0, value: 0 }, { time: 1, value: -900, ease: 'power2.in' }],
-      opacity: [{ time: 0, value: 1 }, { time: 1, value: 0 }],
-    } } },
-  ] };
+  return JSON.parse(readFileSync(new URL('./fixtures/out-text-and-box.json', import.meta.url), 'utf8')) as Data;
 }
+
+/** Set Out at `time` through the editor's own operation. */
+const setOut = (page: Page, t: Awaited<ReturnType<typeof template>>, time: number) =>
+  page.evaluate(async ({ t, time }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time }), { t, time });
 
 for (const target of TARGETS) test('Set Out before the last In key plays In then Out as the original in ' + target, async ({ page }) => {
   await open(page);
   const out = 1.2, h = .01;
   const original = await template(page, textAndBox(), true);
-  const crossed = await page.evaluate(async ({ t, out }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time: out }), { t: original, out });
+  const crossed = await setOut(page, original, out);
   // One absolute clock: In plays to its boundary and Out continues from there.
   const absolute = [...new Set([...grid(3), out - h, out, out + h])].sort((a, b) => a - b);
   const play = async (t: unknown, boundary: number, durations: [number, number]) => {
     const run = await execute(page, t, target, absolute.filter(u => u <= boundary),
-      absolute.filter(u => u > boundary).map(u => Math.round((u - boundary) * 1000) / 1000), durations, ['#box', '#title']);
+      absolute.filter(u => u > boundary).map(u => Math.round((u - boundary) * 1000) / 1000), durations, { layers: ['#box', '#title'] });
     return [...run.entering, ...run.leaving];
   };
   const before = await play(original, 2, [2, 1]), after = await play(crossed, out, [out, 1.8]);
@@ -250,15 +238,15 @@ for (const target of TARGETS) test('Set Out before the last In key plays In then
   const at = (u: number) => absolute.indexOf(u);
   for (let p = 0; p < before[0].length; p++) for (const [a, b] of [[out - h, out], [out, out + h]]) {
     const v0 = (before[at(b)][p] - before[at(a)][p]) / h, v1 = (after[at(b)][p] - after[at(a)][p]) / h;
-    expect(Math.abs(v1 - v0), `${PROPS[p % PROPS.length]} of layer ${Math.floor(p / PROPS.length)} velocity ${a}..${b}: ${v0} vs ${v1}`).toBeLessThan(.05 + Math.abs(v0) * 1e-3);
+    expect(Math.abs(v1 - v0), `${label(p)} velocity ${a}..${b}: ${v0} vs ${v1}`).toBeLessThan(.05 + Math.abs(v0) * 1e-3);
   }
 });
 
 for (const target of TARGETS) test('Out interrupting an In shortened across its keys plays each track to its end on the whole curve in ' + target, async ({ page }) => {
   await open(page);
   const out = 1.2, cut = .4, times = grid(1.8, .05);
-  const crossed = await page.evaluate(async ({ t, out }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time: out }), { t: await template(page, textAndBox(), true), out });
-  const run = await execute(page, crossed, target, [cut], times, [out, 1.8], ['#box', '#title'], cut);
+  const crossed = await setOut(page, await template(page, textAndBox(), true), out);
+  const run = await execute(page, crossed, target, [cut], times, [out, 1.8], { layers: ['#box', '#title'], interruptAt: cut });
   // D02: the first frame of the interrupted Out is the live pose.
   near([run.released], [run.held], target + ' no jump when Out interrupts', [1, 1, 1, .01, .01]);
   // Then each exit track tweens from that pose to its last key over its span. A sliced last ease

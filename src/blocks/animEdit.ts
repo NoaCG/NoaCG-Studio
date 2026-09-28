@@ -19,8 +19,8 @@ import {
 import { filterKeysUsed, normalizeFilterTrack, withFilterComponent } from './filterTrack';
 
 /** Two stored times match within half a serializer step. */
-const EPS = 0.0005;
-const round = (n: number) => Math.round(n * 1000) / 1000;
+export const EPS = 0.0005;
+export const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /** Move a cue-local visibility set and every key by the same stored delta.
  * Refuse crossing instead of clipping, stretching or overwriting keys. */
@@ -77,7 +77,7 @@ export function trimLayerSpan(data: AnimData, index: number, selector: string, i
   return next;
 }
 
-function clone(data: AnimData): AnimData {
+export function clone(data: AnimData): AnimData {
   return JSON.parse(JSON.stringify(data)) as AnimData;
 }
 

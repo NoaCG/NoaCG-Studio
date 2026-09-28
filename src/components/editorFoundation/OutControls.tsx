@@ -1,9 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { parseAnimData } from '../../blocks/animData';
 import { hasExitKeys } from '../../blocks/editorOut';
 import { useModalGate } from '../spaceKey';
 import type { EditorSession, Revision } from './session';
-import type { TimelineView } from './timelineView';
+import { readTimeline, type TimelineView } from './timelineView';
 
 export default function OutControls({ session, view, time, pause, inspect, playOut, park }: {
   session: EditorSession; view: TimelineView; time: number; pause: () => void;
@@ -34,7 +33,7 @@ export default function OutControls({ session, view, time, pause, inspect, playO
       park(); setError('');
       // Read the new source: the view can still describe the old one during this event, and Out
       // set inside the entrance carries its rest into the exit, which then has keys to keep.
-      const next = parseAnimData(result.template.js);
+      const next = readTimeline(result.template).data;
       setPrompt(next && !hasExitKeys(next) ? { expected: result.revision, documentId: session.documentId } : null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
