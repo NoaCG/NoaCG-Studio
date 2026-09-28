@@ -22,7 +22,7 @@
 // NoaCG OWNS THE CONFIGURATION: the Bridge address and token and the playout server live here,
 // device-level; the Bridge keeps nothing but its own token and is named its target on every call.
 
-import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
+import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
 import {
   PLAYOUT_V,
   type AdapterId,
@@ -197,6 +197,13 @@ export function defaultChannelFor(s: PlayoutSettings, kind: ItemKind): number {
  *  is how every item saved before cues had a channel keeps playing where it always did. */
 export function channelOf(s: PlayoutSettings, item: { channel?: number }): number {
   return channelNumber(item.channel) ?? s.channel;
+}
+
+/** Where a Play-through folder plays its clips (docs/CLIP_PLAYBACK_PLAN.md §7; owner, 2026-09-28): the
+ *  folder's own slot, and for a part it leaves unset the clip default - layer 10 on the studio's
+ *  clip channel - never its first clip's own slot. */
+export function folderSlot(s: PlayoutSettings, folder: Pick<ShowFolder, 'slot'>): CasparSlot {
+  return slotOf(s, folder.slot?.layer ?? PLAYOUT_CLIP_LAYER, channelNumber(folder.slot?.channel) ?? s.clipChannel);
 }
 
 /** Where an item plays, as the protocol names it. */

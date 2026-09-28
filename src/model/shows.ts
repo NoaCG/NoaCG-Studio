@@ -14,6 +14,22 @@ import { readShowProfile, serializeShowProfile } from './profile';
 import { durable } from './durableStore';
 import { uuid } from './id';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
+import {
+  appendCue,
+  foldSelection,
+  insertAfter,
+  liveFolderIds,
+  nextFolderName,
+  placeInOrder,
+  placeRefusal,
+  pruneFolders,
+  settleFolders,
+  stepInOrder,
+  throughRefusal,
+  unfold,
+  type Movable,
+  type Place,
+} from './showFolders.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -41,6 +57,32 @@ export interface ShowCue {
    *  the file IS stays on its PlayoutItem, shared by every cue of it; how one cue plays it lives
    *  here. Absent on every cue saved before 2026-09-28, which plays exactly as it always did. */
   playback?: CuePlayback;
+  /** ADDITIVE OPTIONAL. The folder this cue is in (`Show.folders`, docs/CLIP_PLAYBACK_PLAN.md §7).
+   *  Absent = in none, which is every cue saved before 2026-09-28. One that names no folder of the
+   *  record reads as in none (./showFolders.ts). */
+  folderId?: string;
+}
+
+/**
+ * A FOLDER OF THE RUNDOWN (docs/CLIP_PLAYBACK_PLAN.md §6.6 and §7): cues that belong together, and
+ * how one Take plays them. It holds no list of its cues: each cue names its folder, and a folder's
+ * cues stand together in `Show.cues`, where the first of them places it. Folders do not nest, and a
+ * folder no cue names reads as absent. ADDITIVE OPTIONAL on the record, like cues.
+ */
+export interface ShowFolder {
+  id: string;
+  name: string;
+  /** One by one: tidiness, every cue taken on its own. Play through: one Take plays its clips in
+   *  order on the folder's one slot. All together: one Take starts every cue in it. */
+  mode: 'manual' | 'through' | 'together';
+  /** Play through only: the sequence starts over after its last clip, until Out. Absent = the last
+   *  clip ends by its own setting. */
+  end?: 'loop';
+  /** Play through only: the one slot its clips play on. A part left out is the clip default: layer
+   *  10 (PLAYOUT_CLIP_LAYER) on the studio's clip channel. */
+  slot?: { channel?: number; layer?: number };
+  /** Its cues are hidden in the rundown. */
+  collapsed?: boolean;
 }
 
 /** A fade's length as the operator picks it. Short is half a second and Long one second
@@ -182,6 +224,9 @@ export interface Show {
   /** The cue rundown, in playout order (docs/CLOUD_PLAYOUT.md). ADDITIVE OPTIONAL — an older
    *  build reads and rewrites the record untouched; absent = no cues authored. */
   cues?: ShowCue[];
+  /** The rundown's FOLDERS (ShowFolder). ADDITIVE OPTIONAL: an older build keeps the flat order and
+   *  rewrites them untouched, and the published page, the export and a pack never carry them. */
+  folders?: ShowFolder[];
   /** The production's DATA TABLES (the Data workspace — docs/INTERACTIVE_PLAYOUT_PLAN.md D3).
    *  ADDITIVE OPTIONAL like cues; absent = none authored. */
   datasets?: ShowDataset[];
@@ -475,6 +520,7 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
     show.graphics = show.graphics.filter((g) => g.id !== graphicId);
     // Cues over a removed pool graphic have nothing left to drive — they go with it.
     if (show.cues?.length) show.cues = show.cues.filter((c) => c.sourceId !== graphicId);
+    pruneShowFolders(show);
     show.updatedAt = nowIso();
   }
   saveAll(all);
@@ -482,6 +528,17 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
 }
 
 // ── Cues (docs/CLOUD_PLAYOUT.md §2) ──────────────────────────────────────────
+
+/** A folder is never empty, and no cue names a folder that is gone (./showFolders.ts): what every
+ *  write that removes cues runs in the same write. Nothing is reordered. */
+function pruneShowFolders(show: Show): void {
+  if (!show.folders && !show.cues?.some((c) => c.folderId)) return;
+  const pruned = pruneFolders(show.cues ?? [], show.folders);
+  if (!pruned.changed) return;
+  show.cues = [...pruned.cues];
+  if (pruned.folders.length) show.folders = [...pruned.folders];
+  else delete show.folders;
+}
 
 /** The mutator envelope, once: resolve the LIVE (non-tombstoned) record, run the mutation,
  *  stamp + persist only when it reports a change, return the visible list. Hand-rolling this
@@ -498,16 +555,23 @@ export function removeShowGraphic(showId: string, graphicId: string): Show[] {
  * almost always, which is how it survived until a loaded suite hit the boundary.
  */
 function patchShow(showId: string, mutate: (show: Show, at: string) => boolean): Show[] {
+  return patchShowChecked(showId, mutate).shows;
+}
+
+/** `patchShow`, answering too whether the write was refused on the spot (a full store): what a
+ *  folder write that tells the operator anything reports, with `commitDurableWrites` after it. */
+function patchShowChecked(showId: string, mutate: (show: Show, at: string) => boolean): { shows: Show[]; error: string | null } {
   const all = readEditable();
   const show = all.find((s) => s.id === showId && !s.deleted);
+  let error: string | null = null;
   if (show) {
     const at = nowIso();
     if (mutate(show, at)) {
       show.updatedAt = at;
-      saveAll(all);
+      error = saveAll(all);
     }
   }
-  return all.filter((s) => !s.deleted);
+  return { shows: all.filter((s) => !s.deleted), error };
 }
 
 /** A cue's starting values: the template's own field defaults (what update() falls back to). */
@@ -532,11 +596,13 @@ function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
 
 /** Append a cue for a pool graphic - or for a playout item, which the same id space names.
  *  `seed` prefills label/values (e.g. from a ControlEntry - a starting point only; the cue owns
- *  its values from here on). */
+ *  its values from here on). An append never lands in a folder. `after` puts it right after that
+ *  cue instead, in that cue's folder: where Duplicate puts its copy (docs/CLIP_PLAYBACK_PLAN.md §7). */
 export function addShowCue(
   showId: string,
   sourceId: string,
   seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback },
+  after?: string,
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
   const shows = patchShow(showId, (show) => {
@@ -553,7 +619,8 @@ export function addShowCue(
       // A duplicated server cue plays its clip the same way: the copy is of the cue, settings too.
       ...(item && seed?.playback && Object.keys(seed.playback).length ? { playback: { ...seed.playback } } : {}),
     };
-    show.cues = [...(show.cues ?? []), cue];
+    // After `after`, in its folder, so the folder's run goes on through the copy; else at the end.
+    show.cues = after === undefined ? appendCue(show.cues ?? [], cue) : insertAfter(show.cues ?? [], after, cue);
     cueId = cue.id;
     return true;
   });
@@ -743,6 +810,7 @@ export function removePlayoutItem(showId: string, itemId: string): Show[] {
     if (!show.playoutItems?.some((i) => i.id === itemId)) return false;
     show.playoutItems = show.playoutItems.filter((i) => i.id !== itemId);
     show.cues = (show.cues ?? []).filter((c) => c.sourceId !== itemId);
+    pruneShowFolders(show);
     return true;
   });
 }
@@ -794,22 +862,52 @@ export function setShowCues(
         ...(c.note ? { note: c.note } : {}),
       };
     });
+    // A pack carries no folders, so the new rundown is in none, and a folder left naming no cue goes.
+    pruneShowFolders(show);
     return true;
   });
   return { shows, error };
 }
 
-/** Move a cue one slot up or down the rundown (the moveShowGraphic swap, over cues). */
+/** Move a cue one slot up or down the rundown. One step never splits a folder (./showFolders.ts
+ *  `stepInOrder`): inside a folder the cue swaps with its neighbour there, at the folder's edge it
+ *  steps out of the folder where it stands, and outside one it steps over a whole folder at once. On
+ *  a rundown with no folders it is the plain swap it always was. */
 export function moveShowCue(showId: string, cueId: string, dir: -1 | 1): Show[] {
   return patchShow(showId, (show) => {
-    const cues = show.cues;
+    const cues = show.cues ? stepInOrder(show.cues, show.folders, cueId, dir) : null;
     if (!cues) return false;
-    const i = cues.findIndex((c) => c.id === cueId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= cues.length) return false;
-    [cues[i], cues[j]] = [cues[j], cues[i]];
+    show.cues = cues;
+    pruneShowFolders(show);
     return true;
   });
+}
+
+/**
+ * THE DRAG'S ONE WRITE (docs/CLIP_PLAYBACK_PLAN.md §7): move a cue, or a whole folder, to a place in
+ * the rundown and set or clear the cue's folder in the same write, so a team production saves one
+ * change however far the row went. It gathers a folder an older build split, never nests a folder,
+ * and removes one the move empties. A cue that cannot play through is refused at a Play-through
+ * folder's door, and `refused` says why, naming it.
+ */
+export function moveInRundown(showId: string, what: Movable, place: Place): { shows: Show[]; refused: string | null; error: string | null } {
+  let refused: string | null = null;
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    refused = placeRefusal(show, what, place);
+    if (refused) return false;
+    const moved = placeInOrder(show.cues ?? [], show.folders, what, place);
+    if (!moved) return false;
+    show.cues = moved;
+    pruneShowFolders(show);
+    return true;
+  });
+  return { shows, refused, error };
+}
+
+/** Put a cue last in a folder, taking it out of any other: a drop on a collapsed folder's header,
+ *  and the cue menu's "Move into". */
+export function moveCueIntoFolder(showId: string, cueId: string, folderId: string): { shows: Show[]; refused: string | null; error: string | null } {
+  return moveInRundown(showId, { cueId }, { into: folderId });
 }
 
 /**
@@ -830,6 +928,137 @@ export function removeShowCue(showId: string, cueId: string): Show[] {
       // A playout item is pruned by the same rule: nothing survives out of sight of the rundown.
       if (show.playoutItems) show.playoutItems = show.playoutItems.filter((i) => i.id !== cue.sourceId);
     }
+    // And a folder by the same rule again: its last cue gone, it goes too.
+    pruneShowFolders(show);
+    return true;
+  });
+}
+
+// ── Folders (docs/CLIP_PLAYBACK_PLAN.md §6.5, §6.6 and §7) ───────────────────────────────────────
+//
+// A folder is made from cues and goes when its last cue leaves, so it is never empty and always has
+// a place: its first cue's. Every write here keeps each folder's cues together (./showFolders.ts).
+
+/** Why these cues cannot be in a Play-through folder, naming the first that cannot, or null. */
+function throughProblem(show: Show, cueIds: readonly string[]): string | null {
+  for (const id of cueIds) {
+    const cue = show.cues?.find((c) => c.id === id);
+    const why = cue ? throughRefusal(cue, show.playoutItems ?? []) : null;
+    if (why) return why;
+  }
+  return null;
+}
+
+/**
+ * NEW FOLDER FROM SELECTION: the chosen cues, in rundown order, become one folder, placed where the
+ * first of them stood (right after another folder when that is inside one). It plays One by one until
+ * the operator says otherwise, and takes a cue out of any folder it was in.
+ */
+export function addFolderFromSelection(showId: string, cueIds: readonly string[], name?: string): { shows: Show[]; folderId: string | null; error: string | null } {
+  let folderId: string | null = null;
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    const id = uuid();
+    // Settled first, like every move: a folder an older build split is whole before it is cut from.
+    const settled = settleFolders(show.cues ?? [], show.folders);
+    const cues = foldSelection(settled.cues, new Set(cueIds), id);
+    if (!cues) return false;
+    const live = liveFolderIds(cues, settled.folders);
+    const present = settled.folders.filter((f) => live.has(f.id));
+    const folder: ShowFolder = { id, name: name?.trim() || nextFolderName(present), mode: 'manual' };
+    show.cues = cues;
+    show.folders = [...settled.folders, folder];
+    pruneShowFolders(show);
+    folderId = id;
+    return true;
+  });
+  return { shows, folderId, error };
+}
+
+/** One folder of the record, when it has it. */
+function folderOf(show: Show, folderId: string): ShowFolder | undefined {
+  return show.folders?.find((f) => f.id === folderId);
+}
+
+export function renameFolder(showId: string, folderId: string, name: string): Show[] {
+  return patchShow(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    const next = name.trim();
+    if (!folder || !next || folder.name === next) return false;
+    folder.name = next;
+    return true;
+  });
+}
+
+/**
+ * How a folder plays. Play through is refused while the folder holds anything but clips and audio
+ * files, and the reason names the cue. A folder's end and slot stay when it plays another way, so
+ * going back to Play through finds them as they were.
+ */
+export function setFolderMode(showId: string, folderId: string, mode: ShowFolder['mode']): { shows: Show[]; error: string | null } {
+  let error: string | null = null;
+  const shows = patchShow(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder || folder.mode === mode) return false;
+    if (mode === 'through') {
+      error = throughProblem(show, (show.cues ?? []).filter((c) => c.folderId === folderId).map((c) => c.id));
+      if (error) return false;
+    }
+    folder.mode = mode;
+    return true;
+  });
+  return { shows, error };
+}
+
+/**
+ * A Play-through folder's end and slot (plan §6.5). `null` goes back to the default and removes the
+ * field: the last clip's own ending, and the clip default slot (layer 10 on the clip channel). A
+ * channel or layer outside its range is refused rather than stored.
+ */
+export function setFolderPlayback(
+  showId: string,
+  folderId: string,
+  patch: { end?: 'loop' | null; channel?: number | null; layer?: number | null },
+): Show[] {
+  return patchShow(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder) return false;
+    const inRange = (n: number, min: number, max: number) => Number.isInteger(n) && n >= min && n <= max;
+    if (typeof patch.channel === 'number' && !inRange(patch.channel, MIN_PLAYOUT_CHANNEL, MAX_PLAYOUT_CHANNEL)) return false;
+    if (typeof patch.layer === 'number' && !inRange(patch.layer, MIN_PLAYOUT_LAYER, MAX_PLAYOUT_LAYER)) return false;
+    // What it was, so choosing what is already chosen writes nothing (and saves nothing to a team).
+    const before = JSON.stringify([folder.end, folder.slot]);
+    if (patch.end === 'loop') folder.end = 'loop';
+    else if (patch.end === null) delete folder.end;
+    const slot: { channel?: number; layer?: number } = { ...(folder.slot ?? {}) };
+    for (const key of ['channel', 'layer'] as const) {
+      const value = patch[key];
+      if (value === null) delete slot[key];
+      else if (value !== undefined) slot[key] = value;
+    }
+    if (Object.keys(slot).length) folder.slot = slot;
+    else delete folder.slot;
+    return JSON.stringify([folder.end, folder.slot]) !== before;
+  });
+}
+
+/** Hide or show a folder's cues in the rundown. Kept on the record, so it follows the production. */
+export function setFolderCollapsed(showId: string, folderId: string, collapsed: boolean): Show[] {
+  return patchShow(showId, (show) => {
+    const folder = folderOf(show, folderId);
+    if (!folder || !!folder.collapsed === collapsed) return false;
+    if (collapsed) folder.collapsed = true;
+    else delete folder.collapsed;
+    return true;
+  });
+}
+
+/** Remove a folder and KEEP its cues, where they stand, in no folder: one write. */
+export function removeFolder(showId: string, folderId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    if (!folderOf(show, folderId)) return false;
+    show.cues = unfold(show.cues ?? [], folderId);
+    show.folders = (show.folders ?? []).filter((f) => f.id !== folderId);
+    pruneShowFolders(show);
     return true;
   });
 }

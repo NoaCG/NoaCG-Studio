@@ -84,8 +84,12 @@ export interface MediaPlayback {
 
 /** The shortest a member of a sequence after the first may play, seconds: the Bridge queues each
  *  next file while the one before it plays, reading four times a second, so this is always in
- *  time. The page offers Play next and the Bridge accepts a sequence by this one number. */
+ *  time. In a sequence that loops the first follows the last, so it counts for every member. The
+ *  page offers Play next and the Bridge accepts a sequence by this one number. */
 export const MIN_SEQUENCE_MEMBER_S = 2;
+
+/** The most files one sequence plays: the Bridge refuses a longer one, and the page says so first. */
+export const MAX_SEQUENCE_ENTRIES = 100;
 
 /** How long a file plays from `start` to `end` in it, seconds: the end clamped to the file's
  *  length, never below nothing; unknown when neither an end nor the file's length is known. The one
@@ -125,8 +129,12 @@ export type PlayoutAction =
   /** Remove whatever is in the slot at once, with no exit: the All out an OGraf server offers. */
   | { verb: 'clear'; slot: Slot }
   /** Play the first entry now and each of the rest when the one before it ends, run by the Bridge
-   *  (Play next, docs/CLIP_PLAYBACK_PLAN.md §6.10). Needs the `sequence` feature and capability. */
-  | { verb: 'sequence'; slot: Slot; entries: SequenceEntry[] };
+   *  (Play next and a Play-through folder, docs/CLIP_PLAYBACK_PLAN.md §6.10). Needs the `sequence`
+   *  feature and capability. `loop` plays the first entry again after the last, until Out (Loop the
+   *  folder): no entry then has an ending of its own, and it needs the `sequence-loop` feature too.
+   *  A Bridge without that feature reads the action field by field and would drop `loop`, so the
+   *  page never sends it one. */
+  | { verb: 'sequence'; slot: Slot; entries: SequenceEntry[]; loop?: boolean };
 
 export type PlayoutVerb = PlayoutAction['verb'];
 
@@ -169,8 +177,9 @@ export interface AgentError {
 
 /** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a
  *  Bridge that lists none is older than all of them. It says nothing about any server.
- *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence';
+ *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb, and
+ *  `sequence-loop` a sequence's `loop`. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
@@ -225,8 +234,10 @@ export interface SlotState {
    *  previous clip). The rest of the reading is that previous content, not the take's. */
   arriving?: boolean;
   /** A sequence this Bridge runs on the slot: the entries still to play after the one on air, in
-   *  order. The slot's `cueId` is the entry on air. */
-  sequence?: { next: SequenceEntry[] };
+   *  order. The slot's `cueId` is the entry on air. `loop`: it starts over after its last entry until
+   *  Out, and `next` is then every other entry in the order they play from here. It is never the
+   *  server's own LOOP on one file, which is `loop` above. */
+  sequence?: { next: SequenceEntry[]; loop?: boolean };
   /** The slot's action counter as of this reading. Every Take, Out, Clear, Pause and Resume moves
    *  it first. */
   generation: number;

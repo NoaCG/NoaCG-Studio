@@ -603,6 +603,48 @@ would be. None of it appears for a graphic or a server template.
   the one the clock follows. It is bound only while Playout is on screen, never while typing, and a
   held key does not repeat it (`components/playoutKeys.ts`).
 
+### 2i. Folders (built 2026-09-28)
+
+`docs/CLIP_PLAYBACK_PLAN.md` §6.2, §6.5 to §6.7 and §7, phase 4. A folder groups cues in the
+rundown and decides what one Take of it does. Only the production page has folders: the hosted page,
+the exported controller, the output and a pack see the flat rundown they always did.
+
+- **Making one**: click a cue, shift-click another, and the bar under the list says how many are
+  selected and offers `▤ New folder` (as Home's library selects, with no checkboxes; a press on the
+  list's background clears it). A cue's `⋯` makes a folder of that cue, or of the selection when
+  the cue is in it. A new folder is One by one, named `Folder N`, and nothing else moves: not the
+  cursor, not PREVIEW, not what SPACE takes.
+- **The header row** is one line like a cue's: grip, `▾`/`▸` to collapse, `▤`, the name with
+  how many cues are in it, `(continued)` on a later run of a folder an older build split, how it
+  plays, what is on air of it (`ON AIR`, `2 OF 3 ON AIR` for part of an All-together folder,
+  `1 ON AIR` for a One-by-one folder, `NOT TAKEN` when its last Take put nothing up), and for
+  Play through the slot it plays on. Its cues sit in under it by one step. A collapsed folder
+  carries what its hidden cues would show: the tally, a layer clash (the badge opens the folder and
+  the repair) and "replaced on the server". Collapse is saved with the production.
+- **Moving**: drag by the grip. Where it lands is the third of the row under the pointer: the
+  middle third moves a row as it always did, the top and bottom thirds land before or after that row
+  and join its folder, and a header's top third lands above the folder. A line shows where; a red
+  dashed box and a sentence under the list say when it cannot land (a graphic, still or template
+  cannot join a Play-through folder), and nothing moves. While dragging, the list ends in a strip to
+  drop at the end. A cue's `⋯` also moves it into another folder or out of its own; the last cue
+  out takes the folder with it. The folder's `⋯` removes the folder and keeps its cues.
+- **Holding a header** (click it, or walk to it with the arrows) opens the folder's panel where a
+  cue's editor would be: its name, **How it plays** (One by one, Play through, All together) with
+  what that means in muted type, and the cues in it with where each airs. For Play through, **At the
+  end** (As the last clip says, or Loop the folder) and **Plays on**, the channel and layer, layer
+  10 on the clip channel unless set here. Play through is offered only in a production with a server
+  cue, and only when the Bridge and server can play one file after another; Loop the folder needs
+  NoaCG Bridge 0.6.0.
+- **SPACE, TAKE and Out on a held header** act on the folder, in both Space modes, and a held key
+  does it once. **One by one** airs nothing by itself: TAKE is off ("Take each cue in this folder."),
+  its cues are taken one at a time as anywhere else, and TAKE OFF or Out takes off only its own
+  cues. **Play through** plays its clips one after another on its slot as one sequence the Bridge
+  runs, round again with Loop the folder; taking a clip in it plays from that clip to the end. **All
+  together** starts every cue in it with one Take, the server cues first and then the graphics, and
+  says which did not go up and why, on the cue's own row. Out on the header takes all of it off,
+  each clip with its own fade out, and nothing outside it; All out is unchanged and also stops a
+  folder's Take still being sent. PREVIEW shows the cue a folder starts with.
+
 ## 3. Layout — phone
 
 One column: header (name · mode · All out) → the two monitors side by side, small → the clip clock
@@ -630,7 +672,8 @@ PVW tag, the clip's length (a column only when the rundown has a server clip), t
 dropped - the kind and the graphic's name are the icon's, the note is the ✎'s, the layer is the
 slot - and `e2e/playout-rail-width.spec.ts` holds that table. The summary gives way first, and a
 name too long for the row ends in an ellipsis before its marks. Reorder, duplicate and delete
-live behind the row's `⋯`, never as four permanent buttons that crush the name. The one-line row
+live behind the row's `⋯`, never as four permanent buttons that crush the name. A folder's header
+is a row of its own on the same line, with its cues in under it (§2i). The one-line row
 is the production page's (`.pd-rundown`); the hosted control page keeps its two-line row. On a
 phone a row keeps one line at a thumb's height (44px).
 

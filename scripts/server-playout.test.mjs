@@ -635,7 +635,7 @@ test('the clip clock of a sequence: TO STUDIO big, warned on; the clip small; lo
   const b = vt('b', 10);
   const cues = [withPlayback(cue('1', 'a', 'Opener'), { end: 'next' }), withPlayback(cue('2', 'b', 'Studio'), { end: 'clear' })];
   const next = [{ item: { kind: 'media', name: 'B' }, cueId: '2', playback: { end: 'clear', fadeIn: 1 }, media: { kind: 'movie', seconds: 10 } }];
-  const own = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), instance: 's1.1', takenAt: 0 } }, sequences: { '2-10': next } };
+  const own = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), instance: 's1.1', takenAt: 0 } }, sequences: { '2-10': { next } } };
   const timing = (position) => ({ '2-10': { producer: 'video', file: 'A', segment: { start: 0, length: 10 }, position, paused: false, loop: false, at: 0, source: 'server' } });
   let c = clipClock(own, timing(2), [a, b], cues, 0);
   assert.deepEqual([c.end, c.finally, c.remaining, c.toStudio, c.phase, c.next], ['next', 'clear', 8, 17, 'counting', { label: 'Studio', length: 10 }]);
@@ -646,7 +646,7 @@ test('the clip clock of a sequence: TO STUDIO big, warned on; the clip small; lo
   c = clipClock(own, { '2-10': { ...timing(5)['2-10'], paused: true } }, [a, b], cues, 60_000);
   assert.deepEqual([c.phase, c.toStudio], ['paused', 14]);
   // A sequence that ends in a loop has no studio time: the clip's own time, and no warning.
-  const loops = { ...own, sequences: { '2-10': [{ ...next[0], playback: { end: 'loop' } }] } };
+  const loops = { ...own, sequences: { '2-10': { next: [{ ...next[0], playback: { end: 'loop' } }] } } };
   c = clipClock(loops, timing(9), [a, b], cues, 0);
   assert.deepEqual([c.toStudio, c.phase, c.finally], [undefined, 'looping', 'loop']);
   // A single clip that clears says it clears.
@@ -660,8 +660,8 @@ test('a reading that shows the sequence\'s next entry moves ON AIR to that cue, 
   const b = vt('b', 10);
   const cues = [withPlayback(cue('1', 'a'), { end: 'next' }), cue('2', 'b')];
   const entryB = { item: { kind: 'media', name: 'B' }, cueId: '2', media: { kind: 'movie', seconds: 10 } };
-  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 's1', instance: 's1.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: [entryB] });
-  assert.deepEqual(taken.ownership.sequences, { '2-10': [entryB] });
+  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 's1', instance: 's1.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: { next: [entryB] } });
+  assert.deepEqual(taken.ownership.sequences, { '2-10': { next: [entryB] } });
   const ctx = { channel: 2, now: 500, cues, items: [a, b], slotOf: (i) => slot(i.channel, i.layer) };
   const reading = (s) => ({ ok: true, channel: 2, session: 's1', observedAt: 0, slots: [{ layer: 10, paused: false, loop: false, generation: 1, instance: 's1.1', ...s }] });
   let parts = applyReading(taken, reading({ producer: 'video', file: 'A', segment: { start: 0, length: 10 }, position: 5, cueId: '1', sequence: { next: [entryB] } }), ctx);
@@ -680,10 +680,11 @@ test('a Bridge restart during Play next leaves an unidentified item that says th
   const a = vt('a', 10);
   const cues = [withPlayback(cue('1', 'a'), { end: 'next' })];
   const entry = { item: { kind: 'media', name: 'B' }, media: { kind: 'movie', seconds: 10 } };
-  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 'old', instance: 'old.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: [entry] });
+  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 'old', instance: 'old.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: { next: [entry] } });
   const ctx = { channel: 2, now: 5000, cues, items: [a], slotOf: (i) => slot(i.channel, i.layer) };
   const parts = applyReading(taken, { ok: true, channel: 2, session: 'new', observedAt: 0, slots: [{ layer: 10, producer: 'video', file: 'A', paused: false, loop: false, generation: 0 }] }, ctx);
-  assert.deepEqual(parts.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'A', sequenceStopped: true }]);
+  // It names the cue that was up, so the row can name the folder it played in.
+  assert.deepEqual(parts.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'A', sequenceStopped: true, cueId: '1' }]);
 });
 
 test('P pauses the clip the operator is looking at: the selected cue when it is up, else the clock\'s', () => {

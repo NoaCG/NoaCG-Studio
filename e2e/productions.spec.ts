@@ -79,11 +79,11 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await expect(rows.nth(0)).toContainText('Ben Berg');
   await expect(rows.nth(1)).toContainText('Anna Andersson');
 
-  // Duplicate keeps the values and appends.
+  // Duplicate keeps the values and goes right after its original.
   await rows.nth(0).getByTestId('cue-menu').click();
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await expect(rows).toHaveCount(3);
-  await expect(rows.nth(2)).toContainText('Ben Berg copy');
+  await expect(rows.nth(1)).toContainText('Ben Berg copy');
 
   // Offline, publishing says why it cannot run — but the VERBS still work, because what they
   // drive is the local program monitor right here (docs/PLAYOUT_DASHBOARD.md §6).

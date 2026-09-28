@@ -12,19 +12,24 @@
 // way: the page's store (./serverPlayoutStore) and the link (./playoutLink) stay out of it. The
 // `.ts` on the one runtime import is what lets Node resolve it.
 
-import type { PlayoutItem, ShowCue } from '../model/shows';
+import type { PlayoutItem, ShowCue, ShowFolder } from '../model/shows';
 import type { PlayoutResult } from './playoutLink';
-import { MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
+import { MAX_SEQUENCE_ENTRIES, MIN_SEQUENCE_MEMBER_S, type PlayoutAction, type SequenceEntry, type Slot } from './playoutProtocol.ts';
 import { compareSlots, slotAddress } from './playoutSlots.ts';
+import { folderIdOf, folderMembers, folderMode, liveFolderIds, membersByFolder, throughRefusal } from '../model/showFolders.ts';
 import {
+  asFolderMember,
   effectiveEnd,
   fileSeconds,
   memberProblem,
+  NEEDS,
   outFade,
   playbackBlocker,
   playbackNeeds,
+  segmentSeconds,
   takePlayback,
   type ClipEnd,
+  type MemberProblem,
   type PlaybackAbility,
 } from './cuePlayback.ts';
 
@@ -148,15 +153,20 @@ const count = (n: number, one: string, many: string) => `${n === 1 ? 'a' : n} ${
 /**
  * PLAY NEXT'S TARGET (docs/CLIP_PLAYBACK_PLAN.md §6.6): the next clip or audio cue after this one
  * that plays on the same slot, looking past graphics and anything on another slot (owner, Q3),
- * resolved from the rundown as it stands - at the Take, and wherever the choice is made. When no
- * clip qualifies, the reason, in the words the editor shows beside the disabled choice.
+ * resolved from the rundown as it stands - at the Take, and wherever the choice is made. It never
+ * leaves the cue's own folder: from a cue in no folder it does not go into one, and from a cue in a
+ * folder it stops at that folder's end. When no clip qualifies, the reason, in the words the editor
+ * shows beside the disabled choice.
  */
 export function playNextTarget(
   cues: readonly ShowCue[],
   items: readonly PlayoutItem[],
   cueId: string,
   addressOf: (item: PlayoutItem) => string,
+  folders: readonly Pick<ShowFolder, 'id'>[] = [],
 ): PlayNext {
+  // A production with no folders has none to stay inside.
+  const live = folders.length ? liveFolderIds(cues, folders) : new Set<string>();
   const at = cues.findIndex((c) => c.id === cueId);
   const cue = cues[at];
   const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
@@ -177,6 +187,7 @@ export function playNextTarget(
       elsewhere.push({ label: c.label, address: there });
       continue;
     }
+    if (folderIdOf(c, live) !== folderIdOf(cue, live)) return { ok: false, reason: 'the next clip is in another folder' };
     const problem = memberProblem(c, it, false);
     if (problem) {
       const reason = {
@@ -218,6 +229,7 @@ export function sequenceMembers(
   items: readonly PlayoutItem[],
   cueId: string,
   addressOf: (item: PlayoutItem) => string,
+  folders: readonly Pick<ShowFolder, 'id'>[] = [],
 ): { ok: true; members: SequenceMember[] } | { ok: false; reason: string } {
   const cue = cues.find((c) => c.id === cueId);
   const item = cue?.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
@@ -225,7 +237,7 @@ export function sequenceMembers(
   const members: SequenceMember[] = [{ cue, item }];
   while (effectiveEnd(members[members.length - 1].cue, members[members.length - 1].item) === 'next') {
     const last = members[members.length - 1];
-    const t = playNextTarget(cues, items, last.cue.id, addressOf);
+    const t = playNextTarget(cues, items, last.cue.id, addressOf, folders);
     if (!t.ok) {
       if (members.length === 1) return { ok: false, reason: t.reason };
       break;
@@ -241,23 +253,37 @@ export function sequenceMembers(
 }
 
 /**
- * WHY A TAKE OF THIS CUE WOULD NOT GO, or null (docs/CLIP_PLAYBACK_PLAN.md §6.9): a setting of its own
- * or of a clip it plays next that the running Bridge or its server cannot honour, or a Play next whose
- * clips cannot be found in the rundown as it stands. Such a cue is never taken the old way in silence.
+ * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (docs/CLIP_PLAYBACK_PLAN.md §6.9): a
+ * setting of its own or of a clip it plays next that the running Bridge or its server cannot honour,
+ * or a Play next whose clips cannot be found in the rundown as it stands. Such a cue is never taken the
+ * old way in silence. A folder answers by how it plays (`folderTakeBlocker`), and `graphicOf` names
+ * an All-together folder's graphics for it.
  */
 export function takeBlocker(
-  cue: ShowCue,
+  target: ShowCue | ShowFolder,
   cues: readonly ShowCue[],
   items: readonly PlayoutItem[],
   addressOf: (item: PlayoutItem) => string,
   ability: PlaybackAbility | null,
+  folders: readonly ShowFolder[] = [],
+  graphicOf: FolderRundown['graphicOf'] = () => null,
 ): string | null {
+  // A folder by what it lacks: every cue names its source, and no folder does. Its mode cannot tell
+  // them apart, since a folder record from another build may have none.
+  if (!('sourceId' in target)) {
+    const blockerOf = (c: ShowCue) => takeBlocker(c, cues, items, addressOf, ability, folders, graphicOf);
+    return folderTakeBlocker(target, folderMembers(cues, folders, target.id), { items, addressOf, graphicOf, ability, blockerOf });
+  }
+  const cue = target;
   const item = cue.source === 'playout' ? items.find((i) => i.id === cue.sourceId) : undefined;
   if (item?.kind !== 'media') return null;
+  // A clip of a Play-through folder plays by the folder's rules: from itself to the folder's end.
+  const through = throughFolderOf(cue, cues, items, folders);
+  if (through) return folderRunBlocker(folderRun(through, cues, items, cue.id), ability);
   const own = playbackBlocker(playbackNeeds(cue, item), ability);
   if (own) return own;
   if (effectiveEnd(cue, item) !== 'next') return null;
-  const chain = sequenceMembers(cues, items, cue.id, addressOf);
+  const chain = sequenceMembers(cues, items, cue.id, addressOf, folders);
   if (!chain.ok) return `This cue plays the next clip, but ${chain.reason}. Set another ending to take it.`;
   for (const m of chain.members.slice(1)) {
     const blocked = playbackBlocker(playbackNeeds(m.cue, m.item), ability);
@@ -267,12 +293,13 @@ export function takeBlocker(
 }
 
 /** The sequence action for a chain of members (plan §9): each entry with the playback its own
- *  cue sets, and the last with its own ending. */
-export function sequenceAction(members: readonly SequenceMember[], slot: Slot): Extract<PlayoutAction, { verb: 'sequence' }> {
+ *  cue sets, and the last with its own ending. `loop` starts it over after its last (Loop the
+ *  folder), and is sent only then: a sequence that ends is the action it always was. */
+export function sequenceAction(members: readonly SequenceMember[], slot: Slot, loop = false): Extract<PlayoutAction, { verb: 'sequence' }> {
   const entries: SequenceEntry[] = members.map(({ cue, item }, i) => {
-    const { loop, playback } = takePlayback(cue, item);
+    const { loop: ownLoop, playback } = takePlayback(cue, item);
     const last = i === members.length - 1;
-    const p = { ...(last && loop ? { end: 'loop' as const } : {}), ...(playback ?? {}) };
+    const p = { ...(last && ownLoop ? { end: 'loop' as const } : {}), ...(playback ?? {}) };
     return {
       item: { kind: 'media', name: item.name },
       cueId: cue.id,
@@ -281,7 +308,330 @@ export function sequenceAction(members: readonly SequenceMember[], slot: Slot): 
       media: { kind: item.mediaKind === 'audio' ? 'audio' : 'movie', seconds: fileSeconds(item) as number },
     };
   });
-  return { verb: 'sequence', slot, entries };
+  return { verb: 'sequence', slot, entries, ...(loop ? { loop: true } : {}) };
+}
+
+// ── A PLAY-THROUGH FOLDER (docs/CLIP_PLAYBACK_PLAN.md §6.4 to §6.6): one Take plays its clips in order
+// on the folder's one slot, as one sequence the Bridge runs. ──
+
+/**
+ * The Play-through folder a cue plays in, or none: a folderId that names no folder is in none, and a
+ * cue that cannot play through - a still or a graphic an older build or a merge left there - is taken
+ * on its own Take as if it were in none. The folder's Take is refused, naming it.
+ */
+export function throughFolderOf(
+  cue: ShowCue,
+  cues: readonly Pick<ShowCue, 'id' | 'folderId'>[],
+  items: readonly PlayoutItem[],
+  folders: readonly ShowFolder[] | undefined,
+): ShowFolder | undefined {
+  const id = folderIdOf(cue, liveFolderIds(cues, folders));
+  const folder = id ? folders?.find((f) => f.id === id) : undefined;
+  return folder?.mode === 'through' && !throughRefusal(cue, items) ? folder : undefined;
+}
+
+/** A clip's place in a Play-through folder, which decides what its row and its panel say of its end. */
+export type ThroughRole = 'middle' | 'last' | 'loop-last' | 'loop-alone';
+
+/** What a Play-through folder says of a clip's end in place of the clip's own choice (plan §6.5), on
+ *  its row and in its panel alike. The last clip of a folder that ends says its own. */
+export const THROUGH_END: Partial<Record<ThroughRole, { glyph: string; words: string }>> = {
+  middle: { glyph: '→', words: 'Plays the next, set by the folder' },
+  'loop-last': { glyph: '⟲', words: 'Starts the folder over, set by the folder' },
+  'loop-alone': { glyph: '⟲', words: 'Loops until Out, set by the folder' },
+};
+
+/**
+ * Every clip that plays in a Play-through folder, with the folder and its place in it, in one pass
+ * over the rundown - by the rule of `throughFolderOf` - so the rows, the panel and the two-slot
+ * check read it without searching the rundown once per cue.
+ */
+export function throughPlaces(
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  folders: readonly ShowFolder[] | undefined,
+): ReadonlyMap<string, { folder: ShowFolder; role: ThroughRole }> {
+  const byFolder = membersByFolder(cues, folders);
+  const out = new Map<string, { folder: ShowFolder; role: ThroughRole }>();
+  const seen = new Set<string>();
+  for (const folder of folders ?? []) {
+    // A folder id written twice is read once, the first entry winning, as everywhere.
+    if (seen.has(folder.id)) continue;
+    seen.add(folder.id);
+    const members = byFolder.get(folder.id);
+    if (folder.mode !== 'through' || !members) continue;
+    const loop = folder.end === 'loop';
+    members.forEach((c, at) => {
+      if (throughRefusal(c, items)) return;
+      const role: ThroughRole = members.length === 1 ? (loop ? 'loop-alone' : 'last') : at < members.length - 1 ? 'middle' : loop ? 'loop-last' : 'last';
+      out.set(c.id, { folder, role });
+    });
+  }
+  return out;
+}
+
+/** What a Take of a Play-through folder plays: its members in play order, each as the folder plays
+ *  it, and whether the sequence starts over after the last. */
+export interface FolderRun {
+  members: SequenceMember[];
+  /** Never for a single member: that one loops as a plain Take, through the legacy `loop`. */
+  loop: boolean;
+}
+
+/** Why a clip cannot join the folder's sequence, as one sentence naming it. */
+function memberWords(problem: MemberProblem, m: SequenceMember, loop: boolean): string {
+  const label = m.cue.label;
+  if (problem === 'still') return `${label} is a still, which never ends.`;
+  if (problem === 'kind') return `${label} is not in the server's list yet, so its kind is not known.`;
+  if (problem === 'length') return `${label} has no known length.`;
+  const seconds = Math.round((segmentSeconds(m.cue, m.item) ?? 0) * 10) / 10;
+  return loop
+    ? `${label} plays ${seconds} s; in a folder that loops, every clip plays at least ${MIN_SEQUENCE_MEMBER_S} s.`
+    : `${label} plays ${seconds} s; in a folder that plays through, every clip after the first plays at least ${MIN_SEQUENCE_MEMBER_S} s.`;
+}
+
+/**
+ * WHAT A TAKE OF A PLAY-THROUGH FOLDER PLAYS: from `fromCueId` (its first clip when none is named) to
+ * its last, on the folder's slot; with Loop the folder, on round to the one before `fromCueId`, so the
+ * loop covers every clip whichever was taken. The members are the folder's cues in rundown order,
+ * across a split folder's runs. Refused with the reason, naming the clip, when one cannot play through
+ * or cannot join a sequence: only a clip or an audio file whose kind and length the server's list has
+ * given, and each after the first - every one, when the folder loops - at least two seconds.
+ */
+export function folderRun(
+  folder: Pick<ShowFolder, 'id' | 'end' | 'name'>,
+  cues: readonly ShowCue[],
+  items: readonly PlayoutItem[],
+  fromCueId?: string,
+): { ok: true; run: FolderRun } | { ok: false; reason: string } {
+  const all = cues.filter((c) => c.folderId === folder.id);
+  const at = fromCueId === undefined ? 0 : all.findIndex((c) => c.id === fromCueId);
+  if (!all.length || at < 0) return { ok: false, reason: 'the clip is not in the folder' };
+  const loop = folder.end === 'loop';
+  const order = loop ? [...all.slice(at), ...all.slice(0, at)] : all.slice(at);
+  if (order.length > MAX_SEQUENCE_ENTRIES) {
+    return { ok: false, reason: `${folder.name} holds ${order.length} clips; a folder that plays through plays at most ${MAX_SEQUENCE_ENTRIES}.` };
+  }
+  const members: SequenceMember[] = [];
+  for (let i = 0; i < order.length; i++) {
+    const c = order[i];
+    const refused = throughRefusal(c, items);
+    if (refused) return { ok: false, reason: refused };
+    const item = items.find((x) => x.id === c.sourceId)!;
+    // One clip that loops is a plain looping Take; every other clip plays as the folder plays it.
+    const cue = order.length === 1 && loop ? { ...c, playback: { ...c.playback, end: 'loop' as const } } : asFolderMember(c, item, !loop && i === order.length - 1);
+    members.push({ cue, item });
+  }
+  if (members.length > 1) {
+    for (let i = 0; i < members.length; i++) {
+      const problem = memberProblem(members[i].cue, members[i].item, i === 0 && !loop);
+      if (problem) return { ok: false, reason: memberWords(problem, members[i], loop) };
+    }
+  }
+  return { ok: true, run: { members, loop: loop && members.length > 1 } };
+}
+
+/**
+ * Why a Take of a Play-through folder would not go with this Bridge and server, or null - judged on
+ * the members as the folder plays them, so a clip before the last that is set to Clear asks nothing
+ * of a server that cannot clear. A folder carrying a setting nobody here can honour is never taken the
+ * old way in silence (plan §6.9).
+ */
+export function folderRunBlocker(r: ReturnType<typeof folderRun>, ability: PlaybackAbility | null): string | null {
+  if (!r.ok) return r.reason;
+  const { members, loop } = r.run;
+  if (members.length > 1) {
+    // Playing through first: without the sequence at all, the loop's sentence would be the wrong fix.
+    const own = playbackBlocker([NEEDS.through], ability, 'This folder') ?? (loop ? playbackBlocker([NEEDS.folderLoop], ability, 'This folder') : null);
+    if (own) return own;
+  }
+  for (const m of members) {
+    const blocked = playbackBlocker(playbackNeeds(m.cue, m.item), ability);
+    if (blocked) return members.length > 1 ? `${m.cue.label}, which this folder plays: ${blocked}` : blocked;
+  }
+  return null;
+}
+
+// ── ALL TOGETHER (docs/CLIP_PLAYBACK_PLAN.md §6.6): one Take starts every cue of the folder - its
+// server cues one after another, one take action each, exactly what a Take of that cue alone sends,
+// then its graphics through the web. Everything that would refuse it is found before anything is
+// sent; after that a failure never stops the rest, and nothing is retried. ──
+
+/** A graphic cue of a folder: its pool graphic's name (liveCue's key) and its graphicLayer. */
+export interface GraphicMember {
+  cue: ShowCue;
+  graphic: string;
+  layer: number;
+}
+
+/** The rundown as the folder rules read it, with the page's own lookups handed in. */
+export interface FolderRundown {
+  items: readonly PlayoutItem[];
+  /** slotAddress(itemSlot(settings, item)): the addressOf the page hands playNextTarget. */
+  addressOf: (item: PlayoutItem) => string;
+  /** A graphic cue's pool graphic, or null when it is gone. */
+  graphicOf: (cue: ShowCue) => { name: string; layer: number } | null;
+  ability: PlaybackAbility | null;
+  /** The page's own Take check for one cue (takeBlocker), Play next's folder limit included. */
+  blockerOf: (cue: ShowCue) => string | null;
+}
+
+export type TogetherPlan =
+  | { ok: true; server: readonly SequenceMember[]; graphics: readonly GraphicMember[] }
+  | { ok: false; reason: string };
+
+/** The first two positions of a list that clash, earliest first, or null: what a folder's Take names. */
+function firstPair(list: readonly unknown[], clash: (i: number, j: number) => boolean): [number, number] | null {
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) if (clash(i, j)) return [i, j];
+  return null;
+}
+
+/** Why a folder with a server cue cannot be taken for want of NoaCG Bridge, or null. */
+function bridgeGate(first: ShowCue | undefined, ability: PlaybackAbility | null): string | null {
+  if (!first) return null;
+  if (!ability) return 'Asking NoaCG Bridge what it can play…';
+  if (ability.state !== 'ok') return `${first.label} plays on the playout server, and NoaCG Bridge is not connected.`;
+  return null;
+}
+
+/**
+ * WHAT AN ALL-TOGETHER TAKE SENDS, or why it cannot go - found before anything is sent, the first
+ * problem in this order, as one sentence naming the cue: a file or graphic that is gone; two server
+ * cues on one slot; two cues of one graphic; two graphics on one layer; a server cue while NoaCG
+ * Bridge is not there; any server cue's own Take check. A server cue set to Play next finds no clip
+ * inside the folder to play, so it blocks with that check's own reason.
+ */
+export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): TogetherPlan {
+  const server: SequenceMember[] = [];
+  const graphics: GraphicMember[] = [];
+  for (const cue of members) {
+    if (cue.source === 'playout') {
+      const item = r.items.find((i) => i.id === cue.sourceId);
+      if (!item) return { ok: false, reason: `${cue.label} plays a file this production no longer lists.` };
+      server.push({ cue, item });
+    } else {
+      const g = r.graphicOf(cue);
+      if (!g) return { ok: false, reason: `${cue.label} points at a graphic this production no longer has.` };
+      graphics.push({ cue, graphic: g.name, layer: g.layer });
+    }
+  }
+  const addresses = server.map((m) => r.addressOf(m.item));
+  const sameSlot = firstPair(server, (i, j) => addresses[i] === addresses[j]);
+  if (sameSlot) {
+    const [a, b] = sameSlot;
+    return { ok: false, reason: `${server[a].cue.label} and ${server[b].cue.label} both play on ${addresses[a]}, which holds one thing at a time. Move one of them to another layer to take this folder.` };
+  }
+  const sameGraphic = firstPair(graphics, (i, j) => graphics[i].graphic === graphics[j].graphic);
+  if (sameGraphic) {
+    const [a, b] = sameGraphic.map((i) => graphics[i]);
+    return { ok: false, reason: `${a.cue.label} and ${b.cue.label} are both cues of ${a.graphic}, which shows one cue at a time. Keep one of them in this folder.` };
+  }
+  const sameLayer = firstPair(graphics, (i, j) => graphics[i].layer === graphics[j].layer);
+  if (sameLayer) {
+    const [a, b] = sameLayer.map((i) => graphics[i]);
+    return { ok: false, reason: `${a.cue.label} and ${b.cue.label} both air on layer ${a.layer}. Give one of their graphics another layer to take this folder.` };
+  }
+  const gate = bridgeGate(server[0]?.cue, r.ability);
+  if (gate) return { ok: false, reason: gate };
+  for (const m of server) {
+    const blocked = r.blockerOf(m.cue);
+    if (blocked) return { ok: false, reason: `${m.cue.label}: ${blocked}` };
+    // Never sent as a Hold: every cue of this folder starts at once, so there is nothing to play next.
+    if (m.item.kind === 'media' && effectiveEnd(m.cue, m.item) === 'next') {
+      return { ok: false, reason: `${m.cue.label}: This cue plays the next clip, and every cue of this folder starts at once. Set another ending to take it.` };
+    }
+  }
+  return { ok: true, server, graphics };
+}
+
+/**
+ * Why a Take of this folder would not go, or null. One by one is taken cue by cue; All together by
+ * its plan; Play through by its run, and neither while NoaCG Bridge is not there to send it to.
+ */
+export function folderTakeBlocker(folder: Pick<ShowFolder, 'id' | 'mode' | 'end' | 'name'>, members: readonly ShowCue[], r: FolderRundown): string | null {
+  // Read as it is drawn: a mode this build does not know is One by one here too.
+  const mode = folderMode(folder);
+  if (mode === 'manual') return 'Take each cue in this folder.';
+  if (mode === 'together') {
+    const plan = togetherPlan(members, r);
+    return plan.ok ? null : plan.reason;
+  }
+  return bridgeGate(members[0], r.ability) ?? folderRunBlocker(folderRun(folder, members, r.items), r.ability);
+}
+
+/** What one member's send came to: whether it is on air, and the note line's sentence for it. */
+export interface MemberTake {
+  ok: boolean;
+  note: string;
+}
+
+export interface MemberResult extends MemberTake {
+  cueId: string;
+  label: string;
+  /** False when the folder was taken off before this member's turn came. */
+  sent: boolean;
+}
+
+/** How a run reaches air, handed in by the page: its own verbs, one member at a time. */
+export interface TogetherSend {
+  server: (m: SequenceMember) => Promise<MemberTake>;
+  graphic: (g: GraphicMember) => Promise<MemberTake>;
+  /** Take back off a member whose take landed after Out or All out stopped the run. */
+  off: (m: SequenceMember | GraphicMember) => Promise<void>;
+  /** Out or All out has been pressed since the run began. */
+  stopped: () => boolean;
+}
+
+/**
+ * THE RUN: the server cues one after another, each awaited, then the graphics. A refusal never stops
+ * the rest and nothing is retried. Once Out or All out is pressed, nothing more is sent, and a member
+ * whose take lands after it is taken back off, so nothing airs after either.
+ */
+export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, send: TogetherSend): Promise<MemberResult[]> {
+  const results: MemberResult[] = [];
+  const one = async (member: SequenceMember | GraphicMember, go: () => Promise<MemberTake>) => {
+    const { cue } = member;
+    if (send.stopped()) {
+      results.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, note: `${cue.label} was not sent: the folder was taken off first.` });
+      return;
+    }
+    const r = await go();
+    results.push({ ...r, cueId: cue.id, label: cue.label, sent: true });
+    if (r.ok && send.stopped()) await send.off(member);
+  };
+  for (const m of plan.server) await one(m, () => send.server(m));
+  for (const g of plan.graphics) await one(g, () => send.graphic(g));
+  return results;
+}
+
+/** The note line after an All-together Take: `✓ Take: Opening, 3 of 3 on air`, or the count and
+ *  every member's own sentence where one did not go, or went with a warning. */
+export function togetherNote(folderName: string, results: readonly MemberResult[]): string {
+  const up = results.filter((r) => r.ok).length;
+  const said = results.filter((r) => !r.ok || !r.note.startsWith('✓'));
+  if (!said.length) return `✓ Take: ${folderName}, ${up} of ${results.length} on air`;
+  const sentence = (note: string) => (/[.!?…]$/.test(note) ? note : `${note}.`);
+  return [`Take: ${folderName}, ${up} of ${results.length} on air.`, ...said.map((r) => sentence(r.note))].join(' ');
+}
+
+/**
+ * WHICH FILE THE CLOCK FOLLOWS after an All-together Take: the longest (plan §6.4). Each server member
+ * is ranked, least preferred first - a clip or audio file with a known length over anything else, one
+ * that ends over one that loops, the longer played segment, a movie over audio, the earlier row - and
+ * the page stamps each member's take with the press time plus its rank, so the clock follows the
+ * most preferred one still up without flickering from member to member as they land.
+ */
+export function clockRank(server: readonly SequenceMember[]): ReadonlyMap<string, number> {
+  const key = ({ cue, item }: SequenceMember, row: number) => {
+    const seconds = item.kind === 'media' && item.mediaKind !== 'still' ? segmentSeconds(cue, item) : undefined;
+    return [seconds ? 1 : 0, item.kind === 'media' && effectiveEnd(cue, item) !== 'loop' ? 1 : 0, seconds ?? 0, item.mediaKind === 'audio' ? 0 : 1, -row];
+  };
+  const ranked = server.map((m, row) => ({ id: m.cue.id, k: key(m, row) }));
+  ranked.sort((a, b) => {
+    for (let i = 0; i < a.k.length; i++) if (a.k[i] !== b.k[i]) return a.k[i] - b.k[i];
+    return 0;
+  });
+  return new Map(ranked.map((r, rank) => [r.id, rank]));
 }
 
 /** One action the Bridge accepted, with what it said about the slot afterwards. */
@@ -325,6 +675,7 @@ export async function runServerVerb({
   values,
   act,
   sequence,
+  loop,
   cut,
 }: {
   verb: ServerVerb;
@@ -338,6 +689,8 @@ export async function runServerVerb({
   /** A Take of a cue that plays next: the clips it plays one after another, the cue first
    *  (`sequenceMembers`). The Bridge runs them (docs/CLIP_PLAYBACK_PLAN.md §6.10). */
   sequence?: readonly SequenceMember[];
+  /** The sequence starts over after its last clip (a Play-through folder's Loop the folder). */
+  loop?: boolean;
   /** Out as a cut whatever the cue's fade out says: All out, the panic control. */
   cut?: boolean;
 }): Promise<ServerVerbOutcome> {
@@ -369,7 +722,7 @@ export async function runServerVerb({
   }
   const action =
     verb === 'take' && sequence && sequence.length > 1
-      ? sequenceAction(sequence, slot)
+      ? sequenceAction(sequence, slot, loop)
       : serverAction(verb, item, slot, values(), verb === 'take' ? cue.id : undefined, cut ? undefined : cue);
   const result = await act(action);
   if (result.state !== 'ok') return { ok: false, note: `${label} did not reach the playout server: ${result.detail}`, accepted };

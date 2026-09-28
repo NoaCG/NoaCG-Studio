@@ -265,6 +265,36 @@ test('a malformed playback or sequence is refused with the reason', () => {
   assert.throws(() => seq([entry('A', 10)]), /at least two/);
 });
 
+test('a sequence that loops: no entry has an ending of its own, every entry plays two seconds, and no line carries LOOP', () => {
+  // Loop the folder (docs/CLIP_PLAYBACK_PLAN.md §6.6, phase 4). The first entry follows the last, so
+  // the rules for an entry after the first hold for all of them, and there is no last entry.
+  const entry = (name, seconds, playback) => ({ item: clip(name), media: { kind: 'movie', seconds }, ...(playback ? { playback } : {}) });
+  const seq = (entries, loop) => readAction({ action: { verb: 'sequence', slot: clipSlot, entries, loop } });
+  assert.equal(seq([entry('A', 10), entry('B', 10)], true).loop, true);
+  // Absent or false is a sequence that ends; the action read back says so by having none.
+  assert.equal('loop' in seq([entry('A', 10), entry('B', 10)], false), false);
+  assert.throws(() => seq([entry('A', 10), entry('B', 10)], 'yes'), /true or false/);
+  assert.throws(() => seq([entry('A', 10), entry('B', 10, { end: 'clear' })], true), /in a sequence that loops no entry has an ending/);
+  assert.throws(() => seq([entry('A', 10), entry('B', 10, { end: 'loop' })], true), /in a sequence that loops no entry has an ending/);
+  // An explicit Hold is no ending at all.
+  assert.equal(seq([entry('A', 10), entry('B', 10, { end: 'hold' })], true).entries.length, 2);
+  // The first entry of a loop follows the last one, so it too plays at least two seconds.
+  assert.throws(() => seq([entry('A', 1.5), entry('B', 10)], true), /every clip in a sequence that loops plays at least 2 s/);
+  assert.throws(() => seq([entry('A', 10, { trim: { in: 8.5 } }), entry('B', 10)], true), /plays 1.5 s/);
+  assert.equal(seq([entry('A', 1.5), entry('B', 10)], false).entries.length, 2);
+  // Only a take or a sequence carries a loop; on any other verb it is refused, never dropped.
+  assert.throws(() => readAction({ action: { verb: 'out', slot: clipSlot, loop: true } }), /carries no loop/);
+
+  // The take's lines are a sequence's: the first now, the second queued at once - never with LOOP,
+  // since a looping file never ends and nothing queued behind it would play.
+  const lines = casparLines({ verb: 'sequence', slot: clipSlot, entries: [entry('A', 10, { fadeIn: 0.5 }), entry('B', 10, { fadeIn: 1 })], loop: true }, { rate: 50 });
+  assert.deepEqual(lines, ['PLAY 2-10 "A" MIX 25', 'LOADBG 2-10 "B" MIX 50 AUTO']);
+  // The adapter keeps that rule itself, whatever an entry says: in a loop the second file is not last.
+  assert.deepEqual(casparLines({ verb: 'sequence', slot: clipSlot, entries: [entry('A', 10), entry('B', 10, { end: 'loop' })], loop: true }), ['PLAY 2-10 "A"', 'LOADBG 2-10 "B" AUTO']);
+  // The runner queues the first entry again behind the last, as any entry that is not last.
+  assert.equal(followLine(clipSlot, { entry: entry('A', 10, { fadeIn: 0.5 }), last: false }, 50), 'LOADBG 2-10 "A" MIX 25 AUTO');
+});
+
 // ── The adapter against a fake server ──────────────────────────────────────────────────────
 
 const target = (port) => ({ adapter: 'casparcg', host: '127.0.0.1', port });
@@ -363,7 +393,7 @@ test('presence answers any origin without a token and says nothing about the stu
       v: PLAYOUT_V,
       version: '0.0.0-test',
       adapters: ['casparcg'],
-      features: ['state', 'playback', 'sequence'],
+      features: ['state', 'playback', 'sequence', 'sequence-loop'],
     });
 
     const noToken = await fetch(`${base}/status`, { method: 'POST', headers: { Origin: 'https://noacg.studio' } });
@@ -452,4 +482,11 @@ test('CasparCG being absent is reported on the target hop - the Bridge itself is
     assert.equal(body.error.code, 'unreachable');
     assert.match(body.error.detail, /ECONNREFUSED|EACCES/);
   });
+});
+
+test('the OGraf adapter refuses a sequence that loops as it refuses any sequence, and sends nothing', async () => {
+  const ograf = createOgrafAdapter({ timeoutMs: 200 });
+  const r = await ograf.act({ adapter: 'ograf', baseUrl: 'http://127.0.0.1:9' }, { verb: 'sequence', slot: { adapter: 'ograf', rendererId: 'r1', renderTarget: { layer: 1 } }, entries: [], loop: true });
+  assert.equal(r.ok, false);
+  assert.deepEqual([r.error.hop, r.error.code], ['agent', 'unsupported']);
 });

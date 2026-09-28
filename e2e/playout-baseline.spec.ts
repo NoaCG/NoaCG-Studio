@@ -20,12 +20,15 @@
 //
 // THE PRODUCTION PAGE AS PICTURES (docs/CLIP_PLAYBACK_PLAN.md §10). The stylesheet is CORE, so a
 // CSS change reaches no covers line and runs the focus set instead; without the baselines here, a
-// change that moves the dashboard would pass its own gate and turn main red. Four screenshots.
+// change that moves the dashboard would pass its own gate and turn main red. Six screenshots.
+// The third production draws a rundown's folders (phase 4): its header row, its panel and its tags.
+// covers: src/components/home/{FolderRow,FolderEditor}.tsx, src/control/folderAir.ts
 // focus
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls } from './_keys';
+import { fakeBridge as fakeRunner } from './_fakeBridge';
 
 // THE PRODUCTION PAGE AS IT LOOKS, pinned as pictures (docs/CLIP_PLAYBACK_PLAN.md §10, phase 0).
 //
@@ -42,6 +45,8 @@ import { parkFocusOffControls } from './_keys';
 //   - MIXED: graphics beside a server clip and a server template on a two-channel studio, through
 //     a Bridge faked at the network layer (as in playout-cues.spec.ts); the clip taken, so its
 //     row says ON AIR, PROGRAM's header names it and its editor shows the transport.
+//   - FOLDERS: a Play-through folder on its second clip of three, held, so its panel is open; and a
+//     collapsed All-together folder of a lower third and an audio file, on air.
 //
 // What moves with the wall clock is masked: the header's session timer and the activity log's
 // times. So are the graphics INSIDE the two monitors: how far an entrance has got is timing, and
@@ -147,7 +152,7 @@ async function seedProduction(page: Page, mixed: boolean): Promise<string> {
 }
 
 /** The picture, with what the wall clock moves masked, the pointer parked and focus dropped. */
-async function expectPage(page: Page, name: string): Promise<void> {
+async function expectPage(page: Page, name: string, alsoMask: string[] = []): Promise<void> {
   await page.mouse.move(0, 0);
   await parkFocusOffControls(page);
   await expect(page).toHaveScreenshot(name, {
@@ -159,6 +164,7 @@ async function expectPage(page: Page, name: string): Promise<void> {
       // A clip on air counts down in the clip clock and in its row (docs/CLIP_PLAYBACK_PLAN.md §6.4).
       page.locator('.pd-clipclock-time'),
       page.locator('.pd-cue.on-air [data-testid="cue-length"]'),
+      ...alsoMask.map((selector) => page.locator(selector)),
     ],
     animations: 'disabled',
     caret: 'hide',
@@ -201,5 +207,49 @@ for (const size of SIZES) {
     await expect(cueRow(page, 'GIORNO')).toContainText('ON AIR');
     await expect(page.getByTestId('playout-clip-transport')).toBeVisible();
     await expectPage(page, `mixed-${size.width}x${size.height}.png`);
+  });
+
+  test(`folders, at ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await seedStudio(page);
+    const fake = await fakeRunner(page);
+    await page.goto('/app#/home');
+    await awaitDurableReady(page);
+    const id = await page.evaluate(async () => {
+      const { variantsFor } = await import('/src/templates/catalog.ts');
+      const m = await import('/src/model/shows.ts');
+      const show = m.createShowNamed('Late Edition');
+      m.addGraphicToShow(show.id, variantsFor('lower-third')[0].create({}));
+      for (const name of ['ALPHA', 'BRAVO', 'CHARLIE']) {
+        m.addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name, mediaKind: 'movie', frames: 250, fps: 25, channel: 2 });
+      }
+      m.addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'STING', mediaKind: 'audio', frames: 750, fps: 25, channel: 2 });
+      const cues = m.loadShows().find((s) => s.id === show.id)!.cues!;
+      const idOf = (label: string) => cues.find((c) => c.label === label)!.id;
+      const block = m.addFolderFromSelection(show.id, ['ALPHA', 'BRAVO', 'CHARLIE'].map(idOf), 'Block A').folderId!;
+      m.setFolderMode(show.id, block, 'through');
+      const opening = m.addFolderFromSelection(show.id, [cues[0].id, idOf('STING')], 'Opening').folderId!;
+      m.setFolderMode(show.id, opening, 'together');
+      return show.id;
+    });
+    await settleDurableWrites(page);
+    await page.goto(`/app#/production/${id}`);
+    await expect(page.getByTestId('production-page')).toBeVisible();
+
+    const header = (name: string) => page.locator('.pd-folder', { hasText: name });
+    await header('Opening').getByTestId('select-folder').click();
+    await expect(page.getByTestId('verb-take')).toBeEnabled();
+    await parkFocusOffControls(page);
+    await page.keyboard.press(' ');
+    await expect(header('Opening').getByTestId('folder-air')).toHaveText('ON AIR');
+    await header('Opening').getByTestId('folder-toggle').click();
+    await header('Block A').getByTestId('select-folder').click();
+    await parkFocusOffControls(page);
+    await page.keyboard.press(' ');
+    await expect(cueRow(page, 'ALPHA')).toContainText('ON AIR');
+    // On to the second of the three.
+    fake.skew += 10_500;
+    await expect(cueRow(page, 'BRAVO')).toContainText('ON AIR', { timeout: 10_000 });
+    await expectPage(page, `folders-${size.width}x${size.height}.png`, ['.pd-clipclock-then']);
   });
 }

@@ -26,7 +26,18 @@ export type PlayoutVerb =
   | 'pause'
   | 'resume'
   // `P`: pause the server clip on air, or resume it (docs/CLIP_PLAYBACK_PLAN.md §16, phase 3).
-  | 'pause-toggle';
+  | 'pause-toggle'
+  // A rundown's folders (docs/CLIP_PLAYBACK_PLAN.md §16, phase 4), with no key yet: make a folder of
+  // the selected cues, and collapse or open the folder the cursor is on. A folder's Take and Out are
+  // `take` and `out` with a folder row selected. The hosted page has no folders and ignores both.
+  | 'folder-new'
+  | 'folder-toggle';
+
+/** How a verb was pressed: `repeat` for a key's auto-repeat while it is held, which a surface may
+ *  refuse for a verb that must happen once (a folder's Take fires several actions). */
+export interface VerbPress {
+  repeat: boolean;
+}
 
 /**
  * True when the keystroke belongs to whatever the operator is typing into, not to the verbs.
@@ -99,7 +110,7 @@ const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle']);
  * A verb acts on what the operator can SEE. When they cannot see PROGRAM, the keys are not
  * theirs to press.
  */
-export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb) => void, enabled = true): void {
+export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) => void, enabled = true): void {
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -108,7 +119,7 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb) => void, enabled =
       if (!verb) return;
       e.preventDefault();
       if (e.repeat && NO_REPEAT.has(verb)) return;
-      onKey(verb);
+      onKey(verb, { repeat: e.repeat });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);

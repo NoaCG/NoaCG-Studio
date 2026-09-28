@@ -12,6 +12,19 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.6.0 - 2026-09-28
+
+**Folders of clips, and a folder that starts over.** On the production page, cues can now be put in
+folders. A folder set to Play through plays its clips one after another on one layer from a single
+Take, the way Play next does. With this Bridge a Play-through folder can also start over after its
+last clip and keep going until Out: NoaCG Bridge queues the first clip again while the last one
+plays, so the server goes straight from the last clip back to the first.
+
+Download the new Bridge to use Loop the folder. With an older Bridge everything else about folders
+works, and a folder set to loop says it needs the new Bridge instead of stopping after its last clip.
+Like Play next, it needs CasparCG 2.3 or newer. If NoaCG Bridge is closed while a folder loops, the
+clip on air and the one queued behind it still play, and nothing after them starts.
+
 ## 0.5.0 - 2026-09-28
 
 **Clips play the way their cue says.** Until now a clip from the server could only play once or

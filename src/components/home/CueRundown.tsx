@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { useRouter } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -6,14 +6,16 @@ import {
   addPlayoutItem,
   addShowCue,
   graphicLayer,
-  moveShowCue,
   type PlayoutItem,
   type Show,
   type ShowCue,
+  type ShowFolder,
 } from '../../model/shows';
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
 import { graphicKindLabel } from '../../model/types';
+import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
+import { bandAt, folderName, planDrop, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
 import {
   channelOf,
@@ -26,13 +28,15 @@ import {
   type PlayoutSettings,
 } from '../../control/playoutLink';
 import type { LiveCueMap } from '../../control/hostedControl';
-import { serverCueLive } from '../../control/serverPlayout';
+import { serverCueLive, THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
 import { namesItem } from '../../control/serverState';
-import { effectiveEnd, segmentSeconds } from '../../control/cuePlayback';
+import { asFolderMember, effectiveEnd, segmentSeconds, type ClipEnd } from '../../control/cuePlayback';
+import type { FolderAir } from '../../control/folderAir';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
 import { SlotRemaining } from './ClipClock';
+import FolderRow from './FolderRow';
 import { lengthText } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 
@@ -50,15 +54,30 @@ function scrolledLately(at: number): boolean {
   return Date.now() - at < FOLLOW_PAUSE_MS;
 }
 
+
+/** A clip's own end on its row, after its name; Hold is the default and wears nothing. */
+const END_MARKS: Partial<Record<ClipEnd, { glyph: string; says: string; testid: string }>> = {
+  loop: { glyph: '⟲', says: 'Loops until Out', testid: 'cue-loop' },
+  next: { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' },
+  clear: { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' },
+};
+
+/** Where a drag is aimed, and what it would do there. */
+interface Aim {
+  key: string;
+  rowId: string | 'end';
+  plan: DropPlan | null;
+}
+
 /**
  * THE CUE RUNDOWN of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2 and §4): the rows, the
  * drag reorder, each row's ⋯ menu, and the rail foot, which is how graphics, pictures and server
  * items get in. Moved out of ProductionPage by phase 1 of docs/backlog/production-page-phases.md.
  *
- * It owns only its own menus and pickers, and where the list is scrolled. What it changes goes to
- * the record through `setShows` or through the page's callbacks, and what is ON AIR comes in as
- * values it only reads: `liveCue` is the Take contract and never leaves the page, so the rundown
- * is handed this render's map and has no way to change it.
+ * It owns only its own menus and pickers, where the list is scrolled, and where a drag is aimed. What
+ * it changes goes to the record through `setShows` or through the page's callbacks, and what is ON
+ * AIR comes in as values it only reads: `liveCue` is the Take contract and never leaves the page, so
+ * the rundown is handed this render's map and has no way to change it.
  *
  * ONE LINE A ROW (docs/CLIP_PLAYBACK_PLAN.md §6.2), so about twenty rows show at 1080p where ten
  * did. What the old second line carried is moved, never dropped: the kind and the graphic's name
@@ -73,10 +92,17 @@ function scrolledLately(at: number): boolean {
  * rundown slot that no cue here put there is listed above the rows as an unidentified item. The
  * rows read the store's OWNERSHIP part as a prop; each remaining time subscribes to the TIMING
  * part itself, so the list around it never redraws with the clock.
+ *
+ * FOLDERS (plan §6.2, §6.6 and §7, phase 4): the rows come from `rundownView` - a header for each run
+ * of a folder, its cues indented under it unless it is collapsed - so a folder is one row for the
+ * keys, the drag and a Take. A shift-click marks a range and moves nothing. A drag lands by the third
+ * of the row it is over and is ONE write however far it goes (`moveInRundown`), with a line showing
+ * where; a drop a Play-through folder refuses says why while it hovers.
  */
 export default function CueRundown({
   show,
   cues,
+  rundown,
   graphicByPoolId,
   library,
   playoutSettings,
@@ -86,21 +112,38 @@ export default function CueRundown({
   selectedCueId,
   previewCueId,
   selectedGraphicId,
+  heldFolderRowId,
+  cursorRowId,
+  range,
+  folderAir,
+  takeMisses,
+  rundownNote,
   clashes,
   offstage,
   cueView,
   cueGraphicName,
   playoutItemFor,
+  folderSlotOf,
+  throughRoleOf,
   selectCue,
+  clickRow,
+  clearRange,
   onLayerRepair,
   removeCue,
   removeGraphic,
+  newFolder,
+  removeFolder,
+  moveRundown,
+  toggleFolder,
+  setRundownNote,
   uploadPictures,
   flushDraft,
   setShows,
 }: {
   show: Show;
   cues: ShowCue[];
+  /** The rows as drawn (model/rundownRows.ts). */
+  rundown: RundownView;
   graphicByPoolId: ReadonlyMap<string, SavedGraphic>;
   library: GraphicDoc[];
   playoutSettings: PlayoutSettings;
@@ -110,12 +153,24 @@ export default function CueRundown({
   serverOwnership: ServerOwnership;
   /** Where each server clip is, for the remaining times - subscribed to by those cells alone. */
   serverTiming: StorePart<ServerTiming>;
-  /** The rundown's cursor: the selected cue, or the first when none is. */
+  /** The selected cue - null while a folder row is held. */
   selectedCueId: string | null;
   /** The cue on PREVIEW, which in 'preview-then-take' mode the cursor may have left. */
   previewCueId: string | null;
-  /** The selected cue's pool graphic, which ＋ adds a cue on. Null on a server cue. */
+  /** The selected cue's pool graphic, which ＋ adds a cue on. Null on a server cue or a folder. */
   selectedGraphicId: string | null;
+  /** The folder header the operator holds, if any. */
+  heldFolderRowId: string | null;
+  /** Where the keyboard stands: a cue row, a header, or a collapsed header hiding the selected cue. */
+  cursorRowId: string | null;
+  /** The shift-click range, by cue id. */
+  range: ReadonlySet<string>;
+  /** What is on air of each folder (control/folderAir.ts). */
+  folderAir: Readonly<Record<string, FolderAir>>;
+  /** Why each cue of the last folder Take did not go on air, by cue id. */
+  takeMisses: Readonly<Record<string, string>>;
+  /** What the rundown's authoring last said: a refused drop, a write that did not land. */
+  rundownNote: string | null;
   /** Layers two or more graphics share (model/shows `duplicateLayers`). */
   clashes: ReadonlyMap<number, SavedGraphic[]>;
   /** A workspace is in front: the rail stays mounted, out of sight. */
@@ -123,11 +178,24 @@ export default function CueRundown({
   cueView: (cue: ShowCue) => { label: string; note: string; values: Record<string, string> };
   cueGraphicName: (cue: ShowCue) => string | null;
   playoutItemFor: (cue: ShowCue) => PlayoutItem | null;
+  /** Where a Play-through folder plays, `2-10`. */
+  folderSlotOf: (folder: ShowFolder) => string;
+  /** A clip's place in its Play-through folder, or null. */
+  throughRoleOf: (cue: ShowCue) => { folder: ShowFolder; role: ThroughRole } | null;
+  /** Select a cue by id: one just added or duplicated, whose row is not drawn yet. */
   selectCue: (cueId: string) => void;
+  /** A row was clicked, with or without shift. */
+  clickRow: (row: RundownRow, shift: boolean) => void;
+  clearRange: () => void;
   /** A row's clash badge was pressed: select that cue and put its layer repair in front. */
   onLayerRepair: (cueId: string) => void;
   removeCue: (cue: ShowCue) => Promise<void>;
   removeGraphic: (poolId: string) => Promise<void>;
+  newFolder: (cueIds: readonly string[]) => Promise<void>;
+  removeFolder: (folderId: string) => Promise<void>;
+  moveRundown: (what: Movable, place: Place) => Promise<void>;
+  toggleFolder: (folderId: string) => void;
+  setRundownNote: (note: string | null) => void;
   uploadPictures: (files: File[]) => Promise<void>;
   flushDraft: () => void;
   setShows: (shows: Show[]) => void;
@@ -136,7 +204,8 @@ export default function CueRundown({
   const [addPick, setAddPick] = useState('');
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
-  const [menuCueId, setMenuCueId] = useState<string | null>(null);
+  /** The open ⋯ menu, by ROW id: a cue's, or a folder header's. */
+  const [menuRowId, setMenuRowId] = useState<string | null>(null);
   /** Which removal in the open row menu is ARMED (`cue` / `graphic`). A cue holds values somebody
    *  typed and there is no undo behind the rundown, so a removal that also takes uploaded
    *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
@@ -166,14 +235,19 @@ export default function CueRundown({
   // operator hunting for the red row. It holds still while the operator is working IN the list:
   // a row being dragged, a menu open, focus in the rundown, or ten seconds after they scrolled
   // it by hand. Only the list scrolls - never the page, which on a phone is the column the verbs
-  // are pinned to.
+  // are pinned to. A cue hidden in a collapsed folder is followed to its header, and the folder
+  // never opens by itself: that would move rows under the operator and write the record.
   const rail = useRef<HTMLElement>(null);
   const list = useRef<HTMLDivElement>(null);
-  /** The row being dragged, by cue id. An id and not a flag: a row removed mid-drag (a teammate's
+  /** The row being dragged, by row id. An id and not a flag: a row removed mid-drag (a teammate's
    *  save) never gets its dragend, and a flag would then hold the list still for good. */
   const draggingRow = useRef<string | null>(null);
+  /** What the drag moves. `getData` is empty during `dragover`, so it is kept here from `dragstart`. */
+  const dragWhat = useRef<Movable | null>(null);
+  const [aim, setAim] = useState<Aim | null>(null);
   const scrolledAt = useRef(-Infinity);
-  const menuOpen = menuCueId !== null || pickerOpen;
+  // A menu counts while its row is drawn: one left open on a row a collapse then hid holds nothing still.
+  const menuOpen = (menuRowId !== null && rundown.rows.some((r) => r.id === menuRowId)) || pickerOpen;
   const liveIds = new Set(
     cues
       .filter((cue) => {
@@ -191,21 +265,89 @@ export default function CueRundown({
     if (!arrived || offstage) return;
     const dragged = draggingRow.current;
     const held =
-      (!!dragged && cues.some((c) => c.id === dragged)) ||
+      (!!dragged && rundown.rows.some((r) => r.id === dragged)) ||
       menuOpen ||
       !!rail.current?.contains(document.activeElement) ||
       scrolledLately(scrolledAt.current);
     const box = list.current;
-    const row = box?.querySelector<HTMLElement>(`[data-testid="cue-${arrived}"]`);
+    const rowId = rundown.rowOf.get(arrived);
+    const row = rowId ? box?.querySelector<HTMLElement>(`[data-row="${CSS.escape(rowId)}"]`) : null;
     if (held || !box || !row) return;
     const b = box.getBoundingClientRect();
     const r = row.getBoundingClientRect();
     if (r.top < b.top) box.scrollTop -= b.top - r.top + 8;
     else if (r.bottom > b.bottom) box.scrollTop += r.bottom - b.bottom + 8;
-    // `cues` is read for the drag check only, as of this render; following is decided when the
-    // live set changes, not whenever the rundown does.
+    // `rundown` is read for the drag check and the row lookup only, as of this render; following is
+    // decided when the live set changes, not whenever the rundown does.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveKey, offstage, menuOpen]);
+
+  // ── THE DRAG (plan §7): aimed by the row under the pointer and the third of it, drawn as a line
+  // where it will land, and one write at the drop. A pointer in the gap between two rows keeps the
+  // aim it had, so the line never flickers to the end of the list and back. ──
+  const startDrag = (row: RundownRow, e: DragEvent<HTMLDivElement>) => {
+    // No state is set here: re-rendering the drag source inside dragstart can cancel the drag.
+    draggingRow.current = row.id;
+    dragWhat.current = row.kind === 'cue' ? { cueId: row.cue.id } : { folderId: row.folder.id };
+    e.dataTransfer.setData(row.kind === 'cue' ? 'text/noacg-cue' : 'text/noacg-folder', row.kind === 'cue' ? row.cue.id : row.folder.id);
+  };
+  const endDrag = () => {
+    draggingRow.current = null;
+    dragWhat.current = null;
+    setAim(null);
+  };
+  /** Which row, and which third of it, the pointer is over - or the end of the list. Null for a gap. */
+  const aimAt = (e: DragEvent<HTMLDivElement>): { rowId: string; band: ReturnType<typeof bandAt> } | 'end' | null => {
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-drop-end]')) return 'end';
+    const rowEl = target.closest<HTMLElement>('[data-row]');
+    if (rowEl) {
+      const rect = rowEl.getBoundingClientRect();
+      return { rowId: rowEl.dataset.row!, band: bandAt(e.clientY - rect.top, rect.height) };
+    }
+    const rows = list.current?.querySelectorAll<HTMLElement>('[data-row]');
+    const last = rows?.[rows.length - 1];
+    return last && e.clientY > last.getBoundingClientRect().bottom ? 'end' : null;
+  };
+  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const what = dragWhat.current;
+    if (!what) return;
+    const at = aimAt(e);
+    if (!at) return;
+    const key = at === 'end' ? 'end' : `${at.rowId}:${at.band}`;
+    if (aim?.key === key) return;
+    setAim({ key, rowId: at === 'end' ? 'end' : at.rowId, plan: planDrop(show, rundown, what, at) });
+  };
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const types = e.dataTransfer.types;
+    const cueId = types.includes('text/noacg-cue') ? e.dataTransfer.getData('text/noacg-cue') : '';
+    const folderId = types.includes('text/noacg-folder') ? e.dataTransfer.getData('text/noacg-folder') : '';
+    const what: Movable | null = cueId ? { cueId } : folderId ? { folderId } : dragWhat.current;
+    const at = aimAt(e) ?? (aim ? (aim.rowId === 'end' ? 'end' : null) : null);
+    const plan = what && at ? planDrop(show, rundown, what, at) : (aim?.plan ?? null);
+    endDrag();
+    if (!what || !plan) return;
+    if (plan.refused) {
+      setRundownNote(plan.refused);
+      return;
+    }
+    void moveRundown(what, plan.place);
+  };
+  /** A row's drop mark: the line where the drop LANDS, which for a folder moved beside another is that
+   *  folder's edge rather than the row under the pointer; a refusal on the row under the pointer. */
+  const markFor = (rowId: string) => {
+    const plan = aim?.plan;
+    if (!plan) return null;
+    if (plan.refused) return aim.rowId === rowId ? { refused: true as const } : null;
+    return plan.mark.rowId === rowId ? plan.mark : null;
+  };
+
+  /** The folders a cue could be moved into from its menu: every other folder there is. */
+  const otherFolders = (folderId: string | null) => [...rundown.folders.values()].filter((f) => f.id !== folderId);
+
+  const rangeCount = range.size;
 
   return (
     <aside ref={rail} id="pd-rundown" className={`pd-rail pd-rundown${offstage ? ' pd-offstage' : ''}`}>
@@ -240,26 +382,31 @@ export default function CueRundown({
           Bridge restart. Named by its slot and file, never matched to a cue by its name. */}
       {serverOwnership.unidentified.length > 0 && (
         <div className="pd-unidentified" data-testid="server-unidentified">
-          {serverOwnership.unidentified.map((u) => (
-            <div
-              key={slotAddress(u.slot)}
-              className="pd-unidentified-row"
-              title={`${slotAddress(u.slot)} plays ${u.file ?? 'something'} on the playout server, and this page cannot say which cue put it there. Take a cue on that slot to replace it.`}
-            >
-              <span className="pd-unidentified-what">Unidentified item on {slotAddress(u.slot)}</span>
-              {u.file && <span className="pd-cue-sum">{u.file}</span>}
-              {/* The Bridge restarted during a Play next: what the server had queued still plays,
-                  and nothing after it (plan §6.10, rule 7). */}
-              {u.sequenceStopped && (
-                <span className="pd-cue-sum" data-testid="server-sequence-stopped">
-                  Play next stopped: NoaCG Bridge restarted
+          {serverOwnership.unidentified.map((u) => {
+            // A Bridge restart stopped a run: named by the folder its cue played in, when it did.
+            const stoppedIn = u.sequenceStopped && u.cueId ? cues.find((c) => c.id === u.cueId) : undefined;
+            const stoppedFolder = stoppedIn ? throughRoleOf(stoppedIn)?.folder : undefined;
+            return (
+              <div
+                key={slotAddress(u.slot)}
+                className="pd-unidentified-row"
+                title={`${slotAddress(u.slot)} plays ${u.file ?? 'something'} on the playout server, and this page cannot say which cue put it there. Take a cue on that slot to replace it.`}
+              >
+                <span className="pd-unidentified-what">Unidentified item on {slotAddress(u.slot)}</span>
+                {u.file && <span className="pd-cue-sum">{u.file}</span>}
+                {/* The Bridge restarted during a run: what the server had queued still plays, and
+                    nothing after it (plan §6.10, rule 7). */}
+                {u.sequenceStopped && (
+                  <span className="pd-cue-sum" data-testid="server-sequence-stopped">
+                    {stoppedFolder ? `${folderName(stoppedFolder)} stopped` : 'Play next stopped'}: NoaCG Bridge restarted
+                  </span>
+                )}
+                <span className="pd-cue-len">
+                  <SlotRemaining timing={serverTiming} slot={slotAddress(u.slot)} fallback="" />
                 </span>
-              )}
-              <span className="pd-cue-len">
-                <SlotRemaining timing={serverTiming} slot={slotAddress(u.slot)} fallback="" />
-              </span>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -271,8 +418,70 @@ export default function CueRundown({
         // so only a wheel or a touch counts as the operator having looked somewhere on purpose.
         onWheel={() => (scrolledAt.current = Date.now())}
         onTouchMove={() => (scrolledAt.current = Date.now())}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragLeave={(e) => {
+          if (!list.current?.contains(e.relatedTarget as Node | null)) setAim(null);
+        }}
+        // A press on the list's own background clears the range, as Home's library does.
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget && rangeCount) clearRange();
+        }}
       >
-        {cues.map((cue, i) => {
+        {rundown.rows.map((row) => {
+          if (row.kind === 'folder') {
+            const { folder } = row;
+            const hidden = folder.collapsed === true ? row.runCues : [];
+            const hiddenSelected = hidden.find((c) => c.id === selectedCueId);
+            // A clash never hides behind a collapsed header (§6.2): the header carries it.
+            const hiddenClash = hidden
+              .map((c) => ({ c, g: graphicByPoolId.get(c.sourceId) }))
+              .find(({ g }) => g && (clashes.get(graphicLayer(g))?.length ?? 0) > 1);
+            const hiddenReplaced = hidden.map((c) => replacedCues.get(c.id)).find(Boolean);
+            const members = rundown.members.get(folder.id) ?? [];
+            const missed = members.filter((c) => takeMisses[c.id]).length;
+            return (
+              <FolderRow
+                key={row.id}
+                row={row}
+                air={folderAir[folder.id]}
+                missed={missed}
+                selected={heldFolderRowId !== null && cursorRowId === row.id}
+                holdsCursor={hiddenSelected ? hiddenSelected.label : null}
+                inRange={members.every((c) => range.has(c.id))}
+                timed={timed}
+                slot={folderMode(folder) === 'through' ? folderSlotOf(folder) : null}
+                clash={
+                  hiddenClash
+                    ? {
+                        title: `${hiddenClash.c.label} shares layer ${graphicLayer(hiddenClash.g!)} with another graphic. On air they replace each other. Click to repair.`,
+                        onRepair: () => {
+                          toggleFolder(folder.id);
+                          onLayerRepair(hiddenClash.c.id);
+                        },
+                      }
+                    : null
+                }
+                replaced={hiddenReplaced ? `${hiddenReplaced.cueId ? cues.find((c) => c.id === hiddenReplaced.cueId)?.label ?? 'A cue' : 'A cue'} was replaced on the server.` : null}
+                drop={markFor(row.id)}
+                menuOpen={menuRowId === row.id}
+                onSelect={(shift) => {
+                  setRundownNote(null);
+                  clickRow(row, shift);
+                }}
+                onToggle={() => toggleFolder(folder.id)}
+                onMenu={() => setMenuRowId((m) => (m === row.id ? null : row.id))}
+                onCloseMenu={() => setMenuRowId(null)}
+                onRemove={() => {
+                  setMenuRowId(null);
+                  void removeFolder(folder.id);
+                }}
+                onDragStart={(e) => startDrag(row, e)}
+                onDragEnd={endDrag}
+              />
+            );
+          }
+          const { cue } = row;
           const view = cueView(cue);
           const cueGraphic = cueGraphicName(cue);
           const poolEntry = graphicByPoolId.get(cue.sourceId);
@@ -290,7 +499,10 @@ export default function CueRundown({
           const pictures = poolEntry?.type === 'picture' ? poolEntry.template.assets.length : 0;
           const layer = poolEntry ? graphicLayer(poolEntry) : 0;
           const clashWith = poolEntry ? (clashes.get(layer) ?? []).filter((g) => g.id !== poolEntry.id) : [];
-          const address = playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
+          // A clip of a Play-through folder plays on the folder's slot, not its own (plan §6.6), so
+          // everything that says where it plays names the folder's.
+          const through = playoutItem?.kind === 'media' ? throughRoleOf(cue) : null;
+          const address = through ? folderSlotOf(through.folder) : playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
           // THE KIND, in words for whoever cannot see the glyph: the icon's accessible name and
           // its tooltip carry what the old second line printed ("Lower third · Hairline").
           const kind = poolEntry
@@ -315,51 +527,44 @@ export default function CueRundown({
           // What the cue plays of its file: a trimmed clip reads its own length.
           const length = playoutItem?.kind === 'media' ? lengthText(segmentSeconds(cue, playoutItem)) : '';
           // WHAT HAPPENS AT ITS END, after the name (plan §6.2): loops, plays the next, clears. Hold
-          // is the default and wears nothing. Read by the loop rule of the record (control/cuePlayback.ts).
-          const end = playoutItem?.kind === 'media' ? effectiveEnd(cue, playoutItem) : 'hold';
-          const endMark =
-            end === 'loop'
-              ? { glyph: '⟲', says: 'Loops until Out', testid: 'cue-loop' }
-              : end === 'next'
-                ? { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' }
-                : end === 'clear'
-                  ? { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' }
-                  : null;
+          // is the default and wears nothing. Read by the loop rule of the record (control/cuePlayback.ts);
+          // in a Play-through folder, by the folder.
+          // The last clip of a folder that ends keeps its own ending, with Play next read as Hold, as its
+          // panel says (control/cuePlayback.ts asFolderMember).
+          const folderEnd = through ? THROUGH_END[through.role] : undefined;
+          const ownEnd = playoutItem?.kind === 'media' ? effectiveEnd(through?.role === 'last' ? asFolderMember(cue, playoutItem, true) : cue, playoutItem) : 'hold';
+          const endMark = folderEnd
+            ? { glyph: folderEnd.glyph, says: folderEnd.words, testid: through!.role === 'middle' ? 'cue-next-mark' : 'cue-loop' }
+            : (END_MARKS[ownEnd] ?? null);
           // Where this clip is up, if it is: the slot it was TAKEN to, whatever its editor says now.
           const upAt = cueIsLive && playoutItem?.kind === 'media' ? serverOnAir[playoutItem.id]?.slot : undefined;
-          // Waiting on the server behind whatever plays on its slot (`LOADBG`).
+          // Waiting on the server behind whatever plays on its slot (`LOADBG`). In a folder's run the
+          // same file can wait twice, so the run's own next entry names the cue.
           const next = !cueIsLive && playoutItem?.kind === 'media' ? serverOwnership.queued[address] : undefined;
-          const nextHere = !!next && !!playoutItem && namesItem(playoutItem.name, next.file);
+          const nextHere = through
+            ? !!next && serverOwnership.sequences[address]?.next[0]?.cueId === cue.id
+            : !!next && !!playoutItem && namesItem(playoutItem.name, next.file);
           const replaced = replacedCues.get(cue.id);
+          const miss = !cueIsLive ? takeMisses[cue.id] : undefined;
+          const rowMenuId = row.id;
+          const inFolder = !!row.folderId;
+          const ownFolder = row.folderId ? rundown.folders.get(row.folderId) : undefined;
+          const takesRange = range.has(cue.id) && rangeCount > 1;
+          const drop = markFor(row.id);
           return (
             <div
               key={cue.id}
-              className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}`}
-              data-testid={`cue-${cue.id}`}
+              className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}`}
+              data-testid={rowTestId(row)}
+              data-row={row.id}
+              {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
+              {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
               draggable
-              onDragStart={(e) => {
-                draggingRow.current = cue.id;
-                e.dataTransfer.setData('text/noacg-cue', cue.id);
-              }}
-              onDragEnd={() => (draggingRow.current = null)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                draggingRow.current = null;
-                const from = e.dataTransfer.getData('text/noacg-cue');
-                const fromIndex = cues.findIndex((c) => c.id === from);
-                if (fromIndex < 0 || fromIndex === i) return;
-                flushDraft();
-                // moveShowCue steps by one, so walk it to the drop position — the store keeps
-                // one mutation shape and the drag stays a pure view concern.
-                const step = fromIndex < i ? 1 : -1;
-                let next = moveShowCue(show.id, from, step);
-                for (let k = fromIndex + step; k !== i; k += step) next = moveShowCue(show.id, from, step);
-                setShows(next);
-              }}
+              onDragStart={(e) => startDrag(row, e)}
+              onDragEnd={endDrag}
             >
               <span className="pd-grip" aria-hidden="true">⣿</span>
-              <span className="pd-cue-no">{cueIsLive ? '●' : i + 1}</span>
+              <span className="pd-cue-no">{cueIsLive ? '●' : row.no}</span>
               <span
                 className={`pd-cue-kind pd-cue-kind--${kind.tone}`}
                 role="img"
@@ -375,7 +580,12 @@ export default function CueRundown({
                   screen reader nothing. */}
               <button
                 className="pd-cue-label"
-                onClick={() => selectCue(cue.id)}
+                // A shift-click extends the selection; it must not also select the text under it.
+                onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+                onClick={(e) => {
+                  setRundownNote(null);
+                  clickRow(row, e.shiftKey);
+                }}
                 data-testid="select-cue"
                 aria-current={isSelected ? 'true' : undefined}
               >
@@ -422,6 +632,11 @@ export default function CueRundown({
               )}
               {cueIsLive ? (
                 <span className="pd-tag air">ON AIR</span>
+              ) : miss ? (
+                // A folder's Take did not put this cue on air: said on its own row, with why.
+                <span className="pd-tag miss" title={miss} aria-label={`Not taken: ${miss}`} data-testid="cue-take-miss">
+                  NOT TAKEN
+                </span>
               ) : isPreviewed ? (
                 <span className="pd-tag pvw">PVW</span>
               ) : null}
@@ -460,7 +675,11 @@ export default function CueRundown({
               {playoutItem && (
                 <span
                   className="pd-cue-layer"
-                  title={`${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`}
+                  title={
+                    through
+                      ? `${playoutItem.name} plays on ${address}, the slot of ${folderName(through.folder)}`
+                      : `${playoutItem.name} plays on the playout server, ${channelTitle(playoutSettings, channelOf(playoutSettings, playoutItem))}, layer ${playoutItem.layer}`
+                  }
                   data-testid="cue-layer"
                 >
                   {address}
@@ -471,7 +690,7 @@ export default function CueRundown({
                   className="pd-icon pd-cue-more"
                   onClick={() => {
                     setArmedRemove(null);
-                    setMenuCueId((m) => (m === cue.id ? null : cue.id));
+                    setMenuRowId((m) => (m === rowMenuId ? null : rowMenuId));
                   }}
                   title="More"
                   aria-label={`More actions for ${view.label}`}
@@ -483,10 +702,10 @@ export default function CueRundown({
                     arithmetic — the same defect the library's bulk bar had, on the surface an
                     operator uses live. The shell measures which way to open. */}
                 <LibMenu
-                  open={menuCueId === cue.id}
+                  open={menuRowId === rowMenuId}
                   onClose={() => {
                     setArmedRemove(null);
-                    setMenuCueId(null);
+                    setMenuRowId(null);
                   }}
                   testid="cue-actions-menu"
                 >
@@ -495,18 +714,66 @@ export default function CueRundown({
                     onClick={() => {
                       flushDraft();
                       const v = cueView(cue);
-                      const { shows: next, cueId } = addShowCue(show.id, cue.sourceId, {
-                        label: `${v.label} copy`,
-                        values: v.values,
-                        note: v.note || undefined,
-                      });
+                      // The copy is of the cue, its playback too, and goes right after it - in its
+                      // folder when it is in one (plan §7).
+                      const { shows: next, cueId } = addShowCue(
+                        show.id,
+                        cue.sourceId,
+                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}) },
+                        cue.id,
+                      );
                       setShows(next);
-                      setMenuCueId(null);
+                      setMenuRowId(null);
                       if (cueId) selectCue(cueId);
                     }}
                   >
                     Duplicate
                   </button>
+                  {/* A FOLDER from this cue, or from the shift-click range when this row is in it. */}
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuRowId(null);
+                      void newFolder(takesRange ? [...range] : [cue.id]);
+                    }}
+                    title="Shift-click another cue to select several."
+                    data-testid="cue-new-folder"
+                  >
+                    {takesRange ? `New folder from the ${rangeCount} selected cues` : 'New folder from this cue'}
+                  </button>
+                  {menuRowId === rowMenuId && otherFolders(row.folderId).map((f) => {
+                    const refused = placeRefusal(show, { cueId: cue.id }, { into: f.id });
+                    return (
+                      <button
+                        key={f.id}
+                        role="menuitem"
+                        disabled={!!refused}
+                        title={refused ?? `Put ${view.label} last in ${folderName(f)}`}
+                        onClick={() => {
+                          setMenuRowId(null);
+                          void moveRundown({ cueId: cue.id }, { into: f.id });
+                        }}
+                        data-testid="cue-into-folder"
+                        data-folder={f.id}
+                      >
+                        Move into ▤ {folderName(f)}
+                        {refused ? ' (clips and audio only)' : ''}
+                      </button>
+                    );
+                  })}
+                  {ownFolder && (
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuRowId(null);
+                        void moveRundown({ cueId: cue.id }, { afterFolder: ownFolder.id });
+                      }}
+                      title={`Put ${view.label} right after ${folderName(ownFolder)}, in no folder`}
+                      data-testid="cue-out-of-folder"
+                    >
+                      Take out of ▤ {folderName(ownFolder)}
+                    </button>
+                  )}
                   {/* Removing the LAST cue removes the graphic too, so the label says so
                       rather than letting it be discovered. A picture graphic carries the
                       uploads themselves, which is the one removal that destroys content
@@ -520,7 +787,7 @@ export default function CueRundown({
                       }
                       void removeCue(cue);
                       setArmedRemove(null);
-                      setMenuCueId(null);
+                      setMenuRowId(null);
                     }}
                     title={
                       siblingCues === 1
@@ -548,7 +815,7 @@ export default function CueRundown({
                         }
                         void removeGraphic(cue.sourceId);
                         setArmedRemove(null);
-                        setMenuCueId(null);
+                        setMenuRowId(null);
                       }}
                       title={`Remove ${cueGraphic ?? playoutItem?.name ?? 'this graphic'} from the production, with every cue prepared against it`}
                       data-testid="delete-graphic"
@@ -563,7 +830,42 @@ export default function CueRundown({
             </div>
           );
         })}
+        {/* While a row is dragged, the list ends with a place to drop it: the one way out at the
+            bottom when the list ends in a folder. */}
+        {aim && (
+          <div
+            className="pd-drop-end"
+            data-drop-end
+            {...(aim.rowId === 'end' && aim.plan ? { 'data-drop': aim.plan.refused ? 'refused' : 'into' } : {})}
+            data-testid="rundown-drop-end"
+          >
+            Move to the end
+          </div>
+        )}
       </div>
+
+      {/* The rundown's own note: why a drop is refused - read while it hovers, and kept after - or a
+          folder write that did not land. Under the list, where it is never clipped. */}
+      {(aim?.plan?.refused ?? rundownNote) && (
+        <p className="status-bad pd-rundown-note" role="status" data-testid="rundown-note">
+          {aim?.plan?.refused ?? rundownNote}
+        </p>
+      )}
+
+      {/* THE RANGE (owner, 2026-09-28): while a shift-click selection stands, its count and its verb,
+          as Home's library shows them - no checkboxes, and nothing at rest. */}
+      {rangeCount > 0 && (
+        <div className="pd-range-bar" data-testid="rundown-range">
+          <span data-testid="range-count">{rangeCount} selected</span>
+          <div className="spacer" />
+          <button onClick={() => void newFolder([...range])} data-testid="new-folder">
+            ▤ New folder
+          </button>
+          <button onClick={clearRange} data-testid="range-clear">
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* The foot is how graphics GET IN. It used to carry a layer list as well — a second
           list of the same graphics, in a corner the rundown wanted for itself. The layer is

@@ -10,7 +10,8 @@
 // next file; something has to queue each one after that. A sequence's own action plays the first
 // entry and queues the second at once (adapters/casparcg.ts). While it runs, this reads the slot four
 // times a second, and when it sees the switch it queues the next - or, after the last entry, that
-// entry's own Clear.
+// entry's own Clear, or in a sequence that loops (Loop the folder) the first entry again. A loop
+// never ends by itself, so its slot is read until Out.
 //
 // THE RULES, each with its test in cli/test/runner.test.mjs:
 //   1. One serial queue per slot (./slots.ts): the runner's queuing and the page's verbs are sent
@@ -34,7 +35,7 @@
 
 import type { PlayoutAdapter } from './adapters/casparcg.js';
 import type { CasparSlot, SlotState, Target } from './protocol.js';
-import type { SlotMemoryBank, SlotReading } from './slots.js';
+import { followingIndex, type SlotMemoryBank, type SlotReading } from './slots.js';
 
 /** Whether the clip on a layer was PLAYed from part way in and has not reached its segment yet. */
 function startingOn(readings: SlotReading[], layer: number): boolean {
@@ -141,13 +142,14 @@ export class SequenceRunner {
       this.memory.sequenceEnded(target, slot);
       return;
     }
-    const last = run.index === run.entries.length - 1;
-    if (last && on.playback?.end !== 'clear') {
+    const following = followingIndex(run);
+    if (following === undefined && on.playback?.end !== 'clear') {
       // The last entry holds or loops by itself: nothing is left to queue.
       this.memory.sequenceEnded(target, slot);
       return;
     }
-    const what = last ? ('clear' as const) : run.index + 1;
+    // The next entry - the first again after the last, in a loop - or the last entry's own Clear.
+    const what = following ?? ('clear' as const);
     await this.memory.serial(target, slot, async () => {
       // Checked again inside the queue: an Out or a Take that arrived while this was being decided
       // has moved the generation, and the line is dropped unsent (rule 2).
@@ -159,10 +161,11 @@ export class SequenceRunner {
       if (!check.ok) return;
       const again = this.memory.annotate(target, slot.channel, check.value).find((l) => l.layer === slot.layer);
       if (!current() || !again || again.paused || again.arriving || again.instance === undefined || startingOn(check.value, slot.layer)) return;
+      // A loop's entries carry no ending of their own, and none is last: nothing gets the server's LOOP.
       const r = await adapter.follow!(
         target,
         slot,
-        what === 'clear' ? { clear: { fadeOut: on.playback?.fadeOut } } : { entry: run.entries[what], last: what === run.entries.length - 1 },
+        what === 'clear' ? { clear: { fadeOut: on.playback?.fadeOut } } : { entry: run.entries[what], last: !run.loop && what === run.entries.length - 1 },
       );
       if (!r.ok) {
         // The server refused the next file (it was removed, say): the clip on air plays out by its

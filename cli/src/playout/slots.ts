@@ -17,7 +17,8 @@
 //               clip to its cue again after a reload. In a sequence it follows the entry on air.
 //   FOLLOWER    what this Bridge queued behind the clip with AUTO that has not aired yet: an Out
 //               then clears the layer rather than stopping it, and a refused Take disarms it.
-//   SEQUENCE    the files still to play after the one on air (./runner.ts runs it).
+//   SEQUENCE    the files still to play after the one on air, and whether the first plays again after
+//               the last (./runner.ts runs it).
 //   QUEUE       ONE serial queue per slot: every command for the slot - the page's verbs and the
 //               runner's queuing alike - is sent in order, one at a time (§6.10, rule 1).
 //
@@ -65,6 +66,15 @@ export interface SequenceRun {
   /** What the runner has queued behind it: the next entry's index, or `clear` for the last
    *  entry's own Clear. Absent = nothing yet. */
   queued?: number | 'clear';
+  /** The first entry plays again after the last, until Out (Loop the folder). */
+  loop?: true;
+}
+
+/** The entry that plays after the one on air: the next, the first again when the run loops, or
+ *  none after the last. */
+export function followingIndex(run: Pick<SequenceRun, 'entries' | 'index' | 'loop'>): number | undefined {
+  if (run.index < run.entries.length - 1) return run.index + 1;
+  return run.loop ? 0 : undefined;
 }
 
 interface SlotMemory {
@@ -83,6 +93,11 @@ interface SlotMemory {
 /** How far a playing clip may go BACK between two readings before it counts as restarted. A
  *  reading is late by milliseconds, never by this much. */
 const RESTART_JUMP_S = 0.75;
+/** How far back the position must go for the switch to a queued copy of the SAME file to be seen. A
+ *  MIX into it starts its fade in before the end, and INFO reports the incoming file's position, so the
+ *  jump can be as small as the clip's length less its fade in less a reading's gap: 0.75 s for a 2 s
+ *  member with a 1 s fade, read a quarter of a second apart. A playing clip never otherwise goes back. */
+const SWITCH_JUMP_S = 0.1;
 
 /**
  * How long after a take the slot may still show what it held BEFORE it. The server answers
@@ -131,11 +146,17 @@ function forget(m: SlotMemory): void {
 function owned(m: SlotMemory): Pick<SlotState, 'instance' | 'cueId' | 'sequence'> {
   if (!m.instance) return {};
   const seq = m.sequence;
+  // Only a sequence has entries after the first, and each came with the server's list facts. One
+  // that loops always has more to play: every other entry, in the order they come round.
+  const next = !seq
+    ? []
+    : seq.loop
+      ? [...seq.entries.slice(seq.index + 1), ...seq.entries.slice(0, seq.index)]
+      : seq.entries.slice(seq.index + 1);
   return {
     instance: m.instance.id,
     ...(m.instance.cueId ? { cueId: m.instance.cueId } : {}),
-    // Only a sequence has entries after the first, and each came with the server's list facts.
-    ...(seq && seq.index < seq.entries.length - 1 ? { sequence: { next: seq.entries.slice(seq.index + 1) as SequenceEntry[] } } : {}),
+    ...(next.length ? { sequence: { next: next as SequenceEntry[], ...(seq?.loop ? { loop: true } : {}) } } : {}),
   };
 }
 
@@ -219,10 +240,11 @@ export class SlotMemoryBank {
 
   /** A sequence the server accepted - or a take that still owes its Clear: its first entry plays,
    *  and the runner owns what follows. Called after `started`, under the generation the action moved
-   *  to. `queuedNext` says the action already queued the second entry. */
-  sequenceStarted(target: Target, slot: Slot, entries: RunEntry[], queuedNext: boolean): void {
+   *  to. `queuedNext` says the action already queued the second entry; `loop` that the first plays
+   *  again after the last. */
+  sequenceStarted(target: Target, slot: Slot, entries: RunEntry[], queuedNext: boolean, loop = false): void {
     const m = this.memory(target, slot);
-    m.sequence = { generation: m.generation, entries, index: 0, ...(queuedNext ? { queued: 1 } : {}) };
+    m.sequence = { generation: m.generation, entries, index: 0, ...(queuedNext ? { queued: 1 } : {}), ...(loop ? { loop: true as const } : {}) };
   }
 
   /** An Out or a Clear the server accepted: nothing of this Bridge's is left on the slot. */
@@ -250,7 +272,7 @@ export class SlotMemoryBank {
       instance = this.started(target, slot, first.item, first.cueId);
       // The second file refused: the first plays out by itself and nothing is retried; the reply's
       // warning says so, and the reading shows no sequence.
-      if (!r.value.warning) this.sequenceStarted(target, slot, action.entries, !!r.value.follower);
+      if (!r.value.warning) this.sequenceStarted(target, slot, action.entries, !!r.value.follower, action.loop === true);
     }
     if (r.ok && r.value.follower !== undefined) this.setFollower(target, slot, r.value.follower);
     if (!r.ok && r.follower === null) this.setFollower(target, slot, null);
@@ -311,21 +333,27 @@ export class SlotMemoryBank {
     // Just taken, and what the layer shows cannot be the new clip yet (see LOADING_GRACE_MS).
     const arriving = age < LOADING_GRACE_MS && (!same || (r.position !== undefined && r.position > age / 1000 + ARRIVAL_SLACK_S));
     if (arriving) return true;
-    const jumpedBack = inst.lastPosition !== undefined && r.position !== undefined && r.position < inst.lastPosition - RESTART_JUMP_S;
+    const backBy = (s: number) => inst.lastPosition !== undefined && r.position !== undefined && r.position < inst.lastPosition - s;
     const seq = m.sequence;
-    const next = seq && seq.queued === seq.index + 1 ? seq.entries[seq.index + 1] : undefined;
-    // THE SERVER SWITCHED to the next entry by itself: a new file, or the same file again from its
-    // start. From here that entry is the one on air, and the runner queues the one after it.
-    if (seq && next && holds && playsItem(next.item, r.file) && (!same || jumpedBack)) {
-      seq.index += 1;
+    const following = seq ? followingIndex(seq) : undefined;
+    const next = seq && following !== undefined && seq.queued === following ? seq.entries[following] : undefined;
+    // THE SERVER SWITCHED to the next entry by itself - or, in a loop, from the last to the first: a
+    // new file, or the same file again from its start. From here that entry is the one on air, and
+    // the runner queues the one after it.
+    if (seq && next && following !== undefined && holds && playsItem(next.item, r.file) && (!same || backBy(SWITCH_JUMP_S))) {
+      seq.index = following;
       delete seq.queued;
       delete m.follower;
       m.instance = { id: inst.id, item: next.item, startedAt: inst.startedAt, ...(next.cueId ? { cueId: next.cueId } : {}), lastPosition: r.position };
       return false;
     }
-    const restarted = same && !r.loop && jumpedBack;
+    const restarted = same && !r.loop && backBy(RESTART_JUMP_S);
     if (same && !restarted) {
-      inst.lastPosition = r.position;
+      // Just after a take, the same file further in than the time since it is the OLD copy still on
+      // the layer, not near enough its end to read as arriving. Kept as the position, it would make the
+      // new copy's start look like a switch to a queued copy of the same file.
+      const oldCopy = age < LOADING_GRACE_MS && r.position !== undefined && r.position > age / 1000 + SWITCH_JUMP_S;
+      if (!oldCopy) inst.lastPosition = r.position;
       return false;
     }
     // Something else plays there - another client's take, a restart, or nothing (a Clear at the end

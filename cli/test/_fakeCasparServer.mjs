@@ -102,6 +102,11 @@ const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0'
  *   templates - template names, for TLS and `CG … ADD`.
  *   channels  - `{ 1: { fps: 25 }, … }`; a command on any other channel is refused.
  *   version   - what VERSION answers.
+ *   autoStarting - model the same window after an AUTO switch into a file with `IN`: the file reads
+ *               at 0 for STARTING_MS and a `LOADBG … AUTO` in that time fires at once. Off by default:
+ *               measured on 2.5.0 and 2.3 (2026-09-28), the real server reads the trimmed start at
+ *               once after an AUTO switch and a follower queued 27 to 57 ms later waits for the
+ *               segment's end (fixtures/info/p4-auto-into-in.json). The window is real after a PLAY.
  *   intercept - `(line, { tokens, answer }) => string | undefined | Promise<…>`: FAULT INJECTION.
  *               A string is sent as the whole reply and the command is NOT applied (unless it came
  *               from `answer()`, which applies it at that moment); undefined lets it through. It
@@ -165,7 +170,7 @@ export async function fakeCasparServer(options = {}) {
       const at = switchAt(l);
       if (at === null || at > now) continue;
       const next = l.background;
-      l.foreground = { ...next, startedAt: at, pausedAt: null, playedAt: at };
+      l.foreground = { ...next, startedAt: at, pausedAt: null, playedAt: at, ...(options.autoStarting && next.start > 0 ? { startingUntil: at + STARTING_MS } : {}) };
       l.background = null;
       l.auto = false;
     }

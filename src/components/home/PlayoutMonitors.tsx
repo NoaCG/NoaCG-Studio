@@ -46,6 +46,7 @@ export default function PlayoutMonitors({
   previewLabel,
   settleData,
   hasCues,
+  emptyHint,
   liveLayers,
   serverLayers,
   previewServer = null,
@@ -68,6 +69,9 @@ export default function PlayoutMonitors({
   /** The values a Take would air, as the settle command carries them. */
   settleData: string;
   hasCues: boolean;
+  /** What the empty PREVIEW says, when the page knows better than the default: a folder row is
+   *  held, and a folder is more than one cue. */
+  emptyHint?: string;
   /** The graphics up on air, each with the cue that put it there, front to back. */
   liveLayers: { layer: number; label: string }[];
   /** The server cues this page put up - named on PROGRAM's header. */
@@ -216,9 +220,7 @@ export default function PlayoutMonitors({
           ) : (
             <div className="pd-frame pd-frame-empty" style={{ aspectRatio: stageAspect }}>
               <p className="hint">
-                {!hasCues
-                  ? 'Add a cue to preview it here.'
-                  : 'SPACE on the selected cue shows it here.'}
+                {emptyHint ?? (!hasCues ? 'Add a cue to preview it here.' : 'SPACE on the selected cue shows it here.')}
               </p>
             </div>
           )}

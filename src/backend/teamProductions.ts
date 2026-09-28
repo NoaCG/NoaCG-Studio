@@ -383,18 +383,24 @@ async function pushSave(id: string): Promise<void> {
       // than overwritten by the result.
       const now = loadTeamShows().find((s) => s.id === id);
       let next = merged.doc;
+      // What either merge had to give up, and whether either put a folder back together, is said once.
+      let lost = merged.lost;
+      let gathered = merged.gathered;
       if (now && JSON.stringify(teamDoc(now)) !== JSON.stringify(teamDoc(sent))) {
-        next = mergeTeamShow(teamDoc(sent), teamDoc(now), merged.doc, new Date().toISOString()).doc;
+        const again = mergeTeamShow(teamDoc(sent), teamDoc(now), merged.doc, new Date().toISOString());
+        next = again.doc;
+        lost = [...new Set([...lost, ...again.lost])];
+        gathered ||= again.gathered;
       }
-      if (merged.lost.length > 0) {
+      if (lost.length > 0 || gathered) {
         const who = teamMemberName(known.teamId, answer.updatedBy);
         const at = new Date(answer.updatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        setState({
-          notes: {
-            ...state.notes,
-            [id]: `${who === 'you' ? 'Your other window' : who} saved a newer version at ${at}. Your change to ${merged.lost.join(' and ')} was replaced by theirs.`,
-          },
-        });
+        const said = [
+          `${who === 'you' ? 'Your other window' : who} saved a newer version at ${at}.`,
+          ...(lost.length > 0 ? [`Your change to ${lost.join(' and ')} was replaced by theirs.`] : []),
+          ...(gathered ? ['A folder the two versions had pulled apart is back together in the rundown.'] : []),
+        ];
+        setState({ notes: { ...state.notes, [id]: said.join(' ') } });
       }
       applyServerTeamShow({ ...next, teamId: known.teamId });
       sent = { ...next, teamId: known.teamId };

@@ -32,6 +32,9 @@ export interface UnidentifiedItem {
   /** A sequence this page saw running there stopped: the Bridge restarted and forgot it, so
    *  whatever the server had already queued plays by the server's own rule and nothing after it. */
   sequenceStopped?: boolean;
+  /** With `sequenceStopped`: the cue that was on air when it stopped, so the line can name the
+   *  folder it played in rather than guess one from the slot. */
+  cueId?: string;
 }
 
 /** A slot's generation as of the last action this page saw accepted, and the Bridge session that
@@ -51,10 +54,18 @@ export interface ServerOwnership {
   unidentified: readonly UnidentifiedItem[];
   /** What waits to play next on a slot (`LOADBG`), by slot address. */
   queued: Readonly<Record<string, { file: string; auto: boolean }>>;
-  /** A sequence this page's Bridge runs on a slot (Play next): the entries still to play after the
-   *  one on air, by slot address. From the Take, then from each reading. It changes only on a
-   *  switch, so it is ownership, not timing. */
-  sequences: Readonly<Record<string, readonly SequenceEntry[]>>;
+  /** A sequence this page's Bridge runs on a slot (Play next, a Play-through folder), by slot
+   *  address. From the Take, then from each reading. It changes only on a switch, so it is
+   *  ownership, not timing. */
+  sequences: Readonly<Record<string, SequenceAhead>>;
+}
+
+/** What a sequence still has to play after the entry on air, and whether it starts over after its
+ *  last (Loop the folder) - as the Bridge reports it on the slot. Never the server's own LOOP on one
+ *  file, which is `SlotTiming.loop`. */
+export interface SequenceAhead {
+  next: readonly SequenceEntry[];
+  loop?: boolean;
 }
 
 export const NO_OWNERSHIP: ServerOwnership = { onAir: {}, generations: {}, replaced: {}, unidentified: [], queued: {}, sequences: {} };
@@ -160,6 +171,8 @@ export interface ReadingContext {
   items: readonly PlayoutItem[];
   /** Where each rundown item plays now: the slots whose content this page reports on. */
   slotOf: (item: PlayoutItem) => CasparSlot;
+  /** Slots the rundown plays on besides its items' own: each Play-through folder's. */
+  alsoSlots?: readonly CasparSlot[];
 }
 
 /**
@@ -203,7 +216,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
   const replaced: Record<string, { cueId: string; slot: Slot; file?: string }> = { ...ownership.replaced };
   const unidentified: UnidentifiedItem[] = ownership.unidentified.filter((u) => u.slot.channel !== channel);
   const queued: Record<string, { file: string; auto: boolean }> = Object.fromEntries(Object.entries(ownership.queued).filter(([a]) => !onChannel(a)));
-  const sequences: Record<string, readonly SequenceEntry[]> = Object.fromEntries(Object.entries(ownership.sequences).filter(([a]) => !onChannel(a)));
+  const sequences: Record<string, SequenceAhead> = Object.fromEntries(Object.entries(ownership.sequences).filter(([a]) => !onChannel(a)));
   const nextTiming: Record<string, SlotTiming> = Object.fromEntries(Object.entries(timing).filter(([a]) => !onChannel(a)));
 
   // The layers this page speaks for on this channel: each rundown item's slot, and wherever
@@ -213,6 +226,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     const s = ctx.slotOf(item);
     if (s.channel === channel) layers.add(s.layer);
   }
+  for (const s of ctx.alsoSlots ?? []) if (s.channel === channel) layers.add(s.layer);
   for (const live of Object.values(ownership.onAir)) {
     if (live.slot.adapter === 'casparcg' && live.slot.channel === channel) layers.add(live.slot.layer);
   }
@@ -243,7 +257,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
       continue;
     }
     // The entries still to play, while this Bridge runs a sequence here.
-    if (s?.sequence && ownSession(s.instance) && s.sequence.next.length) sequences[a] = s.sequence.next;
+    if (s?.sequence && ownSession(s.instance) && s.sequence.next.length) sequences[a] = { next: s.sequence.next, ...(s.sequence.loop ? { loop: true } : {}) };
     if (!holdsSomething(s)) {
       // Off air on the server: whatever was up leaves ON AIR, and a note that the slot was replaced
       // has nothing left to say.
@@ -261,7 +275,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
         delete onAir[mine[0]];
         // Its ending is what the Take sent for it, in the entries the page already had (an entry
         // that says none holds); not among them, the clock reads its cue.
-        const sent = ownership.sequences[a]?.find((e) => e.cueId === own.cue.id);
+        const sent = ownership.sequences[a]?.next.find((e) => e.cueId === own.cue.id);
         onAir[own.item.id] = {
           cueId: own.cue.id,
           slot: mine[1].slot,
@@ -277,14 +291,16 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     if (mine) delete onAir[mine[0]];
     const own = ownCue(s);
     if (own) {
-      onAir[own.item.id] = { cueId: own.cue.id, slot, instance: s.instance, takenAt: now };
+      // What it does at its end is unknown from here, except the server's own LOOP: a one-clip folder or
+      // a looping clip taken before a reload loops whatever its cue says now.
+      onAir[own.item.id] = { cueId: own.cue.id, slot, instance: s.instance, takenAt: now, ...(s.loop ? { end: 'loop' as const } : {}) };
       for (const [id, r] of Object.entries(replaced)) if (id === own.item.id || slotAddress(r.slot) === a) delete replaced[id];
       continue;
     }
     if (mine) {
       const [itemId, live] = mine;
       if (ownSession(live.instance)) replaced[itemId] = { cueId: live.cueId, slot: live.slot, ...withFile };
-      else unidentified.push({ slot, producer: s.producer, ...withFile, ...(ownership.sequences[a] ? { sequenceStopped: true } : {}) });
+      else unidentified.push({ slot, producer: s.producer, ...withFile, ...(ownership.sequences[a] ? { sequenceStopped: true, cueId: live.cueId } : {}) });
       continue;
     }
     // Its row already says the slot was replaced; a second line would say it twice.
@@ -315,10 +331,14 @@ export function applyAccepted(
     now: number;
     /** The Bridge reads the server: the take's estimate stands only until its first reading. */
     readable: boolean;
-    /** A take that started a sequence: the entries after the first, which the clock counts ahead. */
-    sequence?: readonly SequenceEntry[];
+    /** A take that started a sequence: the entries after the first, which the clock counts ahead,
+     *  and whether it starts over after the last. */
+    sequence?: SequenceAhead;
     /** What the take sent for the clip's end. */
     end?: ClipEnd;
+    /** When the page counts the take as taken, for which clip the clock follows; `now` when not
+     *  given. An All-together Take stamps each file by its rank, so the clock follows the longest. */
+    takenAt?: number;
   },
 ): ServerParts {
   const { ownership, timing } = parts;
@@ -335,10 +355,10 @@ export function applyAccepted(
   if (a.verb === 'take' || a.verb === 'out') {
     // A Take replaces whatever sequence ran on the slot, and Out ends it.
     const { [at]: _gone, ...rest } = sequences;
-    sequences = a.verb === 'take' && a.sequence?.length ? { ...rest, [at]: a.sequence } : rest;
+    sequences = a.verb === 'take' && a.sequence?.next.length ? { ...rest, [at]: a.sequence } : rest;
   }
   if (a.verb === 'take') {
-    onAir = withTaken(onAir, a.itemId, a.cueId, a.slot, { ...(a.instance ? { instance: a.instance } : {}), takenAt: a.now, ...(a.end ? { end: a.end } : {}) });
+    onAir = withTaken(onAir, a.itemId, a.cueId, a.slot, { ...(a.instance ? { instance: a.instance } : {}), takenAt: a.takenAt ?? a.now, ...(a.end ? { end: a.end } : {}) });
     delete replaced[a.itemId];
     for (const [id, r] of Object.entries(replaced)) if (slotAddress(r.slot) === at) delete replaced[id];
     unidentified = unidentified.filter((u) => slotAddress(u.slot) !== at);
@@ -362,6 +382,53 @@ export function applyAccepted(
     ownership: settle(ownership, { onAir, generations, replaced, unidentified, queued: ownership.queued, sequences }),
     timing: nextTiming,
   };
+}
+
+/**
+ * What still runs on a slot, from OWNERSHIP alone: how many files the Bridge has after the one on
+ * air, and whether the run never ends by itself - a folder that loops, a last file that loops, or a
+ * clip taken to loop. What a hardware button lights for a folder, never from the timing part.
+ */
+export function slotRun(ownership: ServerOwnership, live: ServerLive, fallbackEnd: ClipEnd): { following: number; loops: boolean } {
+  const ahead = ownership.sequences[slotAddress(live.slot)];
+  const following = ahead?.next.length ?? 0;
+  const last = ahead?.next[following - 1];
+  const loops = !!ahead?.loop || (last ? last.playback?.end === 'loop' : (live.end ?? fallbackEnd) === 'loop');
+  return { following, loops };
+}
+
+/**
+ * WHY A TAKE WOULD PUT ONE FILE ON TWO SLOTS, or null (docs/CLIP_PLAYBACK_PLAN.md §6.6). This page
+ * keeps one place per file (`ServerOnAir` is by item), and a Play-through folder plays its files on
+ * its own slot, not on theirs - so a Take of a file that is up, or still to play, in a folder's run or
+ * a sequence on another slot is refused, naming it, until that is taken off. A folder's own run moved
+ * to another slot is not a clash: its re-take takes it off first. Nor is a plain re-take of a file
+ * moved to another layer, which phase 3 already takes off first. Reads ownership only.
+ */
+export function airClash(
+  plan: { slot: string; cueIds: readonly string[]; folderId?: string },
+  ownership: Pick<ServerOwnership, 'onAir' | 'sequences'>,
+  cues: readonly ShowCue[],
+  throughFolderIdOf: (cueId: string) => string | undefined,
+): string | null {
+  const byId = new Map(cues.map((c) => [c.id, c] as const));
+  const label = (id: string | undefined) => (id ? byId.get(id)?.label : undefined) ?? 'A clip';
+  const items = new Set(plan.cueIds.map((id) => byId.get(id)?.sourceId).filter((id): id is string => !!id));
+  const ownRun = (cueId: string) => !!plan.folderId && throughFolderIdOf(cueId) === plan.folderId;
+  for (const itemId of items) {
+    const live = ownership.onAir[itemId];
+    if (!live || slotAddress(live.slot) === plan.slot || ownRun(live.cueId)) continue;
+    if (!plan.folderId && !throughFolderIdOf(live.cueId)) continue;
+    return `${label(live.cueId)} is up on ${slotAddress(live.slot)}. Take it off there first.`;
+  }
+  for (const [addr, ahead] of Object.entries(ownership.sequences)) {
+    if (addr === plan.slot) continue;
+    const up = Object.values(ownership.onAir).find((l) => slotAddress(l.slot) === addr);
+    if (up && ownRun(up.cueId)) continue;
+    const waiting = ahead.next.find((e) => e.cueId && items.has(byId.get(e.cueId)?.sourceId ?? ''));
+    if (waiting) return `${label(waiting.cueId)} is still to play on ${addr}. Take that off first.`;
+  }
+  return null;
 }
 
 /** Seconds into the segment at `now`, counted on from the reading. */
@@ -502,9 +569,11 @@ export function clipClock(
   const cueEnd: ClipEnd = best.live.end ?? (cueOnAir ? effectiveEnd(cueOnAir, best.item) : best.item.loop ? 'loop' : 'hold');
   const loop = t ? t.loop : cueEnd === 'loop';
   const remaining = remainingAt(t, now);
-  const following = ownership.sequences[slot] ?? [];
+  const ahead = ownership.sequences[slot];
+  const following = ahead?.next ?? [];
   const last = following[following.length - 1];
-  const sequenceEnd: ClipClock['finally'] = last ? (last.playback?.end ?? 'hold') : undefined;
+  // A folder that loops never ends; otherwise the sequence ends as its last entry says.
+  const sequenceEnd: ClipClock['finally'] = ahead?.loop ? 'loop' : last ? (last.playback?.end ?? 'hold') : undefined;
   const p = t ? positionAt(t, now) : undefined;
   const over =
     !loop && t?.segment && p !== undefined
