@@ -32,7 +32,8 @@ template unchanged. The browser refusal matrix in `e2e/editor-out.spec.ts` asser
 Terms: `b` is the new boundary on the last pre-Out cue's stored clock (the frame-snapped
 playhead through speed, at the serializer's 3 decimals), `D` that cue's old duration and
 `delta = D - b`. A track is crossed when it has a key after `b`. Out moving later
-(`delta < 0`) and a move with nothing after `b` behave exactly as today.
+(`delta < 0`) and a move with nothing after `b` behave as today, except that visibility bars
+now repartition instead of refusing.
 
 - **Keys hold their absolute times.** For each crossed track the entrance keeps a key at `b`:
   the existing key there, else `splitKeyframeSegment` at `b`, else (b before its first key) a
@@ -48,33 +49,38 @@ playhead through speed, at the serializer's 3 decimals), `D` that cue's old dura
 - **Visibility spans are bars at absolute times.** On the last pre-Out cue each interval is
   clipped at `b`; the part after `b` moves into Out. After the old boundary the layer keeps
   what the original Out did: its own Out intervals shifted by `delta`, visible through the
-  exit if it was visible at the old hold with no Out intervals, else hidden. Touching intervals
-  join. The arriving side decides the hold, as today: a bar ending exactly at `b` is visible
-  there. This replaces the blanket "crosses a visibility span" refusal. Never clip.
+  exit if it was visible at the old hold with no Out intervals, else hidden. A layer with Out
+  intervals but none on the moved cue kept its visibility through the moved part, so its Out
+  intervals gain a leading one from 0 to `delta`. Touching intervals join. The arriving side
+  decides the hold, as today: a bar ending exactly at `b` is visible there. This replaces the
+  blanket "crosses a visibility span" refusal. Never clip.
+- **Out only animates layers visible as it starts** (`noacgExitVisible` reads the element and
+  every parent). A layer hidden at the new hold that shows later in the moved part refuses, and
+  so does a moved layer whose autoAlpha is 0 at `b` or that sits inside a layer hidden there
+  (read from the template's document), because its moved motion would never play.
 - **Exit duration keeps its absolute end** (`Dout + delta`) once the exit has keys or spans.
   An exit left with neither stays an instant cut, as today.
 - **Prompt.** Reverse/manual is offered only when the resulting exit has no keys, read from
-  the new source, not the view of the old one.
-- **Interruption** is unchanged: Out tweens each exit track from the live value to its last
-  key with that key's ease. A crossed exit now ends where the entrance ended, so Out during the
-  shortened In continues toward the entrance's end pose.
+  the new source, not the view of the old one. A choice left open closes when a later Set Out
+  gives the exit keys.
+- **Interruption.** Out still tweens each exit track from the live value to its last key over
+  that track's span. A crossed track with no Out keys of its own now ends where the entrance
+  ended; one joined to Out keys ends at its own last Out key. When that last ease is a slice,
+  the interruption plays the whole curve the slice was cut from: stretched over the longer way
+  from the live pose, a slice can swing far past its end. This is the one interpreter change
+  (`noacgWholeEase` in `animRuntime.ts`). Settled playback is unchanged.
 - **Scope.** Only the last pre-Out cue and Out change. Machines, calls, dynamics and loops keep
-  their existing refusal.
+  their existing refusal. Keys stored past a cue's end refuse a crossing: the runtime plays them
+  beyond it, so no boundary splits that cue exactly.
 
 ## Acceptance and atomic refusals
 
 | Portion | Observable result | Refusal (source and history byte-identical, clear reason) |
 |---|---|---|
-| Exact crossing | On an eased text-and-box entrance with back, bounce and cubic-bezier keys, Set Out at a frame before the last In key. In then Out equals the original at every absolute time within 1e-3 in editor sampling, the simulator and executed SPX, CasparCG, OGraf and single-file exports. Values and both boundary velocities at `b` agree. | Any split refusal of a crossed segment: stepped or unrecognized ease, equal-endpoint slice, bounded value outside its range, stored precision. |
-| Track shapes | Crossed tracks are numeric; untouched tracks and earlier cues are byte-identical. | A crossed string track; a crossed track whose Out keys start at a different value. |
-| Spans | Clipped, moved and joined intervals give the same visibility at every absolute time; bars ending at `b` hold visible. | A layer hidden at the new hold that is visible later in the moved part: Out never reveals a hidden layer (D02). |
+| Exact crossing | On an eased text-and-box entrance with back, bounce, cubic-bezier and elastic keys, Set Out at a frame before the last In key. In then Out equals the original at every absolute time within 1e-3 in editor sampling, the simulator and executed SPX, CasparCG, OGraf and single-file exports. Values and both boundary velocities at `b` agree. | Any split refusal of a crossed segment: stepped or unrecognized ease, equal-endpoint slice, bounded value outside its range, stored precision. |
+| Track shapes | Crossed tracks are numeric; untouched tracks and earlier cues are byte-identical. | A crossed string track; a crossed track whose Out keys start at a different value; keys stored past the cue's end. |
+| Spans | Clipped, moved, led and joined intervals give the same visibility at every absolute time; bars ending at `b` hold visible. | A layer hidden at the new hold that is visible later in the moved part; a moved layer at autoAlpha 0 or inside a layer hidden at the new hold. |
 | Legacy visibility | Unaffected when nothing crosses. | Crossing a cue that hides a layer at its end (legacy `hides`), or when a Next cue reveals a layer Out fades separately. |
-| Transactions | One Set Out is one undo; redo, Escape (no prompt when the exit has keys), save/reopen and a second save agree. | A refused Set Out adds no history and shows the reason. |
-| Interruption | Out during the shortened In starts from the live pose (<1 px, <.01 opacity) in the simulator and exports. | Unchanged. |
-| Preserved | R1.1b keys and body moves, R1.1c Out/reverse/manual/empty/interruption, R1.1d nested identities and trims, and G01 pass. Only assertions that encoded the lifted refusals change. | Machines, calls, dynamics, loops, custom interpreters: unchanged. |
-
-Verification: a Node test for the repartition maths beside `scripts/ease-runtime.test.mjs`
-(dense samples on the concatenated ruler, velocities, spans and every refusal atomic); focused
-browser specs written first and queued on the unmodified code; editor regressions; the full
-affected run; build, `/check` (four reviewers, each followed by a refuter), `/queue-merge` and
-the deployed revision.
+| Transactions | One Set Out is one undo; redo, Escape (no prompt when the exit has keys), save/reopen and a second save agree; an open reverse choice closes when the exit gains keys. | A refused Set Out adds no history and shows the reason. |
+| Interruption | Out during the shortened In starts from the live pose (<1 px, <.01 opacity), then plays each track to its last key on the whole curve, in the simulator and exports. | Unchanged. |
+| Preserved | R1.1b keys and body moves, R1.1c Out/reverse/manual/empty/interruption, R1.1d nested identities and trims, and G01 pass. Only assertions that encoded the lifted refusals change. A graphic saved with the G01 interpreter upgrades once, by content hash. | Machines, calls, dynamics, loops, custom interpreters: unchanged. |

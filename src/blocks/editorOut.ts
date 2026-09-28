@@ -2,6 +2,7 @@ import { getTemplateParts } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { AnimData, AnimKeyframe } from './animData';
 import { splitKeyframeSegment } from './animEdit';
+import { resolveValue } from './animEval';
 import { animationSource, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
 import { mirrorEase } from '../templates/shared/easeRuntime';
@@ -10,6 +11,13 @@ export type OutOperation = { kind: 'out.set'; time: number } | { kind: 'out.reve
 export const hasExitKeys = (data: AnimData) => data.steps.length > 1 && Object.values(data.steps[data.steps.length - 1].layers).some(tracks => Object.values(tracks).some(keys => keys.length));
 /** Stored times keep the serializer's 3 decimals; two within half a step are the same moment. */
 const round = (n: number) => Math.round(n * 1000) / 1000, EPS = .0005;
+type Bar = { start: number; end: number };
+/** Bars that touch become one. */
+const joinBars = (bars: Bar[]) => bars.reduce<Bar[]>((joined, bar) => {
+  const previous = joined[joined.length - 1];
+  if (previous && previous.end === bar.start) previous.end = bar.end; else joined.push(bar);
+  return joined;
+}, []);
 
 /**
  * Move Out to `boundary`, a stored time on the last pre-Out cue's clock, keeping every key and
@@ -17,8 +25,9 @@ const round = (n: number) => Math.round(n * 1000) / 1000, EPS = .0005;
  * A track with keys after the boundary splits there exactly (splitKeyframeSegment) and carries
  * the rest of its motion into Out, which starts from the split value, so In then Out plays what
  * it played before. Throws with the reason wherever that cannot be kept; `source` is not mutated.
+ * `contains(ancestor, selector)` answers from the document whether a layer sits inside another.
  */
-export function moveOutBoundary(source: AnimData, boundary: number): AnimData {
+export function moveOutBoundary(source: AnimData, boundary: number, contains?: (ancestor: string, selector: string) => boolean): AnimData {
   if (!Number.isFinite(boundary) || boundary < 0) throw new Error('Out needs a finite nonnegative playhead time.');
   let data = JSON.parse(JSON.stringify(source)) as AnimData;
   if (data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
@@ -33,6 +42,8 @@ export function moveOutBoundary(source: AnimData, boundary: number): AnimData {
   for (const [selector, tracks] of Object.entries(data.steps[at].layers)) for (const [prop, keys] of Object.entries(tracks)) {
     if (!keys.some(key => key.time > b + EPS)) continue;
     if (keys.some(key => typeof key.value !== 'number')) throw new Error(`Set Out here would move ${selector} ${prop}, and only numeric tracks cross Out exactly. Its source is preserved.`);
+    // The runtime plays keys past a cue's end beyond it, so no boundary splits that cue exactly.
+    if (keys.some(key => key.time > end + EPS)) throw new Error(`${selector} ${prop} has keys after the end of its cue, so Out cannot cross them exactly. Its source is preserved.`);
     crossed.push([selector, prop]);
   }
   if (crossed.length) {
@@ -62,9 +73,10 @@ export function moveOutBoundary(source: AnimData, boundary: number): AnimData {
   }
   // The rest of each crossed track moves into Out after a copy of its value at b. Its eases say
   // what they are, because the Out cue's default is not the entrance's.
+  const leaving = new Set(crossed.map(([selector]) => selector));
   for (const [selector, prop] of crossed) {
     const keys = cue.layers[selector][prop], kept = keys.filter(key => key.time < b + EPS);
-    const moved = [{ time: 0, value: kept[kept.length - 1].value }, ...keys.filter(key => key.time >= b + EPS)
+    const moved: AnimKeyframe[] = [{ time: 0, value: kept[kept.length - 1].value }, ...keys.filter(key => key.time >= b + EPS)
       .map(key => ({ time: round(key.time - b), value: key.value, ease: key.ease || cue.ease }))];
     const layer = exit.layers[selector] ??= {}, later = layer[prop] ?? [], last = moved[moved.length - 1];
     // Out starts its own track with a set: a different value there is a jump the move cannot keep.
@@ -76,7 +88,7 @@ export function moveOutBoundary(source: AnimData, boundary: number): AnimData {
   }
   // Visibility bars keep their absolute times: clipped at b, the rest carried into Out, and after
   // the old boundary whatever the original Out showed (the exit gates bars on a visible layer).
-  const own = exit.spans ?? {}, carried: Record<string, { start: number; end: number }[]> = {};
+  const own = exit.spans ?? {}, carried: Record<string, Bar[]> = {}, shift = (span: Bar) => ({ start: round(span.start + delta), end: round(span.end + delta) });
   for (const [selector, spans] of Object.entries(cue.spans ?? {})) {
     const tail = spans.filter(span => span.end > b).map(span => ({ start: round(Math.max(span.start, b) - b), end: round(span.end - b) }));
     cue.spans![selector] = spans.filter(span => span.start < b).map(span => ({ start: span.start, end: Math.min(span.end, b) }));
@@ -84,22 +96,30 @@ export function moveOutBoundary(source: AnimData, boundary: number): AnimData {
       if (tail.length) throw new Error(`${selector} is hidden at this Out and visible after it, and Out never reveals a hidden layer. Its source is preserved.`);
       continue;
     }
+    if (tail.length) leaving.add(selector);
     const after = !spans.some(span => span.end === end) ? [] : own[selector] ?? (exitDuration > 0 ? [{ start: 0, end: exitDuration }] : []);
-    carried[selector] = [...tail, ...after.map(span => ({ start: round(span.start + delta), end: round(span.end + delta) }))]
-      .reduce<{ start: number; end: number }[]>((bars, bar) => {
-        const previous = bars[bars.length - 1];
-        if (previous && previous.end === bar.start) previous.end = bar.end; else bars.push(bar);
-        return bars;
-      }, []);
+    carried[selector] = joinBars([...tail, ...after.map(shift)]);
   }
   for (const [selector, spans] of Object.entries(own)) {
     if (carried[selector]) continue;
     if (spans.some(span => span.start + delta < 0)) throw new Error('This boundary crosses a visibility span. Move its timing first; source is preserved.');
-    carried[selector] = spans.map(span => ({ start: round(span.start + delta), end: round(span.end + delta) }));
+    // Without bars on this cue the layer kept its visibility from b to the old Out, which Out now plays.
+    carried[selector] = joinBars([...(delta > 0 && cue.spans?.[selector] === undefined ? [{ start: 0, end: delta }] : []), ...spans.map(shift)]);
   }
   if (exit.spans || Object.keys(carried).length) exit.spans = carried;
   exit.duration = hasExitKeys(data) || Object.keys(exit.spans ?? {}).length ? Math.max(0, round(exitDuration + delta)) : 0;
   cue.duration = b;
+  // Out animates only layers visible as it starts (noacgExitVisible walks every parent), so what
+  // moved into it must not sit in a layer hidden there, by its bars or by autoAlpha.
+  const shut = (selector: string) => resolveValue(data, selector, 'autoAlpha', at, b) === 0;
+  const selectors = [...new Set(data.steps.flatMap(step => [...Object.keys(step.layers), ...Object.keys(step.spans ?? {})]))];
+  const hidden = selectors.filter(selector => shut(selector) || !held(data, selector));
+  for (const selector of leaving) {
+    if (!held(data, selector)) continue; // Hidden by its own bars: its motion was never seen.
+    if (shut(selector)) throw new Error(`${selector} is hidden by autoAlpha at this Out, and Out skips hidden layers, so the rest of its motion would not play. Its source is preserved.`);
+    const parent = contains && hidden.find(other => other !== selector && contains(other, selector));
+    if (parent) throw new Error(`${selector} sits inside ${parent}, which is hidden at this Out, and Out skips layers inside a hidden one, so the rest of its motion would not play. Its source is preserved.`);
+  }
   return settle();
 }
 const lastTime = (data: AnimData['steps'][number]) => Math.max(0, ...Object.values(data.layers).flatMap(tracks => Object.values(tracks).flatMap(keys => keys.map(key => key.time))));
@@ -123,7 +143,11 @@ export function applyOut(template: SpxTemplate, operation: OutOperation): SpxTem
     const prefix = data.steps.slice(0, -2).reduce((sum, step) => sum + step.duration, 0);
     const boundary = Math.round(operation.time * template.fps) / template.fps * data.speed - prefix;
     if (boundary < 0 || boundary < data.speed / template.fps && getTemplateParts(template.html, template.fields).some(part => part.kind !== 'root')) throw new Error('Keep at least one frame in a nonempty cue.');
-    data = moveOutBoundary(data, boundary);
+    let doc: Document | undefined;
+    data = moveOutBoundary(data, boundary, (ancestor, selector) => {
+      doc ??= new DOMParser().parseFromString(template.html, 'text/html');
+      try { return Array.from(doc.querySelectorAll(selector)).some(element => !!element.parentElement?.closest(ancestor)); } catch { return false; }
+    });
   } else {
     const exit = data.steps[data.steps.length - 1];
     if (hasExitKeys(data)) throw new Error('Out already has keys. Preserve them; regeneration requires an explicit replacement.');

@@ -541,6 +541,18 @@ test('Set Out before the last In key moves the rest of the entrance into Out as 
   expect(errors).toEqual([]);
 });
 
+test('a Set Out that fills the exit closes a reverse choice left open', async ({ page }) => {
+  await fixture(page, true); await seek(page, 25);
+  const button = page.getByRole('button', { name: 'Set Out at playhead', exact: true }), prompt = page.getByRole('dialog', { name: 'Reverse entrance' });
+  await button.click(); await expect(prompt).toBeVisible(); await ready(page);
+  // With the choice still open, step the playhead back into the entrance and set Out there.
+  for (let n = 0; n < 15; n++) await page.getByRole('button', { name: 'Previous frame', exact: true }).click();
+  await expect(page.getByRole('slider', { name: 'Playhead' })).toHaveAttribute('aria-valuenow', '0.4');
+  await expect(prompt).toBeVisible();
+  await button.click(); await expect(prompt).toBeHidden(); await ready(page);
+  expect((await data(page)).steps[1].layers['#box'].x.map(k => k.time)).toEqual([0, .6]);
+});
+
 test('a Set Out that cannot split a crossed segment keeps source and history and says why', async ({ page }) => {
   await fixture(page, true);
   await evaluateInPage(page, async () => {

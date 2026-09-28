@@ -35,7 +35,7 @@ export default function OutControls({ session, view, time, pause, inspect, playO
       // Read the new source: the view can still describe the old one during this event, and Out
       // set inside the entrance carries its rest into the exit, which then has keys to keep.
       const next = parseAnimData(result.template.js);
-      if (next && !hasExitKeys(next)) setPrompt({ expected: result.revision, documentId: session.documentId });
+      setPrompt(next && !hasExitKeys(next) ? { expected: result.revision, documentId: session.documentId } : null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const reverse = () => {

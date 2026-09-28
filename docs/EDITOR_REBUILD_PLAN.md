@@ -223,8 +223,8 @@ and playback. Simulator and emitted interpreters must distinguish the one-step f
 
 Rename Step inline and drag flags with snapping; no duration/insertion forms. In begins at
 zero. Nonempty segments have at least one frame; an entirely empty graphic may have Out at
-zero. Refuse duplicate Step flags and Step after Out. Set Out on an empty exit always offers
-reverse/manual, including a repeat invocation at the same boundary after No or Escape.
+zero. Refuse duplicate Step flags and Step after Out. A Set Out that leaves the exit empty always
+offers reverse/manual, including a repeat invocation at the same boundary after No or Escape.
 Set Out earlier than the last In key splits each crossed segment exactly and moves the rest
 of the last pre-Out segment into Out (owner decision 2026-09-28; see D01). A crossed segment
 without an exact split refuses the whole move atomically with a clear reason. Existing source
@@ -385,7 +385,9 @@ motion/loops and build an interrupted exit without the authored starting .set().
 When Out interrupts In/Next/loop, tween EACH supported exit track from that live value to its
 final exit key. Use its authored finite exit timing (hold the live value through any leading
 delay, then tween to the final-key time), speed and final-segment ease; intermediate exit
-waypoints are bypassed for this interruption policy. A settled normal Out retains authored
+waypoints are bypassed for this interruption policy. A final ease that is a slice of a curve
+plays as that whole curve here, since stretched over the live distance a slice can swing far
+past its end (R1.2a.1). A settled normal Out retains authored
 exit keys. This is an explicit interruption policy, not a claim to exactly reverse an
 unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims.
 Never reveal unseen layers; static visible layers without exit tracks clear at exit completion.

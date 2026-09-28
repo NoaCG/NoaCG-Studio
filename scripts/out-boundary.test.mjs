@@ -1,4 +1,4 @@
-// guards: src/blocks/editorOut.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts
+// guards: src/blocks/editorOut.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/model/contentHash.ts, e2e/fixtures/interpreter-shared-ease-v1.js
 //
 // R1.2a.1 SET OUT ACROSS THE LAST IN KEY, THE MATHEMATICS (docs/research/editor-r1-2a-1/README.md).
 // Moving Out to a boundary b inside the entrance keeps every key and visibility bar at its
@@ -11,6 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { rolldown } from 'rolldown';
 import { rawSuffix } from './rolldown-raw.mjs';
@@ -27,7 +28,9 @@ async function load(entry) {
 const { moveOutBoundary, applyOut } = await load('src/blocks/editorOut.ts');
 const { resolveValue } = await load('src/blocks/animEval.ts');
 const { parseAnimData } = await load('src/blocks/animData.ts');
-const { emitAnimRegion } = await load('src/templates/shared/animRuntime.ts');
+const runtime = await load('src/templates/shared/animRuntime.ts'), { emitAnimRegion } = runtime;
+const legacy = await load('src/templates/shared/animRuntimeLegacy.ts');
+const { contentHash } = await load('src/model/contentHash.ts');
 
 /** The browser spec's text-and-box entrance: back, bounce, cubic-bezier and elastic keys running
  *  past the new Out, a box track that starts after it, and a title Out that begins where its
@@ -190,6 +193,64 @@ test('visibility bars keep their absolute times; a layer Out could not reveal re
   }
 });
 
+test('a layer with Out bars but none on the moved cue stays visible over the moved part', () => {
+  const cases = [];
+  // Bars only on Out, whatever the entrance does.
+  const alone = textAndBox();
+  alone.steps[1].spans = { '#box': [{ start: 0, end: 0.5 }] };
+  cases.push(['Out bars only', alone, 1.2, [{ start: 0, end: 1.3 }]]);
+  // A trim fills bars into every cue that exists, and a later Next cue arrives without any.
+  const trimmed = { version: 2, root: '.g', speed: 1, steps: [
+    { name: 'In', duration: 1, ease: 'none', spans: { '#t': [{ start: 0.2, end: 1 }] }, layers: { '#t': { x: [{ time: 0, value: -100 }, { time: 1, value: 0 }] } } },
+    { name: 'Step 2', duration: 2, ease: 'none', layers: { '#t': { x: [{ time: 0, value: 0 }, { time: 2, value: 100 }] } } },
+    { name: 'Out', duration: 0, ease: 'none', spans: { '#t': [] }, layers: {} },
+  ] };
+  cases.push(['bars on an earlier cue', trimmed, 1.2, [{ start: 0, end: 0.8 }]]);
+  for (const [label, before, b, bars] of cases) {
+    const selector = Object.keys(before.steps.at(-1).spans)[0], after = moveOutBoundary(before, b);
+    assert.deepEqual(after.steps.at(-1).spans[selector], bars, label);
+    const span = total(before);
+    for (let i = 0; i <= 3000; i++) {
+      const u = span * i / 3000 + 1e-7;
+      if (u < span) assert.equal(visibleAt(after, selector, u), visibleAt(before, selector, u), `${label}: visibility at ${u}`);
+    }
+    samePlayback(before, after, label);
+  }
+});
+
+test('what moves into Out must not sit in a layer hidden there', () => {
+  // GSAP hides a layer whose autoAlpha is 0, and Out skips hidden layers: its fade-in would stop.
+  const faded = textAndBox();
+  faded.steps[0].layers['#box'].autoAlpha = [{ time: 1.4, value: 0 }, { time: 2, value: 1 }];
+  assert.throws(() => moveOutBoundary(faded, 1.2), /#box.*autoAlpha/);
+  // A group hidden at the new Out gates the layers inside it, even one its own bars keep visible.
+  const nested = textAndBox();
+  nested.steps[0].spans = { '#g': [{ start: 0, end: 1 }], '#box': [{ start: 0, end: 1.5 }] };
+  const inside = (ancestor, selector) => ancestor === '#g' && selector === '#box';
+  const frozen = JSON.stringify(nested);
+  assert.throws(() => moveOutBoundary(nested, 1.2, inside), /#box sits inside #g/);
+  assert.equal(JSON.stringify(nested), frozen);
+  // Without a document there is nothing to say one layer sits inside another.
+  assert.doesNotThrow(() => moveOutBoundary(nested, 1.2));
+  // A layer hidden by its own bars at the new Out was never seen moving, so nothing is lost.
+  nested.steps[0].spans['#box'] = [{ start: 0, end: 1 }];
+  assert.doesNotThrow(() => moveOutBoundary(nested, 1.2, inside));
+});
+
+test('a graphic saved with the G01 interpreter upgrades once an exit can end on a slice', () => {
+  const { ANIM_INTERPRETER_JS, writeAnimData, writeOutData } = runtime;
+  const g01 = readFileSync(path.join(root, 'e2e/fixtures/interpreter-shared-ease-v1.js'), 'utf8').replace(/\r\n/g, '\n');
+  assert.equal(contentHash(g01.trim()), legacy.ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, 'the fixture is the recorded body');
+  // An interrupted exit plays a sliced last ease as its whole curve, at the one site that stretches it.
+  assert.match(ANIM_INTERPRETER_JS, /tl\.to\(proxy, \{ value: last\.value[^}]+ease: noacgEaseOf\(noacgWholeEase\(last\.ease \|\| step\.ease\)\) \}/);
+  assert.ok(!g01.includes('noacgWholeEase'));
+  const current = emitAnimRegion(textAndBox()), saved = current.replace(ANIM_INTERPRETER_JS, () => g01);
+  assert.notEqual(saved, current);
+  const crossed = moveOutBoundary(textAndBox(), 1.2);
+  for (const written of [writeAnimData(saved, crossed), writeOutData(saved, crossed)]) assert.ok(written.includes(ANIM_INTERPRETER_JS));
+  assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), crossed), null, 'custom source still refuses');
+});
+
 test('a move with nothing after b behaves as before, and bars no longer refuse it', () => {
   const plain = () => ({ version: 2, root: '.g', speed: 1, steps: [
     { name: 'In', duration: 2, ease: 'none', layers: { '#a': { x: [{ time: 0, value: -900 }, { time: 1, value: 0 }] } } },
@@ -232,7 +293,10 @@ test('every refusal leaves the input untouched and names what could not be kept'
   refuse(d => { box(d).x[2].ease = 'customEase'; }, 1.2, /#box x.*customEase/);
   refuse(d => { box(d).opacity = [{ time: 0, value: 0 }, { time: 2, value: 1, ease: 'back.out(1.6)' }]; }, 1.2, /#box opacity.*range/);
   refuse(d => { box(d).x[2].ease = 'back.in(1.5)'; }, 1.52, /#box x.*same value/);
-  refuse(d => { box(d).x = [{ time: 0, value: 0 }, { time: 1, value: 100, ease: 'back.out(1.6)' }]; d.steps[0].duration = 1; }, 0.36, /#box x.*saved precision/);
+  refuse(d => { d.steps[0].layers = { '#box': { x: [{ time: 0, value: 0 }, { time: 1, value: 100, ease: 'back.out(1.6)' }] } }; d.steps[0].duration = 1; }, 0.36, /#box x.*saved precision/);
+  // The runtime plays keys stored past a cue's end beyond it, so a boundary cannot split that cue.
+  refuse(d => { box(d).x.push({ time: 2.5, value: 50 }); }, 1.2, /#box x.*after the end of its cue/);
+  refuse(d => { box(d).x.push({ time: 2.5, value: 50 }); }, 2.2, /#box x.*after the end of its cue/);
   refuse(d => { box(d).filter = [{ time: 0, value: 'blur(8px)' }, { time: 2, value: 'blur(0px)' }]; }, 1.2, /#box filter.*numeric/);
   refuse(d => { d.steps[0].hides = ['#box']; }, 1.2, /#box.*hide/);
   // A layer a Next cue reveals, which Out does not animate, fades separately when Out starts.
