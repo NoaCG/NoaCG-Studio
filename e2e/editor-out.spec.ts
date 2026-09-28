@@ -179,11 +179,14 @@ test('Out operations preserve clocks and refuse unsupported or stale batches ato
       const next = parseAnimData(out.js)!;
       cases.push({ fps, speed, duration: next.steps[0].duration, keys: next.steps[0].layers, same: JSON.stringify(d.steps[0].layers) === JSON.stringify(next.steps[0].layers) });
     }
-    const invalid = [attempt(original, [{ kind: 'out.set', time: .4 }]), attempt(original, [{ kind: 'out.set', time: NaN }])];
+    // Crossing the last In key splits each crossed segment, so one without an exact split refuses.
+    const stepped = parseAnimData(original.js)!; stepped.steps[0].layers['#box'].x[1].ease = 'steps(4)';
+    const invalid = [attempt({ ...original, js: emitAnimRegion(stepped) }, [{ kind: 'out.set', time: .4 }]), attempt(original, [{ kind: 'out.set', time: NaN }])];
     for (const variant of ['calls', 'spans', 'foreign', 'unknown', 'curve', 'tail']) {
       const d = parseAnimData(original.js)!;
       if (variant === 'calls') d.steps[0].calls = [{ time: .1, call: 'keepCall' }];
-      if (variant === 'spans') d.steps[0].spans = { '#box': [{ start: 0, end: 2 }] };
+      // Hidden at the new hold but shown after it: Out never reveals a hidden layer.
+      if (variant === 'spans') d.steps[0].spans = { '#box': [{ start: 1.5, end: 2 }] };
       if (variant === 'curve') d.steps[0].ease = 'customEase';
       let js = emitAnimRegion(d);
       if (variant === 'tail') {
@@ -238,8 +241,8 @@ test('saved one-step interpreter upgrades once and preserves foreign source', as
   expect(foreign).toBe(true);
 });
 
-for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent interruption, repeat and replay in executable ' + target, async ({ page }) => {
-  await fixture(page);
+/** The editor's current template loaded as `target` plays it: simulator document or served package. */
+async function executable(page: Page, target: string) {
   const output = await page.context().newPage();
   if (target === 'simulator') {
     const html = await page.evaluate(async () => {
@@ -266,6 +269,12 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent
       });
     } else await output.goto('http://out-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
+  return output;
+}
+
+for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent interruption, repeat and replay in executable ' + target, async ({ page }) => {
+  await fixture(page);
+  const output = await executable(page, target);
   const result = await output.evaluate(async target => {
     type Host = Runtime & { play(): void; stop(): void; __activeTl?: { tl: Timeline }; gsap: Runtime['gsap'] & { globalTimeline: { clear(): void; getChildren(n: boolean, t: boolean, tl: boolean): Timeline[] } } };
     const w = window as unknown as Host;
@@ -294,6 +303,40 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent
     expect(result.repeated[i]).toEqual(result.quarter[i]);
     expect(result.final[i]).toEqual([-400, 0]); expect(result.replay[i]).toEqual([-400, 0]);
     expect(result.normalMid[i][0]).toBeCloseTo(50, 1); expect(result.normalMid[i][1]).toBeCloseTo(.5, 2);
+  }
+  expect(result.hidden).toBe('0'); await output.close();
+});
+
+for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interrupting an In shortened across its keys starts from the live pose in ' + target, async ({ page }) => {
+  await fixture(page, true);
+  // The keys end at 1 s. Out at 0.6 s moves the rest of the entrance into a 1.4 s exit.
+  await evaluateInPage(page, async () => {
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    store.applyTemplate((await import('/src/blocks/editorOut.ts')).applyOut(store.template, { kind: 'out.set', time: .6 }));
+  });
+  const output = await executable(page, target);
+  const result = await output.evaluate(async target => {
+    type Host = Runtime & { play(): void; stop(): void; gsap: Runtime['gsap'] & { globalTimeline: { getChildren(n: boolean, t: boolean, tl: boolean): Timeline[] } } };
+    const w = window as unknown as Host;
+    const element = document.querySelector('out-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
+    const command = async (action: 'play' | 'stop') => {
+      if (target === 'simulator') window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-' + action, data: '{}' } }));
+      else if (target === 'ograf') { if (action === 'play') await element.playAction({}); else await element.stopAction({}); }
+      else w[action]();
+    };
+    const pose = () => ['#box', '#title'].map(s => { const el = document.querySelector(s)!; return [el.getBoundingClientRect().x - document.querySelector('.fixture')!.getBoundingClientRect().x, Number(getComputedStyle(el).opacity)]; });
+    const timeline = (duration: number) => w.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - duration) < .0001)!;
+    await command('play'); const entrance = timeline(.6); entrance.pause(); entrance.time(.24, true);
+    const before = pose(); await command('stop'); const after = pose();
+    const exit = timeline(1.4); exit.pause(); exit.time(.2, true); const middle = pose();
+    exit.time(1.4, true);
+    return { before, after, middle, hidden: getComputedStyle(document.querySelector('.fixture')!).opacity };
+  }, target);
+  for (let i = 0; i < 2; i++) {
+    expect(Math.abs(result.before[i][0] - result.after[i][0]), target).toBeLessThan(1);
+    expect(Math.abs(result.before[i][1] - result.after[i][1]), target).toBeLessThan(.01);
+    // Interrupted, each track tweens from its live value to the exit's last key: the entrance's end.
+    expect(result.middle[i][0]).toBeCloseTo(158, 1); expect(result.middle[i][1]).toBeCloseTo(.62, 2);
   }
   expect(result.hidden).toBe('0'); await output.close();
 });
@@ -468,6 +511,51 @@ test('Set Out snaps an off-grid playhead and keeps its arriving held side', asyn
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page);
   await expect(page.getByTestId('foundation-clock')).toHaveText('1.00 s');
   await expect((await preview(page)).locator('.fixture')).toHaveCSS('opacity', '1');
+});
+
+test('Set Out before the last In key moves the rest of the entrance into Out as one undo', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await fixture(page, true); const original = await source(page);
+  await seek(page, 10);
+  const button = page.getByRole('button', { name: 'Set Out at playhead', exact: true });
+  await button.click(); await ready(page);
+  await expect(page.locator('.ef-out-error')).toHaveCount(0);
+  // The exit now has keys, so there is nothing to reverse or author: no prompt.
+  await expect(page.getByRole('dialog', { name: 'Reverse entrance' })).toBeHidden();
+  const moved = await source(page), d = await data(page);
+  expect(d.steps.map(step => step.duration)).toEqual([.4, 1.6]);
+  for (const selector of ['#box', '#title']) {
+    expect(d.steps[0].layers[selector]).toEqual({ x: [{ time: 0, value: -900 }, { time: .4, value: -540, ease: 'none' }], opacity: [{ time: 0, value: 0 }, { time: .4, value: .4, ease: 'none' }] });
+    expect(d.steps[1].layers[selector]).toEqual({ x: [{ time: 0, value: -540 }, { time: .6, value: 0, ease: 'none' }], opacity: [{ time: 0, value: .4 }, { time: .6, value: 1, ease: 'none' }] });
+  }
+  await expect(page.getByRole('slider', { name: 'Playhead' })).toHaveAttribute('aria-valuenow', '0.4');
+  await page.keyboard.press('Escape'); expect((await source(page)).js).toBe(moved.js);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(original.js);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(moved.js);
+  await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Out across the entrance'); await page.getByTestId('save-confirm').click();
+  await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page);
+  const saved = await source(page); expect((await data(page)).steps).toEqual(d.steps);
+  await page.reload(); await ready(page); expect((await source(page)).js).toBe(saved.js);
+  const again = await page.evaluate(async () => { const { saveCurrentGraphic } = await import('/src/store/saveActions.ts'); await saveCurrentGraphic(); return (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template.js; });
+  expect(again).toBe(saved.js);
+  expect(errors).toEqual([]);
+});
+
+test('a Set Out that cannot split a crossed segment keeps source and history and says why', async ({ page }) => {
+  await fixture(page, true);
+  await evaluateInPage(page, async () => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const d = parseAnimData(store.template.js)!; d.steps[0].layers['#title'].x[1].ease = 'steps(4)';
+    store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
+  });
+  await ready(page); await seek(page, 10);
+  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
+  const before = await state();
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
+  await expect(page.locator('.ef-out-error')).toContainText('steps(4)');
+  await expect(page.getByRole('dialog', { name: 'Reverse entrance' })).toBeHidden();
+  expect(await state()).toEqual(before);
 });
 
 test('pause and resume an interrupted Out retain its live exit trajectory', async ({ page }) => {

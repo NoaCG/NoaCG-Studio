@@ -5,7 +5,8 @@
 // G01 shared easing: the editor's sampler, exact split and exact reversal against the SAME
 // evaluator executed by the bundled runtime in the simulator and in every exported package.
 // Numbers are dense samples, not endpoints: GSAP silently plays power1.out for an ease it
-// cannot read, and only a mid-segment sample can see that.
+// cannot read, and only a mid-segment sample can see that. R1.2a.1's Set Out across the last In
+// key reuses the split, so its In-then-Out playback is compared here on one absolute clock.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -37,20 +38,20 @@ async function open(page: Page) {
 }
 
 /** A complete template around one animation literal, built from the running app's modules. */
-async function template(page: Page, data: Data) {
-  return page.evaluate(async (data: Data) => {
+async function template(page: Page, data: Data, title = false) {
+  return page.evaluate(async ({ data, title }) => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
     const { runtimeJs } = await import('/src/templates/shared/base.ts');
     return { ...store.template, fps: 25, fields: [], layers: [],
-      html: '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div></div></body></html>',
-      css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}',
+      html: `<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div>${title ? '<div id="title" data-gfx>Text and box</div>' : ''}</div></body></html>`,
+      css: 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}#title{position:absolute;left:500px;top:420px;width:320px;height:100px;font:40px Arial;color:#111}',
       js: runtimeJs('Ease fixture', emitAnimRegion(data as never)) };
-  }, data);
+  }, { data, title });
 }
 
-/** Load a template in `target` and sample #box through its own play/stop timelines. */
-async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number]) {
+/** Load a template in `target` and sample its layers (#box unless told) through its own play/stop timelines. */
+async function execute(page: Page, t: unknown, target: string, times: number[], exitTimes: number[], durations: [number, number], layers = ['#box']) {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (target === 'simulator' || target === 'single-file') {
@@ -76,7 +77,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
       });
     } else await output.goto('http://ease-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, times, exitTimes, durations }) => {
+  const result = await output.evaluate(async ({ target, times, exitTimes, durations, layers }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number; getChildren(n: boolean, tw: boolean, tl: boolean): { vars: { ease?: unknown }; targets(): Element[]; duration(): number }[] };
     const w = window as unknown as { play(): void; stop(): void; gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('ease-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -87,7 +88,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
     };
     const timeline = (d: number) => w.gsap.globalTimeline.getChildren(false, false, true).filter(x => Math.abs(x.duration() - d) < .0001).pop()!;
     const box = document.querySelector('#box')!;
-    const pose = () => ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(box, p))).concat(Number(getComputedStyle(box).opacity));
+    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(e, p))).concat(Number(getComputedStyle(e).opacity)); });
     await command('play'); const entry = timeline(durations[0]); entry.pause();
     // Which eases reached GSAP as strings: a recognized one must arrive as the shared function.
     const handed = entry.getChildren(true, true, false).filter(x => x.targets().includes(box) && x.duration() > 0).map(x => typeof x.vars.ease === 'function' ? 'function' : String(x.vars.ease));
@@ -96,7 +97,7 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
     const exit = timeline(durations[1]); exit.pause();
     const leaving = exitTimes.map(t => { exit.time(t, true); return pose(); });
     return { entering, leaving, handed };
-  }, { target, times, exitTimes, durations });
+  }, { target, times, exitTimes, durations, layers });
   await output.close();
   return result;
 }
@@ -106,9 +107,9 @@ const TOLERANCE = [2e-3, 2e-3, 2e-3, 2e-3, 2e-3];
 function near(actual: Pose[], expected: Pose[], label: string, tolerance = TOLERANCE) {
   let worst = { error: 0, at: -1, prop: '' };
   actual.forEach((pose, i) => pose.forEach((v, p) => {
-    // A NaN on either side is a failure, never a pass.
-    const error = Math.abs(v - expected[i][p]) - tolerance[p];
-    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: PROPS[p] };
+    // A NaN on either side is a failure, never a pass. A pose may hold several layers of PROPS.
+    const error = Math.abs(v - expected[i][p]) - tolerance[p % tolerance.length];
+    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: PROPS[p % PROPS.length] + (p >= PROPS.length ? ' (layer ' + Math.floor(p / PROPS.length) + ')' : '') };
   }));
   expect(worst, `${label}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
 }
@@ -200,6 +201,54 @@ for (const target of TARGETS) test('exact reversal plays the entrance backwards 
   const t = { ...(await template(page, data)), js: reversed.js };
   const run = await execute(page, t, target, times, times.map(x => Math.round((1.5 - x) * 1000) / 1000), [1.5, 1.5]);
   near(run.leaving, run.entering, target + ' Out(1.5 - t) against In(t)');
+});
+
+/** R1.2a.1: a text-and-box entrance whose keys run past 1.2 s, eased with back, bounce,
+ *  cubic-bezier and elastic, a box track that starts after 1.2 s, and a title Out that begins
+ *  where its entrance ends. */
+function textAndBox(): Data {
+  return { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 2, ease: 'power1.inOut', layers: {
+      '#box': {
+        x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'power2.out' }, { time: 2, value: 0, ease: 'back.out(1.6)' }],
+        y: [{ time: 0, value: 0 }, { time: .8, value: -120, ease: 'bounce.out' }, { time: 2, value: 0, ease: 'cubic-bezier(0.3,-0.4,0.6,1.5)' }],
+        scaleX: [{ time: 1.4, value: .8 }, { time: 1.9, value: 1, ease: 'back.out(1.6)' }],
+        opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'sine.out' }],
+      },
+      '#title': {
+        x: [{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: 'bounce.out' }],
+        rotation: [{ time: 0, value: -20 }, { time: 2, value: 0, ease: 'elastic.out(1, 0.7)' }],
+        scaleX: [{ time: .4, value: .5 }, { time: 1.8, value: 1 }],
+        opacity: [{ time: 0, value: 0 }, { time: 1.5, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
+      },
+    } },
+    { name: 'Out', duration: 1, ease: 'none', layers: { '#title': {
+      x: [{ time: 0, value: 0 }, { time: 1, value: -900, ease: 'power2.in' }],
+      opacity: [{ time: 0, value: 1 }, { time: 1, value: 0 }],
+    } } },
+  ] };
+}
+
+for (const target of TARGETS) test('Set Out before the last In key plays In then Out as the original in ' + target, async ({ page }) => {
+  await open(page);
+  const out = 1.2, h = .01;
+  const original = await template(page, textAndBox(), true);
+  const crossed = await page.evaluate(async ({ t, out }) => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.set', time: out }), { t: original, out });
+  // One absolute clock: In plays to its boundary and Out continues from there.
+  const absolute = [...new Set([...grid(3), out - h, out, out + h])].sort((a, b) => a - b);
+  const play = async (t: unknown, boundary: number, durations: [number, number]) => {
+    const run = await execute(page, t, target, absolute.filter(u => u <= boundary),
+      absolute.filter(u => u > boundary).map(u => Math.round((u - boundary) * 1000) / 1000), durations, ['#box', '#title']);
+    return [...run.entering, ...run.leaving];
+  };
+  const before = await play(original, 2, [2, 1]), after = await play(crossed, out, [out, 1.8]);
+  near(after, before, target + ' In then Out on one clock', [1e-3 + 1e-6]);
+  // Boundary velocity on both sides of the new hold, the right side now played by Out.
+  const at = (u: number) => absolute.indexOf(u);
+  for (let p = 0; p < before[0].length; p++) for (const [a, b] of [[out - h, out], [out, out + h]]) {
+    const v0 = (before[at(b)][p] - before[at(a)][p]) / h, v1 = (after[at(b)][p] - after[at(a)][p]) / h;
+    expect(Math.abs(v1 - v0), `${PROPS[p % PROPS.length]} of layer ${Math.floor(p / PROPS.length)} velocity ${a}..${b}: ${v0} vs ${v1}`).toBeLessThan(.21);
+  }
 });
 
 test('reversal and split refuse atomically where no exact form exists', async ({ page }) => {

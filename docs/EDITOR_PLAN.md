@@ -87,10 +87,13 @@ workflow. This is the destination; only measured evidence can establish that com
   logic programming. Existing state-machine playback/source must survive unchanged.
 - Out always marks the end of the last pre-Out segment, including an empty exit. Set Out at
   playhead moves it; whenever the exit has no keys, offer reverse/manual beside that button.
-  Save/reopen preserves this; one-step In never becomes Out. Before R1.2a's shared Bezier gate,
-  refuse Set Out before the last In key. Interrupted Out tweens from live values to final exit
-  keys with no initial set/jump; simulator and exports use the same upgraded interpreter.
-  Holds remain indefinite. No new auto-Out timer; existing timed behavior survives.
+  Save/reopen preserves this; one-step In never becomes Out. Owner decision 2026-09-28: Set Out
+  may cross the last In key. Each crossed segment splits exactly at the boundary and the rest of
+  the entrance moves into Out at its absolute times, as one undo; if any crossed segment cannot
+  split exactly, the whole move refuses with source and history unchanged. Interrupted Out
+  tweens from live values to final exit keys with no initial set/jump; simulator and exports
+  use the same upgraded interpreter. Holds remain indefinite. No new auto-Out timer; existing
+  timed behavior survives.
 
 - One completed gesture or operation batch is one undo; Escape cancels exactly. Source/asset
   revision checks reject stale edits and preview replies. Scrubbing causes no operator side effects.
@@ -122,7 +125,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
-| R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. The evaluator, exact split and exact reversal gate (G01) is engineering-verified ([receipt](research/editor-g01/README.md)); lifting the Set Out restriction is a separate decision. |
+| R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. The evaluator, exact split and exact reversal gate (G01) is engineering-verified ([receipt](research/editor-g01/README.md)). R1.2a.1, Set Out across the last In key, is engineering-verified ([receipt](research/editor-r1-2a-1/README.md)); R1.2a.2 is the key-side ease menu, Hold and multi-key selection. |
 | R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, file/drop import, images/assets, bounded Pen, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
 | R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
 | R1.3a/b AI and source round-trip | a: grounded help/context; b: reviewed edits through shared semantic commands, CLI round-trip, free tier/BYOK and model/concurrency tests. B17/B18. Optional P-WEBMCP adapter follows b; [inspection, scope and B21](research/editor-webmcp-commands-2026-09-19.md). |

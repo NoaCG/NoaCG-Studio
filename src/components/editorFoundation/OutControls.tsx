@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { parseAnimData } from '../../blocks/animData';
 import { hasExitKeys } from '../../blocks/editorOut';
 import { useModalGate } from '../spaceKey';
 import type { EditorSession, Revision } from './session';
@@ -31,8 +32,10 @@ export default function OutControls({ session, view, time, pause, inspect, playO
     try {
       const result = session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'out.set', time }] });
       park(); setError('');
-      // The input view can still describe the old source during this event.
-      if (view.data && !hasExitKeys(view.data)) setPrompt({ expected: result.revision, documentId: session.documentId });
+      // Read the new source: the view can still describe the old one during this event, and Out
+      // set inside the entrance carries its rest into the exit, which then has keys to keep.
+      const next = parseAnimData(result.template.js);
+      if (next && !hasExitKeys(next)) setPrompt({ expected: result.revision, documentId: session.documentId });
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const reverse = () => {

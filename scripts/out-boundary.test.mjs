@@ -1,0 +1,260 @@
+// guards: src/blocks/editorOut.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts
+//
+// R1.2a.1 SET OUT ACROSS THE LAST IN KEY, THE MATHEMATICS (docs/research/editor-r1-2a-1/README.md).
+// Moving Out to a boundary b inside the entrance keeps every key and visibility bar at its
+// absolute time on the concatenated ruler: each crossed segment splits exactly at b
+// (splitKeyframeSegment), the rest of the entrance moves into Out, and In then Out plays what it
+// played before. Anything without an exact form refuses the whole move with the input untouched.
+// What needs Chromium - the emitted interpreter playing it in the simulator and exported packages,
+// and the editor's buttons, history and save - is in e2e/editor-ease.spec.ts and
+// e2e/editor-out.spec.ts.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { rolldown } from 'rolldown';
+import { rawSuffix } from './rolldown-raw.mjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+async function load(entry) {
+  const bundle = await rolldown({ input: path.join(root, entry), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
+  const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
+  await bundle.close();
+  return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
+}
+
+const { moveOutBoundary, applyOut } = await load('src/blocks/editorOut.ts');
+const { resolveValue } = await load('src/blocks/animEval.ts');
+const { parseAnimData } = await load('src/blocks/animData.ts');
+const { emitAnimRegion } = await load('src/templates/shared/animRuntime.ts');
+
+/** The browser spec's text-and-box entrance: back, bounce, cubic-bezier and elastic keys running
+ *  past the new Out, a box track that starts after it, and a title Out that begins where its
+ *  entrance ends. */
+const textAndBox = () => ({ version: 2, root: '.fixture', speed: 1, steps: [
+  { name: 'In', duration: 2, ease: 'power1.inOut', layers: {
+    '#box': {
+      x: [{ time: 0, value: -900 }, { time: 0.8, value: -200, ease: 'power2.out' }, { time: 2, value: 0, ease: 'back.out(1.6)' }],
+      y: [{ time: 0, value: 0 }, { time: 0.8, value: -120, ease: 'bounce.out' }, { time: 2, value: 0, ease: 'cubic-bezier(0.3,-0.4,0.6,1.5)' }],
+      scaleX: [{ time: 1.4, value: 0.8 }, { time: 1.9, value: 1, ease: 'back.out(1.6)' }],
+      opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'sine.out' }],
+    },
+    '#title': {
+      x: [{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: 'bounce.out' }],
+      rotation: [{ time: 0, value: -20 }, { time: 2, value: 0, ease: 'elastic.out(1, 0.7)' }],
+      scaleX: [{ time: 0.4, value: 0.5 }, { time: 1.8, value: 1 }],
+      opacity: [{ time: 0, value: 0 }, { time: 1.5, value: 1, ease: 'cubic-bezier(0.2,0.6,0.4,1)' }],
+    },
+  } },
+  { name: 'Out', duration: 1, ease: 'none', layers: { '#title': {
+    x: [{ time: 0, value: 0 }, { time: 1, value: -900, ease: 'power2.in' }],
+    opacity: [{ time: 0, value: 1 }, { time: 1, value: 0 }],
+  } } },
+] });
+
+/** The value a layer shows at stored time u when every cue plays straight after the one before:
+ *  the cue holding u (the later one at a shared boundary), sampled as the editor samples it. */
+function at(data, selector, prop, u) {
+  let start = 0;
+  for (let i = 0; i < data.steps.length; i++) {
+    const end = start + data.steps[i].duration;
+    if (u < end || i === data.steps.length - 1) return resolveValue(data, selector, prop, i, u - start);
+    start = end;
+  }
+}
+const tracks = (...all) => [...new Set(all.flatMap(d => d.steps.flatMap(s => Object.entries(s.layers).flatMap(([sel, t]) => Object.keys(t).map(p => sel + ' ' + p)))))].map(k => k.split(' '));
+const total = data => data.steps.reduce((sum, s) => sum + s.duration, 0);
+
+/** Every sampled value within one stored quantum on a dense absolute grid. */
+function samePlayback(before, after, label) {
+  assert.ok(Math.abs(total(after) - total(before)) < 1e-9, `${label}: the exit ends where it ended`);
+  for (const [selector, prop] of tracks(before, after)) {
+    for (let i = 0; i <= 3000; i++) {
+      const u = total(before) * i / 3000, a = at(before, selector, prop, u), b = at(after, selector, prop, u);
+      assert.ok(a === b || Math.abs(a - b) <= 1e-3 + 1e-9, `${label}: ${selector} ${prop} at ${u}: ${a} vs ${b}`);
+    }
+  }
+}
+
+/** Span visibility as the interpreter shows it: a cue with intervals for the layer sets them (the
+ *  arriving side at its end), one without keeps what the layer had, and the exit applies its
+ *  intervals only to a layer visible when it starts (noacgBuildExit gates on the live style). */
+function visibleAt(data, selector, u, cues = data.steps.length) {
+  const show = (spans, t, d) => spans.some(s => t >= s.start && (t < s.end || t === d && s.end === d));
+  let shown = true, start = 0;
+  for (let i = 0; i < cues; i++) {
+    const step = data.steps[i], exit = i === data.steps.length - 1, end = start + step.duration;
+    const spans = step.spans?.[selector];
+    if (spans && (!exit || shown)) shown = show(spans, Math.min(u, end) - start, step.duration);
+    if (u < end || i === cues - 1) return shown;
+    start = end;
+  }
+}
+/** The on-air hold: the pre-Out cue settled at its end, before Out is pressed. */
+const held = (data, selector) => visibleAt(data, selector, total(data) - data.steps.at(-1).duration, data.steps.length - 1);
+
+test('Set Out across the last In key keeps every absolute value, both velocities at b and the untouched keys', () => {
+  const before = textAndBox(), frozen = JSON.stringify(before);
+  for (const b of [0.4, 0.6, 0.8, 1, 1.2, 1.44, 1.6, 1.8, 1.96]) {
+    const after = moveOutBoundary(before, b);
+    assert.equal(JSON.stringify(before), frozen, 'the input is not mutated');
+    assert.equal(after.steps[0].duration, b);
+    assert.equal(after.steps[1].duration, Math.round((1 + 2 - b) * 1000) / 1000, 'the exit keeps its absolute end');
+    samePlayback(before, after, `Out at ${b}`);
+    const h = 1e-4, slope = (d, s, p, x, y) => (at(d, s, p, y) - at(d, s, p, x)) / (y - x);
+    for (const [selector, prop] of tracks(before)) for (const [x, y] of [[b - h, b], [b, b + h]]) {
+      const v0 = slope(before, selector, prop, x, y), v1 = slope(after, selector, prop, x, y);
+      assert.ok(Math.abs(v1 - v0) <= 0.02 + Math.abs(v0) * 1e-3, `Out at ${b}: ${selector} ${prop} velocity ${x}..${y} ${v0} vs ${v1}`);
+    }
+    for (const [selector, layer] of Object.entries(before.steps[0].layers)) for (const [prop, keys] of Object.entries(layer)) {
+      const kept = after.steps[0].layers[selector][prop];
+      // The entrance keeps every key up to b untouched, plus at most the one key at b.
+      for (const key of keys.filter(k => k.time < b - 5e-4)) assert.deepEqual(kept.find(k => k.time === key.time), key, `${selector} ${prop} key ${key.time}`);
+      assert.ok(kept.every(k => k.time <= b), `${selector} ${prop} ends by b`);
+      if (!keys.some(k => k.time > b + 5e-4)) { assert.deepEqual(kept, keys, `${selector} ${prop} does not cross`); continue; }
+      // A crossed track starts the exit from the value it holds at b, and every moved key says its ease.
+      const exit = after.steps[1].layers[selector][prop];
+      assert.deepEqual(exit[0], { time: 0, value: kept.at(-1).value });
+      for (const key of exit.slice(1, 1 + keys.filter(k => k.time > b + 5e-4).length)) assert.equal(typeof key.ease, 'string', `${selector} ${prop} Out key ${key.time} has an explicit ease`);
+    }
+  }
+});
+
+test('the parts it writes: a split, a hold key, moved keys and an exit joined without a jump', () => {
+  const after = moveOutBoundary(textAndBox(), 1.2), In = after.steps[0].layers, Out = after.steps[1].layers;
+  // back.out(1.6) split at a third of its segment; the rest moves with its slice and explicit ease.
+  assert.deepEqual(In['#box'].x.slice(-1), [{ time: 1.2, value: -11.852, ease: 'slice(back.out(1.6),0,0.333333333333)' }]);
+  assert.deepEqual(Out['#box'].x, [{ time: 0, value: -11.852 }, { time: 0.8, value: 0, ease: 'slice(back.out(1.6),0.333333333333,1)' }]);
+  // Out before the box scales: it holds its first value from the cue start, as the runtime does.
+  assert.deepEqual(In['#box'].scaleX, [{ time: 1.2, value: 0.8 }]);
+  assert.deepEqual(Out['#box'].scaleX, [{ time: 0, value: 0.8 }, { time: 0.2, value: 0.8, ease: 'power1.inOut' }, { time: 0.7, value: 1, ease: 'back.out(1.6)' }]);
+  // The default ease of the In cue follows a moved key that relied on it.
+  assert.equal(Out['#title'].scaleX[1].ease, 'slice(power1.inOut,0.571428571429,1)');
+  assert.equal(Out['#box'].opacity, undefined, 'a track that ends before b stays in the entrance');
+  // The title's own Out starts where its entrance ends, so the gap between them is flat.
+  assert.deepEqual(Out['#title'].x, [{ time: 0, value: -24.609 }, { time: 0.4, value: 0, ease: 'slice(bounce.out,0.75,1)' }, { time: 0.8, value: 0 }, { time: 1.8, value: -900, ease: 'power2.in' }]);
+  assert.deepEqual(Out['#title'].opacity.map(k => k.time), [0, 0.3, 0.8, 1.8]);
+});
+
+test('an exit key on the old boundary merges when it holds the same value, and a jump refuses', () => {
+  const merge = textAndBox();
+  merge.steps[1].layers['#title'].rotation = [{ time: 0, value: 0 }, { time: 1, value: 30, ease: 'power2.in' }];
+  const after = moveOutBoundary(merge, 1.2);
+  assert.deepEqual(after.steps[1].layers['#title'].rotation.map(k => [k.time, k.value, k.ease]),
+    [[0, -0.195, undefined], [0.8, 0, 'slice(elastic.out(1, 0.7),0.6,1)'], [1.8, 30, 'power2.in']]);
+  samePlayback(merge, after, 'merged');
+  const jump = textAndBox();
+  jump.steps[1].layers['#title'].x[0].value = 50;
+  const frozen = JSON.stringify(jump);
+  assert.throws(() => moveOutBoundary(jump, 1.2), /#title x.*jump/);
+  assert.equal(JSON.stringify(jump), frozen);
+  // Nothing crosses the title's x when Out stays after it, so its jump is Out's own, as today.
+  assert.doesNotThrow(() => moveOutBoundary(jump, 1.7));
+});
+
+test('visibility bars keep their absolute times; a layer Out could not reveal refuses', () => {
+  const cases = [
+    ['full entrance, no Out bar', [{ start: 0, end: 2 }], undefined],
+    ['leaves during the moved part', [{ start: 0.5, end: 1.5 }], undefined],
+    ['ends exactly at b', [{ start: 0.2, end: 1.2 }], undefined],
+    ['hidden before b, never after', [{ start: 0, end: 0.8 }], undefined],
+    ['disjoint, visible at b', [{ start: 0, end: 1.4 }, { start: 1.6, end: 2 }], undefined],
+    ['own Out bar', [{ start: 0, end: 2 }], [{ start: 0, end: 0.5 }]],
+    ['cut at Out (a body move)', [{ start: 0, end: 2 }], []],
+    ['hidden at the old hold, Out bar gated', [{ start: 0, end: 1.5 }], [{ start: 0, end: 1 }]],
+  ];
+  for (const [label, entrance, exit] of cases) {
+    const before = textAndBox();
+    before.steps[0].spans = { '#box': entrance };
+    if (exit) before.steps[1].spans = { '#box': exit };
+    const after = moveOutBoundary(before, 1.2);
+    assert.ok(after.steps.every(s => Object.values(s.spans ?? {}).every(list => list.every(span => span.start >= 0 && span.end > span.start && span.end <= s.duration))), `${label}: valid intervals`);
+    for (let i = 0; i <= 3000; i++) {
+      const u = 3 * i / 3000 + 1e-7;
+      assert.equal(visibleAt(after, '#box', u), visibleAt(before, '#box', u), `${label}: visibility at ${u}`);
+    }
+    // The hold shows the arriving side at b: what the entrance showed just before it.
+    assert.equal(held(after, '#box'), visibleAt(before, '#box', 1.2 - 1e-7), `${label}: the hold`);
+    samePlayback(before, after, label);
+  }
+  const joined = textAndBox();
+  joined.steps[0].spans = { '#box': [{ start: 0, end: 1.4 }, { start: 1.6, end: 2 }] };
+  assert.deepEqual(moveOutBoundary(joined, 1.2).steps[1].spans, { '#box': [{ start: 0, end: 0.2 }, { start: 0.4, end: 1.8 }] });
+  for (const entrance of [[{ start: 1.2, end: 2 }], [{ start: 0, end: 1 }, { start: 1.5, end: 2 }]]) {
+    const hidden = textAndBox();
+    hidden.steps[0].spans = { '#box': entrance };
+    const frozen = JSON.stringify(hidden);
+    assert.throws(() => moveOutBoundary(hidden, 1.2), /#box.*reveal/, JSON.stringify(entrance));
+    assert.equal(JSON.stringify(hidden), frozen);
+  }
+});
+
+test('a move with nothing after b behaves as before, and bars no longer refuse it', () => {
+  const plain = () => ({ version: 2, root: '.g', speed: 1, steps: [
+    { name: 'In', duration: 2, ease: 'none', layers: { '#a': { x: [{ time: 0, value: -900 }, { time: 1, value: 0 }] } } },
+    { name: 'Out', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0.5, value: 0 }, { time: 1, value: -900 }] } } },
+  ] });
+  // Earlier and later, the exit keys keep their absolute times as they always did.
+  assert.deepEqual(moveOutBoundary(plain(), 1.5).steps.map(s => [s.duration, s.layers['#a'].x.map(k => k.time)]), [[1.5, [0, 1]], [1.5, [1, 1.5]]]);
+  assert.deepEqual(moveOutBoundary(plain(), 2.3).steps.map(s => [s.duration, s.layers['#a'].x.map(k => k.time)]), [[2.3, [0, 1]], [0.7, [0.2, 0.7]]]);
+  assert.throws(() => moveOutBoundary(plain(), 2.6), /Out key/);
+  // An exit without keys or bars stays an instant cut.
+  const empty = plain(); empty.steps[1] = { name: 'Out', duration: 0, ease: 'none', layers: {} };
+  assert.deepEqual(moveOutBoundary(empty, 1.5).steps.map(s => s.duration), [1.5, 0]);
+  // A bar across the new Out is clipped and carried, where it used to refuse the move.
+  const bar = plain(); bar.steps[0].spans = { '#a': [{ start: 0, end: 2 }] };
+  const moved = moveOutBoundary(bar, 1.5);
+  assert.deepEqual([moved.steps[0].spans, moved.steps[1].spans], [{ '#a': [{ start: 0, end: 1.5 }] }, { '#a': [{ start: 0, end: 1.5 }] }]);
+  samePlayback(bar, moved, 'bar only');
+});
+
+test('only the last pre-Out cue changes in a sequence with Next', () => {
+  const before = textAndBox();
+  before.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', layers: { '#box': {
+    rotation: [{ time: 0, value: 0 }, { time: 0.8, value: 90, ease: 'bounce.out' }],
+  } } });
+  const after = moveOutBoundary(before, 0.5);
+  assert.deepEqual(after.steps[0], before.steps[0]);
+  assert.deepEqual([after.steps[1].duration, after.steps[2].duration], [0.5, 1.5]);
+  samePlayback(before, after, 'Next cue');
+});
+
+test('every refusal leaves the input untouched and names what could not be kept', () => {
+  const refuse = (mutate, b, pattern) => {
+    const data = textAndBox(); mutate(data);
+    const frozen = JSON.stringify(data);
+    assert.throws(() => moveOutBoundary(data, b), pattern);
+    assert.equal(JSON.stringify(data), frozen);
+  };
+  const box = d => d.steps[0].layers['#box'];
+  refuse(d => { box(d).x[2].ease = 'steps(4)'; }, 1.2, /#box x.*steps\(4\)/);
+  refuse(d => { box(d).x[2].ease = 'customEase'; }, 1.2, /#box x.*customEase/);
+  refuse(d => { box(d).opacity = [{ time: 0, value: 0 }, { time: 2, value: 1, ease: 'back.out(1.6)' }]; }, 1.2, /#box opacity.*range/);
+  refuse(d => { box(d).x[2].ease = 'back.in(1.5)'; }, 1.52, /#box x.*same value/);
+  refuse(d => { box(d).x = [{ time: 0, value: 0 }, { time: 1, value: 100, ease: 'back.out(1.6)' }]; d.steps[0].duration = 1; }, 0.36, /#box x.*saved precision/);
+  refuse(d => { box(d).filter = [{ time: 0, value: 'blur(8px)' }, { time: 2, value: 'blur(0px)' }]; }, 1.2, /#box filter.*numeric/);
+  refuse(d => { d.steps[0].hides = ['#box']; }, 1.2, /#box.*hide/);
+  // A layer a Next cue reveals, which Out does not animate, fades separately when Out starts.
+  refuse(d => { d.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', reveals: ['#box'], layers: { '#box': { rotation: [{ time: 0, value: 0 }, { time: 1, value: 90 }] } } }); }, 0.5, /#box.*reveal/);
+  refuse(() => {}, Number.NaN, /finite/);
+  // The template writer: source is kept byte for byte, and the reason is the same.
+  const template = { html: '<div class="fixture"><div id="box"></div><div id="title"></div></div>', css: '', fields: [], fps: 25 };
+  const stepped = textAndBox(); stepped.steps[0].layers['#title'].x[1].ease = 'steps(4)';
+  const source = { ...template, js: emitAnimRegion(stepped) }, frozen = JSON.stringify(source);
+  assert.throws(() => applyOut(source, { kind: 'out.set', time: 1.2 }), /#title x.*steps\(4\)/);
+  assert.equal(JSON.stringify(source), frozen);
+});
+
+test('applyOut snaps the playhead through speed and writes one lossless region', () => {
+  const data = textAndBox(); data.speed = 2;
+  const template = { html: '<div class="fixture"><div id="box"></div><div id="title"></div></div>', css: '', fields: [], fps: 30, js: emitAnimRegion(data) };
+  // 0.3 effective seconds is frame 9 at 30 fps; at speed 2 that is 0.6 stored seconds.
+  const written = parseAnimData(applyOut(template, { kind: 'out.set', time: 0.3 + 1 / 90 }).js);
+  assert.deepEqual(written, moveOutBoundary(data, 0.6));
+  // A one-step entrance gains its Out and crosses into it the same way.
+  const single = textAndBox(); single.speed = 2; single.steps.pop();
+  const one = parseAnimData(applyOut({ ...template, js: emitAnimRegion(single) }, { kind: 'out.set', time: 0.3 }).js);
+  assert.deepEqual(one.steps.map(s => [s.name, s.duration]), [['In', 0.6], ['Out', 1.4]]);
+  samePlayback({ ...single, steps: [...single.steps, { name: 'Out', duration: 0, ease: 'none', layers: {} }] }, one, 'one step');
+});
