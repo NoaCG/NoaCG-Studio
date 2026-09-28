@@ -1,4 +1,4 @@
-// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts
+// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts, src/control/serverStatePoll.ts
 //
 // What a server cue sends, what the page then believes is up on the playout server, and what a
 // reading of the server does to that belief (docs/BRIDGE.md §5, docs/CLIP_PLAYBACK_PLAN.md §6.4 and
@@ -15,9 +15,8 @@ const { runServerVerb, serverAction, serverCueLive, serverLayers, withTaken, wit
   '../src/control/serverPlayout.ts'
 );
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
-const { NO_OWNERSHIP, applyAccepted, applyReading, clipClock, clockText, isEstimated, remainingAt, STALE_MS } = await import(
-  '../src/control/serverState.ts'
-);
+const { NO_OWNERSHIP, applyAccepted, applyReading, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
+  await import('../src/control/serverState.ts');
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
 const clip = { id: 'clip', adapter: 'casparcg', kind: 'media', name: 'GIORNO', layer: 10, channel: 2, frames: 1500, fps: 25 };
@@ -200,7 +199,16 @@ test('a reading that only moves the clip hands back the SAME ownership - the pag
   const next = applyReading(parts, reply([reading({ instance: 's1.1', cueId: 'c-clip' })]), ctx(1500));
   assert.equal(next.ownership, parts.ownership);
   assert.notEqual(next.timing, parts.timing);
-  assert.deepEqual(next.timing['2-10'], { file: 'GIORNO', segment: { start: 0, length: 60 }, position: 5, paused: false, loop: false, at: 1500, source: 'server' });
+  assert.deepEqual(next.timing['2-10'], {
+    producer: 'video',
+    file: 'GIORNO',
+    segment: { start: 0, length: 60 },
+    position: 5,
+    paused: false,
+    loop: false,
+    at: 1500,
+    source: 'server',
+  });
 });
 
 test('a reading older than the last accepted action on its slot is ignored whole (case 14)', () => {
@@ -255,6 +263,27 @@ test('after a reload the instance and its cue match the row exactly; nothing is 
   assert.deepEqual(applyReading(START, reply([reading({ instance: 's1.4', cueId: 'gone' })]), ctx(500)).ownership.onAir, {});
 });
 
+test('this Bridge\'s own take of a cue is that cue wherever it plays: a re-take, another tab, a moved layer', () => {
+  // A re-take's reading can land before the Take's own answer does. A new instance of this
+  // Bridge's, for this rundown's cue, is that cue still up - never "replaced on the server".
+  const parts = taken();
+  const retaken = applyReading(parts, reply([reading({ instance: 's1.2', cueId: 'c-clip', generation: 2 })]), ctx(1500));
+  assert.deepEqual(retaken.ownership.onAir, { clip: { cueId: 'c-clip', slot: slot(2, 10), instance: 's1.2', takenAt: 1500 } });
+  assert.deepEqual(retaken.ownership.replaced, {});
+  // After a reload, a clip moved to layer 11 while it was up is found on 10, where it still plays,
+  // although no item of the rundown says 10 any more.
+  const moved = { ...ctx(500), items: [{ ...clip, layer: 11 }, { ...items[1], layer: 12 }] };
+  const found = applyReading(START, reply([reading({ instance: 's1.4', cueId: 'c-clip' })]), moved);
+  assert.deepEqual(found.ownership.onAir, { clip: { cueId: 'c-clip', slot: slot(2, 10), instance: 's1.4', takenAt: 500 } });
+});
+
+test('a file the server reports names its item whatever the case, the slashes or the extension', () => {
+  assert.equal(namesItem('NOACG_FIXTURE/COUNT30', 'NOACG_FIXTURE/COUNT30.mp4'), true, '2.3 adds the extension');
+  assert.equal(namesItem('GIORNO', 'media\\giorno.jpg'), true, 'a still reads back by its path');
+  assert.equal(namesItem('INTRO_VT', 'intro_vt'), true);
+  assert.equal(namesItem('COUNT30', 'COUNT300'), false);
+});
+
 test('what waits behind a clip is kept per slot, for NEXT ON SERVER', () => {
   const parts = applyReading(taken(), reply([reading({ instance: 's1.1', queued: { file: 'INTRO_VT', auto: true } })]), ctx(1500));
   assert.deepEqual(parts.ownership.queued, { '2-10': { file: 'INTRO_VT', auto: true } });
@@ -283,6 +312,10 @@ test('paused stops the count; a loop never warns; an old estimate and a stale re
   const paused = applyReading(taken(), reply([reading({ instance: 's1.1', position: 55, paused: true })]), ctx(1000));
   const p = clipClock(paused.ownership, paused.timing, items, cues, 9000);
   assert.deepEqual([p.phase, p.remaining], ['paused', 5]);
+  // A paused LOOP says PAUSED too, and still that it loops.
+  const pausedLoop = applyReading(taken(), reply([reading({ instance: 's1.1', position: 20, loop: true, paused: true })]), ctx(1000));
+  const pl = clipClock(pausedLoop.ownership, pausedLoop.timing, items, cues, 5000);
+  assert.deepEqual([pl.phase, pl.end, pl.remaining], ['paused', 'loop', 40]);
   const looping = applyReading(taken(), reply([reading({ instance: 's1.1', position: 58, loop: true })]), ctx(1000));
   const l = clipClock(looping.ownership, looping.timing, items, cues, 4000);
   assert.equal(l.phase, 'looping');
@@ -304,6 +337,29 @@ test('one clock, one clip: it follows the clip taken last', () => {
   assert.equal(clipClock(NO_OWNERSHIP, {}, items, cues, 0), null);
 });
 
+test('a still gets no clock: the server says what plays, and before it does the list\'s length', () => {
+  const still = { id: 'still', adapter: 'casparcg', kind: 'media', name: 'LOGO', layer: 10, channel: 2, frames: 0, fps: 0 };
+  const all = [clip, still];
+  const allCues = [cue('c-clip', 'clip'), cue('c-still', 'still')];
+  const take = (parts, itemId, at, generation, now) =>
+    applyAccepted(parts, { verb: 'take', itemId, cueId: `c-${itemId}`, slot: at, generation, session: 's1', instance: `s1.${generation}`, length: itemId === 'clip' ? 60 : undefined, now, readable: true });
+  const onlyStill = take(START, 'still', slot(2, 10), 1, 1000);
+  assert.equal(clipClock(onlyStill.ownership, onlyStill.timing, all, allCues, 1000), null, 'a still lists no length: no clock');
+  assert.equal(followedClip(onlyStill.ownership, all).itemId, 'still', 'PROGRAM still shows its picture');
+  // One that lists a single frame is a still all the same once the server says what plays.
+  const oneFrame = [clip, { ...still, frames: 1, fps: 25 }];
+  const read = applyReading(onlyStill, reply([{ layer: 10, producer: 'still', file: 'media\\logo.png', paused: false, loop: false, generation: 1, instance: 's1.1', cueId: 'c-still' }]), {
+    ...ctx(1200),
+    items: oneFrame,
+    cues: allCues,
+  });
+  assert.equal(clipClock(read.ownership, read.timing, oneFrame, allCues, 1200), null);
+  // A clip up beside it keeps the clock, although the still was taken after it.
+  const both = take(take(START, 'clip', slot(2, 5), 1, 500), 'still', slot(2, 10), 1, 1000);
+  assert.equal(clipClock(both.ownership, both.timing, all, allCues, 1000).itemId, 'clip');
+  assert.equal(followedClip(both.ownership, all).itemId, 'still');
+});
+
 test('a countdown shows the second it is in, and reaches 0:00 exactly at the end', () => {
   assert.equal(clockText(9.2), '0:10');
   assert.equal(clockText(9), '0:09');
@@ -311,4 +367,62 @@ test('a countdown shows the second it is in, and reaches 0:00 exactly at the end
   assert.equal(clockText(0), '0:00');
   assert.equal(clockText(3725), '1:02:05');
   assert.equal(clockText(3.9, 'down'), '0:03');
+});
+
+// ── The poll (src/control/serverStatePoll.ts) ─────────────────────────────────────────────────
+
+const { pollServerState } = await import('../src/control/serverStatePoll.ts');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const stateOf = (channel) => ({ ok: true, channel, session: 's1', observedAt: 0, slots: [] });
+
+test('the poll never has two readings out, and a wake during one reads once more after it', async () => {
+  let out = 0;
+  let most = 0;
+  let reads = 0;
+  let release;
+  const poll = pollServerState({
+    read: async (channel) => {
+      reads += 1;
+      out += 1;
+      most = Math.max(most, out);
+      await new Promise((r) => (release = r));
+      out -= 1;
+      return { result: { state: 'ok', detail: '' }, reply: stateOf(channel) };
+    },
+    channels: () => [2],
+    busy: () => true,
+    onReading: () => {},
+    busyMs: 10_000,
+  });
+  await wait(5);
+  poll.wake();
+  poll.wake();
+  poll.wake();
+  release();
+  await wait(5);
+  release();
+  await wait(5);
+  poll.stop();
+  assert.equal(most, 1, 'two readings were out at once');
+  assert.equal(reads, 2, 'three wakes during one reading ask once more, not three times');
+});
+
+test('a reading the page cannot fold ends that round, never the poll', async () => {
+  let readings = 0;
+  const poll = pollServerState({
+    read: async (channel) => ({ result: { state: 'ok', detail: '' }, reply: stateOf(channel) }),
+    channels: () => [2],
+    busy: () => true,
+    onReading: () => {
+      readings += 1;
+      if (readings === 1) throw new TypeError('a slot in a shape this page does not know');
+    },
+    busyMs: 5,
+  });
+  await wait(60);
+  poll.stop();
+  assert.ok(readings >= 3, `the poll stopped after the throw (${readings} readings)`);
+  const after = readings;
+  await wait(30);
+  assert.equal(readings, after, 'nothing reads after stop');
 });

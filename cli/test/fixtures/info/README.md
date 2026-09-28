@@ -26,6 +26,11 @@ What the captures settled:
   the layer still empty, or on a re-take of the same file that file at its end; `video-just-played`
   is one about 130 ms later, a cut transition into the new clip at its start.
 
+`v2.3-trimmed.json` and `v2.3-looping-queued.json` are the same cases read from CasparCG 2.3 the
+same day (the build in the machine's 2.3.3 LTS folder, which reports `2.3.2 4de6d18f Dev`), on its
+channel 1, also 1080p50. They read the same way, with two differences: no `<format>` element, and a
+clip named WITH its extension (`NOACG_FIXTURE/COUNT30.mp4`).
+
 `info-timing.json` is §12 item 2: forty `INFO 2` round trips a quarter of a second apart, a new
 connection each, with a clip playing. The median was 1.5 ms and the slowest 3 ms: the answer is
 cheap next to the page's two readings a second, and phase 3's four. Whether that rate ever costs a

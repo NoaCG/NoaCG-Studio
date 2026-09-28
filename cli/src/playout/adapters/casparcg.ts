@@ -109,6 +109,11 @@ export function readsState(version: string | undefined): boolean {
  *  arrives and is read, rather than the wait ending first and reporting silence. */
 export const LIST_TIMEOUT_MS = 12_000;
 
+/** A state reading gives up before the page does (its own wait is 1.5 s, src/control/playoutLink.ts),
+ *  so a server that stops answering never holds more than one INFO per channel at a time: the page
+ *  asks again only after this one has ended. INFO answers in about 2 ms on 2.5.0. */
+export const STATE_TIMEOUT_MS = 1200;
+
 /** The AMCP line for one action. Pure and exported so the tests pin every verb's exact text. */
 export function casparLine(action: PlayoutAction): string {
   const { slot } = action;
@@ -205,9 +210,9 @@ function refusal(target: CasparTarget, reply: AmcpReply, listing: boolean): Agen
 
 /** One line to the server. A LISTING waits out the scanner's own timeout and reads a 501 as
  *  the scanner missing; a cue waits the default and reads a 501 as a refusal. */
-async function send(target: CasparTarget, line: string, listing = false): Promise<AdapterResult<AmcpReply>> {
+async function send(target: CasparTarget, line: string, listing = false, timeoutMs?: number): Promise<AdapterResult<AmcpReply>> {
   try {
-    const reply = await amcpSend(amcpTarget(target, listing ? LIST_TIMEOUT_MS : undefined), line);
+    const reply = await amcpSend(amcpTarget(target, timeoutMs ?? (listing ? LIST_TIMEOUT_MS : undefined)), line);
     if (reply.code >= 200 && reply.code < 300) return { ok: true, value: reply, raw: reply.status };
     return { ok: false, error: refusal(target, reply, listing) };
   } catch (e) {
@@ -278,7 +283,7 @@ export const casparcgAdapter: PlayoutAdapter<CasparTarget> = {
       return { ok: false, error: { hop: 'agent', code: 'usage', detail: `Channel must be a whole number from 1, got "${channel}".` } };
     }
     // The whole channel: 2.5.0 answers `INFO c-l` with the channel's document anyway.
-    const r = await send(target, `INFO ${channel}`);
+    const r = await send(target, `INFO ${channel}`, false, STATE_TIMEOUT_MS);
     if (!r.ok) return r;
     try {
       return { ok: true, value: parseInfo(r.value.lines[0] ?? '').layers.map(slotReading), raw: r.raw };

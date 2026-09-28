@@ -1,5 +1,5 @@
 {
-  "note": "A 1 s trimmed segment that has ended: the last frame holds.",
+  "note": "A trimmed segment that has ended: 25 frames, which the 50p channel counts as 0.5 s. The last frame holds.",
   "commands": [
     "PLAY 2-10 \"NOACG_FIXTURE/COUNT30\" SEEK 100 LENGTH 25"
   ],

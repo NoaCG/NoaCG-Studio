@@ -168,7 +168,8 @@ export interface SlotState {
    *  clip is there, and for a moment the layer still shows what it held before (nothing, or the
    *  previous clip). The rest of the reading is that previous content, not the take's. */
   arriving?: boolean;
-  /** The slot's action counter as of this reading. Every Take, Out and Clear moves it first. */
+  /** The slot's action counter as of this reading. Every Take, Out, Clear, Pause and Resume moves
+   *  it first. */
   generation: number;
 }
 

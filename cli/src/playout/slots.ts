@@ -4,8 +4,9 @@
 // honestly needs two facts that only the process that sent the commands can hold, so it now keeps
 // them, in memory, per target and slot, and nothing else:
 //
-//   GENERATION  a counter that every Take, Out and Clear on the slot moves BEFORE its command is
-//               sent, reported on the action's reply and on every reading. The page ignores a
+//   GENERATION  a counter that every Take, Out, Clear, Pause and Resume on the slot moves BEFORE
+//               its command is sent, reported on the action's reply and on every reading - not
+//               Update or Next, which change nothing the clock shows. The page ignores a
 //               reading older than the last action it saw accepted, so an answer that was on its
 //               way before a Take can never overrule the Take (plan §18, case 14).
 //   INSTANCE    what this Bridge last started on the slot: an id, the item, and the cue the page
@@ -108,8 +109,8 @@ export class SlotMemoryBank {
     return this.memory(target, slot).generation;
   }
 
-  /** Before a Take, Out or Clear is sent: the slot's generation moves first, and until `settled`
-   *  the action counts as in flight. */
+  /** Before a Take, Out, Clear, Pause or Resume is sent: the generation moves first, and until
+   *  `settled` the action counts as in flight. */
   advance(target: Target, slot: Slot): number {
     const m = this.memory(target, slot);
     m.inFlight += 1;

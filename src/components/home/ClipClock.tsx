@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { PlayoutItem, ShowCue } from '../../model/shows';
+import { slotAddress } from '../../control/playoutLink';
 import type { ServerPlayoutStore, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
-import { clipClock, clockText, remainingAt, type ClipClock as ClockData } from '../../control/serverState';
+import { clipClock, clockedClip, clockText, remainingAt, type ClipClock as ClockData } from '../../control/serverState';
 
 /**
  * The time now, re-read every `ms` while `on`: what a number that counts between two readings of
@@ -27,7 +28,7 @@ export function clockWords(c: ClockData): { label?: string; number: string; then
     case 'holding':
       return { label: 'HOLDING', number: `+${clockText(c.over, 'down')}`, then: 'the last frame stays up' };
     case 'paused':
-      return { label: 'PAUSED', number: `-${left}`, then: 'then holds the last frame' };
+      return { label: 'PAUSED', number: `-${left}`, then: c.end === 'loop' ? 'loops until Out' : 'then holds the last frame' };
     case 'looping':
       return { number: `-${left}`, then: 'loops until Out' };
     default:
@@ -58,16 +59,20 @@ export default function ClipClock({
 }) {
   const ownership = useSyncExternalStore(store.ownership.subscribe, store.ownership.get);
   const timing = useSyncExternalStore(store.timing.subscribe, store.timing.get);
-  const up = Object.keys(ownership.onAir).some((id) => items.find((i) => i.id === id)?.kind === 'media');
-  // Ten times a second: the number an operator counts a director out by changes on the second,
-  // within a tenth of when the server's does (measured against a real 2.5.0 at four a second, it
-  // could show a second late for up to a quarter of one).
-  const now = useNow(up, 100);
+  // A clip or an audio file is up - never a still, which has nothing to count (control/serverState.ts
+  // `hasClock`).
+  const followed = clockedClip(ownership, timing, items);
+  const paused = !!followed && !!timing[slotAddress(followed.live.slot)]?.paused;
+  // Ten times a second while it plays: the number an operator counts a director out by changes on
+  // the second, within a tenth of when the server's does (measured against a real 2.5.0 at four a
+  // second, it could show a second late for up to a quarter of one). Paused, the number stands
+  // still, and once a second is enough to notice the readings stopping (`estimated`).
+  const now = useNow(!!followed, paused ? 1000 : 100);
   /** Its own render count, published beside the page's: the spec proves this one moves and that
    *  one does not. */
   const renders = useRef(0);
   renders.current += 1;
-  const c = up ? clipClock(ownership, timing, items, cues, now) : null;
+  const c = followed ? clipClock(ownership, timing, items, cues, now) : null;
   if (!c) return null;
   const words = clockWords(c);
   const said = words.label ? `${words.label} ${words.number}` : words.number;

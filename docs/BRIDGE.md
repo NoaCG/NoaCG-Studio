@@ -236,15 +236,16 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 **What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2). Reading the
 server's state honestly needs two facts only the process that sent the commands can hold:
 
-- **A generation.** Every Take, Out and Clear on a slot moves the slot's counter BEFORE its command
-  is sent. The action's reply carries the new number and so does every reading, and a reading taken
-  while an action is still on its way reports the number from before it. The page ignores a reading
-  older than the last action it saw accepted, so an answer that left the server before a Take can
-  never undo the Take on screen.
+- **A generation.** Every Take, Out, Clear, Pause and Resume on a slot moves the slot's counter
+  BEFORE its command is sent; Update and Next change nothing the clock shows and leave it. The
+  action's reply carries the new number and so does every reading, and a reading taken while an
+  action is still on its way reports the number from before it. The page ignores a reading older
+  than the last action it saw accepted, so an answer that left the server before a Take or a Pause
+  can never undo it on screen.
 - **An instance.** What this Bridge last started on the slot: an id (`<session>.<n>`), the item, and
   the cue id the page named. A reading carries it only while the slot still plays that item and
   nobody restarted it, so the page can tell its own clip from another client's, and put a clip back
-  on its cue after a reload.
+  on its cue after a reload, wherever the cue's item is set to play now.
 
 A restarted Bridge remembers nothing. Its session id is new and its readings carry no instances, so
 the page shows whatever the server holds as unidentified rather than guessing from the file name.
@@ -381,7 +382,13 @@ tested against them rather than against the fake server:
   says.
 - An `INFO` round trip took a median 1.5 ms and at most 3 ms over forty readings a quarter of a
   second apart with a clip playing (`info-timing.json`). Whether that rate ever costs a frame on air
-  was not measured.
+  was not measured. The Bridge gives up on one after 1.2 s, before the page's own 1.5 s, so a server
+  that stops answering never has two readings of a channel open at once.
+- **2.3 answers the same way** (the build in this machine's 2.3.3 LTS folder, which reports
+  `2.3.2 4de6d18f Dev`, captured the same day as `v2.3-*.json`): the same segment for the same trim,
+  pause, loop and queued file, but no `<format>` element, and a clip named WITH its extension
+  (`NOACG_FIXTURE/COUNT30.mp4`). Matching a reading to an item therefore ignores the extension, the
+  case and the slashes' direction, on the Bridge (`playsItem`) and on the page (`namesItem`).
 
 ### AMCP, precisely
 
@@ -490,9 +497,11 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   and All out follow the server, not the page's memory.
   - **A reading only changes what the page believes.** Nothing in the poll can send a command, and
     no timer on the page ever fires or queues a clip.
-  - **A reading older than the last Take, Out or Clear the page saw accepted is set aside**, by the
-    slot's generation (§3), so a slow answer cannot undo a Take on screen.
-  - **After a reload** a clip this Bridge started is put back on its cue by its instance. Anything
+  - **A reading older than the last action the page saw accepted is set aside**, by the
+    slot's generation (§3), so a slow answer cannot undo a Take or a Pause on screen.
+  - **After a reload** a clip this Bridge started is put back on its cue by its instance, on the
+    layer where it plays even if its cue has since been set to another layer of that channel (a
+    channel the rundown no longer names is not read after a reload). Anything
     else on a rundown slot is listed as `Unidentified item on 2-10` with its file, never matched
     by file name. A slot another client took over marks its cue `replaced on the server`.
   - **Two update speeds.** The clip clock and the rows' remaining times read a small timing store of

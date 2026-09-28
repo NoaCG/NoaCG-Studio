@@ -378,9 +378,10 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         }
         if (url === '/act') {
           const action = readAction(body);
-          // A Take, Out or Clear moves the slot's generation BEFORE it is sent, so a reading that
-          // was already on its way reports the older number and the page can set it aside.
-          const moves = action.verb === 'take' || action.verb === 'out' || action.verb === 'clear';
+          // Every action that changes what the clock shows - a Take, Out, Clear, Pause or Resume -
+          // moves the slot's generation BEFORE it is sent, so a reading that was already on its
+          // way reports the older number and the page can set it aside.
+          const moves = action.verb !== 'update' && action.verb !== 'next';
           if (moves) memory.advance(target, action.slot);
           let r: AdapterResult<null>;
           try {

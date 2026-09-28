@@ -28,15 +28,12 @@ import {
 import type { LiveCueMap } from '../../control/hostedControl';
 import { serverCueLive } from '../../control/serverPlayout';
 import type { ServerOwnership, ServerTiming, StorePart } from '../../control/serverPlayoutStore';
+import { namesItem } from '../../control/serverState';
 import { MAX_PICTURES } from '../../templates/picture';
 import LibMenu from './LibMenu';
 import { SlotRemaining } from './ClipClock';
 import { clipLength } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
-
-/** Whether a file the server names is this item's own: the server writes it the way PLAY named
- *  it, so only case can differ. */
-const sameFile = (item: PlayoutItem, file: string) => item.name.toLowerCase() === file.toLowerCase();
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -311,7 +308,7 @@ export default function CueRundown({
           const upAt = cueIsLive && playoutItem?.kind === 'media' ? serverOnAir[playoutItem.id]?.slot : undefined;
           // Waiting on the server behind whatever plays on its slot (`LOADBG`).
           const next = !cueIsLive && playoutItem?.kind === 'media' ? serverOwnership.queued[address] : undefined;
-          const nextHere = !!next && !!playoutItem && sameFile(playoutItem, next.file);
+          const nextHere = !!next && !!playoutItem && namesItem(playoutItem.name, next.file);
           const replaced = replacedCues.get(cue.id);
           return (
             <div

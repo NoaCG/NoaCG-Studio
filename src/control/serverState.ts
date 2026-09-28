@@ -20,7 +20,7 @@
 import type { PlayoutItem, ShowCue } from '../model/shows';
 import type { CasparSlot, Slot, SlotState, StateReply } from './playoutProtocol';
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
-import { withTaken } from './serverPlayout.ts';
+import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
@@ -53,6 +53,8 @@ export const NO_OWNERSHIP: ServerOwnership = { onAir: {}, generations: {}, repla
 
 /** Where one slot's clip stands, and when that was true on THIS page's clock. */
 export interface SlotTiming {
+  /** What the server says plays there; absent on the page's own estimate. A still is `still`. */
+  producer?: SlotState['producer'];
   file?: string;
   segment?: { start: number; length: number };
   /** Seconds into the segment at `at`. */
@@ -98,6 +100,19 @@ function settle(prev: ServerOwnership, next: ServerOwnership): ServerOwnership {
   return (Object.keys(merged) as (keyof ServerOwnership)[]).every((k) => merged[k] === prev[k]) ? prev : merged;
 }
 
+/**
+ * Whether a file the server reports is the item of this name. A clip reads back the way PLAY named
+ * it, with its extension on 2.3 and without on 2.5, and a still by its path (`media\giorno.jpg`),
+ * so case, the slashes' direction and the extension do not count. The Bridge's `playsItem`
+ * (cli/src/playout/slots.ts) compares the same way.
+ */
+export function namesItem(itemName: string, reported: string): boolean {
+  const norm = (s: string) => s.replace(/\\/g, '/').replace(/\.[a-z0-9]+$/i, '').toLowerCase();
+  const want = norm(itemName);
+  const got = norm(reported);
+  return got === want || got.endsWith(`/${want}`);
+}
+
 /** Nothing plays in a slot that is gone, stopped (`empty`) or holds the transparent colour. */
 function holdsSomething(s: SlotState | undefined): s is SlotState {
   return !!s && s.producer !== 'empty' && s.producer !== 'colour';
@@ -106,6 +121,7 @@ function holdsSomething(s: SlotState | undefined): s is SlotState {
 /** The timing a reading gives a slot, carrying a hold's start across readings. */
 function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number): SlotTiming {
   const t: SlotTiming = {
+    producer: s.producer,
     ...(s.file ? { file: s.file } : {}),
     ...(s.segment ? { segment: s.segment, position: s.position ?? 0 } : {}),
     paused: s.paused,
@@ -147,8 +163,10 @@ export interface ReadingContext {
  *   so Out and All out stop offering it. Holding another instance, or none from the same Bridge, it
  *   was REPLACED on the server, and its row says so. An instance from a Bridge that has since
  *   restarted cannot be told from somebody else's, so that slot becomes unidentified.
- * - A rundown slot this page does not have up: an instance and cue from this Bridge match the cue
- *   exactly (after a reload); anything else there is UNIDENTIFIED, never guessed from its file name.
+ * - An instance this Bridge started for a cue of this rundown names that cue EXACTLY, wherever the
+ *   rundown now says its item plays: after a reload, after another tab of this production took it,
+ *   or when this page's own Take shows up in a reading before the Take's answer does. Anything else
+ *   on a rundown slot is UNIDENTIFIED, never guessed from its file name.
  */
 export function applyReading(parts: ServerParts, reply: StateReply, ctx: ReadingContext): ServerParts {
   const { channel, now } = ctx;
@@ -163,6 +181,12 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     return (byLayer.get(layer)?.generation ?? 0) >= accepted.generation;
   };
   const ownSession = (instance?: string) => !!instance && instance.startsWith(`${reply.session}.`);
+  /** The cue of this rundown, and its item, that this Bridge says it started in a slot. */
+  const ownCue = (s: SlotState) => {
+    const cue = ownSession(s.instance) && s.cueId ? ctx.cues.find((c) => c.id === s.cueId) : undefined;
+    const item = cue ? ctx.items.find((i) => i.id === cue.sourceId) : undefined;
+    return cue && item ? { cue, item } : undefined;
+  };
 
   const onAir: Record<string, ServerLive> = { ...ownership.onAir };
   const replaced: Record<string, { cueId: string; slot: Slot; file?: string }> = { ...ownership.replaced };
@@ -180,6 +204,9 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
   for (const live of Object.values(ownership.onAir)) {
     if (live.slot.adapter === 'casparcg' && live.slot.channel === channel) layers.add(live.slot.layer);
   }
+  // And wherever this Bridge says a cue of this rundown plays: a cue moved to another layer while
+  // it was up is still up on the old one, and after a reload nothing else remembers that layer.
+  for (const s of reply.slots) if (ownCue(s)) layers.add(s.layer);
 
   for (const layer of layers) {
     const a = addr(layer);
@@ -210,22 +237,23 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     }
     nextTiming[a] = timingOf(s, timing[a], now);
     const withFile = s.file ? { file: s.file } : {};
+    // Still the take this page knows (or one from a Bridge that gives no instances): nothing moves.
+    if (mine && (!mine[1].instance || s.instance === mine[1].instance)) continue;
+    if (mine) delete onAir[mine[0]];
+    const own = ownCue(s);
+    if (own) {
+      onAir[own.item.id] = { cueId: own.cue.id, slot, instance: s.instance, takenAt: now };
+      for (const [id, r] of Object.entries(replaced)) if (id === own.item.id || slotAddress(r.slot) === a) delete replaced[id];
+      continue;
+    }
     if (mine) {
       const [itemId, live] = mine;
-      if (!live.instance || s.instance === live.instance) continue;
-      delete onAir[itemId];
       if (ownSession(live.instance)) replaced[itemId] = { cueId: live.cueId, slot: live.slot, ...withFile };
       else unidentified.push({ slot, producer: s.producer, ...withFile });
       continue;
     }
     // Its row already says the slot was replaced; a second line would say it twice.
     if (Object.values(replaced).some((r) => slotAddress(r.slot) === a)) continue;
-    const cue = ownSession(s.instance) && s.cueId ? ctx.cues.find((c) => c.id === s.cueId) : undefined;
-    const item = cue ? ctx.items.find((i) => i.id === cue.sourceId && slotAddress(ctx.slotOf(i)) === a) : undefined;
-    if (cue && item) {
-      onAir[item.id] = { cueId: cue.id, slot, instance: s.instance, takenAt: now };
-      continue;
-    }
     unidentified.push({ slot, producer: s.producer, ...withFile });
   }
 
@@ -278,9 +306,7 @@ export function applyAccepted(
       ...(a.readable ? { provisional: true } : {}),
     };
   } else if (a.verb === 'out') {
-    const next = { ...onAir };
-    delete next[a.itemId];
-    onAir = next;
+    onAir = withoutItem(onAir, a.itemId);
     delete nextTiming[at];
   } else if ((a.verb === 'pause' || a.verb === 'resume') && nextTiming[at]) {
     const t = nextTiming[at];
@@ -337,22 +363,43 @@ export interface ClipClock {
   estimated: boolean;
 }
 
-/**
- * The one clip the clock follows: the server clip or audio file the operator took LAST among the
- * ones still up ("one clock, one clip"). Null when no server clip is up. Ownership alone decides
- * it, so PROGRAM can show that clip's picture without reading the timing part.
- */
-export function followedClip(
-  ownership: ServerOwnership,
-  items: readonly PlayoutItem[],
-): { itemId: string; live: ServerLive; item: PlayoutItem } | null {
-  let best: { itemId: string; live: ServerLive; item: PlayoutItem } | null = null;
+type Followed = { itemId: string; live: ServerLive; item: PlayoutItem };
+
+/** The media item taken LAST among the ones still up that `pick` accepts. */
+function latest(ownership: ServerOwnership, items: readonly PlayoutItem[], pick: (item: PlayoutItem, live: ServerLive) => boolean): Followed | null {
+  let best: Followed | null = null;
   for (const [itemId, live] of Object.entries(ownership.onAir)) {
     const item = items.find((i) => i.id === itemId);
-    if (!item || item.kind !== 'media') continue;
+    if (!item || item.kind !== 'media' || !pick(item, live)) continue;
     if (!best || (live.takenAt ?? 0) >= (best.live.takenAt ?? 0)) best = { itemId, live, item };
   }
   return best;
+}
+
+/**
+ * The server picture PROGRAM shows under the graphics: the clip, audio file or still the operator
+ * took LAST among the ones still up. Ownership alone decides it, so PROGRAM does not read the
+ * timing part.
+ */
+export function followedClip(ownership: ServerOwnership, items: readonly PlayoutItem[]): Followed | null {
+  return latest(ownership, items, () => true);
+}
+
+/**
+ * Whether an item on air gets the clip clock: a clip or an audio file, never a still, which has no
+ * end to count to (plan §4, §6.4). The server's own reading says which; before one lands, a length
+ * in the server's list does - a still lists no length, or a single frame.
+ */
+export function hasClock(item: PlayoutItem, t: SlotTiming | undefined): boolean {
+  if (item.kind !== 'media') return false;
+  if (t?.producer) return t.producer === 'video';
+  return !!item.frames && !!item.fps && item.frames > 1 && item.fps > 0;
+}
+
+/** The one clip the clock follows: the clip or audio file taken LAST among the ones still up
+ *  ("one clock, one clip"). Null when none is. */
+export function clockedClip(ownership: ServerOwnership, timing: ServerTiming, items: readonly PlayoutItem[]): Followed | null {
+  return latest(ownership, items, (item, live) => hasClock(item, timing[slotAddress(live.slot)]));
 }
 
 /** What the clip clock shows for the followed clip at `now`; null when no server clip is up. */
@@ -363,7 +410,7 @@ export function clipClock(
   cues: readonly ShowCue[],
   now: number,
 ): ClipClock | null {
-  const best = followedClip(ownership, items);
+  const best = clockedClip(ownership, timing, items);
   if (!best) return null;
   const slot = slotAddress(best.live.slot);
   const t = timing[slot];
@@ -376,10 +423,11 @@ export function clipClock(
         ? Math.max(0, (now - t.endedAt) / 1000)
         : Math.max(0, p - t.segment.length)
       : 0;
-  const phase: ClipClock['phase'] = loop
-    ? 'looping'
-    : t?.paused
-      ? 'paused'
+  // PAUSED first: a paused loop has to say so as plainly as a paused clip does.
+  const phase: ClipClock['phase'] = t?.paused
+    ? 'paused'
+    : loop
+      ? 'looping'
       : remaining !== null && remaining <= 0
         ? 'holding'
         : remaining !== null && remaining <= FINAL_S

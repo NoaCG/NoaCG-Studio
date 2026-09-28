@@ -314,7 +314,7 @@ function PickerRow({
       if (!entries.some((e) => e.isIntersecting)) return;
       io.disconnect();
       // The cache the monitors share (./serverThumbnail.ts), keyed by the server's timestamp.
-      void serverThumbnail(item.name, item.changed ?? '').then((url) => setThumb(url));
+      void serverThumbnail(item.name, item.changed).then((url) => setThumb(url));
     });
     io.observe(el);
     return () => io.disconnect();

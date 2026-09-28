@@ -1,5 +1,5 @@
 {
-  "note": "The same clip trimmed: SEEK 250 LENGTH 375 (10 s in, 15 s long), about 1.2 s in.",
+  "note": "The same clip trimmed: SEEK 250 LENGTH 375, counted at the 50p channel's rate: 5 s in and 7.5 s long, about 1 s in.",
   "commands": [
     "PLAY 2-10 \"NOACG_FIXTURE/COUNT30\" SEEK 250 LENGTH 375"
   ],

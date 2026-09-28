@@ -1,7 +1,7 @@
 // What NoaCG Bridge reads off the server for the clip clock (docs/CLIP_PLAYBACK_PLAN.md §6.7,
 // phase 2): INFO read into the protocol's words, the slot memory that makes a reading usable, and
 // the `/state` route, token and origin rules included. The parser is pinned against INFO answers
-// captured from the real CasparCG 2.5.0 (cli/test/fixtures/info/), never against the fake; the
+// captured from the real CasparCG 2.5.0 and 2.3 (cli/test/fixtures/info/), never against the fake; the
 // route runs the real Bridge against the stateful fake. Run `npm run build` first.
 
 import assert from 'node:assert/strict';
@@ -25,15 +25,28 @@ function fixture(name) {
 
 test('every captured INFO answer parses, and the channel says its own rate', () => {
   const names = readdirSync(FIXTURES).filter((f) => f.endsWith('.json') && f !== 'info-timing.json');
-  assert.ok(names.length >= 17, `only ${names.length} fixtures`);
+  assert.ok(names.length >= 19, `only ${names.length} fixtures`);
   for (const name of names) {
     const f = fixture(name.replace(/\.json$/, ''));
-    assert.equal(f.server, '2.5.0 69e8ad5 Stable');
+    assert.ok(['2.5.0 69e8ad5 Stable', '2.3.2 4de6d18f Dev'].includes(f.server), `${name}: ${f.server}`);
     const info = parseInfo(f.body);
-    assert.equal(info.format, '1080p5000', name);
+    // 2.3 writes no <format>; both write the rate.
+    if (f.server.startsWith('2.5')) assert.equal(info.format, '1080p5000', name);
     assert.equal(info.fps, 50, name);
   }
   assert.deepEqual(fixture('empty-channel').slots, []);
+});
+
+test('2.3 answers INFO in the same shape, and names a clip WITH its extension', () => {
+  // The same trim as 2.5.0's `video-trimmed`, so the segment arithmetic holds on both.
+  const [trimmed] = fixture('v2.3-trimmed').slots;
+  assert.deepEqual(trimmed.segment, { start: 5, length: 7.5 });
+  assert.equal(trimmed.position, 0.94);
+  assert.equal(trimmed.file, 'NOACG_FIXTURE/COUNT30.mp4');
+  assert.equal(playsItem({ kind: 'media', name: 'NOACG_FIXTURE/COUNT30' }, trimmed.file), true);
+  const [looping] = fixture('v2.3-looping-queued').slots;
+  assert.equal(looping.loop, true);
+  assert.deepEqual(looping.queued, { file: 'NOACG_FIXTURE/COUNT30.mp4', auto: true });
 });
 
 test('a playing clip: the segment, and the position INTO it', () => {
@@ -300,19 +313,25 @@ test('/state reads a channel, and every action\'s reply carries the slot\'s gene
     { layer: 10, producer: 'video', file: 'GIORNO', segment: { start: 0, length: 60 }, position: 4, paused: false, loop: false, generation: 1, instance: 'b1.1', cueId: 'cue-1' },
   ]);
 
-  // Pause does not move the generation; Out does, and ends the instance.
+  // Pause and Resume move the generation too - a reading from before a Pause must not start the
+  // clock again - and keep the instance: it is still this Bridge's clip. Out moves it and ends the
+  // instance.
   const pause = await call('/act', { target: casparTarget, action: { verb: 'pause', slot: at } });
-  assert.equal(pause.body.generation, 1);
-  const out = await call('/act', { target: casparTarget, action: { verb: 'out', slot: at, item: { kind: 'media', name: 'GIORNO' } } });
-  assert.deepEqual([out.body.generation, out.body.instance], [2, undefined]);
+  assert.deepEqual([pause.body.generation, pause.body.instance], [2, undefined]);
   state = await call('/state', { target: casparTarget, channel: 2 });
-  assert.deepEqual(state.body.slots, [{ layer: 10, producer: 'empty', paused: false, loop: false, generation: 2 }]);
+  assert.deepEqual([state.body.slots[0].paused, state.body.slots[0].generation, state.body.slots[0].instance], [true, 2, 'b1.1']);
+  const resume = await call('/act', { target: casparTarget, action: { verb: 'resume', slot: at } });
+  assert.equal(resume.body.generation, 3);
+  const out = await call('/act', { target: casparTarget, action: { verb: 'out', slot: at, item: { kind: 'media', name: 'GIORNO' } } });
+  assert.deepEqual([out.body.generation, out.body.instance], [4, undefined]);
+  state = await call('/state', { target: casparTarget, channel: 2 });
+  assert.deepEqual(state.body.slots, [{ layer: 10, producer: 'empty', paused: false, loop: false, generation: 4 }]);
 
   // A take the server refuses still moved the generation: whatever reading was on its way is older.
   const refused = await call('/act', { target: casparTarget, action: { verb: 'take', item: { kind: 'media', name: 'NOT_THERE' }, slot: at } });
   assert.equal(refused.body.ok, false);
   state = await call('/state', { target: casparTarget, channel: 2 });
-  assert.equal(state.body.slots[0].generation, 3);
+  assert.equal(state.body.slots[0].generation, 5);
 });
 
 test('a reading taken while a take is still in flight counts as from before it', async (t) => {

@@ -130,6 +130,9 @@ real 2.5.0 server** (§12). Paths are under `src/`.
 - **`202 PLAY OK` comes before the clip is on the layer.** For about a tenth of a second the layer
   still shows what it held before: nothing, or, on a re-take of the same file, that file at its
   end. A reading in that window must not end or restart anything (§6.7, `arriving`).
+- **2.3 answers `INFO` the same way**, read from this machine's 2.3 build (`2.3.2 4de6d18f Dev`):
+  the same segment for the same trim, with no `<format>` element and a clip named with its
+  extension, so a reading is matched to an item without the extension.
 
 ## 5. What other tools do
 
@@ -808,6 +811,15 @@ as written, plus the server-playout module. **`liveCue` and `selectedCueId` do n
   0.4.2 without a bump.
 - `e2e/playout-baseline.spec.ts` masks the clock's number and an on-air row's time, which move.
 - `cli/test/caspar.test.mjs` needed no change.
+- **The poll is its own file**, `src/control/serverStatePoll.ts` (new), so Node tests it: never two
+  readings out, and a reading the page cannot fold ends that round rather than the poll.
+- **Found by the review before landing**: a still got a clock that could never count (the clock now
+  follows a clip or audio file only, by the server's reading or, before it, the list's length);
+  Pause and Resume now move the generation too, so a reading from before a Pause cannot restart the
+  clock; a paused loop says PAUSED; and an instance of this Bridge's for a cue of the rundown names
+  that cue wherever it plays, which covers a re-take whose reading beats its answer, another tab of
+  the same production, and a cue moved to another layer while it was up. 2.3 was read as well as
+  2.5.0 (§4).
 
 ### Phase 3 - clip settings and sequences
 

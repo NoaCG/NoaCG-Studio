@@ -529,9 +529,12 @@ no server cue.
   end: `then holds the last frame`. The last ten seconds turn the box red and the last five pulse
   it; the digits count either way, so colour is never the only signal, and a reduced-motion setting
   stops the pulse. At zero it turns amber and counts up, `HOLDING +0:03`, because the last frame is
-  still on air. Paused, it reads `PAUSED -0:09` and stands still. A looping clip shows its time
-  small and grey with `loops until Out`, and never warns. **One clock, one clip**: it follows the
-  server clip taken last; any other one on air shows its time on its own row.
+  still on air. Paused, it reads `PAUSED -0:09` and stands still, a paused loop included. A looping
+  clip shows its time small and grey with `loops until Out`, and never warns. **One clock, one
+  clip**: it follows the clip or audio file taken last; any other one on air shows its time on its
+  own row. A still has no end to count to and gets no clock: the server's reading says what plays,
+  and before the first one lands a still is known by its length in the server's list: none, or a
+  single frame.
 - **Honest about certainty.** The number is the server's, read by the Bridge (`BRIDGE.md` §5), and
   it counts on between readings. It says **`estimated`** when it is this page's own count from the
   Take instead: a Bridge from before 0.4.2 or a server it cannot read, no reading for three
@@ -541,7 +544,8 @@ no server cue.
   (the page never has the server's moving video, and an operator who does not know that could wait
   for a picture to move) and the clip's length in the corner. PROGRAM shows the picture of the
   clip the clock follows, under the output stage so graphics on air draw over it as they would on
-  the channel, and no time: the clock is beside it. With no picture, PROGRAM names the clip.
+  the channel, and no time: the clock is beside it. A still taken last is the picture PROGRAM
+  shows, though the clock stays with the clip. With no picture, PROGRAM names the clip.
 - **The rows** (§4) show each server clip's remaining time, `NEXT ON SERVER`, `replaced on the
   server`, and anything unidentified on a rundown slot.
 - **It never re-renders the page.** The store has two parts (`control/serverPlayoutStore.ts`): an

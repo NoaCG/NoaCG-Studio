@@ -1,6 +1,6 @@
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,ClipClock}.tsx
 // covers: src/components/home/{serverThumbnail,clipLength}.ts
-// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,serverState,playoutSlots}.ts
+// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,serverState,serverStatePoll,playoutSlots}.ts
 // covers: src/components/playoutKeys.ts
 // focus
 //

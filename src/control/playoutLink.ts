@@ -60,7 +60,9 @@ const ACT_TIMEOUT_MS = 9000;
  *  is reported as itself rather than as silence. */
 const LIST_TIMEOUT_MS = 16000;
 /** A state reading: INFO answers in about 2 ms on the real 2.5.0 (measured 2026-09-28), so this is
- *  generous, and short enough that a stalled Bridge shows as `estimated` within the clock's 3 s. */
+ *  generous, and short enough that a stalled Bridge shows as `estimated` within the clock's 3 s.
+ *  The Bridge gives up on the server sooner (STATE_TIMEOUT_MS in cli/src/playout/adapters/casparcg.ts),
+ *  so the next reading never starts while the last one still holds a connection to the server. */
 const STATE_TIMEOUT_MS = 1500;
 
 export interface PlayoutSettings {
@@ -558,73 +560,6 @@ export async function readState(settings: PlayoutSettings, channel: number): Pro
   return {
     result,
     reply: { ok: true, channel: body.channel ?? channel, session: body.session, observedAt: body.observedAt ?? 0, slots: body.slots },
-  };
-}
-
-export interface ServerStatePoll {
-  stop: () => void;
-  /** Read now: after an action, or when the tab comes back into view. */
-  wake: () => void;
-}
-
-/**
- * THE POLL (plan §6.7): each channel in turn, then a pause - never a second round while one is
- * still out, so a slow Bridge slows the readings rather than stacking them. Twice a second while
- * `busy()` says something is up on a rundown slot, every few seconds otherwise.
- *
- * It only READS. What a reading changes is the caller's, and nothing in here can send a command:
- * no timer on the page ever fires or queues a clip.
- */
-export function pollServerState(options: {
-  read: (channel: number) => Promise<{ result: PlayoutResult; reply?: StateReply }>;
-  channels: () => number[];
-  busy: () => boolean;
-  onReading: (channel: number, reply: StateReply, receivedAt: number) => void;
-  busyMs?: number;
-  idleMs?: number;
-}): ServerStatePoll {
-  const busyMs = options.busyMs ?? 500;
-  const idleMs = options.idleMs ?? 3000;
-  let alive = true;
-  let running = false;
-  let again = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const round = async () => {
-    timer = undefined;
-    running = true;
-    const started = performance.now();
-    for (const channel of options.channels()) {
-      const { reply } = await options.read(channel);
-      if (!alive) return;
-      // A failed reading changes nothing: the clock goes on counting, and says `estimated` once
-      // no reading has landed for a while (./serverState.ts `isEstimated`).
-      if (reply) options.onReading(channel, reply, performance.now());
-    }
-    running = false;
-    if (!alive) return;
-    if (again) {
-      again = false;
-      void round();
-      return;
-    }
-    const pace = options.busy() ? busyMs : idleMs;
-    timer = setTimeout(() => void round(), Math.max(0, pace - (performance.now() - started)));
-  };
-  void round();
-  return {
-    stop: () => {
-      alive = false;
-      if (timer) clearTimeout(timer);
-    },
-    wake: () => {
-      if (!alive) return;
-      if (running) {
-        again = true;
-        return;
-      }
-      if (timer) clearTimeout(timer);
-      void round();
-    },
   };
 }
 
