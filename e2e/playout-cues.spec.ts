@@ -21,10 +21,17 @@
 // Cues over the playout server's library (docs/BRIDGE.md §5): the picker, the cue editor and
 // the published payload's playout cues on the hosted page.
 // covers: src/components/home/PlayoutItemPicker.tsx
+//
+// A clip's settings (docs/CLIP_PLAYBACK_PLAN.md phase 3): At the end, fades, level and trim, each as
+// it goes out with the Take, the loop rule of the record, audio on its own layer, and a cue a Bridge
+// or server cannot honour kept off air with the reason.
+// covers: src/model/cuePlayback.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor } from './_create';
 import { settleDurableWrites } from './_durable';
+import { evaluateInPage } from './_evaluate';
+import { parkFocusOffControls } from './_keys';
 
 // Cues over the PLAYOUT SERVER'S OWN LIBRARY (docs/BRIDGE.md §5): a template or a clip that
 // already lives on the CasparCG box, listed through NoaCG Bridge, added to the rundown beside
@@ -70,6 +77,12 @@ interface FakeBridge {
   templates: string[];
   /** What CLS lists; the default is one movie and one still at the top of the media folder. */
   media?: { name: string; kind: string; frames?: number; fps?: number }[];
+  /** What `/health` says this Bridge understands; absent is a 0.4 Bridge, which lists nothing. */
+  features?: string[];
+  /** What `/status` says the server can do; absent is a 0.4 Bridge's answer. */
+  capabilities?: string[];
+  /** What the server's VERSION answers. */
+  serverVersion?: string;
   /** Every action as sent, WITHOUT a take's `cueId`: the envelope each verb has always sent. */
   actions: unknown[];
   /** The cue id each take named, in order (docs/CLIP_PLAYBACK_PLAN.md §6.7), kept apart so the
@@ -95,7 +108,14 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path === '/health') {
-      await json(route, 200, { ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0', adapters: ['casparcg'] });
+      await json(route, 200, {
+        ok: true,
+        agent: 'noacg-bridge',
+        v: 2,
+        version: state.features ? '0.5.0' : '0.4.0',
+        adapters: ['casparcg'],
+        ...(state.features ? { features: state.features } : {}),
+      });
       return;
     }
     if (request.headers().authorization !== `Bearer ${TOKEN}`) {
@@ -104,7 +124,13 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     }
     const body = JSON.parse(request.postData() || '{}') as { kind?: string; name?: string; action?: unknown };
     if (path === '/status') {
-      await json(route, 200, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK' });
+      await json(route, 200, {
+        ok: true,
+        v: 2,
+        version: state.serverVersion ?? '2.5.0 69e8ad5 Stable',
+        raw: '201 VERSION OK',
+        ...(state.capabilities ? { capabilities: state.capabilities } : {}),
+      });
       return;
     }
     if (path === '/list') {
@@ -186,6 +212,19 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
 }
 
 const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length - 1];
+
+/** A Bridge from this build in front of a CasparCG 2.5: it plays every setting. It is asked for no
+ *  `/state` here (no `state` feature), which this spec does not fake; the clock's specs do. */
+const PLAYS_EVERYTHING: Partial<FakeBridge> = { features: ['playback', 'sequence'], capabilities: ['end', 'fade', 'trim', 'level', 'sequence'] };
+
+/** A clip on the server, added from the picker and selected in the editor. */
+async function addClip(page: Page, name = 'GIORNO'): Promise<void> {
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-media').click();
+  await (await pickerFile(page, name)).getByTestId('picker-add').click();
+  await expect(page.getByTestId('playout-cue-editor')).toBeVisible();
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
+}
 
 /** A file in the open picker by its FULL server name: step into each folder on its path, the
  *  way an operator browses, and return its row. */
@@ -318,16 +357,17 @@ test('a deep media library is browsed folder by folder, a long name gives way, a
 });
 
 test('a clip set to Loop is taken with LOOP, the row says so, and the choice survives a reload', async ({ page }) => {
+  // Loop needs nothing new of a Bridge (`PLAY … LOOP` since 0.4), so a 0.4 Bridge offers it.
   await seedSettings(page);
   const bridge = await fakeBridge(page);
   await productionPage(page);
-  await page.getByTestId('add-from-server').click();
-  await page.getByTestId('picker-media').click();
-  await (await pickerFile(page, 'GIORNO')).getByTestId('picker-add').click();
+  await addClip(page);
 
-  const loop = page.getByTestId('playout-loop');
-  await expect(loop).not.toBeChecked();
-  await loop.check();
+  const loop = page.getByTestId('clip-end-loop');
+  await expect(page.getByTestId('clip-end-hold')).toHaveAttribute('aria-checked', 'true');
+  await expect(loop).toBeEnabled();
+  await loop.click();
+  await expect(loop).toHaveAttribute('aria-checked', 'true');
   const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(cue.getByRole('img', { name: 'Loops until Out' })).toBeVisible();
   await page.getByTestId('verb-take').click();
@@ -337,16 +377,17 @@ test('a clip set to Loop is taken with LOOP, the row says so, and the choice sur
     slot: { adapter: 'casparcg', channel: 1, layer: 10 },
     loop: true,
   });
-  await expect(page.getByTestId('playout-loop-row')).toContainText('applies at the next Take');
+  await expect(page.getByTestId('clip-end-hint')).toContainText('applies at the next Take');
   await page.getByTestId('verb-out').click();
 
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('select-cue').click();
-  await expect(page.getByTestId('playout-loop')).toBeChecked();
+  await expect(page.getByTestId('clip-end-loop')).toHaveAttribute('aria-checked', 'true');
 
-  // Off again: the next take plays once, and the record drops the flag rather than storing false.
-  await page.getByTestId('playout-loop').uncheck();
+  // Hold again: the next take plays once. The choice lives on the CUE (docs/CLIP_PLAYBACK_PLAN.md §7),
+  // and this build never writes the item's old loop flag at all.
+  await page.getByTestId('clip-end-hold').click();
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toEqual({
     verb: 'take',
@@ -355,9 +396,249 @@ test('a clip set to Loop is taken with LOOP, the row says so, and the choice sur
   });
   const stored = await page.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');
-    return (loadShows()[0].playoutItems ?? []).map((i) => 'loop' in i);
+    const show = loadShows()[0];
+    return { itemLoop: (show.playoutItems ?? []).map((i) => 'loop' in i), end: (show.cues ?? []).map((c) => c.playback?.end ?? null).filter(Boolean) };
   });
-  expect(stored).toEqual([false]);
+  expect(stored).toEqual({ itemLoop: [false], end: ['hold'] });
+});
+
+test('each setting goes out with its Take: Clear with a fade, a fade in, a level and a trim; Out fades', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, PLAYS_EVERYTHING);
+  await productionPage(page);
+  await addClip(page);
+  const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
+
+  await page.getByTestId('clip-end-clear').click();
+  await expect(cue.getByRole('img', { name: 'Clears at its end' })).toBeVisible();
+  await page.getByTestId('clip-fade-out-short').click();
+  // What the ending does, and why Play next is off in a rundown with no clip after this one.
+  await expect(page.getByTestId('clip-end-hint')).toHaveText(
+    'Clears the layer at its end, fading out over its last 0.5 s · Play next is off: no clip after this one plays on 1-10',
+  );
+  await page.getByTestId('clip-fade-in-long').click();
+  // The level, from the keyboard: 12 steps down is -12 dB, saved when the key comes up.
+  const level = page.getByTestId('clip-level');
+  await level.focus();
+  for (let i = 0; i < 12; i += 1) await page.keyboard.press('ArrowLeft');
+  await expect(page.getByTestId('clip-level-value')).toHaveText('−12 dB');
+  // The trim, under Advanced: its summary says what is inside before it is opened.
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  await page.getByTestId('clip-advanced-toggle').click();
+  await page.getByTestId('clip-trim-in').fill('0:05');
+  await page.getByTestId('clip-trim-out').fill('20');
+  await page.getByTestId('clip-trim-out').press('Enter');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:05–0:20');
+
+  await page.getByTestId('verb-take').click();
+  await expect(cue).toContainText('ON AIR');
+  await expect.poll(() => bridge.actions.length).toBe(1);
+  const take = lastAction(bridge) as { playback: { gain: number } };
+  expect(take).toEqual({
+    verb: 'take',
+    item: { kind: 'media', name: 'GIORNO' },
+    slot: { adapter: 'casparcg', channel: 1, layer: 10 },
+    playback: { end: 'clear', fadeOut: 0.5, fadeIn: 1, gain: take.playback.gain, trim: { in: 5, out: 20 } },
+  });
+  // -12 dB as the clip's own gain, which the Bridge writes as `AF "volume=0.2512"`; never a MIXER.
+  expect(take.playback.gain).toBeCloseTo(0.2512, 4);
+  // While it is up, a change says it waits for the next Take.
+  await expect(page.getByTestId('clip-end-hint')).toContainText('applies at the next Take');
+
+  // Out fades as the cue's fade out says, rather than cutting.
+  await page.getByTestId('verb-out').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({
+    verb: 'out',
+    slot: { adapter: 'casparcg', channel: 1, layer: 10 },
+    item: { kind: 'media', name: 'GIORNO' },
+    fadeOut: 0.5,
+  });
+
+  // Back to every default, the cue is the record it was: no playback at all, today's action.
+  await page.getByTestId('clip-end-hold').click();
+  await page.getByTestId('clip-fade-in-cut').click();
+  await page.getByTestId('clip-fade-out-cut').click();
+  await page.getByTestId('clip-level-reset').click();
+  await page.getByTestId('clip-trim-clear').click();
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } });
+  const playback = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback ?? null);
+  });
+  expect(playback).toEqual([{ end: 'hold' }]);
+});
+
+test('a trim outside the file or ending before it starts is refused in the panel and never saved', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, PLAYS_EVERYTHING);
+  await productionPage(page);
+  await addClip(page);
+  await page.getByTestId('clip-advanced-toggle').click();
+  // GIORNO is 1:00 long.
+  await page.getByTestId('clip-trim-in').fill('1:30');
+  await page.getByTestId('clip-trim-in').press('Enter');
+  await expect(page.getByTestId('clip-trim-problem')).toHaveText('The start lies past the end of the 1:00 file.');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  // A start that holds on its own is kept as the box is left...
+  await page.getByTestId('clip-trim-in').fill('0:40');
+  await page.getByTestId('clip-trim-in').press('Enter');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:40–end');
+  // ...and an end before it, or a time that is not one, is refused and never saved.
+  await page.getByTestId('clip-trim-out').fill('0:10');
+  await page.getByTestId('clip-trim-out').press('Enter');
+  await expect(page.getByTestId('clip-trim-problem')).toHaveText('The end comes after the start.');
+  await page.getByTestId('clip-trim-out').fill('soon');
+  await page.getByTestId('clip-trim-out').press('Enter');
+  await expect(page.getByTestId('clip-trim-problem')).toHaveText('Write a time as 0:05, 1:05.5 or 65.5.');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:40–end');
+  await settleDurableWrites(page);
+  const stored = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].cues ?? []).filter((c) => c.source === 'playout').map((c) => c.playback ?? null);
+  });
+  expect(stored).toEqual([{ trimIn: 40 }]);
+});
+
+test('an audio file plays on its own layer, 5, below the clips, and a still offers Hold only', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, {
+    ...PLAYS_EVERYTHING,
+    media: [
+      { name: 'GIORNO', kind: 'movie', frames: 1500, fps: 25 },
+      { name: 'STING', kind: 'audio', frames: 75, fps: 25 },
+      { name: 'LOGO', kind: 'still', frames: 0, fps: 0 },
+    ],
+  });
+  await productionPage(page);
+  await addClip(page, 'STING');
+  const sting = page.locator('.pd-cue', { hasText: 'STING' });
+  await expect(sting.getByRole('img', { name: 'Server audio · 1-5' })).toBeVisible();
+  await expect(sting.getByTestId('cue-layer')).toHaveText('1-5');
+  await expect(page.getByTestId('playout-cue-editor')).toContainText('SERVER AUDIO');
+  await addClip(page, 'GIORNO');
+  await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('1-10');
+  await addClip(page, 'LOGO');
+  await expect(page.getByTestId('clip-end-still')).toHaveText('A still has no end: it holds until Out.');
+  await expect(page.getByTestId('clip-end')).toHaveCount(0);
+});
+
+test('a cue with a setting an old Bridge cannot play is not taken, and says why; a legacy cue still goes as it did', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §18 case 12: a 0.4 Bridge would drop the fade and play the clip the
+  // old way. The page never sends it: Take is off, with the reason and the way out.
+  await seedSettings(page);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+  await addClip(page);
+  // Set as a newer Bridge's studio would have left it: the controls cannot add it on this one.
+  await expect(page.getByTestId('clip-fade-in-short')).toBeDisabled();
+  await expect(page.getByTestId('clip-fade-in-short')).toHaveAttribute('title', 'Update NoaCG Bridge to set this.');
+  await evaluateInPage(page, async () => {
+    const { loadShows, setCuePlayback } = await import('/src/model/shows.ts');
+    const show = loadShows()[0];
+    const cue = (show.cues ?? []).find((c) => c.source === 'playout')!;
+    setCuePlayback(show.id, cue.id, { end: 'clear', fadeOut: 'short' });
+  });
+  await settleDurableWrites(page);
+  await page.reload();
+  await page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('select-cue').click();
+  const why = 'This cue clears at its end and fades. Update NoaCG Bridge to take it, or set it to Hold and set its fades to Cut.';
+  await expect(page.getByTestId('playout-take-blocked')).toHaveText(why);
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title', why);
+  await parkFocusOffControls(page);
+  await page.keyboard.press(' ');
+  await page.waitForTimeout(300);
+  expect(bridge.actions).toEqual([]);
+  // Going back to the defaults is always offered, and the cue is takeable again, exactly the old way.
+  await page.getByTestId('clip-end-hold').click();
+  await page.getByTestId('clip-fade-out-cut').click();
+  await expect(page.getByTestId('playout-take-blocked')).toHaveCount(0);
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } });
+});
+
+test('a server that cannot do a setting has it off, named by its version', async ({ page }) => {
+  await seedSettings(page);
+  await fakeBridge(page, { features: ['playback', 'sequence'], capabilities: ['end'], serverVersion: '2.2.0 fake Dev' });
+  await productionPage(page);
+  await addClip(page);
+  await expect(page.getByTestId('clip-end-clear')).toBeEnabled();
+  await expect(page.getByTestId('clip-fade-in-long')).toBeDisabled();
+  await expect(page.getByTestId('clip-fade-in-long')).toHaveAttribute('title', 'CasparCG 2.2.0 cannot do this.');
+  await expect(page.getByTestId('clip-level')).toBeDisabled();
+});
+
+test('THE LOOP RULE: an older build\'s Loop box still reaches cues nobody chose an ending for here, and never overrules one', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §7 and §18 case 23, with edits made through the SHIPPED function
+  // an older build calls (`setPlayoutItemLoop`), not only its reader.
+  await seedSettings(page);
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+  await addClip(page);
+  // A second cue over the same file: one server file is one item, shared by its cues.
+  await addClip(page);
+  const rows = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  await expect(rows).toHaveCount(2);
+  const oldBuildLoop = (on: boolean) =>
+    evaluateInPage(
+      page,
+      async (loop) => {
+        const { loadShows, setPlayoutItemLoop } = await import('/src/model/shows.ts');
+        const show = loadShows()[0];
+        setPlayoutItemLoop(show.id, show.playoutItems![0].id, loop);
+      },
+      on,
+    ).then(() => settleDurableWrites(page));
+  /** Take a row, see what went out, and take it off again, so the next Take is a take. */
+  const takeRow = async (i: number, sent: unknown) => {
+    await rows.nth(i).getByTestId('select-cue').click();
+    await page.getByTestId('verb-take').click();
+    await expect(rows.nth(i)).toContainText('ON AIR');
+    await expect.poll(() => lastAction(bridge)).toMatchObject(sent as object);
+    expect(lastAction(bridge)).toEqual(sent);
+    await page.getByTestId('verb-out').click();
+    await expect(rows.nth(i)).not.toContainText('ON AIR');
+  };
+  const GIORNO = { verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } };
+
+  // The older build turns Loop on: both cues, neither of which has an ending of its own, loop.
+  await oldBuildLoop(true);
+  await page.reload();
+  await expect(rows.nth(0).getByRole('img', { name: 'Loops until Out' })).toBeVisible();
+  await expect(rows.nth(1).getByRole('img', { name: 'Loops until Out' })).toBeVisible();
+  await takeRow(0, { ...GIORNO, loop: true });
+
+  // This build sets the first cue to Hold: that cue holds, the other still follows the old flag.
+  await page.getByTestId('clip-end-hold').click();
+  await expect(rows.nth(0).getByRole('img', { name: 'Loops until Out' })).toHaveCount(0);
+  await expect(rows.nth(1).getByRole('img', { name: 'Loops until Out' })).toBeVisible();
+  await takeRow(0, GIORNO);
+  await takeRow(1, { ...GIORNO, loop: true });
+
+  // The older build ticks Loop again: it cannot re-enable the loop this build turned off.
+  await settleDurableWrites(page);
+  await oldBuildLoop(true);
+  await page.reload();
+  await expect(rows.nth(0).getByRole('img', { name: 'Loops until Out' })).toHaveCount(0);
+  await takeRow(0, GIORNO);
+  // ...and it turns it off for the cue that never had an ending chosen here.
+  await oldBuildLoop(false);
+  await page.reload();
+  await expect(rows.nth(1).getByRole('img', { name: 'Loops until Out' })).toHaveCount(0);
+
+  // Once every cue of the item has its own ending the old flag is read by nothing, and it goes.
+  await oldBuildLoop(true);
+  await page.reload();
+  await rows.nth(1).getByTestId('select-cue').click();
+  await page.getByTestId('clip-end-loop').click();
+  await settleDurableWrites(page);
+  const item = await page.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return 'loop' in loadShows()[0].playoutItems![0];
+  });
+  expect(item).toBe(false);
 });
 
 test('a server template takes the next free layer, carries its typed fields as JSON data, and Update, Next and Out follow', async ({ page }) => {
@@ -507,6 +788,9 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
   const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
+  // A clip keeps its channel and layer under Advanced (docs/CLIP_PLAYBACK_PLAN.md §6.5).
+  await expect(editor.getByTestId('clip-advanced-summary')).toHaveText('Channel 2 · layer 10 · whole clip');
+  await editor.getByTestId('clip-advanced-toggle').click();
   await expect(editor.getByTestId('playout-channel')).toHaveValue('2');
   await expect(editor.getByTestId('playout-cue-where')).toContainText('2-10');
   const stored = await page.evaluate(async () => {
@@ -624,6 +908,7 @@ test('a take on a slot another cue holds replaces it, and a channel the studio d
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('select-cue').click();
+  await page.getByTestId('clip-advanced-toggle').click();
   const pick = page.getByTestId('playout-cue-editor').getByTestId('playout-channel');
   await expect(pick).toHaveValue('5');
   await expect(pick.locator('option:checked')).toHaveText('5 · not in Settings');

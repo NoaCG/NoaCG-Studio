@@ -20,19 +20,40 @@ function useNow(on: boolean, ms = 250): number {
   return now;
 }
 
-/** The number, the word before it when there is one (HOLDING, PAUSED), and the line under it
- *  (plan §6.4, for phase 2's two endings: hold and loop). */
+/** What the line under the number says happens when the clip on air ends by itself. */
+const THEN: Record<'hold' | 'loop' | 'clear', string> = {
+  hold: 'then holds the last frame',
+  loop: 'loops until Out',
+  clear: 'then clears to studio',
+};
+
+/**
+ * The number, the word before it when there is one (HOLDING, PAUSED, TO STUDIO), and the line under
+ * it (plan §6.4). When another clip follows, the big number is TO STUDIO - the time until the
+ * sequence ends on air - and the clip's own time goes small beside what plays next; when the
+ * sequence ends in a loop there is no studio time, and the clip's own time is the number.
+ */
 function clockWords(c: ClockData): { label?: string; number: string; then: string } {
   const left = c.remaining === null ? '?:??' : clockText(c.remaining);
+  if (c.end === 'next') {
+    const next = c.next ? `next ${c.next.label}${c.next.length !== null ? ` ${clockText(c.next.length)}` : ''}` : '';
+    if (c.toStudio === undefined) {
+      return { ...(c.phase === 'paused' ? { label: 'PAUSED' } : {}), number: `-${left}`, then: `${next} · then loops until Out` };
+    }
+    const studio = c.toStudio === null ? '?' : `-${clockText(c.toStudio)}`;
+    return c.phase === 'paused'
+      ? { label: 'PAUSED', number: studio, then: `to studio · clip -${left} · ${next}` }
+      : { label: 'TO STUDIO', number: studio, then: `clip -${left} · ${next}` };
+  }
   switch (c.phase) {
     case 'holding':
       return { label: 'HOLDING', number: `+${clockText(c.over, 'down')}`, then: 'the last frame stays up' };
     case 'paused':
-      return { label: 'PAUSED', number: `-${left}`, then: c.end === 'loop' ? 'loops until Out' : 'then holds the last frame' };
+      return { label: 'PAUSED', number: `-${left}`, then: THEN[c.end] };
     case 'looping':
-      return { number: `-${left}`, then: 'loops until Out' };
+      return { number: `-${left}`, then: THEN.loop };
     default:
-      return { number: `-${left}`, then: 'then holds the last frame' };
+      return { number: `-${left}`, then: THEN[c.end] };
   }
 }
 

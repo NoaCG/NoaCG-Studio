@@ -37,6 +37,33 @@ export interface ShowCue {
   values: Record<string, string>;
   /** Operator note shown in the rundown. */
   note?: string;
+  /** ADDITIVE OPTIONAL. How THIS cue plays its server clip (docs/CLIP_PLAYBACK_PLAN.md §7): what
+   *  the file IS stays on its PlayoutItem, shared by every cue of it; how one cue plays it lives
+   *  here. Absent on every cue saved before 2026-09-28, which plays exactly as it always did. */
+  playback?: CuePlayback;
+}
+
+/** A fade's length as the operator picks it. Short is half a second and Long one second
+ *  (model/cuePlayback.ts `FADE_SECONDS`), converted to the channel's frames by the Bridge. */
+export type ClipFade = 'short' | 'long';
+
+/**
+ * How one cue plays its server clip or audio file (docs/CLIP_PLAYBACK_PLAN.md §6.5 and §7). Every
+ * field is optional and a missing one is the default: hold the last frame, cut in and out, 0 dB,
+ * the whole file.
+ */
+export interface CuePlayback {
+  /** What happens at the end. Absent = hold, unless the legacy `PlayoutItem.loop` says loop
+   *  (model/cuePlayback.ts `effectiveEnd`). This build writes it explicitly once the operator
+   *  chooses, and never writes `PlayoutItem.loop`. `next` plays the next clip on the same slot. */
+  end?: 'hold' | 'clear' | 'loop' | 'next';
+  fadeIn?: ClipFade;
+  fadeOut?: ClipFade;
+  /** -60 to +6 dB; absent = 0 dB. Applies at the next Take, as the clip's own audio filter. */
+  levelDb?: number;
+  /** Where the clip starts and ends, seconds into the file; absent = its start and its end. */
+  trimIn?: number;
+  trimOut?: number;
 }
 
 /** A field a server template takes, as the cue editor offers it: the id on the wire (`f0`),
@@ -53,6 +80,9 @@ export interface PlayoutField {
  * rundown beside the production's own graphics (docs/BRIDGE.md §5). NoaCG stores the NAME and
  * where it plays; the file never travels. ADDITIVE OPTIONAL on the Show record.
  */
+/** The server's own word for a media file, from its list (`CLS`). */
+export type PlayoutMediaKind = 'movie' | 'still' | 'audio';
+
 export interface PlayoutItem {
   id: string;
   /** Which kind of playout system. Only `casparcg` exists today; OBS and vMix add their own. */
@@ -69,11 +99,18 @@ export interface PlayoutItem {
    *  unchanged. A plain number, not a reference to a Settings row: the record syncs to machines
    *  whose studio may name its channels differently, and CasparCG only knows the number. */
   channel?: number;
-  /** ADDITIVE OPTIONAL. A clip that LOOPS: its Take sends CasparCG's own `PLAY … LOOP`, so the
-   *  server repeats it until Out and nothing on this page has to watch for the end. Absent or
-   *  false plays it once, which is how every clip saved before 2026-09-25 plays. A template
-   *  never carries it. */
+  /** ADDITIVE OPTIONAL, LEGACY since 2026-09-28. A clip that LOOPS: its Take sends CasparCG's own
+   *  `PLAY … LOOP`. Written by builds from 2026-09-25 to 2026-09-27 and still READ, for every cue
+   *  of the item that has no ending of its own (`ShowCue.playback.end`, model/cuePlayback.ts
+   *  `effectiveEnd`). This build never writes it, and removes it once every cue of the item has an
+   *  explicit ending, so an older build can still turn a loop on for cues nobody set here and can
+   *  never re-enable one this build turned off. A template never carries it. */
   loop?: boolean;
+  /** ADDITIVE OPTIONAL. What a media file is, in the server's own word from its list. An audio
+   *  file plays on its own layer (PLAYOUT_AUDIO_LAYER) and a still never ends, so it holds and never
+   *  joins a sequence. Absent on items saved before 2026-09-28: resolved from the server's list
+   *  before the cue can join a sequence, and otherwise treated as a movie. */
+  mediaKind?: PlayoutMediaKind;
   /** A clip's length, when the server reported one. */
   frames?: number;
   fps?: number;
@@ -499,7 +536,7 @@ function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
 export function addShowCue(
   showId: string,
   sourceId: string,
-  seed?: { label?: string; values?: Record<string, string>; note?: string },
+  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback },
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
   const shows = patchShow(showId, (show) => {
@@ -513,6 +550,8 @@ export function addShowCue(
       label: seed?.label?.trim() || (source ? source.name : item!.name),
       values: { ...(source ? seedValues(source.template.fields) : seedPlayoutValues(item!)), ...(seed?.values ?? {}) },
       ...(seed?.note ? { note: seed.note } : {}),
+      // A duplicated server cue plays its clip the same way: the copy is of the cue, settings too.
+      ...(item && seed?.playback && Object.keys(seed.playback).length ? { playback: { ...seed.playback } } : {}),
     };
     show.cues = [...(show.cues ?? []), cue];
     cueId = cue.id;
@@ -524,6 +563,9 @@ export function addShowCue(
 /** Clips share one layer below every graphic, on purpose: one clip at a time, and a strap
  *  never disappears behind a rolling VT (docs/BRIDGE.md §5). */
 export const PLAYOUT_CLIP_LAYER = 10;
+/** Audio files have their own layer, below the clips: a sting never knocks a VT off, and a music
+ *  bed survives both (docs/CLIP_PLAYBACK_PLAN.md §6.6). */
+export const PLAYOUT_AUDIO_LAYER = 5;
 
 /**
  * Put an item of the playout server's library into the production, with one cue on it - the
@@ -545,12 +587,16 @@ export function addPlayoutItem(
       const layer =
         item.layer ??
         (item.kind === 'media'
-          ? PLAYOUT_CLIP_LAYER
+          ? item.mediaKind === 'audio'
+            ? PLAYOUT_AUDIO_LAYER
+            : PLAYOUT_CLIP_LAYER
           : nextFreeLayer([...show.graphics, ...items.filter((i) => i.kind === 'template')]));
       entry = { ...item, id: uuid(), layer };
       show.playoutItems = [...items, entry];
-    } else if (item.fields && !entry.fields?.length) {
-      entry.fields = item.fields;
+    } else {
+      if (item.fields && !entry.fields?.length) entry.fields = item.fields;
+      // An item saved before the server's kind was kept learns it the next time it is picked.
+      if (item.mediaKind && !entry.mediaKind) entry.mediaKind = item.mediaKind;
     }
     const cue: ShowCue = {
       id: uuid(),
@@ -592,6 +638,70 @@ export function setPlayoutItemLoop(showId: string, itemId: string, loop: boolean
     if (!item || item.kind !== 'media') return false;
     if (loop) item.loop = true;
     else delete item.loop;
+    return true;
+  });
+}
+
+/** What a media file is, learnt from the server's list for an item saved before the kind was kept
+ *  (or chosen under Advanced when the list does not have it). A fact about the FILE, so every cue
+ *  of the item sees it. */
+export function setPlayoutItemMediaKind(showId: string, itemId: string, mediaKind: PlayoutMediaKind): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item || item.kind !== 'media' || item.mediaKind === mediaKind) return false;
+    item.mediaKind = mediaKind;
+    return true;
+  });
+}
+
+/** What the server's list says of a media file an older item saved without: its kind and length.
+ *  Only a missing fact is filled, so nothing the operator chose is overwritten. */
+export function fillPlayoutItemFacts(showId: string, itemId: string, facts: { mediaKind?: PlayoutMediaKind; frames?: number; fps?: number }): Show[] {
+  return patchShow(showId, (show) => {
+    const item = show.playoutItems?.find((i) => i.id === itemId);
+    if (!item || item.kind !== 'media') return false;
+    let changed = false;
+    if (facts.mediaKind && !item.mediaKind) {
+      item.mediaKind = facts.mediaKind;
+      changed = true;
+    }
+    if (facts.frames && facts.fps && !(item.frames && item.fps)) {
+      item.frames = facts.frames;
+      item.fps = facts.fps;
+      changed = true;
+    }
+    return changed;
+  });
+}
+
+/**
+ * Change how ONE cue plays its server clip (docs/CLIP_PLAYBACK_PLAN.md §7). A field set to `null`
+ * goes back to its default and is removed, so a cue at every default carries no `playback` at all
+ * and reads as the record it was.
+ *
+ * THE LOOP RULE. This never writes `PlayoutItem.loop`. It removes it once every cue of the item has
+ * an ending of its own, since nothing reads it then: an older build that ticks its Loop box again
+ * can therefore turn a loop on only for cues that never had an ending chosen here.
+ */
+export function setCuePlayback(
+  showId: string,
+  cueId: string,
+  patch: { [K in keyof CuePlayback]?: CuePlayback[K] | null },
+): Show[] {
+  return patchShow(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || cue.source !== 'playout') return false;
+    const next: Record<string, unknown> = { ...(cue.playback ?? {}) };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === undefined) delete next[key];
+      else next[key] = value;
+    }
+    if (Object.keys(next).length) cue.playback = next as CuePlayback;
+    else delete cue.playback;
+    const item = show.playoutItems?.find((i) => i.id === cue.sourceId);
+    if (item?.loop && (show.cues ?? []).filter((c) => c.sourceId === item.id).every((c) => c.playback?.end !== undefined)) {
+      delete item.loop;
+    }
     return true;
   });
 }

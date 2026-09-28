@@ -1,4 +1,4 @@
-// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts, src/control/serverStatePoll.ts
+// guards: src/control/serverPlayout.ts, src/control/serverPlayoutStore.ts, src/control/playoutSlots.ts, src/control/serverState.ts, src/control/serverStatePoll.ts, src/model/cuePlayback.ts
 //
 // What a server cue sends, what the page then believes is up on the playout server, and what a
 // reading of the server does to that belief (docs/BRIDGE.md §5, docs/CLIP_PLAYBACK_PLAN.md §6.4 and
@@ -425,4 +425,225 @@ test('a reading the page cannot fold ends that round, never the poll', async () 
   const after = readings;
   await wait(30);
   assert.equal(readings, after, 'nothing reads after stop');
+});
+
+// ── Phase 3: a clip's settings, Play next and TO STUDIO (docs/CLIP_PLAYBACK_PLAN.md §6.4-§6.9, §7) ──
+
+const playback = await import('../src/model/cuePlayback.ts');
+const { playNextTarget, sequenceMembers, sequenceAction, nextClipWords } = await import('../src/control/serverPlayout.ts');
+const { pauseTarget, toStudioSeconds } = await import('../src/control/serverState.ts');
+
+const vt = (id, seconds, extra = {}) => ({ id, adapter: 'casparcg', kind: 'media', name: id.toUpperCase(), layer: 10, channel: 2, mediaKind: 'movie', frames: seconds * 25, fps: 25, ...extra });
+const withPlayback = (c, p) => ({ ...c, playback: p });
+const graphic = (id) => ({ id, sourceId: `g-${id}`, label: id, values: {} });
+const address = (item) => `${item.channel}-${item.layer}`;
+
+test('THE LOOP RULE: the cue\'s own ending, else the legacy loop, else hold; a still holds', () => {
+  const item = vt('a', 10);
+  assert.equal(playback.effectiveEnd({}, item), 'hold');
+  // An older build's Loop box turns a loop on for every cue that has no ending of its own...
+  assert.equal(playback.effectiveEnd({}, { ...item, loop: true }), 'loop');
+  // ...and never overrules one chosen here, which is how this build turns a loop OFF.
+  assert.equal(playback.effectiveEnd({ playback: { end: 'hold' } }, { ...item, loop: true }), 'hold');
+  assert.equal(playback.effectiveEnd({ playback: { end: 'clear' } }, { ...item, loop: true }), 'clear');
+  assert.equal(playback.effectiveEnd({ playback: { end: 'next' } }, item), 'next');
+  // A still never ends, so an ending that waits for its end is a Hold.
+  assert.equal(playback.effectiveEnd({ playback: { end: 'clear' } }, { ...item, mediaKind: 'still' }), 'hold');
+  assert.equal(playback.effectiveEnd({ playback: { end: 'next' } }, { ...item, mediaKind: 'still' }), 'hold');
+});
+
+test('a legacy cue sends exactly today\'s action; the settings go out as the playback descriptor', () => {
+  const item = vt('a', 10);
+  const at = slot(2, 10);
+  assert.deepEqual(serverAction('take', item, at, {}, 'c1', {}), { verb: 'take', item: { kind: 'media', name: 'A' }, slot: at, cueId: 'c1' });
+  assert.deepEqual(serverAction('take', { ...item, loop: true }, at, {}, 'c1', {}), { verb: 'take', item: { kind: 'media', name: 'A' }, slot: at, loop: true, cueId: 'c1' });
+  // A Loop chosen here goes out as the old field, which every Bridge understands.
+  assert.deepEqual(serverAction('take', item, at, {}, 'c1', { playback: { end: 'loop' } }), { verb: 'take', item: { kind: 'media', name: 'A' }, slot: at, loop: true, cueId: 'c1' });
+  assert.deepEqual(
+    serverAction('take', item, at, {}, 'c1', { playback: { end: 'clear', fadeIn: 'short', fadeOut: 'long', levelDb: -12, trimIn: 1, trimOut: 8 } }).playback,
+    { end: 'clear', fadeOut: 1, fadeIn: 0.5, gain: 10 ** (-12 / 20), trim: { in: 1, out: 8 } },
+  );
+  // A fade out on a clip that holds is Out's: the take does not carry it, the Out does.
+  assert.equal(serverAction('take', item, at, {}, 'c1', { playback: { fadeOut: 'short' } }).playback, undefined);
+  assert.deepEqual(serverAction('out', item, at, {}, undefined, { playback: { fadeOut: 'short' } }), { verb: 'out', slot: at, item: { kind: 'media', name: 'A' }, fadeOut: 0.5 });
+  assert.deepEqual(serverAction('out', item, at, {}, undefined, {}), { verb: 'out', slot: at, item: { kind: 'media', name: 'A' } });
+  // 0 dB is the file as it is.
+  assert.equal(serverAction('take', item, at, {}, 'c1', { playback: { levelDb: 0 } }).playback, undefined);
+});
+
+test('a cue the running Bridge or server cannot honour is not taken, and says why (§18 case 12)', () => {
+  const item = vt('a', 10);
+  const ok = { state: 'ok', features: ['state', 'playback', 'sequence'], capabilities: ['state', 'end', 'fade', 'trim', 'level', 'sequence'], version: '2.5.0 69e8ad5 Stable' };
+  const clearFade = { playback: { end: 'clear', fadeOut: 'short' } };
+  assert.equal(playback.playbackBlocker(playback.playbackNeeds(clearFade, item), ok), null);
+  // A legacy cue, and a loop, need nothing any v2 Bridge lacks.
+  assert.deepEqual(playback.playbackNeeds({}, { ...item, loop: true }), []);
+  // A 0.4 Bridge lists no features.
+  assert.equal(
+    playback.playbackBlocker(playback.playbackNeeds(clearFade, item), { state: 'ok', version: '2.5.0' }),
+    'This cue clears at its end and fades. Update NoaCG Bridge to take it, or set it to Hold and set its fades to Cut.',
+  );
+  // A server that cannot: a CasparCG older than 2.3 can clear but not fade.
+  assert.equal(
+    playback.playbackBlocker(playback.playbackNeeds(clearFade, item), { ...ok, capabilities: ['end'], version: '2.2.0 Dev' }),
+    'This cue fades, which CasparCG 2.2.0 cannot do. To take it, set its fades to Cut.',
+  );
+  assert.equal(playback.playbackBlocker(playback.playbackNeeds({ playback: { levelDb: -12 } }, item), { state: 'ok' }), 'This cue plays at -12 dB. Update NoaCG Bridge to take it, or reset its level.');
+  // Not asked yet: it waits rather than risking the old way.
+  assert.equal(playback.playbackBlocker(playback.playbackNeeds(clearFade, item), null), 'Asking NoaCG Bridge what it can play…');
+  // A control is offered only when both say yes.
+  assert.equal(playback.offerBlocked(ok, 'playback', 'fade'), null);
+  assert.equal(playback.offerBlocked({ state: 'ok', capabilities: ok.capabilities }, 'playback', 'fade'), 'Update NoaCG Bridge to set this.');
+  assert.equal(playback.offerBlocked({ ...ok, capabilities: [] }, 'sequence', 'sequence'), 'CasparCG 2.5.0 cannot do this.');
+});
+
+test('a trim is checked against itself and the file; times read the way an operator writes them (§18 case 6)', () => {
+  const item = vt('a', 30);
+  assert.equal(playback.trimProblem({ trimIn: 5, trimOut: 20 }, item), null);
+  assert.equal(playback.trimProblem({ trimIn: 20, trimOut: 5 }, item), 'The end comes after the start.');
+  assert.equal(playback.trimProblem({ trimIn: 31 }, item), 'The start lies past the end of the 0:30 file.');
+  assert.equal(playback.trimProblem({ trimOut: 45 }, item), 'The end lies past the end of the 0:30 file.');
+  assert.equal(playback.trimProblem({ trimIn: -1 }, item), 'The start is a time from 0:00.');
+  // A file of unknown length is checked against itself only.
+  assert.equal(playback.trimProblem({ trimOut: 45 }, { frames: undefined, fps: undefined }), null);
+  assert.deepEqual(['0:05', '1:05.5', '65.5', '', 'x'].map(playback.parseClock), [5, 65.5, 65.5, null, null]);
+  assert.deepEqual([5, 65.5, 0].map(playback.clockOf), ['0:05', '1:05.5', '0:00']);
+  assert.equal(playback.segmentSeconds({ playback: { trimIn: 5, trimOut: 20 } }, item), 15);
+  assert.equal(playback.segmentSeconds({ playback: { trimIn: 25 } }, item), 5);
+  assert.equal(playback.segmentSeconds({}, { frames: 0, fps: 0 }), undefined);
+});
+
+test('PLAY NEXT: the next clip on the same slot, past graphics and other slots, named with what it skipped', () => {
+  const a = vt('a', 10);
+  const sting = vt('sting', 3, { layer: 5, mediaKind: 'audio' });
+  const b = vt('b', 10);
+  const items = [a, sting, b];
+  const cues = [cue('1', 'a'), graphic('lt'), cue('2', 'sting'), graphic('bug'), cue('3', 'b')];
+  const t = playNextTarget(cues, items, '1', address);
+  assert.equal(t.ok, true);
+  assert.equal(t.next.cue.id, '3');
+  assert.equal(nextClipWords(t.next), '3 (cue 5, after 2 graphics and a clip on 2-5)');
+  assert.deepEqual(playNextTarget(cues, items, '3', address), { ok: false, reason: 'no clip after this one plays on 2-10' });
+  // The reasons it is off, each in words (plan §6.6).
+  const still = vt('s', 10, { mediaKind: 'still', frames: 0 });
+  assert.equal(playNextTarget([cue('1', 'a'), cue('2', 's')], [a, still], '1', address).reason, 'the next cue on 2-10 is a still, which never ends');
+  const short = vt('short', 1.5);
+  assert.equal(playNextTarget([cue('1', 'a'), cue('2', 'short')], [a, short], '1', address).reason, 'the next clip is shorter than 2 seconds');
+  // A trim counts: a long file played for a second is a short clip.
+  assert.equal(
+    playNextTarget([cue('1', 'a'), withPlayback(cue('2', 'b'), { trimIn: 9 })], [a, b], '1', address).reason,
+    'the next clip is shorter than 2 seconds',
+  );
+  // §18 case 5: an old item whose kind nobody has resolved does not join.
+  const old = vt('old', 10, { mediaKind: undefined });
+  assert.equal(playNextTarget([cue('1', 'a'), cue('2', 'old')], [a, old], '1', address).reason, "the next clip on 2-10 is not in the server's list yet, so its kind is not known");
+  const unknownLength = vt('u', 10, { frames: undefined, fps: undefined });
+  assert.equal(playNextTarget([cue('1', 'a'), cue('2', 'u')], [a, unknownLength], '1', address).reason, 'the next clip on 2-10 has no known length');
+  // §18 case 4: a still offers no Play next at all.
+  assert.equal(playNextTarget([cue('1', 's'), cue('2', 'a')], [still, a], '1', address).reason, 'a still never ends, so nothing plays after it');
+});
+
+test('a Take of a cue that plays next is a sequence, each clip with its own settings and the last with its own ending', () => {
+  const a = vt('a', 10);
+  const b = vt('b', 10);
+  const c = vt('c', 20, { mediaKind: 'audio' });
+  const items = [a, b, c];
+  const cues = [
+    withPlayback(cue('1', 'a'), { end: 'next', levelDb: -6 }),
+    withPlayback(cue('2', 'b'), { end: 'next', fadeIn: 'long' }),
+    withPlayback(cue('3', 'c'), { end: 'loop', fadeIn: 'short', trimIn: 2 }),
+  ];
+  const chain = sequenceMembers(cues, items, '1', address);
+  assert.deepEqual(chain.members.map((m) => m.cue.id), ['1', '2', '3']);
+  assert.deepEqual(sequenceAction(chain.members, slot(2, 10)), {
+    verb: 'sequence',
+    slot: slot(2, 10),
+    entries: [
+      { item: { kind: 'media', name: 'A' }, cueId: '1', playback: { gain: 10 ** (-6 / 20) }, media: { kind: 'movie', seconds: 10 } },
+      { item: { kind: 'media', name: 'B' }, cueId: '2', playback: { fadeIn: 1 }, media: { kind: 'movie', seconds: 10 } },
+      { item: { kind: 'media', name: 'C' }, cueId: '3', playback: { end: 'loop', fadeIn: 0.5, trim: { in: 2 } }, media: { kind: 'audio', seconds: 20 } },
+    ],
+  });
+  // The taken cue's own Play next must be found; a later member whose next cannot be simply holds.
+  assert.deepEqual(sequenceMembers([withPlayback(cue('1', 'a'), { end: 'next' })], [a], '1', address), { ok: false, reason: 'no clip after this one plays on 2-10' });
+  const holdsAtTheEnd = sequenceMembers([withPlayback(cue('1', 'a'), { end: 'next' }), withPlayback(cue('2', 'b'), { end: 'next' })], [a, b], '1', address);
+  assert.deepEqual(holdsAtTheEnd.members.map((m) => m.cue.id), ['1', '2']);
+  // A cue that does not play next is a single clip, not a sequence.
+  assert.equal(sequenceMembers([cue('1', 'a'), cue('2', 'b')], [a, b], '1', address).members.length, 1);
+});
+
+test('TO STUDIO: every remaining segment, less every MIX it comes in on; unknown when a length is (§18 case 18)', () => {
+  const entry = (seconds, playback) => ({ item: { kind: 'media', name: 'X' }, media: { kind: 'movie', seconds }, ...(playback ? { playback } : {}) });
+  // Three 10-second clips joined by two 1-second fades end after 28 seconds, not 30.
+  assert.equal(toStudioSeconds(10, [entry(10, { fadeIn: 1 }), entry(10, { fadeIn: 1 })]), 28);
+  assert.equal(toStudioSeconds(4.5, [entry(20, { trim: { in: 5, out: 15 } })]), 14.5);
+  assert.equal(toStudioSeconds(null, [entry(10)]), null);
+  assert.equal(toStudioSeconds(3, [{ item: { kind: 'media', name: 'X' }, media: { kind: 'movie', seconds: 0 } }]), null);
+});
+
+test('the clip clock of a sequence: TO STUDIO big, warned on; the clip small; loops and clears say so', () => {
+  const a = vt('a', 10);
+  const b = vt('b', 10);
+  const cues = [withPlayback(cue('1', 'a', 'Opener'), { end: 'next' }), withPlayback(cue('2', 'b', 'Studio'), { end: 'clear' })];
+  const next = [{ item: { kind: 'media', name: 'B' }, cueId: '2', playback: { end: 'clear', fadeIn: 1 }, media: { kind: 'movie', seconds: 10 } }];
+  const own = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), instance: 's1.1', takenAt: 0 } }, sequences: { '2-10': next } };
+  const timing = (position) => ({ '2-10': { producer: 'video', file: 'A', segment: { start: 0, length: 10 }, position, paused: false, loop: false, at: 0, source: 'server' } });
+  let c = clipClock(own, timing(2), [a, b], cues, 0);
+  assert.deepEqual([c.end, c.finally, c.remaining, c.toStudio, c.phase, c.next], ['next', 'clear', 8, 17, 'counting', { label: 'Studio', length: 10 }]);
+  // The clip's own last seconds do not warn: a clip follows. TO STUDIO does, at ten and five.
+  c = clipClock(own, timing(9), [a, b], cues, 0);
+  assert.deepEqual([c.remaining, c.toStudio, c.phase], [1, 10, 'warning']);
+  // Paused, TO STUDIO stops with the clip.
+  c = clipClock(own, { '2-10': { ...timing(5)['2-10'], paused: true } }, [a, b], cues, 60_000);
+  assert.deepEqual([c.phase, c.toStudio], ['paused', 14]);
+  // A sequence that ends in a loop has no studio time: the clip's own time, and no warning.
+  const loops = { ...own, sequences: { '2-10': [{ ...next[0], playback: { end: 'loop' } }] } };
+  c = clipClock(loops, timing(9), [a, b], cues, 0);
+  assert.deepEqual([c.toStudio, c.phase, c.finally], [undefined, 'looping', 'loop']);
+  // A single clip that clears says it clears.
+  const single = { ...NO_OWNERSHIP, onAir: { b: { cueId: '2', slot: slot(2, 10), takenAt: 0 } } };
+  c = clipClock(single, timing(2), [a, b], cues, 0);
+  assert.deepEqual([c.end, c.toStudio], ['clear', undefined]);
+});
+
+test('a reading that shows the sequence\'s next entry moves ON AIR to that cue, and carries what is left', () => {
+  const a = vt('a', 10);
+  const b = vt('b', 10);
+  const cues = [withPlayback(cue('1', 'a'), { end: 'next' }), cue('2', 'b')];
+  const entryB = { item: { kind: 'media', name: 'B' }, cueId: '2', media: { kind: 'movie', seconds: 10 } };
+  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 's1', instance: 's1.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: [entryB] });
+  assert.deepEqual(taken.ownership.sequences, { '2-10': [entryB] });
+  const ctx = { channel: 2, now: 500, cues, items: [a, b], slotOf: (i) => slot(i.channel, i.layer) };
+  const reading = (s) => ({ ok: true, channel: 2, session: 's1', observedAt: 0, slots: [{ layer: 10, paused: false, loop: false, generation: 1, instance: 's1.1', ...s }] });
+  let parts = applyReading(taken, reading({ producer: 'video', file: 'A', segment: { start: 0, length: 10 }, position: 5, cueId: '1', sequence: { next: [entryB] } }), ctx);
+  assert.deepEqual(Object.keys(parts.ownership.onAir), ['a']);
+  // The server switched by itself: the same instance, now naming cue 2.
+  parts = applyReading(parts, reading({ producer: 'video', file: 'B', segment: { start: 0, length: 10 }, position: 1, cueId: '2' }), { ...ctx, now: 11_000 });
+  assert.deepEqual(parts.ownership.onAir, { b: { cueId: '2', slot: slot(2, 10), instance: 's1.1', takenAt: 0 } });
+  assert.deepEqual(parts.ownership.sequences, {});
+  // Out ends it on the page at once.
+  const out = applyAccepted(taken, { verb: 'out', slot: slot(2, 10), generation: 2, session: 's1', itemId: 'a', cueId: '1', now: 1 });
+  assert.deepEqual(out.ownership.sequences, {});
+});
+
+test('a Bridge restart during Play next leaves an unidentified item that says the sequence stopped (§18 case 11)', () => {
+  const a = vt('a', 10);
+  const cues = [withPlayback(cue('1', 'a'), { end: 'next' })];
+  const entry = { item: { kind: 'media', name: 'B' }, media: { kind: 'movie', seconds: 10 } };
+  const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 'old', instance: 'old.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: [entry] });
+  const ctx = { channel: 2, now: 5000, cues, items: [a], slotOf: (i) => slot(i.channel, i.layer) };
+  const parts = applyReading(taken, { ok: true, channel: 2, session: 'new', observedAt: 0, slots: [{ layer: 10, producer: 'video', file: 'A', paused: false, loop: false, generation: 0 }] }, ctx);
+  assert.deepEqual(parts.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'A', sequenceStopped: true }]);
+});
+
+test('P pauses the clip the operator is looking at: the selected cue when it is up, else the clock\'s', () => {
+  const a = vt('a', 10);
+  const b = vt('b', 10, { layer: 11 });
+  const own = { ...NO_OWNERSHIP, onAir: { a: { cueId: '1', slot: slot(2, 10), takenAt: 0 }, b: { cueId: '2', slot: slot(2, 11), takenAt: 5 } } };
+  const t = (paused) => ({ producer: 'video', segment: { start: 0, length: 10 }, position: 1, paused, loop: false, at: 0, source: 'server' });
+  const timing = { '2-10': t(false), '2-11': t(true) };
+  assert.deepEqual(pauseTarget(own, timing, [a, b], '1'), { itemId: 'a', cueId: '1', paused: false });
+  // Nothing selected that is up: the clip the clock follows, the one taken last.
+  assert.deepEqual(pauseTarget(own, timing, [a, b], 'other'), { itemId: 'b', cueId: '2', paused: true });
+  assert.equal(pauseTarget(NO_OWNERSHIP, {}, [a, b], null), null);
 });

@@ -2173,9 +2173,36 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-server-where { margin: 0 0 8px; }
 .pd-server-where code { font-size: 12px; }
 .pd-clip-transport { gap: 6px; margin-bottom: 8px; }
-/* The clip's Loop box: a checkbox, its word, and what it does in muted type after it. */
-.pd-clip-loop { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 12.5px; }
-.pd-clip-loop .muted { font-size: 11px; }
+/* Why Take is off for this cue: in the editor's own words, where the operator looks before Take. */
+.pd-take-blocked { margin: 0 0 8px; font-size: 12px; }
+/* A CLIP'S SETTINGS (docs/CLIP_PLAYBACK_PLAN.md §6.5): At the end, Fade and Level, each one line -
+   its label in the settings' small caps, its choices, and what it does in muted type after them.
+   The label column matches the band gutter, and under 620px of editor it goes above its control. */
+.pd-clip-settings { display: grid; gap: 8px; margin: 0 0 10px; }
+.pd-clip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; min-width: 0; }
+.pd-clip-label {
+  flex: none;
+  width: 84px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pd-clip-hint { flex: 1 1 220px; min-width: 0; font-size: 11px; }
+.pd-clip-pair { display: inline-flex; align-items: center; gap: 6px; }
+.pd-clip-sub { font-size: 11px; color: var(--text-dim); }
+.pd-clip-level { width: 220px; max-width: 100%; accent-color: var(--accent); }
+.pd-clip-db { min-width: 52px; font-family: var(--mono, monospace); font-size: 12px; }
+@container (max-width: 620px) {
+  .pd-clip-row { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
+  .pd-clip-label { width: auto; }
+}
+/* Its ADVANCED: where it plays, then the start and end in the file, then (on an older item) its kind. */
+.pd-clip-advanced .pd-cue-meta { grid-template-columns: 170px 96px; margin-top: 0; padding-top: 0; border-top: none; }
+.pd-clip-trim { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; margin-top: 8px; }
+.pd-clip-trim .pd-field { width: 110px; }
+.pd-clip-trim-note { margin: 6px 0 0; font-size: 12px; }
+.pd-clip-kind { margin-top: 8px; max-width: 260px; }
 .pd-add-field { display: flex; gap: 6px; align-items: center; }
 .pd-add-field input { flex: 1; min-width: 0; }
 /* On the PROGRAM header, what is up on the server - a badge beside the layer badge, dimmer:

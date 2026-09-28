@@ -18,16 +18,20 @@
 //              the clip clock and the rows' remaining times read it.
 
 import type { PlayoutItem, ShowCue } from '../model/shows';
-import type { CasparSlot, Slot, SlotState, StateReply } from './playoutProtocol';
+import type { CasparSlot, SequenceEntry, Slot, SlotState, StateReply } from './playoutProtocol';
 import type { AcceptedVerb, ServerLive, ServerOnAir } from './serverPlayout';
 import { withoutItem, withTaken } from './serverPlayout.ts';
 import { slotAddress } from './playoutSlots.ts';
+import { effectiveEnd } from '../model/cuePlayback.ts';
 
 /** Something on a rundown slot that no cue of this page can be matched to. */
 export interface UnidentifiedItem {
   slot: CasparSlot;
   file?: string;
   producer: SlotState['producer'];
+  /** A sequence this page saw running there stopped: the Bridge restarted and forgot it, so
+   *  whatever the server had already queued plays by the server's own rule and nothing after it. */
+  sequenceStopped?: boolean;
 }
 
 /** A slot's generation as of the last action this page saw accepted, and the Bridge session that
@@ -47,9 +51,13 @@ export interface ServerOwnership {
   unidentified: readonly UnidentifiedItem[];
   /** What waits to play next on a slot (`LOADBG`), by slot address. */
   queued: Readonly<Record<string, { file: string; auto: boolean }>>;
+  /** A sequence this page's Bridge runs on a slot (Play next): the entries still to play after the
+   *  one on air, by slot address. From the Take, then from each reading. It changes only on a
+   *  switch, so it is ownership, not timing. */
+  sequences: Readonly<Record<string, readonly SequenceEntry[]>>;
 }
 
-export const NO_OWNERSHIP: ServerOwnership = { onAir: {}, generations: {}, replaced: {}, unidentified: [], queued: {} };
+export const NO_OWNERSHIP: ServerOwnership = { onAir: {}, generations: {}, replaced: {}, unidentified: [], queued: {}, sequences: {} };
 
 /** Where one slot's clip stands, and when that was true on THIS page's clock. */
 export interface SlotTiming {
@@ -96,6 +104,7 @@ function settle(prev: ServerOwnership, next: ServerOwnership): ServerOwnership {
     replaced: same(prev.replaced, next.replaced) ? prev.replaced : next.replaced,
     unidentified: same(prev.unidentified, next.unidentified) ? prev.unidentified : next.unidentified,
     queued: same(prev.queued, next.queued) ? prev.queued : next.queued,
+    sequences: same(prev.sequences, next.sequences) ? prev.sequences : next.sequences,
   };
   return (Object.keys(merged) as (keyof ServerOwnership)[]).every((k) => merged[k] === prev[k]) ? prev : merged;
 }
@@ -167,6 +176,8 @@ export interface ReadingContext {
  *   rundown now says its item plays: after a reload, after another tab of this production took it,
  *   or when this page's own Take shows up in a reading before the Take's answer does. Anything else
  *   on a rundown slot is UNIDENTIFIED, never guessed from its file name.
+ * - In a SEQUENCE the instance stays and the cue it names moves on as the server switches files by
+ *   itself: ON AIR follows the entry the reading names, and the entries still to play come with it.
  */
 export function applyReading(parts: ServerParts, reply: StateReply, ctx: ReadingContext): ServerParts {
   const { channel, now } = ctx;
@@ -192,6 +203,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
   const replaced: Record<string, { cueId: string; slot: Slot; file?: string }> = { ...ownership.replaced };
   const unidentified: UnidentifiedItem[] = ownership.unidentified.filter((u) => u.slot.channel !== channel);
   const queued: Record<string, { file: string; auto: boolean }> = Object.fromEntries(Object.entries(ownership.queued).filter(([a]) => !onChannel(a)));
+  const sequences: Record<string, readonly SequenceEntry[]> = Object.fromEntries(Object.entries(ownership.sequences).filter(([a]) => !onChannel(a)));
   const nextTiming: Record<string, SlotTiming> = Object.fromEntries(Object.entries(timing).filter(([a]) => !onChannel(a)));
 
   // The layers this page speaks for on this channel: each rundown item's slot, and wherever
@@ -215,6 +227,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
       // From before the last action here: everything the page knew about this slot stands.
       if (timing[a]) nextTiming[a] = timing[a];
       if (ownership.queued[a]) queued[a] = ownership.queued[a];
+      if (ownership.sequences[a]) sequences[a] = ownership.sequences[a];
       unidentified.push(...ownership.unidentified.filter((u) => slotAddress(u.slot) === a));
       continue;
     }
@@ -226,8 +239,11 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
       // and meanwhile the layer shows what it held before. The Bridge still vouches for the take,
       // so it stays up and the take's own count stands until the clip's first real reading.
       if (timing[a]) nextTiming[a] = timing[a];
+      if (ownership.sequences[a]) sequences[a] = ownership.sequences[a];
       continue;
     }
+    // The entries still to play, while this Bridge runs a sequence here.
+    if (s?.sequence && ownSession(s.instance) && s.sequence.next.length) sequences[a] = s.sequence.next;
     if (!holdsSomething(s)) {
       // Off air on the server: whatever was up leaves ON AIR, and a note that the slot was replaced
       // has nothing left to say.
@@ -237,6 +253,16 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     }
     nextTiming[a] = timingOf(s, timing[a], now);
     const withFile = s.file ? { file: s.file } : {};
+    // The take this page knows, and a sequence of it has moved on to its next entry: ON AIR follows
+    // the entry the server now plays, on the same slot, still counted from the one Take.
+    if (mine && mine[1].instance && s.instance === mine[1].instance && s.cueId && s.cueId !== mine[1].cueId) {
+      const own = ownCue(s);
+      if (own) {
+        delete onAir[mine[0]];
+        onAir[own.item.id] = { cueId: own.cue.id, slot: mine[1].slot, instance: s.instance, ...(mine[1].takenAt !== undefined ? { takenAt: mine[1].takenAt } : {}) };
+        continue;
+      }
+    }
     // Still the take this page knows (or one from a Bridge that gives no instances): nothing moves.
     if (mine && (!mine[1].instance || s.instance === mine[1].instance)) continue;
     if (mine) delete onAir[mine[0]];
@@ -249,7 +275,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     if (mine) {
       const [itemId, live] = mine;
       if (ownSession(live.instance)) replaced[itemId] = { cueId: live.cueId, slot: live.slot, ...withFile };
-      else unidentified.push({ slot, producer: s.producer, ...withFile });
+      else unidentified.push({ slot, producer: s.producer, ...withFile, ...(ownership.sequences[a] ? { sequenceStopped: true } : {}) });
       continue;
     }
     // Its row already says the slot was replaced; a second line would say it twice.
@@ -259,7 +285,7 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
 
   unidentified.sort((x, y) => x.slot.channel - y.slot.channel || x.slot.layer - y.slot.layer);
   return {
-    ownership: settle(ownership, { onAir, generations: ownership.generations, replaced, unidentified, queued }),
+    ownership: settle(ownership, { onAir, generations: ownership.generations, replaced, unidentified, queued, sequences }),
     timing: nextTiming,
   };
 }
@@ -280,6 +306,8 @@ export function applyAccepted(
     now: number;
     /** The Bridge reads the server: the take's estimate stands only until its first reading. */
     readable: boolean;
+    /** A take that started a sequence: the entries after the first, which the clock counts ahead. */
+    sequence?: readonly SequenceEntry[];
   },
 ): ServerParts {
   const { ownership, timing } = parts;
@@ -291,7 +319,13 @@ export function applyAccepted(
   let onAir: ServerOnAir = ownership.onAir;
   const replaced = { ...ownership.replaced };
   let unidentified = ownership.unidentified;
+  let sequences = ownership.sequences;
   const nextTiming: Record<string, SlotTiming> = { ...timing };
+  if (a.verb === 'take' || a.verb === 'out') {
+    // A Take replaces whatever sequence ran on the slot, and Out ends it.
+    const { [at]: _gone, ...rest } = sequences;
+    sequences = a.verb === 'take' && a.sequence?.length ? { ...rest, [at]: a.sequence } : rest;
+  }
   if (a.verb === 'take') {
     onAir = withTaken(onAir, a.itemId, a.cueId, a.slot, { ...(a.instance ? { instance: a.instance } : {}), takenAt: a.now });
     delete replaced[a.itemId];
@@ -314,7 +348,7 @@ export function applyAccepted(
     nextTiming[at] = { ...t, ...(position === undefined ? {} : { position }), paused: a.verb === 'pause', at: a.now };
   }
   return {
-    ownership: settle(ownership, { onAir, generations, replaced, unidentified, queued: ownership.queued }),
+    ownership: settle(ownership, { onAir, generations, replaced, unidentified, queued: ownership.queued, sequences }),
     timing: nextTiming,
   };
 }
@@ -353,14 +387,55 @@ export interface ClipClock {
   cueId: string;
   label: string;
   file: string;
-  /** What happens at the end: in phase 2 a clip holds its last frame or loops. */
-  end: 'hold' | 'loop';
+  /** What happens when the clip on air ends: it holds its last frame, loops, clears the layer, or
+   *  the next clip of a sequence plays. */
+  end: 'hold' | 'loop' | 'clear' | 'next';
+  /** How the sequence ends, when a clip follows: its last clip's own ending. */
+  finally?: 'hold' | 'loop' | 'clear';
+  /** Counted on the clip's own time, or on TO STUDIO when a clip follows (plan §6.4: the warning is
+   *  on TO STUDIO only). */
   phase: 'counting' | 'warning' | 'final' | 'holding' | 'paused' | 'looping';
   /** Seconds left in the segment; null when neither the server nor the list gave a length. */
   remaining: number | null;
   /** Seconds since a holding clip reached its end. */
   over: number;
+  /** While a clip follows: seconds until the sequence ends on air - every remaining segment less
+   *  every transition's overlap - or null when a member's length is unknown (`TO STUDIO ?`). Absent
+   *  when nothing follows, or when the sequence ends in a loop and there is no studio time. */
+  toStudio?: number | null;
+  /** The clip that plays next, when one does: its name and how long it plays. */
+  next?: { label: string; length: number | null };
   estimated: boolean;
+}
+
+/** One sequence entry's cue, when it is a cue of this rundown. */
+function entryCue(e: SequenceEntry, cues: readonly ShowCue[]): ShowCue | undefined {
+  return e.cueId ? cues.find((c) => c.id === e.cueId) : undefined;
+}
+
+/** How long an entry plays, from what the Bridge was told: its trim within its file's length. */
+export function entrySeconds(e: SequenceEntry): number | null {
+  const whole = e.media?.seconds;
+  if (!(whole > 0)) return null;
+  const start = e.playback?.trim?.in ?? 0;
+  const end = Math.min(e.playback?.trim?.out ?? whole, whole);
+  return Math.max(0, end - start);
+}
+
+/**
+ * TO STUDIO (plan §6.4): the clip's remaining time, then each entry still to play less the MIX it
+ * comes in on, since that many frames of it overlap the clip before - three 10-second clips joined
+ * by two 1-second fades end after 28 seconds, not 30. Null when any length is unknown.
+ */
+export function toStudioSeconds(remaining: number | null, next: readonly SequenceEntry[]): number | null {
+  if (remaining === null) return null;
+  let total = remaining;
+  for (const e of next) {
+    const length = entrySeconds(e);
+    if (length === null) return null;
+    total += length - (e.playback?.fadeIn ?? 0);
+  }
+  return Math.max(0, total);
 }
 
 type Followed = { itemId: string; live: ServerLive; item: PlayoutItem };
@@ -414,8 +489,12 @@ export function clipClock(
   if (!best) return null;
   const slot = slotAddress(best.live.slot);
   const t = timing[slot];
-  const loop = t ? t.loop : !!best.item.loop;
+  const cueOnAir = cues.find((c) => c.id === best.live.cueId);
+  const loop = t ? t.loop : cueOnAir ? effectiveEnd(cueOnAir, best.item) === 'loop' : !!best.item.loop;
   const remaining = remainingAt(t, now);
+  const following = ownership.sequences[slot] ?? [];
+  const last = following[following.length - 1];
+  const sequenceEnd: ClipClock['finally'] = last ? (last.playback?.end ?? 'hold') : undefined;
   const p = t ? positionAt(t, now) : undefined;
   const over =
     !loop && t?.segment && p !== undefined
@@ -423,31 +502,69 @@ export function clipClock(
         ? Math.max(0, (now - t.endedAt) / 1000)
         : Math.max(0, p - t.segment.length)
       : 0;
+  // A clip follows: the warning is on TO STUDIO, and there is none when the sequence ends looping.
+  const toStudio = following.length ? (sequenceEnd === 'loop' ? undefined : toStudioSeconds(remaining, following)) : undefined;
+  const counted = following.length ? toStudio : remaining;
   // PAUSED first: a paused loop has to say so as plainly as a paused clip does.
   const phase: ClipClock['phase'] = t?.paused
     ? 'paused'
-    : loop
+    : loop || (following.length > 0 && toStudio === undefined)
       ? 'looping'
-      : remaining !== null && remaining <= 0
-        ? 'holding'
-        : remaining !== null && remaining <= FINAL_S
-          ? 'final'
-          : remaining !== null && remaining <= WARN_S
-            ? 'warning'
-            : 'counting';
+      : counted === null || counted === undefined
+        ? 'counting'
+        : counted <= 0
+          ? 'holding'
+          : counted <= FINAL_S
+            ? 'final'
+            : counted <= WARN_S
+              ? 'warning'
+              : 'counting';
   const cueId = best.live.cueId;
+  const onAirEnd: ClipClock['end'] = following.length
+    ? 'next'
+    : loop
+      ? 'loop'
+      : cueOnAir && effectiveEnd(cueOnAir, best.item) === 'clear'
+        ? 'clear'
+        : 'hold';
+  const upNext = following[0];
   return {
     slot,
     itemId: best.itemId,
     cueId,
-    label: cues.find((c) => c.id === cueId)?.label ?? best.item.name,
+    label: cueOnAir?.label ?? best.item.name,
     file: best.item.name,
-    end: loop ? 'loop' : 'hold',
+    end: onAirEnd,
+    ...(sequenceEnd ? { finally: sequenceEnd } : {}),
     phase,
     remaining,
     over,
+    ...(following.length ? { toStudio } : {}),
+    ...(upNext ? { next: { label: entryCue(upNext, cues)?.label ?? upNext.item.name, length: entrySeconds(upNext) } } : {}),
     estimated: isEstimated(t, now),
   };
+}
+
+/**
+ * What the P key pauses or resumes (plan §16, phase 3): the selected cue's clip when it is the one
+ * up, else the clip the clock follows - one press, on the clip the operator is looking at. Plain
+ * data, so a hardware button lights the same answer. Null when no clip is up.
+ */
+export function pauseTarget(
+  ownership: ServerOwnership,
+  timing: ServerTiming,
+  items: readonly PlayoutItem[],
+  selectedCueId: string | null,
+): { itemId: string; cueId: string; paused: boolean } | null {
+  const selected = Object.entries(ownership.onAir).find(([, l]) => l.cueId === selectedCueId);
+  const media = (itemId: string) => items.find((i) => i.id === itemId)?.kind === 'media';
+  const pick = selected && media(selected[0]) ? { itemId: selected[0], live: selected[1] } : null;
+  const followed = pick ?? (() => {
+    const c = clockedClip(ownership, timing, items);
+    return c ? { itemId: c.itemId, live: c.live } : null;
+  })();
+  if (!followed) return null;
+  return { itemId: followed.itemId, cueId: followed.live.cueId, paused: !!timing[slotAddress(followed.live.slot)]?.paused };
 }
 
 /** `m:ss`, or `h:mm:ss` from an hour. A countdown shows the second it is IN, so it reaches 0:00

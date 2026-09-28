@@ -3,7 +3,8 @@ import LibMenu from './LibMenu';
 import { clipLength } from './clipLength';
 import { slug } from '../../model/slug';
 import type { GraphicDoc } from '../../model/library';
-import type { PlayoutField } from '../../model/shows';
+import type { PlayoutField, PlayoutMediaKind } from '../../model/shows';
+import { mediaKindOf } from '../../model/cuePlayback';
 import type { ListItem } from '../../control/playoutProtocol';
 import { listLibrary, loadPlayoutSettings, type PlayoutResult } from '../../control/playoutLink';
 import { serverThumbnail } from './serverThumbnail';
@@ -40,7 +41,16 @@ export default function PlayoutItemPicker({
   /** NoaCG's own library: a server template NoaCG exported is matched here, which gives the
    *  cue editor its fields without anyone typing them. */
   library: GraphicDoc[];
-  onAdd: (item: { kind: 'template' | 'media'; name: string; frames?: number; fps?: number; fields?: PlayoutField[] }) => void;
+  /** `mediaKind` is the server's own word for a media file (`movie`, `still`, `audio`), which is
+   *  what puts an audio file on its own layer and keeps a still out of a sequence. */
+  onAdd: (item: {
+    kind: 'template' | 'media';
+    name: string;
+    frames?: number;
+    fps?: number;
+    mediaKind?: PlayoutMediaKind;
+    fields?: PlayoutField[];
+  }) => void;
 }) {
   const [kind, setKind] = useState<'template' | 'media'>('template');
   const [items, setItems] = useState<ListItem[] | null>(null);
@@ -96,7 +106,7 @@ export default function PlayoutItemPicker({
       .map((id) => ({ field: id, title: id.toUpperCase(), value: '' }));
 
   const add = (item: ListItem) => {
-    if (kind === 'media') onAdd({ kind, name: item.name, frames: item.frames, fps: item.fps });
+    if (kind === 'media') onAdd({ kind, name: item.name, frames: item.frames, fps: item.fps, ...mediaKindOf(item.kind) });
     else onAdd({ kind, name: item.name, fields: fieldsFor(item.name) ?? typedFields() });
     onClose();
   };

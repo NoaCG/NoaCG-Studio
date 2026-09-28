@@ -328,6 +328,8 @@ export interface PlayoutResult {
   generation?: number;
   session?: string;
   instance?: string;
+  /** An accepted action that did not all go through: one sentence (plan §9, `ActReply.warning`). */
+  warning?: string;
 }
 
 /** Whether the page may ask this Bridge what the server holds: the Bridge reads state, and the
@@ -351,6 +353,7 @@ interface BridgeReply {
   token?: string;
   generation?: number;
   instance?: string;
+  warning?: string;
   channel?: number;
   session?: string;
   observedAt?: number;
@@ -502,6 +505,7 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
         ...(typeof body.generation === 'number' ? { generation: body.generation } : {}),
         ...(typeof body.session === 'string' ? { session: body.session } : {}),
         ...(typeof body.instance === 'string' ? { instance: body.instance } : {}),
+        ...(typeof body.warning === 'string' ? { warning: body.warning } : {}),
       },
       body,
     };
