@@ -66,9 +66,9 @@
   background: none;
 }
 .wz-continue-card:hover { border: none; background: none; transform: none; }
-/* The row's glyph carries the whole row's weight, where a card's shares it with a title on
+/* The row's icon carries the whole row's weight, where a card's shares it with a title on
    the same line — so it is sized against the two-line block beside it, not against a title. */
-.wz-continue-card .wz-entry-icon { font-size: 24px; }
+.wz-continue-card .wz-entry-icon { width: 24px; height: 24px; }
 .wz-continue-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wz-continue-card .hint { min-width: 0; }
 /* The step's ONE secondary button: the Home row's shortcuts and the Playout row's actions.
@@ -101,11 +101,10 @@
   vertical-align: 2px;
 }
 /* ── THE FOUR START CARDS: one row, one size, one treatment ──────────────────────────────
-   Overrides the base two-column grid in wizard-and-dialogs.css. Scoped under `.wz-entry-wrap`
-   so it outranks that file and mobile.css, which is why the media blocks below restate the
+   The base grid (wizard-and-dialogs.css) sets no column count; this file owns it. Scoped under
+   `.wz-entry-wrap` so it outranks mobile.css, which is why the media blocks below restate the
    column count. Four columns at a laptop width: two rows of two cost a whole card height of
-   the 768px budget that the Playout row needs. The odd-card span rules there never fire on
-   four; retiring them is a change to that file. */
+   the 768px budget that the Playout row needs. */
 .wz-entry-wrap .wz-entry { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 /* One step roomier than the shared card: four in a row leave the 768px budget about 250px
    of air, and the first screen reads calmer spending a little of it on the cards than on a
@@ -113,16 +112,21 @@
 .wz-entry-wrap .wz-entry .wz-entry-card { padding: 18px 20px; gap: 8px; }
 .wz-entry-wrap .wz-entry .wz-entry-card .hint { line-height: 1.5; }
 .wz-entry-wrap .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.5em); }
+/* One-line titles. They fit their column down to the four-column floor at 1101px: the longest,
+   "Start from a template", keeps 11px there and would first reach the padding near 1055px.
+   e2e/wizard-entry-fit.spec.ts measures the fit at 1101, 1125 and 1150px. */
 .wz-entry-wrap .wz-entry .wz-entry-card strong { white-space: nowrap; }
 /* THE GREYED CARD. It keeps the card's size and outline so the row stays four equal cards,
    and drops everything that says "pick me": the icon and title go dim, the fill goes flat and
-   nothing lifts or lights. The border stays SOLID: dashed is the "drop zone / add new" cue,
+   nothing lifts or lights. The description keeps the house hint grey (--text-dim) rather than
+   going fainter: it is the card's only explanation, and on a signed-out visit it ends in "Sign
+   in to try it.", the door itself. On the wizard's --bg-2 it measures 6.0:1; --text-faint
+   measured 3.7:1, under the 4.5:1 body text needs. The border stays SOLID: dashed is the "drop zone / add new" cue,
    the wrong hint one card away from Import. Signed in it still opens on click - greyed says
    "not yet recommended", not "broken" - so its hover answers in the quiet border only. */
 .wz-entry-wrap .wz-entry .wz-entry-card--muted { background: transparent; transform: none; }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted .wz-entry-icon,
 .wz-entry-wrap .wz-entry .wz-entry-card--muted strong { color: var(--text-dim); }
-.wz-entry-wrap .wz-entry .wz-entry-card--muted .hint { color: var(--text-faint); }
 .wz-entry-wrap .wz-entry .wz-entry-card--muted:hover { border-color: var(--border-strong); }
 
 /* A laptop narrower than the four-column measure (a 1024px window, a split screen) goes back
@@ -182,6 +186,9 @@
   /* The Home row stacks: two shortcut buttons beside a two-line description leave the
      description a sliver, and the shortcuts are the row's real value on a phone. */
   .wz-continue-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  /* Flush with the cards under it, which mobile.css insets 4px each side (the Playout row's
+     rule above); full width, it stood 4px proud of the column on both edges. */
+  .wz-continue { width: auto; align-self: stretch; margin: 14px 4px 0; }
   .wz-continue-jump button { flex: 1; }
   /* The hint runs to three lines in 390px, and an icon centred against three lines sits
      beside the MIDDLE of the sentence rather than beside the title it names. Cap-align it,

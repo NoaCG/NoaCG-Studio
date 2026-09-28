@@ -7,7 +7,7 @@ import { test, expect, type Page } from '@playwright/test';
 // short laptop window whole: `.wz-hero` carries the comment "every vertical margin here is
 // budgeted - if you grow one, take the height from another", which nothing enforced until
 // this spec. Growing a margin, a font size, or a card's padding past the budget shows up
-// here as a scroller that overflows, or as the video strip clipped below the fold.
+// here as a scroller that overflows, or as the Playout row clipped below the fold.
 //
 // The wizard auto-opens only on a first-ever visit (no autosaved project). Every test gets a
 // fresh context, so a plain `goto('/app')` lands on the Entry step.
@@ -151,6 +151,31 @@ test('the four start cards are one row of equal cards, in the owner order', asyn
   });
   expect(new Set(grown).size, `the row followed: ${grown.join(', ')}`).toBe(1);
 });
+
+// THE NARROWEST FOUR-COLUMN WIDTH. Titles are `nowrap`, so a title too long for its column does
+// not wrap, it runs past the card's border. Four columns hold from 1101px, where the cards are at
+// their narrowest; measured 2026-09-28, the longest title ("Start from a template") keeps 11px
+// of room there, and the titles would first touch the padding near 1055px.
+for (const width of [1101, 1125, 1150]) {
+  test(`every start card title fits its card at ${width}px`, async ({ page }) => {
+    await entryStepAt(page, width, 768);
+    await page.evaluate(() => document.fonts.ready);
+    const fit = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) =>
+      els.map((el) => {
+        const cs = getComputedStyle(el);
+        const inner = el.getBoundingClientRect().right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+        const range = document.createRange();
+        range.selectNodeContents(el.querySelector('strong')!);
+        const textRight = Math.max(...[...range.getClientRects()].map((r) => r.right));
+        return { entry: (el as HTMLElement).dataset.entry, room: inner - textRight };
+      }),
+    );
+    expect(fit.length).toBe(4);
+    const top = await page.locator('.wz-entry .wz-entry-card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(top).size, 'four columns, one row').toBe(1);
+    for (const c of fit) expect(c.room, `${c.entry}: title room ${c.room.toFixed(1)}px`).toBeGreaterThanOrEqual(0);
+  });
+}
 
 test('the phone reads top to bottom: four equal cards, then the Playout row', async ({ page }) => {
   await entryStepAt(page, 375, 812);
@@ -324,8 +349,8 @@ test('the Home row answers a hover like an entry card, and its shortcuts do not'
   const resting = await styleOf('.wz-continue-row');
 
   // THE REFERENCE: this is the answer the cards already give, stated first so everything below
-  // is pinned to the CARDS' behaviour rather than merely to a pair of tokens. The `ai` card, not
-  // the first one - `--primary` gives that one a tinted resting border of its own.
+  // is pinned to the CARDS' behaviour rather than merely to a pair of tokens. The `ai` card is
+  // the first full-strength card (the greyed video card answers in a quieter border).
   await page.hover('[data-entry="ai"]');
   await expect
     .poll(async () => {
@@ -418,11 +443,33 @@ test('the video card is greyed and says in words that it is not recommended yet'
         fill: getComputedStyle(el).backgroundColor,
       };
     };
-    return { video: read('video'), other: read('import-graphic') };
+    // WCAG relative luminance of an `rgb()`/`rgba()` string, and the first painted background
+    // behind an element (the card itself is transparent).
+    const lum = (color: string) => {
+      const [r, g, b] = color.match(/[\d.]+/g)!.slice(0, 3).map((v) => {
+        const c = Number(v) / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const paintedBehind = (el: Element | null) => {
+      for (; el; el = el.parentElement) {
+        const bg = getComputedStyle(el).backgroundColor;
+        if (!/^rgba\(.*,\s*0\)$/.test(bg)) return bg;
+      }
+      return 'rgb(0, 0, 0)';
+    };
+    const hint = document.querySelector('[data-entry="video"] .hint')!;
+    const [hi, lo] = [lum(getComputedStyle(hint).color), lum(paintedBehind(hint))].sort((a, b) => b - a);
+    return { video: read('video'), other: read('import-graphic'), hintContrast: (hi + 0.05) / (lo + 0.05) };
   });
   expect(tone.video.title).not.toBe(tone.other.title);
   expect(tone.video.icon).not.toBe(tone.other.icon);
   expect(tone.video.fill).toBe('rgba(0, 0, 0, 0)');
+  // …BUT ITS WORDS STAY READABLE. The description is the card's only explanation, and signed
+  // out it ends in "Sign in to try it.", the door itself, so it meets the 4.5:1 body text needs
+  // (the fainter hint grey it once wore measured 3.7:1).
+  expect(tone.hintContrast, `video hint contrast ${tone.hintContrast.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
 
   // Offline nothing is gated, so the greyed door still opens: greyed is "not yet", not broken.
   // Known signed out (configured builds) the same button opens the sign-in dialog instead and
@@ -552,7 +599,7 @@ test('the AI door says in words that it is still in testing', async ({ page }) =
 
   // IT COSTS THE ENTRY GRID NOTHING. The note is inline inside `.hint`, so the card's three
   // reserved description lines still hold the whole of the copy; a fourth line grows the row
-  // and pushes the video strip below the fold (the budget every other test in this file
+  // and pushes the Playout row below the fold (the budget every other test in this file
   // guards). Measure the hint against the reserve rather than trusting the copy to stay short.
   const fits = await hint.evaluate((el) => {
     const lineHeight = parseFloat(getComputedStyle(el).lineHeight);

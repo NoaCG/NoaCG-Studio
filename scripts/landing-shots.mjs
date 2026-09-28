@@ -104,7 +104,8 @@ await shot('shot-wizard-entry', async (page) => {
   await openWizard(page);
   await page.locator('[data-entry="template"]').waitFor();
   await settlePreviews(page, 500);
-  return { cutBelow: '.wz-entry-card--video', pad: 34 };
+  // The Playout row closes the step (the other half of the product), so the frame ends under it.
+  return { cutBelow: '[data-testid="wz-playout"]', pad: 34 };
 });
 
 // ── 2. Browse: the faceted template storefront, live previews on every card ──

@@ -10,8 +10,12 @@ import type { ReactNode, SVGProps } from 'react';
  * Monochrome VERB glyphs (▶ ■ » ⟳ ✎ ⧉ ✕ ↑ ↓ ● ○ ＋) are not emoji and deliberately stay:
  * they are the operator vocabulary shared with the editor's transport and the exported
  * control panels.
+ *
+ * `Svg` is exported as the ONE wrapper every drawn icon set uses (the wizard's entry icons
+ * draw on it at their own size and stroke), so the grid, the round joins and the a11y
+ * attributes are stated once.
  */
-function Svg({ size = 16, children, ...rest }: { size?: number; children: ReactNode } & SVGProps<SVGSVGElement>) {
+export function Svg({ size = 16, children, ...rest }: { size?: number; children: ReactNode } & SVGProps<SVGSVGElement>) {
   return (
     <svg
       width={size}
