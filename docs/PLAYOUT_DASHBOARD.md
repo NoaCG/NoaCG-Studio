@@ -322,7 +322,9 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   default mode, a cursor move in the other - §2f; nothing airs either way). With the toggle,
   that makes the whole surface operable from the keys alone — which is
   also what makes a **Stream Deck** work today, since one is a keyboard emulator by default. A
-  dedicated plugin (WebSocket, live button state) is a separate project and is not started.
+  Companion connection with live button state is filed, not started
+  (`docs/backlog/companion-and-stream-deck.md`): every action it needs is already a named verb in
+  the keymap below, and every state it would light is plain data in one store (§2g).
 - **The keymap is ONE module, `src/components/playoutKeys.ts`**, read by both React surfaces
   (the exported controller carries its own copy because it ships without React). Written twice,
   it diverged: until 2026-08-18 the **hosted control page had no verb keys at all** — the page a
@@ -509,11 +511,53 @@ on the in-app page and the exported controller in `e2e/production-controls.spec.
 contract in `e2e/hosted-control.spec.ts`, and the hosted page's own walk in
 `e2e/configured/hosted-space-modes.spec.ts`.
 
+### 2g. The clip clock and the server's word (built 2026-09-28)
+
+`docs/CLIP_PLAYBACK_PLAN.md` §6.3, §6.4 and §6.7, phase 2. The operator counts the director out of
+a clip, so a clip on the playout server gets **one clear number**, and the page says what the
+server actually holds rather than what it last asked for. None of it appears in a production with
+no server cue.
+
+- **Where.** Under the verbs, beside PROGRAM, and only while a server clip is on air
+  (`home/ClipClock`). It takes the height the verb column has left and never more: it is a
+  `container-type: size` box, so its number scales with the box (`cqh`) and cannot make the stage
+  taller. The verbs keep their own height while it is up. With less room the line under the number
+  goes first (under 96px), then the head and the number share one thin row (under 60px), which is
+  what a 1366×768 window gets. On a phone it is a 64px band in the stacked column (§3).
+- **What.** `ON AIR 2-10` and the cue's name, then the remaining time of the part of the clip that
+  plays (`-0:42`; a trimmed clip counts its own length, never the file's), then what happens at the
+  end: `then holds the last frame`. The last ten seconds turn the box red and the last five pulse
+  it; the digits count either way, so colour is never the only signal, and a reduced-motion setting
+  stops the pulse. At zero it turns amber and counts up, `HOLDING +0:03`, because the last frame is
+  still on air. Paused, it reads `PAUSED -0:09` and stands still. A looping clip shows its time
+  small and grey with `loops until Out`, and never warns. **One clock, one clip**: it follows the
+  server clip taken last; any other one on air shows its time on its own row.
+- **Honest about certainty.** The number is the server's, read by the Bridge (`BRIDGE.md` §5), and
+  it counts on between readings. It says **`estimated`** when it is this page's own count from the
+  Take instead: a Bridge from before 0.4.2 or a server it cannot read, no reading for three
+  seconds, or a length nobody reported. A clip the server has accepted but not yet put on the
+  layer (about a tenth of a second on 2.5.0) keeps the Take's own count without the word.
+- **The monitors** (§6.3). PREVIEW of a server clip shows its picture, a small **`STILL`** tag
+  (the page never has the server's moving video, and an operator who does not know that could wait
+  for a picture to move) and the clip's length in the corner. PROGRAM shows the picture of the
+  clip the clock follows, under the output stage so graphics on air draw over it as they would on
+  the channel, and no time: the clock is beside it. With no picture, PROGRAM names the clip.
+- **The rows** (§4) show each server clip's remaining time, `NEXT ON SERVER`, `replaced on the
+  server`, and anything unidentified on a rundown slot.
+- **It never re-renders the page.** The store has two parts (`control/serverPlayoutStore.ts`): an
+  OWNERSHIP part the verbs, All out and ON AIR read, which moves only when what is on air changes,
+  and a TIMING part only the clock and the rows' times read. `e2e/playout-clock.spec.ts` counts
+  renders to prove the page stays still while the clock moves, and that the verbs and All out are
+  right after a clip ends on the server.
+- **Nothing on the page airs by time.** The poll reads, the clock draws; no timer fires or queues a
+  clip. Pause and Resume are named verbs in the keymap (no key until phase 3's `P`), dispatched by
+  the page's `onVerb` like every other.
+
 ## 3. Layout — phone
 
-One column: header (name · mode · All out) → the two monitors side by side, small → the cue list
-(large touch rows) → the editor for the selected cue → **a fixed bottom bar: ⟳ TAKE · » Next ·
-■ Out**. The monitors stay side by side on a phone: seeing preview and air together is the whole
+One column: header (name · mode · All out) → the two monitors side by side, small → the clip clock
+while a server clip is on air (§2g) → the cue list (large touch rows) → the editor for the selected
+cue → **a fixed bottom bar: ⟳ TAKE · » Next · ■ Out**. The monitors stay side by side on a phone: seeing preview and air together is the whole
 point of the surface, and stacking them would put air below the fold.
 
 **No visible scrollbar chrome on any pane, on any surface.** The desktop control area took over
@@ -538,6 +582,15 @@ name too long for the row ends in an ellipsis before its marks. Reorder, duplica
 live behind the row's `⋯`, never as four permanent buttons that crush the name. The one-line row
 is the production page's (`.pd-rundown`); the hosted control page keeps its two-line row. On a
 phone a row keeps one line at a thumb's height (44px).
+
+**A server clip's row says what the server says** (§2g, 2026-09-28). While it is on air its length
+column counts down (`-0:09`), reading `0:00` once it holds its last frame; only that cell redraws.
+`NEXT ON SERVER` marks a clip waiting behind another on its slot. `replaced on the server` marks a
+cue whose slot something else took over, and the row leaves ON AIR. Above the rows,
+`Unidentified item on 2-10` lists what plays on a slot this rundown uses when nothing says which
+cue put it there: another client's take, or this page's own from before a Bridge restart. It is
+never matched to a cue by its file name; taking a cue on that slot replaces it. After a reload a
+clip this Bridge started finds its own row again.
 
 **The list follows the air.** When a cue goes on air off-screen - a take from the keys, a
 combined control, another operator - the list scrolls it into view. It holds still while the

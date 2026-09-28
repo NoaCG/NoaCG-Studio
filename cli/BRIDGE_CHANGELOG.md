@@ -12,6 +12,19 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.4.2 - 2026-09-28
+
+**A countdown for the clip on air.** Until now the production page only knew what it had asked
+the server to do, so it could not tell you how long a clip had left, and a clip that ended or was
+stopped from somewhere else still showed as on air. The Bridge now reads what each layer of the
+server holds, and the page shows it: a clock under the buttons counting down the clip on air, red
+in its last ten seconds and pulsing in the last five, then `HOLDING` once the clip stops on its last
+frame. Each clip's row counts down too. If the clip is stopped or replaced from the CasparCG Client,
+the page says so, and after a reload it finds the clip it started again.
+
+Download the new Bridge to get the countdown; nothing else to do. With the old one everything still
+works, and the clock counts from your Take and says `estimated`. It needs CasparCG 2.3 or newer.
+
 ## 0.4.1 - 2026-09-23
 
 **Clip lengths are right.** The server picker showed a video clip as hours long: CasparCG lists a

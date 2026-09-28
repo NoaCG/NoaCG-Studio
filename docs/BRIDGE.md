@@ -231,7 +231,24 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 | No DNS rebinding | The `Host` header must itself be loopback. A name that resolves to `127.0.0.1` from a page's own domain does not get in. |
 | One-time pairing | `/pair` spends the code the Bridge printed and carried in the link it opened: two minutes, first use only, origin-checked. |
 | No AMCP of unknown shape from the page | The page never composes AMCP text. It sends a target, an item, a slot and a verb (§3a); the adapter writes the one line. `/amcp` takes one raw line for the terminal route and refuses an embedded CR or LF; every quoted argument is escaped the way the server's tokenizer reads it, and a reply is capped at 8 MB. |
-| Stateless | Each request names its target. The Bridge keeps its token, the pairing code in memory, and nothing else; a connection is opened per command. |
+| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the pairing code in memory, and, per slot and also only in memory, a counter and the id of what it last started there (below). Nothing it keeps ever sends a command by itself. |
+
+**What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2). Reading the
+server's state honestly needs two facts only the process that sent the commands can hold:
+
+- **A generation.** Every Take, Out and Clear on a slot moves the slot's counter BEFORE its command
+  is sent. The action's reply carries the new number and so does every reading, and a reading taken
+  while an action is still on its way reports the number from before it. The page ignores a reading
+  older than the last action it saw accepted, so an answer that left the server before a Take can
+  never undo the Take on screen.
+- **An instance.** What this Bridge last started on the slot: an id (`<session>.<n>`), the item, and
+  the cue id the page named. A reading carries it only while the slot still plays that item and
+  nobody restarted it, so the page can tell its own clip from another client's, and put a clip back
+  on its cue after a reload.
+
+A restarted Bridge remembers nothing. Its session id is new and its readings carry no instances, so
+the page shows whatever the server holds as unidentified rather than guessing from the file name.
+Phase 3's sequence runner (`CLIP_PLAYBACK_PLAN.md` §6.10) will keep its queue beside this.
 
 ### 3a. The playout protocol (v2)
 
@@ -248,22 +265,39 @@ so the version stayed 2:
 - **slot** - `{ adapter: 'casparcg', channel, layer }` or `{ adapter: 'ograf', rendererId,
   renderTarget }`, where on it. Channels and layers exist only inside the casparcg slot; an OGraf
   `renderTarget` is the renderer's own shallow identifier, shaped by its `renderTargetSchema`.
-- **verb** - `take` (with `data` for a template, `loop` for a clip), `update` (data), `next`,
-  `out`, `pause`, `resume`, and `clear` (remove at once, no exit: OGraf's All out). A slot-only
-  verb may name the `item` the page believes is in the slot, because `out` on a template plays its
-  exit through the CG layer where `out` on a clip stops the video layer.
+- **verb** - `take` (with `data` for a template, `loop` for a clip, and the page's `cueId`), `update`
+  (data), `next`, `out`, `pause`, `resume`, and `clear` (remove at once, no exit: OGraf's All out).
+  A slot-only verb may name the `item` the page believes is in the slot, because `out` on a
+  template plays its exit through the CG layer where `out` on a clip stops the video layer.
 
 Routes, all JSON:
 
 | Route | Token | Does |
 |---|---|---|
-| `GET /health` | no | `{ ok, agent: 'noacg-bridge', v: 2, version, adapters }` - presence, protocol version, nothing about the studio |
+| `GET /health` | no | `{ ok, agent: 'noacg-bridge', v: 2, version, adapters, features }` - presence, protocol version, what this Bridge understands, nothing about the studio |
 | `POST /pair` | code | `{ code }` -> `{ token }`, once |
-| `POST /status` | yes | `{ target }` -> the server's version (`VERSION`) |
+| `POST /status` | yes | `{ target }` -> the server's version (`VERSION`) and what that server can do (`capabilities`) |
 | `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`), and for OGraf the `renderers` it can play on |
 | `POST /thumbnail` | yes | `{ target, name }` -> a clip's PNG, base64 (`THUMBNAIL RETRIEVE`) |
-| `POST /act` | yes | `{ target, action }` -> one command |
+| `POST /state` | yes | `{ target, channel }` -> what each layer of the channel holds, one `SlotState` per layer (`INFO <channel>`); not logged, since it runs twice a second |
+| `POST /act` | yes | `{ target, action }` -> one command; the reply carries the slot's `generation`, the Bridge's `session` and, for a take, its `instance` |
 | `POST /amcp` | yes | one raw line, the terminal's route |
+
+**Two lists, two questions** (0.4.2, `CLIP_PLAYBACK_PLAN.md` §6.9). `features` on `/health` is what
+this Bridge build understands; it names no server, so it says nothing about one. `capabilities` on
+`/status` is what the named target can do, from its adapter and its version. Today each list is
+either empty or `['state']`: a CasparCG 2.3 or later can be read, an OGraf target cannot. The page
+asks for state only when both lists say yes; a Bridge from before 0.4.2 sends neither, and the page
+then counts a clip from its own Take and says so.
+
+**`SlotState`**, per layer, in the protocol's words rather than CasparCG's: `producer` (`video`,
+`still`, `colour`, `html`, `empty`, `other`), `file`, a clip's `segment` (its start in the file and
+its length, seconds) and `position` (seconds into the SEGMENT, never into the file), `paused`,
+`loop`, a MIX's `transition.progress`, what is `queued` behind it and whether it plays by itself,
+the slot's `generation`, and, while this Bridge's take still plays there, its `instance` and
+`cueId`. `arriving` says the server has accepted this Bridge's Take but the layer still shows what
+it held before: CasparCG answers a `PLAY` before the clip is on the layer (measured, below). The
+reply also carries the Bridge's `session` and `observedAt`, its own monotonic clock at the reading.
 
 An error names its hop: `{ hop: 'agent' | 'target', code, detail, raw? }` with `code` one of
 `no-media-scanner`, `refused`, `unreachable`, `not-found`, `unsupported`, `usage`, `uncertain`.
@@ -285,7 +319,7 @@ SuperFly.tv's `http://gfx:8080/api/ograf/v1` both work. Paths below are under th
 | out | the target read, then `POST .../stopAction` (`params: {}`); nothing loaded is already out |
 | clear (All out) | `PUT .../clear` (filter: the render target) |
 
-`...` is `/renderers/{rendererId}/target/graphicInstance`. The Bridge stays stateless: a take
+`...` is `/renderers/{rendererId}/target/graphicInstance`. The adapter keeps nothing: a take
 replaces what the render target holds, the way a CasparCG take replaces its layer, and later verbs
 read the target for its graphic instance rather than remembering an id, so a Bridge restart or a
 second controller strands nothing; update, next and out act on whatever graphic the target holds,
@@ -316,9 +350,38 @@ server - and any local page could learn as much from how fast a refused connecti
 | take `media` | `PLAY c-l "NAME"` (+ `LOOP`) |
 | pause / resume | `PAUSE c-l` / `RESUME c-l` |
 | list template / media | `TLS` / `CLS` |
+| state | `INFO c` (the whole channel), on a 2.3 or later server |
 
 The data is JSON, which is what SPX sends and what every NoaCG export reads (its shim also takes
 CasparCG's XML). Field ids are the export's own `f0`, `f1`, ... as `FIELDS.md` documents them.
+
+**Reading `INFO`** (`cli/src/playout/info.ts`, `slotReading` in `adapters/casparcg.ts`). Measured on
+the real 2.5.0 on 2026-09-28, with every capture kept under `cli/test/fixtures/info/` and the parser
+tested against them rather than against the fake server:
+
+- `INFO 2` answers `201 INFO OK` and ONE data line of XML whose own line breaks are bare LF.
+  `INFO 2-10` answers the same whole-channel document, so the adapter asks for the channel.
+- A clip's `file/time` is the position in the WHOLE file and the file's length; the part that plays
+  is `file/clip`, its start and length. The countdown is `clip length - (time - clip start)`. A
+  30-second file trimmed to 7.5 s from 5 s in, 1.04 s into the trim, reads time `[6.04, 30]` and
+  clip `[5, 7.5]`: 6.46 s remain, not 23.96.
+- `SEEK`, `IN`, `OUT` and `LENGTH` count frames at the CHANNEL's rate, not the file's: `SEEK 250
+  LENGTH 375` on a 25 fps file in a 50p channel is 5 s in and 7.5 s long. Phase 3's trim and fades
+  convert with the channel's rate.
+- A clip and an audio file are both `ffmpeg`; a still is `image` and names itself by `file/path`;
+  `PLAY c-l EMPTY` leaves a `color` producer; `STOP` leaves `empty`.
+- A MIX under way is a `transition` foreground wrapping the incoming clip. A queued background is a
+  `transition` wrapping its file too, and `frames_left` appears on the foreground only while that
+  background waits with `AUTO`.
+- **`202 PLAY OK` comes before the clip is on the layer.** An `INFO` a few milliseconds after the
+  reply showed the layer still empty, or, on a re-take of the same file, that file still at its end;
+  one about 130 ms later showed the new clip at 0. So for a second and a half after a Take, a
+  reading that cannot be the new clip yet (nothing, another file, or further in than the time since
+  the Take) is marked `arriving` and neither ends nor restarts anything. After that it means what it
+  says.
+- An `INFO` round trip took a median 1.5 ms and at most 3 ms over forty readings a quarter of a
+  second apart with a clip playing (`info-timing.json`). Whether that rate ever costs a frame on air
+  was not measured.
 
 ### AMCP, precisely
 
@@ -417,13 +480,27 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   it there too. **All out** sends one Out per server cue the rundown has up, each on its own
   channel and layer, and no channel-wide `CLEAR`: another client's layers on the same server are
   not the rundown's to clear.
-- **What the page believes.** ON AIR on a server cue means the command was accepted; nothing
-  reports back what the server holds until OSC state arrives (milestone 2). A refused command
-  never marks a row, and the note line says which hop refused and why. That belief is page memory
-  today, so a reload forgets which server cues are up. **Planned, not built**
-  (`docs/RUNDOWN_AUTOMATION_PLAN.md` §2.7): after an accepted Take or Out the page writes the cue's
-  ON AIR marker, never the verb, to the command log, so a reload, the hosted page and a timed
-  clip's deadline all read it from there. The verb still goes only through the Bridge.
+- **What the page believes, and what the server says** (phase 2 of `CLIP_PLAYBACK_PLAN.md`,
+  2026-09-28). An accepted command marks the row ON AIR at once; a refused one never marks it, and
+  the note line says which hop refused and why. Then the server has the last word: while the
+  production has server cues and both the Bridge and the server can be read (§3a), the page asks
+  `/state` for each channel its rundown uses, twice a second while something is up there and every
+  three seconds otherwise, never with a second request out, and at once when the tab comes back
+  into view. A clip the server ended or someone replaced takes its row off air with it, so the verbs
+  and All out follow the server, not the page's memory.
+  - **A reading only changes what the page believes.** Nothing in the poll can send a command, and
+    no timer on the page ever fires or queues a clip.
+  - **A reading older than the last Take, Out or Clear the page saw accepted is set aside**, by the
+    slot's generation (§3), so a slow answer cannot undo a Take on screen.
+  - **After a reload** a clip this Bridge started is put back on its cue by its instance. Anything
+    else on a rundown slot is listed as `Unidentified item on 2-10` with its file, never matched
+    by file name. A slot another client took over marks its cue `replaced on the server`.
+  - **Two update speeds.** The clip clock and the rows' remaining times read a small timing store of
+    their own; the rest of the page re-renders only when what is on air changes. What the page
+    shows is described in `PLAYOUT_DASHBOARD.md`.
+  - **Still planned** (`docs/RUNDOWN_AUTOMATION_PLAN.md` §2.7): after an accepted Take or Out the
+    page writes the cue's ON AIR marker, never the verb, to the command log, so the hosted page and
+    a timed clip's deadline can read it. The verb still goes only through the Bridge.
 
 ### 5a. Clip playback: what CasparCG already does, and what NoaCG uses
 
@@ -578,10 +655,20 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   walk is the second test in `e2e/configured/bridge-real-server.spec.ts`, with `PRINT 1` and
   `PRINT 2` frames after each step. The same server's `CLS` lines are what showed the last field
   is a time base, not a rate (`cli/src/playout/amcp.ts` `parseCls`).
+- **On the real 2.5.0, 2026-09-28** (two 1080p50 channels): the `INFO` captures of §3b, and the
+  page's clip clock against them with this branch's Bridge in process. The clock matched `INFO` to
+  the second across six samples; it warned at -0:10 and pulsed at -0:05, then read `HOLDING +0:00`
+  and `+0:01`; a reload mid-clip restored the row and the clock; a `PLAY` of the same file from
+  another client marked the cue `replaced on the server`; Out cleared it. The first run is also what
+  found the `202 PLAY OK` race of §3b: a fresh Take dropped off air for one reading, and a re-take of
+  the same file read as someone else's restart.
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
-  the 501 mapping, pairing, the refusals), `e2e/bridge-connect.spec.ts` (Settings, pairing, the
-  one button, each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope,
-  the scanner-missing and Bridge-missing sentences).
+  the 501 mapping, pairing, the refusals), `cli/test/state.test.mjs` (the `INFO` parser against the
+  real captures, the segment arithmetic, generations, instances, the arriving window, `/state`'s
+  token and origin), `e2e/bridge-connect.spec.ts` (Settings, pairing, the one button, each hop),
+  `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope, the scanner-missing and
+  Bridge-missing sentences), `e2e/playout-clock.spec.ts` (the clock, the rows and the server's word
+  with `/state` faked at the network layer).
 - **In production, 2026-09-25** (an operator, Firefox on Windows, a school laptop set to forget
   everything on close): the Bridge paired and drove a multi-channel show. Firefox's prompt came
   once at pairing and again in the production tab when clips were first listed (§1b-ff).
@@ -596,9 +683,16 @@ Stated plainly, because this doc's whole purpose is to not overstate.
 ## 9. What comes next
 
 - **Milestone 2 - richer fields and state.** NoaCG's CasparCG and SPX exports embed a
-  `graphics-data-definition` block, so GDD-aware clients see the fields; layer and clip position
-  from OSC (2.4+ can subscribe over AMCP), pushed to the page over a streaming `GET /events`
-  behind the same permission; "Find servers" (a subnet probe of 5250); `--install-startup`.
+  `graphics-data-definition` block, so GDD-aware clients see the fields; "Find servers" (a subnet
+  probe of 5250); `--install-startup`. **Layer and clip position no longer need OSC**: `/state`
+  reads them from `INFO` (0.4.2, §3a and §3b), which answers in about 1.5 ms, and the page polls it.
+  A streaming `GET /events` would only matter if polling ever proved too slow or too costly.
+- **Clip playback, phases 3 and 4** (`CLIP_PLAYBACK_PLAN.md` §11): how a clip ends, fades, level
+  and trim, the sequence runner in the Bridge that plays the next clip, then folders. Each is a
+  Bridge release.
+- **A hardware panel** (`docs/backlog/companion-and-stream-deck.md`): Bitfocus Companion and a
+  Stream Deck driving the same named verbs and showing the same state the page draws, through this
+  Bridge's local HTTP.
 - **Milestone 3 - remote operators and more adapters.** `noacg bridge follow --production
   <slug>`: the Bridge follows the durable command log with the output-slug capability and
   executes `{ t: 'playout' }` rows only after its start cursor, so a phone can roll a clip and a

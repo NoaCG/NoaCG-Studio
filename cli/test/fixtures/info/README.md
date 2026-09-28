@@ -22,6 +22,9 @@ What the captures settled:
   the foreground only while that background is queued with `AUTO`.
 - A MIX under way is a `transition` foreground whose file fields are the incoming clip's, with
   `transition/frame` [done, total].
+- `202 PLAY OK` comes before the clip is on the layer. An `INFO` a few milliseconds after it showed
+  the layer still empty, or on a re-take of the same file that file at its end; `video-just-played`
+  is one about 130 ms later, a cut transition into the new clip at its start.
 
 `info-timing.json` is §12 item 2: forty `INFO 2` round trips a quarter of a second apart, a new
 connection each, with a clip playing. The median was 1.5 ms and the slowest 3 ms: the answer is
