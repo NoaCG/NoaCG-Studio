@@ -149,9 +149,9 @@ Observations `claude-cloud-*` in `scripts/harness-capabilities.json`.
 - **Branch deletion is an owner action** (recorded). The git proxy answers HTTP 403 to
   `git push origin --delete` of any branch but the session's own; the GitHub MCP has no delete tool.
 - **A red `Reviewed` before the stamp is by design.** It waits 150 s for `noacg/reviewed`, which
-  the dispatch posts later (opening the PR comes first, then the runner queue). `scripts/cloud-queue.mjs`
-  re-runs it once its run finishes; on its `timeout` warning, re-run that job by hand
-  (`actions_run_trigger`), or the PR stays out of the queue.
+  the dispatch posts later (the PR opens first, then the dispatch waits for a runner).
+  `scripts/cloud-queue.mjs` re-runs it once its run finishes; on its `timeout` warning, re-run
+  that job by hand (`actions_run_trigger`), or the PR stays out of the queue.
 - **Watch loop** (recorded). A background `wave-watch.mjs` cannot wake an ended turn. What worked:
   `mcp__Claude_Code_Remote__send_later` check-ins, `mcp__Claude_Code_Remote__subscribe_pr_activity`
   webhooks and Agent completion notifications, all routed to the coordinator's session.
