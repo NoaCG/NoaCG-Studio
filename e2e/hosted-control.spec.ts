@@ -1121,16 +1121,23 @@ test('the hosted page lists server cues by their address, apart from the graphic
   });
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   const published = await page.evaluate(async () => {
-    const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows } = await import('/src/model/shows.ts');
+    const { createShowNamed, addGraphicToShow, addPlayoutItem, loadShows, setCuePlayback } = await import('/src/model/shows.ts');
     const { buildOutputPayload, readOutputPayload } = await import('/src/control/hostedControl.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const show = createShowNamed('Frozen Hosted');
     addGraphicToShow(show.id, useTemplateStore.getState().template);
-    addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', channel: 2 });
+    const clip = addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'GIORNO', channel: 2, mediaKind: 'movie', frames: 1500, fps: 25 });
     addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP' });
+    // Phase 3's settings on a clip cue, and an audio file on its own layer: the production page's,
+    // and none of them this page's to show or play.
+    setCuePlayback(show.id, clip.cueId!, { end: 'clear', fadeIn: 'short', fadeOut: 'long', levelDb: -12, trimIn: 2, trimOut: 30 });
+    addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'STING', channel: 2, mediaKind: 'audio', frames: 75, fps: 25 });
     const record = loadShows().find((s) => s.id === show.id)!;
-    const payload = readOutputPayload(JSON.parse(JSON.stringify(await buildOutputPayload(record))));
+    const written = JSON.stringify(await buildOutputPayload(record));
+    const payload = readOutputPayload(JSON.parse(written));
     return {
+      // The cue lists as written, not the graphics' own code, which may say anything.
+      carriesPlayback: /playback|levelDb|trimIn|mediaKind/.test(JSON.stringify([JSON.parse(written).cues, JSON.parse(written).playoutCues])),
       graphicCues: (payload?.cues ?? []).map((c) => c.label),
       playoutCues: (payload?.playoutCues ?? []).map(({ label, kind, name, channel, channelName, layer }) => ({
         label,
@@ -1148,7 +1155,10 @@ test('the hosted page lists server cues by their address, apart from the graphic
   expect(published.playoutCues).toEqual([
     { label: 'GIORNO', kind: 'media', name: 'GIORNO', channel: 2, channelName: 'Inserts', layer: 10 },
     { label: 'HOUSE_STRAP', kind: 'template', name: 'HOUSE_STRAP/HOUSE_STRAP', channel: 1, channelName: 'Graphics', layer: 21 },
+    { label: 'STING', kind: 'media', name: 'STING', channel: 2, channelName: 'Inserts', layer: 5 },
   ]);
+  // The published payload is what it always was: a clip's settings stay on the production page.
+  expect(published.carriesPlayback).toBe(false);
 
   // How the page draws them: under their own heading, the address through the shared
   // `slotAddress`, and not one button in a row - nothing there selects, previews or takes.
