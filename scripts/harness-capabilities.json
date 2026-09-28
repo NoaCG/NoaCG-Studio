@@ -171,6 +171,56 @@
       "claim": "On 1.2.1, `--mode plan` (what npm run agy:read passes) can answer a question with a plan instead of the answer. The prompt \"List every file under <dir>, recursively, with each file's size in bytes\" returned \"I have created the implementation plan ... please review\" and a plan.md under ~/.gemini/antigravity-cli/brain/ three times out of three (12.8-13.5 s, about 34 K input tokens each), and the result carried no error. The plan itself named all four files correctly, so the reading happened and only the answer was withheld. The same prompt prefixed with \"Tools: read_file and directory listing only, NO SHELL. Answer directly in this reply; do not write a plan.\" returned the correct listing once out of once, and a plain one-file read question answered directly without the prefix. So a task that sounds like work gets planned, and a read-only delegation that comes back as a plan is a failed delegation that looks like a success. Not yet known: whether 1.1.28 did the same for this wording, and how reliably the prefix holds beyond one run.",
       "reprobe": "Run the bare listing prompt above through npm run agy:read three times and count how many return a plan instead of the listing; then the same with the answer-directly prefix.",
       "source": "2026-09-11 capability re-probe after the agy 1.2.0 -> 1.2.1 update; ledger labels reprobe-0911-list, reprobe-0911-list-bare1, reprobe-0911-list-bare2, reprobe-0911-list2, reprobe-0911-readq"
+    },
+    {
+      "id": "claude-cloud-rows-get-no-mcp-tools",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "In a Claude Code on the web (cloud container) session, Agent-tool subagents got NO mcp__* tools of any server while the coordinator had mcp__github__*, mcp__Claude_Code_Remote__*, mcp__Claude_Docs__* and mcp__Higgsfield__*. Every wave-row subagent's deferred-tool list was exactly EnterWorktree, ExitWorktree, Monitor, TaskStop, WebFetch, WebSearch, and ToolSearch select:mcp__github__pull_request_read,... answered 'No matching deferred tools found', although the github server's INSTRUCTIONS reached the same subagent (the server is connected). The wave-row tools: allowlist names no mcp__github__ tool, so it alone would filter them; adding the eight the cloud path of queue-merge.md uses is held for the owner (hosts.md, cloud section). UNSETTLED: whether the allowlist was the only cause. Two skill-forked general-purpose reviewers (unrestricted definition, spawn depth 2, parents were wave rows) also got no MCP tools, which fits a platform that withholds MCP tools from every subagent, but a fork may inherit its parent's pool, so it does not decide it. The deciding probe - a general-purpose agent launched by the COORDINATOR - could not run from a row (see claude-cloud-rows-cannot-launch-subagents).",
+      "reprobe": "From a cloud COORDINATOR: launch one general-purpose agent running ToolSearch select:mcp__github__pull_request_read,mcp__github__create_pull_request,mcp__github__actions_run_trigger,mcp__github__enable_pr_auto_merge and, if loaded, one pull_request_read get (no writes). Loaded: the allowlist is the only cause, and adding those tools to the wave-row definitions (an owner decision) lets rows land themselves. Not loaded: the platform withholds them and the coordinator keeps the PR steps.",
+      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28: the session's subagent transcripts (deferred_tools_delta and mcp_instructions_delta attachments) and the 2026-09-28 cloud wave, PRs #493-#498"
+    },
+    {
+      "id": "claude-cloud-rows-cannot-launch-subagents",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "A cloud session sets CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1, and a wave-row subagent there has NO Agent tool although its tools: allowlist names Agent - so a cloud row cannot consult, cannot call design-consult and cannot delegate to a subagent. Skill forks still run at spawn depth 2: three general-purpose forks (one of them the /check code-review leg) ran under three rows.",
+      "reprobe": "In a cloud wave row, ToolSearch select:Agent, and echo $CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH; a loaded Agent tool retires this.",
+      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28: its own tool list and environment, and the subagent meta files (spawnDepth, agentType) of the same session"
+    },
+    {
+      "id": "claude-cloud-worktree-base-is-the-session-branch",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "In a cloud session, isolation: worktree creates each row's worktree from the primary checkout's HEAD, which is the session's own claude/* branch at the main it was started from, not origin/main; the agent registry (.claude/agents/) is read from that same checkout. Rows had to git reset --hard origin/main first, and a definition landed after the session started is invisible until the session branch moves.",
+      "reprobe": "In a cloud session whose branch is behind origin/main, launch one worktree-isolated agent and compare its git log -1 with git rev-parse origin/main.",
+      "source": "The 2026-09-28 cloud wave (every row's FIRST line reset) and row F's own worktree, which opened on an old base"
+    },
+    {
+      "id": "claude-cloud-git-proxy-deletes-no-other-branch",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "The cloud container's git proxy answered HTTP 403 to git push origin --delete <another branch>, while pushing the session's own new branch worked; the github MCP server offers create_branch and no delete-branch tool. Deleting a stale remote branch stays an owner action from a cloud session.",
+      "reprobe": "From a cloud session, git push origin --delete on a disposable branch the session did not create; and ToolSearch for a delete-branch tool on the github server.",
+      "source": "The 2026-09-28 cloud wave coordinator; the coordinator's tool inventory in the same session"
+    },
+    {
+      "id": "claude-cloud-git-auth-lapses-mid-session",
+      "harness": "Claude Code",
+      "kind": "observation",
+      "measuredOn": "2.1.283",
+      "measuredAt": "2026-09-28",
+      "claim": "In a cloud session, remote git access worked at a row's start (git fetch origin main) and had lapsed about an hour later: git fetch and git push --dry-run both failed with 'could not read Username for https://github.com: terminal prompts disabled', and the agent proxy reported no relay failure. A row that ends up there commits and reports its branch; the coordinator pushes it from its own checkout, which shares the repository and its refs.",
+      "reprobe": "In a cloud row, git push --dry-run origin HEAD at its start and again after an hour of work.",
+      "source": "Row F (claude/f-cloud-orchestrator-parity), 2026-09-28"
     }
   ]
 }
