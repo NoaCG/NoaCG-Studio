@@ -31,14 +31,14 @@ offender and is gone. These are the next ones, counted the same way: first-paren
   line in each file's own header, or one baseline file per area). It only shrinks, so collisions are
   two branches both lowering counts - a merge driver that takes the minimum per key would settle it.
 
-## A known coverage gap the move kept on purpose
+## A coverage gap the move kept on purpose (closed 2026-09-28)
 
-`e2e/downloads.spec.ts` asserts landing-page content, but no covers line gives it `index.html`:
+`e2e/downloads.spec.ts` asserts landing-page content, but no covers line gave it `index.html`:
 the old map did not either, and the move was held to identical plans. On 2026-09-27 PR #477
 changed `index.html`, planned `landing.spec.ts` only, and turned `main` red on
-`downloads.spec.ts` (reverted by #479). The fix is one line in that spec's own header -
-`// covers: index.html` - and it belongs with the landing reland or any branch that wants it; it
-changes which specs run, which the header move deliberately did not.
+`downloads.spec.ts` (reverted by #479). Closed on 2026-09-28: that spec's header now says
+`// covers: src/landing/**, index.html`, so a change to `index.html` or `src/landing/hero.ts`
+plans `downloads.spec.ts` alongside `landing.spec.ts`.
 
 ## Evidence
 
