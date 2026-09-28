@@ -7,7 +7,7 @@
 // it that way: the store, the link and React stay out of this file. The `.ts` on the one runtime
 // import is what lets Node resolve it.
 
-import { MIN_SEQUENCE_MEMBER_S, playedSeconds, type MediaPlayback, type TargetCapability } from './playoutProtocol.ts';
+import { MIN_SEQUENCE_MEMBER_S, playedSeconds, type BridgeFeature, type MediaPlayback, type TargetCapability } from './playoutProtocol.ts';
 import type { ClipFade, CuePlayback, PlayoutItem, PlayoutMediaKind, ShowCue } from '../model/shows';
 
 /** What a clip does at its end, as the operator chooses it. */
@@ -140,9 +140,10 @@ export function takePlayback(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutI
   return { loop: end === 'loop', ...(Object.keys(out).length ? { playback: out } : {}) };
 }
 
-/** One thing a cue asks of the Bridge and its server, and how the operator can do without it. */
+/** One thing a cue - or a folder - asks of the Bridge and its server, and how the operator can do
+ *  without it. */
 export interface PlaybackNeed {
-  feature: 'playback' | 'sequence';
+  feature: Exclude<BridgeFeature, 'state'>;
   capability: TargetCapability;
   /** "clears at its end", as the sentence "This cue … " goes on. */
   what: string;
@@ -158,6 +159,9 @@ export const NEEDS = {
   fade: { feature: 'playback', capability: 'fade', what: 'fades', undo: 'set its fades to Cut' },
   level: { feature: 'playback', capability: 'level', what: 'plays at a level of its own', undo: 'reset its level' },
   trim: { feature: 'playback', capability: 'trim', what: 'is trimmed', undo: 'clear its start and end' },
+  // A Play-through folder's own (plan §6.6): its clips one after another, and Loop the folder.
+  through: { feature: 'sequence', capability: 'sequence', what: 'plays its clips one after another', undo: 'set How it plays to One by one' },
+  folderLoop: { feature: 'sequence-loop', capability: 'sequence', what: 'starts over after its last clip', undo: 'set At the end to As the last clip says' },
 } as const satisfies Record<string, PlaybackNeed>;
 
 /** What this cue needs beyond a plain Take (plan §6.9). None for a legacy cue or a Loop. */
@@ -189,18 +193,18 @@ const listed = (parts: string[]) => (parts.length < 2 ? parts.join('') : `${part
  * the old way in silence. `ability` is null while the Bridge has not answered yet; a Bridge that is
  * not reachable at all is the server cue's own sentence, not this one.
  */
-export function playbackBlocker(needs: readonly PlaybackNeed[], ability: PlaybackAbility | null): string | null {
+export function playbackBlocker(needs: readonly PlaybackNeed[], ability: PlaybackAbility | null, subject = 'This cue'): string | null {
   if (!needs.length) return null;
   if (!ability) return 'Asking NoaCG Bridge what it can play…';
   if (ability.state !== 'ok') return null;
   const noFeature = needs.filter((n) => !ability.features?.includes(n.feature));
   if (noFeature.length) {
-    return `This cue ${listed(noFeature.map((n) => n.what))}. Update NoaCG Bridge to take it, or ${listed([...new Set(noFeature.map((n) => n.undo))])}.`;
+    return `${subject} ${listed(noFeature.map((n) => n.what))}. Update NoaCG Bridge to take it, or ${listed([...new Set(noFeature.map((n) => n.undo))])}.`;
   }
   const noCapability = needs.filter((n) => !ability.capabilities?.includes(n.capability));
   if (noCapability.length) {
-    const server = ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'This playout server';
-    return `This cue ${listed(noCapability.map((n) => n.what))}, which ${server} cannot do. To take it, ${listed([...new Set(noCapability.map((n) => n.undo))])}.`;
+    const server = ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'this playout server';
+    return `${subject} ${listed(noCapability.map((n) => n.what))}, which ${server} cannot do. To take it, ${listed([...new Set(noCapability.map((n) => n.undo))])}.`;
   }
   return null;
 }
@@ -218,4 +222,16 @@ export function offerBlocked(ability: PlaybackAbility | null, need: Pick<Playbac
     return `${ability.version ? `CasparCG ${ability.version.split(' ')[0]}` : 'This playout server'} cannot do this.`;
   }
   return null;
+}
+
+/**
+ * A CLIP AS ITS PLAY-THROUGH FOLDER PLAYS IT (plan §6.5 and §6.6). A clip before the last - and every
+ * clip of a folder that loops - plays into the next file, so its own ending gives way: Clear with its
+ * fade out, Loop (the legacy item.loop too) and Play next all read as Hold, and its fade in, trim and
+ * level stay. The last clip of a folder that ends keeps its own ending, except Play next, which never
+ * leaves its folder and so reads as Hold. The record is never rewritten.
+ */
+export function asFolderMember<C extends Pick<ShowCue, 'playback'>>(cue: C, item: Pick<PlayoutItem, 'loop' | 'mediaKind'>, ownEnding: boolean): C {
+  if (ownEnding && effectiveEnd(cue, item) !== 'next') return cue;
+  return { ...cue, playback: { ...cue.playback, end: 'hold' } };
 }

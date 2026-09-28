@@ -1972,7 +1972,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           end: effectiveEnd(cue, item),
           now: performance.now(),
           readable,
-          ...(accepted.verb === 'take' && members ? { sequence: sequenceAction(members, accepted.slot).entries.slice(1) } : {}),
+          ...(accepted.verb === 'take' && members ? { sequence: { next: sequenceAction(members, accepted.slot).entries.slice(1) } } : {}),
         }),
       );
     }
