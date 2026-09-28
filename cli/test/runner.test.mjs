@@ -544,6 +544,379 @@ test('§18 case 11: a restarted Bridge has no sequence; a dropped connection is 
   assert.deepEqual([onAir(caspar).file, onAir(caspar).loop], ['C', true]);
 });
 
+// ── LOOP THE FOLDER (docs/CLIP_PLAYBACK_PLAN.md §6.6 and §6.10, phase 4): a sequence with `loop` plays
+// its first entry again after its last, until Out. No file ever carries the server's LOOP - a looping
+// file never ends, so nothing queued behind it would play - so the runner queues entry 0 behind the
+// last one as it queues any other, and the §18 runner cases hold across that wrap too.
+
+/** The last entry on air and seen by the runner, with the first not yet queued behind it: it was
+ *  paused as it came up (nothing is queued onto a paused clip) and has just been resumed. */
+async function lastUpAndSeen(caspar, act, runner, entries) {
+  await act({ verb: 'sequence', slot: AT, entries, loop: true });
+  // A's 10 s, then B's: B is on air from 10 s, and no round has read it yet.
+  await run(caspar, runner, 9_000);
+  caspar.advance(1_100);
+  await act({ verb: 'pause', slot: AT });
+  await runner.round();
+  assert.equal(onAir(caspar).file, entries.at(-1).item.name);
+  await act({ verb: 'resume', slot: AT });
+}
+
+test('Loop the folder: the first file plays again after the last, round after round, until Out', async (t) => {
+  const caspar = await server(t);
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  const take = await act({ verb: 'sequence', slot: AT, entries: [entry('A', { fadeIn: 0.5 }), entry('B', { fadeIn: 1 }), entry('C')], loop: true });
+  assert.equal(take.body.ok, true);
+  // The take is the one a sequence always sends: A now, B queued at once. A's own fade in is a MIX
+  // into A from whatever the layer showed.
+  assert.deepEqual(caspar.seen.filter((l) => !l.startsWith('INFO')), ['PLAY 2-10 "A" MIX 25', 'LOADBG 2-10 "B" MIX 50 AUTO']);
+  const files = await watch(caspar, runner, 80_000);
+  // A, B, C, then A again from 28.5 s (B mixes in 1 s early, A 0.5 s): two whole wraps and a third
+  // round, with never a frame of nothing.
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B', 'C', 'A', 'B', 'C', 'A', 'B', 'C']);
+  assert.ok(!files.includes(null) && !files.includes('EMPTY'), 'no black anywhere in the loop');
+  // After C the runner queued A with A's own fade in, and no line anywhere carries LOOP.
+  const lines = caspar.seen.filter((l) => !l.startsWith('INFO'));
+  assert.deepEqual(lines.slice(2, 6), ['LOADBG 2-10 "C" AUTO', 'LOADBG 2-10 "A" MIX 25 AUTO', 'LOADBG 2-10 "B" MIX 50 AUTO', 'LOADBG 2-10 "C" AUTO']);
+  assert.ok(!lines.some((l) => / LOOP/.test(l)), lines.join(' | '));
+  // A loop never ends by itself, so the runner keeps reading the channel, unlike a sequence whose
+  // last entry holds.
+  const reads = caspar.seen.filter((l) => l.startsWith('INFO')).length;
+  await run(caspar, runner, 2_000);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('INFO')).length - reads, 2_000 / RUNNER_INTERVAL_MS);
+  // The reading says it loops, and lists every other entry in the order they come round.
+  const s = (await state()).body.slots[0];
+  const next = s.sequence.next.map((e) => e.cueId);
+  assert.equal(s.sequence.loop, true);
+  assert.equal(next.length, 2);
+  assert.deepEqual(next, { A: ['cue-B', 'cue-C'], B: ['cue-C', 'cue-A'], C: ['cue-A', 'cue-B'] }[s.file]);
+  // Out ends it: the follower queued behind the clip goes with the layer, and nothing airs after.
+  await act({ verb: 'out', slot: AT, item: { kind: 'media', name: s.file } });
+  assert.equal(caspar.seen.at(-1), 'CLEAR 2-10');
+  const after = await watch(caspar, runner, 40_000);
+  assert.deepEqual(airedFiles(caspar, after), []);
+  assert.ok(!caspar.seen.slice(caspar.seen.indexOf('CLEAR 2-10')).some((l) => l.startsWith('LOADBG') || l.startsWith('PLAY')));
+  // And the runner has stopped reading the channel: the loop ended with Out.
+  const readsAfterOut = caspar.seen.filter((l) => l.startsWith('INFO')).length;
+  await run(caspar, runner, 2_000);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('INFO')).length, readsAfterOut);
+});
+
+test('Loop the folder with two files: neither is sent with LOOP, and the pair alternates', async (t) => {
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  // Without the loop a two-file sequence queues its second as the last one; with it B is not last.
+  assert.deepEqual(caspar.seen.filter((l) => !l.startsWith('INFO')), ['PLAY 2-10 "A"', 'LOADBG 2-10 "B" AUTO']);
+  const files = await watch(caspar, runner, 45_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B', 'A', 'B', 'A']);
+});
+
+test('Loop the folder with the same file twice in a row: the wrap onto it is still seen', async (t) => {
+  // A then A: the switch is the same file again from its start, which the reading tells from a clip
+  // that merely plays on by its position jumping back.
+  const caspar = await server(t);
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [{ ...entry('A'), cueId: 'first' }, { ...entry('A'), cueId: 'second' }], loop: true });
+  const cues = [];
+  for (let at = 0; at < 45_000; at += 500) {
+    await run(caspar, runner, 500);
+    cues.push((await state()).body.slots[0].cueId);
+  }
+  const turns = cues.filter((c, i) => c !== cues[i - 1]);
+  assert.deepEqual(turns, ['first', 'second', 'first', 'second', 'first']);
+});
+
+test('§18 case 1 across the wrap: the first file queued from a reading before Out, or a new Take, never airs', async (t) => {
+  let hold = false;
+  let release;
+  const caspar = await server(t, {
+    intercept: async (line, { answer }) => {
+      if (!hold || !line.startsWith('INFO')) return undefined;
+      const early = answer();
+      await new Promise((r) => (release = r));
+      return early;
+    },
+  });
+  const { act, runner } = await bridgeOver(t, caspar);
+  const loop = [entry('A'), entry('B')];
+  await lastUpAndSeen(caspar, act, runner, loop);
+  // The runner's reading - B on air, A to queue - is answered from before the Out and lands after it.
+  release = undefined;
+  hold = true;
+  const round = runner.round();
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  hold = false;
+  await act({ verb: 'out', slot: AT, item: { kind: 'media', name: 'B' } });
+  release();
+  await round;
+  const files = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), [], 'nothing airs after Out');
+  assert.equal(caspar.seen.filter((l) => l.startsWith('LOADBG 2-10 "A"')).length, 0, 'A was never queued again');
+
+  // Across a new Take: the late wrap must not land behind the new clip either.
+  await lastUpAndSeen(caspar, act, runner, loop);
+  release = undefined;
+  hold = true;
+  const again = runner.round();
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  hold = false;
+  await act({ verb: 'take', item: { kind: 'media', name: 'X' }, slot: AT });
+  release();
+  await again;
+  const after = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, after), ['X'], 'the new clip plays and holds; the old loop never comes round');
+  assert.equal(caspar.seen.filter((l) => l.startsWith('LOADBG 2-10 "A"')).length, 0);
+});
+
+test('§18 case 1 across the wrap, in the queue: the wrap waiting behind another command is dropped when an Out overtakes it', async (t) => {
+  // The slot's serial queue is held by a slow command; the runner decides to queue A again and waits
+  // behind it; Out arrives and moves the generation. When the runner's turn comes nothing is sent.
+  let hold = false;
+  let release;
+  const caspar = await server(t, {
+    intercept: async (line) => {
+      if (hold && line.startsWith('CG 2-10 NEXT')) await new Promise((r) => (release = r));
+      return undefined;
+    },
+    templates: [],
+  });
+  const { act, runner } = await bridgeOver(t, caspar);
+  await lastUpAndSeen(caspar, act, runner, [entry('A'), entry('B')]);
+  hold = true;
+  const slow = act({ verb: 'next', slot: AT });
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  const round = runner.round();
+  await new Promise((r) => setTimeout(r, 30));
+  const out = act({ verb: 'out', slot: AT, item: { kind: 'media', name: 'B' } });
+  await new Promise((r) => setTimeout(r, 10));
+  hold = false;
+  release();
+  await Promise.all([slow, round, out]);
+  assert.ok(!caspar.seen.some((l) => l.startsWith('LOADBG 2-10 "A"')), 'the wrap was dropped unsent');
+  const files = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), []);
+});
+
+test('§18 case 2 across the wrap: a refused replacement Take disarms the first file queued behind the last', async (t) => {
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  // B on air and A queued behind it by the runner: the wrap is armed on the server.
+  await run(caspar, runner, 10_500);
+  assert.equal(onAir(caspar).file, 'B');
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 "A" AUTO').length, 1);
+  const refused = await act({ verb: 'take', item: { kind: 'media', name: 'GONE' }, slot: AT });
+  assert.equal(refused.body.error.code, 'not-found');
+  assert.deepEqual(caspar.seen.slice(-2), ['PLAY 2-10 "GONE"', 'LOADBG 2-10 EMPTY']);
+  const files = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), ['B'], 'B plays out and holds; A never comes round');
+  assert.equal(onAir(caspar).ended, true);
+});
+
+test('§18 case 3 across the wrap: a Pause as the last file comes up holds the first back until Resume', async (t) => {
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B', { fadeIn: 1 })], loop: true });
+  // B mixes in 1 s before A ends; pause it the moment it is on air, before the runner has read.
+  caspar.advance(9_100);
+  await act({ verb: 'pause', slot: AT });
+  await run(caspar, runner, 20_000);
+  assert.ok(!caspar.seen.some((l) => l.startsWith('LOADBG 2-10 "A"')), 'nothing queued at the wrap while paused');
+  assert.deepEqual([onAir(caspar).file, onAir(caspar).paused], ['B', true]);
+  await act({ verb: 'resume', slot: AT });
+  await run(caspar, runner, 500);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('LOADBG 2-10 "A"')).length, 1, 'queued once after Resume');
+  const files = await watch(caspar, runner, 25_000);
+  assert.deepEqual(airedFiles(caspar, files), ['B', 'A', 'B']);
+});
+
+test('§18 case 9 across the wrap: another client takes the slot as the last file plays; the loop ends and nothing is sent', async (t) => {
+  let hold = false;
+  let release;
+  const caspar = await server(t, {
+    intercept: async (line, { answer }) => {
+      if (!hold || !line.startsWith('INFO')) return undefined;
+      hold = false;
+      const early = answer();
+      await new Promise((r) => (release = r));
+      return early;
+    },
+  });
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await lastUpAndSeen(caspar, act, runner, [entry('A'), entry('B')]);
+  hold = true;
+  const round = runner.round();
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  // The CasparCG Client plays something else there between the reading and the queue.
+  assert.equal(await fakeClient(caspar.port, 'PLAY 2-10 "X"'), '202 PLAY OK');
+  const sent = caspar.seen.length;
+  release();
+  await round;
+  const files = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), ['X']);
+  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), [], 'the runner sent nothing');
+  const s = (await state()).body.slots[0];
+  assert.deepEqual([s.file, s.instance, s.sequence], ['X', undefined, undefined]);
+});
+
+test('§18 case 10 across the wrap: a second Bridge takes the slot as the last file plays; the first never queues the wrap', async (t) => {
+  let hold = false;
+  let release;
+  const caspar = await server(t, {
+    intercept: async (line, { answer }) => {
+      if (!hold || !line.startsWith('INFO')) return undefined;
+      hold = false;
+      const early = answer();
+      await new Promise((r) => (release = r));
+      return early;
+    },
+  });
+  const one = await bridgeOver(t, caspar, 'one');
+  const two = await bridgeOver(t, caspar, 'two');
+  await lastUpAndSeen(caspar, one.act, one.runner, [entry('A'), entry('B')]);
+  hold = true;
+  const round = one.runner.round();
+  while (!release) await new Promise((r) => setTimeout(r, 2));
+  await two.act({ verb: 'take', item: { kind: 'media', name: 'X' }, slot: AT });
+  release();
+  await round;
+  assert.ok(!caspar.seen.some((l) => l.startsWith('LOADBG 2-10 "A"')), 'the first Bridge queued nothing behind the other take');
+  const files = [];
+  for (let at = 0; at < 30_000; at += 250) {
+    caspar.advance(250);
+    await one.runner.round();
+    await two.runner.round();
+    files.push(onAir(caspar)?.file ?? null);
+  }
+  assert.deepEqual(airedFiles(caspar, files), ['X']);
+});
+
+test('§18 case 11 mid-loop: a restarted Bridge has no loop, and a dropped connection is not a restart', async (t) => {
+  let drop = false;
+  const caspar = await server(t, {
+    intercept: (line) => {
+      if (drop && line.startsWith('INFO')) throw new Error('connection dropped');
+      return undefined;
+    },
+  });
+  const first = await bridgeOver(t, caspar, 'first');
+  await first.act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  caspar.advance(10_100);
+  // A dropped reading as B comes up: the next round reads again, and the wrap is still queued.
+  drop = true;
+  await first.runner.round();
+  drop = false;
+  await run(caspar, first.runner, 1_000);
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 "A" AUTO').length, 1, 'the loop went on after the dropped reading');
+
+  // A restart: a new Bridge, a new session, no memory. B plays with A queued behind it, which the
+  // server still plays by its own rule - once - and then A holds: nothing queues B again.
+  const second = await bridgeOver(t, caspar, 'second');
+  const s = (await second.state()).body.slots[0];
+  assert.deepEqual([s.file, s.instance, s.sequence, s.queued], ['B', undefined, undefined, { file: 'A', auto: true }]);
+  const sent = caspar.seen.length;
+  const files = await watch(caspar, second.runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), ['B', 'A']);
+  assert.equal(onAir(caspar).ended, true, 'A holds its last frame');
+  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), [], 'the restarted Bridge sent nothing');
+});
+
+test('Loop the folder queues each file once a round: the first again exactly when the last comes up', async (t) => {
+  // `queued: 0` is a real value for the first entry: read as nothing, it would be queued every round.
+  const caspar = await server(t);
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  await watch(caspar, runner, 45_000);
+  // A at 0, 20 and 40 s: queued behind B at 10 and 30 s, and never again in between.
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 "A" AUTO').length, 2);
+  // B queued with the take, then behind A at 20 and 40 s.
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 "B" AUTO').length, 3);
+});
+
+test('Loop the folder of one file twice, at the two-second minimum with a long fade: every switch is seen', async (t) => {
+  // During a MIX, INFO reports the incoming file's position, so the jump back from one copy to the
+  // next can be as small as 2 s less the 1 s fade less a reading's gap: 0.75 s, no more.
+  for (const dropOne of [false, true]) {
+    let drop = false;
+    const caspar = await server(t, {
+      intercept: (line) => {
+        if (drop && line.startsWith('INFO')) {
+          drop = false;
+          throw new Error('connection dropped');
+        }
+        return undefined;
+      },
+    });
+    const { act, state, runner } = await bridgeOver(t, caspar);
+    const first = { ...entry('TWO', undefined, 2), cueId: 'first' };
+    const second = { ...entry('TWO', { fadeIn: 1 }, 2), cueId: 'second' };
+    await act({ verb: 'sequence', slot: AT, entries: [first, second], loop: true });
+    const cues = [];
+    for (let at = 0; at < 10_000; at += 250) {
+      caspar.advance(250);
+      // One reading lost right after the first switch, and the loop still carries on.
+      if (dropOne && at === 1_250) drop = true;
+      await runner.round();
+      cues.push((await state()).body.slots[0].cueId);
+      assert.notEqual(onAir(caspar).ended, true, `the file held at ${at} ms`);
+    }
+    const turns = cues.filter((c, i) => c !== cues[i - 1]);
+    assert.ok(turns.length >= 8, `${dropOne ? 'with a dropped reading: ' : ''}${turns.join(' ')}`);
+    assert.deepEqual(turns.slice(0, 4), ['first', 'second', 'first', 'second']);
+  }
+});
+
+test('Loop the folder: another client takes the slot after the first file is queued behind the last', async (t) => {
+  const caspar = await server(t);
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  // B on air and A queued behind it.
+  await run(caspar, runner, 10_500);
+  assert.equal(caspar.seen.filter((l) => l === 'LOADBG 2-10 "A" AUTO').length, 1);
+  assert.equal(await fakeClient(caspar.port, 'PLAY 2-10 "X"'), '202 PLAY OK');
+  const sent = caspar.seen.length;
+  const files = await watch(caspar, runner, 30_000);
+  assert.deepEqual(airedFiles(caspar, files), ['X']);
+  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), [], 'the runner sent nothing');
+  assert.ok(caspar.seen.slice(sent).filter((l) => l.startsWith('INFO')).length <= 2, 'and stopped reading the slot');
+  const s = (await state()).body.slots[0];
+  assert.deepEqual([s.file, s.instance, s.sequence], ['X', undefined, undefined]);
+});
+
+test('Loop the folder: the server refuses the first file at the wrap; the last holds and nothing is tried again', async (t) => {
+  let refuse = false;
+  const caspar = await server(t, { intercept: (line) => (refuse && line.startsWith('LOADBG 2-10 "A"') ? '404 LOADBG FAILED\r\n' : undefined) });
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')], loop: true });
+  refuse = true;
+  const files = await watch(caspar, runner, 25_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B']);
+  assert.equal(onAir(caspar).ended, true, 'B holds its last frame');
+  assert.equal(caspar.seen.filter((l) => l.startsWith('LOADBG 2-10 "A"')).length, 1, 'one attempt');
+  const reads = caspar.seen.filter((l) => l.startsWith('INFO')).length;
+  await run(caspar, runner, 2_000);
+  assert.equal(caspar.seen.filter((l) => l.startsWith('INFO')).length, reads, 'the runner stopped reading');
+  assert.equal((await state()).body.slots[0].sequence, undefined);
+});
+
+test('behind a file the server switched to that starts part way in, nothing is queued until it runs', async (t) => {
+  // Measured for PLAY … IN (§4). Whether the same window follows an AUTO switch into a file with IN is
+  // for the real server to say (§12); the fake models it here, and the runner's guard - reading that the
+  // clip has not reached its segment - covers the wrap and a Play next follower alike.
+  const caspar = await server(t, { autoStarting: true });
+  const { act, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A', { trim: { in: 2 } }), entry('B')], loop: true });
+  assert.deepEqual(caspar.seen.filter((l) => !l.startsWith('INFO')), ['PLAY 2-10 "A" IN 100']);
+  const files = await watch(caspar, runner, 60_000);
+  // A plays its 8 trimmed seconds on every lap: A, B, A, B, A, B, A...
+  assert.deepEqual(airedFiles(caspar, files).slice(0, 6), ['A', 'B', 'A', 'B', 'A', 'B']);
+  const firstB = files.indexOf('B');
+  const secondA = files.indexOf('A', firstB);
+  const secondB = files.indexOf('B', secondA);
+  assert.ok(Math.abs((secondB - secondA) * 50 - 8_000) <= 50, `the second A plays all 8 trimmed seconds, not ${(secondB - secondA) * 50} ms`);
+});
+
 test('a round that goes wrong is logged and never thrown: the Bridge outlives it', async (t) => {
   const caspar = await server(t);
   const logged = [];

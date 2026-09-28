@@ -241,9 +241,12 @@ function clearLine(at: string, fadeOut: number | undefined, rate: number | undef
 }
 
 /** The line that queues a sequence's entry behind the clip on air, to play when it ends. Its fade in
- *  is the MIX into it: the incoming clip decides the transition (docs/CLIP_PLAYBACK_PLAN.md §6.6). */
+ *  is the MIX into it: the incoming clip decides the transition (docs/CLIP_PLAYBACK_PLAN.md §6.6).
+ *  Only the `last` entry of a sequence that ends keeps an ending of its own: any other plays into the
+ *  next file, and a LOOP on it would never let that file play. */
 function queueLine(at: string, entry: Pick<SequenceEntry, 'item' | 'playback'>, last: boolean, rate: number | undefined): string {
-  return `LOADBG ${at} ${mediaName(entry.item)}${mediaParams(entry.playback, last && entry.playback?.end === 'loop', rate)} AUTO`;
+  const playback = last || !entry.playback ? entry.playback : { ...entry.playback, end: undefined };
+  return `LOADBG ${at} ${mediaName(entry.item)}${mediaParams(playback, false, rate)} AUTO`;
 }
 
 /** What makes a refused take safe: a follower this Bridge queued behind the clip still on air is
@@ -288,11 +291,12 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
     }
     case 'sequence': {
       // The first entry now, and the second queued behind it at once; the runner queues each of the
-      // rest when it sees the switch (./runner.ts).
+      // rest when it sees the switch (./runner.ts). A sequence that loops never puts LOOP on a file:
+      // a looping file never ends, so nothing queued behind it would ever play.
       const [first, second] = action.entries;
       if (!first || !second) throw new UsageError('A sequence plays at least two files.');
       const play = `PLAY ${at} ${mediaName(first.item)}${mediaParams(first.playback, false, rate)}`;
-      return startsPartWay(first.playback) ? [play] : [play, queueLine(at, second, action.entries.length === 2, rate)];
+      return startsPartWay(first.playback) ? [play] : [play, queueLine(at, second, action.entries.length === 2 && !action.loop, rate)];
     }
     case 'update':
       return [`CG ${at} UPDATE 1 ${amcpQuote(JSON.stringify(action.data))}`];

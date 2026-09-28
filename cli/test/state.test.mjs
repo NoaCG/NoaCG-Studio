@@ -340,7 +340,7 @@ test('/health says what the Bridge understands; /status says what this server ca
   t.after(() => caspar.close());
   const { call, casparTarget } = await bridge(t, caspar);
   const health = await call('/health');
-  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence']);
+  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop']);
   const status = await call('/status', { target: casparTarget });
   assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
 });

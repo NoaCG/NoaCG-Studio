@@ -24,6 +24,7 @@ import { amcpSend } from './amcp.js';
 import type { ActResult, PlayoutAdapter } from './adapters/casparcg.js';
 import { ografApiBase } from './adapters/ograf.js';
 import {
+  MAX_SEQUENCE_ENTRIES,
   MIN_SEQUENCE_MEMBER_S,
   PLAYOUT_V,
   playedSeconds,
@@ -52,7 +53,7 @@ export const DEFAULT_AMCP_PORT = 5250;
 export const PAIRING_TTL_MS = 2 * 60_000;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -208,8 +209,6 @@ function readItem(v: unknown): { kind: ItemKind; name: string } {
 const MAX_FADE_S = 10;
 /** The loudest gain: +6 dB is 1.9953, so a level the page allows always fits. */
 const MAX_GAIN = 2;
-/** The most files one sequence plays. */
-const MAX_SEQUENCE = 100;
 
 const PLAYBACK_KEYS = new Set(['end', 'fadeIn', 'fadeOut', 'gain', 'trim']);
 
@@ -273,8 +272,9 @@ function playbackField(p: MediaPlayback | undefined): { playback?: MediaPlayback
   return p && Object.keys(p).length ? { playback: p } : {};
 }
 
-/** One entry of a sequence, and the refusals that keep a sequence one that can run (§6.10). */
-function readEntry(v: unknown, index: number, count: number): SequenceEntry {
+/** One entry of a sequence, and the refusals that keep a sequence one that can run (§6.10). In a
+ *  sequence that `loop`s the first entry follows the last, so no entry is last and none is first. */
+function readEntry(v: unknown, index: number, count: number, loop: boolean): SequenceEntry {
   const n = `Entry ${index + 1}`;
   if (!isRecord(v)) throw new UsageError(`${n} of the sequence is not an object.`);
   const item = readItem(v.item);
@@ -286,16 +286,23 @@ function readEntry(v: unknown, index: number, count: number): SequenceEntry {
   const seconds = media.seconds;
   if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) throw new UsageError(`${n} has no known length, so it cannot join a sequence.`);
   const playback = readPlayback(v.playback);
-  const last = index === count - 1;
+  const last = index === count - 1 && !loop;
   if (!last && playback?.end !== undefined && playback.end !== 'hold') {
-    throw new UsageError(`${n} ends by "${playback.end}", but only the last entry has an ending of its own: the next file plays after it.`);
+    throw new UsageError(
+      loop
+        ? `${n} ends by "${playback.end}", but in a sequence that loops no entry has an ending of its own: the next file, or the first again, plays after it.`
+        : `${n} ends by "${playback.end}", but only the last entry has an ending of its own: the next file plays after it.`,
+    );
   }
   const length = playedSeconds(seconds, playback?.trim?.in, playback?.trim?.out) ?? 0;
   if (!(length > 0) || (playback?.trim?.in ?? 0) >= seconds) throw new UsageError(`${n}'s trim lies outside its ${seconds} s file.`);
   // The first entry is taken with the second queued behind it at once; every later one must last
-  // long enough for the runner to queue the one after it in time.
-  if (index > 0 && length < MIN_SEQUENCE_MEMBER_S) {
-    throw new UsageError(`${n} plays ${Math.round(length * 100) / 100} s; a clip in a sequence after the first plays at least ${MIN_SEQUENCE_MEMBER_S} s.`);
+  // long enough for the runner to queue the one after it in time - and in a loop so must the first,
+  // which then follows the last.
+  if ((index > 0 || loop) && length < MIN_SEQUENCE_MEMBER_S) {
+    throw new UsageError(
+      `${n} plays ${Math.round(length * 100) / 100} s; ${loop ? 'every clip in a sequence that loops' : 'a clip in a sequence after the first'} plays at least ${MIN_SEQUENCE_MEMBER_S} s.`,
+    );
   }
   return { item, ...readCueId(v.cueId), ...playbackField(playback), media: { kind: media.kind, seconds } };
 }
@@ -310,6 +317,8 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
   if (a.playback !== undefined && a.verb !== 'take') throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
   if (a.fadeOut !== undefined && a.verb !== 'out') throw new UsageError(`A ${String(a.verb)} carries no fadeOut: only Out fades a clip away.`);
+  // A take's `loop` is the server's own LOOP on one file; only a sequence's plays its files again.
+  if (a.loop !== undefined && a.loop !== false && a.verb !== 'take' && a.verb !== 'sequence') throw new UsageError(`A ${String(a.verb)} carries no loop.`);
   switch (a.verb) {
     case 'take': {
       const item = readItem(a.item);
@@ -344,8 +353,10 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
     case 'sequence': {
       const entries = a.entries;
       if (!Array.isArray(entries) || entries.length < 2) throw new UsageError('A sequence plays at least two files.');
-      if (entries.length > MAX_SEQUENCE) throw new UsageError(`A sequence plays at most ${MAX_SEQUENCE} files.`);
-      return { verb: 'sequence', slot, entries: entries.map((e, i) => readEntry(e, i, entries.length)) };
+      if (entries.length > MAX_SEQUENCE_ENTRIES) throw new UsageError(`A sequence plays at most ${MAX_SEQUENCE_ENTRIES} files.`);
+      if (a.loop !== undefined && typeof a.loop !== 'boolean') throw new UsageError('A sequence\'s loop is true or false.');
+      const loop = a.loop === true;
+      return { verb: 'sequence', slot, entries: entries.map((e, i) => readEntry(e, i, entries.length, loop)), ...(loop ? { loop: true } : {}) };
     }
     default:
       throw new UsageError(`Unknown verb "${String(a.verb)}".`);
