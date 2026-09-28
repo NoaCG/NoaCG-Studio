@@ -2580,6 +2580,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onCopy={copy}
           embedFileName={outputEmbedFileName(show.name)}
           onDownloadEmbed={downloadEmbed}
+          hasCues={cues.length > 0}
           needsSignIn={needsSignIn}
           onPublish={() => void publish()}
           onUnpublish={() => void unpublish()}

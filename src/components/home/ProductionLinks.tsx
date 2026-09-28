@@ -190,6 +190,7 @@ export default function ProductionLinks({
   onCopy,
   embedFileName,
   onDownloadEmbed,
+  hasCues,
   needsSignIn,
   onPublish,
   onClose,
@@ -213,6 +214,11 @@ export default function ProductionLinks({
   onCopy: (kind: 'output' | 'control' | 'join' | 'presenter', text: string) => void;
   embedFileName: string;
   onDownloadEmbed: () => void;
+  /** The rundown holds at least one cue. Until it does, Start production is QUIET: publishing an
+   *  empty production works (it mints the links, so the output URL can be set up early), but it
+   *  runs nothing, so it is not the page's call to action - the amber belongs to the first thing
+   *  there is to take. */
+  hasCues: boolean;
   /** A backend is configured and nobody is signed in. The button stays LIVE - pressing it is
    *  what opens the sign-in - and its tooltip says the need before anyone presses. */
   needsSignIn: boolean;
@@ -223,15 +229,16 @@ export default function ProductionLinks({
   if (!show.hostedSlug) {
     return (
       <button
-        className="primary"
+        className={hasCues ? 'primary' : undefined}
         onClick={onPublish}
         disabled={busy || !backendConfigured}
         title={
           !backendConfigured
             ? 'Publishing needs the cloud backend, and this build runs offline'
-            : needsSignIn
-              ? 'Puts this production online: one output URL for CasparCG, OBS or vMix and one control page. Needs a free account.'
-              : 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating'
+            : (hasCues ? '' : 'No cues yet, so there is nothing to run. ') +
+              (needsSignIn
+                ? 'Puts this production online: one output URL for CasparCG, OBS or vMix and one control page. Needs a free account.'
+                : 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating')
         }
         data-testid="production-publish"
       >
