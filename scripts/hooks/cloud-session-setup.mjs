@@ -1,7 +1,7 @@
 // SessionStart hook: make a fresh checkout able to build before the first command, so no session
 // spends its first minutes rediscovering the same gaps. Steps 0 and 1 run everywhere - a fresh cloud
 // container and a fresh local worktree alike (the desktop app creates one per scheduled run and per
-// worktree session, with no node_modules); step 2 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
+// worktree session, with no node_modules); steps 2 and 3 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
 //
 //   0. FRESHNESS. The desktop app cuts a new worktree from ITS last fetch of main, which can be a
 //      landing or more behind (measured 2026-09-26: a scheduled run started on 07352ec8 three
@@ -31,7 +31,18 @@
 //      the image's files, under the executable names the newer layout expects. A real install of
 //      the pinned build, whenever the image has one, is left alone.
 //
-//   3. Nothing else.
+//   3. GITHUB ACCESS. A cloud container reaches GitHub only through the claude.ai GitHub
+//      connection, and on 2026-09-28 it lapsed: push, fetch and the GitHub tools all failed with
+//      "could not read Username for 'https://github.com'", and a finished row sat unlanded until
+//      the owner reconnected. `git ls-remote --heads origin main` (read-only; the repository is
+//      private, so reading it needs the connection too) runs once, printed FIRST, with prompts off
+//      and a 6-second cap. A refusal prints a banner the session must relay to the owner before
+//      anything else; a timeout or a proxy/DNS failure says it is the network instead; success
+//      prints nothing. Neither a credential nor git's own text is ever echoed - only a fixed label.
+//      A start hook cannot catch a lapse DURING the session: the orchestrator's watch loop
+//      should re-run that probe before launching a row or queueing a landing.
+//
+//   4. Nothing else.
 //
 // Everything here is idempotent and prints one line per thing it changed; SessionStart output
 // becomes part of the session's context, so a quiet run means there was nothing to do.
@@ -169,6 +180,64 @@ export function freshen(fallbackRoot, hook = {}) {
   return { line, lockMoved: read('rev-parse', 'HEAD:package-lock.json') !== lockBefore };
 }
 
+export const GITHUB_PROBE_TIMEOUT_MS = 6000;
+const RECONNECT_URL = 'https://claude.ai/connect-github';
+
+/**
+ * What git's error text means, in order, as fixed labels - the label is printed, never the text.
+ * The two unmistakable account messages come first; then the network, because the egress proxy's
+ * own refusal ("CONNECT tunnel failed, response 403", measured 2026-09-28) carries a 403 that is
+ * a blocked route, not a refused account; then the generic auth refusals.
+ */
+const SIGNS = [
+  [/could not read (Username|Password)/i, 'auth', 'git has no GitHub credentials: "could not read Username"'],
+  [/not connected a GitHub account/i, 'auth', 'the session owner has no connected GitHub account'],
+  [/CONNECT tunnel failed|proxy/i, 'network', 'the proxy refused or dropped the connection'],
+  [/Could not resolve host/i, 'network', 'github.com did not resolve'],
+  [/Failed to connect|Connection (refused|reset|timed out)|Operation timed out|RPC failed|early EOF|SSL/i, 'network', 'the connection to github.com failed'],
+  [/Authentication failed|Invalid username or (password|token)|\b40[13]\b|Permission denied \(publickey\)/i, 'auth', 'GitHub refused the credentials'],
+  [/Repository not found/i, 'auth', 'GitHub hides the repository from these credentials'],
+];
+
+/** `git ls-remote` against origin, prompts off, killed at the cap. Replaced in tests. */
+function lsRemoteOrigin(root, timeout) {
+  return spawnSync('git', ['ls-remote', '--heads', 'origin', 'main'], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout,
+    killSignal: 'SIGKILL',
+    stdio: ['ignore', 'ignore', 'pipe'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
+  });
+}
+
+/**
+ * Step 3: one line about GitHub access, empty when it works. Never throws.
+ * @param {string} root the checkout whose `origin` is probed
+ * @param {(root: string, timeout: number) => { status: number | null, stderr?: string, error?: { code?: string } }} [probe]
+ */
+export function githubAccessLine(root, probe = lsRemoteOrigin) {
+  let res;
+  try {
+    res = probe(root, GITHUB_PROBE_TIMEOUT_MS);
+  } catch {
+    res = { status: null };
+  }
+  if (res.status === 0) return '';
+  const unreachable = (why) => `GITHUB UNREACHABLE - ${why}; that looks like the network, not a disconnected account.`
+    + ' Push, pull requests and landing may fail. Re-run `git ls-remote origin main` before relying on GitHub,'
+    + ` and if it still fails, tell the owner FIRST, before any other work (and reconnect at ${RECONNECT_URL} if it turns out to be the account).`;
+  if (res.error?.code === 'ETIMEDOUT') return unreachable(`\`git ls-remote origin\` did not answer within ${GITHUB_PROBE_TIMEOUT_MS / 1000} s`);
+  const [, kind, why] = SIGNS.find(([sign]) => sign.test(res.stderr ?? '')) ?? [];
+  if (kind === 'network') return unreachable(why);
+  if (kind === 'auth') {
+    return `GITHUB NOT CONNECTED - push, pull requests and landing will fail (${why}). Reconnect at ${RECONNECT_URL} before starting work.`
+      + ' Tell the owner this FIRST, as the opening line of your first reply, before any other work.';
+  }
+  return `GITHUB CHECK FAILED - \`git ls-remote origin\` exited ${res.status ?? 'abnormally'} for a reason this check does not recognise.`
+    + ` Push and landing may fail: tell the owner FIRST, before any other work, and suggest reconnecting at ${RECONNECT_URL}.`;
+}
+
 /**
  * `npm ci` in `dir` when it has a lockfile and no FINISHED install, or when `force` says the
  * lockfile just changed under an existing install. npm writes node_modules/.package-lock.json
@@ -193,11 +262,15 @@ function installIfMissing(dir, label, { force = false } = {}) {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // The checkout this hook ships in - the settings start it from the current checkout's top level.
   const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+  const cloud = process.env.CLAUDE_CODE_REMOTE === 'true';
+  // First, so a lapsed connection is the first thing the session reads.
+  const github = cloud ? githubAccessLine(root) : '';
+  if (github) console.log(github);
   // A person running this by hand has no hook event to pipe in; waiting on the terminal would hang.
   const fresh = freshen(root, (process.stdin.isTTY ? null : await readHookInput()) ?? {});
   if (fresh.line) console.log(fresh.line);
   installIfMissing(root, 'root', { force: fresh.lockMoved });
-  if (process.env.CLAUDE_CODE_REMOTE === 'true') {
+  if (cloud) {
     installIfMissing(join(root, 'cli'), 'cli/');
     const linked = aliasPinnedChromium(BROWSERS_DIR, pinnedRevisions(root));
     if (linked.length > 0) {
