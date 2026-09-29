@@ -1298,8 +1298,9 @@ the ones marked *filed* have a backlog item.
    accepted advisor class, so a real migration failure would look the same. *Done 2026-09-29:*
    `unused_index` now warns and never fails (`docs/STACK_FRESHNESS.md`, Supabase advisors).
 7. **One library sync pass per browser**, not per tab per edit. *Done 2026-09-30:* the tab that
-   makes a change runs its pass, a tab that only adopted it runs none, and a tab that closes with
-   a pass owed hands it to the tabs still open (`src/backend/syncController.ts`, measured in
+   makes a change runs its pass, a tab that only adopted it runs none (unless the writer runs no
+   sync, as a production page opened on its own does), and a tab that closes with a pass owed
+   hands it to one of the tabs still open (`src/backend/syncController.ts`, measured in
    `e2e/configured/sync-one-pass-per-edit.spec.ts`: two tabs and one edit went from two passes to
    one).
 8. **Jitter the refill on reconnect**, so a Realtime restart does not send every output to the
