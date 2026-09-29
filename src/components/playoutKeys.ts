@@ -31,7 +31,16 @@ export type PlayoutVerb =
   // the selected cues, and collapse or open the folder the cursor is on. A folder's Take and Out are
   // `take` and `out` with a folder row selected. The hosted page has no folders and ignores both.
   | 'folder-new'
-  | 'folder-toggle';
+  | 'folder-toggle'
+  // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2): copy, cut and paste the selection
+  // (Ctrl or Cmd with C, X, V), Escape to drop it, Shift with Up or Down to extend it. Nothing here
+  // airs. The hosted page has no rundown to edit and ignores them.
+  | 'copy'
+  | 'cut'
+  | 'paste'
+  | 'select-clear'
+  | 'extend-prev'
+  | 'extend-next';
 
 /** How a verb was pressed: `repeat` for a key's auto-repeat while it is held, which a surface may
  *  refuse for a verb that must happen once (a folder's Take fires several actions). */
@@ -87,7 +96,17 @@ const KEY_MAP: Record<string, PlayoutVerb> = {
   // and contenteditable), so a layer number still steps normally.
   arrowup: 'select-prev',
   arrowdown: 'select-next',
+  escape: 'select-clear',
 };
+
+/** Ctrl (Cmd on a Mac) with a key: the rundown's clipboard. */
+const MOD_MAP: Record<string, PlayoutVerb> = { c: 'copy', x: 'cut', v: 'paste' };
+
+/** Text is selected on the page: Ctrl+C then copies that text, as it always did. */
+function textSelected(): boolean {
+  const sel = window.getSelection();
+  return !!sel && !sel.isCollapsed && sel.toString().trim() !== '';
+}
 
 /** Verbs a held key fires once, not once per auto-repeat: each press means the opposite of the last. */
 const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle']);
@@ -114,9 +133,22 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) 
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || typingInto(e.target)) return;
-      const verb = KEY_MAP[e.key.toLowerCase()];
+      if (typingInto(e.target)) return;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+        const verb = MOD_MAP[e.key.toLowerCase()];
+        if (!verb || textSelected()) return;
+        e.preventDefault();
+        if (!e.repeat) onKey(verb, { repeat: false });
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      let verb = KEY_MAP[e.key.toLowerCase()];
       if (!verb) return;
+      // Shift with Up or Down extends the selection; the cursor stays where it is.
+      if (e.shiftKey && verb === 'select-prev') verb = 'extend-prev';
+      if (e.shiftKey && verb === 'select-next') verb = 'extend-next';
+      // Escape belongs to an open menu or dialog first: one that handled it has marked it so.
+      if (verb === 'select-clear' && (e.defaultPrevented || document.querySelector('[role="menu"], [aria-modal="true"]'))) return;
       e.preventDefault();
       if (e.repeat && NO_REPEAT.has(verb)) return;
       onKey(verb, { repeat: e.repeat });

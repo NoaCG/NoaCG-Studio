@@ -26,6 +26,9 @@ import {
   fillPlayoutItemFacts,
   addFolderFromSelection,
   moveInRundown,
+  pasteInRundown,
+  removeShowCues,
+  takeCuesOutOfFolders,
   removeFolder,
   renameFolder,
   setFolderCollapsed,
@@ -38,7 +41,8 @@ import {
   type ShowFolder,
 } from '../../model/shows';
 import { folderMode, type Movable, type Place } from '../../model/showFolders';
-import { cursorRowId, folderName, rangeCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
+import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
+import { clipSize, copyClip, cutClip, type CueClip } from '../../model/cueClipboard';
 import { commitDurableWrites } from '../../model/durableStore';
 import {
   act,
@@ -383,6 +387,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** THE SHIFT-CLICK RANGE (owner, 2026-09-28), by cue id as it was when clicked: what New folder
    *  takes. No on-air verb reads it, so a stray shift-click changes nothing that airs. */
   const [rangeIds, setRangeIds] = useState<readonly string[]>([]);
+  /** The far end of the range Shift with Up or Down walks, by row id; the cursor is the other end. */
+  const [rangeEnd, setRangeEnd] = useState<string | null>(null);
+  /** THE RUNDOWN'S CLIPBOARD (docs/CLIP_PLAYBACK_PLAN.md §20.2): what Ctrl+C or Ctrl+X last took, in
+   *  this page's memory only (model/cueClipboard.ts). */
+  const [clip, setClip] = useState<CueClip | null>(null);
   /** What the rundown's authoring last said: a refused drop, or a folder write that did not land. */
   const [rundownNote, setRundownNote] = useState<string | null>(null);
   /** Why each cue of the last folder Take did not go on air, by cue id - until that cue is taken, the
@@ -1558,9 +1567,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /** A row clicked in the rundown. With shift, the range runs from the cursor to it and nothing else
    *  moves: not the cursor, not PREVIEW, not what SPACE takes. */
-  const clickRow = (row: RundownRow, shift: boolean) => {
+  const clickRow = (row: RundownRow, shift: boolean, toggle = false) => {
     if (shift) {
       setRangeIds(rangeCueIds(rundown, cursorRow, row.id));
+      setRangeEnd(row.id);
+      return;
+    }
+    // Ctrl (Cmd on a Mac) adds the row to the selection, or drops it; a first one takes the cursor's
+    // row with it, as a shift-click's range does. Nothing else moves.
+    if (toggle) {
+      const own = rowCueIds(rundown, row);
+      setRangeIds((ids) => {
+        const at = cursorRow ? rundown.rows.find((r) => r.id === cursorRow) : undefined;
+        const set = new Set(ids.length ? ids : at ? rowCueIds(rundown, at) : []);
+        const all = own.every((id) => set.has(id));
+        for (const id of own) {
+          if (all) set.delete(id);
+          else set.add(id);
+        }
+        return [...set].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0));
+      });
+      setRangeEnd(row.id);
       return;
     }
     if (row.kind === 'cue') selectCue(row.cue.id);
@@ -2513,17 +2540,65 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   // ── THE RUNDOWN'S FOLDERS, as authored (plan §7). Making, moving and removing one tells the operator
   // only once the durable write has landed (components/never-report-save-storage-layer-has). ──
-  const writeRundown = async (write: () => { shows: Show[]; error: string | null; refused?: string | null }, failed: string) => {
+  /** One authoring write of the rundown, said only once it lands. True when it did. */
+  const writeRundown = async (write: () => { shows: Show[]; error: string | null; refused?: string | null }, failed: string): Promise<boolean> => {
     flushDraft();
     const r = write();
     if (r.refused) {
       setRundownNote(r.refused);
-      return;
+      return false;
     }
     setShows(r.shows);
     const failure = r.error ?? (await commitDurableWrites());
     setRundownNote(failure ? `${failed}: ${failure}` : null);
+    return !failure;
   };
+
+  // ── EDITING THE RUNDOWN (docs/CLIP_PLAYBACK_PLAN.md §20.2): the selection's menu actions, and copy,
+  // cut and paste. Nothing here airs, and none of it moves the cursor or PREVIEW. ──
+  /** The cues an edit takes: the selection, else the held folder's cues, else the cursor's cue. */
+  const editIds = (): string[] =>
+    range.size ? [...range].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)) : selectedFolder ? heldMembers.map((c) => c.id) : selectedCue ? [selectedCue.id] : [];
+  /** Where a paste lands: after the cursor's cue, joining its folder; last in a held folder; at the end. */
+  const pastePlace = (): Place => (selectedFolder ? { into: selectedFolder.id } : selectedCue ? { after: selectedCue.id } : { end: true });
+  /** Paste a clip at a place, one write; what landed becomes the selection. */
+  const pasteAt = async (what: CueClip, place: Place, failed: string) => {
+    let landed: string[] = [];
+    const ok = await writeRundown(() => {
+      const r = pasteInRundown(show.id, what, place);
+      landed = r.cueIds;
+      return r;
+    }, failed);
+    if (!ok) return;
+    if (what.kind === 'cut') setClip(null);
+    setRangeIds(landed);
+    setRangeEnd(null);
+  };
+  const duplicateCues = async (ids: readonly string[]) => {
+    const copies = copyClip(show, ids, (label) => `${label} copy`);
+    const last = [...ids].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)).pop();
+    if (copies && last) await pasteAt(copies, { after: last }, 'The copies were not saved');
+  };
+  const takeOutOfFolders = async (ids: readonly string[]) => {
+    await writeRundown(() => takeCuesOutOfFolders(show.id, ids), 'The move was not saved');
+  };
+  /** Remove several cues: each goes off air first as one removal would - a graphic whose last cue is
+   *  among them, and any server cue that is up - then one write. */
+  const removeCues = async (ids: readonly string[]) => {
+    const gone = new Set(ids);
+    const leaving = cues.filter((c) => gone.has(c.id));
+    const staying = new Set(cues.filter((c) => !gone.has(c.id)).map((c) => c.sourceId));
+    for (const c of leaving) {
+      const entry = graphicByPoolId.get(c.sourceId);
+      if (entry && !staying.has(c.sourceId)) await takeOffAir(entry.name);
+      if (serverCueLive(serverOnAir, playoutItemFor(c), c)) await playoutVerb(c, 'out', 'Out');
+    }
+    setDraft(null);
+    setRangeIds([]);
+    setShows(removeShowCues(show.id, ids));
+  };
+  /** The cues Ctrl+X marked, still in the rundown. */
+  const cutIds = new Set(clip?.kind === 'cut' ? clip.ids : []);
   const newFolder = async (cueIds: readonly string[]) => {
     if (!cueIds.length) return;
     setRangeIds([]);
@@ -3028,6 +3103,36 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
+    // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
+    if (key === 'copy' || key === 'cut') {
+      const ids = editIds();
+      const taken = key === 'copy' ? copyClip(show, ids) : ids.length ? cutClip(show.id, ids) : null;
+      if (!taken) return;
+      setClip(taken);
+      const n = clipSize(taken);
+      const what = `${n} cue${n === 1 ? '' : 's'}`;
+      setNote(key === 'copy' ? `✓ ${what} copied. Ctrl+V pastes after the selected row.` : `✓ ${what} cut. Ctrl+V moves them after the selected row; Esc leaves them where they are.`);
+      return;
+    }
+    if (key === 'paste') {
+      if (clip) void pasteAt(clip, pastePlace(), 'The paste was not saved');
+      return;
+    }
+    if (key === 'select-clear') {
+      if (clip?.kind === 'cut') setClip(null);
+      setRangeIds([]);
+      setRangeEnd(null);
+      return;
+    }
+    if (key === 'extend-prev' || key === 'extend-next') {
+      const from = range.size && rangeEnd && rundown.rows.some((r) => r.id === rangeEnd) ? rangeEnd : cursorRow;
+      const next = stepSelection(rundown.rows, from, key === 'extend-next' ? 1 : -1);
+      if (!next) return;
+      setRangeIds(rangeCueIds(rundown, cursorRow, next.id));
+      setRangeEnd(next.id);
+      revealCue(rowTestId(next));
+      return;
+    }
     // A rundown's folders. New folder takes the range, or the cue the cursor is on.
     if (key === 'folder-new') {
       void newFolder(range.size ? [...range] : selectedCue && !selectedCue.folderId ? [selectedCue.id] : []);
@@ -3873,6 +3978,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         heldFolderRowId={selectedFolder ? (selectedFolderRow?.rowId ?? null) : null}
         cursorRowId={cursorRow}
         range={range}
+        cutIds={cutIds}
         folderAir={folderStates}
         takeMisses={takeMisses}
         rundownNote={rundownNote}
@@ -3888,8 +3994,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         clearRange={() => setRangeIds([])}
         onLayerRepair={openLayerRepair}
         removeCue={removeCue}
+        removeCues={removeCues}
         removeGraphic={removeGraphic}
         newFolder={newFolder}
+        duplicateCues={duplicateCues}
+        takeOutOfFolders={takeOutOfFolders}
         removeFolder={removeFolderOf}
         moveRundown={moveRundown}
         toggleFolder={toggleFolder}

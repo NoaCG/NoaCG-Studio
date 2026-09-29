@@ -58,7 +58,7 @@ export default function FolderRow({
   replaced: string | null;
   drop: DropMark | { refused: true } | null;
   menuOpen: boolean;
-  onSelect: (shift: boolean) => void;
+  onSelect: (shift: boolean, toggle: boolean) => void;
   onToggle: () => void;
   onMenu: () => void;
   onCloseMenu: () => void;
@@ -87,6 +87,11 @@ export default function FolderRow({
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      // A right-click opens the header's own ⋯ menu (docs/CLIP_PLAYBACK_PLAN.md §20.2).
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (!menuOpen) onMenu();
+      }}
       {...(dropAttr ? { 'data-drop': dropAttr } : {})}
       {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
     >
@@ -109,7 +114,7 @@ export default function FolderRow({
         className="pd-cue-label"
         // A shift-click extends the selection; it must not also select the text under the pointer.
         onMouseDown={(e) => e.shiftKey && e.preventDefault()}
-        onClick={(e) => onSelect(e.shiftKey)}
+        onClick={(e) => onSelect(e.shiftKey, e.ctrlKey || e.metaKey)}
         aria-current={selected ? 'true' : undefined}
         data-testid="select-folder"
       >

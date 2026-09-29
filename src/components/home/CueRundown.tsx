@@ -15,7 +15,7 @@ import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
 import { graphicKindLabel } from '../../model/types';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
-import { bandAt, folderName, planDrop, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
+import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
 import {
   channelOf,
@@ -115,6 +115,7 @@ export default function CueRundown({
   heldFolderRowId,
   cursorRowId,
   range,
+  cutIds,
   folderAir,
   takeMisses,
   rundownNote,
@@ -130,8 +131,11 @@ export default function CueRundown({
   clearRange,
   onLayerRepair,
   removeCue,
+  removeCues,
   removeGraphic,
   newFolder,
+  duplicateCues,
+  takeOutOfFolders,
   removeFolder,
   moveRundown,
   toggleFolder,
@@ -165,6 +169,8 @@ export default function CueRundown({
   cursorRowId: string | null;
   /** The shift-click range, by cue id. */
   range: ReadonlySet<string>;
+  /** The cues Ctrl+X marked, which the next paste moves. */
+  cutIds: ReadonlySet<string>;
   /** What is on air of each folder (control/folderAir.ts). */
   folderAir: Readonly<Record<string, FolderAir>>;
   /** Why each cue of the last folder Take did not go on air, by cue id. */
@@ -184,16 +190,22 @@ export default function CueRundown({
   throughRoleOf: (cue: ShowCue) => { folder: ShowFolder; role: ThroughRole } | null;
   /** Select a cue by id: one just added or duplicated, whose row is not drawn yet. */
   selectCue: (cueId: string) => void;
-  /** A row was clicked, with or without shift. */
-  clickRow: (row: RundownRow, shift: boolean) => void;
+  /** A row was clicked: with shift it extends the range, with Ctrl (Cmd) it adds or drops the row. */
+  clickRow: (row: RundownRow, shift: boolean, toggle: boolean) => void;
   clearRange: () => void;
   /** A row's clash badge was pressed: select that cue and put its layer repair in front. */
   onLayerRepair: (cueId: string) => void;
   removeCue: (cue: ShowCue) => Promise<void>;
+  /** Remove the selected cues, in one write, each taken off air first as one removal would be. */
+  removeCues: (cueIds: readonly string[]) => Promise<void>;
   removeGraphic: (poolId: string) => Promise<void>;
   newFolder: (cueIds: readonly string[]) => Promise<void>;
-  removeFolder: (folderId: string) => Promise<void>;
-  moveRundown: (what: Movable, place: Place) => Promise<void>;
+  /** Copies of the selected cues right after the last of them, selected when they land. */
+  duplicateCues: (cueIds: readonly string[]) => Promise<void>;
+  /** Take the selected cues out of their folders. */
+  takeOutOfFolders: (cueIds: readonly string[]) => Promise<void>;
+  removeFolder: (folderId: string) => Promise<unknown>;
+  moveRundown: (what: Movable, place: Place) => Promise<unknown>;
   toggleFolder: (folderId: string) => void;
   setRundownNote: (note: string | null) => void;
   uploadPictures: (files: File[]) => Promise<void>;
@@ -209,7 +221,7 @@ export default function CueRundown({
   /** Which removal in the open row menu is ARMED (`cue` / `graphic`). A cue holds values somebody
    *  typed and there is no undo behind the rundown, so a removal that also takes uploaded
    *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
-  const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | null>(null);
+  const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | 'range' | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   /** Each pool graphic's WORD fields, in the template's order: what a row's dim summary reads. */
@@ -288,7 +300,10 @@ export default function CueRundown({
   const startDrag = (row: RundownRow, e: DragEvent<HTMLDivElement>) => {
     // No state is set here: re-rendering the drag source inside dragstart can cancel the drag.
     draggingRow.current = row.id;
-    dragWhat.current = row.kind === 'cue' ? { cueId: row.cue.id } : { folderId: row.folder.id };
+    // A row in the selection carries the whole selection, in its order (docs/CLIP_PLAYBACK_PLAN.md
+    // §20.2); any other row moves alone.
+    const carries = range.size > 1 && rowCueIds(rundown, row).every((id) => range.has(id));
+    dragWhat.current = carries ? { cueIds: [...range] } : row.kind === 'cue' ? { cueId: row.cue.id } : { folderId: row.folder.id };
     e.dataTransfer.setData(row.kind === 'cue' ? 'text/noacg-cue' : 'text/noacg-folder', row.kind === 'cue' ? row.cue.id : row.folder.id);
   };
   const endDrag = () => {
@@ -303,7 +318,9 @@ export default function CueRundown({
     const rowEl = target.closest<HTMLElement>('[data-row]');
     if (rowEl) {
       const rect = rowEl.getBoundingClientRect();
-      return { rowId: rowEl.dataset.row!, band: bandAt(e.clientY - rect.top, rect.height) };
+      const y = e.clientY - rect.top;
+      // A folder's header: its top quarter above the folder, the rest into it.
+      return { rowId: rowEl.dataset.row!, band: rowEl.classList.contains('pd-folder') ? headerBandAt(y, rect.height) : bandAt(y, rect.height) };
     }
     const rows = list.current?.querySelectorAll<HTMLElement>('[data-row]');
     const last = rows?.[rows.length - 1];
@@ -324,7 +341,9 @@ export default function CueRundown({
     const types = e.dataTransfer.types;
     const cueId = types.includes('text/noacg-cue') ? e.dataTransfer.getData('text/noacg-cue') : '';
     const folderId = types.includes('text/noacg-folder') ? e.dataTransfer.getData('text/noacg-folder') : '';
-    const what: Movable | null = cueId ? { cueId } : folderId ? { folderId } : dragWhat.current;
+    // A selection is carried in memory: the transfer names only the row that was grabbed.
+    const carried = dragWhat.current;
+    const what: Movable | null = carried && 'cueIds' in carried ? carried : cueId ? { cueId } : folderId ? { folderId } : carried;
     const at = aimAt(e) ?? (aim ? (aim.rowId === 'end' ? 'end' : null) : null);
     const plan = what && at ? planDrop(show, rundown, what, at) : (aim?.plan ?? null);
     endDrag();
@@ -344,10 +363,15 @@ export default function CueRundown({
     return plan.mark.rowId === rowId ? plan.mark : null;
   };
 
+  /** The folder a drop into by its header lights whole, while the drag hovers there. */
+  const litFolder = aim?.plan && !aim.plan.refused ? (aim.plan.mark.folder ?? null) : null;
+
   /** The folders a cue could be moved into from its menu: every other folder there is. */
   const otherFolders = (folderId: string | null) => [...rundown.folders.values()].filter((f) => f.id !== folderId);
 
   const rangeCount = range.size;
+  /** Some cue of the selection is in a folder: its menu offers to take them out. */
+  const rangeInFolder = [...range].some((id) => !!rundown.rowOf.get(id) && cues.some((c) => c.id === id && !!c.folderId && rundown.folders.has(c.folderId)));
 
   return (
     <aside ref={rail} id="pd-rundown" className={`pd-rail pd-rundown${offstage ? ' pd-offstage' : ''}`}>
@@ -465,9 +489,9 @@ export default function CueRundown({
                 replaced={hiddenReplaced ? `${hiddenReplaced.cueId ? cues.find((c) => c.id === hiddenReplaced.cueId)?.label ?? 'A cue' : 'A cue'} was replaced on the server.` : null}
                 drop={markFor(row.id)}
                 menuOpen={menuRowId === row.id}
-                onSelect={(shift) => {
+                onSelect={(shift, toggle) => {
                   setRundownNote(null);
-                  clickRow(row, shift);
+                  clickRow(row, shift, toggle);
                 }}
                 onToggle={() => toggleFolder(folder.id)}
                 onMenu={() => setMenuRowId((m) => (m === row.id ? null : row.id))}
@@ -554,14 +578,21 @@ export default function CueRundown({
           return (
             <div
               key={cue.id}
-              className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}`}
+              className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}${cutIds.has(cue.id) ? ' cut' : ''}`}
               data-testid={rowTestId(row)}
               data-row={row.id}
               {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
               {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
+              {...(litFolder && row.folderId === litFolder ? { 'data-drop-target': '' } : {})}
               draggable
               onDragStart={(e) => startDrag(row, e)}
               onDragEnd={endDrag}
+              // A right-click opens the row's own ⋯ menu (docs/CLIP_PLAYBACK_PLAN.md §20.2).
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setArmedRemove(null);
+                setMenuRowId(rowMenuId);
+              }}
             >
               <span className="pd-grip" aria-hidden="true">⣿</span>
               <span className="pd-cue-no">{cueIsLive ? '●' : row.no}</span>
@@ -584,7 +615,7 @@ export default function CueRundown({
                 onMouseDown={(e) => e.shiftKey && e.preventDefault()}
                 onClick={(e) => {
                   setRundownNote(null);
-                  clickRow(row, e.shiftKey);
+                  clickRow(row, e.shiftKey, e.ctrlKey || e.metaKey);
                 }}
                 data-testid="select-cue"
                 aria-current={isSelected ? 'true' : undefined}
@@ -712,6 +743,12 @@ export default function CueRundown({
                   <button
                     role="menuitem"
                     onClick={() => {
+                      // The selection's row: copies of all of it, right after the last of them.
+                      if (takesRange) {
+                        setMenuRowId(null);
+                        void duplicateCues([...range]);
+                        return;
+                      }
                       flushDraft();
                       const v = cueView(cue);
                       // The copy is of the cue, its playback too, and goes right after it - in its
@@ -727,7 +764,7 @@ export default function CueRundown({
                       if (cueId) selectCue(cueId);
                     }}
                   >
-                    Duplicate
+                    {takesRange ? `Duplicate the ${rangeCount} selected cues` : 'Duplicate'}
                   </button>
                   {/* A FOLDER from this cue, or from the shift-click range when this row is in it. */}
                   <button
@@ -741,27 +778,42 @@ export default function CueRundown({
                   >
                     {takesRange ? `New folder from the ${rangeCount} selected cues` : 'New folder from this cue'}
                   </button>
-                  {menuRowId === rowMenuId && otherFolders(row.folderId).map((f) => {
-                    const refused = placeRefusal(show, { cueId: cue.id }, { into: f.id });
+                  {menuRowId === rowMenuId && otherFolders(takesRange ? null : row.folderId).map((f) => {
+                    // The selection's row moves all of it (docs/CLIP_PLAYBACK_PLAN.md §20.2).
+                    const what: Movable = takesRange ? { cueIds: [...range] } : { cueId: cue.id };
+                    const refused = placeRefusal(show, what, { into: f.id });
                     return (
                       <button
                         key={f.id}
                         role="menuitem"
                         disabled={!!refused}
-                        title={refused ?? `Put ${view.label} last in ${folderName(f)}`}
+                        title={refused ?? `Put ${takesRange ? `the ${rangeCount} selected cues` : view.label} last in ${folderName(f)}`}
                         onClick={() => {
                           setMenuRowId(null);
-                          void moveRundown({ cueId: cue.id }, { into: f.id });
+                          void moveRundown(what, { into: f.id });
                         }}
                         data-testid="cue-into-folder"
                         data-folder={f.id}
                       >
-                        Move into ▤ {folderName(f)}
+                        {takesRange ? `Move the ${rangeCount} selected into` : 'Move into'} ▤ {folderName(f)}
                         {refused ? ' (clips and audio only)' : ''}
                       </button>
                     );
                   })}
-                  {ownFolder && (
+                  {takesRange && rangeInFolder && (
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuRowId(null);
+                        void takeOutOfFolders([...range]);
+                      }}
+                      title="Put each selected cue right after its folder, in no folder"
+                      data-testid="cue-out-of-folder"
+                    >
+                      Take the {rangeCount} selected out of their folders
+                    </button>
+                  )}
+                  {!takesRange && ownFolder && (
                     <button
                       role="menuitem"
                       onClick={() => {
@@ -778,6 +830,27 @@ export default function CueRundown({
                       rather than letting it be discovered. A picture graphic carries the
                       uploads themselves, which is the one removal that destroys content
                       with no copy in the library — it asks twice, naming the count. */}
+                  {takesRange ? (
+                    // The selection's row removes all of it, and always asks twice: several cues, and
+                    // perhaps the graphics whose last cues they are, with no undo behind them.
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        if (armedRemove !== 'range') {
+                          setArmedRemove('range');
+                          return;
+                        }
+                        void removeCues([...range]);
+                        setArmedRemove(null);
+                        setMenuRowId(null);
+                      }}
+                      title="Remove the selected cues. A graphic whose last cue is among them leaves the production with it."
+                      data-testid="delete-cue"
+                    >
+                      {armedRemove === 'range' ? `Remove the ${rangeCount} selected cues. Confirm?` : `Remove the ${rangeCount} selected cues`}
+                    </button>
+                  ) : (
+                  <>
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -824,6 +897,8 @@ export default function CueRundown({
                         ? `Remove ${siblingCues} cues${pictures > 0 ? ` and ${pictures} pictures` : ''}. Confirm?`
                         : `Remove graphic and its ${siblingCues} cues`}
                     </button>
+                  )}
+                  </>
                   )}
                 </LibMenu>
               </div>

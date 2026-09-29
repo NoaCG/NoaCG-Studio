@@ -109,7 +109,7 @@ export function cursorRowId(view: RundownView, held: { folderId: string; rowId: 
 }
 
 /** The cues a row stands for: a cue its own, a header every cue of its folder. */
-function cuesOfRow(view: RundownView, row: RundownRow): string[] {
+export function rowCueIds(view: RundownView, row: RundownRow): string[] {
   return row.kind === 'cue' ? [row.cue.id] : (view.members.get(row.folder.id) ?? []).map((c) => c.id);
 }
 
@@ -124,7 +124,7 @@ export function rangeCueIds(view: RundownView, anchorRowId: string | null, toRow
   const from = anchorRowId === null ? -1 : view.rows.findIndex((r) => r.id === anchorRowId);
   const [a, b] = from < 0 ? [to, to] : from < to ? [from, to] : [to, from];
   const ids = new Set<string>();
-  for (let i = a; i <= b; i++) for (const id of cuesOfRow(view, view.rows[i])) ids.add(id);
+  for (let i = a; i <= b; i++) for (const id of rowCueIds(view, view.rows[i])) ids.add(id);
   return [...ids].sort((x, y) => (view.indexOf.get(x) ?? 0) - (view.indexOf.get(y) ?? 0));
 }
 

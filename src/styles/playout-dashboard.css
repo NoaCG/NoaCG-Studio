@@ -1892,6 +1892,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   border: 2px dashed var(--danger);
   border-radius: 6px;
 }
+/* A drop into a folder by its header lights the whole folder: the header boxed, its cues tinted
+   (docs/CLIP_PLAYBACK_PLAN.md §20.2). */
+.pd-rundown .pd-cue[data-drop-target] { background-color: rgba(207, 216, 230, 0.1); box-shadow: inset 2px 0 0 #cfd8e6; }
+/* A row Ctrl+X marked: it moves where the next paste lands, and stays here until then. */
+.pd-rundown .pd-cue.cut { opacity: 0.5; outline: 1px dashed rgba(207, 216, 230, 0.6); outline-offset: -1px; }
 /* The end of the list, while a row is dragged: the one way out below a folder that ends the list. */
 .pd-rundown .pd-drop-end {
   flex: none;
