@@ -286,11 +286,15 @@ So the baseline records what has been seen and accepted, and the check alarms on
 new — the same shape as `scripts/overflow-sweep.mjs`, for the same reason. The per-class reasons
 live in `ACCEPTED_CLASSES` in the script.
 
-**A new member of an accepted class still fails.** A new table with RLS and no policies is
-exactly the case worth catching, so the reason explains the class without admitting its future
-members. A finding that *disappears* is reported but never fails — good news must not be an
-alarm — though it should be re-recorded, or the baseline decays into a list of things that no
-longer exist.
+**A new member of an accepted class still fails, with one exception: `unused_index`.** A new
+table with RLS and no policies is exactly the case worth catching, so the reason explains the class
+without admitting its future members. `unused_index` is different in kind: it reads a usage counter
+(`idx_scan = 0`), not the schema. Every index a migration adds reads as unused until production
+exercises it, and every index reads as unused again after Postgres resets its statistics, which an
+unclean restart does. So a new member is printed as a warning and never fails the run
+(`WARN_ONLY_CLASSES` in the script, tested in `scripts/supabase-advisors.test.mjs`). A finding
+that *disappears* is reported but never fails — good news must not be an alarm — though it should
+be re-recorded, or the baseline decays into a list of things that no longer exist.
 
 Exit codes are four-valued, and the split between the two "could not check" codes is whose defect
 it is: `0` clean, `1` new findings, **`2` could not check and the fault is ours** (no token, no
@@ -382,13 +386,22 @@ runs reported `render_jobs_active` (0007) gone, for the same reason in reverse: 
 at 03:30 UTC that day, so a render job has read the queue. 0065 did not cause that one. The
 baseline dropped that entry and holds 109.
 
-The shape is worth knowing: every migration that adds an index lands an `unused_index` finding,
-and post-land stays red on every landing after it until production uses the index or somebody
-re-records. The baseline cannot be recorded ahead of the landing, because production does not
-have the index yet. That is the rule "a new member of an accepted class still fails" doing what
-it says, and for this one INFO class it is noise that can hide a real finding.
-`docs/backlog/new-index-reddens-post-land-until-re-recorded.md` holds the proposed fix. Until it
-lands: read it, re-record, and name the migration.
+The shape was worth knowing: every migration that added an index landed an `unused_index` finding,
+and post-land stayed red on every landing after it until production used the index or somebody
+re-recorded. The baseline cannot be recorded ahead of the landing, because production does not
+have the index yet.
+
+**Why `unused_index` stopped failing, 2026-09-29.** Post-land went red on every landing from
+08:07 UTC (run 36618050251 among them): 147 findings against 109 accepted, and all 38 new ones
+`unused_index` on indexes from migrations 0003 to 0054, months old and in daily use. One of them,
+`render_jobs_active`, had been scanned on 2026-09-24, and a cumulative counter reads zero again
+only after a statistics reset, consistent with the production restart at about 06:42 UTC that
+morning. A class that fires for every new index, and for every old one after a restart, cannot
+tell a real finding from noise, and a red that means nothing hides the red that does (a failed
+migration push in the same job looks the same). So the class now only warns, whoever created the
+index: an unused index is a performance hint at INFO level, never a security or correctness
+defect. The baseline was not re-recorded; the rule alone makes the run green, and the 38 warnings
+thin out as production uses the indexes again.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
 occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured

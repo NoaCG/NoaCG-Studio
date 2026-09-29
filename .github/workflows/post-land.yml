@@ -66,7 +66,8 @@ jobs:
       #
       # It cannot decay into a standing red for accepted noise, because the script exits 1 only
       # for a finding that is NEW against `supabase/advisor-baseline.json`, and never for one
-      # that cleared. When it does fire, docs/STACK_FRESHNESS.md says what to do with it.
+      # that cleared or for an `unused_index`, a usage counter that a statistics reset zeroes for
+      # every index at once. When it does fire, docs/STACK_FRESHNESS.md says what to do with it.
       #
       # EXIT 3 IS THE ONLY CODE THAT MERELY WARNS: the Management API would not answer, or
       # answered something this script could not compare. Turning every landing red over an
