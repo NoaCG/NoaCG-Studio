@@ -64,9 +64,11 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
 
   // THE HOLD: every send carrying a `play` waits HOLD_MS in the browser before it may leave. The
   // Out carries none and goes straight through. An attempt the page abandons meanwhile is
-  // cancelled, so letting it go afterwards finds nothing to send.
+  // cancelled, so letting it go afterwards finds nothing to send. Both send RPCs: `control_send_many`
+  // on the id road, `control_send_seq` on the numbered log (migration 0070), whichever the page
+  // negotiated with this server.
   const held: Promise<void>[] = [];
-  await op.route('**/rest/v1/rpc/control_send_many', async (route) => {
+  await op.route('**/rest/v1/rpc/control_send_*', async (route) => {
     const body = route.request().postDataJSON() as { p_items?: { msg?: { t?: string } }[] } | null;
     if (!body?.p_items?.some((item) => item.msg?.t === 'play')) return route.continue();
     const release = new Promise<void>((resolve) => setTimeout(resolve, HOLD_MS)).then(() =>
@@ -77,7 +79,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   });
   const abandoned: string[] = [];
   op.on('requestfailed', (r) => {
-    if (r.url().includes('/rpc/control_send_many')) abandoned.push(r.failure()?.errorText ?? '');
+    if (/\/rpc\/control_send_(many|seq)\b/.test(r.url())) abandoned.push(r.failure()?.errorText ?? '');
   });
 
   const notice = op.getByTestId('hosted-error');

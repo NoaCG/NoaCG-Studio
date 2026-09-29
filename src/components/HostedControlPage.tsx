@@ -75,9 +75,11 @@ import {
   hostedControlRange,
   hostedControlTail,
   sendControlVerb,
+  staleSentence,
   stageHostedData,
   takeCueItems,
   verbAired,
+  verbStale,
   withLiveCue,
   type ControlEventRow,
   type ControlSendItem,
@@ -408,6 +410,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         showId: resolved.id,
         from: resolved.lastEventId,
         tail,
+        // The numbered log when the server has it (migration 0070); absent, today's id road.
+        seq: resolved.seq,
         // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
         onCommand: applyCommand,
         onRow: (row) => {
@@ -649,11 +653,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // ahead of the rate limit - the log's 50-per-5-s cap is the likeliest way to reach this at all,
   // and "slow down a moment" would tell an operator whose graphic is up that nothing happened.
   const surfaceSendError = (items: ControlSendItem[], e: Error) => {
-    const notice = verbAired(e)
-      ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
-      : /slow down/i.test(e.message)
-        ? 'Too many commands. Slow down a moment.'
-        : `Send failed: ${e.message}`;
+    // A press another screen had already overtaken reached the server and was refused there, so
+    // it is its own sentence: nothing may be "sent again" blindly (protocol 2, migration 0070).
+    const notice = verbStale(e)
+      ? staleSentence(e, verbAired(e))
+      : verbAired(e)
+        ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
+        : /slow down/i.test(e.message)
+          ? 'Too many commands. Slow down a moment.'
+          : `Send failed: ${e.message}`;
     sendDebts.current.failed(items, notice);
     setError(notice);
   };
@@ -671,7 +679,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
    * The stage write now leaves beside the verb, so what remains is the two requests' round trip.
    */
-  const sendVerb = (items: ControlSendItem[]): Promise<boolean> => {
+  const sendVerb = (items: ControlSendItem[], allOut = false): Promise<boolean> => {
     flushTyping.current();
     return sendControlVerb({
       slug,
@@ -679,6 +687,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       items,
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
+      allOut,
     }).then(
       () => {
         setError(sendDebts.current.landed(items));
@@ -959,7 +968,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // spends the rest of the allowance on batches that will be refused too.
     void (async () => {
       for (const batch of clearAllCueBatches(liveLayers.map((l) => l.graphic))) {
-        if (!(await sendVerb(batch))) return;
+        if (!(await sendVerb(batch, true))) return;
       }
     })();
   };

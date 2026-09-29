@@ -7,6 +7,7 @@
     "anonymous.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
     "community-authed.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
     "moderator.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
-    "signed-in-ux.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted."
+    "signed-in-ux.spec.ts": "Reaches the closed old code editor; docs/backlog/specs-that-still-open-the-old-editor.md lists what it asserted.",
+    "command-sequence.spec.ts": "Needs migrations 0069 and 0070 (the sequence road), which land on their own gated branch after this client. It skips on a server without them; the landing that brings them into the tree removes this entry and raises minTests by 2 (step-2-design.md D-o)."
   }
 }

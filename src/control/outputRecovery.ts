@@ -61,6 +61,23 @@ export function planOutputRecovery(graphics: readonly string[], live: LiveReport
   return { followFrom: baselines.length > 0 ? Math.min(...baselines) : 0, snapshotAt };
 }
 
+/**
+ * THE SAME REPORTS, READ IN THE PER-PRODUCTION SEQUENCE (protocol 2, migration 0070). Every report
+ * a proto-2 resolve answers carries `seq`: the renderer's own, or the server's mapping of `event`
+ * to the last seq below the first numbered row after it (a lower bound, so nothing the report did
+ * not contain is skipped). The rule above is unchanged; only the position it compares is the seq.
+ * A report with no `seq` is replayed rather than trusted, exactly as one with no `event` is.
+ */
+export function seqBaselines(live: LiveReportMap): LiveReportMap {
+  const out: LiveReportMap = {};
+  for (const [graphic, report] of Object.entries(live)) {
+    if (!report) continue;
+    const { event: _byId, ...rest } = report;
+    out[graphic] = typeof report.seq === 'number' ? { ...rest, event: report.seq } : rest;
+  }
+  return out;
+}
+
 /** Is this row already inside the state its graphic was rebuilt from? Replaying it would
  *  re-air it. One helper rather than the same comparison written at each use: the boot asks it
  *  twice — once to decide whether the catch-up animates, once per row as it replays. */

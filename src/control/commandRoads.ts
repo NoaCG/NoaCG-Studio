@@ -97,6 +97,20 @@ export function logTopic(showId: string): string {
 export const LOG_ROW_EVENT = 'row';
 
 /**
+ * THE PRIVATE TOPIC THE NUMBERED LOG IS DELIVERED ON (protocol 2, migration 0070; its read policy
+ * is 0068's): one `batch` frame per inserting statement, carrying that statement's rows with their
+ * per-production `seq`, the head's epoch, and the summary of every graphic it touched
+ * (src/control/seqFollow.ts). Step 1's Presence shares the topic, so a page joins it once
+ * (`joinLiveTopic` in hostedControl.ts). Like the other two, only the database writes to it.
+ */
+export function liveTopic(showId: string): string {
+  return `live-${showId}`;
+}
+
+/** The live topic's broadcast event name for a numbered frame. */
+export const LIVE_BATCH_EVENT = 'batch';
+
+/**
  * HOW MANY APPLIED IDS A SURFACE REMEMBERS.
  *
  * It has to outlive the slow road's slow mode and it has to be bounded, because a long show is

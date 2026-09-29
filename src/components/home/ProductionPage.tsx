@@ -182,9 +182,11 @@ import {
   outputPageUrl,
   publishControlShow,
   sendControlVerb,
+  staleSentence,
   takeCueItems,
   unpublishControlShow,
   verbAired,
+  verbStale,
   withLiveCue,
   type ControlEventRow,
   type ControlFollowStatus,
@@ -1331,6 +1333,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         showId: show.id,
         from: resolved.lastEventId,
         tail,
+        // The numbered log when the server has it (migration 0070); absent, today's id road.
+        seq: resolved.seq,
         // Reported on every status change AND on every poll tick, so this stays true rather
         // than recording only the first answer.
         onStatus: (s) => {
@@ -1667,7 +1671,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // outcome as its own sentence; `runVerb` below puts that on the note line, as every verb did. A
   // folder's Take sends through `sendVerb` and says once, at its end, how all of it went. ──
   const sendVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string): Promise<{ ok: true } | { ok: false; note: string }> => {
+    async (batches: ControlSendItem[][], label: string, allOut = false): Promise<{ ok: true } | { ok: false; note: string }> => {
       if (!hostedSlug) {
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
@@ -1704,6 +1708,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             items: batch,
             applyHere: applyCommand,
             fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
+            allOut,
           });
           landed += 1;
         }
@@ -1716,9 +1721,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // what any other screen is showing. The broadcast and the row are written together, so a
         // refused verb aired nowhere else - and a send that failed on the way BACK may have aired
         // everywhere, which is why this says "may".
-        const note = verbAired(e)
-          ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
-          : `${label} failed: ${(e as Error).message}`;
+        // A press another screen had already overtaken was refused by the server, so it is its own
+        // sentence rather than "send it again" (protocol 2, migration 0070).
+        const note = verbStale(e)
+          ? staleSentence(e as Error, verbAired(e))
+          : verbAired(e)
+            ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
+            : `${label} failed: ${(e as Error).message}`;
         // Owed: the batch that failed and those after it. The ones before it landed.
         sendDebts.current.failed(batches.slice(landed).flat(), note);
         return { ok: false, note };
@@ -1727,8 +1736,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
   );
   const runVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string): Promise<boolean> => {
-      const sent = await sendVerb(batches, label);
+    async (batches: ControlSendItem[][], label: string, allOut = false): Promise<boolean> => {
+      const sent = await sendVerb(batches, label, allOut);
       if (!sent.ok) setNote(sent.note);
       return sent.ok;
     },
@@ -2399,7 +2408,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (liveLayers.length === 0) return;
     cancelCombines('All out');
     const cleared = liveLayers.map((l) => l.graphic);
-    if (await runVerb(clearAllCueBatches(cleared), 'All out')) {
+    if (await runVerb(clearAllCueBatches(cleared), 'All out', true)) {
       setLiveCue((m) => cleared.reduce((acc, g) => withLiveCue(acc, g, null), m));
     }
   };
