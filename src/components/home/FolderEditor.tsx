@@ -93,7 +93,7 @@ export default function FolderEditor({
   const address = slotAddress(slot);
   const modeHint =
     mode === 'manual'
-      ? 'Tidiness only: each cue is taken on its own and sends what it sends outside a folder.'
+      ? 'SPACE on the folder takes its cues one at a time: each press takes the next cue and the graphic before it off. Clips and audio play on until they end or Out.'
       : mode === 'through'
         ? `One Take plays its clips one after another on ${address}, as one sequence NoaCG Bridge runs.`
         : 'One Take starts every cue in it: the server cues one after another, then the graphics.';

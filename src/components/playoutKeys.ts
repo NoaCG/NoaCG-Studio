@@ -31,7 +31,10 @@ export type PlayoutVerb =
   // the selected cues, and collapse or open the folder the cursor is on. A folder's Take and Out are
   // `take` and `out` with a folder row selected. The hosted page has no folders and ignores both.
   | 'folder-new'
-  | 'folder-toggle';
+  | 'folder-toggle'
+  // The panic control, with no key on purpose (docs/CLIP_PLAYBACK_PLAN.md §20.1): the header's ■ All
+  // out as a named verb, so a hardware panel presses the same thing. The hosted page ignores it.
+  | 'all-out';
 
 /** How a verb was pressed: `repeat` for a key's auto-repeat while it is held, which a surface may
  *  refuse for a verb that must happen once (a folder's Take fires several actions). */

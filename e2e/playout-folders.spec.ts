@@ -204,7 +204,8 @@ test('the arrow keys walk the rows as drawn: a header is a stop, a collapsed fol
   await page.keyboard.press('ArrowDown');
   await expect(folder(page, 'Folder 1')).toHaveClass(/selected/);
   await expect(page.getByTestId('folder-editor')).toBeVisible();
-  await expect(page.getByTestId('preview-what')).toHaveText('Folder 1');
+  // PREVIEW shows the cue its first press takes (docs/CLIP_PLAYBACK_PLAN.md §20.1).
+  await expect(page.getByTestId('preview-what')).toHaveText('ALPHA · next in Folder 1');
   // A held header is not a cue: no cue's editor stands beside the folder's panel.
   await expect(page.getByTestId('playout-cue-where')).toHaveCount(0);
   await page.keyboard.press('ArrowDown');
@@ -341,39 +342,153 @@ test('a folder write that does not land is said, and the rundown keeps what was 
   await expect(folder(page, 'Folder 1')).toBeVisible();
 });
 
-test('One by one: its Take is off with the reason, SPACE on it takes what is up of it off, and PREVIEW says so', async ({ page }) => {
-  await production(page);
-  await cue(page, 'Hairline').getByTestId('cue-menu').click();
-  await page.getByTestId('cue-new-folder').click();
-  await folder(page, 'Folder 1').getByTestId('select-folder').click();
-
-  await expect(page.getByTestId('verb-take')).toBeDisabled();
-  await expect(page.getByTestId('verb-take')).toHaveAttribute('title', 'Take each cue in this folder.');
-  await expect(page.getByTestId('preview-what')).toHaveText('Folder 1');
-  await expect(page.locator('.pd-pvw')).toContainText('Folder 1 plays one by one: select a cue in it to see it here.');
-  await expect(page.getByTestId('folder-mode-hint')).toContainText('Tidiness only');
+test('One by one steps: each SPACE on its header takes the next cue and the graphic before it off, then goes back to the top', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §20.1 (owner, 2026-09-29).
+  await production(page, [], { graphics: [{ name: 'Strap A' }, { name: 'Strap B' }], folders: [{ labels: ['Strap A', 'Strap B'], name: 'Straps' }] });
+  await holdFolder(page, 'Straps');
+  const take = page.getByTestId('verb-take');
+  await expect(take).toBeEnabled();
+  await expect(take).toHaveAttribute('title', 'Take Strap A. SPACE does the same');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
+  await expect(page.getByTestId('folder-mode-hint')).toContainText('one at a time');
   // A production with no server cue is never offered Play through.
   await expect(page.getByTestId('folder-mode-through')).toHaveCount(0);
 
-  // Its cue taken on its own lights the header, and SPACE on the header takes it off.
-  await selectCue(page, 'Hairline');
-  await parkFocusOffControls(page);
-  await page.keyboard.press(' ');
-  await expect(cue(page, 'Hairline')).toContainText('ON AIR');
-  await folder(page, 'Folder 1').getByTestId('select-folder').click();
-  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveText('1 ON AIR');
-  await expect(page.getByTestId('verb-take')).toBeEnabled();
-  await expect(page.getByTestId('verb-take')).toContainText('TAKE OFF');
-  await parkFocusOffControls(page);
-  // A held SPACE takes it off once. Each repeat after the first press would be a Take of a One by one
-  // folder, which is refused and would say so.
+  // A held SPACE steps once: a step is several actions, never ten a second.
   await page.keyboard.down(' ');
   await holdKeyRepeats(page, 4);
   await page.keyboard.up(' ');
-  await expect(cue(page, 'Hairline')).not.toContainText('ON AIR');
-  await expect(page.getByTestId('production-note')).toHaveText('✓ Out: Folder 1');
-  await expect(folder(page, 'Folder 1').getByTestId('folder-air')).toHaveCount(0);
+  await expect(cue(page, 'Strap A')).toContainText('ON AIR');
+  await expect(cue(page, 'Strap B')).not.toContainText('ON AIR');
+  await expect(folder(page, 'Straps').getByTestId('folder-air')).toHaveText('1 ON AIR');
+  await expect(take).toContainText('NEXT');
+  await expect(take).toHaveAttribute('title', 'Take Strap B, and Strap A off. SPACE does the same');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap B · next in Straps');
+
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap B')).toContainText('ON AIR');
+  await expect(cue(page, 'Strap A')).not.toContainText('ON AIR');
+
+  // The end: the last graphic off, and back to the top.
+  await expect(take).toContainText('TAKE OFF');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap B')).not.toContainText('ON AIR');
+  await expect(page.getByTestId('production-note')).toHaveText('✓ Straps: back to its first cue');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap A')).toContainText('ON AIR');
+
+  // With the cursor elsewhere, the rundown still marks the cue the folder takes next.
+  await selectCue(page, 'Hairline');
+  await expect(cue(page, 'Strap B').getByTestId('cue-step-next')).toBeVisible();
+
+  // All out takes it off and every folder starts again from its first cue.
+  await page.getByTestId('verb-out-all').click();
+  await expect(cue(page, 'Strap A')).not.toContainText('ON AIR');
+  await expect(list(page).getByTestId('cue-step-next')).toHaveCount(0);
+  await holdFolder(page, 'Straps');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
+
+  // So does 0 on the header.
+  await page.keyboard.press(' ');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap B')).toContainText('ON AIR');
+  await page.keyboard.press('0');
+  await expect(cue(page, 'Strap B')).not.toContainText('ON AIR');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
+});
+
+test('One by one never stops a clip: a step past it leaves it playing, a cue taken by hand moves the step, and 0 stops the folder', async ({ page }) => {
+  await seedSettings(page);
+  const fake = await fakeBridge(page);
+  await production(page, TOGETHER_MEDIA, {
+    graphics: [{ name: 'Strap' }, { name: 'Logo' }],
+    folders: [{ labels: ['Strap', 'Logo', 'VT', 'BED'], name: 'Item' }],
+  });
+  expect(await drawn(page)).toEqual(['Hairline', '[Item]', '  Strap', '  Logo', '  VT', '  BED']);
+  await holdFolder(page, 'Item');
+  const take = page.getByTestId('verb-take');
+  const step = async (cueName: string) => {
+    await expect(page.getByTestId('preview-what')).toHaveText(`${cueName} · next in Item`);
+    await expect(take).toBeEnabled();
+    await page.keyboard.press(' ');
+    await expect(cue(page, cueName)).toContainText('ON AIR');
+  };
+  await step('Strap');
+  await step('Logo');
+  await expect(cue(page, 'Strap')).not.toContainText('ON AIR');
+  // A graphic goes off whatever comes next, a clip included.
+  await step('VT');
+  await expect(cue(page, 'Logo')).not.toContainText('ON AIR');
+  // A clip is never stopped by a step: the bed comes in under it.
+  await step('BED');
+  await expect(cue(page, 'VT')).toContainText('ON AIR');
+  expect(sent(fake)).toEqual(['take 2-10 VT', 'take 2-5 BED']);
+
+  // Nothing left: back to the top, and the clips play on.
+  await expect(take).toContainText('FROM THE TOP');
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('production-note')).toHaveText('✓ Item: back to its first cue');
+  await expect(cue(page, 'VT')).toContainText('ON AIR');
+  await expect(cue(page, 'BED')).toContainText('ON AIR');
+
+  // Logo taken by hand: the step stands on it. What comes after it is on air already, so the next
+  // press takes Logo off and goes back to the top - still never touching a clip.
+  await selectCue(page, 'Logo');
+  await parkFocusOffControls(page);
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Logo')).toContainText('ON AIR');
+  await holdFolder(page, 'Item');
+  await expect(take).toContainText('TAKE OFF');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Logo')).not.toContainText('ON AIR');
+  await expect(cue(page, 'VT')).toContainText('ON AIR');
+  expect(sent(fake)).toEqual(['take 2-10 VT', 'take 2-5 BED']);
+
+  // 0 on the header stops the folder, its clips included.
+  await page.keyboard.press('0');
+  await expect(cue(page, 'VT')).not.toContainText('ON AIR');
+  await expect(cue(page, 'BED')).not.toContainText('ON AIR');
+  expect(sent(fake)).toEqual(['take 2-10 VT', 'take 2-5 BED', 'out 2-10', 'out 2-5']);
+});
+
+test('a step whose next cue cannot be taken sends nothing at all, and says why', async ({ page }) => {
+  await seedSettings(page);
+  const fake = await fakeBridge(page, { features: ['state'] });
+  await production(page, CLIPS, {
+    graphics: [{ name: 'Strap' }],
+    playback: { ALPHA: { fadeIn: 'short' } },
+    folders: [{ labels: ['Strap', 'ALPHA'], name: 'Item' }],
+  });
+  await holdFolder(page, 'Item');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap')).toContainText('ON AIR');
+  // ALPHA fades in, which this Bridge cannot do: the step is off, and Strap stays up.
   await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('folder-take-blocked')).toContainText('Update NoaCG Bridge');
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('production-note')).toContainText('Take was not sent');
+  await expect(cue(page, 'Strap')).toContainText('ON AIR');
+  expect(sent(fake)).toEqual([]);
+});
+
+test('All out stops what plays on the rundown\'s slots after a Bridge restart, which no cue can name any more', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §20.1: the panic control clears everything on this production's air.
+  await seedSettings(page);
+  const fake = await fakeBridge(page);
+  await production(page, CLIPS);
+  await selectCue(page, 'ALPHA');
+  await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
+  await page.getByTestId('verb-take').click();
+  await expect(cue(page, 'ALPHA')).toContainText('ON AIR');
+  fake.restart();
+  await expect(page.getByTestId('server-unidentified')).toContainText('Unidentified item on 2-10', { timeout: 10_000 });
+  await expect(cue(page, 'ALPHA')).not.toContainText('ON AIR');
+  await expect(page.getByTestId('verb-out-all')).toBeEnabled();
+  await page.getByTestId('verb-out-all').click();
+  await expect(page.getByTestId('server-unidentified')).toHaveCount(0, { timeout: 10_000 });
+  expect(sent(fake)).toEqual(['take 2-10 ALPHA', 'out 2-10']);
+  await expect(page.getByTestId('verb-out-all')).toBeDisabled();
 });
 
 // ── Play through ──────────────────────────────────────────────────────────────────────────────

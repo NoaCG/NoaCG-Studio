@@ -1,4 +1,4 @@
-// guards: src/control/serverPlayout.ts, src/control/folderAir.ts, src/control/cuePlayback.ts, src/control/serverState.ts
+// guards: src/control/serverPlayout.ts, src/control/folderAir.ts, src/control/folderStep.ts, src/control/cuePlayback.ts, src/control/serverState.ts
 //
 // A FOLDER'S TAKE, run in Node with the Bridge faked (docs/CLIP_PLAYBACK_PLAN.md §6.4 to §6.6, phase
 // 4): what a Play-through folder sends and when it cannot go, Loop the folder on the page's side, Play
@@ -14,6 +14,7 @@ const { clockRank, folderRun, folderRunBlocker, folderTakeBlocker, playNextTarge
 const { asFolderMember, takePlayback } = await import('../src/control/cuePlayback.ts');
 const { NO_OWNERSHIP, airClash, applyAccepted, applyReading, clipClock, clockedClip } = await import('../src/control/serverState.ts');
 const { folderAir, folderAirWords } = await import('../src/control/folderAir.ts');
+const { folderStep, stepFace } = await import('../src/control/folderStep.ts');
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
 /** A movie of `seconds` on 2-10, unless told otherwise. */
@@ -118,12 +119,13 @@ test('takeBlocker knows folders: a member takes by its folder\'s rules, a folder
   // Without folders, nothing changed.
   assert.equal(takeBlocker(cues[0], cues, items, address, BRIDGE_05), null);
 
-  // A mode this build does not know reads as One by one here too, as it is drawn: its Take is off,
-  // never sent down another mode's path.
+  // A mode this build does not know reads as One by one here too, as it is drawn: it steps, each
+  // press one cue's own Take, and is never sent down another mode's path. What a step would take is
+  // judged at the press, on that cue (folderStep).
   const other = [{ id: 'N', name: 'Next', mode: 'rotate' }];
   const two = [cue('a', 'a', 'N'), cue('b', 'b', 'N')];
-  assert.equal(takeBlocker(other[0], two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
-  assert.equal(takeBlocker({ id: 'N', name: 'Next' }, two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), 'Take each cue in this folder.');
+  assert.equal(takeBlocker(other[0], two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), null);
+  assert.equal(takeBlocker({ id: 'N', name: 'Next' }, two, [vt('a', 10), vt('b', 10, { layer: 11 })], address, BRIDGE_06, other), null);
 });
 
 test("each clip's place in its Play-through folder, in one pass, agrees with throughFolderOf", () => {
@@ -227,7 +229,8 @@ test('All together is refused before anything is sent, naming the cue', () => {
   // The server cues first, then the graphics, each in rundown order.
   const ok = plan([graphic('strap'), cue('bed', 'bed'), cue('vt', 'vt')]);
   assert.deepEqual([ok.server.map((m) => m.cue.id), ok.graphics.map((g) => g.cue.id)], [['bed', 'vt'], ['strap']]);
-  assert.equal(folderTakeBlocker({ id: 'M', name: 'M', mode: 'manual' }, [], rundown()), 'Take each cue in this folder.');
+  // One by one steps: each press is judged on the cue it takes, at the press.
+  assert.equal(folderTakeBlocker({ id: 'M', name: 'M', mode: 'manual' }, [], rundown()), null);
 });
 
 test('the run sends each server cue alone, then the graphics; a refusal stops nothing and nothing is retried', async () => {
@@ -256,6 +259,30 @@ test('the run sends each server cue alone, then the graphics; a refusal stops no
   assert.equal(togetherNote('Opening', results), 'Take: Opening, 2 of 3 on air. Take of BED did not reach the playout server: refused (server).');
   assert.equal(togetherNote('Opening', results.map((r) => ({ ...r, ok: true, note: '✓ fine' }))), '✓ Take: Opening, 3 of 3 on air');
   void items;
+});
+
+test('the graphics of an All-together run start together, and answer in rundown order', async () => {
+  const plan = togetherPlan([cue('vt', 'vt'), graphic('strap'), graphic('bug'), graphic('logo')], rundown({ graphicOf: (c) => ({ name: c.id, layer: { strap: 20, bug: 21, logo: 22 }[c.id] }) }));
+  assert.equal(plan.ok, true);
+  let inFlight = 0;
+  let most = 0;
+  const release = [];
+  const results = runTogether(plan, {
+    server: async () => ({ ok: true, note: '✓' }),
+    graphic: (g) => {
+      inFlight += 1;
+      most = Math.max(most, inFlight);
+      // The last graphic answers first: the order of the results must not follow the answers.
+      return new Promise((resolve) => release.push(() => (inFlight -= 1, resolve({ ok: g.cue.id !== 'bug', note: `✓ ${g.cue.id}` }))));
+    },
+    off: async () => assert.fail('nothing is taken back off'),
+    stopped: () => false,
+  });
+  for (let i = 0; i < 20 && release.length < 3; i++) await new Promise((r) => setTimeout(r, 0));
+  // Every graphic is on its way before any has answered. (One at a time, only the first would be.)
+  assert.equal(most, 3);
+  for (const r of [...release].reverse()) r();
+  assert.deepEqual((await results).map((r) => [r.cueId, r.ok]), [['vt', true], ['strap', true], ['bug', false], ['logo', true]]);
 });
 
 test('Out or All out during the run: nothing more is sent, and what lands after is taken back off', async () => {
@@ -329,4 +356,73 @@ test('one function lights every folder, from what is up and never from the clock
   assert.equal(lit(last, through({ end: 'loop' })).looping, false);
   const alone = read({ file: 'A', cueId: 'a', loop: true });
   assert.equal(lit(alone, through()).looping, true);
+});
+
+// ── ONE BY ONE STEPS (docs/CLIP_PLAYBACK_PLAN.md §20.1) ─────────────────────────────────────────────
+
+/** Two graphics on their own pool graphics, a clip and an audio file, in that order. */
+const STEP = [
+  { id: 'g1', graphic: true, replaces: 'pool:a' },
+  { id: 'g2', graphic: true, replaces: 'pool:b' },
+  { id: 'vt', graphic: false, replaces: 'slot:2-10' },
+  { id: 'bed', graphic: false, replaces: 'slot:2-5' },
+];
+const up = (...ids) => new Set(ids);
+
+test('a One-by-one folder steps: each press takes the next cue and the graphic before it off, never a clip', () => {
+  assert.deepEqual(folderStep(STEP, undefined, up()), { kind: 'take', cueId: 'g1', off: [] });
+  assert.deepEqual(folderStep(STEP, 'g1', up('g1')), { kind: 'take', cueId: 'g2', off: ['g1'] });
+  // A graphic goes off whatever comes next, a clip included.
+  assert.deepEqual(folderStep(STEP, 'g2', up('g2')), { kind: 'take', cueId: 'vt', off: ['g2'] });
+  // A clip is never stopped by a step: the audio file comes in under it.
+  assert.deepEqual(folderStep(STEP, 'vt', up('vt')), { kind: 'take', cueId: 'bed', off: [] });
+  // The end: back to the top, the clip and the bed playing on.
+  assert.deepEqual(folderStep(STEP, 'bed', up('vt', 'bed')), { kind: 'top', off: [] });
+  // From the top, the first cue not on air.
+  assert.deepEqual(folderStep(STEP, null, up('vt', 'bed')), { kind: 'take', cueId: 'g1', off: [] });
+});
+
+test('the end of a folder with a graphic up takes it off and goes back to the top', () => {
+  const two = STEP.slice(0, 2);
+  assert.deepEqual(folderStep(two, 'g2', up('g2')), { kind: 'top', off: ['g2'] });
+  assert.deepEqual(folderStep(two, null, up()), { kind: 'take', cueId: 'g1', off: [] });
+});
+
+test('a cue of the same pool graphic replaces the one up rather than taking it off first', () => {
+  const same = [
+    { id: 'anna', graphic: true, replaces: 'pool:strap' },
+    { id: 'ben', graphic: true, replaces: 'pool:strap' },
+    { id: 'logo', graphic: true, replaces: 'pool:logo' },
+  ];
+  assert.deepEqual(folderStep(same, 'anna', up('anna')), { kind: 'take', cueId: 'ben', off: [] });
+  assert.deepEqual(folderStep(same, 'ben', up('ben')), { kind: 'take', cueId: 'logo', off: ['ben'] });
+});
+
+test('manual takes and the server moving on never make a step re-take or skip back', () => {
+  // A cue taken by hand mid-run moves the step to it (the page remembers it), and a graphic still up
+  // from before goes off with the next step.
+  assert.deepEqual(folderStep(STEP, 'vt', up('g1', 'vt')), { kind: 'take', cueId: 'bed', off: ['g1'] });
+  // A cue already on air is passed over: a clip the server moved on to by itself is never re-taken.
+  const clips = [
+    { id: 'c1', graphic: false, replaces: 'slot:2-10' },
+    { id: 'c2', graphic: false, replaces: 'slot:2-10' },
+    { id: 'g', graphic: true, replaces: 'pool:a' },
+  ];
+  assert.deepEqual(folderStep(clips, 'c1', up('c2')), { kind: 'take', cueId: 'g', off: [] });
+  // A reload forgets the memory: the furthest cue on air says where the step stands.
+  assert.deepEqual(folderStep(STEP, undefined, up('g2')), { kind: 'take', cueId: 'vt', off: ['g2'] });
+  // A remembered cue that has left the folder reads the same way.
+  assert.deepEqual(folderStep(STEP, 'gone', up('g1')), { kind: 'take', cueId: 'g2', off: ['g1'] });
+  // Everything on air and no graphic to take off: nothing a press can do.
+  assert.deepEqual(folderStep(clips.slice(0, 2), null, up('c1', 'c2')), { kind: 'none' });
+});
+
+test('the TAKE button says what a step does and names the cues in its tooltip', () => {
+  const label = (id) => id.toUpperCase();
+  assert.deepEqual(stepFace({ kind: 'take', cueId: 'g1', off: [] }, 'Straps', label, false), { text: '⟳ TAKE', title: 'Take G1. SPACE does the same', tone: 'take' });
+  assert.equal(stepFace({ kind: 'take', cueId: 'g2', off: ['g1'] }, 'Straps', label, true).text, '⟳ NEXT');
+  assert.equal(stepFace({ kind: 'take', cueId: 'g2', off: ['g1'] }, 'Straps', label, true).title, 'Take G2, and G1 off. SPACE does the same');
+  assert.equal(stepFace({ kind: 'top', off: ['g2'] }, 'Straps', label, true).text, '■ TAKE OFF');
+  assert.equal(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).text, '↺ FROM THE TOP');
+  assert.match(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).title, /its clips play on/);
 });

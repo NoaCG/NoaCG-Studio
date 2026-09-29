@@ -1,6 +1,6 @@
 # Clip and audio playback, and the rundown around it - the plan
 
-**Draft, revision 2, 2026-09-27. Phases 0 to 4 are built (§16).** It comes from an owner planning session.
+**Draft, revision 2, 2026-09-27. Phases 0 to 4 are built (§16); phase 5, from the owner's review of phase 4, is §20.** It comes from an owner planning session.
 The owner approved the design and answered its five questions (§15). An independent review of the
 plan and the code it touches (Codex, at `5b3b044`) agreed with the direction and corrected the
 server model, the record and the guards. **Every finding and what was done with it is in §19.** §16
@@ -1189,3 +1189,104 @@ Its answers to revision 1's questions: the Bridge runner, yes; polling twice a s
 start to be measured, with commands given priority; Play next past graphics, keep it but name the
 exact target and the skipped cues; flat folders, a foundation that needed the rules §7 now has; the
 phase 0 split, yes, without building a general framework; graphics-only losses, yes, now kept.
+
+## 20. Phase 5 - folders you can play, a rundown you can edit (owner, 2026-09-29)
+
+**Why.** The owner ran phase 4 and found folder playback configured but not triggerable: a new
+folder is One by one, and One by one refused its Take ("Take each cue in this folder."). The
+rundown also needed ordinary editing: a shift-selection that drags as a group, a drop on a folder's
+header, copy, cut and paste, and rows that say at a glance what they are and which channel they
+play on.
+
+**Goal.** Folders stay first a way to organise the rundown; playing one is a useful second feature,
+never an automation system. Normal operation feels logical, and any mix of manual Takes, folder
+steps, clips and Out leaves playout in a state the page describes truthfully. The simplest robust
+implementation: no new persisted field, no timer in the page.
+
+**Non-goals.** Graphics in Play through (they have no end; timed graphics are
+`RUNDOWN_AUTOMATION_PLAN.md` build 1), graphics attached to a clip, paste between productions, the
+system clipboard, a Delete key, the Companion surface itself, and any work for CasparCG 2.3.
+
+### 20.1 Playing a folder (owner decisions, 2026-09-29)
+
+- **One by one steps.** SPACE or TAKE on a held One-by-one header takes the folder's next cue,
+  exactly as that cue's own Take would. First the folder's graphics that are up go off, whatever
+  comes next; one of the same pool graphic as the next cue is replaced by its Take instead. **A clip
+  or audio file is never stopped by a step**: it plays on until it ends, the next clip on its own
+  slot replaces it, or Out.
+- **Where the step stands** is page memory: the folder's cue taken last, by any route (the header,
+  or a cue's own Take), and the next is the first cue after it that is not on air. Before any take
+  in this page (a new page, a reload) it is the furthest cue of the folder on air. It is not saved
+  and not shared with teammates.
+- **The end.** With no cue left after it, SPACE takes the folder's graphics off and goes back to
+  the top; its clips play on. The next SPACE takes the first cue. The TAKE button says which, and
+  names the cue a press takes.
+- **Out and `0` on the header** take every cue of the folder that is up off, clips and audio
+  included, and the step goes back to the top.
+- **A manual Take stays a manual Take.** Taking a cue of the folder moves the step to it and
+  changes nothing else, so a step after it continues from there.
+- **PREVIEW** with a One-by-one header held shows the cue SPACE takes next. A folder is never
+  previewed, in either Space mode (as phase 4).
+- **One exception to the Space rule** (`PLAYOUT_DASHBOARD.md` §2f, "off air is one press"): a held
+  One-by-one header steps rather than takes off while cues remain. `0` still clears it in one press.
+- **All together and Play through** stay as phase 4 built them. All together's graphics go out in
+  one batch, so they land together. Play through is shown disabled, with the reason, where it cannot
+  be chosen, rather than hidden.
+- **All out is the panic control**, and a named verb (`all-out`, no key) for a hardware panel. It
+  takes off everything this page has on air - graphics, clips, audio, a folder Take still being
+  sent - and whatever the page shows as unidentified on a slot this rundown uses, since after a
+  Bridge restart this page's own clip reads as unidentified. Layers the rundown does not use are
+  left alone. Every folder's step goes back to the top.
+
+### 20.2 Editing the rundown
+
+- **The selection is for editing and walking, never for airing.** SPACE, TAKE and `0` act on the
+  cursor row whatever is selected.
+- **A drag that starts on a selected row moves the whole selection**, in rundown order, as one
+  write. Loose cues join the folder they land in; a folder whose every cue is selected moves as a
+  folder, and lands beside another folder rather than inside it, as a dragged folder does. A drag
+  from a row outside the selection moves that row alone.
+- **A drop on a folder's header** puts what is dropped last in the folder, open or collapsed, as
+  "Move into" does, and the whole folder lights as the target. The header's top quarter still lands
+  above the folder.
+- **The row menu of a selected row acts on the selection**: Move into, Take out, Duplicate and
+  Remove (armed, naming the count).
+- **Ctrl-click** (Cmd-click on macOS, where Ctrl-click is a right-click) adds or removes one row,
+  Shift+Up and Shift+Down extend the selection, and Escape clears it.
+- **Copy, cut and paste** (Ctrl or Cmd with C, X, V), while nothing is being typed and no text on
+  the page is selected, within one production, through the page's own clipboard:
+  - **Copy** makes new cues on the same graphic or server file: a new id, their own values, note and
+    clip settings, the label unchanged, not on air. A whole folder copies as a new folder with its
+    mode and settings.
+  - **Paste** lands after the cursor row and joins its folder, as a drop there would; on a held
+    header, last in that folder; with nothing selected, at the end. What a drop there refuses, a
+    paste refuses, and nothing is written. The pasted rows become the selection; the cursor and
+    PREVIEW do not move.
+  - **Cut is a move**: it marks the rows, and paste moves them with their ids, so what is on air,
+    combined controls and the data API keep pointing at them. Nothing is removed until the paste
+    lands, and Escape cancels the cut.
+  - One write per paste, reported only once it lands.
+- **Right-click** on a row opens its own `⋯` menu.
+
+### 20.3 Rows that read at a glance
+
+With a playout server set up and the rundown on two channels or more, each row carries a thin
+stripe in its channel's colour, with a legend in the rundown's head; the colours stay clear of red,
+amber and green, which already mean on air, preview and published. The graphic kind icon leaves
+amber for the same reason. A folder's cues hang from a guide line under its header. Nothing else
+changes size or place.
+
+### 20.4 Acceptance
+
+- A One-by-one folder of two graphics and a clip on the real server: SPACE on its header takes the
+  first graphic; SPACE takes the second and the first goes off; SPACE rolls the clip and the second
+  graphic goes off; SPACE goes back to the top and the clip plays on; `0` stops the clip.
+- A cue of the folder taken by hand mid-run: the next SPACE continues after it, and nothing stays
+  on air that the rows do not show.
+- All out after a Bridge restart mid-clip stops that clip.
+- Three selected rows dragged into a folder land there, in order, in one write; a folder in the
+  selection is never nested.
+- Copy and paste of two cues makes two new cues that take and edit independently of the originals;
+  cut and paste of a cue on air leaves it on air, in its new place.
+- At 1920 and 1366, graphics, clips, audio, folders and their members, and channel 1 against
+  channel 2 are told apart at a glance (a desktop check for the owner).
