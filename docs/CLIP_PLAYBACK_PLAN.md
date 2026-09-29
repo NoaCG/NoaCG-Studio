@@ -1225,18 +1225,21 @@ system clipboard, a Delete key, the Companion surface itself, and any work for C
   included, and the step goes back to the top.
 - **A manual Take stays a manual Take.** Taking a cue of the folder moves the step to it and
   changes nothing else, so a step after it continues from there.
-- **PREVIEW** with a One-by-one header held shows the cue SPACE takes next. A folder is never
-  previewed, in either Space mode (as phase 4).
+- **PREVIEW** with a One-by-one header held shows the cue SPACE takes next, in the default Space
+  mode. A folder is never previewed: in 'SPACE previews first' mode PREVIEW keeps the cue staged
+  there, and SPACE on a held header acts at once, as phase 4 built for every folder.
 - **One exception to the Space rule** (`PLAYOUT_DASHBOARD.md` §2f, "off air is one press"): a held
   One-by-one header steps rather than takes off while cues remain. `0` still clears it in one press.
 - **All together and Play through** stay as phase 4 built them. All together's graphics go out in
-  one batch, so they land together. Play through is shown disabled, with the reason, where it cannot
-  be chosen, rather than hidden.
+  once, not one after another, so they land together; each still answers for itself. Play through is
+  shown disabled, with the reason, where it cannot be chosen, rather than hidden.
 - **All out is the panic control**, and a named verb (`all-out`, no key) for a hardware panel. It
   takes off everything this page has on air - graphics, clips, audio, a folder Take still being
   sent - and whatever the page shows as unidentified on a slot this rundown uses, since after a
   Bridge restart this page's own clip reads as unidentified. Layers the rundown does not use are
-  left alone. Every folder's step goes back to the top.
+  left alone, and so is one the rundown no longer uses. Every folder's step goes back to the top.
+- **`0` on a held One-by-one header** sends a folder under way back to the top even when nothing of
+  it is on air any more (its last graphic taken off by hand, its clips ended).
 
 ### 20.2 Editing the rundown
 

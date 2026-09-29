@@ -132,8 +132,14 @@ export default function FolderEditor({
             How it plays
           </span>
           <div className="ctl-segmented" role="radiogroup" aria-labelledby={`folder-mode-${folder.id}`} data-testid="folder-mode">
-            {MODES.filter((m) => m.mode !== 'through' || hasServerCue || mode === 'through').map((m) => {
-              const off = m.mode === 'through' && mode !== 'through' ? throughOff : null;
+            {MODES.map((m) => {
+              // Play through is there even where it cannot be chosen, and says why (§20.1).
+              const off =
+                m.mode === 'through' && mode !== 'through'
+                  ? hasServerCue
+                    ? throughOff
+                    : 'Play through plays clips and audio files one after another. This production has no server clip to play.'
+                  : null;
               return (
                 <button
                   key={m.mode}

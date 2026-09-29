@@ -862,7 +862,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const stepNext = new Set<string>();
   for (const folder of rundown.folders.values()) {
     if (folderMode(folder) !== 'manual') continue;
-    const started = folderSteps[folder.id] !== undefined || (folderStates[folder.id]?.onAir.length ?? 0) > 0;
+    const started = typeof folderSteps[folder.id] === 'string' || (folderStates[folder.id]?.onAir.length ?? 0) > 0;
     if (!started && selectedFolder?.id !== folder.id) continue;
     const step = stepOf(folder.id);
     if (step.kind === 'take') stepNext.add(step.cueId);
@@ -2354,7 +2354,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // nothing airs after the panic control.
     for (const run of folderRuns.current.values()) run.stop = 'all-out';
     // Every One-by-one folder starts again from its first cue.
-    setFolderSteps({});
+    setFolderSteps((m) => Object.fromEntries(Object.keys(m).map((id) => [id, null])));
     // The panic control cuts, as it always did, whatever fade out a clip is set to.
     for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     await outUnnamed();
@@ -2365,6 +2365,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setLiveCue((m) => cleared.reduce((acc, g) => withLiveCue(acc, g, null), m));
     }
   };
+  /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
+   *  of this page to take it off: an unidentified item, or what replaced a cue's clip. A slot the
+   *  rundown no longer uses is left alone, whatever the page last heard about it. */
+  const unnamedSlots = (own: typeof serverOwnership): Map<string, Slot> => {
+    const used = new Set([
+      ...playoutItems.map((i) => slotAddress(itemSlot(playoutSettings, i))),
+      ...folders.filter((f) => folderMode(f) === 'through').map((f) => slotAddress(folderSlot(playoutSettings, f))),
+    ]);
+    const taken = new Set(livePlayoutLayers.map((l) => slotAddress(l.slot)));
+    const out = new Map<string, Slot>();
+    for (const s of [...own.unidentified.map((u) => u.slot), ...Object.values(own.replaced).map((r) => r.slot)]) {
+      const a = slotAddress(s);
+      if (used.has(a) && !taken.has(a)) out.set(a, s);
+    }
+    return out;
+  };
   /**
    * All out's second half (docs/CLIP_PLAYBACK_PLAN.md §20.1): what plays on a slot this rundown uses
    * with no cue of this page to take it off - an unidentified item, or what replaced a cue's clip.
@@ -2372,12 +2388,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * must stop it. Each is cut, as All out cuts, and the server is read again at once.
    */
   const outUnnamed = async () => {
-    const own = serverPlayout.ownership.get();
-    const taken = new Set(livePlayoutLayers.map((l) => slotAddress(l.slot)));
-    const slots = new Map<string, Slot>();
-    for (const s of [...own.unidentified.map((u) => u.slot), ...Object.values(own.replaced).map((r) => r.slot)]) {
-      if (!taken.has(slotAddress(s))) slots.set(slotAddress(s), s);
-    }
+    const slots = unnamedSlots(serverPlayout.ownership.get());
     if (!slots.size) return;
     const settings = loadPlayoutSettings();
     const failed: string[] = [];
@@ -2472,21 +2483,39 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const selectedFolderUp = !!selectedFolder && folderUp(selectedFolder.id);
   /** A held One-by-one header's next cue, the one its press takes. */
   const heldStepCue = heldStep?.kind === 'take' ? (cues.find((c) => c.id === heldStep.cueId) ?? null) : null;
+  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
+  /** Why a step's next cue cannot be taken, or null: its file or graphic gone, NoaCG Bridge not there
+   *  for a server cue, or its own Take check. Asked before anything of the step is sent, so a press
+   *  that cannot take its cue takes nothing else off either. */
+  const stepBlocker = (next: ShowCue): string | null =>
+    next.source === 'playout'
+      ? !playoutItemFor(next)
+        ? `${next.label} plays a file this production no longer lists.`
+        : bridgeDown
+          ? `${next.label} plays on the playout server, and NoaCG Bridge is not connected.`
+          : takeBlockerFor(next)
+      : !cueGraphicName(next)
+        ? `${next.label} points at a graphic this production no longer has.`
+        : takeBlockerFor(next);
   /** Why the held folder's press would not go: a One-by-one folder's is its next cue's. */
   const selectedFolderBlocked = !selectedFolder
     ? null
     : heldStep
       ? heldStep.kind === 'none'
         ? `Everything in ${folderName(selectedFolder)} is on air. 0 takes it off.`
-        : takeBlockerFor(heldStepCue)
+        : heldStepCue
+          ? stepBlocker(heldStepCue)
+          : null
       : takeBlockerFor(selectedFolder);
+  /** A One-by-one folder under way: a cue of it taken in this page. `0` on its header then sends it
+   *  back to the top even when nothing of it is up any more. */
+  const heldStarted = !!selectedFolder && typeof folderSteps[selectedFolder.id] === 'string';
   /** A folder is never previewed: SPACE takes it, or takes it off (the same decision as a cue already
    *  on PREVIEW, so `spaceAction` and the exported controller's table are untouched). */
   const folderSpace = spaceAction(spaceMode, { live: selectedFolderUp, previewed: true });
   /** Like a server cue's: a folder with a server cue in it waits while the Bridge says the server is
-   *  not there - a One-by-one folder only when the cue its press takes is one. */
-  const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
-  const folderCanTake = heldStep ? !(heldStepCue?.source === 'playout' && bridgeDown) : !heldMembers.some((c) => c.source === 'playout') || !bridgeDown;
+   *  not there. A One-by-one folder's step asks it of the cue it takes (`stepBlocker`). */
+  const folderCanTake = !!heldStep || !heldMembers.some((c) => c.source === 'playout') || !bridgeDown;
   /** A One-by-one folder's TAKE face, from its step: what one press does, the cues named. */
   const stepButton = (folder: ShowFolder, step: FolderStep) => {
     const started = typeof folderSteps[folder.id] === 'string' || folderUp(folder.id);
@@ -2591,7 +2620,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const run = folderRuns.current.get(folder.id);
     if (run && !run.stop) run.stop = 'out';
     // A One-by-one folder taken off starts again from its first cue.
-    setFolderSteps((m) => (folder.id in m ? Object.fromEntries(Object.entries(m).filter(([id]) => id !== folder.id)) : m));
+    setFolderSteps((m) => (m[folder.id] === null ? m : { ...m, [folder.id]: null }));
     const members = rundown.members.get(folder.id) ?? [];
     clearMisses(members.map((c) => c.id));
     const notes: string[] = [];
@@ -2647,13 +2676,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     const next = step.kind === 'take' ? cues.find((c) => c.id === step.cueId) : undefined;
-    if (next) {
-      const blocked =
-        next.source === 'playout' && bridgeDown ? `${next.label} plays on the playout server, and NoaCG Bridge is not connected.` : takeBlockerFor(next);
-      if (blocked) {
-        setNote(`Take was not sent: ${blocked}`);
-        return;
-      }
+    const blocked = next ? stepBlocker(next) : null;
+    if (blocked) {
+      setNote(`Take was not sent: ${blocked}`);
+      return;
     }
     flushDraft();
     await runFolder(folder.id, async (run) => {
@@ -2666,7 +2692,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       if (run.stop) return;
       await takeCue(next);
-      // Out or All out came while the take was on its way: what it put up goes back off.
+      // Out or All out came while the take was on its way: what it put up goes back off, and the
+      // folder stays back at the top, where Out put it, whatever that take remembered.
       if (!run.stop) return;
       const item = playoutItemFor(next);
       if (item) {
@@ -2675,6 +2702,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const graphic = cueGraphicName(next);
         if (graphic) await offLate({ cue: next, graphic, layer: 0 }, run.stop === 'all-out');
       }
+      setFolderSteps((m) => ({ ...m, [folder.id]: null }));
     });
   };
 
@@ -3222,7 +3250,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         else if (selectedFolderBlocked) setNote(`Take was not sent: ${selectedFolderBlocked}`);
         else void takeFolder(selectedFolder);
       }
-      if (key === 'out' && selectedFolderUp) void outFolder(selectedFolder);
+      if (key === 'out' && (selectedFolderUp || heldStarted)) void outFolder(selectedFolder);
       return;
     }
     // Staging REPLACES what was on PREVIEW; a replaced cue that is on air stays on air, because
@@ -3292,7 +3320,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       }
       onAllOut={() => void outAll()}
       // A folder's Take still being sent counts: All out is what stops it before any of it lands.
-      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || serverOwnership.unidentified.length > 0 || Object.keys(serverOwnership.replaced).length > 0}
+      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       renders={renders.current}
@@ -3418,7 +3446,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               the only way "the button IS the key" survives a second mode: → PREVIEW (amber,
               airs nothing) exists only in 'preview-then-take' mode, on a cue not yet on PREVIEW. */}
           {/* A held folder row wears the folder's face: TAKE starts it by how it plays, TAKE OFF takes
-              all of it off. One by one's TAKE is off: each of its cues is taken on its own. */}
+              all of it off. One by one's steps: each press names the cue it takes. */}
           <button
             className={takeButton.face.className}
             disabled={takeButton.disabled}
@@ -3477,7 +3505,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           </button>
           <button
             className="pd-verb"
-            disabled={selectedFolder ? !selectedFolderUp : !selectedLayerLive}
+            disabled={selectedFolder ? !selectedFolderUp && !heldStarted : !selectedLayerLive}
             onClick={() => onVerb('out')}
             title={
               selectedFolder

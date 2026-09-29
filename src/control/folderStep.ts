@@ -16,7 +16,7 @@ export interface StepMember {
   /** A graphic - a pool graphic or a server template - goes off when the folder steps on. A clip,
    *  audio file or still does not. */
   graphic: boolean;
-  /** What its own Take replaces: its pool graphic, or its server slot. A graphic up with the same key
+  /** What its own Take replaces: its pool graphic, or its server item. A graphic up with the same key
    *  as the next cue is replaced by that cue's Take rather than taken off first. */
   replaces: string;
 }

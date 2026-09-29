@@ -351,8 +351,9 @@ test('One by one steps: each SPACE on its header takes the next cue and the grap
   await expect(take).toHaveAttribute('title', 'Take Strap A. SPACE does the same');
   await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
   await expect(page.getByTestId('folder-mode-hint')).toContainText('one at a time');
-  // A production with no server cue is never offered Play through.
-  await expect(page.getByTestId('folder-mode-through')).toHaveCount(0);
+  // A production with no server cue cannot choose Play through, and is told why.
+  await expect(page.getByTestId('folder-mode-through')).toBeDisabled();
+  await expect(page.getByTestId('folder-mode-through')).toHaveAttribute('title', /no server clip/);
 
   // A held SPACE steps once: a step is several actions, never ten a second.
   await page.keyboard.down(' ');
@@ -470,6 +471,73 @@ test('a step whose next cue cannot be taken sends nothing at all, and says why',
   await expect(page.getByTestId('production-note')).toContainText('Take was not sent');
   await expect(cue(page, 'Strap')).toContainText('ON AIR');
   expect(sent(fake)).toEqual([]);
+});
+
+test('Out while a step is still being sent takes what lands back off, and the folder starts again from the top', async ({ page }) => {
+  await seedSettings(page);
+  const fake = await fakeBridge(page);
+  await production(page, TOGETHER_MEDIA, { graphics: [{ name: 'Strap' }], folders: [{ labels: ['Strap', 'VT'], name: 'Item' }] });
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => (release = r));
+  fake.gate = (a) => (a.verb === 'take' && a.slot.layer === 10 ? held : undefined);
+  await holdFolder(page, 'Item');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap')).toContainText('ON AIR');
+  await expect(page.getByTestId('verb-take')).toBeEnabled();
+  // VT's take waits on the server; 0 comes before it lands.
+  await page.keyboard.press(' ');
+  await expect.poll(() => sent(fake)).toEqual(['take 2-10 VT']);
+  await page.keyboard.press('0');
+  release();
+  await expect.poll(() => sent(fake)).toEqual(['take 2-10 VT', 'out 2-10']);
+  await expect(cue(page, 'VT')).not.toContainText('ON AIR');
+  await expect(cue(page, 'Strap')).not.toContainText('ON AIR');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap · next in Item');
+});
+
+test('0 sends a folder under way back to the top even when nothing of it is up any more', async ({ page }) => {
+  await production(page, [], {
+    graphics: [{ name: 'Strap A' }, { name: 'Strap B' }, { name: 'Strap C' }],
+    folders: [{ labels: ['Strap A', 'Strap B', 'Strap C'], name: 'Straps' }],
+  });
+  await holdFolder(page, 'Straps');
+  await page.keyboard.press(' ');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap B')).toContainText('ON AIR');
+  // Strap B taken off on its own row: nothing of the folder is up, and it still stands after B.
+  await selectCue(page, 'Strap B');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('0');
+  await expect(cue(page, 'Strap B')).not.toContainText('ON AIR');
+  await holdFolder(page, 'Straps');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap C · next in Straps');
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
+  await page.keyboard.press('0');
+  await expect(page.getByTestId('preview-what')).toHaveText('Strap A · next in Straps');
+  await expect(page.getByTestId('verb-out')).toBeDisabled();
+});
+
+test('a step whose next cue has lost its graphic takes nothing off, and says why', async ({ page }) => {
+  await production(page, [], {
+    graphics: [{ name: 'Strap A' }, { name: 'Strap B' }],
+    folders: [{ labels: ['Strap A', 'Strap B'], name: 'Straps' }],
+  });
+  // A teammate's save took Strap B's graphic away and left its cue: a record the page can be handed.
+  await evaluateInPage(page, async () => {
+    const m = await import('/src/model/shows.ts');
+    const show = m.loadShows().find((s) => s.name === 'Evening News')!;
+    m.upsertShow({ ...show, graphics: show.graphics.filter((g) => g.name !== 'Strap B'), updatedAt: new Date().toISOString() });
+  });
+  await settleDurableWrites(page);
+  await page.reload();
+  await holdFolder(page, 'Straps');
+  await page.keyboard.press(' ');
+  await expect(cue(page, 'Strap A')).toContainText('ON AIR');
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title', 'Strap B points at a graphic this production no longer has.');
+  await page.keyboard.press(' ');
+  await expect(page.getByTestId('production-note')).toHaveText('Take was not sent: Strap B points at a graphic this production no longer has.');
+  await expect(cue(page, 'Strap A')).toContainText('ON AIR');
 });
 
 test('All out stops what plays on the rundown\'s slots after a Bridge restart, which no cue can name any more', async ({ page }) => {
