@@ -181,3 +181,119 @@ first and queued on the unmodified code, then the editor regressions, the full a
 (validation changes, so the whole suite), build, re-recorded catalog JS fingerprints, the
 catalog battery against this worktree's own dev server, taste frames for lt01 and qz02, `/check`
 with one review workflow, `/queue-merge` and the deployed `/version.json`.
+
+## Implementation
+
+- [easeRuntime.ts](../../../src/templates/shared/easeRuntime.ts): `hold` and `jump` in the shared
+  grammar (capability `shared-ease-v2`), their mirror, and the key-side algebra: `arrivingPoint`,
+  `departingPoint`, `joinPoints` and `departsOnItsOwn`, with the Linear and Easy Ease points.
+- [animEdit.ts](../../../src/blocks/animEdit.ts): `planKeyEase` maps the selected keys' sides to
+  segments and writes or refuses them; `easeKeys` applies the plan; `KEY_EASE_PRESETS` names the
+  seven presets. `splitKeyframeSegment` splits a hold or jump into two halves of the same form.
+- [editorAnimation.ts](../../../src/blocks/editorAnimation.ts): `applyKeyEase`, the `key.ease`
+  operation in the [registry](../../../src/components/editorFoundation/operations.ts). It writes
+  through `writeAnimData`, or `writeOutData` when an Out key changes, so a known older interpreter
+  upgrades and a custom one refuses.
+- [editorOut.ts](../../../src/blocks/editorOut.ts): the Next-cue guard in `moveOutBoundary`.
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts): the interrupted exit starts a
+  final `jump` where its own segment starts. `hasHoldRuntime` and `dataUsesHoldEase` pair data
+  with the runtime; the R1.2a.1 body is `ANIM_INTERPRETER_BEFORE_HOLD_HASH` in
+  [animRuntimeLegacy.ts](../../../src/templates/shared/animRuntimeLegacy.ts), its text in
+  `e2e/fixtures/interpreter-whole-ease-v1.js`. [validateTemplate.ts](../../../src/validation/validateTemplate.ts)
+  blocks a hold or jump under an interpreter without them.
+- [Timeline.tsx](../../../src/components/editorFoundation/Timeline.tsx),
+  [KeyEase.tsx](../../../src/components/editorFoundation/KeyEase.tsx) and
+  [keySelection.ts](../../../src/components/editorFoundation/keySelection.ts): property rows, one
+  key per moment, selection, marquee, the dropdown and the context menu. Frames at 1366 and 1920
+  are in [built](built/).
+
+## Review and simplification
+
+`/check` review ran as one workflow: four read-only reviewers (grammar, split and mirror; key-side
+mapping and batch semantics; runtime and exports; UI, history, tests and scope), each followed by
+one agent trying to refute its findings (8 agents, merge base `709fdd3ad`, every agent listed what
+it read). Of 24 findings, 3 were refuted and 21 stood, 20 of them distinct (two reviewers found the
+interrupted jump).
+
+- Fixed in this phase: an interrupted Out ending on a reversed Hold jumped at once (it now jumps
+  where its segment starts); two keys at one moment sent the Out side to the empty segment
+  between them; a departure set on its own was unprotected once a split wrapped it in a slice;
+  a Hold under 10 ms of played time could land a frame late (Hold and such splits now refuse); a
+  Next cue's legacy hide moved with Out; the In landing key and the Out first key overlapped on
+  the timeline (now one boundary key); a bar move re-pointed the key selection (edits that move
+  keys now clear it); a marquee left focus on the last control; clicking a property-row key
+  scrolled it away; the key menu lost keyboard focus on a padding click and could let the browser
+  menu open over it (the Windows Menu key case is defended but not checked in a headed Windows
+  browser); undo did not work from the dropdown; refusals named stored rather than shown
+  times and advised a selection that could not help; control names lacked their layer. The
+  spec's revert instruction, split wording and handoff advice were corrected.
+- Fixed in its own commit: a pre-existing R1.2a.1 defect where Out moved later than its cue's end
+  left a layer's bar ending at the old hold, so Out skipped that layer.
+- Kept as reported: text-equal "already applied" detection (a `linear` or spaced bezier is
+  rewritten once; the product never writes those spellings) and one-sided presets refusing next
+  to a curve without an exact arrival (Linear or Easy Ease on both keys works).
+- Refuted: Overshoot's overshoot being replaced by an Out side on the key before (the spec
+  states it), Set Out shortening a Next cue's still air (Out keys keep their absolute times, as
+  R1.2a.1 defined), and a claim that the upgrade test missed two exports (CasparCG and
+  single-file share the self-contained path the upgrade runs first in).
+
+Simplify ran inline: `easeKeys` returns its input when nothing changes, so the operation plans
+once, and the selection's toggle and marquee union share one helper.
+
+## Verification receipt
+
+- Reproduction first: the Node probe above, then `j-2369`, the 20 new browser tests queued on the
+  unmodified code, all failing for the intended reasons (no `easeKeys`, no hold split, no key
+  selection UI, no Next-cue refusal, no interpreter to upgrade).
+- Node (build gate): `scripts/key-ease.test.mjs` (new), plus Hold cases in
+  `scripts/ease-runtime.test.mjs` and guard, Hold and Out-later cases in
+  `scripts/out-boundary.test.mjs`: 35 tests. 22 mutations of the new guards each fail them: the
+  rounding edge, the mirror, slices of a hold, a jump's split value, the exact arrival points,
+  inOut, the named-departure deviation, a Hold departure, the straight-line collapse, both
+  departure-protection branches, the no-op check, nothing-applies, string and looping tracks, a
+  first key's In side, both Next-cue guard branches, the upgrade hash and the capability marker.
+  The Out-later fix is mutation-tested the same way.
+- Browser, first implementation: `j-2371` to `j-2373`, all 20 new tests. Every preset equals
+  editor sampling within 2e-3 in the simulator, SPX, CasparCG, OGraf and single-file exports at
+  speed 1.3 with every key time on the grid; B06's Hold reads -80 one frame and 1 ms before the
+  following key and 0 at it in all five, with opacity unchanged; a Hold splits, crosses Set Out
+  at frame 12 and reverses exactly in all five; the R1.2a.1 body upgrades once and then plays a
+  Hold in the simulator, SPX and OGraf, validation asks for one save under it and blocks a custom
+  one; Set Out inside a Next cue refuses with source and history unchanged; and the UI tests.
+  `j-2374`: the editor regressions with these specs, 157 passed, 20 configured old-editor skips.
+- Browser mutations: making right-click replace the selection failed the context-menu test
+  (`j-2375`). Removing the Hold's rounding edge left B06's round key times passing but failed the
+  speed-1.3 preset parity in all five targets by 0.498 opacity at an exact key time (`j-2377`,
+  after fixing the spec's `near()` helper, whose parameter shadowed the property labeller and
+  turned every real mismatch into a TypeError).
+- `j-2378`, the full affected run on the first implementation (validation changed, so the whole
+  suite) with 3 workers: 1,201 passed, 544 configured skips, none failed; catalog calibration
+  35/35; "Overall: passed".
+- Catalog: `check-catalog-emit` re-recorded exactly 528 JS fingerprints and no HTML or CSS row,
+  twice (the grammar, then the interrupted-jump change).
+- After review, fixes and simplification (tip `3f52f2aa7`): `j-2381`, the editor regressions with
+  every new test, 163 passed, 20 configured old-editor skips, none failed. That includes the
+  interrupted Out over a reversed Hold in all five targets (live value held until 1.2 s within
+  1e-6, then the end value), the boundary key, undo from the dropdown, and the selection cleared
+  by a Set Out that moves keys.
+- `j-2382`, the full affected run on the same tip with 3 workers: 1,207 passed, 544 configured
+  skips, none failed; catalog calibration 35/35; "Overall: passed".
+- `j-2383`, the catalog battery against this worktree's own dev server (checked before every sweep):
+  type-floor 526 variants, overflow 528 with no regression against its baseline, field coverage 526
+  (the sponsor-placeholder exceptions as before), numerals 349, catalog specs 35 plus 4 baseline
+  tests, factory all candidates, and the [taste frames](taste/) for Hairline (lt01) and Quiz (qz02).
+  All six frames were opened: Hairline's name leads its role on the shared left edge beside the
+  amber rule and long strings grow right from it; Quiz keeps its question centred above even
+  plates, the amber reveal marks Mars, and long strings stay inside their plates. All six are
+  byte-identical to the R1.2a.1 frames.
+- The UI was walked in the browser pane and captured at 1366 and 1920 ([built](built/)): property
+  rows under an opened layer, the translucent marquee, selected keys in white against orange, "5
+  keys · Mixed" in the toolbar, the context menu at the pointer and clamped to the viewport, and a
+  refusal reason under the dropdown that the next click dismisses.
+
+Not checked: physical 125% displays, receiving-host fonts, a real OGraf host, the Windows Menu key
+in a headed Windows browser, and the two first-time-user trials, which stay pending as before. This
+is scoped engineering evidence, not owner acceptance; the default editor is unchanged. Two owner
+items are filed: [a decision](../../acceptance/owner-queue/2026-09-29-editor-key-ease-named-curves.md)
+on the named-curve reading and [a desktop look](../../acceptance/owner-queue/2026-09-29-editor-key-easing.md)
+at the workflow.
