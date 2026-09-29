@@ -53,7 +53,8 @@ async function openOutput(page: Page): Promise<void> {
     swapped = html.includes('/font-hold/boot.js');
     await route.fulfill({ contentType: 'text/html', body: html });
   });
-  await page.goto('/font-hold-output');
+  // Not 'load': a child frame's load holds back its parent's, and a hung font is exactly that.
+  await page.goto('/font-hold-output', { waitUntil: 'domcontentloaded' });
   expect(swapped, 'the /output shell still loads its boot module the way this spec swaps').toBe(true);
   await page.waitForFunction(() => (window as unknown as { __stage?: unknown }).__stage);
 }
