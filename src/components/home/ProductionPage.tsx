@@ -2556,6 +2556,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   // ── EDITING THE RUNDOWN (docs/CLIP_PLAYBACK_PLAN.md §20.2): the selection's menu actions, and copy,
   // cut and paste. Nothing here airs, and none of it moves the cursor or PREVIEW. ──
+  /** The production as saved once the edit being typed has landed: what a copy is made of. */
+  const freshShow = () => {
+    flushDraft();
+    return loadShows().find((s) => s.id === show.id) ?? show;
+  };
   /** The cues an edit takes: the selection, else the held folder's cues, else the cursor's cue. */
   const editIds = (): string[] =>
     range.size ? [...range].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)) : selectedFolder ? heldMembers.map((c) => c.id) : selectedCue ? [selectedCue.id] : [];
@@ -2575,7 +2580,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setRangeEnd(null);
   };
   const duplicateCues = async (ids: readonly string[]) => {
-    const copies = copyClip(show, ids, (label) => `${label} copy`);
+    const copies = copyClip(freshShow(), ids, (label) => `${label} copy`);
     const last = [...ids].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)).pop();
     if (copies && last) await pasteAt(copies, { after: last }, 'The copies were not saved');
   };
@@ -2588,11 +2593,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const gone = new Set(ids);
     const leaving = cues.filter((c) => gone.has(c.id));
     const staying = new Set(cues.filter((c) => !gone.has(c.id)).map((c) => c.sourceId));
-    for (const c of leaving) {
-      const entry = graphicByPoolId.get(c.sourceId);
-      if (entry && !staying.has(c.sourceId)) await takeOffAir(entry.name);
-      if (serverCueLive(serverOnAir, playoutItemFor(c), c)) await playoutVerb(c, 'out', 'Out');
+    for (const sourceId of new Set(leaving.map((c) => c.sourceId))) {
+      const entry = graphicByPoolId.get(sourceId);
+      if (entry && !staying.has(sourceId)) await takeOffAir(entry.name);
     }
+    for (const c of leaving) if (serverCueLive(serverOnAir, playoutItemFor(c), c)) await playoutVerb(c, 'out', 'Out');
     setDraft(null);
     setRangeIds([]);
     setShows(removeShowCues(show.id, ids));
@@ -3106,7 +3111,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
     if (key === 'copy' || key === 'cut') {
       const ids = editIds();
-      const taken = key === 'copy' ? copyClip(show, ids) : ids.length ? cutClip(show.id, ids) : null;
+      const taken = key === 'copy' ? copyClip(freshShow(), ids) : ids.length ? cutClip(show.id, ids) : null;
       if (!taken) return;
       setClip(taken);
       const n = clipSize(taken);

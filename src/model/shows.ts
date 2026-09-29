@@ -23,6 +23,7 @@ import {
   nextFolderName,
   placeInOrder,
   placeRefusal,
+  PLACE_GONE,
   pruneFolders,
   settleFolders,
   stepInOrder,
@@ -923,6 +924,8 @@ export function pasteInRundown(showId: string, clip: CueClip, place: Place): { s
     if (clip.kind === 'cut') {
       const ids = clip.ids.filter((id) => show.cues?.some((c) => c.id === id));
       refused = !ids.length ? 'What was cut is no longer in the rundown.' : (cutPlaceRefusal(show.cues ?? [], ids, place) ?? placeRefusal(show, { cueIds: ids }, place));
+      // The drag's sentence, in a paste's words.
+      if (refused === PLACE_GONE) refused = 'The row to paste after has gone. Select a row and paste again.';
       if (refused) return false;
       const moved = placeInOrder(show.cues ?? [], show.folders, { cueIds: ids }, place);
       cueIds = ids;
