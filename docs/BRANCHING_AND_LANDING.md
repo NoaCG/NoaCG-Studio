@@ -34,7 +34,9 @@ instruction that still names one.
   there mid-integration can be wrong with nothing saying so. Hence a worktree per session, and one
   for the orchestrator too - DETACHED at `origin/main`, since git will not let a second worktree
   hold `main`. Make the worktree first, then work in it:
-  `git worktree add -b <branch> .claude/worktrees/<name> main`. The one thing the main checkout is
+  `git fetch origin` then `git worktree add -b <branch> .claude/worktrees/<name> origin/main`.
+  Base it on `origin/main`, not local `main`: landings reach `origin` only, so local `main` lags
+  until something pulls it. The one thing the main checkout is
   for is being on `main`.
 
 ## Landing is serialized, not permissioned

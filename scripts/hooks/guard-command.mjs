@@ -116,7 +116,8 @@ if (creations.length > 0) {
         "mid-build, that session's `npm run build` gated `main` instead of its own branch and still " +
         'reported GREEN.\n' +
         'Make a worktree and do the work there instead:\n' +
-        '  git worktree add -b <branch> .claude/worktrees/<name> main\n' +
+        '  git fetch origin\n' +
+        '  git worktree add -b <branch> .claude/worktrees/<name> origin/main\n' +
         '  cd .claude/worktrees/<name>\n' +
         'Branching inside a LINKED worktree is fine and is not what this refuses - only the one ' +
         'checkout whose job is being on `main`.',

@@ -558,6 +558,7 @@ test('the things that only LOOK like a branch creation are left alone', () => {
     // THE SANCTIONED RECIPE. Refusing this would answer a refusal with a second refusal, which is
     // how a guard teaches people to route around it - it carries `-b`, and it is the fix.
     'git worktree add -b claude/h-guardrails .claude/worktrees/h main',
+    'git fetch origin && git worktree add -b claude/h-guardrails .claude/worktrees/h origin/main',
     // Mentioning one creates nothing. This repo's own history and contracts quote the command.
     'grep -rn "git checkout -b" AGENTS.md',
     'git commit -m "explain why git checkout -b is refused in the main checkout"',
