@@ -11,6 +11,11 @@ system (migration 0008), not a second control architecture. The command log, the
 the staged-vs-take model, the recovery doctrine, and the receiver semantics are all inherited
 unchanged.
 
+An open output never reloads, so the RPCs, tables, topics and policies it and the operator pages
+use are a public contract: the **live-path contract**, named in `supabase/AGENTS.md` ("Live-path
+migrations wait for a quiet window"). A migration that changes it declares so in its header and
+applies only when no production is live, or when a person names it.
+
 ## What was reused, and what is new
 
 Reused verbatim (the audit that chose this is summarized in §9):

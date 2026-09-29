@@ -1026,7 +1026,8 @@ version is being deployed", is mostly true today for the *running page* and fals
    `control_stage`, `control_data_*`), the topics (`cmd-`, `log-`), and the columns and policies
    they read. In place, only additive changes. Anything else is a new versioned function beside
    the old one (0033 already did this once, keeping the 4-argument report working through a
-   default).
+   default). *Done 2026-09-30 (the naming):* `supabase/AGENTS.md`, "Live-path migrations wait for a
+   quiet window", and `LIVE_PATH_PREFIX` in `scripts/db-push.mjs`, which classifies by it.
 2. **Retire old contract versions by evidence, not by waiting.** Renderers and control pages
    report their build and protocol version (in the same Presence entry as READY). "No output on a
    build older than X has been seen for 14 days" is a query; 0066's "until the renderers already
@@ -1038,7 +1039,10 @@ version is being deployed", is mostly true today for the *running page* and fals
    objects, and any redefinition of a live-path function, need an explicit `--allow` (the mechanism
    exists for destructive statements) and run in a quiet window: no production live by the
    heartbeats, or after a time-boxed hold, and always with `lock_timeout`. Every other migration
-   stays automatic.
+   stays automatic. *Done 2026-09-30,* in the shape owner decision 6 set: a live-path file declares
+   `-- live-path:` in its header (the build refuses one that does not), an automatic push holds it
+   until a landing finds no renderer heartbeat in ten minutes, `--live NNNN` applies it at once,
+   and a hold older than a day turns post-land red (`supabase/AGENTS.md`).
 5. **Behaviour self-checks for any redefined live-path function**, which the repo already requires
    (`supabase/AGENTS.md`), plus a contract test in the configured suite that runs the *previous*
    release's client calls against the new schema.
