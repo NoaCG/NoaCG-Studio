@@ -1896,6 +1896,17 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* A drop into a folder by its header lights the whole folder: the header boxed, its cues tinted
    (docs/CLIP_PLAYBACK_PLAN.md §20.2). */
 .pd-rundown .pd-cue[data-drop-target] { background-color: rgba(207, 216, 230, 0.1); box-shadow: inset 2px 0 0 #cfd8e6; }
+/* ROWS THAT READ AT A GLANCE (docs/CLIP_PLAYBACK_PLAN.md §20.3). The kind is the icon: a graphic
+   leaves amber, which is PREVIEW, and audio gets a tone of its own beside the clip's blue. The
+   CHANNEL is the slot's tone, named in the legend beside the count, only when the rundown plays on
+   two channels or more; its tones stay clear of red, amber and green. A folder's cues hang from a
+   thin line under their header. The left edge stays the cursor's. */
+.pd-rundown .pd-cue-kind--graphic { color: #e2e8f0; background: rgba(226, 232, 240, 0.12); }
+.pd-rundown .pd-cue-kind--audio { color: #5eead4; background: rgba(94, 234, 212, 0.14); font-size: 11px; }
+.pd-rundown .pd-cue-layer[data-ch] { border-left: 3px solid var(--pd-ch); padding-left: 5px; border-radius: 2px; }
+.pd-rundown .pd-ch-legend { display: flex; gap: 10px; min-width: 0; overflow: hidden; font-size: 11px; color: var(--text-dim); }
+.pd-rundown .pd-ch-legend > span { border-left: 3px solid var(--pd-ch); padding-left: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-rundown .pd-fold-guide { position: absolute; left: -8px; top: -3px; bottom: -3px; width: 1px; background: rgba(203, 213, 225, 0.3); pointer-events: none; }
 /* A row Ctrl+X marked: it moves where the next paste lands, and stays here until then. */
 .pd-rundown .pd-cue.cut { opacity: 0.5; outline: 1px dashed rgba(207, 216, 230, 0.6); outline-offset: -1px; }
 /* The end of the list, while a row is dragged: the one way out below a folder that ends the list. */
