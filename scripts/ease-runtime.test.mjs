@@ -288,3 +288,44 @@ test('the interpreter carries the shared source and needs it for exact forms', (
   // Without exact forms the older body keeps its literal-only splice, as before G01.
   assert.ok(!writeAnimData(legacy, plain).includes(ANIM_INTERPRETER_JS));
 });
+
+test('hold keeps the departing value to its key, jump is its exact mirror, and both split exactly', () => {
+  // R1.2a.2 (docs/research/editor-r1-2a-2). GSAP's steps(1) jumps at 50%, so a Hold is its own form.
+  assert.deepEqual(['hold', 'jump'].map(text => ease.parseEase(text)), [{ kind: 'hold', text: 'hold' }, { kind: 'jump', text: 'jump' }]);
+  for (const text of ['hold.out', 'hold(1)', 'hold()', 'jump.in', 'Hold', ' hold', 'slice(hold,0,0.5)', 'slice(jump,0.5,1)', 'slice(hold,0.5,1)', 'slice(jump,0,0.5)']) assert.equal(ease.parseEase(text), null, text);
+  for (const text of ['hold', 'jump']) {
+    assert.equal(gsap.parseEase(text), undefined, `GSAP would default ${text}`);
+    assert.ok(ease.needsEaseRuntime(text) && ease.needsHoldRuntime(text), text);
+  }
+  assert.ok(!ease.needsHoldRuntime('cubic-bezier(0.2,0,0.4,1)') && !ease.needsHoldRuntime('steps(1)'));
+  const hold = ease.easeCurve('hold'), jump = ease.easeCurve('jump');
+  assert.deepEqual([0, 0.5, 0.99, 1 - 2e-5, 1 - 1e-6, 1].map(hold), [0, 0, 0, 0, 1, 1]);
+  assert.deepEqual([0, 1e-6, 2e-5, 0.5, 1].map(jump), [0, 0, 1, 1, 1]);
+  assert.deepEqual(['hold', 'jump'].map(ease.mirrorEase), ['jump', 'hold']);
+  for (const u of GRID) assert.equal(jump(u), 1 - hold(1 - u), `mirror at ${u}`);
+  assert.throws(() => ease.sliceEase('hold', 0, 0.5), /no exact split form/);
+  // GSAP rounds timeline times to 1e-7 s; at a key's exact time the value is still the key's.
+  for (const [a, b] of [[0.1, 0.3], [0.2, 0.3], [0.333, 0.667], [1.234, 2.345], [0, 0.04], [0.7, 60]]) for (const speed of [1, 1.3, 0.7, 3]) {
+    const target = { v: 0 }, tl = gsap.timeline({ paused: true });
+    tl.to(target, { v: 1, duration: (b - a) / speed, ease: hold }, a / speed).to(target, { v: 2, duration: 1, ease: jump }, b / speed);
+    for (const [t, v] of [[b / speed - 1 / 60, 0], [b / speed, 1], [b / speed + 1 / 60, 2]]) { tl.time(t, true); assert.equal(target.v, v, `${a}..${b} at speed ${speed}, time ${t}`); }
+  }
+  // Split: the new key keeps the departing value under a hold and the arriving one under a jump.
+  const data = { version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration: 1, ease: 'hold', layers: { '#a': {
+    x: [{ time: 0, value: 0 }, { time: 1, value: 100 }], y: [{ time: 0, value: 0 }, { time: 1, value: 50, ease: 'jump' }] } } }] };
+  const cut = splitKeyframeSegment(splitKeyframeSegment(data, 0, '#a', 'x', 0.4), 0, '#a', 'y', 0.4);
+  assert.deepEqual(cut.steps[0].layers['#a'], {
+    x: [{ time: 0, value: 0 }, { time: 0.4, value: 0, ease: 'hold' }, { time: 1, value: 100 }],
+    y: [{ time: 0, value: 0 }, { time: 0.4, value: 50, ease: 'jump' }, { time: 1, value: 50, ease: 'jump' }] });
+  for (let i = 0; i <= 1000; i++) for (const p of ['x', 'y']) assert.equal(resolveValue(cut, '#a', p, 0, i / 1000), resolveValue(data, '#a', p, 0, i / 1000), `${p} at ${i / 1000}`);
+});
+
+test('the part of a split Hold that jumps must last 10 ms of played time', () => {
+  const data = (ease, speed = 1) => ({ version: 2, root: '.g', speed, steps: [{ name: 'In', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0, value: 0 }, { time: 0.02, value: 100, ease }] } } }] });
+  assert.throws(() => splitKeyframeSegment(data('hold'), 0, '#a', 'x', 0.015), /hold that jumps would last under 10 ms/);
+  assert.equal(splitKeyframeSegment(data('hold'), 0, '#a', 'x', 0.005).steps[0].layers['#a'].x.length, 3);
+  assert.throws(() => splitKeyframeSegment(data('jump'), 0, '#a', 'x', 0.005), /jump that jumps would last under 10 ms/);
+  assert.equal(splitKeyframeSegment(data('jump'), 0, '#a', 'x', 0.015).steps[0].layers['#a'].x.length, 3);
+  // Played slower, the same stored part lasts long enough.
+  assert.equal(splitKeyframeSegment(data('hold', 0.4), 0, '#a', 'x', 0.015).steps[0].layers['#a'].x.length, 3);
+});

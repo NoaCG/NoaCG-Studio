@@ -147,6 +147,23 @@
 .ef-animation-properties input { width: 100px; }
 .ef-shell .ef-timeline-key { position: absolute; top: 17px; width: 12px; height: 12px; min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); font-size: 10px; line-height: 12px; transform: translateX(-50%); z-index: 2; }
 .ef-bar-error { position: relative; background: var(--bg-panel); z-index: 5; margin: 0; font-size: 12px; }
+/* R1.2a.2 key selection: property rows under a layer, selected keys, the marquee and the ease menu. */
+.ef-track-scroll { position: relative; }
+.ef-layer-cell { display: flex; min-width: 0; border-right: 1px solid var(--border-strong); }
+.ef-layer-cell > .ef-layer { flex: 1; min-width: 0; border-right: 0; }
+.ef-shell .ef-twirl { flex: none; width: 20px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--text-dim); font-size: 10px; }
+.ef-property-track { height: 24px; }
+.ef-property-name { padding: 5px 12px 0 52px; color: var(--ef-muted); font-size: 11px; border-right: 1px solid var(--border-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ef-shell .ef-property-track .ef-timeline-key { top: 6px; }
+.ef-shell .ef-timeline-key.is-key-selected { color: var(--text); text-shadow: 0 0 0 var(--accent), 0 0 4px var(--accent); }
+.ef-shell .ef-timeline-key.is-key-partial { color: var(--text-mid); }
+.ef-marquee { position: absolute; z-index: 4; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.ef-key-ease { position: relative; display: flex; align-items: center; gap: 6px; margin-right: 8px; }
+.ef-key-error { position: absolute; right: 0; top: calc(100% + 4px); width: max-content; max-width: 460px; padding: 8px; background: var(--bg-panel); color: var(--warn); border: 1px solid var(--border-strong); z-index: 5; }
+.ef-key-menu { position: fixed; margin: 0; padding: 4px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg-panel); color: var(--text); box-shadow: 0 6px 28px #0008; }
+.ef-key-menu > button { display: block; width: 100%; min-height: 0; padding: 5px 12px 5px 24px; border: 0; background: transparent; text-align: left; position: relative; }
+.ef-key-menu > button[aria-checked=true]::before { content: '✓'; content: '✓' / ''; position: absolute; left: 8px; color: var(--accent); }
+.ef-key-menu > button:focus-visible, .ef-key-menu > button:hover { background: var(--accent-bg); }
 .ef-shell .ef-bar { touch-action: none; cursor: grab; }
 .ef-shell .ef-trim { position: absolute; top: 5px; width: 9px; height: 20px; min-height: 0; padding: 0; border: 1px solid var(--border-strong); background: var(--bg-3); cursor: ew-resize; touch-action: none; z-index: 3; }
 .ef-shell .ef-trim-end { transform: translateX(-100%); }

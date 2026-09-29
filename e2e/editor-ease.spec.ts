@@ -1,6 +1,6 @@
 // covers: src/templates/shared/{easeRuntime,animRuntime,animRuntimeLegacy}.ts
 // covers: src/blocks/{animEval,animEdit,editorOut,animMigration,editorAnimation,animData}.ts
-// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js, e2e/fixtures/interpreter-shared-ease-v1.js
+// covers: src/validation/validateTemplate.ts, src/components/editorFoundation/**, e2e/fixtures/interpreter-pre-g01.js, e2e/fixtures/interpreter-shared-ease-v1.js, e2e/fixtures/interpreter-whole-ease-v1.js
 // covers: e2e/fixtures/out-text-and-box.json
 //
 // G01 shared easing: the editor's sampler, exact split and exact reversal against the SAME
@@ -8,6 +8,7 @@
 // Numbers are dense samples, not endpoints: GSAP silently plays power1.out for an ease it
 // cannot read, and only a mid-segment sample can see that. R1.2a.1's Set Out across the last In
 // key reuses the split, so its In-then-Out playback is compared here on one absolute clock.
+// R1.2a.2's key-side presets and Hold are played here the same way (docs/research/editor-r1-2a-2).
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -88,7 +89,11 @@ async function execute(page: Page, t: unknown, target: string, times: number[], 
       else if (target === 'ograf') { if (action === 'play') await element.playAction({}); else await element.stopAction({}); }
       else w[action]();
     };
-    const timeline = (d: number) => w.gsap.globalTimeline.getChildren(false, false, true).filter(x => Math.abs(x.duration() - d) < .0001).pop()!;
+    const timeline = (d: number) => {
+      const all = w.gsap.globalTimeline.getChildren(false, false, true), found = all.filter(x => Math.abs(x.duration() - d) < .0001).pop();
+      if (!found) throw new Error(`No ${d} s timeline; found ${all.map(x => x.duration()).join(', ')} s`);
+      return found;
+    };
     const box = document.querySelector('#box')!;
     const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return ['x', 'y', 'rotation', 'scaleX'].map(p => Number(w.gsap.getProperty(e, p))).concat(Number(getComputedStyle(e).opacity)); });
     await command('play'); const entry = timeline(durations[0]); entry.pause();
@@ -109,14 +114,14 @@ const grid = (end: number, step = .02) => Array.from({ length: Math.round(end / 
 const TOLERANCE = [2e-3, 2e-3, 2e-3, 2e-3, 2e-3];
 /** A pose may hold several layers of PROPS in a row. */
 const label = (p: number) => PROPS[p % PROPS.length] + (p >= PROPS.length ? ' (layer ' + Math.floor(p / PROPS.length) + ')' : '');
-function near(actual: Pose[], expected: Pose[], label: string, tolerance = TOLERANCE) {
+function near(actual: Pose[], expected: Pose[], what: string, tolerance = TOLERANCE) {
   let worst = { error: 0, at: -1, prop: '' };
   actual.forEach((pose, i) => pose.forEach((v, p) => {
     // A NaN on either side is a failure, never a pass.
     const error = Math.abs(v - expected[i][p]) - tolerance[p % tolerance.length];
     if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: i, prop: label(p) };
   }));
-  expect(worst, `${label}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
+  expect(worst, `${what}: sample ${worst.at} ${worst.prop} beyond tolerance by ${worst.error}`).toEqual({ error: 0, at: -1, prop: '' });
 }
 
 for (const target of TARGETS) test('editor sampling equals the executed runtime in ' + target, async ({ page }) => {
@@ -365,4 +370,155 @@ test('Set Out reverse in the editor writes mirrored destination eases as one und
   expect(keys.opacity.map(k => k.ease)).toEqual([undefined, 'cubic-bezier(0.6,0,0.8,0.4)']);
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect.poll(read).toBe(moved);
+});
+
+// ---- R1.2a.2 key-side easing (docs/research/editor-r1-2a-2) ----
+
+type KeyRef = { step: number; selector: string; property: string; time: number };
+const PRESETS = ['linear', 'easeIn', 'easeOut', 'easyEase', 'bounce', 'overshoot', 'hold'] as const;
+
+/** Two layers at speed 1.3, so GSAP's rounding of timeline times reaches every key time, with a
+ *  selection holding first, middle and last keys of several properties. Every preset applies to it. */
+function sided(): { data: Data; keys: KeyRef[] } {
+  const data: Data = { version: 2, root: '.fixture', speed: 1.3, steps: [
+    { name: 'In', duration: 2, ease: 'none', layers: {
+      '#box': {
+        x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'power2.out' }, { time: 2, value: 0 }],
+        y: [{ time: 0, value: 0 }, { time: .8, value: -120, ease: 'cubic-bezier(0.333333333333,0.333333333333,0.6,1.5)' }, { time: 2, value: 0, ease: 'back.out(1.6)' }],
+        rotation: [{ time: 0, value: -30 }, { time: 2, value: 0, ease: 'power1.in' }],
+        scaleX: [{ time: 0, value: .5 }, { time: 1.2, value: 1 }],
+        opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'none' }, { time: 2, value: .5 }],
+      },
+      '#title': { x: [{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: 'power2.out' }], opacity: [{ time: 0, value: 0 }, { time: 1.5, value: 1 }] },
+    } },
+    { name: 'Out', duration: 1, ease: 'none', layers: {} },
+  ] };
+  const key = (selector: string, property: string, time: number) => ({ step: 0, selector, property, time });
+  return { data, keys: [key('#box', 'x', 0), key('#box', 'x', .8), key('#box', 'x', 2), key('#box', 'y', .8), key('#box', 'rotation', 0),
+    key('#box', 'opacity', 1), key('#title', 'x', 1.6), key('#title', 'opacity', 0)] };
+}
+
+/** Editor sampling of both layers at effective times, through the stored clock. */
+const sampled = (page: Page, data: Data, times: number[]) => page.evaluate(async ({ data, times }) => {
+  const { resolveValue } = await import('/src/blocks/animEval.ts');
+  return times.map(t => ['#box', '#title'].flatMap(s => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => {
+    const value = resolveValue(data as never, s, p, 0, t * data.speed);
+    return value === null ? (p === 'scaleX' || p === 'opacity' ? 1 : 0) : Number(value);
+  })));
+}, { data, times });
+
+for (const target of TARGETS) test('every key-side preset plays as the editor samples it in ' + target, async ({ page }) => {
+  await open(page);
+  const { data, keys } = sided();
+  const eased = await page.evaluate(async ({ data, keys, presets }) => {
+    const { easeKeys } = await import('/src/blocks/animEdit.ts');
+    return presets.map(preset => easeKeys(data as never, keys as never, preset as never) as unknown as Data);
+  }, { data, keys, presets: [...PRESETS] });
+  // Every key time on the grid, where a Hold must land on its arriving value.
+  const keyTimes = [0, .8, 1, 1.2, 1.5, 1.6, 2].map(t => t / data.speed);
+  const times = [...new Set([...grid(2 / data.speed), ...keyTimes])].sort((a, b) => a - b);
+  for (const [i, preset] of PRESETS.entries()) {
+    const reference = await sampled(page, eased[i], times);
+    const run = await execute(page, await template(page, eased[i], true), target, times, [0], [2 / data.speed, 1 / data.speed], { layers: ['#box', '#title'] });
+    near(run.entering, reference, `${preset} in ${target}`);
+  }
+});
+
+for (const target of TARGETS) test('an outgoing Hold on the first X key holds until the next key in ' + target, async ({ page }) => {
+  await open(page);
+  // B05/B06: title X -80 to 0 in 1 s, opacity 0 to 1 in 0.3 s; Hold on the starting X key.
+  const data: Data = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 1, ease: 'power1.inOut', layers: { '#box': { x: [{ time: 0, value: -80 }, { time: 1, value: 0 }], opacity: [{ time: 0, value: 0 }, { time: .3, value: 1 }] } } },
+    { name: 'Out', duration: 1, ease: 'none', layers: {} },
+  ] };
+  const held = await page.evaluate(async data => (await import('/src/blocks/animEdit.ts')).easeKeys(data as never, [{ step: 0, selector: '#box', property: 'x', time: 0 }] as never, 'hold' as never) as unknown as Data, data);
+  expect(held.steps[0].layers['#box']).toEqual({ x: [{ time: 0, value: -80 }, { time: 1, value: 0, ease: 'hold' }], opacity: data.steps[0].layers['#box'].opacity });
+  const frame = 1 / 25, times = [0, .2, .5, 1 - frame, 1 - .001, 1];
+  const plain = await execute(page, await template(page, data), target, times, [0], [1, 1]);
+  const run = await execute(page, await template(page, held), target, times, [0], [1, 1]);
+  const x = run.entering.map(p => p[0]);
+  expect(x.slice(0, 5).every(v => Math.abs(v + 80) < 1e-6), `x holds -80 until the key: ${x}`).toBe(true);
+  expect(Math.abs(x[5]), `x is 0 at the key: ${x[5]}`).toBeLessThan(1e-6);
+  expect(run.entering.map(p => p[4]), 'opacity unchanged').toEqual(plain.entering.map(p => p[4]));
+  near(run.entering, await page.evaluate(async ({ held, times }) => {
+    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(held as never, '#box', p, 0, t) ?? (p === 'scaleX' || p === 'opacity' ? 1 : 0))));
+  }, { held, times }), 'editor sampling in ' + target);
+});
+
+for (const target of TARGETS) test('a Hold splits, crosses Set Out and reverses exactly in ' + target, async ({ page }) => {
+  await open(page);
+  const data: Data = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 2, ease: 'none', layers: {
+      '#box': { x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }], opacity: [{ time: 0, value: 0 }, { time: 1, value: 1, ease: 'hold' }] },
+      '#title': { x: [{ time: 0, value: -900 }, { time: 1.6, value: 0, ease: 'hold' }], rotation: [{ time: 0, value: -20 }, { time: 2, value: 0, ease: 'back.out(1.6)' }] },
+    } },
+    { name: 'Out', duration: 1, ease: 'none', layers: {} },
+  ] };
+  const original = await template(page, data, true), h = .01;
+  // Split inside a held segment: two held halves, the same playback.
+  const split = await page.evaluate(async data => (await import('/src/blocks/animEdit.ts')).splitKeyframeSegment(data as never, 0, '#box', 'x', .32) as unknown as Data, data);
+  expect(split.steps[0].layers['#box'].x).toEqual([{ time: 0, value: -900 }, { time: .32, value: -900, ease: 'hold' }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }]);
+  const times = [...new Set([...grid(2), .8 - h, 1 - h, 1.6 - h])].sort((a, b) => a - b);
+  const plain = await execute(page, original, target, times, [0], [2, 1], { layers: ['#box', '#title'] });
+  near((await execute(page, await template(page, split, true), target, times, [0], [2, 1], { layers: ['#box', '#title'] })).entering, plain.entering, 'split hold in ' + target);
+  // Set Out at frame 12 (0.48 s), inside three held segments: In then Out plays the original on one clock.
+  const out = .48, crossed = await setOut(page, original, out);
+  const absolute = [...new Set([...grid(2), out, .8 - h, 1 - h, 1.6 - h])].sort((a, b) => a - b);
+  const run = await execute(page, crossed, target, absolute.filter(u => u <= out), absolute.filter(u => u > out).map(u => Math.round((u - out) * 1000) / 1000), [out, 2.52], { layers: ['#box', '#title'] });
+  const whole = await execute(page, original, target, absolute, [0], [2, 1], { layers: ['#box', '#title'] });
+  near([...run.entering, ...run.leaving], whole.entering, 'Set Out across holds in ' + target, [1e-3 + 1e-6]);
+  // Reverse: a Hold mirrors to its jump, so Out at u plays In at 2 - u, the jump instants included.
+  const reversed = await page.evaluate(async t => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), original);
+  const exit = await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers, reversed.js);
+  expect(exit['#box'].x.map(k => k.ease)).toEqual([undefined, 'power2.in', 'jump']);
+  const back = grid(2, .025);
+  const mirrored = await execute(page, reversed, target, back, back.map(u => Math.round((2 - u) * 1000) / 1000), [2, 2], { layers: ['#box', '#title'] });
+  near(mirrored.leaving, mirrored.entering, 'reversed holds in ' + target);
+});
+
+for (const target of TARGETS) test('an interrupted Out ending on a reversed Hold keeps the live value until that jump in ' + target, async ({ page }) => {
+  await open(page);
+  const data: Data = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 2, ease: 'none', layers: { '#box': { x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }] } } },
+    { name: 'Out', duration: 0, ease: 'none', layers: {} },
+  ] };
+  const reversed = await page.evaluate(async t => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), await template(page, data));
+  const exit = await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers['#box'].x, reversed.js);
+  expect(exit).toEqual([{ time: 0, value: 0 }, { time: 1.2, value: -200, ease: 'power2.in' }, { time: 2, value: -900, ease: 'jump' }]);
+  const times = [0, .01, .4, .8, 1.19, 1.2, 1.21, 1.6, 2];
+  const run = await execute(page, reversed, target, [1.5], times, [2, 2], { interruptAt: 1.5 });
+  near([run.released], [run.held], target + ' no jump when Out interrupts', [1, 1, 1, .01, .01]);
+  // Interrupted, the live value holds until the jump's own segment starts at 1.2 s, as an Out that
+  // is not interrupted jumps there, and only then takes the end value.
+  near(run.leaving.map(p => [p[0]]), times.map(t => [t <= 1.2 ? run.held[0] : -900]), target + ' interrupted exit x', [1e-6]);
+});
+
+test('a graphic saved with the R1.2a.1 interpreter upgrades once and then plays a Hold', async ({ page }) => {
+  await open(page);
+  const before = readFileSync(new URL('./fixtures/interpreter-whole-ease-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const data = entrance();
+  data.steps[0].layers['#box'].x[1].ease = 'hold';
+  const t = await template(page, data), times = grid(2, .05);
+  const reference = await page.evaluate(async ({ data, times }) => {
+    const { resolveValue } = await import('/src/blocks/animEval.ts');
+    return times.map(t => ['x', 'y', 'rotation', 'scaleX', 'opacity'].map(p => Number(resolveValue(data as never, '#box', p, 0, t))));
+  }, { data, times });
+  const saved = await page.evaluate(async ({ js, before }) => js.replace((await import('/src/templates/shared/animRuntime.ts')).ANIM_INTERPRETER_JS, () => before), { js: t.js, before });
+  expect(saved).toContain('function noacgWholeEase(');
+  expect(saved).not.toBe(t.js);
+  for (const target of ['simulator', 'spx', 'ograf']) near((await execute(page, { ...t, js: saved }, target, times, [0], [2, 1])).entering, reference, 'R1.2a.1 source in ' + target);
+  const result = await page.evaluate(async ({ t, before }) => {
+    const { ANIM_INTERPRETER_JS, writeAnimData } = await import('/src/templates/shared/animRuntime.ts');
+    const { prepareOutRuntime } = await import('/src/blocks/animMigration.ts');
+    const { parseAnimData } = await import('/src/blocks/animData.ts');
+    const { validateTemplate } = await import('/src/validation/validateTemplate.ts');
+    const old = t.js.replace(ANIM_INTERPRETER_JS, () => before);
+    const custom = old.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;');
+    const upgraded = prepareOutRuntime(old), written = writeAnimData(old, parseAnimData(old)!);
+    const ease = (js: string) => validateTemplate({ ...t, js }).errors.filter(e => e.rule === 'ease').map(e => e.message);
+    return { upgraded: upgraded.includes(ANIM_INTERPRETER_JS), written: !!written && written.includes(ANIM_INTERPRETER_JS), once: prepareOutRuntime(upgraded) === upgraded,
+      saveFirst: ease(old).some(m => m.includes('Save the graphic once')), blocked: ease(custom).length > 0, current: ease(t.js) };
+  }, { t, before });
+  expect(result).toEqual({ upgraded: true, written: true, once: true, saveFirst: true, blocked: true, current: [] });
 });
