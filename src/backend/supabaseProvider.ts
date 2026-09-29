@@ -38,7 +38,6 @@ interface DocumentRow {
  *  same rule as a whole record's (`bodyUpdatedAt`), and never the server's write time. */
 interface SummaryRow {
   id: string;
-  name: string;
   deleted: boolean;
   updatedAt: unknown;
 }
@@ -79,22 +78,21 @@ export class SupabaseProvider implements StorageProvider {
     const sb = await this.client();
     // RLS scopes this to the signed-in user's rows. Tombstones (deleted=true) are included so the
     // sync engine can propagate remote deletes.
-    const { data, error } = await sb.from(TABLE).select('id, name, deleted, updatedAt:body->updatedAt').eq('kind', kind);
+    const { data, error } = await sb.from(TABLE).select('id, deleted, updatedAt:body->updatedAt').eq('kind', kind);
     if (error) throw new Error(`Cloud list(${kind}) failed: ${error.message}`);
     const rows = (data ?? []) as SummaryRow[];
     return rows.map((row) => ({
-      ...toStoredRecord(kind, row.id, { updatedAt: row.updatedAt, deleted: row.deleted, name: row.name }),
+      ...toStoredRecord(kind, row.id, { updatedAt: row.updatedAt, deleted: row.deleted }),
       summary: true as const,
     }));
   }
 
   async getMany(kind: SyncKind, ids: string[]): Promise<StoredRecord[]> {
-    if (ids.length === 0) return [];
     const sb = await this.client();
     const { data, error } = await sb.from(TABLE).select('id, kind, name, body, deleted').eq('kind', kind).in('id', ids);
     if (error) throw new Error(`Cloud get(${kind}) failed: ${error.message}`);
-    // Bodies as stored, Storage sentinels and all: the engine rehydrates a record through get()
-    // as it applies it, one at a time, so a large pull never holds every asset at once.
+    // Not rehydrated: the engine restores a record's assets through get() as it applies it, one
+    // record at a time, so a large pull never holds every asset at once.
     return ((data ?? []) as DocumentRow[]).map((row) => toStoredRecord(kind, row.id, row.body));
   }
 

@@ -255,11 +255,10 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
       { fetched, s18, font18 },
     );
 
-    // 19. a provider that lists SUMMARIES (the cloud one does: a list that carried bodies
-    //     downloaded the whole library every pass, and was the heaviest load on the database
-    //     when it stopped answering on 2026-09-29). What a pass pulls is fetched whole, twenty
-    //     to a request, before anything is applied; a summary is never written; a record gone by
-    //     fetch time has nothing to pull; a pass with nothing to pull fetches nothing.
+    // 19. a provider that lists SUMMARIES (the cloud one does - supabaseProvider.ts says why).
+    //     What a pass pulls is fetched whole, twenty to a request, before anything is applied; a
+    //     summary is never written; a record gone by fetch time has nothing to pull; a pass with
+    //     nothing to pull fetches nothing.
     localStorage.removeItem('spx-gfx-sync');
     const ids19 = Array.from({ length: 45 }, (_, i) => `s${String(i).padStart(2, '0')}`);
     const r19 = mem(ids19.map((id) => rec(id, T1, { payload: 'the whole body' })));
@@ -268,7 +267,7 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
     const summaries = {
       ...r19,
       async list(kind: string) {
-        return (await r19.list(kind)).map((r) => ({ ...r, body: { updatedAt: r.updatedAt, name: r.id }, summary: true }));
+        return (await r19.list(kind)).map((r) => ({ ...r, body: { updatedAt: r.updatedAt }, summary: true }));
       },
       async get(): Promise<never> {
         throw new Error('a record with no assets must not be fetched again');

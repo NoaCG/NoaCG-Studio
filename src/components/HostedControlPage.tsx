@@ -65,7 +65,7 @@ import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
-import { createSendDebts, withoutSettled } from '../control/failedSends';
+import { createSendDebts } from '../control/failedSends';
 import { appendLogEntries, describeLogRow, eventLogLabel, logTime, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
@@ -681,8 +681,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
     }).then(
       () => {
-        const settled = sendDebts.current.landed(items);
-        if (settled.length) setError((shown) => withoutSettled(shown, settled));
+        setError(sendDebts.current.landed(items));
         return true;
       },
       (e: Error) => {

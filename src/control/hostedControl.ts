@@ -24,7 +24,7 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
-import { RESEND_WINDOW_MS, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { RESEND_WINDOW_MS, rpcFailure, sendWithResend } from './failedSends';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { cueDataRows, type CueDataRow } from './cueData';
 
@@ -787,8 +787,7 @@ const slowKey = (showId: string | null, graphic: string) => `${showId ?? '-'}:${
 /** The newest send of each graphic, by control slug and graphic, so a failed send is never sent
  *  again after a later press of the same graphic (failedSends.ts `sendWithResend`). An entry
  *  leaves when its send settles, so the map holds only sends in flight. */
-const newestSend = new Map<string, number>();
-let sends = 0;
+const newestSend = new Map<string, object>();
 
 /** One item as `control_send_many` receives it: the command, plus the transport-only mark that
  *  says the database may put this one on the fast road (migration 0056 reads `fast` and inserts
@@ -856,8 +855,7 @@ export async function sendControlVerb(opts: {
   // which is safe for the same reason the two roads are: the minted id means the echo it gets
   // back - broadcast or durable row, whichever arrives - is recognised and dropped.
   if (fast.length > 0) opts.applyHere?.(fast);
-  sends += 1;
-  const send = sends;
+  const send = {};
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
   try {
@@ -912,14 +910,7 @@ export async function sendHostedControlBatch(slug: string, items: WireItem[]): P
   const sb = await getSupabase();
   if (!sb) return;
   const { error, status } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items });
-  if (!error) return;
-  // A server that did not answer says so in its own words - a gateway's HTML page, PostgREST's
-  // schema-cache notice - none of which an operator can act on. The console keeps them.
-  if (unansweredStatus(status, error.code)) {
-    console.warn(`[control] control_send_many: ${status} ${error.code ?? ''} ${error.message.slice(0, 200)}`);
-    throw unansweredError();
-  }
-  throw new Error(error.message);
+  if (error) throw rpcFailure('control_send_many', error, status);
 }
 
 // ── The cue verbs (docs/CLOUD_PLAYOUT.md §4) — ONE author for the wire sequence. ─────────────
@@ -1182,8 +1173,8 @@ export async function followControlLog(opts: {
 export async function stageHostedData(slug: string, graphic: string, data: Record<string, string>): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const { error } = await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
-  if (error) throw new Error(error.message);
+  const { error, status } = await sb.rpc('control_stage', { p_slug: slug, p_graphic: graphic, p_data: data });
+  if (error) throw rpcFailure('control_stage', error, status);
 }
 
 /** The command tail after a known id — a reconnecting side fills its gap from here. */

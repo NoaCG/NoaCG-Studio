@@ -187,7 +187,7 @@ import {
   type ResolvedControlShow,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
-import { createSendDebts, withoutSettled } from '../../control/failedSends';
+import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, describeLogRow, eventLogLabel, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -1623,6 +1623,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setWireLog((l) => appendLogEntries(l, entries));
         return { ok: true };
       }
+      let landed = 0;
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
@@ -1638,9 +1639,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             applyHere: applyCommand,
             fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
           });
+          landed += 1;
         }
-        const settled = sendDebts.current.landed(batches.flat());
-        if (settled.length) setNote((n) => withoutSettled(n, settled));
+        setNote(sendDebts.current.landed(batches.flat()));
         return { ok: true };
       } catch (e) {
         // A verb whose picture MOVED HERE and then failed to send is a different sentence from
@@ -1652,7 +1653,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const note = verbAired(e)
           ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
           : `${label} failed: ${(e as Error).message}`;
-        sendDebts.current.failed(batches.flat(), note);
+        // Owed: the batch that failed and those after it. The ones before it landed.
+        sendDebts.current.failed(batches.slice(landed).flat(), note);
         return { ok: false, note };
       }
     },

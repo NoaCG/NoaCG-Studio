@@ -48,6 +48,18 @@ export function unansweredStatus(status: number, code?: string): boolean {
 }
 
 /**
+ * The Error a control RPC's failure is thrown as. A server that did not answer says so in its own
+ * words - a gateway's HTML page, PostgREST's schema-cache notice - none of which an operator can
+ * act on, so those become UNANSWERED and the console keeps the original. A refusal keeps its
+ * message, which is the server's answer.
+ */
+export function rpcFailure(rpc: string, error: { message: string; code?: string }, status: number): Error {
+  if (!unansweredStatus(status, error.code)) return new Error(error.message);
+  console.warn(`[control] ${rpc}: ${status} ${error.code ?? ''} ${error.message.slice(0, 200)}`);
+  return unansweredError();
+}
+
+/**
  * Send, and send again on the schedule above while the server does not answer, the window is
  * open, and no NEWER send has gone out for the same graphics. That last rule keeps order: a Take
  * still being retried when the operator presses Out on its graphic stops trying, because landing
@@ -87,34 +99,29 @@ export async function sendWithResend(
  * taking the notice down then would hide exactly that. So each failure is remembered with the
  * graphics it carried, and the notices are released together once none of them is owed.
  */
-export interface SendDebts {
+interface SendDebts {
   failed(items: readonly { graphic: string }[], notice: string): void;
-  /** A send carrying these items landed. Returns the notices it settled: all of them once
-   *  nothing is owed, otherwise none. */
-  landed(items: readonly { graphic: string }[]): string[];
+  /** A send carrying these items landed. Returns the notice line's next state: cleared if it
+   *  still shows a failure this settled (on its own, or inside a folder's summary of its cues),
+   *  and untouched while anything is still owed or once the line has moved on. */
+  landed(items: readonly { graphic: string }[]): (shown: string | null) => string | null;
 }
 
 export function createSendDebts(): SendDebts {
   const owed = new Set<string>();
   let notices: string[] = [];
+  const unchanged = (shown: string | null) => shown;
   return {
     failed(items, notice) {
       for (const item of items) owed.add(item.graphic);
       notices.push(notice);
     },
     landed(items) {
-      if (owed.size === 0) return [];
       for (const item of items) owed.delete(item.graphic);
-      if (owed.size > 0) return [];
+      if (owed.size > 0 || notices.length === 0) return unchanged;
       const settled = notices;
       notices = [];
-      return settled;
+      return (shown) => (shown !== null && settled.some((s) => shown.includes(s)) ? null : shown);
     },
   };
-}
-
-/** The notice line once `settled` notices are taken down: empty if it still shows one of them,
- *  on its own or inside a folder's summary of its cues, and untouched if it moved on. */
-export function withoutSettled(notice: string | null, settled: readonly string[]): string | null {
-  return notice !== null && settled.some((s) => notice.includes(s)) ? null : notice;
 }

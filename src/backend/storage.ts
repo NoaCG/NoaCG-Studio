@@ -70,9 +70,9 @@ export interface StoredRecord<T = unknown> {
   updatedAt: string; // ISO
   deleted?: boolean;
   body: T;
-  /** The body is only a SUMMARY - `updatedAt`, `deleted` and `name`, which is all reconciling
-   *  reads - because list() left the rest on the server. The sync engine fetches the whole record
-   *  before it applies one and never writes a summary anywhere. */
+  /** The body is only a SUMMARY - `updatedAt` and `deleted`, which is all reconciling reads -
+   *  because list() left the rest on the server (supabaseProvider.ts says why). The sync engine
+   *  fetches the whole record before it applies one and never writes a summary anywhere. */
   summary?: true;
 }
 
