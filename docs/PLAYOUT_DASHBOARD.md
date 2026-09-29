@@ -480,7 +480,9 @@ follows whatever a wider window set.
   back to Anna, SPACE - takes Anna off and puts her on PREVIEW in Ben's place.
 - **Off-air is one press in both modes, on purpose.** A hand that learned "SPACE takes a live cue
   off" in one mode must never find a second press between it and a clean screen in the other.
-  `0` still means Out from either state and never touches PREVIEW.
+  `0` still means Out from either state and never touches PREVIEW. **One exception** (owner,
+  2026-09-29, §2i): on a held One-by-one folder header SPACE steps to the next cue while cues remain,
+  and the button says so; `0` still clears that folder in one press.
 - **The editor follows the SELECTION on all three surfaces** - what the exported controller has
   always done - and the PREVIEW monitor follows only the staged cue. The kicker reads **EDITING
   SELECTED CUE** while the cursor is ahead of the monitor, PREVIEW CUE once SPACE has caught it
@@ -652,14 +654,31 @@ the exported controller, the output and a pack see the flat rundown they always 
   cue, and only when the Bridge and server can play one file after another; Loop the folder needs
   NoaCG Bridge 0.6.0.
 - **SPACE, TAKE and Out on a held header** act on the folder, in both Space modes, and a held key
-  does it once. **One by one** airs nothing by itself: TAKE is off ("Take each cue in this folder."),
-  its cues are taken one at a time as anywhere else, and TAKE OFF or Out takes off only its own
-  cues. **Play through** plays its clips one after another on its slot as one sequence the Bridge
-  runs, round again with Loop the folder; taking a clip in it plays from that clip to the end. **All
-  together** starts every cue in it with one Take, the server cues first and then the graphics, and
-  says which did not go up and why, on the cue's own row. Out on the header takes all of it off,
-  each clip with its own fade out, and nothing outside it; All out is unchanged and also stops a
-  folder's Take still being sent. PREVIEW shows the cue a folder starts with.
+  does it once. In the default Space mode PREVIEW shows the cue a folder starts with, or for One by
+  one the cue its next press takes.
+- **One by one steps** (owner, 2026-09-29; `docs/CLIP_PLAYBACK_PLAN.md` §20.1). Each press on the
+  header takes the folder's next cue exactly as that cue's own Take would, and first takes the
+  folder's graphics that are up off. **A clip or audio file is never stopped by a step**: it plays on
+  until it ends, the next clip on its own slot replaces it, or Out. The button names what a press
+  does: `⟳ TAKE` for the first cue, `⟳ NEXT` after it, `■ TAKE OFF` at the end when a graphic is up,
+  `↺ FROM THE TOP` when only clips are; its tooltip names the cues. After the last cue the press
+  takes the graphics off and goes back to the top, and the next press takes the first cue. A cue of
+  the folder taken on its own moves the step to it; a cue already on air is never taken again by a
+  step. Where the step stands is page memory (after a reload it is read off what is on air), and the
+  rundown marks the cue it takes next `NEXT`. TAKE OFF, `0` or Out on the header takes every cue of
+  the folder that is up off, clips included, and starts it again from the top; so does All out.
+- **Play through** plays its clips one after another on its slot as one sequence the Bridge runs,
+  round again with Loop the folder; taking a clip in it plays from that clip to the end. **All
+  together** starts every cue in it with one Take, the server cues first and then the graphics, all
+  of them at once so they land together, and says which did not go up and why, on the cue's own
+  row. Out on the header takes all of it off, each clip with its own fade out, and nothing outside
+  it.
+- **All out is the panic control**, the header's button and the named verb `all-out` (no key) a
+  hardware panel presses. It cuts everything this page has on air - graphics, clips, audio, a
+  folder's Take or step still being sent - and whatever plays on a slot this rundown uses that no
+  cue here can name: an unidentified item, which after a NoaCG Bridge restart is this page's own
+  clip, or what replaced a cue's clip on the server. A layer the rundown does not use is never
+  touched.
 
 ## 3. Layout — phone
 

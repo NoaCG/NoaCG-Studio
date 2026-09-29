@@ -32,6 +32,9 @@ export type PlayoutVerb =
   // `take` and `out` with a folder row selected. The hosted page has no folders and ignores both.
   | 'folder-new'
   | 'folder-toggle'
+  // The panic control, with no key on purpose (docs/CLIP_PLAYBACK_PLAN.md §20.1): the header's ■ All
+  // out as a named verb, so a hardware panel presses the same thing. The hosted page ignores it.
+  | 'all-out'
   // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2): copy, cut and paste the selection
   // (Ctrl or Cmd with C, X, V), Escape to drop it, Shift with Up or Down to extend it. Nothing here
   // airs. The hosted page has no rundown to edit and ignores them.

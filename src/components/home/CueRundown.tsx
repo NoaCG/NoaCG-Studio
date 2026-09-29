@@ -118,6 +118,7 @@ export default function CueRundown({
   cutIds,
   folderAir,
   takeMisses,
+  stepNext,
   rundownNote,
   clashes,
   offstage,
@@ -175,6 +176,8 @@ export default function CueRundown({
   folderAir: Readonly<Record<string, FolderAir>>;
   /** Why each cue of the last folder Take did not go on air, by cue id. */
   takeMisses: Readonly<Record<string, string>>;
+  /** The cue each started One-by-one folder takes at its next press (control/folderStep.ts). */
+  stepNext: ReadonlySet<string>;
   /** What the rundown's authoring last said: a refused drop, a write that did not land. */
   rundownNote: string | null;
   /** Layers two or more graphics share (model/shows `duplicateLayers`). */
@@ -670,6 +673,11 @@ export default function CueRundown({
                 </span>
               ) : isPreviewed ? (
                 <span className="pd-tag pvw">PVW</span>
+              ) : stepNext.has(cue.id) ? (
+                // A One-by-one folder's next press takes this cue (docs/CLIP_PLAYBACK_PLAN.md §20.1).
+                <span className="pd-tag next" title={`${ownFolder ? folderName(ownFolder) : 'Its folder'} takes this cue at the next press of its header.`} data-testid="cue-step-next">
+                  NEXT
+                </span>
               ) : null}
               {timed && (
                 <span className="pd-cue-len" data-testid="cue-length">

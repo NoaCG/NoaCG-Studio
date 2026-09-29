@@ -93,7 +93,7 @@ export default function FolderEditor({
   const address = slotAddress(slot);
   const modeHint =
     mode === 'manual'
-      ? 'Tidiness only: each cue is taken on its own and sends what it sends outside a folder.'
+      ? 'SPACE on the folder takes its cues one at a time: each press takes the next cue and the graphic before it off. Clips and audio play on until they end or Out.'
       : mode === 'through'
         ? `One Take plays its clips one after another on ${address}, as one sequence NoaCG Bridge runs.`
         : 'One Take starts every cue in it: the server cues one after another, then the graphics.';
@@ -132,8 +132,14 @@ export default function FolderEditor({
             How it plays
           </span>
           <div className="ctl-segmented" role="radiogroup" aria-labelledby={`folder-mode-${folder.id}`} data-testid="folder-mode">
-            {MODES.filter((m) => m.mode !== 'through' || hasServerCue || mode === 'through').map((m) => {
-              const off = m.mode === 'through' && mode !== 'through' ? throughOff : null;
+            {MODES.map((m) => {
+              // Play through is there even where it cannot be chosen, and says why (§20.1).
+              const off =
+                m.mode === 'through' && mode !== 'through'
+                  ? hasServerCue
+                    ? throughOff
+                    : 'Play through plays clips and audio files one after another. This production has no server clip to play.'
+                  : null;
               return (
                 <button
                   key={m.mode}
