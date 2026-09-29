@@ -153,7 +153,8 @@ async function boot(): Promise<void> {
         return result;
       } catch (err) {
         thrown += 1;
-        if (thrown >= RELOAD_AFTER_THROWS) await reloadIfServed();
+        // Not awaited: a probe that hangs on a half-dead network must not stall the retries.
+        if (thrown >= RELOAD_AFTER_THROWS) void reloadIfServed();
         throw err;
       }
     },
