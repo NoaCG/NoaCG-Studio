@@ -108,6 +108,15 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
     const after = spans.some(span => span.end === end) ? own[selector] ?? (exit.duration > 0 ? [{ start: 0, end: exit.duration }] : []) : [];
     carried[selector] = joinBars([...tail, ...after.map(shift)]);
   }
+  // Out moving later lengthens the cue. A layer visible at the old hold stayed visible into the
+  // exit unless its own Out bars hid it, so its bar now reaches the new hold. One whose Out bars show
+  // it later refuses: hidden as Out starts, it would be skipped (noacgExitVisible).
+  if (delta < 0) for (const [selector, spans] of Object.entries(cue.spans ?? {})) {
+    const reaching = spans.find(span => span.end === end);
+    if (!reaching || own[selector]?.length === 0) continue;
+    if (own[selector]) throw new Error(`${selector} has its own Out bars after this hold, and moving Out later would hide it as Out starts, so Out would skip it. Its source is preserved.`);
+    reaching.end = b;
+  }
   for (const [selector, spans] of Object.entries(own)) {
     if (carried[selector]) continue;
     if (spans.some(span => span.start + delta < 0)) throw new Error('This boundary crosses a visibility span. Move its timing first; source is preserved.');

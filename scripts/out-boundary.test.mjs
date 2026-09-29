@@ -356,3 +356,24 @@ test('a graphic saved with the R1.2a.1 interpreter upgrades once to play a Hold'
   assert.equal(writeAnimData(once, held), once);
   assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), held), null, 'custom source still refuses');
 });
+
+test('Out moved later keeps a layer visible at the old hold visible up to the new one', () => {
+  const data = () => ({ version: 2, root: '.g', speed: 1, steps: [
+    { name: 'In', duration: 1, ease: 'none', spans: { '#a': [{ start: 0, end: 1 }] }, layers: { '#a': { x: [{ time: 0, value: -100 }, { time: 1, value: 0 }] } } },
+    { name: 'Out', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0.6, value: 0 }, { time: 1, value: -100 }] } } },
+  ] });
+  const before = data(), after = moveOutBoundary(before, 1.4);
+  assert.deepEqual(after.steps[0].spans, { '#a': [{ start: 0, end: 1.4 }] });
+  assert.equal(held(after, '#a'), true, 'visible as Out starts, so Out plays its motion');
+  for (let i = 0; i < 2000; i++) {
+    const u = 2 * i / 2000 + 1e-7;
+    assert.equal(visibleAt(after, '#a', u), visibleAt(before, '#a', u), `visibility at ${u}`);
+  }
+  samePlayback(before, after, 'Out later');
+  // Hidden through the exit by its own empty Out bars: its bar still ends where it did.
+  const cut = data(); cut.steps[1].spans = { '#a': [] };
+  assert.deepEqual(moveOutBoundary(cut, 1.4).steps[0].spans, { '#a': [{ start: 0, end: 1 }] });
+  // Shown again by its own Out bars: hidden as the later Out starts, Out would skip it.
+  const later = data(); later.steps[1].spans = { '#a': [{ start: 0.6, end: 1 }] };
+  refuses(later, 1.4, /#a has its own Out bars/);
+});
