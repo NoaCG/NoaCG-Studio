@@ -12,7 +12,9 @@ import { haveCreds, settleSync, signIn } from './_helpers';
 // are counted across the whole context, then attributed to the tab that sent them.
 //
 // The second test is the case the old behaviour covered by accident: the tab that made the
-// change closes before its pass runs. It hands the pass to a tab that stays open.
+// change closes before its pass runs. It hands the pass on, and with two tabs still open only
+// one of them takes it. That a write from a tab WITHOUT sync is still pushed by a tab that
+// adopts it is pinned offline, in e2e/cross-tab.spec.ts.
 
 const LIST_KIND = 'look';
 
@@ -65,17 +67,21 @@ async function removeLook(page: Page, id: string): Promise<void> {
   }, id);
 }
 
-async function twoSignedInTabs(context: BrowserContext, passes: ReturnType<typeof countPasses>): Promise<[Page, Page]> {
-  const a = await context.newPage();
-  await signIn(a);
-  await settleSync(a);
-  // The second tab shares the first one's session (one browser), so it boots signed in.
-  const b = await context.newPage();
-  await b.goto('/app');
-  await settleSync(b);
-  await untilQuiet(a, passes);
+async function signedInTabs(context: BrowserContext, passes: ReturnType<typeof countPasses>, count: number): Promise<Page[]> {
+  const first = await context.newPage();
+  await signIn(first);
+  await settleSync(first);
+  const tabs = [first];
+  // The other tabs share the first one's session (one browser), so they boot signed in.
+  while (tabs.length < count) {
+    const tab = await context.newPage();
+    await tab.goto('/app');
+    await settleSync(tab);
+    tabs.push(tab);
+  }
+  await untilQuiet(first, passes);
   passes.reset();
-  return [a, b];
+  return tabs;
 }
 
 test('two tabs, one edit: exactly one library sync pass, run by the tab that made it', async ({ browser }) => {
@@ -83,7 +89,7 @@ test('two tabs, one edit: exactly one library sync pass, run by the tab that mad
   test.setTimeout(150_000);
   const context = await browser.newContext();
   const passes = countPasses(context);
-  const [a, b] = await twoSignedInTabs(context, passes);
+  const [a, b] = await signedInTabs(context, passes, 2);
 
   const id = await addLook(a, `One pass ${Date.now()}`);
   try {
@@ -99,22 +105,23 @@ test('two tabs, one edit: exactly one library sync pass, run by the tab that mad
   }
 });
 
-test('a tab that closes before its pass hands the pass to a tab still open', async ({ browser }) => {
+test('a tab that closes before its pass hands the pass to ONE of the tabs still open', async ({ browser }) => {
   test.skip(!haveCreds, 'needs E2E_EMAIL / E2E_PASSWORD');
-  test.setTimeout(150_000);
+  test.setTimeout(180_000);
   const context = await browser.newContext();
   const passes = countPasses(context);
-  const [a, b] = await twoSignedInTabs(context, passes);
+  const [a, b, c] = await signedInTabs(context, passes, 3);
 
   const id = await addLook(a, `Handed over ${Date.now()}`);
   try {
     // Inside the 2.5 s debounce: the closing tab never runs the pass it owed.
     await a.close();
-    await expect.poll(() => passes.perPage.get(b) ?? 0, { timeout: 20_000 }).toBe(1);
+    await expect.poll(() => passes.total(), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
     await untilQuiet(b, passes);
-    expect(passes.perPage.get(b) ?? 0).toBe(1);
+    expect(passes.perPage.get(a) ?? 0, 'the closed tab ran nothing').toBe(0);
+    expect((passes.perPage.get(b) ?? 0) + (passes.perPage.get(c) ?? 0), 'one open tab took the pass, not each').toBe(1);
 
-    // The edit really reached the cloud, not only the open tab's IndexedDB.
+    // The edit really reached the cloud, not only the open tabs' IndexedDB.
     const pushed = await b.evaluate(async (lookId) => {
       const { SupabaseProvider } = await import('/src/backend/supabaseProvider.ts');
       const rows = await new SupabaseProvider().list('look');

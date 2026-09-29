@@ -7,7 +7,7 @@
 import { isBackendConfigured } from './config';
 import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
 import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
-import { changedInAnotherTab, libraryInUse } from '../model/durableStore';
+import { changeSyncedElsewhere, libraryInUse, markOwnWritesSynced } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
 import { runSync, type SyncResult } from './sync';
@@ -174,26 +174,42 @@ export async function syncNow(): Promise<void> {
 // edit cost, and on 2026-09-29 that list load ran into statement timeouts and a database restart
 // that failed every Take in the window. The pass reads the whole shared library, so ONE tab's pass
 // pushes everybody's writes: the tab that made the change owns it, and an adopted change only
-// refreshes the screen. What the old fan-out covered by accident, a tab closing before its pass
-// ran, is handed to the tabs still open (`handOverOnClose`).
+// refreshes the screen. Two exceptions keep every write pushed: a write from a tab that does not
+// run sync at all (a production or control page opened on its own) is not marked, so the syncing
+// tabs still push it; and a tab closing before its pass ran hands the pass on (`handOverOnClose`).
+// A tab that is killed rather than closed hands nothing on: its write waits in IndexedDB for the
+// next pass any tab runs, as it always did with one tab open.
+const DEBOUNCE_MS = 2500;
 let debounce: ReturnType<typeof setTimeout> | null = null;
 function scheduleSync(event?: Event): void {
-  if (event && changedInAnotherTab(event)) return;
+  if (event && changeSyncedElsewhere(event)) return;
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
     debounce = null;
     void syncNow();
-  }, 2500);
+  }, DEBOUNCE_MS);
 }
 
 /** A tab that goes away with a pass still owed (debounced, running or queued) asks the other tabs
  *  of this browser to run one. They share its library through IndexedDB, and `syncNow` still
- *  checks each receiver's own account, so the message carries nothing. Without BroadcastChannel
- *  the durable store has no cross-tab adoption either, so every tab already syncs its own writes. */
+ *  checks each receiver's own account, so the message carries nothing. ONE of them takes it: the
+ *  first to ask holds a Web Lock through the debounce and its pass, and the others find it held.
+ *  Without Web Locks each schedules one. Without BroadcastChannel the durable store has no
+ *  cross-tab adoption either, so every tab already syncs its own writes. */
 function handOverOnClose(): void {
   if (typeof BroadcastChannel === 'undefined') return;
   const owed = new BroadcastChannel('noacg-sync-owed');
-  owed.onmessage = () => scheduleSync();
+  owed.onmessage = () => {
+    if (!navigator.locks) {
+      scheduleSync();
+      return;
+    }
+    void navigator.locks.request('noacg-sync-handover', { ifAvailable: true }, async (lock) => {
+      if (!lock) return;
+      await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS));
+      await syncNow();
+    });
+  };
   window.addEventListener('pagehide', () => {
     if (debounce || running || queued) owed.postMessage('owed');
   });
@@ -216,6 +232,7 @@ export function startAutoSync(): void {
   if (started || typeof window === 'undefined' || !isBackendConfigured()) return;
   started = true;
   window.addEventListener('spx-data-changed', scheduleSync);
+  markOwnWritesSynced();
   handOverOnClose();
   followLibraryChangesInOtherTabs();
   // Tracked by ACCOUNT, not by signed-in-ness: a different account signing in over a live
