@@ -58,8 +58,13 @@ Owner walk 2026-08-28, and it holds for anything in here that moves:
   `Page speed (%)`, ftype `number`, default `100` = the pace the design ships at, clamped to
   10-400 by `creditsSpeed()`). It is appended LAST so the logo keeps `f2`, and it is input only:
   a hidden `.noacg-data-source` holder, never drawn. **The static board emits none** - nothing
-  there has a speed, and a control page must not offer a field the graphic cannot use. It applies
-  at the next `play()`, because that is when the travel is measured.
+  there has a speed, and a control page must not offer a field the graphic cannot use. The travel
+  is measured at `play()`; a speed arriving through `update()` reaches the running motion as a
+  `timeScale` (`creditsApplySpeed()`), never a rebuild, which would snap the roll to its start.
+  Two things make that hold, and both are measured: the parent step timeline has no
+  `smoothChildTiming`, so the flag is lent for the call or the roll jumps (196px on cr01); and
+  `update()` leaves the rows alone when their markup is unchanged, because a page swap tweens the
+  `.credits-page` nodes themselves and replacing them on air drew every page at once.
 - **`creditsRoll()` and `creditsCrawl()` run the LIST off the frame**, then bring the
   `.credits-end` block in as its own beat (`creditsEndBeat()`), centred, with the pages faded
   out. The travel therefore measures to the end block's position, not the track's full extent.
