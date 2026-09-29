@@ -5,7 +5,7 @@ import type { EditorSession } from './session';
 import LayerBar from './LayerBar';
 import OutControls from './OutControls';
 import KeyEase, { type KeyMenu } from './KeyEase';
-import { keyId, layerKeys, liveKeys, toggleKeys } from './keySelection';
+import { addKeys, keyId, layerKeys, liveKeys, toggleKeys } from './keySelection';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
@@ -136,7 +136,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     }
     const all = view.parts.flatMap(part => layerKeys(view.data, part.selector).flatMap(row => row.keys));
     const hits = all.filter(key => found.has(keyId(key)));
-    setPicked(drag.base ? [...drag.base, ...hits.filter(key => !drag.base!.some(k => keyId(k) === keyId(key)))] : hits);
+    setPicked(drag.base ? addKeys(drag.base, hits) : hits);
   };
   useEffect(() => {
     if (!marquee) return;

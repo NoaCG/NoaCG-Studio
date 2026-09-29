@@ -1,6 +1,6 @@
 import type { SpxTemplate } from '../model/types';
 import { losslessAnimData, type AnimData } from './animData';
-import { deleteKeyframe, easeKeys, planKeyEase, setKeyframe, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
+import { deleteKeyframe, easeKeys, setKeyframe, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
@@ -92,8 +92,8 @@ export function applyKeyEase(template: SpxTemplate, operation: KeyEaseOperation)
   const reason = sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
   if (!Array.isArray(operation.keys) || !operation.keys.length) throw new Error('Select keys to ease. No ease changed.');
-  if (!planKeyEase(data, operation.keys, operation.preset).length) return template;
   const next = easeKeys(data, operation.keys, operation.preset);
+  if (next === data) return template;
   const exit = data.steps.length > 1 && operation.keys.some(key => key.step === data.steps.length - 1);
   const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
   if (js === null) throw new Error('This interpreter has custom source, so the new eases cannot be written safely. Its source is preserved.');

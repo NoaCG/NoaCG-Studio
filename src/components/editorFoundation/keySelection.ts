@@ -22,8 +22,13 @@ export function liveKeys(data: AnimData | null, keys: KeyRef[]): KeyRef[] {
 
 /** Toggle a group of keys: all of them leave when all are selected, else all join. */
 export function toggleKeys(selection: KeyRef[], keys: KeyRef[]): KeyRef[] {
-  const ids = new Set(keys.map(keyId)), all = keys.every(key => selection.some(k => keyId(k) === keyId(key)));
-  return all ? selection.filter(key => !ids.has(keyId(key))) : [...selection, ...keys.filter(key => !selection.some(k => keyId(k) === keyId(key)))];
+  const chosen = new Set(selection.map(keyId)), ids = new Set(keys.map(keyId));
+  return [...ids].every(id => chosen.has(id)) ? selection.filter(key => !ids.has(keyId(key))) : addKeys(selection, keys);
+}
+/** The selection with `keys` added, each key once. */
+export function addKeys(selection: KeyRef[], keys: KeyRef[]): KeyRef[] {
+  const chosen = new Set(selection.map(keyId));
+  return [...selection, ...keys.filter(key => !chosen.has(keyId(key)))];
 }
 
 // When several presets would change nothing (a key eased on both sides also has each one side),

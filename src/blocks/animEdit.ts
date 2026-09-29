@@ -544,9 +544,12 @@ export function planKeyEase(data: AnimData, keys: KeyRef[], preset: KeyEasePrese
   return writes;
 }
 
-/** Apply `planKeyEase`: a copy of `data` with the selected key sides eased. */
+/** Apply `planKeyEase`: a copy of `data` with the selected key sides eased, or `data` itself
+ *  when every side already has the preset. */
 export function easeKeys(data: AnimData, keys: KeyRef[], preset: KeyEasePreset): AnimData {
-  const writes = planKeyEase(data, keys, preset), next = clone(data);
+  const writes = planKeyEase(data, keys, preset);
+  if (!writes.length) return data;
+  const next = clone(data);
   for (const write of writes) next.steps[write.step].layers[write.selector][write.property][write.index].ease = write.ease;
   return next;
 }
