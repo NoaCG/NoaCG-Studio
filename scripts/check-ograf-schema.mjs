@@ -193,12 +193,12 @@ const MUTATIONS = [
     id: 'duplicate-custom-action-id',
     why: 'two custom actions sharing an id - a renderer that registers by id loses one',
     sharedLimit: true,
-    // A base with no custom actions gets TWO copies of the stand-in, never one: a single action
-    // is valid, so the battery read "ours accepts" as drift the day the corpus gained such a base
-    // (the hostile foreign-OGraf fixture, 2026-09-27).
+    // A base with no custom actions (absent or empty) gets TWO copies of the stand-in, never one:
+    // a single action is valid, so the battery read "ours accepts" as drift the day the corpus
+    // gained such a base (the hostile foreign-OGraf fixture, 2026-09-27).
     apply: (m) => {
-      const first = m.customActions?.[0] ?? { id: 'x', name: 'X' };
-      return { ...m, customActions: [...(m.customActions ?? [first]), { ...first }] };
+      const actions = m.customActions?.length ? m.customActions : [{ id: 'x', name: 'X' }];
+      return { ...m, customActions: [...actions, { ...actions[0] }] };
     },
   },
 ];
