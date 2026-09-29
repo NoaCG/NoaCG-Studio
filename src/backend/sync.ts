@@ -152,6 +152,37 @@ export function reconcile(
   return plan;
 }
 
+/** How many whole records one fetch asks for. Bodies average about 100 KB and reach 3 MB, so a
+ *  batch stays a few megabytes, and a fresh device holding 160 graphics pays 8 requests, not 160. */
+const FETCH_BATCH = 20;
+
+/**
+ * The whole records behind the summaries a pass pulls, by record key, one batch at a time so a
+ * pass never asks the database for everything at once. A batch that fails leaves an Error under
+ * each of its keys, reported as that record's failed pull; a record the backend no longer holds
+ * has no entry.
+ */
+async function fetchWhole(remote: StorageProvider, summaries: StoredRecord[]): Promise<Map<string, StoredRecord | Error>> {
+  const out = new Map<string, StoredRecord | Error>();
+  const byKind = new Map<SyncKind, StoredRecord[]>();
+  for (const r of summaries) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r]);
+  for (const [kind, records] of byKind) {
+    for (let i = 0; i < records.length; i += FETCH_BATCH) {
+      const batch = records.slice(i, i + FETCH_BATCH);
+      const ids = batch.map((r) => r.id);
+      try {
+        const got = remote.getMany
+          ? await remote.getMany(kind, ids)
+          : (await Promise.all(ids.map((id) => remote.get(kind, id)))).filter((r): r is StoredRecord => !!r);
+        for (const r of got) out.set(recordKey(r), r);
+      } catch (e) {
+        for (const r of batch) out.set(recordKey(r), e instanceof Error ? e : new Error(String(e)));
+      }
+    }
+  }
+  return out;
+}
+
 /**
  * Run one full sync pass between a local and a remote provider. Idempotent: a second run right
  * after finds every record equal and does nothing. Per-record failures never sink the pass — they
@@ -210,12 +241,14 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     }
   }
 
-  // 2. Pull. A record whose body still holds a Storage sentinel is re-fetched via get(), so the
+  // 2. Pull. A SUMMARY (list() left the body on the server) is fetched whole first, in batches;
+  //    a whole record whose body still holds a Storage sentinel is re-fetched via get(), so the
   //    provider can rehydrate its externalized assets; every other record is applied as list()
-  //    returned it. Falls back to the list record if get() returns nothing. A failed pull just
-  //    retries next pass — LWW re-derives it from the unchanged timestamps.
-  for (const r of plan.toLocal) {
-    if (skipPull.has(recordKey(r))) continue;
+  //    returned it. A failed pull just retries next pass — LWW re-derives it from the unchanged
+  //    timestamps.
+  const pulls = plan.toLocal.filter((r) => !skipPull.has(recordKey(r)));
+  const whole = await fetchWhole(remote, pulls.filter((r) => r.summary));
+  for (const r of pulls) {
     try {
       // Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
       // micro-optimization: the loop is sequential and a fresh device pulls everything the
@@ -224,8 +257,18 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
       // the 30 s the UI was waited on for. Live records paid the same way: on 2026-09-26 (run
       // 36252087565) a fresh sign-in to the hosted test account pulled 129 saved looks one request
       // each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
-      // everything an account keeps, so it is a user-facing defect, not only a slow test.
-      const full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
+      // everything an account keeps, so it is a user-facing defect, not only a slow test. The
+      // same arithmetic is why summaries are fetched in batches rather than one get() each.
+      let full: StoredRecord;
+      if (r.summary) {
+        const got = whole.get(recordKey(r));
+        // A summary is never written: its body is three fields of a record.
+        if (!got) throw new Error('it was no longer in the cloud when the pass fetched it');
+        if (got instanceof Error) throw got;
+        full = got;
+      } else {
+        full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
+      }
       await local.put(full);
       pulled += 1;
     } catch (e) {

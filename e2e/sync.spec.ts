@@ -255,12 +255,52 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
       { fetched, s18, font18 },
     );
 
+    // 19. a provider that lists SUMMARIES (the cloud one does: a list that carried bodies
+    //     downloaded the whole library every pass, and was the heaviest load on the database
+    //     when it stopped answering on 2026-09-29). What a pass pulls is fetched whole, twenty
+    //     to a request; a summary is never written; a record gone by fetch time, or in a batch
+    //     that failed, is a failed pull; a pass with nothing to pull fetches nothing.
+    localStorage.removeItem('spx-gfx-sync');
+    const ids19 = Array.from({ length: 45 }, (_, i) => `s${String(i).padStart(2, '0')}`);
+    const r19 = mem(ids19.map((id) => rec(id, T1, { payload: 'the whole body' })));
+    const batches: string[][] = [];
+    const summaries = {
+      ...r19,
+      async list(kind: string) {
+        return (await r19.list(kind)).map((r) => ({ ...r, body: { updatedAt: r.updatedAt, name: r.id }, summary: true }));
+      },
+      async get(): Promise<never> {
+        throw new Error('a summary must not be fetched one get() at a time');
+      },
+      async getMany(kind: string, ids: string[]) {
+        batches.push(ids);
+        if (ids.includes('s40')) throw new Error('batch refused');
+        return (await Promise.all(ids.filter((id) => id !== 's07').map((id) => r19.get(kind, id)))).filter(Boolean);
+      },
+    };
+    const l19 = mem([]);
+    const s19 = await runSync(l19, summaries);
+    const written19 = [...l19.store.values()];
+    check(
+      'summaries are pulled whole, in batches, and never written',
+      batches.map((b) => b.length).join() === '20,20,5' &&
+        s19.pulled === 39 &&
+        written19.every((r) => (r.body as { payload?: unknown }).payload === 'the whole body' && !('summary' in r)) &&
+        !l19.store.has('look:s07') &&
+        s19.failures.length === 6 &&
+        s19.failures.every((f: { op: string }) => f.op === 'pull'),
+      { batches: batches.map((b) => b.length), s19 },
+    );
+    batches.length = 0;
+    const again19 = await runSync(mem(written19.map((r) => ({ ...r }))), { ...summaries, list: async (kind: string) => (await summaries.list(kind)).filter((r) => r.id !== 's07' && !r.id.startsWith('s4')) });
+    check('a pass with nothing to pull fetches no bodies', batches.length === 0 && again19.pulled === 0, { batches, again19 });
+
     return out;
   });
 
   const failures = results.filter((r) => !r.pass);
   expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
-  expect(results.length).toBe(21);
+  expect(results.length).toBe(23);
 });
 
 test('asset externalization: round-trips through a Storage stub', async ({ page }) => {

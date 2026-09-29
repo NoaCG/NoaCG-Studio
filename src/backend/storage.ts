@@ -70,6 +70,10 @@ export interface StoredRecord<T = unknown> {
   updatedAt: string; // ISO
   deleted?: boolean;
   body: T;
+  /** The body is only a SUMMARY - `updatedAt`, `deleted` and `name`, which is all reconciling
+   *  reads - because list() left the rest on the server. The sync engine fetches the whole record
+   *  before it applies one and never writes a summary anywhere. */
+  summary?: true;
 }
 
 /**
@@ -80,6 +84,10 @@ export interface StoredRecord<T = unknown> {
 export interface StorageProvider {
   list(kind: SyncKind): Promise<StoredRecord[]>;
   get(kind: SyncKind, id: string): Promise<StoredRecord | null>;
+  /** Whole records for several ids of one kind, in as few requests as the backend allows. An id
+   *  the backend no longer holds is simply absent. A provider whose list() returns summaries
+   *  implements it; without it the engine asks get() once per id. */
+  getMany?(kind: SyncKind, ids: string[]): Promise<StoredRecord[]>;
   put(record: StoredRecord): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
 }
