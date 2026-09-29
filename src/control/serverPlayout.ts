@@ -545,13 +545,14 @@ export function togetherPlan(members: readonly ShowCue[], r: FolderRundown): Tog
 }
 
 /**
- * Why a Take of this folder would not go, or null. One by one is taken cue by cue; All together by
- * its plan; Play through by its run, and neither while NoaCG Bridge is not there to send it to.
+ * Why a Take of this folder would not go, or null. One by one steps, each press one cue's own Take,
+ * judged on that cue at the press (./folderStep.ts); All together by its plan; Play through by its
+ * run, and neither while NoaCG Bridge is not there to send it to.
  */
 export function folderTakeBlocker(folder: Pick<ShowFolder, 'id' | 'mode' | 'end' | 'name'>, members: readonly ShowCue[], r: FolderRundown): string | null {
   // Read as it is drawn: a mode this build does not know is One by one here too.
   const mode = folderMode(folder);
-  if (mode === 'manual') return 'Take each cue in this folder.';
+  if (mode === 'manual') return null;
   if (mode === 'together') {
     const plan = togetherPlan(members, r);
     return plan.ok ? null : plan.reason;
@@ -583,24 +584,23 @@ export interface TogetherSend {
 }
 
 /**
- * THE RUN: the server cues one after another, each awaited, then the graphics. A refusal never stops
- * the rest and nothing is retried. Once Out or All out is pressed, nothing more is sent, and a member
- * whose take lands after it is taken back off, so nothing airs after either.
+ * THE RUN: the server cues one after another, each awaited, then the graphics, all started at once so
+ * that on a published production they land together rather than a round trip apart (docs/
+ * CLIP_PLAYBACK_PLAN.md §20.1). A refusal never stops the rest and nothing is retried. Once Out or
+ * All out is pressed, nothing more is sent, and a member whose take lands after it is taken back off,
+ * so nothing airs after either. The results come back in rundown order.
  */
 export async function runTogether(plan: Extract<TogetherPlan, { ok: true }>, send: TogetherSend): Promise<MemberResult[]> {
-  const results: MemberResult[] = [];
-  const one = async (member: SequenceMember | GraphicMember, go: () => Promise<MemberTake>) => {
+  const one = async (member: SequenceMember | GraphicMember, go: () => Promise<MemberTake>): Promise<MemberResult> => {
     const { cue } = member;
-    if (send.stopped()) {
-      results.push({ cueId: cue.id, label: cue.label, ok: false, sent: false, note: `${cue.label} was not sent: the folder was taken off first.` });
-      return;
-    }
+    if (send.stopped()) return { cueId: cue.id, label: cue.label, ok: false, sent: false, note: `${cue.label} was not sent: the folder was taken off first.` };
     const r = await go();
-    results.push({ ...r, cueId: cue.id, label: cue.label, sent: true });
     if (r.ok && send.stopped()) await send.off(member);
+    return { ...r, cueId: cue.id, label: cue.label, sent: true };
   };
-  for (const m of plan.server) await one(m, () => send.server(m));
-  for (const g of plan.graphics) await one(g, () => send.graphic(g));
+  const results: MemberResult[] = [];
+  for (const m of plan.server) results.push(await one(m, () => send.server(m)));
+  results.push(...(await Promise.all(plan.graphics.map((g) => one(g, () => send.graphic(g))))));
   return results;
 }
 
