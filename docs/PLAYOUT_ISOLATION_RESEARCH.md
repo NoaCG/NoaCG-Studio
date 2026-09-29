@@ -1285,8 +1285,8 @@ the ones marked *filed* have a backlog item.
 5. **`lock_timeout` and `statement_timeout` in every migration session** (`db-push`), with a retry
    instead of a queued lock. §5 shows the difference for a show under a lock queue.
 6. **Make the post-land alarm mean something again.** It is red on every landing today for an
-   accepted advisor class, so a real migration failure would look the same. *Filed already:*
-   `docs/backlog/new-index-reddens-post-land-until-re-recorded.md`.
+   accepted advisor class, so a real migration failure would look the same. *Done 2026-09-29:*
+   `unused_index` now warns and never fails (`docs/STACK_FRESHNESS.md`, Supabase advisors).
 7. **One library sync pass per browser**, not per tab per edit. *Filed already:*
    `docs/backlog/library-sync-runs-a-pass-per-tab-per-edit.md`.
 8. **Jitter the refill on reconnect**, so a Realtime restart does not send every output to the
