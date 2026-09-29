@@ -127,18 +127,18 @@ Measured 2026-09-28 in a claude.ai cloud session (CLI 2.1.283, `CLAUDE_CODE_REMO
 plus Agent-tool rows with `isolation: worktree` in one container (PRs #493-#498, then row F).
 Observations `claude-cloud-*` in `scripts/harness-capabilities.json`.
 
-- **GitHub from a row** (cause settled 2026-09-29 on 2.1.284; fix pending the owner,
-  `claude-cloud-rows-get-no-mcp-tools`). Subagents inherit the host-injected GitHub MCP; the
-  wave-row `tools:` allowlist filters it out. The owner-requested fix adds to the three
-  `.claude/agents/wave-row*.md` `tools:` lines only `mcp__github__` `create_pull_request`,
-  `pull_request_read`, `actions_run_trigger`, `actions_get`, `actions_list`, `get_job_logs`,
-  `enable_pr_auto_merge`, `disable_pr_auto_merge` - no wildcard, no merge, push, file-write or
-  branch tool (`actions_run_trigger` can also cancel runs and delete run logs). Auto mode refused a
-  row's commit of it as self-modification, so the owner commits it. Once it is on the session's
-  base, a fresh cloud session probes: launch `wave-row-mechanical`, ToolSearch
-  `select:mcp__github__pull_request_read`, read one PR. Until that passes each cloud row prompt
-  replaces `/queue-merge` with "run /check, push, report the stamped tip and stop", and the
-  coordinator runs that cloud path for the ended row. Never `curl` with `$GH_TOKEN`: the
+- **GitHub from a row** (settled 2026-09-29 on 2.1.284, `claude-cloud-rows-get-no-mcp-tools`).
+  Subagents inherit the host-injected GitHub MCP, and the three `.claude/agents/wave-row*.md`
+  `tools:` lines name the `mcp__github__` tools for steps 1-3 of the cloud path of
+  `queue-merge.md`: `create_pull_request`, `pull_request_read`, `actions_run_trigger`,
+  `actions_get`, `actions_list`, `get_job_logs`, `enable_pr_auto_merge`, `disable_pr_auto_merge` -
+  no wildcard, no merge, push, file-write or branch tool (`actions_run_trigger` can also cancel
+  runs and delete run logs). A fresh-session probe in `wave-row-mechanical` loaded three of them
+  and read a PR, so cloud rows run `/queue-merge` themselves. No write has been exercised yet, so
+  each cloud row prompt says: if a GitHub call in the cloud path fails, stop and report the stamped
+  tip, the step reached, the PR number if one was opened, and the verbatim error. The coordinator
+  continues from that step, never from step 1, and confirms the queue entry and the merge (step 4)
+  itself, since no allowlisted tool reads the PR timeline. Never `curl` with `$GH_TOKEN`: the
   permission system refuses it as credential exploration, correctly.
 - **No subagents inside a row** (recorded, `claude-cloud-rows-cannot-launch-subagents`). A cloud
   row has no Agent tool, so it cannot consult, call `design-consult` or delegate; skill forks
