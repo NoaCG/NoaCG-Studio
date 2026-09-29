@@ -9,7 +9,7 @@ listens only on that machine and never exposes CasparCG to the internet.
 
 ## Install
 
-1. Download `NoaCG-Bridge.exe` below onto the laptop you operate from. There is nothing to
+1. Download the NoaCG Bridge `.exe` file below onto the laptop you operate from. There is nothing to
    install: the file is the whole program.
 2. Double-click it. Windows warns once, because the file is not signed yet: click **More info**,
    then **Run anyway**. A black window opens; leave it open while you work.

@@ -4,7 +4,7 @@
 reachable from the internet. NoaCG Bridge is a small program on the operator's own machine that
 holds the socket a browser cannot, so the NoaCG page can put a production on a CasparCG channel,
 list the templates and clips already on the server, and cue them from the rundown - without the
-CasparCG Client. It is `noacg bridge` in the CLI, and `NoaCG-Bridge.exe` on every release is that
+CasparCG Client. It is `noacg bridge` in the CLI, and `NoaCG-Bridge-<version>.exe` on every release is that
 same command with Node inside, for a playout laptop with nothing installed.
 
 **What this is not.** It is not a new way to get on air, and nothing here is load-bearing for a
@@ -183,8 +183,8 @@ that needs no browser at all (`noacg caspar play`, §4).
 
 ## 2. What it does, from the operator's side
 
-1. Once, ever, on the machine you operate from: download **NoaCG-Bridge.exe** (the studio's
-   Settings -> Playout links it; it is the newest GitHub Release) and double-click it. It opens a
+1. Once, ever, on the machine you operate from: download **NoaCG Bridge** (the studio's
+   Settings -> Playout links the Downloads page, which offers the newest GitHub Release) and double-click it. It opens a
    page in your browser; one click pairs the browser with the Bridge. The link carries a one-time
    code that lives two minutes; the token never travels in a URL. On the hosted studio that click
    is also where Chrome asks whether the site may reach your local network, and the page says so
@@ -666,9 +666,11 @@ a `bridge-v*` tag, and either may skip a version the other ships. So "latest" is
 channel, never shared:
 
 - the Bridge: every Bridge release is created with `--latest`, so
-  `https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe` is always the
-  newest Bridge, even with the older `cli-v*` Releases from before the split still on the page;
-  the Downloads page asks GitHub for the newest `bridge-v*` release BY TAG and links its asset;
+  `https://github.com/NoaCG/NoaCG-Studio/releases/latest` is always the newest Bridge, even with
+  the older `cli-v*` Releases from before the split still on the page; the Downloads page asks
+  GitHub for the newest `bridge-v*` release BY TAG and links its asset. The file name carries the
+  version (`NoaCG-Bridge-0.6.1.exe`, with `.sha256` beside it), so there is no fixed direct link;
+  0.4.0 to 0.6.0 were published as plain `NoaCG-Bridge.exe` and the page still accepts that;
 - the CLI: npm's `latest` for `@noacg/cli`, which the Downloads page reads from the registry.
 
 Each card on the Downloads page shows the version of the file it links to, so a CLI release with
@@ -704,7 +706,7 @@ with each other and most of them are the user's to fix:
 | `permission` | it reports `denied` | Allow "local network access" for this site, in the icon left of the address. |
 | `permission` | no name is known AND the browser is Safari | Safari will not do it at all. Use Chrome, Edge or Firefox, or `noacg caspar play`. |
 | `bridge` | no name is known, not Safari (a browser without the gate) | Start NoaCG Bridge: nothing stands in the way, so the Bridge is simply not answering. |
-| `bridge` | `/health` unreachable with the permission not in the way | Start NoaCG Bridge on this machine (double-click NoaCG-Bridge.exe; Settings -> Playout links the download). |
+| `bridge` | `/health` unreachable with the permission not in the way | Start NoaCG Bridge on this machine (double-click the NoaCG Bridge file you downloaded; Settings -> Playout links the download). |
 | `bridge` | `/health` answered, then a route came back 403 | The Bridge is running for a **different** deployment. Restart it with `--origin <this site>`. |
 | `outdated` | `/health` answered as the old agent, or below protocol 2 | Update NoaCG Bridge. |
 | `token` | `/health` answered, then 401 | The Bridge rejected the token. Pair this browser again from the link it prints. |

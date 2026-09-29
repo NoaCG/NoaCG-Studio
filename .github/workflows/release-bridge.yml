@@ -1,16 +1,16 @@
-# Release NoaCG Bridge: build NoaCG-Bridge.exe and publish it as a GitHub Release.
+# Release NoaCG Bridge: build NoaCG-Bridge-<version>.exe and publish it as a GitHub Release.
 #
 # ONE VERSION, TWO CHANNELS. NoaCG Bridge is `noacg bridge` from the CLI package, packed into a
 # Windows exe, so the two share one version number: cli/package.json's. They ship through two
 # channels, each with its own tag and its own home:
 #   - the NoaCG CLI (@noacg/cli, for making graphics): tag cli-vX.Y.Z -> npm, by release-cli.yml;
 #   - NoaCG Bridge (connects NoaCG Playout to CasparCG): tag bridge-vX.Y.Z -> a GitHub Release on
-#     this repository carrying NoaCG-Bridge.exe, by THIS workflow.
+#     this repository carrying NoaCG-Bridge-<version>.exe, by THIS workflow.
 # A version may ship on one channel and skip the other (a CLI-only fix need not rebuild the exe).
 #
 # "LATEST" IS RESOLVED PER CHANNEL. The Releases page carries Bridge releases only, and every one
-# is created with `--latest`, so `releases/latest/download/NoaCG-Bridge.exe` is always the newest
-# Bridge even though older `cli-v*` Releases from before the split still sit on the page. The
+# is created with `--latest`, so `releases/latest` is always the newest Bridge (the file name
+# carries the version, so there is no fixed download URL) even though older `cli-v*` Releases from before the split still sit on the page. The
 # public Downloads page (noacg.studio/downloads) goes one step further and asks the API for the
 # newest `bridge-v*` release by tag, and npm for the CLI's `latest`, so neither channel can ever be
 # offered as the other.
@@ -49,7 +49,7 @@ permissions:
 
 jobs:
   release:
-    name: Build and publish NoaCG-Bridge.exe
+    name: Build and publish the NoaCG Bridge exe
     # Never on a fork, and never on a fork's tag push.
     if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
     # The exe is a copy of the runner's own node.exe with the bundle injected, so it is built
@@ -137,8 +137,8 @@ jobs:
         with:
           name: NoaCG-Bridge
           path: |
-            cli/dist-exe/NoaCG-Bridge.exe
-            cli/dist-exe/NoaCG-Bridge.exe.sha256
+            cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe
+            cli/dist-exe/NoaCG-Bridge-${{ steps.version.outputs.version }}.exe.sha256
 
       # `--target` matters on a manual dispatch, where there is no tag yet: gh creates
       # `bridge-vX.Y.Z` at the commit that was built. On a tag push the tag already exists there.
@@ -156,5 +156,5 @@ jobs:
             --title "NoaCG Bridge ${VERSION}" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --latest \
-            cli/dist-exe/NoaCG-Bridge.exe cli/dist-exe/NoaCG-Bridge.exe.sha256
+            "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe" "cli/dist-exe/NoaCG-Bridge-${VERSION}.exe.sha256"
           echo "::notice title=Released::https://github.com/${GITHUB_REPOSITORY}/releases/tag/bridge-v${VERSION}"

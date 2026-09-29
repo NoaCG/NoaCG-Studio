@@ -1,4 +1,4 @@
-// The entry of NoaCG-Bridge.exe: `noacg bridge` and nothing else, with Node inside.
+// The entry of NoaCG-Bridge-<version>.exe: `noacg bridge` and nothing else, with Node inside.
 //
 // cli/scripts/build-bridge-exe.mjs bundles THIS file (never index.ts) into the single-file
 // executable, so the exe carries the playout agent and its few dependencies and none of the

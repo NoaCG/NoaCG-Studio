@@ -6,7 +6,7 @@
 // channel really serves:
 //
 //   NoaCG Bridge  the newest non-prerelease GitHub Release tagged `bridge-v*`, and its
-//                 NoaCG-Bridge.exe asset. Filtering by tag rather than trusting "latest" means an
+//                 NoaCG-Bridge exe asset. Filtering by tag rather than trusting "latest" means an
 //                 old `cli-v*` Release on the same page can never be offered as the Bridge.
 //   NoaCG CLI     npm's `latest` for @noacg/cli.
 //
@@ -18,7 +18,8 @@ const REPO = 'NoaCG/NoaCG-Studio';
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=30`;
 const NPM_LATEST = 'https://registry.npmjs.org/@noacg/cli/latest';
 const BRIDGE_TAG_PREFIX = 'bridge-v';
-const BRIDGE_ASSET = 'NoaCG-Bridge.exe';
+// 0.4.0 to 0.6.0 shipped a fixed name; later releases carry their version in it.
+const BRIDGE_ASSET = /^NoaCG-Bridge(-\d+\.\d+\.\d+)?\.exe$/;
 /** A lookup that has not answered by now is left as "latest"; the page already works. */
 const TIMEOUT_MS = 6000;
 
@@ -51,7 +52,7 @@ export function newestBridgeRelease(releases: GitHubRelease[]): GitHubRelease | 
       r.tag_name.startsWith(BRIDGE_TAG_PREFIX) &&
       !r.draft &&
       !r.prerelease &&
-      r.assets.some((a) => a.name === BRIDGE_ASSET),
+      r.assets.some((a) => BRIDGE_ASSET.test(a.name)),
   );
   bridges.sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
   return bridges[0] ?? null;
@@ -70,8 +71,8 @@ async function resolveBridge(): Promise<void> {
   if (!Array.isArray(releases)) return;
   const release = newestBridgeRelease(releases);
   if (!release) return;
-  const exe = release.assets.find((a) => a.name === BRIDGE_ASSET);
-  const checksum = release.assets.find((a) => a.name === `${BRIDGE_ASSET}.sha256`);
+  const exe = release.assets.find((a) => BRIDGE_ASSET.test(a.name));
+  const checksum = release.assets.find((a) => a.name === `${exe?.name}.sha256`);
   setText('[data-version="bridge"]', release.tag_name.slice(BRIDGE_TAG_PREFIX.length));
   if (exe) setHref('[data-download="bridge"]', exe.browser_download_url);
   if (checksum) setHref('[data-checksum="bridge"]', checksum.browser_download_url);

@@ -57,14 +57,14 @@ const releases = [
   { tag_name: 'bridge-v0.4.0', html_url: 'https://github.com/r/0.4.0', draft: false, prerelease: false, published_at: '2026-09-23T07:47:44Z', assets: [asset('bridge-v0.4.0', 'NoaCG-Bridge.exe')] },
 ];
 
-async function fakeChannels(page: Page, answer: 'ok' | 'down'): Promise<void> {
+async function fakeChannels(page: Page, answer: 'ok' | 'down', answered: unknown[] = releases): Promise<void> {
   if (answer === 'down') {
     await page.route(RELEASES, (route) => route.abort('connectionrefused'));
     await page.route(NPM_LATEST, (route) => route.abort('connectionrefused'));
     return;
   }
   const cors = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
-  await page.route(RELEASES, (route) => route.fulfill({ status: 200, headers: cors, body: JSON.stringify(releases) }));
+  await page.route(RELEASES, (route) => route.fulfill({ status: 200, headers: cors, body: JSON.stringify(answered) }));
   // The CLI is AHEAD of the newest exe here on purpose: one version number, two channels, and a
   // CLI-only release ships no new Bridge. Each card must show its own artifact's version.
   await page.route(NPM_LATEST, (route) =>
@@ -130,12 +130,29 @@ test('each card resolves its own channel: the newest bridge-v* exe, and npm late
   await expect(cli.locator('.cmd-copy').first()).toBeVisible();
 });
 
+test('a Bridge release whose exe carries its version is the one offered, with its own checksum', async ({ page }) => {
+  const versioned = {
+    tag_name: 'bridge-v0.6.1',
+    html_url: 'https://github.com/NoaCG/NoaCG-Studio/releases/tag/bridge-v0.6.1',
+    draft: false,
+    prerelease: false,
+    published_at: '2026-10-05T09:00:00Z',
+    assets: [asset('bridge-v0.6.1', 'NoaCG-Bridge-0.6.1.exe'), asset('bridge-v0.6.1', 'NoaCG-Bridge-0.6.1.exe.sha256')],
+  };
+  await fakeChannels(page, 'ok', [versioned, ...releases]);
+  await page.goto('/downloads');
+  await expect(page.getByTestId('bridge-version')).toHaveText('0.6.1');
+  const base = 'https://github.com/NoaCG/NoaCG-Studio/releases/download/bridge-v0.6.1';
+  await expect(page.getByTestId('bridge-download')).toHaveAttribute('href', `${base}/NoaCG-Bridge-0.6.1.exe`);
+  await expect(page.locator('[data-checksum="bridge"]')).toHaveAttribute('href', `${base}/NoaCG-Bridge-0.6.1.exe.sha256`);
+});
+
 test('with neither API answering the page still downloads the newest Bridge and reads "latest"', async ({ page }) => {
   await fakeChannels(page, 'down');
   await page.goto('/downloads#bridge');
   await expect(page.getByTestId('bridge-download')).toHaveAttribute(
     'href',
-    'https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe',
+    'https://github.com/NoaCG/NoaCG-Studio/releases/latest',
   );
   await expect(page.getByTestId('bridge-version')).toHaveText('latest');
   await expect(page.getByTestId('cli-version')).toHaveText('latest');

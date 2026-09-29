@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
-  BRIDGE_DOWNLOAD_URL,
   channelLabel,
   defaultChannelName,
   loadPlayoutSettings,
@@ -99,14 +98,11 @@ export default function PlayoutSettingsPanel() {
         Put a production on a CasparCG channel from its own page, and play the templates and clips
         already on the server, without the CasparCG Client. A browser cannot open the AMCP socket
         itself, so <strong>NoaCG Bridge</strong>, a small program on this machine, holds it.{' '}
-        <a href={BRIDGE_DOWNLOAD_URL} data-testid="bridge-download">
+        <a href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="bridge-download">
           Download NoaCG Bridge
         </a>{' '}
-        (Windows) and double-click it; it opens a page that pairs this browser.{' '}
-        <a href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="bridge-setup-guide">
-          What it is and how to set it up
-        </a>
-        . Loading a production&rsquo;s output URL by hand keeps working exactly as before.
+        (Windows, with a short guide to setting it up) and double-click it; it opens a page that
+        pairs this browser. Loading a production&rsquo;s output URL by hand keeps working exactly as before.
       </p>
 
       <div className="dlg-rows">
