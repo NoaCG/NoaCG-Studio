@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine } from './cloud-session-setup.mjs';
+import { aliasPinnedChromium, freshen, GITHUB_PROBE_TIMEOUT_MS, githubAccessLine, realignStaleMain } from './cloud-session-setup.mjs';
 
 /** A browsers folder shaped like the cloud image's: build 1194 in the old `chrome-linux` layout. */
 function imageWith1194() {
@@ -146,6 +146,96 @@ test('freshness says so when origin cannot be reached, and moves nothing', () =>
     const before = run(worktree, 'rev-parse', 'HEAD');
     assert.match(freshen(worktree, { source: 'startup' }).line, /could not fetch origin\/main/);
     assert.equal(run(worktree, 'rev-parse', 'HEAD'), before);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// --- Step 4: a stale local main ------------------------------------------------------------------
+//
+// The cloud shape: a clone whose checkout is a feature branch, with a local main the test then
+// makes behind origin/main or diverged from it.
+
+function cloudClone() {
+  const { base, origin, primary, worktree } = staleWorktree();
+  run(worktree, 'worktree', 'remove', '--force', worktree);
+  run(primary, 'config', 'user.email', 'test@example.com');
+  run(primary, 'config', 'user.name', 'test');
+  run(primary, 'checkout', '-q', '-b', 'claude/row');
+  return { base, origin, primary };
+}
+
+/** Put a commit on local main that origin never had, without checking main out. */
+function divergeMain(primary) {
+  const tree = run(primary, 'rev-parse', 'main^{tree}');
+  const stray = run(primary, 'commit-tree', tree, '-p', 'main', '-m', 'stray history');
+  run(primary, 'update-ref', 'refs/heads/main', stray);
+  return stray;
+}
+
+test('a local main that is not an ancestor of origin/main, checked out nowhere, is moved to origin/main', () => {
+  const { base, origin, primary } = cloudClone();
+  try {
+    const stray = divergeMain(primary);
+    const branch = run(primary, 'rev-parse', 'HEAD');
+    const line = realignStaleMain(primary);
+    const tip = run(origin, 'rev-parse', 'HEAD');
+    assert.equal(run(primary, 'rev-parse', 'main'), tip, 'main now names origin/main');
+    assert.equal(run(primary, 'rev-parse', 'HEAD'), branch, 'the checkout itself is untouched');
+    assert.equal(line, `Main: local main was at ${stray.slice(0, 8)}, which this clone cannot show is an ancestor of origin/main, and was moved to origin/main at ${tip.slice(0, 8)} (the old commit stays in main's reflog).`);
+    // Idempotent: the next session start finds nothing to do.
+    assert.equal(realignStaleMain(primary), '');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a main that is merely behind, or checked out in any worktree, is left as it is', () => {
+  const { base, origin, primary } = cloudClone();
+  try {
+    // Behind: the clone's main is one commit behind origin's, with nothing of its own.
+    const behind = run(primary, 'rev-parse', 'main');
+    assert.notEqual(behind, run(origin, 'rev-parse', 'HEAD'));
+    assert.equal(realignStaleMain(primary), '');
+    assert.equal(run(primary, 'rev-parse', 'main'), behind, 'a behind main is not this step to move');
+
+    // Strictly ahead of origin/main: commits that never landed may be someone's work.
+    run(primary, 'fetch', '-q', 'origin');
+    run(primary, 'update-ref', 'refs/heads/main', run(primary, 'rev-parse', 'origin/main'));
+    const ahead = divergeMain(primary);
+    assert.match(realignStaleMain(primary), /holds commits origin\/main does not, so it was left as it is/);
+    assert.equal(run(primary, 'rev-parse', 'main'), ahead);
+    run(primary, 'update-ref', 'refs/heads/main', behind);
+
+    // Diverged but checked out in a linked worktree: that checkout owns it.
+    const stray = divergeMain(primary);
+    const holder = join(base, 'holder');
+    run(primary, 'worktree', 'add', '-q', holder, 'main');
+    assert.equal(realignStaleMain(primary), '');
+    assert.equal(run(primary, 'rev-parse', 'main'), stray);
+    run(primary, 'worktree', 'remove', '--force', holder);
+
+    // Diverged and checked out in the primary checkout itself.
+    run(primary, 'checkout', '-q', 'main');
+    assert.equal(realignStaleMain(primary), '');
+    assert.equal(run(primary, 'rev-parse', 'main'), stray);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a git failure moves nothing and never throws', () => {
+  const { base, primary } = cloudClone();
+  try {
+    run(primary, 'remote', 'set-url', 'origin', join(base, 'nowhere'));
+    // A main the origin/main on disk already contains needs no fetch, so an unreachable origin is quiet.
+    assert.equal(realignStaleMain(primary), '');
+    const stray = divergeMain(primary);
+    assert.equal(realignStaleMain(primary), 'Main: could not fetch origin/main, so local main was left as it is. Compare against origin/main, not main.');
+    assert.equal(run(primary, 'rev-parse', 'main'), stray);
+
+    assert.match(realignStaleMain(primary, { git: () => { throw new Error('spawn git ENOENT'); } }), /^Main: could not run git/);
+    assert.equal(realignStaleMain(join(base, 'not-a-repo')), '', 'no repository means no main to move');
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
