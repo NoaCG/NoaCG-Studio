@@ -126,6 +126,11 @@ export const ALLOWED = [
     fragment: "'rev-parse', '--verify', '--quiet', 'main'",
     why: 'asks only whether a local `main` BRANCH EXISTS, to decide whether a comparison is possible at all. It reads the landed ref through `mainRef` on the very next line.',
   },
+  {
+    file: 'scripts/hooks/cloud-session-setup.mjs',
+    fragment: "'rev-parse', '--verify', '--quiet', 'refs/heads/main^{commit}'",
+    why: 'reads the local `main` BRANCH itself because that ref is what step 4 repairs: a stale local main that is not an ancestor of origin/main is moved to origin/main, so tools that still compare against it stop breaking.',
+  },
 ];
 
 /** Every revision-shaped use of the bare local `main` in one file, with the line and the text. */

@@ -1,7 +1,7 @@
 // SessionStart hook: make a fresh checkout able to build before the first command, so no session
 // spends its first minutes rediscovering the same gaps. Steps 0 and 1 run everywhere - a fresh cloud
 // container and a fresh local worktree alike (the desktop app creates one per scheduled run and per
-// worktree session, with no node_modules); steps 2 and 3 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
+// worktree session, with no node_modules); steps 2 to 4 only in the cloud (`CLAUDE_CODE_REMOTE=true`).
 //
 //   0. FRESHNESS. The desktop app cuts a new worktree from ITS last fetch of main, which can be a
 //      landing or more behind (measured 2026-09-26: a scheduled run started on 07352ec8 three
@@ -43,7 +43,16 @@
 //      fixed label. A start hook cannot catch a lapse DURING the session: the orchestrator's
 //      watch loop should re-run that probe before launching a row or queueing a landing.
 //
-//   4. Nothing else.
+//   4. A STALE LOCAL MAIN. A fresh cloud clone can carry a local `main` that is not an ancestor of
+//      origin/main - old or diverged history from whatever the container was cut from. Measured
+//      2026-09-29: `/check` compared a branch against that `main` and broke. Nothing but the merge
+//      queue writes `main`, so such a ref holds no one's work: origin/main is fetched (prompts off,
+//      capped) and the ref alone is moved to it, with no checkout, printing the old commit so it can
+//      be found again. Only when local `main` exists, no worktree has it checked out, and it is NOT
+//      an ancestor of origin/main; a `main` that is merely behind is left as it is. Any git failure
+//      prints one line and moves nothing.
+//
+//   5. Nothing else.
 //
 // Everything here is idempotent and prints one line per thing it changed; SessionStart output
 // becomes part of the session's context, so a quiet run means there was nothing to do.
@@ -244,6 +253,58 @@ export function githubAccessLine(root, { probe = lsRemoteOrigin, timeoutMs = GIT
     + ` Push and landing may fail: tell the owner FIRST, before any other work, and suggest reconnecting at ${RECONNECT_URL}.`;
 }
 
+export const MAIN_FETCH_TIMEOUT_MS = 30000;
+
+/** One git command in `root`, prompts off and capped; a non-zero exit is returned, not thrown. Replaced in tests. */
+function runGit(root, args) {
+  return spawnSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: MAIN_FETCH_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
+  });
+}
+
+/**
+ * Step 4: move a local `main` that is not an ancestor of origin/main to origin/main, by ref alone.
+ * Returns one line to print, empty when there was nothing to do. Never throws.
+ * @param {string} root the checkout whose repository holds `main`
+ * @param {{ git?: (root: string, args: string[]) => { status: number | null, stdout?: string } }} [options]
+ */
+export function realignStaleMain(root, { git = runGit } = {}) {
+  const couldNot = (what) => `Main: could not ${what}, so local main was left as it is. Compare against origin/main, not main.`;
+  try {
+    const read = (...args) => {
+      const res = git(root, args);
+      return res.status === 0 ? (res.stdout ?? '').trim() : null;
+    };
+    const was = read('rev-parse', '--verify', '--quiet', 'refs/heads/main^{commit}');
+    if (!was) return ''; // no local main: nothing to be stale
+    const worktrees = read('worktree', 'list', '--porcelain');
+    if (worktrees === null) return couldNot('list the worktrees');
+    // A checked-out main belongs to that checkout (the primary one runs the merge queue).
+    if (worktrees.split('\n').some((line) => line.trim() === 'branch refs/heads/main')) return '';
+    // An explicit refspec, so a clone whose fetch refspec leaves main out still updates origin/main.
+    if (git(root, ['fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main']).status !== 0) {
+      return couldNot('fetch origin/main');
+    }
+    const target = read('rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main^{commit}');
+    if (!target) return couldNot('read origin/main');
+    const ancestor = git(root, ['merge-base', '--is-ancestor', was, target]).status;
+    if (ancestor === 0) return ''; // equal or merely behind: not this step's to move
+    if (ancestor !== 1) return couldNot('compare main with origin/main');
+    // update-ref checks the old value itself, so a concurrent move is refused rather than overwritten.
+    if (git(root, ['update-ref', '-m', 'cloud-session-setup: realign stale main to origin/main', 'refs/heads/main', target, was]).status !== 0) {
+      return couldNot('move main');
+    }
+    return `Main: local main was at ${was.slice(0, 8)}, which is not an ancestor of origin/main, and was moved to origin/main at ${target.slice(0, 8)} (the old commit stays in main's reflog).`;
+  } catch {
+    return couldNot('run git');
+  }
+}
+
 /**
  * `npm ci` in `dir` when it has a lockfile and no FINISHED install, or when `force` says the
  * lockfile just changed under an existing install. npm writes node_modules/.package-lock.json
@@ -279,6 +340,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   installIfMissing(root, 'root', { force: fresh.lockMoved });
   if (cloud) {
     installIfMissing(join(root, 'cli'), 'cli/');
+    const main = realignStaleMain(root);
+    if (main) console.log(main);
     const linked = aliasPinnedChromium(BROWSERS_DIR, pinnedRevisions(root));
     if (linked.length > 0) {
       console.log(`Cloud setup: Playwright's pinned Chromium pointed at the image's build (${linked.join(', ')}).`);
