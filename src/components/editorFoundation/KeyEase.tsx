@@ -66,7 +66,10 @@ export default function KeyEase({ session, data, keys, menu, close, pause }: {
       {KEY_EASE_PRESETS.map(preset => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
     </select>
     {error && <span className="ef-key-error" role="alert">{error}</span>}
-    <div ref={popover} popover="manual" role="menu" aria-label="Key ease" className="ef-key-menu" onKeyDown={navigate}>
+    {/* Focusable itself, so a click on its padding keeps the keys working; and the browser's own
+        menu (the Windows Menu key raises it on the focused item) never opens over this one. */}
+    <div ref={popover} popover="manual" role="menu" aria-label="Key ease" className="ef-key-menu" tabIndex={-1} onKeyDown={navigate}
+      onContextMenu={event => event.preventDefault()}>
       {KEY_EASE_PRESETS.map(preset => <button key={preset.id} role="menuitemradio" aria-checked={current === preset.id} tabIndex={-1}
         onClick={() => apply(preset.id)}>{preset.label}</button>)}
     </div>

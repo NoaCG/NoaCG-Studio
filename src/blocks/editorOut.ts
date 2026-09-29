@@ -43,7 +43,8 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
     const cue = data.steps[at], later = (t: number) => t > b + EPS && t < end - EPS;
     const moved = Object.entries(cue.layers).flatMap(([selector, tracks]) => Object.entries(tracks)
       .filter(([, keys]) => keys.some(key => key.time > b + EPS)).map(([prop]) => `${selector} ${prop}`))[0]
-      ?? Object.entries(cue.spans ?? {}).find(([, spans]) => spans.some(span => later(span.start) || later(span.end)))?.[0];
+      ?? Object.entries(cue.spans ?? {}).find(([, spans]) => spans.some(span => later(span.start) || later(span.end)))?.[0]
+      ?? (cue.hides ?? []).find(selector => cue.spans?.[selector] === undefined); // A legacy hide at the cue's end.
     if (moved) throw new Error(`Set Out here would move ${moved} out of the Next cue "${cue.name}", and Out pressed before that cue would then play it. Until Step/Next editing lands, set Out after that cue's last key and bar edge. Its source is preserved.`);
   }
   const crossed: [string, string][] = [];

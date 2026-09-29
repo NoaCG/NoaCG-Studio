@@ -236,3 +236,28 @@ test('the editor samples every preset as its curve, and a Hold holds until its k
   assert.equal(resolveValue(held, '#box', 'x', 0, 0.8), -200);
   assert.equal(resolveValue(held, '#box', 'opacity', 0, 0.3), resolveValue(sided(), '#box', 'opacity', 0, 0.3), 'opacity unchanged');
 });
+
+test('review cases: an instant jump, a departure inside a split curve, the 10 ms floor and names after speed', () => {
+  const track = (x, speed = 1) => ({ version: 2, root: '.g', speed, steps: [{ name: 'In', duration: 2, ease: 'none', layers: { '#a': { x } } }] });
+  // Two keys at one moment are an instant jump: In arrives at the first, Out leaves from the last,
+  // and the empty segment between them is never written.
+  const jump = track([{ time: 0, value: 0 }, { time: 1, value: 0 }, { time: 1, value: 100 }, { time: 2, value: 0 }]);
+  assert.deepEqual(planKeyEase(jump, [key('#a', 'x', 1)], 'hold'), [{ step: 0, selector: '#a', property: 'x', index: 3, ease: 'hold' }]);
+  assert.deepEqual(planKeyEase(jump, [key('#a', 'x', 1)], 'easeIn').map(w => w.index), [1]);
+  assert.deepEqual(planKeyEase(jump, [key('#a', 'x', 1)], 'easyEase').map(w => w.index).sort(), [1, 3]);
+  // A split keeps the departure the key before set on its own inside a slice: Bounce, Overshoot and
+  // a point preset on the arriving side refuse rather than drop it.
+  const sliced = track([{ time: 0, value: 0 }, { time: 1, value: 100, ease: `slice(${bezier(L, 0, L2, L2)},0,0.5)` }]);
+  for (const preset of ['bounce', 'overshoot']) refuse(sliced, [key('#a', 'x', 1)], preset, /#a x at 1 s in In: the key before it sets its own departure/);
+  refuse(sliced, [key('#a', 'x', 1)], 'easeIn', /#a x at 1 s in In: the key before it sets its own departure inside a split curve/);
+  assert.ok(ease.departsOnItsOwn(`slice(${bezier(L, 0, L2, L2)},0,0.5)`) && !ease.departsOnItsOwn(`slice(${bezier(L, 0, L2, L2)},0.5,1)`) && !ease.departsOnItsOwn('slice(power2.out,0,0.5)'));
+  // Both keys of that segment write both points and keep nothing, as the refusals advise.
+  assert.equal(easeKeys(sliced, [key('#a', 'x', 0), key('#a', 'x', 1)], 'easyEase').steps[0].layers['#a'].x[1].ease, bezier(L, 0, L2, 1));
+  // A Hold needs 10 ms of played time to land on its key in every player.
+  refuse(track([{ time: 0, value: 0 }, { time: 0.005, value: 100 }]), [key('#a', 'x', 0)], 'hold', /#a x at 0 s in In: the segment it would hold lasts 5 ms/);
+  assert.equal(easeKeys(track([{ time: 0, value: 0 }, { time: 0.005, value: 100 }], 0.4), [key('#a', 'x', 0)], 'hold').steps[0].layers['#a'].x[1].ease, 'hold');
+  // Keys are named as the timeline shows them, after speed, and a missing one is named too.
+  refuse(track([{ time: 0, value: 0 }, { time: 1, value: 100, ease: 'power3.out' }], 2), [key('#a', 'x', 0)], 'easeOut', /#a x at 0 s in In/);
+  refuse(track([{ time: 0, value: 0 }, { time: 1, value: 100 }, { time: 1.6, value: 0, ease: 'power3.out' }], 2), [key('#a', 'x', 1)], 'easeOut', /#a x at 0\.5 s in In: the segment to its next key uses power3\.out/);
+  refuse(track([{ time: 0, value: 0 }, { time: 1, value: 100 }]), [key('#a', 'x', 0.4)], 'linear', /#a x at 0\.4 s in In is no longer there/);
+});

@@ -25,6 +25,12 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const [picked, setPicked] = useState<KeyRef[]>([]);
   const keys = useMemo(() => liveKeys(view.data, picked), [view.data, picked]);
   const selected = useMemo(() => new Set(keys.map(keyId)), [keys]);
+  // A key is named by its stored time, so an edit that moves or adds keys (a bar move, a new key)
+  // would re-point the selection at whatever sits there now: such an edit clears it.
+  const keyTimes = useMemo(() => JSON.stringify(view.data?.steps.map(step => Object.entries(step.layers)
+    .map(([selector, tracks]) => [selector, Object.entries(tracks).map(([property, list]) => [property, list.map(key => key.time)])]))), [view.data]);
+  const knownTimes = useRef(keyTimes);
+  useEffect(() => { if (knownTimes.current !== keyTimes) { knownTimes.current = keyTimes; setPicked([]); } }, [keyTimes]);
   const [menu, setMenu] = useState<KeyMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
@@ -41,9 +47,15 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     const box = ruler.current?.getBoundingClientRect();
     if (box) seek(Math.max(0, Math.min(limit, Math.round((clientX - box.left) / box.width * extent * 1e6) / 1e6)));
   };
+  const scrolledFor = useRef('');
   useLayoutEffect(() => {
     const scroller = tracks.current;
     const row = scroller?.querySelector('.ef-track.is-selected');
+    // Only a new selection or a new layer scrolls: clicking a key in a property row reselects its
+    // layer, and scrolling to that layer's row would carry the clicked row out of view.
+    const reason = selection.join('\n') + '\n' + view.parts.length;
+    if (scrolledFor.current === reason) return;
+    scrolledFor.current = reason;
     if (!scroller || !row || selection.length !== 1) return;
     // Keep canvas selections and newly created layers visible without scrolling the
     // page or moving the horizontal time range. Account for the sticky ruler above.
@@ -59,10 +71,17 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     if (!group.every(key => selected.has(keyId(key)))) setPicked(group);
     setMenu({ x, y, anchor });
   };
-  const keyButton = (group: KeyRef[], selector: string) => {
+  // One key per moment on a row: the last key of one cue and the first of the next share a moment,
+  // and as one they are the boundary key, arriving in one cue and leaving in the other.
+  const moments = (list: KeyRef[]) => [...list.reduce((groups, key) => {
+    const moment = Math.round(at(key) * 1e6);
+    return groups.set(moment, [...groups.get(moment) ?? [], key]);
+  }, new Map<number, KeyRef[]>()).values()];
+  const keyButton = (group: KeyRef[], selector: string, layer: string) => {
     const ids = group.map(keyId), on = ids.filter(id => selected.has(id)).length, time = at(group[0]);
+    const names = [...new Set(group.map(key => PROPERTY_LABELS[key.property] ?? key.property))];
     return <button key={ids.join('|')} className={'ef-timeline-key' + (on === ids.length ? ' is-key-selected' : on ? ' is-key-partial' : '')}
-      aria-label={group.map(key => key.property).join(', ') + (group.length > 1 ? ' keys' : ' key') + ' at ' + display(time)}
+      aria-label={`${layer}: ${names.join(', ')} ${group.length > 1 ? 'keys' : 'key'} at ${display(time)}`} aria-haspopup="menu"
       aria-pressed={on === ids.length} data-keys={ids.join('|')} style={{ left: time / extent * 100 + '%' }}
       onClick={event => {
         if (event.ctrlKey || event.metaKey || event.shiftKey) { setPicked(toggleKeys(keys, group)); return; }
@@ -90,7 +109,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const startMarquee = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (event.button !== 0 || view.reason || !(target === event.currentTarget || target.classList.contains('ef-track-lane'))) return;
-    event.preventDefault();
+    // Cancelling the pointer skips the browser's own focus change, so let go of the last control
+    // here: keys pressed next belong to the editor, not to a key button clicked earlier.
+    event.preventDefault(); (document.activeElement as HTMLElement | null)?.blur();
     const { x, y } = contentPoint(event);
     dragging.current = { x0: x, y0: y, x1: x, y1: y, base: event.ctrlKey || event.metaKey || event.shiftKey ? keys : null };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -173,13 +194,10 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       {view.parts.map((part, index) => {
         const bars = view.bars.filter(b => b.selector === part.selector);
         const properties = layerKeys(view.data, part.selector), open = expanded.includes(part.selector);
-        // The layer row shows one key per moment, standing for every property keyed there.
-        const moments = new Map<string, KeyRef[]>();
-        for (const row of properties) for (const key of row.keys) moments.set(key.step + ':' + key.time, [...moments.get(key.step + ':' + key.time) ?? [], key]);
         return <div key={part.selector} className="ef-layer-group">
           <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector}>
             <div className="ef-layer-cell">
-              {properties.length ? <button className="ef-twirl" aria-label="Animated properties" aria-expanded={open}
+              {properties.length ? <button className="ef-twirl" aria-label={'Animated properties of ' + part.label} aria-expanded={open}
                 onClick={() => setExpanded(open ? expanded.filter(s => s !== part.selector) : [...expanded, part.selector])}>{open ? '▾' : '▸'}</button> : <span className="ef-twirl" />}
               <button className="ef-layer" aria-pressed={selection.includes(part.selector)}
                 onClick={event => select(part.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>
@@ -190,14 +208,14 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             </div>
             <div className="ef-track-lane">
               {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={view.data?.speed ?? 1} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
-              {[...moments.values()].map(group => keyButton(group, part.selector))}
+              {moments(properties.flatMap(row => row.keys)).map(group => keyButton(group, part.selector, part.label))}
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
             </div>
           </div>
           {open && properties.map(row => <div key={row.property} className="ef-track ef-property-track" data-selector={part.selector} data-property={row.property}>
             <span className="ef-property-name">{PROPERTY_LABELS[row.property] ?? row.property}</span>
             <div className="ef-track-lane">
-              {row.keys.map(key => keyButton([key], part.selector))}
+              {moments(row.keys).map(group => keyButton(group, part.selector, part.label))}
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
             </div>
           </div>)}

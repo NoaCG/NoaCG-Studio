@@ -477,6 +477,23 @@ for (const target of TARGETS) test('a Hold splits, crosses Set Out and reverses 
   near(mirrored.leaving, mirrored.entering, 'reversed holds in ' + target);
 });
 
+for (const target of TARGETS) test('an interrupted Out ending on a reversed Hold keeps the live value until that jump in ' + target, async ({ page }) => {
+  await open(page);
+  const data: Data = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 2, ease: 'none', layers: { '#box': { x: [{ time: 0, value: -900 }, { time: .8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }] } } },
+    { name: 'Out', duration: 0, ease: 'none', layers: {} },
+  ] };
+  const reversed = await page.evaluate(async t => (await import('/src/blocks/editorOut.ts')).applyOut(t as never, { kind: 'out.reverse' }), await template(page, data));
+  const exit = await page.evaluate(async js => (await import('/src/blocks/animData.ts')).parseAnimData(js)!.steps[1].layers['#box'].x, reversed.js);
+  expect(exit).toEqual([{ time: 0, value: 0 }, { time: 1.2, value: -200, ease: 'power2.in' }, { time: 2, value: -900, ease: 'jump' }]);
+  const times = [0, .01, .4, .8, 1.19, 1.2, 1.21, 1.6, 2];
+  const run = await execute(page, reversed, target, [1.5], times, [2, 2], { interruptAt: 1.5 });
+  near([run.released], [run.held], target + ' no jump when Out interrupts', [1, 1, 1, .01, .01]);
+  // Interrupted, the live value holds until the jump's own segment starts at 1.2 s, as an Out that
+  // is not interrupted jumps there, and only then takes the end value.
+  near(run.leaving.map(p => [p[0]]), times.map(t => [t <= 1.2 ? run.held[0] : -900]), target + ' interrupted exit x', [1e-6]);
+});
+
 test('a graphic saved with the R1.2a.1 interpreter upgrades once and then plays a Hold', async ({ page }) => {
   await open(page);
   const before = readFileSync(new URL('./fixtures/interpreter-whole-ease-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');

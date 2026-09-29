@@ -406,7 +406,8 @@ exit keys. This is an explicit interruption policy, not a claim to exactly rever
 unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims.
 Never reveal unseen layers; static visible layers without exit tracks clear at exit completion.
 Repeat Out coalesces per take; replay resets transient state without altering authored keys.
-A final Hold keeps the live value until the last exit key and then jumps (R1.2a.2). Owner
+A final Hold keeps the live value until the last exit key and then jumps; a final `jump` (a
+reversed Hold) jumps where its own segment starts, as the settled exit does (R1.2a.2). Owner
 decision 2026-09-29, the contract for the Step/Next phase: Out pressed at an earlier step
 animates each visible layer from its live pose to its end-of-Out pose by this policy, and layers
 from unreached steps stay hidden.

@@ -34,6 +34,9 @@ import { filterKeysUsed, normalizeFilterTrack, withFilterComponent } from './fil
 
 /** Two stored times match within half a serializer step. */
 export const EPS = 0.0005;
+/** The shortest segment, in seconds of played time, whose Hold or jump every player lands on its
+ *  key: GSAP rounds timeline times to 1e-7 s and a hold jumps in the last 1e-5 of its segment. */
+export const HOLD_SHORTEST = 0.01;
 export const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /** Move a cue-local visibility set and every key by the same stored delta.
@@ -175,7 +178,12 @@ export function splitKeyframeSegment(data: AnimData, stepIndex: number, selector
   const destination = edited[track.indexOf(to)], kind = parseEase(ease)?.kind;
   // A flat segment is constant under any ease, so its split is exact whatever the curve. A hold keeps
   // the departing value until its key and a jump takes the arriving one at once: each half is flat
-  // but for that one instant, which stays where it was, so both halves keep the form.
+  // but for that one instant, so both halves keep the form. The instant sits 1e-5 of its own half
+  // from the key, so it moves by at most 1e-5 of the other half, under the stored 1 ms for any
+  // segment shorter than 100 s.
+  if (from.value !== to.value && (kind === 'hold' ? to.time - t : kind === 'jump' ? t - from.time : Infinity) / data.speed < HOLD_SHORTEST) {
+    throw new Error(`The part of this ${kind} that jumps would last under ${HOLD_SHORTEST * 1000} ms, too short for every player to land on its key. Its source is preserved.`);
+  }
   if (from.value === to.value || kind === 'hold' || kind === 'jump') {
     edited.push({ time: t, value: kind === 'jump' ? to.value : from.value, ease });
   } else {
@@ -497,18 +505,23 @@ export function planKeyEase(data: AnimData, keys: KeyRef[], preset: KeyEasePrese
   };
   for (const key of keys) {
     const step = data.steps[key.step], track = step?.layers[key.selector]?.[key.property];
-    const index = track?.findIndex(k => Math.abs(k.time - key.time) < EPS) ?? -1;
-    if (!track || index < 0) throw new Error('A selected key is no longer there. Select the keys again; no ease changed.');
-    const where = `${key.selector} ${key.property} at ${round(track[index].time)} s in ${step.name}`;
+    // Named as the timeline shows it: seconds on the cue's clock after speed.
+    const where = `${key.selector} ${key.property} at ${round(key.time / data.speed)} s${step ? ' in ' + step.name : ''}`;
+    // Two keys at one moment are an instant jump: the In side arrives at the first, the Out side
+    // leaves from the last, so the empty segment between them is never written.
+    const here = (k: AnimKeyframe) => Math.abs(k.time - key.time) < EPS;
+    const first = track?.findIndex(here) ?? -1, last = track ? track.length - 1 - [...track].reverse().findIndex(here) : -1;
+    if (!track || first < 0) throw new Error(`${where} is no longer there. Select the keys again; no ease changed.`);
     if (track.some(k => typeof k.value !== 'number')) throw new Error(`${where}: key-side easing covers numeric properties, and this track keeps its eases. No ease changed.`);
     if (step.loops?.[key.selector]?.[key.property]) throw new Error(`${where}: a looping track keeps its cycle. No ease changed.`);
-    if (sides.in && index > 0) ask(key, index, 'arrive', sides.in, where);
-    if (sides.out && index < track.length - 1) ask(key, index + 1, 'depart', sides.out, where);
+    if (sides.in && first > 0) ask(key, first, 'arrive', sides.in, where);
+    if (sides.out && last < track.length - 1) ask(key, last + 1, 'depart', sides.out, where);
   }
   if (!segments.size) throw new Error('Nothing to ease: a first key has no In side and a last key has no Out side. No ease changed.');
+  const both = 'Select both keys of that segment and apply Linear or Easy Ease';
   const writes: KeyEaseWrite[] = [];
   for (const { where, depart, arrive, ...segment } of segments.values()) {
-    const step = data.steps[segment.step], current = step.layers[segment.selector][segment.property][segment.index].ease || step.ease;
+    const step = data.steps[segment.step], track = step.layers[segment.selector][segment.property], current = track[segment.index].ease || step.ease;
     let ease: string;
     if (arrive && !Array.isArray(arrive)) {
       if (departsOnItsOwn(current)) {
@@ -516,11 +529,14 @@ export function planKeyEase(data: AnimData, keys: KeyRef[], preset: KeyEasePrese
       }
       ease = arrive.whole;
     } else if (depart && !Array.isArray(depart)) {
-      ease = depart.whole; // A held segment has no approach into the next key left to keep.
+      // A held segment has no approach into the next key left to keep.
+      const lasts = (track[segment.index].time - track[segment.index - 1].time) / data.speed;
+      if (lasts < HOLD_SHORTEST) throw new Error(`${where}: the segment it would hold lasts ${round(lasts * 1000)} ms, and a Hold needs at least ${HOLD_SHORTEST * 1000} ms to land on its next key in every player. No ease changed.`);
+      ease = depart.whole;
     } else {
       const from = depart ?? departingPoint(current), into = arrive ?? arrivingPoint(current);
-      if (!from) throw new Error(`${where}: the key before it holds its value until this key, so there is no departure to keep. Select that key too, or change its Out side first. No ease changed.`);
-      if (!into) throw new Error(`${where}: the segment to its next key uses ${current}, which has no exact bezier arrival to keep. Select that key too, or change its In side first. No ease changed.`);
+      if (!from) throw new Error(`${where}: the key before it ${parseEase(current)?.kind === 'hold' ? 'holds its value until this key' : `sets its own departure inside a split curve (${current})`}, so there is no departure point to keep. ${both}, or change that key's Out side first. No ease changed.`);
+      if (!into) throw new Error(`${where}: the segment to its next key uses ${current}, which has no exact bezier arrival to keep. ${both}, or change the next key's In side first. No ease changed.`);
       ease = joinPoints(from, into);
     }
     if (ease !== current) writes.push({ ...segment, ease });

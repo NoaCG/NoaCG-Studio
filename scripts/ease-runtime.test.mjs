@@ -319,3 +319,13 @@ test('hold keeps the departing value to its key, jump is its exact mirror, and b
     y: [{ time: 0, value: 0 }, { time: 0.4, value: 50, ease: 'jump' }, { time: 1, value: 50, ease: 'jump' }] });
   for (let i = 0; i <= 1000; i++) for (const p of ['x', 'y']) assert.equal(resolveValue(cut, '#a', p, 0, i / 1000), resolveValue(data, '#a', p, 0, i / 1000), `${p} at ${i / 1000}`);
 });
+
+test('the part of a split Hold that jumps must last 10 ms of played time', () => {
+  const data = (ease, speed = 1) => ({ version: 2, root: '.g', speed, steps: [{ name: 'In', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0, value: 0 }, { time: 0.02, value: 100, ease }] } } }] });
+  assert.throws(() => splitKeyframeSegment(data('hold'), 0, '#a', 'x', 0.015), /hold that jumps would last under 10 ms/);
+  assert.equal(splitKeyframeSegment(data('hold'), 0, '#a', 'x', 0.005).steps[0].layers['#a'].x.length, 3);
+  assert.throws(() => splitKeyframeSegment(data('jump'), 0, '#a', 'x', 0.005), /jump that jumps would last under 10 ms/);
+  assert.equal(splitKeyframeSegment(data('jump'), 0, '#a', 'x', 0.015).steps[0].layers['#a'].x.length, 3);
+  // Played slower, the same stored part lasts long enough.
+  assert.equal(splitKeyframeSegment(data('hold', 0.4), 0, '#a', 'x', 0.015).steps[0].layers['#a'].x.length, 3);
+});

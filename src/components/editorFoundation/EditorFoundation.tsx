@@ -96,8 +96,11 @@ export default function EditorFoundation() {
   const history = (redo: boolean) => { pause(); preview.current?.stopExit(); if (redo) session.redo(); else session.undo(); seek(session.port.view().time, session.port.view().cue); };
   return <main className={'ef-shell' + (projectOpen ? ' ef-project-open' : '')} data-testid="editor-foundation"
     onKeyDown={event => {
-      if (!editorShortcutsLive(event.target)) return;
-      if ((event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase())) {
+      const historyKey = (event.ctrlKey || event.metaKey) && ['z', 'y'].includes(event.key.toLowerCase());
+      // A select has no undo of its own, so undo and redo also work from one (the timeline's key
+      // ease dropdown keeps focus after it edits).
+      if (!editorShortcutsLive(event.target) && !(historyKey && event.target instanceof HTMLSelectElement)) return;
+      if (historyKey) {
         event.preventDefault(); history(event.shiftKey || event.key.toLowerCase() === 'y');
       }
       if (event.key === 'Escape') { pause(); session.cancel(); }

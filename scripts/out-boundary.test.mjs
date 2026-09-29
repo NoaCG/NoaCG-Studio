@@ -226,7 +226,7 @@ test('a graphic saved with the G01 interpreter upgrades once an exit can end on 
   const g01 = readFileSync(path.join(root, 'e2e/fixtures/interpreter-shared-ease-v1.js'), 'utf8').replace(/\r\n/g, '\n');
   assert.equal(contentHash(g01.trim()), legacy.ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, 'the fixture is the recorded body');
   // An interrupted exit plays a sliced last ease as its whole curve, at the one site that stretches it.
-  assert.match(ANIM_INTERPRETER_JS, /tl\.to\(proxy, \{ value: last\.value[^}]+ease: noacgEaseOf\(noacgWholeEase\(last\.ease \|\| step\.ease\)\) \}/);
+  assert.match(ANIM_INTERPRETER_JS, /ease = noacgWholeEase\(last\.ease \|\| step\.ease\)[\s\S]{0,400}tl\.to\(proxy, \{ value: last\.value[^}]+ease: noacgEaseOf\(ease\) \}/);
   assert.ok(!g01.includes('noacgWholeEase'));
   const current = emitAnimRegion(textAndBox()), saved = current.replace(ANIM_INTERPRETER_JS, () => g01);
   assert.notEqual(saved, current);
@@ -276,6 +276,9 @@ test('Set Out moves nothing out of a Next cue until Step/Next editing, and still
   }
   const running = structuredClone(before); running.steps[1].spans = { '#title': [{ start: 0.2, end: 1 }] };
   assert.doesNotThrow(() => moveOutBoundary(running, 0.9));
+  // A legacy hide at the cue's end would move to the new boundary.
+  const hiding = structuredClone(before); hiding.steps[1].hides = ['#title'];
+  refuses(hiding, 0.9, /#title out of the Next cue/);
 });
 
 test('every refusal leaves the input untouched and names what could not be kept', () => {

@@ -107,9 +107,11 @@ function noacgBuildExit(step, interrupted, silent) {
     var keys = entry.keys;
     var proxy = noacgExitProxy(entry.element, entry.prop, entry.live);
     if (interrupted && keys.length > 1 && keys[keys.length - 1].time > keys[0].time) {
-      var last = keys[keys.length - 1];
-      tl.to(proxy, { value: last.value, duration: (last.time - keys[0].time) / speed,
-        ease: noacgEaseOf(noacgWholeEase(last.ease || step.ease)) }, keys[0].time / speed);
+      var last = keys[keys.length - 1], ease = noacgWholeEase(last.ease || step.ease), shape = noacgEaseParse(ease);
+      // A final jump (a Hold played backwards) happens where its own segment starts, as it does
+      // when Out is not interrupted; until then the live value holds.
+      var from = shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time;
+      tl.to(proxy, { value: last.value, duration: (last.time - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
     } else {
       tl.set(proxy, { value: keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {

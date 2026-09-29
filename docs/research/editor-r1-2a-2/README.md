@@ -63,15 +63,20 @@ that segment; key `k`'s **Out side** departs through it.
     `cubic` and `back(s)` with `.in` or `.out` (G01's test pins these curves as beziers with
     x1 = 1/3, x2 = 2/3). Anything else refuses: other named curves, `.inOut`, slices, steps,
     the reversed Hold (`jump`) and unrecognized strings.
-  - Keeping the departing side: a `cubic-bezier` keeps its own (x1, y1) text; a Hold refuses.
-    Every other ease keeps (1/3, 1/3). **This deviates from the phase brief's default**, which
+  - Keeping the departing side: a `cubic-bezier` keeps its own (x1, y1) text; a Hold refuses,
+    and so does the first part of a split bezier whose departure was set on its own (a slice
+    from 0), which has no point of its own. Every other ease keeps (1/3, 1/3). **This deviates from the phase brief's default**, which
     also kept a named curve's exact departing point. Reason from the code: the format and the
     old menu store a named ease as the ease INTO its key, so the whole curve is the arriving
     key's own and the departing key never set a side. Under the default, Easy Ease In on an
     Overshoot or `power2.out` key changes nothing (their exact arriving point is already
-    (2/3, 1)), and Easy Ease In or Linear on a Bounce key refuses. Revert by making the
-    departing branch of `keptSidePoint` in `easeRuntime.ts` use `cubicPoints` as the arriving
-    branch does.
+    (2/3, 1)), and Easy Ease In or Linear on a Bounce key refuses. To revert, make
+    `departingPoint` in `easeRuntime.ts` return the exact cubic departing point of power1/quad,
+    power2/cubic and back(s) with `.in` or `.out` (the arriving point's partner in
+    `arrivingPoint`) and null for every other named curve, and revisit `departsOnItsOwn`, which
+    decides what Bounce and Overshoot protect. A consequence of either reading: Overshoot's
+    overshoot sits in its departing control point, so an Out side set on the key before an
+    Overshoot key replaces the overshoot and keeps its arrival.
 - **Whole-segment presets.** Bounce and Overshoot replace the whole arriving segment. They
   refuse when the departing side was set on its own: a `cubic-bezier` whose departing point is
   not Linear's, or a Hold. Named curves are replaced, as the old menu replaced them. Hold
@@ -80,8 +85,10 @@ that segment; key `k`'s **Out side** departs through it.
 - **Hold form.** `hold` keeps the departing key's value and jumps to the arriving key's value at
   the end of the segment. Its curve is 0 below p = 1 - 1e-5 and 1 from there, so GSAP's 1e-7 s
   time rounding still lands on the arriving key at its exact time for any segment of 10 ms or
-  more, and a 60 s hold jumps less than a millisecond early. It is in the shared grammar, so
-  editor sampling and every runtime use the same function.
+  more, and a 60 s hold jumps less than a millisecond early. Below 10 ms of played time the
+  arriving value can be a frame late and the next tween can start from the held one, so the Hold
+  preset and a split that would leave the jump in a shorter part refuse. It is in the shared
+  grammar, so editor sampling and every runtime use the same function.
 - **Mirror.** E_rev(u) = 1 - E(1 - u) turns `hold` into `jump`: 0 at p <= 1e-5, then 1, which
   jumps to the arriving value just after the departing key and keeps it. Each is the other's
   mirror, so reversal of an entrance with a Hold is exact. `jump` is written only by reversal;
@@ -89,12 +96,17 @@ that segment; key `k`'s **Out side** departs through it.
 - **Split.** A held segment splits into two held halves: the new key keeps the departing value
   with `hold`, and the arriving key keeps `hold`. A `jump` segment splits the same way with the
   arriving value. No slice of either exists (a slice would rescale a flat part), and
-  `slice(hold, ...)` is not in the grammar.
+  `slice(hold, ...)` is not in the grammar. Every value is kept except within the jump's edge:
+  each half's jump sits 1e-5 of its own length from its key, so the instant moves by at most
+  1e-5 of the other half, under the stored 1 ms for any segment shorter than 100 s.
 - **Set Out, reversal and interrupted Out.** Set Out across a held segment splits it as above and
   moves the held rest into Out, which then holds and jumps at the original absolute time.
   Reverse writes `jump` where the entrance held. An interrupted Out tweens from the live value to
   the last exit key with that key's ease as today, so a `hold` there keeps the live value until
-  the last key and then jumps; a `hold` is not a slice, so `noacgWholeEase` leaves it alone.
+  the last key and then jumps. A final `jump` (a reversed entrance whose first segment held)
+  would jump at once over that stretched tween, so the interrupted exit starts it where its own
+  segment starts, as the uninterrupted exit does, and keeps the live value until then. That is
+  the one further interpreter change.
 - **Interpreter.** Adding `hold` and `jump` changes the emitted interpreter text. The R1.2a.1 body
   is frozen by content hash, its text kept as `e2e/fixtures/interpreter-whole-ease-v1.js`, and
   upgrades once on preview, save and export. The grammar's capability comment becomes
@@ -104,8 +116,11 @@ that segment; key `k`'s **Out side** departs through it.
   one session transaction writes it: one undo. Each selected key's sides map to segments; a
   segment requested from both of its keys takes both points and keeps nothing. A selected side
   with no segment (the In side of a first key, the Out side of a last key) is skipped. The batch
-  refuses whole, naming the layer, property and key, when nothing applies, a key is gone, a
-  track is not numeric or loops, or any side cannot be written exactly. A segment whose new ease
+  refuses whole, naming the layer, property and key (its time as the timeline shows it, after
+  speed), when nothing applies, a key is gone, a track is not numeric, or any side cannot be
+  written exactly. A graphic with loops, calls, dynamics or a state machine refuses as all
+  animation authoring in this editor does. Two keys at one moment are an instant jump: the In
+  side arrives at the first and the Out side leaves from the last. A segment whose new ease
   equals its current one (the step default included) is not rewritten, so re-applying a preset
   changes no bytes and adds no history.
 - **Selection.** Key selection is editor UI state, never written into the document. Keys of
@@ -116,7 +131,11 @@ that segment; key `k`'s **Out side** departs through it.
   before); Ctrl, Cmd or Shift toggles it; a marquee dragged from empty lane space (any property
   row, or a layer row outside its bars) selects the keys whose centre it covers across rows,
   adding with a modifier; a click on empty lane space clears the selection; Escape cancels a
-  marquee in progress. The toolbar shows the count and the state: the preset every selected key
+  marquee in progress. The last key of one cue and the first key of the next share a moment and
+  show as one boundary key, which arrives in one cue and leaves in the other. A key is named by
+  its stored time, so an edit that moves or adds keys (a bar move, Set Out, a new key) clears the
+  selection rather than re-point it; an undo that moves no key keeps it. Undo and redo keys work
+  from the dropdown, which keeps focus after it edits. The toolbar shows the count and the state: the preset every selected key
   already has, else Mixed (Custom for one key). The dropdown and the context menu call the same
   operation. Right-click keeps an existing selection that contains the key, else selects that
   key. The context menu opens from the keyboard with the context-menu key or Shift+F10 on a

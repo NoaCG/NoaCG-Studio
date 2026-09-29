@@ -141,6 +141,13 @@ test('right-click keeps the selection, the context menu matches the dropdown, an
   await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); expect((await source(page)).js).toBe(original.js);
   await ease(page).selectOption({ label: 'Bounce' }); await ready(page);
   expect((await source(page)).js).toBe(viaMenu.js);
+  // The dropdown keeps focus after it edits, and undo and redo still work from it; an undo that
+  // moves no key keeps the selection.
+  await ease(page).focus(); await page.keyboard.press('Control+z'); await ready(page);
+  expect((await source(page)).js).toBe(original.js);
+  await expect(page.getByTestId('key-count')).toHaveText('2 keys');
+  await page.keyboard.press('Control+y'); await ready(page);
+  expect((await source(page)).js).toBe(viaMenu.js);
   // Right-click on a key outside the selection selects that key alone.
   await key(page, '#title', 'y', '1.00').click({ button: 'right' });
   await expect(page.getByTestId('key-count')).toHaveText('1 key');
@@ -187,4 +194,32 @@ test('Escape cancels a marquee, and a refused batch keeps source and history and
   await marquee(page, [.5, row(page, '#title', 'y')], [.5, row(page, '#title', 'y')]);
   await expect(page.getByTestId('key-count')).toHaveText('0 keys');
   await expect(ease(page)).toBeDisabled();
+  // An edit that moves keys (Set Out inside the entrance) clears the selection rather than
+  // re-pointing it at whatever key sits at the old time now.
+  await key(page, '#box', 'x', '1.00').click(); await ready(page);
+  await expect(page.getByTestId('key-count')).toHaveText('1 key');
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click(); await ready(page);
+  await expect(page.locator('.ef-out-error')).toHaveCount(0);
+  await expect(page.getByTestId('key-count')).toHaveText('0 keys');
+});
+
+test('the last key of one cue and the first of the next are one boundary key', async ({ page }) => {
+  await fixture(page);
+  // End the In cue on a title X key, so In's landing key and Out's first key share 2.00 s.
+  await evaluateInPage(page, async () => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const d = parseAnimData(store.template.js)!; d.steps[0].layers['#title'].x.push({ time: 2, value: 0 });
+    store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
+  });
+  await ready(page);
+  const boundary = row(page, '#title', 'x').getByRole('button', { name: 'X keys at 2.00 s' });
+  await expect(boundary).toHaveCount(1);
+  await boundary.click();
+  await expect(page.getByTestId('key-count')).toHaveText('2 keys');
+  // Easy Ease on it eases its arrival in In and its departure in Out.
+  await ease(page).selectOption({ label: 'Easy Ease' }); await ready(page);
+  const [cue, exit] = await layers(page);
+  expect(cue['#title'].x[2]).toEqual({ time: 2, value: 0, ease: bezier(L, L, L2, 1) });
+  expect(exit['#title'].x[1]).toEqual({ time: 1, value: -900, ease: bezier(L, 0, L2, 0) });
 });

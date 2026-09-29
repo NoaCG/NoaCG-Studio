@@ -289,7 +289,9 @@ export function arrivingPoint(text: string): SidePoint | null {
 export function departingPoint(text: string): SidePoint | null {
   const e = parseEase(text);
   if (e?.kind === 'bezier') return bezierArgs(text).slice(0, 2) as SidePoint;
-  return e?.kind === 'hold' ? null : LINEAR_DEPARTURE;
+  // A Hold departs as a jump, and the first part of a split keeps a departure set on its own
+  // inside a slice: neither has a point to keep.
+  return e?.kind === 'hold' || e?.kind === 'slice' && departsOnItsOwn(text) ? null : LINEAR_DEPARTURE;
 }
 
 /** Two points as one segment ease. Both on the diagonal is a straight line, written `none`. */
@@ -298,9 +300,11 @@ export function joinPoints([x1, y1]: SidePoint, [x2, y2]: SidePoint): string {
 }
 
 /** True when the segment's departure was set on its own: a bezier departing point other than
- *  Linear's, or a Hold. A whole arriving curve (Bounce, Overshoot) would silently replace it. */
+ *  Linear's, a Hold, or the first part of such a bezier after a split (a slice from 0 keeps its
+ *  start). A whole arriving curve (Bounce, Overshoot) would silently replace it. */
 export function departsOnItsOwn(text: string): boolean {
   const e = parseEase(text);
+  if (e?.kind === 'slice') return e.from === 0 && departsOnItsOwn(e.base.text);
   if (e?.kind !== 'bezier') return e?.kind === 'hold';
   const [x1, y1] = bezierArgs(text).map(Number);
   return x1 !== Number(third) || y1 !== Number(third);
