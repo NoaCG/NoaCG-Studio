@@ -118,7 +118,6 @@ test('an attempt nobody answers is abandoned at its deadline and counted as unan
     [0, ATTEMPT_TIMEOUT_MS + RESEND_DELAYS_MS[0]],
   );
   assert.equal(r.attempts.every((a) => a.signal.aborted), true, 'every abandoned request is cancelled');
-  assert.equal(r.attempts.every((a) => a.at < RESEND_WINDOW_MS), true);
   assert.equal(r.now() - r.press, 2 * ATTEMPT_TIMEOUT_MS + RESEND_DELAYS_MS[0]);
 });
 

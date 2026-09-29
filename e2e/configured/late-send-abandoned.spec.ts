@@ -1,13 +1,9 @@
 // A SEND ATTEMPT CANNOT COMMIT LONG AFTER IT WAS PRESSED (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.6
 // and §16 item 4).
 //
-// The resend window stops attempts from STARTING late, and nothing stopped one already in flight.
-// Measured before this change: a Take whose request was held 6 s in the browser, as a slow uplink
-// or a queue in front of the database would hold it, committed after the Out pressed 1.5 s behind
-// it. Air ended with the graphic up while the operator's page said "nothing on air", and nobody on
-// either side was told. Each attempt now carries its own deadline and is abandoned at it
-// (`ATTEMPT_TIMEOUT_MS` in src/control/failedSends.ts), so the held Take is cancelled in the
-// browser and never reaches the server.
+// Replays the late Take of §5.6 (the story is at `ATTEMPT_TIMEOUT_MS` in
+// src/control/failedSends.ts): the held Take is now abandoned in the browser and never reaches
+// the server.
 //
 // ONLY A REAL BACKEND CAN SHOW IT: the late commit, the output following the log and the page's
 // own follower dropping the returning row by its minted id are all absent offline. The unit half
@@ -19,7 +15,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, lastAppliedRow as lastRow, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -113,22 +109,22 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await expect(chip).toContainText('on air:');
   // The scenario's interval, not a wait for a state: the Out is pressed while the Take is held.
   await op.waitForTimeout(OUT_AFTER_MS);
-  const rowsBeforeOut = await lastRow(air);
+  const rowsBeforeOut = await lastAppliedRow(air);
   await op.getByTestId('hosted-out-cue').click();
   await expect(chip).toContainText('nothing on air');
 
   // The Out reaches air (a stop and a cue row)...
-  await expect.poll(() => lastRow(air), { timeout: 30_000 }).toBeGreaterThanOrEqual(rowsBeforeOut + 2);
+  await expect.poll(() => lastAppliedRow(air), { timeout: 30_000 }).toBeGreaterThanOrEqual(rowsBeforeOut + 2);
   // ...and then every held Take attempt is let go, with time for anything it carried to arrive.
   expect(held.length, 'the Take was held in flight').toBeGreaterThan(0);
   await Promise.all(held);
-  const rowsAfterOut = await lastRow(air);
+  const rowsAfterOut = await lastAppliedRow(air);
   await op.waitForTimeout(3000);
 
   // THE CLAIM. The held Take was abandoned in the browser, so nothing late reached the log or air:
   // no entrance was ever played on the output, and no row arrived after the Out's.
   expect(await airPlays(), 'the late Take must never reach air').toBe('0');
-  expect(await lastRow(air)).toBe(rowsAfterOut);
+  expect(await lastAppliedRow(air)).toBe(rowsAfterOut);
   expect(abandoned.length, 'the held Take attempts were cancelled in the browser').toBeGreaterThan(0);
 
   // And the operator page agrees with air. Whether the abandoned Take's notice is still up is not

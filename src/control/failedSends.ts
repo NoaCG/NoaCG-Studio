@@ -113,11 +113,11 @@ export async function sendWithResend(
   },
 ): Promise<void> {
   const now = opts.now ?? Date.now;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const timer = opts.timer ?? ((ms: number, fire: () => void) => {
     const id = setTimeout(fire, ms);
     return () => clearTimeout(id);
   });
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => timer(ms, resolve)));
   for (let attempt = 0; ; attempt += 1) {
     try {
       await attemptWithin(send, Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now()), timer);
@@ -139,22 +139,14 @@ function attemptWithin(
   timer: (ms: number, fire: () => void) => () => void,
 ): Promise<void> {
   const controller = new AbortController();
-  return new Promise<void>((resolve, reject) => {
-    const cancel = timer(Math.max(0, ms), () => {
+  let cancel = () => {};
+  const expired = new Promise<never>((_, reject) => {
+    cancel = timer(Math.max(0, ms), () => {
       controller.abort();
       reject(unansweredError());
     });
-    send(controller.signal).then(
-      () => {
-        cancel();
-        resolve();
-      },
-      (e: unknown) => {
-        cancel();
-        reject(e);
-      },
-    );
   });
+  return Promise.race([send(controller.signal), expired]).finally(cancel);
 }
 
 /**
