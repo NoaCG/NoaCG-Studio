@@ -190,10 +190,22 @@
    and hearing commands live, amber when one says commands may arrive late, dim otherwise. The
    short form is the phone's (see the 900px block): the header there has room for a few words
    beside ● SHOW and All out, and this is the one status an operator on a phone must still see. */
-.pd-health { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; cursor: default; }
+.pd-health {
+  font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; cursor: default;
+  /* A long warning must never push ■ All out off the header: it gives way, and the tooltip
+     carries the whole sentence. */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
 .pd-health--ok { color: #4ade80; }
 .pd-health--warn { color: #f59e0b; }
 .pd-health-short { display: none; }
+/* The dashboard header fills up as the window narrows (the Share word gives way at 1440 for the
+   same reason). The warning is the one long line, so it takes its short form below 1600; the
+   others lead with the count, which is what survives the ellipsis. */
+@media (max-width: 1600px) {
+  .pd-health--warn .pd-health-full { display: none; }
+  .pd-health--warn .pd-health-short { display: inline; }
+}
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
