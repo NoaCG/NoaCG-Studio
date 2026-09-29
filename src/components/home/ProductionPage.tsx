@@ -548,8 +548,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
   /** The graphics a failed send left on this monitor alone, so its notice comes down once they
-   *  have all been sent again (failedSends.ts `createSendDebts`). */
+   *  have all been sent again (failedSends.ts `createSendDebts`). Per production: the page stays
+   *  mounted across a switch, and a graphic's name is only unique within one production. */
   const sendDebts = useRef(createSendDebts());
+  useEffect(() => {
+    sendDebts.current = createSendDebts();
+  }, [showId]);
 
   // ── COMBINED CONTROLS, the surface's half (src/control/combine.ts, plan §6b) ──
   /** Which `ask` ticks the operator has moved, by `<control id>\0<step index>`. A step the

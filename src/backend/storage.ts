@@ -84,9 +84,9 @@ export interface StoredRecord<T = unknown> {
 export interface StorageProvider {
   list(kind: SyncKind): Promise<StoredRecord[]>;
   get(kind: SyncKind, id: string): Promise<StoredRecord | null>;
-  /** Whole records for several ids of one kind, in as few requests as the backend allows. An id
-   *  the backend no longer holds is simply absent. A provider whose list() returns summaries
-   *  implements it; without it the engine asks get() once per id. */
+  /** Whole records for several ids of one kind, in one request, bodies as stored (externalized
+   *  assets still referenced, not restored). An id the backend no longer holds is simply absent.
+   *  Required of a provider whose list() returns summaries. */
   getMany?(kind: SyncKind, ids: string[]): Promise<StoredRecord[]>;
   put(record: StoredRecord): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;

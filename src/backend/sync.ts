@@ -157,30 +157,30 @@ export function reconcile(
 const FETCH_BATCH = 20;
 
 /**
- * The whole records behind the summaries a pass pulls, by record key, one batch at a time so a
- * pass never asks the database for everything at once. A batch that fails leaves an Error under
- * each of its keys, reported as that record's failed pull; a record the backend no longer holds
- * has no entry.
+ * The pulls with every SUMMARY replaced by its whole record, fetched a batch at a time so a pass
+ * never asks the database for everything at once. This is still READING the remote side, so a
+ * failed fetch fails the pass exactly as a failed list() does and the bookmark stays put: a pull
+ * that failed after the bookmark moved could lose a remote edit to a later local one by plain
+ * last-write-wins. A summary the backend no longer holds has nothing to pull and is dropped.
  */
-async function fetchWhole(remote: StorageProvider, summaries: StoredRecord[]): Promise<Map<string, StoredRecord | Error>> {
-  const out = new Map<string, StoredRecord | Error>();
+async function withWholeRecords(remote: StorageProvider, pulls: StoredRecord[]): Promise<StoredRecord[]> {
   const byKind = new Map<SyncKind, StoredRecord[]>();
-  for (const r of summaries) byKind.set(r.kind, [...(byKind.get(r.kind) ?? []), r]);
+  for (const r of pulls) {
+    if (!r.summary) continue;
+    const records = byKind.get(r.kind) ?? [];
+    records.push(r);
+    byKind.set(r.kind, records);
+  }
+  if (byKind.size === 0) return pulls;
+  if (!remote.getMany) throw new Error('This storage lists summaries but cannot fetch whole records.');
+  const whole = new Map<string, StoredRecord>();
   for (const [kind, records] of byKind) {
     for (let i = 0; i < records.length; i += FETCH_BATCH) {
-      const batch = records.slice(i, i + FETCH_BATCH);
-      const ids = batch.map((r) => r.id);
-      try {
-        const got = remote.getMany
-          ? await remote.getMany(kind, ids)
-          : (await Promise.all(ids.map((id) => remote.get(kind, id)))).filter((r): r is StoredRecord => !!r);
-        for (const r of got) out.set(recordKey(r), r);
-      } catch (e) {
-        for (const r of batch) out.set(recordKey(r), e instanceof Error ? e : new Error(String(e)));
-      }
+      const ids = records.slice(i, i + FETCH_BATCH).map((r) => r.id);
+      for (const r of await remote.getMany(kind, ids)) whole.set(recordKey(r), r);
     }
   }
-  return out;
+  return pulls.flatMap((r) => (r.summary ? (whole.get(recordKey(r)) ?? []) : [r]));
 }
 
 /**
@@ -199,6 +199,9 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
   });
+  // Before anything is applied: a summary is never written, and a fetch that fails must fail
+  // the pass rather than one record (see withWholeRecords).
+  plan.toLocal = await withWholeRecords(remote, plan.toLocal);
 
   const failures: SyncFailure[] = [];
   const pendingPush = new Set<string>();
@@ -241,14 +244,12 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     }
   }
 
-  // 2. Pull. A SUMMARY (list() left the body on the server) is fetched whole first, in batches;
-  //    a whole record whose body still holds a Storage sentinel is re-fetched via get(), so the
-  //    provider can rehydrate its externalized assets; every other record is applied as list()
-  //    returned it. A failed pull just retries next pass — LWW re-derives it from the unchanged
-  //    timestamps.
-  const pulls = plan.toLocal.filter((r) => !skipPull.has(recordKey(r)));
-  const whole = await fetchWhole(remote, pulls.filter((r) => r.summary));
-  for (const r of pulls) {
+  // 2. Pull. A record whose body still holds a Storage sentinel is re-fetched via get(), so the
+  //    provider can rehydrate its externalized assets; every other record is applied as fetched.
+  //    Falls back to the fetched record if get() returns nothing. A failed pull just retries next
+  //    pass — LWW re-derives it from the unchanged timestamps.
+  for (const r of plan.toLocal) {
+    if (skipPull.has(recordKey(r))) continue;
     try {
       // Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
       // micro-optimization: the loop is sequential and a fresh device pulls everything the
@@ -258,17 +259,8 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
       // 36252087565) a fresh sign-in to the hosted test account pulled 129 saved looks one request
       // each, 29 s, and seven specs failed waiting on the sync indicator. The cost grows with
       // everything an account keeps, so it is a user-facing defect, not only a slow test. The
-      // same arithmetic is why summaries are fetched in batches rather than one get() each.
-      let full: StoredRecord;
-      if (r.summary) {
-        const got = whole.get(recordKey(r));
-        // A summary is never written: its body is three fields of a record.
-        if (!got) throw new Error('it was no longer in the cloud when the pass fetched it');
-        if (got instanceof Error) throw got;
-        full = got;
-      } else {
-        full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
-      }
+      // same arithmetic is why summaries are fetched in batches (withWholeRecords).
+      const full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
       await local.put(full);
       pulled += 1;
     } catch (e) {

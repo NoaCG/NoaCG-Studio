@@ -93,12 +93,9 @@ export class SupabaseProvider implements StorageProvider {
     const sb = await this.client();
     const { data, error } = await sb.from(TABLE).select('id, kind, name, body, deleted').eq('kind', kind).in('id', ids);
     if (error) throw new Error(`Cloud get(${kind}) failed: ${error.message}`);
-    const out: StoredRecord[] = [];
-    for (const row of (data ?? []) as DocumentRow[]) {
-      const body = await rehydrateAssets(row.body, (key) => this.download(sb, key));
-      out.push(toStoredRecord(kind, row.id, body));
-    }
-    return out;
+    // Bodies as stored, Storage sentinels and all: the engine rehydrates a record through get()
+    // as it applies it, one at a time, so a large pull never holds every asset at once.
+    return ((data ?? []) as DocumentRow[]).map((row) => toStoredRecord(kind, row.id, row.body));
   }
 
   async get(kind: SyncKind, id: string): Promise<StoredRecord | null> {
