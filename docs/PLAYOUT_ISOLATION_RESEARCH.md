@@ -192,7 +192,7 @@ The owner's decisions are collected in §18.
 ### 2.5 NoaCG Bridge, CasparCG and the local relay
 
 - **Bridge** (`cli/src/playout/`, exe 0.6.0) [code]: a loopback-only HTTP server on
-  `127.0.0.1:8899` with token pairing and an origin allowlist (`server.ts:397-459`). No Supabase
+  `127.0.0.1:8899` with token pairing and an origin allowlist (`cli/src/playout/server.ts:397-459`). No Supabase
   code, no cache, state in memory only (`BRIDGE.md` §3). It never binds `0.0.0.0`, on purpose:
   that would make any web page a remote control for the playout server (`BRIDGE.md` §1c).
 - **CasparCG graphics come through the cloud** [code]: "Put on air" sends
@@ -216,9 +216,10 @@ The owner's decisions are collected in §18.
   and a refused migration does not stop the frontend.
 - **History of live-path migrations** [code]: 0029 added unique columns with volatile defaults to
   `control_shows` (a table rewrite under an exclusive lock); 0056 redefined `control_send_many` by
-  copying an older body and silently dropped the `live_cue` mirror (fixed by 0057); 0066 revoked
-  anon read on `control_events` three hours after 0064, whose header said to wait until on-air
-  renderers had reloaded, so older exported receivers fell back to the 30 s poll.
+  copying an older body and silently dropped the `live_cue` mirror (fixed by 0057); 0066, which
+  revoked anon read on `control_events`, was committed three hours after 0064 (15:16 and 18:08 UTC
+  on 2026-09-24), although 0064's header said to wait until on-air renderers had reloaded; older
+  exported receivers fell back to the 30 s poll. Nothing records whether any had.
 - **Vercel** [measured]: hashed assets are served `Cache-Control: public, max-age=0,
   must-revalidate`. Skew Protection is active but not wired: an old deployment's assets answer
   404 on `noacg.studio` and 200 with `?dpl=<deployment id>`, which the Vite build never sends (§5.5).
@@ -881,7 +882,8 @@ show is ready*. It runs in seconds, and nothing is locked before, during or afte
    may publish by itself is an owner question, §18.)
 2. **Every connected output prepares that version**: only new or changed graphics, one at a time,
    and never while something on air is animating. Vizrt warns that initializing on air costs
-   frames; §5 measures what a graphic's preparation costs on a software-rendering CEF.
+   frames. §5.4 measured the Take-time cost in CasparCG 2.5's software renderer; what preparing a
+   graphic costs there, and whether it drops channel frames, was not measured (§17).
 3. **Checks per output**: fonts, images, the warm pass with the rundown's first cue values, any
    absolute URL a template references.
 4. **The command path, end to end**: the operator page sends a non-airing ping through the same
