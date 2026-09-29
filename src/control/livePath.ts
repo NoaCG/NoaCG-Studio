@@ -501,17 +501,36 @@ export function joinLivePresence(opts: {
     channel = ch;
     const { onPeers } = opts;
     if (onPeers) {
-      ch.on('presence', { event: 'sync' }, () => {
-        const state = ch.presenceState() as Record<string, unknown[]>;
-        const peers: LiveEntry[] = [];
-        for (const key of Object.keys(state)) {
-          for (const meta of state[key] ?? []) {
-            const entry = readLiveEntry(meta);
-            if (entry) peers.push(entry);
-          }
+      // THE PEERS ARE KEPT HERE, from the join and leave events, and NOT read off presenceState().
+      // supabase-js's presence adapter (2.110) rewrites the metas it holds when it builds its event
+      // payloads - it deletes their `phx_ref` in place - so once an entry has been re-tracked (an
+      // update is a join and a leave on the same key), the leave that should remove the old meta
+      // matches nothing, and presenceState() keeps a ghost of every page that ever updated. Seen on
+      // the preview branch: a dashboard went on listing an output for good after it was closed. The
+      // events themselves carry intact refs, so a map of ref to entry stays right; a key that
+      // presenceState() no longer has at all is dropped too, which is how a rejoin reconciles.
+      const byRef = new Map<string, { key: string; entry: LiveEntry }>();
+      const emit = () => {
+        const keys = new Set(Object.keys(ch.presenceState()));
+        for (const [ref, held] of byRef) if (!keys.has(held.key)) byRef.delete(ref);
+        onPeers([...byRef.values()].map((held) => held.entry));
+      };
+      type PresenceEvent = { key?: string; newPresences?: unknown[]; leftPresences?: unknown[] };
+      const refOf = (meta: unknown) => (meta as { presence_ref?: unknown } | null)?.presence_ref;
+      ch.on('presence', { event: 'join' }, (payload: PresenceEvent) => {
+        for (const meta of payload.newPresences ?? []) {
+          const ref = refOf(meta);
+          const entry = readLiveEntry(meta);
+          if (typeof ref === 'string' && entry) byRef.set(ref, { key: payload.key ?? '', entry });
         }
-        onPeers(peers);
       });
+      ch.on('presence', { event: 'leave' }, (payload: PresenceEvent) => {
+        for (const meta of payload.leftPresences ?? []) {
+          const ref = refOf(meta);
+          if (typeof ref === 'string') byRef.delete(ref);
+        }
+      });
+      ch.on('presence', { event: 'sync' }, emit);
     }
     ch.subscribe((status) => {
       if (closed || channel !== ch) return;
