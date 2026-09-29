@@ -310,16 +310,13 @@ for (const { id, category } of targets) {
   // Out from the hold and from every step the design answers, each on a fresh mount.
   if (outFrames) {
     try {
-      const steps = await page.evaluate(() => window.__mount(false));
-      for (let k = 0; k < steps; k += 1) {
-        if (k > 0) {
-          await page.evaluate(() => window.__mount(false));
-          let answered = true;
-          for (let j = 0; j < k && answered; j += 1) answered = await page.evaluate(() => window.__next());
-          if (!answered) break;
-        }
+      // A refused step, or an exit the interpreter does not own, ends the walk for this design.
+      let steps = 1;
+      walkOut: for (let k = 0; k < steps; k += 1) {
+        steps = await page.evaluate(() => window.__mount(false));
+        for (let j = 0; j < k; j += 1) if (!(await page.evaluate(() => window.__next()))) break walkOut;
         for (const at of OUT_AT) {
-          if (!(await page.evaluate((fraction) => window.__out(fraction), at))) break;
+          if (!(await page.evaluate((fraction) => window.__out(fraction), at))) break walkOut;
           const name = `out-${k ? `step-${k}` : 'hold'}-${Math.round(at * 100)}.png`;
           await shoot(join(dir, name));
           shot.push(name);

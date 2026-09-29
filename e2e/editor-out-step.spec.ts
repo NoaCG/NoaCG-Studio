@@ -18,9 +18,12 @@ type Data = { version: number; root: string; speed: number; steps: Step[]; machi
 type Pose = number[];
 const TARGETS = ['simulator', 'spx', 'casparcg', 'ograf', 'single-file'];
 const LAYERS = ['#box', '#title', '#badge', '#outside'], PROPS = ['x', 'y', 'rotation', 'opacity'];
-/** Cue lengths in seconds at speed 1.25, distinct so each target's timelines are found by length. */
-const SECONDS = [.8, .48, .32, .88];
 const steps = () => JSON.parse(readFileSync(new URL('./fixtures/out-steps.json', import.meta.url), 'utf8')) as Data;
+/** A graphic's cue lengths in seconds (distinct in the fixture, so each target's timelines are found
+ *  by length) and the frames (25 fps) of its flags after In, Step 2 and Step 3. */
+const secondsOf = (data: Data) => data.steps.map(s => s.duration / data.speed);
+const flagsOf = (data: Data) => [1, 2, 3].map(n => Math.round(secondsOf(data).slice(0, n).reduce((a, b) => a + b) * 25));
+const SECONDS = secondsOf(steps()), FLAGS = flagsOf(steps());
 const HTML = '<!doctype html><html><head><link rel="stylesheet" href="css/template.css"><script src="js/gsap.min.js"></script><script src="js/template.js"></script></head><body><div class="fixture"><div id="box" data-gfx></div><div id="title" data-gfx>Text and box</div><div id="badge" data-gfx>New</div></div><div id="outside" data-gfx>Outside</div></body></html>';
 const CSS = 'body{margin:0}.fixture{opacity:0}#box{position:absolute;left:500px;top:400px;width:320px;height:100px;background:#eeb844}#title{position:absolute;left:500px;top:520px;width:320px;height:60px;font:40px Arial;color:#111}#badge{position:absolute;left:860px;top:400px;width:120px;height:60px;background:#2266cc;color:#fff}#outside{position:absolute;left:500px;top:640px;width:320px;height:60px;background:#444;color:#fff}';
 
@@ -55,7 +58,7 @@ async function build(page: Page, t: unknown, target: string) {
 type Run = { held: Pose; visible: string[]; released: Pose; leaving: Pose[]; appeared: string[]; root: string; nextAfterOut?: { same: boolean; started: boolean } };
 /** Load the built graphic in a fresh page and play `nexts` Next cues after In, each settled, the
  *  last one stopped at `at` of its length when given; press Out and sample the exit at `times`. */
-async function execute(page: Page, built: Awaited<ReturnType<typeof build>>, target: string, nexts: number, times: number[], { at, checkNext = false }: { at?: number; checkNext?: boolean } = {}): Promise<Run> {
+async function execute(page: Page, built: Awaited<ReturnType<typeof build>>, target: string, nexts: number, times: number[], { at, checkNext = false, seconds = SECONDS }: { at?: number; checkNext?: boolean; seconds?: number[] } = {}): Promise<Run> {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (built.html) await output.setContent(built.html);
@@ -112,13 +115,12 @@ async function execute(page: Page, built: Awaited<ReturnType<typeof build>>, tar
       exit.time(.2, true);
       const before = JSON.stringify(pose()), count = all().length;
       // OGraf's playAction after Out plays again (its step model), so ask its runtime for next().
-      if (target === 'simulator') await command('next');
-      else if (target === 'ograf') (element as unknown as { _runtime: { next(): unknown } })._runtime.next();
-      else w.next();
+      if (target === 'ograf') (element as unknown as { _runtime: { next(): unknown } })._runtime.next();
+      else await command('next');
       nextAfterOut = { same: JSON.stringify(pose()) === before, started: all().length !== count };
     }
     return { held, visible, released, leaving, appeared: [...appeared], root, nextAfterOut };
-  }, { target, nexts, times, at, checkNext, layers: LAYERS, seconds: SECONDS });
+  }, { target, nexts, times, at, checkNext, layers: LAYERS, seconds });
   await output.close();
   return result;
 }
@@ -127,7 +129,7 @@ async function execute(page: Page, built: Awaited<ReturnType<typeof build>>, tar
  *  value to last key over the track's span, whole last curve, a final jump where its segment starts,
  *  cuts for one-key tracks) or the authored Out from the held pose. A press-revealed layer outside
  *  the root that Out does not animate fades over 0.3 units on GSAP's default ease. */
-function model(page: Page, data: Data, run: Run, times: number[], kind: 'interrupted' | 'authored') {
+function model(page: Page, data: Data, held: Pose, visible: string[], times: number[], kind: 'interrupted' | 'authored') {
   return page.evaluate(async ({ data, held, visible, times, kind, layers, props }) => {
     const { easeCurve, parseEase } = await import('/src/templates/shared/easeRuntime.ts');
     const { resolveValue } = await import('/src/blocks/animEval.ts');
@@ -136,20 +138,21 @@ function model(page: Page, data: Data, run: Run, times: number[], kind: 'interru
       const u = t * data.speed, live = held[l * props.length + i], keys = exit.layers[s]?.[p];
       const clamp = (v: number) => p === 'opacity' ? Math.min(1, Math.max(0, v)) : v;
       if (!visible.includes(s)) return live;
-      if (!keys) return s === '#outside' && p === 'opacity' ? live * (1 - easeCurve('power1.out')!(Math.min(1, u / Math.min(.3, exit.duration)))) : live;
+      if (!keys) return s === '#outside' && p === 'opacity' && !exit.layers[s] ? live * (1 - easeCurve('power1.out')!(Math.min(1, u / Math.min(.3, exit.duration)))) : live;
       if (kind === 'authored') return clamp(Number(resolveValue(data as never, s, p, index, u)));
       const first = keys[0], last = keys[keys.length - 1];
-      if (keys.length < 2 || last.time <= first.time) return clamp(Number(first.value));
+      if (keys.length < 2) return clamp(Number(first.value));
+      if (last.time <= first.time) return clamp(Number(u < last.time ? first.value : last.value));
       const text = last.ease || exit.ease, parsed = parseEase(text);
       const from = parsed?.kind === 'jump' ? keys[keys.length - 2].time : first.time;
       if (u < from) return live;
       const curve = easeCurve(parsed?.kind === 'slice' ? parsed.base.text : text)!;
       return clamp(live + (Number(last.value) - live) * curve(Math.min(1, (u - from) / (last.time - from))));
     })));
-  }, { data, held: run.held, visible: run.visible, times, kind, layers: LAYERS, props: PROPS });
+  }, { data, held, visible, times, kind, layers: LAYERS, props: PROPS });
 }
 
-const grid = (end: number, step = .02) => Array.from({ length: Math.round(end / step) + 1 }, (_, i) => Math.round(i * step * 1000) / 1000);
+const grid = (end: number) => Array.from({ length: Math.round(end / .02) + 1 }, (_, i) => Math.round(i * .02 * 1000) / 1000);
 const label = (p: number) => LAYERS[Math.floor(p / PROPS.length)] + ' ' + PROPS[p % PROPS.length];
 function near(actual: Pose[], expected: Pose[], what: string, tolerance = [2e-3]) {
   let worst = { error: 0, at: -1, prop: '' };
@@ -162,7 +165,7 @@ function near(actual: Pose[], expected: Pose[], what: string, tolerance = [2e-3]
 }
 /** D02's dispatch bound: under 1 px per position channel (and a degree) and .01 opacity. */
 const DISPATCH = [1, 1, 1, .01];
-const TIMES = grid(.88);
+const TIMES = grid(SECONDS[3]);
 
 for (const target of TARGETS) test('Out from each step leaves from what is on screen in ' + target, async ({ page }) => {
   await open(page);
@@ -173,20 +176,20 @@ for (const target of TARGETS) test('Out from each step leaves from what is on sc
     const run = await execute(page, built, target, nexts, TIMES, { checkNext: nexts === 0 });
     expect.soft(LAYERS.filter(s => !run.visible.includes(s)), where + ': unreached layers are hidden').toEqual([...unreached]);
     near([run.released], [run.held], where + ': no jump when Out is pressed', DISPATCH);
-    near(run.leaving, await model(page, data, run, TIMES, 'interrupted'), where + ': the interrupted exit');
+    near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'interrupted'), where + ': the interrupted exit');
     expect.soft(run.appeared, where + ': nothing from an unreached step appears').toEqual([]);
     expect.soft(run.root, where + ': the root is hidden at the end').toBe('0');
     if (run.nextAfterOut) expect.soft(run.nextAfterOut, where + ': Next after Out plays nothing').toEqual({ same: true, started: false });
   }
   // The last step: the authored exit from the held pose, as before.
   const last = await execute(page, built, target, 2, TIMES);
-  near(last.leaving, await model(page, data, last, TIMES, 'authored'), target + ' after Step 3: the authored exit');
+  near(last.leaving, await model(page, data, last.held, last.visible, TIMES, 'authored'), target + ' after Step 3: the authored exit');
   // Out during In and during each Next cue: interrupted, as before.
   for (const nexts of [0, 1, 2]) {
     const where = `${target} 40% into ${['In', 'Step 2', 'Step 3'][nexts]}`;
     const run = await execute(page, built, target, nexts, TIMES, { at: .4 });
     near([run.released], [run.held], where + ': no jump when Out is pressed', DISPATCH);
-    near(run.leaving, await model(page, data, run, TIMES, 'interrupted'), where + ': the interrupted exit');
+    near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'interrupted'), where + ': the interrupted exit');
   }
 });
 
@@ -198,51 +201,105 @@ async function editorPose(page: Page) {
     return layers.flatMap(s => { const e = document.querySelector(s)!; return ['x', 'y', 'rotation'].map(p => Number(w.gsap.getProperty(e, p))).concat(seen(getComputedStyle(e))); });
   }, LAYERS);
 }
-async function ready(page: Page) {
-  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
-  await expect.poll(() => page.evaluate(async () => {
-    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
-    return Math.abs(Number(document.querySelector('[data-testid=foundation-canvas]')!.getAttribute('data-pose-time')) - view.time) < .00001;
-  })).toBe(true);
-}
-
-test('the editor Out button from a flag plays what the simulator plays', async ({ page }) => {
+/** The editor on a paused-clock-ready page with `data` applied; returns the template. */
+async function editorWith(page: Page, data: Data) {
   await page.clock.install(); await open(page);
-  const data = steps(), t = await template(page, data);
+  const t = await template(page, data);
   await evaluateInPage(page, async (t: unknown) => {
     (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t as never, { resetSampleData: true });
   }, t);
   await ready(page);
-  const simulator = await build(page, t, 'simulator');
-  // The flag after In (an earlier step: two Next cues remain), then the last flag.
-  for (const [frames, nexts, kind] of [[20, 0, 'interrupted'], [40, 2, 'authored']] as const) {
-    // The preview answers on animation frames, so seek on a running clock and sample on a paused one.
-    await page.clock.resume();
-    const ruler = page.getByRole('slider', { name: 'Playhead' });
-    await ruler.focus(); await ruler.press('Home');
-    for (let i = 0; i < frames / 10; i++) await ruler.press('Shift+ArrowRight');
-    await expect(ruler).toHaveAttribute('aria-valuenow', String(frames / 25)); await ready(page);
-    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
-    const held = await editorPose(page), times: number[] = [], poses: Pose[] = [];
-    await page.getByRole('button', { name: 'Out', exact: true }).click();
-    for (let k = 0; k < 6; k++) {
-      await page.clock.runFor(k ? 130 : 20);
-      await page.getByRole('button', { name: 'Pause', exact: true }).click();
-      await page.clock.runFor(100); await ready(page);
-      times.push(await page.evaluate(async () => {
-        const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
-        const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
-        const session = activeEditorSession();
-        return session.port.view().time - readTimeline(session.port.read()).out;
-      }));
-      poses.push(await editorPose(page));
-      if (k < 5) await page.getByRole('button', { name: 'Play', exact: true }).click();
-    }
-    const runtime = await execute(page, simulator, 'simulator', nexts, times);
-    near([held], [runtime.held], `editor parked at frame ${frames}: the pose Out leaves from`);
-    near(poses, runtime.leaving, `editor Out from frame ${frames} against the simulator`);
-    near(poses, await model(page, data, { ...runtime, held }, times, kind), `editor Out from frame ${frames}`);
+  return t;
+}
+async function seekFrames(page: Page, frames: number) {
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  await ruler.focus(); await ruler.press('Home');
+  for (let i = 0; i < Math.floor(frames / 10); i++) await ruler.press('Shift+ArrowRight');
+  for (let i = 0; i < frames % 10; i++) await ruler.press('ArrowRight');
+  await expect(ruler).toHaveAttribute('aria-valuenow', String(frames / 25)); await ready(page);
+}
+async function ready(page: Page) {
+  await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); await expect(page.locator('.ef-stage-error')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(async () => {
+    const view = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().port.view();
+    const canvas = document.querySelector('[data-testid=foundation-canvas]')!;
+    // Edit Out moves only the cue, so the pose must answer for the cue as well as the time.
+    return Math.abs(Number(canvas.getAttribute('data-pose-time')) - view.time) < .00001 && canvas.getAttribute('data-pose-cue') === String(view.cue ?? 'arriving');
+  })).toBe(true);
+}
+
+/** Park the editor on `frames` (then Edit Out when asked), press Out and sample six paused poses. */
+async function editorOut(page: Page, frames: number, editOut = false) {
+  // The preview answers on animation frames, so seek on a running clock and sample on a paused one.
+  await page.clock.resume();
+  await seekFrames(page, frames);
+  if (editOut) { await page.getByRole('button', { name: 'Edit Out', exact: true }).click(); await ready(page); }
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  const held = await editorPose(page), times: number[] = [], poses: Pose[] = [];
+  await page.getByRole('button', { name: 'Out', exact: true }).click();
+  for (let k = 0; k < 6; k++) {
+    await page.clock.runFor(k ? 130 : 20);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await page.clock.runFor(100); await ready(page);
+    times.push(await page.evaluate(async () => {
+      const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+      const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+      const session = activeEditorSession();
+      return session.port.view().time - readTimeline(session.port.read()).out;
+    }));
+    poses.push(await editorPose(page));
+    if (k < 5) await page.getByRole('button', { name: 'Play', exact: true }).click();
   }
+  return { held, times, poses };
+}
+
+/** The editor's Out from a position against the simulator's Out pressed after `nexts` Next cues. */
+async function sameAsRuntime(page: Page, data: Data, simulator: Awaited<ReturnType<typeof build>>, where: string, nexts: number, kind: 'interrupted' | 'authored', { held, times, poses }: Awaited<ReturnType<typeof editorOut>>) {
+  const runtime = await execute(page, simulator, 'simulator', nexts, times, { seconds: secondsOf(data) });
+  near([held], [runtime.held], `editor parked at ${where}: the pose Out leaves from`);
+  near(poses, runtime.leaving, `editor Out from ${where} against the simulator`);
+  near(poses, await model(page, data, held, runtime.visible, times, kind), `editor Out from ${where}`);
+}
+
+test('the editor Out button from a flag plays what the simulator plays', async ({ page }) => {
+  const data = steps(), t = await editorWith(page, data), simulator = await build(page, t, 'simulator');
+  // The flags after In and after Step 2 (earlier steps), the last flag, and Edit Out (Out's first
+  // frame, where the authored exit starts).
+  for (const [frames, nexts, kind, editOut] of [[FLAGS[0], 0, 'interrupted', false], [FLAGS[1], 1, 'interrupted', false], [FLAGS[2], 2, 'authored', false], [FLAGS[2], 2, 'authored', true]] as const) {
+    await sameAsRuntime(page, data, simulator, editOut ? 'Edit Out' : `frame ${frames}`, nexts, kind, await editorOut(page, frames, editOut));
+  }
+});
+
+test('a last flag a float step short of its cue end still plays the authored exit in the editor', async ({ page }) => {
+  // At speed 1 the cues sum to a flag the editor reads as Step 3 at 0.3999999999999999 s.
+  const data = { ...steps(), speed: 1 }, t = await editorWith(page, data), simulator = await build(page, t, 'simulator');
+  const frames = flagsOf(data)[2];
+  await sameAsRuntime(page, data, simulator, `frame ${frames} at speed 1`, 2, 'authored', await editorOut(page, frames));
+});
+
+test('a paused Out preview refuses edits until the playhead moves', async ({ page }) => {
+  // Out from an earlier flag leaves from a pose the Out cue's keys never hold; keying it there
+  // would write that pose into the authored exit.
+  await editorWith(page, steps());
+  await page.locator('.ef-track[data-selector="#box"] .ef-layer').click(); await ready(page);
+  await seekFrames(page, FLAGS[0]);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: 'Out', exact: true }).click();
+  await page.clock.runFor(250);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await page.clock.runFor(100); await ready(page);
+  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length }; });
+  const before = await state();
+  const key = page.getByRole('button', { name: /^(Add|Remove) Position X key$/ });
+  await key.click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Out preview' })).toBeVisible();
+  expect(await state()).toEqual(before);
+  // Moving the playhead leaves the preview, and the same control edits the Out cue again.
+  await page.clock.resume();
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  await ruler.focus(); await ruler.press('ArrowRight'); await ready(page);
+  await key.click(); await ready(page);
+  expect((await state()).history).toBe(before.history + 1);
 });
 
 test('a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves from any step', async ({ page }) => {
@@ -255,7 +312,7 @@ test('a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves
   for (const target of ['simulator', 'spx', 'ograf']) {
     const run = await execute(page, await build(page, { ...t, js: saved }, target), target, 0, TIMES);
     near([run.released], [run.held], `R1.2a.2 source in ${target}: no jump when Out is pressed after In`, DISPATCH);
-    near(run.leaving, await model(page, data, run, TIMES, 'interrupted'), `R1.2a.2 source in ${target}: the interrupted exit`);
+    near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'interrupted'), `R1.2a.2 source in ${target}: the interrupted exit`);
   }
   const result = await page.evaluate(async ({ js, saved, before }) => {
     const { ANIM_INTERPRETER_JS, writeOutData } = await import('/src/templates/shared/animRuntime.ts');
@@ -279,6 +336,6 @@ test('a machine graphic parked at its first state keeps its authored exit', asyn
     const run = await execute(page, await build(page, t, target), target, 0, TIMES);
     // As before: the Out's first keys apply as it starts, here the box at its last-step x of 300.
     expect.soft(run.released[0], target).toBe(300);
-    near(run.leaving, await model(page, data, run, TIMES, 'authored'), `machine in ${target}: the authored exit`);
+    near(run.leaving, await model(page, data, run.held, run.visible, TIMES, 'authored'), `machine in ${target}: the authored exit`);
   }
 });

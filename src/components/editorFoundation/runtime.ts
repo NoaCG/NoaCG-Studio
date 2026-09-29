@@ -120,12 +120,17 @@ export const foundationRuntime = String.raw`
   function exit(time, start) {
     if (start) {
       if (typeof noacgBuildExit !== 'function') throw new Error('Set Out first to upgrade this saved interpreter.');
-      var interrupted = activeStep >= 0 && localTime < editorStep(activeStep).duration / NOACG_ANIM.speed;
+      // A parked flag is read from summed cue lengths, so it can sit a float step short of its cue's
+      // end: within a microsecond counts as the end. Out's first frame (Edit Out) is where the
+      // authored exit starts, so Out plays from there as at the last step.
+      var outCue = Math.max(1, NOACG_ANIM.steps.length - 1), near = 1e-6;
+      var outStart = activeStep === outCue && localTime < near;
+      var interrupted = activeStep >= 0 && !outStart && localTime < editorStep(activeStep).duration / NOACG_ANIM.speed - near;
       if (timeline) timeline.kill();
-      noacgStepsPlayed = activeStep + 1;
+      noacgStepsPlayed = Math.min(activeStep + 1, outCue);
       timeline = noacgExitTimeline(interrupted, true);
       timeline.pause();
-      activeStep = Math.max(1, NOACG_ANIM.steps.length - 1);
+      activeStep = outCue;
       inspected = false;
       exiting = true;
     }
@@ -154,7 +159,7 @@ export const foundationRuntime = String.raw`
       var points = corners(target, targetMatrix, rect);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points) }];
     });

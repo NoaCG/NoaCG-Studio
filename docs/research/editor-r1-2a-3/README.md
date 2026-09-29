@@ -59,10 +59,12 @@ it has played (`noacgStepsPlayed`: play() makes it 1, each next() adds one).
   cue, are bypassed. This is the D02 policy unchanged; only when it applies changes.
 - **Unreached steps stay hidden.** Out animates only layers visible as it starts
   (`noacgExitVisible`: hidden by a bar, pre-hidden by a later cue's `reveals`, or inside a hidden
-  parent), and the interrupted exit applies no Out bars, so nothing appears on the way out. Tracks
-  without Out keys hold their live value. The exit keeps its authored duration and the root hides
-  at its end, clearing every still-visible layer. A layer visible at the earlier step that the
-  authored exit would hide partway stays visible until then.
+  parent), and the interrupted exit applies no Out bar while it runs, so nothing appears on the way
+  out. Tracks without Out keys hold their live value. The exit keeps its authored duration. At its
+  end each visible layer takes its Out bar's end state and the root hides, so every still-visible
+  layer is cleared, including one outside the root that only its bar hides (review fix; this also
+  closes that gap for Out during In or a Next, which left such a layer on air). A layer visible at
+  the earlier step that the authored exit would hide partway stays visible until the end.
 - **Cuts stay cuts.** A one-key or zero-time Out track is an explicit cut under D02: it takes its
   value when Out starts, at every step. No catalog design has one (all 48 stepped designs were
   read); an author who wants a continuous Out from an earlier step gives that track an Out span.
@@ -76,8 +78,15 @@ it has played (`noacgStepsPlayed`: play() makes it 1, each next() adds one).
   states are an authored graph rather than a linear reveal. The rule reads `NOACG_ANIM.machine`.
   Changing that needs the owner.
 - **Editor.** The Out button starts the exit from the parked pose through the same interpreter,
-  passing the parked cue as the played count, so the preview follows the rule with no editor
-  change beyond the interpreter it runs.
+  passing the parked cue as the played count, so the preview follows the rule. Two older editor
+  readings are corrected (review): a flag is read from summed cue lengths and can sit a float step
+  short of its cue's end, which played the last flag as interrupted, so the bridge counts within a
+  microsecond of a cue's end as its end; and Edit Out (Out's first frame, where the authored exit
+  starts) now plays the authored exit instead of an interrupted one.
+- **An Out preview is not an authoring pose.** Paused during the editor's Out, the pose can be one
+  the Out cue's keys never hold (from an earlier step it is the interrupted exit), and keying it
+  would write that pose into the authored exit. The bridge marks exit poses and every pose edit
+  refuses there with a reason; a click on the timeline returns to the Out cue's own pose.
 - **Upgrade.** The rule changes the emitted interpreter text. The R1.2a.2 body is frozen by content
   hash, its text kept as `e2e/fixtures/interpreter-hold-v1.js`, and upgrades once on preview,
   save and export like the bodies before it. No validation change: the video render, the one path
@@ -93,9 +102,10 @@ extra layer outside the root by `reveals`; distinct cue lengths at speed 1.25.
 |---|---|
 | Last step | Out after the last Next cue: dense exit samples equal the authored Out keys (editor sampling) within 2e-3 in the simulator, SPX, CasparCG, OGraf and single-file exports. |
 | Earlier step | Out parked after In and after the first Next cue: the dispatch discontinuity is under 1 px per position channel and .01 opacity; dense exit samples equal the interrupted-policy model (live value to last key, leading delay, whole slice curve, hold) within 2e-3; the badge and the outside layer are never visible; the root is hidden at the end; in all five. |
-| Interrupted | Out at 40% of In and at 40% of each Next cue: the same model, as today, in all five. |
+| Interrupted | Out at 40% of In and at 40% of each Next cue: the same model, as today, in all five. At its end a layer outside the root takes its Out bar's end state. |
 | Next after Out | next() during and after an Out from an earlier step changes nothing until play(); play() then replays normally. |
-| Editor | Parked on the flag after In, the Out button's first pose is the parked pose, and its poses during the exit equal the simulator's at the same exit times within 2e-3. Parked on the last flag, it plays the authored exit. |
+| Editor | Parked on the flag after In or after Step 2, the Out button leaves from the parked pose and its poses during the exit equal the simulator's at the same exit times within 2e-3. Parked on the last flag (also at speed 1, where the flag sums a float step short) and at Edit Out, it plays the authored exit. |
+| Out preview | Paused during the editor's Out, a key or pose edit refuses with its reason and leaves source and history unchanged; after a click on the timeline the same control edits the Out cue. |
 | Upgrade | A graphic saved with the R1.2a.2 interpreter upgrades once, by content hash, in preview, save and export, then plays Out from an earlier step by this rule; a custom body still refuses. |
 | Machines | A machine graphic parked at its first state plays its authored exit as today. |
 | Catalog | `npm run catalog:affected` gates pass; only JS fingerprints move; taste frames of an earlier-step Out for card26 read as a clean exit. |
@@ -109,3 +119,54 @@ DOM for every row above that needs no browser, and each new guard is mutation-te
 editor regressions, the full affected run, build, re-recorded catalog JS fingerprints, the catalog
 battery against this worktree's own dev server, taste frames, `/check` with one review workflow,
 `/queue-merge` and the deployed `/version.json`.
+
+## Implementation
+
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts), in the emitted interpreter:
+  `noacgExitTimeline` takes Out as interrupted when a machine-less graphic has played a cue and a
+  Next cue is still unplayed; `revealNextStep` returns null while an Out is active or done;
+  `noacgBuildExit` gives an interrupted exit each visible layer's Out bar end state at its end.
+  The R1.2a.2 body is `ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH` in
+  [animRuntimeLegacy.ts](../../../src/templates/shared/animRuntimeLegacy.ts), its text in
+  `e2e/fixtures/interpreter-hold-v1.js`, and joins `writeOutData`'s known bodies.
+- [runtime.ts](../../../src/components/editorFoundation/runtime.ts) (the editor's preview bridge):
+  `exit` reads a cue end within a microsecond as the end, plays Edit Out as authored, and marks
+  its poses `exiting`; [animationAuthoring.ts](../../../src/components/editorFoundation/animationAuthoring.ts)
+  refuses pose edits on them.
+- Tests: [out-step.test.mjs](../../../scripts/out-step.test.mjs) (build gate) and
+  [editor-out-step.spec.ts](../../../e2e/editor-out-step.spec.ts), both reading
+  `e2e/fixtures/out-steps.json`. `scripts/taste-frame-review.mjs --out` renders Out pressed from the
+  hold and from each answered step, frozen at 25 and 60 percent of the exit.
+
+## Review and simplification
+
+`/check` review ran as one workflow: four read-only reviewers (runtime exit; upgrade and exports;
+editor preview and UI; tests, docs and scope), each followed by one agent trying to refute its
+findings (8 agents, merge base `7fd2b99f4`, every agent listed what it read). Of 16 findings, 5
+were refuted and 11 stood.
+
+- Fixed: a visible layer outside the root that only its Out bar hides stayed on air after an
+  interrupted exit, now reached from any earlier step (the bar's end state now applies at the
+  exit's end); Edit Out then Out played the interrupted exit; pausing an Out from an earlier flag
+  left a pose that key and drag edits wrote into the Out cue (edits now refuse on an Out preview);
+  the Node test did not assert that bars stay off during the interrupted exit (a mutation survived);
+  the test models read a zero-time Out track as its first key throughout; the editor test covered
+  one earlier flag; this receipt was empty while the plans called the phase verified.
+- Recorded rather than changed: machine graphics keep their exit (see Decisions and the owner item
+  below), and the owner-queue item carries `answered: true` as the brief asked, with `done: true` so
+  it is never presented again.
+- Refuted: next() after a snap to the off state (nothing becomes visible, as on a fresh load),
+  repeated stop() in two category scaffolds (older, outside this change), a video render that skips
+  Next cues (nothing in the product sets `stepsToPlay`), an In edit refused on a customised R1.2a.2
+  region (unchanged refusal), the editor's reveal pre-arm parity, and a dropped "repeat Next"
+  obligation in the register.
+
+Simplify ran as four parallel cleanup reviewers (reuse, simplification, efficiency, altitude).
+Adopted: one exit model per test file, the browser model brought into agreement with the Node one
+(zero-time tracks, the outside-root fade), fixture timings derived from the fixture, the editor
+test's setup and sampling as helpers, the sibling spec's pose-cue check restored in `ready()`,
+parallel module loads, one Out-cue index in the bridge, and one walk per design in the taste
+`--out` loop that stops at the first refusal. The altitude reviewer found the float flag reading
+above. Skipped: one model shared by the Node test and the spec (a shared `e2e/_*.ts` helper widens
+the affected run to the whole suite), parallel scenario pages, a lighter page than the editor for
+export-only tests, and rewording the interpreter's span-time expression (text churn only).

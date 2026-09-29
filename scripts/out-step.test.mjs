@@ -25,13 +25,10 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const runtime = await load('src/templates/shared/animRuntime.ts'), { emitAnimRegion, ANIM_INTERPRETER_JS, writeOutData } = runtime;
-const legacy = await load('src/templates/shared/animRuntimeLegacy.ts');
-const { easeCurve, parseEase } = await load('src/templates/shared/easeRuntime.ts');
-const { resolveValue } = await load('src/blocks/animEval.ts');
-const { deriveMachine } = await load('src/blocks/animMachine.ts');
-const { prepareOutRuntime } = await load('src/blocks/animMigration.ts');
-const { contentHash } = await load('src/model/contentHash.ts');
+const [runtime, legacy, { easeCurve, parseEase }, { resolveValue }, { deriveMachine }, { prepareOutRuntime }, { contentHash }] = await Promise.all([
+  'src/templates/shared/animRuntime.ts', 'src/templates/shared/animRuntimeLegacy.ts', 'src/templates/shared/easeRuntime.ts', 'src/blocks/animEval.ts',
+  'src/blocks/animMachine.ts', 'src/blocks/animMigration.ts', 'src/model/contentHash.ts'].map(load));
+const { emitAnimRegion, ANIM_INTERPRETER_JS, writeOutData } = runtime;
 const GSAP = readFileSync(path.join(root, 'src/assets/gsap.min.js'), 'utf8');
 
 /** In, two Next cues and Out at speed 1.25. The box's Out starts with the motion an R1.2a.1 Set Out
@@ -39,7 +36,7 @@ const GSAP = readFileSync(path.join(root, 'src/assets/gsap.min.js'), 'utf8');
  *  The badge is revealed by a bar in Step 2, #outside (outside the root) by `reveals` in Step 3. */
 const steps = () => JSON.parse(readFileSync(path.join(root, 'e2e/fixtures/out-steps.json'), 'utf8'));
 const LAYERS = ['#box', '#title', '#badge', '#outside'], PROPS = ['x', 'y', 'rotation', 'opacity'];
-const OUT = 3;
+const OUT = steps().steps.length - 1;
 
 /** The emitted region in a fresh vm context: GSAP resolves selectors through the stub document and
  *  tweens the stub elements' own properties, and getComputedStyle reads them back. */
@@ -63,7 +60,7 @@ function graphic(js) {
   const shown = s => els[s].visibility !== 'hidden' && Number(els[s].opacity) > 0;
   // A cue's timeline, paused where the test puts it (the stub ticker never advances anything).
   const cue = tl => { if (tl) tl.pause(); return tl; };
-  return { w, els, stage, pose, shown,
+  return { els, stage, pose, shown,
     play: () => cue(w.buildInTimeline()), next: () => cue(w.revealNextStep()), out: () => cue(w.buildOutTimeline()) };
 }
 const templateOf = data => graphic(emitAnimRegion(data));
@@ -80,7 +77,7 @@ function walk(g, nexts, at) {
 }
 
 /** Exit times on the Out cue's own clock (stored units; they play at u / speed seconds). */
-const EXIT = Array.from({ length: 111 }, (_, i) => i / 100);
+const EXIT = Array.from({ length: Math.round(steps().steps[OUT].duration * 100) + 1 }, (_, i) => i / 100);
 
 /** A press-revealed layer outside the root, which Out does not animate, fades with the exit over
  *  0.3 of its units on GSAP's default ease (noacgExitTimeline). */
@@ -89,17 +86,20 @@ function outsideFade(data, s, p, live, u) {
   return live * (1 - easeCurve('power1.out')(Math.min(1, u / Math.min(.3, data.steps[OUT].duration))));
 }
 
-/** The interrupted-Out policy (D02): each track of a layer visible when Out starts tweens from its
- *  live value to its last key over its span, the last ease as its whole curve; a final jump starts
- *  where its own segment starts; a one-key or zero-time track is a cut; untouched tracks hold. */
-function interruptedModel(data, held, visible) {
+/** The expected exit of each layer visible when Out starts. 'authored': the editor's own sampling
+ *  of the Out cue. 'interrupted', the D02 policy: each track tweens from its live value to its last
+ *  key over its span, the last ease as its whole curve; a final jump starts where its own segment
+ *  starts; a one-key or zero-time track is a cut. Untouched tracks hold. */
+function model(data, held, visible, kind) {
   const exit = data.steps[OUT];
   return EXIT.map(u => LAYERS.flatMap((s, l) => PROPS.map((p, i) => {
     const live = held[l * PROPS.length + i], keys = exit.layers[s]?.[p];
     if (!visible.includes(s)) return live;
     if (!keys) return outsideFade(data, s, p, live, u) ?? live;
+    if (kind === 'authored') return Number(resolveValue(data, s, p, OUT, u));
     const first = keys[0], last = keys[keys.length - 1];
-    if (keys.length < 2 || last.time <= first.time) return first.value;
+    if (keys.length < 2) return first.value;
+    if (last.time <= first.time) return u < last.time ? first.value : last.value;
     const text = last.ease || exit.ease, parsed = parseEase(text);
     const from = parsed?.kind === 'jump' ? keys[keys.length - 2].time : first.time;
     if (u < from) return live;
@@ -107,20 +107,11 @@ function interruptedModel(data, held, visible) {
     return live + (last.value - live) * curve(Math.min(1, (u - from) / (last.time - from)));
   })));
 }
-/** The authored exit from the held pose: the editor's own sampling of the Out cue. */
-function authoredModel(data, held, visible) {
-  return EXIT.map(u => LAYERS.flatMap((s, l) => PROPS.map((p, i) => {
-    const keys = data.steps[OUT].layers[s]?.[p], live = held[l * PROPS.length + i];
-    if (!visible.includes(s)) return live;
-    return keys ? Number(resolveValue(data, s, p, OUT, u)) : outsideFade(data, s, p, live, u) ?? live;
-  })));
-}
-
-function near(actual, expected, what, tolerance = 1e-6) {
+function near(actual, expected, what) {
   let worst = { error: 0, at: '' };
   actual.forEach((pose, k) => pose.forEach((v, j) => {
     const error = Math.abs(v - expected[k][j]);
-    if (!(error <= tolerance) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: `u=${EXIT[k]} ${LAYERS[Math.floor(j / PROPS.length)]} ${PROPS[j % PROPS.length]}: ${v} vs ${expected[k][j]}` };
+    if (!(error <= 1e-6) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: `u=${EXIT[k]} ${LAYERS[Math.floor(j / PROPS.length)]} ${PROPS[j % PROPS.length]}: ${v} vs ${expected[k][j]}` };
   }));
   assert.equal(worst.error, 0, `${what}: ${worst.at}`);
 }
@@ -136,23 +127,50 @@ function outFrom(data, nexts, at) {
 }
 
 test('Out parked at an earlier step leaves from the live pose and never shows an unreached step', () => {
-  const data = steps();
+  const data = steps(), runs = [];
   for (const [nexts, unreached] of [[0, ['#badge', '#outside']], [1, ['#outside']]]) {
     const run = outFrom(data, nexts);
+    runs.push(run);
     const where = nexts === 0 ? 'after In' : 'after Step 2';
     assert.deepEqual(LAYERS.filter(s => !run.visible.includes(s)), unreached, `${where}: the layers of unreached steps are hidden`);
     // No jump at dispatch: before any advance the pose is the one Out was pressed from.
     near([run.released], [run.held], `${where}: the pose at dispatch`);
-    near(run.samples, interruptedModel(data, run.held, run.visible), `${where}: the interrupted exit`);
+    near(run.samples, model(data, run.held, run.visible, 'interrupted'), `${where}: the interrupted exit`);
     assert.deepEqual(run.appeared, [], `${where}: nothing from an unreached step appears`);
     assert.equal(run.g.stage.opacity, 0, `${where}: the root is hidden at the end`);
+  }
+  // Reached after Step 2, the badge ignores its Out bar (hidden from 0.5) while it leaves, and takes
+  // the bar's end state as the exit ends.
+  const run = runs[1];
+  run.exit.time(.6 / data.speed, true);
+  assert.equal(run.g.els['#badge'].visibility, 'visible', 'no Out bar applies during the interrupted exit');
+  run.exit.progress(1, true);
+  assert.equal(run.g.els['#badge'].visibility, 'hidden', 'the Out bar\'s end state applies at the end');
+});
+
+test('an interrupted exit ends with each bar\'s end state, reaching a layer outside the root', () => {
+  // #outside revealed by a bar in Step 2, then moved and hidden by its own Out bar: the root's hide
+  // cannot reach it, so only the bar clears it.
+  const data = steps();
+  delete data.steps[2].reveals;
+  delete data.steps[2].layers['#outside'];
+  Object.assign(data.steps[0].spans, { '#outside': [] });
+  Object.assign(data.steps[1].spans, { '#outside': [{ start: 0, end: .6 }] });
+  Object.assign(data.steps[2].spans, { '#outside': [{ start: 0, end: .4 }] });
+  data.steps[OUT].layers['#outside'] = { x: [{ time: 0, value: 0 }, { time: 1, value: 200 }] };
+  data.steps[OUT].spans['#outside'] = [{ start: 0, end: .5 }];
+  for (const [nexts, at] of [[1, undefined], [2, .4], [2, undefined]]) {
+    const run = outFrom(data, nexts, at);
+    assert.ok(run.visible.includes('#outside'), `cue ${nexts}: #outside is on screen`);
+    run.exit.progress(1, true);
+    assert.equal(run.g.els['#outside'].visibility, 'hidden', `cue ${nexts}${at ? ' interrupted' : ''}: #outside is off air`);
   }
 });
 
 test('Out at the last step plays the authored exit from the held pose, as before', () => {
   const data = steps(), run = outFrom(data, 2);
   assert.deepEqual(run.visible, LAYERS);
-  near(run.samples, authoredModel(data, run.held, run.visible), 'after Step 3: the authored exit');
+  near(run.samples, model(data, run.held, run.visible, 'authored'), 'after Step 3: the authored exit');
   // The authored exit hides the badge by its Out bar at 0.5; the interrupted exit keeps bars off.
   run.exit.time(.6 / data.speed, true);
   assert.equal(run.g.els['#badge'].visibility, 'hidden');
@@ -163,7 +181,7 @@ test('Out during In or during a Next is interrupted as before', () => {
   for (const nexts of [0, 1, 2]) {
     const run = outFrom(data, nexts, .4);
     near([run.released], [run.held], `40% into cue ${nexts}: the pose at dispatch`);
-    near(run.samples, interruptedModel(data, run.held, run.visible), `40% into cue ${nexts}: the interrupted exit`);
+    near(run.samples, model(data, run.held, run.visible, 'interrupted'), `40% into cue ${nexts}: the interrupted exit`);
   }
 });
 
@@ -188,7 +206,7 @@ test('a machine graphic keeps its authored exit from every state', () => {
   const run = outFrom(data, 0);
   // As before: the Out's first keys apply as it starts, here the box's last-step x of 300.
   assert.equal(run.released[0], 300);
-  near(run.samples, authoredModel(data, run.held, run.visible), 'machine after In: the authored exit');
+  near(run.samples, model(data, run.held, run.visible, 'authored'), 'machine after In: the authored exit');
 });
 
 test('Out before play() and a one-key Out track are as before', () => {

@@ -85,13 +85,15 @@ function noacgBuildExit(step, interrupted, silent) {
   var effects = Object.assign({}, step, { layers: {}, spans: undefined, hides: undefined, loops: undefined });
   if (silent) { effects.calls = []; effects.dynamics = []; }
   var tl = buildStepTimeline(effects);
-  // Gate only already-visible layers. Object targets survive legacy repeated stop().
-  if (!interrupted) Object.keys(step.spans || {}).forEach(function (selector) {
+  // Gate only already-visible layers. Object targets survive legacy repeated stop(). An
+  // interrupted exit keeps each layer's visibility until it ends and then takes the Out's end
+  // state, which also reaches a layer outside the root that the root's own hide cannot.
+  Object.keys(step.spans || {}).forEach(function (selector) {
     document.querySelectorAll(selector).forEach(function (element) {
       if (!noacgExitVisible(element, selector)) return;
-      var spans = step.spans[selector], times = [0];
+      var spans = step.spans[selector], times = [interrupted ? step.duration : 0];
       var proxy = noacgExitProxy(element, 'visibility', getComputedStyle(element).visibility);
-      spans.forEach(function (span) { times.push(span.start, span.end); });
+      if (!interrupted) spans.forEach(function (span) { times.push(span.start, span.end); });
       times.sort(function (a, b) { return a - b; }).forEach(function (time) {
         tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
       });
