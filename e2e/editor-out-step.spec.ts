@@ -35,7 +35,10 @@ async function template(page: Page, data: Data) {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
     const { emitAnimRegion } = await import('/src/templates/shared/animRuntime.ts');
     const { runtimeJs } = await import('/src/templates/shared/base.ts');
-    return { ...store.template, fps: 25, fields: [], layers: [], html, css, js: runtimeJs('Out step fixture', emitAnimRegion(data as never)) };
+    const { spxSteps } = await import('/src/blocks/animMachine.ts');
+    // The step count a playout host (OGraf's playAction) walks, as every step writer sets it.
+    return { ...store.template, settings: { ...store.template.settings, steps: String(spxSteps(data as never)) },
+      fps: 25, fields: [], layers: [], html, css, js: runtimeJs('Out step fixture', emitAnimRegion(data as never)) };
   }, { data, html: HTML, css: CSS });
 }
 
@@ -43,7 +46,7 @@ async function template(page: Page, data: Data) {
 async function build(page: Page, t: unknown, target: string) {
   return page.evaluate(async ({ t, target }) => {
     if (target === 'simulator') return { html: (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }) };
-    if (target === 'single-file') return { html: (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
+    if (target === 'single-file') return { html: await (await import('/src/export/selfContained.ts')).composeSelfContainedHtml(t as never) };
     const zip = await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(x => x.id === target)!.build(t as never);
     return { files: Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n => !zip.files[n].dir).map(async n => [n.slice(n.indexOf('/') + 1), await zip.file(n)!.async('base64')]))) as Record<string, string> };
   }, { t, target });
