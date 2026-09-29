@@ -65,6 +65,7 @@ import type { CombinedControl } from '../model/profile';
 import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
+import { createSendDebts, withoutSettled } from '../control/failedSends';
 import { appendLogEntries, describeLogRow, eventLogLabel, logTime, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
@@ -292,6 +293,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * e2e/configured/playout-both-roads.spec.ts reads that count on this very page.
    */
   const applied = useRef(createAppliedOnce());
+  /** The graphics a failed send left on this monitor alone, so its notice comes down once they
+   *  have all been sent again (failedSends.ts `createSendDebts`). */
+  const sendDebts = useRef(createSendDebts());
   const applyCommand = useCallback((items: { graphic: string; msg: ControlEventRow['msg'] }[]) => {
     for (const item of items) {
       if (!applied.current.claim(item.msg)) continue;
@@ -644,14 +648,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // is looking at something the other screens are not showing. That question is asked FIRST,
   // ahead of the rate limit - the log's 50-per-5-s cap is the likeliest way to reach this at all,
   // and "slow down a moment" would tell an operator whose graphic is up that nothing happened.
-  const surfaceSendError = (e: Error) =>
-    setError(
-      verbAired(e)
-        ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
-        : /slow down/i.test(e.message)
-          ? 'Too many commands. Slow down a moment.'
-          : `Send failed: ${e.message}`,
-    );
+  const surfaceSendError = (items: ControlSendItem[], e: Error) => {
+    const notice = verbAired(e)
+      ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
+      : /slow down/i.test(e.message)
+        ? 'Too many commands. Slow down a moment.'
+        : `Send failed: ${e.message}`;
+    sendDebts.current.failed(items, notice);
+    setError(notice);
+  };
 
   /**
    * ONE DOOR for every verb this page presses, on BOTH ROADS (src/control/commandRoads.ts): this
@@ -675,9 +680,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
     }).then(
-      () => true,
+      () => {
+        const settled = sendDebts.current.landed(items);
+        if (settled.length) setError((shown) => withoutSettled(shown, settled));
+        return true;
+      },
       (e: Error) => {
-        surfaceSendError(e);
+        surfaceSendError(items, e);
         return false;
       },
     );
