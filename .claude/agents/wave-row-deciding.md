@@ -4,7 +4,7 @@ description: An orchestrator wave row whose MODEL line reads `opus xhigh` or `op
 model: opus
 effort: xhigh
 isolation: worktree
-tools: Read, Edit, Write, Grep, Glob, Bash, PowerShell, Agent, Skill, ToolSearch, Monitor, TaskStop, WebFetch, WebSearch, EnterWorktree, ExitWorktree, mcp__Claude_Browser__*
+tools: Read, Edit, Write, Grep, Glob, Bash, PowerShell, Agent, Skill, ToolSearch, Monitor, TaskStop, WebFetch, WebSearch, EnterWorktree, ExitWorktree, mcp__Claude_Browser__*, mcp__github__create_pull_request, mcp__github__pull_request_read, mcp__github__actions_run_trigger, mcp__github__actions_get, mcp__github__actions_list, mcp__github__get_job_logs, mcp__github__enable_pr_auto_merge, mcp__github__disable_pr_auto_merge
 ---
 
 You are one row of a planned wave, at the rung the routing ladder reserves for a call that is
