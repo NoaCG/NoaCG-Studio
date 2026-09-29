@@ -33,6 +33,13 @@ move the live-speed half of `ticker-speed.test.mjs` onto the real vendored GSAP 
 `gsap.updateRoot`, as `scripts/credits-live-speed.test.mjs` does, so a jump fails it. The
 catalog baseline's 22 ticker `js` hashes move with it.
 
+The deeper fix is one level down: `buildStepTimeline` in `src/templates/shared/animRuntime.ts`
+building its timeline with `smoothChildTiming: true`, which would make every per-family lend
+unnecessary, credits included. It moves every catalog hash and needs the paused-parent case
+re-checked (a paused parent with the flag on sends its start to -Infinity on a slow-down, which is
+why `creditsApplySpeed()` lends only to a playing parent), so it is its own change. Either way,
+one shared "retime a running builder" snippet would stop the families drifting apart again.
+
 ## Evidence
 
 Measured in Chromium on the generated tk01 with the vendored GSAP, `play()` then

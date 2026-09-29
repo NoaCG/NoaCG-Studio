@@ -451,6 +451,10 @@ var noacgCreditsLast = null;
 // one pace. Named by the entrance's own call in the animation data, so every playout road that
 // takes the graphic rolls it.
 function ${CREDITS_ROLL_CALL}() {
+  // A new take ends the last one first, so a take that cannot measure leaves no old roll for a
+  // later speed change to rescale.
+  if (noacgCreditsTween) noacgCreditsTween.kill();
+  noacgCreditsTween = null;
   var built = creditsRender();
   var sample = creditsSample();
   if (!built || !sample || typeof gsap === 'undefined') return null;
@@ -468,7 +472,6 @@ function ${CREDITS_ROLL_CALL}() {
   frame.setAttribute('width', String(win.right - win.left));
   frame.setAttribute('height', String(win.bottom - win.top));
   frame.setAttribute('viewBox', win.left + ' ' + win.top + ' ' + (win.right - win.left) + ' ' + (win.bottom - win.top));
-  if (noacgCreditsTween) noacgCreditsTween.kill();
   // The list's top starts at the window's bottom edge and travels until its bottom has left
   // the window's top: the whole list passes, however long it is. Measured now, at the take,
   // because it depends on what the operator pasted.
@@ -479,10 +482,11 @@ function ${CREDITS_ROLL_CALL}() {
   // scales it: the step is read in the text's units and the travel in the window's.
   var textHeight = rows.getBBox().height;
   var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);
-  var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * creditsLiveSpeed();
+  var speed = creditsLiveSpeed();
+  var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * speed;
   var duration = distance / perSecond;
   noacgCreditsLast = { startY: startY, endY: endY, distance: distance, duration: duration, rows: rows.children.length, step: step, boxed: win.boxed };
-  noacgCreditsBuiltAt = creditsLiveSpeed();
+  noacgCreditsBuiltAt = speed;
   noacgCreditsTween = gsap.fromTo(roll, { y: startY }, { y: endY, duration: duration, ease: 'none' });
   return noacgCreditsTween;
 }
@@ -497,19 +501,12 @@ function creditsLiveSpeed() {
 // running keeps travelling with the new rows, and a new Scroll speed changes its pace from this
 // frame: the production dashboard's LIVE NUMBERS row offers the field and says one press acts on
 // air. A timeScale rather than a new take, because a new take would honour the number and snap
-// the list back below the window. The playhead is held where it is (smoothChildTiming, lent for
-// the one call) so the list does not jump to where the new pace would have had it by now.
+// the list back below the window. No jump either: the take is started from a timeline CALL, so
+// the tween lives on GSAP's root timeline, which holds a child's playhead still across a
+// timeScale by itself (the catalog roll, nested in a step timeline, has to lend it that).
 function creditsDataUpdated() {
   creditsRender();
-  var live = noacgCreditsTween;
-  if (!live || !noacgCreditsBuiltAt) return;
-  var scale = creditsLiveSpeed() / noacgCreditsBuiltAt;
-  if (live.timeScale() === scale) return;
-  var parent = live.parent;
-  var smooth = parent ? parent.smoothChildTiming : false;
-  if (parent) parent.smoothChildTiming = true;
-  live.timeScale(scale);
-  if (parent) parent.smoothChildTiming = smooth;
+  if (noacgCreditsTween) noacgCreditsTween.timeScale(creditsLiveSpeed() / noacgCreditsBuiltAt);
 }
 
 // Render once on load, so a preview shows the list before the first update(); again when the

@@ -304,9 +304,10 @@ ${hasLogo
   // Both escaped: the year is written as markup and the logo path is written INTO an
   // src="..." attribute, so an unescaped quote in either would break out of it.
   html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
-  if (keepIfSame === true && html === creditsBuiltHtml) return;
-  creditsBuiltHtml = html;
-  track.innerHTML = html;
+  if (!(keepIfSame === true && html === creditsBuiltHtml)) {
+    creditsBuiltHtml = html;
+    track.innerHTML = html;
+  }
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild
 }
 

@@ -11,9 +11,9 @@
 // timeScale moves the roll to where the new pace would have had it by now (196px on cr01).
 //
 // A stub GSAP cannot see the second one, which is how the ticker's version of this shipped with
-// it. So this runs the REAL emitted builders against the REAL vendored GSAP, nested in a paused
-// parent exactly as the step timeline nests them, and reads positions off the target as the
-// parent's clock is moved by hand. No browser: the builders only read rects, sizes and
+// it. So this runs the REAL emitted builders against the REAL vendored GSAP, nested in a step
+// timeline exactly as the runtime nests them, and reads positions off the target as GSAP's root
+// clock is moved by hand. No browser: the builders only read rects, sizes and
 // textContent, which a stub answers honestly, and GSAP tweens a plain object like any element.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -44,12 +44,19 @@ const { gsap } = gsapModule.exports;
 // hand-seeked paused parent would then contradict. The ticker is put to sleep afterwards so the
 // process can exit.
 gsap.ticker.remove(gsap.updateRoot);
-// The browser build registers `attr` with its CSS plugin, which needs a window. The roll only
-// ever SETS its pose attribute, so an instant setter is the whole of what it asks of one here.
-gsap.registerPlugin({ name: 'attr', init(target, values) { for (const k in values) target.setAttribute(k, values[k]); } });
+// The vendored build's `attr` plugin does not register in Node, so the roll's pose attribute is
+// never written here and GSAP warns once per build. Nothing below reads the attribute; the one
+// warning is dropped so a real one is not lost in it.
+const warn = console.warn;
+console.warn = (...args) => { if (!String(args[0]).startsWith('Invalid property attr')) warn(...args); };
 let clock = 1000;
 gsap.updateRoot(clock);
 after(() => gsap.ticker.sleep());
+
+/** The motion covered `px` between two readings - to the hundredth, since the clock is exact. */
+function moved(delta, px) {
+  assert.ok(Math.abs(delta - px) < 0.01, `expected ${px}px, measured ${delta}`);
+}
 
 const BOX = { width: 1920, height: 1080 };
 const LIST = 3000;      // px of names the roll carries
@@ -77,7 +84,7 @@ function node(extent, extra = {}) {
  * The emitted builders, run with real GSAP. `typed` is what the operator has in the speed field
  * now; `retype(v)` is what update() does when a new one arrives with the motion running.
  */
-function credits({ build, speedFieldId = 'f3', typed = 100 }) {
+function credits({ build, speedFieldId = 'f3', typed = 100, paused = false }) {
   const box = node(BOX, { clientHeight: BOX.height, clientWidth: BOX.width });
   const pages = [0, 1, 2].map(() => node({ width: 800, height: 300 }, { children: [{}, {}, {}] }));
   const track = node(build === 'creditsCrawl' ? { width: LIST, height: 60 } : { width: 1200, height: LIST }, {
@@ -98,10 +105,10 @@ function credits({ build, speedFieldId = 'f3', typed = 100 }) {
   assert.ok(result.motion, `${build} built nothing`);
   // The step: a plain timeline on the root, the builder added into it at the lead, as on air.
   const start = clock;
-  const step = gsap.timeline();
+  const step = gsap.timeline({ paused });
   step.add(result.motion, LEAD);
   return {
-    track, pages, motion: result.motion,
+    track, pages, motion: result.motion, step,
     at: (t) => { clock = start + t; gsap.updateRoot(clock); return track; },
     retype: (v) => { typed = v; result.apply(); },
   };
@@ -111,36 +118,36 @@ test('a roll takes a live speed change from that frame, without a jump', () => {
   const c = credits({ build: 'creditsRoll' });
   const y1 = c.at(1.4).y;
   const y2 = c.at(2.4).y;
-  assert.ok(Math.abs((y1 - y2) - 90) < 0.01, `built at 90 px/s, measured ${y1 - y2}`);
+  moved(y1 - y2, 90);
   c.retype(300);
   // Continuity: the next half second covers exactly half a second at the NEW pace, measured from
   // where the roll already was. A bare timeScale would put it 180px further on.
   const y3 = c.at(2.9).y;
-  assert.ok(Math.abs((y2 - y3) - 135) < 0.01, `expected 135px at 270 px/s, measured ${y2 - y3}`);
+  moved(y2 - y3, 135);
   // …and back down, composed against the speed it was BUILT at, not the last one set.
   c.retype(50);
   const y4 = c.at(3.9).y;
-  assert.ok(Math.abs((y3 - y4) - 45) < 0.01, `expected 45px at 45 px/s, measured ${y3 - y4}`);
+  moved(y3 - y4, 45);
 });
 
 test('a crawl takes it along x', () => {
   const c = credits({ build: 'creditsCrawl' });
   const x1 = c.at(1.4).x;
   const x2 = c.at(2.4).x;
-  assert.ok(Math.abs((x1 - x2) - 160) < 0.01);
+  moved(x1 - x2, 160);
   c.retype(200);
   const x3 = c.at(3.4).x;
-  assert.ok(Math.abs((x2 - x3) - 320) < 0.01, `expected 320px at 320 px/s, measured ${x2 - x3}`);
+  moved(x2 - x3, 320);
 });
 
 test('a reel takes it, and keeps looping at the new pace', () => {
   const c = credits({ build: 'creditsLoop' });
   const y1 = c.at(1.4).y;
   const y2 = c.at(2.4).y;
-  assert.ok(Math.abs((y1 - y2) - 90) < 0.01);
+  moved(y1 - y2, 90);
   c.retype(400);
   const y3 = c.at(2.9).y;
-  assert.ok(Math.abs((y2 - y3) - 180) < 0.01, `expected 180px at 360 px/s, measured ${y2 - y3}`);
+  moved(y2 - y3, 180);
 });
 
 test('a page swap takes it as reading time: the page on screen stays, the next comes sooner', () => {
@@ -164,6 +171,18 @@ test('the clamp holds on air, and nonsense returns to the design\'s pace', () =>
   assert.equal(c.motion.timeScale(), 4);
   c.retype('fast');
   assert.equal(c.motion.timeScale(), 1);
+});
+
+test('a paused step (a settled preview, an editor scrub) takes a slow-down without breaking', () => {
+  // Lending smoothChildTiming to a PAUSED parent sends its start to -Infinity on a slow-down, so
+  // a paused step gets the plain timeScale; the next seek shows the new pace.
+  const c = credits({ build: 'creditsRoll', paused: true });
+  c.step.time(3);
+  c.retype(10);
+  assert.ok(Number.isFinite(c.step.startTime()), `step start is ${c.step.startTime()}`);
+  assert.equal(c.motion.timeScale(), 0.1);
+  c.step.time(3.5);
+  assert.ok(Number.isFinite(c.track.y));
 });
 
 test('a design with no speed field never scales its motion', () => {

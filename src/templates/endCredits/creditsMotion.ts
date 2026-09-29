@@ -63,40 +63,37 @@ function creditsMotionSpeed() {
 
 // creditsApplySpeed(): make a speed change land on a roll that is ALREADY RUNNING.
 //
-// Every builder below measures once, at play(), so a new speed arriving through update() would
-// otherwise sit in the holder until the next take - and the production dashboard's LIVE NUMBERS
-// row offers this field and says one press changes the live graphic. A timeScale on what the
-// builder returned makes that true without a seam: restarting would honour the number and snap
-// a half-finished roll back to its start, which is worse than ignoring it. The ratio is against
-// the speed the motion was BUILT at, so repeated presses compose rather than each measuring from
-// the design's own pace.
+// Every builder below measures once, at play(), so a new speed arriving through update() (the
+// dashboard's LIVE NUMBERS row sends exactly that) would otherwise wait for the next take. A
+// timeScale on what the builder returned changes the pace from this frame; a rebuild would snap
+// a half-finished roll back to its start. The ratio is against the speed the motion was BUILT
+// at, so repeated presses compose. It scales the closing mark's beat too, which is what a fresh
+// take at the new speed would have built.
 //
-// It scales the whole remaining motion, the closing mark's beat included, which is exactly what
-// a fresh take at the new speed would have built: a faster roll reaches its mark sooner.
-//
-// The builder's timeline sits INSIDE the step's timeline, and GSAP only holds a child's playhead
-// still across a timeScale change when its parent has smoothChildTiming. A step timeline does
-// not, so without it the roll would jump to where it would be had it always run at the new pace.
-// The flag is lent for the one call and handed back.
+// The builder's timeline sits INSIDE the step's timeline, which has no smoothChildTiming, and
+// without it GSAP jumps the child to where the new pace would have had it (196px on cr01). The
+// flag is lent for the one call - but only to a PLAYING parent: on a paused one (a settled
+// preview, an editor scrub) GSAP answers a slow-down by moving the parent's start to -Infinity,
+// so a paused roll takes the plain timeScale and the next seek shows it.
 var creditsMotionLive = null;   // the running roll, crawl, reel or page swap, or null
 var creditsMotionBuiltAt = 1;   // the speed it was built at
 
-function creditsLive(motion, speed) {
+function creditsLive(motion) {
   creditsMotionLive = motion;
-  creditsMotionBuiltAt = speed;
+  creditsMotionBuiltAt = creditsMotionSpeed();
   return motion;
 }
 
 function creditsApplySpeed() {
   var live = creditsMotionLive;
-  if (!live || !creditsMotionBuiltAt) return;
+  if (!live) return;
   var scale = creditsMotionSpeed() / creditsMotionBuiltAt;
-  if (live.timeScale() === scale) return;
   var parent = live.parent;
-  var smooth = parent ? parent.smoothChildTiming : false;
-  if (parent) parent.smoothChildTiming = true;
+  if (!parent || parent.paused()) { live.timeScale(scale); return; }
+  var smooth = parent.smoothChildTiming;
+  parent.smoothChildTiming = true;
   live.timeScale(scale);
-  if (parent) parent.smoothChildTiming = smooth;
+  parent.smoothChildTiming = smooth;
 }
 
 // creditsMid() / creditsMoveBy(): the two lines all of the travel below is measured with.
@@ -175,8 +172,7 @@ function creditsRoll(target) {
   var startY = box.clientHeight;                              // enter from below the viewport…
   var endY = creditsMoveBy(track, 'y', listEnd, boxRect.top); // …and run right off the top
   var distance = startY - endY;
-  var speed = creditsMotionSpeed();
-  var pixelsPerSecond = 90 * speed;                           // reading speed — raise for faster credits
+  var pixelsPerSecond = 90 * creditsMotionSpeed();            // reading speed — raise for faster credits
   if (distance <= 0) return null;
 
   var seq = gsap.timeline();
@@ -189,7 +185,7 @@ function creditsRoll(target) {
     0
   );
   if (hasEndBeat) creditsEndBeat(seq, track, box, endBlock, 'y');
-  return creditsLive(seq, speed);
+  return creditsLive(seq);
 }
 
 // creditsLoop(): the roll that never ends — a repeating production-credits reel for a
@@ -232,12 +228,11 @@ function creditsLoop(target) {
     track.appendChild(clone);
   }
 
-  var speed = creditsMotionSpeed();
-  var pixelsPerSecond = 90 * speed;                 // reading speed — raise for a faster reel
+  var pixelsPerSecond = 90 * creditsMotionSpeed();  // reading speed — raise for a faster reel
   return creditsLive(gsap.fromTo(track,
     { y: 0 },
     { y: -distance, duration: distance / pixelsPerSecond, ease: 'none', repeat: -1 }
-  ), speed);
+  ));
 }
 
 // creditsCrawl(): a single-line horizontal crawl. Same idea as the roll, along x — the strip
@@ -257,8 +252,7 @@ function creditsCrawl(target) {
   var startX = box.clientWidth;                                // enter from the right edge…
   var endX = creditsMoveBy(track, 'x', listEnd, boxRect.left); // …and run right off the left
   var distance = startX - endX;
-  var speed = creditsMotionSpeed();
-  var pixelsPerSecond = 160 * speed;                          // crawl speed
+  var pixelsPerSecond = 160 * creditsMotionSpeed();           // crawl speed
   if (distance <= 0) return null;
 
   var seq = gsap.timeline();
@@ -269,7 +263,7 @@ function creditsCrawl(target) {
     0
   );
   if (hasEndBeat) creditsEndBeat(seq, track, box, endBlock, 'x');
-  return creditsLive(seq, speed);
+  return creditsLive(seq);
 }
 
 // creditsPages(): each section appears as a full page, holds, then swaps to the next. One
@@ -295,6 +289,6 @@ function creditsPages(target) {
       seq.to(page, { opacity: 0, duration: 0.4 / speed, ease: 'power2.in' }, '+=' + holdSeconds);
     }
   });
-  return creditsLive(seq, speed);
+  return creditsLive(seq);
 }`;
 }
