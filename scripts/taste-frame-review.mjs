@@ -10,6 +10,10 @@
 //   step-N.png   each `next()` the design actually ANSWERS - a refused step writes no frame
 //   long-step-N.png  the same steps walked at the long strings, which is the only frame that can
 //                show a step's box growing with its text
+//   out-FROM-P.png   with --out: Out pressed from the hold (FROM = hold) or after N answered steps
+//                (FROM = step-N), frozen at P percent of the exit. Out from an earlier step leaves
+//                from what is on screen and never shows an unreached step (R1.2a.3), and only a
+//                frame can say whether that exit reads as clean. Data-driven designs only.
 // The bed is #333, the grey the owner's 2026-08-18 blind read used, and the shot is taken through
 // the same settle-and-raster recipe as cli/src/screenshot.ts and scripts/pro-spike.mjs, so a
 // frame here can be held against the frames he already judged.
@@ -18,6 +22,7 @@
 //   node scripts/taste-frame-review.mjs [out-dir] --only lt27,tk01   # named catalog designs
 //   node scripts/taste-frame-review.mjs [out-dir] --affected         # what this branch's diff can move
 //   node scripts/taste-frame-review.mjs [out-dir] --base http://localhost:5186
+//   node scripts/taste-frame-review.mjs [out-dir] --only card26 --out           # plus Out frames
 //
 // `--only` holds the same contract as every catalog sweep (scripts/catalog-scope.mjs): an id the
 // catalog does not ship is an ERROR, never an empty run. `--affected` reads the same plan
@@ -55,6 +60,8 @@ const SETTLE_MS = 2200;
 const SETTLE_FLOOR_MS = 600;
 /** The category this script cannot render on defaults (see the header). */
 const NOT_COVERED = 'imported-design';
+/** Where --out freezes each exit: the first leavers mid-motion, then most of the way out. */
+const OUT_AT = [0.25, 0.6];
 
 // ── Arguments - checked before anything is launched ────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -71,6 +78,7 @@ const OUT = outDir(
 );
 const { ids: onlyIds } = parseOnly(args);
 const affected = args.includes('--affected');
+const outFrames = args.includes('--out');
 const baseAt = args.indexOf('--base');
 const baseArg = baseAt >= 0 ? args[baseAt + 1] : null;
 if (baseAt >= 0 && (!baseArg || baseArg.startsWith('--'))) {
@@ -141,6 +149,9 @@ const index = await page.evaluate(async ({ settleMs, floorMs }) => {
   const settle = async (win) => {
     await sleep(floorMs);
     for (let waited = floorMs; waited < settleMs && gsapBusy(win); waited += 50) await sleep(50);
+    await freeze(win);
+  };
+  const freeze = async (win) => {
     win.gsap?.globalTimeline?.pause();
     const hint = win.document.createElement('style');
     hint.textContent = '*{will-change:auto !important}';
@@ -188,6 +199,21 @@ const index = await page.evaluate(async ({ settleMs, floorMs }) => {
     win.gsap?.globalTimeline?.resume();
     if (win.next() == null) return false;
     await settle(win);
+    return true;
+  };
+
+  /** Press Out once (later calls only seek the same exit) and freeze it at `fraction` of its
+   *  length. False for a design whose exit the interpreter does not own (no noacgOutActive, or a
+   *  styled exit), which gets no out frame rather than a second, rebuilt exit. */
+  window.__out = async (fraction) => {
+    const win = document.querySelector('#taste-stage iframe').contentWindow;
+    if (typeof win.noacgOutActive !== 'function' || typeof win.stop !== 'function') return false;
+    if (!win.noacgOutActive()) win.stop();
+    if (!win.noacgOutActive()) return false;
+    const exit = win.buildOutTimeline();
+    exit.pause();
+    exit.progress(fraction, true);
+    await freeze(win);
     return true;
   };
 
@@ -280,6 +306,28 @@ for (const { id, category } of targets) {
     await walk(true, 'long.png', (k) => `long-step-${k}.png`);
   } catch (e) {
     errors.push(`long: ${firstLine(e)}`);
+  }
+  // Out from the hold and from every step the design answers, each on a fresh mount.
+  if (outFrames) {
+    try {
+      const steps = await page.evaluate(() => window.__mount(false));
+      for (let k = 0; k < steps; k += 1) {
+        if (k > 0) {
+          await page.evaluate(() => window.__mount(false));
+          let answered = true;
+          for (let j = 0; j < k && answered; j += 1) answered = await page.evaluate(() => window.__next());
+          if (!answered) break;
+        }
+        for (const at of OUT_AT) {
+          if (!(await page.evaluate((fraction) => window.__out(fraction), at))) break;
+          const name = `out-${k ? `step-${k}` : 'hold'}-${Math.round(at * 100)}.png`;
+          await shoot(join(dir, name));
+          shot.push(name);
+        }
+      }
+    } catch (e) {
+      errors.push(`out: ${firstLine(e)}`);
+    }
   }
 
   written += shot.length;
