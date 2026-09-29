@@ -92,7 +92,8 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
       async () =>
         page.evaluate(async (slug) => {
           const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
-          const show = await controlShowBySlug(slug!);
+          const answer = await controlShowBySlug(slug!);
+          const show = answer.ok ? answer.value : null;
           return Object.keys(show?.liveCue ?? {}).length;
         }, wire.slug),
       { timeout: 30_000 },

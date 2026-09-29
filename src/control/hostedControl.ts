@@ -556,14 +556,17 @@ export async function unpublishControlShow(id: string): Promise<void> {
 
 // ── The operator side (capability-addressed; works signed-out) ───────────────
 
-export async function controlShowBySlug(slug: string): Promise<ResolvedControlShow | null> {
+/** Resolve the OPERATOR's view by the control capability. A null VALUE means no such production
+ *  (a wrong link, or unpublished); a failure means the server did not answer - a database or
+ *  PostgREST outage - and the operator page must say so and ask again, never "not found". */
+export async function controlShowBySlug(slug: string): Promise<RpcAnswer<ResolvedControlShow | null>> {
   const sb = await getSupabase();
-  if (!sb) return null;
+  if (!sb) return { ok: false, error: 'no backend client' };
   const { data, error } = await sb.rpc('control_show_by_slug', { p_slug: slug });
-  if (error) return null;
+  if (error) return { ok: false, error: error.message };
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
-  return {
+  if (!row) return { ok: true, value: null };
+  const show: ResolvedControlShow = {
     id: row.id as string,
     title: row.title as string,
     panel: readPanel(row.panel),
@@ -577,6 +580,7 @@ export async function controlShowBySlug(slug: string): Promise<ResolvedControlSh
     liveCue: readLiveCue(row.live_cue),
     profile: readPublishedProfile(row.profile),
   };
+  return { ok: true, value: show };
 }
 
 

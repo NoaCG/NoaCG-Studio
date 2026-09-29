@@ -77,6 +77,7 @@ import {
   sendControlVerb,
   stageHostedData,
   takeCueItems,
+  untilAnswered,
   verbAired,
   withLiveCue,
   type ControlEventRow,
@@ -157,6 +158,9 @@ function airedAfter(prev: AiredMap, graphic: string, msg: ControlEventRow['msg']
 
 export default function HostedControlPage({ slug }: { slug: string }) {
   const [show, setShow] = useState<ResolvedControlShow | null | 'loading'>('loading');
+  /** The resolve has FAILED at least once and is still being asked (a database or PostgREST
+   *  outage). Only an answer decides between the production and "not found". */
+  const [serverWaiting, setServerWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
   /**
@@ -332,8 +336,21 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     let live = true;
     let unsubscribe: (() => void) | null = null;
     void (async () => {
-      const resolved = await controlShowBySlug(slug);
+      // A failed resolve is NOT "no such production" (the 2026-09-29 outage told operators their
+      // link was wrong for three minutes, and kept saying so after the database came back). Ask
+      // again on the renderer's backoff until the server ANSWERS; a page that has gone away
+      // stops at its next attempt.
+      const answer = await untilAnswered(
+        async () => (live ? controlShowBySlug(slug) : { ok: true as const, value: null }),
+        {
+          onRetry: () => {
+            if (live) setServerWaiting(true);
+          },
+        },
+      );
       if (!live) return;
+      setServerWaiting(false);
+      const resolved = answer.ok ? answer.value : null;
       if (resolved) {
         // Only the layers on air need recovering; the plan is the renderer's own.
         const onAir = Object.keys(resolved.liveCue).filter((graphic) => resolved.liveCue[graphic]);
@@ -623,7 +640,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   if (show === 'loading') {
     return (
       <div className="sendin">
-        <div className="sendin-card"><p className="muted">Loading…</p></div>
+        {serverWaiting ? (
+          <div className="sendin-card" data-testid="hosted-server-waiting">
+            <div className="sendin-title">Waiting for the server</div>
+            <p className="muted">
+              The server is not answering right now. This page keeps trying and opens the production as soon as it
+              answers.
+            </p>
+          </div>
+        ) : (
+          <div className="sendin-card"><p className="muted">Loading…</p></div>
+        )}
       </div>
     );
   }
