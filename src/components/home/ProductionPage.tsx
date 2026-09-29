@@ -187,6 +187,7 @@ import {
   type ResolvedControlShow,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
+import { createSendDebts } from '../../control/failedSends';
 import { appendLogEntries, describeLogRow, eventLogLabel, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
@@ -546,6 +547,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, []);
   const [wireLog, setWireLog] = useState<LogEntry[]>([]);
   const localLogId = useRef(0);
+  /** The graphics a failed send left on this monitor alone, so its notice comes down once they
+   *  have all been sent again (failedSends.ts `createSendDebts`). Per production: the page stays
+   *  mounted across a switch, and a graphic's name is only unique within one production. */
+  const sendDebts = useRef(createSendDebts());
+  useEffect(() => {
+    sendDebts.current = createSendDebts();
+  }, [showId]);
 
   // ── COMBINED CONTROLS, the surface's half (src/control/combine.ts, plan §6b) ──
   /** Which `ask` ticks the operator has moved, by `<control id>\0<step index>`. A step the
@@ -1615,6 +1623,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setWireLog((l) => appendLogEntries(l, entries));
         return { ok: true };
       }
+      let landed = 0;
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
@@ -1630,7 +1639,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             applyHere: applyCommand,
             fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
           });
+          landed += 1;
         }
+        setNote(sendDebts.current.landed(batches.flat()));
         return { ok: true };
       } catch (e) {
         // A verb whose picture MOVED HERE and then failed to send is a different sentence from
@@ -1639,12 +1650,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // what any other screen is showing. The broadcast and the row are written together, so a
         // refused verb aired nowhere else - and a send that failed on the way BACK may have aired
         // everywhere, which is why this says "may".
-        return {
-          ok: false,
-          note: verbAired(e)
-            ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
-            : `${label} failed: ${(e as Error).message}`,
-        };
+        const note = verbAired(e)
+          ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
+          : `${label} failed: ${(e as Error).message}`;
+        // Owed: the batch that failed and those after it. The ones before it landed.
+        sendDebts.current.failed(batches.slice(landed).flat(), note);
+        return { ok: false, note };
       }
     },
     [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],

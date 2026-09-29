@@ -255,12 +255,68 @@ test('sync engine: reconcile + runSync behave correctly', async ({ page }) => {
       { fetched, s18, font18 },
     );
 
+    // 19. a provider that lists SUMMARIES (the cloud one does - supabaseProvider.ts says why).
+    //     What a pass pulls is fetched whole, twenty to a request, before anything is applied; a
+    //     summary is never written; a record gone by fetch time has nothing to pull; a pass with
+    //     nothing to pull fetches nothing.
+    localStorage.removeItem('spx-gfx-sync');
+    const ids19 = Array.from({ length: 45 }, (_, i) => `s${String(i).padStart(2, '0')}`);
+    const r19 = mem(ids19.map((id) => rec(id, T1, { payload: 'the whole body' })));
+    const batches: string[][] = [];
+    let refuse19 = false;
+    const summaries = {
+      ...r19,
+      async list(kind: string) {
+        return (await r19.list(kind)).map((r) => ({ ...r, body: { updatedAt: r.updatedAt }, summary: true }));
+      },
+      async get(): Promise<never> {
+        throw new Error('a record with no assets must not be fetched again');
+      },
+      async getMany(kind: string, ids: string[]) {
+        batches.push(ids);
+        if (refuse19 && ids.includes('s40')) throw new Error('batch refused');
+        return (await Promise.all(ids.filter((id) => id !== 's07').map((id) => r19.get(kind, id)))).filter(Boolean);
+      },
+    };
+    const l19 = mem([]);
+    const s19 = await runSync(l19, summaries);
+    const written19 = [...l19.store.values()];
+    check(
+      'summaries are pulled whole, in batches, and never written',
+      batches.map((b) => b.length).join() === '20,20,5' &&
+        s19.pulled === 44 &&
+        s19.failures.length === 0 &&
+        written19.every((r) => (r.body as { payload?: unknown }).payload === 'the whole body' && !('summary' in r)) &&
+        !l19.store.has('look:s07'),
+      { batches: batches.map((b) => b.length), s19 },
+    );
+    batches.length = 0;
+    const again19 = await runSync(mem(written19.map((r) => ({ ...r }))), { ...summaries, list: async (kind: string) => (await summaries.list(kind)).filter((r) => r.id !== 's07') });
+    check('a pass with nothing to pull fetches no bodies', batches.length === 0 && again19.pulled === 0, { batches, again19 });
+
+    // 20. a fetch that fails is a failed READ of the remote side, like a failed list(): the pass
+    //     fails before anything is applied and its bookmark stays put. As a per-record failure
+    //     the bookmark would move on, and a later local edit could then win over the remote
+    //     edit that never arrived by plain last-write-wins.
+    localStorage.removeItem('spx-gfx-sync');
+    refuse19 = true;
+    const l20 = mem([]);
+    const s20 = await runSync(l20, summaries).then(
+      () => 'resolved',
+      (e: Error) => e.message,
+    );
+    check(
+      'a failed fetch fails the pass and applies nothing',
+      s20 === 'batch refused' && l20.store.size === 0 && localStorage.getItem('spx-gfx-sync') === null,
+      { s20, size: l20.store.size },
+    );
+
     return out;
   });
 
   const failures = results.filter((r) => !r.pass);
   expect(failures, JSON.stringify(failures, null, 2)).toEqual([]);
-  expect(results.length).toBe(21);
+  expect(results.length).toBe(24);
 });
 
 test('asset externalization: round-trips through a Storage stub', async ({ page }) => {

@@ -70,6 +70,10 @@ export interface StoredRecord<T = unknown> {
   updatedAt: string; // ISO
   deleted?: boolean;
   body: T;
+  /** The body is only a SUMMARY - `updatedAt` and `deleted`, which is all reconciling reads -
+   *  because list() left the rest on the server (supabaseProvider.ts says why). The sync engine
+   *  fetches the whole record before it applies one and never writes a summary anywhere. */
+  summary?: true;
 }
 
 /**
@@ -80,6 +84,10 @@ export interface StoredRecord<T = unknown> {
 export interface StorageProvider {
   list(kind: SyncKind): Promise<StoredRecord[]>;
   get(kind: SyncKind, id: string): Promise<StoredRecord | null>;
+  /** Whole records for several ids of one kind, in one request, bodies as stored (externalized
+   *  assets still referenced, not restored). An id the backend no longer holds is simply absent.
+   *  Required of a provider whose list() returns summaries. */
+  getMany?(kind: SyncKind, ids: string[]): Promise<StoredRecord[]>;
   put(record: StoredRecord): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
 }

@@ -25,6 +25,7 @@
 // capability the operator does not already have.
 
 import { getSupabase } from '../backend/supabase';
+import { rpcFailure } from './failedSends';
 
 /** The owner's own data key for a production, or null (not published, no backend, not owner). */
 export async function productionDataKey(showId: string): Promise<string | null> {
@@ -102,8 +103,8 @@ export async function patchProductionDataBySlug(
 ): Promise<Record<string, unknown>> {
   const sb = await getSupabase();
   if (!sb) throw new Error('This production is not connected to a backend.');
-  const { data, error } = await sb.rpc('control_data_patch_by_slug', { p_slug: slug, p_patch: patch });
-  if (error) throw new Error(error.message);
+  const { data, error, status } = await sb.rpc('control_data_patch_by_slug', { p_slug: slug, p_patch: patch });
+  if (error) throw rpcFailure('control_data_patch_by_slug', error, status);
   return ((data as { data?: Record<string, unknown> } | null)?.data ?? {});
 }
 

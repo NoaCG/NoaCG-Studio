@@ -13,10 +13,15 @@ each asset in turn, one record after another. So the defect #442 fixed for plain
 there for records with assets: about 130 of them at a 200 ms round trip is about 30 seconds on
 every new device, and the sync indicator stays on "Syncing" the whole time.
 
+**Update 2026-09-29.** `list()` now returns summaries without bodies (a pass listing whole bodies
+was the heaviest load on the database when it restarted that day), and `getMany()` fetches the
+rows a pass pulls twenty to a request, bodies as stored. A record holding a Storage reference
+still takes `remote.get()` as described above.
+
 ## What it would take
 
-- Rehydrate the listed body instead of fetching the row again, for example a provider method that
-  runs `rehydrateAssets` on a record `list()` returned (a no-op for the local provider).
+- Rehydrate the fetched body instead of fetching the row again, for example a provider method
+  that runs `rehydrateAssets` on a record `getMany()` returned (a no-op for the local provider).
 - Download each storage key once per pass, and hydrate records with small bounded concurrency
   rather than strictly in sequence.
 - Extend test 18 in `e2e/sync.spec.ts` to pin it, and compare per-spec durations against staging

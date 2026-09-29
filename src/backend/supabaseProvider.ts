@@ -6,9 +6,15 @@
 // insert; RLS restricts every row to its owner, so one user can never read or write another's rows.
 //
 // Assets (Era 5.2b): embedded fonts/images are externalized to the `user-assets` Storage bucket on
-// put() and restored on get(), so cloud rows stay small (see assets.ts). list() intentionally does
-// NOT rehydrate — it returns cheap sentinel bodies, because the sync engine only needs each record's
-// timestamp to reconcile; the full asset bytes are fetched via get() only for records actually pulled.
+// put() and restored on get(), so cloud rows stay small (see assets.ts).
+//
+// list() returns SUMMARIES, not bodies. Reconciling reads each record's timestamp and nothing else,
+// and every pass lists every kind, so a list that carried bodies downloaded the whole library each
+// time: 19 MB of graphics and 9 MB of productions for one account on 2026-09-29, 4 to 18 seconds of
+// database time per graphic list, a pass scheduled 2.5 s after every edit in every open tab. Those
+// lists were timing out when the production database stopped answering and restarted (06:39-06:45
+// UTC), and every Take sent in that window failed. The same summary query takes 45 ms and 23 KB
+// against 666 ms and 19 MB for the bodies. getMany() fetches whole rows for what a pass pulls.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
@@ -26,6 +32,14 @@ interface DocumentRow {
   name: string;
   body: unknown;
   deleted: boolean;
+}
+
+/** A row as list() reads it: the body's own `updatedAt`, so the summary's version is derived by the
+ *  same rule as a whole record's (`bodyUpdatedAt`), and never the server's write time. */
+interface SummaryRow {
+  id: string;
+  deleted: boolean;
+  updatedAt: unknown;
 }
 
 export interface SupabaseProviderOptions {
@@ -63,11 +77,23 @@ export class SupabaseProvider implements StorageProvider {
   async list(kind: SyncKind): Promise<StoredRecord[]> {
     const sb = await this.client();
     // RLS scopes this to the signed-in user's rows. Tombstones (deleted=true) are included so the
-    // sync engine can propagate remote deletes. Bodies keep their Storage sentinels here (cheap).
-    const { data, error } = await sb.from(TABLE).select('id, kind, name, body, deleted').eq('kind', kind);
+    // sync engine can propagate remote deletes.
+    const { data, error } = await sb.from(TABLE).select('id, deleted, updatedAt:body->updatedAt').eq('kind', kind);
     if (error) throw new Error(`Cloud list(${kind}) failed: ${error.message}`);
-    const rows = (data ?? []) as DocumentRow[];
-    return rows.map((row) => toStoredRecord(kind, row.id, row.body));
+    const rows = (data ?? []) as SummaryRow[];
+    return rows.map((row) => ({
+      ...toStoredRecord(kind, row.id, { updatedAt: row.updatedAt, deleted: row.deleted }),
+      summary: true as const,
+    }));
+  }
+
+  async getMany(kind: SyncKind, ids: string[]): Promise<StoredRecord[]> {
+    const sb = await this.client();
+    const { data, error } = await sb.from(TABLE).select('id, kind, name, body, deleted').eq('kind', kind).in('id', ids);
+    if (error) throw new Error(`Cloud get(${kind}) failed: ${error.message}`);
+    // Not rehydrated: the engine restores a record's assets through get() as it applies it, one
+    // record at a time, so a large pull never holds every asset at once.
+    return ((data ?? []) as DocumentRow[]).map((row) => toStoredRecord(kind, row.id, row.body));
   }
 
   async get(kind: SyncKind, id: string): Promise<StoredRecord | null> {
