@@ -1567,6 +1567,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
   /** A row clicked in the rundown. With shift, the range runs from the cursor to it and nothing else
    *  moves: not the cursor, not PREVIEW, not what SPACE takes. */
+  /** Cue ids in the order the rundown plays them. */
+  const inRundownOrder = (ids: Iterable<string>) => [...ids].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0));
   const clickRow = (row: RundownRow, shift: boolean, toggle = false) => {
     if (shift) {
       setRangeIds(rangeCueIds(rundown, cursorRow, row.id));
@@ -1585,7 +1587,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           if (all) set.delete(id);
           else set.add(id);
         }
-        return [...set].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0));
+        return inRundownOrder(set);
       });
       setRangeEnd(row.id);
       return;
@@ -2563,7 +2565,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** The cues an edit takes: the selection, else the held folder's cues, else the cursor's cue. */
   const editIds = (): string[] =>
-    range.size ? [...range].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)) : selectedFolder ? heldMembers.map((c) => c.id) : selectedCue ? [selectedCue.id] : [];
+    range.size ? inRundownOrder(range) : selectedFolder ? heldMembers.map((c) => c.id) : selectedCue ? [selectedCue.id] : [];
   /** Where a paste lands: after the cursor's cue, joining its folder; last in a held folder; at the end. */
   const pastePlace = (): Place => (selectedFolder ? { into: selectedFolder.id } : selectedCue ? { after: selectedCue.id } : { end: true });
   /** Paste a clip at a place, one write; what landed becomes the selection. */
@@ -2581,7 +2583,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   const duplicateCues = async (ids: readonly string[]) => {
     const copies = copyClip(freshShow(), ids, (label) => `${label} copy`);
-    const last = [...ids].sort((a, b) => (rundown.indexOf.get(a) ?? 0) - (rundown.indexOf.get(b) ?? 0)).pop();
+    const last = inRundownOrder(ids).pop();
     if (copies && last) await pasteAt(copies, { after: last }, 'The copies were not saved');
   };
   const takeOutOfFolders = async (ids: readonly string[]) => {
