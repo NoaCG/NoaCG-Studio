@@ -6,14 +6,13 @@
       "since": "2026-09-29",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/36543147142"
-    },
-    "e2e/import-svg.spec.ts": {
-      "since": "2026-09-29",
-      "count": 2,
-      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/36578292146"
     }
   },
   "released": {
+    "e2e/import-svg.spec.ts": {
+      "count": 2,
+      "last": "2026-09-29"
+    },
     "e2e/wizard-shell.spec.ts": {
       "count": 1,
       "last": "2026-09-29"
