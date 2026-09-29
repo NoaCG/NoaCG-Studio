@@ -38,15 +38,20 @@ row's empty worktree is launch infrastructure, not permission to edit or adopt s
 A Claude Agent's existing isolation mechanism stays as-is. A native Codex subagent needs absolute
 paths and every command's cwd set to its assignment; its tool does not itself provide isolation.
 
-Record the returned launch identity with the existing ledger before launching another row:
+Record each launch BEFORE starting its row, with a worker ID that names this attempt alone (a
+relaunch gets a new one; the ledger refuses a reused ID):
 
-    node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <size> --plan <plan> --host <host> --worker-id <id> --worktree <absolute-path> --result-path <absolute-path>
+    node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <size> --plan <plan> --host <host> --worker-id <id> [--worktree <absolute-path>] [--result-path <absolute-path>]
 
-Send the returned ID to its worker. From its assigned checkout it reports meaningful transitions:
+Pass `--worktree` only when the launcher made it before the start (native Codex or CLI). The Claude
+Agent tool creates its worktree after the call, so omit it there; recording after the call instead
+races the row's first report, a race row K lost on 2026-09-26.
+Put the ID in the row's prompt. From its checkout it reports meaningful transitions:
 
     node scripts/wave-launch.mjs progress --worker-id <id> --state <running|ready|verifying|failed> --next-action <one-line-action> [--blocker <one-line-reason>]
 
-The command pins the current SHA and checks the recorded worktree/attempt. A report is a claim,
+The command finds the launch by worker ID, pins the current SHA, refuses a replaced attempt and
+checks a recorded worktree; each report keeps its checkout. A report is a claim,
 not a gate verdict or proof of liveness. Jobs and GitHub still own verification and landing.
 Only one coordinator owns a wave. A fresh/resumed master starts with
 `node scripts/wave-recover.mjs --plan <plan> --json`: plan rows, identities, current refs, jobs,

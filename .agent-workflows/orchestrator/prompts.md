@@ -22,7 +22,7 @@ CORE   The coherent outcome that must stand on its own; optional tail only if ti
        Investigate, choose implementation, verify and repair within TOUCHES.
 TRAPS  only what is written in no repo file
 GATE   npm run build and the necessary focused checks. Commit the verified outcome; queueing starts CI.
-       Report state changes via wave-launch progress with the returned worker ID (hosts.md).
+       Report state changes via wave-launch progress with the worker ID given here (hosts.md).
 QUEUE  Then, as your LAST THREE actions and in this order:
        1. run /check (review, simplify, verify) on the branch - name each leg's mode;
        2. commit and queue only what is green and stands on its own. ONLY if meaningful work is

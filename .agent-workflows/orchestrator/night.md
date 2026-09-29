@@ -141,8 +141,9 @@ Each tick, in this order, and nothing else:
    free (a candidate naming e2e specs is taken to need it, held while a running row holds it) AND
    whose size still FITS the window (`wave-horizon`). A held unit carries its reason. Launch the
    pick exactly like a planned row (its own worktree, its own queue, its own handoff), record
-   the start with `node scripts/wave-launch.mjs record --letter <L> --branch <b> --size <size>` so
-   the horizon learns, and append the launch and its traced why to the wave-state file. A refill
+   the start first with `wave-launch.mjs record` and the identity fields in `hosts.md` so the
+   horizon learns and the row can report, and append the launch and its traced why to the
+   wave-state file. A refill
    unit is a **frontier row the loop launches under the WHY chain**: its why traces to a `(now)` outcome in
    GOALS, an owner receipt or the wave's goals, or it is a candidate row in the report,
    never a launch. **The bound is the HORIZON and the report, not a count.** The handoff
