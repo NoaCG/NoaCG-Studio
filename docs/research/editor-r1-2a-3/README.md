@@ -37,8 +37,12 @@ after crossing that Next cue (300, then the moved rest to 500 at 0.4 s, then -90
 - `next()` pressed during or after that Out plays the Next cue: its first keys jump in and its
   bars reveal its layers while the exit runs.
 
-The browser reproduction in the simulator and every export is the new spec queued on the
-unmodified code (receipt below).
+The browser reproduction in the simulator, every export and the editor is the new spec queued
+on the unmodified code (`j-2394`, receipt below): parked after In, #box x jumps from 0 to 300 when
+Out is pressed and reaches 509 where the interrupted policy gives 6; parked after Step 2, #title y
+jumps from 0 to Step 3's -50; next() after Out starts a Next cue; the editor's Out plays the same
+jump (it equals the simulator and misses the policy by 498 px). The last-step, 40%-interrupted and
+machine scenarios already passed in all five.
 
 ## Decisions
 
@@ -152,9 +156,10 @@ were refuted and 11 stood.
   the Node test did not assert that bars stay off during the interrupted exit (a mutation survived);
   the test models read a zero-time Out track as its first key throughout; the editor test covered
   one earlier flag; this receipt was empty while the plans called the phase verified.
-- Recorded rather than changed: machine graphics keep their exit (see Decisions and the owner item
-  below), and the owner-queue item carries `answered: true` as the brief asked, with `done: true` so
-  it is never presented again.
+- Recorded rather than changed: machine graphics keep their exit (see Decisions; the Quiz taste
+  frames show its Out from the Question state reveals nothing, so no owner item is filed), and
+  the owner-queue item carries `answered: true` as the brief asked, with `done: true` so it is
+  never presented again.
 - Refuted: next() after a snap to the off state (nothing becomes visible, as on a fresh load),
   repeated stop() in two category scaffolds (older, outside this change), a video render that skips
   Next cues (nothing in the product sets `stepsToPlay`), an In edit refused on a customised R1.2a.2
@@ -170,3 +175,47 @@ parallel module loads, one Out-cue index in the bridge, and one walk per design 
 above. Skipped: one model shared by the Node test and the spec (a shared `e2e/_*.ts` helper widens
 the affected run to the whole suite), parallel scenario pages, a lighter page than the editor for
 export-only tests, and rewording the interpreter's span-time expression (text churn only).
+
+## Verification receipt
+
+- Reproduction first: the Node probe above, `scripts/out-step.test.mjs` on the unmodified code
+  (the earlier-step, next-after-Out and upgrade tests failed; last step, interrupted, machine and
+  off-air passed), then `j-2393` and `j-2394`, the new browser spec on the unmodified code (numbers
+  above; the first run also exposed two harness faults, OGraf's step count and an unawaited
+  single-file build, fixed before `j-2394`).
+- Node (build gate): `scripts/out-step.test.mjs`, 8 tests. Nine mutations each fail it: no
+  earlier-step rule, the last step counted as earlier, machines included, off air included, next()
+  after Out allowed, a wrong recorded hash, the hash left out of the known bodies, no Out bar end
+  state in an interrupted exit, and every Out bar applied during it.
+- Browser, first implementation: `j-2395`, the 8 new tests passed in the simulator, SPX, CasparCG,
+  OGraf and single-file exports and the editor. `j-2396` (browser mutations): allowing next() after
+  Out failed the Next check in all five targets, and including machines failed the machine test in
+  the simulator and OGraf by 503.5 px. `j-2397`: the editor regressions with the new spec, 171
+  passed, 20 configured old-editor skips. `j-2398`: the full affected run (61 spec files) with 3
+  workers, 473 passed, 244 configured skips, none failed; catalog calibration 35/35; "Overall:
+  passed".
+- After review, fixes and simplification (tip `db3a7e904`): `j-2436`, the editor regressions with
+  the new spec, 173 passed, 20 configured skips, none failed. `j-2451` (browser mutations of the
+  editor fixes): reading flags exactly again failed Edit Out by 211 px and the speed-1 last flag by
+  210 px, and dropping the Out-preview guard let the key edit through; all three tests failed as
+  intended. `j-2452`: `npm run build` exited 0 with 2,088 Node tests (none failed) and the
+  TypeScript, lint, dependency, bundle, prerender and after-build gates green.
+- Catalog: `check-catalog-emit` re-recorded exactly 528 JS fingerprints and no HTML or CSS row,
+  twice (the rule, then the review fixes).
+- `j-2453`, the catalog battery against this worktree's own dev server (checked before every
+  sweep): type-floor 526 variants, overflow 528 with no regression against its baseline, field
+  coverage 526 (105 variants undriven, as before), numerals 349, catalog specs 35 plus 4 baseline
+  tests, and factory 317/317 with all candidates passing. Its hold, long and step frames for lt01
+  and qz02 are byte-identical to R1.2a.2's. Its Out frames were not: they equalled the frame Out
+  was pressed from, because the new `--out` option froze the exit after a freeze had paused GSAP's
+  global timeline, where the exit's `gsap.set` writes queue unrendered. Reproduced in the browser
+  pane on lt01 (every seek of the exit left `#f0` at 0) and fixed by resuming the global timeline
+  before Out and each seek, as `__next` already did (`#f0` then reads 9.06 at 25% and 110 at 60%).
+  The product never pauses that timeline around an Out (only the video composition driver pauses
+  it, for its own timelines).
+- `j-2489`: the [taste frames](taste/) again with the fix (32 rendered; 14 kept here). All were
+  opened. card26 (five cues, rows revealed one per Next): Out from the hold and from Step 2, both
+  earlier steps, moves only the heading and the rows already on screen, shows no unreached row, and
+  leaves only the accent rule at 60%; Out from the last step lifts all four rows in their stagger.
+  qz02 (a machine graphic, unchanged): Out from the Question state fades and lifts the board and
+  never shows the amber answer. lt01 (In and Out only): the name drops out behind its mask as before.

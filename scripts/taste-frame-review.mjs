@@ -208,6 +208,9 @@ const index = await page.evaluate(async ({ settleMs, floorMs }) => {
   window.__out = async (fraction) => {
     const win = document.querySelector('#taste-stage iframe').contentWindow;
     if (typeof win.noacgOutActive !== 'function' || typeof win.stop !== 'function') return false;
+    // The exit writes through gsap.set, which a paused global timeline (the last freeze) would
+    // queue unrendered, so resume it before pressing Out or seeking; freeze pauses it again.
+    win.gsap?.globalTimeline?.resume();
     if (!win.noacgOutActive()) win.stop();
     if (!win.noacgOutActive()) return false;
     const exit = win.buildOutTimeline();
