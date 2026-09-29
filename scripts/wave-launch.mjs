@@ -74,11 +74,23 @@ export function currentProgress(launches, reports, branches) {
 }
 
 /** A worker reports an outcome in the same ledger as its launch. This is a claim with a SHA,
- * not verification or permission to land. An old attempt cannot report for a replacement. */
-export function recordProgress(dir, { branch, worktree, workerId, sha, state, nextAction, blocker = null, now = Date.now() }) {
-  const launch = readLaunches(dir).filter((row) => row.branch === branch).sort((a, b) => b.at - a.at)[0];
-  if (launch?.v !== LEDGER_VERSION || !launch?.workerId || launch.workerId !== workerId || !launch.worktree || !samePath(launch.worktree, worktree)) {
-    throw new Error('progress needs the current launch worker ID and assigned worktree');
+ * not verification or permission to land. An old attempt cannot report for a replacement.
+ *
+ * The WORKER ID finds the launch, because it is the one identity a coordinator knows before the
+ * row starts. The worktree is not: the Claude Agent tool creates it after the call, so a launch
+ * recorded first carries none. Matching on the worktree and the checkout's branch refused every
+ * report from the Agent-tool rows of 2026-09-26 and 2026-09-28. A recorded worktree still binds.
+ * Without one, the report keeps its checkout beside it. */
+export function recordProgress(dir, { worktree, workerId, sha, state, nextAction, blocker = null, now = Date.now() }) {
+  const launches = readLaunches(dir);
+  const newest = (rows) => rows.sort((a, b) => b.at - a.at)[0];
+  const launch = workerId ? newest(launches.filter((row) => row.v === LEDGER_VERSION && row.workerId === workerId)) : undefined;
+  if (!launch) throw new Error(`no launch is recorded for worker ID ${workerId ?? '(none)'}; the coordinator records it before starting the row`);
+  if (newest(launches.filter((row) => row.branch === launch.branch)) !== launch) {
+    throw new Error(`worker ${workerId} was replaced by a later launch of ${launch.branch}; an old attempt cannot report for it`);
+  }
+  if (launch.worktree && !samePath(launch.worktree, worktree)) {
+    throw new Error(`the launch of worker ${workerId} names worktree ${launch.worktree}, and this report runs in ${worktree}`);
   }
   if (!/^[a-f0-9]{40}$/.test(sha ?? '')) throw new Error('progress needs a full SHA');
   if (!['running', 'ready', 'verifying', 'failed'].includes(state)) throw new Error('progress state must be running, ready, verifying or failed');
@@ -87,7 +99,7 @@ export function recordProgress(dir, { branch, worktree, workerId, sha, state, ne
     if (value != null && (typeof value !== 'string' || value.length > 1000 || /[\r\n]/.test(value))) throw new Error('progress text must be one line, at most 1000 characters');
   }
   if (!Number.isFinite(now) || now < launch.at) throw new Error('progress timestamp precedes launch');
-  const row = { v: LEDGER_VERSION, type: 'progress', branch, at: now, launchAt: launch.at, workerId, sha, state, nextAction, blocker };
+  const row = { v: LEDGER_VERSION, type: 'progress', branch: launch.branch, at: now, launchAt: launch.at, workerId, worktree, sha, state, nextAction, blocker };
   appendFileSync(ledgerPath(dir), `${JSON.stringify(row)}\n`, 'utf8');
   return row;
 }
@@ -107,6 +119,9 @@ export function recordLaunch(dir, { letter, branch, size, plan = null, host, wor
       row[key] = value;
     }
   }
+  // Progress finds its launch by worker ID, so one ID names one attempt: a relaunch gets a new one.
+  const taken = workerId !== undefined && readLaunches(dir).find((earlier) => earlier.workerId === workerId);
+  if (taken) throw new Error(`worker ID ${workerId} already names the launch of ${taken.branch}; give each attempt its own ID`);
   appendFileSync(ledgerPath(dir), `${JSON.stringify(row)}\n`, 'utf8');
   return row;
 }
@@ -184,10 +199,10 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   const json = argv.includes('--json');
   if (command === 'progress') {
     try {
-      const branch = git(['branch', '--show-current'], process.cwd());
+      const root = git(['rev-parse', '--show-toplevel'], process.cwd());
       const head = git(['rev-parse', 'HEAD'], process.cwd());
-      if (!branch.ok || !head.ok) throw new Error('cannot identify worker checkout');
-      const row = recordProgress(dir, { branch: branch.stdout.trim(), worktree: process.cwd(),
+      if (!root.ok || !head.ok) throw new Error('cannot identify worker checkout');
+      const row = recordProgress(dir, { worktree: path.resolve(root.stdout.trim()),
         workerId: argValue(argv, '--worker-id'), sha: head.stdout.trim(), state: argValue(argv, '--state'),
         nextAction: argValue(argv, '--next-action'), blocker: argValue(argv, '--blocker'), now });
       process.stdout.write(`${JSON.stringify(row)}\n`); return 0;

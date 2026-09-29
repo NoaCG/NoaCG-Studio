@@ -93,11 +93,11 @@ test('a fresh reader reconstructs identity and deadline from files without any t
     assert.deepEqual(currentProgress(readLaunches(dir), readProgress(dir), { 'codex/a': { sha: 'b'.repeat(40) } }), {});
     assert.equal(recoverWave({ dir, plan, branches: input.branches }).rows[0].state, 'ready');
     assert.equal(recoverWave({ dir, plan, branches: { 'codex/a': { sha: 'b'.repeat(40) } } }).rows[0].state, 'unknown');
-    assert.throws(() => recordProgress(dir, { ...report, workerId: 'old-worker' }), /current launch/);
+    assert.throws(() => recordProgress(dir, { ...report, workerId: 'old-worker' }), /no launch is recorded/);
     recordLaunch(dir, { letter: 'A', branch: 'codex/a', size: 'small', plan, host: 'claude', workerId: 'replacement', worktree: dir, now: 3 });
     assert.deepEqual(currentProgress(readLaunches(dir), readProgress(dir), input.branches), {});
     assert.equal(recoverWave({ dir, plan, branches: input.branches }).rows[0].state, 'unknown');
-    assert.throws(() => recordProgress(dir, { ...report, now: 4 }), /current launch/);
+    assert.throws(() => recordProgress(dir, { ...report, now: 4 }), /replaced/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

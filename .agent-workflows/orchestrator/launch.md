@@ -12,9 +12,10 @@ same definitions with `--agent` (`hosts.md`). A Claude Code on the web coordinat
 section of `hosts.md` first: rows there start on a stale base, have no Agent tool (so no
 `design-consult`) and may lack GitHub tools.
 
-**Record every launch**, initial rows and refills alike, with
-`node scripts/wave-launch.mjs record` with letter, branch, size and the returned identity fields
-in `hosts.md`; pass the recorded worker ID back to the worker for progress reports.
+**Record every launch before its Agent call**, initial rows and refills alike, with
+`node scripts/wave-launch.mjs record` with letter, branch, size and the identity fields in
+`hosts.md` (no `--worktree`: the Agent tool has not made it yet); put the recorded worker ID in
+the row's prompt for its progress reports.
 It is one appended ledger line, and it is the only place a row's launch-to-queued time is written -
 the number `wave-horizon.mjs` reads to decide whether another unit still fits the night. A launch
 nobody records is a night the horizon cannot learn from, so the seed never improves.
