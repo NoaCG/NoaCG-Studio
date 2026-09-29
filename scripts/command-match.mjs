@@ -554,7 +554,7 @@ export function pollsQueue(text) {
  * should not be guessing at. The narrow half is the one that is crisp, and it is the half a
  * session about to start work actually types.
  *
- * `git worktree add -b <branch> <path> main` is NOT a branch creation by this definition, and must
+ * `git worktree add -b <branch> <path> origin/main` is NOT a branch creation by this definition, and must
  * not be: it is the sanctioned recipe the refusal recommends, and the branch it makes is checked
  * out somewhere else. Only `checkout` and `switch` move the tree they run in.
  */

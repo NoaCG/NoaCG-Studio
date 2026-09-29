@@ -153,7 +153,8 @@ if (kind === 'primary checkout') {
       '"Git"), and everything that resolves per-checkout serves THIS one: preview_start starts ' +
       'the dev server on the port printed above, and the sweeps that need a running dev server ' +
       'look for it there. A worktree driven from here by absolute path gets the wrong server, ' +
-      'silently. To work on a branch: git worktree add -b <branch> .claude/worktrees/<name> main, ' +
+      'silently. To work on a branch: git fetch origin, then git worktree add -b <branch> ' +
+      '.claude/worktrees/<name> origin/main (local main lags, since landings reach origin only), ' +
       'then start the session in that folder.',
   );
 }
