@@ -341,6 +341,11 @@ test('a lock_timeout of zero, or longer than 5 s, is a queue again', () => {
   assert.deepEqual(timeoutIds('0068', "set lock_timeout = '5s';\nset statement_timeout = '30s';\n" + ALTER), []);
 });
 
+test('a statement_timeout of zero is no bound, so it is refused too', () => {
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '2s';\nset statement_timeout = 0;\n" + ALTER), ['timeouts']);
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '2s';\nset statement_timeout = default;\n" + ALTER), ['timeouts']);
+});
+
 test('migrations before 0068 are exempt: they are applied everywhere already', () => {
   assert.equal(FIRST_TIMED_MIGRATION, '0068');
   assert.deepEqual(timeoutIds('0067', ALTER), []);
@@ -370,6 +375,8 @@ test('a lock timeout is recognised, and names the file that could not get its lo
 test('any other failure is not a lock timeout, so it is not retried', () => {
   assert.equal(lockTimeoutFailure('ERROR: column "x" of relation "y" already exists (SQLSTATE 42701)\nApplying migration 0068_x.sql...'), null);
   assert.equal(lockTimeoutFailure('ERROR: canceling statement due to statement timeout (SQLSTATE 57014)'), null);
+  // The CLI echoes the failing statement; a comment in it is not the server's answer.
+  assert.equal(lockTimeoutFailure('ERROR: syntax error (SQLSTATE 42601)\n-- retried on a lock timeout\nalter tabel x'), null);
 });
 
 test('a lock timeout is retried a bounded number of times', () => {

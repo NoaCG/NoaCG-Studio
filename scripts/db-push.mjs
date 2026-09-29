@@ -560,6 +560,9 @@ function missingTimeouts(version, statements) {
     problems.push(`sets lock_timeout = '${set.lock_timeout}', and anything but 1ms to ${MAX_LOCK_TIMEOUT_MS / 1000}s lets a statement queue behind a reader with every Take behind it`);
   }
   if (set.statement_timeout === undefined) problems.push('sets no statement_timeout before its first statement');
+  else if (!timeoutMs(set.statement_timeout)) {
+    problems.push(`sets statement_timeout = '${set.statement_timeout}', which is no bound at all; a long backfill states how long instead`);
+  }
   if (!problems.length) return null;
   return {
     id: 'timeouts',
@@ -737,7 +740,9 @@ function runSupabase(args, token, { capture = false } = {}) {
  * the files before it did, with their ledger rows. Running the same push again later is the fix.
  */
 export function lockTimeoutFailure(output) {
-  if (!/SQLSTATE 55P03|lock timeout/i.test(output)) return null;
+  // The server's words only: the CLI also echoes the failing statement, and a migration's own text
+  // may mention a lock timeout.
+  if (!/SQLSTATE 55P03|canceling statement due to lock timeout/.test(output)) return null;
   const applying = [...output.matchAll(/Applying migration (\S+?\.sql)/g)];
   return { file: applying.length ? applying[applying.length - 1][1] : 'a pending migration' };
 }

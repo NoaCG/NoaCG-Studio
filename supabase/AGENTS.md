@@ -162,7 +162,8 @@ lock indefinitely. Each file runs in one transaction, so a `set` at its top cove
 file, on every route that runs it (`FIRST_TIMED_MIGRATION` in `scripts/db-push.mjs` has the rest).
 
 **Enforced twice.** `scripts/db-push.test.mjs` fails the build for a migration without both
-settings before its first statement, or with a `lock_timeout` of zero or above the cap; `db:push`
+settings before its first statement, with a `lock_timeout` of zero or above the cap, or with an
+unbounded `statement_timeout`; `db:push`
 refuses the same file after the landing, overridable with `--allow NNNN` like any refusal.
 
 **The override for a long migration** is a longer `statement_timeout`, set in the file where the
