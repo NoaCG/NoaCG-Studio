@@ -158,7 +158,7 @@ test('freshness says so when origin cannot be reached, and moves nothing', () =>
 
 function cloudClone() {
   const { base, origin, primary, worktree } = staleWorktree();
-  run(worktree, 'worktree', 'remove', '--force', worktree);
+  run(primary, 'worktree', 'remove', '--force', worktree);
   run(primary, 'config', 'user.email', 'test@example.com');
   run(primary, 'config', 'user.name', 'test');
   run(primary, 'checkout', '-q', '-b', 'claude/row');
