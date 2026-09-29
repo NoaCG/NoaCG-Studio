@@ -21,8 +21,9 @@ import {
 export interface LivePresenceView {
   status: LivePresenceStatus;
   peers: LiveEntry[];
-  /** Has an output been listed since this page joined? (`describeOutputHealth` says why.) */
-  sawOutput: boolean;
+  /** When the listed outputs last went from some to none, on this page's clock
+   *  (`describeOutputHealth` says why). */
+  outputLeftAt: number | null;
 }
 
 /**
@@ -35,7 +36,7 @@ export function useLivePresence(
   surface: 'production' | 'hosted',
   roads: { log: boolean | null; cmd: boolean | null },
 ): LivePresenceView {
-  const [view, setView] = useState<LivePresenceView>({ status: 'off', peers: [], sawOutput: false });
+  const [view, setView] = useState<LivePresenceView>({ status: 'off', peers: [], outputLeftAt: null });
   const roadsRef = useRef(roads);
   const presenceRef = useRef<LivePresence | null>(null);
 
@@ -56,7 +57,11 @@ export function useLivePresence(
         stats: senderCounters(),
       }),
       onPeers: (peers) =>
-        setView((v) => ({ ...v, peers, sawOutput: v.sawOutput || peers.some((p) => p.kind === 'output') })),
+        setView((v) => {
+          const had = v.peers.some((p) => p.kind === 'output');
+          const has = peers.some((p) => p.kind === 'output');
+          return { ...v, peers, outputLeftAt: has ? null : had ? Date.now() : v.outputLeftAt };
+        }),
       onStatus: (status) => setView((v) => ({ ...v, status })),
     });
     presenceRef.current = presence;
@@ -65,7 +70,7 @@ export function useLivePresence(
       stopCounting();
       presence.close();
       presenceRef.current = null;
-      setView({ status: 'off', peers: [], sawOutput: false });
+      setView({ status: 'off', peers: [], outputLeftAt: null });
     };
   }, [showId, surface]);
 
@@ -82,6 +87,7 @@ export function OutputHealthLine({
   presence,
   seenAt,
   heartbeatLive,
+  seenReadAt,
   known,
   now,
   testId = 'output-health',
@@ -91,6 +97,8 @@ export function OutputHealthLine({
   seenAt: string | null;
   /** True when `seenAt` is re-read while the page is open; false when it is the resolve's value. */
   heartbeatLive: boolean;
+  /** When a never-re-read `seenAt` was read (the hosted page's open time). */
+  seenReadAt?: number;
   /** The operator has taken the output URL, so there is an output worth asking about. */
   known?: boolean;
   now: number;
@@ -99,7 +107,8 @@ export function OutputHealthLine({
   const health = describeOutputHealth({
     presence: presence.status,
     peers: presence.peers,
-    sawOutput: presence.sawOutput,
+    outputLeftAt: presence.outputLeftAt,
+    seenReadAt,
     seenAt,
     heartbeatLive,
     known,

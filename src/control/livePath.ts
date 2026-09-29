@@ -97,7 +97,17 @@ export function hostEngine(
   ua: string = typeof navigator === 'undefined' ? '' : navigator.userAgent,
   win: object = typeof window === 'undefined' ? {} : window,
 ): string {
-  const host = win as { obsstudio?: unknown; caspar?: unknown; casparcg?: unknown };
+  type Marked = { obsstudio?: unknown; caspar?: unknown; casparcg?: unknown; top?: unknown };
+  let host = win as Marked;
+  // Loaded through the output embed (export/outputEmbed.ts) this page is a frame inside the page
+  // the host loaded, and the host may mark only its own top frame. The embed is cross-origin, where
+  // reading the top frame throws: then this frame's own markers are all there is.
+  try {
+    const top = host.top as Marked | undefined;
+    if (top && top !== win && !host.obsstudio && !host.caspar && (top.obsstudio || top.caspar || top.casparcg)) host = top;
+  } catch {
+    // cross-origin top frame
+  }
   const chromium = /(?:HeadlessChrome|Chromium|Chrome)\/(\d+)/.exec(ua);
   const cr = chromium ? `Chromium ${chromium[1]}` : null;
   const embedded = (name: string) => (cr ? `${name} · ${cr}` : name);
@@ -442,7 +452,9 @@ export function joinLivePresence(opts: {
     void ch.track(entry).then((answer) => {
       // Not accepted (a server that allows the join but not the track): try again on the next
       // change rather than believing it was sent.
-      if (answer !== 'ok') lastSent = '';
+      if (answer === 'ok' || closed) return;
+      lastSent = '';
+      setTimeout(touch, RETRY_FIRST_MS);
     });
   };
   const touch = () => {
@@ -490,9 +502,10 @@ export function joinLivePresence(opts: {
       }
       joined = false;
       opts.onStatus?.('down');
-      // Once joined, supabase-js rejoins by itself after a dropped socket. A join that never
-      // succeeded is left alone for a while instead (see RETRY_FIRST_MS).
-      if (everJoined || status === 'CLOSED') return;
+      // Once joined, supabase-js rejoins by itself after an error or a timeout. It does not after
+      // the server CLOSES the channel, and a join that never succeeded is left alone for a while
+      // instead of its own quick loop (see RETRY_FIRST_MS): both are asked again from scratch.
+      if (everJoined && status !== 'CLOSED') return;
       channel = null;
       void sb.removeChannel(ch);
       retryTimer = setTimeout(() => void open(), retryMs);
@@ -545,7 +558,9 @@ function enginesOf(outputs: LiveEntry[]): string {
   return [...new Set(names.map((n) => n.split(' · ')[0]))].join(', ');
 }
 
-function describeOutput(o: LiveEntry, now: number): string {
+/** One output, for the tooltip. No age: an entry is on the topic exactly while its page is
+ *  connected, so "connected" is already the freshness, and a quiet output re-sends nothing. */
+function describeOutput(o: LiveEntry): string {
   const stats = o.stats as Partial<LiveSummary> | undefined;
   const lat = stats?.lat;
   const p50 = lat ? ROADS.map((r) => lat[r]?.p50).find((v) => typeof v === 'number') : undefined;
@@ -555,13 +570,31 @@ function describeOutput(o: LiveEntry, now: number): string {
       : o.cmd === false
         ? 'fast road not joined: commands come by the log, a few hundred ms slower'
         : 'following live';
-  const age = o.at ? Math.max(0, Math.round((now - o.at) / 1000)) : null;
   return (
-    `${o.engine}${o.build ? `, build ${o.build}` : ''}: connected, ${roads}` +
-    `${typeof p50 === 'number' ? `, press to screen about ${p50} ms` : ''}` +
-    `${age !== null ? ` (reported ${age} s ago)` : ''}.`
+    `${o.engine}${o.build ? `, build ${o.build}` : ''}: connected now, ${roads}` +
+    `${typeof p50 === 'number' ? `, press to screen about ${p50} ms` : ''}.`
   );
 }
+
+/**
+ * The outputs among the peers, ONE PER INSTANCE, the newest entry winning. A reloaded browser
+ * source keeps its instance id (session storage), and a page that was on the topic before the
+ * reload can hold the old entry beside the new one for a while (seen on the preview branch: the
+ * dashboard read "2 outputs" for one renderer reloaded 20 s earlier). One id is one renderer.
+ */
+function oneEntryPerOutput(peers: LiveEntry[]): LiveEntry[] {
+  const byId = new Map<string, LiveEntry>();
+  for (const p of peers) {
+    if (p.kind !== 'output') continue;
+    const held = byId.get(p.id);
+    if (!held || p.at > held.at) byId.set(p.id, p);
+  }
+  return [...byId.values()];
+}
+
+/** A heartbeat this much after the last announced output left counts as a new one, not that
+ *  output's last beat: it allows for the two clocks it is compared across. */
+const LEFT_MARGIN_MS = 5000;
 
 /**
  * THE HEALTH LINE, decided once for both surfaces.
@@ -576,6 +609,14 @@ function describeOutput(o: LiveEntry, now: number): string {
  * `known` is the production page's own "the operator has taken the output URL"; nothing is said
  * until either that or some renderer has reported in, because a production played through the
  * Bridge alone has no output to ask about.
+ *
+ * ONE CASE PRESENCE CANNOT SEE FOR ITSELF, and it is the one §5.6 measured: an output whose
+ * Realtime socket is down while REST works. Its Presence rides that same socket, so it is simply
+ * absent - but its heartbeat still lands. A fresh heartbeat with no output in Presence is therefore
+ * amber ("not on the live channel"), unless the heartbeat is only the last beat of an output that
+ * was just announced and left (`outputLeftAt`), which is what closing a browser source looks like.
+ * An output loaded before this build lands in the same amber, and reloading it is the right
+ * advice for both.
  */
 export function describeOutputHealth(input: {
   presence: LivePresenceStatus;
@@ -583,16 +624,20 @@ export function describeOutputHealth(input: {
   seenAt: string | null;
   heartbeatLive: boolean;
   known?: boolean;
-  /** Has this page's Presence listed an output since it joined? */
-  sawOutput?: boolean;
+  /** When this page's Presence last went from listing an output to listing none (this page's
+   *  clock), or null. */
+  outputLeftAt?: number | null;
+  /** When `seenAt` was read. For a heartbeat that is never re-read (the hosted page), freshness is
+   *  judged at that moment, not now: the value says nothing about now. Defaults to `now`. */
+  seenReadAt?: number;
   now: number;
 }): OutputHealth {
   const { now, seenAt } = input;
-  const outputs = input.presence === 'joined' ? input.peers.filter((p) => p.kind === 'output') : [];
+  const outputs = input.presence === 'joined' ? oneEntryPerOutput(input.peers) : [];
   if (outputs.length > 0) {
     const slow = outputs.filter((o) => o.log === false);
     const noFast = outputs.filter((o) => o.log !== false && o.cmd === false);
-    const detail = outputs.map((o) => describeOutput(o, now)).join('\n');
+    const detail = outputs.map((o) => describeOutput(o)).join('\n');
     const count = plural(outputs.length, 'output');
     if (slow.length > 0 || noFast.length > 0) {
       const late = slow.length > 0 ? 'commands may arrive up to 30 s late' : 'commands may arrive late';
@@ -618,19 +663,18 @@ export function describeOutputHealth(input: {
       show: true,
     };
   }
-  const fresh = seenAt ? now - Date.parse(seenAt) < OUTPUT_FRESH_MS : false;
+  const seenMs = seenAt ? Date.parse(seenAt) : NaN;
+  const judgedAt = input.heartbeatLive ? now : (input.seenReadAt ?? now);
+  const fresh = seenAt ? judgedAt - seenMs < OUTPUT_FRESH_MS : false;
   const show = !!seenAt || !!input.known;
   if (input.presence === 'joined') {
-    // Presence is the answer now, with one exception: an output loaded before this build does not
-    // announce itself, and its heartbeat is the only trace of it. That is believed only while no
-    // output has been seen in Presence since this page joined; otherwise a fresh heartbeat is more
-    // likely the output that just closed, and it would keep reading as connected for 90 s.
-    if (fresh && !input.sawOutput) {
+    const left = input.outputLeftAt ?? null;
+    if (fresh && (left === null || seenMs > left + LEFT_MARGIN_MS)) {
       return {
-        tone: 'ok',
-        label: '● output connected',
-        short: '● output',
-        why: 'An output is reporting in, but it is an older version that does not say which engine it runs or how commands reach it. Reload its browser source to see that here. What you take goes on air.',
+        tone: 'warn',
+        label: '▲ output not on the live channel · commands may arrive up to 30 s late',
+        short: '▲ output · late',
+        why: 'An output is reporting in over the web, but it is not on the live channel: either its Realtime connection is down, so what you take reaches it through the 30 s poll, or it was loaded before this version and cannot say. Check its network, or reload its browser source.',
         outputs: 1,
         source: 'heartbeat',
         show: true,

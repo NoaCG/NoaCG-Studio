@@ -211,6 +211,10 @@ test('an output says who it is and how commands reach it, and both operator page
     await output.close();
     await expect(hostedLine).toHaveAttribute('data-outputs', '0', { timeout: 30_000 });
     await expect(hostedLine).toContainText('no output connected');
+    // …on the dashboard too, which had heard that output since before its reload. (The refused
+    // output keeps beating over REST, so the dashboard may go on to say one is off the live
+    // channel; what it must not do is keep listing the closed one.)
+    await expect(page.getByTestId('renderer-status')).not.toContainText('Chrome', { timeout: 30_000 });
   }
 
   // Out, unpublish, and leave the throwaway account clean.

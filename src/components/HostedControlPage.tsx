@@ -1043,6 +1043,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           presence={livePresence}
           seenAt={show.outputSeenAt}
           heartbeatLive={false}
+          seenReadAt={openedAt}
           now={now}
           testId="hosted-output-health"
         />

@@ -141,7 +141,9 @@ async function boot(): Promise<void> {
   let presenceStatus: LivePresenceStatus = 'joining';
   const live = createLiveStats({
     onChange: () => {
-      dbg('live', describeLiveSummary(live.summary()));
+      // Built only where it is shown: the summary sorts its samples, and a playout box's main
+      // thread is the one that must not miss frames.
+      if (debug) dbg('live', describeLiveSummary(live.summary()));
       presence.touch();
     },
   });

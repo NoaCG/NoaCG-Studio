@@ -91,24 +91,34 @@ test('one health line: Presence when joined, the heartbeat otherwise, and amber 
     const seen = new Date(now - 30_000).toISOString();
     const pick = (h: ReturnType<typeof describeOutputHealth>) => ({ tone: h.tone, label: h.label, short: h.short, source: h.source, show: h.show });
     return {
+      // One renderer, reloaded: its old entry and its new one share an instance id.
+      reloaded: pick(describeOutputHealth({ presence: 'joined', peers: [output({ at: now - 30_000 }), output({})], seenAt: seen, heartbeatLive: true, now })),
       two: pick(describeOutputHealth({ presence: 'joined', peers: [output({}), output({ id: 'x', engine: 'CasparCG · Chromium 71' })], seenAt: seen, heartbeatLive: true, now })),
       poll: pick(describeOutputHealth({ presence: 'joined', peers: [output({ log: false })], seenAt: seen, heartbeatLive: false, now })),
       noFast: pick(describeOutputHealth({ presence: 'joined', peers: [output({ cmd: false })], seenAt: seen, heartbeatLive: false, now })),
-      closed: pick(describeOutputHealth({ presence: 'joined', peers: [], sawOutput: true, seenAt: seen, heartbeatLive: false, now })),
-      olderOutput: pick(describeOutputHealth({ presence: 'joined', peers: [], sawOutput: false, seenAt: seen, heartbeatLive: false, now })),
+      // The output closed after its last heartbeat: that beat is not a new one.
+      closed: pick(describeOutputHealth({ presence: 'joined', peers: [], outputLeftAt: now - 10_000, seenAt: seen, heartbeatLive: true, now })),
+      // Beating after it left Presence, or never in it: on the web, not on the live channel.
+      notLive: pick(describeOutputHealth({ presence: 'joined', peers: [], outputLeftAt: now - 60_000, seenAt: seen, heartbeatLive: true, now })),
+      neverAnnounced: pick(describeOutputHealth({ presence: 'joined', peers: [], outputLeftAt: null, seenAt: seen, heartbeatLive: true, now })),
       deskFallback: pick(describeOutputHealth({ presence: 'down', peers: [], seenAt: seen, heartbeatLive: true, now })),
       deskStale: pick(describeOutputHealth({ presence: 'off', peers: [], seenAt: new Date(now - 300_000).toISOString(), heartbeatLive: true, now })),
       deskNever: pick(describeOutputHealth({ presence: 'off', peers: [], seenAt: null, heartbeatLive: true, known: false, now })),
-      hostedSnapshot: pick(describeOutputHealth({ presence: 'down', peers: [], seenAt: seen, heartbeatLive: false, now })),
+      hostedSnapshot: pick(describeOutputHealth({ presence: 'down', peers: [], seenAt: seen, heartbeatLive: false, seenReadAt: now, now })),
+      // Ten minutes on, the snapshot still says what it said: it is judged when it was read.
+      hostedLater: pick(describeOutputHealth({ presence: 'down', peers: [], seenAt: seen, heartbeatLive: false, seenReadAt: now, now: now + 600_000 })),
     };
   });
+  expect(lines.reloaded).toMatchObject({ tone: 'ok', label: '● 1 output · OBS · Chromium 127' });
   expect(lines.two).toMatchObject({ tone: 'ok', label: '● 2 outputs · OBS, CasparCG', short: '● 2 outputs', source: 'presence' });
   expect(lines.poll).toMatchObject({ tone: 'warn', label: '▲ 1 output · commands may arrive up to 30 s late', short: '▲ 1 output · late' });
   expect(lines.noFast).toMatchObject({ tone: 'warn', label: '▲ 1 output · commands may arrive late' });
   expect(lines.closed).toMatchObject({ tone: 'idle', label: '○ no output connected', source: 'presence', show: true });
-  expect(lines.olderOutput).toMatchObject({ tone: 'ok', label: '● output connected', source: 'heartbeat' });
+  expect(lines.notLive).toMatchObject({ tone: 'warn', label: '▲ output not on the live channel · commands may arrive up to 30 s late', source: 'heartbeat' });
+  expect(lines.neverAnnounced).toMatchObject({ tone: 'warn', short: '▲ output · late' });
   expect(lines.deskFallback).toMatchObject({ tone: 'ok', label: '● output connected', source: 'heartbeat' });
   expect(lines.deskStale).toMatchObject({ tone: 'idle', label: '○ output not answering' });
   expect(lines.deskNever).toMatchObject({ show: false });
   expect(lines.hostedSnapshot).toMatchObject({ tone: 'idle', label: '○ output seen when this page opened', source: 'heartbeat' });
+  expect(lines.hostedLater).toEqual(lines.hostedSnapshot);
 });
