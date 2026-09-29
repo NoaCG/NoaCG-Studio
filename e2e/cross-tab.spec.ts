@@ -12,10 +12,11 @@
 // read-modify-WHOLE-RECORD write, so a change here can silently reintroduce one tab eating
 // another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
 // covers: {app.html,src/model/durableStore.ts,src/main.tsx,src/components/StorageHealthNotice.tsx}
+// covers: src/backend/syncController.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // CROSS-TAB SAFETY for the durable store (model/durableStore.ts).
 //
@@ -73,4 +74,42 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   // BOTH writes are in the database. Before the invalidation, `tables` came back 0.
   expect(survived.tables, 'the second tab’s table was overwritten by the first tab').toBe(1);
   expect(survived.cue).toBe('Renamed in the first tab');
+});
+
+// ONE LIBRARY SYNC PASS PER CHANGE (backend/syncController.ts). The tab that adopts another tab's
+// write raises `spx-data-changed` like any change, so its surfaces re-read, but marks it as
+// another tab's: library sync skips it, because the tab that wrote the change runs the pass. A
+// tab's OWN write must stay unmarked, or nothing would push it. The pass count itself needs a
+// signed-in account and is measured in e2e/configured/sync-one-pass-per-edit.spec.ts.
+test('an adopted write is marked as another tab’s change, and a tab’s own write is not', async ({ page, context }) => {
+  await page.goto('/app');
+  await awaitDurableReady(page);
+  const b = await context.newPage();
+  await b.goto('/app');
+  await awaitDurableReady(b);
+
+  const listen = (p: Page) =>
+    p.evaluate(async () => {
+      const { changedInAnotherTab } = await import('/src/model/durableStore.ts');
+      const seen: boolean[] = [];
+      (window as unknown as { __changes: boolean[] }).__changes = seen;
+      window.addEventListener('spx-data-changed', (e) => seen.push(changedInAnotherTab(e)));
+    });
+  await listen(page);
+  await listen(b);
+
+  await page.evaluate(async () => {
+    const { createLook } = await import('/src/model/packets.ts');
+    createLook('Adopted elsewhere', {
+      styleTag: 'minimal',
+      palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' },
+      fontId: null,
+      customFont: null,
+    });
+  });
+  await settleDurableWrites(page);
+
+  const changes = (p: Page) => p.evaluate(() => (window as unknown as { __changes: boolean[] }).__changes);
+  await expect.poll(() => changes(b)).toContain(true);
+  expect(await changes(page), 'the writing tab’s own change is unmarked, so its sync runs').toContain(false);
 });

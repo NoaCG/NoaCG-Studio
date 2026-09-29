@@ -580,10 +580,19 @@ async function adoptWrite(key: string): Promise<void> {
     const value = await idbReadKey(target, physical(key));
     if (value === null) mirror.delete(key);
     else mirror.set(key, value);
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('spx-data-changed', { detail: { fromOtherTab: true } }));
+    }
   } catch {
     /* the mirror keeps what it had */
   }
+}
+
+/** True for the `spx-data-changed` a tab raises when it adopts ANOTHER tab's write. Surfaces
+ *  re-read on it like on any change; library sync ignores it, because the tab that made the
+ *  write runs the pass for it (backend/syncController.ts). */
+export function changedInAnotherTab(event: Event): boolean {
+  return (event as CustomEvent<{ fromOtherTab?: boolean } | null>).detail?.fromOtherTab === true;
 }
 
 function startCrossTabInvalidation(): void {
