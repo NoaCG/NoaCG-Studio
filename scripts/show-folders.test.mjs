@@ -219,9 +219,10 @@ test('every move and every step keeps every folder whole, on every small rundown
     const name = show(cues);
     const ids = cues.map((c) => c.id);
     const places = [...ids.flatMap((id) => [{ before: id }, { after: id }]), { into: 'F' }, { into: 'G' }, { beforeFolder: 'F' }, { afterFolder: 'G' }, { end: true }];
-    // One cue, a whole folder, and every selection of two cues (docs/CLIP_PLAYBACK_PLAN.md §20.2).
+    // One cue, a whole folder, and every selection of two and of three cues (docs/CLIP_PLAYBACK_PLAN.md §20.2).
     const pairs = ids.flatMap((a, i) => ids.slice(i + 1).map((b) => ({ cueIds: [a, b] })));
-    for (const what of [...ids.map((cueId) => ({ cueId })), { folderId: 'F' }, { folderId: 'G' }, ...pairs]) {
+    const triples = ids.flatMap((a, i) => ids.slice(i + 1).flatMap((b, j) => ids.slice(i + j + 2).map((c) => ({ cueIds: [a, b, c] }))));
+    for (const what of [...ids.map((cueId) => ({ cueId })), { folderId: 'F' }, { folderId: 'G' }, ...pairs, ...triples]) {
       for (const place of places) {
         const out = placeInOrder(cues, foldersOf(cues), what, place);
         if (out) assert.ok(foldersContiguous(out), `${JSON.stringify(what)} to ${JSON.stringify(place)} in ${name}`);

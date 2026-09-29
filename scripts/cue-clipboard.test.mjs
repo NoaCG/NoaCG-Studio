@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const { clipSize, copyClip, cutClip, cutPlaceRefusal, pasteCopies } = await import('../src/model/cueClipboard.ts');
-const { foldersContiguous } = await import('../src/model/showFolders.ts');
+const { foldersContiguous, placeRefusal } = await import('../src/model/showFolders.ts');
 
 const cue = (id, folderId, extra = {}) => ({ id, sourceId: `g-${id}`, label: id, values: { f0: `${id} value` }, ...(folderId ? { folderId } : {}), ...extra });
 const clip = (id, folderId) => ({ id, sourceId: 'vt', source: 'playout', label: id, values: {}, playback: { end: 'loop', levelDb: -6 }, ...(folderId ? { folderId } : {}) });
@@ -80,4 +80,30 @@ test('a cut is the cues\' own ids, and it is never pasted inside itself', () => 
   assert.equal(cutPlaceRefusal(cues, cut.ids, { into: 'F' }), 'Paste somewhere outside what you cut.');
   assert.equal(cutPlaceRefusal(cues, cut.ids, { after: 'D' }), null);
   assert.equal(cutPlaceRefusal(cues, ['B'], { into: 'F' }), null);
+});
+
+test('copying from a record an older build split writes whole folders, every time', () => {
+  // A(F) x A2(F): F in two runs. However it is copied and wherever pasted, the copy's folder is one run.
+  const folders = [{ id: 'F', name: 'F', mode: 'manual' }, { id: 'G', name: 'G', mode: 'manual' }];
+  const split = record([cue('a1', 'F'), cue('x'), cue('a2', 'F'), cue('g1', 'G'), cue('y')], folders);
+  const ids = split.cues.map((c) => c.id);
+  const subsets = [];
+  for (let mask = 1; mask < 1 << ids.length; mask++) subsets.push(ids.filter((_, i) => mask & (1 << i)));
+  const places = [...ids.flatMap((id) => [{ before: id }, { after: id }]), { into: 'F' }, { into: 'G' }, { end: true }];
+  for (const chosen of subsets) {
+    const copied = copyClip(split, chosen);
+    for (const place of places) {
+      const out = pasteCopies(split, copied, place, newId);
+      if ('cues' in out) assert.ok(foldersContiguous(out.cues), `${chosen.join()} to ${JSON.stringify(place)}: ${shape(out.cues)}`);
+    }
+  }
+});
+
+test('a selection holding a whole folder is never moved into a folder', () => {
+  const folders = [{ id: 'F', name: 'F', mode: 'manual' }, { id: 'G', name: 'G', mode: 'manual' }];
+  const rec = record([cue('a', 'F'), cue('b', 'F'), cue('x'), cue('g', 'G')], folders);
+  assert.equal(placeRefusal(rec, { cueIds: ['a', 'b', 'x'] }, { into: 'G' }), 'A folder cannot go inside another folder.');
+  assert.equal(placeRefusal(rec, { cueIds: ['a', 'b', 'x'] }, { into: 'F' }), 'A folder cannot go inside another folder.');
+  assert.equal(placeRefusal(rec, { cueIds: ['a', 'b', 'x'] }, { end: true }), null);
+  assert.equal(placeRefusal(rec, { cueIds: ['a', 'x'] }, { into: 'G' }), null);
 });

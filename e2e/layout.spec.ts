@@ -6,6 +6,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createProject } from './_create';
 import { chooseType } from './_browse';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // The flexible dockable-panel workspace (model/layout.ts): the canvas over the timeline in the
 // centre, flanked by left/right docks (plus an optional bottom dock), each hosting any panels as
@@ -179,6 +180,9 @@ test('mobile: Home leads with Productions and a dashboard is two taps from open'
   // production with it, as a returning student's device would hold.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app');
+  // The seed waits for the saved library to load, and lands before the page moves on: written
+  // earlier, hydration can replace it with the empty library it loaded (e2e/AGENTS.md).
+  await awaitDurableReady(page);
   await page.evaluate(async () => {
     const { createBlankTemplate } = await import('/src/templates/blank.ts');
     const { createGraphic } = await import('/src/model/library.ts');
@@ -188,6 +192,7 @@ test('mobile: Home leads with Productions and a dashboard is two taps from open'
     const show = createShowNamed('Morning show');
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
   });
+  await settleDurableWrites(page);
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible();
 

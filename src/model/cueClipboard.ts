@@ -32,7 +32,8 @@ export function copyClip(
   ids: readonly string[],
   relabel: (label: string) => string = (label) => label,
 ): CueClip | null {
-  const cues = show.cues ?? [];
+  // Settled first, like every move: a folder an older build split is copied whole and in one run.
+  const cues = settleFolders(show.cues ?? [], show.folders).cues;
   const live = liveFolderIds(cues, show.folders);
   const chosen = new Set(ids);
   const picked = cues.filter((c) => chosen.has(c.id));

@@ -115,8 +115,7 @@ test('where a drop lands, row by row and third by third', () => {
   // A cue onto an open header: its top above the folder, the rest last in it, the folder lit
   // (docs/CLIP_PLAYBACK_PLAN.md §20.2).
   assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'top').place, { beforeFolder: 'F' });
-  assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'bottom'), { place: { into: 'F' }, mark: { rowId: 'folder:F', edge: 'into', inside: true, folder: 'F' }, refused: null });
-  assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'middle').place, { into: 'F' });
+  assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'middle'), { place: { into: 'F' }, mark: { rowId: 'folder:F', edge: 'into', inside: true, folder: 'F' }, refused: null });
   // A folder onto another folder's cue or header lands beside it, by direction in the middle.
   assert.deepEqual(plan({ folderId: 'F' }, 'E', 'middle').place, { afterFolder: 'G' });
   assert.deepEqual(plan({ folderId: 'G' }, 'folder:F', 'middle').place, { beforeFolder: 'F' });

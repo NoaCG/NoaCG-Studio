@@ -408,6 +408,9 @@ export function folderMembers<T extends FolderMember>(cues: readonly T[], folder
   return membersByFolder(cues, folders).get(folderId) ?? [];
 }
 
+/** What a drag hears when the piece or the place it aimed at has gone meanwhile. */
+export const PLACE_GONE = 'The rundown changed while you dragged. Drag it again.';
+
 /**
  * WHY A DRAG CANNOT PUT IT THERE, or null - asked while it hovers, so the refusal is read before it is
  * let go, and again by the writer. A piece or a place that has gone (a teammate's save) is refused;
@@ -421,7 +424,7 @@ export function placeRefusal(
 ): string | null {
   const cues = record.cues ?? [];
   const live = liveFolderIds(cues, record.folders);
-  const gone = 'The rundown changed while you dragged. Drag it again.';
+  const gone = PLACE_GONE;
   const beside = 'before' in place ? place.before : 'after' in place ? place.after : undefined;
   const folderTarget = 'into' in place ? place.into : 'beforeFolder' in place ? place.beforeFolder : 'afterFolder' in place ? place.afterFolder : undefined;
   if (beside !== undefined && !cues.some((c) => c.id === beside)) return gone;
@@ -430,8 +433,9 @@ export function placeRefusal(
   if ('cueIds' in what) {
     const chosen = what.cueIds.map((id) => cues.find((c) => c.id === id));
     if (!chosen.length || chosen.some((c) => !c)) return gone;
-    // With a whole folder in it the block lands beside any folder, in none (landBlock): nothing joins.
-    if (wholeFolders(cues, new Set(what.cueIds), (c) => folderIdOf(c, live)).size) return null;
+    // With a whole folder in it the block lands beside any folder, in none (landBlock): nothing joins,
+    // and it is never put INTO one - a folder does not go inside another.
+    if (wholeFolders(cues, new Set(what.cueIds), (c) => folderIdOf(c, live)).size) return 'into' in place ? 'A folder cannot go inside another folder.' : null;
     return joinRefusal(record, chosen as ShowCue[], joining, live);
   }
   const piece = 'cueId' in what ? cues.find((c) => c.id === what.cueId) : live.has(what.folderId) ? what : undefined;
