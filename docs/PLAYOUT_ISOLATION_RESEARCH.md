@@ -1,9 +1,10 @@
 # Playout isolation research - keeping a production on air while NoaCG changes
 
-**Status: RESEARCH ONLY, nothing built, nothing decided (2026-09-29).** No product code, schema or
-infrastructure changed because of this document. It is the evidence for the owner's Phase 6
-decision ("Playout Runtime & Reliability"). Where it recommends, the recommendation is labelled a
-suggestion.
+**Status: RESEARCH, decided on 2026-09-29.** Written before anything was built; no product code,
+schema or infrastructure changed because of this document. It is the evidence for the owner's
+Phase 6 decision ("Playout Runtime & Reliability"), which is now taken: §18 is answered, and the
+work is specified in `docs/work-specs/playout-runtime-reliability/spec.md`. Where this document
+recommends, the recommendation is labelled a suggestion.
 
 **Why it exists.** On 2026-09-29 the production database stopped answering and restarted
 (06:42-06:45 UTC) after library sync lists hit statement timeouts. Every Take in that window failed,
@@ -1297,7 +1298,8 @@ the ones marked *filed* have a backlog item.
    `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
 10. **Write down two "never" rules** in `docs/DEPLOYMENT.md`: never enable Vercel's production pause
     without exempting `/output`; never ship a live-path function change without a behaviour
-    self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract).
+    self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract). *Done
+    2026-09-29:* `docs/DEPLOYMENT.md`, "Two things never to do while outputs may be on air".
 11. **Show output health on the hosted page and the phone**, the one line the production page
     already has.
 12. **Never let a font request gate a frame.** Serve bundled fonts with the prepared payload (or
@@ -1342,6 +1344,14 @@ the ones marked *filed* have a backlog item.
 ---
 
 ## 18. Questions that need the owner
+
+**Answered by the owner on 2026-09-29.** The answers, and the choices derived from them, are in
+[`docs/work-specs/playout-runtime-reliability/spec.md`](work-specs/playout-runtime-reliability/spec.md)
+("Owner decisions"). In short: 1 the staged path; 2 Bridge stays loopback-only and any LAN or
+second-install Local Mode comes back as alternatives first; 3 private topics; 4 the next Take from
+off air, plus an explicit Apply Update; 5 Prepare for Live publishes and says so; 6 yes; 7 when the
+numbers say so; 8 Step 0 now, Steps 1 and 2 without waiting for the Phase 5 walk. The questions
+are kept below as they were asked.
 
 Only the choices that change the outcome. Each has a suggestion.
 

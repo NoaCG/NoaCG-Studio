@@ -417,6 +417,23 @@ changed in the **dashboard**; the toml is kept in step by hand, as a record of i
    `e2e/network-resilience.spec.ts`; born from a demo failing inside the wizard on a
    restricted broadcaster network with nothing recorded anywhere.
 
+## Two things never to do while outputs may be on air
+
+Browser outputs (`/output`) sit on CasparCG layers, OBS sources and vMix inputs for a whole
+programme and nobody reloads them. Deploying every landing is safe for them; these two are not.
+
+- **Never enable Vercel's "Pause Production Deployments" without exempting `/output`.**
+  `docs/VERCEL_PRO_NO_OVERAGE_PLAN.md` lists the pause as a cost control. Paused, the whole
+  project answers 503, so an output that reloads or boots during the pause stays transparent and
+  dead on air until someone resumes it. An open output keeps its picture; the next reload does not.
+- **Never ship a change to a live-path function without a behaviour self-check that CALLS it.**
+  The live path is the contract renderers and operator pages hold open for hours: the
+  `control_*` RPCs they call, the `cmd-` and `log-` topics, and the columns and policies those
+  read (`docs/PLAYOUT_ISOLATION_RESEARCH.md` §11.2 names it). 0056 redefined `control_send_many`
+  from an older body and silently dropped the `live_cue` mirror for every production; only a
+  self-check that calls the function and asserts what it must still do catches a behaviour that
+  was removed (`supabase/AGENTS.md`, "A self-check proves SHAPE, never behaviour").
+
 ## Known limits (deliberate, revisit when they hurt)
 
 - Vercel deploys `main` without waiting for CI: a bad merge can be live for the minutes
