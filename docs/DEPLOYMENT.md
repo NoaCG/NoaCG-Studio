@@ -423,9 +423,10 @@ Browser outputs (`/output`) sit on CasparCG layers, OBS sources and vMix inputs 
 programme and nobody reloads them. Deploying every landing is safe for them; these two are not.
 
 - **Never enable Vercel's "Pause Production Deployments" without exempting `/output`.**
-  `docs/VERCEL_PRO_NO_OVERAGE_PLAN.md` lists the pause as a cost control. Paused, the whole
-  project answers 503, so an output that reloads or boots during the pause stays transparent and
-  dead on air until someone resumes it. An open output keeps its picture; the next reload does not.
+  `docs/VERCEL_PRO_NO_OVERAGE_PLAN.md` lists the pause as a cost control. Paused, `/output`
+  answers 503 like every other path, so an output that reloads or boots during the pause loads
+  Vercel's 503 page instead of the renderer, and keeps it until someone resumes the project and
+  the output reloads again. An open output keeps its picture; the next reload does not.
 - **Never ship a change to a live-path function without a behaviour self-check that CALLS it.**
   The live path is the contract renderers and operator pages hold open for hours: the
   `control_*` RPCs they call, the `cmd-` and `log-` topics, and the columns and policies those
