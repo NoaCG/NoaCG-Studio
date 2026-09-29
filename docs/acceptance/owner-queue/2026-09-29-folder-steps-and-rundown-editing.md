@@ -10,8 +10,8 @@ A One-by-one folder now plays from its header: each SPACE takes its next cue and
 before it off, and a clip or audio file is never stopped by a step. All out also stops a clip after a
 NoaCG Bridge restart. The rundown drags a selection as a group, takes a drop on a folder's header
 last in the folder, and copies, cuts and pastes. Phase 5 of the clip playback plan
-(`docs/CLIP_PLAYBACK_PLAN.md` §20). One more part, how the rows look, is on branch
-`claude/rundown-rows-at-a-glance` and waits for step 6.
+(`docs/CLIP_PLAYBACK_PLAN.md` §20). The rows now say their channel, and a folder's cues hang
+from a line (§20.3; the owner approved the look from screenshots, 2026-09-29).
 
 ## The route, about fifteen minutes
 
@@ -35,10 +35,9 @@ it at 1920×1080 with a real mouse and keyboard.
    right-click opens a row's menu, which acts on the whole selection.
 5. **Copy, cut, paste.** Ctrl+C a cue, click another, Ctrl+V: a copy lands after it. Take a cue on
    air, Ctrl+X it, click the last row, Ctrl+V: it moves there and stays on air.
-6. **How the rows look** (not landed; screenshots were sent in the session). Each row's slot carries
-   its channel's tone, named in a legend beside the count; the graphic icon leaves amber, which is
-   PREVIEW; audio has its own tone; a folder's cues hang from a thin line. Say whether it lands as it
-   is, or what to change.
+6. **How the rows look.** Each row's slot carries its channel's tone, named in a legend beside the
+   count; the graphic icon is off amber, audio has its own tone, and a folder's cues hang from a
+   thin line. Approved from screenshots: say here if anything reads wrong on the real screen.
 
 ## Also shipped, nothing to check
 
