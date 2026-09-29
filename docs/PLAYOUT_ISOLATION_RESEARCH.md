@@ -1278,7 +1278,10 @@ the ones marked *filed* have a backlog item.
    `docs/backlog/operator-pages-read-an-outage-as-unpublished.md`.
 3. **A renderer that cannot fail at boot on a chunk.** Bundle supabase-js into the output entry or
    stop caching a rejected import; make the "Output not available" card transparent, or show it
-   only for an explicit unpublish. *Filed:* `docs/backlog/output-boot-dies-on-a-failed-chunk.md`.
+   only for an explicit unpublish. *Done 2026-09-30:* a failed load is retried and never cached
+   (`src/backend/supabase.ts`, `untilAnswered`), the boot reloads once its own URL answers after
+   three failures, and the card paints nothing without `&debug=1` (`src/output/main.ts`,
+   `e2e/output-boot-resilience.spec.ts`).
 4. **A per-attempt timeout on the send**, so an attempt started inside the resend window cannot
    commit after a later press. The real fix is step 2's revision check; this closes most of the
    window cheaply.

@@ -371,8 +371,15 @@ The page:
   `ANIM_INTERPRETER_JS` and every design-owned runtime: no `?.`, no `??`. None of this is
   caught by `npm run build` or the e2e suite — only a real old-CEF server shows it, which
   is why it is written here.
-- Offline build / bad slug: a neutral dark "not available" card (never on a production's
-  air — this state only exists when the URL was wrong to begin with).
+- Offline build, bad slug or unpublished production: the page stays transparent. A layer or
+  source that reloads onto an unpublished production is on air, so the "Output not available"
+  words show only with `&debug=1`; without it the reason is on `body[data-unavailable]` and in
+  the console.
+- A boot that cannot load the supabase-js chunk retries it like any unanswered resolve. Chromium
+  keeps a failed module fetch for the life of the document and an old deployment's chunk is gone
+  for good after a deploy, so after three failures in a row the page reloads itself, but only
+  when its own URL answers: a reload during an outage would put the browser's error page on air
+  (`e2e/output-boot-resilience.spec.ts`).
 
 The URL is persistent by construction, and that now includes unpublishing. IDENTITY (which URLs
 address a production) and PUBLICATION (whether they resolve) are separate: publication is the
