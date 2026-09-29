@@ -271,5 +271,5 @@ tsconfig.tsbuildinfo
 # JSON. All of it is a reading of ONE machine at ONE moment, so it is regenerated, never kept.
 playout-lag-out*/
 
-# NoaCG-Bridge.exe and its build intermediates (cli/scripts/build-bridge-exe.mjs)
+# NoaCG-Bridge-<version>.exe and its build intermediates (cli/scripts/build-bridge-exe.mjs)
 cli/dist-exe

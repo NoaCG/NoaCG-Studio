@@ -1,7 +1,7 @@
 // NoaCG Bridge, browser half - docs/BRIDGE.md.
 //
 // A page cannot open a raw TCP socket, so it cannot speak AMCP; the socket lives in NoaCG Bridge
-// (the NoaCG-Bridge.exe download; `noacg bridge` in the CLI package is the same program) on the
+// (the NoaCG Bridge download; `noacg bridge` in the CLI package is the same program) on the
 // operator's own machine, and this file talks to it over loopback HTTP in the playout
 // protocol (playoutProtocol.ts). Everything here is one studio-wide setting plus one honest
 // answer about which hop is broken - the surfaces that use it never say "failed".
@@ -43,13 +43,6 @@ const STORE_V = 1;
 
 /** The oldest Bridge this page can drive. `/health` below this is "update NoaCG Bridge". */
 export const MIN_PLAYOUT_V = PLAYOUT_V;
-/** The Bridge's one user-facing home. The repository's Releases page carries NoaCG Bridge releases
- *  only (release-bridge.yml), so `latest` is always the newest Bridge. The CLI package the Bridge
- *  is built from is published to npm and never named here: a playout operator downloads a
- *  program, and does not have to know what it is built from. */
-export const BRIDGE_DOWNLOAD_URL = 'https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe';
-/** What the person double-clicks, named in the hop sentences so "start it" is concrete. */
-const BRIDGE_EXE = 'NoaCG-Bridge.exe';
 
 /** How long to wait on the Bridge. Generous on purpose: with the Local Network Access prompt
  *  up, the browser holds the request open until the person answers it. */
@@ -413,7 +406,7 @@ async function callBridge(
 
 /** What a page says when there is no Bridge - written once, used everywhere. */
 function noBridge(reason: string): PlayoutResult {
-  return { state: 'bridge', detail: `${reason} Start NoaCG Bridge on this machine (double-click ${BRIDGE_EXE}; the Downloads page and Playout settings both link it), then try again.` };
+  return { state: 'bridge', detail: `${reason} Start NoaCG Bridge on this machine (double-click the NoaCG Bridge file you downloaded; the Downloads page and Playout settings both link it), then try again.` };
 }
 
 /**
@@ -497,7 +490,7 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
     return {
       result: {
         state: 'bridge',
-        detail: `NoaCG Bridge refused this site. Restart it with \`${BRIDGE_EXE} --origin ${window.location.origin}\`.`,
+        detail: `NoaCG Bridge refused this site. Restart NoaCG Bridge with \`--origin ${window.location.origin}\`.`,
       },
     };
   }
@@ -654,7 +647,7 @@ export async function pairBridge(request: BridgePairRequest): Promise<PlayoutRes
   const call = await callBridge(bridgeUrl, '/pair', { code: request.code }, BRIDGE_TIMEOUT_MS);
   if ('timedOut' in call) return { state: 'bridge', detail: `${bridgeUrl} did not answer the pairing request in time.` };
   if ('networkError' in call) return { state: 'bridge', detail: `NoaCG Bridge stopped answering: ${call.networkError}` };
-  if (call.http === 403) return { state: 'bridge', detail: `NoaCG Bridge refused this site. Restart it with \`${BRIDGE_EXE} --origin ${window.location.origin}\`.` };
+  if (call.http === 403) return { state: 'bridge', detail: `NoaCG Bridge refused this site. Restart NoaCG Bridge with \`--origin ${window.location.origin}\`.` };
   if (!call.body.ok || !call.body.token) {
     return { state: 'token', detail: call.body.error?.detail ?? 'That pairing code is not valid. Start NoaCG Bridge again to get a fresh one.' };
   }

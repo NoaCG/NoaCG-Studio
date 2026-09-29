@@ -113,7 +113,7 @@ test('the header opens Playout settings: the same form as Settings, saved to the
   await expect(dialog.getByTestId('playout-system-casparcg')).toContainText('NoaCG Bridge');
   await expect(dialog.getByTestId('playout-browser-source-note')).toContainText('OBS, vMix');
   // The Bridge is one click away, and so is the page that explains it.
-  await expect(dialog.getByTestId('bridge-download')).toHaveAttribute('href', /releases\/latest\/download\/NoaCG-Bridge\.exe$/);
+  await expect(dialog.getByTestId('bridge-download')).toHaveAttribute('href', '/downloads#bridge');
   await expect(dialog.getByTestId('playout-settings-downloads')).toHaveAttribute('href', '/downloads#bridge');
 
   // One form, one record: a server named here is the server Settings -> Playout shows.

@@ -14,14 +14,15 @@
   arrives from the landing meets the same names here.
 
   ONE VERSION, TWO CHANNELS. Both tools are built from one package (cli/package.json), and each
-  ships through its own channel: the Bridge as NoaCG-Bridge.exe on a GitHub Release tagged
+  ships through its own channel: the Bridge as NoaCG-Bridge-X.Y.Z.exe on a GitHub Release tagged
   bridge-vX.Y.Z, the CLI to npm, tagged cli-vX.Y.Z. A version may ship on one channel and skip the
   other, so each card resolves ITS OWN artifact: src/downloads/downloads.ts asks GitHub for the
   newest bridge-v* release and npm for @noacg/cli's `latest`, and shows the version of exactly
   the file or package it links to.
 
   The page is complete with no JavaScript: the Bridge button then points at GitHub's
-  releases/latest link (release-bridge.yml marks every Bridge release as the latest), and the
+  releases/latest page (release-bridge.yml marks every Bridge release as the latest; the file name
+  carries the version, so there is no fixed file link), and the
   versions read "latest". The voice is the docs page's (src/docs/AGENTS.md): plain information,
   no em-dashes, and every command is one that has been run. The commands here are the
   distribution table's (docs/AGENT_CLI.md, docs.html #agent-setup), never new ones. The button
@@ -101,20 +102,20 @@
         <p class="dl-actions">
           <a
             class="btn btn-amber"
-            href="https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe"
+            href="https://github.com/NoaCG/NoaCG-Studio/releases/latest"
             data-download="bridge"
             data-testid="bridge-download"
-          >Download NoaCG-Bridge.exe</a>
+          >Download NoaCG Bridge</a>
         </p>
         <p class="dl-links">
           <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest" data-release-notes="bridge" data-testid="bridge-release-notes">What changed in this version</a>
           &middot;
-          <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest/download/NoaCG-Bridge.exe.sha256" data-checksum="bridge">SHA-256 checksum</a>
+          <a href="https://github.com/NoaCG/NoaCG-Studio/releases/latest" data-checksum="bridge">SHA-256 checksum</a>
         </p>
 
         <h3>Set it up</h3>
         <ol>
-          <li>Download <code>NoaCG-Bridge.exe</code> onto the computer you run the show from.
+          <li>Download NoaCG Bridge onto the computer you run the show from.
             There is nothing to install.</li>
           <li>Double-click it and leave its window open. Windows warns you once, because the file
             is not signed yet: choose <strong>More info</strong>, then

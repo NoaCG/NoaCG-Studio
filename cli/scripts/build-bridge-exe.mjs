@@ -1,7 +1,7 @@
-// Build NoaCG-Bridge.exe: `noacg bridge` as one Windows executable with Node inside
+// Build NoaCG-Bridge-<version>.exe: `noacg bridge` as one Windows executable with Node inside
 // (docs/BRIDGE.md §6). Run from cli/ after `npm run build`:
 //
-//   node scripts/build-bridge-exe.mjs            # dist-exe/NoaCG-Bridge.exe + .sha256
+//   node scripts/build-bridge-exe.mjs            # dist-exe/NoaCG-Bridge-<version>.exe + .sha256
 //   node scripts/build-bridge-exe.mjs --no-check # skip the start-and-ask-/health proof
 //
 // HOW. Node's single executable application support (node --experimental-sea-config): esbuild
@@ -32,7 +32,7 @@ const root = path.resolve(here, '..');
 const outDir = path.join(root, 'dist-exe');
 const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
 const check = !process.argv.includes('--no-check');
-const exeName = process.platform === 'win32' ? 'NoaCG-Bridge.exe' : 'noacg-bridge';
+const exeName = process.platform === 'win32' ? `NoaCG-Bridge-${pkg.version}.exe` : 'noacg-bridge';
 
 function step(name, fn) {
   process.stdout.write(`[bridge-exe] ${name}\n`);

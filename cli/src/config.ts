@@ -57,7 +57,7 @@ export const UNKNOWN_VERSION = '0.0.0';
 
 /**
  * The CLI's own version, read from its package.json (dist/ sits beside it). Inside
- * NoaCG-Bridge.exe there is no package.json and no `import.meta.url` to resolve one from, so
+ * NoaCG-Bridge-<version>.exe there is no package.json and no `import.meta.url` to resolve one from, so
  * the exe build bakes the version in as NOACG_BRIDGE_VERSION (cli/scripts/build-bridge-exe.mjs)
  * and that is read first.
  */

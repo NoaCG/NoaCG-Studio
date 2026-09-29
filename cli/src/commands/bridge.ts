@@ -6,7 +6,7 @@
 // CasparCG answers with an AMCP status line, and the handshake dies with
 // ERR_INVALID_HTTP_RESPONSE. No server setting fixes that (measured 2026-08-24, Chromium 149),
 // so the socket has to live in a local process - this one. It is a command in the CLI the
-// project already ships, and the NoaCG-Bridge.exe download is this same command packaged with
+// project already ships, and the NoaCG-Bridge-<version>.exe download is this same command packaged with
 // Node inside, so there is one helper and not a family of them.
 //
 // The Bridge runs on the OPERATOR's machine and binds 127.0.0.1 only. CasparCG may be anywhere
