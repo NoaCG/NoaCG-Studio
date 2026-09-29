@@ -269,7 +269,14 @@ ${ESCAPE_HTML_JS}
 ${CREDITS_PARSER_JS}
 
 // rebuildCredits(): re-render the track from the hidden #f0 / #f1 / #f2 sources.
-function rebuildCredits() {
+//
+// update() passes keepIfSame, and then an update that changes nothing the rows draw (a speed
+// press, or a cue resent as it stands) leaves the rows alone. It has to: a page swap tweens the
+// .credits-page elements themselves and a reel moves its clones, so replacing them on air leaves
+// the running motion animating nodes that are gone - measured on cr03 as every page drawn at
+// once, stacked. play() always rebuilds, because a take must start from clean rows.
+var creditsBuiltHtml = null;
+function rebuildCredits(keepIfSame) {
   var track = document.getElementById('credits-track');
   var text = document.getElementById('f0').textContent;
   var year = document.getElementById('f1').textContent;
@@ -297,6 +304,8 @@ ${hasLogo
   // Both escaped: the year is written as markup and the logo path is written INTO an
   // src="..." attribute, so an unescaped quote in either would break out of it.
   html += renderEndBlock(escapeHtml(year), logo ? escapeHtml(logo) : null);
+  if (keepIfSame === true && html === creditsBuiltHtml) return;
+  creditsBuiltHtml = html;
   track.innerHTML = html;
   fitBoardToFrame();               // a board re-fits itself to the frame after every rebuild
 }
@@ -342,12 +351,16 @@ function update(data) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  rebuildCredits();
+  rebuildCredits(true);
+  // A new SPEED reaches a roll that is already moving rather than waiting for the next take:
+  // the dashboard's LIVE NUMBERS row sends exactly this update and says it acts on air.
+  creditsApplySpeed();
 }
 
 // play(): rebuild (fresh measurements), then run the motion.
 function play() {
   gsap.killTweensOf('*');
+  creditsMotionLive = null;       // a take that builds no motion must not scale the last one's
   rebuildCredits();
   buildInTimeline();
 }

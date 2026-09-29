@@ -21,8 +21,8 @@
 // window is the Credits box where one is drawn, else the artwork's own frame, and it is an
 // inner `<svg>` viewport rather than a clipPath, so the export carries no id and nothing that
 // could be read as a reference. The operator's Scroll speed is a percentage of that pace, with
-// the catalog roll's clamp, and it applies from the next take because the travel is measured
-// when the take starts.
+// the catalog roll's clamp. The travel is measured when the take starts, and a speed retyped
+// with the roll on air rescales the running roll from that frame (creditsDataUpdated).
 //
 // Design-owned JS OUTSIDE the marked ANIMATION region, like the clock engine: the timeline only
 // CALLS it (the recipe's entrance names `noacgCreditsRoll`), so a preset swap never rewrites it
@@ -441,6 +441,7 @@ function creditsWindow(sample) {
 }
 
 var noacgCreditsTween = null;
+var noacgCreditsBuiltAt = 1;       // the speed the running take was built at (creditsDataUpdated)
 // What the last take measured, for a reader (and for the spec that pins the pace): where the
 // list started and ended, how far it travelled, how long it took, and how many rows it carried.
 var noacgCreditsLast = null;
@@ -478,17 +479,37 @@ function ${CREDITS_ROLL_CALL}() {
   // scales it: the step is read in the text's units and the travel in the window's.
   var textHeight = rows.getBBox().height;
   var step = built.looks.afterName * (textHeight > 0 ? bb.height / textHeight : 1);
-  var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * creditsSpeed() * (typeof motionSpeed === 'function' ? motionSpeed() : 1);
+  var perSecond = step * NOACG_CREDITS_LINES_PER_SECOND * creditsLiveSpeed();
   var duration = distance / perSecond;
   noacgCreditsLast = { startY: startY, endY: endY, distance: distance, duration: duration, rows: rows.children.length, step: step, boxed: win.boxed };
+  noacgCreditsBuiltAt = creditsLiveSpeed();
   noacgCreditsTween = gsap.fromTo(roll, { y: startY }, { y: endY, duration: duration, ease: 'none' });
   return noacgCreditsTween;
 }
 
+// The operator's speed times the author's knob: the one number the take is built at, and the
+// one a live change is measured against.
+function creditsLiveSpeed() {
+  return creditsSpeed() * (typeof motionSpeed === 'function' ? motionSpeed() : 1);
+}
+
 // creditsDataUpdated(): update() wrote the fields - rebuild the rows in place. A roll already
-// running keeps travelling with the new rows; the speed applies from the next take.
+// running keeps travelling with the new rows, and a new Scroll speed changes its pace from this
+// frame: the production dashboard's LIVE NUMBERS row offers the field and says one press acts on
+// air. A timeScale rather than a new take, because a new take would honour the number and snap
+// the list back below the window. The playhead is held where it is (smoothChildTiming, lent for
+// the one call) so the list does not jump to where the new pace would have had it by now.
 function creditsDataUpdated() {
   creditsRender();
+  var live = noacgCreditsTween;
+  if (!live || !noacgCreditsBuiltAt) return;
+  var scale = creditsLiveSpeed() / noacgCreditsBuiltAt;
+  if (live.timeScale() === scale) return;
+  var parent = live.parent;
+  var smooth = parent ? parent.smoothChildTiming : false;
+  if (parent) parent.smoothChildTiming = true;
+  live.timeScale(scale);
+  if (parent) parent.smoothChildTiming = smooth;
 }
 
 // Render once on load, so a preview shows the list before the first update(); again when the

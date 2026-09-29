@@ -156,11 +156,19 @@ test('imported credits: one pasted list rolls through the Credits box in the sam
   await shot(page, 'credits-2-rolling-mid', 8_000);
 
   // THE FORMAT, on a fresh paste: inline, a spreadsheet tab, a blank line for a new section.
-  // Update rebuilds the rows in place; the speed applies from the next take.
+  // Update rebuilds the rows in place, and the new speed reaches the roll already running: twice
+  // the pace from that frame, carried on from where the list was rather than restarted.
+  const running = () => air.locator('.imported-design-credits-rows').evaluate(() => {
+    const tween = (window as unknown as { noacgCreditsTween: { progress(): number; timeScale(): number } }).noacgCreditsTween;
+    return { progress: tween.progress(), timeScale: tween.timeScale() };
+  });
+  const beforeUpdate = await running();
   await credits.fill('Director: Alex Rivera\nCamera:\nJonas Berg\nLena Fors\n\nProducer\tSam Chen');
   await page.getByTestId('cue-field-f2').fill('200');
   await page.getByTestId('verb-update').click();
   await expect(rows).toHaveCount(7);
+  await expect.poll(async () => (await running()).timeScale).toBe(2);
+  expect((await running()).progress).toBeGreaterThan(beforeUpdate.progress);
   await expect(titles).toHaveText(['Director:', 'Camera:', 'Producer:']);
   await expect(names).toHaveText(['Alex Rivera', 'Jonas Berg', 'Lena Fors', 'Sam Chen']);
   await shot(page, 'credits-3-new-paste', 500);
