@@ -109,7 +109,7 @@ export function cursorRowId(view: RundownView, held: { folderId: string; rowId: 
 }
 
 /** The cues a row stands for: a cue its own, a header every cue of its folder. */
-function cuesOfRow(view: RundownView, row: RundownRow): string[] {
+export function rowCueIds(view: RundownView, row: RundownRow): string[] {
   return row.kind === 'cue' ? [row.cue.id] : (view.members.get(row.folder.id) ?? []).map((c) => c.id);
 }
 
@@ -124,7 +124,7 @@ export function rangeCueIds(view: RundownView, anchorRowId: string | null, toRow
   const from = anchorRowId === null ? -1 : view.rows.findIndex((r) => r.id === anchorRowId);
   const [a, b] = from < 0 ? [to, to] : from < to ? [from, to] : [to, from];
   const ids = new Set<string>();
-  for (let i = a; i <= b; i++) for (const id of cuesOfRow(view, view.rows[i])) ids.add(id);
+  for (let i = a; i <= b; i++) for (const id of rowCueIds(view, view.rows[i])) ids.add(id);
   return [...ids].sort((x, y) => (view.indexOf.get(x) ?? 0) - (view.indexOf.get(y) ?? 0));
 }
 
@@ -135,12 +135,20 @@ export function bandAt(offsetY: number, height: number): DropBand {
   return offsetY < height / 3 ? 'top' : offsetY > (height * 2) / 3 ? 'bottom' : 'middle';
 }
 
+/** Which part of a folder's HEADER the pointer is in: its top quarter lands above the folder, the
+ *  rest of it in the folder (docs/CLIP_PLAYBACK_PLAN.md §20.2). */
+export function headerBandAt(offsetY: number, height: number): DropBand {
+  return offsetY < height / 4 ? 'top' : 'middle';
+}
+
 /** Where the drop line is drawn: on a row's edge, around a collapsed header, or on the end strip.
  *  `inside`: the landing joins a folder, so the line is indented. */
 export interface DropMark {
   rowId: string | 'end';
   edge: 'before' | 'after' | 'into';
   inside: boolean;
+  /** A drop into a folder by its header: that folder, whose rows all light as the target. */
+  folder?: string;
 }
 
 export interface DropPlan {
@@ -154,9 +162,10 @@ export interface DropPlan {
  * WHERE A DRAG LANDS, from the row the pointer is over and which third of it. The middle third is
  * the drag as it always was: a row moving down lands after the row, one moving up before it. The
  * top and bottom thirds land before and after, joining that row's folder. On a folder's header the
- * top third lands above the folder, outside it; the rest lands first in an open folder and last in a
- * collapsed one. A folder dragged onto another folder lands beside it, never inside. Null when the
- * drop would change nothing.
+ * top quarter lands above the folder, outside it, and the rest last in it, open or collapsed, as
+ * "Move into" does (docs/CLIP_PLAYBACK_PLAN.md §20.2). A folder dragged onto another folder lands
+ * beside it, never inside, and so does a selection holding a whole folder. Null when the drop would
+ * change nothing.
  */
 export function planDrop(
   record: { cues?: readonly ShowCue[]; folders?: readonly ShowFolder[]; playoutItems?: readonly Pick<PlayoutItem, 'id' | 'kind' | 'mediaKind'>[] },
@@ -172,13 +181,21 @@ export function planDrop(
   } else {
     const row = view.rows.find((r) => r.id === aim.rowId);
     if (!row) return null;
-    const firstOf = (w: Movable) => ('cueId' in w ? (view.indexOf.get(w.cueId) ?? -1) : Math.min(...(view.members.get(w.folderId) ?? []).map((c) => view.indexOf.get(c.id) ?? -1)));
-    const rowFirst = row.kind === 'cue' ? (view.indexOf.get(row.cue.id) ?? -1) : (view.indexOf.get(row.runCues[0].id) ?? -1);
+    const chosen = 'cueIds' in what ? new Set(what.cueIds) : null;
+    const at = (id: string) => view.indexOf.get(id) ?? -1;
+    const firstOf = (w: Movable) =>
+      'cueId' in w ? at(w.cueId) : 'folderId' in w ? Math.min(...(view.members.get(w.folderId) ?? []).map((c) => at(c.id))) : Math.min(...w.cueIds.map(at));
+    const rowFirst = row.kind === 'cue' ? at(row.cue.id) : at(row.runCues[0].id);
     const down = firstOf(what) < rowFirst;
     const byBand = (before: Place, after: Place) => (aim.band === 'top' ? before : aim.band === 'bottom' ? after : down ? after : before);
-    if ('folderId' in what) {
+    const allChosen = (folderId: string) => !!chosen && (view.members.get(folderId) ?? []).every((c) => chosen.has(c.id));
+    // A block that keeps a whole folder moves as a folder does: beside another, never inside it.
+    const asFolder = 'folderId' in what || (!!chosen && [...view.members.keys()].some(allChosen));
+    // Onto what moves: nothing to do.
+    if (row.kind === 'cue' ? (chosen ? chosen.has(row.cue.id) : 'cueId' in what && row.cue.id === what.cueId) : allChosen(row.folder.id)) return null;
+    if (asFolder) {
       const other = row.kind === 'folder' ? row.folder.id : row.folderId;
-      if (other === what.folderId) return null;
+      if ('folderId' in what && other === what.folderId) return null;
       if (!other) {
         const r = row as CueRow;
         place = byBand({ before: r.cue.id }, { after: r.cue.id });
@@ -192,15 +209,11 @@ export function planDrop(
       if (aim.band === 'top') {
         place = { beforeFolder: row.folder.id };
         mark = { rowId: row.id, edge: 'before', inside: false };
-      } else if (row.folder.collapsed === true) {
-        place = { into: row.folder.id };
-        mark = { rowId: row.id, edge: 'into', inside: true };
       } else {
-        place = { before: row.runCues[0].id };
-        mark = { rowId: row.id, edge: 'after', inside: true };
+        place = { into: row.folder.id };
+        mark = { rowId: row.id, edge: 'into', inside: true, folder: row.folder.id };
       }
     } else {
-      if (row.cue.id === what.cueId) return null;
       place = byBand({ before: row.cue.id }, { after: row.cue.id });
       mark = { rowId: row.id, edge: 'before' in place ? 'before' : 'after', inside: !!row.folderId };
     }

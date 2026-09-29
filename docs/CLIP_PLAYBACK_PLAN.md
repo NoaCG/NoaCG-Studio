@@ -1293,3 +1293,27 @@ changes size or place.
   cut and paste of a cue on air leaves it on air, in its new place.
 - At 1920 and 1366, graphics, clips, audio, folders and their members, and channel 1 against
   channel 2 are told apart at a glance (a desktop check for the owner).
+
+### 20.5 Built, 2026-09-29
+
+In four landings: the two early save messages (Audience and the picture upload now claim the durable
+write), the Bridge's versioned file name (`NoaCG-Bridge-<version>.exe`, from the next release), One
+by one's step with All out (§20.1), and the rundown's editing (§20.2). §20.3's look waits for the
+owner's desktop check. What differs from the plan above, and why:
+
+- **The step's rules are one pure function**, `src/control/folderStep.ts`, tested in
+  `scripts/folder-playout.test.mjs`; the page carries them out with the verbs it already had, and a
+  hardware panel can reach the same function later.
+- **An adversarial review of each half found defects, all fixed with a test**: Out during a step still
+  on its way left the step past the cue it took back off; a next cue whose graphic had gone was not
+  caught before the previous graphic went off; `0` could not reset a folder with nothing up; All out
+  could cut a slot the rundown had moved away from; a copy from a split folder pasted a split folder;
+  a selection holding a whole folder could be "moved into" another; Shift with an arrow stopped
+  walking the hosted page.
+- **All together's graphics start at once rather than as one batch**, so each still answers for
+  itself (§6.6's per-cue results).
+- **The folder's layer box still writes as it is typed**, like the clip editor's. Moving it to one
+  write per edit made the first click after typing a number miss when the row under the pointer
+  changed with the write; both boxes move together, later.
+- **An open menu now marks the Escape it handles** (`home/LibMenu`), so the same press does not also
+  clear the rundown's selection.

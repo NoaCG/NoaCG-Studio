@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { bandAt, cursorRowId, folderName, folderRowId, planDrop, rangeCueIds, rowTestId, rundownView } = await import('../src/model/rundownRows.ts');
+const { bandAt, cursorRowId, folderName, folderRowId, headerBandAt, planDrop, rangeCueIds, rowTestId, rundownView } = await import('../src/model/rundownRows.ts');
 const { spaceAction, spaceActionTable } = await import('../src/control/spaceMode.ts');
 
 const cue = (id, folderId) => ({ id, sourceId: 'g', label: id, values: {}, ...(folderId ? { folderId } : {}) });
@@ -77,8 +77,10 @@ test('a shift-click covers the drawn rows between, a header standing for its who
   assert.deepEqual(rangeCueIds(view, 'GONE', 'D'), ['D']);
 });
 
-test('the thirds of a row', () => {
+test('the thirds of a row, and the quarter of a header', () => {
   assert.deepEqual([bandAt(5, 34), bandAt(17, 34), bandAt(30, 34)], ['top', 'middle', 'bottom']);
+  // A header's top quarter lands above its folder; the rest of it is the folder.
+  assert.deepEqual([headerBandAt(5, 34), headerBandAt(9, 34), headerBandAt(30, 34)], ['top', 'middle', 'middle']);
 });
 
 /** The drag as shipped before this phase: a chain of neighbour swaps. */
@@ -110,9 +112,10 @@ test('where a drop lands, row by row and third by third', () => {
   // A cue onto a cue: before, after, and joining that cue's folder.
   assert.deepEqual(plan({ cueId: 'A' }, 'C', 'top').place, { before: 'C' });
   assert.deepEqual(plan({ cueId: 'A' }, 'C', 'bottom'), { place: { after: 'C' }, mark: { rowId: 'C', edge: 'after', inside: true }, refused: null });
-  // A cue onto an open header: the top third above the folder, the rest first in it.
+  // A cue onto an open header: its top above the folder, the rest last in it, the folder lit
+  // (docs/CLIP_PLAYBACK_PLAN.md §20.2).
   assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'top').place, { beforeFolder: 'F' });
-  assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'bottom'), { place: { before: 'B' }, mark: { rowId: 'folder:F', edge: 'after', inside: true }, refused: null });
+  assert.deepEqual(plan({ cueId: 'D' }, 'folder:F', 'middle'), { place: { into: 'F' }, mark: { rowId: 'folder:F', edge: 'into', inside: true, folder: 'F' }, refused: null });
   // A folder onto another folder's cue or header lands beside it, by direction in the middle.
   assert.deepEqual(plan({ folderId: 'F' }, 'E', 'middle').place, { afterFolder: 'G' });
   assert.deepEqual(plan({ folderId: 'G' }, 'folder:F', 'middle').place, { beforeFolder: 'F' });
@@ -128,7 +131,7 @@ test('where a drop lands, row by row and third by third', () => {
   assert.deepEqual(planDrop(rec, view, { cueId: 'C' }, 'end').place, { end: true });
   // A collapsed header takes a cue last in the folder.
   const shut = { ...rec, folders: [folder('F', { collapsed: true }), folder('G')] };
-  assert.deepEqual(planDrop(shut, rundownView(shut), { cueId: 'D' }, { rowId: 'folder:F', band: 'middle' }), { place: { into: 'F' }, mark: { rowId: 'folder:F', edge: 'into', inside: true }, refused: null });
+  assert.deepEqual(planDrop(shut, rundownView(shut), { cueId: 'D' }, { rowId: 'folder:F', band: 'middle' }), { place: { into: 'F' }, mark: { rowId: 'folder:F', edge: 'into', inside: true, folder: 'F' }, refused: null });
 });
 
 test('a refused drop says why while it hovers', () => {
@@ -152,4 +155,34 @@ test('SPACE on a folder row never previews: a folder is decided as already on PR
     take: ['take', 'take', 'take-off', 'take-off'],
     'preview-then-take': ['preview', 'take', 'take-off', 'take-off'],
   });
+});
+
+test('a selection drags as one block, in its order, and joins the folder it lands in (§20.2)', async () => {
+  const { placeInOrder } = await import('../src/model/showFolders.ts');
+  const rec = record('A B(F) C(F) D E(G) X', [folder('F'), folder('G')]);
+  const view = rundownView(rec);
+  const plan = (ids, rowId, band) => planDrop(rec, view, { cueIds: ids }, { rowId, band });
+  const land = (ids, p) => placeInOrder(rec.cues, rec.folders, { cueIds: ids }, p.place).map((c) => (c.folderId ? `${c.id}(${c.folderId})` : c.id)).join(' ');
+  // Two loose cues to the end of the list, then into a folder by its header: last in it, in order.
+  assert.equal(land(['A', 'D'], plan(['A', 'D'], 'X', 'bottom')), 'B(F) C(F) E(G) X A D');
+  assert.equal(land(['A', 'D'], plan(['A', 'D'], 'folder:F', 'middle')), 'B(F) C(F) A(F) D(F) E(G) X');
+  // A cue of a folder and a loose one, dropped beside a cue of another folder: both join it.
+  assert.equal(land(['B', 'X'], plan(['B', 'X'], 'E', 'top')), 'A C(F) D B(G) X(G) E(G)');
+  // A whole folder in the selection moves as a folder: beside another, the loose cue in none.
+  const withFolder = plan(['B', 'C', 'X'], 'E', 'middle');
+  assert.deepEqual(withFolder.place, { afterFolder: 'G' });
+  assert.equal(land(['B', 'C', 'X'], withFolder), 'A D E(G) B(F) C(F) X');
+  assert.deepEqual(plan(['B', 'C', 'X'], 'folder:G', 'bottom').place, { afterFolder: 'G' });
+  // Onto a row it carries, or onto its own whole folder: nothing to do.
+  assert.equal(plan(['A', 'D'], 'D', 'middle'), null);
+  assert.equal(plan(['B', 'C'], 'folder:F', 'middle'), null);
+});
+
+test('a selection at a Play-through folder is refused if any cue of it cannot play through', () => {
+  const items = [{ id: 'clip', kind: 'media', mediaKind: 'movie' }];
+  const clip = (id, folderId) => ({ id, sourceId: 'clip', source: 'playout', label: id, values: {}, ...(folderId ? { folderId } : {}) });
+  const rec = { cues: [clip('V1', 'T'), clip('V2'), { ...cue('GFX'), label: 'Lower third' }], folders: [folder('T', { mode: 'through' })], playoutItems: items };
+  const view = rundownView(rec);
+  assert.equal(planDrop(rec, view, { cueIds: ['V2', 'GFX'] }, { rowId: 'folder:T', band: 'middle' }).refused, 'Lower third is a graphic, and a folder that plays through plays clips and audio files only.');
+  assert.equal(planDrop(rec, view, { cueIds: ['V2'] }, { rowId: 'folder:T', band: 'middle' }).refused, null);
 });

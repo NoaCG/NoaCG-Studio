@@ -306,6 +306,124 @@ test('a drag lands by the third of a row: into a folder, out of it, a folder as 
   expect(await writes()).toBe(before + 1);
 });
 
+// ── Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2) ─────────────────────────────────────
+
+test('a selection drags as one block, in its order: onto a folder header it lands last in it, the folder lit; a row outside it moves alone', async ({ page }) => {
+  await production(page, CLIPS);
+  await folderOf(page, 'BRAVO', 'CHARLIE');
+  await selectCue(page, 'Hairline');
+  await selectCue(page, 'ALPHA', true);
+  await expect(page.getByTestId('range-count')).toHaveText('2 selected');
+  const writes = await countWrites(page);
+  await pickUp(page, cue(page, 'ALPHA'));
+  await aimAt(page, folder(page, 'Folder 1'), 'middle');
+  await expect(folder(page, 'Folder 1')).toHaveAttribute('data-drop', 'into');
+  await expect(cue(page, 'BRAVO')).toHaveAttribute('data-drop-target', '');
+  await page.mouse.up();
+  await expect.poll(() => drawn(page)).toEqual(['[Folder 1]', '  BRAVO', '  CHARLIE', '  Hairline', '  ALPHA']);
+  expect(await writes()).toBe(1);
+  // The selection stands after the move.
+  await expect(page.getByTestId('range-count')).toHaveText('2 selected');
+  // A row outside it moves alone.
+  await drag(page, cue(page, 'BRAVO'), cue(page, 'ALPHA'), 'bottom');
+  await expect.poll(() => drawn(page)).toEqual(['[Folder 1]', '  CHARLIE', '  Hairline', '  ALPHA', '  BRAVO']);
+});
+
+test('the menu of a selected row acts on the whole selection: move into, take out, duplicate, and remove asks first', async ({ page }) => {
+  await production(page, CLIPS);
+  await cue(page, 'CHARLIE').getByTestId('cue-menu').click();
+  await page.getByTestId('cue-new-folder').click();
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', 'ALPHA', 'BRAVO', '[Folder 1]', '  CHARLIE']);
+  await selectCue(page, 'ALPHA');
+  await selectCue(page, 'BRAVO', true);
+
+  await cue(page, 'BRAVO').getByTestId('cue-menu').click();
+  await expect(page.getByTestId('cue-into-folder')).toHaveText('Move the 2 selected into ▤ Folder 1');
+  await page.getByTestId('cue-into-folder').click();
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', '[Folder 1]', '  CHARLIE', '  ALPHA', '  BRAVO']);
+
+  await cue(page, 'ALPHA').getByTestId('cue-menu').click();
+  await page.getByTestId('cue-out-of-folder').click();
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', '[Folder 1]', '  CHARLIE', 'ALPHA', 'BRAVO']);
+
+  await cue(page, 'ALPHA').getByTestId('cue-menu').click();
+  await page.getByRole('menuitem', { name: 'Duplicate the 2 selected cues' }).click();
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', '[Folder 1]', '  CHARLIE', 'ALPHA', 'BRAVO', 'ALPHA copy', 'BRAVO copy']);
+  // The copies are the selection now; the cursor stayed on ALPHA.
+  await expect(list(page).locator('.pd-cue.in-range')).toHaveCount(2);
+  await expect(cue(page, 'ALPHA copy')).toHaveClass(/in-range/);
+  await expect(cue(page, 'ALPHA').first().getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
+
+  await cue(page, 'BRAVO copy').getByTestId('cue-menu').click();
+  await page.getByTestId('delete-cue').click();
+  await expect(page.getByTestId('delete-cue')).toHaveText('Remove the 2 selected cues. Confirm?');
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', '[Folder 1]', '  CHARLIE', 'ALPHA', 'BRAVO', 'ALPHA copy', 'BRAVO copy']);
+  await page.getByTestId('delete-cue').click();
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', '[Folder 1]', '  CHARLIE', 'ALPHA', 'BRAVO']);
+});
+
+test('Ctrl+C and Ctrl+V make new cues that stand on their own; Ctrl+X and Ctrl+V move a cue with its id, still on air', async ({ page }) => {
+  await production(page, [], { graphics: [{ name: 'Strap A' }, { name: 'Strap B' }] });
+  const rows = list(page).locator('.pd-cue');
+  await selectCue(page, 'Strap A');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ControlOrMeta+c');
+  await expect(page.getByTestId('production-note')).toHaveText('✓ 1 cue copied. Ctrl+V pastes after the selected row.');
+  await selectCue(page, 'Strap B');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ControlOrMeta+v');
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', 'Strap A', 'Strap B', 'Strap A']);
+  // A new cue with its own id; the pasted row is the selection and the cursor stayed.
+  const ids = await rows.evaluateAll((r) => r.map((row) => row.getAttribute('data-row')));
+  expect(new Set(ids).size).toBe(4);
+  await expect(rows.nth(3)).toHaveClass(/in-range/);
+  await expect(cue(page, 'Strap B').getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
+
+  // The original, on air, cut and pasted at the end: the same row, still on air.
+  const original = rows.nth(1);
+  const originalId = (await original.getAttribute('data-row'))!;
+  await original.getByTestId('select-cue').click();
+  await parkFocusOffControls(page);
+  await page.keyboard.press(' ');
+  await expect(original).toContainText('ON AIR');
+  await page.keyboard.press('ControlOrMeta+x');
+  await expect(list(page).locator(`[data-row="${originalId}"]`)).toHaveClass(/cut/);
+  await rows.last().getByTestId('select-cue').click();
+  await parkFocusOffControls(page);
+  await page.keyboard.press('ControlOrMeta+v');
+  await expect(rows.last()).toHaveAttribute('data-row', originalId);
+  await expect(rows.last()).toContainText('ON AIR');
+  await expect(list(page).locator('.pd-cue.cut')).toHaveCount(0);
+  await expect.poll(() => drawn(page)).toEqual(['Hairline', 'Strap B', 'Strap A', 'Strap A']);
+});
+
+test('Ctrl-click adds and drops a row, Shift+Down extends from the cursor, Escape clears, and a right-click opens the row menu', async ({ page }) => {
+  await production(page, CLIPS);
+  await selectCue(page, 'Hairline');
+  await cue(page, 'BRAVO').getByTestId('select-cue').click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('range-count')).toHaveText('2 selected');
+  await expect(list(page).locator('.pd-cue.in-range')).toHaveCount(2);
+  await cue(page, 'BRAVO').getByTestId('select-cue').click({ modifiers: ['ControlOrMeta'] });
+  await expect(page.getByTestId('range-count')).toHaveText('1 selected');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('rundown-range')).toHaveCount(0);
+
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Shift+ArrowDown');
+  await expect(page.getByTestId('range-count')).toHaveText('3 selected');
+  // The cursor, and so PREVIEW, stayed where it was.
+  await expect(cue(page, 'Hairline').getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('preview-what')).toHaveText('Hairline');
+
+  await cue(page, 'ALPHA').click({ button: 'right' });
+  await expect(page.getByRole('menuitem', { name: 'Duplicate the 3 selected cues' })).toBeVisible();
+  // Escape closes the menu first, and the selection stands.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem', { name: 'Duplicate the 3 selected cues' })).toHaveCount(0);
+  await expect(page.getByTestId('range-count')).toHaveText('3 selected');
+});
+
 test('a drop that cannot land is said while it hovers and after, and nothing moves', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page);

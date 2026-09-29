@@ -18,10 +18,12 @@ import {
   appendCue,
   foldSelection,
   insertAfter,
+  leaveFolders,
   liveFolderIds,
   nextFolderName,
   placeInOrder,
   placeRefusal,
+  PLACE_GONE,
   pruneFolders,
   settleFolders,
   stepInOrder,
@@ -30,6 +32,7 @@ import {
   type Movable,
   type Place,
 } from './showFolders.ts';
+import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -902,6 +905,76 @@ export function moveInRundown(showId: string, what: Movable, place: Place): { sh
     return true;
   });
   return { shows, refused, error };
+}
+
+/**
+ * PASTE (docs/CLIP_PLAYBACK_PLAN.md §20.2), one write: copies land as new cues (./cueClipboard.ts),
+ * and a cut MOVES the cues it holds, with their ids, as a dragged selection would. A paste into
+ * another production than the one copied from, inside what was cut, or where a drop would be refused
+ * is refused and writes nothing. `cueIds`: the cues it pasted, for the page to select.
+ */
+export function pasteInRundown(showId: string, clip: CueClip, place: Place): { shows: Show[]; refused: string | null; error: string | null; cueIds: string[] } {
+  let refused: string | null = null;
+  let cueIds: string[] = [];
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    if (clip.showId !== showId) {
+      refused = 'Cues paste into the production they were copied from.';
+      return false;
+    }
+    if (clip.kind === 'cut') {
+      const ids = clip.ids.filter((id) => show.cues?.some((c) => c.id === id));
+      refused = !ids.length ? 'What was cut is no longer in the rundown.' : (cutPlaceRefusal(show.cues ?? [], ids, place) ?? placeRefusal(show, { cueIds: ids }, place));
+      // The drag's sentence, in a paste's words.
+      if (refused === PLACE_GONE) refused = 'The row to paste after has gone. Select a row and paste again.';
+      if (refused) return false;
+      const moved = placeInOrder(show.cues ?? [], show.folders, { cueIds: ids }, place);
+      cueIds = ids;
+      if (!moved) return false;
+      show.cues = moved;
+      pruneShowFolders(show);
+      return true;
+    }
+    const pasted = pasteCopies(show, clip, place, uuid);
+    if ('refused' in pasted) {
+      refused = pasted.refused;
+      return false;
+    }
+    show.cues = pasted.cues;
+    show.folders = pasted.folders;
+    pruneShowFolders(show);
+    cueIds = pasted.added;
+    return true;
+  });
+  return { shows, refused, error, cueIds };
+}
+
+/** Take these cues out of their folders, one write: each goes right after what stays of its folder,
+ *  in no folder; a folder they empty goes, its cues standing where they were. */
+export function takeCuesOutOfFolders(showId: string, cueIds: readonly string[]): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
+    const cues = leaveFolders(show.cues ?? [], show.folders, cueIds);
+    if (!cues) return false;
+    show.cues = cues;
+    pruneShowFolders(show);
+    return true;
+  });
+}
+
+/** Remove several cues in one write, by the rules one removal follows (`removeShowCue`): a graphic
+ *  or server item left with no cue goes with them, and so does a folder. */
+export function removeShowCues(showId: string, cueIds: readonly string[]): Show[] {
+  const gone = new Set(cueIds);
+  return patchShow(showId, (show) => {
+    const removed = (show.cues ?? []).filter((c) => gone.has(c.id));
+    if (!removed.length) return false;
+    show.cues = (show.cues ?? []).filter((c) => !gone.has(c.id));
+    const used = new Set(show.cues.map((c) => c.sourceId));
+    const orphaned = new Set(removed.map((c) => c.sourceId).filter((id) => !used.has(id)));
+    show.graphics = show.graphics.filter((g) => !orphaned.has(g.id));
+    if (show.playoutItems) show.playoutItems = show.playoutItems.filter((i) => !orphaned.has(i.id));
+    pruneShowFolders(show);
+    return true;
+  });
 }
 
 /** Put a cue last in a folder, taking it out of any other: a drop on a collapsed folder's header,

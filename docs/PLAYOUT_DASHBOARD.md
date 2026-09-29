@@ -624,12 +624,28 @@ the exported controller, the output and a pack see the flat rundown they always 
   carries what its hidden cues would show: the tally, a layer clash (the badge opens the folder and
   the repair) and "replaced on the server". Collapse is saved with the production.
 - **Moving**: drag by the grip. Where it lands is the third of the row under the pointer: the
-  middle third moves a row as it always did, the top and bottom thirds land before or after that row
-  and join its folder, and a header's top third lands above the folder. A line shows where; a red
-  dashed box and a sentence under the list say when it cannot land (a graphic, still or template
+  middle third moves a row as it always did, and the top and bottom thirds land before or after that
+  row and join its folder. On a header the top quarter lands above the folder and the rest **last in
+  it**, open or collapsed, with the whole folder lit as the target (2026-09-29). A line shows where; a
+  red dashed box and a sentence under the list say when it cannot land (a graphic, still or template
   cannot join a Play-through folder), and nothing moves. While dragging, the list ends in a strip to
   drop at the end. A cue's `⋯` also moves it into another folder or out of its own; the last cue
-  out takes the folder with it. The folder's `⋯` removes the folder and keeps its cues.
+  out takes the folder with it. The folder's `⋯` removes the folder and keeps its cues. A
+  right-click on a row opens its `⋯`.
+- **The selection** (`docs/CLIP_PLAYBACK_PLAN.md` §20.2) is for editing, never for airing: SPACE,
+  TAKE and `0` act on the cursor row whatever is selected. Shift-click or Shift with Up or Down
+  extends it from the cursor, Ctrl-click (Cmd-click on a Mac) adds or drops a row, Escape clears it.
+  Dragging a selected row moves the whole selection in its order, as one write; a folder whose every
+  cue is selected moves as a folder, beside another rather than inside it. A selected row's `⋯` acts
+  on all of it: Move into, Take out, Duplicate (the copies land after the last of them and become
+  the selection), and Remove, which asks with the count.
+- **Copy, cut and paste**: Ctrl (Cmd) with C, X and V, whenever nothing is being typed and no text on
+  the page is selected. A copy is new cues on the same graphic or file, with new ids and their own
+  values, note and clip settings; a folder copied whole pastes as `… copy`. Cut dims the rows, and the
+  paste moves them with their ids, so a cue on air stays on air; Escape keeps them where they are.
+  A paste lands after the cursor's cue in its folder, last in a held folder, or at the end, refuses
+  what a drop there would, works within one production, and becomes the selection. The clipboard is
+  the page's own and is not saved.
 - **Holding a header** (click it, or walk to it with the arrows) opens the folder's panel where a
   cue's editor would be: its name, **How it plays** (One by one, Play through, All together) with
   what that means in muted type, and the cues in it with where each airs. For Play through, **At the

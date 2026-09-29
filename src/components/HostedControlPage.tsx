@@ -1002,8 +1002,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // Walk the rundown. Selecting a cue is the same act as clicking it, to PREVIEW in 'take'
     // mode and a cursor move in the other, and nothing airs either way, so an operator can line
     // the next item up and take it without a mouse.
-    if (verb === 'select-prev' || verb === 'select-next') {
-      const next = stepSelection(cues, selectedCue?.id ?? null, verb === 'select-next' ? 1 : -1);
+    // Shift with an arrow extends a selection on the production page; this page has none, so it walks.
+    if (verb === 'select-prev' || verb === 'select-next' || verb === 'extend-prev' || verb === 'extend-next') {
+      const next = stepSelection(cues, selectedCue?.id ?? null, verb === 'select-next' || verb === 'extend-next' ? 1 : -1);
       if (!next) return;
       selectCue(next);
       revealCue(`hosted-cue-${next.id}`);

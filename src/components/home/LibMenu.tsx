@@ -124,8 +124,13 @@ export default function LibMenu({
     // CAPTURE, so the close lands before the pressed control's own React handler runs and the
     // two are never observed in the other order.
     const key = (e: KeyboardEvent) => {
-      // Escape belongs to the topmost surface, so a dialog over the menu answers it first.
-      if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) onClose();
+      // Escape belongs to the topmost surface, so a dialog over the menu answers it first. The menu
+      // marks it handled, so nothing under it (the rundown's Escape, which clears a selection) takes
+      // the same press as well.
+      if (e.key === 'Escape' && !document.querySelector('[aria-modal="true"]')) {
+        e.preventDefault();
+        onClose();
+      }
     };
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('keydown', key);
