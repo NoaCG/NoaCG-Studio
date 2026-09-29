@@ -276,7 +276,8 @@ test('a published profile arranges, combines and moves the shared value on the h
   // payload rather than off a cue's label, which the pack is free to change.
   const cueGraphics = await op.evaluate(async (slug) => {
     const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
-    const show = await controlShowBySlug(slug);
+    const answer = await controlShowBySlug(slug);
+    const show = answer.ok ? answer.value : null;
     return (show?.output.cues ?? []).map((c) => c.graphic);
   }, hosted);
   expect(cueGraphics, 'the votes board is cue 1 and the totals board cue 2').toEqual([VOTES, TOTALS]);

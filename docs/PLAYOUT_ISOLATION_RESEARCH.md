@@ -1279,8 +1279,10 @@ the ones marked *filed* have a backlog item.
    on air by itself. *Filed:* `docs/backlog/output-embed-blocked-by-frame-headers.md`.
 2. **Tell the operator the truth during an outage.** The hosted page's resolve collapses an error
    into "invalid or unpublished"; use the renderer's `RpcAnswer` pattern and retry. The production
-   page's follow gives up silently until reload. *Filed:*
-   `docs/backlog/operator-pages-read-an-outage-as-unpublished.md`.
+   page's follow gives up silently until reload. *Done 2026-09-30:* `controlShowBySlug` answers
+   with `RpcAnswer`; the hosted page says the server is not answering and retries, the production
+   page's follow retries and says so in its header, and
+   `e2e/configured/operator-outage-not-unpublished.spec.ts` replays the 503.
 3. **A renderer that cannot fail at boot on a chunk.** Bundle supabase-js into the output entry or
    stop caching a rejected import; make the "Output not available" card transparent, or show it
    only for an explicit unpublish. *Filed:* `docs/backlog/output-boot-dies-on-a-failed-chunk.md`.
