@@ -91,6 +91,27 @@ rewrite.
   applies it at the first later run that finds production quiet (no renderer heartbeat in the
   last ten minutes), or at once when a person names it. Every other migration stays automatic.
   Revert: remove the class; such migrations apply on landing like any other.
+- **D8. AC-15 is about the real writer.** The publish was an upsert, which locks the row FOR
+  UPDATE and blocks a Take whatever the Take locks; an ordinary UPDATE of the row, which the old
+  AC tested, was not what a publish does. So the publish now updates by id (NO KEY UPDATE) and
+  inserts only when nothing matched, the new send takes the production's row at KEY SHARE, and
+  AC-15 is worded against that real statement. An old bundle's upsert still blocks Takes until it
+  reloads. Revert: restore the old wording and the upsert.
+- **D9. AC-16 heals by replaying, not by snapping.** The server knows what each graphic's last
+  command did, not where the graphic's machine is, so there is no pose to snap to; and dropping
+  or reordering rows changed what the operator meant (clock starts, event payloads, snaps used as
+  recovery). An output that missed frames applies every row it reads back, in order, and skips
+  only the animation of a play or stop that a later one of the same graphic replaces. Revert:
+  restore the old wording (it needs a pose the server does not have).
+- **D10. A page picks its protocol once per load.** The new resolve answers, or the page runs
+  today's protocol for its life. A renderer on a production that still holds pre-migration rows
+  it would need follows by id for that session, and its reports move past them. The migrations
+  can therefore land before or after the client, in either order. Revert: none needed while old
+  servers exist; retire proto 1 by D6's evidence.
+- **D11. Step 2's two migrations land on their own gated branch, after the client.** The client
+  works on an unmigrated server (D10), so it lands first; `e2e/configured/command-sequence.spec.ts`
+  skips on a server without the sequence road and is an allowed skip until the migrations are in
+  the tree, when that entry goes and `minTests` rises by 2. Revert: land them together.
 
 ## Non-goals
 
@@ -200,16 +221,21 @@ With another production writing a row every 120 ms, the output applies a Take wi
 quiet case (today +92 ms), and no Take goes out without its command frame because of another
 production's traffic (today 17 of 20).
 
-### AC-15: A held `control_shows` row does not delay a Take
+### AC-15: A publish holding the `control_shows` row does not delay a Take
 
-`live_cue` and renderer reports live off `control_shows`; with that row held by an ordinary
-`UPDATE` for 15 s (a publish), Takes and Outs keep their normal latency (today every one fails).
+The Take path is off the hot row: a new send takes the production's row only at KEY SHARE, and
+`live_cue` and renderer reports live on `control_heads`. With the row held for 15 s by the
+publish's real statement (an update by id, D8), Takes and Outs keep their normal latency (today
+every one fails). An old bundle's publish upsert still blocks until that page reloads.
 
-### AC-16: One frame per transaction, carrying a desired-state summary that heals
+### AC-16: One frame per inserting statement, carrying a summary; a missed frame heals by replay
 
-A Take reaches a new follower as one frame with its sequence number and a small summary per
-touched graphic (revision, on air, cue, step). An output that missed a frame heals the touched
-graphics through `snap` without replaying an entrance, then fills the hole by sequence.
+A Take reaches a new follower as one frame with its sequence numbers and a small summary per
+touched graphic (revision, on air, cue, step). An output that missed frames reads them back from
+the tail in one read, applies every row in seq order, and animates only what the operator's last
+press asks for: a play or stop that a later play or stop of the same graphic in the same read
+replaces (with no event, next or snap of that graphic between them) is not animated. The summary
+is data: nothing plays, stops or refills because of it (D9).
 
 ### AC-17: Old pages and old outputs keep working on the new schema
 
