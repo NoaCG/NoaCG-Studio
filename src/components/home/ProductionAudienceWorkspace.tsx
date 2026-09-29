@@ -537,13 +537,15 @@ export default function ProductionAudienceWorkspace({
     }
     const made = addShowCue(show.id, target.id, { label: `Vote — ${round.question.slice(0, 32)}`, values });
     setShows(made.shows);
+    // Remembered at once, so a second press while this write settles updates the same cue, and
+    // forgotten if the write is refused: there is then no cue to update.
+    if (made.cueId) stagedCue.current[round.id] = made.cueId;
     const failure = await commitDurableWrites();
     if (failure) {
+      if (made.cueId && stagedCue.current[round.id] === made.cueId) delete stagedCue.current[round.id];
       setNote(`No cue was added to the rundown for “${target.name}”: ${failure}`);
       return;
     }
-    // Remembered only once it exists: a refused write leaves no cue to update next time.
-    if (made.cueId) stagedCue.current[round.id] = made.cueId;
     setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it — nothing has gone out.`);
   };
 
