@@ -861,8 +861,10 @@ export async function sendControlVerb(opts: {
   for (const key of keys) newestSend.set(key, send);
   try {
     // A server that did not answer gets the same items again, minted ids and all, for a few
-    // seconds (failedSends.ts says why that is safe and why it stops).
-    await sendWithResend(() => sendHostedControlBatch(opts.slug, wire), {
+    // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
+    // at its own deadline, so a request still held on this side is cancelled rather than left to
+    // commit after a later press.
+    await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), {
       deadline: now + RESEND_WINDOW_MS,
       stillNewest: () => keys.every((key) => newestSend.get(key) === send),
     });
@@ -877,6 +879,8 @@ export async function sendControlVerb(opts: {
     // budgeted against the fan-out's 650 ms slow mode and assumes the insert itself was quick;
     // on the venue wifi this whole change exists for, `control_send_many` can take longer than
     // the window, and a Take pressed after it expired would then overtake the event's own row.
+    // A send that ended abandoned (failedSends.ts ATTEMPT_TIMEOUT_MS) may still commit after this;
+    // that is the late commit only a server-side revision check closes (Phase 6 Step 2).
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
     for (const key of held) slowUntil.set(key, landed);
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);
@@ -907,10 +911,10 @@ export interface ControlCommandItem {
  *  a multi-part verb must not pay one RPC round-trip per command or fail halfway through. An item
  *  marked `fast` is also broadcast on the production's private topic by the same transaction
  *  (migration 0056); the mark itself is transport and is never written to the log. */
-export async function sendHostedControlBatch(slug: string, items: WireItem[]): Promise<void> {
+export async function sendHostedControlBatch(slug: string, items: WireItem[], signal: AbortSignal): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
-  const { error, status } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items });
+  const { error, status } = await sb.rpc('control_send_many', { p_slug: slug, p_items: items }).abortSignal(signal);
   if (error) throw rpcFailure('control_send_many', error, status);
 }
 

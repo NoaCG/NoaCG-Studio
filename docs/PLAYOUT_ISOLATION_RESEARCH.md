@@ -1286,7 +1286,10 @@ the ones marked *filed* have a backlog item.
    only for an explicit unpublish. *Filed:* `docs/backlog/output-boot-dies-on-a-failed-chunk.md`.
 4. **A per-attempt timeout on the send**, so an attempt started inside the resend window cannot
    commit after a later press. The real fix is step 2's revision check; this closes most of the
-   window cheaply.
+   window cheaply. *Done 2026-09-30:* each attempt is abandoned 1.5 s after it starts and never
+   past the resend window (`ATTEMPT_TIMEOUT_MS` in `src/control/failedSends.ts`;
+   `e2e/configured/late-send-abandoned.spec.ts` replays the late Take of §5.6). A request already
+   inside PostgREST can still commit; step 2 closes that.
 5. **`lock_timeout` and `statement_timeout` in every migration session** (`db-push`), with a retry
    instead of a queued lock. §5 shows the difference for a show under a lock queue. *Done
    2026-09-29:* every migration from 0068 sets both in the file, `db-push` retries a lock timeout
