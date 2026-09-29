@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const folders = await import('../src/model/showFolders.ts');
-const { appendCue, folderMode, foldersContiguous, foldSelection, gatherFolders, insertAfter, liveFolderIds, nextFolderName, placeInOrder, placeRefusal, pruneFolders, settleFolders, stepInOrder, throughRefusal, unfold } = folders;
+const { appendCue, folderMode, foldersContiguous, foldSelection, gatherFolders, insertAfter, landBlock, leaveFolders, liveFolderIds, nextFolderName, placeInOrder, placeRefusal, pruneFolders, settleFolders, stepInOrder, throughRefusal, unfold } = folders;
 
 const cue = (id, folderId) => ({ id, sourceId: 'g', label: id, values: {}, ...(folderId ? { folderId } : {}) });
 /** `A B(F) C(F) D` -> cues: a letter per cue, its folder in brackets. */
@@ -219,7 +219,9 @@ test('every move and every step keeps every folder whole, on every small rundown
     const name = show(cues);
     const ids = cues.map((c) => c.id);
     const places = [...ids.flatMap((id) => [{ before: id }, { after: id }]), { into: 'F' }, { into: 'G' }, { beforeFolder: 'F' }, { afterFolder: 'G' }, { end: true }];
-    for (const what of [...ids.map((cueId) => ({ cueId })), { folderId: 'F' }, { folderId: 'G' }]) {
+    // One cue, a whole folder, and every selection of two cues (docs/CLIP_PLAYBACK_PLAN.md §20.2).
+    const pairs = ids.flatMap((a, i) => ids.slice(i + 1).map((b) => ({ cueIds: [a, b] })));
+    for (const what of [...ids.map((cueId) => ({ cueId })), { folderId: 'F' }, { folderId: 'G' }, ...pairs]) {
       for (const place of places) {
         const out = placeInOrder(cues, foldersOf(cues), what, place);
         if (out) assert.ok(foldersContiguous(out), `${JSON.stringify(what)} to ${JSON.stringify(place)} in ${name}`);
@@ -270,4 +272,31 @@ test('a folder id written twice is read once, the first entry winning, and the n
   const { folders: kept, changed } = pruneFolders(parse('A(F)'), [{ id: 'F', name: 'first' }, { id: 'F', name: 'second' }]);
   assert.equal(changed, true);
   assert.deepEqual(kept, [{ id: 'F', name: 'first' }]);
+});
+
+test('a block lands in its order where it is put: joining the folder there, or beside it when it keeps a folder', () => {
+  const whole = parse('A B(F) C(F) D');
+  const copies = parse('P Q');
+  assert.equal(show(landBlock(whole, copies, new Set(), { after: 'B' })), 'A B(F) P(F) Q(F) C(F) D');
+  assert.equal(show(landBlock(whole, copies, new Set(), { end: true })), 'A B(F) C(F) D P Q');
+  // A block keeping its own folder K lands clear of F, and its loose cue in none.
+  const kept = parse('P(K) Q(K) R');
+  assert.equal(show(landBlock(whole, kept, new Set(['K']), { after: 'B' })), 'A B(F) C(F) P(K) Q(K) R D');
+  assert.equal(show(landBlock(whole, kept, new Set(['K']), { before: 'B' })), 'A P(K) Q(K) R B(F) C(F) D');
+  assert.equal(landBlock(whole, copies, new Set(), { after: 'GONE' }), null);
+});
+
+test('cues taken out of their folders go right after what stays of each, and a folder they empty lets them stand', () => {
+  const cues = parse('A B(F) C(F) D(F) E(G) X');
+  assert.equal(show(leaveFolders(cues, foldersOf(cues), ['B', 'D'])), 'A C(F) B D E(G) X');
+  assert.equal(show(leaveFolders(cues, foldersOf(cues), ['B', 'E'])), 'A C(F) D(F) B E X');
+  assert.equal(show(leaveFolders(cues, foldersOf(cues), ['B', 'C', 'D'])), 'A B C D E(G) X');
+  assert.equal(leaveFolders(cues, foldersOf(cues), ['A', 'X']), null);
+  for (const rundown of everyRundown(5)) {
+    const ids = rundown.map((c) => c.id);
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const out = leaveFolders(rundown, foldersOf(rundown), [ids[i], ids[j]]);
+      if (out) assert.ok(foldersContiguous(out), `${ids[i]},${ids[j]} out of ${show(rundown)}`);
+    }
+  }
 });

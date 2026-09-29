@@ -206,8 +206,9 @@ export function unfold<T extends FolderMember>(cues: readonly T[], folderId: str
   return cues.map((c) => (c.folderId === folderId ? withFolder(c, undefined) : c));
 }
 
-/** What a drag moves: one cue, or a whole folder with its cues. */
-export type Movable = { cueId: string } | { folderId: string };
+/** What a drag moves: one cue, a whole folder with its cues, or a selection of cues (a
+ *  shift-click range) as one block (docs/CLIP_PLAYBACK_PLAN.md §20.2). */
+export type Movable = { cueId: string } | { folderId: string } | { cueIds: readonly string[] };
 
 /**
  * Where a drag puts it. `before`/`after` a cue joins that cue's folder, or none; `into` a folder puts
@@ -232,10 +233,82 @@ function runOf(cues: readonly FolderMember[], folderId: string): [number, number
 }
 
 /** The folder a cue joins at a place: the cue it lands beside's folder, the folder it goes into, or none. */
-function joins(cues: readonly FolderMember[], place: Place): string | undefined {
+export function joins(cues: readonly FolderMember[], place: Place): string | undefined {
   if ('into' in place) return place.into;
   const beside = 'before' in place ? place.before : 'after' in place ? place.after : undefined;
   return beside === undefined ? undefined : cues.find((c) => c.id === beside)?.folderId;
+}
+
+/** Where a place lands in a list the moving cues have left, or null when its row or folder has gone. */
+function landingIn(rest: readonly FolderMember[], place: Place): number | null {
+  if ('end' in place) return rest.length;
+  const target = 'before' in place ? place.before : 'after' in place ? place.after : undefined;
+  if (target !== undefined) {
+    const i = rest.findIndex((c) => c.id === target);
+    return i < 0 ? null : 'before' in place ? i : i + 1;
+  }
+  const folderId = 'into' in place ? place.into : 'beforeFolder' in place ? place.beforeFolder : 'afterFolder' in place ? place.afterFolder : null;
+  const run = folderId === null ? null : runOf(rest, folderId);
+  return run ? ('beforeFolder' in place ? run[0] : run[1] + 1) : null;
+}
+
+/** The folders every one of whose cues is among `ids`: a selection moves or copies them as folders. */
+export function wholeFolders(cues: readonly FolderMember[], ids: ReadonlySet<string>, folderOf: (cue: FolderMember) => string | undefined = (c) => c.folderId): Set<string> {
+  const all = new Map<string, boolean>();
+  for (const c of cues) {
+    const f = folderOf(c);
+    if (f) all.set(f, (all.get(f) ?? true) && ids.has(c.id));
+  }
+  return new Set([...all].filter(([, every]) => every).map(([id]) => id));
+}
+
+/**
+ * A BLOCK OF CUES AT A PLACE (docs/CLIP_PLAYBACK_PLAN.md §20.2): a selection being moved, or copies
+ * being pasted, in their order. With no folder of `keep` among them each cue joins the folder it
+ * lands in, as one dropped cue would. With one, the block lands beside the folder there rather than
+ * inside it - folders do not nest - the kept folders stay folders, and every other cue lands in none.
+ * `whole` is a settled list; the block's cues may be in it (a move) or not (a paste). Null when the
+ * place has gone.
+ */
+export function landBlock<T extends FolderMember>(whole: readonly T[], block: readonly T[], keep: ReadonlySet<string>, place: Place): T[] | null {
+  const moving = new Set(block.map((c) => c.id));
+  const rest = whole.filter((c) => !moving.has(c.id));
+  const found = landingIn(rest, place);
+  if (found === null) return null;
+  const at = keep.size ? clearOfFolders(rest, found) : found;
+  const joining = keep.size ? undefined : joins(whole, place);
+  const landed = block.map((c) => (c.folderId && keep.has(c.folderId) ? c : withFolder(c, joining)));
+  return [...rest.slice(0, at), ...landed, ...rest.slice(at)];
+}
+
+/**
+ * TAKE CUES OUT OF THEIR FOLDERS, in no folder: each goes right after what stays of its folder, in
+ * its order; the cues of a folder that would be left empty stay where they stand. Settles first.
+ * Null when none of them is in a folder.
+ */
+export function leaveFolders<T extends FolderMember>(cues: readonly T[], folders: readonly Pick<ShowFolder, 'id'>[] | undefined, ids: readonly string[]): T[] | null {
+  const whole = settleFolders(cues, folders).cues;
+  const chosen = new Set(ids);
+  const leaving = new Map<string, T[]>();
+  const lastStayer = new Map<string, string>();
+  for (const c of whole) {
+    if (!c.folderId) continue;
+    if (chosen.has(c.id)) leaving.set(c.folderId, [...(leaving.get(c.folderId) ?? []), c]);
+    else lastStayer.set(c.folderId, c.id);
+  }
+  if (!leaving.size) return null;
+  const out: T[] = [];
+  for (const c of whole) {
+    const f = c.folderId;
+    if (f && leaving.has(f) && chosen.has(c.id)) {
+      if (!lastStayer.has(f)) out.push(withFolder(c, undefined));
+      continue;
+    }
+    out.push(c);
+    const leavers = f && lastStayer.get(f) === c.id ? leaving.get(f) : undefined;
+    if (leavers) out.push(...leavers.map((x) => withFolder(x, undefined)));
+  }
+  return out;
 }
 
 /**
@@ -252,6 +325,14 @@ export function placeInOrder<T extends FolderMember>(
   place: Place,
 ): T[] | null {
   const whole = settleFolders(cues, folders).cues;
+  const same = (out: readonly T[]) => out.length === cues.length && out.every((c, i) => c.id === cues[i].id && c.folderId === cues[i].folderId);
+  if ('cueIds' in what) {
+    // A selection: one block, in its order (landBlock).
+    const chosen = new Set(what.cueIds);
+    const block = whole.filter((c) => chosen.has(c.id));
+    const out = block.length ? landBlock(whole, block, wholeFolders(whole, chosen), place) : null;
+    return out && !same(out) ? out : null;
+  }
   const moving = 'cueId' in what ? whole.filter((c) => c.id === what.cueId) : whole.filter((c) => c.folderId === what.folderId);
   if (!moving.length) return null;
   const moved = new Set(moving.map((c) => c.id));
@@ -282,8 +363,7 @@ export function placeInOrder<T extends FolderMember>(
     block = [withFolder(moving[0], joins(whole, place))];
   }
   const out = [...rest.slice(0, at), ...block, ...rest.slice(at)];
-  const same = out.length === cues.length && out.every((c, i) => c.id === cues[i].id && c.folderId === cues[i].folderId);
-  return same ? null : out;
+  return same(out) ? null : out;
 }
 
 /**
@@ -342,18 +422,40 @@ export function placeRefusal(
   const cues = record.cues ?? [];
   const live = liveFolderIds(cues, record.folders);
   const gone = 'The rundown changed while you dragged. Drag it again.';
-  const piece = 'cueId' in what ? cues.find((c) => c.id === what.cueId) : live.has(what.folderId) ? what : undefined;
-  if (!piece) return gone;
   const beside = 'before' in place ? place.before : 'after' in place ? place.after : undefined;
   const folderTarget = 'into' in place ? place.into : 'beforeFolder' in place ? place.beforeFolder : 'afterFolder' in place ? place.afterFolder : undefined;
   if (beside !== undefined && !cues.some((c) => c.id === beside)) return gone;
   if (folderTarget !== undefined && !live.has(folderTarget)) return gone;
   const joining = 'into' in place ? place.into : beside !== undefined ? folderIdOf(cues.find((c) => c.id === beside)!, live) : undefined;
+  if ('cueIds' in what) {
+    const chosen = what.cueIds.map((id) => cues.find((c) => c.id === id));
+    if (!chosen.length || chosen.some((c) => !c)) return gone;
+    // With a whole folder in it the block lands beside any folder, in none (landBlock): nothing joins.
+    if (wholeFolders(cues, new Set(what.cueIds), (c) => folderIdOf(c, live)).size) return null;
+    return joinRefusal(record, chosen as ShowCue[], joining, live);
+  }
+  const piece = 'cueId' in what ? cues.find((c) => c.id === what.cueId) : live.has(what.folderId) ? what : undefined;
+  if (!piece) return gone;
   if ('folderId' in what) {
     return ('into' in place && place.into !== what.folderId) || (joining && joining !== what.folderId) ? 'A folder cannot go inside another folder.' : null;
   }
-  const cue = piece as ShowCue;
+  return joinRefusal(record, [piece as ShowCue], joining, live);
+}
+
+/** Why these cues cannot join `joining`, naming the first, or null: only a Play-through folder
+ *  refuses, and only a cue not already in it. What a drop, a move and a paste all ask. */
+export function joinRefusal(
+  record: { folders?: readonly ShowFolder[]; playoutItems?: readonly Pick<PlayoutItem, 'id' | 'kind' | 'mediaKind'>[] },
+  cues: readonly ShowCue[],
+  joining: string | undefined,
+  live?: ReadonlySet<string>,
+): string | null {
   const folder = joining ? record.folders?.find((f) => f.id === joining) : undefined;
-  if (!folder || folderMode(folder) !== 'through' || folderIdOf(cue, live) === joining) return null;
-  return throughRefusal(cue, record.playoutItems ?? []);
+  if (!folder || folderMode(folder) !== 'through') return null;
+  for (const cue of cues) {
+    if ((live ? folderIdOf(cue, live) : cue.folderId) === joining) continue;
+    const why = throughRefusal(cue, record.playoutItems ?? []);
+    if (why) return why;
+  }
+  return null;
 }
