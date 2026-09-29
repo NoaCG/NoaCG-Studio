@@ -93,14 +93,24 @@ workflow. This is the destination; only measured evidence can establish that com
   split exactly, the whole move refuses with source and history unchanged. Interrupted Out
   tweens from live values to final exit keys with no initial set/jump; simulator and exports
   use the same upgraded interpreter. Holds remain indefinite. No new auto-Out timer; existing
-  timed behavior survives.
+  timed behavior survives. Owner decision 2026-09-29, the contract for Step/Next editing: Out
+  always animates the graphic out from its current state, whichever step is active, and never
+  plays or reveals an unreached Next step. At the last step Out plays its authored animation
+  from the held pose; at an earlier step each visible layer animates from its live pose to its
+  end-of-Out pose (the interrupted-Out policy) and layers from unreached steps stay hidden.
+  Until that phase, Set Out refuses to move keys or bar edges out of a Next cue.
 
 - One completed gesture or operation batch is one undo; Escape cancels exactly. Source/asset
   revision checks reject stale edits and preview replies. Scrubbing causes no operator side effects.
 - Playhead -> Add Step places a flag there. Play parks at it; Next runs to the next flag.
   Additive reveals are authored by snapping layer bars to flags; drag flags/keys to set timing.
   No compulsory layer chooser. At a flag edits use the arriving side, except a selected layer
-  whose bar starts there: edit its departing side. Keep quiz/custom actions intact.
+  whose bar starts there: edit its departing side. Keep quiz/custom actions intact. Owner
+  decision 2026-09-29: a graphic may have any number of Step/Next states and Next advances
+  through them in order. The editor is strict about arrangements: In, Step, Next and Out
+  markers stay ordered and never stack, and a drag into a combination the runtime cannot
+  interpret safely refuses. Goal: simple, predictable show control, where Out cleanly removes
+  the graphic at any point.
 - Folders/bins and a transformable group with parent bar/local ruler are distinct from reusable
   instanced precompositions. Owner approved 2026-09-19: groups ship in R1.2b; named P-COMP
   delivers reusable instances after R1.5. Both remain required for full completion.
@@ -108,6 +118,8 @@ workflow. This is the destination; only measured evidence can establish that com
   Stable schema keys survive label changes. OGraf acceptance includes a named receiving host.
 - Linear, Easy Ease In/Out, Easy Ease, Bounce, Overshoot and Hold Keyframe share one batch action:
   marquee/Ctrl/Cmd/Shift selection, toolbar or right-click. Shared evaluator/export parity; new curve graph UI deferred.
+  R1.2a.2 delivers it: point presets keep the other side exactly or refuse, Bounce/Overshoot/Hold
+  set a whole segment, Hold is its own exact form, and layer rows open into property rows.
 - UI, chat and external tools use one operation registry over deterministic readable patches.
   Show supported targets and concrete errors. Arbitrary unknown source is preserved, never
   flattened or regenerated to make an unavailable control appear editable.
@@ -125,7 +137,7 @@ Only R1 replaces the default editor after owner acceptance; R2/R3 extend it. No 
 | R1.1b Keys and bar moves | Text + box: off-canvas first key, move playhead 1 s, canvas drag creates second key; visible spans and bar-body moves carry keys. B05/B13 key/bar portions; no trim UI yet. |
 | R1.1c Out and parity | Set Out, reverse/manual/empty exit, indefinite hold, early interrupt from live pose; save/reopen, simulator and exported/production parity. B13 core. |
 | R1.1d Fidelity and trim | Nested Illustrator/catalog fixtures, stable IDs on first SVG edit, span trimming, two first-time users on the basic journey; B01-B05/B11/B13 applicable portions. |
-| R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. The evaluator, exact split and exact reversal gate (G01) is engineering-verified ([receipt](research/editor-g01/README.md)). R1.2a.1, Set Out across the last In key, is engineering-verified ([receipt](research/editor-r1-2a-1/README.md)); R1.2a.2 is the key-side ease menu, Hold and multi-key selection. |
+| R1.2a Animation | Shared Bezier/named-ease evaluator gate; exact splits, full transforms, marquee/modifier multi-key selection and dropdown/context easing including Bounce/Overshoot/Hold; Step/Next/cross-cue editing. B03/B05-B07/B13. The evaluator, exact split and exact reversal gate (G01) is engineering-verified ([receipt](research/editor-g01/README.md)). R1.2a.1, Set Out across the last In key, is engineering-verified ([receipt](research/editor-r1-2a-1/README.md)). R1.2a.2, the key-side ease menu, Hold and multi-key selection, is engineering-verified ([receipt](research/editor-r1-2a-2/README.md)); Step/Next and cross-cue editing under the 2026-09-29 Out contract is next. |
 | R1.2b Everyday tools and grouping | E05-E07/B04: typography/fit, file/drop import, images/assets, bounded Pen, full canvas tools, duplicate/delete/reorder/align/distribute/group movement; folders/bins, group transform/parent bar/local ruler. Reusable instances follow in P-COMP after R1.5. |
 | R1.2c Loops | Local loops, interruption/replay, legacy behavior and output parity. B07/B13/B14 local-loop portion. |
 | R1.3a/b AI and source round-trip | a: grounded help/context; b: reviewed edits through shared semantic commands, CLI round-trip, free tier/BYOK and model/concurrency tests. B17/B18. Optional P-WEBMCP adapter follows b; [inspection, scope and B21](research/editor-webmcp-commands-2026-09-19.md). |

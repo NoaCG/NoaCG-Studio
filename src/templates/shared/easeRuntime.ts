@@ -9,16 +9,22 @@
 // Keep it ES5 for the oldest playout engine (docs/CLOUD_PLAYOUT.md), without eval.
 
 export const NOACG_EASE_JS = String.raw`// ---- Eases (shared with the editor, which samples, splits and reverses keys with this code) ----
-// Capability: shared-ease-v1. noacgEase(text) returns the curve E(p) of an ease string, or null
+// Capability: shared-ease-v2. noacgEase(text) returns the curve E(p) of an ease string, or null
 // when the string is outside this grammar; the interpreter then hands the string to GSAP as it
 // always did. A recognized ease reaches GSAP as this function, never as a string it could replace
 // with its default.
 //   none | linear, power0-4, quad, cubic, quart, quint, strong, sine, expo, circ, bounce, back(s)
 //   or elastic(a, p), each with .in, .out or .inOut (bare means .out) | steps(n) | steps(n, true)
 //   | cubic-bezier(x1, y1, x2, y2) with x1 and x2 in 0..1
-//   | slice(ease, a, b): that ease between a and b, rescaled to run from 0 to 1.
+//   | slice(ease, a, b): that ease between a and b, rescaled to run from 0 to 1
+//   | hold: keep the departing key's value, then jump to the arriving key's (a Hold keyframe)
+//   | jump: jump to the arriving key's value at once, then keep it (a Hold played backwards).
 // Named curves repeat GSAP 3.15's formulas in its operation order, so they match it exactly.
 var noacgEaseCache = {};
+// GSAP rounds timeline times to 1e-7 s, so at a key's exact time the segment arriving there can
+// read 0.9999987 rather than 1. A hold jumps in the last 1e-5 of its segment, which that rounding
+// still reaches for any segment of 10 ms or more, and a jump mirrors it at the start.
+var NOACG_EASE_EDGE = 1e-5;
 var NOACG_EASE_POWER = { linear: 1, power0: 1, quad: 2, power1: 2, cubic: 3, power2: 3, quart: 4, power3: 4, quint: 5, power4: 5, strong: 5 };
 var NOACG_EASE_SHAPED = { sine: 1, expo: 1, circ: 1, bounce: 1, back: 1, elastic: 1 };
 var NOACG_EASE_TWO_PI = 2 * Math.PI;
@@ -52,6 +58,7 @@ function noacgEaseParse(text) {
     if (called && (args.length > most || values.some(function (v) { return !isFinite(v); }))) return null;
     return { kind: 'family', text: text, name: name, side: side || 'out', args: called ? values : [], argText: called ? '(' + m[3] + ')' : '' };
   }
+  if ((name === 'hold' || name === 'jump') && !side && !called) return { kind: name, text: text };
   if (side || !called) return null;
   if (name === 'steps' && args.length <= 2) {
     var count = values[0];
@@ -67,7 +74,8 @@ function noacgEaseParse(text) {
   }
   if (name === 'slice' && args.length === 3) {
     var base = noacgEaseParse(args[0]), from = values[1], to = values[2];
-    if (!base || base.kind === 'slice' || base.kind === 'steps' || !(from >= 0 && from < to && to <= 1)) return null;
+    // A slice rescales a moving part; a step, a hold or a jump has only flat parts and one instant.
+    if (!base || base.kind === 'slice' || base.kind === 'steps' || base.kind === 'hold' || base.kind === 'jump' || !(from >= 0 && from < to && to <= 1)) return null;
     var curve = noacgEaseCurve(base), low = curve(from), high = curve(to);
     // Equal ends leave nothing to rescale: no slice can carry motion between them.
     if (!isFinite(low) || !isFinite(high) || low === high) return null;
@@ -113,6 +121,8 @@ function noacgEaseBezier(x1, y1, x2, y2) {
 // defines out directly (power, back, elastic, bounce), and inOut joins two halves at 0.5.
 function noacgEaseCurve(e) {
   if (e.kind === 'none') return function (p) { return p; };
+  if (e.kind === 'hold') return function (p) { return p >= 1 - NOACG_EASE_EDGE ? 1 : 0; };
+  if (e.kind === 'jump') return function (p) { return p > NOACG_EASE_EDGE ? 1 : 0; };
   if (e.kind === 'bezier') return noacgEaseBezier(e.x1, e.y1, e.x2, e.y2);
   if (e.kind === 'steps') {
     var share = 1 / e.count, levels = e.count + (e.start ? 0 : 1), lift = e.start ? 1 : 0;
@@ -174,7 +184,9 @@ export type EaseDescription =
   | { kind: 'family'; text: string; name: string; side: 'in' | 'out' | 'inOut'; args: number[]; argText: string }
   | { kind: 'steps'; text: string; count: number; start: boolean }
   | { kind: 'bezier'; text: string; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'slice'; text: string; base: EaseDescription; from: number; to: number };
+  | { kind: 'slice'; text: string; base: EaseDescription; from: number; to: number }
+  | { kind: 'hold'; text: string }
+  | { kind: 'jump'; text: string };
 
 type SharedEase = { parse(text: string): EaseDescription | null; ease(text: string): ((p: number) => number) | null };
 let compiled: SharedEase | undefined;
@@ -190,8 +202,10 @@ export const parseEase = (text: string) => shared().parse(text);
 /** Forms only the shared runtime can play: an interpreter without it would hand them to GSAP. */
 export function needsEaseRuntime(text: string): boolean {
   const kind = parseEase(text)?.kind;
-  return kind === 'bezier' || kind === 'slice';
+  return kind === 'bezier' || kind === 'slice' || kind === 'hold' || kind === 'jump';
 }
+/** Forms added in shared-ease-v2 (R1.2a.2): a runtime of G01 or R1.2a.1 would hand them to GSAP. */
+export const needsHoldRuntime = (text: string) => ['hold', 'jump'].includes(parseEase(text)?.kind ?? '');
 
 /** Numbers in written forms: twelve significant digits, so 1 - 0.7 is written 0.3. */
 const written = (n: number) => String(Number(n.toPrecision(12)) || 0);
@@ -201,6 +215,9 @@ export const SAME_VALUE = 'This part of the curve starts and ends at the same va
 
 function mirrored(e: EaseDescription): string | null {
   if (e.kind === 'none') return e.text;
+  // 1 - hold(1 - u) is 1 once u passes the edge: a hold played backwards jumps at once.
+  if (e.kind === 'hold') return 'jump';
+  if (e.kind === 'jump') return 'hold';
   if (e.kind === 'steps') return null; // A jump lands on the other side of its instant when reversed.
   if (e.kind === 'bezier') return `cubic-bezier(${written(1 - e.x2)},${written(1 - e.y2)},${written(1 - e.x1)},${written(1 - e.y1)})`;
   if (e.kind === 'slice') {
@@ -223,7 +240,8 @@ export function mirrorEase(text: string): string {
 /** The part of an ease between `from` and `to`, rescaled to 0..1 (a slice of a slice flattens). */
 export function sliceEase(text: string, from: number, to: number): string {
   const e = parseEase(text);
-  if (!e || e.kind === 'steps') throw new Error(`The ease "${text}" has no exact split form yet. Its source is preserved.`);
+  // A hold or jump splits into two flat-and-instant halves (splitKeyframeSegment), never a slice.
+  if (!e || e.kind === 'steps' || e.kind === 'hold' || e.kind === 'jump') throw new Error(`The ease "${text}" has no exact split form yet. Its source is preserved.`);
   const base = e.kind === 'slice' ? e.base : e;
   const a = e.kind === 'slice' ? e.from + (e.to - e.from) * from : from;
   const b = e.kind === 'slice' ? e.from + (e.to - e.from) * to : to;
@@ -234,4 +252,56 @@ export function sliceEase(text: string, from: number, to: number): string {
   // Ends that meet (or all but meet, where rescaling would amplify rounding) carry no motion.
   if (!(Math.abs(curve(b) - curve(a)) >= 1e-9) || !parseEase(result)) throw new Error(SAME_VALUE);
   return result;
+}
+
+// ---- Key sides (R1.2a.2, docs/research/editor-r1-2a-2) ----
+// A segment's ease is stored on the key it arrives at. Its departing point (x1, y1) is the earlier
+// key's Out side and its arriving point (x2, y2) the later key's In side.
+
+/** One key side's cubic-bezier point, as written text. */
+export type SidePoint = [string, string];
+const third = written(1 / 3), twoThirds = written(2 / 3);
+export const LINEAR_DEPARTURE: SidePoint = [third, third];
+export const LINEAR_ARRIVAL: SidePoint = [twoThirds, twoThirds];
+export const EASY_DEPARTURE: SidePoint = [third, '0'];
+export const EASY_ARRIVAL: SidePoint = [twoThirds, '1'];
+
+/** A cubic-bezier's own argument texts, so a kept point is kept byte for byte. */
+const bezierArgs = (text: string) => text.slice(text.indexOf('(') + 1, text.lastIndexOf(')')).split(',').map(part => part.trim());
+
+/** The arriving point this segment keeps when only its departure is set, or null where it has no
+ *  exact one. power1/quad, power2/cubic and back(s), .in or .out, are each exactly one cubic with
+ *  x at thirds (scripts/ease-runtime.test.mjs pins them against GSAP); a Hold only departs. */
+export function arrivingPoint(text: string): SidePoint | null {
+  const e = parseEase(text);
+  if (e?.kind === 'bezier') return bezierArgs(text).slice(2) as SidePoint;
+  if (e?.kind === 'none' || e?.kind === 'hold' || e?.kind === 'family' && (e.name === 'linear' || e.name === 'power0')) return LINEAR_ARRIVAL;
+  if (e?.kind !== 'family' || e.side === 'inOut') return null;
+  const y = e.name === 'quad' || e.name === 'power1' ? (e.side === 'in' ? 1 / 3 : 1)
+    : e.name === 'cubic' || e.name === 'power2' ? (e.side === 'in' ? 0 : 1)
+    : e.name === 'back' ? (e.side === 'in' ? -(e.args.length ? e.args[0] : 1.70158) / 3 : 1) : null;
+  return y === null ? null : [twoThirds, written(y)];
+}
+
+/** The departing point this segment keeps when only its arrival is set, or null for a Hold. Any
+ *  other ease is the ease INTO its key, as the format stores it and the old key menu wrote it, so
+ *  the departing key never set a side of its own there: it reads as Linear. */
+export function departingPoint(text: string): SidePoint | null {
+  const e = parseEase(text);
+  if (e?.kind === 'bezier') return bezierArgs(text).slice(0, 2) as SidePoint;
+  return e?.kind === 'hold' ? null : LINEAR_DEPARTURE;
+}
+
+/** Two points as one segment ease. Both on the diagonal is a straight line, written `none`. */
+export function joinPoints([x1, y1]: SidePoint, [x2, y2]: SidePoint): string {
+  return Number(x1) === Number(y1) && Number(x2) === Number(y2) ? 'none' : `cubic-bezier(${x1},${y1},${x2},${y2})`;
+}
+
+/** True when the segment's departure was set on its own: a bezier departing point other than
+ *  Linear's, or a Hold. A whole arriving curve (Bounce, Overshoot) would silently replace it. */
+export function departsOnItsOwn(text: string): boolean {
+  const e = parseEase(text);
+  if (e?.kind !== 'bezier') return e?.kind === 'hold';
+  const [x1, y1] = bezierArgs(text).map(Number);
+  return x1 !== Number(third) || y1 !== Number(third);
 }

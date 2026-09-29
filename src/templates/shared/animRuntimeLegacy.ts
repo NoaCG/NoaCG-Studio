@@ -6,6 +6,9 @@ export const ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH = '61a45be2c0511';
 // The interpreter emitted from G01 (PR #505) until an interrupted exit learned to play a sliced
 // last ease as its whole curve. e2e/fixtures/interpreter-shared-ease-v1.js holds its text.
 export const ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH = 'f4df1ba19eb48';
+// The interpreter emitted from R1.2a.1 (PR #515) until the ease grammar learned Hold (R1.2a.2).
+// e2e/fixtures/interpreter-whole-ease-v1.js holds its text.
+export const ANIM_INTERPRETER_BEFORE_HOLD_HASH = '483ce85fd945c';
 
 // Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
 export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----

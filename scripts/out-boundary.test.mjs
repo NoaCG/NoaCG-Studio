@@ -1,4 +1,4 @@
-// guards: src/blocks/editorOut.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/model/contentHash.ts, e2e/fixtures/interpreter-shared-ease-v1.js, e2e/fixtures/out-text-and-box.json
+// guards: src/blocks/editorOut.ts, src/blocks/animEdit.ts, src/blocks/animEval.ts, src/blocks/animData.ts, src/templates/shared/easeRuntime.ts, src/templates/shared/animRuntime.ts, src/templates/shared/animRuntimeLegacy.ts, src/model/contentHash.ts, e2e/fixtures/interpreter-shared-ease-v1.js, e2e/fixtures/interpreter-whole-ease-v1.js, e2e/fixtures/out-text-and-box.json
 //
 // R1.2a.1 SET OUT ACROSS THE LAST IN KEY, THE MATHEMATICS (docs/research/editor-r1-2a-1/README.md).
 // Moving Out to a boundary b inside the entrance keeps every key and visibility bar at its
@@ -185,10 +185,10 @@ test('a layer with Out bars but none on the moved cue stays visible over the mov
   const alone = textAndBox();
   alone.steps[1].spans = { '#box': [{ start: 0, end: 0.5 }] };
   cases.push(['Out bars only', alone, 1.2, [{ start: 0, end: 1.3 }]]);
-  // A trim fills bars into every cue that exists, and a later Next cue arrives without any.
+  // Out bars from a trim and a moved cue without any. (Before R1.2a.2 this cue was a Next cue after
+  // a trimmed In; nothing moves out of a Next cue now.)
   const trimmed = { version: 2, root: '.g', speed: 1, steps: [
-    { name: 'In', duration: 1, ease: 'none', spans: { '#t': [{ start: 0.2, end: 1 }] }, layers: { '#t': { x: [{ time: 0, value: -100 }, { time: 1, value: 0 }] } } },
-    { name: 'Step 2', duration: 2, ease: 'none', layers: { '#t': { x: [{ time: 0, value: 0 }, { time: 2, value: 100 }] } } },
+    { name: 'In', duration: 2, ease: 'none', layers: { '#t': { x: [{ time: 0, value: 0 }, { time: 2, value: 100 }] } } },
     { name: 'Out', duration: 0, ease: 'none', spans: { '#t': [] }, layers: {} },
   ] };
   cases.push(['bars on an earlier cue', trimmed, 1.2, [{ start: 0, end: 0.8 }]]);
@@ -254,15 +254,28 @@ test('a move with nothing after b behaves as before, and bars no longer refuse i
   samePlayback(bar, moved, 'bar only');
 });
 
-test('only the last pre-Out cue changes in a sequence with Next', () => {
+test('Set Out moves nothing out of a Next cue until Step/Next editing, and still moves within it', () => {
+  // Out pressed before a Next cue would play what moved into Out from it (docs/research/editor-r1-2a-2).
   const before = textAndBox();
   before.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', layers: { '#box': {
     rotation: [{ time: 0, value: 0 }, { time: 0.8, value: 90, ease: 'bounce.out' }],
   } } });
-  const after = moveOutBoundary(before, 0.5);
-  assert.deepEqual(after.steps[0], before.steps[0]);
-  assert.deepEqual([after.steps[1].duration, after.steps[2].duration], [0.5, 1.5]);
-  samePlayback(before, after, 'Next cue');
+  refuses(before, 0.5, /#box rotation out of the Next cue "Step 1"/);
+  refuses(before, 0.79, /Next cue/);
+  // A bar edge after the boundary is Next-cue behaviour too; a bar running to the cue's end is not.
+  const edge = structuredClone(before); edge.steps[1].layers = {}; edge.steps[1].spans = { '#title': [{ start: 0.2, end: 0.7 }] };
+  refuses(edge, 0.5, /#title out of the Next cue/);
+  edge.steps[1].spans = { '#title': [{ start: 0.6, end: 1 }] };
+  refuses(edge, 0.5, /#title out of the Next cue/);
+  // Nothing after the boundary: only the cue's still air shortens, and In then Out plays as before.
+  for (const b of [0.8, 0.9]) {
+    const after = moveOutBoundary(before, b);
+    assert.deepEqual(after.steps.slice(0, 2).map(s => s.layers), before.steps.slice(0, 2).map(s => s.layers));
+    assert.deepEqual([after.steps[1].duration, after.steps[2].duration], [b, Math.round((1 + 1 - b) * 1000) / 1000]);
+    samePlayback(before, after, `Next cue at ${b}`);
+  }
+  const running = structuredClone(before); running.steps[1].spans = { '#title': [{ start: 0.2, end: 1 }] };
+  assert.doesNotThrow(() => moveOutBoundary(running, 0.9));
 });
 
 test('every refusal leaves the input untouched and names what could not be kept', () => {
@@ -278,13 +291,11 @@ test('every refusal leaves the input untouched and names what could not be kept'
   refuse(d => { box(d).x.push({ time: 2.5, value: 50 }); }, 2.2, /#box x.*after the end of its cue/);
   refuse(d => { box(d).filter = [{ time: 0, value: 'blur(8px)' }, { time: 2, value: 'blur(0px)' }]; }, 1.2, /#box filter.*numeric/);
   refuse(d => { d.steps[0].hides = ['#box']; }, 1.2, /#box.*hide/);
-  // A layer a Next cue reveals, which Out does not animate, fades separately when Out starts if it
-  // sits outside the root. Without the document every such layer counts; inside the root none do.
+  // A Next cue's reveal outside the root, which R1.2a.1 refused on its own, no longer crosses at all.
   const revealed = textAndBox();
   revealed.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', reveals: ['#box'], layers: { '#box': { rotation: [{ time: 0, value: 0 }, { time: 1, value: 90 }] } } });
-  refuses(revealed, 0.5, /#box.*reveal/);
-  refuses(revealed, 0.5, /#box.*reveal/, () => false);
-  assert.doesNotThrow(() => moveOutBoundary(revealed, 0.5, ancestor => ancestor === '.fixture'));
+  refuses(revealed, 0.5, /#box rotation out of the Next cue/);
+  refuses(revealed, 0.5, /#box rotation out of the Next cue/, ancestor => ancestor === '.fixture');
   refuse(() => {}, Number.NaN, /finite/);
   // The template writer: source is kept byte for byte, and the reason is the same.
   const stepped = textAndBox(); stepped.steps[0].layers['#title'].x[1].ease = 'steps(4)';
@@ -303,4 +314,42 @@ test('applyOut snaps the playhead through speed and writes one lossless region',
   const one = parseAnimData(applyOut(templateOf(single, 30), { kind: 'out.set', time: 0.3 }).js);
   assert.deepEqual(one.steps.map(s => [s.name, s.duration]), [['In', 0.6], ['Out', 1.4]]);
   samePlayback({ ...single, steps: [...single.steps, { name: 'Out', duration: 0, ease: 'none', layers: {} }] }, one, 'one step');
+});
+
+test('Set Out across a Hold splits it into two held halves and plays as before', () => {
+  const before = textAndBox();
+  before.steps[0].layers['#box'].x[1].ease = 'hold';
+  before.steps[0].layers['#title'].x[1].ease = 'jump';
+  before.steps[0].layers['#box'].opacity[1].ease = 'hold';
+  for (const b of [0.4, 0.8, 1, 1.2, 1.5]) samePlayback(before, moveOutBoundary(before, b), `Out at ${b}`);
+  const after = moveOutBoundary(before, 0.5), In = after.steps[0].layers, Out = after.steps[1].layers;
+  assert.deepEqual(In['#box'].x, [{ time: 0, value: -900 }, { time: 0.5, value: -900, ease: 'hold' }]);
+  assert.deepEqual(Out['#box'].x.slice(0, 2), [{ time: 0, value: -900 }, { time: 0.3, value: -200, ease: 'hold' }]);
+  assert.deepEqual(In['#title'].x, [{ time: 0, value: -900 }, { time: 0.5, value: 0, ease: 'jump' }]);
+  assert.deepEqual(Out['#title'].x.slice(0, 2), [{ time: 0, value: 0 }, { time: 1.1, value: 0, ease: 'jump' }]);
+  // Reversal writes the mirror: a held entrance leaves by jumping at once.
+  const entrance = textAndBox(); entrance.steps.pop();
+  entrance.steps[0].layers = { '#box': { x: [{ time: 0, value: -900 }, { time: 0.8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }] } };
+  const reversed = parseAnimData(applyOut(templateOf(entrance), { kind: 'out.reverse' }).js);
+  assert.deepEqual(reversed.steps[1].layers['#box'].x, [{ time: 0, value: 0 }, { time: 1.2, value: -200, ease: 'power2.in' }, { time: 2, value: -900, ease: 'jump' }]);
+  for (let i = 0; i <= 2000; i++) {
+    const u = 2 * i / 2000, out = resolveValue(reversed, '#box', 'x', 1, u), into = resolveValue(reversed, '#box', 'x', 0, 2 - u);
+    assert.ok(Math.abs(out - into) < 1e-9, `Out at ${u} ${out} is In at ${2 - u} ${into}`);
+  }
+});
+
+test('a graphic saved with the R1.2a.1 interpreter upgrades once to play a Hold', () => {
+  const { ANIM_INTERPRETER_JS, writeAnimData, writeOutData, hasHoldRuntime, dataUsesHoldEase } = runtime;
+  const before = readFileSync(path.join(root, 'e2e/fixtures/interpreter-whole-ease-v1.js'), 'utf8').replace(/\r\n/g, '\n');
+  assert.equal(contentHash(before.trim()), legacy.ANIM_INTERPRETER_BEFORE_HOLD_HASH, 'the fixture is the recorded body');
+  assert.ok(before.includes('function noacgWholeEase(') && !hasHoldRuntime(before) && hasHoldRuntime(ANIM_INTERPRETER_JS));
+  const held = textAndBox(); held.steps[0].layers['#box'].x[1].ease = 'hold';
+  assert.ok(dataUsesHoldEase(held) && !dataUsesHoldEase(textAndBox()));
+  const current = emitAnimRegion(textAndBox()), saved = current.replace(ANIM_INTERPRETER_JS, () => before);
+  assert.notEqual(saved, current);
+  for (const written of [writeAnimData(saved, held), writeOutData(saved, held)]) assert.ok(written.includes(ANIM_INTERPRETER_JS));
+  // Upgraded once: the current body splices the literal and keeps its bytes.
+  const once = writeAnimData(saved, held);
+  assert.equal(writeAnimData(once, held), once);
+  assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), held), null, 'custom source still refuses');
 });

@@ -230,6 +230,16 @@ of the last pre-Out segment into Out (owner decision 2026-09-28; see D01). A cro
 without an exact split refuses the whole move atomically with a clear reason. Existing source
 is preserved; other unsupported cross-curve changes still refuse.
 
+Owner decision 2026-09-29, the contract for Step/Next editing (not yet implemented): a graphic
+may have any number of Step/Next states, and Next advances through them in order. Out always
+animates the graphic out from its current state, whichever step is active, and never plays or
+reveals an unreached Next step on the way out. The editor is strict about arrangements: In,
+Step, Next and Out markers cannot be dragged onto each other, stacked, or placed into a
+combination the runtime cannot interpret safely. Goal: simple, predictable show control that
+advances when asked and removes the graphic cleanly whenever Out is pressed. Until that phase,
+Set Out refuses to move keys or visibility-bar edges out of a Next cue (R1.2a.2), because Out
+pressed before that cue would play them; crossing the In cue stays allowed.
+
 A flag marks BOTH the end of the preceding segment and the start of the segment waiting
 for its command. Play/Take runs In and parks at the first flag. At a Step flag, Next plays
 from that boundary to the next flag and parks again. At Out, only Out plays the exit to its
@@ -355,6 +365,10 @@ Out keys shift with the flag as before. It is one undo. If any crossed segment h
 split, the whole move refuses with source and history unchanged. Such an exit has keys, so the
 reverse/manual choice is not offered for it.
 
+Owner decision 2026-09-29 for the Step/Next phase: at the last step Out plays its authored
+animation from the held pose; at an earlier step it never plays an unreached cue's motion (see
+D02). Until then, Set Out moves nothing out of a Next cue.
+
 For simple In over [a,b], mirror each key to outStart + (b - keyTime), preserve stagger and
 values, and reverse easing as E_rev(u) = 1 - E(1-u). Reverse Hold discontinuities exactly;
 for supported named eases, swapping .in/.out IS the exact mirror (.inOut is self-mirroring).
@@ -392,6 +406,10 @@ exit keys. This is an explicit interruption policy, not a claim to exactly rever
 unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims.
 Never reveal unseen layers; static visible layers without exit tracks clear at exit completion.
 Repeat Out coalesces per take; replay resets transient state without altering authored keys.
+A final Hold keeps the live value until the last exit key and then jumps (R1.2a.2). Owner
+decision 2026-09-29, the contract for the Step/Next phase: Out pressed at an earlier step
+animates each visible layer from its live pose to its end-of-Out pose by this policy, and layers
+from unreached steps stay hidden.
 
 The simulator and emitted packages must use this policy. A capability marker in the emitted
 interpreter makes the writer re-emit the owned animation region when upgrading older source,
@@ -433,6 +451,15 @@ access are required; unsupported batches refuse without partial edits. See B06's
 Named bounce/back evaluators must be shared with the emitted interpreter. Bounce is piecewise,
 not one cubic bezier: exact split/mirror support or an explicit refusal is required. Test peaks,
 equal-endpoint slices, clamping of bounded properties and unchanged neighboring key sides.
+
+R1.2a.2 ([receipt](research/editor-r1-2a-2/README.md)): point presets write cubic-bezier points,
+Easy Ease (1/3, 0) departing and (2/3, 1) arriving, Linear on the diagonal, and keep the other
+side exactly or refuse. A named ease is the arriving key's whole curve, so its departure reads
+as Linear and its arrival keeps its exact cubic point (power1, power2, back) or refuses. Bounce
+and Overshoot refuse to replace a departure set on its own. Hold is the grammar form `hold`,
+which jumps in the last 1e-5 of its segment so GSAP's time rounding still lands on the key; its
+mirror `jump` makes reversal exact, and both split into two exact halves. Layer rows open into
+property rows so single-property keys can be selected.
 
 The current format stores incoming-segment ease. A source-backed adapter must preserve old
 tracks and encode key-side presets without lossy rewriting, with any breaking migration

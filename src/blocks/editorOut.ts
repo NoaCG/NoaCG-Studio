@@ -37,6 +37,15 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
     return data;
   };
   if (delta === 0) return settle();
+  // Until Step/Next editing lands (docs/research/editor-r1-2a-2), Out pressed before a Next cue
+  // would play whatever moved into Out from that cue, so nothing may move out of one.
+  if (at > 0 && delta > 0) {
+    const cue = data.steps[at], later = (t: number) => t > b + EPS && t < end - EPS;
+    const moved = Object.entries(cue.layers).flatMap(([selector, tracks]) => Object.entries(tracks)
+      .filter(([, keys]) => keys.some(key => key.time > b + EPS)).map(([prop]) => `${selector} ${prop}`))[0]
+      ?? Object.entries(cue.spans ?? {}).find(([, spans]) => spans.some(span => later(span.start) || later(span.end)))?.[0];
+    if (moved) throw new Error(`Set Out here would move ${moved} out of the Next cue "${cue.name}", and Out pressed before that cue would then play it. Until Step/Next editing lands, set Out after that cue's last key and bar edge. Its source is preserved.`);
+  }
   const crossed: [string, string][] = [];
   for (const [selector, tracks] of Object.entries(data.steps[at].layers)) for (const [prop, keys] of Object.entries(tracks)) {
     if (!keys.some(key => key.time > b + EPS)) continue;
@@ -49,11 +58,6 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
     const cue = data.steps[at];
     const hidden = (cue.hides ?? []).find(selector => cue.spans?.[selector] === undefined);
     if (hidden) throw new Error(`${hidden} leaves at the end of this cue (a legacy hide). Moving Out across the entrance would move that exit. Its source is preserved.`);
-    // noacgExitTimeline fades a revealed layer outside the root when Out starts, unless Out animates
-    // it, so an earlier Out would fade it earlier. Without the document, every such layer counts.
-    const faded = data.steps.slice(1, -1).flatMap(step => step.reveals ?? [])
-      .find(selector => !data.steps[at + 1].layers[selector] && !contains?.(data.root, selector));
-    if (faded) throw new Error(`${faded} is revealed by a Next cue and fades separately when Out starts. Moving Out across the entrance would change that fade. Its source is preserved.`);
   }
   // Every crossed track holds a key at b: the one there, an exact split, or (b before its first key)
   // that first value, which the runtime already applies from the cue start.

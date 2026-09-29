@@ -570,6 +570,26 @@ test('a Set Out that cannot split a crossed segment keeps source and history and
   expect(await state()).toEqual(before);
 });
 
+test('Set Out inside a Next cue refuses until Step/Next editing, keeping source and history', async ({ page }) => {
+  // Out pressed before that cue would play whatever moved into Out (docs/research/editor-r1-2a-2).
+  await fixture(page, true);
+  await evaluateInPage(page, async () => {
+    const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
+    const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+    const d = parseAnimData(store.template.js)!; d.steps[0].duration = 1;
+    d.steps.push({ name: 'Step 2', duration: 1, ease: 'none', layers: { '#box': { rotation: [{ time: 0, value: 0 }, { time: .8, value: 90 }] } } },
+      { name: 'Out', duration: 0, ease: 'none', layers: {} });
+    store.applyTemplate({ ...store.template, js: spliceAnimData(store.template.js, d)! });
+  });
+  await ready(page); await seek(page, 35);
+  const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
+  const before = await state();
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
+  await expect(page.locator('.ef-out-error')).toContainText('Next cue');
+  await expect(page.getByRole('dialog', { name: 'Reverse entrance' })).toBeHidden();
+  expect(await state()).toEqual(before);
+});
+
 test('pause and resume an interrupted Out retain its live exit trajectory', async ({ page }) => {
   await page.clock.install(); await fixture(page); await ready(page);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
