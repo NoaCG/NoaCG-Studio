@@ -48,6 +48,11 @@ async function refuseLiveTopic(page: Page): Promise<void> {
   });
 }
 
+/** Where the screenshots go: LIVE_HEALTH_SHOTS when a person wants to look at them after the run
+ *  (the output folder is cleared by the next run), the test's own output folder otherwise. */
+const shot = (name: string) =>
+  process.env.LIVE_HEALTH_SHOTS ? `${process.env.LIVE_HEALTH_SHOTS}/live-health-${name}.png` : test.info().outputPath(`${name}.png`);
+
 type LiveWindow = {
   __noacgLive?: {
     identity: { id: string; build: string; protocol: number };
@@ -129,6 +134,7 @@ test('an output says who it is and how commands reach it, and both operator page
   expect(summary.last!.rx).toBeGreaterThanOrEqual(0);
   expect(summary.late).toBe(0);
   await expect(debug).toContainText('press→rx');
+  await output.screenshot({ path: shot('output-debug') });
 
   // ── THE HEARTBEAT the fallback reads, before the hosted page resolves. ──
   await expect
@@ -166,6 +172,7 @@ test('an output says who it is and how commands reach it, and both operator page
   const refusedLine = hostedRefused.getByTestId('hosted-output-health');
   await expect(refusedLine).toHaveAttribute('data-source', 'heartbeat', { timeout: 30_000 });
   await expect(refusedLine).toContainText('output seen when this page opened');
+  await hostedRefused.screenshot({ path: shot('hosted-fallback'), clip: { x: 0, y: 0, width: 1280, height: 90 } });
 
   // Does this server have the live topic? The first output answers that for the rest.
   await expect
@@ -189,11 +196,12 @@ test('an output says who it is and how commands reach it, and both operator page
     await expect(hostedLine).toHaveAttribute('data-source', 'heartbeat');
     await expect(hostedLine).toContainText('when this page opened');
   }
-  await hosted.screenshot({ path: 'test-results/signed-in/live-health-hosted-desktop.png', clip: { x: 0, y: 0, width: 1440, height: 120 } });
+  await page.screenshot({ path: shot('desk'), clip: { x: 0, y: 0, width: 1280, height: 90 } });
+  await hosted.screenshot({ path: shot('hosted-desktop'), clip: { x: 0, y: 0, width: 1440, height: 120 } });
   await hosted.setViewportSize({ width: 390, height: 844 });
   await expect(hosted.locator('.pd-health-short')).toBeVisible();
   await expect(hosted.getByTestId('hosted-out-all')).toBeInViewport();
-  await hosted.screenshot({ path: 'test-results/signed-in/live-health-hosted-phone.png', clip: { x: 0, y: 0, width: 390, height: 160 } });
+  await hosted.screenshot({ path: shot('hosted-phone'), clip: { x: 0, y: 0, width: 390, height: 160 } });
 
   // Every renderer still airs the Take: the refused join cost nothing but the announcement.
   await expect.poll(async () => refused.evaluate(() => document.body.getAttribute('data-plays')), { timeout: 30_000 }).not.toBe('0');
