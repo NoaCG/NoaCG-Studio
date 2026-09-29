@@ -44,13 +44,17 @@
 //      watch loop should re-run that probe before launching a row or queueing a landing.
 //
 //   4. A STALE LOCAL MAIN. A fresh cloud clone can carry a local `main` that is not an ancestor of
-//      origin/main - old or diverged history from whatever the container was cut from. Measured
-//      2026-09-29: `/check` compared a branch against that `main` and broke. Nothing but the merge
-//      queue writes `main`, so such a ref holds no one's work: origin/main is fetched (prompts off,
-//      capped) and the ref alone is moved to it, with no checkout, printing the old commit so it can
-//      be found again. Only when local `main` exists, no worktree has it checked out, and it is NOT
-//      an ancestor of origin/main; a `main` that is merely behind is left as it is. Any git failure
-//      prints one line and moves nothing.
+//      origin/main - diverged history from whatever the container was cut from, or history a
+//      shallow clone cut off. Measured 2026-09-29 in a shallow clone: local main had no merge base
+//      with origin/main, `mainRef` therefore answered `main`, and `/check` refused to scope a
+//      review. Nothing but the merge queue lands on `main`, so such a ref holds no one's work: it
+//      is moved, ref alone and with no checkout, to origin/main's own tip (fetched with prompts
+//      off and capped, only when the copy on disk does not already contain it). That lands
+//      nothing; it realigns the local ref with what already landed. The old commit is printed so
+//      it can be found again. Only when local `main` exists, no worktree has it checked out, and
+//      it is NOT an ancestor of origin/main. A `main` that is merely behind is left as it is
+//      (`mainRef` already answers origin/main for it), and so is one strictly AHEAD, whose extra
+//      commits may be someone's work. Any git failure prints one line and moves nothing.
 //
 //   5. Nothing else.
 //
@@ -211,17 +215,22 @@ const SIGNS = [
   [/does not appear to be a git repository|No such remote|not a git repository/i, 'local', "this checkout's origin is not a remote the check can reach"],
 ];
 
-/** `git ls-remote` against origin, prompts off, killed at the cap. Replaced in tests. */
-function lsRemoteOrigin(root, timeout) {
-  return spawnSync('git', ['ls-remote', '--heads', 'origin', 'main'], {
+export const MAIN_FETCH_TIMEOUT_MS = 30000;
+
+/** One git command in `root`, prompts off and killed at the cap; a non-zero exit is returned, not thrown. */
+function runGit(root, args, timeout = MAIN_FETCH_TIMEOUT_MS) {
+  return spawnSync('git', args, {
     cwd: root,
     encoding: 'utf8',
     timeout,
     killSignal: 'SIGKILL',
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
   });
 }
+
+/** `git ls-remote` against origin. Replaced in tests. */
+const lsRemoteOrigin = (root, timeout) => runGit(root, ['ls-remote', '--heads', 'origin', 'main'], timeout);
 
 /**
  * Step 3: one line about GitHub access, empty when it works. Never throws.
@@ -253,20 +262,6 @@ export function githubAccessLine(root, { probe = lsRemoteOrigin, timeoutMs = GIT
     + ` Push and landing may fail: tell the owner FIRST, before any other work, and suggest reconnecting at ${RECONNECT_URL}.`;
 }
 
-export const MAIN_FETCH_TIMEOUT_MS = 30000;
-
-/** One git command in `root`, prompts off and capped; a non-zero exit is returned, not thrown. Replaced in tests. */
-function runGit(root, args) {
-  return spawnSync('git', args, {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: MAIN_FETCH_TIMEOUT_MS,
-    killSignal: 'SIGKILL',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
-  });
-}
-
 /**
  * Step 4: move a local `main` that is not an ancestor of origin/main to origin/main, by ref alone.
  * Returns one line to print, empty when there was nothing to do. Never throws.
@@ -286,20 +281,29 @@ export function realignStaleMain(root, { git = runGit } = {}) {
     if (worktrees === null) return couldNot('list the worktrees');
     // A checked-out main belongs to that checkout (the primary one runs the merge queue).
     if (worktrees.split('\n').some((line) => line.trim() === 'branch refs/heads/main')) return '';
+    const originMain = () => read('rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main^{commit}');
+    const contains = (older, newer) => git(root, ['merge-base', '--is-ancestor', older, newer]).status;
+    // origin/main only moves forward, so a main the copy on disk already contains needs no fetch.
+    const known = originMain();
+    if (known && contains(was, known) === 0) return '';
     // An explicit refspec, so a clone whose fetch refspec leaves main out still updates origin/main.
     if (git(root, ['fetch', '--quiet', '--no-tags', 'origin', '+refs/heads/main:refs/remotes/origin/main']).status !== 0) {
       return couldNot('fetch origin/main');
     }
-    const target = read('rev-parse', '--verify', '--quiet', 'refs/remotes/origin/main^{commit}');
+    const target = originMain();
     if (!target) return couldNot('read origin/main');
-    const ancestor = git(root, ['merge-base', '--is-ancestor', was, target]).status;
+    const ancestor = contains(was, target);
     if (ancestor === 0) return ''; // equal or merely behind: not this step's to move
     if (ancestor !== 1) return couldNot('compare main with origin/main');
+    // Strictly AHEAD of origin/main means commits on top of it that never landed: someone's work.
+    if (contains(target, was) === 0) {
+      return `Main: local main at ${was.slice(0, 8)} holds commits origin/main does not, so it was left as it is. Compare against origin/main, not main, and move that work to a branch.`;
+    }
     // update-ref checks the old value itself, so a concurrent move is refused rather than overwritten.
     if (git(root, ['update-ref', '-m', 'cloud-session-setup: realign stale main to origin/main', 'refs/heads/main', target, was]).status !== 0) {
       return couldNot('move main');
     }
-    return `Main: local main was at ${was.slice(0, 8)}, which is not an ancestor of origin/main, and was moved to origin/main at ${target.slice(0, 8)} (the old commit stays in main's reflog).`;
+    return `Main: local main was at ${was.slice(0, 8)}, which this clone cannot show is an ancestor of origin/main, and was moved to origin/main at ${target.slice(0, 8)} (the old commit stays in main's reflog).`;
   } catch {
     return couldNot('run git');
   }
