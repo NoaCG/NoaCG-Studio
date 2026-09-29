@@ -10,7 +10,7 @@ execution route. **In Claude Code the PRIMARY launch path is the Agent tool**, w
 definitions below. Native Codex uses its subagents, or the authenticated Claude CLI selecting these
 same definitions with `--agent` (`hosts.md`). A Claude Code on the web coordinator reads the cloud
 section of `hosts.md` first: rows there start on a stale base, have no Agent tool (so no
-`design-consult`) and may lack GitHub tools.
+`design-consult`) and queue themselves, with the coordinator finishing any GitHub step that fails.
 
 **Record every launch before starting it**, initial rows and refills alike, with
 `node scripts/wave-launch.mjs record` with letter, branch, size and the identity fields in
