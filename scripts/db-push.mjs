@@ -25,6 +25,12 @@
 // fails CLOSED, and `scripts/db-push.test.mjs` keeps the recognised set honest by classifying every
 // migration in the repo.
 //
+// AND IT REFUSES A MIGRATION FROM 0068 ON THAT DOES NOT SET ITS OWN `lock_timeout` (at most 5 s) AND
+// `statement_timeout` before its first statement, so no migration can queue a live show's Takes
+// behind a lock (FIRST_TIMED_MIGRATION says why the file, and not this script, has to set them). A
+// push that fails on that lock timeout (SQLSTATE 55P03) is retried twice, then reported as what it
+// is: nothing in that file applied, and the next landing tries again.
+//
 // Overriding is per-version and explicit: `--allow 0052` says "I read 0052 and I accept what it
 // does". There is no blanket override, because a blanket override is the old rule again.
 //
@@ -496,12 +502,84 @@ export function classifyStatement(raw, created = new Set()) {
   return { verdict: 'safe', reasons: [], code };
 }
 
+// ── Session timeouts ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * EVERY MIGRATION FROM THIS VERSION ON SETS ITS OWN `lock_timeout` AND `statement_timeout`.
+ *
+ * Why: a statement that needs a strong lock (an `alter table`, a trigger, a policy) queues behind
+ * any open reader, and every Take on air then queues behind IT. Measured on a preview branch
+ * (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.3): an instant `add column` on `control_events` behind a
+ * 12 s reader failed 12 of 38 sends; with `set lock_timeout = '2s'` it gave up after 2.2 s and none
+ * failed.
+ *
+ * Why IN THE FILE rather than applied from outside: nothing outside reaches the CLI's session.
+ * `supabase db push --linked` (2.111) ignores `PGOPTIONS` and a `PGSERVICEFILE` service, runs
+ * `RESET ALL` before each file, and on a hosted project logs in as `cli_login_postgres`, whose own
+ * defaults are `lock_timeout = 0` and `statement_timeout = 2min` (all measured on a preview branch,
+ * 2026-09-29). A `set` at the top of the file applies to exactly that file, because the CLI runs
+ * each file in one transaction, and it travels with the SQL to every other route that runs it.
+ *
+ * Older files are exempt: they are applied everywhere already.
+ */
+export const FIRST_TIMED_MIGRATION = '0068';
+/** The longest `lock_timeout` a migration may set without `--allow`: longer is a queue again. */
+export const MAX_LOCK_TIMEOUT_MS = 5000;
+
+const GUC_UNITS_MS = { us: 0.001, ms: 1, s: 1000, min: 60_000, h: 3_600_000, d: 86_400_000 };
+
+/** A Postgres time setting in milliseconds; a bare number is milliseconds. null if unreadable. */
+export function timeoutMs(value) {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(us|ms|s|min|h|d)?\s*$/i.exec(value);
+  return m ? Number(m[1]) * GUC_UNITS_MS[(m[2] || 'ms').toLowerCase()] : null;
+}
+
+/**
+ * The timeouts a migration sets before its first real statement: the leading run of `set`
+ * statements only, because a `set lock_timeout` after the `alter table` protects nothing.
+ */
+export function leadingTimeouts(statements) {
+  const found = {};
+  for (const { raw } of statements) {
+    const text = raw.replace(/^(?:\s|--[^\n]*|\/\*[\s\S]*?\*\/)*/, '');
+    if (!/^set\s/i.test(text)) break;
+    const m = /^set\s+(?:session\s+|local\s+)?(lock_timeout|statement_timeout)\s*(?:=|to)\s*'?([^';]*?)'?\s*$/i.exec(text.trim());
+    if (m) found[m[1].toLowerCase()] = m[2].trim();
+  }
+  return found;
+}
+
+/** The refusal for a migration from FIRST_TIMED_MIGRATION on, or null when it sets both. */
+function missingTimeouts(version, statements) {
+  if (!/^[0-9]+$/.test(version) || version < FIRST_TIMED_MIGRATION) return null;
+  const set = leadingTimeouts(statements);
+  const problems = [];
+  const lock = set.lock_timeout === undefined ? null : timeoutMs(set.lock_timeout);
+  if (set.lock_timeout === undefined) problems.push('sets no lock_timeout before its first statement');
+  else if (!lock || lock > MAX_LOCK_TIMEOUT_MS) {
+    problems.push(`sets lock_timeout = '${set.lock_timeout}', and anything but 1ms to ${MAX_LOCK_TIMEOUT_MS / 1000}s lets a statement queue behind a reader with every Take behind it`);
+  }
+  if (set.statement_timeout === undefined) problems.push('sets no statement_timeout before its first statement');
+  if (!problems.length) return null;
+  return {
+    id: 'timeouts',
+    why:
+      `${problems.join(', and ')}. Start the file with \`set lock_timeout = '2s';\` and ` +
+      "`set statement_timeout = '30s';` (a longer statement_timeout is the file's own override, for a " +
+      'real backfill). supabase/AGENTS.md, "Every migration sets its own timeouts"',
+  };
+}
+
 /** Classify a whole migration file. `dangerous` and `unknown` statements are both blockers; they
  *  are reported apart because they mean different things to whoever reads the refusal. */
 export function classifyMigration(version, name, text) {
   const statements = splitStatements(text).map((s) => ({ ...s, ...normalize(s.raw) }));
   const created = createdObjects(statements);
   const findings = [];
+  const timeouts = missingTimeouts(version, statements);
+  if (timeouts) {
+    findings.push({ verdict: 'dangerous', line: statements[0]?.line ?? 1, index: 1, excerpt: statements[0]?.code.slice(0, 140) ?? '', reasons: [timeouts] });
+  }
   for (const statement of statements) {
     const { verdict, reasons } = classifyStatement(statement.raw, created);
     if (verdict !== 'safe') {
@@ -621,7 +699,7 @@ function diffSnapshots(before, after) {
  */
 let cliCommand = null;
 
-function runSupabase(args, token) {
+function runSupabase(args, token, { capture = false } = {}) {
   for (const arg of args) {
     if (!/^[A-Za-z0-9._-]+$/.test(arg)) throw new Error(`refusing to run the CLI with argument "${arg}"`);
   }
@@ -640,10 +718,33 @@ function runSupabase(args, token) {
     cliCommand = !probe.error && probe.status === 0 ? ['supabase', []] : ['npx', ['--yes', 'supabase']];
   }
   const [command, prefix] = cliCommand;
-  const result = spawn(command, [...prefix, ...args], { stdio: 'inherit' });
+  // CAPTURED, then echoed, when the caller has to read what the CLI said: a lock timeout is told
+  // apart from a broken migration only by its SQLSTATE in the CLI's error text.
+  const result = spawn(command, [...prefix, ...args], { stdio: capture ? ['inherit', 'pipe', 'pipe'] : 'inherit' });
   if (result.error) throw result.error;
-  return result.status ?? 1;
+  if (!capture) return result.status ?? 1;
+  process.stdout.write(result.stdout || '');
+  process.stderr.write(result.stderr || '');
+  return { status: result.status ?? 1, output: `${result.stdout || ''}\n${result.stderr || ''}` };
 }
+
+/**
+ * Did the push fail because a migration could not get its lock in time (SQLSTATE 55P03)? Returns
+ * the file the CLI was applying, or null for any other outcome. Pure, so it is tested on the CLI's
+ * real words (scripts/db-push.test.mjs).
+ *
+ * That failure is not a broken migration. The file runs in one transaction, so none of it applied;
+ * the files before it did, with their ledger rows. Running the same push again later is the fix.
+ */
+export function lockTimeoutFailure(output) {
+  if (!/SQLSTATE 55P03|lock timeout/i.test(output)) return null;
+  const applying = [...output.matchAll(/Applying migration (\S+?\.sql)/g)];
+  return { file: applying.length ? applying[applying.length - 1][1] : 'a pending migration' };
+}
+
+/** Waits before the second and third attempt after a lock timeout. A reader that holds a table
+ *  for a minute is rare; one that holds it for a few seconds is an ordinary busy moment. */
+export const LOCK_RETRY_WAITS_MS = [10_000, 30_000];
 
 const flag = (argv, name) => argv.includes(name);
 /** A flag's value, with a trailing `--allow` (no version after it) reading as absent rather than
@@ -759,8 +860,9 @@ async function main(argv) {
   }
 
   if (decision.status === 'refused') {
-    console.error('\nREFUSED. These statements can remove something, and nothing here can tell');
-    console.error('whether that is intended. Read them, then re-run naming the versions you accept:');
+    console.error('\nREFUSED. These statements can remove something, or can queue every Take behind a');
+    console.error('lock, and nothing here can tell whether that is intended. Read them, then fix the');
+    console.error('file or re-run naming the versions you accept:');
     // Carry the ref through, or the pasted command applies to production instead of whatever this
     // run was actually pointed at - the one paste that must never go to the wrong database.
     const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
@@ -789,7 +891,21 @@ async function main(argv) {
     console.error(`\nsupabase link failed (exit ${linked}). Nothing was pushed.`);
     return linked;
   }
-  const pushed = runSupabase(['db', 'push', '--linked'], token);
+  // A LOCK TIMEOUT IS RETRIED, anything else is not. Every migration from 0068 on gives up on a
+  // lock after a couple of seconds rather than queueing Takes behind it, so "could not get the
+  // lock" is an expected, harmless outcome at a busy moment, and pushing again picks up exactly
+  // the files still pending.
+  let pushed;
+  let locked;
+  for (let attempt = 0; ; attempt++) {
+    const run = runSupabase(['db', 'push', '--linked'], token, { capture: true });
+    pushed = run.status;
+    locked = pushed === 0 ? null : lockTimeoutFailure(run.output);
+    if (!locked || attempt >= LOCK_RETRY_WAITS_MS.length) break;
+    const wait = LOCK_RETRY_WAITS_MS[attempt];
+    console.error(`\n${locked.file} could not get a lock in time; nothing in it was applied. Trying again in ${wait / 1000}s…\n`);
+    await new Promise((done) => setTimeout(done, wait));
+  }
 
   console.log('\nSnapshotting after…');
   const after = await snapshot(ref, token);
@@ -805,6 +921,16 @@ async function main(argv) {
     for (const x of removed) console.log(`    - ${x}`);
   }
 
+  if (locked) {
+    console.error(
+      `\nLOCK TIMEOUT: ${locked.file} could not get a lock within its lock_timeout, ` +
+        `${LOCK_RETRY_WAITS_MS.length + 1} times. Nothing in that file was applied, and nothing after it ` +
+        'was attempted; the diff above is what did land. Something held the table longer than the ' +
+        'migration may wait, which is the guard working, not a broken migration. The next landing ' +
+        'retries, or re-run this job.',
+    );
+    return pushed;
+  }
   if (pushed !== 0) {
     console.error(`\nsupabase db push exited ${pushed}. The diff above is what actually landed.`);
     return pushed;

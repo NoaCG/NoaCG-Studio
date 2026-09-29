@@ -119,7 +119,8 @@ for the command by hand only when a push refused, or when a migration arrived so
 Applying to the hosted project needs no permission and no waiting: `npm run db:push` classifies
 every pending statement, applies what can only add, and REFUSES what can remove - a DROP, TRUNCATE,
 DELETE FROM, column-type change, RENAME, `disable row level security`, `owner to`, `alter database`,
-or a REVOKE on an object the same migration did not create. It fails CLOSED on a shape it does not
+or a REVOKE on an object the same migration did not create - and a migration from 0068 on that does
+not set its own timeouts (next section). It fails CLOSED on a shape it does not
 recognise, so a new kind of statement stops at `scripts/db-push.test.mjs` in the build rather than
 mid-push. A refusal is answered by naming the version - `npm run db:push -- --allow 0052` - and the
 run prints the before/after grant, column, policy and ledger diff, which is the evidence that the
@@ -141,6 +142,38 @@ Confirm with `supabase migration list --linked` - every row should read `local =
 with an empty `remote`, or a bare timestamp with an empty `local`, is drift. Repair by UPDATEing
 `version`/`name` in place to match the filenames, in one transaction with a post-check that fails
 unless every version is four digits. Never re-run the migration to "fix" the ledger.
+
+## Every migration sets its own timeouts
+
+From `0068` on, a migration starts with:
+
+```sql
+set lock_timeout = '2s';
+set statement_timeout = '30s';
+```
+
+**Why.** Almost every schema change needs a strong lock for an instant, and it queues behind any
+open reader; every Take on air then queues behind it for as long as it waits. With a short
+`lock_timeout` the migration gives up instead, and nothing in the file applies.
+
+**Why in the file.** Nothing outside reaches the CLI's session: `supabase db push --linked` ignores
+`PGOPTIONS` and service files, runs `RESET ALL` before each file, and its login role waits for a
+lock indefinitely. Each file runs in one transaction, so a `set` at its top covers exactly that
+file, on every route that runs it (`FIRST_TIMED_MIGRATION` in `scripts/db-push.mjs` has the rest).
+
+**Enforced twice.** `scripts/db-push.test.mjs` fails the build for a migration without both
+settings before its first statement, or with a `lock_timeout` of zero or above the cap; `db:push`
+refuses the same file after the landing, overridable with `--allow NNNN` like any refusal.
+
+**The override for a long migration** is a longer `statement_timeout`, set in the file where the
+reviewer sees it, for a real backfill. Keep the short `lock_timeout`; a longer one is a lock queue
+again.
+
+**A lock-timeout failure is not a broken migration.** `db:push` recognises SQLSTATE `55P03`, waits
+and retries twice, and if the table is still held it says `LOCK TIMEOUT`: nothing in that file
+applied, the files before it did (each with its ledger row), and the next landing, or a re-run of
+the post-land job, pushes it again. Post-land still goes red, because the app that landed may need
+the migration.
 
 ## Two branches must never mint the same number
 

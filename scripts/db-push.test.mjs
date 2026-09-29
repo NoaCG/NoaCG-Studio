@@ -17,10 +17,23 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
 
-import { classifyMigration, classifyStatement, ledgerDrift, normalize, splitStatements } from './db-push.mjs';
+import {
+  FIRST_TIMED_MIGRATION,
+  LOCK_RETRY_WAITS_MS,
+  classifyMigration,
+  classifyStatement,
+  ledgerDrift,
+  lockTimeoutFailure,
+  normalize,
+  splitStatements,
+  timeoutMs,
+} from './db-push.mjs';
 
 const verdict = (sql, created = []) => classifyStatement(sql, new Set(created)).verdict;
 const reasons = (sql, created = []) => classifyStatement(sql, new Set(created)).reasons.map((r) => r.id);
+// A version before FIRST_TIMED_MIGRATION, so a fixture about another rule is judged on that rule
+// alone; the timeout rule has its own fixtures below.
+const LEGACY = '0001';
 
 // ── The lexer: a statement this cannot see whole is a statement it cannot judge ───────────────────
 
@@ -152,9 +165,9 @@ test('drop-and-recreate is a replacement; a bare drop is a removal', () => {
     drop trigger if exists t_updated_at on public.t;
     create trigger t_updated_at before update on public.t for each row execute function public.set_updated_at();
   `;
-  assert.equal(classifyMigration('9999', 'replace', replaced).blocked, false);
+  assert.equal(classifyMigration(LEGACY, 'replace', replaced).blocked, false);
   const removed = `drop trigger if exists t_updated_at on public.t;`;
-  assert.equal(classifyMigration('9999', 'remove', removed).blocked, true);
+  assert.equal(classifyMigration(LEGACY, 'remove', removed).blocked, true);
 });
 
 // ── The near-misses: shapes that read like the dangerous set and are not ──────────────────────────
@@ -188,12 +201,12 @@ test('a REVOKE on an object the same migration created removes nothing', () => {
   `;
   // This is the idiom every table from 0010 on uses. If it refused, the guard would refuse almost
   // every migration that adds a table, and the override would become routine.
-  assert.equal(classifyMigration('9999', 'new_table', sql).blocked, false);
+  assert.equal(classifyMigration(LEGACY, 'new_table', sql).blocked, false);
 });
 
 test('a REVOKE on a pre-existing object is refused, and says which', () => {
   const sql = `revoke truncate, references, trigger on table public.documents from anon, authenticated;`;
-  const result = classifyMigration('9999', 'tighten', sql);
+  const result = classifyMigration(LEGACY, 'tighten', sql);
   assert.equal(result.blocked, true);
   assert.deepEqual(result.findings[0].reasons.map((r) => r.id), ['revoke']);
   assert.match(result.findings[0].reasons[0].why, /documents/);
@@ -208,7 +221,7 @@ test('a REVOKE listing several new tables clears every one of them, not just the
     create table public.b (id uuid primary key);
     revoke all on table public.a, public.b from public, anon, authenticated;
   `;
-  assert.equal(classifyMigration('9999', 'two_tables', sql).blocked, false);
+  assert.equal(classifyMigration(LEGACY, 'two_tables', sql).blocked, false);
 });
 
 test('a REVOKE naming one new table and one old one is refused for the old one', () => {
@@ -216,7 +229,7 @@ test('a REVOKE naming one new table and one old one is refused for the old one',
     create table public.new_table (id uuid primary key);
     revoke all on table public.new_table, public.documents from anon;
   `;
-  assert.equal(classifyMigration('9999', 'mixed', sql).blocked, true);
+  assert.equal(classifyMigration(LEGACY, 'mixed', sql).blocked, true);
 });
 
 test('REVOKE ... ON ALL TABLES IN SCHEMA cannot be limited to this migration', () => {
@@ -224,7 +237,7 @@ test('REVOKE ... ON ALL TABLES IN SCHEMA cannot be limited to this migration', (
     create table public.new_table (id uuid primary key);
     revoke all on all tables in schema public from anon;
   `;
-  assert.equal(classifyMigration('9999', 'sweeping', sql).blocked, true);
+  assert.equal(classifyMigration(LEGACY, 'sweeping', sql).blocked, true);
 });
 
 test('a REVOKE of function EXECUTE follows the same rule', () => {
@@ -232,7 +245,7 @@ test('a REVOKE of function EXECUTE follows the same rule', () => {
     create function public.f() returns int language sql as $$ select 1 $$;
     revoke all on function public.f() from public, anon, authenticated;
   `;
-  assert.equal(classifyMigration('9999', 'definer', created).blocked, false);
+  assert.equal(classifyMigration(LEGACY, 'definer', created).blocked, false);
   // Revoking EXECUTE on a predicate a policy names is an OUTAGE, not a hardening
   // (supabase/AGENTS.md) - exactly the class that must reach a human.
   assert.equal(verdict('revoke execute on function public.is_suspended() from authenticated'), 'dangerous');
@@ -296,6 +309,73 @@ test('an empty or comment-only statement is not a finding', () => {
   assert.equal(verdict('-- just a note'), 'safe');
 });
 
+// ── Session timeouts: no migration may queue a live show behind a lock ──────────────────────────
+
+const TIMED = "-- 0068: a header comment\nset lock_timeout = '2s';\nset statement_timeout = '30s';\n";
+const ALTER = 'alter table public.control_events add column note text;\n';
+const timeoutIds = (version, text) =>
+  classifyMigration(version, 'x', text).findings.flatMap((f) => f.reasons.map((r) => r.id)).filter((id) => id === 'timeouts');
+
+test('a migration from 0068 on that sets both timeouts first is not refused for them', () => {
+  assert.deepEqual(timeoutIds('0068', TIMED + ALTER), []);
+  assert.deepEqual(timeoutIds('0068', "SET lock_timeout TO 2000;\nset local statement_timeout = '10min';\n" + ALTER), []);
+});
+
+test('a migration from 0068 on without lock_timeout or statement_timeout is refused', () => {
+  assert.deepEqual(timeoutIds('0068', ALTER), ['timeouts']);
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '2s';\n" + ALTER), ['timeouts']);
+  assert.deepEqual(timeoutIds('0068', "set statement_timeout = '30s';\n" + ALTER), ['timeouts']);
+  // It blocks the push and names the fix.
+  const result = classifyMigration('0070', 'x', ALTER);
+  assert.equal(result.blocked, true);
+  assert.match(result.findings[0].reasons[0].why, /set lock_timeout = '2s'/);
+});
+
+test('a timeout set AFTER the first real statement protects nothing, so it does not count', () => {
+  assert.deepEqual(timeoutIds('0068', ALTER + TIMED), ['timeouts']);
+});
+
+test('a lock_timeout of zero, or longer than 5 s, is a queue again', () => {
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '0';\nset statement_timeout = '30s';\n" + ALTER), ['timeouts']);
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '1min';\nset statement_timeout = '30s';\n" + ALTER), ['timeouts']);
+  assert.deepEqual(timeoutIds('0068', "set lock_timeout = '5s';\nset statement_timeout = '30s';\n" + ALTER), []);
+});
+
+test('migrations before 0068 are exempt: they are applied everywhere already', () => {
+  assert.equal(FIRST_TIMED_MIGRATION, '0068');
+  assert.deepEqual(timeoutIds('0067', ALTER), []);
+});
+
+test('Postgres time units read as milliseconds', () => {
+  assert.equal(timeoutMs('2s'), 2000);
+  assert.equal(timeoutMs('2000'), 2000);
+  assert.equal(timeoutMs('1min'), 60_000);
+  assert.equal(timeoutMs('250ms'), 250);
+  assert.equal(timeoutMs('soon'), null);
+});
+
+// The CLI's own words, captured from `supabase db push --linked` (2.111) on a preview branch whose
+// control_events was held by a reader: the push gave up after lock_timeout instead of queueing.
+const CLI_LOCK_TIMEOUT = [
+  '{"_tag":"Error","error":{"code":"LegacyDbPushApplyError","message":"ERROR: canceling statement due to lock timeout (SQLSTATE 55P03)\\nAt statement: 2\\nalter table public.control_events add column if not exists lock_probe text"}}',
+  'Initialising login role...',
+  'Connecting to remote database...',
+  'Applying migration 0068_lock_probe.sql...',
+].join('\n');
+
+test('a lock timeout is recognised, and names the file that could not get its lock', () => {
+  assert.deepEqual(lockTimeoutFailure(CLI_LOCK_TIMEOUT), { file: '0068_lock_probe.sql' });
+});
+
+test('any other failure is not a lock timeout, so it is not retried', () => {
+  assert.equal(lockTimeoutFailure('ERROR: column "x" of relation "y" already exists (SQLSTATE 42701)\nApplying migration 0068_x.sql...'), null);
+  assert.equal(lockTimeoutFailure('ERROR: canceling statement due to statement timeout (SQLSTATE 57014)'), null);
+});
+
+test('a lock timeout is retried a bounded number of times', () => {
+  assert.ok(LOCK_RETRY_WAITS_MS.length >= 1 && LOCK_RETRY_WAITS_MS.length <= 3);
+});
+
 // ── The repository's own migrations ───────────────────────────────────────────────────────────────
 
 const dir = new URL('../supabase/migrations/', import.meta.url);
@@ -318,6 +398,22 @@ test('every shipped migration parses into statements this guard can judge', asyn
       'scripts/db-push.mjs (with a reason it cannot lose anything) or give it a danger rule:\n  ' +
       unrecognised.join('\n  '),
   );
+});
+
+// THE PRE-MERGE HALF of the timeout rule. db-push runs after the landing, so a migration that
+// forgot its timeouts would otherwise be found only when production refused it; this fails the
+// build that adds it instead.
+test('every shipped migration from 0068 on sets its own lock_timeout and statement_timeout first', async () => {
+  const missing = [];
+  for (const file of files) {
+    const [, version, name] = /^([0-9]+)_(.*)\.sql$/.exec(file);
+    const result = classifyMigration(version, name, await readFile(new URL(file, dir), 'utf8'));
+    for (const finding of result.findings) {
+      const timeouts = finding.reasons.find((r) => r.id === 'timeouts');
+      if (timeouts) missing.push(`${file}: ${timeouts.why}`);
+    }
+  }
+  assert.deepEqual(missing, [], `db-push would refuse these after the landing:\n  ${missing.join('\n  ')}`);
 });
 
 test('the migrations that reshape a live security record are the ones flagged', async () => {

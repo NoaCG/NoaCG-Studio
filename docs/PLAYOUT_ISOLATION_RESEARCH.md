@@ -1283,7 +1283,9 @@ the ones marked *filed* have a backlog item.
    commit after a later press. The real fix is step 2's revision check; this closes most of the
    window cheaply.
 5. **`lock_timeout` and `statement_timeout` in every migration session** (`db-push`), with a retry
-   instead of a queued lock. §5 shows the difference for a show under a lock queue.
+   instead of a queued lock. §5 shows the difference for a show under a lock queue. *Done
+   2026-09-29:* every migration from 0068 sets both in the file, `db-push` retries a lock timeout
+   (`supabase/AGENTS.md`, "Every migration sets its own timeouts").
 6. **Make the post-land alarm mean something again.** It is red on every landing today for an
    accepted advisor class, so a real migration failure would look the same. *Done 2026-09-29:*
    `unused_index` now warns and never fails (`docs/STACK_FRESHNESS.md`, Supabase advisors).
