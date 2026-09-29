@@ -185,6 +185,15 @@
 .pd-clock { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .pd-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .pd-status.ok { color: #4ade80; }
+/* THE OUTPUT HEALTH LINE (components/control/OutputHealth.tsx), on the production page and the
+   hosted page alike. The status face of .pd-status: green only for an output that is connected
+   and hearing commands live, amber when one says commands may arrive late, dim otherwise. The
+   short form is the phone's (see the 900px block): the header there has room for a few words
+   beside ● SHOW and All out, and this is the one status an operator on a phone must still see. */
+.pd-health { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; cursor: default; }
+.pd-health--ok { color: #4ade80; }
+.pd-health--warn { color: #f59e0b; }
+.pd-health-short { display: none; }
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
@@ -2026,6 +2035,12 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      says, and the production's NAME was paying for it (truncated to "Fri"). ● SHOW is short
      and is the one an operator must never miss, so only that one stays. */
   .pd-mode-idle { display: none; }
+  /* The output health line keeps its SHORT form here ("● 1 output", "▲ 1 output · late"): it is
+     the only way a phone operator learns the screens are not hearing them. It never shrinks:
+     the production's name is the one that truncates. */
+  .pd-health { flex: none; font-size: 11px; }
+  .pd-health-full { display: none; }
+  .pd-health-short { display: inline; }
   /* Home STAYS at this width - it is the one way off the page on a phone, and a four-letter
      word is cheaper than the name it shares the row with. */
   /* The links panel spans the phone's width under the header rather than hanging off its

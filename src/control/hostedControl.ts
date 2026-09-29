@@ -25,6 +25,7 @@ import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
 import { RESEND_WINDOW_MS, rpcFailure, sendWithResend } from './failedSends';
+import { noteSend, withSender } from './livePath';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { cueDataRows, type CueDataRow } from './cueData';
 
@@ -832,7 +833,9 @@ export async function sendControlVerb(opts: {
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
   for (const item of opts.items) {
-    const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
+    // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
+    // the command from the press to its screen.
+    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
@@ -865,7 +868,9 @@ export async function sendControlVerb(opts: {
       deadline: now + RESEND_WINDOW_MS,
       stillNewest: () => keys.every((key) => newestSend.get(key) === send),
     });
+    noteSend(true);
   } catch (e) {
+    noteSend(false);
     // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
     const failed = e as Error & { aired?: boolean };
@@ -1062,6 +1067,9 @@ export async function followControlLog(opts: {
    *  surface with a debug line has anywhere to put. Never joining means commands still arrive,
    *  on the durable road, at yesterday's speed. */
   onCommandStatus?: (status: string) => void;
+  /** Told each time a gap in the ids outlived the reorder window and sent the follow to the tail:
+   *  a count the output reports (livePath.ts). */
+  onHole?: () => void;
 }): Promise<() => void> {
   let lastId = opts.from;
   const apply = (row: ControlEventRow) => {
@@ -1140,6 +1148,7 @@ export async function followControlLog(opts: {
         drainHeld();
         if (held.size > 0) {
           held.clear();
+          opts.onHole?.();
           refill();
         }
       }, REORDER_WINDOW_MS);

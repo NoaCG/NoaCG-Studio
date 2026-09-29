@@ -1301,7 +1301,10 @@ the ones marked *filed* have a backlog item.
     without exempting `/output`; never ship a live-path function change without a behaviour
     self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract).
 11. **Show output health on the hosted page and the phone**, the one line the production page
-    already has.
+    already has. *Done 2026-09-30:* one component on both surfaces
+    (`src/components/control/OutputHealth.tsx`, words in `src/control/livePath.ts`), from the
+    outputs' Presence entries on `live-<show id>` once migration 0068 is on the server and from
+    `output_seen_at` until then (Phase 6 Step 1, spec D1).
 12. **Never let a font request gate a frame.** Serve bundled fonts with the prepared payload (or
     from whatever serves the output), or stop waiting for the frame's `load` to release commands;
     today a hanging font host leaves an output that accepts every Take and shows nothing (§5.2).
