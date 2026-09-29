@@ -27,6 +27,7 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
+import { mintOid } from './commandRoads';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -47,9 +48,10 @@ export const LIVE_BUILD: string = typeof __NOACG_BUILD__ === 'string' && __NOACG
 const INSTANCE_KEY = 'noacg-live-instance';
 let instance: string | null = null;
 
+/** Twelve lowercase alphanumerics off the command id minter, which already knows old CEF. */
 function randomId(): string {
   let id = '';
-  while (id.length < 12) id += Math.random().toString(36).slice(2);
+  while (id.length < 12) id += mintOid().replace(/[^a-z0-9]/g, '');
   return id.slice(0, 12);
 }
 
@@ -381,6 +383,27 @@ export interface LiveEntry {
   stats?: LiveSummary | SenderCounters;
 }
 
+/** This page's entry as it stands now: who it is, filled in here, and what only the caller knows. */
+export function liveEntry(
+  kind: LiveEntry['kind'],
+  surface: string,
+  roads: { log: boolean | null; cmd: boolean | null },
+  stats?: LiveEntry['stats'],
+): LiveEntry {
+  return {
+    kind,
+    id: liveInstanceId(),
+    engine: hostEngine(),
+    build: LIVE_BUILD,
+    proto: LIVE_PROTOCOL,
+    surface,
+    log: roads.log,
+    cmd: roads.cmd,
+    at: Date.now(),
+    stats,
+  };
+}
+
 /** A Presence entry read off the wire, or null when it is not one. Anyone holding the show id can
  *  track an entry, so an entry is checked like any other input. */
 export function readLiveEntry(meta: unknown): LiveEntry | null {
@@ -414,7 +437,9 @@ export interface LivePresence {
   close(): void;
 }
 
-const MIN_TRACK_MS = 3000;
+/** Every track goes to every page on the topic, so an output under a busy show re-announces at
+ *  most this often; its counters are a few seconds behind, which nothing reads live. */
+const MIN_TRACK_MS = 5000;
 /** A join refused before it ever succeeded (a server without 0068, or no Realtime at all) is asked
  *  again on this backoff instead of supabase-js's own 1 to 10 s rejoin loop: a private join is
  *  authorised by a database query, and a refused one would otherwise cost that query every 10 s
@@ -592,6 +617,9 @@ function oneEntryPerOutput(peers: LiveEntry[]): LiveEntry[] {
   return [...byId.values()];
 }
 
+const NOT_LOADED_WHY =
+  'Nobody has loaded the output URL yet. Open it once in your browser source and it stays connected.';
+
 /** A heartbeat this much after the last announced output left counts as a new one, not that
  *  output's last beat: it allows for the two clocks it is compared across. */
 const LEFT_MARGIN_MS = 5000;
@@ -686,7 +714,7 @@ export function describeOutputHealth(input: {
       short: '○ no output',
       why: seenAt
         ? 'No output is open on this production right now. Check the browser source (OBS, vMix, CasparCG) is still open on the output URL.'
-        : 'Nobody has loaded the output URL yet. Open it once in your browser source and it stays connected.',
+        : NOT_LOADED_WHY,
       outputs: 0,
       source: 'presence',
       show,
@@ -732,7 +760,7 @@ export function describeOutputHealth(input: {
     tone: 'idle',
     label: '○ output not loaded yet',
     short: '○ no output',
-    why: 'Nobody has loaded the output URL yet. Open it once in your browser source and it stays connected.',
+    why: NOT_LOADED_WHY,
     outputs: 0,
     source: 'none',
     show,

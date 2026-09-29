@@ -179,9 +179,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const [openedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
   /** Whether this page's own log and fast-road channels are joined, for its Presence entry. */
-  const [roads, setRoads] = useState<{ log: boolean | null; cmd: boolean | null }>({ log: null, cmd: null });
+  const [logJoined, setLogJoined] = useState<boolean | null>(null);
+  const [cmdJoined, setCmdJoined] = useState<boolean | null>(null);
   /** This page on the production's live topic, and the outputs it hears there (the health line). */
-  const livePresence = useLivePresence(show && show !== 'loading' ? show.id : null, 'hosted', roads);
+  const livePresence = useLivePresence(show && show !== 'loading' ? show.id : null, 'hosted', {
+    log: logJoined,
+    cmd: cmdJoined,
+  });
   /** The operator ACTION LOG (control/eventLog.ts) — the same feed the in-app dashboard shows,
    *  and it matters more here: this is the multi-operator surface, where "who took that?" is a
    *  real question and the page was already reading every one of these rows to drive PROGRAM. */
@@ -418,10 +422,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // Reported in this page's Presence entry, so an output's operator can be told apart from
         // a page that is itself on the poll floor.
         onStatus: ({ status }) => {
-          if (live) setRoads((r) => (r.log === (status === 'SUBSCRIBED') ? r : { ...r, log: status === 'SUBSCRIBED' }));
+          if (live) setLogJoined(status === 'SUBSCRIBED');
         },
         onCommandStatus: (status) => {
-          if (live) setRoads((r) => (r.cmd === (status === 'SUBSCRIBED') ? r : { ...r, cmd: status === 'SUBSCRIBED' }));
+          if (live) setCmdJoined(status === 'SUBSCRIBED');
         },
         onRow: (row) => {
           const msg = row.msg;

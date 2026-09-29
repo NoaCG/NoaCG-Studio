@@ -5,12 +5,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  LIVE_BUILD,
-  LIVE_PROTOCOL,
   describeOutputHealth,
-  hostEngine,
   joinLivePresence,
-  liveInstanceId,
+  liveEntry,
   onSendCounted,
   senderCounters,
   type LiveEntry,
@@ -30,6 +27,10 @@ export interface LivePresenceView {
  * THIS OPERATOR PAGE ON THE PRODUCTION'S LIVE TOPIC: it announces itself (its engine, build,
  * whether its own log and command channels are joined, and its send counters) and hears every
  * output's entry. `showId` null means not published, or no backend: nothing is joined.
+ *
+ * It keeps only the OUTPUTS, and re-renders only when something the line shows about them changed:
+ * the hook sits at the top of two large pages, and every page on the topic re-announcing would
+ * otherwise re-render both.
  */
 export function useLivePresence(
   showId: string | null,
@@ -44,28 +45,24 @@ export function useLivePresence(
     if (!showId) return;
     const presence = joinLivePresence({
       showId,
-      entry: () => ({
-        kind: 'operator',
-        id: liveInstanceId(),
-        engine: hostEngine(),
-        build: LIVE_BUILD,
-        proto: LIVE_PROTOCOL,
-        surface,
-        log: roadsRef.current.log,
-        cmd: roadsRef.current.cmd,
-        at: Date.now(),
-        stats: senderCounters(),
-      }),
+      entry: () => liveEntry('operator', surface, roadsRef.current, senderCounters()),
       onPeers: (peers) =>
         setView((v) => {
-          const had = v.peers.some((p) => p.kind === 'output');
-          const has = peers.some((p) => p.kind === 'output');
-          return { ...v, peers, outputLeftAt: has ? null : had ? Date.now() : v.outputLeftAt };
+          const outputs = peers.filter((p) => p.kind === 'output');
+          if (shownKey(outputs) === shownKey(v.peers)) return v;
+          const had = v.peers.length > 0;
+          return { ...v, peers: outputs, outputLeftAt: outputs.length > 0 ? null : had ? Date.now() : v.outputLeftAt };
         }),
-      onStatus: (status) => setView((v) => ({ ...v, status })),
+      onStatus: (status) => setView((v) => (v.status === status ? v : { ...v, status })),
     });
     presenceRef.current = presence;
-    const stopCounting = onSendCounted(() => presence.touch());
+    // A failed send is worth announcing; a successful one rides the next entry this page sends.
+    let failed = senderCounters().failed;
+    const stopCounting = onSendCounted(() => {
+      if (senderCounters().failed === failed) return;
+      failed = senderCounters().failed;
+      presence.touch();
+    });
     return () => {
       stopCounting();
       presence.close();
@@ -81,6 +78,19 @@ export function useLivePresence(
   }, [log, cmd]);
 
   return view;
+}
+
+/** What the health line reads off the outputs: who, on which engine and build, which roads, and
+ *  the median it quotes (rounded, so latency jitter re-renders nothing). */
+function shownKey(outputs: LiveEntry[]): string {
+  return outputs
+    .map((o) => {
+      const lat = (o.stats as { lat?: Record<string, { p50?: number }> } | undefined)?.lat;
+      const p50 = lat ? Object.values(lat).find((l) => typeof l?.p50 === 'number')?.p50 : undefined;
+      return `${o.id}|${o.engine}|${o.build}|${o.log}|${o.cmd}|${p50 === undefined ? '' : Math.round(p50 / 50)}`;
+    })
+    .sort()
+    .join(',');
 }
 
 export function OutputHealthLine({

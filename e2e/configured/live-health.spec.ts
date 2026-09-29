@@ -10,7 +10,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -71,16 +71,7 @@ test('an output says who it is and how commands reach it, and both operator page
   test.setTimeout(300_000);
   await signIn(page);
   await page.keyboard.press('Escape');
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    for (const s of loadShows()) {
-      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
-      deleteShow(s.id);
-    }
-    const { syncNow } = await import('/src/backend/syncController.ts');
-    await syncNow();
-  });
+  await clearPublishedShows(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Live Health ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
@@ -222,10 +213,7 @@ test('an output says who it is and how commands reach it, and both operator page
   await page.getByTestId('production-links-toggle').click();
   await page.getByRole('button', { name: /Unpublish/ }).click();
   await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    for (const s of loadShows()) deleteShow(s.id);
-  });
+  await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();
 });

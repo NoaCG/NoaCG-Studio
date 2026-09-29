@@ -38,6 +38,7 @@ import {
   describeLiveSummary,
   hostEngine,
   joinLivePresence,
+  liveEntry,
   liveInstanceId,
   type LiveEntry,
   type LivePresenceStatus,
@@ -147,18 +148,7 @@ async function boot(): Promise<void> {
       presence.touch();
     },
   });
-  const entry = (): LiveEntry => ({
-    kind: 'output',
-    id: identity.id,
-    engine: hostEngine(),
-    build: identity.build,
-    proto: identity.protocol,
-    surface: 'output',
-    log: logJoined,
-    cmd: cmdJoined,
-    at: Date.now(),
-    stats: live.summary(),
-  });
+  const entry = (): LiveEntry => liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary());
   const presence = joinLivePresence({
     showId: resolved.id,
     entry,
