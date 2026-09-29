@@ -29,12 +29,22 @@ jobs:
     timeout-minutes: 15
     environment: production
     steps:
+      # Full history, without file contents: a held live-path migration's age is the time the
+      # commit that added it reached main, and a shallow clone cannot say (db-push then treats the
+      # hold as overdue rather than guessing).
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
       - uses: ./.github/actions/node-modules
+      # A live-path migration (supabase/AGENTS.md) that finds a production live is HELD: db-push
+      # applies the files before it, leaves a warning, and exits 0, because the class requires the
+      # app that landed to work without it. The next landing retries. A hold older than a day
+      # exits 1, so it reaches a person through this run's red conclusion like a refusal does.
       - name: Push what production and staging are missing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -46,9 +56,13 @@ jobs:
           fi
           node scripts/migration-drift.mjs || true
           # Production first, then staging by name - db-push defaults to production, so the
-          # staging push must say which project (scripts/supabase-projects.mjs).
-          node scripts/db-push.mjs
-          node scripts/db-push.mjs --ref "$(node -e "import('./scripts/supabase-projects.mjs').then((m) => console.log(m.stagingRef(process.env)))")"
+          # staging push must say which project (scripts/supabase-projects.mjs). Staging is pushed
+          # even when production's push fails or a hold there is overdue, so it does not fall
+          # behind on everything else; the step still fails if either did.
+          status=0
+          node scripts/db-push.mjs || status=$?
+          node scripts/db-push.mjs --ref "$(node -e "import('./scripts/supabase-projects.mjs').then((m) => console.log(m.stagingRef(process.env)))")" || status=$?
+          exit "$status"
 
       # ASK THE ADVISORS ABOUT WHAT JUST APPLIED - the only moment they can be asked. They read
       # the LIVE project, so a new `SECURITY DEFINER` function or a new table with no policies
