@@ -129,15 +129,17 @@ Observations `claude-cloud-*` in `scripts/harness-capabilities.json`.
 
 - **GitHub from a row** (settled 2026-09-29 on 2.1.284, `claude-cloud-rows-get-no-mcp-tools`).
   Subagents inherit the host-injected GitHub MCP, and the three `.claude/agents/wave-row*.md`
-  `tools:` lines name exactly the `mcp__github__` tools the cloud path of `queue-merge.md` needs:
-  `create_pull_request`, `pull_request_read`, `actions_run_trigger`, `actions_get`, `actions_list`,
-  `get_job_logs`, `enable_pr_auto_merge`, `disable_pr_auto_merge` - no wildcard, no merge, push,
-  file-write or branch tool (`actions_run_trigger` can also cancel runs and delete run logs). A
-  fresh-session probe loaded them in `wave-row-mechanical` and read a PR, so cloud rows run
-  `/queue-merge` themselves. Only a read was probed: if a row's first `create_pull_request` or
-  `enable_pr_auto_merge` fails, it reports the stamped tip and the verbatim error, and the
-  coordinator runs the cloud path for it. Never `curl` with `$GH_TOKEN`: the permission system
-  refuses it as credential exploration, correctly.
+  `tools:` lines name the `mcp__github__` tools for steps 1-3 of the cloud path of
+  `queue-merge.md`: `create_pull_request`, `pull_request_read`, `actions_run_trigger`,
+  `actions_get`, `actions_list`, `get_job_logs`, `enable_pr_auto_merge`, `disable_pr_auto_merge` -
+  no wildcard, no merge, push, file-write or branch tool (`actions_run_trigger` can also cancel
+  runs and delete run logs). A fresh-session probe in `wave-row-mechanical` loaded three of them
+  and read a PR, so cloud rows run `/queue-merge` themselves. No write has been exercised yet, so
+  each cloud row prompt says: if a GitHub call in the cloud path fails, stop and report the stamped
+  tip, the step reached, the PR number if one was opened, and the verbatim error. The coordinator
+  continues from that step, never from step 1, and confirms the queue entry and the merge (step 4)
+  itself, since no allowlisted tool reads the PR timeline. Never `curl` with `$GH_TOKEN`: the
+  permission system refuses it as credential exploration, correctly.
 - **No subagents inside a row** (recorded, `claude-cloud-rows-cannot-launch-subagents`). A cloud
   row has no Agent tool, so it cannot consult, call `design-consult` or delegate; skill forks
   (`/check`'s review) still run. Give cloud rows only work that needs no consult, or consult from
