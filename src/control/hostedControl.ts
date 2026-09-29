@@ -447,10 +447,12 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // - and on a personal row the database would refuse a stamp nobody asked for anyway.
     ...(show.teamId ? { team_id: show.teamId } : {}),
   };
-  // AN UPDATE, AND AN INSERT ONLY WHEN THERE WAS NOTHING TO UPDATE - not an upsert. An upsert
-  // (`insert ... on conflict (id) do update`) locks the existing row FOR UPDATE, which blocks every
-  // Take's KEY SHARE on it for the whole multi-megabyte write; a plain update of columns that are no
-  // key takes FOR NO KEY UPDATE, which a Take passes (migration 0070, review finding ordering:F1).
+  // AN UPDATE, AND AN INSERT ONLY WHEN THERE WAS NOTHING TO UPDATE - not an upsert. PostgREST's
+  // upsert sets every column of the payload, `id` included (`on conflict ("id") do update set "id"
+  // = excluded."id", ...`, read off pg_stat_statements on a preview branch), and a key column in
+  // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
+  // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
+  // KEY UPDATE, which a Take passes (migration 0070, review finding ordering:F1).
   const error = await writeControlShow(sb, published);
   // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
