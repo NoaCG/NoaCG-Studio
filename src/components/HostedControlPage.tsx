@@ -339,15 +339,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // A failed resolve is NOT "no such production" (the 2026-09-29 outage told operators their
       // link was wrong for three minutes, and kept saying so after the database came back). Ask
       // again on the renderer's backoff until the server ANSWERS; a page that has gone away
-      // stops at its next attempt.
-      const answer = await untilAnswered(
-        async () => (live ? controlShowBySlug(slug) : { ok: true as const, value: null }),
-        {
-          onRetry: () => {
-            if (live) setServerWaiting(true);
-          },
-        },
-      );
+      // stops asking.
+      const answer = await untilAnswered(() => controlShowBySlug(slug), {
+        stop: () => !live,
+        onRetry: () => setServerWaiting(true),
+      });
       if (!live) return;
       setServerWaiting(false);
       const resolved = answer.ok ? answer.value : null;
@@ -455,6 +451,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     })();
     return () => {
       live = false;
+      setServerWaiting(false);
       unsubscribe?.();
     };
     // `applyCommand` and `noteMachineState` are declared with no dependencies of their own, so

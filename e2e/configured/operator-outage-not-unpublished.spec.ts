@@ -132,7 +132,9 @@ test('an operator page waits out a database outage instead of calling the produc
   await expect(line).toContainText('server not answering');
 
   deskOutage.down = false;
-  await expect(line).toBeHidden({ timeout: 30_000 });
+  // The notice line also carries "not joined" for a slow channel, which is a different state;
+  // only the outage wording has to go.
+  await expect(line.filter({ hasText: 'server not answering' })).toHaveCount(0, { timeout: 30_000 });
   expect(deskOutage.answered, 'the follow asked again and the server answered').toBeGreaterThan(0);
   await expect.poll(() => tailsAfterRecovery, { timeout: 30_000 }).toBeGreaterThan(0);
   await desk.close();

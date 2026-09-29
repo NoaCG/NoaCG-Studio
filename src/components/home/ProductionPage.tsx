@@ -1255,27 +1255,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let unsubscribe: (() => void) | null = null;
     const tail = (after: number) => hostedControlTail(hostedSlug, after);
     void (async () => {
-      // Read BEFORE the await: if a verb moves the live map while this round trip is in
-      // flight, the answer below is older than the screen and must not overwrite it.
-      let movesAtRequest = liveCueMoves.current;
+      // Read at the start of the round trip that ANSWERS: if a verb moves the live map while it
+      // is in flight, the answer below is older than the screen and must not overwrite it.
+      let movesAtRequest = 0;
       // BEFORE the await, because this page is reused when the route moves to another
       // production: the previous show's answer must not decide this one's road while the round
       // trip is in flight. Graphic keys are per-production layer names and collide freely.
       fastEventGraphicsRef.current = new Set();
       // A failed resolve is asked again on the renderer's backoff, and the header says so; only
-      // an ANSWER decides. The round trip that counts is the one that answers, so each attempt
-      // re-reads the move counter.
+      // an ANSWER decides.
       const answer = await untilAnswered(
-        async () => {
-          if (!alive) return { ok: true as const, value: null };
+        () => {
           movesAtRequest = liveCueMoves.current;
           return controlShowBySlug(hostedSlug);
         },
-        {
-          onRetry: () => {
-            if (alive) setResolveWaiting(true);
-          },
-        },
+        { stop: () => !alive, onRetry: () => setResolveWaiting(true) },
       );
       if (!alive) return;
       setResolveWaiting(false);
