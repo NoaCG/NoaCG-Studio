@@ -588,6 +588,10 @@ swapped from `/output` to the user's own hosting. The long-term output model:
    one SPX-legal `.html` framing it, whose Play/Stop move the FRAME while cues stay with the
    operator. It carries the output capability only — a template able to air a cue would have to
    carry the control slug onto a playout machine.
+   Because the embed is served from another origin or a file path, `/output` is the one page any
+   origin may frame: `vercel.json` sends it no `X-Frame-Options` and no `frame-ancestors`, while
+   every other page keeps `frame-ancestors 'self'`. It holds only the render capability, so a
+   framing page has nothing to click; `scripts/vercel-frame-headers.test.mjs` guards both halves.
 2. **Self-hosted NoaCG Output** — the exported package + hosted receiver (existing).
 3. **Portable package export** — the six targets (existing; offline, archival, restricted
    networks).
