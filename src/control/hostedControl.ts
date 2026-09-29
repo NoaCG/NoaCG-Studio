@@ -878,6 +878,8 @@ export async function sendControlVerb(opts: {
     // budgeted against the fan-out's 650 ms slow mode and assumes the insert itself was quick;
     // on the venue wifi this whole change exists for, `control_send_many` can take longer than
     // the window, and a Take pressed after it expired would then overtake the event's own row.
+    // A send that ended abandoned (failedSends.ts ATTEMPT_TIMEOUT_MS) may still commit after this;
+    // that is the late commit only a server-side revision check closes (Phase 6 Step 2).
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
     for (const key of held) slowUntil.set(key, landed);
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);

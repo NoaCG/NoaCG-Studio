@@ -58,6 +58,11 @@ export const RESEND_WINDOW_MS = 4000;
  */
 export const ATTEMPT_TIMEOUT_MS = 1500;
 
+/** The least time left in the window that a resend is started with: the slowest healthy answer
+ *  measured (242 ms). An attempt with less would be cancelled before it could be answered, while
+ *  its request might still reach the server and commit late. */
+export const MIN_ATTEMPT_MS = 250;
+
 /** What the operator reads when the server did not answer, in place of the server's own words. */
 export const UNANSWERED = 'the server did not answer';
 
@@ -119,7 +124,7 @@ export async function sendWithResend(
       return;
     } catch (e) {
       const wait = RESEND_DELAYS_MS[attempt];
-      if (!isUnanswered(e) || wait === undefined || now() + wait >= opts.deadline) throw e;
+      if (!isUnanswered(e) || wait === undefined || now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
       await sleep(wait);
       if (!opts.stillNewest()) throw e;
     }

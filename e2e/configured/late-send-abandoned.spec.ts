@@ -17,9 +17,9 @@
 // output's entrance count reads 1.
 // covers: src/control/failedSends.ts
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, lastAppliedRow as lastRow, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -27,26 +27,6 @@ test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec')
  *  the numbers of the research run this reproduces. */
 const HOLD_MS = 6000;
 const OUT_AFTER_MS = 1500;
-
-/** Publish nothing behind us: this account is shared by the live suite (migration 0040). */
-async function clearPublishedShows(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    for (const s of loadShows()) {
-      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
-      deleteShow(s.id);
-    }
-    const { syncNow } = await import('/src/backend/syncController.ts');
-    await syncNow();
-  });
-}
-
-/** The renderer's count of durable rows applied, off its `&debug=1` overlay. */
-async function lastRow(air: Page): Promise<number> {
-  const m = /last row: (\d+)/.exec((await air.locator('pre').textContent()) ?? '');
-  return m ? Number(m[1]) : 0;
-}
 
 test('a held Take is abandoned inside the window and never reaches air, even behind a later Out',async ({ page, context }) => {
   test.setTimeout(300_000);
@@ -116,7 +96,8 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await op.getByTestId('hosted-take-cue').click();
   await expect(chip).toContainText('on air:');
   await expect(notice).toContainText('on this monitor only', { timeout: 10_000 });
-  expect(Date.now() - takenAt, 'the notice comes inside the resend window').toBeLessThan(5000);
+  // Due at about 3.4 s; the bound is the hold, since before this change the notice never came.
+  expect(Date.now() - takenAt, 'the notice comes before the held request would have been let go').toBeLessThan(HOLD_MS);
   await Promise.all(held);
   await op.waitForTimeout(3000);
   expect(await airPlays(), 'an abandoned Take must never reach air').toBe('0');

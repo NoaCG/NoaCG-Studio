@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { ATTEMPT_TIMEOUT_MS, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, unansweredError, unansweredStatus } =
+const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, unansweredError, unansweredStatus } =
   await import('../src/control/failedSends.ts');
 
 /** A send that fails with each of `failures` in turn, then lands, and a clock that sleeping moves.
@@ -135,22 +135,19 @@ test('no attempt runs on past the window, however late it started', async () => 
   assert.equal(r.attempts[3].signal.aborted, true);
 });
 
-test('an answer arriving after its attempt was abandoned is ignored, and the resend decides', async () => {
-  let answerLate;
-  const r = heldRig();
-  const send = (signal) => {
-    if (r.attempts.length === 0) {
-      r.attempts.push({ at: r.now() - r.press, signal });
-      return new Promise((resolve) => {
-        answerLate = resolve;
-      });
-    }
-    answerLate(); // the first attempt's answer turns up while the second is in flight
-    r.attempts.push({ at: r.now() - r.press, signal });
-    return Promise.reject(new Error('slow down'));
-  };
-  await assert.rejects(sendWithResend(send, r.opts), /slow down/);
-  assert.equal(r.attempts.length, 2);
+test('a resend that would have less than the least useful time left is not started', async () => {
+  // 400 ms to wait with 500 ms of window left would leave an attempt 100 ms: cancelled before a
+  // healthy answer could come, yet its request could still commit late.
+  const r = heldRig(unansweredError());
+  const deadline = r.now() + RESEND_DELAYS_MS[0] + MIN_ATTEMPT_MS - 1;
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, deadline }), (e) => isUnanswered(e));
+  assert.equal(r.attempts.length, 1);
+  const roomy = heldRig(unansweredError(), new Error('slow down'));
+  await assert.rejects(
+    sendWithResend(roomy.send, { ...roomy.opts, deadline: roomy.now() + RESEND_DELAYS_MS[0] + MIN_ATTEMPT_MS }),
+    /slow down/,
+  );
+  assert.equal(roomy.attempts.length, 2);
 });
 
 test('an abandoned Take is not sent again once a newer press of its graphic went out', async () => {
