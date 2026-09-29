@@ -44,8 +44,8 @@ relaunch gets a new one; the ledger refuses a reused ID):
     node scripts/wave-launch.mjs record --letter <L> --branch <branch> --size <size> --plan <plan> --host <host> --worker-id <id> [--worktree <absolute-path>] [--result-path <absolute-path>]
 
 Pass `--worktree` only when the launcher made it before the start (native Codex or CLI). The Claude
-Agent tool creates its worktree after the call, so omit it there: a record written after the call
-races the row's first report, and both orders refused every Agent-tool report on 2026-09-26/28.
+Agent tool creates its worktree after the call, so omit it there; recording after the call instead
+races the row's first report, a race row K lost on 2026-09-26.
 Put the ID in the row's prompt. From its checkout it reports meaningful transitions:
 
     node scripts/wave-launch.mjs progress --worker-id <id> --state <running|ready|verifying|failed> --next-action <one-line-action> [--blocker <one-line-reason>]

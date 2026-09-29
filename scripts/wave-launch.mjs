@@ -199,10 +199,9 @@ export function main(argv = process.argv.slice(2), { now = Date.now() } = {}) {
   const json = argv.includes('--json');
   if (command === 'progress') {
     try {
-      const root = git(['rev-parse', '--show-toplevel'], process.cwd());
       const head = git(['rev-parse', 'HEAD'], process.cwd());
-      if (!root.ok || !head.ok) throw new Error('cannot identify worker checkout');
-      const row = recordProgress(dir, { worktree: path.resolve(root.stdout.trim()),
+      if (!head.ok) throw new Error('cannot identify worker checkout');
+      const row = recordProgress(dir, { worktree: process.cwd(),
         workerId: argValue(argv, '--worker-id'), sha: head.stdout.trim(), state: argValue(argv, '--state'),
         nextAction: argValue(argv, '--next-action'), blocker: argValue(argv, '--blocker'), now });
       process.stdout.write(`${JSON.stringify(row)}\n`); return 0;

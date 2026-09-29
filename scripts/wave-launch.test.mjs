@@ -116,8 +116,7 @@ test('a row recorded before the Agent tool made its worktree reports progress (n
     const rows = readProgress(store);
     assert.deepEqual(rows.map((row) => row.branch), ['claude/k-plain-readme', 'claude/k-plain-readme'],
       'a report is filed under its launch, whatever the checkout calls its branch');
-    assert.ok(rows.every((row) => path.normalize(row.worktree).toLowerCase() === path.normalize(tree).toLowerCase()),
-      'the checkout a report came from is kept beside it');
+    assert.deepEqual(rows.map((row) => row.worktree), [tree, tree], 'the checkout a report came from is kept beside it');
   });
 });
 
