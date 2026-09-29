@@ -213,7 +213,7 @@ test('a Take held on its way arrives after the Out, is refused, and never airs',
   await op.waitForTimeout(3_000);
   expect(await airPlays(air)).toBe('0');
   await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air');
-  await expect(op.getByTestId('hosted-error')).not.toContainText('changed from another screen');
+  expect((await op.getByTestId('hosted-error').allInnerTexts()).join(' ')).not.toContain('changed from another screen');
 
   await Promise.all([op.close(), air.close()]);
   await clearPublishedShows(page);
