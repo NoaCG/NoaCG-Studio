@@ -276,6 +276,8 @@ once, and the selection's toggle and marquee union share one helper.
   interrupted Out over a reversed Hold in all five targets (live value held until 1.2 s within
   1e-6, then the end value), the boundary key, undo from the dropdown, and the selection cleared
   by a Set Out that moves keys.
+- Browser mutation of the interrupted-jump fix (`j-2386`): starting the final jump at the exit's
+  start again fails all five targets by 885.5 px 10 ms into the interrupted Out.
 - `j-2382`, the full affected run on the same tip with 3 workers: 1,207 passed, 544 configured
   skips, none failed; catalog calibration 35/35; "Overall: passed".
 - `j-2383`, the catalog battery against this worktree's own dev server (checked before every sweep):
@@ -290,6 +292,8 @@ once, and the selection's toggle and marquee union share one helper.
   rows under an opened layer, the translucent marquee, selected keys in white against orange, "5
   keys · Mixed" in the toolbar, the context menu at the pointer and clamped to the viewport, and a
   refusal reason under the dropdown that the next click dismisses.
+- `j-2385`: `npm run build` exited 0 on tip `5e15c8e39`, with 2,077 Node tests (none failed) and
+  the TypeScript, lint, dependency, bundle, prerender, owner-queue and after-build gates green.
 
 Not checked: physical 125% displays, receiving-host fonts, a real OGraf host, the Windows Menu key
 in a headed Windows browser, and the two first-time-user trials, which stay pending as before. This
