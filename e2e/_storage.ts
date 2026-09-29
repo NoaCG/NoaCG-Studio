@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 
 // MAKING BROWSER STORAGE REFUSE A WRITE.
 //
@@ -19,9 +19,11 @@ import type { Page } from '@playwright/test';
 
 const FLAG = '__noacgStorageFull';
 
-/** Install the refusal switch. Must run BEFORE the first goto (it is an init script). */
-export async function armStorageFailure(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+/** Install the refusal switch. Must run BEFORE the first goto (it is an init script). Arm the
+ *  CONTEXT for a flow that opens its own tab (a production's Data and Audience workspaces): a
+ *  page's init script never reaches a tab it opens. */
+export async function armStorageFailure(target: Page | BrowserContext): Promise<void> {
+  await target.addInitScript(() => {
     // The WHOLE body is guarded: an init script also runs inside the sandboxed preview iframes
     // (allow-scripts with no allow-same-origin), where touching storage APIs can throw - and an
     // uncaught error there lands in the page-error listeners some specs assert empty.

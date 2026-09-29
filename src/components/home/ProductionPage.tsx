@@ -1925,10 +1925,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       added.push({ path: result.path, label: pictureLabel(file.name, added.length) });
     }
     // Replacing by NAME keeps the pool id, the layer and every cue already prepared against it.
+    // Each step waits for its durable write, so no cue is written over a picture graphic that did
+    // not land and the ✓ below is never said over a refused save
+    // (components/never-report-save-storage-layer-has).
     const { shows: afterPool, error } = addGraphicToShow(show.id, template, {});
     setShows(afterPool);
-    if (error) {
-      setNote(error);
+    const poolFailure = error ?? (await commitDurableWrites());
+    if (poolFailure) {
+      setNote(`The pictures were not added: ${poolFailure}`);
       return;
     }
     const poolId = afterPool
@@ -1953,6 +1957,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }).shows;
       }
       setShows(next);
+      const cueFailure = await commitDurableWrites();
+      if (cueFailure) {
+        setNote(`The pictures were added, but not all of their cues were saved: ${cueFailure}`);
+        return;
+      }
     }
     const skipped = files.length - chosen.length;
     setNote(

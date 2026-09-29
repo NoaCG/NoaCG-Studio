@@ -21,6 +21,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { bootstrapGraphic, openProductionWithCurrent, openWorkingGraphicInEditor, skipOldEditor } from './_create';
 import { settleDurableWrites } from './_durable';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 import { outputEmbedFileName, outputEmbedHtml } from '../src/export/outputEmbed';
 
 /** Drag cue row `from` onto row `to` — the rundown reorders by DRAG now, not by ↑/↓ buttons
@@ -1088,6 +1089,29 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await page.getByTestId('delete-cue').click();
   await expect(rows).toHaveCount(0);
   await expect.poll(poolCount).toBe(0);
+});
+
+test('pictures that do not save are said as not added, never with a tick, and adding them again works', async ({ page }) => {
+  // components/never-report-save-storage-layer-has: the durable store accepts a write at once and
+  // confirms it a moment later, so the note waits for that answer and claims a refusal in its own
+  // words.
+  await armStorageFailure(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, 'Picture Show');
+  const pictures = page.getByTestId('cue-list').locator('.pd-cue', { hasText: 'Opening slide' });
+
+  await fillStorage(page);
+  await page.getByTestId('add-pictures-input').setInputFiles([pictureFile('Opening slide.png')]);
+  await expect(page.getByTestId('production-note')).toContainText('The pictures were not added');
+  await expect(page.getByTestId('production-note')).not.toContainText('✓');
+  await expect(pictures).toHaveCount(0);
+  // Claimed, so the app's generic "Could not save" announcement does not follow it.
+  await expect(page.getByText('Could not save')).toHaveCount(0);
+
+  await freeStorage(page);
+  await page.getByTestId('add-pictures-input').setInputFiles([pictureFile('Opening slide.png')]);
+  await expect(page.getByTestId('production-note')).toContainText('✓ 1 picture added');
+  await expect(pictures).toHaveCount(1);
 });
 
 test('an empty production reads as a start: its empty line sits like a row, and Start production waits for a cue', async ({

@@ -20,6 +20,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent, skipOldEditor } from './_create';
 import { openWorkspace } from './_workspace';
 import { settleDurableWrites } from './_durable';
+import { armStorageFailure, fillStorage, freeStorage } from './_storage';
 
 // The production AUDIENCE workspace (docs/INTERACTIVE_PLAYOUT_PLAN.md, Phase 5).
 //
@@ -251,6 +252,73 @@ test('a vote with nowhere to go says so instead of writing a cue nobody can read
     return (loadShows()[0].cues ?? []).filter((c) => c.label.startsWith('Vote —')).length;
   });
   expect(votes).toBe(0);
+});
+
+// ── A cue the rundown did not keep is said as such, never with a tick
+// (components/never-report-save-storage-layer-has). The workspace is its own tab, so the refusal is
+// armed on the whole browser context. ──
+
+/** The cues of the one production, as the workspace's own tab has them. */
+async function cueLabels(tab: Page): Promise<string[]> {
+  return tab.evaluate(async () => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return (loadShows()[0].cues ?? []).map((c) => c.label);
+  });
+}
+
+test('a message sent to the rundown that does not save says so, stays unused, and sends again', async ({ page }) => {
+  await armStorageFailure(page.context());
+  await bootstrapGraphic(page, { name: 'House Q&A' });
+  await productionFor(page, 'Phone In');
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('audience-simulate').click();
+  // All, not the inbox: a message that was used leaves the inbox, and this one must stay in view.
+  await audience.getByTestId('audience-filter-all').click();
+  const first = audience.locator('.pd-aud-row').first();
+  await expect(first).toBeVisible();
+  const before = await cueLabels(audience);
+
+  await fillStorage(audience);
+  await first.getByTestId('audience-send').click();
+  await expect(audience.getByTestId('audience-note')).toContainText('No cue was added to the rundown');
+  await expect(audience.getByTestId('audience-note')).not.toContainText('✓');
+  await expect(first.getByTestId('audience-used')).toHaveCount(0);
+  expect(await cueLabels(audience)).toEqual(before);
+
+  await freeStorage(audience);
+  await first.getByTestId('audience-send').click();
+  await expect(audience.getByTestId('audience-note')).toContainText('✓ Added a cue to the rundown');
+  await expect(first.getByTestId('audience-used')).toBeVisible();
+  expect((await cueLabels(audience)).length).toBe(before.length + 1);
+});
+
+test('a vote staged while the rundown cannot save says so, and staging again adds the cue once', async ({ page }) => {
+  await armStorageFailure(page.context());
+  await bootstrapGraphic(page, { category: 'Polls', name: 'House Vote' });
+  await productionFor(page, 'Derby Night');
+  const audience = await openWorkspace(page, 'audience');
+  await audience.getByTestId('audience-round-question').fill('Who wins the derby?');
+  await audience.getByTestId('audience-round-options').fill('The home side\nThe visitors');
+  await audience.getByTestId('audience-round-open').click();
+  await audience.getByTestId('audience-simulate-votes').click();
+  await expect(audience.getByTestId('audience-tally-0')).not.toHaveText('0', { timeout: 10_000 });
+  const votes = async () => (await cueLabels(audience)).filter((l) => l.startsWith('Vote —')).length;
+
+  await fillStorage(audience);
+  await audience.getByTestId('audience-round-stage').click();
+  await expect(audience.getByTestId('audience-note')).toContainText('No cue was added to the rundown');
+  expect(await votes()).toBe(0);
+
+  await freeStorage(audience);
+  await audience.getByTestId('audience-round-stage').click();
+  await expect(audience.getByTestId('audience-note')).toContainText('✓ Added a cue to the rundown');
+  expect(await votes()).toBe(1);
+
+  // Re-staging a cue that exists: a refused update is said, and no second cue appears.
+  await fillStorage(audience);
+  await audience.getByTestId('audience-round-stage').click();
+  await expect(audience.getByTestId('audience-note')).toContainText('was not updated');
+  expect(await votes()).toBe(1);
 });
 
 test('the presenter pointers: queue what is read now and next, without airing anything', async ({ page }) => {
