@@ -187,6 +187,15 @@ The page:
 - **One sandboxed iframe per pool graphic**, all built at load (preload). Each iframe is
   `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start invisible
   by the SPX contract, so a stacked idle graphic shows nothing.
+- **A frame is hidden, with its commands queued, until its document loads**, and **no font can
+  hold that off for long.** A web font requested during the first layout holds back `load`, so a
+  font host that never answers used to keep every graphic off air while the output counted each
+  Take (PLAYOUT_ISOLATION_RESEARCH.md §5.2). A document that is parsed but not loaded
+  `FRAME_HOLD_CAP_MS` (3 s) later reports the families it is waiting for, and the stage releases
+  it onto its fallback faces; `&debug=1` prints that as the `fonts` line. A font that loads inside
+  the cap is in place before the first Take, as before. One that arrives after a release swaps in
+  on air, which is ordinary `font-display: swap` behaviour and can move text by the difference
+  between the two faces' metrics.
 - **Every graphic is a LAYER, and pool order is the stack** — index 0 furthest back, the last
   entry on top, carried through the published payload's `graphics` array to the stage, which
   states it as an explicit `z-index` rather than relying on append order. The production page

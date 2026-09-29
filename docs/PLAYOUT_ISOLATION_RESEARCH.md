@@ -1305,6 +1305,9 @@ the ones marked *filed* have a backlog item.
 12. **Never let a font request gate a frame.** Serve bundled fonts with the prepared payload (or
     from whatever serves the output), or stop waiting for the frame's `load` to release commands;
     today a hanging font host leaves an output that accepts every Take and shows nothing (§5.2).
+    *Done 2026-09-30:* a document still not loaded 3 s after it was parsed releases itself onto
+    its fallback faces and the debug line names the font (`src/output/stage.ts`,
+    `e2e/output-font-hold.spec.ts`, `docs/CLOUD_PLAYOUT.md` §3).
 
 ---
 
