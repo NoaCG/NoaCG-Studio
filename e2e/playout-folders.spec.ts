@@ -423,6 +423,24 @@ test('Ctrl-click adds and drops a row, Shift+Down extends from the cursor, Escap
   await expect(page.getByTestId('range-count')).toHaveText('3 selected');
 });
 
+test('rows say their channel when the rundown plays on two, and a folder hangs its cues from a line', async ({ page }) => {
+  // docs/CLIP_PLAYBACK_PLAN.md §20.3.
+  await seedSettings(page);
+  await fakeBridge(page);
+  await production(page, CLIPS, { folders: [{ labels: ['ALPHA', 'BRAVO'], name: 'Block A' }] });
+  await expect(page.getByTestId('channel-legend')).toContainText('Inserts');
+  await expect(cue(page, 'Hairline').getByTestId('cue-layer')).toHaveAttribute('data-ch', '1');
+  await expect(cue(page, 'CHARLIE').getByTestId('cue-layer')).toHaveAttribute('data-ch', '2');
+  await expect(cue(page, 'ALPHA').locator('.pd-fold-guide')).toHaveCount(1);
+  await expect(cue(page, 'CHARLIE').locator('.pd-fold-guide')).toHaveCount(0);
+});
+
+test('a rundown on one channel, or with no playout server, wears no channel tones', async ({ page }) => {
+  await production(page, CLIPS);
+  await expect(page.getByTestId('channel-legend')).toHaveCount(0);
+  await expect(list(page).locator('[data-ch]')).toHaveCount(0);
+});
+
 test('a drop that cannot land is said while it hovers and after, and nothing moves', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page);

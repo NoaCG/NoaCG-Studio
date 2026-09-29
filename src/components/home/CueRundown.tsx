@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { useRouter } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -18,6 +18,7 @@ import { folderMode, placeRefusal, type Movable, type Place } from '../../model/
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
 import {
+  channelLabel,
   channelOf,
   channelTitle,
   defaultChannelFor,
@@ -61,6 +62,16 @@ const END_MARKS: Partial<Record<ClipEnd, { glyph: string; says: string; testid: 
   next: { glyph: '→', says: 'Plays the next clip on its layer', testid: 'cue-next-mark' },
   clear: { glyph: '⌀', says: 'Clears at its end', testid: 'cue-clear-mark' },
 };
+
+/**
+ * EACH CHANNEL'S TONE (docs/CLIP_PLAYBACK_PLAN.md §20.3), on a row's slot and in the legend: clear of
+ * red, amber and green, which already mean on air, preview and published. Keyed by the channel's
+ * number, so a channel keeps its tone whatever else the rundown holds.
+ */
+const CHANNEL_TONES = ['#7dd3fc', '#c4b5fd', '#5eead4', '#a5b4fc'];
+export function channelTone(channel: number): string {
+  return CHANNEL_TONES[(Math.max(1, channel) - 1) % CHANNEL_TONES.length];
+}
 
 /** Where a drag is aimed, and what it would do there. */
 interface Aim {
@@ -239,6 +250,18 @@ export default function CueRundown({
   }, [graphicByPoolId]);
   /** The length column is there only when the rundown holds a server clip (plan §6.8). */
   const timed = cues.some((c) => playoutItemFor(c)?.kind === 'media');
+  /** The channel a cue plays on: a graphic the output's (the graphics channel), a server item its
+   *  own, a clip of a Play-through folder the folder's. */
+  const channelOfCue = (cue: ShowCue): number => {
+    const item = playoutItemFor(cue);
+    if (!item) return playoutSettings.channel;
+    const through = item.kind === 'media' ? throughRoleOf(cue) : null;
+    return through ? Number(folderSlotOf(through.folder).split('-')[0]) : channelOf(playoutSettings, item);
+  };
+  /** The channels the rundown plays on, when a server is set up. Rows say theirs only when there are
+   *  two or more to tell apart (plan §20.3). */
+  const channelsUsed = playoutConfigured(playoutSettings) ? [...new Set(cues.map(channelOfCue))].sort((a, b) => a - b) : [];
+  const toneChannels = channelsUsed.length > 1;
   const serverOnAir = serverOwnership.onAir;
   const replacedCues = new Map(Object.values(serverOwnership.replaced).map((r) => [r.cueId, r] as const));
 
@@ -378,6 +401,16 @@ export default function CueRundown({
       <div className="pd-rail-head">
         <h2>Cue rundown</h2>
         <span className="muted">{cues.length}</span>
+        {/* Which tone is which channel, in the studio's words (plan §20.3). */}
+        {toneChannels && (
+          <span className="pd-ch-legend" data-testid="channel-legend">
+            {channelsUsed.map((ch) => (
+              <span key={ch} style={{ '--pd-ch': channelTone(ch) } as CSSProperties} title={channelTitle(playoutSettings, ch)}>
+                {channelLabel(playoutSettings, ch)}
+              </span>
+            ))}
+          </span>
+        )}
         <div className="spacer" />
         <button
           className="pd-icon"
@@ -475,6 +508,7 @@ export default function CueRundown({
                 inRange={members.every((c) => range.has(c.id))}
                 timed={timed}
                 slot={folderMode(folder) === 'through' ? folderSlotOf(folder) : null}
+                slotTone={toneChannels && folderMode(folder) === 'through' ? channelTone(Number(folderSlotOf(folder).split('-')[0])) : null}
                 clash={
                   hiddenClash
                     ? {
@@ -533,7 +567,7 @@ export default function CueRundown({
             ? { glyph: 'T', tone: 'graphic', name: `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` }
             : playoutItem?.kind === 'media'
               ? playoutItem.mediaKind === 'audio'
-                ? { glyph: '♪', tone: 'clip', name: `Server audio · ${address}` }
+                ? { glyph: '♪', tone: 'audio', name: `Server audio · ${address}` }
                 : { glyph: '▶', tone: 'clip', name: `Server clip · ${address}` }
               : playoutItem
                 ? { glyph: 'T', tone: 'server', name: `Server template · ${address}` }
@@ -575,6 +609,8 @@ export default function CueRundown({
           const ownFolder = row.folderId ? rundown.folders.get(row.folderId) : undefined;
           const takesRange = range.has(cue.id) && rangeCount > 1;
           const drop = markFor(row.id);
+          /** The channel's tone on the slot, when the rundown has two or more channels. */
+          const ch = toneChannels ? { 'data-ch': channelOfCue(cue), style: { '--pd-ch': channelTone(channelOfCue(cue)) } as CSSProperties } : {};
           return (
             <div
               key={cue.id}
@@ -594,6 +630,8 @@ export default function CueRundown({
                 setMenuRowId(rowMenuId);
               }}
             >
+              {/* A folder's cues hang from a line under its header (plan §20.3). */}
+              {inFolder && <span className="pd-fold-guide" aria-hidden="true" />}
               <span className="pd-grip" aria-hidden="true">⣿</span>
               <span className="pd-cue-no">{cueIsLive ? '●' : row.no}</span>
               <span
@@ -685,6 +723,7 @@ export default function CueRundown({
                 (clashWith.length ? (
                   <button
                     className="pd-cue-layer clash"
+                    {...ch}
                     onClick={() => onLayerRepair(cue.id)}
                     title={`Shares layer ${layer} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other. Click to repair.`}
                     data-testid="cue-layer"
@@ -694,7 +733,8 @@ export default function CueRundown({
                 ) : (
                   <span
                     className="pd-cue-layer"
-                    title={`${poolEntry.name} airs on layer ${layer}`}
+                    {...ch}
+                    title={`${poolEntry.name} airs on layer ${layer}${toneChannels ? `, ${channelTitle(playoutSettings, playoutSettings.channel)}` : ''}`}
                     data-testid="cue-layer"
                   >
                     L{layer}
@@ -706,6 +746,7 @@ export default function CueRundown({
               {playoutItem && (
                 <span
                   className="pd-cue-layer"
+                  {...ch}
                   title={
                     through
                       ? `${playoutItem.name} plays on ${address}, the slot of ${folderName(through.folder)}`

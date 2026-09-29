@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import type { CSSProperties, DragEvent } from 'react';
 import type { FolderAir } from '../../control/folderAir';
 import { folderAirWords } from '../../control/folderAir';
 import { folderMode } from '../../model/showFolders';
@@ -26,6 +26,7 @@ export default function FolderRow({
   inRange,
   timed,
   slot,
+  slotTone,
   clash,
   replaced,
   drop,
@@ -51,6 +52,8 @@ export default function FolderRow({
   timed: boolean;
   /** Where a Play-through folder plays, `2-10`; null for the other modes. */
   slot: string | null;
+  /** Its channel's tone, when the rundown plays on two channels or more (docs/CLIP_PLAYBACK_PLAN.md §20.3). */
+  slotTone: string | null;
   /** A cue hidden in this collapsed run shares its layer with another graphic: the badge opens the
    *  repair, as the cue's own row would. */
   clash: { title: string; onRepair: () => void } | null;
@@ -153,7 +156,12 @@ export default function FolderRow({
           Layer
         </button>
       ) : slot ? (
-        <span className="pd-cue-layer" title={`${name} plays its clips on ${slot}`} data-testid="folder-slot">
+        <span
+          className="pd-cue-layer"
+          {...(slotTone ? { 'data-ch': slot.split('-')[0], style: { '--pd-ch': slotTone } as CSSProperties } : {})}
+          title={`${name} plays its clips on ${slot}`}
+          data-testid="folder-slot"
+        >
           {slot}
         </span>
       ) : (
