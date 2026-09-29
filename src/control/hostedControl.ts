@@ -26,6 +26,7 @@ import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
 import { RESEND_WINDOW_MS, rpcFailure, sendWithResend } from './failedSends';
 import { fieldDescriptors, type ControlMessage } from './controlModel';
+import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
@@ -980,16 +981,13 @@ export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] 
  * three times): dedupe by row id; on an id hole recover from the tail INSTEAD of applying the
  * holed row (applying it would advance the cursor past the gap and the tail's older rows
  * would then be dropped as duplicates — a failed tail retries on the next row); tail-fill on
- * every (re)subscribe, because rows inserted while the socket was down produce no replay.
+ * every (re)subscribe, because rows inserted while the socket was down produce no replay; and
+ * apply a row that commits late BELOW the cursor instead of dropping it, because ids are taken at
+ * insert and commit out of order (logFollow.ts).
  * `tail` is injected — the control and output capabilities read the log through different RPCs.
  */
-/** The tail RPCs' page size (0008/0029: `limit 500`) — a full page means "there is more". */
-export const CONTROL_TAIL_PAGE = 500;
-/** Runaway guard on the catch-up walk: 20k rows is far past any real outage after pruning. */
-const MAX_TAIL_PAGES = 40;
-/** How long a log row that arrived ahead of the cursor waits for the rows in front of it before
- *  the gap is treated as a hole (`followControlLog` says why, and where the number comes from). */
-const REORDER_WINDOW_MS = 25;
+/** The tail RPCs' page size, owned with the rest of the cursor in `logFollow.ts`. */
+export { CONTROL_TAIL_PAGE } from './logFollow';
 
 /**
  * THE FLOOR UNDER REALTIME: how often a following surface re-reads the log even when nothing has
@@ -1063,105 +1061,46 @@ export async function followControlLog(opts: {
    *  on the durable road, at yesterday's speed. */
   onCommandStatus?: (status: string) => void;
 }): Promise<() => void> {
-  let lastId = opts.from;
-  const apply = (row: ControlEventRow) => {
-    if (row.id <= lastId) return;
-    lastId = row.id;
-    opts.onRow(row);
-  };
-  // The tail RPC answers at most CONTROL_TAIL_PAGE rows, so ONE call only ever recovers that much of
-  // the gap. A renderer booting after an outage can be much further behind than a reconnecting
-  // socket ever is, so keep pulling while pages come back full. Every page advances `lastId`
-  // (the RPC returns rows AFTER it), so the walk always terminates; the page ceiling is a
-  // runaway guard, not a design limit.
+  // Dedupe by row id, the reorder window, hole recovery and the late-commit window all live in
+  // `createLogFollower` (logFollow.ts, run in Node by scripts/log-follow.test.mjs). What stays here
+  // is the wiring: Realtime, the poll floor and the fast road.
+  //
   // WHILE A WALK IS IN FLIGHT THE FAST ROAD STANDS DOWN (see `recovering` above): the walk is
   // fetching rows OLDER than anything a broadcast can carry, and a broadcast has no id to be
-  // ordered against them. Counted rather than a boolean, because the 30 s poll and a hole
-  // recovery can overlap.
-  let walks = 0;
-  const refill = () =>
-    void (async () => {
-      walks += 1;
-      recovering.add(opts.showId);
-      try {
-        for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
-          const rows = await opts.tail(lastId);
-          rows.forEach(apply);
-          if (rows.length < CONTROL_TAIL_PAGE) return;
-        }
-      } finally {
-        walks = Math.max(0, walks - 1);
-        if (walks === 0) recovering.delete(opts.showId);
-      }
-    })();
+  // ordered against them.
+  const follower = createLogFollower<ControlEventRow>({
+    from: opts.from,
+    tail: opts.tail,
+    onRow: opts.onRow,
+    onWalk: (walking) => (walking ? recovering.add(opts.showId) : recovering.delete(opts.showId)),
+  });
   const { onCommand } = opts;
   let everJoined = false;
   let status = '';
   const report = () => opts.onStatus?.({ status, everJoined });
   // The floor. It runs whatever the socket is doing: a poll that returns nothing costs one empty
   // RPC, and deciding when it is "needed" would mean trusting exactly the signal that is broken.
+  // It re-reads the late-commit window behind the cursor, which is what catches a row that
+  // committed late while the live channel was not delivering (logFollow.ts).
   const poll = setInterval(() => {
     report();
-    refill();
+    void follower.refill('behind');
   }, CONTROL_POLL_MS);
-  // ── A ROW AHEAD OF THE CURSOR WAITS A MOMENT BEFORE IT COUNTS AS A HOLE. ──────────────────────
-  //
-  // The log topic delivers ONE TRANSACTION's rows out of id order: measured 2026-09-24 on the live
-  // backend, 6 of 16 three-row batches arrived as 1,0,2 or 0,2,1, every one of them complete
-  // within 2.1 ms. `postgres_changes` had delivered them in order. Treating each of those as a
-  // hole would send every follower on a tail walk for four Takes in ten - an RPC apiece, the row
-  // late by its round trip, and the fast road standing down for the whole walk.
-  //
-  // So a row that arrives ahead of the cursor is HELD, and the rows in front of it get
-  // REORDER_WINDOW_MS to arrive. Each one that does is applied and drains whatever it unblocks, in
-  // id order. A gap still open when the window closes is a real hole, and it is recovered from
-  // the tail exactly as before - the held rows are never applied past it, which is the rule
-  // `apply` exists to keep. A held row the walk also returns is dropped as a duplicate by `apply`.
-  //
-  // 25 ms is ten times the widest spread measured. A genuine hole costs those 25 ms on top of the
-  // walk it needed anyway, and this includes the ordinary case of ANOTHER production writing in
-  // between: the ids are global across productions, so a gap never proves a row was lost.
-  const held = new Map<number, ControlEventRow>();
-  let holeTimer: ReturnType<typeof setTimeout> | null = null;
-  const drainHeld = () => {
-    for (let next = held.get(lastId + 1); next; next = held.get(lastId + 1)) apply(next);
-    for (const id of held.keys()) if (id <= lastId) held.delete(id);
-    if (held.size === 0 && holeTimer) {
-      clearTimeout(holeTimer);
-      holeTimer = null;
-    }
-  };
-  const unsubscribe = await subscribeControlEvents(opts.showId, (row) => {
-    if (row.id <= lastId) return;
-    if (row.id > lastId + 1) {
-      held.set(row.id, row);
-      holeTimer ??= setTimeout(() => {
-        holeTimer = null;
-        drainHeld();
-        if (held.size > 0) {
-          held.clear();
-          refill();
-        }
-      }, REORDER_WINDOW_MS);
-      return;
-    }
-    apply(row);
-    drainHeld();
-  }, (next) => {
+  const unsubscribe = await subscribeControlEvents(opts.showId, follower.offer, (next) => {
     status = next;
     if (next === 'SUBSCRIBED') {
       everJoined = true;
-      refill();
+      // At once on the first join; on a rejoin after a random spread, so outputs that dropped
+      // together do not all read the tail in the same second.
+      follower.joined();
     }
     report();
   }, onCommand && ((items) => {
-    if (walks === 0) onCommand(items);
+    if (!follower.walking) onCommand(items);
   }), opts.onCommandStatus);
   return () => {
     clearInterval(poll);
-    if (holeTimer) clearTimeout(holeTimer);
-    held.clear();
-    walks = 0;
+    follower.stop();
     recovering.delete(opts.showId);
     unsubscribe();
   };
