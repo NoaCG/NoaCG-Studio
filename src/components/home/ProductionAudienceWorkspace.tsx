@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addShowCue, setShowPollLiveFigures, updateShowCue, type Show } from '../../model/shows';
+import { commitDurableWrites } from '../../model/durableStore';
 import {
   AUDIENCE_LIMITS,
   broadcastValues,
@@ -465,15 +466,19 @@ export default function ProductionAudienceWorkspace({
         const final = await backend.tally(closing.id).catch(() => tally);
         const cueId = stagedCue.current[closing.id];
         const cue = cueId ? show.cues?.find((c) => c.id === cueId) : undefined;
+        // Said only once the durable write has landed (components/never-report-save-storage-layer-has).
+        let failure: string | null = null;
         if (cue && final) {
           const target = show.graphics.find((g) => g.id === cue.sourceId);
           const map = target ? pollFieldMap(target.template.fields ?? []) : null;
-          if (map)
+          if (map) {
             setShows(
               updateShowCue(show.id, cue.id, {
                 values: tallyValues(closing, final, map, true, liveFigures),
               }),
             );
+            failure = await commitDurableWrites();
+          }
         }
         setRound(null);
         // The room goes back to what it was asked for before the vote. Leaving it in poll mode
@@ -482,9 +487,11 @@ export default function ProductionAudienceWorkspace({
         setMode(back);
         await backend.setState({ mode: back });
         setNote(
-          cue
-            ? 'Voting is closed. The staged cue now carries the final counts — Take it when you want them on air.'
-            : 'Voting is closed. Nothing was staged, so nothing changed on the rundown.',
+          failure
+            ? `Voting is closed, but the staged cue was not updated with the final counts: ${failure}`
+            : cue
+              ? 'Voting is closed. The staged cue now carries the final counts — Take it when you want them on air.'
+              : 'Voting is closed. Nothing was staged, so nothing changed on the rundown.',
         );
       })
       .catch((err: Error) => setNote(`Could not close the vote: ${err.message}`));
@@ -499,8 +506,11 @@ export default function ProductionAudienceWorkspace({
    * Re-staging while the round is open UPDATES the same cue rather than adding another, so a
    * rundown does not fill with a row per refresh; the operator re-takes to move the numbers on
    * air. Which one gets updated is remembered per round.
+   *
+   * The ✓ is said only once the durable write has landed, and a refused one is said instead
+   * (components/never-report-save-storage-layer-has).
    */
-  const stageTally = () => {
+  const stageTally = async () => {
     if (!round || !tally) return;
     const target = show.graphics.find((g) => pollFieldMap(g.template.fields ?? []) !== null) ?? show.graphics[0];
     if (!target) {
@@ -517,11 +527,22 @@ export default function ProductionAudienceWorkspace({
     const cue = existing ? show.cues?.find((c) => c.id === existing) : undefined;
     if (cue) {
       setShows(updateShowCue(show.id, cue.id, { values }));
-      setNote(`✓ Updated the cue for “${target.name}” with ${tally.total} ${tally.total === 1 ? 'vote' : 'votes'}. Take it to move the numbers on air.`);
+      const failure = await commitDurableWrites();
+      setNote(
+        failure
+          ? `The cue for “${target.name}” was not updated: ${failure}`
+          : `✓ Updated the cue for “${target.name}” with ${tally.total} ${tally.total === 1 ? 'vote' : 'votes'}. Take it to move the numbers on air.`,
+      );
       return;
     }
     const made = addShowCue(show.id, target.id, { label: `Vote — ${round.question.slice(0, 32)}`, values });
     setShows(made.shows);
+    const failure = await commitDurableWrites();
+    if (failure) {
+      setNote(`No cue was added to the rundown for “${target.name}”: ${failure}`);
+      return;
+    }
+    // Remembered only once it exists: a refused write leaves no cue to update next time.
     if (made.cueId) stagedCue.current[round.id] = made.cueId;
     setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it — nothing has gone out.`);
   };
@@ -549,8 +570,11 @@ export default function ProductionAudienceWorkspace({
    * question lands in the right slots with no mapping UI and no per-template special case. A
    * graphic that carries neither still gets a cue, with the text in its first text field, which
    * is honest: the operator can see where it went.
+   *
+   * The submission is marked used, and the ✓ said, only once the cue's durable write has landed: a
+   * refused one leaves the message in the inbox to send again.
    */
-  const sendToRundown = (row: AudienceSubmission) => {
+  const sendToRundown = async (row: AudienceSubmission) => {
     const titled = (fields: SpxField[], ...wanted: string[]): string | null => {
       for (const f of fields) {
         const title = (f.title ?? '').trim().toLowerCase();
@@ -602,6 +626,11 @@ export default function ProductionAudienceWorkspace({
     }
     const label = body.length > 40 ? `${body.slice(0, 40)}…` : body;
     setShows(addShowCue(show.id, target.id, { label, values }).shows);
+    const failure = await commitDurableWrites();
+    if (failure) {
+      setNote(`No cue was added to the rundown for “${target.name}”: ${failure}`);
+      return;
+    }
     patch(row.id, { status: 'approved', usedAt: new Date().toISOString() });
     setNote(`✓ Added a cue to the rundown for “${target.name}”. It airs when you Take it — nothing has gone out.`);
   };
@@ -885,7 +914,7 @@ export default function ProductionAudienceWorkspace({
               })}
             </ul>
             <div className="pd-aud-round-actions">
-              <button className="primary" onClick={stageTally} data-testid="audience-round-stage">
+              <button className="primary" onClick={() => void stageTally()} data-testid="audience-round-stage">
                 Stage counts to a graphic
               </button>
               <button onClick={closeRound} data-testid="audience-round-close">
@@ -1077,7 +1106,7 @@ export default function ProductionAudienceWorkspace({
                     ⇢ Next
                   </button>
                   <div className="spacer" />
-                  <button className="primary" onClick={() => sendToRundown(row)} data-testid="audience-send">
+                  <button className="primary" onClick={() => void sendToRundown(row)} data-testid="audience-send">
                     → Send to rundown
                   </button>
                 </div>
