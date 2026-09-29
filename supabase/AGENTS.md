@@ -209,8 +209,11 @@ the usual timeouts. On a landing, `db:push` applies every pending file before th
 one, then reads the quiet window: no `control_shows.output_seen_at` in the last ten minutes. Quiet,
 it applies (its `lock_timeout` still protects it). Not quiet, or the window could not be read, it
 HOLDS that file and everything after it, prints the live production ids and the command to apply
-it, and exits 0 with a warning: the landed app must work without it. The next landing retries. A
-hold older than a day exits 1, so post-land goes red and reaches a person the way a refusal does.
+it, and exits 0 with a warning: the landed app must work without it. The next landing retries.
+It exits 1, so post-land goes red and reaches a person the way a refusal does, when the hold is
+older than a day or when an ordinary migration now waits behind it (that one's app may need it).
+Both alarms fire only when post-land runs, which is on a landing; the quiet window counts renderer
+heartbeats, not operator pages, which is why the change must stay backwards compatible anyway.
 
 **Applying it now**: `npm run db:push -- --live 0068`, at a moment you judge safe. It prints who is
 live and applies anyway. A destructive statement in it still needs `--allow 0068` as well.

@@ -24,9 +24,12 @@ import {
   FIRST_LIVE_PATH_MIGRATION,
   FIRST_TIMED_MIGRATION,
   HOLD_ALARM_HOURS,
+  LIVE_PATH_FUNCTIONS,
+  LIVE_PATH_PREFIX,
   LOCK_RETRY_WAITS_MS,
   classifyMigration,
   classifyStatement,
+  holdAlarms,
   holdOverdue,
   ledgerDrift,
   liveHold,
@@ -543,6 +546,22 @@ test('the migrations the research names as live-path changes classify as live-pa
   assert.equal(await classify('0065'), false, '0065 adds agent packages and touches nothing live');
 });
 
+// LIVE_PATH_FUNCTIONS is a hand-kept list; this keeps it complete. A policy on a live-path table
+// or a trigger on one that calls a new public helper would otherwise fall outside the class.
+test('every public function a live-path policy or trigger calls is in the live-path contract', async () => {
+  const called = new Set();
+  for (const file of files) {
+    for (const { raw } of splitStatements(await readFile(new URL(file, dir), 'utf8'))) {
+      const { code } = normalize(raw);
+      if (!/^(?:create|alter) (?:policy|trigger)\b.*\bon (?:public\.control_\w+|realtime\.messages)\b/.test(code)) continue;
+      for (const m of code.matchAll(/\bpublic\.(\w+)\s*\(/g)) called.add(m[1]);
+    }
+  }
+  const outside = [...called].filter((name) => !name.startsWith(LIVE_PATH_PREFIX) && !LIVE_PATH_FUNCTIONS.includes(name));
+  assert.deepEqual(outside, [], `add these to LIVE_PATH_FUNCTIONS in scripts/db-push.mjs: ${outside.join(', ')}`);
+  assert.ok(called.has('is_suspended'), 'the scan found the policies it is about');
+});
+
 // THE PRE-MERGE HALF of the class: a live-path migration that does not say so fails the build.
 test('every shipped migration from 0068 on declares the live-path class exactly when it is one', async () => {
   const problems = [];
@@ -618,6 +637,15 @@ test('a hold turns red after about a day, and an unknown start counts as overdue
   assert.equal(holdOverdue('2026-09-30T11:00:00Z', now), true);
   assert.equal(holdOverdue(null, now), true);
   assert.equal(holdOverdue('not a date', now), true);
+});
+
+test('a young hold of live-path files only needs nobody; an ordinary file behind it needs a person', () => {
+  const now = Date.parse('2026-10-01T12:00:00Z');
+  const recent = '2026-10-01T10:00:00Z';
+  assert.deepEqual(holdAlarms(pending(['0069', true], ['0070', true]), recent, now), []);
+  // Only the live-path file promised the landed app works without it; 0071's app may need 0071.
+  assert.match(holdAlarms(pending(['0069', true], ['0071', false]), recent, now).join(), /1 ordinary migration/);
+  assert.match(holdAlarms(pending(['0069', true]), '2026-09-29T10:00:00Z', now).join(), /more than 24 hours/);
 });
 
 test('a hold pushes from a staged copy that holds every migration except the held ones', () => {

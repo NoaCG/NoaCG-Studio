@@ -39,7 +39,8 @@
 // when no renderer sent a heartbeat in the last ten minutes. Otherwise the files before it apply,
 // it and everything after it are HELD, and the next landing tries again; `--live 0068` applies it
 // at once, after printing who is live. A hold is not a failure (exit 0 with a warning) until it is
-// a day old; then it exits 1, so the post-land run goes red and a person sees it.
+// a day old or an ordinary migration waits behind it; then it exits 1, so the post-land run goes
+// red and a person sees it.
 //
 // WHAT IT IS NOT, stated so nobody reads more into a green run than is there. This guard is about
 // LOSS, not about EXPOSURE. A migration that grants a client role new reach, or replaces a
@@ -633,7 +634,9 @@ export function livePathNames(code) {
 
 /** The `-- live-path: <what it changes>` line in the file's leading comment, or null. */
 export function livePathHeader(text) {
-  for (const line of text.replace(/^﻿/, '').split(/\r?\n/)) {
+  // A byte-order mark, spelled as a code point so it cannot turn into an invisible literal.
+  const bom = String.fromCharCode(0xfeff);
+  for (const line of (text.startsWith(bom) ? text.slice(1) : text).split(/\r?\n/)) {
     if (/^\s*$/.test(line)) continue;
     if (!/^\s*--/.test(line)) break;
     const m = /^\s*--\s*live-path:\s*(\S.*?)\s*$/i.exec(line);
@@ -673,8 +676,8 @@ export function classifyMigration(version, name, text) {
       .map((s) => ({ line: s.line, excerpt: s.code.slice(0, 140), names: livePathNames(s.code) }))
       .filter((s) => s.names.length),
   };
-  // A declared file counts even with no matching statement: the author knows something the
-  // classifier does not, and holding costs a little time where applying could cost a show.
+  // A declared file counts even with no matching statement. The build refuses that combination
+  // from FIRST_LIVE_PATH_MIGRATION on (a stale marker), so this only errs toward holding.
   livePath.is = Boolean(livePath.declared || livePath.statements.length);
   const findings = [];
   const timeouts = missingTimeouts(version, statements);
@@ -723,9 +726,8 @@ export async function readQuietWindow(read) {
  */
 export function liveHold(migrations, { live = new Set(), window = null } = {}) {
   const first = migrations.findIndex((m) => m.livePath?.is && !live.has(m.version));
-  if (first === -1) return { apply: migrations, held: [], window };
-  if (window?.ok && window.shows.length === 0) return { apply: migrations, held: [], window };
-  return { apply: migrations.slice(0, first), held: migrations.slice(first), window };
+  if (first === -1 || (window?.ok && window.shows.length === 0)) return { apply: migrations, held: [] };
+  return { apply: migrations.slice(0, first), held: migrations.slice(first) };
 }
 
 /** Is a hold that began at `since` (ISO time, or null when nobody could tell) overdue at `now`?
@@ -735,26 +737,37 @@ export function holdOverdue(since, now = Date.now()) {
   return Number.isNaN(t) || now - t > HOLD_ALARM_HOURS * 3_600_000;
 }
 
+/** Why a hold needs a person now, or [] while waiting is fine. Pure. A hold that has lasted about
+ *  a day needs one; so does a hold with an ORDINARY migration behind it, because only the
+ *  live-path file promised that the app landed with it works without it. */
+export function holdAlarms(held, since, now = Date.now()) {
+  const alarms = [];
+  if (holdOverdue(since, now)) alarms.push(`held for more than ${HOLD_ALARM_HOURS} hours`);
+  const ordinary = held.filter((m) => !m.livePath?.is).length;
+  if (ordinary) alarms.push(`${ordinary} ordinary migration(s) wait behind it, which the app that landed them may need`);
+  return alarms;
+}
+
 /** When a migration file reached this branch: the first-parent commit that added it. null in a
  *  shallow checkout (whose one commit "adds" every file) or for a file git does not know. */
 function landedAt(file) {
   const git = (args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
-  if (git(['rev-parse', '--is-shallow-repository']).stdout.trim() !== 'false') return null;
-  const out = git(['log', '--first-parent', '--no-renames', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${file}`]).stdout;
+  if ((git(['rev-parse', '--is-shallow-repository']).stdout ?? '').trim() !== 'false') return null;
+  const out = git(['log', '--first-parent', '--no-renames', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${file}`]).stdout ?? '';
   return out.trim().split('\n').filter(Boolean).pop() || null;
 }
 
 /** A throwaway Supabase project directory holding every migration EXCEPT the held ones, so the
  *  CLI's own `db push` (which has no "up to version") applies exactly the files before the hold. */
-export function stagedWorkdir(keep, root = ROOT) {
+export function stagedWorkdir(keep) {
   const dir = mkdtempSync(join(tmpdir(), 'noacg-db-push-'));
   const migrations = join(dir, 'supabase', 'migrations');
   mkdirSync(migrations, { recursive: true });
   for (const file of ['config.toml', 'seed.sql']) {
-    const from = resolve(root, 'supabase', file);
+    const from = resolve(ROOT, 'supabase', file);
     if (existsSync(from)) copyFileSync(from, join(dir, 'supabase', file));
   }
-  for (const file of keep) copyFileSync(resolve(root, 'supabase', 'migrations', file), join(migrations, file));
+  for (const file of keep) copyFileSync(resolve(MIGRATIONS, file), join(migrations, file));
   return dir;
 }
 
@@ -918,6 +931,8 @@ const flag = (argv, name) => argv.includes(name);
 /** A flag's value, with a trailing `--allow` (no version after it) reading as absent rather than
  *  crashing - the difference between "you forgot the version" and a stack trace. */
 const value = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] || '' : '');
+/** A flag's comma-separated migration versions (`--allow 0052,0053`), as a set. */
+const versions = (argv, name) => new Set(value(argv, name).split(',').map((v) => v.trim()).filter(Boolean));
 
 /**
  * Is the remote ledger still the one this repository's filenames describe? Pure, so the refusal
@@ -959,10 +974,18 @@ export async function plan({ ref, token, allow = new Set() }) {
   const pending = local.filter((m) => !applied.has(m.version));
   if (!pending.length) return { status: 'up-to-date', applied: applied.size };
 
-  const migrations = pending.map((m) =>
-    classifyMigration(m.version, m.name, readFileSync(resolve(MIGRATIONS, m.file), 'utf8')));
+  const migrations = pending.map((m) => ({
+    ...classifyMigration(m.version, m.name, readFileSync(resolve(MIGRATIONS, m.file), 'utf8')),
+    file: m.file,
+  }));
   const blocked = migrations.filter((m) => m.blocked && !allow.has(m.version));
-  return { status: blocked.length ? 'refused' : 'ready', migrations, blocked, pending: pending.map((m) => m.file) };
+  return {
+    status: blocked.length ? 'refused' : 'ready',
+    migrations,
+    blocked,
+    pending: pending.map((m) => m.file),
+    appliedFiles: local.filter((m) => applied.has(m.version)).map((m) => m.file),
+  };
 }
 
 function describe(migration) {
@@ -989,38 +1012,38 @@ function describeWindow(ref, quiet) {
 }
 
 /**
- * Say what is held and how to apply it, and decide the exit code: 0 while the hold is young (the
- * class requires the landed app to work without it, so waiting is not a failure), 1 once it is
- * older than HOLD_ALARM_HOURS, so a red post-land run reaches a person exactly as a refusal does.
+ * Say what is held and how to apply it, and decide the exit code. 0 while the hold is young and
+ * holds only live-path files: the class requires the landed app to work without them, so waiting
+ * is not a failure. 1 once it is older than HOLD_ALARM_HOURS, or as soon as an ORDINARY migration
+ * waits behind it (a later landing's app may need that one, and nothing promised it would not),
+ * so a red post-land run reaches a person exactly as a refusal does. A dry run reports and exits 0.
  */
-function reportHold(hold, { ref, target }) {
-  const first = hold.held[0];
-  const file = `${first.version}_${first.name}.sql`;
+function reportHold(held, { quiet, ref, target, dryRun }) {
+  const first = held[0];
+  const { file } = first;
   const since = landedAt(file);
-  const overdue = holdOverdue(since);
-  const why = hold.window.ok ? `productions were live on ${ref}` : `the quiet window on ${ref} could not be read`;
-  const command = `npm run db:push --${target} --live ${first.version}`;
+  const alarms = holdAlarms(held, since);
+  const why = quiet.ok ? `productions were live on ${ref}` : `the quiet window on ${ref} could not be read`;
+  const command = `npm run db:push --${target} --live ${held.filter((m) => m.livePath.is).map((m) => m.version).join(',')}`;
   console.error(`\nHELD: ${file} is a live-path migration (${first.livePath.declared || 'no header'}) and ${why}.`);
-  if (hold.held.length > 1) console.error(`  Held behind it: ${hold.held.slice(1).map((m) => `${m.version}_${m.name}.sql`).join(', ')}`);
+  if (held.length > 1) console.error(`  Held behind it: ${held.slice(1).map((m) => m.file).join(', ')}`);
   console.error(`  In the repository since ${since || 'an unknown time (a shallow checkout, or a file git does not know)'}.`);
   console.error('  The next landing retries it and applies it if the window is quiet. To apply it now,');
   console.error(`  at a moment you judge safe: ${command}`);
-  if (overdue) {
-    console.error(`  OVERDUE: held for more than ${HOLD_ALARM_HOURS} hours. Apply it by name when no show is on air.`);
-  }
+  if (alarms.length) console.error(`  NEEDS A PERSON: ${alarms.join('; ')}. Apply it by name when no show is on air.`);
   if (process.env.GITHUB_ACTIONS === 'true') {
-    const level = overdue ? 'error' : 'warning';
-    console.log(`::${level} title=Live-path migration held::${file} waits for a quiet window (${why}). ${overdue ? `Held over ${HOLD_ALARM_HOURS} h. ` : 'The next landing retries it. '}Apply now: ${command}`);
+    const level = alarms.length ? 'error' : 'warning';
+    console.log(`::${level} title=Live-path migration held::${file} waits for a quiet window (${why}). ${alarms.length ? `Needs a person: ${alarms.join('; ')}. ` : 'The next landing retries it. '}Apply now: ${command}`);
   }
-  return overdue ? 1 : 0;
+  return alarms.length && !dryRun ? 1 : 0;
 }
 
 async function main(argv) {
   const env = ambientEnv(ROOT);
   const asJson = flag(argv, '--json');
   const dryRun = flag(argv, '--dry-run');
-  const allow = new Set(value(argv, '--allow').split(',').map((v) => v.trim()).filter(Boolean));
-  const live = new Set(value(argv, '--live').split(',').map((v) => v.trim()).filter(Boolean));
+  const allow = versions(argv, '--allow');
+  const live = versions(argv, '--live');
 
   const token = env.SUPABASE_ACCESS_TOKEN || '';
   const named = value(argv, '--ref');
@@ -1069,13 +1092,15 @@ async function main(argv) {
     else console.log(`\n  --allow ${version}: accepting the ${m.findings.length} refusal(s) above.`);
   }
 
+  // Carry the ref through every command this prints, or a pasted command applies to production
+  // instead of whatever this run was actually pointed at - the one paste that must never go to the
+  // wrong database.
+  const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
+
   if (decision.status === 'refused') {
     console.error('\nREFUSED. These statements can remove something, or can queue every Take behind a');
     console.error('lock, and nothing here can tell whether that is intended. Read them, then fix the');
     console.error('file or re-run naming the versions you accept:');
-    // Carry the ref through, or the pasted command applies to production instead of whatever this
-    // run was actually pointed at - the one paste that must never go to the wrong database.
-    const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
     console.error(`  npm run db:push --${target} --allow ${decision.blocked.map((m) => m.version).join(',')}`);
     if (asJson) console.log(JSON.stringify(decision));
     return 1;
@@ -1083,48 +1108,46 @@ async function main(argv) {
 
   // THE LIVE-PATH CLASS. The window is read only when a live-path file is pending, and read just
   // before the push; a named (`--live`) file applies whatever it says, after printing who is live.
-  for (const version of live) {
-    const m = decision.migrations.find((x) => x.version === version);
-    if (!m) console.log(`\n  --live ${version}: no pending migration has that version - check the number.`);
-    else if (!m.livePath.is) console.log(`\n  --live ${version}: not a live-path migration; it applies like any other.`);
-    else console.log(`\n  --live ${version}: applying it now, whatever the quiet window says.`);
-  }
   const quiet = decision.migrations.some((m) => m.livePath.is)
     ? await readQuietWindow((sql) => query(ref, token, sql))
     : null;
   if (quiet) console.log(describeWindow(ref, quiet));
   const hold = liveHold(decision.migrations, { live, window: quiet });
-  const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
-  const livePathJson = {
-    apply: hold.apply.map((m) => m.version),
-    held: hold.held.map((m) => m.version),
-    window: quiet,
-  };
+  for (const version of live) {
+    const m = decision.migrations.find((x) => x.version === version);
+    // Say it after the decision: a named file behind an earlier, unnamed live-path file is held
+    // with it, and a log that said "applying" would be believed.
+    if (!m) console.log(`\n  --live ${version}: no pending migration has that version - check the number.`);
+    else if (!m.livePath.is) console.log(`\n  --live ${version}: not a live-path migration; it applies like any other.`);
+    else if (hold.held.includes(m)) console.log(`\n  --live ${version}: still HELD, behind ${hold.held[0].version}; name that one too.`);
+    else console.log(`\n  --live ${version}: applying it now, whatever the quiet window says.`);
+  }
+  decision.livePath = { apply: hold.apply.map((m) => m.version), held: hold.held.map((m) => m.version), window: quiet };
+  const holdStatus = () => reportHold(hold.held, { quiet, ref, target, dryRun });
   if (hold.held.length) {
     console.log(`\nApplying ${hold.apply.length} migration(s) and holding ${hold.held.length} (live-path, see below).`);
   }
   if (!hold.apply.length) {
-    const status = reportHold(hold, { ref, target });
-    if (asJson) console.log(JSON.stringify({ ...decision, livePath: livePathJson }));
+    const status = holdStatus();
+    if (asJson) console.log(JSON.stringify(decision));
     return status;
   }
 
-  // Everything but the held files, so the CLI applies exactly the files before the hold. With
-  // nothing held, the checkout itself, exactly as before the class existed.
-  const heldFiles = new Set(hold.held.map((m) => `${m.version}_${m.name}.sql`));
-  const cwd = heldFiles.size
-    ? stagedWorkdir(localMigrations().map((m) => m.file).filter((f) => !heldFiles.has(f)))
+  // The applied files and the ones this run applies, so the CLI applies exactly the files before
+  // the hold. With nothing held, the checkout itself, exactly as before the class existed.
+  const cwd = hold.held.length
+    ? stagedWorkdir([...decision.appliedFiles, ...hold.apply.map((m) => m.file)])
     : ROOT;
   try {
-    const status = await push({ ref, token, dryRun, asJson, decision, apply: hold.apply, cwd, livePathJson });
-    return status !== 0 || !hold.held.length ? status : reportHold(hold, { ref, target });
+    const status = await push({ ref, token, dryRun, asJson, decision, apply: hold.apply, cwd });
+    return status !== 0 || !hold.held.length ? status : holdStatus();
   } finally {
     if (cwd !== ROOT) rmSync(cwd, { recursive: true, force: true });
   }
 }
 
 /** Snapshot, push `apply` from `cwd`, snapshot again, and prove the ledger took exactly `apply`. */
-async function push({ ref, token, dryRun, asJson, decision, apply, cwd, livePathJson }) {
+async function push({ ref, token, dryRun, asJson, decision, apply, cwd }) {
   console.log('\nSnapshotting before…');
   const before = await snapshot(ref, token);
 
@@ -1132,7 +1155,7 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd, livePath
     console.log('--dry-run: asking the CLI what it would do, and stopping.\n');
     const linkedForDryRun = runSupabase(['link', '--project-ref', ref], token, { cwd });
     const status = linkedForDryRun === 0 ? runSupabase(['db', 'push', '--linked', '--dry-run'], token, { cwd }) : linkedForDryRun;
-    if (asJson) console.log(JSON.stringify({ ...decision, livePath: livePathJson, dryRun: true }));
+    if (asJson) console.log(JSON.stringify({ ...decision, dryRun: true }));
     return status;
   }
 
@@ -1200,7 +1223,7 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd, livePath
     return 1;
   }
   console.log(`\nApplied ${expected.length} migration(s): ${expected.join(', ')}.`);
-  if (asJson) console.log(JSON.stringify({ ...decision, livePath: livePathJson, changes }));
+  if (asJson) console.log(JSON.stringify({ ...decision, changes }));
   return 0;
 }
 

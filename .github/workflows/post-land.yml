@@ -43,8 +43,9 @@ jobs:
       - uses: ./.github/actions/node-modules
       # A live-path migration (supabase/AGENTS.md) that finds a production live is HELD: db-push
       # applies the files before it, leaves a warning, and exits 0, because the class requires the
-      # app that landed to work without it. The next landing retries. A hold older than a day
-      # exits 1, so it reaches a person through this run's red conclusion like a refusal does.
+      # app that landed to work without it. The next landing retries. A hold older than a day, or
+      # one with an ordinary migration waiting behind it, exits 1, so it reaches a person through
+      # this run's red conclusion like a refusal does.
       - name: Push what production and staging are missing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
