@@ -2614,6 +2614,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Whether a cue is on air now, from the store as it stands and liveCue as last set. */
   const cueOnAirNow = (cue: ShowCue) =>
     cueOnAir(cue, { items: playoutItems, ownership: serverPlayout.ownership.get(), liveCue: liveCueRef.current, graphicName: cueGraphicName });
+  /** Take these graphic cues' graphics off together, as one Out. The failure's sentence, or null. */
+  const graphicsOff = async (graphicCues: readonly ShowCue[]): Promise<string | null> => {
+    const graphics = [...new Set(graphicCues.map(cueGraphicName).filter((g): g is string => !!g))];
+    if (!graphics.length) return null;
+    cancelCombines('Out');
+    const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
+    if (!sent.ok) return sent.note;
+    setLiveCue((m) => graphics.reduce((acc, g) => withLiveCue(acc, g, null), m));
+    return null;
+  };
   /** Out on a folder takes all of it off - each server cue with its own fade out, its graphics
    *  together - and nothing that is not in it. A Take of it still being sent stops. */
   const outFolder = async (folder: ShowFolder) => {
@@ -2628,13 +2638,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const off = await serverVerb(cue, 'out', `Out of ${cue.label}`);
       if (off && !off.ok) notes.push(off.note);
     }
-    const graphics = [...new Set(members.filter((c) => c.source !== 'playout' && cueOnAirNow(c)).map((c) => cueGraphicName(c)!))];
-    if (graphics.length) {
-      cancelCombines('Out');
-      const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
-      if (sent.ok) setLiveCue((m) => graphics.reduce((acc, g) => withLiveCue(acc, g, null), m));
-      else notes.push(sent.note);
-    }
+    const graphicsFailed = await graphicsOff(members.filter((c) => c.source !== 'playout' && cueOnAirNow(c)));
+    if (graphicsFailed) notes.push(graphicsFailed);
     setNote(notes.length ? `Out: ${folderName(folder)} did not take all of it off. ${notes.join(' ')}` : `✓ Out: ${folderName(folder)}`);
   };
 
@@ -2648,16 +2653,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return false;
       }
     }
-    const graphics = [...new Set(off.map((c) => (c.source === 'playout' ? null : cueGraphicName(c))).filter((g): g is string => !!g))];
-    if (!graphics.length) return true;
-    cancelCombines('Out');
-    const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
-    if (!sent.ok) {
-      setNote(sent.note);
-      return false;
-    }
-    setLiveCue((m) => graphics.reduce((acc, g) => withLiveCue(acc, g, null), m));
-    return true;
+    const failed = await graphicsOff(off.filter((c) => c.source !== 'playout'));
+    if (failed) setNote(failed);
+    return !failed;
   };
   /**
    * ONE PRESS ON A ONE-BY-ONE FOLDER (docs/CLIP_PLAYBACK_PLAN.md §20.1), decided again from the store

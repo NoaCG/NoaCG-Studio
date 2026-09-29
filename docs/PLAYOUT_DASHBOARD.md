@@ -638,8 +638,8 @@ the exported controller, the output and a pack see the flat rundown they always 
   cue, and only when the Bridge and server can play one file after another; Loop the folder needs
   NoaCG Bridge 0.6.0.
 - **SPACE, TAKE and Out on a held header** act on the folder, in both Space modes, and a held key
-  does it once. PREVIEW shows the cue a folder starts with, or for One by one the cue its next press
-  takes.
+  does it once. In the default Space mode PREVIEW shows the cue a folder starts with, or for One by
+  one the cue its next press takes.
 - **One by one steps** (owner, 2026-09-29; `docs/CLIP_PLAYBACK_PLAN.md` §20.1). Each press on the
   header takes the folder's next cue exactly as that cue's own Take would, and first takes the
   folder's graphics that are up off. **A clip or audio file is never stopped by a step**: it plays on
