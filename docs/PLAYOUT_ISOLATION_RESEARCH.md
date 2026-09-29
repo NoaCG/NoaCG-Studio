@@ -1297,11 +1297,17 @@ the ones marked *filed* have a backlog item.
 7. **One library sync pass per browser**, not per tab per edit. *Filed already:*
    `docs/backlog/library-sync-runs-a-pass-per-tab-per-edit.md`.
 8. **Jitter the refill on reconnect**, so a Realtime restart does not send every output to the
-   tail RPC in the same second (§5 storm run).
+   tail RPC in the same second (§5 storm run). *Done 2026-09-30:* a rejoin refills after a random
+   0-5 s (`src/control/logFollow.ts`, `REJOIN_REFILL_SPREAD_MS`), and the socket's own reconnect
+   steps are jittered to 0.5-1.5 times the library's (`src/backend/realtimeReconnect.ts`).
 9. **Close the commit-order skip on the client side as a stopgap**: a refill re-reads a short
    window behind its cursor and dedupes by a set of seen ids, instead of trusting that nothing
-   below the cursor can still commit. The real fix is step 2. *Filed:*
-   `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
+   below the cursor can still commit. The real fix is step 2. *Done 2026-09-30:* the follower
+   applies an unseen row that arrives below its cursor, and the poll and every rejoin re-read the
+   cursor as it stood 60 s earlier, deduped by the ids applied (`src/control/logFollow.ts`,
+   `scripts/log-follow.test.mjs`). The renderer's report baseline is unchanged, so a reboot in the
+   seconds between a report and a late commit can still miss that row until step 2. The
+   out-of-order half stays filed: `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
 10. **Write down two "never" rules** in `docs/DEPLOYMENT.md`: never enable Vercel's production pause
     without exempting `/output`; never ship a live-path function change without a behaviour
     self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract). *Done

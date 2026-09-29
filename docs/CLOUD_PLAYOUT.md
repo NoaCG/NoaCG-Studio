@@ -203,8 +203,11 @@ The page:
   resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
   rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
   show id, **re-tail on every `SUBSCRIBED`** (the reconnect gap the audit found in the hosted
-  page), **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
-  dedupe by row id, tail-fill on holes, route each command to its graphic's iframe as
+  page; a rejoin waits a random 0-5 s so outputs dropped together do not read at once),
+  **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
+  dedupe by row id, tail-fill on holes, **apply a row that commits late below the cursor**
+  (ids are taken at insert, so they commit out of order; the poll and a rejoin re-read the
+  cursor as it stood 60 s earlier, `src/control/logFollow.ts`), route each command to its graphic's iframe as
   a `previewProtocol` message, report applied state back via `control_report` (debounced),
   heartbeat `control_output_seen` every 60 s.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
