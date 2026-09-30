@@ -42,7 +42,21 @@ import {
   splitStatements,
   stagedWorkdir,
   timeoutMs,
+  unknownArgs,
 } from './db-push.mjs';
+
+// ── The arguments: an unknown one stops the run before it contacts anything ─────────────────────
+
+test('an argument db:push does not know stops it, because no argument means apply to production', () => {
+  assert.deepEqual(unknownArgs(['--help']), []);
+  assert.deepEqual(unknownArgs(['-h']), []);
+  assert.deepEqual(unknownArgs(['--dry-run', '--json', '--ref', 'abc', '--allow', '0052', '--live', '0068,0069']), []);
+  // A valued flag consumes its value, even one that looks like a flag of its own.
+  assert.deepEqual(unknownArgs(['--ref', '--dry-run']), []);
+  assert.deepEqual(unknownArgs(['--usage']), ['--usage']);
+  assert.deepEqual(unknownArgs(['--dryrun']), ['--dryrun']);
+  assert.deepEqual(unknownArgs(['0052']), ['0052']);
+});
 
 const verdict = (sql, created = []) => classifyStatement(sql, new Set(created)).verdict;
 const reasons = (sql, created = []) => classifyStatement(sql, new Set(created)).reasons.map((r) => r.id);
