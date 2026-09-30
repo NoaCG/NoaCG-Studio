@@ -59,9 +59,16 @@ async function openOutput(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as unknown as { __stage?: unknown }).__stage);
 }
 
-/** How many pixels of the output are not fully transparent: what a browser source would air. */
+/**
+ * How many pixels of the output are not fully transparent: what a browser source would air.
+ * Captured over CDP, because `page.screenshot` waits for every frame's fonts first and so never
+ * returns while a font request hangs, which is the whole subject here.
+ */
 async function covered(page: Page): Promise<number> {
-  const shot = await page.screenshot({ omitBackground: true });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } });
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
+  await cdp.detach();
   return page.evaluate(async (b64) => {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
@@ -72,7 +79,7 @@ async function covered(page: Page): Promise<number> {
     let n = 0;
     for (let i = 3; i < data.length; i += 4) if (data[i] > 0) n += 1;
     return n;
-  }, shot.toString('base64'));
+  }, data);
 }
 
 /** Since the stage was built, in ms, on the page's own clock. */
@@ -119,8 +126,12 @@ test.describe('a font host on the output', () => {
     await expect.poll(() => covered(page), { timeout: 3_000 }).toBeGreaterThan(before);
 
     // Both frames report what holds them, which is what the output's debug line prints.
-    await expect.poll(() => line(page)).toMatch(/^lt0 released on a fallback face, still waiting for [^;]+; lt1 released on a fallback face, still waiting for /);
-    expect(await line(page)).not.toContain('a resource');
+    // One entry per graphic, in the order the frames reported.
+    const entries = async () => ((await line(page)) ?? '').split('; ').sort();
+    await expect.poll(entries).toEqual([
+      'lt0 released on a fallback face, still waiting for Inter',
+      'lt1 released on a fallback face, still waiting for Inter',
+    ]);
 
     // The font host finally answers. The graphics stay on air, and the line records that the
     // font was late rather than forgetting it happened.
@@ -128,7 +139,10 @@ test.describe('a font host on the output', () => {
       const real = await route.fetch();
       await route.fulfill({ response: real });
     }
-    await expect.poll(() => line(page)).toMatch(/^lt0 released on a fallback face \(.+ was late\); lt1 released on a fallback face \(.+ was late\)$/);
+    await expect.poll(entries).toEqual([
+      'lt0 released on a fallback face (Inter was late)',
+      'lt1 released on a fallback face (Inter was late)',
+    ]);
     expect(await covered(page)).toBeGreaterThan(0);
   });
 
