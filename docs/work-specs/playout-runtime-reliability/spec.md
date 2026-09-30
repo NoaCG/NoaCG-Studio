@@ -101,17 +101,20 @@ rewrite.
   command did, not where the graphic's machine is, so there is no pose to snap to; and dropping
   or reordering rows changed what the operator meant (clock starts, event payloads, snaps used as
   recovery). An output that missed frames applies every row it reads back, in order, and skips
-  only the animation of a play or stop that a later one of the same graphic replaces. Revert:
+  only an entrance that a later play or stop of the same graphic replaces; an exit always runs,
+  because a stop can do more than animate (a debate board halts its speaking clocks). Revert:
   restore the old wording (it needs a pose the server does not have).
 - **D10. A page picks its protocol once per load.** The new resolve answers, or the page runs
   today's protocol for its life. A renderer on a production that still holds pre-migration rows
   it would need follows by id for that session, and its reports move past them. The migrations
   can therefore land before or after the client, in either order. Revert: none needed while old
   servers exist; retire proto 1 by D6's evidence.
-- **D11. Step 2's two migrations land on their own gated branch, after the client.** The client
-  works on an unmigrated server (D10), so it lands first; `e2e/configured/command-sequence.spec.ts`
-  skips on a server without the sequence road and is an allowed skip until the migrations are in
-  the tree, when that entry goes and `minTests` rises by 2. Revert: land them together.
+- **D11. Step 2's two migrations land on their own gated branch, after the client and after
+  Step 1's 0068.** The client works on an unmigrated server (D10), so it lands first. 0070 refuses
+  to apply without 0068's `live-` read policy, because without it every new follower's join is
+  refused and falls back to the 30 s poll. `e2e/configured/command-sequence.spec.ts` skips on a
+  server without the sequence road and is an allowed skip until the migrations are in the tree,
+  when that entry goes and `minTests` rises by 2. Revert: land them together (0068 first).
 
 ## Non-goals
 
@@ -232,10 +235,11 @@ every one fails). An old bundle's publish upsert still blocks until that page re
 
 A Take reaches a new follower as one frame with its sequence numbers and a small summary per
 touched graphic (revision, on air, cue, step). An output that missed frames reads them back from
-the tail in one read, applies every row in seq order, and animates only what the operator's last
-press asks for: a play or stop that a later play or stop of the same graphic in the same read
-replaces (with no event, next or snap of that graphic between them) is not animated. The summary
-is data: nothing plays, stops or refills because of it (D9).
+the tail in one read, applies every row in seq order, and does not animate an entrance nobody
+would see finish: a play that a later play or stop of the same graphic in the same read replaces
+(with no event, next or snap of that graphic between them). Exits always run, because a graphic's
+stop can do more than animate. The summary is data: nothing plays, stops or refills because of it
+(D9).
 
 ### AC-17: Old pages and old outputs keep working on the new schema
 

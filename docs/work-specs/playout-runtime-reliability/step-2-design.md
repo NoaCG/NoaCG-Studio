@@ -56,9 +56,11 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   stays on the id road, which still works), so both would be cost without a reader.
 - **D-e. `superseded` lands silently.** The page's own later press is what stands on air, and
   its monitor already shows that press. `stale` throws: "<graphic> was changed from another
-  screen, so air did not change." plus the page's half ("Your press is on this monitor only.
-  Press again if you still want it." when the press moved its monitor). The answer's summary is
-  learned either way, so the next press is made on what is on air now.
+  screen, so air did not change." naming only the graphics the server says changed, or "This
+  production was published again while this page was open, so air did not change." when the
+  cause was the epoch; plus the page's half ("Your press is on this monitor only. Press again if
+  you still want it." when the press moved its monitor). The answer's summary is learned either
+  way, so the next press is made on what is on air now.
 - **D-f. The per-graphic queue releases at 1500 ms**, Step 0's attempt deadline, on its own timer,
   so it holds whether or not Step 0's abort has landed in the same build: a stalled send cannot
   hold the next press longer than one attempt, and if it lands late the server refuses it as
@@ -72,14 +74,20 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   are written by one transaction and arrive together, so there is nothing for a fast road to win.
   Sends still mark items `fast` by today's rules so old renderers keep theirs. Apply-here is
   unchanged; the echo is dropped by the oid claim as before.
-- **D-i. The renderer elides superseded animations only in a LIVE refill**, not in the boot
+- **D-i. The renderer elides superseded ENTRANCES only in a LIVE refill**, not in the boot
   catch-up, which is already hidden while it settles. Every row still applies (data, event
-  payloads, clocks, reports, the oid claim); only `stage.apply` and the play count are skipped.
-- **D-j. A new epoch on the renderer clears its per-graphic seq baselines and restarts from 0**:
-  a republished production is a new log numbered from 1, and a baseline from the old one would
-  skip its first rows as "already in the snapshot".
-- **D-k. The renderer's report `event` is the id of the last row it applied in seq order**, next
-  to the seq. An older reader of that report follows by id from it, as it always did.
+  payloads, clocks, reports, the oid claim); only `stage.apply` and the play count of a `play`
+  that a later play or stop of the same graphic replaces are skipped. Exits always run (review
+  R-5: a debate board's stop halts its speaking clocks, and a play does not undo that). This
+  narrows v2's "play or stop" and the spec's AC-16 says so (D9).
+- **D-j. A new epoch on the renderer clears its per-graphic seq baselines, restarts from 0 and
+  reports every graphic again**: a republished production is a new log numbered from 1, and a
+  baseline from the old one would skip its first rows as "already in the snapshot". The first
+  epoch of a log the renderer booted on before it had a head is learned, not a restart.
+- **D-k. The renderer's report `event` is the highest id it has applied**, next to the seq and the
+  epoch. An older reader of that report follows by id from it, as it always did; the highest id
+  is what its snapshot contains (review R-4 replaced "the last row in seq order", which after an
+  id/seq inversion made old readers replay a row twice).
 - **D-l. `live-<show>` is joined once per page** (`joinLiveTopic`, reference counted), because
   Realtime returns the same channel object for a topic already joined and a second `subscribe`
   on it never reports; Step 1's Presence should register through the same join.
@@ -110,6 +118,47 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
 - **K3. A frame Realtime fails to write is only found by the next frame or the 30 s poll**, as on
   the id road: `realtime.send` swallows its errors into a warning, by design, so a command is
   never lost to a broadcast.
+- **K4. A long catch-up by seq reads more rows than it returns.** With no `(show_id, seq)` index
+  (v2: no index build under a lock on the live table), a tail page reads the newest
+  `(head.seq - after) + 64` rows by id, or scans the production's rows when that falls short, so a
+  renderer booting from seq 0 on a production with 20,000 retained rows reads on the order of
+  400,000 rows over its 40 pages; `control_head_legacy` scans the production's retained rows once
+  per renderer resolve. Bounded by the 7-day prune and only at a boot with no baseline; a later,
+  ordinary migration can add the index when measurements say so.
+- **K5. Step 1 and Step 2 both join `live-<show>`.** Realtime hands back the existing channel for
+  a topic and a second `subscribe` never reports, so Step 1's Presence join and this step's
+  `joinLiveTopic` must become one join (the channel created once with Presence's config, both
+  listeners on it, removed when both have left). Whichever of the two lands second does it.
+
+### The review of the finished diff (2026-09-30, before queueing)
+
+A code review over the whole branch (base d1e0dcf6, 31 files) returned 14 findings; each was
+checked against the code. What each became:
+
+- **R-1. 0070 requires 0068, which is not in this tree.** True, and kept: it is the prerequisite
+  (D11). Stated in 0070's header; this branch as a whole cannot pass the configured suite's stack
+  start until 0068 is in the tree, which is why the migrations land on their own branch.
+- **R-2. A renderer on an old epoch could bank a seq baseline in the new log.** Fixed: the report
+  carries the epoch and the server banks the seq only in that epoch, clamped to the head.
+- **R-3. Rows healed through a tail read never updated the page's revisions.** Fixed: tail answers
+  carry the head.
+- **R-4. The report's `event` could be below rows already in the snapshot.** Fixed (D-k).
+- **R-5. Eliding a `stop` skipped its side effects.** Fixed (D-i).
+- **R-6. A head was learned before its rows applied, and proto 2 had no stand-down.** Fixed: heads
+  are handed on once the cursor reaches them, and the page's presses take the durable road while
+  the follower holds rows or reads (`recovering`, as on the id road).
+- **R-7. After All out the production page marked skipped graphics off air.** Fixed: the send
+  returns what the server skipped, and the page leaves those on air.
+- **R-8. All out was refused for an old epoch.** Fixed: no epoch refuses All out.
+- **R-9. An answer read under a left epoch flipped the follower back; null to the first epoch
+  restarted a renderer.** Fixed: such answers are read again; the first epoch is learned.
+- **R-10. The log- and cmd- sends ran under the 2 s head wait.** Fixed: 250 ms once the head is
+  held; the frame's send has its own exception block.
+- **R-11. A failed refill left held rows until the poll.** Fixed: retried a second later.
+- **R-12. Tail and legacy scans are O(retained rows).** Recorded as K4.
+- **R-13. The stale sentence named every graphic, and blamed another screen for a republish.**
+  Fixed (D-e).
+- **R-14. Dead conditions in the follower's epoch rule; the negotiation written twice.** Fixed.
 
 ## What changed from v1, and why (one line each)
 
