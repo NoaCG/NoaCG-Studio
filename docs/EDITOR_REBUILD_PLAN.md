@@ -159,6 +159,9 @@ tracks, then animate X and round-trip save/export. For parent translate(100,80),
 scale(2), local delta(20,-10) gives world delta(44.6410161514,2.6794919243); inverse pointer
 conversion must recover the local delta. Numeric and canvas results agree, with undo exact.
 This section replaces the historical source-preview example's Layout/Animate terminology.
+R1.2a.6 extends the adapter to the channels catalog designs animate ([spec](research/editor-r1-2a-6/README.md)):
+Position adds xPercent/yPercent of the layer's border box, Scale reads a shared `scale` track, and
+Opacity reads autoAlpha; a key goes to the channel the layer already animates, in its own units.
 
 Geometry Width/Height belongs to Size/Layout, separate from transform Scale. Use existing
 design-layout patches and preserve text fitting, growth/followers and behavior-owned targets.

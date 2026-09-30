@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { isArmed, sequenceAuthoringReason, type NumericProperty } from '../../blocks/editorAnimation';
+import { isArmed, keyedAt, poseKey, sequenceAuthoringReason, writeChannel, type NumericProperty } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
-import { readTimeline } from './timelineView';
+import { ownerOf, readTimeline } from './timelineView';
 import { authoredTransform, authoringPosition, displayedBase, editingPose, editTarget, requireCurrentPose } from './animationAuthoring';
 import type { EditorOperation } from './operations';
 import { FieldControl } from '../fields/FieldControl';
@@ -14,18 +14,21 @@ export function AnimationButtons({ template, selector, property, label, session,
 }) {
   const [error, setError] = useState('');
   const { time, cue } = session.port.view();
-  const view = readTimeline(template), position = authoringPosition(template, selector, time, cue);
-  const armed = isArmed(view.data, selector, property);
-  const keyed = !!view.data?.steps[position.step]?.layers[selector]?.[property]?.some(k => Math.abs(k.time - position.time) < .0005);
+  const view = readTimeline(template), position = authoringPosition(template, selector, time, cue), owner = ownerOf(view, selector);
+  // The control is animated and keyed through any of its channels (R1.2a.6).
+  const armed = isArmed(view.data, owner, property), keyed = keyedAt(view.data, owner, property, position.step, position.time);
   const act = (action: 'set' | 'remove' | 'disable') => {
     try {
       requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
       const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
-      const value = pose?.motion?.[property];
+      // A new key captures the channel it writes at its current value; a removal names the control.
+      const channel = action === 'set' ? writeChannel(view.data, owner, property) : property;
+      const value = pose?.motion?.[poseKey(channel, property)];
       if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
-      const baseValue = property === 'opacity' ? value : displayedBase(baseValues(template, selector), pose, property);
+      const base = property === 'opacity' ? null : baseValues(template, selector);
+      const shown = base ? Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(base, pose, p)])) : undefined;
       session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(),
-        operations: [{ kind: 'animation.key', selector, property, ...position, value, baseValue, action }] });
+        operations: [{ kind: 'animation.key', selector, property: channel, ...position, value, baseValues: shown, action }] });
       setError('');
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };

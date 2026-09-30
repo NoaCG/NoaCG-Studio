@@ -12,7 +12,9 @@ export interface RenderedPart {
   parent?: [number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
-  appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number; time?: number; revision?: Revision };
+  appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number;
+    /** The border box xPercent and yPercent resolve against, in the motion's pixels (R1.2a.6). */
+    size?: [number, number]; time?: number; revision?: Revision };
 }
 export interface PreviewReply extends Envelope {
   drawingSpace?: [number, number, number, number, number, number] | null;
