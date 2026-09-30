@@ -19,14 +19,28 @@
  * - A frame ahead of cursor + 1 is HELD for REORDER_WINDOW_MS and drains the moment the gap closes.
  *   Realtime delivers the frames of one transaction out of order (measured 2026-09-24), and a
  *   production-data patch writes one frame per graphic, so an immediate refill would be an RPC per
- *   reorder. Still open after the window: ONE single-flight tail read.
+ *   reorder. Still open after the window: ONE single-flight tail read, and while rows are still
+ *   held after a failed read, another one a second later rather than at the 30 s poll.
  * - A tail answer is AUTHORITATIVE: the cursor advances to its last row over any gap inside or
  *   before it, because a gap there is a deletion (the 7-day prune, a cascade), not a row to come.
+ *   An answer read under an epoch this follower has left since is thrown away and read again.
  * - A frame or answer in another EPOCH means the production was unpublished and published again:
- *   its sequence restarted, so the cursor goes back to 0 and the log is read again.
- * - The head summary a frame carries is DATA (the sender's revisions, chips). Nothing here plays,
- *   stops or refills because of it.
+ *   its sequence restarted, so the cursor goes back to 0 and the log is read again. The first
+ *   epoch of a log this follower started before it had a head is LEARNED, not a restart.
+ * - The head summary a frame or answer carries is DATA (the sender's revisions, chips), handed on
+ *   only once every row up to it has been applied: a page must not learn a revision before its
+ *   operator can see the change, or a press made on the old picture would pass as current. Nothing
+ *   here plays, stops or refills because of it.
+ * - While rows are held or a read is out the follower is BUSY, and says so: a page's own presses
+ *   then take the durable road instead of its monitor, as on the id road, so they cannot land on
+ *   the monitor ahead of older rows still on their way.
  */
+
+// The reorder window and the rejoin spread are the id follower's, measured and argued there
+// (logFollow.ts): the same Realtime delivers both roads, and the same herd rejoins.
+import { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS } from './logFollow.ts';
+
+export { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS };
 
 /** A numbered log row as frames and tail answers carry it. */
 export interface SeqRowLike {
@@ -64,18 +78,18 @@ export interface SeqTail<R> {
   epoch: string | null;
   rows: R[];
   reset?: boolean;
+  /** The head when the answer was read: its seq and every graphic's summary. */
+  head?: SeqHead;
 }
-
-// The reorder window and the rejoin spread are the id follower's, measured and argued there
-// (logFollow.ts): the same Realtime delivers both roads, and the same herd rejoins.
-import { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS } from './logFollow.ts';
-
-export { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS };
 
 /** The tail RPCs' page size (0070: at most 500 rows) - a full page means "there is more". */
 export const SEQ_TAIL_PAGE = 500;
 /** Runaway guard on one refill walk, as the id follower has. */
 const MAX_TAIL_PAGES = 40;
+/** How soon a read is tried again while rows are still held after one failed. */
+export const HELD_RETRY_MS = 1_000;
+/** Heads kept waiting for their rows; beyond this the oldest go (a newer head supersedes them). */
+const MAX_WAITING_HEADS = 64;
 
 export interface SeqFollower<R extends SeqRowLike> {
   /** A frame off the live channel, in whatever order it arrived. */
@@ -98,39 +112,64 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   /** One page of rows after `after`, or null when the read failed (nothing is known then). */
   tail: (after: number, epoch: string | null) => Promise<SeqTail<R> | null>;
   /** Rows to apply, in seq order. `replayed` is true for rows a tail read brought, which is the
-   *  only place a superseded animation may be elided (`supersededAnimations`). */
+   *  only place a superseded entrance may be elided (`supersededAnimations`). */
   onRows: (rows: R[], replayed: boolean) => void;
+  /** A head, once every row up to its seq has been applied. */
   onHead?: (head: SeqHead, epoch: string | null) => void;
-  /** The epoch changed: every seq this surface holds belongs to a log that no longer exists. */
-  onEpoch?: (epoch: string | null) => void;
-  onWalk?: (walking: boolean) => void;
+  /** The epoch was learned (`reset` false: the first head of the log this follower was already
+   *  following) or changed (`reset` true: a republish, so every seq this surface holds is void). */
+  onEpoch?: (epoch: string | null, reset: boolean) => void;
+  /** Holding rows or reading the tail (true), or level with everything it has been told (false). */
+  onBusy?: (busy: boolean) => void;
   random?: () => number;
 }): SeqFollower<R> {
   const random = opts.random ?? Math.random;
   let cursor = opts.from;
   let epoch = opts.epoch;
   let stopped = false;
+  let busy = false;
   const held = new Map<number, R>();
+  let heads: SeqHead[] = [];
   let holeTimer: ReturnType<typeof setTimeout> | null = null;
   let rejoinTimer: ReturnType<typeof setTimeout> | null = null;
   let joinedBefore = false;
   let walk: Promise<void> | null = null;
   let again = false;
 
+  const noteBusy = () => {
+    const now = !stopped && (walk !== null || held.size > 0);
+    if (now === busy) return;
+    busy = now;
+    opts.onBusy?.(busy);
+  };
   const clearHole = () => {
     if (holeTimer) clearTimeout(holeTimer);
     holeTimer = null;
   };
-  const adopt = (next: string | null, reset: boolean) => {
-    if (next === epoch && !reset) return;
-    const changed = next !== epoch;
-    epoch = next;
-    if (reset || changed) {
-      cursor = 0;
-      held.clear();
-      clearHole();
+  /** Learn the first epoch of the log being followed, or start again in another one. */
+  const adopt = (next: string | null, forced: boolean) => {
+    if (!forced && next === epoch) return;
+    if (!forced && epoch === null) {
+      epoch = next;
+      opts.onEpoch?.(epoch, false);
+      return;
     }
-    if (changed || reset) opts.onEpoch?.(epoch);
+    epoch = next;
+    cursor = 0;
+    held.clear();
+    heads = [];
+    clearHole();
+    opts.onEpoch?.(epoch, true);
+  };
+  const waitHead = (head: SeqHead) => {
+    heads.push(head);
+    if (heads.length > MAX_WAITING_HEADS) heads.shift();
+  };
+  const flushHeads = () => {
+    if (heads.length === 0) return;
+    const ready = heads.filter((head) => head.seq <= cursor);
+    heads = heads.filter((head) => head.seq > cursor);
+    for (const head of ready) opts.onHead?.(head, epoch);
   };
   /** Apply every held row that is now contiguous with the cursor, and forget what is behind it. */
   const drain = () => {
@@ -142,7 +181,17 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     }
     for (const seq of [...held.keys()]) if (seq <= cursor) held.delete(seq);
     if (ready.length > 0) opts.onRows(ready, false);
+    flushHeads();
     if (held.size === 0) clearHole();
+  };
+  /** Once `ms` has passed, apply what has arrived since, and read the tail for what still has not. */
+  const armHole = (ms: number) => {
+    holeTimer ??= setTimeout(() => {
+      holeTimer = null;
+      drain();
+      if (held.size > 0) void refill();
+      noteBusy();
+    }, ms);
   };
 
   const refill = (): Promise<void> => {
@@ -151,18 +200,21 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       again = true;
       return walk;
     }
-    opts.onWalk?.(true);
     walk = (async () => {
       try {
         for (let page = 0; page < MAX_TAIL_PAGES && !stopped; page += 1) {
-          const answer = await opts.tail(cursor, epoch);
+          const asked = epoch;
+          const answer = await opts.tail(cursor, asked);
           if (stopped || !answer) return;
+          // A frame moved this follower to another epoch while the read was out: the answer
+          // describes a log it has left.
+          if (epoch !== asked) continue;
           if (answer.reset) {
             adopt(answer.epoch, true);
             continue;
           }
-          // A follower that knew no epoch (the resolve found no head yet) learns it here.
           if (answer.epoch !== epoch) adopt(answer.epoch, false);
+          if (answer.head) waitHead(answer.head);
           const fresh = answer.rows.filter((row) => row.seq > cursor).sort((a, b) => a.seq - b.seq);
           if (fresh.length > 0) {
             cursor = fresh[fresh.length - 1].seq;
@@ -173,13 +225,17 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
         }
       } finally {
         walk = null;
-        opts.onWalk?.(false);
         if (again && !stopped) {
           again = false;
           void refill();
+        } else if (!stopped && held.size > 0) {
+          // The read failed or fell short while rows wait behind a gap: try again soon.
+          armHole(HELD_RETRY_MS);
         }
+        noteBusy();
       }
     })();
+    noteBusy();
     return walk;
   };
 
@@ -187,15 +243,11 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     offer(frame) {
       if (stopped) return;
       if (frame.epoch !== epoch) adopt(frame.epoch, false);
-      if (frame.head) opts.onHead?.(frame.head, epoch);
+      if (frame.head) waitHead(frame.head);
       for (const row of frame.rows) if (row.seq > cursor) held.set(row.seq, row);
       drain();
-      if (held.size === 0) return;
-      holeTimer ??= setTimeout(() => {
-        holeTimer = null;
-        drain();
-        if (held.size > 0) void refill();
-      }, REORDER_WINDOW_MS);
+      if (held.size > 0) armHole(REORDER_WINDOW_MS);
+      noteBusy();
     },
     joined() {
       if (stopped) return;
@@ -225,36 +277,40 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       if (rejoinTimer) clearTimeout(rejoinTimer);
       rejoinTimer = null;
       held.clear();
+      heads = [];
+      noteBusy();
     },
   };
 }
 
 /**
- * WHICH ENTRANCES AND EXITS A REFILL MAY SKIP (AC-16 as design v2 words it).
+ * WHICH ENTRANCES A REFILL MAY SKIP (AC-16 as design v2 words it, narrowed by review).
  *
  * A follower that missed frames reads them back in one batch and applies every row, in seq order,
  * through the same path as a live one: data, event payloads, clocks and the report bookkeeping all
  * need every row, and reordering or dropping any of them changes what the operator meant (a
- * clockStart before a stop, a snap used as recovery). The one thing that is safe to leave out is
- * an ANIMATION nobody would see finish: a `play` or `stop` of a graphic that a later `play` or
- * `stop` of the same graphic in the same batch replaces, with no `event`, `next` or `snap` of that
- * graphic between them (those depend on the machine being where the earlier one left it). So a
- * graphic that went on and off air three times while this surface was away ends in its final state
- * with one animation instead of six.
+ * clockStart before a stop, a snap used as recovery). The one thing safe to leave out is an
+ * ENTRANCE nobody would see finish: a `play` of a graphic that a later `play` or `stop` of the same
+ * graphic in the same batch replaces, with no `event`, `next` or `snap` of that graphic between
+ * them (those depend on the machine being where the play left it). An exit is never skipped: a
+ * graphic's stop does more than animate (a debate board's stop halts its speaking clocks, and a
+ * play does not undo that). So a graphic taken and taken out twice while this surface was away
+ * ends in its final state with its final exit or entrance only.
  *
  * Returns the seqs whose stage animation is superseded; everything else about those rows applies.
  */
 export function supersededAnimations(rows: readonly SeqRowLike[]): Set<number> {
   const skip = new Set<number>();
-  const pending = new Map<string, number>();
+  const entrance = new Map<string, number>();
   for (const row of rows) {
     const t = row.msg.t;
     if (t === 'play' || t === 'stop') {
-      const before = pending.get(row.graphic);
+      const before = entrance.get(row.graphic);
       if (before !== undefined) skip.add(before);
-      pending.set(row.graphic, row.seq);
+      if (t === 'play') entrance.set(row.graphic, row.seq);
+      else entrance.delete(row.graphic);
     } else if (t === 'event' || t === 'next' || t === 'snap') {
-      pending.delete(row.graphic);
+      entrance.delete(row.graphic);
     }
   }
   return skip;

@@ -153,8 +153,8 @@ async function boot(): Promise<void> {
   // PROTOCOL 2 (migration 0070) reads the same rule in the per-production SEQUENCE, unless this
   // production still holds rows written before the migration that this renderer would need
   // (`legacy`): those carry no number, so it follows by id for this whole session, exactly as
-  // before, and its reports move the baselines past them. `lastAppliedId` stays the id of the last
-  // applied row either way: it is the baseline an older renderer or page reads from a report.
+  // before, and its reports move the baselines past them. `lastAppliedId` stays the highest id
+  // applied either way: it is the baseline an older renderer or page reads from a report.
   const seqMode = resolved.seq && !resolved.seq.legacy ? resolved.seq : null;
   let followEpoch = seqMode?.epoch ?? null;
   dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
@@ -187,7 +187,7 @@ async function boot(): Promise<void> {
         if (key === lastReported.get(graphic)) return;
         lastReported.set(graphic, key);
         void (seqMode
-          ? controlOutputReportSeq(outputSlug, graphic, data, state, lastAppliedSeq, lastAppliedId)
+          ? controlOutputReportSeq(outputSlug, graphic, data, state, lastAppliedSeq, lastAppliedId, followEpoch)
           : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
       }, 800),
     );
@@ -323,13 +323,10 @@ async function boot(): Promise<void> {
   };
 
   const apply = (row: ControlEventRow, animate = true) => {
-    if (seqMode) {
-      // Rows arrive in seq order, so the last one applied is the newest in both numberings.
-      lastAppliedSeq = Math.max(lastAppliedSeq, row.seq ?? 0);
-      lastAppliedId = row.id;
-    } else {
-      lastAppliedId = Math.max(lastAppliedId, row.id);
-    }
+    // The id baseline is the highest id applied on either road: that is what an older reader of
+    // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
+    lastAppliedId = Math.max(lastAppliedId, row.id);
+    if (seqMode) lastAppliedSeq = Math.max(lastAppliedSeq, row.seq ?? 0);
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
@@ -375,7 +372,10 @@ async function boot(): Promise<void> {
     if (!seqMode) return controlOutputTail(outputSlug, after);
     const answer = await controlOutputTailSeq(outputSlug, after, followEpoch);
     if (!answer.ok) return answer;
-    return { ok: true, value: answer.value.reset ? [] : answer.value.rows };
+    if (answer.value.reset) return { ok: true, value: [] };
+    // A production with no head at the resolve gets its first epoch here, with these rows.
+    followEpoch ??= answer.value.epoch;
+    return { ok: true, value: answer.value.rows };
   };
   const missed: ControlEventRow[] = [];
   for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
@@ -493,11 +493,14 @@ async function boot(): Promise<void> {
         for (const row of rows) apply(row, !quiet?.has(row.seq));
       },
       // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
-      // log numbered from 1, so no baseline this renderer holds means anything in it.
-      onEpoch: (epoch) => {
+      // log numbered from 1, so no baseline this renderer holds means anything in it, and every
+      // graphic reports again. Without `reset` it is the first epoch of the log already followed.
+      onEpoch: (epoch, reset) => {
         followEpoch = epoch;
+        if (!reset) return;
         snapshotAt.clear();
         lastAppliedSeq = 0;
+        lastReported.clear();
         dbg('protocol', 'numbered log (proto 2), republished: following the new log from its start');
       },
       onStatus,

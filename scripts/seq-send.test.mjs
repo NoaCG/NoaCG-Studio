@@ -71,6 +71,10 @@ test('answers are read defensively: only the two refusals and ok are answers at 
   });
   assert.equal(readSendAnswer({ ok: true, duplicate: true, epoch: 'E', head: {} }).duplicate, true);
   assert.equal(readSendAnswer({ ok: false, refused: 'stale', epoch: 'E', graphics: {} }).refused, 'stale');
+  assert.deepEqual(readSendAnswer({ ok: true, epoch: 'E', head: {}, skipped: ['X', 3] }).skipped, ['X']);
+  const epochRefusal = readSendAnswer({ ok: false, refused: 'stale', why: 'epoch', epoch: 'E', graphics: {}, stale: ['A'] });
+  assert.equal(epochRefusal.epochChanged, true);
+  assert.deepEqual(epochRefusal.stale, ['A']);
   assert.equal(readSendAnswer({ ok: false, refused: 'maybe' }), null);
   assert.equal(readSendAnswer(null), null);
   assert.equal(readSendAnswer('ok'), null);
@@ -78,25 +82,40 @@ test('answers are read defensively: only the two refusals and ok are answers at 
 
 test('landed and duplicate both land, and teach the page the new revision', () => {
   const s = createSeqSession('E1', { A: { rev: 1 } });
-  assert.equal(settleAnswer(s, readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: { A: { rev: 3 } } } }), ['A']), 'landed');
+  assert.deepEqual(settleAnswer(s, readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: { A: { rev: 3 } } } }), ['A']), {
+    outcome: 'landed',
+    skipped: [],
+  });
   assert.equal(s.revs.get('A'), 3);
-  assert.equal(settleAnswer(s, readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: {} } }), ['A']), 'landed');
+  assert.equal(settleAnswer(s, readSendAnswer({ ok: true, duplicate: true, epoch: 'E1', head: { graphics: {} } }), ['A']).outcome, 'landed');
+});
+
+test('an All out hands back what it left alone, so a page does not mark those graphics off', () => {
+  const s = createSeqSession('E1', {});
+  const answer = readSendAnswer({ ok: true, epoch: 'E1', head: { graphics: {} }, skipped: ['X'] });
+  assert.deepEqual(settleAnswer(s, answer, ['X', 'Y']).skipped, ['X']);
 });
 
 test('superseded says nothing: the page\'s own later press is what stands on air', () => {
   const s = createSeqSession('E1', {});
-  assert.equal(settleAnswer(s, readSendAnswer({ ok: false, refused: 'superseded', epoch: 'E1', graphics: { A: { rev: 9 } } }), ['A']), 'superseded');
+  const answer = readSendAnswer({ ok: false, refused: 'superseded', epoch: 'E1', graphics: { A: { rev: 9 } } });
+  assert.equal(settleAnswer(s, answer, ['A']).outcome, 'superseded');
   assert.equal(s.revs.get('A'), 9);
 });
 
+/** The error `settleAnswer` throws for this answer. */
+function staleThrown(session, raw, graphics) {
+  try {
+    settleAnswer(session, readSendAnswer(raw), graphics);
+  } catch (e) {
+    return e;
+  }
+  return null;
+}
+
 test('stale throws the plain sentence and still teaches the page what is on air now', () => {
   const s = createSeqSession('E1', { A: { rev: 1 } });
-  let thrown;
-  try {
-    settleAnswer(s, readSendAnswer({ ok: false, refused: 'stale', epoch: 'E1', graphics: { A: { rev: 4 } } }), ['A']);
-  } catch (e) {
-    thrown = e;
-  }
+  const thrown = staleThrown(s, { ok: false, refused: 'stale', epoch: 'E1', graphics: { A: { rev: 4 } }, stale: ['A'] }, ['A']);
   assert.ok(isStale(thrown));
   assert.equal(thrown.message, 'A was changed from another screen, so air did not change.');
   assert.equal(s.revs.get('A'), 4, 'the next press is made on what is on air now, so it lands');
@@ -104,6 +123,20 @@ test('stale throws the plain sentence and still teaches the page what is on air 
   assert.doesNotMatch(staleSentence(thrown, false), /monitor/);
   assert.equal(staleNotice(['A', 'B']), 'A and B were changed from another screen, so air did not change.');
   assert.doesNotMatch(staleNotice(['A', 'B', 'C']), /—/);
+});
+
+test('the sentence names only the graphics another screen changed, not every one in the press', () => {
+  const s = createSeqSession('E1', {});
+  const thrown = staleThrown(s, { ok: false, refused: 'stale', epoch: 'E1', graphics: {}, stale: ['A'] }, ['A', 'B']);
+  assert.equal(thrown.message, 'A was changed from another screen, so air did not change.');
+});
+
+test('a press made against a republished production says that, not "another screen"', () => {
+  const s = createSeqSession('E1', {});
+  const thrown = staleThrown(s, { ok: false, refused: 'stale', why: 'epoch', epoch: 'E2', graphics: {}, stale: ['A'] }, ['A']);
+  assert.ok(isStale(thrown));
+  assert.equal(thrown.message, 'This production was published again while this page was open, so air did not change.');
+  assert.equal(s.epoch, 'E2', 'and the page now follows the new log');
 });
 
 test('an answer the page cannot read is an error, never a silent success', () => {

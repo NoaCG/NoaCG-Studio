@@ -1671,7 +1671,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // outcome as its own sentence; `runVerb` below puts that on the note line, as every verb did. A
   // folder's Take sends through `sendVerb` and says once, at its end, how all of it went. ──
   const sendVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string, allOut = false): Promise<{ ok: true } | { ok: false; note: string }> => {
+    async (
+      batches: ControlSendItem[][],
+      label: string,
+      allOut = false,
+    ): Promise<{ ok: true; skipped: string[] } | { ok: false; note: string }> => {
       if (!hostedSlug) {
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
@@ -1691,9 +1695,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           )
           .filter((e): e is LogEntry => !!e);
         setWireLog((l) => appendLogEntries(l, entries));
-        return { ok: true };
+        return { ok: true, skipped: [] };
       }
       let landed = 0;
+      // Graphics an All out left on air because this page pressed them again since (protocol 2).
+      const skipped: string[] = [];
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
@@ -1702,7 +1708,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // own broadcast on the production's private topic, with the durable row behind it, and
         // applies whichever won.
         for (const batch of batches) {
-          await sendControlVerb({
+          const sent = await sendControlVerb({
             slug: hostedSlug,
             showId,
             items: batch,
@@ -1710,10 +1716,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
             allOut,
           });
+          skipped.push(...sent.skipped);
           landed += 1;
         }
         setNote(sendDebts.current.landed(batches.flat()));
-        return { ok: true };
+        return { ok: true, skipped };
       } catch (e) {
         // A verb whose picture MOVED HERE and then failed to send is a different sentence from
         // one that never happened, and an operator has to be told which they are looking at: this
@@ -2408,9 +2415,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (liveLayers.length === 0) return;
     cancelCombines('All out');
     const cleared = liveLayers.map((l) => l.graphic);
-    if (await runVerb(clearAllCueBatches(cleared), 'All out', true)) {
-      setLiveCue((m) => cleared.reduce((acc, g) => withLiveCue(acc, g, null), m));
+    const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
+    if (!sent.ok) {
+      setNote(sent.note);
+      return;
     }
+    // A graphic this page pressed again while the All out was on its way stays as that later press
+    // left it (the server skipped it, protocol 2), so it is not marked off here.
+    const off = cleared.filter((g) => !sent.skipped.includes(g));
+    setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
   };
   /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
    *  of this page to take it off: an unidentified item, or what replaced a cue's clip. A slot the

@@ -93,7 +93,16 @@ export function mintSenderId(): string {
 /** What `control_send_seq` answered. */
 export type SendAnswer =
   | { ok: true; duplicate: boolean; epoch: string | null; graphics: Record<string, HeadSummary>; skipped: string[] }
-  | { ok: false; refused: 'stale' | 'superseded'; epoch: string | null; graphics: Record<string, HeadSummary> };
+  | {
+      ok: false;
+      refused: 'stale' | 'superseded';
+      epoch: string | null;
+      graphics: Record<string, HeadSummary>;
+      /** The graphics another screen changed (all of them when the epoch did). */
+      stale: string[];
+      /** The production was published again since this page learned its epoch. */
+      epochChanged: boolean;
+    };
 
 /** Read an answer, or null when it is not one (never trusted blindly: it came over the wire). */
 export function readSendAnswer(raw: unknown): SendAnswer | null {
@@ -102,25 +111,29 @@ export function readSendAnswer(raw: unknown): SendAnswer | null {
     ok?: unknown;
     duplicate?: unknown;
     refused?: unknown;
+    why?: unknown;
     epoch?: unknown;
     graphics?: unknown;
     skipped?: unknown;
+    stale?: unknown;
     head?: { graphics?: unknown } | null;
   };
   const epoch = typeof a.epoch === 'string' ? a.epoch : null;
   const summaries = (value: unknown) =>
     value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, HeadSummary>) : {};
+  const names = (value: unknown) => (Array.isArray(value) ? value.filter((g): g is string => typeof g === 'string') : []);
   if (a.ok === true) {
-    return {
-      ok: true,
-      duplicate: a.duplicate === true,
-      epoch,
-      graphics: summaries(a.head?.graphics),
-      skipped: Array.isArray(a.skipped) ? a.skipped.filter((g): g is string => typeof g === 'string') : [],
-    };
+    return { ok: true, duplicate: a.duplicate === true, epoch, graphics: summaries(a.head?.graphics), skipped: names(a.skipped) };
   }
   if (a.ok === false && (a.refused === 'stale' || a.refused === 'superseded')) {
-    return { ok: false, refused: a.refused, epoch, graphics: summaries(a.graphics) };
+    return {
+      ok: false,
+      refused: a.refused,
+      epoch,
+      graphics: summaries(a.graphics),
+      stale: names(a.stale),
+      epochChanged: a.why === 'epoch',
+    };
   }
   return null;
 }
@@ -130,7 +143,8 @@ export function readSendAnswer(raw: unknown): SendAnswer | null {
  * words, and what happened to air. Whether this page's own monitor moved anyway (it applies most
  * presses before the round trip) is the page's half of the sentence (`staleSentence`).
  */
-export function staleNotice(graphics: readonly string[]): string {
+export function staleNotice(graphics: readonly string[], epochChanged = false): string {
+  if (epochChanged) return 'This production was published again while this page was open, so air did not change.';
   const named = graphics.length === 1 ? graphics[0] : graphics.length === 2 ? `${graphics[0]} and ${graphics[1]}` : 'These graphics';
   const verb = graphics.length === 1 ? 'was' : 'were';
   return `${named} ${verb} changed from another screen, so air did not change.`;
@@ -144,8 +158,8 @@ export function staleSentence(e: Error, aired: boolean): string {
 }
 
 /** An Error for a stale refusal, carrying the plain sentence and the flag the pages word by. */
-export function staleError(graphics: readonly string[]): Error {
-  return Object.assign(new Error(staleNotice(graphics)), { stale: true });
+export function staleError(graphics: readonly string[], epochChanged = false): Error {
+  return Object.assign(new Error(staleNotice(graphics, epochChanged)), { stale: true });
 }
 
 export function isStale(e: unknown): boolean {
@@ -157,14 +171,20 @@ export function isStale(e: unknown): boolean {
  *   landed      applied now, or a resend of a press that already applied (idempotent);
  *   superseded  this page's own LATER press on that graphic already stands, so this one must not
  *               air and nothing needs saying: what the operator pressed last is on air;
- *   throws      stale: another screen changed a touched graphic after this page last saw it.
+ *   throws      stale: another screen changed a touched graphic after this page last saw it (the
+ *               sentence names those graphics), or the production was published again.
+ * `skipped` is what an All out left alone because this page pressed those graphics again since.
  */
-export function settleAnswer(session: SeqSession, answer: SendAnswer | null, graphics: readonly string[]): 'landed' | 'superseded' {
+export function settleAnswer(
+  session: SeqSession,
+  answer: SendAnswer | null,
+  graphics: readonly string[],
+): { outcome: 'landed' | 'superseded'; skipped: string[] } {
   if (!answer) throw new Error('the server answered in a way this page cannot read');
   learnHead(session, answer.epoch, answer.graphics);
-  if (answer.ok) return 'landed';
-  if (answer.refused === 'superseded') return 'superseded';
-  throw staleError(graphics);
+  if (answer.ok) return { outcome: 'landed', skipped: answer.skipped };
+  if (answer.refused === 'superseded') return { outcome: 'superseded', skipped: [] };
+  throw staleError(answer.stale.length > 0 ? answer.stale : graphics, answer.epochChanged);
 }
 
 /**

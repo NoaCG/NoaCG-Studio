@@ -644,13 +644,26 @@ export async function unpublishControlShow(id: string): Promise<void> {
  */
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
 
-function noSeqRoad(rpc: string, error: { message: string; code?: string }): void {
-  if (seqRoad === 'absent') return;
+/** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
+ *  learned now or before); a failure means the server did not answer and nothing was decided. */
+async function askSeqRoad(
+  sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
+  rpc: string,
+  args: Record<string, unknown>,
+): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
+  if (seqRoad === 'absent') return undefined;
+  const { data, error, status } = await sb.rpc(rpc, args);
+  if (!error) {
+    seqRoad = 'present';
+    return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
+  }
+  if (unansweredStatus(status, error.code)) return { ok: false, error: error.message };
   seqRoad = 'absent';
   console.info(
     `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - this server has no sequence road, ` +
       'so this page follows and sends by row id, as before.',
   );
+  return undefined;
 }
 
 /** Per control slug, what this page knows of the head (seqSend.ts). Set by the resolve, kept
@@ -676,18 +689,10 @@ function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
 export async function controlShowBySlug(slug: string): Promise<ResolvedControlShow | null> {
   const sb = await getSupabase();
   if (!sb) return null;
-  // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`).
-  if (seqRoad !== 'absent') {
-    const next = await sb.rpc('control_show_resolve', { p_slug: slug });
-    if (!next.error) {
-      seqRoad = 'present';
-      const row = next.data as Record<string, unknown> | null;
-      if (!row || typeof row !== 'object') return null;
-      return readResolvedShow(row, seqPlanFor(slug, row));
-    }
-    if (unansweredStatus(next.status, next.error.code)) return null;
-    noSeqRoad('control_show_resolve', next.error);
-  }
+  // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`). A resolve
+  // nobody answered is null, as today's is.
+  const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug });
+  if (next) return next.ok && next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null;
   seqSessions.delete(slug);
   const { data, error } = await sb.rpc('control_show_by_slug', { p_slug: slug });
   if (error) return null;
@@ -818,16 +823,8 @@ export async function controlOutputBySlug(outputSlug: string): Promise<RpcAnswer
 export async function controlOutputResolve(outputSlug: string): Promise<RpcAnswer<ResolvedOutputShow | null>> {
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'no backend client' };
-  if (seqRoad !== 'absent') {
-    const next = await sb.rpc('control_output_resolve', { p_output_slug: outputSlug });
-    if (!next.error) {
-      seqRoad = 'present';
-      const row = next.data as Record<string, unknown> | null;
-      return { ok: true, value: row && typeof row === 'object' ? readResolvedOutput(row, true) : null };
-    }
-    if (unansweredStatus(next.status, next.error.code)) return { ok: false, error: next.error.message };
-    noSeqRoad('control_output_resolve', next.error);
-  }
+  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug });
+  if (next) return next.ok ? { ok: true, value: next.value ? readResolvedOutput(next.value, true) : null } : next;
   return controlOutputBySlug(outputSlug);
 }
 
@@ -858,14 +855,24 @@ function isSeqRow(value: unknown): value is SeqLogRow {
   );
 }
 
+/** A head off the wire, or undefined when it is not one. */
+function readSeqHead(value: unknown): SeqHead | undefined {
+  const head = value as Partial<SeqHead> | null | undefined;
+  return head && typeof head.seq === 'number' && head.graphics && typeof head.graphics === 'object'
+    ? { seq: head.seq, graphics: head.graphics as Record<string, HeadSummary> }
+    : undefined;
+}
+
 /** A `control_*tail_seq` answer, or null when the answer is not one. */
 function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
-  const d = data as { epoch?: unknown; rows?: unknown; reset?: unknown } | null;
+  const d = data as { epoch?: unknown; rows?: unknown; reset?: unknown; head?: unknown } | null;
   if (!d || typeof d !== 'object' || !Array.isArray(d.rows)) return null;
+  const head = readSeqHead(d.head);
   return {
     epoch: typeof d.epoch === 'string' ? d.epoch : null,
     rows: d.rows.filter(isSeqRow),
     ...(d.reset === true ? { reset: true } : {}),
+    ...(head ? { head } : {}),
   };
 }
 
@@ -874,14 +881,8 @@ function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
 function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
   const p = payload as { epoch?: unknown; rows?: unknown; head?: unknown } | null;
   if (!p || typeof p !== 'object' || !Array.isArray(p.rows)) return null;
-  const head = p.head as Partial<SeqHead> | null | undefined;
-  return {
-    epoch: typeof p.epoch === 'string' ? p.epoch : null,
-    rows: p.rows.filter(isSeqRow),
-    ...(head && typeof head.seq === 'number' && head.graphics && typeof head.graphics === 'object'
-      ? { head: { seq: head.seq, graphics: head.graphics as Record<string, HeadSummary> } }
-      : {}),
-  };
+  const head = readSeqHead(p.head);
+  return { epoch: typeof p.epoch === 'string' ? p.epoch : null, rows: p.rows.filter(isSeqRow), ...(head ? { head } : {}) };
 }
 
 /** The operator page's numbered tail (proto 2): rows after `after` in seq order, or null when the
@@ -920,6 +921,9 @@ export async function controlOutputReportSeq(
   state: { groups?: Record<string, string> } | null,
   seq: number,
   lastEventId: number | null,
+  /** The epoch that seq belongs to: the server banks it only in that epoch (a republish the
+   *  renderer has not seen yet must not get a baseline from the log that is gone). */
+  epoch: string | null,
 ): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
@@ -930,6 +934,7 @@ export async function controlOutputReportSeq(
     p_state: state,
     p_seq: seq,
     p_event: lastEventId,
+    p_epoch: epoch,
   });
 }
 
@@ -1074,7 +1079,7 @@ export async function sendControlVerb(opts: {
   /** This batch is (part of) All out, the panic control: on protocol 2 it is never refused as
    *  stale and never waits behind another send of its graphics (seqSend.ts). */
   allOut?: boolean;
-}): Promise<void> {
+}): Promise<{ skipped: string[] }> {
   const now = Date.now();
   const { showId } = opts;
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
@@ -1116,9 +1121,12 @@ export async function sendControlVerb(opts: {
   const session = seqSessions.get(opts.slug);
   const graphics = [...new Set(wire.map((item) => item.graphic))];
   const sender = session ? senderBody(session, SENDER_ID, (lastPress += 1), graphics, !!opts.allOut) : null;
+  // What an All out left alone because this page pressed those graphics again since (protocol 2):
+  // they are still on air, and a caller that marks every cleared layer off must not mark these.
+  let skipped: string[] = [];
   try {
     if (session && sender) {
-      await sendSeqVerb(opts.slug, wire, session, sender, {
+      skipped = await sendSeqVerb(opts.slug, wire, session, sender, {
         deadline: now + RESEND_WINDOW_MS,
         stillNewest: () => keys.every((key) => newestSend.get(key) === send),
         allOut: !!opts.allOut,
@@ -1151,6 +1159,7 @@ export async function sendControlVerb(opts: {
     for (const key of held) slowUntil.set(key, landed);
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);
   }
+  return { skipped };
 }
 
 /** Did this send put commands on THIS surface's screen before failing? Read off the thrown
@@ -1184,16 +1193,18 @@ async function sendSeqVerb(
   session: SeqSession,
   sender: SenderBody,
   opts: { deadline: number; stillNewest: () => boolean; allOut: boolean },
-): Promise<void> {
+): Promise<string[]> {
   const graphics = Object.keys(sender.base);
+  let skipped: string[] = [];
   const send = () =>
     sendWithResend(
       async (signal) => {
-        settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics);
+        skipped = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics).skipped;
       },
       { deadline: opts.deadline, stillNewest: opts.stillNewest },
     );
   await (opts.allOut ? send() : seqQueue.run(graphics, send));
+  return skipped;
 }
 
 /**
@@ -1399,14 +1410,19 @@ export async function followControlLog(opts: {
 }): Promise<() => void> {
   if (opts.seq) {
     const plan = opts.seq;
+    const { showId } = opts;
     return followLiveSeq({
-      showId: opts.showId,
+      showId,
       from: plan.from,
       epoch: plan.epoch,
       tail: plan.tail,
       onRows: (rows) => rows.forEach((row) => opts.onRow(row)),
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
       onEpoch: (epoch) => learnHead(plan.session, epoch, {}),
+      // WHILE THE FOLLOWER HOLDS ROWS OR READS THE TAIL this page's own presses take the durable
+      // road (see `recovering` above): applied to its monitor now, they would land ahead of older
+      // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
+      onBusy: (busy) => (busy ? recovering.add(showId) : recovering.delete(showId)),
       onStatus: opts.onStatus,
     });
   }
@@ -1469,7 +1485,9 @@ export async function followLiveSeq(opts: {
   tail: (after: number, epoch: string | null) => Promise<SeqTail<SeqLogRow> | null>;
   onRows: (rows: SeqLogRow[], replayed: boolean) => void;
   onHead?: (head: SeqHead, epoch: string | null) => void;
-  onEpoch?: (epoch: string | null) => void;
+  /** `reset`: the production was published again, and every seq held is from a log that is gone. */
+  onEpoch?: (epoch: string | null, reset: boolean) => void;
+  onBusy?: (busy: boolean) => void;
   onStatus?: (status: ControlFollowStatus) => void;
 }): Promise<() => void> {
   const follower = createSeqFollower<SeqLogRow>({
@@ -1479,6 +1497,7 @@ export async function followLiveSeq(opts: {
     onRows: opts.onRows,
     onHead: opts.onHead,
     onEpoch: opts.onEpoch,
+    onBusy: opts.onBusy,
   });
   let everJoined = false;
   let status = '';

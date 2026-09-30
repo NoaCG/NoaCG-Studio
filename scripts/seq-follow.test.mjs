@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { REORDER_WINDOW_MS, REJOIN_REFILL_SPREAD_MS, SEQ_TAIL_PAGE, createSeqFollower, supersededAnimations } =
+const { HELD_RETRY_MS, REORDER_WINDOW_MS, REJOIN_REFILL_SPREAD_MS, SEQ_TAIL_PAGE, createSeqFollower, supersededAnimations } =
   await import('../src/control/seqFollow.ts');
 
 const row = (seq, graphic = 'G', t = 'update') => ({ id: 1000 + seq, seq, graphic, msg: { t } });
@@ -29,26 +29,33 @@ function rig(t, { from = 0, epoch = 'E1', random } = {}) {
   const reads = [];
   const epochs = [];
   const heads = [];
+  const busy = [];
   let failNext = 0;
+  let duringRead = null;
   const follower = createSeqFollower({
     from,
     epoch,
     tail: async (after, asked) => {
       reads.push([after, asked]);
+      const hook = duringRead;
+      duringRead = null;
+      if (hook) await hook();
       if (failNext > 0) {
         failNext -= 1;
         return null;
       }
       if (asked !== null && asked !== log.epoch) return { epoch: log.epoch, rows: [], reset: true };
       const rows = [...log.rows.values()].filter((r) => r.seq > after).sort((a, b) => a.seq - b.seq).slice(0, SEQ_TAIL_PAGE);
-      return { epoch: log.epoch, rows };
+      const top = Math.max(0, ...log.rows.keys());
+      return { epoch: log.epoch, rows, head: { seq: top, graphics: { G: { rev: top } } } };
     },
     onRows: (rows, replayed) => {
       batches.push({ seqs: rows.map((r) => r.seq), replayed });
       applied.push(...rows.map((r) => r.seq));
     },
-    onEpoch: (e) => epochs.push(e),
+    onEpoch: (e, reset) => epochs.push([e, reset]),
     onHead: (head, e) => heads.push([head.seq, e]),
+    onBusy: (b) => busy.push(b),
     random,
   });
   const settle = async () => {
@@ -62,7 +69,9 @@ function rig(t, { from = 0, epoch = 'E1', random } = {}) {
     reads,
     epochs,
     heads,
+    busy,
     failNext: (n) => (failNext = n),
+    duringNextRead: (fn) => (duringRead = fn),
     commit: (...seqs) => seqs.forEach((s) => log.rows.set(s, row(s))),
     frame: (seqs, e = log.epoch, head) => follower.offer({ epoch: e, rows: seqs.map((s) => row(s)), ...(head ? { head } : {}) }),
     settle,
@@ -163,11 +172,24 @@ test('a failed read changes nothing, and the held frame is still there for the n
   assert.deepEqual(r.applied, [1, 2]);
 });
 
+test('a failed read with rows still held tries again a second later, not at the 30 s poll', async (t) => {
+  const r = rig(t);
+  r.commit(1, 2);
+  r.failNext(1);
+  r.frame([2]);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.reads.length, 1);
+  assert.deepEqual(r.applied, []);
+  await r.wait(HELD_RETRY_MS);
+  assert.equal(r.reads.length, 2);
+  assert.deepEqual(r.applied, [1, 2]);
+});
+
 test('another epoch in a frame (unpublish + republish) starts the log again from 1', async (t) => {
   const r = rig(t, { from: 900 });
   r.log.epoch = 'E2';
   r.frame([1, 2], 'E2');
-  assert.deepEqual(r.epochs, ['E2']);
+  assert.deepEqual(r.epochs, [['E2', true]]);
   assert.deepEqual(r.applied, [1, 2], 'seq 1 of the new log is not "older than 900"');
   assert.equal(r.follower.epoch, 'E2');
 });
@@ -178,27 +200,66 @@ test('a reset answer (the poll found another epoch) re-reads the new log from 0'
   r.log.rows.clear();
   r.commit(1, 2, 3);
   await r.follower.refill();
-  assert.deepEqual(r.epochs, ['E2']);
+  assert.deepEqual(r.epochs, [['E2', true]]);
   assert.deepEqual(r.reads, [[900, 'E1'], [0, 'E2']]);
   assert.deepEqual(r.applied, [1, 2, 3]);
 });
 
-test('a follower that knew no epoch (no head at resolve) adopts the first one without a reset', async (t) => {
-  const r = rig(t, { from: 0, epoch: null });
+test('a follower that knew no epoch (no head at resolve) LEARNS the first one: no reset, no re-read', async (t) => {
+  const r = rig(t, { from: 3, epoch: null });
   r.log.epoch = 'E7';
-  r.commit(1);
-  await r.follower.refill();
+  r.commit(1, 2, 3, 4);
+  r.frame([4], 'E7');
   assert.equal(r.follower.epoch, 'E7');
-  assert.deepEqual(r.applied, [1]);
+  assert.deepEqual(r.epochs, [['E7', false]]);
+  assert.deepEqual(r.applied, [4], 'rows 1..3 were already applied (a renderer\'s catch-up) and are not replayed');
 });
 
-test('the head a frame carries is handed on as data, and never makes the follower act', async (t) => {
+test('an answer read under an epoch the follower has left since is thrown away and read again', async (t) => {
+  const r = rig(t, { from: 900 });
+  r.commit(901);
+  // While the read (asked under E1) is out, a frame of the republished log arrives.
+  r.duringNextRead(async () => {
+    r.log.epoch = 'E2';
+    r.log.rows.clear();
+    r.commit(1, 2);
+    r.frame([1], 'E2');
+  });
+  await r.follower.refill();
+  assert.equal(r.follower.epoch, 'E2');
+  assert.deepEqual(r.applied, [1, 2], 'nothing of the dead log (901) is applied after the switch');
+  assert.deepEqual(r.epochs, [['E2', true]], 'and the follower never flips back to E1');
+});
+
+test('a head is handed on only once every row up to it is applied, and never makes the follower act', async (t) => {
   const r = rig(t);
   r.frame([], 'E1', { seq: 9, graphics: { G: { rev: 3, on: true } } });
   await r.wait(1000);
-  assert.deepEqual(r.heads, [[9, 'E1']]);
+  assert.deepEqual(r.heads, [], 'rows 1..9 are not here yet, so neither is the revision they carry');
   assert.deepEqual(r.applied, []);
   assert.deepEqual(r.reads, [], 'a summary ahead of the cursor is not a hole');
+  r.frame([1, 2], 'E1', { seq: 2, graphics: { G: { rev: 2 } } });
+  assert.deepEqual(r.heads, [[2, 'E1']]);
+});
+
+test('a tail answer\'s head is handed on with its rows', async (t) => {
+  const r = rig(t);
+  r.commit(1, 2, 3);
+  await r.follower.refill();
+  assert.deepEqual(r.applied, [1, 2, 3]);
+  assert.deepEqual(r.heads, [[3, 'E1']]);
+});
+
+test('holding rows or reading the tail is BUSY, and level again says so', async (t) => {
+  const r = rig(t);
+  r.commit(1, 2, 3);
+  r.frame([3]);
+  assert.deepEqual(r.busy, [true], 'a held row makes the follower busy at once');
+  await r.wait(REORDER_WINDOW_MS);
+  assert.deepEqual(r.applied, [1, 2, 3]);
+  assert.deepEqual(r.busy, [true, false]);
+  r.frame([4]);
+  assert.deepEqual(r.busy, [true, false], 'a contiguous frame never makes it busy');
 });
 
 test('the first join refills at once; a rejoin refills after a random spread', async (t) => {
@@ -224,7 +285,7 @@ test('stop() ends everything: no timer fires and no read starts afterwards', asy
   assert.deepEqual(r.applied, []);
 });
 
-test('a refill elides only animations a later play/stop of the same graphic replaces', () => {
+test('a refill elides only ENTRANCES a later play or stop of the same graphic replaces', () => {
   const rows = [
     row(1, 'A', 'play'),
     row(2, 'A', 'update'),
@@ -232,17 +293,23 @@ test('a refill elides only animations a later play/stop of the same graphic repl
     row(4, 'B', 'play'),
     row(5, 'A', 'play'),
   ];
-  assert.deepEqual([...supersededAnimations(rows)].sort(), [1, 3], 'A ends on air with one entrance; B keeps its own');
+  assert.deepEqual([...supersededAnimations(rows)], [1], 'A ends on air with one entrance; B keeps its own');
+  assert.deepEqual([...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'play')])], [1], 'a re-take replaces the take');
 });
 
-test('an event, next or snap between them fences the earlier animation: the machine needed it', () => {
+test('an exit is never elided: a stop does more than animate (a debate board halts its clocks)', () => {
+  assert.deepEqual([...supersededAnimations([row(1, 'A', 'stop'), row(2, 'A', 'play')])], []);
+  assert.deepEqual([...supersededAnimations([row(1, 'A', 'stop'), row(2, 'A', 'stop')])], []);
+});
+
+test('an event, next or snap between them fences the entrance: the machine needed it', () => {
   assert.deepEqual([...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'event'), row(3, 'A', 'stop')])], []);
   assert.deepEqual([...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'next'), row(3, 'A', 'stop')])], []);
-  assert.deepEqual([...supersededAnimations([row(1, 'A', 'stop'), row(2, 'A', 'snap'), row(3, 'A', 'play')])], []);
+  assert.deepEqual([...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'snap'), row(3, 'A', 'play')])], []);
   assert.deepEqual(
-    [...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'event'), row(3, 'A', 'stop'), row(4, 'A', 'play')])],
+    [...supersededAnimations([row(1, 'A', 'play'), row(2, 'A', 'event'), row(3, 'A', 'play'), row(4, 'A', 'stop')])],
     [3],
-    'only the pair after the fence',
+    'only the entrance after the fence',
   );
 });
 
