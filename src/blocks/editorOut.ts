@@ -1,7 +1,7 @@
 import { getTemplateParts } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { AnimData, AnimKeyframe } from './animData';
-import { clone, cutBars, cutTracks, EPS, holdAt, joinBars, round } from './animEdit';
+import { clone, cutBars, cutTracks, EPS, holdAt, joinBars, round, withOut, type Bar } from './animEdit';
 import { resolveValue } from './animEval';
 import { animationSource, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
@@ -22,8 +22,7 @@ const CROSSES_OUT_KEY = 'This boundary would cross an Out key. Exact repartition
  */
 export function moveOutBoundary(source: AnimData, boundary: number, contains?: (ancestor: string, selector: string) => boolean): AnimData {
   if (!Number.isFinite(boundary) || boundary < 0) throw new Error('Out needs a finite nonnegative playhead time.');
-  let data = clone(source);
-  if (data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
+  let data = withOut(clone(source));
   const at = data.steps.length - 2, b = round(boundary), end = data.steps[at].duration, delta = round(end - b);
   // An exit with neither keys nor bars is an instant cut.
   const settle = () => {
@@ -54,7 +53,7 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
     const hidden = (cue.hides ?? []).find(selector => cue.spans?.[selector] === undefined);
     if (hidden) throw new Error(`${hidden} leaves at the end of this cue (a legacy hide). Moving Out across the entrance would move that exit. Its source is preserved.`);
   }
-  data = holdAt(data, at, b, 'Set Out').data;
+  data = holdAt(data, at, b, 'Set Out', { owned: true }).data;
   const cue = data.steps[at], exit = data.steps[at + 1];
   for (const tracks of Object.values(exit.layers)) for (const keys of Object.values(tracks)) {
     if (keys.some(key => key.time + delta < 0)) throw new Error(CROSSES_OUT_KEY);
@@ -76,7 +75,6 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
   }
   // Visibility bars keep their absolute times: clipped at b, the rest carried into Out, and after
   // the old boundary whatever the original Out showed (the exit gates bars on a visible layer).
-  type Bar = { start: number; end: number };
   const own = exit.spans ?? {}, carried: Record<string, Bar[]> = {}, shift = (span: Bar) => ({ start: round(span.start + delta), end: round(span.end + delta) });
   const bars = Object.entries(cue.spans ?? {}), tailBars = cutBars(data, at, b);
   for (const [selector, spans] of bars) {
@@ -130,6 +128,18 @@ function held(data: AnimData, selector: string) {
   return visible;
 }
 
+const documents = new Map<string, Document>();
+/** Whether a layer sits inside another in the template's document, parsed once per html. */
+export function documentContains(html: string) {
+  return (ancestor: string, selector: string) => {
+    try {
+      let doc = documents.get(html);
+      if (!doc) { doc = new DOMParser().parseFromString(html, 'text/html'); documents.clear(); documents.set(html, doc); }
+      return Array.from(doc.querySelectorAll(selector)).some(element => !!element.parentElement?.closest(ancestor));
+    } catch { return false; }
+  };
+}
+
 export function applyOut(template: SpxTemplate, operation: OutOperation): SpxTemplate {
   let data = animationSource(template);
   const reason = sequenceAuthoringReason(data);
@@ -138,14 +148,14 @@ export function applyOut(template: SpxTemplate, operation: OutOperation): SpxTem
     if (!Number.isFinite(operation.time) || operation.time < 0) throw new Error('Out needs a finite nonnegative playhead time.');
     const prefix = data.steps.slice(0, -2).reduce((sum, step) => sum + step.duration, 0);
     const boundary = Math.round(operation.time * template.fps) / template.fps * data.speed - prefix;
-    if (boundary < 0 || boundary < data.speed / template.fps && getTemplateParts(template.html, template.fields).some(part => part.kind !== 'root')) throw new Error('Keep at least one frame in a nonempty cue.');
-    let doc: Document | undefined;
-    data = moveOutBoundary(data, boundary, (ancestor, selector) => {
-      doc ??= new DOMParser().parseFromString(template.html, 'text/html');
-      try { return Array.from(doc.querySelectorAll(selector)).some(element => !!element.parentElement?.closest(ancestor)); } catch { return false; }
-    });
+    // Out stays at least a frame after the last Step's flag, stored at 3 decimals: flags never stack.
+    const step = data.steps.length > 2 ? data.steps[data.steps.length - 2].name : null;
+    if (boundary < 0 || boundary < data.speed / template.fps - 2 * EPS && (step || getTemplateParts(template.html, template.fields).some(part => part.kind !== 'root'))) {
+      throw new Error(step ? `Keep Out at least one frame after ${step}. Its source is preserved.` : 'Keep at least one frame in a nonempty cue.');
+    }
+    data = moveOutBoundary(data, boundary, documentContains(template.html));
   } else {
-    if (data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
+    withOut(data);
     const exit = data.steps[data.steps.length - 1];
     if (hasExitKeys(data)) throw new Error('Out already has keys. Preserve them; regeneration requires an explicit replacement.');
     if (Object.keys(exit.spans ?? {}).length || exit.reveals?.length || exit.hides?.length) throw new Error('Out has authored visibility. Use manual Out to preserve it.');

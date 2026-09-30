@@ -35,7 +35,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
 function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
-  const part = view.parts.find(p => p.selector === selection[0]);
+  const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
   const tracks = part ? [...new Set(view.data?.steps.flatMap(s => Object.keys(s.layers[part.selector] ?? {})) ?? [])] : [];
   const capability = useMemo(() => {
@@ -71,7 +71,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
       {selection.length > 1 && <><p>{selection.length} layers selected</p>
         {/* On a flag each layer can edit a different cue (G02): name where each edit lands. */}
         {view.data && <ul className="ef-segment-targets" data-testid="segment-targets" aria-label="Where edits land">
-          {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, session.port.view().cue)}</li>)}
+          {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, cue)}</li>)}
         </ul>}</>}
       {part ? <>
         {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />

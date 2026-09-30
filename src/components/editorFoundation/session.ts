@@ -1,4 +1,4 @@
-import { readTimeline } from './timelineView';
+import { onFlag, readTimeline } from './timelineView';
 import type { SpxTemplate } from '../../model/types';
 import { applyOperations, type EditorOperation } from './operations';
 
@@ -98,11 +98,8 @@ export class EditorSession {
       // A new Step parks the playhead on its flag; a removed or moved one leaves the time and reads it arriving.
       const added = request.operations.find(op => op.kind === 'step.add');
       if (added?.kind === 'step.add') {
-        // The flag the new Step starts at, stored at 3 decimals: at 30 or 60 fps that is a hair off the
-        // frame, and the playhead parks on the flag itself, on its arriving side.
         const frame = Math.round(added.time * this.current.fps) / this.current.fps;
-        const flag = readTimeline(this.current).segments.filter(s => s.index > 0).reduce((best, s) => Math.abs(s.start - frame) < Math.abs(best - frame) ? s.start : best, Infinity);
-        this.port.restore({ ...this.port.view(), time: Number.isFinite(flag) ? flag : frame, cue: undefined });
+        this.port.restore({ ...this.port.view(), time: onFlag(readTimeline(this.current), frame), cue: undefined });
       }
       else if (request.operations.some(op => op.kind === 'step.delete' || op.kind === 'step.move')) this.port.restore({ ...this.port.view(), cue: undefined });
       if (request.operations.some(op => op.kind === 'layer.delete')) this.port.restore({ ...this.port.view(), selectedParts: [] });

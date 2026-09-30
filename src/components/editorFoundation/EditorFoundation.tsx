@@ -9,7 +9,7 @@ import Canvas, { recordFoundationInput } from './Canvas';
 import Timeline from './Timeline';
 import Inspector from './Inspector';
 import { activeEditorSession, setSessionTime } from './documentAdapter';
-import { readTimeline, segmentAt } from './timelineView';
+import { onFlag, readTimeline, segmentAt } from './timelineView';
 import { sameRevision } from './session';
 import type { PreviewController } from './PreviewController';
 import type { RenderedPart } from './protocol';
@@ -37,7 +37,10 @@ export default function EditorFoundation() {
   const playback = useRef<{ from: number; end: number; expected: ReturnType<typeof session.version>; session: typeof session } | null>(null);
   const view = useMemo(() => readTimeline(template), [template]);
   const time = clock.documentId === session.documentId ? clock.time : session.port.view().time;
-  const seek = useCallback((next: number, cue?: number) => { recordFoundationInput('scrub'); setSessionTime(next, cue); setClock({ documentId: session.documentId, time: next }); }, [session, setClock]);
+  const seek = useCallback((to: number, cue?: number) => {
+    const next = onFlag(readTimeline(session.port.read()), to);
+    recordFoundationInput('scrub'); setSessionTime(next, cue); setClock({ documentId: session.documentId, time: next });
+  }, [session, setClock]);
   const pause = useCallback(() => { playback.current = null; setPlaying(false); }, [setPlaying]);
   const togglePlayback = useCallback(() => {
     if (playing) { pause(); return; }
@@ -60,9 +63,10 @@ export default function EditorFoundation() {
     seek(view.out); setPlaybackRun(run => run + 1); setPlaying(true);
   };
   const parkOut = () => { preview.current?.stopExit(); seek(readTimeline(session.port.read()).out); };
-  const inspectOut = () => { pause(); preview.current?.stopExit(); seek(view.out, view.segments.length - 1); };
-  // A Step flag's click shows the cue it starts at its start, the explicit departing side (G02).
+  // A flag's click shows the cue it starts at its start, the explicit departing side (G02); Edit Out
+  // is that for Out.
   const inspectStep = (index: number) => { pause(); preview.current?.stopExit(); seek(view.segments[index].start, index); };
+  const inspectOut = () => inspectStep(view.segments.length - 1);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !editorShortcutsLive(event.target) || activatableFocus()) return;

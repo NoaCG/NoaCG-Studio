@@ -39,7 +39,7 @@ export default forwardRef<OutHandle, {
       setPrompt(next && !hasExitKeys(next) ? { expected: result.revision, documentId: session.documentId } : null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
-  useImperativeHandle(handle, () => ({ setOutAt: at => setOut(at) }));
+  useImperativeHandle(handle, () => ({ setOutAt: setOut }));
   const reverse = () => {
     try {
       session.execute({ documentId: prompt!.documentId, expected: prompt!.expected, transactionId: crypto.randomUUID(), operations: [{ kind: 'out.reverse' }] });

@@ -36,9 +36,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const closeMenu = useCallback(() => setMenu(null), []);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const out = useRef<OutHandle>(null);
-  // A dragged flag is drawn to the playhead, keys and bar edges near it.
-  const snaps = useMemo(() => [time, ...view.bars.flatMap(bar => [bar.start, bar.end]), ...(view.data?.steps ?? []).flatMap((step, i) =>
-    Object.values(step.layers).flatMap(tracks => Object.values(tracks).flatMap(list => list.map(key => (view.segments[i]?.start ?? 0) + key.time / view.data!.speed))))], [time, view]);
+  // A dragged flag is drawn to the keys, bar edges and playhead near it.
+  const snaps = useMemo(() => [...view.bars.flatMap(bar => [bar.start, bar.end]), ...(view.data?.steps ?? []).flatMap((step, i) =>
+    Object.values(step.layers).flatMap(tracks => Object.values(tracks).flatMap(list => list.map(key => (view.segments[i]?.start ?? 0) + key.time / view.data!.speed))))], [view]);
   const cue = session.port.view().cue;
   const dragging = useRef<Marquee | null>(null);
   const ruler = useRef<HTMLDivElement>(null);
@@ -193,9 +193,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
           }}>
           {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
           <span className="ef-flag" style={{ left: 0 }}>In</span>
-          {!view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} kind={s.out ? 'out' : 'step'} label={s.out ? 'Out · hold' : s.name}
-            view={view} extent={extent} fps={fps} snaps={snaps} selected={cue === s.index} session={session} pause={pause} display={display}
-            inspect={s.out ? inspectOut : () => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
+          {!view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
+            snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
+            inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
           <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
         </div>
       </div>

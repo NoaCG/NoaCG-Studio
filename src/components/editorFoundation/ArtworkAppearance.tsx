@@ -112,8 +112,7 @@ export default function ArtworkAppearance(props: Props) {
   const hex = rgb ? '#' + rgb.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('') : currentColour;
   const currentFont = FONTS.find(f => appearance?.fontFamily.replace(/["']/g, '').split(',')[0].trim() === f.family);
   // On a flag a layer that edits the departing cue starts from that cue's opacity, not the arriving preview's.
-  const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
-  const opacity = (pose !== appearance ? pose?.motion?.opacity : undefined) ?? appearance?.opacity ?? 1;
+  const opacity = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue)?.opacity ?? 1;
   return <>
     {text && <><ArtworkTextEditor key={selector + ':' + session.version().source} selector={selector} text={text.text} session={session} />
       <p className="ef-muted">{text.field ? 'Artwork and playout default. Operator sample values are kept separately.' : 'Artwork only. This text has no operator field.'}</p>

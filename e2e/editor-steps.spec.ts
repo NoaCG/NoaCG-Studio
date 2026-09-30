@@ -477,7 +477,7 @@ test('at a flag an existing layer keys the arriving end and a layer starting the
 });
 
 test('at 30 fps Add Step parks the playhead on its own flag, on the arriving side', async ({ page }) => {
-  // Flags are stored at 3 decimals, a hair off the 30 fps frame the playhead was on.
+  // Flags are stored at 3 decimals, a hair off the 30 fps frame the playhead was on: a seek to that frame lands on the flag.
   const t = await editorWith(page, fixture());
   await evaluateInPage(page, async (t: unknown) => {
     (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate({ ...(t as object), fps: 30 } as never, { resetSampleData: true });
@@ -494,8 +494,13 @@ test('at 30 fps Add Step parks the playhead on its own flag, on the arriving sid
     const session = activeEditorSession();
     return { time: session.port.view().time, flag: readTimeline(session.port.read()).segments[1].start };
   });
-  expect(at.time).toBe(at.flag);
+  expect(at.time).toBe(at.flag); expect(Math.abs(at.flag - 10 / 30)).toBeLessThan(0.0005);
   await page.locator('.ef-track[data-selector="#box"] .ef-layer').click(); await ready(page);
+  await expect(page.locator('.ef-key-controls').first()).toContainText('In end');
+  // Walked off by a frame and back, the playhead is on the flag again.
+  await ruler.focus(); await ruler.press('ArrowRight'); await ready(page);
+  await expect(page.locator('.ef-key-controls').first()).not.toContainText('In end');
+  await ruler.press('ArrowLeft'); await ready(page);
   await expect(page.locator('.ef-key-controls').first()).toContainText('In end');
 });
 

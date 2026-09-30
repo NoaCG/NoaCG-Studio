@@ -1,8 +1,9 @@
 import type { SpxTemplate } from '../model/types';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
-import { EPS, joinCues, moveStepFlag, renameStep, round, splitCue } from './animEdit';
+import { EPS, joinCues, moveStepFlag, renameStep, round, splitCue, withOut } from './animEdit';
 import { spxSteps } from './animMachine';
 import { animationSource, sequenceAuthoringReason } from './editorAnimation';
+import { documentContains } from './editorOut';
 import { writeOutData } from '../templates/shared/animRuntime';
 
 /** Step authoring on the one timeline (R1.2a.4, docs/research/editor-r1-2a-4). Times are ruler
@@ -12,7 +13,7 @@ export type StepOperation =
   | { kind: 'step.rename'; step: number; name: string }
   | { kind: 'step.delete'; step: number }
   | { kind: 'step.move'; step: number; time: number };
-export const STEP_NAME_LIMIT = 40;
+const STEP_NAME_LIMIT = 40;
 
 /**
  * Add, rename, delete or move a Step. Keys and bars keep their absolute times (animEdit.ts
@@ -23,8 +24,8 @@ export function applyStep(template: SpxTemplate, operation: StepOperation): SpxT
   let data = animationSource(template);
   const reason = sequenceAuthoringReason(data);
   if (reason) throw new Error(reason);
-  // A legacy one-step graphic gains its empty Out first (D01), so a new Step is never the exit.
-  if (data.steps.length === 1) data.steps.push({ name: 'Out', duration: 0, ease: 'none', layers: {} });
+  // A legacy one-step graphic gains its empty Out first, so a new Step is never the exit.
+  withOut(data);
   const out = data.steps.length - 1, frame = data.speed / template.fps;
   const starts = data.steps.reduce<number[]>((acc, step, i) => [...acc, round(acc[i] + step.duration)], [0]);
   // Stored time on the ruler of a playhead snapped to its frame.
@@ -32,13 +33,7 @@ export function applyStep(template: SpxTemplate, operation: StepOperation): SpxT
     if (!Number.isFinite(time) || time < 0) throw new Error('A flag needs a finite playhead time.');
     return Math.round(time * template.fps) / template.fps * data.speed;
   };
-  let doc: Document | undefined;
-  const contains = (ancestor: string, selector: string) => {
-    try {
-      doc ??= new DOMParser().parseFromString(template.html, 'text/html');
-      return Array.from(doc.querySelectorAll(selector)).some(element => !!element.parentElement?.closest(ancestor));
-    } catch { return false; }
-  };
+  const contains = documentContains(template.html);
   const step = 'step' in operation ? operation.step : 0;
   if ('step' in operation && !data.steps[step]) throw new Error('That Step no longer exists. Select a flag again.');
   if ('step' in operation && (step === 0 || step === out)) throw new Error(`In and Out stay where they are; only a Step can be ${operation.kind === 'step.rename' ? 'renamed' : operation.kind === 'step.delete' ? 'deleted' : 'moved here'}.`);
