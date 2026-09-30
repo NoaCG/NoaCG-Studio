@@ -1108,10 +1108,16 @@ function scopedGsap(root) {
     const inside = Array.from(root.querySelectorAll(targets));
     return root.matches(targets) ? [root].concat(inside) : inside;
   };
-  const scoped = {};
-  for (const name of ['to', 'from', 'fromTo', 'set', 'killTweensOf', 'getTweensOf', 'isTweening', 'getProperty', 'quickSetter', 'quickTo']) {
+  const scoped = Object.create(null);
+  for (const name of ['to', 'from', 'fromTo', 'set', 'killTweensOf', 'getTweensOf', 'isTweening', 'quickSetter', 'quickTo']) {
     scoped[name] = (targets, ...rest) => real[name](own(targets), ...rest);
   }
+  // getProperty reads ONE element; given a string it takes the first match, given a list it fails.
+  scoped.getProperty = (target, ...rest) => {
+    if (typeof target !== 'string') return real.getProperty(target, ...rest);
+    const first = own(target)[0];
+    return first ? real.getProperty(first, ...rest) : undefined;
+  };
   return new Proxy(real, {
     get(target, key) {
       return key in scoped ? scoped[key] : target[key];
