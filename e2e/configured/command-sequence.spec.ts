@@ -95,21 +95,29 @@ async function openOperator(page: Page, hosted: string): Promise<Page> {
   return op;
 }
 
-/** Hold the page's NEXT control_send_seq until `release` resolves, then deliver it to the server
- *  from here whatever the page has done with it meanwhile, and hand back the server's answer. */
-function holdNextSend(op: Page, release: Promise<void>): Promise<unknown> {
+/**
+ * Hold every attempt of the page's NEXT press on control_send_seq (its first request's
+ * `p_sender.press`, and each resend the page makes of it) until `release` resolves, then deliver
+ * each to the server from here whatever the page has done with it meanwhile, and hand back the
+ * server's answer to the first. Holding only the first attempt is not enough: the page abandons it
+ * at 1.5 s and sends it again 0.4 s later (failedSends.ts), and that resend, let through, raced
+ * the next press to the server, so which one landed first was up to the machine's load.
+ */
+function holdNextPress(op: Page, release: Promise<void>): Promise<unknown> {
   return new Promise((resolveAnswer) => {
-    let taken = false;
-    const handler = async (route: Route) => {
-      if (taken) return route.continue();
-      taken = true;
+    let press: unknown;
+    let first = true;
+    void op.route('**/rest/v1/rpc/control_send_seq', async (route: Route) => {
+      const body = route.request().postDataJSON() as { p_sender?: { press?: unknown } } | null;
+      if (first) press = body?.p_sender?.press;
+      else if (body?.p_sender?.press !== press) return route.continue();
+      const answerThis = first;
+      first = false;
       await release;
       const response = await route.fetch();
-      resolveAnswer(await response.json().catch(() => null));
+      if (answerThis) resolveAnswer(await response.json().catch(() => null));
       await route.fulfill({ response }).catch(() => {});
-      await op.unroute('**/rest/v1/rpc/control_send_seq', handler).catch(() => {});
-    };
-    void op.route('**/rest/v1/rpc/control_send_seq', handler);
+    });
   });
 }
 
@@ -134,7 +142,7 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   // A presses Out, and its request is held on the way. While it is held, B re-takes the cue.
   let release!: () => void;
   const released = new Promise<void>((r) => (release = r));
-  const answered = holdNextSend(a, released);
+  const answered = holdNextPress(a, released);
   await a.getByTestId('hosted-out-cue').click();
   await b.getByTestId('hosted-retake-cue').click();
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('2');
@@ -177,9 +185,9 @@ test('a Take held on its way arrives after the Out, is refused, and never airs',
   const op = await openOperator(page, hosted);
   await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('0');
 
-  // The Take's request is held 6 s (a slow uplink, a queue in front of the database); the
-  // operator presses Out 1.5 s after the Take, as in the measured case.
-  const answered = holdNextSend(op, new Promise((r) => setTimeout(r, 6_000)));
+  // The Take is held 6 s on its way, every attempt of it (a slow uplink, a queue in front of the
+  // database); the operator presses Out 1.5 s after the Take, as in the measured case.
+  const answered = holdNextPress(op, new Promise((r) => setTimeout(r, 6_000)));
   await op.getByTestId('hosted-take-cue').click();
   await op.waitForTimeout(1_500);
   await op.getByTestId('hosted-out-cue').click();

@@ -43,6 +43,28 @@ chip and notice were read. Three trials of each hold:
   the slowest in 203 ms: the new send takes the row only at KEY SHARE, which an UPDATE's NO KEY
   UPDATE does not block.
 
+## Re-run on the finished branch (j-2517)
+
+After the review fixes, the merge of Step 0's per-attempt send deadline and the simplify pass, the
+same scenario ran again (`verify-b.mjs --label step2-final`, result
+`verify-step2-final-1790732397219.json` in the session scratchpad):
+
+| Hold | Trial | Presses | Last press | Air at the end | Server `on` | Chip | Send requests | Slowest answered |
+|---|---|---|---|---|---|---|---|---|
+| heads | 1 | 17 | Take | graphic up (104,430 px) | true | on air | 14 abandoned, 3x 200 | 1,503 ms |
+| heads | 2 | 17 | Take | graphic up | true | on air | 14 abandoned, 3x 200 | 1,502 ms |
+| heads | 3 | 17 | Take | graphic up | true | on air | 14 abandoned, 3x 200 | 1,502 ms |
+| shows | 1 | 18 | Out | nothing (0 px) | false | nothing on air | 18x 200 | 172 ms |
+| shows | 2 | 18 | Out | nothing | false | nothing on air | 18x 200 | 132 ms |
+| shows | 3 | 17 | Take | graphic up | true | on air | 17x 200 | 137 ms |
+
+- 6 of 6 trials ended on the operator's last press, on air, on the server and on the chip, with
+  no notice left on the page.
+- With the head held, the page now abandons each attempt at Step 0's 1.5 s deadline (status 0 in
+  the browser) instead of waiting for the send's own 2 s lock timeout and its 55P03. An abandoned
+  attempt still waiting on the head times out on the server and writes nothing; the attempts that
+  landed were resends after the hold ended.
+
 ## Limitations
 
 - One operator page. Two operators pressing into the same held head are covered by the stale

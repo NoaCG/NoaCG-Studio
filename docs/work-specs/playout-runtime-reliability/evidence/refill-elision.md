@@ -35,6 +35,17 @@ through the preview-branch wrapper with `branch-b.env`, this branch's app. Three
   answer; the renderer's cursor ended on the server's head. (That it was not applied twice is the
   follower's and the oid claim's job, asserted in `scripts/seq-follow.test.mjs`, not measured here.)
 
+## Re-run on the finished branch (j-2517)
+
+After review narrowed the elision to entrances only (an exit is never elided; `supersededAnimations`
+in `src/control/seqFollow.ts`), the same scenario ran again (`verify-b.mjs --label step2-final`):
+3 of 3 trials dropped 3 frames, healed with one tail read, animated one entrance and ended with the
+graphic up and the renderer level with the server's head (851, 867 and 883). The first Take's
+entrance was still elided; the Out between the two Takes is no longer elided and was applied as an
+ordinary exit. `data-plays` counts entrances only, so whether that exit visibly ran before the
+second entrance was not measured. The observations above (j-2462) are from the earlier rule, which
+also elided that exit.
+
 ## Limitations
 
 - The frames were dropped in the browser, not lost on the network: the socket stayed joined. A
