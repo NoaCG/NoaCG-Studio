@@ -44,11 +44,12 @@ means today's 0071.
 - **D-a. Timeouts** `lock_timeout = 500ms`, `statement_timeout = 5s` in 0069 and 0071, as v2
   asked (0070 takes 0068's `500ms` / `10s`); all inside db-push's rules. control_send_seq and
   control_output_report_seq set a transaction-local 1 s `lock_timeout` before the show row and the
-  head, below a page's 1.5 s attempt less a round trip, so a stalled head answers 55P03 while the
-  page is still waiting, the page resends (the send is idempotent), and an attempt the page has
-  abandoned cannot go on waiting and commit late. It was 2 s until review 2 (latency:L2): longer
-  than the attempt, so the 55P03 path never reached a page and an abandoned attempt still waiting
-  when the head freed did commit.
+  head, below a page's 1.5 s attempt less a round trip, so one stalled lock answers 55P03 while
+  the page is still waiting and the page resends (the send is idempotent). The bound is per lock,
+  not per call (review 3 sql:F1): a press that waits for the show row AND the head can take about
+  2 s, outlive its attempt and commit late; that is safe, because a resend of it is answered as a
+  duplicate and a later press of the same page already on the head leaves it out per graphic
+  (D-x). It was 2 s per lock until review 2 (latency:L2).
 - **D-b. The self-check reads `realtime.messages` only where Realtime could write at all.** A
   project whose Realtime tenant has not started has no partition for today (a fresh preview
   branch had none), `realtime.send` then swallows the failure into a warning, and asserting the
@@ -70,11 +71,12 @@ means today's 0071.
   production was published again while this page was open, so air did not change." when the
   cause was the epoch; plus the page's half ("Your press is on this monitor only. Press again if
   you still want it." when the press moved its monitor). The answer's summary is learned either
-  way, so the next press is made on what is on air now. A superseded send still SAYS so to its
-  caller (`VerbSent.superseded`): a page that writes a picture after the answer (the production
-  page's chip after a Take, an Out, a folder Out, a combined press) skips that write, because the
-  later press's own handler already wrote it and this older answer arriving last would overwrite
-  it (review 2 ordering:F2: the chip said ON AIR while air was off).
+  way, so the next press is made on what is on air now. What a send left alone still SAYS so to
+  its caller (`VerbSent.skipped` per graphic, `VerbSent.superseded` for a press refused whole by
+  the panic mark, both through `leftAlone`): a page that writes a picture after the answer (the
+  production page's chip after a Take, an Out, a folder Out, a combined press) skips that write,
+  because the later press's own handler already wrote it and this older answer arriving last
+  would overwrite it (review 2 ordering:F2: the chip said ON AIR while air was off).
 - **D-f. The per-graphic queue releases at 1500 ms**, Step 0's attempt deadline, on its own timer,
   so it holds whether or not Step 0's abort has landed in the same build: a stalled send cannot
   hold the next press longer than one attempt, and if it lands late the server refuses it as
@@ -156,7 +158,12 @@ means today's 0071.
   press, on both pages), then sent in order, stopping at the first that fails. Numbered as each
   batch left, a later batch took a number above a press the operator made while an earlier batch
   was on its way, so All out undid that press, and a base read after the first batch's round trip
-  counted another screen's change as seen (review 2 ordering:F1, and C2 for multi-batch).
+  counted another screen's change as seen (review 2 ordering:F1, and C2 for multi-batch). Each
+  batch still moves the page's monitor when it leaves, but never on a graphic the page has
+  pressed again since it was numbered (a per-page map of each graphic's newest press): the monitor
+  used to take the older batch's Out after the re-Take while air kept the re-Take, with nothing to
+  correct it (review 3 client:F1). Applying every batch at the press instead would move the
+  monitor for batches a refusal then never sends.
 - **D-u. A renderer never stays dark on the new resolve.** After three statement timeouts (57014)
   in a row on `control_output_resolve`, the renderer gives the sequence road up for the session
   and boots on today's resolve, following by id (review 2 oldclients:F2 (c)). An operator page has
@@ -172,7 +179,28 @@ means today's 0071.
   to 5 s, spread at random, then 15 s doubling to 120 s (review 2 oldclients:F1). On a 15 s
   backoff from the start, a first join that failed for a passing reason left every Take for the
   next 15 s to the 30 s poll. A server that keeps refusing is asked at the backoff's pace from
-  the second failure on.
+  the second failure on. A join that gets back a channel of its topic still leaving waits for it
+  to go and opens a fresh one (review 3 client:F4).
+- **D-x. Supersession is per graphic; the panic control keeps its order by a mark** (orchestrator's
+  decision, 2026-09-30, after review 3 client:F1). A graphic this page has pressed again since
+  (the head says `by` this sender with a LATER press) is left as that press left it and named in
+  `skipped`, and the batch's other graphics still apply: refusing the whole batch lost the other
+  graphics' Outs (an Out of nine in three batches lost three to a re-Take of one). Review 2
+  (ordering:F2) had kept the whole-batch refusal to protect the panic control; that is now its
+  own rule: every All out a sender lands leaves its press in the head (`control_heads.panic`, the
+  newest 16 senders), and a press of that sender numbered below it, arriving after, is refused
+  whole as `superseded`, so nothing pressed before the panic control airs after it. A change
+  another screen made that the page had not seen still refuses the whole batch as stale.
+  Revert: the whole-batch superseded refusal of 0071 step 5 as it was (and drop the column).
+- **D-y. Renderer reports never crowd out the operator** (review 3 client:F2). A forced report (a
+  re-bank, a republish) waits a random 1 to 21 s instead of 800 ms; any renderer's report of a
+  graphic (its `live` row) is that graphic's bank for every renderer and cancels a forced report
+  still waiting for it; only command rows count toward the 500-row re-bank, so re-banks cannot
+  feed themselves; and control_send_seq's burst cap counts the last 51 command rows, not reports.
+  Before, after a republish or at show start on baselines a feed had left behind, every renderer
+  reported every graphic in one second, and those rows refused the operator's Takes as "too many
+  commands". The old `control_send_many` and the data patch still count reports (old bundles and
+  the id road): the spread and the de-duplication are what protect those.
 
 ### Known limits (recorded, not fixed)
 
@@ -185,7 +213,11 @@ means today's 0071.
   pages' own Updates now wait behind a new publish (D-n).
 - **K3. A frame Realtime fails to write is only found by the next frame or the 30 s poll**, as on
   the id road: `realtime.send` swallows its errors into a warning, by design, so a command is
-  never lost to a broadcast.
+  never lost to a broadcast. On protocol 2 that includes a stall on realtime.messages longer than
+  250 ms while the send holds the head: the frame is dropped where protocol 1 waited and
+  delivered late (the deliberate R-10 trade: the head is not held behind Realtime). So a later
+  migration that locks realtime.messages (a policy, like 0068 and 0070) keeps its lock_timeout at
+  or below 250 ms, or applies in the quiet window as live-path files do (review 3 sql:F1).
 - **K4. A catch-up by seq costs what the follower is behind, per page.** With no `(show_id, seq)`
   index (v2: no index build under a lock on the live table), one tail page reads the newest
   `(head.seq - after) + 64` rows by id (or the production's rows when the window is not whole), so
@@ -199,8 +231,13 @@ means today's 0071.
   timeout. What bounds it now: D-v keeps every baseline within about 500 rows of the renderer's
   cursor, so a reboot reads about its own gap plus 500; D-u keeps a renderer from staying dark on
   the resolve; `control_head_legacy` reads only the pre-0071 rows (review 2 oldclients:F2 (a)). An
-  outage's lag is bounded by the send cap (at most about 10 rows/s). The planned remedy is the
-  `(show_id, seq)` index, built concurrently in a later ordinary step, when a measurement asks.
+  outage's lag is bounded by the send cap (at most about 10 rows/s). What is NOT bounded: a
+  protocol-2 renderer whose tail reads keep timing out (a gap of hundreds of thousands of rows,
+  for example a weekly show whose feed kept writing) holds every live frame behind the gap and
+  stays dark until it is reloaded, and a reload meets the same tail unless the resolve itself
+  times out and falls back (D-u) (review 3 client:F3). No automatic reload: reloading a browser
+  source drops every graphic from air. The planned remedy is the `(show_id, seq)` index, built concurrently in
+  a later ordinary step, gated on exactly this case.
 - **K5 (superseded by D-s). Step 1 and Step 2 both joined `live-<show>`.** They were one join for a
   while (the merge of #563); the frames now have their own topic.
 - **K6. On protocol 2, `seq-<show>` is the renderer's log road.** A refused or closed `seq-` join
@@ -238,6 +275,11 @@ means today's 0071.
 - **K13. The latency ACs have no receipt from this branch** (review 2 latency:L1): AC-14 (a busy
   instance) and AC-18's press-to-applied before and after are the orchestrator's A/B measurement,
   which is re-run on each new tip.
+- **K14. 0071's self-check leaves one `control_show_identity` row per apply** (review 3 sql:F3),
+  recorded by 0040's trigger for its throwaway production and attributed to the owner it used, as
+  0057's and 0060's do. db-push refuses a delete from a table the block does not write itself, so
+  the clean-up 0054 does would block the file. Unreadable by clients, never republished, cascades
+  with the account.
 
 ### The review of the finished diff (2026-09-30, before queueing)
 
@@ -306,6 +348,26 @@ A/B run. What each finding became:
 - **latency:L3, the queue's round trip.** Recorded: K11.
 - **latency:L4, the frame trigger's exception block.** Recorded: K12.
 - **latency:L5, smaller head-held costs.** (a) and (b) dropped per the skeptic; (c) is in K4.
+
+### The third review (2026-09-30, read-only, over 9b72891..dfd880a9c)
+
+Two verified majors, and minors. What each became:
+
+- **client:F1, multi-batch presses against a later press.** Fixed: the monitor leaves alone a
+  graphic pressed again since (D-t), and the server leaves it alone per graphic while the batch's
+  other graphics apply, the panic control keeping its order by a mark (D-x).
+- **client:F2, forced reports in bursts.** Fixed (D-y), client and server.
+- **client:F3, tail timeouts on protocol 2.** Recorded in K4; no automatic reload.
+- **client:F4, a re-join handed a leaving channel.** Fixed (D-w).
+- **sql:F1, the 1 s bound is per lock; a realtime.messages stall after the head drops frames.**
+  Recorded (D-a, K3); the proposed up-front lock of realtime.messages was not taken, because it
+  inverts the lock order old writers keep (the skeptic's verdict).
+- **sql:F2, the seq- write check searched for a string.** Fixed: 0068's allow-list in 0070 and
+  0071.
+- **sql:F3, a leftover identity row.** Recorded: K14.
+- **sql:F4, the self-check under a stall.** Not real (the skeptic's verdict).
+- **sql:F5, 0069 named 0070.** Fixed, and the topic lists in supabase/AGENTS.md and db-push.mjs
+  name `seq-`.
 
 ## What changed from v1, and why (one line each)
 
