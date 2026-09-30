@@ -1111,6 +1111,15 @@ export async function sendControlVerb(opts: {
   // above): the walk is fetching rows older than this press and a frame applied now would land
   // ahead of them.
   const fastRoad = !!showId && !recovering.has(showId);
+  // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
+  // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
+  const session = seqSessions.get(opts.slug);
+  const sender = session ? (opts.sender ?? pressSender(opts.slug, session, opts.items, !!opts.allOut)) : null;
+  // A batch numbered at an earlier press leaves this page's monitor alone on every graphic the page
+  // has pressed again since: that later press is what stands, on air and here (the server leaves
+  // it too, per graphic). Applied, the older batch put the graphic back on the monitor while air
+  // kept the later press, and nothing ever corrected it (review 3 client:F1).
+  const overtaken = (graphic: string) => !!sender && (newestPress.get(`${opts.slug}:${graphic}`) ?? 0) > sender.press;
   const wire: WireItem[] = [];
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
@@ -1133,7 +1142,7 @@ export async function sendControlVerb(opts: {
       held.push(key);
       slowUntil.set(key, now + SLOW_AFTER_EVENT_MS);
     }
-    if (rides) fast.push(stamped);
+    if (rides && !overtaken(item.graphic)) fast.push(stamped);
     wire.push(rides ? { ...stamped, fast: true } : stamped);
   }
   // THIS PAGE'S OWN MONITOR, before the round trip. It is applying commands it has not sent yet,
@@ -1144,10 +1153,6 @@ export async function sendControlVerb(opts: {
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
   const resend = { deadline: now + RESEND_WINDOW_MS, stillNewest: () => keys.every((key) => newestSend.get(key) === send) };
-  // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
-  // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
-  const session = seqSessions.get(opts.slug);
-  const sender = session ? (opts.sender ?? pressSender(session, opts.items, !!opts.allOut)) : null;
   const sent: VerbSent = { skipped: [], superseded: [] };
   try {
     if (session && sender) {
@@ -1187,19 +1192,29 @@ export async function sendControlVerb(opts: {
 /**
  * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; both lists are empty on protocol 1).
  * A caller that writes a picture after the answer (a chip, a cue marked on or off air) must not
- * write it for either list: what stands there is this page's LATER press, whose own handler has
- * already written it, and a write now would overwrite it with this older one (review ordering:F2).
+ * write it for either list (`leftAlone`): what stands there is this page's LATER press, whose own
+ * handler has already written it, and a write now would overwrite it with this older one.
  */
 export interface VerbSent {
-  /** Graphics an All out left alone because this page pressed them again since: still on air. */
+  /** Graphics the server left as this page's later press left them, the rest of the batch applied. */
   skipped: string[];
-  /** Graphics of a batch the server refused as superseded by this page's own later press. */
+  /** Graphics of a batch refused whole: this page pressed it before its own All out. */
   superseded: string[];
 }
 
+/** Every graphic a send left alone, for a caller about to write what the send changed. */
+export function leftAlone(sent: VerbSent): string[] {
+  return [...sent.skipped, ...sent.superseded];
+}
+
+/** Per control slug and graphic, the newest press number this page has given it. */
+const newestPress = new Map<string, number>();
+
 /** One batch's number and base, read now. */
-function pressSender(session: SeqSession, items: readonly ControlSendItem[], allOut: boolean): SenderBody {
-  return senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(items.map((item) => item.graphic))], allOut);
+function pressSender(slug: string, session: SeqSession, items: readonly ControlSendItem[], allOut: boolean): SenderBody {
+  const body = senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(items.map((item) => item.graphic))], allOut);
+  for (const graphic of Object.keys(body.base)) newestPress.set(`${slug}:${graphic}`, body.press);
+  return body;
 }
 
 /**
@@ -1216,7 +1231,7 @@ export async function sendControlVerbs(
 ): Promise<VerbSent> {
   const { batches, ...one } = opts;
   const session = seqSessions.get(one.slug);
-  const senders = batches.map((batch) => (session ? pressSender(session, batch, !!one.allOut) : null));
+  const senders = batches.map((batch) => (session ? pressSender(one.slug, session, batch, !!one.allOut) : null));
   const sent: VerbSent = { skipped: [], superseded: [] };
   let landed = 0;
   try {
@@ -1680,6 +1695,14 @@ async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void>
     return;
   }
   const ch = sb.channel(seqTopic(showId), { config: { private: true } });
+  // supabase-js hands back a channel of this topic that is still leaving (a join right after the
+  // last leave, on a connected socket that has not answered the leave yet), and subscribing it does
+  // nothing and never reports. Wait for it to go, and open a fresh one (review 3 client:F4).
+  if (ch.state !== 'closed') {
+    await sb.removeChannel(ch);
+    if (!state.closed) void openSeqTopic(showId, state);
+    return;
+  }
   state.channel = ch;
   ch.on('broadcast', { event: SEQ_BATCH_EVENT }, (frame: { payload?: unknown }) => {
     for (const user of [...state.users]) user.onBatch(frame.payload);

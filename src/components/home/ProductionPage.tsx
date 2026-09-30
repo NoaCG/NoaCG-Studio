@@ -189,6 +189,7 @@ import {
   verbAired,
   verbStale,
   verbsLanded,
+  leftAlone,
   withLiveCue,
   type ControlEventRow,
   type ControlFollowStatus,
@@ -2279,7 +2280,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const sent = await sendVerb([takeCueItems({ id: cue.id, graphic, values })], label);
     if (!sent.ok) return { ok: false, note: sent.note };
     // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
-    if (!sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cue.id));
+    if (!leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cue.id));
     clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
@@ -2370,7 +2371,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // that is now empty (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b).
     cancelCombines('Out');
     const sent = await runVerb([clearCueItems(selectedGraphic)], 'Out');
-    if (sent && !sent.superseded.includes(selectedGraphic)) setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
+    if (sent && !leftAlone(sent).includes(selectedGraphic)) setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
   };
 
   /**
@@ -2382,7 +2383,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!liveCue[graphic]) return;
     cancelCombines('Out');
     const sent = await runVerb([clearCueItems(graphic)], 'Out');
-    if (sent && !sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, null));
+    if (sent && !leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, null));
   };
 
   /** Remove one cue. When it is its graphic's LAST cue the graphic goes with it (shows.ts
@@ -2443,7 +2444,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     // A graphic this page pressed again while the All out was on its way stays as that later press
     // left it (the server skipped it, protocol 2), so it is not marked off here.
-    const off = cleared.filter((g) => !sent.skipped.includes(g) && !sent.superseded.includes(g));
+    const off = cleared.filter((g) => !leftAlone(sent).includes(g));
     setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
   };
   /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
@@ -2649,7 +2650,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const sent = await sendVerb([clearCueItems(m.graphic)], 'Out');
     if (!sent.ok) setNote(sent.note);
-    else if (!sent.superseded.includes(m.graphic)) setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
+    else if (!leftAlone(sent).includes(m.graphic)) setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
   };
   const takeFolder = async (folder: ShowFolder) => {
     const members = rundown.members.get(folder.id) ?? [];
@@ -2702,7 +2703,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cancelCombines('Out');
     const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
     if (!sent.ok) return sent.note;
-    const off = graphics.filter((g) => !sent.superseded.includes(g));
+    const off = graphics.filter((g) => !leftAlone(sent).includes(g));
     setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
     return null;
   };
@@ -3029,7 +3030,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // keeps the two in step, and a press that failed on the way to the log must not leave every
     // other bound graphic showing a figure this one never took.
     const sent = await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
-    if (sent && !sent.superseded.includes(selectedGraphic)) await patchBoundValues(tree);
+    if (sent && !leftAlone(sent).includes(selectedGraphic)) await patchBoundValues(tree);
   };
 
   /** Snap the live graphic straight to a state — recovery, never an animation. A null group
@@ -3232,7 +3233,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     void runVerb(commandBatches(steps), `“${control.name}”`).then((sent) => {
       if (!sent) return;
       for (const [graphic, cueId] of liveAfter) {
-        if (!sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cueId));
+        if (!leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cueId));
       }
       void patchBoundValues(tree);
     });

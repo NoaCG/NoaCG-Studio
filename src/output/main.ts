@@ -296,41 +296,70 @@ async function boot(): Promise<void> {
   const mergedData = new Map<string, Record<string, string>>();
   const lastReported = new Map<string, string>();
   const reportTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Reports due even if nothing about the graphic changed (a re-bank, below). */
+  /** Reports due even if nothing about the graphic changed (a re-bank, a republish; below). */
   const forcedReports = new Set<string>();
+  /** Reports due because something about the graphic changed. */
+  const changedReports = new Set<string>();
+  /**
+   * A FORCED REPORT IS NEVER URGENT, so it waits a random 1 to 21 s. Every renderer of a production
+   * applies the same rows, so after a republish, or a boot on baselines a busy feed has left behind,
+   * every renderer would report every graphic in the same second, and those rows used to count
+   * toward the production's 50-commands-in-5-s cap and refuse the operator's Takes (review 3
+   * client:F2). Spread, and dropped when another renderer banks the graphic first (`apply`), a
+   * production's re-banks become a trickle. A change still reports in 800 ms, as it always did.
+   */
+  const FORCED_SPREAD_MS = 20_000;
   const scheduleReport = (graphic: string, force = false) => {
-    if (force) forcedReports.add(graphic);
+    if (force) {
+      forcedReports.add(graphic);
+      // A change already on its way carries the bank with it.
+      if (changedReports.has(graphic)) return;
+    } else {
+      changedReports.add(graphic);
+    }
     clearTimeout(reportTimers.get(graphic));
     reportTimers.set(
       graphic,
-      setTimeout(() => {
-        const data = mergedData.get(graphic) ?? {};
-        const state = stage.states.get(graphic) ?? null;
-        // Byte-identical truth needs no second write (the 1 s state poll answers every second),
-        // unless the write is due for its baseline.
-        const key = JSON.stringify([data, state]);
-        const forced = forcedReports.delete(graphic);
-        if (!forced && key === lastReported.get(graphic)) return;
-        lastReported.set(graphic, key);
-        if (seqMode) bankedAt.set(graphic, lastAppliedSeq);
-        void (seqMode
-          ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
-          : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
-      }, 800),
+      setTimeout(
+        () => {
+          reportTimers.delete(graphic);
+          changedReports.delete(graphic);
+          const data = mergedData.get(graphic) ?? {};
+          const state = stage.states.get(graphic) ?? null;
+          // Byte-identical truth needs no second write (the 1 s state poll answers every second),
+          // unless the write is due for its baseline.
+          const key = JSON.stringify([data, state]);
+          const forced = forcedReports.delete(graphic);
+          if (!forced && key === lastReported.get(graphic)) return;
+          lastReported.set(graphic, key);
+          if (seqMode) banked(graphic);
+          void (seqMode
+            ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
+            : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
+        },
+        force ? 1_000 + Math.floor(Math.random() * FORCED_SPREAD_MS) : 800,
+      ),
     );
   };
   /**
-   * NO BASELINE GROWS OLD (protocol 2; review recovery:F1). A boot follows from the OLDEST
+   * NO BASELINE GROWS OLD (protocol 2; review 2 recovery:F1). A boot follows from the OLDEST
    * graphic's baseline, and a report is written only when a graphic changes, so a graphic taken
    * once and left alone (a bug, a logo) would hold every later boot of every renderer at its Take,
    * and a long show's reboot would read the whole retained log before painting. So every graphic
-   * that holds a report is reported again once this renderer has applied REBANK_AFTER numbered rows
-   * past its last one, changed or not: `lastAppliedSeq` is the contiguous cursor, so what it banks
-   * is a true baseline, and a reboot reads about REBANK_AFTER rows at most on top of its own gap.
+   * that holds a report is reported again once REBANK_AFTER COMMAND rows have been applied past its
+   * bank, changed or not: `lastAppliedSeq` is the contiguous cursor, so what it banks is a true
+   * baseline, and a reboot reads about REBANK_AFTER rows at most on top of its own gap. Report rows
+   * (`live`) do not count, or re-banks would feed themselves once renderers times graphics reached
+   * the threshold; and ANY renderer's report of a graphic is its bank, so one renderer banks it.
    */
   const REBANK_AFTER = 500;
-  /** Per graphic, the seq its last report banked (the resolve's, then this renderer's own). */
+  /** Per graphic that holds a report: the seq of its bank, and the command rows applied since. */
   const bankedAt = new Map<string, number>(seqMode ? snapshotAt : []);
+  const sinceBank = new Map<string, number>([...bankedAt.keys()].map((graphic) => [graphic, 0]));
+  const banked = (graphic: string, at = lastAppliedSeq) => {
+    bankedAt.set(graphic, at);
+    sinceBank.set(graphic, 0);
+  };
   stage.onState((graphic) => scheduleReport(graphic));
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
@@ -480,11 +509,27 @@ async function boot(): Promise<void> {
     // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
     if (seqMode) {
-      lastAppliedSeq = Math.max(lastAppliedSeq, row.seq ?? 0);
-      for (const [graphic, at] of bankedAt) {
-        if (lastAppliedSeq - at < REBANK_AFTER) continue;
-        bankedAt.set(graphic, lastAppliedSeq);
-        scheduleReport(graphic, true);
+      const seq = row.seq ?? 0;
+      lastAppliedSeq = Math.max(lastAppliedSeq, seq);
+      if (row.msg.t === 'live') {
+        // A renderer's report of this graphic, this one's or another's, is its bank; a forced
+        // report of it still waiting here is no longer needed (a change still reports).
+        banked(row.graphic, seq);
+        if (forcedReports.has(row.graphic) && !changedReports.has(row.graphic)) {
+          clearTimeout(reportTimers.get(row.graphic));
+          reportTimers.delete(row.graphic);
+          forcedReports.delete(row.graphic);
+        }
+      } else {
+        for (const [graphic, at] of bankedAt) {
+          // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
+          if (seq <= at) continue;
+          const since = (sinceBank.get(graphic) ?? 0) + 1;
+          sinceBank.set(graphic, since);
+          if (since < REBANK_AFTER) continue;
+          banked(graphic);
+          scheduleReport(graphic, true);
+        }
       }
     }
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
@@ -662,10 +707,11 @@ async function boot(): Promise<void> {
       onHole: () => live.hole(),
       // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
       // log numbered from 1, so no baseline this renderer holds means anything in it, and every
-      // graphic that carries something reports again, in the new log, once its first rows have
-      // applied (the report's 800 ms debounce): the republish emptied every report, and a graphic
-      // still up that the new log never touches would otherwise come back without it on a reboot.
-      // Without `reset` it is the first epoch of the log already followed.
+      // graphic that carries something reports again, in the new log, within the forced spread
+      // (and only once across every renderer: the first report banks it for all): the republish
+      // emptied every report, and a graphic still up that the new log never touches would
+      // otherwise come back without it on a reboot. Without `reset` it is the first epoch of the
+      // log already followed.
       onEpoch: (epoch, reset) => {
         followEpoch = epoch;
         if (!reset) return;
@@ -673,6 +719,7 @@ async function boot(): Promise<void> {
         lastAppliedSeq = 0;
         lastReported.clear();
         bankedAt.clear();
+        sinceBank.clear();
         for (const graphic of stage.graphics) {
           if (liveGraphics.has(graphic) || mergedData.has(graphic)) scheduleReport(graphic, true);
         }

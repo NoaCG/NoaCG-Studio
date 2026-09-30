@@ -104,8 +104,8 @@ async function openOperator(page: Page, hosted: string): Promise<Page> {
  * at 1.5 s and sends it again 0.4 s later (failedSends.ts), and that resend, let through, raced
  * the next press to the server, so which one landed first was up to the machine's load.
  * Fault-injected with the Out pressed 2.5 s after the Take, so the resend always leaves first:
- * holding only the first request, the late Take was answered as a duplicate (`ok: true`); holding
- * every attempt, as superseded.
+ * holding only the first request, the late Take was answered as a duplicate; holding every attempt,
+ * as the page's earlier press (then refused as superseded, now left out per graphic).
  */
 function holdNextPress(op: Page, release: Promise<void>): Promise<unknown> {
   return new Promise((resolveAnswer) => {
@@ -179,7 +179,7 @@ test('a press another screen overtook is refused, writes nothing, and the operat
   await wipeMyGraphics(page);
 });
 
-test('a Take held on its way arrives after the Out, is refused, and never airs', async ({ page }) => {
+test('a Take held on its way arrives after the Out, is left out, and never airs', async ({ page }) => {
   test.setTimeout(360_000);
   await signIn(page);
   await page.keyboard.press('Escape');
@@ -199,11 +199,11 @@ test('a Take held on its way arrives after the Out, is refused, and never airs',
   await expect(op.getByTestId('hosted-live-chip')).toContainText('nothing on air', { timeout: 30_000 });
   const afterOut = await head(page, hosted);
 
-  // The held Take reaches the server after the Out: it is the page's own EARLIER press, so it is
-  // superseded, and it writes nothing.
-  const answer = (await answered) as { ok?: boolean; refused?: string } | null;
-  expect(answer?.ok).toBe(false);
-  expect(answer?.refused).toBe('superseded');
+  // The held Take reaches the server after the Out: it is the page's own EARLIER press on the
+  // graphic, so the graphic is left as the Out left it (`skipped`), and it writes nothing.
+  const answer = (await answered) as { ok?: boolean; skipped?: string[] } | null;
+  expect(answer?.ok).toBe(true);
+  expect(answer?.skipped).toEqual([GRAPHIC]);
   expect(await rowsAfter(page, hosted, afterOut.seq)).toEqual(expect.not.arrayContaining([expect.objectContaining({ t: 'play' })]));
   expect((await head(page, hosted)).on).not.toBe(true);
 
@@ -219,34 +219,28 @@ test('a Take held on its way arrives after the Out, is refused, and never airs',
   await wipeMyGraphics(page);
 });
 
-// ONE PRESS, SEVERAL BATCHES (review ordering:F1): All out over five layers leaves as two batches,
-// and both are numbered and based at the press (hostedControl.ts `sendControlVerbs`). A Take the
-// operator makes while the first batch is on its way is therefore a LATER press than the second
-// batch, and the server leaves it on air. Driven through the page's own send module, so the numbers
-// are the page's; the graphics are names only (the send checks the verb, not the rundown).
-// Mutation-tested: numbered as each batch leaves, the second batch takes the re-Take off air.
-// The same module answers `superseded` for a press its own later press overtook (ordering:F2).
-test('an All out in two batches never undoes a Take pressed while it was on its way', async ({ page }) => {
-  test.setTimeout(240_000);
+// ONE PRESS, SEVERAL BATCHES (reviews 2 and 3). A verb that leaves as batches is numbered and
+// based at the press (hostedControl.ts `sendControlVerbs`), so a press the operator makes while an
+// earlier batch is on its way is LATER than the batches after it: the server leaves that graphic as
+// the later press left it (per graphic, `skipped`), the batch's other graphics still apply, and the
+// page's own monitor leaves it alone too. And nothing the page pressed before its own All out airs
+// after it (the panic mark). Driven through the page's own send module, so the numbers are the
+// page's; the graphics are names only (the send checks the verb, not the rundown).
+// Mutation-tested: numbered as each batch leaves, the All out's second batch took the re-Take off.
+test('a press of several batches never undoes a later press, and nothing pressed before All out airs after it', async ({ page }) => {
+  test.setTimeout(300_000);
   await signIn(page);
   await page.keyboard.press('Escape');
   test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
   await clearPublishedShows(page);
   const { hosted } = await publishScorebug(page, `Two Batches ${Date.now()}`);
   const op = await openOperator(page, hosted);
-  const layers = ['L1', 'L2', 'L3', 'L4', 'L5'];
-
-  // All five on air, as one press.
-  await op.evaluate(
-    async ({ slug, layers }) => {
-      const { sendControlVerb } = await import('/src/control/hostedControl.ts');
-      await sendControlVerb({ slug, showId: null, items: layers.map((graphic) => ({ graphic, msg: { t: 'play' as const } })) });
-    },
-    { slug: hosted, layers },
-  );
 
   /** Hold every attempt of the first send `matches` picks (by its press number) until the page
    *  calls `__releaseHeld()`, then deliver each to the server from here. */
+  type SendBody = { p_items?: { graphic?: string; msg?: { t?: string } }[]; p_sender?: { press?: unknown; all_out?: boolean } };
+  const releases: (() => void)[] = [];
+  await op.exposeFunction('__releaseHeld', () => releases.shift()?.());
   const holdFirst = async (matches: (body: SendBody) => boolean) => {
     let release!: () => void;
     const released = new Promise<void>((r) => (release = r));
@@ -259,44 +253,96 @@ test('an All out in two batches never undoes a Take pressed while it was on its 
       const response = await route.fetch().catch(() => null);
       if (response) await route.fulfill({ response }).catch(() => {});
     });
-    return release;
+    releases.push(release);
   };
-  type SendBody = { p_items?: { graphic?: string; msg?: { t?: string } }[]; p_sender?: { press?: unknown; all_out?: boolean } };
-  const releases: (() => void)[] = [];
-  await op.exposeFunction('__releaseHeld', () => releases.shift()?.());
+  const onAir = (graphics: string[]) =>
+    op.evaluate(
+      async ({ slug, graphics }) => {
+        const { sendControlVerbs } = await import('/src/control/hostedControl.ts');
+        const batches: { graphic: string; msg: { t: 'play' } }[][] = [];
+        for (let i = 0; i < graphics.length; i += 8) batches.push(graphics.slice(i, i + 8).map((graphic) => ({ graphic, msg: { t: 'play' } })));
+        await sendControlVerbs({ slug, showId: null, batches });
+      },
+      { slug: hosted, graphics },
+    );
 
-  // ── The All out's FIRST batch (the one carrying L1) is held; meanwhile the operator re-takes L5,
-  //    which is in the SECOND batch. ──
-  releases.push(await holdFirst((b) => b.p_sender?.all_out === true && !!b.p_items?.some((i) => i.graphic === 'L1')));
-  const first = await op.evaluate(
+  // ── A. All out over five layers leaves as two batches. The first is held; meanwhile the operator
+  //    re-takes L5, which is in the second. The page's monitor (an applyHere that records) and air
+  //    both keep L5. ──
+  const layers = ['L1', 'L2', 'L3', 'L4', 'L5'];
+  await onAir(layers);
+  await holdFirst((b) => b.p_sender?.all_out === true && !!b.p_items?.some((i) => i.graphic === 'L1'));
+  const a = await op.evaluate(
     async ({ slug, layers }) => {
       const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
+      const { getSupabase } = await import('/src/backend/supabase.ts');
+      const sb = await getSupabase();
+      const showId = ((await sb!.rpc('control_show_resolve', { p_slug: slug })).data as { id: string }).id;
       const w = window as unknown as { __releaseHeld: () => Promise<void> };
-      const allOut = sendControlVerbs({ slug, showId: null, batches: clearAllCueBatches(layers), allOut: true });
-      const retake = await sendControlVerb({ slug, showId: null, items: [{ graphic: 'L5', msg: { t: 'play' } }] });
+      const monitor: string[] = [];
+      const applyHere = (items: { graphic: string; msg: { t: string } }[]) => monitor.push(...items.map((i) => `${i.graphic}:${i.msg.t}`));
+      const allOut = sendControlVerbs({ slug, showId, batches: clearAllCueBatches(layers), allOut: true, applyHere });
+      const retake = await sendControlVerb({ slug, showId, items: [{ graphic: 'L5', msg: { t: 'play' } }], applyHere });
       await w.__releaseHeld();
-      return { retake, allOut: await allOut };
+      return { retake, allOut: await allOut, monitor };
     },
     { slug: hosted, layers },
   );
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  expect(first.allOut.skipped, 'the All out left the later Take alone').toEqual(['L5']);
-  expect(first.retake.superseded).toEqual([]);
+  expect(a.allOut.skipped, 'the All out left the later Take alone').toEqual(['L5']);
+  expect(a.monitor, 'the monitor took the re-Take').toContain('L5:play');
+  expect(a.monitor, 'the monitor never took the All out of L5 after it').not.toContain('L5:stop');
+  expect(a.monitor).toContain('L1:stop');
 
-  // ── A Take of L7 is held; an All out, which never queues, lands first. The Take then arrives
-  //    and is refused as superseded, and the send SAYS so, which is what keeps a page from
-  //    marking L7 on air after the All out already marked it off (review ordering:F2). ──
-  releases.push(await holdFirst((b) => !b.p_sender?.all_out && !!b.p_items?.some((i) => i.graphic === 'L7')));
-  const second = await op.evaluate(async ({ slug }) => {
+  // ── B. An Out of nine graphics (not All out) leaves as three batches. The first is held; the
+  //    operator re-takes M6, in the second. Only M6 stays: M5, M7, M8 and M9 go off (review 3
+  //    client:F1: the whole second batch used to be refused, losing three Outs). ──
+  const nine = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9'];
+  await onAir(nine);
+  await holdFirst((b) => !b.p_sender?.all_out && !!b.p_items?.some((i) => i.graphic === 'M1' && i.msg?.t === 'stop'));
+  const b = await op.evaluate(
+    async ({ slug, nine }) => {
+      const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
+      const w = window as unknown as { __releaseHeld: () => Promise<void> };
+      const out = sendControlVerbs({ slug, showId: null, batches: clearAllCueBatches(nine) });
+      const retake = await sendControlVerb({ slug, showId: null, items: [{ graphic: 'M6', msg: { t: 'play' } }] });
+      await w.__releaseHeld();
+      return { retake, out: await out };
+    },
+    { slug: hosted, nine },
+  );
+  await op.unrouteAll({ behavior: 'ignoreErrors' });
+  expect(b.out.skipped, 'the Out left only the re-taken graphic alone').toEqual(['M6']);
+  expect(b.out.superseded).toEqual([]);
+
+  // ── C. The panic control (review 2 ordering:F2). H is on air. A press on H is held; a press
+  //    {Take G, Update H} queues behind it; an All out of H, which never queues, lands first.
+  //    Both earlier presses then arrive and are refused whole: G never airs after the All out. ──
+  await onAir(['H']);
+  await holdFirst((b) => !b.p_sender?.all_out && b.p_items?.length === 1 && b.p_items[0].graphic === 'H');
+  const c = await op.evaluate(async ({ slug }) => {
     const { clearAllCueBatches, sendControlVerb, sendControlVerbs } = await import('/src/control/hostedControl.ts');
     const w = window as unknown as { __releaseHeld: () => Promise<void> };
-    const take = sendControlVerb({ slug, showId: null, items: [{ graphic: 'L7', msg: { t: 'play' } }] });
-    const allOut = await sendControlVerbs({ slug, showId: null, batches: clearAllCueBatches(['L7']), allOut: true });
+    const settle = (p: Promise<unknown>) => p.then((v) => v, (e: Error) => ({ error: e.message }));
+    const p4 = settle(sendControlVerb({ slug, showId: null, items: [{ graphic: 'H', msg: { t: 'update', data: { f0: 'p4' } } }] }));
+    const p5 = settle(
+      sendControlVerb({
+        slug,
+        showId: null,
+        items: [
+          { graphic: 'G', msg: { t: 'play' } },
+          { graphic: 'H', msg: { t: 'update', data: { f0: 'p5' } } },
+        ],
+      }),
+    );
+    const allOut = await sendControlVerbs({ slug, showId: null, batches: clearAllCueBatches(['H']), allOut: true });
     await w.__releaseHeld();
-    return { take: await take, allOut };
+    return { p4: await p4, p5: await p5, allOut };
   }, { slug: hosted });
   await op.unrouteAll({ behavior: 'ignoreErrors' });
-  expect(second.take.superseded, 'the held Take answered as superseded').toEqual(['L7']);
+  expect((c.p5 as { superseded?: string[] }).superseded, 'the press queued before the All out was refused whole').toEqual(
+    expect.arrayContaining(['G', 'H']),
+  );
 
   const heads = await page.evaluate(
     async ({ slug }) => {
@@ -307,8 +353,12 @@ test('an All out in two batches never undoes a Take pressed while it was on its 
     },
     { slug: hosted },
   );
-  expect(heads.L5?.on, 'the Take pressed during the All out stays on air').toBe(true);
-  for (const layer of ['L1', 'L2', 'L3', 'L4', 'L7']) expect(heads[layer]?.on, `${layer} went off`).toBe(false);
+  expect(heads.L5?.on, 'A: the Take pressed during the All out stays on air').toBe(true);
+  for (const g of ['L1', 'L2', 'L3', 'L4']) expect(heads[g]?.on, `A: ${g} went off`).toBe(false);
+  expect(heads.M6?.on, 'B: the re-taken graphic stays on air').toBe(true);
+  for (const g of ['M1', 'M2', 'M3', 'M4', 'M5', 'M7', 'M8', 'M9']) expect(heads[g]?.on, `B: ${g} went off`).toBe(false);
+  expect(heads.H?.on, 'C: the All out took H off').toBe(false);
+  expect(heads.G?.on ?? false, 'C: G never aired after the All out').toBe(false);
 
   await op.close();
   await clearPublishedShows(page);
