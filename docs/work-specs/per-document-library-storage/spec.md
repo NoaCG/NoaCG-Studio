@@ -71,7 +71,11 @@ small preferences in localStorage, and changing what syncs.
    key itself is left in place, read-only and no longer written, for one release, so a rolled-back
    deployment shows the library as it was at migration rather than an empty one. The release after
    deletes the list keys. The storage cost is one extra copy of the library for that release, which
-   is well inside a desktop quota (gigabytes).
+   is well inside a desktop quota (gigabytes). A rolled-back build WRITES that list key, so the
+   marker records a digest of the list string it split; at the next start of a newer build, a list
+   key whose digest no longer matches was written by an older build, and its records are merged in
+   again by `updatedAt`, newer wins, exactly as a first migration would. Without this, a roll
+   forward would hide every edit made while rolled back.
 3. **A diffing store first, call sites later.** Diffing whole lists inside the store gets the write
    volume down without touching those call sites; the stringify of each record remains, which the
    measurements decide whether to remove.
@@ -106,7 +110,8 @@ tries again at the next start.
 ### AC-3: A rolled-back build still shows the library
 
 After the migration, a build from before it opens the same profile and shows the library as it was
-at migration, not an empty one.
+at migration, not an empty one; a graphic edited there is still edited when a newer build opens the
+profile again.
 
 ### AC-4: A refused write rolls back only what it carried
 

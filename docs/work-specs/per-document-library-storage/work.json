@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "0994e14090e52bf05705218e373ba3ad92a2bdbdc524379b582b06b416fa16d6",
+  "specSha256": "5ccff490c032cd2d863c37bc68673c6f7aba9b60d00147a4f6bde6a0ef3e0c6d",
   "authority": {
     "status": "draft",
     "source": "the owner's ask of 2026-09-30 in docs/backlog/per-document-library-storage.md: a spec for per-document storage, after the Bridge connection; the derived decisions in the spec are open to his overrule"
