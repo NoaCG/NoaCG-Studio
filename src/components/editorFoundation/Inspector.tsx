@@ -8,6 +8,7 @@ import type { EditorOperation } from './operations';
 import ArtworkAppearance from './ArtworkAppearance';
 import AnimationProperties from './AnimationProperties';
 import type { RenderedPart } from './protocol';
+import { editTarget } from './animationAuthoring';
 interface Props {
   time: number;
   pause: () => void;
@@ -31,7 +32,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause }: Props) {
+function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]);
@@ -67,7 +68,11 @@ function Inspector({ view, template, selection, select, session, linked, setLink
         onClick={event => select(item.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>{item.label}<code>{item.selector}</code></button>)}
     </div> : <div className="ef-inspector-body">
       <h2>{part?.label ?? 'Graphic'}</h2>
-      {selection.length > 1 && <p>{selection.length} layers selected</p>}
+      {selection.length > 1 && <><p>{selection.length} layers selected</p>
+        {/* On a flag each layer can edit a different cue (G02): name where each edit lands. */}
+        {view.data && <ul className="ef-segment-targets" data-testid="segment-targets" aria-label="Where edits land">
+          {selection.map(selector => <li key={selector}>{view.parts.find(p => p.selector === selector)?.label ?? selector} · {editTarget(template, selector, time, session.port.view().cue)}</li>)}
+        </ul>}</>}
       {part ? <>
         {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
           <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} />

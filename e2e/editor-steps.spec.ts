@@ -78,8 +78,8 @@ type Run = { poses: Record<string, Pose>; held: Pose; visible: string[]; release
  * and Next is pressed at every flag; otherwise `nexts` Next cues are played and settled. Then Out,
  * sampled at `exit` seconds on its own clock.
  */
-async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS }:
-  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[] }): Promise<Run> {
+async function run(page: Page, built: Built, target: string, seconds: number[], { cues, nexts = seconds.length - 2, exit, layers = LAYERS, props = PROPS, root = '.fixture' }:
+  { cues?: Sample[][]; nexts?: number; exit: number[]; layers?: string[]; props?: string[]; root?: string }): Promise<Run> {
   const output = await page.context().newPage();
   await output.setViewportSize({ width: 1920, height: 1080 });
   if (built.html) await output.setContent(built.html);
@@ -98,7 +98,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       });
     } else await output.goto('http://step-package.local/' + Object.keys(files).find(n => n.endsWith('.html') && !n.includes('controlpanel')));
   }
-  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props }) => {
+  const result = await output.evaluate(async ({ target, seconds, cues, nexts, exit, layers, props, root }) => {
     type Tl = { pause(): void; time(t: number, s?: boolean): void; progress(p: number, s?: boolean): void; duration(): number };
     const w = window as unknown as Record<string, () => unknown> & { gsap: { getProperty(e: Element, p: string): number; globalTimeline: { getChildren(n: boolean, tw: boolean, tl: boolean): Tl[] } } };
     const element = document.querySelector('step-graphic') as HTMLElement & { playAction(p: unknown): Promise<unknown>; stopAction(p: unknown): Promise<unknown> };
@@ -113,9 +113,19 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
       if (!found) throw new Error(`No ${d} s timeline; found ${all().map(x => x.duration()).join(', ')} s`);
       return found;
     };
-    // Opacity as seen: a hidden layer reads 0 whether a bar hid it or a reveal pre-armed it.
-    const seen = (style: CSSStyleDeclaration) => style.visibility === 'hidden' || style.display === 'none' ? 0 : Number(style.opacity);
-    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(getComputedStyle(e))); });
+    // Opacity as seen: 0 for a layer a bar or a reveal hides, and scaled by how much of it its
+    // nearest clipping parent inside the graphic shows (a row waiting below its mask is hidden too).
+    const clipped = (e: Element) => {
+      const r = e.getBoundingClientRect();
+      for (let p = e.parentElement; p && !p.matches(root); p = p.parentElement) {
+        if (getComputedStyle(p).overflow === 'visible') continue;
+        const q = p.getBoundingClientRect(), w = Math.max(0, Math.min(r.right, q.right) - Math.max(r.left, q.left)), h = Math.max(0, Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top));
+        return r.width * r.height ? w * h / (r.width * r.height) : 1;
+      }
+      return 1;
+    };
+    const seen = (e: Element, style: CSSStyleDeclaration) => style.visibility === 'hidden' || style.display === 'none' ? 0 : Number(style.opacity) * clipped(e);
+    const pose = () => layers.flatMap(s => { const e = document.querySelector(s)!; return props.map(p => Number(w.gsap.getProperty(e, p))).concat(seen(e, getComputedStyle(e))); });
     const shown = (s: string) => { const style = getComputedStyle(document.querySelector(s)!); return style.visibility !== 'hidden' && style.display !== 'none' && Number(style.opacity) > 0; };
     const poses: Record<string, number[]> = {}, width = props.length + 1;
     await command('play');
@@ -138,7 +148,7 @@ async function run(page: Page, built: Built, target: string, seconds: number[], 
     const out = timeline(seconds[seconds.length - 1]); out.pause();
     const leaving = exit.map(t => { out.time(t, true); return pose(); });
     return { poses, held, visible, released, leaving };
-  }, { target, seconds, cues, nexts, exit, layers, props });
+  }, { target, seconds, cues, nexts, exit, layers, props, root });
   await output.close();
   return result;
 }
@@ -176,12 +186,16 @@ async function ruler(page: Page, target: string, pairs: { data: Data; built: Bui
   }));
 }
 const label = (p: number, props = PROPS) => LAYERS[Math.floor(p / (props.length + 1))] + ' ' + [...props, 'seen opacity'][p % (props.length + 1)];
-function same(actual: Record<string, Pose>, expected: Record<string, Pose>, what: string, tolerance = 1e-3) {
+function same(actual: Record<string, Pose>, expected: Record<string, Pose>, what: string, { tolerance = 1e-3, props = PROPS, layers = LAYERS } = {}) {
   expect.soft(Object.keys(actual).sort(), what + ': the same samples').toEqual(Object.keys(expected).sort());
   let worst = { error: 0, at: '' };
+  const width = props.length + 1;
   for (const [key, pose] of Object.entries(actual)) pose.forEach((v, p) => {
+    // A layer hidden on both sides shows none of its values: a join may start them from another value there.
+    const seen = p - p % width + width - 1;
+    if (p !== seen && pose[seen] === 0 && expected[key]?.[seen] === 0) return;
     const error = Math.abs(v - (expected[key]?.[p] ?? NaN)) - tolerance;
-    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: `${key} ${label(p)} ${v} vs ${expected[key]?.[p]}` };
+    if (!(error <= 0) && !(error <= worst.error)) worst = { error: Number.isNaN(error) ? Infinity : error, at: `${key} ${layers[Math.floor(p / width)]} ${[...props, 'seen opacity'][p % width]} ${v} vs ${expected[key]?.[p]}` };
   });
   expect.soft(worst, `${what}: ${worst.at} beyond ${tolerance} by ${worst.error}`).toEqual({ error: 0, at: '' });
 }
@@ -388,34 +402,38 @@ test('Add Step, rename, delete and drags are one undo each and survive save and 
 });
 
 test('flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing', async ({ page }) => {
-  await editorWith(page, fixture());
+  // Step 2 ends in settled air (its keys stop at 0.6 of 0.8), so Out can move into it (R1.2a.2).
+  const settled = fixture(); settled.steps[1].duration = 0.8;
+  await editorWith(page, settled);
+  // The Out flag drags as Set Out: two frames earlier, into that air, is one undo.
+  const start = await state(page);
+  await dragFlag(page, 'Out', -2); await ready(page);
+  expect((await data(page)).steps[1].duration).toBe(.7);
   const before = await state(page), alert = page.getByRole('alert').filter({ hasText: /frame/ });
-  // Step 2 sits at frame 24 between In (0) and Out (36). Held past Out, the flag shows the refusal.
-  const release = await dragFlag(page, 'Step 2', 13, true);
+  expect(before.history).toBe(start.history + 1);
+  // Step 2 sits at frame 24 between In (0) and Out (38). Held past Out, the flag shows the refusal.
+  const release = await dragFlag(page, 'Step 2', 15, true);
   await expect(flag(page, 'Step 2')).toHaveClass(/is-refused/); await expect(alert).toBeVisible();
   await release!(); await ready(page);
   expect(await state(page)).toEqual(before); await expect(alert).toBeVisible();
-  for (const frames of [12, -24, -30, 20]) { await dragFlag(page, 'Step 2', frames); expect(await state(page), `drag by ${frames}`).toEqual(before); }
+  for (const frames of [14, -24, -30, 20]) { await dragFlag(page, 'Step 2', frames); expect(await state(page), `drag by ${frames}`).toEqual(before); }
   // One frame before Out is the shortest legal cue.
-  await dragFlag(page, 'Step 2', 11); await ready(page);
+  await dragFlag(page, 'Step 2', 13); await ready(page);
   expect((await data(page)).steps[1].duration).toBe(.05);
   const shortest = await state(page);
   await flag(page, 'Step 2').focus(); await page.keyboard.press('ArrowRight');
   await expect(alert).toBeVisible(); expect(await state(page)).toEqual(shortest);
   // Add Step on a flag or after Out refuses beside its button.
   const add = page.getByRole('button', { name: 'Add Step at playhead', exact: true });
-  for (const [frames, reason] of [[35, /flag/], [0, /flag/], [40, /after Out/]] as const) {
+  for (const [frames, reason] of [[37, /flag/], [0, /flag/], [42, /after Out/]] as const) {
     await page.clock.resume(); await seekFrames(page, frames);
     await add.click();
     await expect(page.getByRole('alert').filter({ hasText: reason })).toBeVisible();
     expect(await state(page)).toEqual(shortest);
   }
-  // The Out flag drags as Set Out: later is one undo, earlier than the last Step refuses.
-  await dragFlag(page, 'Out', 5); await ready(page);
-  expect((await data(page)).steps[1].duration).toBe(.3);
-  const later = await state(page); expect(later.history).toBe(shortest.history + 1);
-  await dragFlag(page, 'Out', -8);
-  expect(await state(page)).toEqual(later);
+  // Out never moves onto or before the last Step.
+  await dragFlag(page, 'Out', -3);
+  expect(await state(page)).toEqual(shortest);
 });
 
 test('at a flag an existing layer keys the arriving end and a layer starting there its departing start', async ({ page }) => {
@@ -453,6 +471,17 @@ test('at a flag an existing layer keys the arriving end and a layer starting the
   await flag(page, 'Step 2').click(); await ready(page);
   expect(await hidden()).toBe('visible');
   await expect(page.getByTestId('segment-targets')).not.toContainText('In end');
+});
+
+test('a flag drag the runtime cannot play shows its reason while held and changes nothing', async ({ page }) => {
+  await editorWith(page, fixture());
+  const before = await state(page), reason = page.getByRole('alert').filter({ hasText: /cross an Out key/ });
+  // Out keeps its keys at their absolute times (R1.2a.1), so moving it later would put the box's
+  // first Out key before Out.
+  const release = await dragFlag(page, 'Out', 5, true);
+  await expect(flag(page, 'Out')).toHaveClass(/is-refused/); await expect(reason).toBeVisible();
+  await release!(); await ready(page);
+  expect(await state(page)).toEqual(before); await expect(reason).toBeVisible();
 });
 
 async function editorPose(page: Page) {
@@ -499,10 +528,10 @@ test('card26 keeps its reveals appearing where they did when a step is added, de
     const points = [...new Set([...grid(total, .05), ...flagsOf(d), ...flagsOf(nd)].map(p => Math.round(p * 1e6) / 1e6))].sort((a, b) => a - b);
     const exit = grid(secondsOf(d).slice(-1)[0], .05);
     const [a, b] = await Promise.all([[nd, next], [d, t]].map(async ([data, template]) => {
-      const walked = await run(page, await build(page, template, 'simulator'), 'simulator', secondsOf(data as Data), { cues: plan(data as Data, points), exit, layers: rows, props });
+      const walked = await run(page, await build(page, template, 'simulator'), 'simulator', secondsOf(data as Data), { cues: plan(data as Data, points), exit, layers: rows, props, root: (data as Data).root });
       return { ...walked.poses, ...Object.fromEntries(walked.leaving.map((pose, i) => ['out:' + exit[i], pose])) };
     }));
-    same(a, b, what);
+    same(a, b, what, { props, layers: rows });
   };
   void built;
   // Add Step inside the reveal of #f2 (Step 3): it still appears with Step 3.

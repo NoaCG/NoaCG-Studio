@@ -42,10 +42,11 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   views.set(template, view);
   return view;
 }
-/** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */
+/** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. A flag
+ *  is a sum of cue lengths, a float step off its frame, so it is read within a microsecond. */
 export function segmentAt(segments: Segment[], time: number, cue?: number): { step: number; time: number } {
   if (cue !== undefined && segments[cue]) return { step: cue, time: Math.max(0, time - segments[cue].start) };
-  const segment = segments.find(s => time <= s.start + s.duration) ?? segments[segments.length - 1];
+  const segment = segments.find(s => time <= s.start + s.duration + 1e-6) ?? segments[segments.length - 1];
   return segment ? { step: segment.index, time: Math.max(0, Math.min(segment.duration, time - segment.start)) }
     : { step: 0, time: 0 };
 }

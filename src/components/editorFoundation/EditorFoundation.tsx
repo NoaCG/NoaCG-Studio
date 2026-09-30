@@ -61,6 +61,8 @@ export default function EditorFoundation() {
   };
   const parkOut = () => { preview.current?.stopExit(); seek(readTimeline(session.port.read()).out); };
   const inspectOut = () => { pause(); preview.current?.stopExit(); seek(view.out, view.segments.length - 1); };
+  // A Step flag's click shows the cue it starts at its start, the explicit departing side (G02).
+  const inspectStep = (index: number) => { pause(); preview.current?.stopExit(); seek(view.segments[index].start, index); };
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !editorShortcutsLive(event.target) || activatableFocus()) return;
@@ -132,7 +134,7 @@ export default function EditorFoundation() {
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} />
       <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} />
     </div>
-    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut}
+    <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
     <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;

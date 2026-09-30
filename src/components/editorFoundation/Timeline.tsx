@@ -3,7 +3,8 @@ import type { KeyRef } from '../../blocks/animEdit';
 import type { TimelineView } from './timelineView';
 import type { EditorSession } from './session';
 import LayerBar from './LayerBar';
-import OutControls from './OutControls';
+import OutControls, { type OutHandle } from './OutControls';
+import StepFlag, { AddStep } from './StepFlag';
 import KeyEase, { type KeyMenu } from './KeyEase';
 import { addKeys, keyId, layerKeys, liveKeys, toggleKeys } from './keySelection';
 
@@ -16,9 +17,9 @@ interface Props {
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
   playing: boolean; togglePlayback: () => void;
   session: EditorSession; pause: () => void;
-  inspectOut: () => void; playOut: () => void; parkOut: () => void;
+  inspectOut: () => void; playOut: () => void; parkOut: () => void; inspectStep: (index: number) => void;
 }
-export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut }: Props) {
+export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   // Key selection and the properties shown under each layer are editor UI state only.
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -34,6 +35,11 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const [menu, setMenu] = useState<KeyMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const out = useRef<OutHandle>(null);
+  // A dragged flag is drawn to the playhead, keys and bar edges near it.
+  const snaps = useMemo(() => [time, ...view.bars.flatMap(bar => [bar.start, bar.end]), ...(view.data?.steps ?? []).flatMap((step, i) =>
+    Object.values(step.layers).flatMap(tracks => Object.values(tracks).flatMap(list => list.map(key => (view.segments[i]?.start ?? 0) + key.time / view.data!.speed))))], [time, view]);
+  const cue = session.port.view().cue;
   const dragging = useRef<Marquee | null>(null);
   const ruler = useRef<HTMLDivElement>(null);
   const tracks = useRef<HTMLDivElement>(null);
@@ -156,7 +162,8 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       <output data-testid="foundation-clock">{display(time)}</output>
       <span className="ef-muted">{Math.round(time * fps)} frames</span>
       <span className="ef-spacer" />
-      <OutControls session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />
+      <AddStep session={session} view={view} time={time} pause={pause} seek={seek} />
+      <OutControls ref={out} session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />
       <label>Ruler <select aria-label="Ruler units" value={units} onChange={event => setUnits(event.target.value as typeof units)}>
         <option value="seconds">Seconds</option><option value="frames">Frames</option>
       </select></label>
@@ -165,7 +172,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     <div className="ef-track-scroll" ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
       onPointerCancel={cancelMarquee} onLostPointerCapture={cancelMarquee}>
       <div className="ef-ruler-row"><span className="ef-layer-heading">Layers</span>
-        <div ref={ruler} className="ef-ruler" role="slider" aria-label="Playhead" tabIndex={0}
+        <div ref={ruler} className="ef-ruler" role="slider" aria-label="Playhead" tabIndex={0} data-extent={extent}
           aria-valuemin={0} aria-valuemax={limit} aria-valuenow={time} aria-valuetext={display(time)}
           aria-disabled={!!view.reason} data-testid="foundation-ruler"
           onPointerDown={event => {
@@ -185,9 +192,10 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
           {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
-          {view.segments.filter(s => !s.out).map(s => <span className="ef-flag" key={s.index}
-            style={{ left: s.start / extent * 100 + '%' }}>{s.name}</span>)}
-          <span className="ef-flag ef-out" style={{ left: view.out / extent * 100 + '%' }}>Out · hold</span>
+          <span className="ef-flag" style={{ left: 0 }}>In</span>
+          {!view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} kind={s.out ? 'out' : 'step'} label={s.out ? 'Out · hold' : s.name}
+            view={view} extent={extent} fps={fps} snaps={snaps} selected={cue === s.index} session={session} pause={pause} display={display}
+            inspect={s.out ? inspectOut : () => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
           <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
         </div>
       </div>
@@ -225,6 +233,6 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0) }} />}
       {!view.parts.length && <p className="ef-notice">No addressable layers in this source.</p>}
     </div>
-    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Body: move keys · Edges: trim visibility · Alt: bypass snap · Drag empty lane: select keys · Right-click key: ease</span></div>
+    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Body: move keys · Edges: trim visibility · Alt: bypass snap · Drag empty lane: select keys · Right-click key: ease · Flag: drag, double-click to rename</span></div>
   </section>;
 }

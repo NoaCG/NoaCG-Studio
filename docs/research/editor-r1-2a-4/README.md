@@ -55,15 +55,21 @@ within half a stored unit).
   that cue up to the frame and a new cue after it. **On a flag** (In at zero included) it refuses
   as a duplicate flag, **at or after Out** as a Step after Out, and within a frame of a flag as too
   short.
-- **Keys keep their absolute times.** A track with a key after the split keeps a key there: the
-  one already there (**on a key**), an exact split (`splitKeyframeSegment`, R1.2a.1), or, before
-  its first key, a key holding that first value, which the runtime already applies from the cue
-  start. Keys after the split move into the new cue at `t - b`, after a copy of the value at the
-  split at time 0. Tracks with nothing after the split stay. **Inside a held segment** (a flat
-  segment, a Hold or a jump) both halves keep the form; the split is exact. Anything without an
-  exact split refuses the whole operation with the reason naming the layer and property: stepped
-  or unknown eases, a split value outside the property's range, stored precision, a string track
-  that would need a split, keys stored past the cue's end.
+- **Keys keep their absolute times.** A track with a key after the split meets it one of four
+  ways. **On a key**: the key stays and the new cue starts from a copy of it. **Inside an eased,
+  Hold or jump segment**: an exact split (`splitKeyframeSegment`, R1.2a.1) writes a key there whose
+  own ease says what it is (a slice of the curve, the Hold or the jump it halved), and the new cue
+  starts from a copy. **Inside a flat segment**: no key is needed on either side, the cue holds
+  the value and the next key holds it back to the new cue's start. **Before its first key**: the
+  cue keeps a key holding that first value, which the runtime applies from the cue start, and the
+  new cue needs no copy. A key at the split is left out of the cut cue where that cue shows its
+  value anyway: the key before holds the same value, the layer is hidden through the cut cue, or
+  the cue already starts with that value (GSAP's identity for an unkeyed transform); the new cue's
+  copy then carries its ease. Keys after the split move into the new cue at `t - b`; tracks with
+  nothing after it stay. Anything without an exact split refuses the whole operation with the
+  reason naming the layer and property: stepped or unknown eases, a split value outside the
+  property's range or not storable at 3 decimals, a string track that would need a split, keys
+  stored past the cue's end.
 - **Eases.** The new cue takes the split cue's default ease, so moved keys keep their own eases
   unchanged. Where a key moves between cues whose default eases differ (Delete and flag
   drags below), it takes an explicit ease, its own or its old cue's default, as in R1.2a.1.
@@ -82,34 +88,42 @@ within half a stored unit).
 ### Delete a Step
 
 - Deleting a Step flag joins its cue into the cue before: keys and bars at `t + b`, touching bars
-  one bar. What the join makes redundant at the old flag is removed, so **Add Step then Delete is
-  byte-identical to the original**: the Step cue's first key where it equals the value the cue
-  before ends on, a key that only splits one curve (two slices of one ease that rejoin; the flat,
-  Hold and jump forms of a split), and a leading key that only holds the value of the next one.
-  A rejoined ease equal to the joined cue's default is written as the default, which is how a
-  split of a key without its own ease rejoins; an explicit ease equal to its cue's default
-  therefore normalizes to the default, which plays the same.
+  one bar. The join removes exactly what a split writes at the flag, so **Add Step then Delete is
+  byte-identical to the original**: the Step cue's copy of the value the cue before ends on, a key
+  the split wrote (recognized by its own ease: two slices of one curve that rejoin, or a Hold or
+  jump half), and a key only holding a first value from the cue start. A key without its own ease
+  that the author wrote at that moment stays. A rejoined ease equal to the joined cue's default is
+  written as the default, which is how a split of a key without its own ease rejoins; an explicit
+  ease equal to its cue's default therefore normalizes to the default, which plays the same.
 - **Eases.** When the two cues' default eases differ, each moved key takes an explicit ease (its
   own, else the deleted cue's default), as in R1.2a.1.
 - **Refusals** (source and history unchanged, reason beside the control): a track whose Step-cue
   value jumps at the flag (its first value differs from the value it holds at the end of the cue
-  before), since a joined cue has no instant jump to keep it; keys stored past either cue's end.
+  before), since a joined cue has no instant jump to keep it; a track that begins with the Step
+  while the layer is on screen before it showing another value (the joined cue would apply the
+  Step's first value from its start; a hidden layer shows nothing, and an unkeyed opacity or other
+  CSS value is unknown to the data, so it counts as different); keys stored past either cue's end.
 - **Bars.** A layer with bars in only one of the two cues keeps its visibility over the other
   part: through the deleted cue when a bar reaches the flag, through the cue before when the layer
   is visible entering it.
 - **Legacy visibility.** The deleted cue's `hides` move to the joined cue (same end). A legacy
   hide on the cue before refuses: it would leave later. A layer that appears with the deleted
-  Step through a legacy reveal first gets explicit bars in every cue, the same conversion a bar
-  move makes (`moveLayerSpan`), so it still appears at its absolute time; its reveal marker moves
-  to the joined cue, where Out's reveal checks and the fade of a revealed layer outside the root
-  keep working. A reveal without keys of its own in its cue refuses (the runtime pre-hides such a
-  layer by opacity and never shows it; bars would show it).
+  Step through a legacy reveal first gets explicit bars in every cue before Out, the conversion a
+  bar move makes (`moveLayerSpan`), so it still appears at its absolute time and Out keeps what it
+  had. Its reveal marker moves to the joined cue, where Out's reveal checks and the fade of a
+  revealed layer outside the root keep working. Joined into In, which has no reveal, the marker
+  goes: that is exact only for a layer inside the root, whose hide clears it at the end of Out, so
+  a layer the document cannot place inside the root refuses. A reveal without keys of its own in
+  its cue refuses (the runtime pre-hides such a layer by opacity and never shows it; bars would).
 
 ### Flag drags and nudges
 
 - A Step flag drag is Delete at the old flag then Add Step at the new frame, as one operation, the
   new cue keeping the dragged cue's name and default ease; keys and bars keep their absolute
-  times, so playback on the ruler is unchanged and a drag and its reverse restore the source.
+  times, so playback on the ruler is unchanged. Because the join removes only what a split wrote
+  and a split leaves out a key its cue does not need, a drag and its reverse restore the source
+  (checked on every legal frame of the fixture); where two cues' default eases differ, moved keys
+  keep the explicit eases the join gave them.
   The Out flag drag is Set Out at the dropped frame (R1.2a.1, including the R1.2a.2 guard and the
   reverse/manual prompt when the exit has no keys).
 - Flags snap to frames, and within a few pixels to the playhead, keys and bar edges that sit on a
