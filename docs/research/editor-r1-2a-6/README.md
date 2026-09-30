@@ -32,8 +32,8 @@ and asked `animationTarget` about every timeline layer (`getTemplateParts`, 2813
 - **354 layers in 129 designs refuse with the channel refusal**: 330 animate `yPercent` (the text
   rows' mask reveals, among them 8 whose track lives under a class naming the same element, such
   as House Question's `.audience-question` for `#f1`), and 24 panels animate `scale` (with `y`
-  and `opacity`: Frosted Panel, Frosted Card, Slab Bug and 21 more). By category: lower thirds 51,
-  info cards 51, frames 9, corner bugs 7, audience 8, public info 2, alert 1. Clean Steps (card26)
+  and `opacity`: Frosted Panel, Frosted Card, Slab Bug and 21 more). The 129 designs by category:
+  lower thirds 51, info cards 51, frames 9, audience 8, corner bugs 7, public info 2, alert 1. Clean Steps (card26)
   refuses all five rows, and card27 to card29, the other multi-step designs, refuse theirs.
 - The rest: 528 roots (owned by playback, unchanged), 1035 layers in the 270 designs with
   machines, calls, measured motion or loops (unchanged, R1.2c and later), and 896 layers that
@@ -48,7 +48,8 @@ and asked `animationTarget` about every timeline layer (`getTemplateParts`, 2813
 - The inspector's Position Y on a `yPercent` row reads the base and `y` only. During a reveal it
   shows the resting Layout offset while the canvas draws the row 110% of its height lower.
 
-The browser spec `e2e/editor-transforms.spec.ts` is written first and queued on the unmodified code.
+The browser spec `e2e/editor-transforms.spec.ts` was written first and queued on the unmodified
+code (j-2706, from a snapshot worktree): 7 of 7 tests failed where expected (see the receipt).
 
 ## Decisions
 
@@ -128,6 +129,23 @@ Source and history stay byte-identical and the reason shows beside the control:
   / `base` state counts every channel of the control.
 - A flag edit on the departing side (G02) starts from that cue's own values in every channel.
 
+### Limits
+
+Recorded rather than changed here:
+
+- **A percent follows its layer's box.** A `yPercent` key written from a canvas drag is the
+  distance dragged at the text shown; with longer or shorter text the same key is a different
+  number of pixels. That is what the source says, and it is why a percent is never baked into a
+  pixel base except where it is 0.
+- **Inline catalog lines have no base placement.** House Question's `#f1` is an inline span, which
+  base placement does not support, so it shows no Transform fields and no canvas drag, as before.
+  Its bar, keys and Opacity edit through its owner.
+- **A panel whose exit ends with Out cannot move its bar.** The 24 `scale` panels keep keys at
+  the start of In and the end of Out, so a bar move either way refuses by R1.2a.5's rule that a move
+  never lengthens Out or starts before In. Their keys, trims and Scale edit.
+- **One animated scale axis.** A layer that animates only `scaleX` (an accent line) still refuses
+  base scale on its other axis (R1.1a), so a linked corner drag there refuses as before.
+
 ## Acceptance
 
 | Portion | Observable result | Refusal (source and history byte-identical, reason beside the control) |
@@ -142,7 +160,7 @@ Source and history stay byte-identical and the reason shows beside the control:
 
 ### Existing assertions this decision changes
 
-None known before the regressions run; each one found is named here with its reason.
+None. The editor regressions, anim-engine and inspector pass unchanged.
 
 ## Verification plan
 
@@ -160,3 +178,32 @@ regressions (cross-cue, steps, out-step, key-ease, ease, out, keys, fidelity-tri
 usability, foundation, alpha-entry), anim-engine and inspector, the full affected run, build,
 `/check`, `/queue-merge` and the deployed `/version.json`. The interpreter does not change, so the
 catalog JS fingerprints, battery and taste frames are not re-run unless it does.
+
+## Implementation
+
+- [editorAnimation.ts](../../../src/blocks/editorAnimation.ts): `CONTROL_CHANNELS` names each
+  control's channels; `armedChannels`, `isArmed` and `writeChannel` read them on the layer's owner
+  (the pixel or per-axis channel first) and refuse a raw transform or two tracks on one control;
+  `channelValue` reads a pose as the runtime reports it. `layerOwner` (pure, over a `names`
+  function) and `trackOwner` (over the template's document) find the owner. `animateLayer` is the
+  pure data half of `animation.key`, `layer.move` and `layer.trim`: `set` writes only the channel
+  its control writes, `remove` and `disable` act on every channel of a control and return the
+  controls whose motion they ended, a percent is kept only where it is 0, and `autoAlpha` bars
+  refuse. `applyAnimation` resolves the owner, runs it, and keeps the ended controls' displayed
+  pose as the base, as before. The blanket channel refusal in `animationTarget` is gone.
+- [animationAuthoring.ts](../../../src/components/editorFoundation/animationAuthoring.ts):
+  `displayedBase` adds the percent channel as a distance (`percentOffset`), `nativeValue` is its
+  inverse per channel, and `authoredTransform` keys each armed control's own channel, refusing a
+  change to one axis of a shared `scale` track. A flag edit on the departing side reads every
+  channel (`channelValue`).
+- [runtime.ts](../../../src/components/editorFoundation/runtime.ts) reports `xPercent`, `yPercent`
+  and the layer's border box (`percentBox`) with each pose;
+  [timelineView.ts](../../../src/components/editorFoundation/timelineView.ts) records each layer's
+  owner, whose bars and keys the timeline draws;
+  [Timeline.tsx](../../../src/components/editorFoundation/Timeline.tsx) names the new property rows;
+  [AnimationProperties.tsx](../../../src/components/editorFoundation/AnimationProperties.tsx),
+  [ArtworkAppearance.tsx](../../../src/components/editorFoundation/ArtworkAppearance.tsx) and
+  [useArtworkGesture.ts](../../../src/components/editorFoundation/useArtworkGesture.ts) key through
+  the adapter.
+- Tests: [full-transforms.test.mjs](../../../scripts/full-transforms.test.mjs) (build gate, 8 tests)
+  and [editor-transforms.spec.ts](../../../e2e/editor-transforms.spec.ts) (7 tests).

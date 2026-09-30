@@ -97,6 +97,7 @@ async function drag(page: Page, selector: string, dx: number, dy: number, { shif
 }
 /** A bar body dragged by `frames` on the ruler. */
 async function dragBar(page: Page, bar: ReturnType<Page['locator']>, frames: number, fps: number) {
+  await bar.scrollIntoViewIfNeeded();
   const ruler = page.getByRole('slider', { name: 'Playhead' });
   const box = (await ruler.boundingBox())!, extent = Number(await ruler.getAttribute('data-extent'));
   const at = (await bar.boundingBox())!, x = at.x + Math.min(12, at.width / 2), y = at.y + at.height / 2;
@@ -290,14 +291,15 @@ test('House Question: #f1 shows and moves the motion stored under .audience-ques
   expect(untouched(moved, ['.audience-question'])).toBe(untouched(before, ['.audience-question']));
   expect(await history(page)).toBe(steps + 1);
   await undo(page); expect(await source(page)).toEqual(original);
-  // Position Y reads and keys the owner's yPercent during the reveal.
+  // A key on #f1 is its owner's. (The inline line has no supported base placement, so its
+  // Transform fields stay hidden as before; Opacity keys it.)
   await seekFrames(page, Math.round(.6 * t.fps), t.fps);
   await select(page, '#f1');
-  const shown = Number(await (await field(page, 'Layout offset Y')).inputValue());
-  await type(page, 'Layout offset Y', shown + 5); await ready(page);
+  await page.getByRole('button', { name: 'Enable Opacity animation', exact: true }).click(); await ready(page);
   const keyed = await data(page), at = Math.round(.6 * t.fps) / t.fps * keyed.speed;
-  expect(keyed.steps[0].layers['.audience-question'].yPercent.some(k => near(k.time, at))).toBe(true);
+  expect(keyed.steps[0].layers['.audience-question'].opacity).toEqual([{ time: at, value: 1 }]);
   expect(keyed.steps.some(s => s.layers['#f1'])).toBe(false);
+  await expect(row.locator('.ef-timeline-key')).toHaveCount(3);
   await undo(page); expect(await source(page)).toEqual(original);
 });
 
@@ -359,10 +361,11 @@ test('refusals: a raw transform, a selector naming several layers or two naming 
   // Opacity on that layer keys autoAlpha at the playhead.
   await seekFrames(page, 10, 25);
   await select(page, alpha);
-  await page.getByRole('spinbutton', { name: /Opacity %/ }).fill('40');
+  // (autoAlpha is 0.4 here already, so a different value.)
+  await page.getByRole('spinbutton', { name: /Opacity %/ }).fill('70');
   await page.getByRole('spinbutton', { name: /Opacity %/ }).press('Enter'); await ready(page);
   const faded = (await data(page)).steps[0].layers[alpha];
-  expect(faded.autoAlpha).toEqual([{ time: 0, value: 0 }, { time: .4, value: .4 }, { time: 1, value: 1 }]);
+  expect(faded.autoAlpha).toEqual([{ time: 0, value: 0 }, { time: .4, value: .7 }, { time: 1, value: 1 }]);
   expect(faded.opacity).toBeUndefined();
   expect(await history(page)).toBe(steps + 1);
 });
@@ -388,23 +391,24 @@ test('Clean Steps: a row\'s bar across a Step flag, trim, key move, key ease, Ad
   await redo(page); expect(await data(page)).toEqual(moved);
   const barMoved = await source(page);
 
-  // The rest through the registry, each one transaction.
+  // Trim, key move and key ease through the registry, Add Step (inside Step 4's reveal) and Set Out
+  // (0.64 s later) through their buttons: each one transaction.
   const execute = (operation: unknown) => page.evaluate(async operation => {
     const session = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [operation as never] });
   }, operation);
-  const edits = [
-    { kind: 'layer.trim', selector: '#f2', step: 2, interval: 0, edge: 'end', time: before.steps[2].duration - 2 / fps * moved.speed },
-    { kind: 'key.move', keys: [{ step: 0, selector: '#f0', property: 'yPercent', time: .5 }], delta: 2 / fps * moved.speed },
-    { kind: 'key.ease', keys: [{ step: 0, selector: '#f0', property: 'yPercent', time: 1.2 }], preset: 'easeIn' },
-    { kind: 'step.add', time: 1.2 + .45 + .45 + .3 },
-    { kind: 'out.set', time: 1.2 + .45 * 4 + .45 + .2 },
+  const edits: [string, () => Promise<unknown>][] = [
+    ['trim', () => execute({ kind: 'layer.trim', selector: '#f2', step: 2, interval: 0, edge: 'end', time: before.steps[2].duration - 2 / fps * moved.speed })],
+    ['key move', () => execute({ kind: 'key.move', keys: [{ step: 0, selector: '#f0', property: 'yPercent', time: .5 }], delta: 2 / fps * moved.speed })],
+    ['key ease', () => execute({ kind: 'key.ease', keys: [{ step: 0, selector: '#f0', property: 'yPercent', time: 1.2 }], preset: 'easeIn' })],
+    ['Add Step', async () => { await seekFrames(page, Math.round(2.4 * fps), fps); await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click(); }],
+    ['Set Out', async () => { await seekFrames(page, Math.round(3.64 * fps), fps); await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click(); }],
   ];
-  for (const edit of edits) {
+  for (const [name, edit] of edits) {
     const at = await history(page), prior = await source(page);
-    await execute(edit); await ready(page);
-    expect(await history(page), JSON.stringify(edit)).toBe(at + 1);
-    expect((await source(page)).js, JSON.stringify(edit)).not.toBe(prior.js);
+    await edit(); await ready(page);
+    expect(await history(page), name).toBe(at + 1);
+    expect((await source(page)).js, name).not.toBe(prior.js);
   }
   const edited = await source(page);
   for (let i = 0; i < edits.length; i++) await undo(page);

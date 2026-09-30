@@ -18,7 +18,7 @@ ownership. Those planning refinements are not product passes. The R1.0 implement
 |---|---|---|---|
 | B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | R1.0 foundation and R1.1a core locally verified; owner/two-user and full gallery task remain open |
 | B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | R1.0 selection and the R1.1a follow-up marquee/multi-object movement/same-parent reorder are locally verified; full task remains open |
-| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | R1.1a position/basic scale core locally verified; rotation, armed edits and full transform composition remain open |
+| B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | R1.1a position/basic scale core locally verified; R1.2a.6 keys the catalog's own channels (yPercent, scale, autoAlpha, aliased layers) through the D03 adapter with numeric and canvas agreement; rotation and physical-device acceptance remain open |
 | B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Creation and basic content/font/colour/opacity/structural edits locally verified in the artwork follow-up; rich typography, assets, Pen, alignment/grouping and full E05-E07 remain open |
 | B05 | Animate title X -80 to 0 in 1 s; opacity 0 to 1 in 0.3 s; set the starting X key to Easy Ease Out; move end to 0.8 s; scrub both ways, undo/redo, save/reopen and play export | R1.1-R1.2 | Unverified for the replacement editor |
 | B06 | Marquee/Ctrl/Cmd/Shift-select keys across rows; dropdown/right-click parity for Linear/Ease/Bounce/Overshoot/Hold, mixed selection and atomic refusal; select two X keys, retime together, nudge one frame, snap/bypass, copy/paste; occupied target refuses atomically; explicit cross-cue moves preserve source ownership. Set outgoing Hold on the first key and sample immediately before/at the following key; opacity unchanged | R1.2 | Unverified for the replacement editor |
@@ -387,6 +387,20 @@ departing cue at zero (G02). The owner's 2026-09-30 one-key Out hold is in the i
 D02, G02 and the Step portions of B05/B13 gain scoped engineering evidence; cross-cue key moves
 and Set Out crossing from a Next cue (R1.2a.5) remain open. No whole row is closed and the default
 editor is unchanged.
+
+## R1.2a.6 scoped full-transforms receipt, 2026-09-30
+
+The [bounded spec, reproduction and verification](editor-r1-2a-6/README.md) lift the blanket
+"another source channel" refusal, which blocked 354 layers in 129 catalog designs. Each control
+now reads the runtime's own tracks and writes back in their units (D03): Position reads x/y plus
+xPercent/yPercent of the layer's border box, Scale reads scaleX/scaleY or the shared scale, and
+Opacity reads opacity or autoAlpha; the numeric fields and canvas handles write the same key, one
+undo each. A layer animated under one other selector naming only it edits through that owner.
+Bar moves and trims, key moves and eases, Add Step and Set Out work on every channel, and on
+Clean Steps. Refusals stay for a raw transform string, two tracks on one control, one axis of a
+shared scale, a selector naming several layers or two naming one, a percent baked away where it is
+not 0, and bars of an autoAlpha layer. B03/D03 and B05 gain scoped engineering evidence. No whole
+row is closed and the default editor is unchanged.
 
 ## Optional P-GPU evidence
 
