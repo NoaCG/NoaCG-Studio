@@ -567,31 +567,53 @@ function queueWrite(key: string, value: string | null, previous: string | null):
 const CHANNEL_NAME = 'noacg-durable-writes';
 let channel: BroadcastChannel | null = null;
 
+// WHO PUSHES A WRITE TO THE CLOUD. Library sync (backend/syncController.ts) runs in the tabs that
+// show its status, and a tab that runs it pushes its own writes. It says so here, and every write
+// it announces carries that, so a syncing tab that adopts the write knows the writer's pass
+// covers it and runs none of its own. A write from a tab that does NOT sync (a production or
+// control page opened on its own) carries `synced: false`, and a syncing tab that adopts it
+// still pushes it.
+let ownWritesSynced = false;
+
+/** Library sync calls this when it starts in this tab: its own writes are pushed from here. */
+export function markOwnWritesSynced(): void {
+  ownWritesSynced = true;
+}
+
 function announceWrite(key: string): void {
-  channel?.postMessage({ key });
+  channel?.postMessage({ key, synced: ownWritesSynced });
 }
 
 /** Adopt another tab's write. Best-effort by nature: a failed re-read leaves the mirror as it
  *  was, which is exactly where this module started, so it is never worse for having tried. */
-async function adoptWrite(key: string): Promise<void> {
+async function adoptWrite(key: string, syncedElsewhere: boolean): Promise<void> {
   const target = db;
   if (!target || !durableKeySet.has(key)) return;
   try {
     const value = await idbReadKey(target, physical(key));
     if (value === null) mirror.delete(key);
     else mirror.set(key, value);
-    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('spx-data-changed', { detail: { syncedElsewhere } }));
+    }
   } catch {
     /* the mirror keeps what it had */
   }
 }
 
+/** True for the `spx-data-changed` a tab raises when it adopts a write from another tab that
+ *  syncs its own writes. Surfaces re-read on it like on any change; library sync skips it,
+ *  because the writer's own pass pushes it. */
+export function changeSyncedElsewhere(event: Event): boolean {
+  return (event as CustomEvent<{ syncedElsewhere?: boolean } | null>).detail?.syncedElsewhere === true;
+}
+
 function startCrossTabInvalidation(): void {
   if (channel || typeof BroadcastChannel === 'undefined') return;
   channel = new BroadcastChannel(CHANNEL_NAME);
-  channel.onmessage = (event: MessageEvent<{ key?: unknown }>) => {
+  channel.onmessage = (event: MessageEvent<{ key?: unknown; synced?: unknown }>) => {
     const key = event.data?.key;
-    if (typeof key === 'string') void adoptWrite(key);
+    if (typeof key === 'string') void adoptWrite(key, event.data?.synced === true);
   };
 }
 
