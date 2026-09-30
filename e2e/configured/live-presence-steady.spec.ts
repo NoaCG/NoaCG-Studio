@@ -54,8 +54,12 @@ test('an output stays listed on the hosted health line through 90 s of a busy sh
   const started = Date.now();
   const dropped: string[] = [];
   let press = 0;
+  let onAir = false;
   while (Date.now() - started < 90_000) {
-    if (press % 3 === 0) await page.getByTestId(press % 6 === 0 ? 'verb-take' : 'verb-out').click();
+    if (press % 3 === 0) {
+      onAir = press % 6 === 0;
+      await page.getByTestId(onAir ? 'verb-take' : 'verb-out').click();
+    }
     press += 1;
     await page.waitForTimeout(1000);
     const at = `${Math.round((Date.now() - started) / 1000)} s`;
@@ -66,7 +70,10 @@ test('an output stays listed on the hosted health line through 90 s of a busy sh
   }
   expect(dropped, 'the output left the health line during the show').toEqual([]);
 
-  await page.getByTestId('verb-out').click();
+  // How many passes fit in the 90 s decides whether the loop ended on a Take or an Out: on hosted
+  // staging a pass takes longer, the loop ended on an Out, and clicking the disabled Out here waited
+  // out the test's 6 minutes on both attempts (2026-09-30, run 36771874480). Take off only what is up.
+  if (onAir) await page.getByTestId('verb-out').click();
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();

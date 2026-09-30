@@ -96,7 +96,12 @@ const ACCEPTED_CLASSES = {
     '2026-09-16, that guard reads the path and never the value, so `{"drivers":[]}` still deletes ' +
     'a whole bound branch through the array carve-out. That is tracked as its own work in ' +
     'docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md and the fix is migration ' +
-    '0061; it is a bug in the guard, not a reason to revoke a grant the product needs.',
+    '0061; it is a bug in the guard, not a reason to revoke a grant the product needs. ' +
+    'The numbered-log RPCs of 0071 (control_send_seq, control_output_report_seq, ' +
+    'control_show_resolve, control_output_resolve, control_tail_seq, control_output_tail_seq) are ' +
+    'the same slug doors with the same guards: the send and the report write only the log and the ' +
+    'production head (control_heads), and the reads answer only what the old resolve and tail ' +
+    'already did plus the sequence and per-graphic summary the log implies.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',

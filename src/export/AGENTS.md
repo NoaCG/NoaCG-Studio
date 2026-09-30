@@ -33,7 +33,16 @@ export-time reflow, stretching, or cropping.
   (`hairline/hairline.html`, never index.html): SPX rundowns list FILES, and an
   index.html-per-folder package listed every NoaCG template as "index" (real SPX packs name
   every template file - see example_projects/). The show export passes `fileName` so a
-  collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`).
+  collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`). Three things an SPX
+  operator meets, measured on SPX 1.2.1 and 1.4.1 (docs/SPX_ON_A_REAL_SERVER.md §2 and §9):
+  each kind lands on its own layer inside SPX Solo's five (`SPX_LAYER_BY_TYPE`, `spxLayerFor`;
+  a declared 1 to 5 survives), because everything declaring 7 put every graphic on one layer;
+  the operator page is **`controlpanel.shtml`**, because SPX lists every `.htm`/`.html` as a
+  template, 1.2.1 hides only dot files and SPX will not serve a dot file (the dual package of
+  noacgPackage.ts keeps `controlpanel.html`, which its CLI documents); and a stepped graphic
+  carries `spxStepGuardScript`, which turns the Continue after the last step into stop(), because
+  SPX 1.2.1 sends one more `next` there and shows the item as stopped. The guard is stripped on
+  import by its id.
 - **outputEmbed.ts** - the OUTPUT EMBED: one standalone .html that frames a published production's
   `/output?production=<slug>` URL, downloaded from the production page's Links block beside the URL
   itself (never from the export dialog - it packages no graphics, it IS that link in another
@@ -42,17 +51,25 @@ export-time reflow, stretching, or cropping.
   It is a legal SPX template (definition + the classic play/stop/update/next globals) whose verbs
   move the FRAME only: Play shows it, Stop hides it, and cues stay with the NoaCG operator, because
   the file carries the OUTPUT capability alone - a template that could air a cue would have to
-  carry the control slug onto every playout machine. The emitted script is **ES5 with a
-  color-scheme meta**, for the two failure modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's
-  Chromium 71 CEF rejects the whole file on a `?.`, and Chromium paints a framed page opaque when
-  the schemes disagree. `update()` re-points the frame at another production and only reloads on a
+  carry the control slug onto every playout machine. The emitted script is **ES5 with its
+  color-scheme on the iframe ELEMENT** (`#noacg-frame`), never on the page, for the two failure
+  modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's Chromium 71 CEF rejects the whole file
+  on a `?.`, and Chromium paints a framed page opaque when the element's scheme and the framed
+  document's disagree. A page-level dark meta matched the output page but not SPX's renderer,
+  which declares none, so SPX painted the whole file as a dark card (SPX_ON_A_REAL_SERVER.md §4).
+  It has **no button field**: an SPX button's `fcall` runs in the controller page, out of this
+  file's reach; Stop and Play reloads it, since SPX loads a template afresh on every Play. It sits
+  on layer 1 (`OUTPUT_EMBED_LAYER`), and it reads SPX's HTML-escaped `&amp;` back as `&`. `update()` re-points the frame at another production and only reloads on a
   REAL change - a repeat would throw the connection away and rebuild what is on air. Pinned by the
   two embed cases in e2e/productions.spec.ts, which run the generated file for real.
 - **onAirGuide.ts** - GETTING-ON-AIR.md, the playout-side quick guide bundled into the SPX,
   CasparCG, HTML-overlay and show packages (condensed from docs/PLAYOUT_INTEGRATION.md - keep
   them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is
   origin-scoped, so the panel pairs only over one http(s) origin in one browser - never over
-  file:// (private opaque origins) and never into OBS/vMix/CasparCG's own engine.
+  file:// (private opaque origins) and never into vMix's or CasparCG's own engine. OBS is the
+  exception, measured on 32.2.1 (docs/OBS_ON_A_REAL_HOST.md §5): a Custom Browser Dock and a
+  browser source on the same http address share BroadcastChannel and storage, so the guide tells
+  an OBS operator to add the panel (or, with the relay, the page the launcher opened) as a dock.
   **IT ONLY DESCRIBES WHAT THE CALLER ACTUALLY BUNDLED** (`onAirGuideMd({ localController })`,
   acceptance round 2): one text served every flavour, so a CasparCG or SPX package - which
   carries no relay ON PURPOSE - told its reader to double-click a "Start controller.cmd" that
@@ -93,17 +110,24 @@ export-time reflow, stretching, or cropping.
   (the package manifest). The panel gains a relay SEND transport (controlPanelHtml
   `sendRelay`, probe on /relay/ping) and every overlay graphic carries the relay RECEIVER
   (control/localReceiver.ts - polls the log, `?stream=` aware, inert over file:// or plain
-  static hosting). This is the only route into a graphic loaded by OBS/vMix's separate
-  browser engine. Both servers are conformance-tested for real by
-  `npm run test:local-relay` (scripts/local-relay.test.mjs - keep protocol changes in BOTH
-  implementations and that harness); the browser ends are pinned by e2e/local-relay.spec.ts
-  against an in-spec v1 implementation. SPX/CasparCG packages carry NO relay on purpose -
+  static hosting). This is the route into a graphic loaded by vMix's separate browser engine,
+  and into OBS from a panel outside OBS; a dock inside OBS pairs without it. Both servers are
+  conformance-tested for real by `npm run test:local-relay` (scripts/local-relay.test.mjs -
+  keep protocol changes in BOTH implementations and that harness); the browser ends are pinned
+  by e2e/local-relay.spec.ts against an in-spec v1 implementation. SPX/CasparCG packages carry NO relay on purpose -
   the playout host is the controller there.
 - **targets/htmlOverlay.ts** - OBS/vMix browser source: an autoplay block fills fields from baked
   sampleData -> definition defaults, then play(). An auto-out `out` = N ms setting rides
   along: the block measures the entrance from a paused throwaway timeline and schedules
   stop() at entrance + delay (the bundled control panel's Stop still works sooner). Receiver
-  + controlpanel.html bundled.
+  + controlpanel.html bundled. **Under OBS** (`window.obsstudio` present) the entrance waits for
+  `obsSourceActiveChanged` true, and a false calls stop() and finishes that exit at once, so
+  every cut to the scene plays it again; OBS sends no event at load, so the page starts from
+  `document.visibilityState` (a page that loaded on a studio-mode preview plays again on the
+  first active event). The trigger is ACTIVE (on program), not VISIBLE: in studio mode a scene on
+  preview is visible, and the entrance would run off air again. Once anything else calls play()
+  or stop() (the panel, the relay), the block stops following program, so a cut never undoes the
+  operator's Take or Stop. Pinned by the OBS case in e2e/exports.spec.ts.
 - **targets/h2r.ts** - H2R Custom HTML: GDD block from DataFields + play()-toggle shim.
 - **targets/casparcg.ts** - selfContained + JSON/XML data shim. Receiver + controlpanel.html
   bundled (`inlineAssets`, because the package is one file). **It carried neither until
@@ -191,8 +215,11 @@ export-time reflow, stretching, or cropping.
   recovery snapped graphics to their last reported (off) state right after the host's play()
   ("flashes in and disappears" on real hardware; cloud-driven browser sources are the
   HTML-overlay flavor's opt-in job) - **and DISTINCT playout layers per pool graphic**
-  (`showGraphicLayer`: 5 + pool index, capped at SPX's webplayout 20), because every generated
-  template declaring playlayer '7' meant two templates in one rundown evicted each other.
+  (`spxShowLayers`: the operator's stored layers in their own order, renumbered from 1 and capped
+  at SPX's 20, with a README note past SPX Solo's five), because every generated template
+  declaring playlayer '7' meant two templates in one rundown evicted each other, and the stored
+  20, 21, 22 all landed on 5 in SPX 1.4 Solo. The other flavours keep the stored numbers. The
+  SPX flavour's aggregated panel is `show_controlpanel.shtml`, for the reason spxStarter gives.
   **`buildShowZipFor(show, targetId)` is the production TARGET PICKER's build** (the
   acceptance round's "couldn't choose the platform"): 'spx' keeps the dedicated builder
   above; every other registry id runs the generic merge - each pool graphic goes through the

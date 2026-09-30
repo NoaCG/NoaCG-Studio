@@ -7,6 +7,10 @@ where a statement rests on something else, it says so.
 
 **Answers first.**
 
+- **Since 2026-10-01 an exported overlay plays its entrance when its source goes on program**,
+  not when OBS loads it, and plays it again on the next cut. §10 has the look, the trigger choice
+  and one stale frame on a Cut that the page cannot clear.
+
 - **NoaCG graphics work as OBS browser sources.** An exported overlay loaded as a local file plays
   on load. A two-graphic show package, served by its own bundled relay, was taken, updated and
   taken out, with both graphics on air at once.
@@ -110,8 +114,8 @@ overlay's load-time entrance runs whether or not its scene is shown. With **"Ref
 scene becomes active"** (`restart_when_active`) ticked, OBS reloaded the page as its scene went to
 program: the probe logged a fresh load at the moment of the switch, and a screenshot 250 ms after
 the switch caught the lower third mid-entrance, its bar drawn and its text not yet in
-([15](research/obs-real-host-2026-09-30/15-refresh-when-active-250ms.png)). That is the workaround
-until `docs/backlog/obs-play-when-source-shown.md` lands.
+([15](research/obs-real-host-2026-09-30/15-refresh-when-active-250ms.png)). That was the workaround
+until the overlay learned to wait for program; §10 has the look at that change.
 
 ## 3. Page events at the default permission
 
@@ -184,8 +188,7 @@ was not measured.
   controller in a Custom Browser Dock operates a multi-graphic show from inside OBS, offline. Even
   without the relay, a dock pairs with a browser source on the same address. What is missing is
   that the exported guide and the export contract still say the panel can never reach a graphic
-  inside OBS, and nothing tells an OBS operator to add the dock. That is filed as
-  `docs/backlog/obs-dock-as-the-operator-surface.md`.
+  inside OBS, and nothing tells an OBS operator to add the dock. That was filed and is done: §10.
 - **obs-websocket is the next route**, as `docs/backlog/bridge-obs-adapter.md` proposes: this
   walk proves its two load-bearing assumptions (`emit_event` reaches the page, and a page can tell
   it is on air). It serves Companion and a Stream Deck with no NoaCG module, and it is the only
@@ -195,8 +198,9 @@ was not measured.
   from inside OBS, which obs-websocket already offers from outside, at the cost of an install step
   per machine and, for a plugin, a native build per platform and OBS version. Nothing measured
   here needs one.
-- `docs/backlog/obs-play-when-source-shown.md` is now unblocked: its precondition (the events
-  reach a page at the default permission) is met, and §3 says which event means what.
+- Playing the entrance when the source is shown was unblocked by this walk: its precondition
+  (the events reach a page at the default permission) is met, and §3 says which event means
+  what. It landed on 2026-10-01 (§10).
 
 ## 8. What changed because of this walk
 
@@ -210,7 +214,7 @@ was not measured.
   walk.
 - `docs/backlog/playout-engine-facts-and-guide-corrections.md` now holds only what is left: the
   vMix facts, the OBS 33 row, and the SPX route guidance.
-- New: `docs/backlog/obs-dock-as-the-operator-surface.md`.
+- New: a backlog item for the dock guidance, closed on 2026-10-01 (§10).
 
 ## 9. Not verified
 
@@ -221,3 +225,55 @@ was not measured.
 - The Windows launcher itself (`Start controller.cmd` and `relay.ps1`); `relay.py` served the
   walk.
 - Whether "Shutdown source when not visible" changes any of the above.
+
+## 10. The entrance on program, 2026-10-01
+
+The exported HTML overlay now follows OBS instead of the page load. When `window.obsstudio` is
+present it plays its entrance on `obsSourceActiveChanged` true, and on false it calls `stop()`
+and finishes that exit at once, so the next time the source goes on program the entrance plays
+again. OBS sends no event for the state a page loads in, so a page that loads while
+`document.visibilityState` is "visible" starts at once (§3), and if that was only a studio-mode
+preview, the take to program plays it again. Once the panel or the relay plays or stops the
+graphic, it stops following program, so a cut never undoes the operator's Take or Stop. Outside
+OBS it plays on load as before, and a `?stream=` instance still waits for the relay.
+
+**Trigger: active, not visible.** §3 measured that visible includes a scene on preview in studio
+mode, so a visible trigger would play the entrance on preview, off air, which is the defect this
+fixes. Without studio mode the two fire together, so active costs nothing there.
+
+**The look.** Same OBS 32.2.1 and obs-websocket 5.7.4 as §1, in a new collection
+("NoaCG walk W 2026-10-01", scenes `W On Air` and `W Other`, a grey colour source under the
+graphic, **Cut** transition), with the Hairline lower third exported by this branch's
+`htmlOverlayTarget` and added as a **Local file** browser source while `W Other` was on program.
+Pictures are `GetSourceScreenshot` of `W On Air`, 960 wide. The look ran on the branch before
+its review added two refinements: the replay after a page loads on a preview, and the hand-over
+to the operator once the panel plays or stops the graphic. Those two are pinned by the e2e in
+`e2e/exports.spec.ts` only; a second look was not possible because another session had OBS open.
+
+| Step | What OBS showed | Picture |
+|---|---|---|
+| Source loaded with its scene off air, 4 s | Nothing: the entrance had not run (before this change it would have run here) | not kept (grey frame) |
+| Cut to `W On Air`, 200 ms later | Mid-entrance: the bar drawn, the text not yet in | [01](research/obs-real-host-2026-10-01/01-first-cut-200ms.jpg) |
+| Cut away, then back, 200 ms later | Mid-entrance again: the entrance replayed | [02](research/obs-real-host-2026-10-01/02-second-cut-200ms.jpg) |
+| Settled | Name and title in place | [05](research/obs-real-host-2026-10-01/05-settled.jpg) |
+| Studio mode, `W On Air` on preview only, 3 s | Nothing: visible but not on program, so the entrance waited | [03](research/obs-real-host-2026-10-01/03-studio-preview-at-rest.jpg) |
+| Transition to program, 200 ms later | Mid-entrance | [04](research/obs-real-host-2026-10-01/04-studio-take-200ms.jpg) |
+
+**One stale frame on a Cut.** With browser hardware acceleration on, OBS keeps the texture a
+hidden browser source last painted. Screenshots taken back to back right after a Cut back to the
+scene, in three rounds, showed the settled lower third for the first 10 to 40 ms, then the start
+of the entrance: about one frame at 30 fps of the old graphic before it animates in. The page
+cannot paint while hidden, so it cannot clear that texture itself. In studio mode the scene is
+painted at rest on preview before the take, and no stale frame was seen there. Whether turning
+hardware acceleration off or using a Fade avoids it was not measured; that is
+`docs/backlog/obs-stale-frame-on-cut-back.md`.
+
+**The dock guidance.** GETTING-ON-AIR.md, the overlay and SPX package READMEs and
+`src/export/AGENTS.md` now say what §5 measured: the panel reaches a graphic in OBS from a Custom
+Browser Dock on the same http address, and with the relay the dock takes the page the launcher
+opened. vMix and CasparCG keep the relay and their own controls. The panel's own no-listener
+banner is in `src/control` and is `docs/backlog/control-panel-banner-names-the-obs-dock.md`.
+
+Afterwards OBS was switched back to `Untitled` and closed normally (no crash sentinel, zero
+leaks), the test collection's files were moved out of `%APPDATA%\obs-studio\basic\scenes`, and
+obs-websocket was turned off in its `config.json`. The owner's scenes and docks were not touched.

@@ -9,14 +9,16 @@ server; where a claim rests on reading SPX's source instead, it says so.
 - **The native SPX export works on both servers.** Fields, Play, Continue and Stop work on SPX
   1.4.1 and 1.2.1, and three NoaCG graphics played on three layers at once. Update works on
   1.2.1 and does nothing on 1.4.1, for every HTML template, because of an SPX 1.4 defect.
-  Out of the box every NoaCG graphic lands on the same layer, so each Play evicts the last.
+  Out of the box every NoaCG graphic landed on the same layer, so each Play evicted the last;
+  since the fixes in §9 the three land on their own layers on both servers as imported.
 - **The OGraf package works only partly on SPX 1.4.1.** As imported it does not play at all (SPX
   gives it layer `NaN`). With layers set by hand it plays, continues and stops, three at once,
   but the graphics render distorted, dropdowns and colours arrive as plain text boxes, and custom
   action buttons do nothing. Update does nothing, as for HTML templates.
 - **The output embed loads and frames the production on both servers, but puts an opaque dark
   frame over the whole picture**, which stays after Stop. A small change, tested here in a
-  scratch copy, makes it transparent. This is a likely cause of the owner's failed attempt,
+  scratch copy, makes it transparent; it shipped, and §9 walks the shipped file transparent on
+  both servers. This is a likely cause of the owner's failed attempt,
   alongside the framing refusal that PR #550 removed; the refusal is gone on production now.
 - **Verdict on "SPX renders in the operator's own browser":** half true. The operator's
   controller page runs a full copy of the renderer as its monitor, so a template has to work in
@@ -275,7 +277,69 @@ deleted as whole folders:
   `config.json`'s recent list with the round's rundowns; the three earlier entries were put back
   after SPX stopped.
 
-## 9. Not verified
+## 9. The fixes, walked on the same servers (2026-10-01)
+
+Branch `claude/u-spx-export-fixes` fixed four of the §7 items and walked the result on both
+servers, one at a time, with the same scripts as above: every package built by the real
+exporters (`spxTarget`, `buildShowZip`, `outputEmbedHtml`), imported through SPX's own template
+browser, and played through the controller's own functions while a second page loaded
+`/renderer` at 1920x1080 over mid-grey.
+
+| What an operator meets | Before | SPX 1.2.1 now | SPX 1.4.1 now |
+|---|---|---|---|
+| Layers as imported, native export (Hairline, Clean Quiz, House Scorebug) | 7, 7, 7 (1.2.1); 5, 5, 5 (1.4.1) | **2, 4, 5** | **2, 4, 5** |
+| Play all three, no trip to project settings | Each Play replaced the last | **All three on air together** | **All three on air together** |
+| Layers as imported, production package (same three at production layers 20, 21, 22) | 20+ (1.2.1); 5 each (1.4.1, from the cap) | **1, 2, 3** | **1, 2, 3** |
+| Template browser in a graphic's folder | `controlpanel.html` and the graphic | **Only the graphic** (plus the `css`, `fonts`, `js` folders) | **Only the graphic** |
+| Template browser at the production package's root | `show_controlpanel.html` | **No file**, only the graphic folders | **No file** |
+| Clean Quiz, Continue twice | 1.2.1: the quiz stayed on air with Stop gone | **The second Continue takes the quiz out**; Play is offered and plays it afresh | Unchanged: the second Continue takes it out |
+| Output embed, Play with Debug on | Opaque dark grey over the whole frame | **Transparent**: the host grey shows at four sampled points, with the output page's card on top | **Transparent**, same |
+| Output embed after Stop | The dark frame stayed | **Transparent** | **Transparent** |
+| Output embed, reload by hand | A Reload button that threw in the controller | No button. **Stop then Play reloads the output page** (one new request for `/output`), because SPX loads a template afresh on every Play | Same |
+
+![Three NoaCG graphics from the native export on SPX 1.2.1, on layers 2, 4 and 5 as imported](images/spx-real-server/native-121-three-kinds-own-layers.jpg)
+
+![SPX 1.2.1 after Clean Quiz's second Continue: the quiz has gone out](images/spx-real-server/native-121-continue-past-last-step.jpg)
+
+![The shipped output embed on SPX 1.4.1: transparent, with the output page's card](images/spx-real-server/embed-141-transparent-shipped.jpg)
+
+**What changed, and why that shape.**
+
+- **Layers.** The single-graphic SPX export gives each kind a layer inside 1 to 5
+  (`SPX_LAYER_BY_TYPE` in `src/export/targets/spxStarter.ts`: frames and full screens 1, lower
+  thirds and cards 2, tickers 3, boards, quizzes and holding screens 4, bugs, scores and timers
+  5) and keeps a declared layer that is already 1 to 5. The production package keeps the
+  operator's layer order and renumbers it from 1 (`spxShowLayers`); its README names both
+  numbers and says when there are more than SPX Solo's five. The embed sits on layer 1. The
+  CasparCG, overlay and OGraf flavours keep their numbers.
+- **The operator page is `controlpanel.shtml`** (`show_controlpanel.shtml` at a production's
+  root). The name the backlog item proposed, `_controlpanel.html`, is hidden by 1.4.1 but was
+  **still listed by 1.2.1**: a probe folder showed 1.2.1 hides only dot files and lists `_a.html`,
+  `.htm` files and every folder, `_` and `.` ones included. A dot file is hidden but SPX then
+  answers 404 for it, so the panel could not be opened from SPX's server. Both servers list only
+  `.htm` and `.html` and serve `.shtml` as `text/html` (measured on 1.2.1; on 1.4.1 the listing
+  was measured and the serving read from its `mime` table). The panel opened from `http://localhost:5656/templates/.../controlpanel.shtml`
+  on 1.2.1 and its Play put "Served by SPX" on the graphic beside it.
+- **The Continue guard.** 1.2.1's `nextItem` (read from the `static/js/spx_gc.js` it serves) sends
+  `next` for every Continue and, at the end of the steps, marks the item stopped; 1.4.1 sends
+  `stop` instead. A stepped SPX package now counts Continues from each Play and treats the one
+  after the last step as Stop, so both servers take the graphic out there.
+- **The embed** puts `color-scheme: dark` on its iframe element and declares none on its page (the
+  fix-check of §4, now shipped), has no button, and turns the `&amp;` that both SPX versions hand
+  back in a text field into `&` (measured: a URL with a second parameter arrived as
+  `...&amp;debug=1`).
+
+**Test projects added**, all named `NoaCG_U_*` or `noacg_u` and deletable as whole folders: on
+both servers the templates in `ASSETS\templates\noacg_u\` (`spx\`, `show\`, `embed\`; on 1.2.1 also
+the `probe\` folder of the listing test) and the projects `DATAROOT\NoaCG_U_SPX`,
+`DATAROOT\NoaCG_U_Show` and `DATAROOT\NoaCG_U_Embed`, each with a rundown `Round`. SPX put the
+three rundowns at the top of `config.json`'s recent list on both; on 1.2.1 they replaced the list,
+which held the §8 round's entries. Both servers are stopped.
+
+**Still not proven here:** a published production's graphics cued from NoaCG inside SPX (the
+owner check), the embed as the top document in OBS, vMix or CasparCG 2.3, and any CasparCG path.
+
+## 10. Not verified
 
 - A real published production's graphics, cued from NoaCG, inside SPX (the owner check).
 - The fix-check embed as the top document in OBS, vMix and CasparCG 2.3 (Chromium 71 ignores

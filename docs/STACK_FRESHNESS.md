@@ -305,7 +305,7 @@ post-land reds on `1` and `2` and only warns on `3`, so an outage must not borro
 means "somebody shipped something new", and a deleted baseline must not quietly switch the alarm
 off while every landing stays green.
 
-The baseline holds **109 findings** as of 2026-09-24. The last full breakdown was taken at 70 on
+The baseline holds **122 findings** as of 2026-09-30. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.
@@ -402,6 +402,26 @@ migration push in the same job looks the same). So the class now only warns, who
 index: an unused index is a performance hint at INFO level, never a security or correctness
 defect. The baseline was not re-recorded; the rule alone makes the run green, and the 38 warnings
 thin out as production uses the indexes again.
+
+**The third re-record, 2026-09-30: 122.** Post-land went red on every landing from pull request
+#572 at 12:22 UTC to #583 at 19:54 UTC (runs 36714260869 to 36768857806) on 13 new findings, all
+from Phase 6 Step 2. Migration 0069 (`0069_control_heads.sql`) added `control_heads` with RLS on
+and no policy (`rls_enabled_no_policy`), and migration 0071 (`0071_command_sequence.sql`) added six
+slug-addressed definer RPCs, each reported for `anon` and for `authenticated`: `control_send_seq`,
+`control_output_report_seq`, `control_show_resolve`, `control_output_resolve`, `control_tail_seq`
+and `control_output_tail_seq`. The landing that carried them, pull request #570, could not see
+them: its post-land run (36688374593, 08:13 UTC) held 0068 to 0071 on production as live-path
+migrations, they were applied by hand before 12:22, and the next landing inherited them. Read
+against the live database, not the migration text: `anon` and `authenticated` hold no privilege on
+`control_heads` and it has no policy, so it is deny-all like the other tables in that class;
+exactly those six functions are client-callable, while the nine helpers 0071 adds beside them
+(`control_tail_seq_for`, `control_head_effect`, the two trigger functions and the rest) are not. The six are the numbered-log versions of doors the class already holds
+(`control_send_many`, `control_output_report`, `control_show_by_slug`, `control_output_by_slug`,
+`control_tail`, `control_output_tail`), found by the same slug and with the same
+`feature_denied_for` guard on the two that write, which write only the log and the head. Nothing
+there reaches beyond a slug holder's own production, so the class reasons hold, and the anon reason
+in `ACCEPTED_CLASSES` now names them. The 22 `unused_index` warnings in the same report were left
+out of the baseline, as on 2026-09-29.
 
 Accepting that reachability is not a claim that the door's own guard is tight, and on this
 occasion it is not — `docs/backlog/the-operator-door-guards-a-branch-and-not-a-leaf.md` measured

@@ -35,8 +35,8 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
       entranceMs = probe.duration() * 1000;
       probe.kill();
     }
-    setTimeout(function () {
-      if (typeof window.stop === 'function') window.stop();
+    outTimer = setTimeout(function () {
+      call('stop');
     }, entranceMs + ${outMs});`
       : '';
   return `// ── Autoplay for browser sources (OBS / vMix) ────────────────────────────
@@ -45,7 +45,25 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
 // fields with the values below (baked in at export time; any field missing
 // there falls back to its default in the SPX definition), then start the
 // graphic. Edit the values here or drive them live with controlpanel.html.
+//
+// In OBS the page loads when the scene collection opens, not when you cut to the
+// scene, so there the entrance waits for the source to go ON PROGRAM (OBS's
+// obsSourceActiveChanged event) and the graphic resets when it leaves, so the
+// next time it goes on air the entrance plays again. "Active" rather than
+// "visible": in studio mode a scene on preview is visible but not on air. Once
+// the panel or the relay plays or stops the graphic, the operator is in charge
+// and cuts no longer move it.
 (function () {
+  var outTimer = null;
+  var own = false; // true while this block itself calls play() or stop()
+  function call(name) {
+    own = true;
+    try {
+      if (typeof window[name] === 'function') window[name]();
+    } finally {
+      own = false;
+    }
+  }
   var baked = ${JSON.stringify(baked, null, 2).replace(/\n/g, '\n  ')};
   function startData() {
     var data = {};
@@ -58,6 +76,54 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     }
     return data;
   }
+  function start() {
+    clearTimeout(outTimer);
+    call('play');${autoOut}
+  }
+  function followProgram() {
+    var operated = false; // a panel or the relay has played or stopped the graphic
+    var onAir = false;    // OBS has said the source is on program
+    var shown = false;    // the entrance has run since the last reset
+    function watch(name) {
+      var fn = window[name];
+      if (typeof fn !== 'function') return;
+      window[name] = function () {
+        if (!own) operated = true;
+        return fn.apply(this, arguments);
+      };
+    }
+    watch('play');
+    watch('stop');
+    function enter() {
+      shown = true;
+      start();
+    }
+    function reset() {
+      shown = false;
+      clearTimeout(outTimer);
+      call('stop');
+      // Nobody sees this exit, and a hidden page may not animate at all: finish it now, so
+      // the next cut starts the entrance from rest instead of racing a half-run exit. An
+      // endless loop (GSAP reports 1e10 s) has no end to jump to, and play() rebuilds it.
+      if (window.gsap) {
+        var running = window.gsap.globalTimeline.getChildren(false, true, true);
+        for (var i = 0; i < running.length; i++) {
+          var end = running[i].totalDuration();
+          if (end < 1e9) running[i].totalTime(end);
+        }
+      }
+    }
+    window.addEventListener('obsSourceActiveChanged', function (e) {
+      if (operated) return;
+      var active = !!(e.detail && e.detail.active);
+      if (active && !onAir) enter();
+      else if (!active && shown) reset();
+      onAir = active;
+    });
+    // OBS sends no event for the state a page loads in. A page that loads visible starts at
+    // once; if that was only a studio-mode preview, the take to program plays it again.
+    if (document.visibilityState !== 'hidden') enter();
+  }
   window.addEventListener('load', function () {
     // A STREAM-ADDRESSED instance (…?stream=program / preview) is MANAGED: it belongs to a
     // production run through the local relay's ordered log (a controller monitor, or an
@@ -65,7 +131,8 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     // of popping on air by itself. The plain file keeps the classic single-overlay autoplay.
     if (/[?&]stream=/.test(location.search)) return;
     if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
-    if (typeof window.play === 'function') window.play();${autoOut}
+    if (window.obsstudio) followProgram();
+    else start();
   });
 })();`;
 }
@@ -83,7 +150,14 @@ the fields with the exported values and plays automatically.
 ## OBS Studio
 1. Sources → + → **Browser**.
 2. Tick **Local file** and pick ${name}.html.
-3. Width ${template.resolution.width}, Height ${template.resolution.height}. Done — it plays on load.
+3. Width ${template.resolution.width}, Height ${template.resolution.height}.
+
+In OBS the entrance plays each time the source goes on program, and the graphic resets when it
+leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.
+To operate it from inside OBS with the panel as a Custom Browser Dock, start the launcher and
+point the source at the graphic's http address instead of ticking Local file (see Live control
+below): a Local file source cannot pair with a dock. Once the panel plays or stops it, cuts no
+longer move it.
 
 ## vMix
 1. Add Input → **More** → **Web Browser**.
@@ -96,12 +170,14 @@ the fields with the exported values and plays automatically.
 - Live control, the easy way: double-click **"Start controller.cmd"** (Windows) or
   **"start-controller.command"** (macOS) — the bundled LOCAL RELAY serves this folder at
   http://localhost:<port>/, opens the panel, and relays commands into a graphic loaded by
-  OBS/vMix (their own browser engine, unreachable any other way). Point the browser source
-  at the graphic ON that address, not at the file on disk. Fully offline. Details in
-  GETTING-ON-AIR.md.
+  OBS or vMix. Point the browser source at the graphic ON that address, not at the file on
+  disk. Fully offline. Details in GETTING-ON-AIR.md.
+- Operating from inside OBS: Docks → Custom Browser Docks, and give the dock the panel's
+  address on the launcher, http://localhost:<port>/controlpanel.html.
 - Without the launcher the panel still pairs over a same-origin browser channel (both pages
-  from ONE http address in ONE browser); files opened straight from disk (file://) can never
-  pair — the panel says so when nothing is answering.
+  from ONE http address in ONE browser; an OBS Custom Browser Dock and a browser source on the
+  same address count as one browser). Files opened straight from disk (file://) can never
+  pair, and the panel says so when nothing is answering.
 ${hasRealtimeControl(template.js) ? `- Remote control (enabled): this graphic also listens on a Supabase Realtime channel, so
   controlpanel.html works from ANOTHER device too. The channel topic baked into both files
   is a shared secret — keep it private. The machine running the overlay must be allowed to
@@ -132,8 +208,9 @@ export const htmlOverlayTarget: ExportTarget = {
     const withReceiver = withControlReceiver(template);
     const outMs = /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
     // Two receivers, two transports: the BroadcastChannel one (same-origin tabs) and the
-    // LOCAL RELAY one (through the bundled localhost service — the only route into a graphic
-    // loaded by OBS/vMix's own browser engine). Both are inert where they cannot work.
+    // LOCAL RELAY one (through the bundled localhost service, the route into a graphic loaded
+    // by vMix's own browser engine, and into OBS from a panel outside it). Both are inert where
+    // they cannot work.
     root.file(
       `${name}.html`,
       await composeSelfContainedHtml(withReceiver, [

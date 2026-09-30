@@ -24,9 +24,16 @@
 //   1. ES5 ONLY - no `?.`, no `??`, no arrow functions, no `const`/`let`. CasparCG 2.3.x embeds a
 //      Chromium 71 CEF that rejects the whole file on the first modern token, showing a dead
 //      layer with nothing on air and no clue why.
-//   2. THE COLOR-SCHEME PAIR - the page declares <meta name="color-scheme" content="dark"> and
-//      paints every surface transparent. Chromium paints an iframe opaque when the schemes
-//      disagree, which here would be a white 1920x1080 card over the video.
+//   2. THE COLOR-SCHEME SITS ON THE IFRAME ELEMENT - `#noacg-frame { color-scheme: dark }`, and
+//      the page itself declares none. Chromium paints an iframe opaque when the scheme of the
+//      iframe ELEMENT disagrees with the framed document's, and both documents this file sits
+//      between have their own: the output page inside declares dark, and the host around it
+//      (SPX's renderer, an OBS source, a browser tab) declares whatever it likes. A page-level
+//      <meta name="color-scheme" content="dark"> matched the output but not SPX's renderer, which
+//      declares none, so SPX painted this whole file as an opaque dark 1920x1080 card over the
+//      video (docs/SPX_ON_A_REAL_SERVER.md §4). On the element, the pair that decides this
+//      frame is element and output page, whoever hosts the file. Every surface stays
+//      transparent. Chromium 71 (CasparCG 2.3.x) ignores color-scheme altogether.
 
 import type { Resolution } from '../model/types';
 import { slug } from '../model/slug';
@@ -38,13 +45,16 @@ export interface OutputEmbedOptions {
   outputUrl: string;
   /** The production's design canvas, quoted to the operator so the source is sized right. */
   resolution?: Resolution;
-  /** SPX playout/web layer. Defaults to the pool's own default (model/shows.ts): this one file
-   *  carries EVERY graphic of the production, each on its own layer inside the frame, so it is
-   *  one frontmost layer in the host rather than one layer per graphic. */
+  /** SPX playout/web layer. This one file carries EVERY graphic of the production, each on its
+   *  own layer inside the frame, so it is one layer in the host rather than one per graphic. */
   layer?: number;
 }
 
-const DEFAULT_LAYER = 20;
+/** Layer 1, the bottom of SPX's stack: SPX 1.4 Solo has five layers and caps anything higher to
+ *  5 on import (docs/SPX_ON_A_REAL_SERVER.md §2), so the old default of 20 landed on 5 there.
+ *  At 1 the production's output is the base overlay and layers 2 to 5 stay free for anything
+ *  the SPX operator plays over it, as they would over the video. */
+const OUTPUT_EMBED_LAYER = 1;
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -62,7 +72,7 @@ export function outputEmbedFileName(production: string): string {
 }
 
 export function outputEmbedHtml(opts: OutputEmbedOptions): string {
-  const layer = String(opts.layer ?? DEFAULT_LAYER);
+  const layer = String(opts.layer ?? OUTPUT_EMBED_LAYER);
   const width = opts.resolution ? opts.resolution.width : 1920;
   const height = opts.resolution ? opts.resolution.height : 1080;
   const definition = {
@@ -82,7 +92,8 @@ export function outputEmbedHtml(opts: OutputEmbedOptions): string {
           'This item is the whole NoaCG production, live. Play puts the output frame up and Stop ' +
           'takes it down; which graphic is on air is cued from the NoaCG production page or its ' +
           `control link, not from this rundown. Designed at ${width}x${height} - give the output ` +
-          'the same size.',
+          'the same size. The output reconnects by itself after a network drop; to reload it by ' +
+          'hand, Stop and Play this item, which loads the file afresh.',
       },
       { field: 'f0', ftype: 'textfield', title: 'Output URL', value: opts.outputUrl },
       {
@@ -97,14 +108,10 @@ export function outputEmbedHtml(opts: OutputEmbedOptions): string {
         title: 'Stay dark until Play (otherwise the frame shows what is on air as soon as it loads)',
         value: '0',
       },
-      { ftype: 'divider' },
-      {
-        field: 'f3',
-        ftype: 'button',
-        title: 'Reload output',
-        descr: 'Rebuilds the connection. The output recovers on its own; this is for a stuck layer.',
-        fcall: 'noacgReloadOutput()',
-      },
+      // No button field. An SPX button runs its `fcall` in the CONTROLLER page, never in this
+      // file, so a function defined here is out of its reach (a "Reload output" button once
+      // threw a ReferenceError there and did nothing, docs/SPX_ON_A_REAL_SERVER.md §4), and
+      // SPX Solo's way into a template, invokeTemplateFunction, answers 501.
     ],
   };
 
@@ -112,9 +119,8 @@ export function outputEmbedHtml(opts: OutputEmbedOptions): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<!-- Paired with the transparent surfaces below: Chromium paints an iframe OPAQUE when the page's
-     color-scheme and the framed document's disagree, and the output page declares dark. -->
-<meta name="color-scheme" content="dark" />
+<!-- No color-scheme on this page, on purpose: it goes on the iframe element below (rule 2 in
+     outputEmbed.ts). A page-level scheme made SPX paint this whole file opaque. -->
 <title>${escapeHtml(opts.production)} - NoaCG output</title>
 <style>
   /* Everything is transparent: the graphics render over video, and this file adds no picture of
@@ -129,7 +135,9 @@ export function outputEmbedHtml(opts: OutputEmbedOptions): string {
     opacity: 1;
   }
   #noacg-output.noacg-hidden { opacity: 0; }
-  #noacg-frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; }
+  /* color-scheme matches the output page's own declaration, so Chromium keeps this frame
+     transparent whatever scheme the host page around this file declares. */
+  #noacg-frame { display: block; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: dark; }
 </style>
 <!-- The template definition, last in <head> as SPX wants it. -->
 <script id="spx-template-definition" type="text/javascript">
@@ -204,7 +212,9 @@ window.SPXGCTemplateDefinition = ${jsonForScript(definition)};
   // globals or the renderer's events (docs/SPX_TEMPLATE_FORMAT.md §7) and some builds do both.
   window.update = function (data) {
     var fields = fieldsOf(data);
-    var url = validString(fields.f0) ? fields.f0 : DEFAULT_URL;
+    // SPX 1.2.1 hands a text field back HTML-escaped, so an Output URL with a second query
+    // parameter arrives as "...&amp;debug=1" (measured, docs/SPX_ON_A_REAL_SERVER.md §4).
+    var url = validString(fields.f0) ? fields.f0.replace(/&amp;/g, '&') : DEFAULT_URL;
     holdDark = isOn(fields.f2);
     load(withDebug(url, isOn(fields.f1)));
     show(!holdDark || played);
@@ -224,15 +234,6 @@ window.SPXGCTemplateDefinition = ${jsonForScript(definition)};
   // One phase (steps: "1"), so Continue is disabled in the rundown - walking a graphic's steps is
   // the NoaCG operator's Next, on the layer they picked.
   window.next = function () {};
-
-  // The "Reload output" button. The page recovers by itself after a network drop; this is the
-  // manual door for a layer that is stuck for some other reason.
-  window.noacgReloadOutput = function () {
-    var url = current || DEFAULT_URL;
-    current = '';
-    frame.src = 'about:blank';
-    window.setTimeout(function () { load(url); }, 50);
-  };
 
   // PRELOAD. The output page has to fetch the production and rebuild whatever is on air, so it
   // connects the moment this file is parsed rather than when the item is taken - by the time

@@ -69,8 +69,18 @@ export const foundationRuntime = String.raw`
   }
   function numericPose(element) {
     var pose = {};
-    ['x', 'y', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
+    ['x', 'y', 'xPercent', 'yPercent', 'scaleX', 'scaleY', 'rotation', 'opacity'].forEach(function (property) { pose[property] = Number(gsap.getProperty(element, property)); });
     return pose;
+  }
+  // The box xPercent and yPercent resolve against: the element's border box, in its own pixels, from
+  // the computed size rather than offsetWidth/offsetHeight, which round to whole pixels.
+  function percentBox(element, style) {
+    if (element instanceof SVGElement) return undefined;
+    var width = parseFloat(style.width), height = parseFloat(style.height);
+    if (!(width >= 0 && height >= 0)) return [element.offsetWidth, element.offsetHeight];
+    if (style.boxSizing === 'border-box') return [width, height];
+    var edge = function (side) { return parseFloat(style.getPropertyValue('padding-' + side)) + parseFloat(style.getPropertyValue('border-' + side + '-width')); };
+    return [width + edge('left') + edge('right'), height + edge('top') + edge('bottom')];
   }
   function seek(step, time, inspect) {
     if (!config.scrubbable) return;
@@ -159,7 +169,7 @@ export const foundationRuntime = String.raw`
       var points = corners(target, targetMatrix, rect);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points) }];
     });

@@ -479,8 +479,8 @@ function weigher(table) {
   return (spec) => table.minutes[spec] ?? median;
 }
 
-/** What a list of spec files is worth, in measured minutes. */
-function minutesFor(files, table) {
+/** What a list of spec files is worth, in measured minutes (an unmeasured spec at the median). */
+export function minutesFor(files, table) {
   const weight = weigher(table);
   return files.reduce((sum, spec) => sum + weight(spec), 0);
 }

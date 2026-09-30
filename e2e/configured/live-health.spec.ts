@@ -198,7 +198,30 @@ test('an output says who it is and how commands reach it, and both operator page
   await hosted.screenshot({ path: shot('hosted-phone'), clip: { x: 0, y: 0, width: 390, height: 160 } });
 
   // Every renderer still airs the Take: the refused join cost nothing but the announcement.
-  await expect.poll(async () => refused.evaluate(() => document.body.getAttribute('data-plays')), { timeout: 30_000 }).not.toBe('0');
+  //
+  // The proof is the PICTURE, not an entrance count. This output opened after the Take, so it
+  // recovers the scorebug one of two ways (src/output/main.ts). When the first output's report had
+  // banked the Take, it restores the pose from that report and replays no entrance - `data-plays`
+  // stays 0 by design. When the report was banked before the Take's durable row arrived, it replays
+  // the row and counts 1. Which one happens is a race: on hosted staging on 2026-09-30 the report
+  // won, the scorebug was on screen, and a count assertion failed (issue #571). Opacity is the wire
+  // proof, since the team names sit in the markup either way, and it is taken up the whole chain:
+  // a catch-up that replays an entrance takes the graphic off air from inside its own document, on
+  // the root element (src/preview/composeDocument.ts `offair`), not on the scorebug.
+  await expect
+    .poll(
+      async () =>
+        refused
+          .frameLocator('iframe')
+          .locator('.scoreboard')
+          .evaluate((el) => {
+            let seen = 1;
+            for (let node: Element | null = el; node; node = node.parentElement) seen *= Number(getComputedStyle(node).opacity);
+            return seen;
+          }),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(0.9);
 
   if (serverHasLiveTopic) {
     // Closing the output drops it: Presence is held by the socket, not written anywhere. Since READY

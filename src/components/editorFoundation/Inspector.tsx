@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from 'react';
-import type { TimelineView } from './timelineView';
+import { ownerOf, type TimelineView } from './timelineView';
+import { animatedProps } from '../../blocks/animEval';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BasePatch } from '../../blocks/baseEdits';
 import { slotSize } from '../../blocks/designLayout';
@@ -37,7 +38,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
-  const tracks = part ? [...new Set(view.data?.steps.flatMap(s => Object.keys(s.layers[part.selector] ?? {})) ?? [])] : [];
+  const tracks = part && view.data ? animatedProps(view.data, ownerOf(view, part.selector)) : [];
   const capability = useMemo(() => {
     if (!part) return { base: null, reason: '' };
     try { return { base: baseValues(template, part.selector), reason: '' }; }

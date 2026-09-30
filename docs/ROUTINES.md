@@ -109,6 +109,16 @@ If that flag is ever rejected as an unknown argument, the checkout predates it a
 so rather than reporting a number
 (`docs/backlog/a-tracked-data-file-read-from-the-local-checkout.md`).
 
+**Since 2026-09-30 an unverified observation can be re-probed, and a failed re-probe is printed.**
+`npm run harness:reprobe -- run` re-runs each observation that has a cheap bounded probe, one at a
+time, and appends each verdict (holds, failed, partial, not probed) with every fallback it observed
+to `<git-common-dir>/noacg-reprobe.jsonl`, beside the job store. It never spends API money and never
+makes a Codex model call, and it never edits `harness-capabilities.json`. `harness-usage.mjs` reads
+the ledger: a re-probe that failed on the installed build prints first as `FAILED RE-PROBE`, one that
+held counts as backed, and the rest show their last re-probe. Neither routine runs the re-probe or
+quotes that block yet; the exact lines to add to their prompts are in
+`docs/backlog/morning-brief-prints-failed-reprobes.md`.
+
 ## Weekly - the owner session
 
 `weekly-owner-session`, Tuesdays 09:15. It runs `.agent-workflows/orchestrator-week.md`, which is
