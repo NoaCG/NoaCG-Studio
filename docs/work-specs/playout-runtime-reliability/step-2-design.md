@@ -8,10 +8,15 @@ silent, and the three places where it corrects v2; sections 1 to 3 are v2 as it 
 
 ## 0. As built (2026-09-30)
 
-Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
-`src/control/seqFollow.ts` (the follower), `src/control/seqSend.ts` (the sender), their wiring in
-`src/control/hostedControl.ts`, `src/output/main.ts` and the two operator pages. Receipts:
-`evidence/` beside this file.
+Code: `supabase/migrations/0069_control_heads.sql`, `0070_seq_topic.sql`,
+`0071_command_sequence.sql`; `src/control/seqFollow.ts` (the follower), `src/control/seqSend.ts`
+(the sender), their wiring in `src/control/hostedControl.ts`, `src/output/main.ts` and the two
+operator pages. Receipts: `evidence/` beside this file.
+
+NUMBERING. The sequence file was `0070_command_sequence.sql` until the numbered frames moved to
+their own topic (D-s) on 2026-09-30; it is `0071` now and `0070` is that topic's read policy.
+Everything below that says "0070" about the sequence, and every receipt dated before the move,
+means today's 0071.
 
 ### Corrections to v2 (each would have been a defect if built as written)
 
@@ -36,17 +41,22 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
 
 ### Decisions where v2 was silent (each revertible where it says)
 
-- **D-a. Timeouts** `lock_timeout = 500ms`, `statement_timeout = 5s` in both files, as v2 asked;
-  both are inside db-push's rules (1 ms to 5 s; bounded). control_send_seq and
-  control_output_report_seq set a transaction-local 2 s `lock_timeout` so a stalled head answers
-  55P03, which the page resends (the send is idempotent) instead of eating the role's statement
-  timeout.
+- **D-a. Timeouts** `lock_timeout = 500ms`, `statement_timeout = 5s` in 0069 and 0071, as v2
+  asked (0070 takes 0068's `500ms` / `10s`); all inside db-push's rules. control_send_seq and
+  control_output_report_seq set a transaction-local 1 s `lock_timeout` before the show row and the
+  head, below a page's 1.5 s attempt less a round trip, so a stalled head answers 55P03 while the
+  page is still waiting, the page resends (the send is idempotent), and an attempt the page has
+  abandoned cannot go on waiting and commit late. It was 2 s until review 2 (latency:L2): longer
+  than the attempt, so the 55P03 path never reached a page and an abandoned attempt still waiting
+  when the head freed did commit.
 - **D-b. The self-check reads `realtime.messages` only where Realtime could write at all.** A
   project whose Realtime tenant has not started has no partition for today (a fresh preview
   branch had none), `realtime.send` then swallows the failure into a warning, and asserting the
   counts there would fail the migration for the environment's sake. It asserts exact counts per
-  topic (3 log-, 1 cmd-, 1 live- for a Take) wherever the first send wrote any, and says so in a
-  notice otherwise. Revert: assert unconditionally.
+  topic (3 log-, 1 cmd-, 1 seq- for a Take) wherever the first send wrote any, and says so in a
+  notice otherwise; every read is bounded to the apply's minute (the table's partition key), so
+  none scans Realtime's history under the file's lock (review 2 migration:F2). Revert: assert
+  unconditionally.
 - **D-c. `live_cue` from the old resolve is the column, unchanged, until the head has seen a cue**
   (`control_live_cue_view`), so every production nobody has taken a cue on since 0070 answers
   byte for byte what it answered before. After that it is format 2 with the head's layers over
@@ -60,7 +70,11 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   production was published again while this page was open, so air did not change." when the
   cause was the epoch; plus the page's half ("Your press is on this monitor only. Press again if
   you still want it." when the press moved its monitor). The answer's summary is learned either
-  way, so the next press is made on what is on air now.
+  way, so the next press is made on what is on air now. A superseded send still SAYS so to its
+  caller (`VerbSent.superseded`): a page that writes a picture after the answer (the production
+  page's chip after a Take, an Out, a folder Out, a combined press) skips that write, because the
+  later press's own handler already wrote it and this older answer arriving last would overwrite
+  it (review 2 ordering:F2: the chip said ON AIR while air was off).
 - **D-f. The per-graphic queue releases at 1500 ms**, Step 0's attempt deadline, on its own timer,
   so it holds whether or not Step 0's abort has landed in the same build: a stalled send cannot
   hold the next press longer than one attempt, and if it lands late the server refuses it as
@@ -81,24 +95,25 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   R-5: a debate board's stop halts its speaking clocks, and a play does not undo that). This
   narrows v2's "play or stop" and the spec's AC-16 says so (D9).
 - **D-j. A new epoch on the renderer clears its per-graphic seq baselines, restarts from 0 and
-  reports every graphic again**: a republished production is a new log numbered from 1, and a
-  baseline from the old one would skip its first rows as "already in the snapshot". The first
-  epoch of a log the renderer booted on before it had a head is learned, not a restart.
+  reports again every graphic that carries something** (on air, or holding data): a republished
+  production is a new log numbered from 1, a baseline from the old one would skip its first rows
+  as "already in the snapshot", and the republish emptied every report, so a graphic still up
+  that the new log never touches would come back without it on a reboot. The first epoch of a log
+  the renderer booted on before it had a head is learned, not a restart. (Until review 2,
+  recovery:F2, it only cleared the de-dupe and reported nothing.)
 - **D-k. The renderer's report `event` is the highest id it has applied**, next to the seq and the
   epoch. An older reader of that report follows by id from it, as it always did; the highest id
   is what its snapshot contains (review R-4 replaced "the last row in seq order", which after an
   id/seq inversion made old readers replay a row twice).
-- **D-l. `live-<show>` is joined once per page and production, in `src/control/livePath.ts`**
-  (`joinLiveTopic`), because supabase-js 2.110 returns the same channel object for a topic a page
-  already has, a second `subscribe` on it never reports, and removing it for one user removes it
-  for every user. The join is created with Presence's config (key = the instance id, enabled) and
-  with the Presence bindings and the `batch` frame binding in place before the subscribe; it keeps
-  Step 1's retry policy (a join refused before it ever succeeded, or closed by the server, is
-  asked again from scratch on 15 s doubling to 120 s); it leaves when its last user leaves. Step
-  1's `joinLivePresence` and this step's `followLiveSeq` both register there. Built when Step 1
-  landed (merge of #563); it replaced this branch's own reference-counted join in hostedControl.ts.
-  Revert: none short of moving the numbered frames to their own topic, which costs every page a
-  second private join (a database-authorised join each).
+- **D-l. `seq-<show>` is joined once per page and production, in `src/control/hostedControl.ts`**
+  (`joinSeqTopic`, used by `followSeqLog`), because supabase-js 2.110 returns the same channel
+  object for a topic a page already has, a second `subscribe` on it never reports, and removing
+  it for one user removes it for every user. The channel carries the numbered frames and nothing
+  else; Presence keeps its own `live-<show>` join exactly as Step 1 wrote it (livePath.ts is
+  main's, untouched). A join refused before it ever succeeded, or closed by the server, is asked
+  again from scratch: the first time within 1 to 5 s, then 15 s doubling to 120 s (D-w). Until
+  D-s the frames shared Presence's channel through a joint registry in livePath.ts (the merge of
+  #563); that coupling is gone.
 - **D-m. The publish updates by id and inserts only when nothing matched** (and updates again on a
   23505), with the same columns and the same 0058 fallback. Old bundles keep their upsert until
   they reload: Takes wait behind it as they do today, and never deadlock.
@@ -106,10 +121,10 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   show row for every old writer (v2 §1.2), which a publish's NO KEY UPDATE blocks; before 0070 an
   old page's Update (no cue item) passed a held row. Old pages' Takes and Outs already waited.
   Transitional: it ends when old pages reload. Accepted, not fixed.
-- **D-o. The new configured spec skips on a server without the sequence road**, and is listed in
-  `e2e/configured/expected-run.json` `allowedSkips` with that reason, because the migrations land
-  on their own gated branch: the landing that brings 0069 and 0070 into the tree removes the
-  entry and raises `minTests`. Revert: drop the runtime skip once both are in the tree.
+- **D-o. The new configured spec skips on a server without the sequence road**, and runs wherever
+  the tree's migrations apply: with 0068 on main the migrations land with this client (spec D11),
+  so its `allowedSkips` entry is gone and `minTests` rose by its five tests. Revert: restore the
+  entry if the migrations are split off again.
 - **D-p. Specs that intercept a send or a report now match both roads** (`control_send_*`,
   `control_output_report*`): the CI stack applies every migration in the tree, so once 0070 is
   there the pages and renderers in those specs negotiate protocol 2.
@@ -124,6 +139,40 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   new rows), the sequence follower reports holes that outlived the reorder window (a retry after
   a failed read is not a new hole), and a numbered send counts in the sender's counters like any
   send. No fast road exists there, so `cmd` stays null in the Presence entry.
+- **D-s. The numbered frames have their own private topic, `seq-<show id>`** (orchestrator's
+  decision, 2026-09-30; spec D12). The interleaved A/B run on tip 9b72891 found Realtime closing
+  the shared `live-` channel 25 to 27 s after it opened ("Client presence rate limit exceeded":
+  5 Presence calls per client per 30 s, and Step 1 re-tracked every 5 s); 35 of 100 quiet and 33
+  of 100 busy Takes pressed during the rejoin gap never played, with every send answered ok. A
+  project-wide Presence limit can close channels at scale too, so the command road must never
+  share fate with Presence. 0070 is a read-only policy for `seq-<uuid>` (no insert policy of any
+  kind), in its own file because it locks realtime.messages; 0071's trigger sends there. Proven by
+  forcing a server close of the renderer's `live-` channel mid-burst (command-sequence spec, "a
+  Presence channel closed by the server mid-burst costs the renderer no Take"). Revert: send the
+  frames on `live-` again (0071's trigger and followSeqLog's topic) and drop 0070; not advised
+  while Presence has a rate limit.
+- **D-t. A verb that leaves as several batches is numbered and based at the press**
+  (`sendControlVerbs`: All out over more than four layers, an Out of several graphics, a combined
+  press, on both pages), then sent in order, stopping at the first that fails. Numbered as each
+  batch left, a later batch took a number above a press the operator made while an earlier batch
+  was on its way, so All out undid that press, and a base read after the first batch's round trip
+  counted another screen's change as seen (review 2 ordering:F1, and C2 for multi-batch).
+- **D-u. A renderer never stays dark on the new resolve.** After three statement timeouts (57014)
+  in a row on `control_output_resolve`, the renderer gives the sequence road up for the session
+  and boots on today's resolve, following by id (review 2 oldclients:F2 (c)). An operator page has
+  a person to tell and keeps asking.
+- **D-v. No report baseline grows old** (review 2 recovery:F1 (b), the skeptic's widened form). A
+  boot follows from the OLDEST graphic's baseline and a report is written only when a graphic
+  changes, so a graphic taken once and left alone pinned every later boot of every renderer at its
+  Take. The renderer re-reports every graphic that holds a report once it has applied 500 numbered
+  rows past that graphic's last one, changed or not, bypassing the de-dupe; `lastAppliedSeq` is the
+  contiguous cursor, so what it banks is a true baseline. Cost: one report row per such graphic per
+  500 rows.
+- **D-w. The numbered topic's first retry is quick** (seqFollow.ts `seqJoinRetryDelay`): within 1
+  to 5 s, spread at random, then 15 s doubling to 120 s (review 2 oldclients:F1). On a 15 s
+  backoff from the start, a first join that failed for a passing reason left every Take for the
+  next 15 s to the 30 s poll. A server that keeps refusing is asked at the backoff's pace from
+  the second failure on.
 
 ### Known limits (recorded, not fixed)
 
@@ -137,21 +186,27 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
 - **K3. A frame Realtime fails to write is only found by the next frame or the 30 s poll**, as on
   the id road: `realtime.send` swallows its errors into a warning, by design, so a command is
   never lost to a broadcast.
-- **K4. A long catch-up by seq reads more rows than it returns.** With no `(show_id, seq)` index
-  (v2: no index build under a lock on the live table), a tail page reads the newest
-  `(head.seq - after) + 64` rows by id, or scans the production's rows when that falls short, so a
-  renderer booting from seq 0 on a production with 20,000 retained rows reads on the order of
-  400,000 rows over its 40 pages; `control_head_legacy` scans the production's retained rows once
-  per renderer resolve. Bounded by the 7-day prune and only at a boot with no baseline; a later,
-  ordinary migration can add the index when measurements say so.
-- **K5 (resolved). Step 1 and Step 2 both join `live-<show>`.** Step 1 landed first; this branch
-  made the two one join when it merged it (D-l).
-- **K6. On protocol 2 the live topic is the renderer's log road.** Refusing a page's `live-` join
-  (what a server without 0068 does, and what `e2e/configured/live-health.spec.ts` injects) leaves a
-  proto-2 renderer on the 30 s poll floor, where on protocol 1 only its Presence went. No real
-  server refuses it on protocol 2 (0070 requires 0068), and a join refused for any other reason
-  (Realtime down, its authorisation query failing) refuses the id road's private topics the same
-  way. The spec expects "NOT JOINED" for that renderer on protocol 2.
+- **K4. A catch-up by seq costs what the follower is behind, per page.** With no `(show_id, seq)`
+  index (v2: no index build under a lock on the live table), one tail page reads the newest
+  `(head.seq - after) + 64` rows by id (or the production's rows when the window is not whole), so
+  catching up L rows reads about L²/1000 rows, against 500 per page on the id road. TRIGGER: any
+  follower far behind, which is a renderer booting from a stale per-graphic baseline (the boot
+  follows from the OLDEST graphic's), a rejoin refill after a long outage, or a sleeping laptop's
+  page waking (review 2 recovery:F1, latency:L5). BOUND: the retained log, 7 days at a publish and
+  14 by the daily sweep (0039); a feed writing a row a second keeps about 1.2 million. CONSEQUENCE,
+  at hundreds of thousands of rows behind: a boot that reads for seconds before painting (the
+  recovery runs after the catch-up), live frames held behind the walk, and possibly a statement
+  timeout. What bounds it now: D-v keeps every baseline within about 500 rows of the renderer's
+  cursor, so a reboot reads about its own gap plus 500; D-u keeps a renderer from staying dark on
+  the resolve; `control_head_legacy` reads only the pre-0071 rows (review 2 oldclients:F2 (a)). An
+  outage's lag is bounded by the send cap (at most about 10 rows/s). The planned remedy is the
+  `(show_id, seq)` index, built concurrently in a later ordinary step, when a measurement asks.
+- **K5 (superseded by D-s). Step 1 and Step 2 both joined `live-<show>`.** They were one join for a
+  while (the merge of #563); the frames now have their own topic.
+- **K6. On protocol 2, `seq-<show>` is the renderer's log road.** A refused or closed `seq-` join
+  leaves a proto-2 renderer on the 30 s poll floor until it joins again (1 to 5 s the first time,
+  D-w). Refusing `live-` now costs only Presence, as on protocol 1 (the live-health spec expects
+  a renderer whose `live-` join is refused to go on following).
 - **K7. Protocol 1 stands its fast road down during every walk, and a shared instance walks
   often.** Measured 2026-09-30 on branch A (unmigrated, shared with other sessions):
   `late-send-abandoned` failed 3 of 3 on main's own code and 3 of 3 on this branch, every time
@@ -165,6 +220,24 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   that Step 2 would raise it; what a page speaks is now decided per server at load (D-g), so a
   constant cannot state it, and nothing reads the field yet. Left for Step 3, whose READY is the
   first reader: decide then whether it states the build's ability (2) or the road negotiated.
+- **K9. A duplicate answer carries the current head and no `skipped`** (review 2 ordering:F4). A
+  resend of an applied press can teach the page revisions its follower has not applied yet, and a
+  resent All out whose first answer was lost reports no skipped graphics, so the production page
+  can mark off a graphic a later press kept on air. Needs a lost answer plus a later press inside
+  the resend window.
+- **K10. Old writers hold the head and the show row during their own per-row log- broadcast**
+  (review 2 migration:F3), bounded only by the caller's statement timeout, where the new paths are
+  bounded at 250 ms. Transitional (old bundles only), beside D-n.
+- **K11. Same-graphic presses within one round trip air up to one round trip later than on
+  protocol 1** (review 2 latency:L3): the per-graphic queue (D-f) orders them. Revisit with a
+  play/stop/snap/full-cue skip if the latency measurement shows operators feel it.
+- **K12. The frame trigger keeps its own exception block around realtime.send** (review 2
+  latency:L4), which costs a subtransaction per inserting statement and halves the size of a data
+  patch that overflows the subxid cache. Kept as a guard against a missing or changed realtime.send;
+  a later ordinary migration can drop it.
+- **K13. The latency ACs have no receipt from this branch** (review 2 latency:L1): AC-14 (a busy
+  instance) and AC-18's press-to-applied before and after are the orchestrator's A/B measurement,
+  which is re-run on each new tip.
 
 ### The review of the finished diff (2026-09-30, before queueing)
 
@@ -195,6 +268,44 @@ checked against the code. What each became:
 - **R-13. The stale sentence named every graphic, and blamed another screen for a republish.**
   Fixed (D-e).
 - **R-14. Dead conditions in the follower's epoch rule; the negotiation written twice.** Fixed.
+
+### The second review (2026-09-30, read-only, five lenses with a skeptic each)
+
+No blockers; six verified majors; the orchestrator added the Presence rate-limit finding from its
+A/B run. What each finding became:
+
+- **A/B run: Presence closes the shared channel.** Fixed: the frames' own topic (D-s).
+- **ordering:F1, multi-batch numbering.** Fixed (D-t).
+- **ordering:F2, a superseded press written as landed.** Fixed on the pages (D-e); the SQL keeps
+  its whole-batch refusal.
+- **oldclients:F1, the 15 s backoff on the command road.** Fixed (D-w).
+- **oldclients:F2 and recovery:F1, cost that grows with the retained log.** Fixed in part: the
+  legacy read is bounded (0071), a renderer falls back after timeouts (D-u), baselines are
+  re-banked (D-v); the tail's own cost remains K4, rewritten.
+- **latency:L1, no latency receipts.** Open: K13.
+- **latency:L2, the 2 s head wait outlived the attempt.** Fixed: 1 s (D-a).
+- **migration:F1, 0069/0070 without 0068.** Not real once 0068 is on main (the skeptic's verdict);
+  the landing is now together (spec D11, D-o).
+- **migration:F2, unbounded realtime.messages reads in the self-check.** Fixed (D-b).
+- **migration:F3, old writers hold the head during their broadcast.** Recorded: K10.
+- **migration:F4, an arbitrary self-check owner.** Fixed: an owner hosted control is open to, the
+  skip notice when none.
+- **migration:F5, partial absence assertions.** Fixed: every internal function, both client roles.
+- **oldclients:F3, leave and rejoin in one round trip.** Not real for this phoenix version (the
+  skeptic's verdict and j-2530/j-2531); a comment in the old joint registry said why, and that
+  registry is gone with D-s. The seq- join works the same way.
+- **ordering:F3 and recovery:F3, a row pushed out of the tail's window.** Fixed: the fast path is
+  trusted only when the window holds every row the head says exists after the cursor; a gap falls
+  back to the per-production read.
+- **ordering:F4, duplicate answers.** Recorded: K9.
+- **ordering:F5, a press queued past its resend window.** Fixed: it is unanswered at once, never a
+  0 ms attempt (protocol 2 only).
+- **ordering (missing FOUND after the show row's lock).** Fixed: the send and the report refuse
+  when the production vanished between the lookup and the lock.
+- **recovery:F2, D-j said the renderer re-reports after a republish.** Fixed to match (D-j).
+- **latency:L3, the queue's round trip.** Recorded: K11.
+- **latency:L4, the frame trigger's exception block.** Recorded: K12.
+- **latency:L5, smaller head-held costs.** (a) and (b) dropped per the skeptic; (c) is in K4.
 
 ## What changed from v1, and why (one line each)
 

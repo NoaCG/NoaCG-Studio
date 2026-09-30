@@ -109,12 +109,21 @@ rewrite.
   it would need follows by id for that session, and its reports move past them. The migrations
   can therefore land before or after the client, in either order. Revert: none needed while old
   servers exist; retire proto 1 by D6's evidence.
-- **D11. Step 2's two migrations land on their own gated branch, after the client and after
-  Step 1's 0068.** The client works on an unmigrated server (D10), so it lands first. 0070 refuses
-  to apply without 0068's `live-` read policy, because without it every new follower's join is
-  refused and falls back to the 30 s poll. `e2e/configured/command-sequence.spec.ts` skips on a
-  server without the sequence road and is an allowed skip until the migrations are in the tree,
-  when that entry goes and `minTests` rises by 2. Revert: land them together (0068 first).
+- **D11. Step 2's migrations land with the client, after Step 1's 0068 is on `main`.** 0069 is the
+  head table, 0070 the read policy for the numbered topic, 0071 the sequence; each strongly locks
+  at most one live table. The client works on an unmigrated server (D10), and 0071 refuses to
+  apply without 0070's read policy, because without it every new follower's join is refused and
+  falls back to the 30 s poll. `e2e/configured/command-sequence.spec.ts` runs wherever the tree's
+  migrations apply (it skips only on a server without the sequence road). Revert: split the three
+  migrations off onto their own branch and restore the command-sequence allowed skip.
+- **D12. The numbered frames have their own private topic, `seq-<show id>`, never Presence's.**
+  Realtime closes a channel that exceeds its Presence rate limit (5 calls per client per 30 s on
+  every plan; 50 Presence messages per second per project on Pro). With the frames on `live-`, the
+  measured A/B run on the preview branch saw the channel close 25 to 27 s after it opened, and a
+  third of the Takes pressed before it joined again never played, while every send had answered
+  ok. The command road must never share fate with Presence: `seq-` has a read-only policy for anon
+  and authenticated and no insert policy of any kind. Revert: send the frames on `live-` again and
+  drop 0070's policy (not advised while Presence has a rate limit).
 
 ## Non-goals
 

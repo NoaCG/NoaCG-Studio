@@ -23,6 +23,19 @@
   read "protocol: numbered log (proto 2)", "last row: 4 (id 510)", "commands: numbered log", and
   the graphic was up (recovered from the report).
 
+## Re-run after both reviews (job j-2561)
+
+The first run was before the first review's fixes. The probe's reports had since moved its
+baselines past the pre-migration rows, so they were cleared in both homes (`control_shows.live`
+and `control_heads.live`, `legacy-reset.sql`; the rows themselves untouched, three still seq-null),
+taking it back to "no renderer has ever reported". Then the same scenario, with the review-2
+`control_head_legacy` (bounded below the first numbered row) and this branch's app (abb6c01):
+
+- First boot: `legacy: true`, "protocol: row id (proto 1: older rows need it)", "catch-up: 11
+  row(s) replayed, back on air", the graphic up.
+- Second boot, after the first renderer reported: `legacy: false`, "protocol: numbered log (proto
+  2)", "last row: 12 (id 5980)", the graphic up.
+
 ## Limitations
 
 - One production and one graphic with pre-migration rows. The rule that decides `legacy` (a

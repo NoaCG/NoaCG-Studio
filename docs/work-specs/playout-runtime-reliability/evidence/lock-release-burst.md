@@ -60,10 +60,33 @@ same scenario ran again (`verify-b.mjs --label step2-final`, result
 
 - 6 of 6 trials ended on the operator's last press, on air, on the server and on the chip, with
   no notice left on the page.
-- With the head held, the page now abandons each attempt at Step 0's 1.5 s deadline (status 0 in
-  the browser) instead of waiting for the send's own 2 s lock timeout and its 55P03. An abandoned
-  attempt still waiting on the head times out on the server and writes nothing; the attempts that
-  landed were resends after the hold ended.
+- With the head held, the page abandoned each attempt at Step 0's 1.5 s deadline (status 0 in
+  the browser) before the send's own lock timeout, then 2 s, could answer 55P03. Corrected after
+  review 2 (latency:L2): an abandoned attempt whose server side was still waiting on the head when
+  the hold ended did not simply time out; it could commit then, late (harmless here: the chain
+  rule refuses an earlier press arriving after a later one, and a resend of it is answered as a
+  duplicate). The send now waits at most 1 s, below the attempt; see the re-run below.
+
+## Re-run with the 1 s head wait (j-2558)
+
+After review 2 (the send and the report wait at most 1 s for the show row and the head), the same
+scenario on this branch's app (abb6c01), `verify-step2-r2-1790744588094.json`:
+
+| Hold | Trial | Last press | Air, server and chip on the last press | Send requests | Slowest answered |
+|---|---|---|---|---|---|
+| heads | 1 | Out | yes | 9 abandoned, 5x 500 (55P03), 4x 200 | 1,080 ms |
+| heads | 2 | Out | yes | 9 abandoned, 5x 500, 4x 200 | 1,079 ms |
+| heads | 3 | Out | yes | 9 abandoned, 5x 500, 4x 200 | 1,078 ms |
+| shows | 1 | Out | yes | 18x 200 | 123 ms |
+| shows | 2 | Out | yes | 18x 200 | 107 ms |
+| shows | 3 | Take | yes | 17x 200 | 145 ms |
+
+- 6 of 6 ended on the last press. With the head held, 55P03 now reaches the page (five per trial)
+  and is sent again; the slowest answer is the 1 s wait plus the round trip. Nine attempts per
+  trial were still abandoned at 1.5 s. Why those took longer than one 1 s wait and a round trip
+  was not looked into (a wait for a PostgREST connection, or two lock waits in one statement, each
+  under its own 1 s, are the candidates); whichever it is, the hold ended with every trial on the
+  last press.
 
 ## Limitations
 

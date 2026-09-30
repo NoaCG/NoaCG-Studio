@@ -35,7 +35,22 @@ live- read policy and 0070). The app was this branch's worktree in every run
   policies on the live topic, 0069 and 0070. Specs: `live-health`, `command-sequence`,
   `playout-both-roads`, `follow-status-is-visible`, `output-realtime-floor`.
 
+- **j-2558, after the second review's fixes and the numbered frames' move to `seq-<show>`**
+  (tip abb6c01, B with 0068, 0070 and 0071 as in the tree, `seq-topic.md`). On B: the eleven
+  specs of j-2525 (`command-sequence` now five tests) and `verify-b.mjs` (burst, refill, legacy,
+  epoch, race, mixed). On A: `live-health`, `hosted-control-recovery`, `playout-both-roads`,
+  `command-sequence`, `operator-outage-not-unpublished`, `output-cold-boot`.
+
 ## What was observed
+
+- **j-2558:** on B, 15 of 15 passed, including the three new `command-sequence` tests (two
+  batches, a failed first numbered join, a Presence close mid-burst) and `live-health` with its
+  refused-`live-` renderer back on "realtime: following" (Presence no longer carries commands);
+  `verify-b.mjs` burst (6 of 6 trials on the last press, 55P03 now reaching the page), refill (3
+  of 3 with one read), epoch, race (5 of 5) and mixed old and new clients all passed; its legacy
+  scenario booted proto 2 because the probe's old reports had moved its baselines, so the legacy
+  boot was re-run on its own after clearing them (j-2561, `legacy-boot.md`: `legacy: true`, then
+  `false`). On A, 5 passed and `command-sequence`'s 5 skipped (no sequence road), as designed.
 
 On B (protocol 2 end to end: pages send `control_send_seq`, renderers follow `live-<show>`):
 
