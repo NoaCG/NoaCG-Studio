@@ -41,14 +41,56 @@ permissions:
   issues: write # the verdict job files/closes the rolling issue
 
 jobs:
-  e2e:
-    name: Nightly E2E ${{ matrix.shardIndex }}/8
+  # WHICH SPEC FILES EACH RUNNER GETS, packed by measured minutes (scripts/nightly-shards.mjs has
+  # the why and the numbers). Until 2026-09-30 the shards were Playwright's `--shard=i/8`, which
+  # splits by test COUNT: the same eight ran from 5 to 25+ minutes, and shard 6 was cancelled by the
+  # cap below with one test left (issue #568). The weights are the last few nightlies' own reports,
+  # fetched best effort: a report that cannot be had leaves its files to the durations table.
+  plan:
+    name: Nightly shard plan
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shardSpecs: ${{ steps.plan.outputs.shardspecs }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Pack the suite into shards
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          REPORTS=""
+          for id in $(gh run list --workflow nightly.yml --status completed --limit 6 \
+            --json databaseId --jq ".[] | select(.databaseId != ${RUN_ID}) | .databaseId" | head -5); do
+            if gh run download "$id" --name nightly-report-json --dir "previous/$id" >/dev/null 2>&1; then
+              REPORTS="$REPORTS previous/$id/nightly-report.json"
+            else
+              echo "Nightly run $id has no usable report - its files fall back to an older night or the table."
+            fi
+          done
+          # Newest first, as `gh run list` gives them. Unquoted on purpose: one argument per file.
+          node scripts/nightly-shards.mjs --github-output $REPORTS
+
+  e2e:
+    name: Nightly E2E ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+    needs: plan
+    runs-on: ubuntu-latest
+    # The job's cap, kept where it was. Each shard's own Playwright run stops itself five minutes
+    # sooner (`--global-timeout` below), so a shard that overruns ends FAILED with its report
+    # uploaded and naming what it did not reach; only a fault outside Playwright meets this cap,
+    # and the triage names that shard as one that sent no report.
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      matrix:
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v5
 
@@ -62,9 +104,30 @@ jobs:
 
       - uses: ./.github/actions/playwright-chromium
 
-      # No spec filter: this tier is the whole suite, by definition.
+      # This tier is the whole suite, by definition: the plan hands every spec file on disk to
+      # exactly one shard, and says so or fails. The filters are the anchored ones ci.yml's shards
+      # use (`specFilterArg`), and `$SPECS` is unquoted for the reason ci.yml's shard step gives.
+      # An empty list is refused: Playwright reads no filter as EVERY test.
+      # 1200000 ms is NIGHTLY_TEST_BUDGET_MINUTES (scripts/nightly-shards.mjs), the plan's own
+      # warning line; the two move together.
       - name: E2E shard
-        run: npm run test:e2e -- --shard=${{ matrix.shardIndex }}/8
+        env:
+          SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
+          SHARD_INDEX: ${{ matrix.shardIndex }}
+          # One blob name per shard, so the report job can tell which shard sent none.
+          NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
+        run: |
+          SPECS="$(node -e '
+            const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");
+            const mine = bins[Number(process.env.SHARD_INDEX) - 1];
+            if (!Array.isArray(mine) || mine.length === 0) {
+              console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);
+              process.exit(1);
+            }
+            import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));
+          ')"
+          echo "::notice title=Nightly E2E ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"
+          npm run test:e2e -- --global-timeout=1200000 $SPECS
 
       - name: Upload shard report
         uses: actions/upload-artifact@v4
@@ -189,7 +252,8 @@ jobs:
   report:
     name: Combined nightly report
     if: ${{ !cancelled() }}
-    needs: e2e
+    # `plan` for the shard count the triage checks the reports against.
+    needs: [plan, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -251,9 +315,16 @@ jobs:
       # Classify failures focus-vs-paused for the verdict job (docs/GOALS_ARCHIVE.md "Student
       # release"). Runs even when shards failed - a red night is exactly when the triage
       # matters - and never fails the job itself: the script degrades to an honest note.
+      # `--blobs`/`--shards` let it name a shard whose report never arrived: a shard cancelled at its
+      # job cap uploads nothing, and without them the triage read the others and called the night
+      # green (issue #568).
       - name: Triage failures (sprint focus vs paused areas)
         if: ${{ !cancelled() }}
-        run: node scripts/nightly-triage.mjs nightly-report.json > nightly-triage.md
+        env:
+          MATRIX: ${{ needs.plan.outputs.matrix }}
+        run: |
+          SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX || "{}").shardTotal?.[0] ?? 0)')"
+          node scripts/nightly-triage.mjs nightly-report.json --blobs all-blob-reports --shards "$SHARDS" > nightly-triage.md
 
       - name: Upload triage
         uses: actions/upload-artifact@v4
@@ -296,7 +367,7 @@ jobs:
   verdict:
     name: Nightly verdict
     if: ${{ !cancelled() }}
-    needs: [e2e, catalog, catalog-gates, report]
+    needs: [plan, e2e, catalog, catalog-gates, report]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -308,6 +379,7 @@ jobs:
       - name: Collect the verdict
         id: verdict
         env:
+          PLAN_RESULT: ${{ needs.plan.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           CATALOG_RESULT: ${{ needs.catalog.result }}
           GATES_RESULT: ${{ needs.catalog-gates.result }}

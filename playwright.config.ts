@@ -15,8 +15,8 @@ const isCi = Boolean(process.env.CI);
 // `merge-multiple: true`, which flattens them into ONE directory: eight zips silently overwrite
 // the ninth and `merge-reports` builds the combined report from a single shard's data. Since
 // 2026-09-04 ci.yml assigns spec files explicitly instead of sharding, so it names the file
-// itself through this variable. nightly.yml still passes `--shard` and sets nothing, keeping
-// Playwright's own naming.
+// itself through this variable. nightly.yml has done the same since 2026-09-30, and its triage
+// reads the names to tell which shard sent no report (scripts/nightly-triage.mjs).
 const blobReporter: ReporterDescription = process.env.NOACG_BLOB_NAME
   ? ['blob', { fileName: process.env.NOACG_BLOB_NAME }]
   : ['blob'];

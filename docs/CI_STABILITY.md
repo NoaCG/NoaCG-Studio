@@ -273,6 +273,22 @@ Printing the drift in the plan job's own output stays available and was not buil
 refreshed weekly it would print "no drift" on every run, and `ci.yml`'s plan step is a file two
 other lines of work were changing the same day.
 
+#### The nightly kept the count split until 2026-09-30 (issue #568)
+
+`nightly.yml` never took the packer: it still ran Playwright's `--shard=i/8`. Over the four nights
+to 2026-09-30 its shard 1 ran 5-6 minutes while shard 6, which drew the playout and production
+specs Phase 6 was adding, ran 14, 17, 22 and then 25+ - cancelled by its 25-minute cap at test 220
+of 221 (run 36674227393). A cancelled shard uploads no report, so the triage read the other seven
+and wrote "every spec file green" under a verdict of "Full E2E suite: cancelled".
+
+The nightly now packs with `packShards` too (`scripts/nightly-shards.mjs`), weighted by the last
+five nightlies' own reports before the table: the table was missing 21 of 187 spec files that
+night, among them `playout-folders.spec.ts` at 5.1 minutes. Replayed over the two nights before the
+fix, the eight bins plan at 15.2 minutes each. Each shard's Playwright run also stops itself at 20
+minutes (`--global-timeout`), five under the job cap, so an overrun ends as a failed shard whose
+report names what it did not reach; and the triage names any shard that sent no report
+(`scripts/nightly-triage.mjs`), so a short night can no longer read as a green one.
+
 ### 5. FLAKY-SPEC - one proven flake (already fixed) and one regression wearing a flake's name
 
 Proven means: red, then green on the **same SHA** after a re-run. Anything without that re-run is
