@@ -1,9 +1,8 @@
 import type { SpxTemplate } from '../model/types';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
-import { EPS, joinCues, moveStepFlag, renameStep, round, splitCue, withOut } from './animEdit';
+import { cueStarts, EPS, joinCues, moveStepFlag, renameStep, round, splitCue, withOut } from './animEdit';
 import { spxSteps } from './animMachine';
-import { animationSource, sequenceAuthoringReason } from './editorAnimation';
-import { documentContains } from './editorOut';
+import { animationSource, documentContains, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
 
 /** Step authoring on the one timeline (R1.2a.4, docs/research/editor-r1-2a-4). Times are ruler
@@ -27,7 +26,7 @@ export function applyStep(template: SpxTemplate, operation: StepOperation): SpxT
   // A legacy one-step graphic gains its empty Out first, so a new Step is never the exit.
   withOut(data);
   const out = data.steps.length - 1, frame = data.speed / template.fps;
-  const starts = data.steps.reduce<number[]>((acc, step, i) => [...acc, round(acc[i] + step.duration)], [0]);
+  const starts = cueStarts(data);
   // Stored time on the ruler of a playhead snapped to its frame.
   const snapped = (time: number) => {
     if (!Number.isFinite(time) || time < 0) throw new Error('A flag needs a finite playhead time.');

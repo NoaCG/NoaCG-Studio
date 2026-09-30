@@ -309,7 +309,8 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('40 percent
 
 for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interrupting an In shortened across its keys starts from the live pose in ' + target, async ({ page }) => {
   await fixture(page, true);
-  // The keys end at 1 s. Out at 0.6 s moves the rest of the entrance into a 1.4 s exit.
+  // The keys end at 1 s. Out at 0.6 s moves the rest of the entrance into Out, which ends with it:
+  // 0.4 s, the entrance's still second gone (owner decision 2026-09-30, docs/research/editor-r1-2a-5).
   await evaluateInPage(page, async () => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
     store.applyTemplate((await import('/src/blocks/editorOut.ts')).applyOut(store.template, { kind: 'out.set', time: .6 }));
@@ -328,8 +329,8 @@ for (const target of ['simulator', 'spx', 'casparcg', 'ograf']) test('Out interr
     const timeline = (duration: number) => w.gsap.globalTimeline.getChildren(false, false, true).find(t => Math.abs(t.duration() - duration) < .0001)!;
     await command('play'); const entrance = timeline(.6); entrance.pause(); entrance.time(.24, true);
     const before = pose(); await command('stop'); const after = pose();
-    const exit = timeline(1.4); exit.pause(); exit.time(.2, true); const middle = pose();
-    exit.time(1.4, true);
+    const exit = timeline(.4); exit.pause(); exit.time(.2, true); const middle = pose();
+    exit.time(.4, true);
     return { before, after, middle, hidden: getComputedStyle(document.querySelector('.fixture')!).opacity };
   }, target);
   for (let i = 0; i < 2; i++) {
@@ -523,7 +524,10 @@ test('Set Out before the last In key moves the rest of the entrance into Out as 
   // The exit now has keys, so there is nothing to reverse or author: no prompt.
   await expect(page.getByRole('dialog', { name: 'Reverse entrance' })).toBeHidden();
   const moved = await source(page), d = await data(page);
-  expect(d.steps.map(step => step.duration)).toEqual([.4, 1.6]);
+  // The exit starts where the entrance's motion ends (owner decision 2026-09-30): the entrance's
+  // still second goes, so Out lasts the 0.6 s of carried motion (docs/research/editor-r1-2a-5).
+  expect(d.steps.map(step => step.duration)).toEqual([.4, .6]);
+  expect(d.steps[1].carried).toBe(.6);
   for (const selector of ['#box', '#title']) {
     expect(d.steps[0].layers[selector]).toEqual({ x: [{ time: 0, value: -900 }, { time: .4, value: -540, ease: 'none' }], opacity: [{ time: 0, value: 0 }, { time: .4, value: .4, ease: 'none' }] });
     expect(d.steps[1].layers[selector]).toEqual({ x: [{ time: 0, value: -540 }, { time: .6, value: 0, ease: 'none' }], opacity: [{ time: 0, value: .4 }, { time: .6, value: 1, ease: 'none' }] });
@@ -570,8 +574,9 @@ test('a Set Out that cannot split a crossed segment keeps source and history and
   expect(await state()).toEqual(before);
 });
 
-test('Set Out inside a Next cue refuses until Step/Next editing, keeping source and history', async ({ page }) => {
-  // Out pressed before that cue would play whatever moved into Out (docs/research/editor-r1-2a-2).
+test('Set Out inside a Next cue carries the rest of its motion into Out as one undo', async ({ page }) => {
+  // R1.2a.2 refused this until Step/Next editing; Out pressed before that cue now never plays it
+  // (R1.2a.3) and skips its time (R1.2a.5, docs/research/editor-r1-2a-5).
   await fixture(page, true);
   await evaluateInPage(page, async () => {
     const { parseAnimData, spliceAnimData } = await import('/src/blocks/animData.ts');
@@ -584,10 +589,14 @@ test('Set Out inside a Next cue refuses until Step/Next editing, keeping source 
   await ready(page); await seek(page, 35);
   const state = () => page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); return { js: s.template.js, history: s.history.length, future: s.future.length }; });
   const before = await state();
-  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click();
-  await expect(page.locator('.ef-out-error')).toContainText('Next cue');
+  await page.getByRole('button', { name: 'Set Out at playhead', exact: true }).click(); await ready(page);
+  await expect(page.locator('.ef-out-error')).toHaveCount(0);
   await expect(page.getByRole('dialog', { name: 'Reverse entrance' })).toBeHidden();
-  expect(await state()).toEqual(before);
+  const d = await data(page);
+  expect([d.steps[1].duration, d.steps[2].duration, d.steps[2].carried, d.steps[2].layers['#box'].rotation.map(k => k.time)]).toEqual([.4, .4, .4, [0, .4]]);
+  expect((await state()).history).toBe(before.history + 1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page);
+  expect((await state()).js).toBe(before.js);
 });
 
 test('pause and resume an interrupted Out retain its live exit trajectory', async ({ page }) => {

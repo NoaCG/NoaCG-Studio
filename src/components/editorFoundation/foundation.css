@@ -176,6 +176,13 @@
 .ef-out-popover small { display: block; margin-top: 8px; color: var(--text-dim); }
 .ef-out-error { position: absolute; right: 12px; bottom: 100%; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); z-index: 5; }
 .ef-transport { position: relative; }
+/* R1.2a.5: keys drag across flags; a refused move is drawn in the warning colour with its reason. */
+.ef-shell .ef-timeline-key { cursor: grab; touch-action: none; }
+.ef-shell .ef-timeline-key.is-dragging { color: var(--text); cursor: grabbing; z-index: 4; }
+.ef-shell .ef-timeline-key.is-refused { color: transparent; text-shadow: none; -webkit-text-stroke: 1px var(--warn); }
+.ef-track-lane.has-key-reason { z-index: 7; }
+.ef-key-move-error, .ef-key-move-time { top: calc(100% - 2px); }
+.ef-flag-error.ef-key-move-time { color: var(--text); }
 /* R1.2a.4 step authoring: Step and Out flags on the ruler, their name field, reasons and Add Step. */
 .ef-shell button.ef-flag { min-height: 0; margin: 0; padding: 2px 4px; font-size: 10px; line-height: 12px; border: 0; border-left: 1px solid var(--text-dim); border-radius: 0; background: transparent; cursor: grab; touch-action: none; z-index: 2; }
 .ef-shell button.ef-flag:hover, .ef-shell button.ef-flag:focus-visible { color: var(--text); border-left-color: var(--text); }

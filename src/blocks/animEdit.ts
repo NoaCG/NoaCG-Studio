@@ -41,7 +41,7 @@ export const round = (n: number) => Math.round(n * 1000) / 1000;
 
 /** Move a cue-local visibility set and every key by the same stored delta.
  * Refuse crossing instead of clipping, stretching or overwriting keys. */
-export function moveLayerSpan(data: AnimData, index: number, selector: string, delta: number): AnimData {
+export function moveLayerSpan(data: AnimData, index: number, selector: string, delta: number, contains?: (ancestor: string, selector: string) => boolean): AnimData {
   const step = data.steps[index];
   if (!step || !Number.isFinite(delta)) throw new Error('Choose a finite move inside one cue.');
   delta = round(delta);
@@ -50,17 +50,78 @@ export function moveLayerSpan(data: AnimData, index: number, selector: string, d
   const keys = Object.values(step.layers[selector] ?? {}).flat();
   const times = [...spans.flatMap(s => [s.start, s.end]), ...keys.map(k => k.time)];
   if (!times.length) throw new Error('This layer has no visible span in this cue.');
-  if (times.some(t => round(t + delta) < 0 || round(t + delta) > step.duration)) {
-    throw new Error('This move crosses a cue boundary. Cross-cue movement is not available yet; no keys or spans changed.');
-  }
-  const next = clone(data), target = next.steps[index];
   if (data.steps.some(cue => cue.spans?.[selector] === undefined && cue.hides?.includes(selector))) {
     throw new Error('This legacy layer hides at a cue endpoint. Moving it cannot preserve that held pose yet; no keys or spans changed.');
   }
+  // A bar the layer's visibility continues from or into across a flag moves with the rest of it,
+  // so a body dragged across a flag and back is one bar both ways.
+  const next = clone(data), target = next.steps[index];
   explicitBars(next, selector);
+  const cues = visibleRun(next, index, selector);
+  if (cues.length > 1 || times.some(t => round(t + delta) < 0 || round(t + delta) > step.duration)) return moveLayerAcross(data, next, cues, selector, delta, contains);
   target.spans = { ...target.spans, [selector]: spans.map(s => ({ start: round(s.start + delta), end: round(s.end + delta) })) };
   for (const track of Object.values(target.layers[selector] ?? {})) for (const key of track) key.time = round(key.time + delta);
   return next;
+}
+
+/** The cues a layer's visibility runs through from cue `index` in `bars`, the graphic with the
+ *  layer's bars spelled out: a bar reaching a cue's end continues into the next cue's bar from its
+ *  start, as one bar on the ruler. */
+function visibleRun(bars: AnimData, index: number, selector: string) {
+  const list = (cue: number) => bars.steps[cue].spans![selector], out = bars.steps.length - 1;
+  const ends = (cue: number) => list(cue).some(bar => Math.abs(bar.end - bars.steps[cue].duration) < EPS && bar.end > bar.start);
+  const begins = (cue: number) => list(cue).some(bar => bar.start < EPS && bar.end > bar.start);
+  let first = index, last = index;
+  while (first > 0 && begins(first) && ends(first - 1)) first--;
+  while (last < out && ends(last) && begins(last + 1)) last++;
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+}
+
+/**
+ * A bar body moved across flags (R1.2a.5): the layer's visibility over `cues` (its bar in the pressed
+ * cue and the bars it continues into across flags) and every key it has there move by `delta` on the
+ * ruler, its bars cut at each flag they cross and joined to the other cues' bars, its keys as
+ * moveKeys moves them. A legacy reveal marker follows the cue the layer now first appears in; into
+ * In only for a layer inside the root, which clears it at the end of Out.
+ */
+function moveLayerAcross(source: AnimData, spelled: AnimData, cues: number[], selector: string, delta: number, contains?: (ancestor: string, selector: string) => boolean): AnimData {
+  let data = clone(source);
+  const out = data.steps.length - 1, starts = cueStarts(data), name = (cue: number) => cue === 0 ? 'In' : cue === out ? 'Out' : data.steps[cue].name;
+  // Out's visibility is spelled out only where the move reaches it: without bars there, it keeps
+  // what the cue before left the layer with (`spelled`, every cue's bars spelled out).
+  explicitBars(data, selector, cues.includes(out) ? out + 1 : out);
+  // A bar running to the end of Out keeps running to it: the root clears the graphic there anyway.
+  const end = round(starts[out] + data.steps[out].duration);
+  const bars = joinBars(cues.flatMap(cue => data.steps[cue].spans![selector].map(bar => ({ start: round(starts[cue] + bar.start), end: round(starts[cue] + bar.end) }))))
+    .map(bar => ({ start: round(bar.start + delta), end: Math.abs(bar.end - end) < EPS ? end : round(bar.end + delta) }));
+  if (bars.some(bar => bar.start < -EPS)) throw new Error(`${selector} would move before In starts. No keys or spans changed.`);
+  if (bars.some(bar => bar.end > end + EPS || bar.end - bar.start < EPS)) throw new Error(`${selector} would move past the end of Out. No keys or spans changed.`);
+  for (const cue of cues) data.steps[cue].spans![selector] = [];
+  let intoOut = false;
+  for (const bar of bars) for (let cue = 0; cue <= out; cue++) {
+    const from = Math.max(bar.start, starts[cue]), to = cue === out ? bar.end : Math.min(bar.end, starts[cue] + data.steps[cue].duration);
+    if (to - from < EPS) continue;
+    if (cue === out) { data.steps[out].spans = { ...data.steps[out].spans, [selector]: data.steps[out].spans?.[selector] ?? spelled.steps[out].spans![selector] }; intoOut = true; }
+    const piece = { start: round(from - starts[cue]), end: round(to - starts[cue]) }, list = data.steps[cue].spans![selector];
+    if (list.some(other => other.start < piece.end - EPS && piece.start < other.end - EPS)) throw new Error(`${selector} would overlap its own visibility in ${name(cue)}. No keys or spans changed.`);
+    data.steps[cue].spans![selector] = [...list, piece].sort((a, b) => a.start - b.start);
+  }
+  // Out gates only a layer visible as it starts: it never reveals one.
+  const last = data.steps[out - 1];
+  if (intoOut && out > 0 && !last.spans![selector].some(bar => Math.abs(bar.end - last.duration) < EPS)) {
+    throw new Error(`${selector} would appear only after the Out flag, and Out never reveals a hidden layer. No keys or spans changed.`);
+  }
+  const keys = cues.flatMap(cue => Object.entries(source.steps[cue].layers[selector] ?? {}).flatMap(([property, list]) => list.map(key => ({ step: cue, selector, property, time: key.time }))));
+  if (keys.length) data = moveKeys(data, keys, delta, { pairs: false, before: source });
+  const revealed = data.steps.findIndex((step, i) => i > 0 && step.reveals?.includes(selector)), first = data.steps.findIndex(step => (step.spans?.[selector] ?? []).length > 0);
+  if (revealed > 0 && first >= 0 && first !== revealed) {
+    const step = data.steps[revealed];
+    step.reveals = step.reveals!.filter(other => other !== selector);
+    if (!step.reveals.length) delete step.reveals;
+    if (first > 0) data.steps[first].reveals = [...data.steps[first].reveals ?? [], selector];
+    else if (!contains?.(data.root, selector)) throw new Error(`${selector} appears with ${name(revealed)} through older source outside the graphic's root, and only that step's reveal clears it at Out. No keys or spans changed.`);
+  }
+  return data;
 }
 
 /** Trim one interval only. Keys, inheritance and all other cue poses remain intact. */
@@ -84,14 +145,25 @@ export function trimLayerSpan(data: AnimData, index: number, selector: string, i
   return next;
 }
 
-/** Give a layer explicit bars in every cue (of the first `cues`) that has none, showing it exactly
- *  where its legacy reveal and hide did: an edited layer spanning cues writes its intervals in each (D04). */
-function explicitBars(data: AnimData, selector: string, cues = data.steps.length) {
+/** Whether the runtime shows a layer through cue `index` when that cue has no bars for it: as the
+ *  last cue with bars left it (a cue without bars never sets visibility); before any, where its
+ *  legacy reveal and hide put it. */
+export function shownWithoutBars(data: AnimData, selector: string, index: number) {
+  const earlier = data.steps.slice(0, index).reverse().find(step => step.spans?.[selector] !== undefined);
+  if (earlier) return earlier.spans![selector].some(bar => bar.end === earlier.duration && bar.end > bar.start);
   const reveal = data.steps.findIndex((s, i) => i > 0 && s.reveals?.includes(selector));
   const hide = data.steps.findIndex(s => s.hides?.includes(selector));
+  return !(reveal >= 0 && index < reveal || hide >= 0 && index > hide);
+}
+
+/** Give a layer explicit bars in every cue (of the first `cues`) that has none, showing it exactly
+ *  where the runtime did (`shownWithoutBars`, read from the bars as written). An edited layer
+ *  spanning cues writes its intervals in each (D04). */
+function explicitBars(data: AnimData, selector: string, cues = data.steps.length) {
+  const shown = data.steps.map((_, i) => shownWithoutBars(data, selector, i));
   data.steps.forEach((cue, i) => {
     if (i >= cues || cue.spans?.[selector] !== undefined) return;
-    cue.spans = { ...cue.spans, [selector]: (cue.duration === 0 || reveal >= 0 && i < reveal || hide >= 0 && i > hide) ? [] : [{ start: 0, end: cue.duration }] };
+    cue.spans = { ...cue.spans, [selector]: cue.duration === 0 || !shown[i] ? [] : [{ start: 0, end: cue.duration }] };
   });
 }
 
@@ -425,10 +497,10 @@ export function joinCues(source: AnimData, at: number, contains?: (ancestor: str
   const c = data.steps[at + 1], shift = (time: number) => round(time + b);
   for (const [selector, tracks] of Object.entries(c.layers)) for (const [prop, keys] of Object.entries(tracks)) {
     if (!keys.length) continue;
-    const own = a.layers[selector]?.[prop] ?? [], start = keys[0].value, held = resolveValue(data, selector, prop, at, b);
-    // One cue has no instant jump at the old flag. A track that begins with the later cue joins
-    // where the earlier cue already showed its value.
-    if (own.length ? held !== start : !startsAt(data, selector, prop, at, start)) {
+    const own = a.layers[selector]?.[prop] ?? [], start = keys[0].value;
+    // One cue has no instant jump at the old flag.
+    if (jumpsAt(data, selector, prop, at + 1, start)) {
+      const held = resolveValue(data, selector, prop, at, b);
       throw new Error(`${selector} ${prop} jumps at the flag of ${c.name}, from ${held ?? 'its design value'} to ${start}, so one cue cannot play it. Its source is preserved.`);
     }
     const moved = keys.map((key, i) => {
@@ -481,6 +553,211 @@ export function moveStepFlag(source: AnimData, step: number, b: number, minimum:
     throw new Error(`Keep ${cue.name} at least one frame after ${step > 1 ? before.name : 'In'} and one frame before ${step + 1 < last ? source.steps[step + 1].name : 'Out'}. Its source is preserved.`);
   }
   return splitCue(joinCues(source, step - 1, contains), step - 1, b, minimum, { name: cue.name, ease: cue.ease });
+}
+
+// ── R1.2a.5: keys and bars across flags (docs/research/editor-r1-2a-5) ─────
+// A track is one curve on the ruler, cut by the flags. Moving keys moves them on that curve at
+// their absolute times, and every flag inside a segment the move changed is cut again as Add Step
+// cuts, so the runtime plays what the ruler shows.
+
+/** One key of a track on the concatenated ruler: its cue, its key there, and its time on the ruler. */
+type Placed = { cue: number; key: AnimKeyframe; at: number; moved: boolean };
+export const cueStarts = (data: AnimData) => data.steps.reduce<number[]>((acc, step, i) => [...acc, round(acc[i] + step.duration)], [0]);
+const seconds = (data: AnimData, stored: number) => `${round(stored / data.speed).toFixed(2)} s`;
+
+/** The cue a key moved from cue `from` lands in at ruler time `at` (`starts` from cueStarts): the one
+ *  holding that time, and on a flag the side it came from (moved later onto it, it ends the cue
+ *  before; moved earlier, it starts the next). */
+export function landingCue(starts: number[], at: number, from: number) {
+  const out = starts.length - 2;
+  let cue = 0;
+  while (cue < out && at > starts[cue + 1] + EPS) cue++;
+  return cue < out && cue < from && Math.abs(at - starts[cue + 1]) < EPS ? cue + 1 : cue;
+}
+
+/** Whether a track starting cue `flag` at `first` jumps there from what the cue before shows. A track
+ *  that begins with the later cue joins where the earlier cue already showed its value. */
+function jumpsAt(data: AnimData, selector: string, prop: string, flag: number, first: AnimKeyframe['value']) {
+  const own = data.steps[flag - 1].layers[selector]?.[prop] ?? [];
+  return own.length ? resolveValue(data, selector, prop, flag - 1, data.steps[flag - 1].duration) !== first : !startsAt(data, selector, prop, flag - 1, first);
+}
+
+/** Whether a track changes value across the end of the motion Out carries, where its exit starts,
+ *  which then no longer tells that motion from the exit. */
+export const crossesCarried = (keys: AnimKeyframe[], carried: number) =>
+  keys.some((key, i) => i > 0 && keys[i - 1].time < carried - EPS && key.time > carried + EPS && keys[i - 1].value !== key.value);
+
+/**
+ * Move keys by one stored delta on the concatenated ruler, each landing in the cue that holds its
+ * new time (on a flag, the side it came from) with its value and ease, an explicit ease where
+ * the cues' default eases differ. Every flag inside a segment the move changed is cut again
+ * exactly, as Add Step cuts. Keys keep their order on their track. The key a cue ends on and the
+ * copy of it the next cue starts from are one key: selecting either moves both, unless `pairs` is
+ * false (a bar body moves only its own cue's keys). `before` is the graphic the track's flags are
+ * read in (a bar body's own move has changed its visibility already). Throws with the reason where
+ * the runtime could not play the result exactly; `source` is never mutated.
+ */
+export function moveKeys(source: AnimData, keys: KeyRef[], delta: number, { pairs = true, before = source }: { pairs?: boolean; before?: AnimData } = {}): AnimData {
+  if (!Array.isArray(keys) || !keys.length || !Number.isFinite(delta)) throw new Error('Select keys and a finite move. No keys changed.');
+  delta = round(delta);
+  if (delta === 0) return source;
+  const data = clone(source), groups = new Map<string, KeyRef[]>();
+  for (const key of keys) {
+    const track = key.selector + '\n' + key.property;
+    groups.set(track, [...groups.get(track) ?? [], key]);
+  }
+  for (const refs of groups.values()) moveTrack(data, before, refs, delta, pairs);
+  return data;
+}
+
+function moveTrack(data: AnimData, source: AnimData, refs: KeyRef[], delta: number, pairs: boolean) {
+  const { selector, property: prop } = refs[0], out = data.steps.length - 1, starts = cueStarts(data), ease = (cue: number) => data.steps[cue].ease;
+  if (data.steps.some(step => step.loops?.[selector]?.[prop])) throw new Error(`${selector} ${prop} loops, so its keys keep their cycle. Its source is preserved.`);
+  const placed: Placed[] = [];
+  data.steps.forEach((step, cue) => {
+    const track = step.layers[selector]?.[prop] ?? [];
+    if (cue < out && track.some(key => key.time > step.duration + EPS)) throw new Error(`${selector} ${prop} has keys after the end of its cue, so its keys cannot move across a flag exactly. Its source is preserved.`);
+    for (const key of track) placed.push({ cue, key, at: round(starts[cue] + key.time), moved: false });
+  });
+  for (const ref of refs) {
+    const found = placed.find(p => p.cue === ref.step && Math.abs(p.key.time - ref.time) < EPS);
+    if (!found) throw new Error('That key no longer exists. Select it again.');
+    found.moved = true;
+  }
+  // The key a cue ends on and the next cue's copy of it are one key on the ruler. A bar body moves
+  // only its own cue's keys: moved earlier, its copy would pass the key it copies.
+  const copies = new Set<Placed>();
+  for (let flag = 1; flag <= out; flag++) {
+    const end = placed.find(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
+    const copy = placed.find(p => p.cue === flag && p.key.time < EPS);
+    if (!end || !copy || end.key.value !== copy.key.value) continue;
+    copies.add(copy);
+    if (pairs && copy.moved) end.moved = true;
+    if (!pairs && copy.moved && !end.moved && delta < 0) throw new Error(`${selector} ${prop} would pass its key at ${seconds(data, end.at)}. Keys keep their order on a track. No keys changed.`);
+  }
+  const ruler = placed.filter(p => !copies.has(p));
+  const moved = ruler.filter(p => p.moved);
+  if (!moved.length) return;
+  const ends = moved.flatMap(p => [p.at, round(p.at + delta)]), low = Math.min(...ends), high = Math.max(...ends);
+  // Which side of flag `flag` a key sits on: one on the flag belongs to the cue it is in.
+  const side = (at: number, cue: number, flag: number) => at < starts[flag] - EPS ? -1 : at > starts[flag] + EPS ? 1 : cue < flag ? -1 : 1;
+  // A cue's copy of the key it starts from, or its own first key, going on from the key the cue
+  // before ends on at the flag without a jump: one curve passing through the flag.
+  const through = (flag: number) => {
+    const end = ruler.find(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
+    const first = data.steps[flag].layers[selector]?.[prop]?.[0];
+    return !!end && (!first || first.value === end.key.value);
+  };
+  // The flags the move involves: those a moved key crosses, and those the changed curve passes
+  // through between the keys that stay on either side of it.
+  const involved = () => {
+    const before = [...ruler].reverse().find(u => !u.moved && u.at < low - EPS), after = ruler.find(u => !u.moved && u.at > high + EPS);
+    const from = before?.at ?? low, to = after?.at ?? high;
+    return starts.map((_, flag) => flag).filter(flag => flag > 0 && flag <= out && (
+      moved.some(p => side(p.at, p.cue, flag) !== side(round(p.at + delta), landingCue(starts, round(p.at + delta), p.cue), flag)) ||
+      starts[flag] > from - EPS && starts[flag] < to + EPS && through(flag)));
+  };
+  // A key a flag's cut wrote there (Add Step's, Set Out's, an earlier move's) is part of the flag, not
+  // of the curve: where the move reaches that flag the curve is joined there again (unsplitAt), so
+  // keys can pass it, and it is cut anew below. So is a key only holding a track's first value from
+  // its cue's start (joinCues). Keys authored on a flag stay keys, and so does a split key moved on
+  // its own. Rejoined eases stay explicit until the end, so a chain of cuts rejoins whole.
+  const rejoined = new Set<AnimKeyframe>(), reached = new Set<number>();
+  for (let joined = true; joined;) {
+    joined = false;
+    for (const flag of involved()) {
+      // A flag whose cut is joined stays involved: it is cut anew below.
+      reached.add(flag);
+      const i = ruler.findIndex(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
+      if (i < 0 || i === ruler.length - 1) continue;
+      const [previous, key, next] = [ruler[i - 1], ruler[i], ruler[i + 1]];
+      if (key.moved && !(previous?.moved && next.moved)) continue;
+      if (!previous) {
+        const only = (data.steps[flag - 1].layers[selector]?.[prop] ?? []).length === 1;
+        if (!only || key.key.ease || key.key.value !== next.key.value) continue;
+        ruler.splice(i, 1);
+        joined = true;
+        continue;
+      }
+      const curve: AnimKeyframe[] = [{ time: previous.at, value: previous.key.value }, { ...key.key, time: key.at }, { time: next.at, value: next.key.value, ease: next.key.ease || ease(next.cue) }];
+      unsplitAt(curve, key.at, '');
+      if (curve.length === 3) continue;
+      next.key = { time: next.key.time, value: next.key.value, ease: curve[1].ease };
+      rejoined.add(next.key);
+      ruler.splice(i, 1);
+      joined = true;
+    }
+  }
+  // Keys keep their order on their track, and stay inside the ruler.
+  const end = starts[out] + data.steps[out].duration;
+  for (const p of moved) {
+    const to = round(p.at + delta);
+    if (to < -EPS) throw new Error(`${selector} ${prop} would move before In starts. No keys changed.`);
+    if (to > end + EPS) throw new Error(`${selector} ${prop} would move past the end of Out. No keys changed.`);
+    const passed = ruler.find(u => !u.moved && (delta > 0 ? u.at > p.at + EPS && u.at < to + EPS : u.at < p.at - EPS && u.at > to - EPS));
+    if (passed) throw new Error(`${selector} ${prop} would pass its key at ${seconds(data, passed.at)}. Keys keep their order on a track: select that key too to move both. No keys changed.`);
+  }
+  const flags = [...reached].sort((a, b) => a - b);
+  // A legacy hide takes its layer off at its cue's end, which a key moved across flags would outlast.
+  if (flags.length && data.steps.some(step => step.spans?.[selector] === undefined && step.hides?.includes(selector))) {
+    throw new Error(`${selector} leaves through older source (a legacy hide), so its keys cannot move across a flag exactly. Its source is preserved.`);
+  }
+  const jumps = (d: AnimData) => {
+    for (const flag of flags) {
+      const first = d.steps[flag].layers[selector]?.[prop]?.[0];
+      if (first && jumpsAt(d, selector, prop, flag, first.value)) return d.steps[flag].name;
+    }
+    return null;
+  };
+  // One curve has no instant jump at a flag, so a track that jumps at one the move involves refuses.
+  const jumped = jumps(source);
+  if (jumped) throw new Error(`${selector} ${prop} changes at once at the flag of ${jumped}, so its keys cannot move across it exactly. Its source is preserved.`);
+  // Where each key lands: a moved key by its new time (a flag's arriving side), the rest where they were.
+  const entries = [...ruler, ...[...copies].filter(copy => !reached.has(copy.cue))].map(p => {
+    if (!p.moved || copies.has(p)) return { cue: p.cue, at: p.at, key: p.key };
+    const at = round(p.at + delta), cue = landingCue(starts, at, p.cue), origin = ease(p.cue);
+    const own = cue !== p.cue && ease(cue) !== origin ? p.key.ease || origin : p.key.ease;
+    const key = { time: round(at - starts[cue]), value: p.key.value, ...(own ? { ease: own } : {}) };
+    if (rejoined.has(p.key)) rejoined.add(key);
+    return { cue, at, key };
+  }).sort((a, b) => a.at - b.at || a.cue - b.cue);
+  // Cut the curve again at every involved flag, as Add Step cuts.
+  for (const flag of flags) {
+    const at = starts[flag], held = [...entries].reverse().find(e => e.at < at + EPS), next = entries.find(e => e.at > at + EPS);
+    if (!held || !next || held.cue === flag) continue;
+    if (Math.abs(held.at - at) < EPS) entries.push({ cue: flag, at, key: { time: 0, value: held.key.value } });
+    else if (held.key.value !== next.key.value) {
+      const span = round(next.at - held.at);
+      const piece: AnimData = { ...data, steps: [{ name: 'segment', duration: span, ease: ease(next.cue), layers: { [selector]: { [prop]: [{ time: 0, value: held.key.value }, { ...next.key, time: span }] } } }] };
+      let split: AnimKeyframe[];
+      try { split = splitKeyframeSegment(piece, 0, selector, prop, round(at - held.at)).steps[0].layers[selector][prop]; }
+      catch (error) {
+        if (error instanceof Error) error.message = `Moving these keys would split ${selector} ${prop} at the flag of ${data.steps[flag].name}. ${error.message}`;
+        throw error;
+      }
+      next.key = { ...next.key, ...(split[2].ease ? { ease: split[2].ease } : {}) };
+      entries.push({ cue: flag - 1, at, key: { ...split[1], time: data.steps[flag - 1].duration } }, { cue: flag, at, key: { time: 0, value: split[1].value } });
+    }
+    entries.sort((a, b) => a.at - b.at || a.cue - b.cue);
+  }
+  // A rejoined curve that was not cut again says its cue's default ease as the default, as a join does.
+  const lists: AnimKeyframe[][] = data.steps.map(() => []);
+  for (const e of entries) {
+    const { ease: own, ...plain } = e.key;
+    lists[e.cue].push(rejoined.has(e.key) && own === ease(e.cue) ? plain : e.key);
+  }
+  data.steps.forEach((step, cue) => {
+    const was = step.layers[selector]?.[prop] ?? [], now = lists[cue];
+    if (now.length === was.length && now.every((key, i) => key === was[i])) return;
+    if (now.length) (step.layers[selector] ??= {})[prop] = now;
+    else if (step.layers[selector]) { delete step.layers[selector][prop]; if (!Object.keys(step.layers[selector]).length) delete step.layers[selector]; }
+  });
+  const started = jumps(data);
+  if (started) throw new Error(`${selector} ${prop} would change at once at the flag of ${started}, from the value on screen before it. Its source is preserved.`);
+  const carried = data.steps[out].carried;
+  if (carried && crossesCarried(data.steps[out].layers[selector]?.[prop] ?? [], carried)) {
+    throw new Error(`${selector} ${prop} would move across the end of the motion Out carries, where its exit starts. Its source is preserved.`);
+  }
 }
 
 /**
@@ -880,6 +1157,7 @@ export function resizeStep(
       }
     }
     for (const c of step.calls ?? []) c.time = round(c.time * f);
+    if (step.carried) step.carried = round(step.carried * f);
     // A loop's pause is a time quantity too — stretch scales it with the keyframes it gates.
     for (const perProp of Object.values(step.loops ?? {})) {
       for (const loop of Object.values(perProp)) {
@@ -888,6 +1166,7 @@ export function resizeStep(
     }
   }
   step.duration = to;
+  if (step.carried !== undefined && step.carried > to) step.carried = to;
   return next;
 }
 

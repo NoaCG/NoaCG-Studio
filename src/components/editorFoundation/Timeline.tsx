@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { KeyRef } from '../../blocks/animEdit';
-import type { TimelineView } from './timelineView';
-import type { EditorSession } from './session';
+import { readTimeline, type TimelineView } from './timelineView';
+import type { EditorSession, Revision } from './session';
+import { applyOperations } from './operations';
 import LayerBar from './LayerBar';
 import OutControls, { type OutHandle } from './OutControls';
-import StepFlag, { AddStep } from './StepFlag';
+import StepFlag, { AddStep, message, useReason } from './StepFlag';
 import KeyEase, { type KeyMenu } from './KeyEase';
-import { addKeys, keyId, layerKeys, liveKeys, toggleKeys } from './keySelection';
+import { addKeys, keyId, layerKeys, liveKeys, movedKeys, toggleKeys } from './keySelection';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
+/** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
+ *  seconds with the registry's verdict on it. */
+type KeyDrag = { keys: KeyRef[]; ids: Set<string>; select: boolean; row: string; time: number; x: number; width: number; expected: Revision; moved: boolean; delta: number; refused: string; checked: Map<number, string> };
 
 interface Props {
   view: TimelineView; fps: number; time: number; selection: string[];
@@ -31,10 +35,26 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const keyTimes = useMemo(() => JSON.stringify(view.data?.steps.map(step => Object.entries(step.layers)
     .map(([selector, tracks]) => [selector, Object.entries(tracks).map(([property, list]) => [property, list.map(key => key.time)])]))), [view.data]);
   const knownTimes = useRef(keyTimes);
-  useEffect(() => { if (knownTimes.current !== keyTimes) { knownTimes.current = keyTimes; setPicked([]); } }, [keyTimes]);
+  // Keys this timeline moved stay selected where they landed, and a nudged key keeps the keyboard.
+  const moving = useRef<{ keys: KeyRef[]; focus: string | null } | null>(null);
+  useEffect(() => {
+    if (knownTimes.current === keyTimes) return;
+    knownTimes.current = keyTimes;
+    const moved = moving.current;
+    moving.current = null;
+    setPicked(moved?.keys ?? []);
+    if (moved?.focus == null || !moved.keys.length) return;
+    // The nudged key keeps the keyboard, in the row it was nudged in.
+    const [selector, property] = moved.focus.split('\n'), id = keyId(moved.keys[0]);
+    const row = Array.from(document.querySelectorAll<HTMLElement>('.ef-timeline .ef-track')).find(track => track.dataset.selector === selector && (track.dataset.property ?? '') === property);
+    Array.from(row?.querySelectorAll<HTMLElement>('.ef-timeline-key') ?? []).find(button => button.dataset.keys!.split('|').includes(id))?.focus();
+  }, [keyTimes]);
   const [menu, setMenu] = useState<KeyMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const keyDrag = useRef<KeyDrag | null>(null), dragged = useRef(false);
+  const [keyMove, setKeyMove] = useState<{ ids: Set<string>; time: number; delta: number; refused: string; row: string } | null>(null);
+  const [keyReason, setKeyReason] = useReason(), reasonAt = useRef({ row: '', at: 0 });
   const out = useRef<OutHandle>(null);
   // A dragged flag is drawn to the keys, bar edges and playhead near it.
   const snaps = useMemo(() => [...view.bars.flatMap(bar => [bar.start, bar.end]), ...(view.data?.steps ?? []).flatMap((step, i) =>
@@ -70,7 +90,34 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     if (item.top < top) scroller.scrollTop += item.top - top;
     else if (item.bottom > bounds.bottom) scroller.scrollTop += item.bottom - bounds.bottom;
   }, [selection, view.parts]);
-  const at = (key: KeyRef) => view.segments[key.step].start + key.time / (view.data?.speed ?? 1);
+  const speed = view.data?.speed ?? 1;
+  const at = (key: KeyRef) => view.segments[key.step].start + key.time / speed;
+  // Moving keys (R1.2a.5, docs/research/editor-r1-2a-5): a drag of a key moves the selection it
+  // belongs to, or its own group, by whole frames (Alt: freely), across flags too. The registry says
+  // while it is held whether it could land there; release commits one undo, or keeps the source and
+  // shows why. Arrow keys nudge a frame (Shift ten).
+  const movingKeys = (group: KeyRef[]) => group.every(key => selected.has(keyId(key))) ? keys : group;
+  const moveOperation = (moved: KeyRef[], delta: number) => ({ kind: 'key.move' as const, keys: moved, delta: delta * speed });
+  const verdict = (moved: KeyRef[], delta: number) => {
+    try { applyOperations(session.port.read(), [moveOperation(moved, delta)], false); return ''; } catch (cause) { return message(cause); }
+  };
+  const explain = (text: string, row: string, time: number) => { reasonAt.current = { row, at: time }; setKeyReason(text); };
+  const moveKeys = (moved: KeyRef[], delta: number, row: string, time: number, expected: Revision, focus: boolean) => {
+    try {
+      const result = session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations: [moveOperation(moved, delta)] });
+      moving.current = { keys: movedKeys(readTimeline(result.template).data, moved, delta * speed), focus: focus ? row : null };
+    } catch (cause) { explain(message(cause), row, time + delta); }
+  };
+  const endKeyDrag = useCallback(() => { keyDrag.current = null; setKeyMove(null); }, []);
+  // A cancelled drag's release is no click on the key.
+  const cancelKeyDrag = useCallback(() => { if (keyDrag.current?.moved) dragged.current = true; endKeyDrag(); }, [endKeyDrag]);
+  const movingKey = keyMove !== null;
+  useEffect(() => {
+    if (!movingKey) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); cancelKeyDrag(); } };
+    window.addEventListener('keydown', escape);
+    return () => window.removeEventListener('keydown', escape);
+  }, [movingKey, cancelKeyDrag]);
   // A key: click selects it (and its layer, and seeks there); Ctrl, Cmd or Shift toggles it; the
   // context menu keeps a selection that already holds it.
   const openMenu = (group: KeyRef[], x: number, y: number, anchor: HTMLElement) => {
@@ -83,16 +130,47 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     const moment = Math.round(at(key) * 1e6);
     return groups.set(moment, [...groups.get(moment) ?? [], key]);
   }, new Map<number, KeyRef[]>()).values()];
-  const keyButton = (group: KeyRef[], selector: string, layer: string) => {
+  const keyButton = (group: KeyRef[], selector: string, layer: string, row: string) => {
     const ids = group.map(keyId), on = ids.filter(id => selected.has(id)).length, time = at(group[0]);
     const names = [...new Set(group.map(key => PROPERTY_LABELS[key.property] ?? key.property))];
-    return <button key={ids.join('|')} className={'ef-timeline-key' + (on === ids.length ? ' is-key-selected' : on ? ' is-key-partial' : '')}
+    const drag = keyMove && ids.some(id => keyMove.ids.has(id)) ? keyMove : null, shown = time + (drag?.delta ?? 0);
+    return <button key={ids.join('|')} className={'ef-timeline-key' + (on === ids.length ? ' is-key-selected' : on ? ' is-key-partial' : '') + (drag ? ' is-dragging' : '') + (drag?.refused ? ' is-refused' : '')}
       aria-label={`${layer}: ${names.join(', ')} ${group.length > 1 ? 'keys' : 'key'} at ${display(time)}`} aria-haspopup="menu"
-      aria-pressed={on === ids.length} data-keys={ids.join('|')} style={{ left: time / extent * 100 + '%' }}
+      aria-pressed={on === ids.length} data-keys={ids.join('|')} style={{ left: shown / extent * 100 + '%' }}
       onClick={event => {
+        if (dragged.current) { dragged.current = false; return; }
         if (event.ctrlKey || event.metaKey || event.shiftKey) { setPicked(toggleKeys(keys, group)); return; }
         setPicked(group); select(selector, false); seek(time);
       }}
+      onPointerDown={event => {
+        dragged.current = false;
+        if (event.button !== 0 || view.reason || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        const width = event.currentTarget.closest('.ef-track-lane')!.getBoundingClientRect().width, keys = movingKeys(group);
+        keyDrag.current = { keys, ids: new Set(keys.map(keyId)), select: keys === group, row, time, x: event.clientX, width, expected: session.version(), moved: false, delta: 0, refused: '', checked: new Map() };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const d = keyDrag.current;
+        if (!d || !d.moved && Math.abs(event.clientX - d.x) < 3) return;
+        const first = !d.moved;
+        if (first) { d.moved = true; pause(); if (d.select) setPicked(d.keys); }
+        const raw = d.time + (event.clientX - d.x) / d.width * extent, to = event.altKey ? raw : Math.round(raw * fps) / fps;
+        const delta = Math.round((to - d.time) * 1e6) / 1e6;
+        if (!first && delta === d.delta) return;
+        if (!d.checked.has(delta)) d.checked.set(delta, delta ? verdict(d.keys, delta) : '');
+        d.delta = delta; d.refused = d.checked.get(delta)!;
+        setKeyMove({ ids: d.ids, time: d.time, delta, refused: d.refused, row });
+      }}
+      onPointerUp={() => {
+        const d = keyDrag.current;
+        endKeyDrag();
+        if (!d?.moved) return;
+        dragged.current = true;
+        if (!d.delta) return;
+        if (d.refused) explain(d.refused, d.row, d.time + d.delta);
+        else moveKeys(d.keys, d.delta, d.row, d.time, d.expected, false);
+      }}
+      onPointerCancel={cancelKeyDrag} onLostPointerCapture={() => { if (keyDrag.current) cancelKeyDrag(); }}
       onContextMenu={event => {
         event.preventDefault();
         if (menu?.anchor === event.currentTarget) return; // The keyboard's own menu event after the keydown below.
@@ -100,6 +178,15 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         openMenu(group, event.clientX || box.left, event.clientY || box.bottom, event.currentTarget);
       }}
       onKeyDown={event => {
+        if (event.key === 'Escape' && keyDrag.current) { event.preventDefault(); event.stopPropagation(); cancelKeyDrag(); return; }
+        if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !event.altKey && !event.ctrlKey && !event.metaKey) {
+          event.preventDefault(); event.stopPropagation(); pause();
+          // To the neighbouring frame, as a flag nudges: a key between frames lands on one.
+          const frames = (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1), moved = movingKeys(group);
+          // A refusal comes back from the operation itself, before anything changes.
+          moveKeys(moved, Math.round(((Math.round(time * fps) + frames) / fps - time) * 1e6) / 1e6, row, time, session.version(), true);
+          return;
+        }
         if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
         event.preventDefault();
         const box = event.currentTarget.getBoundingClientRect();
@@ -150,6 +237,15 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     window.addEventListener('keydown', escape);
     return () => window.removeEventListener('keydown', escape);
   }, [marquee, cancelMarquee]);
+  // Beside the pressed key: its new time while a drag could land, else why not, live while it is
+  // held and then until the next action.
+  const reasonText = keyMove?.refused || keyReason, reasonRow = keyMove ? keyMove.row : keyReason ? reasonAt.current.row : '';
+  const keyMoveReason = (row: string) => {
+    if (reasonRow !== row) return null;
+    const at = keyMove ? keyMove.time + keyMove.delta : reasonAt.current.at, left = at / extent * 100, landing = keyMove && !keyMove.refused;
+    return <span className={'ef-flag-error ' + (landing ? 'ef-key-move-time' : 'ef-key-move-error') + (left > 60 ? ' is-left' : '')} style={{ left: left + '%' }}
+      role={landing ? undefined : 'alert'}>{landing ? display(at) : reasonText}</span>;
+  };
   return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline">
     <div className="ef-toolbar"><strong>Layers &amp; Timeline</strong><span className="ef-muted">{view.parts.length} layers · Select a row to edit artwork</span>
       <span className="ef-spacer" /><KeyEase session={session} data={view.data} keys={keys} menu={menu} close={closeMenu} pause={pause} /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
@@ -214,16 +310,18 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
                 <span style={{ paddingInlineStart: (part.depth ?? 0) * 8 }}>{part.label}</span>
               </button>
             </div>
-            <div className="ef-track-lane">
-              {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={view.data?.speed ?? 1} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
-              {moments(properties.flatMap(row => row.keys)).map(group => keyButton(group, part.selector, part.label))}
+            <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' ? ' has-key-reason' : '')}>
+              {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={speed} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
+              {moments(properties.flatMap(row => row.keys)).map(group => keyButton(group, part.selector, part.label, part.selector + '\n'))}
+              {keyMoveReason(part.selector + '\n')}
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
             </div>
           </div>
           {open && properties.map(row => <div key={row.property} className="ef-track ef-property-track" data-selector={part.selector} data-property={row.property}>
             <span className="ef-property-name">{PROPERTY_LABELS[row.property] ?? row.property}</span>
-            <div className="ef-track-lane">
-              {moments(row.keys).map(group => keyButton(group, part.selector, part.label))}
+            <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' + row.property ? ' has-key-reason' : '')}>
+              {moments(row.keys).map(group => keyButton(group, part.selector, part.label, part.selector + '\n' + row.property))}
+              {keyMoveReason(part.selector + '\n' + row.property)}
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />
             </div>
           </div>)}
@@ -233,6 +331,6 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0) }} />}
       {!view.parts.length && <p className="ef-notice">No addressable layers in this source.</p>}
     </div>
-    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Body: move keys · Edges: trim visibility · Alt: bypass snap · Drag empty lane: select keys · Right-click key: ease · Flag: drag, double-click to rename</span></div>
+    <div className="ef-caption"><span>Space: play/pause · Arrows: frame · Escape: cancel</span><span>Body: move keys · Edges: trim visibility · Key: drag or arrows to move · Alt: bypass snap · Drag empty lane: select keys · Right-click key: ease · Flag: drag, double-click to rename</span></div>
   </section>;
 }

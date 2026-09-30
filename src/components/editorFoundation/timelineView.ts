@@ -1,4 +1,5 @@
 import { parseAnimData, type AnimData } from '../../blocks/animData';
+import { shownWithoutBars } from '../../blocks/animEdit';
 import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
 
@@ -27,13 +28,12 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   const out = segments.find(s => s.out)?.start ?? cursor;
   if (data?.steps.length === 1) segments.push({ index: 1, name: 'Out', start: cursor, duration: 0, out: true });
   const bars = parts.flatMap(part => {
-    const reveal = data?.steps.findIndex((s, i) => i > 0 && !!s.reveals?.includes(part.selector)) ?? -1;
-    const hide = data?.steps.findIndex(s => !!s.hides?.includes(part.selector)) ?? -1;
     return segments.flatMap(segment => {
       const spans = data!.steps[segment.index]?.spans?.[part.selector];
       if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
         start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
-      if (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide) return [];
+      // A cue without bars shows the layer as the runtime plays it.
+      if (!shownWithoutBars(data!, part.selector, segment.index)) return [];
       return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];
     });
   });

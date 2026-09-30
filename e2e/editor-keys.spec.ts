@@ -198,7 +198,7 @@ test('bar movement carries disjoint spans and keys, cancel and refusal are atomi
   await bar.focus(); const bounds = (await bar.boundingBox())!;
   await page.mouse.move(bounds.x + 12, bounds.y + 5); await page.mouse.down(); await page.mouse.move(bounds.x + 70, bounds.y + 5); await page.keyboard.press('Escape'); await page.mouse.up(); expect(await source(page)).toEqual(before);
   await bar.focus(); for (let i = 0; i < 3; i++) await bar.press('Shift+ArrowLeft');
-  await expect(page.getByRole('alert')).toContainText('cue boundary');
+  await expect(page.getByRole('alert')).toContainText('before In starts');
   expect((await data(page)).steps[0].layers[selector].x.map(k => k.time)).toEqual(initial.steps[0].layers[selector].x.map(k => Math.round((k.time - .4) * 1000) / 1000));
   for (const [time, visible] of [[0, true], [1.1, false], [1.5, true], [2.1, false], [.5, true]] as const) {
     await seek(page, time);
