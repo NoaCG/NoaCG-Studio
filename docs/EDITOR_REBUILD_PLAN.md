@@ -230,15 +230,17 @@ of the last pre-Out segment into Out (owner decision 2026-09-28; see D01). A cro
 without an exact split refuses the whole move atomically with a clear reason. Existing source
 is preserved; other unsupported cross-curve changes still refuse.
 
-Owner decision 2026-09-29, the contract for Step/Next editing (not yet implemented): a graphic
-may have any number of Step/Next states, and Next advances through them in order. Out always
-animates the graphic out from its current state, whichever step is active, and never plays or
-reveals an unreached Next step on the way out. The editor is strict about arrangements: In,
-Step, Next and Out markers cannot be dragged onto each other, stacked, or placed into a
-combination the runtime cannot interpret safely. Goal: simple, predictable show control that
-advances when asked and removes the graphic cleanly whenever Out is pressed. Until that phase,
-Set Out refuses to move keys or visibility-bar edges out of a Next cue (R1.2a.2), because Out
-pressed before that cue would play them; crossing the In cue stays allowed.
+Owner decision 2026-09-29, the contract for Step/Next editing: a graphic may have any number of
+Step/Next states, and Next advances through them in order. Out always animates the graphic out
+from its current state, whichever step is active, and never plays or reveals an unreached Next
+step on the way out. The editor is strict about arrangements: In, Step, Next and Out markers
+cannot be dragged onto each other, stacked, or placed into a combination the runtime cannot
+interpret safely. Goal: simple, predictable show control that advances when asked and removes
+the graphic cleanly whenever Out is pressed. The Out half is implemented in R1.2a.3
+([receipt](research/editor-r1-2a-3/README.md)): Out from an earlier step is the interrupted Out
+of D02, and next() after Out does nothing until play(). Step authoring and strict markers are
+R1.2a.4; cross-cue key moves are R1.2a.5. Until R1.2a.5, Set Out refuses to move keys or
+visibility-bar edges out of a Next cue (R1.2a.2); crossing the In cue stays allowed.
 
 A flag marks BOTH the end of the preceding segment and the start of the segment waiting
 for its command. Play/Take runs In and parks at the first flag. At a Step flag, Next plays
@@ -408,9 +410,10 @@ Never reveal unseen layers; static visible layers without exit tracks clear at e
 Repeat Out coalesces per take; replay resets transient state without altering authored keys.
 A final Hold keeps the live value until the last exit key and then jumps; a final `jump` (a
 reversed Hold) jumps where its own segment starts, as the settled exit does (R1.2a.2). Owner
-decision 2026-09-29, the contract for the Step/Next phase: Out pressed at an earlier step
-animates each visible layer from its live pose to its end-of-Out pose by this policy, and layers
-from unreached steps stay hidden.
+decision 2026-09-29, implemented in R1.2a.3: Out pressed at an earlier step (a Next cue not yet
+played) animates each visible layer from its live pose to its end-of-Out pose by this policy,
+even when the cue's timeline has finished, and layers from unreached steps stay hidden. Machine
+graphics keep their own exit from every state.
 
 The simulator and emitted packages must use this policy. A capability marker in the emitted
 interpreter makes the writer re-emit the owned animation region when upgrading older source,
