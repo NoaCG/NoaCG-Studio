@@ -9,7 +9,8 @@ import StepFlag, { AddStep, message, useReason } from './StepFlag';
 import KeyEase, { type KeyMenu } from './KeyEase';
 import { addKeys, keyId, layerKeys, liveKeys, movedKeys, toggleKeys } from './keySelection';
 
-const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
+const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
+  xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)' };
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
 /** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
  *  seconds with the registry's verdict on it. */
@@ -227,7 +228,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       const key = element.getBoundingClientRect(), x = key.left + key.width / 2 - box.left + scroller.scrollLeft, y = key.top + key.height / 2 - box.top + scroller.scrollTop;
       if (x >= left && x <= right && y >= top && y <= bottom) element.dataset.keys!.split('|').forEach(id => found.add(id));
     }
-    const all = view.parts.flatMap(part => layerKeys(view.data, part.selector).flatMap(row => row.keys));
+    const all = view.parts.flatMap(part => layerKeys(view.data, view.owners[part.selector]).flatMap(row => row.keys));
     const hits = all.filter(key => found.has(keyId(key)));
     setPicked(drag.base ? addKeys(drag.base, hits) : hits);
   };
@@ -297,7 +298,8 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       </div>
       {view.parts.map((part, index) => {
         const bars = view.bars.filter(b => b.selector === part.selector);
-        const properties = layerKeys(view.data, part.selector), open = expanded.includes(part.selector);
+        // A layer's keys live under its owner (R1.2a.6): its own selector or another naming only it.
+        const properties = layerKeys(view.data, view.owners[part.selector]), open = expanded.includes(part.selector);
         return <div key={part.selector} className="ef-layer-group">
           <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector}>
             <div className="ef-layer-cell">
@@ -318,7 +320,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
             </div>
           </div>
           {open && properties.map(row => <div key={row.property} className="ef-track ef-property-track" data-selector={part.selector} data-property={row.property}>
-            <span className="ef-property-name">{PROPERTY_LABELS[row.property] ?? row.property}</span>
+            <span className="ef-property-name" title={row.property}>{PROPERTY_LABELS[row.property] ?? row.property}</span>
             <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' + row.property ? ' has-key-reason' : '')}>
               {moments(row.keys).map(group => keyButton(group, part.selector, part.label, part.selector + '\n' + row.property))}
               {keyMoveReason(part.selector + '\n' + row.property)}

@@ -6,7 +6,7 @@ import type { EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
 import { authoredTransform, displayedBase, editingPose, requireCurrentPose } from './animationAuthoring';
-import { animationSource, animationTarget } from '../../blocks/editorAnimation';
+import { scaleWritable } from '../../blocks/editorAnimation';
 
 type Point = { x: number; y: number };
 export function inverseDelta(matrix: number[], point: Point): Point {
@@ -36,7 +36,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const expected = session.version();
       const base = part ? baseValues(template, part.selector) : undefined;
       if (part) requireCurrentPose(part.appearance, session.port.view().time, expected, session.port.view().cue);
-      if (handle !== undefined && base?.scaleReason) animationTarget(template, animationSource(template), base.selector);
+      // Animated Scale keys its own channels: refuse at the press where none can take the key.
+      if (handle !== undefined && base?.scaleReason) scaleWritable(template, base.selector);
       if (handle !== undefined && base && (base.scaleX === 0 || base.scaleY === 0)) {
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');
       }

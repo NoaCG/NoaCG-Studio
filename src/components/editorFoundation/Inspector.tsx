@@ -37,7 +37,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
   const node = useMemo(() => part ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(part.selector) : null, [template.html, part]);
-  const tracks = part ? [...new Set(view.data?.steps.flatMap(s => Object.keys(s.layers[part.selector] ?? {})) ?? [])] : [];
+  const tracks = part ? [...new Set(view.data?.steps.flatMap(s => Object.keys(s.layers[view.owners[part.selector] ?? part.selector] ?? {})) ?? [])] : [];
   const capability = useMemo(() => {
     if (!part) return { base: null, reason: '' };
     try { return { base: baseValues(template, part.selector), reason: '' }; }

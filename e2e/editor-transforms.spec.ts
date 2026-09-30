@@ -167,8 +167,8 @@ test('no catalog layer refuses as another channel: its bar moves and trims and i
   expect(report.channel).toEqual([]);
   expect(report.keyFailures).toEqual([]);
   expect(report.applied.key).toBe(354);
-  expect(report.applied.move).toBeGreaterThan(300);
-  expect(report.applied.trim).toBeGreaterThan(300);
+  // A bar edit may still refuse for timing (R1.2a.4 and R1.2a.5), never for the channel it animates.
+  for (const reason of Object.keys(report.refused)) expect(reason).toMatch(/^(move|trim): .*(past the end of Out|before In starts|overlap|exact split|legacy|jump|only after the Out flag|one frame long|carried)/);
 });
 
 // ---- Position through yPercent ----
@@ -290,6 +290,15 @@ test('House Question: #f1 shows and moves the motion stored under .audience-ques
   expect(untouched(moved, ['.audience-question'])).toBe(untouched(before, ['.audience-question']));
   expect(await history(page)).toBe(steps + 1);
   await undo(page); expect(await source(page)).toEqual(original);
+  // Position Y reads and keys the owner's yPercent during the reveal.
+  await seekFrames(page, Math.round(.6 * t.fps), t.fps);
+  await select(page, '#f1');
+  const shown = Number(await (await field(page, 'Layout offset Y')).inputValue());
+  await type(page, 'Layout offset Y', shown + 5); await ready(page);
+  const keyed = await data(page), at = Math.round(.6 * t.fps) / t.fps * keyed.speed;
+  expect(keyed.steps[0].layers['.audience-question'].yPercent.some(k => near(k.time, at))).toBe(true);
+  expect(keyed.steps.some(s => s.layers['#f1'])).toBe(false);
+  await undo(page); expect(await source(page)).toEqual(original);
 });
 
 // ---- Channels that cannot be written exactly ----
@@ -347,6 +356,15 @@ test('refusals: a raw transform, a selector naming several layers or two naming 
   await dragBar(page, page.locator(`.ef-track[data-selector="${alpha}"] .ef-bar`).first(), 5, 25);
   await expect(page.locator(`.ef-track[data-selector="${alpha}"] .ef-bar-error`)).toContainText('autoAlpha');
   expect(await source(page)).toEqual(original); expect(await history(page)).toBe(steps);
+  // Opacity on that layer keys autoAlpha at the playhead.
+  await seekFrames(page, 10, 25);
+  await select(page, alpha);
+  await page.getByRole('spinbutton', { name: /Opacity %/ }).fill('40');
+  await page.getByRole('spinbutton', { name: /Opacity %/ }).press('Enter'); await ready(page);
+  const faded = (await data(page)).steps[0].layers[alpha];
+  expect(faded.autoAlpha).toEqual([{ time: 0, value: 0 }, { time: .4, value: .4 }, { time: 1, value: 1 }]);
+  expect(faded.opacity).toBeUndefined();
+  expect(await history(page)).toBe(steps + 1);
 });
 
 // ---- The R1.2a.4 and R1.2a.5 edits on a catalog graphic ----
