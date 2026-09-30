@@ -1,42 +1,63 @@
-# SPX-GC 1.4 interop round - play a NoaCG OGraf package in an SPX rundown
+---
+v: 2
+source: derived
+kind: finding
+raised: 2026-08-29
+state: advanced
+note: "The first real round ran on 2026-09-30 (docs/SPX_ON_A_REAL_SERVER.md): all three SPX routes on SPX 1.4.1 from source and 1.2.1, the two carried questions answered, eight defects filed. What remains is the re-run once the fixes land, and the paths this machine could not exercise."
+found: "SPX-GC 1.4 reads OGraf packages; no real SPX server had played a NoaCG graphic by any route"
+serves: NOW
+size: small
+needs-owner: none
+---
+
+# SPX real-server round: re-run after the fixes
 
 **Filed:** 2026-08-29. **Source:** the OGraf ecosystem research round (`docs/OGRAF_ECOSYSTEM.md`
-§1g).
+§1g). **Advanced:** 2026-09-30, by the first round on real servers,
+[`SPX_ON_A_REAL_SERVER.md`](../SPX_ON_A_REAL_SERVER.md).
 
 ## Why
 
-SPX-GC v1.4 (MIT, active, <https://github.com/TuomoKu/SPX-GC>) added full OGraf support: OGraf
-packages sit in SPX rundowns beside SPX templates and play out. That converges our two strictest
-existing contracts - a conformant NoaCG OGraf package now earns SPX playout on its own, in
-addition to the native SPX export. One hand round (later scripted) proves it and joins the
-Direction-A interop ladder as a cheap, high-credibility fixture: SPX is the ecosystem's most
-widely deployed open controller, and "plays in SPX 1.4" is a sentence operators understand.
+SPX is the ecosystem's most widely deployed open controller, and "plays in SPX" is a sentence
+operators understand. GOALS outcome 5 asks for a graphic installed and operated on a real SPX
+server. The first round proved the native export there and found the other two routes broken in
+ways that are ours to fix; the claim is only whole once they pass.
 
-## What it would take
+## What the first round settled
 
-Install SPX-GC 1.4+ locally, drop an exported NoaCG OGraf package (a starter and the scoreboard
-dual package) into a rundown, drive play/continue/update/stop and at least one custom action,
-record what SPX's `v_spx` conventions expect that we do not emit (if anything). Half a day
-including notes; findings extend `docs/OGRAF.md`'s external-round record.
+- **Native SPX export:** works on 1.4.1 and 1.2.1 (fields, Play, Continue, Stop, three layers at
+  once once layers are set by hand). Update works on 1.2.1 only, an SPX 1.4 defect.
+- **OGraf package on 1.4.1:** does not play as imported (layer `NaN`); with layers set it plays,
+  continues and stops, three at once, but renders distorted, loses field types and its custom
+  actions are dead.
+- **Output embed:** loads and frames the production on both servers; covers the picture with an
+  opaque dark frame. A small, tested fix exists.
+- **The two questions this item carried:** the graphic does not restyle the renderer's page (the
+  host restyles the graphic instead); SPX sizes the graphic to its render root, which stays at the
+  configured resolution and crops rather than scales in a smaller window.
+- **Solo API list and OGraf through CasparCG:** read from 1.4.1's source and written in the
+  record. SPX would send an OGraf item to a configured CasparCG server as if it were HTML; not
+  exercised over HTTP or through CasparCG.
 
-**Two things this round should check on the way, because no real renderer has ever seen them.**
-Both were left UNVERIFIED by the row that scoped exported CSS to the graphic element (landed
-2026-09-02, `579da11a` and `5f2545bb`), which could only test against a minimal host page it wrote
-itself:
+## What remains
 
-1. **That the graphic does not restyle the renderer's own page.** The exported stylesheet is
-   rewritten to address `:where([data-noacg-graphic="<id>"])` and a fail-closed export gate refuses
-   a sheet that would still reach the document. On a real renderer, look at the host chrome around
-   the graphic, not only at the graphic.
-2. **A renderer whose viewport differs from the authored canvas.** The graphic box is authored-size
-   and `load()` ignores `renderCharacteristics`, so the manifest's `ideal` promise holds only if
-   the renderer places and scales the box. That decision is stated in `docs/OGRAF.md` "Known
-   limits" and tracked in `docs/backlog/ograf-render-characteristics-box.md`; this round is the
-   first chance to see whether a real one does.
-
-SuperFly.tv's `ograf-server` is the other renderer worth a round for the same two questions.
+1. When these land, re-run the record's walk on SPX 1.4.1 (and the embed on 1.2.1) and update the
+   record: `spx-output-embed-opaque-frame.md`, `spx-layers-collapse-onto-one.md`,
+   `ograf-package-does-not-play-in-spx.md` with `ograf-manifest-v-spx-hints.md`,
+   `ograf-graphic-inherits-host-font-size.md`. Done means: each route passes with no step in
+   project settings, and the OGraf graphics match their bare-page positions.
+2. The output embed with a real published production (the owner check
+   `docs/acceptance/owner-queue/2026-09-30-r-spx-output-embed.md`).
+3. SPX playing through a connected CasparCG server: the native export's CasparCG path, and the
+   OGraf package's expected absence there.
+4. A graphic whose canvas is not 1920x1080, in both routes.
+5. Load a NoaCG-written rundown once `spx-show-export-rundown.md` exists.
+6. Script the walk. The first round was driven by throwaway Playwright scripts against SPX's own
+   pages (the record's §1 says how); keeping one as `scripts/spx-walk.mjs`, like
+   `scripts/ograf-external-walk.mjs`, would make item 1 a command.
 
 ## Evidence
 
-`docs/OGRAF_ECOSYSTEM.md` §1g and §4 (Direction A ladder item 4); SPX OGraf docs via the SPX-GC
-repo (v1.4.1, May 2026).
+[`SPX_ON_A_REAL_SERVER.md`](../SPX_ON_A_REAL_SERVER.md); SPX-GC v1.4.1 source
+(<https://github.com/TuomoKu/SPX-GC>, tag `v.1.4.1`).
