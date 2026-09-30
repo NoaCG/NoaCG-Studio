@@ -177,7 +177,7 @@
 .ef-out-error { position: absolute; right: 12px; bottom: 100%; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); z-index: 5; }
 .ef-transport { position: relative; }
 /* R1.2a.4 step authoring: Step and Out flags on the ruler, their name field, reasons and Add Step. */
-.ef-shell button.ef-flag { min-height: 0; margin: 0; border: 0; border-left: 1px solid var(--text-dim); border-radius: 0; background: transparent; cursor: grab; touch-action: none; z-index: 2; }
+.ef-shell button.ef-flag { min-height: 0; margin: 0; padding: 2px 4px; font-size: 10px; line-height: 12px; border: 0; border-left: 1px solid var(--text-dim); border-radius: 0; background: transparent; cursor: grab; touch-action: none; z-index: 2; }
 .ef-shell button.ef-flag:hover, .ef-shell button.ef-flag:focus-visible { color: var(--text); border-left-color: var(--text); }
 .ef-shell button.ef-flag[aria-pressed=true] { color: var(--accent); border-left-color: var(--accent); }
 .ef-shell button.ef-flag.is-dragging { color: var(--text); background: var(--bg-panel); cursor: grabbing; z-index: 3; }
