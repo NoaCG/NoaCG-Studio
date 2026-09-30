@@ -430,7 +430,7 @@ test('the /output page answers honestly offline and builds a stage from a payloa
   await page.goto('/output?production=abc&debug=1');
   await expect(page.locator('body')).toContainText('Output not available');
   await expect(page.locator('body')).toContainText('runs offline');
-  await page.goto('/output');
+  await page.goto('/output?debug=1');
   await expect(page.locator('body')).toContainText('missing its');
 
   // The STAGE is testable without a backend: build it from a payload in the page context —
