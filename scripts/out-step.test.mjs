@@ -209,15 +209,20 @@ test('a machine graphic keeps its authored exit from every state', () => {
   near(run.samples, model(data, run.held, run.visible, 'authored'), 'machine after In: the authored exit');
 });
 
-test('Out before play() and a one-key Out track are as before', () => {
+test('Out before play() is as before, and a one-key Out track cuts only at the last step', () => {
   const data = steps();
   const g = templateOf(data), exit = g.out();
   assert.equal(g.els['#box'].x, 300, 'off air, Out plays the authored exit (its first key)');
   exit.progress(1, true);
-  // D02: a one-key or zero-time Out track is an explicit cut, at every step.
+  // D02: a one-key or zero-time Out track is an explicit cut at the last step. From an earlier step
+  // it holds its live value until the exit ends (owner decision 2026-09-30, R1.2a.4).
   const cut = steps();
   cut.steps[OUT].layers['#box'].opacity = [{ time: .5, value: .25 }];
-  for (const nexts of [0, 2]) assert.equal(outFrom(cut, nexts).released[3], .25, `cut from cue ${nexts}`);
+  assert.equal(outFrom(cut, 2).released[3], .25, 'cut from the last step');
+  const early = outFrom(cut, 0);
+  assert.equal(early.released[3], early.held[3], 'held from an earlier step');
+  early.exit.progress(1, true);
+  assert.equal(early.g.els['#box'].opacity, .25, 'and taken as the exit ends');
 });
 
 test('a graphic saved with the R1.2a.2 interpreter upgrades once to leave from any step', () => {

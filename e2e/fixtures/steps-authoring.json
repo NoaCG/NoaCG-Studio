@@ -1,0 +1,67 @@
+{
+  "version": 2,
+  "root": ".fixture",
+  "speed": 1.25,
+  "steps": [
+    {
+      "name": "In",
+      "duration": 1.2,
+      "ease": "none",
+      "layers": {
+        "#box": {
+          "x": [{ "time": 0, "value": -900 }, { "time": 1, "value": 0, "ease": "power2.out" }],
+          "opacity": [{ "time": 0, "value": 0 }, { "time": 0.5, "value": 1 }]
+        },
+        "#title": {
+          "x": [{ "time": 0, "value": -600 }, { "time": 0.8, "value": 0, "ease": "back.out(1.6)" }],
+          "y": [{ "time": 0, "value": 20 }, { "time": 0.4, "value": 20 }, { "time": 1.2, "value": 0, "ease": "hold" }],
+          "opacity": [{ "time": 0, "value": 0 }, { "time": 0.6, "value": 1 }]
+        },
+        "#badge": {
+          "y": [{ "time": 0.7, "value": 30 }, { "time": 1, "value": 0, "ease": "back.out(1.6)" }],
+          "opacity": [{ "time": 0.7, "value": 0 }, { "time": 1, "value": 1 }]
+        }
+      },
+      "spans": { "#badge": [{ "start": 0.7, "end": 1.2 }], "#tag": [] }
+    },
+    {
+      "name": "Step 2",
+      "duration": 0.6,
+      "ease": "none",
+      "layers": {
+        "#box": {
+          "x": [{ "time": 0, "value": 0 }, { "time": 0.6, "value": 300, "ease": "power1.inOut" }],
+          "rotation": [{ "time": 0, "value": 0 }, { "time": 0.6, "value": 90 }]
+        },
+        "#tag": {
+          "x": [{ "time": 0, "value": -200 }, { "time": 0.4, "value": 0, "ease": "power2.out" }],
+          "opacity": [{ "time": 0, "value": 0 }, { "time": 0.3, "value": 1 }]
+        }
+      },
+      "spans": { "#badge": [{ "start": 0, "end": 0.6 }], "#tag": [{ "start": 0, "end": 0.6 }] }
+    },
+    {
+      "name": "Out",
+      "duration": 1,
+      "ease": "none",
+      "layers": {
+        "#box": {
+          "x": [{ "time": 0, "value": 300 }, { "time": 1, "value": -900, "ease": "power2.in" }],
+          "rotation": [{ "time": 0, "value": 90 }, { "time": 1, "value": 0 }]
+        },
+        "#title": {
+          "x": [{ "time": 0, "value": 0 }, { "time": 1, "value": -600, "ease": "power3.in" }],
+          "opacity": [{ "time": 0.2, "value": 1 }, { "time": 0.9, "value": 0, "ease": "power1.in" }]
+        },
+        "#badge": {
+          "y": [{ "time": 0.2, "value": -40 }],
+          "opacity": [{ "time": 0, "value": 1 }, { "time": 0.5, "value": 0 }]
+        },
+        "#tag": {
+          "opacity": [{ "time": 0, "value": 1 }, { "time": 0.6, "value": 0 }]
+        }
+      },
+      "spans": { "#badge": [{ "start": 0, "end": 0.5 }] }
+    }
+  ]
+}

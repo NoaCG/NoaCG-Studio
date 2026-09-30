@@ -1,4 +1,4 @@
-import { readTimeline } from './timelineView';
+import { onFlag, readTimeline } from './timelineView';
 import type { SpxTemplate } from '../../model/types';
 import { applyOperations, type EditorOperation } from './operations';
 
@@ -95,6 +95,13 @@ export class EditorSession {
         this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
       }
       if (request.operations.some(op => op.kind === 'out.set')) this.port.restore({ ...this.port.view(), time: readTimeline(this.current).out, cue: undefined });
+      // A new Step parks the playhead on its flag; a removed or moved one leaves the time and reads it arriving.
+      const added = request.operations.find(op => op.kind === 'step.add');
+      if (added?.kind === 'step.add') {
+        const frame = Math.round(added.time * this.current.fps) / this.current.fps;
+        this.port.restore({ ...this.port.view(), time: onFlag(readTimeline(this.current), frame), cue: undefined });
+      }
+      else if (request.operations.some(op => op.kind === 'step.delete' || op.kind === 'step.move')) this.port.restore({ ...this.port.view(), cue: undefined });
       if (request.operations.some(op => op.kind === 'layer.delete')) this.port.restore({ ...this.port.view(), selectedParts: [] });
     } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);

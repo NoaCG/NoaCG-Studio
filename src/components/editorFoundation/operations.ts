@@ -8,6 +8,7 @@ import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../bloc
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, applyKeyEase, type AnimationOperation, type KeyEaseOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
+import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
@@ -15,6 +16,7 @@ export type EditorOperation =
   | AnimationOperation
   | KeyEaseOperation
   | OutOperation
+  | StepOperation
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'box.resize'; selector: string; width: number; height: number }
@@ -59,6 +61,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
     }
     if (operation.kind === 'out.set' || operation.kind === 'out.reverse') {
       next = applyOut(next, operation);
+    } else if (operation.kind === 'step.add' || operation.kind === 'step.rename' || operation.kind === 'step.delete' || operation.kind === 'step.move') {
+      next = applyStep(next, operation);
     } else if (operation.kind === 'animation.key' || operation.kind === 'layer.move' || operation.kind === 'layer.trim') {
       next = applyAnimation(next, operation); targets.add(operation.selector);
     } else if (operation.kind === 'key.ease') {

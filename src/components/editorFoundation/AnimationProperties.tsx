@@ -5,7 +5,7 @@ import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { RenderedPart } from './protocol';
 import { readTimeline } from './timelineView';
-import { authoredTransform, authoringPosition, displayedBase, requireCurrentPose } from './animationAuthoring';
+import { authoredTransform, authoringPosition, displayedBase, editingPose, editTarget, requireCurrentPose } from './animationAuthoring';
 import type { EditorOperation } from './operations';
 import { FieldControl } from '../fields/FieldControl';
 
@@ -13,15 +13,17 @@ export function AnimationButtons({ template, selector, property, label, session,
   template: SpxTemplate; selector: string; property: NumericProperty; label: string; session: EditorSession; appearance?: RenderedPart['appearance'];
 }) {
   const [error, setError] = useState('');
-  const view = readTimeline(template), position = authoringPosition(template, selector, session.port.view().time, session.port.view().cue);
+  const { time, cue } = session.port.view();
+  const view = readTimeline(template), position = authoringPosition(template, selector, time, cue);
   const armed = isArmed(view.data, selector, property);
   const keyed = !!view.data?.steps[position.step]?.layers[selector]?.[property]?.some(k => Math.abs(k.time - position.time) < .0005);
   const act = (action: 'set' | 'remove' | 'disable') => {
     try {
       requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
-      const value = appearance?.motion?.[property];
+      const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
+      const value = pose?.motion?.[property];
       if (value === undefined) throw new Error('Wait for the rendered pose before editing animation.');
-      const baseValue = property === 'opacity' ? value : displayedBase(baseValues(template, selector), appearance, property);
+      const baseValue = property === 'opacity' ? value : displayedBase(baseValues(template, selector), pose, property);
       session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(),
         operations: [{ kind: 'animation.key', selector, property, ...position, value, baseValue, action }] });
       setError('');
@@ -30,7 +32,7 @@ export function AnimationButtons({ template, selector, property, label, session,
   return <div className="ef-key-controls">
     <button aria-label={(armed ? 'Disable ' : 'Enable ') + label + ' animation'} aria-pressed={armed} title={armed ? 'Remove this property’s keys and retain the current pose' : 'Create one key at the playhead'} onClick={() => act(armed ? 'disable' : 'set')}>◷</button>
     <button aria-label={(keyed ? 'Remove ' : 'Add ') + label + ' key'} aria-pressed={keyed} onClick={() => act(keyed ? 'remove' : 'set')}>{keyed ? '◆' : '◇'}</button>
-    <span className="ef-muted">{view.segments[position.step]?.name} · {armed ? keyed ? 'key' : 'animated' : 'base'}</span>
+    <span className="ef-muted">{editTarget(template, selector, time, cue)} · {armed ? keyed ? 'key' : 'animated' : 'base'}</span>
     {error && <p role="alert">{error}</p>}
   </div>;
 }
@@ -43,19 +45,21 @@ export default function AnimationProperties({ template, selector, session, appea
   try { base = baseValues(template, selector); } catch { return null; }
   const reason = sequenceAuthoringReason(readTimeline(template).data);
   if (reason) return <p className="ef-muted">{reason} Use Edit base values below.</p>;
+  // On a flag a layer can edit the departing cue, whose pose the arriving preview keeps hidden.
+  const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
   const fields = [['x', base.mode === 'flow' ? 'Layout offset X' : 'Position X'], ['y', base.mode === 'flow' ? 'Layout offset Y' : 'Position Y'], ['scaleX', 'Scale X'], ['scaleY', 'Scale Y'], ['rotation', 'Rotation']] as const;
   return <div className="ef-animation-properties">
     <span className="ef-section-label">Transform at playhead</span>
     {fields.map(([property, label]) => {
       const percent = property.startsWith('scale') ? 100 : 1;
-      const value = displayedBase(base, appearance, property) * percent;
+      const value = displayedBase(base, pose, property) * percent;
       const commit = (value: number, expected: Revision, time: number, cue?: number) => {
         try {
           if (time !== session.port.view().time || cue !== session.port.view().cue) throw new Error('The playhead moved. Inspect the value again before editing.');
           requireCurrentPose(appearance, time, expected, session.port.view().cue);
           const other = property === 'scaleX' ? 'scaleY' : 'scaleX';
-          const current = displayedBase(base, appearance, property);
-          const values = { [property]: value / percent, ...(linked && percent === 100 ? { [other]: current === 0 ? value / percent : displayedBase(base, appearance, other) * value / percent / current } : {}) };
+          const current = displayedBase(base, pose, property);
+          const values = { [property]: value / percent, ...(linked && percent === 100 ? { [other]: current === 0 ? value / percent : displayedBase(base, pose, other) * value / percent / current } : {}) };
           const operations: EditorOperation[] = authoredTransform(template, selector, base, appearance, values, session.port.view().time);
           if (operations.length) session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations });
           setError('');

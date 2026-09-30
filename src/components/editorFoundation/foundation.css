@@ -78,10 +78,10 @@
 .ef-text-preview { background: var(--bg-input); border: 1px solid var(--ef-border); padding: 10px; overflow-wrap: anywhere; }
 .ef-outline-item { display: grid; width: 100%; text-align: left; margin-bottom: 6px; }
 .ef-outline-item code { color: var(--ef-muted); font-size: 10px; }
-.ef-timeline { min-height: 240px; display: grid; grid-template-rows: 34px 38px auto minmax(0, 1fr) 24px; border-top: 1px solid var(--border-strong); background: var(--ef-panel); }
+.ef-timeline { min-height: 240px; display: grid; grid-template-rows: 34px minmax(38px, auto) auto minmax(0, 1fr) 24px; border-top: 1px solid var(--border-strong); background: var(--ef-panel); }
 .ef-timeline > .ef-track-scroll { grid-row: 4; }
 .ef-timeline > .ef-caption { grid-row: 5; }
-.ef-transport { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); }
+.ef-transport { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); flex-wrap: wrap; }
 .ef-transport output { color: var(--accent); font: 12px monospace; min-width: 74px; }
 .ef-transport label { display: flex; gap: 8px; align-items: center; }
 .ef-notice { margin: 0; padding: 6px 12px; color: var(--warn); }
@@ -176,4 +176,17 @@
 .ef-out-popover small { display: block; margin-top: 8px; color: var(--text-dim); }
 .ef-out-error { position: absolute; right: 12px; bottom: 100%; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); z-index: 5; }
 .ef-transport { position: relative; }
+/* R1.2a.4 step authoring: Step and Out flags on the ruler, their name field, reasons and Add Step. */
+.ef-shell button.ef-flag { min-height: 0; margin: 0; padding: 2px 4px; font-size: 10px; line-height: 12px; border: 0; border-left: 1px solid var(--text-dim); border-radius: 0; background: transparent; cursor: grab; touch-action: none; z-index: 2; }
+.ef-shell button.ef-flag:hover, .ef-shell button.ef-flag:focus-visible { color: var(--text); border-left-color: var(--text); }
+.ef-shell button.ef-flag[aria-pressed=true] { color: var(--accent); border-left-color: var(--accent); }
+.ef-shell button.ef-flag.is-dragging { color: var(--text); background: var(--bg-panel); cursor: grabbing; z-index: 3; }
+.ef-shell button.ef-flag.is-refused { color: var(--warn); border-left: 1px dashed var(--warn); }
+.ef-flag-name { position: absolute; bottom: 1px; display: flex; align-items: center; gap: 4px; padding: 1px 4px; background: var(--bg-panel); color: var(--text-dim); font-size: 10px; white-space: nowrap; z-index: 6; }
+.ef-flag-name input { width: 130px; min-height: 0; padding: 1px 4px; font-size: 11px; }
+.ef-flag-error { position: absolute; top: calc(100% + 2px); width: max-content; max-width: 360px; padding: 6px 8px; background: var(--bg-panel); color: var(--warn); border: 1px solid var(--border-strong); font-size: 11px; white-space: normal; z-index: 6; pointer-events: none; }
+.ef-flag-error.is-left { transform: translateX(-100%); }
+.ef-step-controls { position: relative; display: flex; align-items: center; }
+.ef-step-error { position: absolute; left: 0; top: calc(100% + 4px); width: max-content; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); border: 1px solid var(--border-strong); z-index: 5; }
+.ef-segment-targets { margin: 0 0 10px; padding-left: 18px; color: var(--ef-muted); font-size: 12px; }
 @media (max-width: 1150px) { .ef-transport > .ef-muted { display: none; } }

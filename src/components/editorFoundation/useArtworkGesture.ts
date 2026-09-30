@@ -5,7 +5,7 @@ import type { EditorSession, Revision } from './session';
 import type { EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { authoredTransform, displayedBase, requireCurrentPose } from './animationAuthoring';
+import { authoredTransform, displayedBase, editingPose, requireCurrentPose } from './animationAuthoring';
 import { animationSource, animationTarget } from '../../blocks/editorAnimation';
 
 type Point = { x: number; y: number };
@@ -63,7 +63,9 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const constrained = modifiers.shiftKey ? Math.abs(delta.x) >= Math.abs(delta.y) ? { x: delta.x, y: 0 } : { x: 0, y: delta.y } : delta;
         gesture.operations = gesture.members.flatMap(({ base, part }) => {
           const change = inverseDelta(part.parent ?? [1, 0, 0, 1], constrained);
-          return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, part.appearance, 'x') + change.x, y: displayedBase(base, part.appearance, 'y') + change.y }, gesture.time);
+          // Each layer moves from the pose it edits: on a flag, a layer starting there from its departing cue's.
+          const pose = editingPose(template, base.selector, part.appearance, gesture.time, part.appearance?.cue);
+          return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, gesture.time);
         });
         preview()?.noteInput('drag');
         if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
@@ -81,7 +83,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         return;
       }
       const originalBase = gesture.base!, part = gesture.part!;
-      const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY'] as const).map(p => [p, displayedBase(originalBase, part.appearance, p)])) };
+      const pose = editingPose(template, originalBase.selector, part.appearance, gesture.time, part.appearance?.cue);
+      const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY'] as const).map(p => [p, displayedBase(originalBase, pose, p)])) };
       let change = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
       let values = { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY };
       if (gesture.handle !== undefined && part.corners) {

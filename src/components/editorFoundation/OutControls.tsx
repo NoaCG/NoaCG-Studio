@@ -1,13 +1,15 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { hasExitKeys } from '../../blocks/editorOut';
 import { useModalGate } from '../spaceKey';
 import type { EditorSession, Revision } from './session';
 import { readTimeline, type TimelineView } from './timelineView';
 
-export default function OutControls({ session, view, time, pause, inspect, playOut, park }: {
+/** The Out flag's drag sets Out through the same path as the button, prompt included. */
+export interface OutHandle { setOutAt(time: number): void }
+export default forwardRef<OutHandle, {
   session: EditorSession; view: TimelineView; time: number; pause: () => void;
   inspect: () => void; playOut: () => void; park: () => void;
-}) {
+}>(function OutControls({ session, view, time, pause, inspect, playOut, park }, handle) {
   const button = useRef<HTMLButtonElement>(null), popover = useRef<HTMLDivElement>(null);
   const [prompt, setPrompt] = useState<{ expected: Revision; documentId: string } | null>(null);
   const [error, setError] = useState('');
@@ -26,10 +28,10 @@ export default function OutControls({ session, view, time, pause, inspect, playO
     window.addEventListener('resize', place);
     return () => { node.hidePopover(); window.removeEventListener('resize', place); };
   }, [prompt]);
-  const setOut = () => {
+  const setOut = (at = time) => {
     pause();
     try {
-      const result = session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'out.set', time }] });
+      const result = session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'out.set', time: at }] });
       park(); setError('');
       // Read the new source: the view can still describe the old one during this event, and Out
       // set inside the entrance carries its rest into the exit, which then has keys to keep.
@@ -37,6 +39,7 @@ export default function OutControls({ session, view, time, pause, inspect, playO
       setPrompt(next && !hasExitKeys(next) ? { expected: result.revision, documentId: session.documentId } : null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
   };
+  useImperativeHandle(handle, () => ({ setOutAt: setOut }));
   const reverse = () => {
     try {
       session.execute({ documentId: prompt!.documentId, expected: prompt!.expected, transactionId: crypto.randomUUID(), operations: [{ kind: 'out.reverse' }] });
@@ -46,7 +49,7 @@ export default function OutControls({ session, view, time, pause, inspect, playO
   const empty = !!view.data && !hasExitKeys(view.data);
   return <div className="ef-out-controls">
     <button onClick={playOut} disabled={!!view.reason}>Out</button>
-    <button ref={button} onClick={setOut} disabled={!view.data || !!view.reason}>Set Out at playhead</button>
+    <button ref={button} onClick={() => setOut()} disabled={!view.data || !!view.reason}>Set Out at playhead</button>
     <button onClick={inspect} disabled={!view.data || !!view.reason}>Edit Out</button>
     {empty && <span className="ef-muted">{view.segments[view.segments.length - 1]?.duration === 0 ? 'Empty Out · cut' : 'No Out keys'}</span>}
     <div ref={popover} popover="manual" className="ef-out-popover" role="dialog" aria-label="Reverse entrance" onKeyDown={event => {
@@ -63,4 +66,4 @@ export default function OutControls({ session, view, time, pause, inspect, playO
     </div>
     {error && <span className="ef-out-error" role="alert">{error}</span>}
   </div>;
-}
+});
