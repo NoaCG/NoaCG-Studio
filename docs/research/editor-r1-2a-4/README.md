@@ -302,6 +302,11 @@ bundling the tests.
   Alpha (Add Step in its settled air, rename, nudge, Delete back to the original, Undo), and
   Clean Steps through the wizard, a nudged and renamed Step, saved, then Play, four Nexts and Stop
   on its control page, each row appearing at its Step and Stop taking it out.
+- Full affected run at the tip (j-2629): 79 spec files, 655 passed and 364 skipped, and the
+  catalog gate 35 of 35. Earlier affected and editor runs made while the machine was short of
+  memory each failed one editor-keys canvas drag (a scale handle or a mixed selection) that
+  passes alone. The same file run 15 times at 4 workers passed 210 of 210 on both the base
+  commit and the tip, so it is a load flake the branch does not cause.
 - Build (j-2617): gates, 2178 Node tests, typecheck, lint and the bundle pass.
 - Not checked: the receiving CasparCG and OGraf hosts themselves (their exports run executed in
   Node and the simulator), a physical desktop at 125% scaling, and a phone.
