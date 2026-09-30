@@ -17,6 +17,8 @@ import {
   PREVIEW_STATE_TYPE,
   PREVIEW_PLAYHEAD_TYPE,
   PREVIEW_CMD_ERROR_TYPE,
+  PREVIEW_HELD_TYPE,
+  FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
 import {
@@ -280,6 +282,26 @@ window.addEventListener('unhandledrejection', function (ev) {
       cb();
     }
   }
+  /* NO FONT GATES A FRAME. A web font requested during the first layout holds back this
+     document's load, and the output stage keeps a frame hidden, with its commands queued, until
+     load: a font request that never answers would keep the graphic off air for good. So a
+     document that is fully parsed but still not loaded ${FRAME_HOLD_CAP_MS} ms later says what it
+     is waiting for, and the stage releases it onto its fallback faces. Its scripts have all run
+     by then; only subresources are outstanding. */
+  function reportHeld() {
+    if (document.readyState === 'complete') return;
+    var fonts = [];
+    if (document.fonts && document.fonts.forEach) {
+      document.fonts.forEach(function (face) {
+        var name = String(face.family).replace(/^["']|["']$/g, '');
+        if (face.status === 'loading' && fonts.indexOf(name) < 0) fonts.push(name);
+      });
+    }
+    try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_HELD_TYPE)}, fonts: fonts }, '*'); } catch (e) {}
+  }
+  function armHold() { setTimeout(reportHeld, ${FRAME_HOLD_CAP_MS}); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', armHold);
+  else armHold();
   /* ONE COMMAND AT A TIME, IN ARRIVAL ORDER. 'play' and 'settle' wait on the fonts and every
      other command runs at once, so a burst that arrives together - a renderer's boot catch-up
      replaying update, play, then the operator's Select and Lock - used to run the two events

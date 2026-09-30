@@ -24,6 +24,21 @@ export const PREVIEW_PLAYHEAD_TYPE = 'spx-preview-playhead';
  */
 export const PREVIEW_CMD_ERROR_TYPE = 'spx-preview-cmd-error';
 
+/**
+ * A document whose `load` is still held back by a subresource (in practice a bundled font whose
+ * request never answers) `FRAME_HOLD_CAP_MS` after it was fully parsed says so, once, with the
+ * font families it is still waiting for. The output stage treats that as loaded: a font must
+ * never keep a graphic off air (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.2). Sent only by a
+ * `liveControl` document; every other listener ignores the type.
+ */
+export const PREVIEW_HELD_TYPE = 'spx-preview-held';
+export const FRAME_HOLD_CAP_MS = 3000;
+export interface PreviewHeldMessage {
+  type: typeof PREVIEW_HELD_TYPE;
+  /** Font families still loading, unquoted. Empty when something else holds the document. */
+  fonts: string[];
+}
+
 export type PreviewCmd =
   | { cmd: 'play'; data?: string }
   | { cmd: 'stop' }
