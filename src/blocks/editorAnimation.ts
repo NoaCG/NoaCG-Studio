@@ -106,10 +106,8 @@ export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation)
   if (reason) throw new Error(reason);
   const next = moveKeys(data, operation.keys, operation.delta);
   if (next === data) return template;
-  const out = next.steps.length - 1, exit = out > 0 && JSON.stringify(next.steps[out]) !== JSON.stringify(data.steps[out]);
-  const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
-  if (js === null) throw new Error('This interpreter has custom source, so the moved keys cannot be written safely. Its source is preserved.');
-  return { ...template, js };
+  const out = next.steps.length - 1;
+  return writeKeys(template, next, out > 0 && JSON.stringify(next.steps[out]) !== JSON.stringify(data.steps[out]), 'the moved keys');
 }
 
 /** Ease the selected key sides. Changing nothing leaves the source as it is, an older known
@@ -121,8 +119,13 @@ export function applyKeyEase(template: SpxTemplate, operation: KeyEaseOperation)
   if (!Array.isArray(operation.keys) || !operation.keys.length) throw new Error('Select keys to ease. No ease changed.');
   const next = easeKeys(data, operation.keys, operation.preset);
   if (next === data) return template;
-  const exit = data.steps.length > 1 && operation.keys.some(key => key.step === data.steps.length - 1);
+  return writeKeys(template, next, data.steps.length > 1 && operation.keys.some(key => key.step === data.steps.length - 1), 'the new eases');
+}
+
+/** Write keys an edit changed: where Out changed, an older known interpreter is re-emitted as Set
+ *  Out does; a custom one refuses. */
+function writeKeys(template: SpxTemplate, next: AnimData, exit: boolean, what: string): SpxTemplate {
   const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
-  if (js === null) throw new Error('This interpreter has custom source, so the new eases cannot be written safely. Its source is preserved.');
+  if (js === null) throw new Error(`This interpreter has custom source, so ${what} cannot be written safely. Its source is preserved.`);
   return { ...template, js };
 }

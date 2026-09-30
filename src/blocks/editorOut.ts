@@ -1,7 +1,7 @@
 import { getTemplateParts } from '../model/structure';
 import type { SpxTemplate } from '../model/types';
 import type { AnimData, AnimKeyframe, AnimStep } from './animData';
-import { clone, cutBars, cutTracks, EPS, holdAt, joinBars, joinCues, round, withOut, type Bar } from './animEdit';
+import { clone, crossesCarried, cutBars, cutTracks, EPS, holdAt, joinBars, joinCues, round, withOut, type Bar } from './animEdit';
 import { resolveValue } from './animEval';
 import { animationSource, documentContains, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
@@ -151,7 +151,7 @@ function rejoinCarried(data: AnimData, contains?: (ancestor: string, selector: s
   for (const [selector, tracks] of Object.entries(exit.layers)) for (const [prop, keys] of Object.entries(tracks)) {
     const below = keys.filter(key => key.time < carried - EPS), above = keys.filter(key => key.time > carried + EPS);
     const at = keys.filter(key => Math.abs(key.time - carried) < EPS), on = at[0], last = below[below.length - 1];
-    if (at.length > 1 || !on && last && above.length && last.value !== above[0].value) {
+    if (at.length > 1 || crossesCarried(keys, carried)) {
       throw new Error(`${selector} ${prop} moves across the end of the motion Out carries, so Set Out cannot tell that motion from the exit. Its source is preserved.`);
     }
     // A key on the carried time's end ends the carried motion when it changes a value there. The exit

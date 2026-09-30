@@ -5,7 +5,7 @@ import { applyOperations, type EditorOperation } from './operations';
 import type { EditorSession, Revision } from './session';
 import type { Segment, TimelineView } from './timelineView';
 
-const message = (cause: unknown) => cause instanceof Error ? cause.message : String(cause);
+export const message = (cause: unknown) => cause instanceof Error ? cause.message : String(cause);
 
 /** A reason shown beside its control until the next press or key anywhere. */
 export function useReason() {
