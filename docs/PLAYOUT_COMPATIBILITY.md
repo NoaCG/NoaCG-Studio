@@ -88,9 +88,8 @@ What is deliberately excluded, and why:
   (`docs/backlog/flex-gap-shim-follow-ups.md`).
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
   its fills there. OBS 31 and 32 are fine (127, measured on 32.2.1); vMix has never been measured
-  here. Left as a known,
-  recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real
-  vMix user appears.
+  here. Left as a known, recorded gap rather than a reason to migrate 189 declarations
+  speculatively — revisit if a real vMix user appears.
 
 The catalogue's own ceiling is **111** (`color-mix()`), so it clears the floor with room. The
 floor's value is not what it forbids today; it is what it catches tomorrow.

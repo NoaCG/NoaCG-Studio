@@ -140,8 +140,8 @@ export interface PlayoutEngine {
  * measured sits above it: OBS 32.2.1 reports 127 (2026-09-30) and CasparCG 2.5 reports 142. SPX is
  * not an engine of its own: on air its renderer runs in whatever host loads it (OBS, vMix,
  * CasparCG), and the operator's browser runs a monitor copy (docs/SPX_ON_A_REAL_SERVER.md §5).
- * The catalogue's own ceiling is 111 (`color-mix()`),
- * so it clears this today with six versions to spare.
+ * The catalogue's own ceiling is 111 (`color-mix()`), so it clears this today with six versions
+ * to spare.
  *
  * Moving this number is a decision about which machines are supported, so it lives here, once —
  * `scripts/engine-floor.mjs` gates on it and docs/PLAYOUT_COMPATIBILITY.md explains it.
