@@ -1279,8 +1279,10 @@ the ones marked *filed* have a backlog item.
    on air by itself. *Filed:* `docs/backlog/output-embed-blocked-by-frame-headers.md`.
 2. **Tell the operator the truth during an outage.** The hosted page's resolve collapses an error
    into "invalid or unpublished"; use the renderer's `RpcAnswer` pattern and retry. The production
-   page's follow gives up silently until reload. *Filed:*
-   `docs/backlog/operator-pages-read-an-outage-as-unpublished.md`.
+   page's follow gives up silently until reload. *Done 2026-09-30:* `controlShowBySlug` answers
+   with `RpcAnswer`; the hosted page says the server is not answering and retries, the production
+   page's follow retries and says so in its header, and
+   `e2e/configured/operator-outage-not-unpublished.spec.ts` replays the 503.
 3. **A renderer that cannot fail at boot on a chunk.** Bundle supabase-js into the output entry or
    stop caching a rejected import; make the "Output not available" card transparent, or show it
    only for an explicit unpublish. *Filed:* `docs/backlog/output-boot-dies-on-a-failed-chunk.md`.
@@ -1297,8 +1299,12 @@ the ones marked *filed* have a backlog item.
 6. **Make the post-land alarm mean something again.** It is red on every landing today for an
    accepted advisor class, so a real migration failure would look the same. *Done 2026-09-29:*
    `unused_index` now warns and never fails (`docs/STACK_FRESHNESS.md`, Supabase advisors).
-7. **One library sync pass per browser**, not per tab per edit. *Filed already:*
-   `docs/backlog/library-sync-runs-a-pass-per-tab-per-edit.md`.
+7. **One library sync pass per browser**, not per tab per edit. *Done 2026-09-30:* the tab that
+   makes a change runs its pass, a tab that only adopted it runs none (unless the writer runs no
+   sync, as a production page opened on its own does), and a tab that closes with a pass owed
+   hands it to one of the tabs still open (`src/backend/syncController.ts`, measured in
+   `e2e/configured/sync-one-pass-per-edit.spec.ts`: two tabs and one edit went from two passes to
+   one).
 8. **Jitter the refill on reconnect**, so a Realtime restart does not send every output to the
    tail RPC in the same second (§5 storm run). *Done 2026-09-30:* a rejoin refills after a random
    0-5 s (`src/control/logFollow.ts`, `REJOIN_REFILL_SPREAD_MS`), and the socket's own reconnect
@@ -1320,6 +1326,9 @@ the ones marked *filed* have a backlog item.
 12. **Never let a font request gate a frame.** Serve bundled fonts with the prepared payload (or
     from whatever serves the output), or stop waiting for the frame's `load` to release commands;
     today a hanging font host leaves an output that accepts every Take and shows nothing (§5.2).
+    *Done 2026-09-30:* a document still not loaded 3 s after it was parsed releases itself onto
+    its fallback faces and the debug line names the font (`src/output/stage.ts`,
+    `e2e/output-font-hold.spec.ts`, `docs/CLOUD_PLAYOUT.md` §3).
 
 ---
 

@@ -79,7 +79,8 @@ test('a cue taken before the renderer exists is on air when the browser source b
       async () =>
         page.evaluate(async (slug) => {
           const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
-          const show = await controlShowBySlug(slug!);
+          const answer = await controlShowBySlug(slug!);
+          const show = answer.ok ? answer.value : null;
           return Object.keys(show?.liveCue ?? {}).length;
         }, slugs.control),
       { timeout: 30_000 },

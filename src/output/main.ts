@@ -39,7 +39,7 @@ import { createAppliedOnce } from '../control/commandRoads';
 import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
 import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
-import { createOutputStage } from './stage';
+import { createOutputStage, heldLine } from './stage';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -124,6 +124,8 @@ async function boot(): Promise<void> {
 
   const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
+  // A graphic a font kept waiting past the cap airs on a fallback face (stage.ts `held`).
+  stage.onHeld(() => dbg('fonts', heldLine(stage.held) ?? ''));
 
   /**
    * HOW MANY ENTRANCES THIS RENDERER HAS PLAYED, published on the body as `data-plays`.

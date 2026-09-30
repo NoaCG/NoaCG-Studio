@@ -12,10 +12,11 @@
 // read-modify-WHOLE-RECORD write, so a change here can silently reintroduce one tab eating
 // another tab's work (docs/INTERACTIVE_PLAYOUT_PLAN.md, and cross-tab.spec.ts's own header).
 // covers: {app.html,src/model/durableStore.ts,src/main.tsx,src/components/StorageHealthNotice.tsx}
+// covers: src/backend/syncController.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
-import { settleDurableWrites } from './_durable';
+import { awaitDurableReady, settleDurableWrites } from './_durable';
 
 // CROSS-TAB SAFETY for the durable store (model/durableStore.ts).
 //
@@ -74,3 +75,62 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   expect(survived.tables, 'the second tab’s table was overwritten by the first tab').toBe(1);
   expect(survived.cue).toBe('Renamed in the first tab');
 });
+
+// ONE LIBRARY SYNC PASS PER CHANGE (backend/syncController.ts). A tab that adopts another tab's
+// write raises `spx-data-changed` like any change, so its surfaces re-read. When the writer runs
+// library sync itself, the adopted change is marked and the adopting tab's sync skips it: the
+// writer's pass pushes it. When the writer does NOT sync (a production or control page opened on
+// its own), the change stays unmarked, or nobody would push it. A tab's own change is never
+// marked. The pass count itself needs a signed-in account and is measured in
+// e2e/configured/sync-one-pass-per-edit.spec.ts.
+test('an adopted write is left to the writer’s sync only when the writer syncs', async ({ page, context }) => {
+  await page.goto('/app');
+  await awaitDurableReady(page);
+  const b = await context.newPage();
+  await b.goto('/app');
+  await awaitDurableReady(b);
+
+  // What each tab's sync would decide for every change it hears.
+  type Heard = 'own' | 'left-to-writer' | 'push-here';
+  const listen = (p: Page) =>
+    p.evaluate(async () => {
+      const { changeSyncedElsewhere } = await import('/src/model/durableStore.ts');
+      const heard: string[] = [];
+      (window as unknown as { __heard: string[] }).__heard = heard;
+      window.addEventListener('spx-data-changed', (e) => {
+        const adopted = (e as CustomEvent).detail != null;
+        heard.push(!adopted ? 'own' : changeSyncedElsewhere(e) ? 'left-to-writer' : 'push-here');
+      });
+    });
+  const heard = (p: Page) => p.evaluate(() => (window as unknown as { __heard: Heard[] }).__heard.splice(0));
+  const addLook = (p: Page, name: string) =>
+    p.evaluate(async (lookName) => {
+      const { createLook } = await import('/src/model/packets.ts');
+      createLook(lookName, {
+        styleTag: 'minimal',
+        palette: { id: 'captured', name: 'Captured', styleTags: ['minimal'], accent: '#22aa66', text: '#ffffff', textDim: 'rgba(255,255,255,0.7)', panel: 'rgba(12,14,18,0.92)' },
+        fontId: null,
+        customFont: null,
+      });
+    }, name);
+  await listen(page);
+  await listen(b);
+
+  // The first tab runs library sync (offline it never starts, so say what startAutoSync says).
+  await page.evaluate(async () => {
+    const { markOwnWritesSynced } = await import('/src/model/durableStore.ts');
+    markOwnWritesSynced();
+  });
+
+  await addLook(page, 'Written where sync runs');
+  await settleDurableWrites(page);
+  await expect.poll(() => heard(b)).toContain('left-to-writer');
+  expect(await heard(page), 'the writer’s own change is unmarked, so its sync runs').toContain('own');
+
+  await addLook(b, 'Written where sync does not run');
+  await settleDurableWrites(b);
+  await expect
+    .poll(() => heard(page), { message: 'a write from a tab without sync is pushed by the tab that adopts it' })
+    .toContain('push-here');
+});
+

@@ -686,19 +686,26 @@ function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
   };
 }
 
-export async function controlShowBySlug(slug: string): Promise<ResolvedControlShow | null> {
-  const sb = await getSupabase();
-  if (!sb) return null;
+/** Resolve the OPERATOR's view by the control capability. A null VALUE means no such production
+ *  (a wrong link, or unpublished); a failure means the server did not answer - a database or
+ *  PostgREST outage - and the operator page must say so and ask again, never "not found". */
+export async function controlShowBySlug(slug: string): Promise<RpcAnswer<ResolvedControlShow | null>> {
+  // A client that failed to load (its chunk did not arrive) is a failure to ask, like any other.
+  const sb = await getSupabase().catch(() => null);
+  if (!sb) return { ok: false, error: 'no backend client' };
   // PROTOCOL 2 FIRST, today's resolve when the server has no sequence road (`seqRoad`). A resolve
-  // nobody answered is null, as today's is.
+  // nobody answered is a failure on either road, and the caller asks again.
   const next = await askSeqRoad(sb, 'control_show_resolve', { p_slug: slug });
-  if (next) return next.ok && next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null;
+  if (next) {
+    if (!next.ok) return next;
+    return { ok: true, value: next.value ? readResolvedShow(next.value, seqPlanFor(slug, next.value)) : null };
+  }
   seqSessions.delete(slug);
   const { data, error } = await sb.rpc('control_show_by_slug', { p_slug: slug });
-  if (error) return null;
+  if (error) return { ok: false, error: error.message };
   const row = Array.isArray(data) ? data[0] : data;
-  if (!row) return null;
-  return readResolvedShow(row as Record<string, unknown>, undefined);
+  if (!row) return { ok: true, value: null };
+  return { ok: true, value: readResolvedShow(row as Record<string, unknown>, undefined) };
 }
 
 /** One resolve's answer, whichever RPC gave it: the proto-2 resolve answers today's columns by
@@ -775,6 +782,9 @@ export interface UntilAnsweredOptions {
   /** How many attempts in total; 0 means never give up. */
   limit?: number;
   onRetry?: (attempts: number, error: string) => void;
+  /** Asked after every failure and every wait: true ends the walk with the last failure, so a
+   *  page that has gone away stops asking. */
+  stop?: () => boolean;
   /** Injected so a spec can drive the walk without spending its own seconds. */
   wait?: (ms: number) => Promise<void>;
 }
@@ -796,9 +806,10 @@ export async function untilAnswered<T>(
   for (let tries = 0; ; tries += 1) {
     const answer = await attempt();
     if (answer.ok) return answer;
-    if (limit > 0 && tries + 1 >= limit) return answer;
+    if ((limit > 0 && tries + 1 >= limit) || opts.stop?.()) return answer;
     opts.onRetry?.(tries + 1, answer.error);
     await wait(Math.min(max, first * 2 ** tries));
+    if (opts.stop?.()) return answer;
   }
 }
 
