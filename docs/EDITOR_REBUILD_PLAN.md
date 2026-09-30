@@ -405,7 +405,10 @@ waypoints are bypassed for this interruption policy. A final ease that is a slic
 plays as that whole curve here, since stretched over the live distance a slice can swing far
 past its end (R1.2a.1). A settled normal Out retains authored
 exit keys. This is an explicit interruption policy, not a claim to exactly reverse an
-unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims.
+unfinished entrance. One-key/zero-time exits are explicit cuts, not continuous-motion claims,
+at the last step. Owner decision 2026-09-30 (R1.2a.4): pressed from an earlier step, such a track
+holds its live value until the exit ends instead of cutting to its value, which can be the last
+step's pose, and then takes it with the rest of the end-of-Out pose.
 Never reveal unseen layers; static visible layers without exit tracks clear at exit completion.
 Repeat Out coalesces per take; replay resets transient state without altering authored keys.
 A final Hold keeps the live value until the last exit key and then jumps; a final `jump` (a
