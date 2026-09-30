@@ -11,6 +11,11 @@ system (migration 0008), not a second control architecture. The command log, the
 the staged-vs-take model, the recovery doctrine, and the receiver semantics are all inherited
 unchanged.
 
+An open output never reloads, so the RPCs, tables, topics and policies it and the operator pages
+use are a public contract: the **live-path contract**, named in `supabase/AGENTS.md` ("Live-path
+migrations wait for a quiet window"). A migration that changes it declares so in its header and
+applies only when no production is live, or when a person names it.
+
 ## What was reused, and what is new
 
 Reused verbatim (the audit that chose this is summarized in §9):
@@ -198,8 +203,11 @@ The page:
   resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
   rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
   show id, **re-tail on every `SUBSCRIBED`** (the reconnect gap the audit found in the hosted
-  page), **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
-  dedupe by row id, tail-fill on holes, route each command to its graphic's iframe as
+  page; a rejoin waits a random 0-5 s so outputs dropped together do not read at once),
+  **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
+  dedupe by row id, tail-fill on holes, **apply a row that commits late below the cursor**
+  (ids are taken at insert, so they commit out of order; the poll and a rejoin re-read the
+  cursor as it stood 60 s earlier, `src/control/logFollow.ts`), route each command to its graphic's iframe as
   a `previewProtocol` message, report applied state back via `control_report` (debounced),
   heartbeat `control_output_seen` every 60 s.
 - **The live path, seen** (`src/control/livePath.ts`, Phase 6 Step 1). Every renderer knows a

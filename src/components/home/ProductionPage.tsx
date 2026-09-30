@@ -184,6 +184,7 @@ import {
   sendControlVerb,
   takeCueItems,
   unpublishControlShow,
+  untilAnswered,
   verbAired,
   withLiveCue,
   type ControlEventRow,
@@ -490,6 +491,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [follow, setFollow] = useState<ControlFollowStatus | null>(null);
   /** The FAST road's own join status (null until it reports), for this page's Presence entry. */
   const [commandStatus, setCommandStatus] = useState<string | null>(null);
+  /** The follow's resolve has FAILED and is being asked again (a database or PostgREST outage).
+   *  Before this the follow gave up on one failure and the page stayed silent until a reload. */
+  const [resolveWaiting, setResolveWaiting] = useState(false);
   /** Each graphic's last reported MACHINE state, keyed by pool name. Two sources converge on
    *  the same answer: the local PROGRAM monitor's own state replies (fresh — the stage posts
    *  one after every applied command), and the wire's {t:'live'} report rows, which also cover
@@ -1259,15 +1263,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     let unsubscribe: (() => void) | null = null;
     const tail = (after: number) => hostedControlTail(hostedSlug, after);
     void (async () => {
-      // Read BEFORE the await: if a verb moves the live map while this round trip is in
-      // flight, the answer below is older than the screen and must not overwrite it.
-      const movesAtRequest = liveCueMoves.current;
+      // Read at the start of the round trip that ANSWERS: if a verb moves the live map while it
+      // is in flight, the answer below is older than the screen and must not overwrite it.
+      let movesAtRequest = 0;
       // BEFORE the await, because this page is reused when the route moves to another
       // production: the previous show's answer must not decide this one's road while the round
       // trip is in flight. Graphic keys are per-production layer names and collide freely.
       fastEventGraphicsRef.current = new Set();
-      const resolved = await controlShowBySlug(hostedSlug);
-      if (!alive || !resolved) return;
+      // A failed resolve is asked again on the renderer's backoff, and the header says so; only
+      // an ANSWER decides.
+      const answer = await untilAnswered(
+        () => {
+          movesAtRequest = liveCueMoves.current;
+          return controlShowBySlug(hostedSlug);
+        },
+        { stop: () => !alive, onRetry: () => setResolveWaiting(true) },
+      );
+      if (!alive) return;
+      setResolveWaiting(false);
+      const resolved = answer.ok ? answer.value : null;
+      if (!resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
@@ -1388,6 +1403,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }, 30_000);
     return () => {
       alive = false;
+      setResolveWaiting(false);
       unsubscribe?.();
       clearInterval(seenTimer);
     };
@@ -3435,6 +3451,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
       follow={follow}
+      resolveWaiting={resolveWaiting}
       onHome={() => navigate({ view: 'home', section: null })}
       // BACK is where you came from - the dashboard, the list, the graphic being made - and the
       // productions list only when this page was opened cold (a bookmark, a new tab), where there
@@ -4261,6 +4278,7 @@ function ProductionShell({
   outputSeenAt,
   liveLayers,
   follow,
+  resolveWaiting,
   sub,
   onTab,
   onHome,
@@ -4283,6 +4301,8 @@ function ProductionShell({
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
+  /** The follow's resolve is failing and being retried - the server is not answering. */
+  resolveWaiting?: boolean;
   sub: ProductionSub | null;
   /** Back to Playout IN THIS TAB. The workspaces are links now, never calls into here. */
   onTab: () => void;
@@ -4368,7 +4388,17 @@ function ProductionShell({
             appears when the log's channel has never joined, which is the state that used to
             be invisible. Commands do still arrive - the durable road polls every 30 s - so
             this says SLOW rather than broken, and it is deliberately not an error colour. */}
-        {follow && !follow.everJoined && (
+        {/* THE SERVER IS NOT ANSWERING. The follow cannot start without the resolve, so this is
+            said instead of nothing, and it goes away by itself when the server answers. */}
+        {resolveWaiting ? (
+          <span
+            className="pd-mode pd-mode-idle"
+            data-testid="production-follow"
+            title="The server is not answering, so this page cannot follow the production yet. It keeps asking and follows it as soon as the server answers."
+          >
+            ○ server not answering, retrying
+          </span>
+        ) : follow && !follow.everJoined && (
           <span
             className="pd-mode pd-mode-idle"
             data-testid="production-follow"

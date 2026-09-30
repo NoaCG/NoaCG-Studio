@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, unansweredError, unansweredStatus } =
+const { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_DELAYS_MS, RESEND_WINDOW_MS, UNANSWERED, createSendDebts, isUnanswered, rpcFailure, sendWithResend, unansweredError, unansweredStatus } =
   await import('../src/control/failedSends.ts');
 
 /** A send that fails with each of `failures` in turn, then lands, and a clock that sleeping moves.
@@ -68,6 +68,96 @@ test('a newer press of the same graphic stops the resend, so it can never land b
   };
   await assert.rejects(sendWithResend(r.send, { ...r.opts, stillNewest: () => newest, sleep }));
   assert.equal(r.attempts(), 1);
+});
+
+/** A transport that answers each attempt as `plan` says - an Error to throw, or HANG to never
+ *  answer - and a fake clock. A hung attempt ends only when its timer fires, which moves the clock
+ *  by the timer's own length; a timer an answer cancelled first never moves it. */
+const HANG = Symbol('hang');
+function heldRig(...plan) {
+  let t = 1_000_000;
+  const press = t;
+  const attempts = [];
+  const timer = (ms, fire) => {
+    const h = setImmediate(() => {
+      t += ms;
+      fire();
+    });
+    return () => clearImmediate(h);
+  };
+  return {
+    attempts,
+    press,
+    now: () => t,
+    send: (signal) => {
+      const step = plan[attempts.length] ?? HANG;
+      attempts.push({ at: t - press, signal });
+      return step === HANG ? new Promise(() => {}) : Promise.reject(step);
+    },
+    opts: {
+      deadline: press + RESEND_WINDOW_MS,
+      stillNewest: () => true,
+      now: () => t,
+      sleep: async (ms) => {
+        t += ms;
+      },
+      timer,
+    },
+  };
+}
+
+test('an attempt nobody answers is abandoned at its deadline and counted as unanswered', async () => {
+  // The late Take of the research (§5.6): its request held in the browser, never answered.
+  const r = heldRig();
+  const e = await sendWithResend(r.send, r.opts).then(() => null, (err) => err);
+  assert.equal(isUnanswered(e), true, 'an abandoned attempt ends like any unanswered send');
+  // Each attempt was cut at ATTEMPT_TIMEOUT_MS and its request cancelled, then sent again after the
+  // first resend delay, and no attempt started after the window closed.
+  assert.deepEqual(
+    r.attempts.map((a) => a.at),
+    [0, ATTEMPT_TIMEOUT_MS + RESEND_DELAYS_MS[0]],
+  );
+  assert.equal(r.attempts.every((a) => a.signal.aborted), true, 'every abandoned request is cancelled');
+  assert.equal(r.now() - r.press, 2 * ATTEMPT_TIMEOUT_MS + RESEND_DELAYS_MS[0]);
+});
+
+test('no attempt runs on past the window, however late it started', async () => {
+  // Three fast 503s spend the resend delays, and the fourth attempt, started at 3.4 s, hangs: it
+  // is cut at the window's end rather than a whole attempt's length later.
+  const r = heldRig(unansweredError(), unansweredError(), unansweredError());
+  await assert.rejects(sendWithResend(r.send, r.opts), (e) => isUnanswered(e));
+  assert.deepEqual(
+    r.attempts.map((a) => a.at),
+    [0, 400, 1400, 3400],
+  );
+  assert.equal(r.now() - r.press, RESEND_WINDOW_MS);
+  assert.equal(r.attempts[3].signal.aborted, true);
+});
+
+test('a resend that would have less than the least useful time left is not started', async () => {
+  // 400 ms to wait with 500 ms of window left would leave an attempt 100 ms: cancelled before a
+  // healthy answer could come, yet its request could still commit late.
+  const r = heldRig(unansweredError());
+  const deadline = r.now() + RESEND_DELAYS_MS[0] + MIN_ATTEMPT_MS - 1;
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, deadline }), (e) => isUnanswered(e));
+  assert.equal(r.attempts.length, 1);
+  const roomy = heldRig(unansweredError(), new Error('slow down'));
+  await assert.rejects(
+    sendWithResend(roomy.send, { ...roomy.opts, deadline: roomy.now() + RESEND_DELAYS_MS[0] + MIN_ATTEMPT_MS }),
+    /slow down/,
+  );
+  assert.equal(roomy.attempts.length, 2);
+});
+
+test('an abandoned Take is not sent again once a newer press of its graphic went out', async () => {
+  const r = heldRig();
+  let newest = true;
+  const sleep = async (ms) => {
+    await r.opts.sleep(ms);
+    newest = false; // the operator pressed Out while the Take was held
+  };
+  await assert.rejects(sendWithResend(r.send, { ...r.opts, stillNewest: () => newest, sleep }), (e) => isUnanswered(e));
+  assert.equal(r.attempts.length, 1);
 });
 
 test('which answers mean the server did not answer, and how each is worded', () => {

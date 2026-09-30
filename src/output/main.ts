@@ -172,9 +172,11 @@ async function boot(): Promise<void> {
     summary: () => live.summary(),
     presence: () => presenceStatus,
   };
-  /** Rows a tail read returned: the follow hands them to `onRow` like any other, and this is how
-   *  that callback tells them from rows the log topic delivered. */
-  const fromTail = new WeakSet<ControlEventRow>();
+  /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
+   *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
+   *  refill once, and only if a row of it was new here: the poll and every rejoin re-read a window
+   *  behind the cursor (logFollow.ts), which mostly returns rows already applied. */
+  const fromTail = new WeakMap<ControlEventRow, { counted: boolean }>();
 
   /**
    * HOW MANY ENTRANCES THIS RENDERER HAS PLAYED, published on the body as `data-plays`.
@@ -502,11 +504,18 @@ async function boot(): Promise<void> {
     tail: async (after) => {
       const tail = await untilAnswered(() => controlOutputTail(outputSlug, after), { limit: 5 });
       const rows = tail.ok ? tail.value : [];
-      rows.forEach((row) => fromTail.add(row));
-      if (rows.length > 0) live.refilled();
+      const read = { counted: false };
+      rows.forEach((row) => fromTail.set(row, read));
       return rows;
     },
-    onRow: (row) => apply(row, fromTail.has(row) ? 'tail' : 'log'),
+    onRow: (row) => {
+      const read = fromTail.get(row);
+      if (read && !read.counted) {
+        read.counted = true;
+        live.refilled();
+      }
+      apply(row, read ? 'tail' : 'log');
+    },
     onHole: () => live.hole(),
     // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
     // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
