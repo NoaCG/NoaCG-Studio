@@ -213,6 +213,35 @@ catalog JS fingerprints, battery and taste frames are not re-run unless it does.
 - Tests: [full-transforms.test.mjs](../../../scripts/full-transforms.test.mjs) (build gate, 9 tests)
   and [editor-transforms.spec.ts](../../../e2e/editor-transforms.spec.ts) (7 tests).
 
+## Review and simplification
+
+Review ran as one workflow of four read-only reviewers (the adapter; the owner and time edits; UI
+wiring and the preview; tests and docs), each followed by one refuter, eight agents in all. They
+raised 11 findings; the refuters confirmed 6 (two of them in part) and refuted 5. Fixed:
+
+- A Position or Scale edit on a control that is not animated wrote the displayed value into the
+  base; where the layer still moved through a channel the editor does not key (a raw transform,
+  or a track under a selector naming several layers), the live motion was baked in and the layer
+  jumped. The base now moves by the change (`transformOperations`). Two reviewers found this.
+- Ending an Opacity that `autoAlpha` animates kept opacity but lost the visibility `autoAlpha` set;
+  it now refuses. A percent that is not a number no longer passes as 0.
+- The plan and register overclaimed (catalog `xPercent` and `autoAlpha`, `autoAlpha` bars), and the
+  Node test's refusal checks inspected a fresh copy instead of the data each call used.
+
+Refuted: a root `<svg>` layer's percent box (base placement already excludes it), transform cuts at
+flags (recorded by R1.2a.5's refusals), the receipt's absence (it was being written), the opacity
+beside `autoAlpha` removal (intended: a removal changes both), and the sweep's allowed reasons.
+
+Simplification (four cleanup passes: reuse, simplification, efficiency, altitude) added one
+`poseKey` and one `keyedAt` beside `CONTROL_CHANNELS` in place of three and two copies, one
+`ownerOf` for the view's owners with every data selector queried once per template
+(`trackOwners`), removal through `deleteKeyframe`'s own lookup, and reused `animatedProps` and the
+computed style `measure` already holds. Skipped as larger than this phase: splitting
+`animation.key`'s `property` into a control and a channel (it touches the operation's shape),
+grouping controls by the channel they write before building keys, moving the older "tracks on
+this element" rules in `baseEdits.ts` and `artworkEdits.ts` onto the owner (outside this diff),
+and shared helpers for the Node tests' loaders.
+
 ## Verification receipt
 
 - Reproduction: `e2e/editor-transforms.spec.ts` queued on the unmodified code from a snapshot
@@ -222,8 +251,8 @@ catalog JS fingerprints, battery and taste frames are not re-run unless it does.
   The Node probe of the same catalog is under "Reproduction"; after the change it finds no layer
   refused as another channel (1250 layers edit, up from 896).
 - Node: `scripts/full-transforms.test.mjs` (9 tests) with `cross-cue`, `out-boundary`, `out-step`,
-  `step-authoring`, `key-ease` and `ease-runtime` pass. Mutation testing: 38 of 38 guard mutations
-  fail a test, including the fixes review asked for; one earlier mutant was equivalent, and the
+  `step-authoring`, `key-ease` and `ease-runtime` pass. Mutation testing: 39 of 39 guard mutations
+  fail a test, including the review fixes and after simplification; one earlier mutant was equivalent, and the
   code it touched was removed as redundant.
 - Browser: `e2e/editor-transforms.spec.ts` 7 of 7 (j-2713). The catalog sweep keys Position Y on
   all 354 formerly refused layers and trims all 354 bars; 330 bars move by a frame, and the other

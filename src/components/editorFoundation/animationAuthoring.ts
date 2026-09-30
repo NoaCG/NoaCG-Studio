@@ -1,10 +1,10 @@
 import type { SpxTemplate } from '../../model/types';
 import type { BasePatch, BaseValues } from '../../blocks/baseEdits';
-import { channelValue, isArmed, sequenceAuthoringReason, writeChannel, type Channel, type NumericPose } from '../../blocks/editorAnimation';
+import { channelValue, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
-import { FLOAT_STEP, readTimeline, segmentAt } from './timelineView';
+import { FLOAT_STEP, ownerOf, readTimeline, segmentAt } from './timelineView';
 import { sameRevision, type Revision } from './session';
 
 export function requireCurrentPose(appearance: RenderedPart['appearance'], time: number, revision?: Revision, cue?: number) {
@@ -33,7 +33,7 @@ type Edit = ReturnType<typeof editSegment>;
  *  flag, whose own values at its start (the shared sampler) the arriving preview keeps hidden. */
 function poseOf({ view, segment, departing }: Edit, selector: string, appearance: RenderedPart['appearance']): RenderedPart['appearance'] {
   if (!departing || !appearance?.motion || !view.data) return appearance;
-  const motion = { ...appearance.motion }, owner = view.owners[selector] ?? selector;
+  const motion = { ...appearance.motion }, owner = ownerOf(view, selector);
   for (const property of Object.keys(motion) as (keyof typeof motion)[]) {
     const value = channelValue(view.data, owner, property, segment.index, 0);
     if (typeof value === 'number') motion[property] = value;
@@ -73,7 +73,7 @@ export function displayedBase(base: BaseValues, appearance: RenderedPart['appear
  *  inverse of `displayedBase`): pixels scale by the document, a percent by the layer's own box, and
  *  a scale multiplies. */
 export function nativeValue(pose: RenderedPart['appearance'], owner: string, key: keyof BasePatch, channel: Channel, value: number, before: number) {
-  const current = pose?.motion?.[channel === 'scale' ? key : channel as keyof NumericPose];
+  const current = pose?.motion?.[poseKey(channel, key)];
   if (current === undefined) throw new Error('Wait for the rendered property pose before editing animation.');
   const unit = pose?.unit ?? 1;
   if (channel === 'xPercent' || channel === 'yPercent') {
@@ -88,7 +88,7 @@ export function nativeValue(pose: RenderedPart['appearance'], owner: string, key
 export function authoredTransform(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], values: BasePatch, time: number): EditorOperation[] {
   requireCurrentPose(appearance, time, undefined, appearance?.cue);
   const edit = editSegment(template, selector, time, appearance?.cue), { view } = edit, pose = poseOf(edit, selector, appearance);
-  return transformOperations(view.data, selector, view.owners[selector] ?? selector, base, pose, values, positionOf(edit));
+  return transformOperations(view.data, selector, ownerOf(view, selector), base, pose, values, positionOf(edit));
 }
 /**
  * The operations that take a layer's controls to `values` from the pose shown (R1.2a.6): each armed
@@ -98,11 +98,11 @@ export function authoredTransform(template: SpxTemplate, selector: string, base:
  * ratio can write it.
  */
 export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: BasePatch, position: { step: number; time: number }): EditorOperation[] {
-  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = {};
+  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = {}, authored = !sequenceAuthoringReason(data);
   for (const [key, value] of Object.entries(values) as [keyof BasePatch, number][]) {
     const before = displayedBase(base, pose, key);
     if (Math.abs(value - before) < .00001) continue;
-    if (!sequenceAuthoringReason(data) && isArmed(data, owner, key)) {
+    if (authored && isArmed(data, owner, key)) {
       const channel = writeChannel(data, owner, key);
       operations.push({ kind: 'animation.key', selector, property: channel, ...position, value: nativeValue(pose, owner, key, channel, value, before), action: 'set' });
     } else unarmed[key] = base[key] + value - before;

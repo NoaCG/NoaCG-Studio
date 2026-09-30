@@ -95,6 +95,14 @@ async function drag(page: Page, selector: string, dx: number, dy: number, { shif
   await page.mouse.up();
   if (shift) await page.keyboard.up('Shift');
 }
+/** The selected layer's last corner handle dragged by (dx, dy) screen pixels, optionally with Shift held. */
+async function dragHandle(page: Page, dx: number, dy: number, shift = false) {
+  const handle = (await page.locator('.ef-selection circle').last().boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2); await page.mouse.down();
+  if (shift) await page.keyboard.down('Shift');
+  await page.mouse.move(handle.x + handle.width / 2 + dx, handle.y + handle.height / 2 + dy, { steps: 8 }); await page.mouse.up();
+  if (shift) await page.keyboard.up('Shift');
+}
 /** A bar body dragged by `frames` on the ruler. */
 async function dragBar(page: Page, bar: ReturnType<Page['locator']>, frames: number, fps: number) {
   await bar.scrollIntoViewIfNeeded();
@@ -153,7 +161,7 @@ test('no catalog layer refuses as another channel: its bar moves and trims and i
           catch (error) {
             const reason = String((error as Error).message);
             if (/Another source channel/.test(reason)) out.channel.push(variant.id + ' ' + part.selector + ' ' + kind);
-            else out.refused[kind + ': ' + reason.replace(/[#.][\w-]+/g, '<layer>').slice(0, 90)] = (out.refused[kind + ': ' + reason.replace(/[#.][\w-]+/g, '<layer>').slice(0, 90)] ?? 0) + 1;
+            else { const label = kind + ': ' + reason.replace(/[#.][\w-]+/g, '<layer>').slice(0, 90); out.refused[label] = (out.refused[label] ?? 0) + 1; }
             if (kind === 'key') out.keyFailures.push(variant.id + ' ' + part.selector + ': ' + reason);
           }
         }
@@ -176,7 +184,8 @@ test('no catalog layer refuses as another channel: its bar moves and trims and i
 
 test('Clean Steps: Position Y reads a row\'s yPercent, and the field and a canvas drag key it at the playhead', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
-  const t = await (async () => { await open(page); return catalog(page, 'card26'); })();
+  await open(page);
+  const t = await catalog(page, 'card26');
   await editorWith(page, t);
   const fps = t.fps, original = await source(page), steps = await history(page);
   // #f0's reveal runs yPercent 110 to 0 from 0.5 s to 1.2 s of In; 0.8 s is partway.
@@ -238,9 +247,7 @@ test('Frosted Panel: Scale handles key the box\'s scale track, linked Scale agre
   await seekFrames(page, frames, fps);
   await select(page, box);
   const before = await rendered(page, box);
-  const handle = page.locator('.ef-selection circle').last(), bounds = (await handle.boundingBox())!;
-  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2); await page.mouse.down();
-  await page.mouse.move(bounds.x + bounds.width / 2 + 24, bounds.y + bounds.height / 2 + 24, { steps: 8 }); await page.mouse.up(); await ready(page);
+  await dragHandle(page, 24, 24); await ready(page);
   const handled = await data(page), tracks = handled.steps[0].layers[box];
   expect(tracks.scaleX).toBeUndefined(); expect(tracks.scaleY).toBeUndefined();
   const scaleKey = tracks.scale.find(k => near(k.time, time * handled.speed))!;
@@ -266,9 +273,7 @@ test('Frosted Panel: Scale handles key the box\'s scale track, linked Scale agre
   await expect(page.locator('.ef-animation-properties [role=alert]')).toContainText('share one');
   expect(await source(page)).toEqual(original); expect(await history(page)).toBe(steps);
   await page.getByRole('checkbox', { name: 'Link proportions' }).check();
-  const again = (await page.locator('.ef-selection circle').last().boundingBox())!;
-  await page.mouse.move(again.x + again.width / 2, again.y + again.height / 2); await page.mouse.down(); await page.keyboard.down('Shift');
-  await page.mouse.move(again.x + again.width / 2 + 30, again.y + again.height / 2 + 6, { steps: 8 }); await page.mouse.up(); await page.keyboard.up('Shift');
+  await dragHandle(page, 30, 6, true);
   await expect(page.locator('.ef-stage-error')).toContainText('share one');
   expect(await source(page)).toEqual(original); expect(await history(page)).toBe(steps);
 });
@@ -368,6 +373,14 @@ test('refusals: a raw transform, a selector naming several layers or two naming 
   expect(faded.autoAlpha).toEqual([{ time: 0, value: 0 }, { time: .4, value: .7 }, { time: 1, value: 1 }]);
   expect(faded.opacity).toBeUndefined();
   expect(await history(page)).toBe(steps + 1);
+  // Motion the editor does not key stays motion: Position on the raw transform layer, which is
+  // 32 px along its translateX here, moves its base by the change only.
+  await select(page, transform);
+  const moving = await rendered(page, transform), shownX = Number(await (await field(page, 'Position X')).inputValue());
+  await type(page, 'Position X', shownX + 10); await ready(page);
+  await expect.poll(async () => (await rendered(page, transform)).x - moving.x).toBeCloseTo(10, 1);
+  expect((await data(page)).steps[0].layers[transform]).toEqual({ transform: [{ time: 0, value: 'translateX(0px)' }, { time: 1, value: 'translateX(80px)' }] });
+  expect(await history(page)).toBe(steps + 2);
 });
 
 // ---- The R1.2a.4 and R1.2a.5 edits on a catalog graphic ----

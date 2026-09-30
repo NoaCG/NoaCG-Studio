@@ -31,6 +31,9 @@ export const CONTROL_CHANNELS: Readonly<Record<NumericProperty, readonly Channel
 const CONTROLS = Object.keys(CONTROL_CHANNELS) as NumericProperty[];
 /** The controls a channel belongs to: `scale` is both Scale axes. */
 export const controlsOf = (channel: string) => CONTROLS.filter(control => CONTROL_CHANNELS[control].includes(channel as Channel));
+/** The pose field a control's channel shows in: the runtime reports `scale` as each Scale axis and
+ *  `autoAlpha` as opacity. */
+export const poseKey = (channel: Channel, control: NumericProperty): keyof NumericPose => channel === 'scale' || channel === 'autoAlpha' ? control : channel as keyof NumericPose;
 const NAMES: Record<NumericProperty, string> = { x: 'Position X', y: 'Position Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity' };
 const animates = (data: AnimData | null, owner: string, channel: string) => !!data?.steps.some(step => step.layers[owner]?.[channel]?.length);
 
@@ -45,6 +48,10 @@ export function armedChannels(data: AnimData | null, owner: string, property: Nu
 }
 export function isArmed(data: AnimData | null, owner: string, property: NumericProperty) {
   return armedChannels(data, owner, property).length > 0;
+}
+/** Whether any channel of a control has a key at a time on a cue's clock. */
+export function keyedAt(data: AnimData | null, owner: string, property: NumericProperty, step: number, time: number) {
+  return CONTROL_CHANNELS[property].some(channel => data?.steps[step]?.layers[owner]?.[channel]?.some(k => Math.abs(k.time - time) < EPS));
 }
 /** A pose value at a cue time as the runtime reports it: a `scale` track reports as both Scale axes
  *  and `autoAlpha` as opacity. */
@@ -64,11 +71,9 @@ export function writeChannel(data: AnimData | null, owner: string, property: Num
     throw new Error(`${owner} animates a raw transform string, which cannot be keyed one property at a time. Its source is preserved.`);
   }
   const armed = armedChannels(data, owner, property);
-  const scaled = (property === 'scaleX' || property === 'scaleY') && animates(data, owner, 'scale') && (animates(data, owner, 'scaleX') || animates(data, owner, 'scaleY'));
-  if (scaled || property === 'opacity' && armed.length > 1) {
-    const [a, b] = scaled ? ['scale', animates(data, owner, 'scaleX') ? 'scaleX' : 'scaleY'] : armed;
-    throw new Error(`${owner} animates ${NAMES[property]} with both ${a} and ${b} tracks, so a key could not say which one it changes. Its source is preserved.`);
-  }
+  const axis = (property === 'scaleX' || property === 'scaleY') && animates(data, owner, 'scale') ? (['scaleX', 'scaleY'] as const).find(c => animates(data, owner, c)) : undefined;
+  const clash = axis ? ['scale', axis] : property === 'opacity' && armed.length > 1 ? armed : null;
+  if (clash) throw new Error(`${owner} animates ${NAMES[property]} with both ${clash[0]} and ${clash[1]} tracks, so a key could not say which one it changes. Its source is preserved.`);
   return armed[0] ?? property;
 }
 export function sequenceAuthoringReason(data: AnimData | null): string | null {
@@ -111,14 +116,30 @@ export function layerOwner(data: AnimData, selector: string, names: (key: string
   if (owners.length > 1) throw new Error(`${selector} is animated under two selectors, ${owners[0]} and ${owners[1]}, so an edit could not tell which one owns it. Edit its source to preserve both.`);
   return owners[0] ?? selector;
 }
+/** What each data selector selects in the template's document, each queried once: for a layer, the
+ *  `names` function `layerOwner` takes. */
+function selections(html: string, data: AnimData) {
+  const doc = parsed(html), found = new Map<string, Element[]>(dataSelectors(data).map(key => {
+    try { return [key, Array.from(doc.querySelectorAll(key))]; } catch { return [key, []]; }
+  }));
+  return (selector: string) => {
+    const node = doc.querySelector(selector);
+    return (key: string) => {
+      const list = found.get(key) ?? [];
+      return !node || !list.includes(node) ? 'none' : list.length === 1 ? 'this' : 'several';
+    };
+  };
+}
 /** `layerOwner` over the template's document. */
 export function trackOwner(template: SpxTemplate, data: AnimData, selector: string): string {
-  const doc = parsed(template.html), node = doc.querySelector(selector);
-  return layerOwner(data, selector, key => {
-    let found: Element[];
-    try { found = Array.from(doc.querySelectorAll(key)); } catch { return 'none'; }
-    return !node || !found.includes(node) ? 'none' : found.length === 1 ? 'this' : 'several';
-  });
+  return layerOwner(data, selector, selections(template.html, data)(selector));
+}
+/** Every layer's owner; a layer no edit can own keeps its own selector, and its edits refuse. */
+export function trackOwners(template: SpxTemplate, data: AnimData, selectors: string[]): Record<string, string> {
+  const names = selections(template.html, data);
+  return Object.fromEntries(selectors.map(selector => {
+    try { return [selector, layerOwner(data, selector, names(selector))]; } catch { return [selector, selector]; }
+  }));
 }
 /** Refuse what playback owns and return the layer's owner. */
 export function animationTarget(template: SpxTemplate, data: AnimData, selector: string) {
@@ -128,8 +149,8 @@ export function animationTarget(template: SpxTemplate, data: AnimData, selector:
   if (reason) throw new Error(reason);
   return trackOwner(template, data, selector);
 }
-/** Whether a layer's Scale handles can key it: both axes have a channel to write. */
-export function scaleWritable(template: SpxTemplate, selector: string) {
+/** Throws unless a layer's Scale handles can key it: both axes have a channel to write. */
+export function requireScaleWritable(template: SpxTemplate, selector: string) {
   const data = animationSource(template), owner = animationTarget(template, data, selector);
   writeChannel(data, owner, 'scaleX'); writeChannel(data, owner, 'scaleY');
 }
@@ -184,13 +205,13 @@ export function animateLayer(source: AnimData, owner: string, operation: Animati
   if (property !== controls[0]) throw new Error('Name the control whose keys to remove.');
   const control = controls[0], channels = armedChannels(data, owner, control);
   if (control !== 'opacity') writeChannel(data, owner, control);
-  if (action === 'remove' && !channels.some(channel => data.steps[step].layers[owner]?.[channel]?.some(k => Math.abs(k.time - time) < EPS))) throw new Error('There is no key at this time.');
+  if (action === 'remove' && !keyedAt(data, owner, control, step, time)) throw new Error('There is no key at this time.');
   if (action === 'disable' && !channels.length) throw new Error('This property has no animation to disable.');
   const before = data, armed = CONTROLS.filter(c => isArmed(before, owner, c));
-  for (const channel of channels) for (let index = 0; index < data.steps.length; index++) {
-    if (action === 'remove' && index !== step) continue;
-    for (const key of [...(data.steps[index].layers[owner]?.[channel] ?? [])]) {
-      if (action === 'disable' || Math.abs(key.time - time) < EPS) data = deleteKeyframe(data, index, owner, channel, key.time);
+  for (const channel of channels) {
+    if (action === 'remove') data = deleteKeyframe(data, step, owner, channel, time);
+    else for (let index = 0; index < data.steps.length; index++) {
+      for (const key of [...(data.steps[index].layers[owner]?.[channel] ?? [])]) data = deleteKeyframe(data, index, owner, channel, key.time);
     }
   }
   const ended = armed.filter(c => !isArmed(data, owner, c));
@@ -205,15 +226,15 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   const source = animationSource(template), { selector, step } = operation;
   const owner = animationTarget(template, source, selector);
   const { data, ended } = animateLayer(source, owner, operation, source.speed / template.fps, documentContains(template.html));
-  // The controls whose motion ended keep the displayed pose as their base.
-  if (ended.length) {
+  // The controls whose motion ended (only a key removal ends any) keep the displayed pose as their base.
+  if (ended.length && operation.kind === 'animation.key') {
     const js = writeAnimData(template.js, data);
     if (js === null) throw new Error('The animation region cannot be written.');
     template = { ...template, js };
-    if (ended.includes('opacity')) template = editArtworkStyle(template, selector, { opacity: operation.kind === 'animation.key' ? operation.value : 1 });
+    if (ended.includes('opacity')) template = editArtworkStyle(template, selector, { opacity: operation.value });
     const patch: BasePatch = {};
     for (const c of ended) if (c !== 'opacity') {
-      const shown = operation.kind === 'animation.key' ? operation.baseValues?.[c] : undefined;
+      const shown = operation.baseValues?.[c];
       if (!Number.isFinite(shown)) throw new Error('A current rendered base pose is required to remove the last key.');
       patch[c] = shown;
     }

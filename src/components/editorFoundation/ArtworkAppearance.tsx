@@ -8,7 +8,7 @@ import ArtworkTextEditor from './ArtworkTextEditor';
 import { sameRevision, type EditorSession, type Revision } from './session';
 import type { RenderedPart } from './protocol';
 import { isArmed, writeChannel } from '../../blocks/editorAnimation';
-import { readTimeline } from './timelineView';
+import { ownerOf, readTimeline } from './timelineView';
 import { authoringPosition, editingPose } from './animationAuthoring';
 import { AnimationButtons } from './AnimationProperties';
 import type { EditorOperation } from './operations';
@@ -30,7 +30,7 @@ function AppearanceField({ template, selector, session, previewCss, previewTempl
   const active = useRef<{ expected: Revision; time: number; cue?: number; values: ArtworkStyle | null; original: string | number; template: SpxTemplate } | null>(null);
   const invalidNumber = useRef(false);
   // Animated opacity keys the channel it lives in: opacity, or autoAlpha (R1.2a.6).
-  const view = readTimeline(template), owner = view.owners[selector] ?? selector;
+  const view = readTimeline(template), owner = ownerOf(view, selector);
   const armed = property === 'opacity' && isArmed(view.data, owner, 'opacity');
   const operations = (values: ArtworkStyle): EditorOperation[] => armed
     ? [{ kind: 'animation.key', selector, property: writeChannel(view.data, owner, 'opacity'), ...authoringPosition(template, selector, session.port.view().time, session.port.view().cue), value: values.opacity!, action: 'set' }]

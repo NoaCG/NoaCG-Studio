@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { KeyRef } from '../../blocks/animEdit';
-import { readTimeline, type TimelineView } from './timelineView';
+import { ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
 import { applyOperations } from './operations';
 import LayerBar from './LayerBar';
@@ -228,7 +228,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       const key = element.getBoundingClientRect(), x = key.left + key.width / 2 - box.left + scroller.scrollLeft, y = key.top + key.height / 2 - box.top + scroller.scrollTop;
       if (x >= left && x <= right && y >= top && y <= bottom) element.dataset.keys!.split('|').forEach(id => found.add(id));
     }
-    const all = view.parts.flatMap(part => layerKeys(view.data, view.owners[part.selector]).flatMap(row => row.keys));
+    const all = view.parts.flatMap(part => layerKeys(view.data, ownerOf(view, part.selector)).flatMap(row => row.keys));
     const hits = all.filter(key => found.has(keyId(key)));
     setPicked(drag.base ? addKeys(drag.base, hits) : hits);
   };
@@ -299,7 +299,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       {view.parts.map((part, index) => {
         const bars = view.bars.filter(b => b.selector === part.selector);
         // A layer's keys live under its owner (R1.2a.6): its own selector or another naming only it.
-        const properties = layerKeys(view.data, view.owners[part.selector]), open = expanded.includes(part.selector);
+        const properties = layerKeys(view.data, ownerOf(view, part.selector)), open = expanded.includes(part.selector);
         return <div key={part.selector} className="ef-layer-group">
           <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector}>
             <div className="ef-layer-cell">

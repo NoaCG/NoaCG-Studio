@@ -1,6 +1,6 @@
 import { parseAnimData, type AnimData } from '../../blocks/animData';
 import { shownWithoutBars } from '../../blocks/animEdit';
-import { trackOwner } from '../../blocks/editorAnimation';
+import { trackOwners } from '../../blocks/editorAnimation';
 import { getTemplateParts, type TemplatePart } from '../../model/structure';
 import type { SpxTemplate } from '../../model/types';
 
@@ -31,11 +31,9 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   });
   const out = segments.find(s => s.out)?.start ?? cursor;
   if (data?.steps.length === 1) segments.push({ index: 1, name: 'Out', start: cursor, duration: 0, out: true });
-  const owners = Object.fromEntries(parts.map(part => {
-    try { return [part.selector, data ? trackOwner(template, data, part.selector) : part.selector]; } catch { return [part.selector, part.selector]; }
-  }));
+  const owners = data ? trackOwners(template, data, parts.map(part => part.selector)) : {};
   const bars = parts.flatMap(part => {
-    const owner = owners[part.selector];
+    const owner = owners[part.selector] ?? part.selector;
     return segments.flatMap(segment => {
       const spans = data!.steps[segment.index]?.spans?.[owner];
       if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
@@ -53,6 +51,8 @@ export function readTimeline(template: SpxTemplate): TimelineView {
   views.set(template, view);
   return view;
 }
+/** The data selector a layer's motion lives under (R1.2a.6). */
+export const ownerOf = (view: TimelineView, selector: string) => view.owners[selector] ?? selector;
 /** A flag is a sum of cue lengths, a float step off the time it was set on: read it within this. */
 export const FLOAT_STEP = 1e-6;
 /** A cue boundary belongs to its arriving segment; the finite clock contains no fake hold. */
