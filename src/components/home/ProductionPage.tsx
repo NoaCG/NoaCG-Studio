@@ -1731,7 +1731,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // A press another screen had already overtaken was refused by the server, so it is its own
         // sentence rather than "send it again" (protocol 2, migration 0070).
         const note = verbStale(e)
-          ? staleSentence(e as Error, verbAired(e))
+          ? staleSentence(e as Error)
           : verbAired(e)
             ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`;
@@ -1743,8 +1743,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
   );
   const runVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string, allOut = false): Promise<boolean> => {
-      const sent = await sendVerb(batches, label, allOut);
+    async (batches: ControlSendItem[][], label: string): Promise<boolean> => {
+      const sent = await sendVerb(batches, label);
       if (!sent.ok) setNote(sent.note);
       return sent.ok;
     },

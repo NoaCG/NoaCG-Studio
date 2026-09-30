@@ -187,7 +187,7 @@ async function boot(): Promise<void> {
         if (key === lastReported.get(graphic)) return;
         lastReported.set(graphic, key);
         void (seqMode
-          ? controlOutputReportSeq(outputSlug, graphic, data, state, lastAppliedSeq, lastAppliedId, followEpoch)
+          ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
           : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
       }, 800),
     );

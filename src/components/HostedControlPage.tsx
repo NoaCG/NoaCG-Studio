@@ -656,7 +656,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // A press another screen had already overtaken reached the server and was refused there, so
     // it is its own sentence: nothing may be "sent again" blindly (protocol 2, migration 0070).
     const notice = verbStale(e)
-      ? staleSentence(e, verbAired(e))
+      ? staleSentence(e)
       : verbAired(e)
         ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
         : /slow down/i.test(e.message)

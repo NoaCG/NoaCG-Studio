@@ -26,11 +26,11 @@ import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LIVE_BATCH_EVENT, LOG_ROW_EVENT, commandTopic, liveTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { createSeqFollower, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
+import { uuid } from '../model/id';
 import {
   createGraphicFifo,
   createSeqSession,
   learnHead,
-  mintSenderId,
   readSendAnswer,
   senderBody,
   settleAnswer,
@@ -243,7 +243,7 @@ export interface ResolvedOutputShow {
    * the migration exist that this renderer would need and that carry no seq: it then follows by
    * id for the whole session, exactly as before, and its reports move the baselines past them.
    */
-  seq?: { epoch: string | null; head: number; legacy: boolean };
+  seq?: { epoch: string | null; legacy: boolean };
 }
 
 /** The cue STATUS row (docs/CLOUD_PLAYOUT.md §4): written on Take/Out so every open surface
@@ -674,9 +674,9 @@ const seqSessions = new Map<string, SeqSession>();
 function seqPlanFor(slug: string, row: Record<string, unknown>): SeqPlan {
   const epoch = typeof row.epoch === 'string' ? row.epoch : null;
   const graphics = row.graphics && typeof row.graphics === 'object' ? (row.graphics as Record<string, HeadSummary>) : {};
-  const known = seqSessions.get(slug);
-  if (known) learnHead(known, epoch, graphics);
-  const session = known ?? createSeqSession(epoch, graphics);
+  // A page that resolves again (a reconnect) keeps what it learned in the same epoch.
+  const session = seqSessions.get(slug) ?? createSeqSession(epoch, {});
+  learnHead(session, epoch, graphics);
   seqSessions.set(slug, session);
   return {
     epoch,
@@ -805,7 +805,7 @@ export async function untilAnswered<T>(
 /** Resolve the RENDERER's view by the output capability — payload + live snapshot only.
  *  A null VALUE means the capability is gone (unpublished or rotated); a failure means the
  *  question was never answered, and the caller must ask again rather than conclude. */
-export async function controlOutputBySlug(outputSlug: string): Promise<RpcAnswer<ResolvedOutputShow | null>> {
+async function controlOutputBySlug(outputSlug: string): Promise<RpcAnswer<ResolvedOutputShow | null>> {
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'no backend client' };
   const { data, error } = await sb.rpc('control_output_by_slug', { p_output_slug: outputSlug });
@@ -835,24 +835,15 @@ function readResolvedOutput(row: Record<string, unknown>, proto2: boolean): Reso
     output: readOutputPayload(row.output),
     live: (row.live ?? {}) as LiveReportMap,
     lastEventId: Number(row.last_event_id ?? 0),
-    ...(proto2
-      ? { seq: { epoch: typeof row.epoch === 'string' ? row.epoch : null, head: Number(row.seq ?? 0), legacy: row.legacy === true } }
-      : {}),
+    ...(proto2 ? { seq: { epoch: typeof row.epoch === 'string' ? row.epoch : null, legacy: row.legacy === true } } : {}),
   };
 }
 
-/** A numbered row off the wire, or not: checked for everything the follower orders and applies by. */
+/** A numbered row off the wire, or not: a log row (`readLogRow`) that also carries its seq and names
+ *  its command, which is everything the follower orders and applies by. */
 function isSeqRow(value: unknown): value is SeqLogRow {
-  const row = value as Partial<SeqLogRow> | null;
-  return (
-    !!row &&
-    typeof row.id === 'number' &&
-    typeof row.seq === 'number' &&
-    typeof row.graphic === 'string' &&
-    !!row.msg &&
-    typeof row.msg === 'object' &&
-    typeof (row.msg as { t?: unknown }).t === 'string'
-  );
+  const row = readLogRow(value);
+  return !!row && typeof row.seq === 'number' && typeof (row.msg as { t?: unknown }).t === 'string';
 }
 
 /** A head off the wire, or undefined when it is not one. */
@@ -863,19 +854,6 @@ function readSeqHead(value: unknown): SeqHead | undefined {
     : undefined;
 }
 
-/** A `control_*tail_seq` answer, or null when the answer is not one. */
-function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
-  const d = data as { epoch?: unknown; rows?: unknown; reset?: unknown; head?: unknown } | null;
-  if (!d || typeof d !== 'object' || !Array.isArray(d.rows)) return null;
-  const head = readSeqHead(d.head);
-  return {
-    epoch: typeof d.epoch === 'string' ? d.epoch : null,
-    rows: d.rows.filter(isSeqRow),
-    ...(d.reset === true ? { reset: true } : {}),
-    ...(head ? { head } : {}),
-  };
-}
-
 /** A `batch` frame off `live-<show>`, or null (the database is the only writer, and a frame is
  *  still checked before anything is applied from it). */
 function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
@@ -883,6 +861,13 @@ function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
   if (!p || typeof p !== 'object' || !Array.isArray(p.rows)) return null;
   const head = readSeqHead(p.head);
   return { epoch: typeof p.epoch === 'string' ? p.epoch : null, rows: p.rows.filter(isSeqRow), ...(head ? { head } : {}) };
+}
+
+/** A `control_*tail_seq` answer (a frame's shape, plus `reset`), or null when it is not one. */
+function readSeqTail(data: unknown): SeqTail<SeqLogRow> | null {
+  const frame = readSeqFrame(data);
+  if (!frame) return null;
+  return (data as { reset?: unknown }).reset === true ? { ...frame, reset: true } : frame;
 }
 
 /** The operator page's numbered tail (proto 2): rows after `after` in seq order, or null when the
@@ -919,11 +904,14 @@ export async function controlOutputReportSeq(
   graphic: string,
   data: Record<string, string>,
   state: { groups?: Record<string, string> } | null,
-  seq: number,
-  lastEventId: number | null,
-  /** The epoch that seq belongs to: the server banks it only in that epoch (a republish the
-   *  renderer has not seen yet must not get a baseline from the log that is gone). */
-  epoch: string | null,
+  baseline: {
+    /** The last seq applied, and the epoch it belongs to: the server banks the seq only in that
+     *  epoch (a republish the renderer has not seen yet must not get a baseline from a gone log). */
+    seq: number;
+    epoch: string | null;
+    /** The highest row id applied: the baseline an older renderer or page reads. */
+    event: number | null;
+  },
 ): Promise<void> {
   const sb = await getSupabase();
   if (!sb) return;
@@ -932,9 +920,9 @@ export async function controlOutputReportSeq(
     p_graphic: graphic,
     p_data: data,
     p_state: state,
-    p_seq: seq,
-    p_event: lastEventId,
-    p_epoch: epoch,
+    p_seq: baseline.seq,
+    p_event: baseline.event,
+    p_epoch: baseline.epoch,
   });
 }
 
@@ -1116,30 +1104,25 @@ export async function sendControlVerb(opts: {
   const send = {};
   const keys = [...new Set(opts.items.map((item) => `${opts.slug}:${item.graphic}`))];
   for (const key of keys) newestSend.set(key, send);
+  const resend = { deadline: now + RESEND_WINDOW_MS, stillNewest: () => keys.every((key) => newestSend.get(key) === send) };
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
   // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
-  const graphics = [...new Set(wire.map((item) => item.graphic))];
-  const sender = session ? senderBody(session, SENDER_ID, (lastPress += 1), graphics, !!opts.allOut) : null;
+  const sender = session
+    ? senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(wire.map((item) => item.graphic))], !!opts.allOut)
+    : null;
   // What an All out left alone because this page pressed those graphics again since (protocol 2):
   // they are still on air, and a caller that marks every cleared layer off must not mark these.
   let skipped: string[] = [];
   try {
     if (session && sender) {
-      skipped = await sendSeqVerb(opts.slug, wire, session, sender, {
-        deadline: now + RESEND_WINDOW_MS,
-        stillNewest: () => keys.every((key) => newestSend.get(key) === send),
-        allOut: !!opts.allOut,
-      });
+      skipped = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
     } else {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
       // at its own deadline, so a request still held on this side is cancelled rather than left to
       // commit after a later press.
-      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), {
-        deadline: now + RESEND_WINDOW_MS,
-        stillNewest: () => keys.every((key) => newestSend.get(key) === send),
-      });
+      await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
   } catch (e) {
     // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
@@ -1174,7 +1157,7 @@ export { isStale as verbStale, staleSentence } from './seqSend';
 
 /** THIS PAGE'S SENDER on the sequence road: one uuid per page load, in memory only, and one press
  *  number per payload (seqSend.ts says why neither may be persisted or shared). */
-const SENDER_ID = mintSenderId();
+const SENDER_ID = uuid();
 let lastPress = 0;
 
 /**
@@ -1192,18 +1175,16 @@ async function sendSeqVerb(
   wire: WireItem[],
   session: SeqSession,
   sender: SenderBody,
-  opts: { deadline: number; stillNewest: () => boolean; allOut: boolean },
+  resend: { deadline: number; stillNewest: () => boolean },
+  allOut: boolean,
 ): Promise<string[]> {
   const graphics = Object.keys(sender.base);
   let skipped: string[] = [];
   const send = () =>
-    sendWithResend(
-      async (signal) => {
-        skipped = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics).skipped;
-      },
-      { deadline: opts.deadline, stillNewest: opts.stillNewest },
-    );
-  await (opts.allOut ? send() : seqQueue.run(graphics, send));
+    sendWithResend(async (signal) => {
+      skipped = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics).skipped;
+    }, resend);
+  await (allOut ? send() : seqQueue.run(graphics, send));
   return skipped;
 }
 

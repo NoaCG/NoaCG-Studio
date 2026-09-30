@@ -76,20 +76,6 @@ export function senderBody(session: SeqSession, id: string, press: number, graph
   return { id, press, epoch: session.epoch, base, ...(allOut ? { all_out: true as const } : {}) };
 }
 
-/** A uuid for this page load: `randomUUID` where it exists, else v4 from `getRandomValues`, else
- *  from `Math.random` (the server refuses anything that is not a uuid, so the shape matters). */
-export function mintSenderId(): string {
-  const c = globalThis.crypto;
-  if (c?.randomUUID) return c.randomUUID();
-  const bytes = new Uint8Array(16);
-  if (c?.getRandomValues) c.getRandomValues(bytes);
-  else for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
-
 /** What `control_send_seq` answered. */
 export type SendAnswer =
   | { ok: true; duplicate: boolean; epoch: string | null; graphics: Record<string, HeadSummary>; skipped: string[] }
@@ -150,9 +136,10 @@ export function staleNotice(graphics: readonly string[], epochChanged = false): 
   return `${named} ${verb} changed from another screen, so air did not change.`;
 }
 
-/** The whole notice a page shows for a stale refusal, given whether the press moved its monitor. */
-export function staleSentence(e: Error, aired: boolean): string {
-  return aired
+/** The whole notice a page shows for a stale refusal, by whether the press moved its monitor
+ *  (`aired`, which the send puts on every error it throws). */
+export function staleSentence(e: Error): string {
+  return (e as { aired?: unknown }).aired === true
     ? `${e.message} Your press is on this monitor only. Press again if you still want it.`
     : `${e.message} Press again if you still want it.`;
 }
@@ -214,22 +201,13 @@ export function createGraphicFifo(releaseAfterMs: number) {
       return Promise.all(before).then(() => {
         const timer = setTimeout(release, releaseAfterMs);
         const sent = send();
-        sent.then(
-          () => {
-            clearTimeout(timer);
-            release();
-          },
-          () => {
-            clearTimeout(timer);
-            release();
-          },
-        );
+        const done = () => {
+          clearTimeout(timer);
+          release();
+        };
+        sent.then(done, done);
         return sent;
       });
-    },
-    /** Graphics with a send queued or in flight (tests). */
-    get busy(): number {
-      return tails.size;
     },
   };
 }

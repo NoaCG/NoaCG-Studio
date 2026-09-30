@@ -40,8 +40,6 @@
 // (logFollow.ts): the same Realtime delivers both roads, and the same herd rejoins.
 import { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS } from './logFollow.ts';
 
-export { REJOIN_REFILL_SPREAD_MS, REORDER_WINDOW_MS };
-
 /** A numbered log row as frames and tail answers carry it. */
 export interface SeqRowLike {
   id: number;
@@ -73,13 +71,10 @@ export interface SeqFrame<R> {
   head?: SeqHead;
 }
 
-/** A `control_*tail_seq` answer. */
-export interface SeqTail<R> {
-  epoch: string | null;
-  rows: R[];
+/** A `control_*tail_seq` answer: a frame's shape (its head is the head when the answer was read,
+ *  every graphic's summary), plus `reset` when the follower asked in another epoch. */
+export interface SeqTail<R> extends SeqFrame<R> {
   reset?: boolean;
-  /** The head when the answer was read: its seq and every graphic's summary. */
-  head?: SeqHead;
 }
 
 /** The tail RPCs' page size (0070: at most 500 rows) - a full page means "there is more". */
@@ -101,7 +96,6 @@ export interface SeqFollower<R extends SeqRowLike> {
   refill(): Promise<void>;
   readonly cursor: number;
   readonly epoch: string | null;
-  readonly walking: boolean;
   stop(): void;
 }
 
@@ -146,14 +140,8 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     if (holeTimer) clearTimeout(holeTimer);
     holeTimer = null;
   };
-  /** Learn the first epoch of the log being followed, or start again in another one. */
-  const adopt = (next: string | null, forced: boolean) => {
-    if (!forced && next === epoch) return;
-    if (!forced && epoch === null) {
-      epoch = next;
-      opts.onEpoch?.(epoch, false);
-      return;
-    }
+  /** Start again in another epoch: a republish, so every seq held is from a log that is gone. */
+  const restart = (next: string | null) => {
     epoch = next;
     cursor = 0;
     held.clear();
@@ -161,15 +149,26 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     clearHole();
     opts.onEpoch?.(epoch, true);
   };
+  /** A frame or an answer names its epoch: learn the log's first one, or restart in a new one. */
+  const meet = (next: string | null) => {
+    if (next === epoch) return;
+    if (epoch !== null) return restart(next);
+    epoch = next;
+    opts.onEpoch?.(epoch, false);
+  };
   const waitHead = (head: SeqHead) => {
+    if (!opts.onHead) return;
     heads.push(head);
     if (heads.length > MAX_WAITING_HEADS) heads.shift();
   };
   const flushHeads = () => {
     if (heads.length === 0) return;
-    const ready = heads.filter((head) => head.seq <= cursor);
-    heads = heads.filter((head) => head.seq > cursor);
-    for (const head of ready) opts.onHead?.(head, epoch);
+    const waiting: SeqHead[] = [];
+    for (const head of heads) {
+      if (head.seq <= cursor) opts.onHead?.(head, epoch);
+      else waiting.push(head);
+    }
+    heads = waiting;
   };
   /** Apply every held row that is now contiguous with the cursor, and forget what is behind it. */
   const drain = () => {
@@ -179,7 +178,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       cursor = next.seq;
       ready.push(next);
     }
-    for (const seq of [...held.keys()]) if (seq <= cursor) held.delete(seq);
+    for (const seq of held.keys()) if (seq <= cursor) held.delete(seq);
     if (ready.length > 0) opts.onRows(ready, false);
     flushHeads();
     if (held.size === 0) clearHole();
@@ -210,10 +209,10 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
           // describes a log it has left.
           if (epoch !== asked) continue;
           if (answer.reset) {
-            adopt(answer.epoch, true);
+            restart(answer.epoch);
             continue;
           }
-          if (answer.epoch !== epoch) adopt(answer.epoch, false);
+          meet(answer.epoch);
           if (answer.head) waitHead(answer.head);
           const fresh = answer.rows.filter((row) => row.seq > cursor).sort((a, b) => a.seq - b.seq);
           if (fresh.length > 0) {
@@ -242,7 +241,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   return {
     offer(frame) {
       if (stopped) return;
-      if (frame.epoch !== epoch) adopt(frame.epoch, false);
+      meet(frame.epoch);
       if (frame.head) waitHead(frame.head);
       for (const row of frame.rows) if (row.seq > cursor) held.set(row.seq, row);
       drain();
@@ -267,9 +266,6 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     },
     get epoch() {
       return epoch;
-    },
-    get walking() {
-      return walk !== null;
     },
     stop() {
       stopped = true;

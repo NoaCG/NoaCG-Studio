@@ -14,28 +14,12 @@ const {
   createSeqSession,
   isStale,
   learnHead,
-  mintSenderId,
   readSendAnswer,
   senderBody,
   settleAnswer,
   staleNotice,
   staleSentence,
 } = await import('../src/control/seqSend.ts');
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
-test('a sender id is a uuid (the server refuses anything else), fresh per call', () => {
-  const a = mintSenderId();
-  assert.match(a, UUID);
-  assert.notEqual(a, mintSenderId());
-});
-
-test('the fallback id is still a v4 uuid when randomUUID is missing (older CEF)', (t) => {
-  const real = globalThis.crypto.randomUUID;
-  t.after(() => Object.defineProperty(globalThis.crypto, 'randomUUID', { value: real, configurable: true }));
-  Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true });
-  assert.match(mintSenderId(), UUID);
-});
 
 test('a session learns the resolve, then only ever raises a revision within one epoch', () => {
   const s = createSeqSession('E1', { A: { rev: 3 }, B: { cue: 'x' } });
@@ -119,8 +103,9 @@ test('stale throws the plain sentence and still teaches the page what is on air 
   assert.ok(isStale(thrown));
   assert.equal(thrown.message, 'A was changed from another screen, so air did not change.');
   assert.equal(s.revs.get('A'), 4, 'the next press is made on what is on air now, so it lands');
-  assert.match(staleSentence(thrown, true), /on this monitor only\. Press again if you still want it\.$/);
-  assert.doesNotMatch(staleSentence(thrown, false), /monitor/);
+  assert.doesNotMatch(staleSentence(thrown), /monitor/, 'a press that did not move this monitor says nothing about it');
+  thrown.aired = true;
+  assert.match(staleSentence(thrown), /on this monitor only\. Press again if you still want it\.$/);
   assert.equal(staleNotice(['A', 'B']), 'A and B were changed from another screen, so air did not change.');
   assert.doesNotMatch(staleNotice(['A', 'B', 'C']), /—/);
 });
@@ -167,7 +152,11 @@ test('one send in flight per graphic: the next leaves when the previous answers'
   assert.deepEqual(started, [1, 2]);
   second.resolve('two');
   assert.equal(await b, 'two');
-  assert.equal(fifo.busy, 0);
+  // Nothing is left queued: the next send of the graphic leaves at once.
+  const third = fifo.run(['A'], () => (started.push(3), Promise.resolve()));
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(started, [1, 2, 3]);
+  await third;
 });
 
 test('a stalled send releases the next at its attempt deadline, not when it finally answers', async (t) => {

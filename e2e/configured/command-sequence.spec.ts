@@ -16,25 +16,11 @@
 
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
 const GRAPHIC = 'House Scorebug';
-
-/** Publish nothing behind us (the same cleanup playout-both-roads.spec.ts uses, for its reason). */
-async function clearPublishedShows(page: Page): Promise<void> {
-  await page.evaluate(async () => {
-    const { loadShows, deleteShow } = await import('/src/model/shows.ts');
-    const { unpublishControlShow } = await import('/src/control/hostedControl.ts');
-    for (const s of loadShows()) {
-      if (s.hostedSlug || s.outputSlug) await unpublishControlShow(s.id).catch(() => {});
-      deleteShow(s.id);
-    }
-    const { syncNow } = await import('/src/backend/syncController.ts');
-    await syncNow();
-  });
-}
 
 /** Does this server have the sequence road? A server without 0070 answers PGRST202 for its resolve. */
 async function hasSequenceRoad(page: Page): Promise<boolean> {

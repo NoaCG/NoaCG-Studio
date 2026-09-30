@@ -11,8 +11,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { HELD_RETRY_MS, REORDER_WINDOW_MS, REJOIN_REFILL_SPREAD_MS, SEQ_TAIL_PAGE, createSeqFollower, supersededAnimations } =
-  await import('../src/control/seqFollow.ts');
+const { HELD_RETRY_MS, SEQ_TAIL_PAGE, createSeqFollower, supersededAnimations } = await import('../src/control/seqFollow.ts');
+const { REORDER_WINDOW_MS, REJOIN_REFILL_SPREAD_MS } = await import('../src/control/logFollow.ts');
 
 const row = (seq, graphic = 'G', t = 'update') => ({ id: 1000 + seq, seq, graphic, msg: { t } });
 
