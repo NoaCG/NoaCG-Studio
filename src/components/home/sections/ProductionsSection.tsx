@@ -407,7 +407,7 @@ export default function ProductionsSection({
       {r.graphics.length > 0 && (
         <div className="prod-card-strip">
           {r.graphics.slice(0, 4).map((g) => (
-            <GraphicThumb key={g.id} template={g.template} label={g.name} />
+            <GraphicThumb key={g.id} template={g.template} revision={`${g.id}:${g.savedAt}`} label={g.name} />
           ))}
           {r.graphics.length > 4 && (
             <span className="prod-card-more">+{r.graphics.length - 4}</span>

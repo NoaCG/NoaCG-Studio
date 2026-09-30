@@ -238,6 +238,7 @@ export default function GraphicRow({
       {/* A card's thumbnail fills its width; a table row's is the 100px PREVIEW column. */}
       <GraphicThumb
         template={g.template}
+        revision={`${g.id}:${g.updatedAt}`}
         values={activeValues(g)}
         label={g.name}
         fixedBox={view === 'list'}

@@ -58,6 +58,9 @@ const SECTIONS: { id: Section; label: string; icon: ReactNode }[] = [
   { id: 'looks', label: 'Brands', icon: <IconPalette /> },
 ];
 
+/** How often a burst of library changes may refresh Home (see the listener in HomePage). */
+const REFRESH_EVERY_MS = 250;
+
 /**
  * HOME (docs/SAVED_CONTENT_MODEL.md §3) — the routed dashboard over everything saved.
  * `#/home` is the DASHBOARD: productions first (open a dashboard, copy an output URL — one
@@ -89,10 +92,32 @@ export default function HomePage({ route }: { route: Route }) {
   // 'spx-data-changed'. Refreshing on it is what lets Home stay MOUNTED under the wizard —
   // the old remount-on-key-change repainted a blank Home for one frame before the wizard
   // covered it — while a graphic the wizard just created still appears the moment it lands.
+  // A BURST IS ONE REFRESH. A first sign-in's sync writes the library one document at a time,
+  // and each write announces itself, so refreshing on every one re-read the whole library (tens
+  // of MB for a real account) a hundred times in a few seconds. The first change still refreshes
+  // at once; the rest of a burst lands in one refresh at most every REFRESH_EVERY_MS.
   useEffect(() => {
-    const onData = () => setRev((r) => r + 1);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let again = false;
+    const onData = () => {
+      if (timer) {
+        again = true;
+        return;
+      }
+      setRev((r) => r + 1);
+      timer = setTimeout(() => {
+        timer = null;
+        if (again) {
+          again = false;
+          onData();
+        }
+      }, REFRESH_EVERY_MS);
+    };
     window.addEventListener('spx-data-changed', onData);
-    return () => window.removeEventListener('spx-data-changed', onData);
+    return () => {
+      window.removeEventListener('spx-data-changed', onData);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
   /* eslint-disable react-hooks/exhaustive-deps */
   const graphics = useMemo(() => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
@@ -366,7 +391,7 @@ export default function HomePage({ route }: { route: Route }) {
                     title={`Open "${g.name}" to preview, edit data and operate`}
                     data-testid="shelf-graphic"
                   >
-                    <GraphicThumb template={g.template} values={activeValues(g)} label={g.name} fill />
+                    <GraphicThumb template={g.template} revision={`${g.id}:${g.updatedAt}`} values={activeValues(g)} label={g.name} fill />
                     <span className="home-shelf-name">{g.name}</span>
                     {/* The category's NAME ("Lower third"), as the Graphics list prints it,
                         never its id ("lower-third"). */}

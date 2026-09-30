@@ -59,14 +59,34 @@ const FIXED_H = 56;
 const FIXED_W_COMPACT = 96;
 const FIXED_H_COMPACT = 54;
 
+/**
+ * THE SAME TEMPLATE OBJECT FOR THE SAME REVISION. Home re-reads the whole library on every
+ * library change, and a re-read hands every card a NEW template object for the same graphic. The
+ * composed document below is memoised on that object, so without this every visible card
+ * recomposed and reloaded its sandboxed iframe on every change (152 loads for about 20 cards
+ * during one first sync of a 138-graphic library, measured 2026-09-30). A caller that knows the
+ * graphic's revision passes it; without one, every render is a new template, as before.
+ */
+function useStableTemplate(template: SpxTemplate, revision: string | undefined): SpxTemplate {
+  const held = useRef<{ revision: string | undefined; template: SpxTemplate } | null>(null);
+  if (!held.current || revision === undefined || held.current.revision !== revision) {
+    held.current = { revision, template };
+  }
+  return held.current.template;
+}
+
 export default function GraphicThumb({
-  template,
+  template: incoming,
+  revision,
   values,
   label,
   fixedBox = false,
   fill = false,
 }: {
   template: SpxTemplate;
+  /** Changes whenever the graphic does (its id with its `updatedAt` or `savedAt`). The card
+   *  recomposes only when this moves; see `useStableTemplate`. */
+  revision?: string;
   /** Field values to show (an entry's row); anything missing falls back to the definition default. */
   values?: Record<string, string>;
   label: string;
@@ -77,6 +97,7 @@ export default function GraphicThumb({
    *  no width anyone here can know. */
   fill?: boolean;
 }) {
+  const template = useStableTemplate(incoming, revision);
   const boxRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [visible, setVisible] = useState(false);

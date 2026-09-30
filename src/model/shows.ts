@@ -6,7 +6,7 @@
 // can adopt the kind without a second pattern.
 
 import type { SpxTemplate } from './types';
-import type { SavedGraphic } from './packets';
+import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
@@ -463,11 +463,23 @@ export function createShowNamed(name: string): Show {
 
 /** Insert or replace a whole show by id (the storage seam's put('show'), incl. tombstones). */
 export function upsertShow(show: Show): void {
+  upsertShows([show]);
+}
+
+/** Insert or replace many shows in ONE write (the storage seam's putMany; `upsertGraphics` says
+ *  why a sync pull must not rewrite the whole list once per record). Returns the save's error. */
+export function upsertShows(shows: Show[]): string | null {
   const all = loadAllShows();
-  const i = all.findIndex((s) => s.id === show.id);
-  if (i >= 0) all[i] = show;
-  else all.push(show);
-  saveAll(all);
+  const at = firstIndexById(all);
+  for (const show of shows) {
+    const i = at.get(show.id);
+    if (i !== undefined) all[i] = show;
+    else {
+      at.set(show.id, all.length);
+      all.push(show);
+    }
+  }
+  return saveAll(all);
 }
 
 /**
