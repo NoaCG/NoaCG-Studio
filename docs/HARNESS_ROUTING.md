@@ -1572,6 +1572,64 @@ An earlier successful auth-status lookup was insufficient. Read the worker resul
 that route usable. Native Codex subagent work and targeted local tests succeeded; a complete
 unattended cross-host shift remains unverified. The adapter is `.agent-workflows/orchestrator/hosts.md`.
 
+## The second capability re-probe, 2026-09-30
+
+Sixteen of the 22 entries in `scripts/harness-capabilities.json` were unverified on the installed
+builds (Claude Code CLI 2.1.283, Codex 0.161.0-alpha.3, Antigravity 1.2.14), and re-probing them
+had been deferred twice. `npm run harness:reprobe -- run` now re-runs every one that has a cheap
+bounded probe, one at a time, and appends each verdict with the fallbacks it observed to
+`<git-common-dir>/noacg-reprobe.jsonl`; a session records the probes only it can run with
+`harness:reprobe -- record`. `npm run harness:usage` reads that ledger and prints a failed re-probe
+first. The entries themselves were not rewritten by this run: the three failures below stay on the
+morning read until somebody rewrites them from this evidence.
+
+**Failed (3).** Route on these, not on the entries:
+
+- `claude-agents-json-liveness`: `claude agents --json` on 2.1.283 carries `status` again (4 of 4
+  objects, value `busy`), plus a new `name` field. The entry says the field is gone.
+- `agy-headless-auto-denies-ungranted-tools`: LISTING now auto-denies too. With no command grant,
+  "answer directly, do not write a plan, list every file under <dir>" returned an empty response
+  (every empty response tonight came back in 6 to 8 s, so none was the 120 s print timeout),
+  and the same request forbidding the shell answered that no non-shell directory listing tool is
+  available. SEARCH still returns empty. One call each, so the count is thin, but the two agree:
+  on 1.2.14 Antigravity cannot enumerate a directory without the command grant. Hand it file paths.
+- `agy-plan-mode-answers-with-a-plan`: the bare listing prompt returned EMPTY three times out of
+  three, not a plan. The "NO SHELL, answer directly" prefix returned "an exploration subagent has
+  been dispatched ... I will provide the complete list as soon as it returns" and the run ended
+  there. A read-only call can now come back as a promise, which is a failed delegation that looks
+  like a success, the same shape the plan answer had.
+
+**Held (5).** `agy-claude-models-reject-effort` (both Claude ids answered status ERROR; agy-run
+downgraded its pinned refusal to a warning first, as designed); `agy-model-inventory` (the same
+fourteen ids in the same order); `codex-agents-has-no-json`; `claude-no-permission-prompts-flag`
+(the flag is listed, so the refutation stands); `claude-remote-isolation-silently-runs-local`
+(accepted, ran in a local worktree, `agent-isolation.mjs --expect remote` exited 1 with ISOLATION
+MISMATCH).
+
+**Held in part (3).** `agy-no-usage-surface`: `agy --help` (which prints on stderr) lists no usage
+or quota subcommand; the text scan of `~/.gemini/antigravity-cli/` was refused as credential
+exploration, because that directory holds agy's OAuth token, and the script never runs it.
+`claude-launched-session-gets-no-subagent-notifications`: half (a) held (a background subagent's
+notification arrived in this launched session while it stayed in its turn, and its output file
+confirmed it ran); half (b) needs the session to end its turn and was not run.
+`claude-agent-tool-cannot-adopt-or-wake-a-row`: the Agent tool still has no cwd field, and a new
+route does not help. A worktree-isolated subagent's `EnterWorktree` with the path of an existing
+worktree answered "Entered worktree ... write access now point at the worktree", and its next Bash
+call and a Write into that worktree were both refused by the isolation guard. SendMessage is absent
+from a launched session's tool list; a main session was not checked.
+
+**Not probed (5).** The four Codex model-call probes (`codex-one-model-on-the-subscription`,
+`codex-rate-limits-only-when-it-runs`, `codex-writable-root-is-the-launching-session-cwd`,
+`codex-invocation-leaks-its-mcp-fleet`): usage cap until 2026-10-03. `claude-cloud-rows-get-no-mcp-tools`
+needs a fresh cloud session.
+
+**Two Claude Code builds answer on this machine.** The desktop app's sessions run 2.1.284
+(`AI_AGENT=claude-code_2-1-284_agent`), while `claude --version` answers 2.1.283. `harness:usage`
+compares every Claude observation with the CLI, so an observation about the Agent tool, measured
+in a desktop session, reads unverified by one patch; `claude-cloud-rows-get-no-mcp-tools`
+(measured on 2.1.284) shows unverified for that reason alone. The session verdicts above were
+recorded against 2.1.284 and so do not move the morning count.
+
 ## Fable: consult only
 
 Fable does not implement or own a wave row (owner, 2026-09-26): implementation runs on Opus, and

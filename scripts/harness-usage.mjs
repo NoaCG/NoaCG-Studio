@@ -82,6 +82,7 @@
 // says so under its own table instead of leaving a small number to be read as a small bill.
 
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -99,6 +100,8 @@ import { mainRef } from './main-ref.mjs';
 import {
   ACCEPTED_OUTCOMES, OUTCOMES_VERSION, legacyVerdict, outcomesLedgerPath, poolFor,
 } from './delegation-outcome.mjs';
+// The re-probe ledger sits beside the landing queue's job store, so its path follows that store's.
+import { jobsDir } from './jobs-store.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '..');
@@ -1204,9 +1207,12 @@ export function versionLines(rows) {
 // with the version it was measured on; this compares that version with the one installed now and
 // names every observation the installed build has not been seen to back. It re-tests nothing -
 // a re-probe costs a call - it only says which claims are currently unverified so a plan does not
-// route on a memory.
+// route on a memory. `scripts/harness-reprobe.mjs` runs the cheap re-probes and writes a ledger;
+// this reads it, so a re-probe that FAILED on the installed build is printed first, and one that
+// held counts as backed.
 
-function readTextOrNull(file) {
+export function readTextOrNull(file) {
+  if (!file) return null;
   try {
     return readFileSync(file, 'utf8');
   } catch {
@@ -1251,30 +1257,120 @@ export function landedCapabilitiesText(runGit, file = 'scripts/harness-capabilit
   return shown.status === 0 ? shown.stdout : null;
 }
 
-/** Each observation with its standing against the installed versions: holds, unverified, or constraint. */
-export function capabilityStandings(observations, installed) {
+/**
+ * The observation file's text: the landed copy when `landed` (falling back to this checkout when
+ * there is no landed ref), else this checkout's. The re-probe reads it the same way, so the claim
+ * digest a verdict carries is the digest the morning read compares.
+ */
+export function capabilitiesText({ landed = false } = {}) {
+  const fromLanded = landed
+    ? landedCapabilitiesText((gitArgs) => spawnSync('git', gitArgs, { cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true }))
+    : null;
+  return fromLanded ?? readTextOrNull(path.join(REPO_ROOT, 'scripts', 'harness-capabilities.json'));
+}
+
+// ── The re-probe ledger: what `scripts/harness-reprobe.mjs` saw when it re-ran a probe ──────────
+//
+// The reader owns the path, the version and the line shape, and the writer imports them, so the
+// import runs one way and the two cannot drift apart. The ledger sits beside the job store inside
+// `.git` (never tracked, shared by every worktree), because a re-probe describes this machine's
+// installed builds and nothing else. A verdict applies to an observation only while the claim text
+// it was measured against is unchanged (`claimDigest`) and only on the build it was measured on.
+
+export const REPROBE_LEDGER_VERSION = 1;
+export const REPROBE_VERDICTS = Object.freeze(['holds', 'failed', 'partial', 'not-probed']);
+
+/** `<git-common-dir>/noacg-reprobe.jsonl`, beside `noacg-jobs`; null outside a checkout with no override. */
+export function reprobeLedgerPath({ env = process.env, jobs = jobsDir } = {}) {
+  if (env.NOACG_REPROBE_LEDGER) return env.NOACG_REPROBE_LEDGER;
+  const store = jobs();
+  return store ? path.join(path.dirname(store), 'noacg-reprobe.jsonl') : null;
+}
+
+/** A short digest of a claim's text, so a verdict stops applying when the entry is rewritten. */
+export function claimDigest(claim) {
+  return createHash('sha256').update(String(claim ?? '')).digest('hex').slice(0, 12);
+}
+
+/** Ledger lines of the known version, in file order. Unreadable and future-version lines are skipped. */
+export function readReprobeLedger(text) {
+  // A hand-appended line with a string where a list belongs must not crash the morning read.
+  const list = (value) => (Array.isArray(value) ? value.map(String) : []);
+  return parseJsonl(String(text ?? '')).records
+    .filter((row) => row.v === REPROBE_LEDGER_VERSION && typeof row.id === 'string' && typeof row.at === 'string'
+      && REPROBE_VERDICTS.includes(row.verdict))
+    .map((row) => ({ ...row, evidence: list(row.evidence), fallbacks: list(row.fallbacks) }));
+}
+
+/** The newest of some ledger lines, or null. */
+function newest(rows) {
+  return rows.reduce((held, row) => (!held || row.at >= held.at ? row : held), null);
+}
+
+/**
+ * Each observation with its standing against the installed versions: `holds` (measured on this
+ * build), `reprobed` (a re-probe on this build held), `failed` (a re-probe on this build
+ * contradicted it), `unverified`, or `constraint`. `reprobes` is the re-probe ledger's lines; the
+ * newest line for the same claim text rides along as `lastReprobe` whatever build it was on, so a
+ * reader sees "not probed: usage cap" rather than silence.
+ */
+export function capabilityStandings(observations, installed, reprobes = []) {
   const versionOf = new Map(installed.map((row) => [row.pool, row.version ?? null]));
   return observations.map((observation) => {
     if (observation.kind === 'constraint') return { ...observation, standing: 'constraint', installedVersion: null };
     const installedVersion = versionOf.get(observation.harness) ?? null;
     const holds = installedVersion !== null && installedVersion === observation.measuredOn;
-    return { ...observation, standing: holds ? 'holds' : 'unverified', installedVersion };
+    const digest = claimDigest(observation.claim);
+    const mine = reprobes.filter((row) => row.id === observation.id && row.claimDigest === digest);
+    const lastReprobe = newest(mine);
+    // Standing moves only on a MEASURED verdict for this build, so a later "not probed" cannot bury it.
+    const measuredReprobe = newest(mine.filter((row) => installedVersion !== null
+      && row.probedOn === installedVersion && (row.verdict === 'holds' || row.verdict === 'failed')));
+    let standing = holds ? 'holds' : 'unverified';
+    if (measuredReprobe?.verdict === 'failed') standing = 'failed';
+    else if (measuredReprobe?.verdict === 'holds' && !holds) standing = 'reprobed';
+    return { ...observation, standing, installedVersion, lastReprobe, measuredReprobe };
   });
+}
+
+function reprobeDetail(line, indent) {
+  return [
+    ...(line.evidence ?? []).flatMap((text) => bullet(text, { indent })),
+    ...(line.fallbacks ?? []).flatMap((text) => bullet(`fallback: ${text}`, { indent })),
+  ];
 }
 
 export function capabilityLines(standings) {
   const unverified = standings.filter((row) => row.standing === 'unverified');
+  const failed = standings.filter((row) => row.standing === 'failed');
   const holds = standings.filter((row) => row.standing === 'holds').length;
+  const reprobed = standings.filter((row) => row.standing === 'reprobed').length;
   const constraints = standings.filter((row) => row.standing === 'constraint').length;
+  const indent = '              ';
   const lines = [
     `Capability observations (scripts/harness-capabilities.json): ${holds} measured on the installed `
-      + `build, ${unverified.length} UNVERIFIED since the build they were measured on, ${constraints} constraint(s) of our own.`,
+      + 'build, '
+      + `${reprobed ? `${reprobed} re-probed on it and holding, ` : ''}`
+      + `${failed.length ? `${failed.length} FAILED their re-probe, ` : ''}`
+      + `${unverified.length} UNVERIFIED since the build they were measured on, ${constraints} constraint(s) of our own.`,
   ];
+  for (const row of failed) {
+    const line = row.measuredReprobe;
+    lines.push(
+      `  FAILED RE-PROBE  ${row.harness} ${line.probedOn}, ${line.at.slice(0, 10)}: ${row.id}`,
+      ...reprobeDetail(line, indent),
+      ...bullet('The entry still says otherwise: route on the evidence above, and rewrite the entry from it.', { indent }),
+    );
+  }
   for (const row of unverified) {
+    const last = row.lastReprobe;
     lines.push(
       `  UNVERIFIED  ${row.harness} ${row.measuredOn ?? '?'} -> installed ${row.installedVersion ?? 'not answering'}: ${row.id}`,
-      ...bullet(row.claim, { indent: '              ' }),
-      ...(row.reprobe ? bullet(`re-probe: ${row.reprobe}`, { indent: '              ' }) : []),
+      ...bullet(row.claim, { indent }),
+      ...(row.reprobe ? bullet(`re-probe: ${row.reprobe}`, { indent }) : []),
+      ...(last
+        ? bullet(`last re-probe ${last.at.slice(0, 10)} on ${last.probedOn ?? '?'}: ${last.verdict}${last.reason ? ` - ${last.reason}` : ''}`, { indent })
+        : []),
     );
   }
   if (unverified.length) {
@@ -1313,17 +1409,22 @@ export function main(argv = process.argv.slice(2), { home = homedir(), now = Dat
   // `--landed` asks about the REPOSITORY; without it the question is about this checkout. A daily
   // routine and the weekly review both want the first, and a worktree eight commits behind answers
   // the second with an eleven-observation false alarm - see landedCapabilitiesText.
-  const capabilityText = (args.landed
-    ? landedCapabilitiesText((gitArgs) => spawnSync('git', gitArgs, { cwd: REPO_ROOT, encoding: 'utf8', windowsHide: true }))
-    : null)
-    ?? readTextOrNull(path.join(REPO_ROOT, 'scripts', 'harness-capabilities.json'));
-  const capabilities = capabilityStandings(readCapabilities(capabilityText), installed);
+  const capabilities = capabilityStandings(
+    readCapabilities(capabilitiesText({ landed: args.landed })),
+    installed,
+    readReprobeLedger(readTextOrNull(reprobeLedgerPath({ env }))),
+  );
 
   if (args.json) {
     process.stdout.write(`${JSON.stringify({
       window: { since: new Date(window.since).toISOString(), until: new Date(window.until).toISOString(), label: window.label },
       installed,
-      capabilities: capabilities.map(({ id, harness, kind, measuredOn, installedVersion, standing }) => ({ id, harness, kind, measuredOn, installedVersion, standing })),
+      capabilities: capabilities.map(({ id, harness, kind, measuredOn, installedVersion, standing, lastReprobe }) => ({
+        id, harness, kind, measuredOn, installedVersion, standing,
+        lastReprobe: lastReprobe
+          ? { at: lastReprobe.at, probedOn: lastReprobe.probedOn, verdict: lastReprobe.verdict, reason: lastReprobe.reason ?? null }
+          : null,
+      })),
       codex: {
         sessions: codexOut.sessions,
         turns: codexOut.turns,
