@@ -1397,16 +1397,21 @@ Storm warning issued</code></pre>
               work.</li>
             <li>It opens a page in your browser. One click pairs the browser with the
               Bridge.</li>
-            <li>Open a production and press <strong>Playout</strong> in its header. Fill in the
-              CasparCG server once for the whole studio: host, AMCP port, its channels and the
-              layer graphics go on. The same form is under <strong>Settings &rarr;
-              Playout</strong>.</li>
-            <li>Press <strong>Test connection</strong>. It sends a real AMCP <code>VERSION</code>
-              and shows the version string the server answers with.</li>
+            <li>The same page then connects to your CasparCG server: enter its address and AMCP
+              port once and press <strong>Connect</strong>. It sends a real AMCP
+              <code>VERSION</code> and shows the version string the server answers with. NoaCG
+              Bridge remembers the servers you connect to, so the next time you pair it connects
+              to the last one by itself, and the others are one click away.</li>
+            <li>Name the server's channels and the layer graphics go on under
+              <strong>Playout</strong> in a production's header (the same form is under
+              <strong>Settings &rarr; Playout</strong>). <strong>Test connection</strong> there
+              checks the server without changing what is remembered.</li>
           </ol>
           <p>
             The production page now has a <strong>Put on air</strong> / <strong>Take off</strong>
-            row beside its output URL. Put on air sends the one command above. From then on every
+            row beside its output URL, and <strong>Put on air</strong> sits beside
+            <strong>Connect</strong> in its Playout settings too. Put on air sends the one command
+            above, and only when you press it: pairing and connecting never touch a layer. From then on every
             cue, reveal and score change travels over the production's own command log into the
             page CasparCG is showing, and the Bridge sends nothing more.
           </p>

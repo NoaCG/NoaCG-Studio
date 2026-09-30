@@ -20,7 +20,9 @@
 //   scanner     The server answered, but its media scanner is not running, so it cannot list.
 //
 // NoaCG OWNS THE CONFIGURATION: the Bridge address and token and the playout server live here,
-// device-level; the Bridge keeps nothing but its own token and is named its target on every call.
+// device-level, and the Bridge is named its target on every call. What the Bridge keeps is its own
+// token and, since 0.7.0, the servers this page CONNECTED to (`connectServer`), which it only ever
+// reads back (`rememberedServers`): a browser that forgets its storage gets the server back.
 
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
 import {
@@ -33,6 +35,7 @@ import {
   type CasparTarget,
   type ListItem,
   type PlayoutAction,
+  type RememberedServer,
   type SlotState,
   type StateReply,
   type TargetCapability,
@@ -340,6 +343,7 @@ export function stateReadable(status: PlayoutResult | null): boolean {
 
 interface BridgeReply {
   ok?: boolean;
+  servers?: RememberedServer[];
   v?: number;
   agent?: string;
   version?: string;
@@ -528,7 +532,7 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
 /** One request through the Bridge with every hop told apart. */
 async function through(
   settings: PlayoutSettings,
-  path: '/status' | '/list' | '/thumbnail' | '/act',
+  path: '/status' | '/connect' | '/list' | '/thumbnail' | '/act',
   extra: Record<string, unknown>,
   hop: 'act' | 'list' = 'act',
 ): Promise<{ result: PlayoutResult; body?: BridgeReply }> {
@@ -539,7 +543,8 @@ async function through(
   if (unreachable) return { result: unreachable };
   const call = await callBridge(
     settings.agentUrl,
-    path,
+    // A Bridge from before 0.7.0 has no `/connect`: the same round trip without the memory.
+    path === '/connect' && !features.includes('servers') ? '/status' : path,
     { target: targetOf(settings), ...extra },
     hop === 'list' ? LIST_TIMEOUT_MS : ACT_TIMEOUT_MS,
     settings.agentToken,
@@ -567,9 +572,38 @@ export async function readState(settings: PlayoutSettings, channel: number): Pro
   };
 }
 
-/** The Test connection button: a real AMCP VERSION, round-tripped. */
+/** The Test connection button: a real AMCP VERSION, round-tripped. Remembers nothing. */
 export async function testConnection(settings: PlayoutSettings): Promise<PlayoutResult> {
   return (await through(settings, '/status', {})).result;
+}
+
+/**
+ * CONNECT (owner decisions 2026-09-30, docs/work-specs/bridge-casparcg-connect/spec.md): the same
+ * VERSION round trip as Test connection, and on success NoaCG Bridge remembers the server as the
+ * studio's last one. A Bridge from before 0.7.0 has nothing to remember it in, so there it is
+ * exactly Test connection. Either way it sends VERSION and nothing else, which is what lets the
+ * pairing page do it by itself: connecting never touches a layer.
+ */
+export async function connectServer(settings: PlayoutSettings): Promise<{ result: PlayoutResult; servers?: RememberedServer[] }> {
+  const { result, body } = await through(settings, '/connect', {});
+  return { result, servers: result.state === 'ok' && Array.isArray(body?.servers) ? body.servers : undefined };
+}
+
+/** The servers NoaCG Bridge remembers this page connecting to, most recent first. Empty when the
+ *  Bridge remembers none, is older than 0.7.0 or does not answer: the caller then offers what this
+ *  browser holds, which is all it ever had before. */
+export async function rememberedServers(settings: PlayoutSettings): Promise<RememberedServer[]> {
+  if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return [];
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  if (unreachable || !features.includes('servers')) return [];
+  // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
+  const call = await callBridge(settings.agentUrl, '/servers', {}, STATE_TIMEOUT_MS, settings.agentToken);
+  return 'http' in call && call.body.ok && Array.isArray(call.body.servers) ? call.body.servers : [];
+}
+
+/** A server as a person writes it: the host alone on CasparCG's own port, host:port otherwise. */
+export function serverAddress(server: RememberedServer): string {
+  return server.port === PLAYOUT_DEFAULTS.amcpPort ? server.host : `${server.host}:${server.port}`;
 }
 
 /** The server's library of one kind. `items` is present only on `ok`. */

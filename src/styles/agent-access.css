@@ -29,6 +29,14 @@
 /* The prompt inside the card keeps the panel-section look but drops its own border. */
 .agent-consent-card .signin-prompt { border: 0; padding: 0; background: transparent; }
 
+/* The Bridge pairing page's next step, connecting to CasparCG (components/BridgePairPage.tsx): the
+   server's address and port are one address, so they share a row with Connect, the way Settings ->
+   Playout lays them out. The servers used before under it are RecentServers (wizard-and-dialogs.css). */
+.agent-consent-card h2.bridge-connect-title { font-size: 15px; line-height: 1.3; margin: 20px 0 6px; }
+.bridge-connect-form { display: grid; grid-template-columns: minmax(0, 1fr) 80px auto; gap: 8px; margin-top: 10px; }
+.bridge-connect-form > button { white-space: nowrap; }
+.agent-consent-card .recent-servers { margin-top: 10px; }
+
 .agent-keys { margin-top: 18px; }
 .agent-keys-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .agent-key-row {

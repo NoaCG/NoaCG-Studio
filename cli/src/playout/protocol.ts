@@ -178,8 +178,9 @@ export interface AgentError {
 /** What a Bridge understands beyond the routes every v2 Bridge answers. `/health` lists them; a
  *  Bridge that lists none is older than all of them. It says nothing about any server.
  *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb, and
- *  `sequence-loop` a sequence's `loop`. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop';
+ *  `sequence-loop` a sequence's `loop`. `servers` is `/servers` and `/connect`: the CasparCG
+ *  servers this Bridge remembers connecting to. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
@@ -203,6 +204,23 @@ export interface StatusReply {
   version: string;
   raw: string;
   capabilities?: TargetCapability[];
+}
+
+/** A CasparCG server a Bridge remembers connecting to. Host and port, nothing else. */
+export interface RememberedServer {
+  host: string;
+  port: number;
+}
+
+/** What `POST /servers` answers: the servers this Bridge connected to, most recent first. */
+export interface ServersReply {
+  ok: true;
+  servers: RememberedServer[];
+}
+
+/** What `POST /connect` answers: `/status`, and the list with this server now first. */
+export interface ConnectReply extends StatusReply {
+  servers: RememberedServer[];
 }
 
 /**

@@ -14,9 +14,11 @@
 //     attacker's own domain would reach in (DNS rebinding)
 //   - bodies are capped, `/amcp` takes one line and refuses an embedded CR or LF
 //
-// State the Bridge keeps: its token (a file), the pairing code in memory, and per slot the
-// generation, the instance it started there, what it queued behind it and the sequence it runs
-// (./slots.ts, ./runner.ts), also in memory. NoaCG owns every setting; each request names its target.
+// State the Bridge keeps: its token (a file), the CasparCG servers the page connected to (a file,
+// ./servers.ts), the pairing code in memory, and per slot the generation, the instance it started
+// there, what it queued behind it and the sequence it runs (./slots.ts, ./runner.ts), also in
+// memory. NoaCG owns every setting; each request names its target, and a remembered server is only
+// ever read back to the page, never contacted by the Bridge on its own.
 
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
@@ -33,12 +35,14 @@ import {
   type ItemKind,
   type MediaPlayback,
   type PlayoutAction,
+  type RememberedServer,
   type RenderTargetId,
   type SequenceEntry,
   type Slot,
   type Target,
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
+import { fileServerMemory, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
 import { secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
@@ -53,7 +57,7 @@ export const DEFAULT_AMCP_PORT = 5250;
 export const PAIRING_TTL_MS = 2 * 60_000;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -112,6 +116,8 @@ export interface BridgeOptions {
   /** The sequence runner over that memory. A test hands in its own and drives its rounds; without
    *  one the Bridge makes one and runs it four times a second. */
   runner?: SequenceRunner;
+  /** The servers the page connected to. A test hands in one over a file of its own. */
+  servers?: ServerMemory;
 }
 
 // --- Request reading -------------------------------------------------------------------------
@@ -369,6 +375,17 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
 export function createBridgeServer(options: BridgeOptions, log: (line: string) => void): Server {
   const byId = new Map(options.adapters.map((a) => [a.id, a]));
   const memory = options.memory ?? new SlotMemoryBank();
+  const servers = options.servers ?? fileServerMemory();
+  /** Remember a server the page connected to, and answer the list. A config folder that cannot be
+   *  written costs the memory, never the connection. */
+  const rememberServer = async (server: RememberedServer): Promise<RememberedServer[]> => {
+    try {
+      return await servers.remember(server);
+    } catch (e) {
+      log(`could not remember ${server.host}:${server.port}: ${e instanceof Error ? e.message : String(e)}`);
+      return servers.list();
+    }
+  };
   let runner = options.runner;
   if (!runner) {
     runner = new SequenceRunner({ memory, adapters: options.adapters, log });
@@ -458,18 +475,40 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           return;
         }
 
+        // THE SERVERS THIS BRIDGE CONNECTED TO (owner decision 2026-09-30), most recent first. Asked
+        // right after pairing, so a browser that has forgotten everything gets the studio's server
+        // back. The one route with no target: it names servers rather than talking to one.
+        if (url === '/servers') {
+          send(200, { ok: true, v: PLAYOUT_V, servers: await servers.list() }, true);
+          return;
+        }
+
         const target = readTarget(body, options.adapters);
         const adapter = byId.get(target.adapter)!;
         const at = targetLabel(target);
 
-        if (url === '/status') {
+        // STATUS, and CONNECT: the same VERSION round trip, and on success a Connect makes the server
+        // the one remembered first. Only `/connect` writes the list - a Test and the page's status
+        // poll are `/status` and never do - and neither sends anything else, so neither touches a layer.
+        if (url === '/status' || url === '/connect') {
+          const connect = url === '/connect';
+          if (connect && target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server is connected to and remembered.');
           const r = await adapter.status(target);
-          log(`${at} status -> ${r.ok ? r.raw : r.error.code}`);
+          log(`${at} ${connect ? 'connect' : 'status'} -> ${r.ok ? r.raw : r.error.code}`);
+          if (!r.ok) {
+            send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
+            return;
+          }
           send(
             200,
-            r.ok
-              ? { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw, capabilities: adapter.capabilities(r.value.version).target }
-              : { ok: false, v: PLAYOUT_V, error: r.error },
+            {
+              ok: true,
+              v: PLAYOUT_V,
+              version: r.value.version,
+              raw: r.raw,
+              capabilities: adapter.capabilities(r.value.version).target,
+              ...(connect && target.adapter === 'casparcg' ? { servers: await rememberServer({ host: target.host, port: target.port }) } : {}),
+            },
             true,
           );
           return;

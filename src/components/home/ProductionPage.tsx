@@ -4276,6 +4276,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {playoutSettingsOpen && (
         <PlayoutSettingsDialog
+          outputUrl={outputUrl}
           onClose={() => {
             setPlayoutSettingsOpen(false);
             setPlayoutSettingsRev((n) => n + 1);

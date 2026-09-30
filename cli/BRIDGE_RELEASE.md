@@ -13,13 +13,14 @@ listens only on that machine and never exposes CasparCG to the internet.
    install: the file is the whole program.
 2. Double-click it. Windows warns once, because the file is not signed yet: click **More info**,
    then **Run anyway**. A black window opens; leave it open while you work.
-3. Your browser opens a NoaCG page. Press **Pair**, and if the browser asks whether the site may
-   reach your local network, allow it.
+3. Your browser opens a NoaCG page. Press **Pair this browser**, and if the browser asks whether
+   the site may reach your local network, allow it.
+4. The same page then connects to your CasparCG server. Enter its address once and press
+   **Connect**. NoaCG Bridge remembers it, so the next time you pair it connects by itself.
 
-Then, in NoaCG, open a production and press **Playout** in its header (the same form is under
-**Settings -> Playout**), fill in the CasparCG server's address, port, channel and layer, and press
-**Test connection**. The guide, with what to do when something is not
-working: https://noacg.studio/docs#casparcg-connect
+To put a production on air, open it and press **Put on air** in its **Playout** settings or its
+output links. The channels and the layer graphics go on are in the same Playout settings. The
+guide, with what to do when something is not working: https://noacg.studio/docs#casparcg-connect
 
 Use Chrome or Edge. Safari does not let a web page reach a program on the same machine.
 

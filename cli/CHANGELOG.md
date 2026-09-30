@@ -10,7 +10,11 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.6.0 - unreleased
+## 0.7.0 - unreleased
+
+**New: `noacg bridge` remembers your CasparCG servers.** The servers NoaCG connects to through the
+Bridge are kept in `caspar-servers.json` next to the Bridge's token, so a browser that pairs gets
+the last one back and connects to it by itself. Connecting only asks the server for its version.
 
 **New: `noacg pack --save`.** Sends several graphics as one package to your NoaCG Home, with
 their layers and an optional `--rundown` of cues. Press Install on Home → Productions and the
