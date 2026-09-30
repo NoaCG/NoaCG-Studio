@@ -22,7 +22,8 @@ address and lists the servers you used before, one click each. Connecting only a
 its version: nothing goes on air until you press Put on air.
 
 **Connect and Put on air in Playout settings.** A production's Playout settings now have Connect
-and Put on air beside Test connection, and the server field offers the servers you used before.
+and Put on air beside Test connection, and the servers you used before are one click each there
+too.
 
 Download the new Bridge to have the server remembered. With an older Bridge everything else works,
 and the browser remembers the one server it used last, as before.

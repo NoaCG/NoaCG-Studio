@@ -35,7 +35,8 @@ checkout's own dev server, `npm run dev:worktree`, port 5208), and no CasparCG c
    `127.0.0.1:5351 connect -> 201 VERSION OK`.
 3. **Put on air from a production's Playout dialog (AC-4, AC-6).** A production with an output slug,
    opened at `#/production/<id>`; the header read "CasparCG connected". Before the press, `INFO 1-20`
-   on both servers showed no producer on the layer. The dialog's host field offered
+   on both servers showed no producer on the layer. The dialog offered (then as suggestions on the address field; since replaced by the one-press
+   buttons the pairing page uses, pinned by the e2e spec)
    `127.0.0.1:5351` and `127.0.0.1:5350` (from the Bridge). Put on air: "✓ On 1-20 of 127.0.0.1", Bridge
    log `127.0.0.1:5351 take -> 202 PLAY OK`, and on 2.3.2 `INFO 1-20` showed foreground
    `<producer>html</producer>` with path `http://localhost:5208/output?production=walk-output`. Then
@@ -48,6 +49,13 @@ checkout's own dev server, `npm run dev:worktree`, port 5208), and no CasparCG c
    the two presses. Restarting the Bridge with both layers on air: run 3 logged only
    `127.0.0.1:5351 status -> 201 VERSION OK` (4 polls), and `INFO 1-20` still showed the HTML
    producer on both servers.
+
+5. **Re-checked on the final code.** The review merged `/connect` into the `/status` branch after the
+   walk above, so the final build (`node cli/dist/playoutEntry.js`, scratch `APPDATA`) was asked
+   directly against the real 2.5.0: `/servers` answered `[]`; `/status` answered the version and the
+   list stayed `[]`; `/connect` answered the version with `servers: [{127.0.0.1, 5350}]`; `/connect`
+   to a port with nothing on it answered `unreachable` and the list kept only 5350. The log shows
+   three VERSION round trips and nothing else.
 
 ## Limits
 

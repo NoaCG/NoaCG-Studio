@@ -43,7 +43,8 @@ Owner decisions (asked in this session, 2026-09-30):
 - The pairing page, once paired: reads the list; if the last server answers, it is connected and
   saved as the studio's server, and the page says so with a Change control; otherwise it shows the
   IP and port filled with the last server (or the browser's own), the others as choices, and Connect.
-- The Playout settings: the CasparCG server field offers the remembered servers; beside Test
+- The Playout settings: the remembered servers are one press each under the CasparCG server field,
+  as on the pairing page (address and port together, and it connects); beside Test
   connection sit Connect (verify, save, remember) and, when opened from a production, Put on air for
   that production's output (disabled until the production is started).
 - With an older Bridge (no `servers` feature) everything still works: Connect is a Test, and the
@@ -77,8 +78,9 @@ shows it connected and remembers it.
 ### AC-4: Playout settings offer Connect and Put on air beside Test connection
 
 Opened from a started production, the Playout dialog's Put on air sends one take of that
-production's output to the graphics channel and layer and says where it went; the host field
-offers the remembered servers; Test connection remembers nothing.
+production's output to the graphics channel and layer and says where it went; each remembered
+server is one press that fills in its address and port and connects; Test connection remembers
+nothing.
 
 ### AC-5: Nothing airs by itself
 
