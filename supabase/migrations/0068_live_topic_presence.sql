@@ -38,8 +38,8 @@
 -- BEHAVIOUR is proven by the Realtime client, not here: a Presence track is authorised by the
 -- Realtime server's own query, which a migration cannot stand in for. e2e/configured/live-health.spec.ts
 -- joins, tracks and reads the topic on a real backend; this file's self-check proves the shape.
-set lock_timeout = '2s';
-set statement_timeout = '30s';
+set lock_timeout = '500ms';
+set statement_timeout = '10s';
 
 grant select, insert on realtime.messages to anon, authenticated;
 
