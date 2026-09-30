@@ -219,3 +219,16 @@ export-only tests, and rewording the interpreter's span-time expression (text ch
   leaves only the accent rule at 60%; Out from the last step lifts all four rows in their stagger.
   qz02 (a machine graphic, unchanged): Out from the Question state fades and lifts the board and
   never shows the amber answer. lt01 (In and Out only): the name drops out behind its mask as before.
+- `j-2494`, the full affected run on the final code (tip `02e84adb9`, 61 spec files) with 3 workers:
+  475 passed, 244 configured skips, none failed; catalog calibration 35/35; "Overall: passed".
+- A walk of card26 in the editor through the desktop browser pane (parked on the flag after its
+  entrance, then Out) was attempted and gave no evidence: the pane drew no frames (screenshots timed
+  out) and the sandboxed preview never answered the exit, a limitation of the pane. The same Out,
+  Pause, Play and Edit Out buttons are pressed in headless Chromium by the editor tests above, which
+  compare every pose with the simulator.
+
+Not checked: a headed browser walk of the editor, physical 125% displays, receiving-host fonts, a
+real OGraf host, and the two first-time-user trials, which stay pending as before. No owner item is
+filed for this phase: Out from an earlier step is agent-verifiable, and the Step/Next workflow is
+ready for an owner look only once R1.2a.4 adds step authoring. This is scoped engineering evidence,
+not owner acceptance; the default editor is unchanged.
