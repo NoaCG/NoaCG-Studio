@@ -41,7 +41,32 @@ live- read policy and 0070). The app was this branch's worktree in every run
   epoch, race, mixed). On A: `live-health`, `hosted-control-recovery`, `playout-both-roads`,
   `command-sequence`, `operator-outage-not-unpublished`, `output-cold-boot`.
 
+- **j-2565, after merging main's Presence rate-limit throttle (#567).** On B: `command-sequence`
+  (five tests), `live-health`, `live-presence-steady` (main's new spec), `playout-both-roads`,
+  `output-url-cannot-push`, `output-cold-boot`. On A: `live-health`, `live-presence-steady`,
+  `hosted-control-recovery`, `playout-both-roads`.
+
+- **j-2571, the renderer's two review-2 safeguards on B.** `command-sequence`'s "a renderer whose
+  new resolve keeps timing out boots on today's road and airs" (every `control_output_resolve`
+  answered with PostgREST's statement timeout, 57014), and a temporary probe, not committed: a
+  renderer on a production whose only graphic was taken once and then left alone, while an
+  operator page sent 528 status rows of another graphic, paced under the send cap; the graphic's
+  banked seq read through `control_output_resolve` before, after 240 rows and after 528.
+- **j-2568 and j-2572, the offline suite.** `npm run test:e2e:affected` failed three tests of
+  `e2e/output-boot-resilience.spec.ts` (main's row B spec, merged in): its stand-in backend
+  answered every unknown RPC with `null`, so the renderer took the protocol-2 resolve's `null` as
+  "not published". The stand-in now answers `control_output_resolve` as an unmigrated server does
+  (404, PGRST202), and j-2572 ran that spec and `hosted-control.spec.ts` again.
+
 ## What was observed
+
+- **j-2565:** 10 of 10 on B and 4 of 4 on A passed.
+- **j-2571:** both passed. The renderer gave the new resolve exactly three tries, booted on
+  "protocol: row id (proto 1)" and aired the Take. The re-bank probe read seq 3 before, still 3
+  after 240 rows (no re-bank early), and 508 after 528 rows: the untouched graphic was reported
+  again once the renderer had applied 500 rows past it (design D-v).
+- **j-2568:** 435 passed, 75 skipped, and the three stand-in failures above; **j-2572:** 20
+  passed, 1 skipped.
 
 - **j-2558:** on B, 15 of 15 passed, including the three new `command-sequence` tests (two
   batches, a failed first numbered join, a Presence close mid-burst) and `live-health` with its

@@ -457,3 +457,38 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
 });
+
+// A RENDERER IS NEVER LEFT DARK BY THE NEW RESOLVE (review 2 oldclients:F2; design D-u). The
+// protocol-2 resolve reads more than today's, and a statement timeout on it used to be retried
+// forever. Here every protocol-2 resolve answers the timeout PostgREST gives (57014): after three
+// in a row the renderer boots on today's resolve, follows by row id, and airs the Take.
+test('a renderer whose new resolve keeps timing out boots on today\'s road and airs', async ({ page }) => {
+  test.setTimeout(240_000);
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  test.skip(!(await hasSequenceRoad(page)), 'this server has not applied 0071 (the sequence road); see expected-run.json');
+  await clearPublishedShows(page);
+  const { hosted, output } = await publishScorebug(page, `Resolve Timeout ${Date.now()}`);
+  const op = await openOperator(page, hosted);
+  await op.getByTestId('hosted-take-cue').click();
+
+  const air = await page.context().newPage();
+  let timedOut = 0;
+  await air.route(/\/rest\/v1\/rpc\/control_output_resolve(\?|$)/, (route) => {
+    timedOut += 1;
+    return route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: '57014', details: null, hint: null, message: 'canceling statement due to statement timeout' }),
+    });
+  });
+  await air.goto(`/output?production=${encodeURIComponent(output)}&debug=1`);
+  await expect(air.locator('pre')).toContainText('protocol: row id (proto 1)', { timeout: 60_000 });
+  await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe('1');
+  expect(timedOut, 'it gave the new resolve three tries, no more').toBe(3);
+
+  await air.unrouteAll({ behavior: 'ignoreErrors' });
+  await Promise.all([op.close(), air.close()]);
+  await clearPublishedShows(page);
+  await wipeMyGraphics(page);
+});
