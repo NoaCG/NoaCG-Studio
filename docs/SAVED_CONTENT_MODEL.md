@@ -98,12 +98,15 @@ Back returns to the graphic, and Video ↔ Graphics is plain history.
 The first sync on a new browser pulls the whole library, and for a real account that takes a
 while; Home used to say "Nothing saved yet" through all of it, which reads as data loss. So while
 the library on screen is EMPTY and the account's first pass on this browser is running
-(`SyncState.firstPass`, true until a pass has moved the account's bookmark off the epoch), Home
+(`SyncState.firstPass`, true until the library has ARRIVED: a pass completed, which moves the
+account's bookmark off the epoch, and landed what it pulled, `libraryHasArrived()`), Home
 shows "Bringing your library to this browser" in place of the dashboard and of the Productions,
 Graphics and Videos sections. The count ("12 graphics and 1 production are on their way") comes
 from the pass's own plan as soon as the cloud has been listed (`runSync`'s `onPlan`), before the
-long part, fetching the whole records. A first pass that FAILS says the library has not reached
-this browser yet, with Try again, rather than falling back to the empty hint. A first pass that
+long part, fetching the whole records. A first pass that FAILS, or completes while the local store
+refuses what it pulled (recorded as `pullsOwed` in the account's sync metadata, so it survives a
+reload), says the library has not reached this browser yet, with Try again, rather than falling
+back to the empty hint. A first pass that
 lists an empty cloud is a new account after all and gets the first-run hint as before, and once any
 pass has completed, Home behaves exactly as it did. Pinned by `e2e/configured/library-arrival.spec.ts`
 (there is no sync offline, so no offline spec can reach it).
