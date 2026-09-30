@@ -58,8 +58,22 @@ live- read policy and 0070). The app was this branch's worktree in every run
   "not published". The stand-in now answers `control_output_resolve` as an unmigrated server does
   (404, PGRST202), and j-2572 ran that spec and `hosted-control.spec.ts` again.
 
+- **j-2583 and j-2589, after the third review's fixes** (per-graphic supersession, the panic mark,
+  spread re-banks; `review3.md`). j-2583: `command-sequence` (six tests) on B, and the report-burst
+  probe. j-2589: on B the eleven other specs of j-2558 plus `live-presence-steady`, and
+  `verify-b.mjs` (burst, refill, epoch, race, mixed); on A `live-health`,
+  `hosted-control-recovery`, `playout-both-roads`, `command-sequence`, `output-cold-boot`.
+
 ## What was observed
 
+- **j-2583:** 6 of 6 and the probe passed (`review3.md`).
+- **j-2589:** on B 10 passed and `late-send-abandoned` was flaky: its first attempt failed at
+  the first Take's chip (the page's monitor did not take the press), the retry passed. The first
+  press of a page is never left off the monitor by review 3's rule (a single press sets its own
+  graphic's newest press), so the gate that stood it down is the follower's (`recovering` while
+  the protocol-2 follower holds rows or reads the tail, R-6), most likely its first-join read on a
+  loaded machine: the protocol-2 form of K7. `verify-b.mjs` 5 of 5 (burst 6 of 6 trials on the
+  last press). On A, 4 passed and `command-sequence`'s 6 skipped.
 - **j-2565:** 10 of 10 on B and 4 of 4 on A passed.
 - **j-2571:** both passed. The renderer gave the new resolve exactly three tries, booted on
   "protocol: row id (proto 1)" and aired the Take. The re-bank probe read seq 3 before, still 3
