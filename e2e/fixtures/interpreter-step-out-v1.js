@@ -1,26 +1,178 @@
-// Timeline v2 — the runtime interpreter emitted into every data-driven template
-// (docs/TIMELINE_V2_PLAN.md §2). It reads the NOACG_ANIM data literal and defines the
-// SAME builder globals the whole platform already depends on (buildInTimeline /
-// buildOutTimeline / revealNextStep), so the simulator, wizard thumbnails, control
-// engine, and every export work unchanged. Plain commented ES5, no dependencies beyond
-// the bundled GSAP, no eval — a professional can read it, or delete the whole region
-// and write raw GSAP (the timeline UI then steps aside).
-
-import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
-import { locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
-import { ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
-import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
-import { contentHash } from '../../model/contentHash';
-
-/** The interpreter body — identical in every template. Kept as one exported string so the
- *  emitter, the AI prompt, and (later) the convert-on-edit path all ship the same code. */
-export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
+// ---- The interpreter (the same in every template — edit the DATA above instead) ----
 // Steps play on the operator's cues: steps[0] on play(), each middle step on one next()
 // press, the last step on stop(). Keyframe times sit on the step's local clock and are
 // divided by the speed knob. A keyframe's ease is the ease INTO it (default: the step's).
 // When the data carries a "machine", the same cues drive its default path, and the state
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
-${NOACG_EASE_JS}
+// ---- Eases (shared with the editor, which samples, splits and reverses keys with this code) ----
+// Capability: shared-ease-v2. noacgEase(text) returns the curve E(p) of an ease string, or null
+// when the string is outside this grammar; the interpreter then hands the string to GSAP as it
+// always did. A recognized ease reaches GSAP as this function, never as a string it could replace
+// with its default.
+//   none | linear, power0-4, quad, cubic, quart, quint, strong, sine, expo, circ, bounce, back(s)
+//   or elastic(a, p), each with .in, .out or .inOut (bare means .out) | steps(n) | steps(n, true)
+//   | cubic-bezier(x1, y1, x2, y2) with x1 and x2 in 0..1
+//   | slice(ease, a, b): that ease between a and b, rescaled to run from 0 to 1
+//   | hold: keep the departing key's value, then jump to the arriving key's (a Hold keyframe)
+//   | jump: jump to the arriving key's value at once, then keep it (a Hold played backwards).
+// Named curves repeat GSAP 3.15's formulas in its operation order, so they match it exactly.
+var noacgEaseCache = {};
+// GSAP rounds timeline times to 1e-7 s, so at a key's exact time the segment arriving there can
+// read 0.9999987 rather than 1. A hold jumps in the last 1e-5 of its segment, which that rounding
+// still reaches for any segment of 10 ms or more, and a jump mirrors it at the start.
+var NOACG_EASE_EDGE = 1e-5;
+var NOACG_EASE_POWER = { linear: 1, power0: 1, quad: 2, power1: 2, cubic: 3, power2: 3, quart: 4, power3: 4, quint: 5, power4: 5, strong: 5 };
+var NOACG_EASE_SHAPED = { sine: 1, expo: 1, circ: 1, bounce: 1, back: 1, elastic: 1 };
+var NOACG_EASE_TWO_PI = 2 * Math.PI;
+function noacgEaseHas(map, name) { return Object.prototype.hasOwnProperty.call(map, name); }
+function noacgEaseNumber(text) {
+  return /^\s*[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?\s*$/i.test(text) ? Number(text) : NaN;
+}
+// An argument list split on its top-level commas: a slice carries a whole ease inside it.
+function noacgEaseArgs(text) {
+  var parts = [], depth = 0, from = 0;
+  for (var i = 0; i < text.length; i++) {
+    var c = text.charAt(i);
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) { parts.push(text.slice(from, i)); from = i + 1; }
+  }
+  parts.push(text.slice(from));
+  return parts;
+}
+
+// Describe an ease string, or return null. The text itself is never rewritten.
+function noacgEaseParse(text) {
+  if (typeof text !== 'string') return null;
+  if (text === 'none') return { kind: 'none', text: text };
+  var m = /^([a-z][a-z0-9]*(?:-[a-z]+)?)(?:\.(in|out|inOut))?(?:\((.*)\))?$/.exec(text);
+  if (!m) return null;
+  var name = m[1], side = m[2], called = m[3] !== undefined, args = called ? noacgEaseArgs(m[3]) : [], values = [], i;
+  for (i = 0; i < args.length; i++) values.push(noacgEaseNumber(args[i]));
+  if (noacgEaseHas(NOACG_EASE_POWER, name) || noacgEaseHas(NOACG_EASE_SHAPED, name)) {
+    var most = name === 'back' ? 1 : name === 'elastic' ? 2 : 0;
+    if (called && (args.length > most || values.some(function (v) { return !isFinite(v); }))) return null;
+    return { kind: 'family', text: text, name: name, side: side || 'out', args: called ? values : [], argText: called ? '(' + m[3] + ')' : '' };
+  }
+  if ((name === 'hold' || name === 'jump') && !side && !called) return { kind: name, text: text };
+  if (side || !called) return null;
+  if (name === 'steps' && args.length <= 2) {
+    var count = values[0];
+    if (!(count >= 1 && count === Math.floor(count))) return null;
+    if (args.length === 2 && args[1].replace(/^\s+|\s+$/g, '') !== 'true') return null;
+    return { kind: 'steps', text: text, count: count, start: args.length === 2 };
+  }
+  if (name === 'cubic-bezier' && args.length === 4) {
+    if (values.some(function (v) { return !isFinite(v); })) return null;
+    // x1 and x2 inside 0..1 keep time monotonic, so every moment has one value.
+    if (!(values[0] >= 0 && values[0] <= 1 && values[2] >= 0 && values[2] <= 1)) return null;
+    return { kind: 'bezier', text: text, x1: values[0], y1: values[1], x2: values[2], y2: values[3] };
+  }
+  if (name === 'slice' && args.length === 3) {
+    var base = noacgEaseParse(args[0]), from = values[1], to = values[2];
+    // A slice rescales a moving part; a step, a hold or a jump has only flat parts and one instant.
+    if (!base || base.kind === 'slice' || base.kind === 'steps' || base.kind === 'hold' || base.kind === 'jump' || !(from >= 0 && from < to && to <= 1)) return null;
+    var curve = noacgEaseCurve(base), low = curve(from), high = curve(to);
+    // Equal ends leave nothing to rescale: no slice can carry motion between them.
+    if (!isFinite(low) || !isFinite(high) || low === high) return null;
+    return { kind: 'slice', text: text, base: base, from: from, to: to };
+  }
+  return null;
+}
+
+function noacgEaseBounceOut(t) {
+  if (t < 1 / 2.75) return 7.5625 * t * t;
+  if (t < 0.7272727272727273) return 7.5625 * Math.pow(t - 1.5 / 2.75, 2) + 0.75;
+  if (t < 0.9090909090909092) { var u = t - 2.25 / 2.75; return 7.5625 * u * u + 0.9375; }
+  return 7.5625 * Math.pow(t - 2.625 / 2.75, 2) + 0.984375;
+}
+// CSS cubic-bezier: solve x(s) = p (Newton, then bisection), then read y(s).
+function noacgEaseBezier(x1, y1, x2, y2) {
+  function at(a, b, s) { return ((1 - 3 * b + 3 * a) * s + 3 * b - 6 * a) * s * s + 3 * a * s; }
+  function slope(a, b, s) { return 3 * (1 - 3 * b + 3 * a) * s * s + 2 * (3 * b - 6 * a) * s + 3 * a; }
+  return function (p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    var s = p, i, x, d;
+    for (i = 0; i < 8; i++) {
+      x = at(x1, x2, s) - p;
+      if (Math.abs(x) < 1e-12) return at(y1, y2, s);
+      d = slope(x1, x2, s);
+      if (Math.abs(d) < 1e-9) break;
+      s -= x / d;
+      if (s < 0 || s > 1) break;
+    }
+    var low = 0, high = 1;
+    for (s = p, i = 0; i < 100; i++) {
+      x = at(x1, x2, s);
+      if (Math.abs(x - p) < 1e-12) break;
+      if (x < p) low = s; else high = s;
+      s = (low + high) / 2;
+    }
+    return at(y1, y2, s);
+  };
+}
+
+// The curve of a parsed ease. Named families follow GSAP: out(p) = 1 - in(1 - p) unless GSAP
+// defines out directly (power, back, elastic, bounce), and inOut joins two halves at 0.5.
+function noacgEaseCurve(e) {
+  if (e.kind === 'none') return function (p) { return p; };
+  if (e.kind === 'hold') return function (p) { return p >= 1 - NOACG_EASE_EDGE ? 1 : 0; };
+  if (e.kind === 'jump') return function (p) { return p > NOACG_EASE_EDGE ? 1 : 0; };
+  if (e.kind === 'bezier') return noacgEaseBezier(e.x1, e.y1, e.x2, e.y2);
+  if (e.kind === 'steps') {
+    var share = 1 / e.count, levels = e.count + (e.start ? 0 : 1), lift = e.start ? 1 : 0;
+    return function (p) { var c = p > 0.99999999 ? 0.99999999 : p < 0 ? 0 : p; return ((levels * c | 0) + lift) * share; };
+  }
+  if (e.kind === 'slice') {
+    var base = noacgEaseCurve(e.base), a = e.from, b = e.to, low = base(a), span = base(b) - low;
+    return function (p) { return p === 0 ? 0 : p === 1 ? 1 : (base(a + (b - a) * p) - low) / span; };
+  }
+  var name = e.name, easeIn, easeOut, easeInOut;
+  if (noacgEaseHas(NOACG_EASE_POWER, name)) {
+    var r = NOACG_EASE_POWER[name];
+    easeIn = r === 1 ? function (p) { return p; } : function (p) { return Math.pow(p, r); };
+    easeOut = function (p) { return 1 - Math.pow(1 - p, r); };
+    easeInOut = function (p) { return p < 0.5 ? Math.pow(2 * p, r) / 2 : 1 - Math.pow(2 * (1 - p), r) / 2; };
+  } else if (name === 'back' || name === 'elastic') {
+    if (name === 'back') {
+      var s = e.args.length ? e.args[0] : 1.70158;
+      easeOut = function (p) { if (!p) return 0; var u = p - 1; return u * u * ((s + 1) * u + s) + 1; };
+    } else {
+      var type = e.side === 'inOut' ? undefined : e.side, amplitude = e.args[0], period = e.args[1];
+      var amp = amplitude >= 1 ? amplitude : 1;
+      var per = (period || (type ? 0.3 : 0.45)) / (amplitude < 1 ? amplitude : 1);
+      var shift = per / NOACG_EASE_TWO_PI * (Math.asin(1 / amp) || 0), w = NOACG_EASE_TWO_PI / per;
+      easeOut = function (p) { return p === 1 ? 1 : amp * Math.pow(2, -10 * p) * Math.sin((p - shift) * w) + 1; };
+    }
+    easeIn = function (p) { return 1 - easeOut(1 - p); };
+    easeInOut = function (p) { return p < 0.5 ? (1 - easeOut(1 - 2 * p)) / 2 : 0.5 + easeOut(2 * (p - 0.5)) / 2; };
+  } else {
+    if (name === 'bounce') {
+      easeOut = noacgEaseBounceOut;
+      easeIn = function (p) { return 1 - noacgEaseBounceOut(1 - p); };
+    } else {
+      easeIn = name === 'sine' ? function (p) { return p === 1 ? 1 : 1 - Math.cos(p * (NOACG_EASE_TWO_PI / 4)); }
+        : name === 'expo' ? function (p) { return Math.pow(2, 10 * (p - 1)) * p + p * p * p * p * p * p * (1 - p); }
+        : function (p) { return -(Math.sqrt(1 - p * p) - 1); };
+      easeOut = function (p) { return 1 - easeIn(1 - p); };
+    }
+    easeInOut = function (p) { return p < 0.5 ? easeIn(p * 2) / 2 : 1 - easeIn((1 - p) * 2) / 2; };
+  }
+  return e.side === 'in' ? easeIn : e.side === 'inOut' ? easeInOut : easeOut;
+}
+
+// The curve for an ease string, parsed once per string.
+function noacgEase(text) {
+  var key = '~' + text;
+  if (!noacgEaseHas(noacgEaseCache, key)) {
+    var parsed = noacgEaseParse(text);
+    noacgEaseCache[key] = parsed ? noacgEaseCurve(parsed) : null;
+  }
+  return noacgEaseCache[key];
+}
+// What the interpreter hands GSAP: the shared curve when recognized, else the string as before.
+function noacgEaseOf(text) { return noacgEase(text) || text; }
 
 // A dynamics builder takes the step's ease as a string (its API). It gets the shared curve only
 // when GSAP cannot read a string the shared grammar recognizes, so nothing it builds defaults.
@@ -68,7 +220,7 @@ function noacgWholeEase(text) {
   var parsed = noacgEaseParse(text);
   return parsed && parsed.kind === 'slice' ? parsed.base.text : text;
 }
-function noacgBuildExit(step, interrupted, silent, early) {
+function noacgBuildExit(step, interrupted, silent) {
   var speed = NOACG_ANIM.speed || 1;
   var entries = [];
   Object.keys(step.layers).forEach(function (selector) {
@@ -114,10 +266,6 @@ function noacgBuildExit(step, interrupted, silent, early) {
       // when Out is not interrupted; until then the live value holds.
       var from = shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time;
       tl.to(proxy, { value: last.value, duration: (last.time - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
-    } else if (early) {
-      // A one-key or zero-time track has no span to leave on. From an earlier step its value may be
-      // a pose the viewer never saw, so it holds the live value and takes its own as the exit ends.
-      tl.set(proxy, { value: keys[keys.length - 1].value }, step.duration / speed);
     } else {
       tl.set(proxy, { value: keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {
@@ -320,9 +468,8 @@ function noacgExitTimeline(interrupted, silent) {
   // Out from an earlier step, with a Next cue not yet played, leaves from what is on screen as an
   // interrupted Out does: never through the last step's pose or motion the viewer has not seen.
   // A machine's states are an authored graph, not a linear reveal, so it keeps its own exit.
-  var early = !NOACG_ANIM.machine && noacgStepsPlayed > 0 && noacgStepsPlayed < steps.length - 1;
-  if (early) interrupted = true;
-  var tl = noacgBuildExit(step, interrupted, silent, early);
+  if (!NOACG_ANIM.machine && noacgStepsPlayed > 0 && noacgStepsPlayed < steps.length - 1) interrupted = true;
+  var tl = noacgBuildExit(step, interrupted, silent);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
   // (unless the Out step animates them itself). Containment is checked live.
   var root = document.querySelector(NOACG_ANIM.root);
@@ -953,148 +1100,4 @@ function noacgMachineState() {
     out.groups[id] = noacgCurrent[id];
   }
   return out;
-}`;
-
-/** The data block's header comment — emitted above the literal (JSON carries no comments,
- *  so the explanation lives here, where hand edits preserve it). */
-const DATA_HEADER = `// The graphic's animation as DATA. Steps play in order — the first on ▶ play(), each
-// middle step on one » next() press (SPX Continue), the last on ■ stop(). Each layer's
-// properties are keyframe lists on the step's local clock: { "time", "value", "ease" }.
-// "reveals" names the layers that first become visible in that step; "hides" names the
-// layers that leave in it; "calls" fires named template functions (a clock engine's
-// startClock/stopClock) at their moment on the step's clock; "loops" makes a layer's track
-// repeat (repeat -1 = forever, yoyo = breathe back and forth); "dynamics" adds MEASURED
-// motion — a named builder function (defined below, outside this block) reads the DOM and
-// returns the tween, which is how a marquee travels exactly one track-width no matter how
-// much text the operator types. An optional "machine" adds a STATE GRAPH over the steps:
-// parallel groups of states (each state's content is a timeline — the steps are the default
-// path's, in order), transitions fired by operator events (noacgDispatch) or timers, and
-// instant snap to any state (noacgSnap). Without it the steps ARE the machine: a linear
-// walk driven by play/next/stop. The timeline UI reads and writes this block — and so can
-// you: edit a number and press play.`;
-
-/** Emit the full marked ANIMATION region for a data-driven template. */
-export function emitAnimRegion(data: AnimData): string {
-  return `${ANIMATION_MARK_OPEN}
-${DATA_HEADER}
-var NOACG_ANIM = ${serializeAnimData(data)};
-
-${ANIM_INTERPRETER_JS}
-${ANIMATION_MARK_CLOSE}`;
-}
-
-/** THE UPGRADE GATE: true when a template's frozen interpreter carries the state-machine
- *  engine. spliceAnimData replaces only the data literal — a saved template keeps whatever
- *  interpreter it was emitted with — so machine-bearing data must NEVER be spliced under an
- *  older interpreter that can't run it. A machine writer checks this first and re-emits the
- *  whole region (replaceRegionWithAnimData) when it is false. */
-export function hasMachineRuntime(js: string): boolean {
-  return /function noacgDispatch/.test(js);
-}
-
-/** Same pairing idea for TRANSITION STYLES: a `style` on an arrow needs the interpreter
- *  that consumes it (noacgStyleTimeline) — under an older one it would parse and silently
- *  never play. */
-export function hasTransitionStyleRuntime(js: string): boolean {
-  return /function noacgStyleTimeline/.test(js);
-}
-
-/** The 'cut' style landed after the first style runtime: a frozen interpreter with styles
- *  but no cut would silently play the entry timeline instead, so a cut-bearing write must
- *  re-emit the region. The emitted `known` map is the marker. */
-export function hasCutStyleRuntime(js: string): boolean {
-  return hasTransitionStyleRuntime(js) && /\bcut: 1\b/.test(js);
-}
-
-/** The materialised entrance/exit edges landed after the first style runtime: a styled
- *  lifecycle edge needs the interpreter whose play()/stop() consult it (noacgLifecycleEdge) —
- *  under an older one the style would parse and silently never play. */
-export function hasLifecycleStyleRuntime(js: string): boolean {
-  return /function noacgLifecycleEdge/.test(js);
-}
-
-/** Does any arrow carry a transition style (the reserved fields, now consumed)? */
-export function dataUsesTransitionStyles(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) => g.transitions.some((t) => t.style !== undefined));
-}
-
-/** Does a LIFECYCLE edge carry a style (the newest pairing check — see above)? */
-export function dataUsesLifecycleStyle(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) =>
-    g.transitions.some((t) => t.trigger === 'lifecycle' && t.style !== undefined),
-  );
-}
-
-/** Does any arrow carry the 'cut' style specifically (the newer pairing check)? */
-export function dataUsesCutStyle(data: AnimData): boolean {
-  return (data.machine?.groups ?? []).some((g) => g.transitions.some((t) => t.style === 'cut'));
-}
-
-/** True when the interpreter carries the shared ease runtime (G01, templates/shared/easeRuntime.ts). */
-export function hasEaseRuntime(js: string): boolean {
-  return /function noacgEase\(/.test(js);
-}
-
-/** True when the interpreter's ease grammar plays hold and jump (shared-ease-v2, R1.2a.2). */
-export function hasHoldRuntime(js: string): boolean {
-  return js.includes('Capability: shared-ease-v2.');
-}
-
-/** True when any ease in the data passes `needs`. */
-function dataUses(data: AnimData, needs: (text: string) => boolean): boolean {
-  const visit = (value: unknown): boolean => Array.isArray(value) ? value.some(visit)
-    : !!value && typeof value === 'object' && Object.entries(value).some(([key, item]) =>
-      key === 'ease' && typeof item === 'string' ? needs(item) : visit(item));
-  return visit(data);
-}
-/** True when any ease in the data is a form only the shared ease runtime plays (cubic-bezier,
- *  slice, hold, jump): under an older interpreter GSAP would silently replace it with its default. */
-export const dataUsesExactEase = (data: AnimData) => dataUses(data, needsEaseRuntime);
-/** True when any ease in the data is hold or jump, which the G01 and R1.2a.1 grammars lack. */
-export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRuntime);
-
-/**
- * THE machine-safe write — what every editing surface should use.
- *
- * `spliceAnimData` replaces only the object literal, so a saved template keeps whatever
- * interpreter it was emitted with. That is fine until the data grows a MACHINE: machine-bearing
- * data under a pre-machine interpreter would parse and then do nothing. When that pairing would
- * break, re-emit the whole region instead (the same move the `hides` early-exit makes) — and
- * identically when the data grows a transition STYLE the frozen interpreter cannot play.
- */
-export function writeAnimData(js: string, data: AnimData): string | null {
-  if ((data.steps.some(step => step.spans) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
-    return writeOutData(js, data);
-  }
-  if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesTransitionStyles(data) && !hasTransitionStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesCutStyle(data) && !hasCutStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  if (dataUsesLifecycleStyle(data) && !hasLifecycleStyleRuntime(js)) return replaceRegionWithAnimData(js, data);
-  return spliceAnimData(js, data);
-}
-
-/** Exact known bodies only: a capability comment alone cannot authorize replacement. */
-export function writeOutData(js: string, data: AnimData): string | null {
-  const text = js.replace(/\r\n/g, '\n');
-  const location = locateAnimData(text), start = text.indexOf(ANIMATION_MARK_OPEN), end = text.indexOf(ANIMATION_MARK_CLOSE);
-  if (!location || start < 0 || end < location.end) return null;
-  const prefix = text.slice(start, location.start).trim();
-  if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\nvar NOACG_ANIM =`.replace(/\r\n/g, '\n')) return null;
-  const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
-  if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
-  const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
-    .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
-    .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
-    .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
-  if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH].includes(contentHash(body))) return null;
-  return replaceRegionWithAnimData(js, data);
-}
-
-/** Swap a template's marked region for the data-driven emit (the converter's writer). */
-export function replaceRegionWithAnimData(js: string, data: AnimData): string | null {
-  const start = js.indexOf(ANIMATION_MARK_OPEN);
-  const end = js.indexOf(ANIMATION_MARK_CLOSE);
-  if (start === -1 || end === -1) return null;
-  return js.slice(0, start) + emitAnimRegion(data) + js.slice(end + ANIMATION_MARK_CLOSE.length);
 }
