@@ -1,0 +1,213 @@
+# R1.2a.5: cross-cue key moves and the Out flag
+
+Base: R1.2a.4 (step authoring) landed through PR #572 as `ea2d63f9` and is live; the Steps-as-buttons
+backlog item landed as `3de997ca`. This worktree branch `claude/editor-r1-2a-5-cross-cue-196874`
+started from fetched `origin/main` `cfaa6019f`, which contains both. The R1.2a.4 owner-queue item
+(`docs/acceptance/owner-queue/2026-09-30-editor-step-authoring.md`) has no answer yet.
+
+Why: an author who has placed Steps needs to move a key or a layer's bar to the other side of a
+flag, and to move Out, without the timeline changing what they did not touch, and without a
+pause appearing between pressing Out and the exit.
+
+Goal: dragging keys or a bar body across a Step or Out flag moves them into the other cue at their
+absolute times, exactly, as one undo; Set Out and the Out flag follow the owner's 2026-09-30
+decision below, including crossing out of a Next cue. Anything the runtime cannot play exactly
+refuses atomically, with source and history byte-identical and the reason beside the control.
+
+Non-goals: Steps as control buttons (`docs/backlog/steps-as-control-buttons.md`; a Step stays a
+cue with a stable name so it stays possible), key copy and paste, magnets for keys, a drawn marker
+for the carried part of Out, loops (R1.2c), machines, calls and dynamics (they keep refusing).
+
+## Owner decision 2026-09-30: the exit belongs to the Out flag
+
+The flag is where Out is triggered, and pressing Out plays the timeline from there. The exit keeps
+its own timing relative to the flag, so it starts the moment Out is pressed, whichever way the flag
+moves. No motion is ever cut.
+
+- **Out later**: the exit moves with the flag and the graphic simply holds longer. This replaces
+  the R1.2a.1 `CROSSES_OUT_KEY` refusal.
+- **Out earlier, into still air**: the exit moves with the flag; no pause appears between the
+  press and the exit (until now the exit kept its ruler time and left one).
+- **Out earlier, into unfinished motion** (the entrance, or the last Step's cue): the 2026-09-28
+  rule stands and nothing is cut. The unfinished motion is carried into Out and plays first, and
+  the exit starts the moment it ends, with no pause. The exit cannot start while that motion is
+  still playing.
+- Timing designed into the exit itself (a stagger, a beat before it starts) is kept. Only the
+  stillness that moving the flag creates or removes changes.
+- Acceptance is no longer "In then Out matches the original on the ruler": pressing Out plays the
+  unfinished motion exactly, then the exit exactly, with no pause between.
+
+## Reproduction (before any change)
+
+Measured in Node with `moveOutBoundary` (`src/blocks/editorOut.ts`) and `moveLayerSpan`
+(`src/blocks/animEdit.ts`) at `cfaa6019f`, and by `e2e/editor-cross-cue.spec.ts` queued on the
+unmodified code:
+
+- **Out later eats the exit's own timing, then refuses.** In 2 s with its motion ending at 1 s,
+  Out keys at 0.5 and 1 s (a designed half-second beat): Set Out at 2.3 s moves them to 0.2 and
+  0.7 s on Out's clock, shortening the beat, and at 2.6 s throws "This boundary would cross an Out
+  key." An exit whose first key sits at its start refuses every later Out.
+- **Out earlier into still air leaves a pause.** The same graphic, Set Out at 1.5 s: the exit keys
+  move to 1 and 1.5 s on Out's clock, so pressing Out waits 1 s (0.5 s longer than designed)
+  before anything moves.
+- **Out into the entrance keeps the stillness.** The `e2e/editor-out.spec.ts` fixture (In 2 s,
+  motion to 1 s, empty exit), Set Out at 0.4 s: Out is 1.6 s long, the carried motion ends at
+  0.6 s and the graphic then sits still for 1 s before it clears.
+- **Out cannot leave a Next cue.** With a Step whose motion runs to 0.8 s of its cue, Set Out at
+  0.5 s refuses ("would move #box rotation out of the Next cue", the R1.2a.2 guard).
+- **Keys and bars cannot cross a flag.** The new editor's key diamonds select and ease but do not
+  drag, and the operation registry has no key move; a bar body dragged across a flag refuses
+  ("This move crosses a cue boundary. Cross-cue movement is not available yet").
+
+## Decisions
+
+Terms as R1.2a.4: cues are In, then Step cues, then Out; stored times sit on each cue's own clock
+and the ruler shows stored / speed; a flag is where a cue starts. **The exit** is Out's authored
+motion. **Carried motion** is what Set Out moved into Out from the cue before it, which plays
+first when Out is pressed at the last step.
+
+### The Out flag
+
+Let the cue before Out end at E, and let its **motion end** M be the latest of: a key whose value
+differs from the key before it, a bar edge strictly inside the cue, and a legacy hide (at E). A
+key that repeats the value before it, and anything after M, is still air. Set Out, a drag of the
+Out flag and an Out flag nudge all move Out to b (snapped to a frame, at least a frame after the
+last Step as before):
+
+- **b later than E**: the cue lengthens to b and bars that reached E reach b. Out is unchanged:
+  its keys, its bars and its carried part keep their times on Out's clock.
+- **b earlier, at or after M (still air)**: the cue ends at b. Keys after b only repeat the value
+  held at b and go, a track keeping one key where it would otherwise empty (a cut never removes a
+  track); bars that reached E reach b. Out is unchanged, except that a layer whose bar ends
+  exactly at b, which the hold now shows on its arriving side, is hidden by Out from the press.
+- **b earlier than M (into motion)**: the cue is cut at b exactly as Add Step cuts (crossed
+  segments split with `splitKeyframeSegment`, a flat segment needs no key); the motion after b
+  up to M moves into Out at its absolute times with explicit eases; the exit, all of Out's former
+  keys and bars, starts C = M - b later on Out's clock, keeping its own timing; the stillness
+  between M and E goes. Out stores `carried: C`.
+- **Carried motion rejoins first.** When Out already has carried motion, it is joined back into
+  the cue before (`joinCues`, which also rejoins the split) and the exit returns to Out's start,
+  so the rule above applies to the whole motion. Setting Out into the entrance and then back to
+  where it was plays exactly what the original played.
+- **Visibility bars follow the same rule.** The exit's own bars keep their timing from the exit's
+  start. Carried bars keep their absolute times. A layer visible at the new Out stays visible
+  through the carried part and then shows as its exit bars say (or throughout the exit when it has
+  none); the part of a bar that only covered the removed stillness goes. A layer visible after b
+  but hidden at b refuses, since Out never reveals a hidden layer (R1.2a.1).
+- **Refusals kept** (source and history unchanged, reason beside the control): a crossed segment
+  without an exact split, a nonnumeric crossed track, keys stored past the cue's end, a carried
+  track whose exit starts on another value (that instant change would become motion), a layer
+  hidden at the new Out by its bars, by `autoAlpha` or inside a hidden parent that has carried
+  motion, a legacy hide when motion would be carried, frame spacing, and custom interpreter
+  bodies. **Refusals removed:** `CROSSES_OUT_KEY` (R1.2a.1), the Next-cue guard (R1.2a.2) and
+  "has its own Out bars after this hold" (R1.2a.1 moving later): each protected the old absolute
+  exit timing.
+- The reverse/manual prompt is unchanged: it appears whenever Out has no keys after the move.
+
+### Out pressed from an earlier step (D02)
+
+- At the last step Out plays its cue from the start: the carried motion, then the exit. Out
+  interrupting the last cue keeps R1.2a.3's policy on the same clock.
+- From an earlier step the carried motion belongs to a cue the viewer never reached, which Out
+  never plays (the 2026-09-29 contract), so its time is not part of the exit either: the
+  interpreter skips `carried` for Out pressed at an earlier step, and the exit starts at the
+  press. A track with nothing after the carried part holds its live value until the exit ends
+  (R1.2a.4's one-key hold). Machine graphics are unchanged.
+- This changes the emitted interpreter. The R1.2a.4 body is frozen by content hash in
+  `animRuntimeLegacy.ts`, its text kept as `e2e/fixtures/interpreter-one-key-hold-v1.js`, and
+  upgrades once on preview, save and export like the bodies before it. `carried` is an additive
+  optional number on a step (at most its duration), preserved by the parser and serializer.
+
+### Moving keys across flags
+
+- A key drag moves every selected key (or the key group pressed, when it is not selected) by one
+  delta, snapped so the pressed key lands on a frame (Alt moves freely at the stored precision).
+- **A track is one curve on the ruler, cut by the flags.** Moved keys keep their values and eases
+  and land at their absolute time in the cue that holds it; a key landing exactly on a flag ends
+  the earlier cue (its arriving side). Every flag inside a segment the move changed is cut again
+  exactly, as Add Step cuts: a split key there with the two slices, and the next cue starting
+  from a copy of its value; a flat segment needs neither. The last key of one cue and the first
+  of the next at the same value are one boundary key, and move together.
+- **Keys keep their order on their track.** A moved key cannot pass or land on a key of its track
+  that is not moving, including a key sitting on a flag (select it too to move both). Keys cannot
+  move before In; moved past the end of Out they lengthen Out.
+- **Refusals:** a track that jumps at a flag the move involves (its value there changes
+  instantly, which the cut would turn into motion or lose), a move that would start a track at a
+  flag with another value than the layer showed before it (R1.2a.4's join rule), a crossed
+  segment without an exact split, and keys stored past a cue's end.
+- Eases: a key moving between cues whose default eases differ takes an explicit ease, its own or
+  its old cue's default, as in R1.2a.1. Keys the move does not touch, and flags it does not
+  involve, stay byte-identical.
+
+### Moving a bar body across flags
+
+- As within a cue, the body moves the layer's visibility in that cue and every key of the layer in
+  that cue by one delta. Across a flag the bars are cut at the flag (a piece ending on the flag
+  keeps the layer on screen at the hold, on its arriving side) and join the next cue's bars; the
+  keys move as above, without coupling a boundary key's other half.
+- **Refusals:** overlapping the layer's own bars in another cue, moving before In, a key passing
+  one of the layer's keys that stays, a layer that would appear only after the Out flag (Out never
+  reveals a hidden layer), a legacy hide.
+- Legacy reveals convert to bars first, as within a cue; the reveal marker moves to the cue where
+  the layer now first appears, and joins into In only for a layer inside the root (R1.2a.4).
+
+### Scope
+
+- Machines, loops, calls and dynamics refuse key and bar moves as all animation authoring in this
+  editor does (`sequenceAuthoringReason`); a custom interpreter body refuses.
+- No operation renames a Step: every cue keeps its `name`.
+
+## Acceptance
+
+| Portion | Observable result | Refusal (source and history byte-identical, reason beside the control) |
+|---|---|---|
+| Out later | Out keys and bars keep their times on Out's clock; the hold is longer; pressing Out moves the graphic on the first frame in the simulator, SPX, CasparCG, OGraf and single-file exports. | Frame spacing only. |
+| Out earlier, still air | The exit keeps its Out-clock timing; no pause after the press in all five targets. | |
+| Out earlier, into motion | Pressing Out at the last step plays the carried motion exactly (the original cue's values at the same times after the flag, within 1e-3), then the exit exactly, starting as the carried motion ends. Designed exit timing is kept. | Crossed segment without an exact split; a layer hidden at Out but visible after it; a jump where the exit starts; a legacy hide. |
+| Out from a Next cue | Set Out inside the last Step's motion now moves; at the last step it plays as above; from an earlier step the exit starts at the press and no carried motion shows, in all five targets and the editor. | As above. |
+| Round trip | Out moved into motion and back to its old frame plays exactly as the original (Node playback model and five targets). | |
+| Key moves | Keys dragged within a cue and across a Step or Out flag land at their absolute times; the editor's sampling and all five targets play the curve the ruler shows; one undo; redo, Escape and save/reopen agree; the moved keys stay selected; a nudge moves a frame. | Passing or landing on a key of the same track, before In, a jump at an involved flag, a new jump at a flag. Shown live while held. |
+| Bar moves | A bar body dragged across a Step flag moves its visibility and keys into the next cue at their absolute times, one undo; a legacy reveal (card26-style) keeps appearing at its moved time. | Overlapping the layer's own bars, appearing only in Out, passing a key, a legacy hide. |
+| Preserved | The editor regressions (steps, out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry), anim-engine and inspector pass, except the assertions named below. Untouched keys and flags stay byte-identical. | Machines, loops, calls and dynamics refuse. |
+
+### Existing assertions this decision changes
+
+Each encodes the old absolute exit timing, which the owner's decision replaces; nothing else in
+them changes.
+
+- `scripts/out-boundary.test.mjs`
+  - "a move with nothing after b behaves as before, and bars no longer refuse it": Out keys keep
+    their Out-clock times earlier and later, Out later no longer refuses, and a bar reaching the
+    old Out is clipped to the new one with Out unchanged.
+  - "Set Out moves nothing out of a Next cue until Step/Next editing, and still moves within it":
+    the guard is lifted; the cases now carry the Step's motion into Out.
+  - "every refusal leaves the input untouched and names what could not be kept": the Next-cue
+    reveal case no longer refuses by the guard.
+  - "Out moved later keeps a layer visible at the old hold visible up to the new one": Out's own
+    bars keep their Out-clock times, so the "own Out bars" refusal goes.
+- `e2e/editor-out.spec.ts`
+  - "Set Out before the last In key moves the rest of the entrance into Out as one undo": Out is
+    0.6 s long (the carried motion) instead of 1.6 s, since the entrance's stillness goes.
+  - "Set Out inside a Next cue refuses until Step/Next editing, keeping source and history":
+    replaced by the same Set Out succeeding as one undo.
+- `e2e/editor-steps.spec.ts`
+  - "a flag drag the runtime cannot play shows its reason while held and changes nothing": Out
+    later no longer refuses, so the refused drag is a Step flag crossing a segment without an
+    exact split.
+
+Any other assertion the implementation turns out to change is added here with its reason.
+
+## Verification plan
+
+`scripts/cross-cue.test.mjs` (build gate, beside `step-authoring`, `out-step` and `out-boundary`)
+runs the pure operations and the emitted interpreter over the stub DOM: the Out flag in each of
+its cases with a playback model of pressing Out at the last step (carried motion then exit, no
+pause), round trips, the earlier-step skip, key moves within and across Step and Out flags with
+dense ruler equality against the moved curve, bar moves, every refusal atomic, byte identity of
+untouched keys, `carried` round trip through the parser and serializer, and the interpreter
+upgrade. Each new guard is mutation-tested. `e2e/editor-cross-cue.spec.ts` is written first and
+queued on the unmodified code: five-target playback of the Out cases and of moved keys, and the
+editor's key drag, nudge, refusal, undo, redo, Escape and save/reopen, and a bar dragged across a
+Step flag. Then the editor regressions, the full affected run, catalog JS fingerprints, the
+catalog battery against this worktree's dev server, taste frames (card26, qz02, lt01), build,
+`/check`, `/queue-merge` and the deployed `/version.json`.

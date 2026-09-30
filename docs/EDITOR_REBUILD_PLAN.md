@@ -242,8 +242,10 @@ of D02, and next() after Out does nothing until play(). Step authoring and stric
 R1.2a.4 ([receipt](research/editor-r1-2a-4/README.md)): Add Step at the playhead, inline rename,
 delete, and Step and Out flag drags and nudges repartition cues at absolute times as one undo each,
 refusing onto or past a neighbour and wherever the runtime could not play the result exactly.
-Cross-cue key moves are R1.2a.5. Until R1.2a.5, Set Out refuses to move keys or visibility-bar
-edges out of a Next cue (R1.2a.2); crossing the In cue stays allowed.
+Cross-cue key and bar moves, and Set Out crossing out of a Next cue under the owner's 2026-09-30
+decision (the exit belongs to the Out flag, D01), are R1.2a.5
+([spec](research/editor-r1-2a-5/README.md)); R1.2a.2's guard against moving anything out of a
+Next cue is lifted there.
 
 A flag marks BOTH the end of the preceding segment and the start of the segment waiting
 for its command. Play/Take runs In and parks at the first flag. At a Step flag, Next plays
@@ -317,6 +319,8 @@ Minimum one-frame nonempty segments, ordered flags and collision checks keep sou
 Set Out at playhead is the first flag move built this way (R1.2a.1): crossed tracks split at the
 boundary with the shared exact split, a copy of the boundary value starts the exit, visibility
 bars are clipped and carried, and a crossed track whose Out keys start with a jump refuses.
+The exit itself is the one exception to absolute times: it belongs to the Out flag (owner decision
+2026-09-30, D01) and starts where the flag's unfinished motion ends.
 Step flags follow in R1.2a.4 with the same cut (`holdAt`, `cutTracks`, `cutBars` in
 `animEdit.ts`): Add Step splits a cue, Delete joins two and removes only what a split wrote, and
 a drag is a join then a split, so Add Step then Delete returns the source byte for byte.
@@ -375,7 +379,22 @@ reverse/manual choice is not offered for it.
 
 Owner decision 2026-09-29 for the Step/Next phase: at the last step Out plays its authored
 animation from the held pose; at an earlier step it never plays an unreached cue's motion (see
-D02). Until then, Set Out moves nothing out of a Next cue.
+D02).
+
+Owner decision 2026-09-30, implemented in R1.2a.5 ([spec](research/editor-r1-2a-5/README.md)):
+the exit belongs to the Out flag. The flag is where Out is triggered, and pressing Out plays the
+timeline from there; the exit keeps its own timing relative to the flag, so it starts the moment
+Out is pressed, whichever way the flag moves, and no motion is ever cut. Out later: the exit moves
+with the flag and the graphic simply holds longer (this replaces R1.2a.1's refusal to cross an Out
+key). Out earlier into still air: the exit moves with the flag, with no pause between the press
+and the exit. Out earlier into motion that has not finished (the entrance or the last Step's cue):
+the 2026-09-28 rule stands, the unfinished motion is carried into Out and plays first, and the
+exit starts the moment it ends, never while it is still playing. Timing designed into the exit (a
+stagger, a beat before it starts) is kept; only the stillness moving the flag creates or removes
+changes, and the exit's visibility bars keep their timing from the exit's start. Out remembers how
+long its carried motion lasts, so moving the flag back rejoins that motion to its cue. Acceptance
+is no longer "In then Out matches the original on the ruler": pressing Out plays the unfinished
+motion exactly, then the exit exactly, with no pause between. Set Out may cross out of a Next cue.
 
 For simple In over [a,b], mirror each key to outStart + (b - keyTime), preserve stagger and
 values, and reverse easing as E_rev(u) = 1 - E(1-u). Reverse Hold discontinuities exactly;
@@ -422,7 +441,9 @@ reversed Hold) jumps where its own segment starts, as the settled exit does (R1.
 decision 2026-09-29, implemented in R1.2a.3: Out pressed at an earlier step (a Next cue not yet
 played) animates each visible layer from its live pose to its end-of-Out pose by this policy,
 even when the cue's timeline has finished, and layers from unreached steps stay hidden. Machine
-graphics keep their own exit from every state.
+graphics keep their own exit from every state. With the owner's 2026-09-30 Out-flag decision
+(R1.2a.5), motion Set Out carried into Out belongs to the last step's cue, which an earlier step
+never reached: Out pressed there skips the carried time, so the exit starts at the press.
 
 The simulator and emitted packages must use this policy. A capability marker in the emitted
 interpreter makes the writer re-emit the owned animation region when upgrading older source,
