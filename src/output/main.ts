@@ -225,7 +225,10 @@ async function boot(): Promise<void> {
     dbg('ready', outputStateWords(readiness()));
     presence.touch();
   };
+  /** Graphics whose document has loaded (or been released on a fallback face). */
+  const released = new Set<string>();
   stage.onLoaded((graphic) => {
+    released.add(graphic);
     void recovered.then(async () => {
       const data = touched.has(graphic) ? null : (firstCue.get(graphic) ?? null);
       const answer = await stage.warm(graphic, data);
@@ -241,13 +244,15 @@ async function boot(): Promise<void> {
     });
   });
   /** A document that never loads and never says why (a script that never returns) must not read
-   *  as preparing for ever: after this long it is not prepared, and if it answers later its check
-   *  replaces that. §5.2 measured 1.4 to 3 s from open to ready. */
+   *  as preparing for ever: after this long it is not prepared, and if it loads later its check
+   *  replaces that. §5.2 measured 1.4 to 3 s from open to ready. Only a document that has not
+   *  loaded: one that has is waiting for the recovery or its warm answer, which has its own limit
+   *  (stage.ts WARM_ANSWER_MS). */
   const NEVER_LOADED_MS = 20_000;
   setTimeout(() => {
     let changed = false;
     for (const graphic of stage.graphics) {
-      if (checks.has(graphic)) continue;
+      if (checks.has(graphic) || released.has(graphic)) continue;
       checks.set(graphic, { done: true, error: stage.errors.get(graphic) ?? null, silent: true, fontsFailed: [], fontsLoading: [], imagesBroken: [] });
       changed = true;
     }

@@ -210,6 +210,8 @@ export function createOutputStage(
   const errors = new Map<string, string>();
   const errorCbs: ((graphic: string) => void)[] = [];
   const loadedCbs: ((graphic: string) => void)[] = [];
+  /** Warm passes asked for before their document loaded: their answer clocks start at the load. */
+  const armOnLoad = new Map<string, (() => void)[]>();
   /** Warm passes waiting for their document's answer, per graphic, oldest first. */
   const warming = new Map<string, ((answer: PreviewReadyMessage | null) => void)[]>();
   const release = (graphic: string) => {
@@ -221,7 +223,9 @@ export function createOutputStage(
     pending.delete(graphic);
     for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
     if (loaded.size === frames.size) resolveLoaded();
-    for (const cb of [...loadedCbs]) cb(graphic);
+    for (const arm of armOnLoad.get(graphic) ?? []) arm();
+    armOnLoad.delete(graphic);
+    for (const cb of loadedCbs) cb(graphic);
   };
   const post = (graphic: string, cmd: PreviewCmd) => {
     if (!loaded.has(graphic)) {
@@ -449,7 +453,7 @@ export function createOutputStage(
         warming.set(graphic, [...(warming.get(graphic) ?? []), settle]);
         post(graphic, data ? { cmd: 'warm', data: JSON.stringify(data) } : { cmd: 'warm' });
         if (loaded.has(graphic)) arm();
-        else loadedCbs.push((key) => key === graphic && arm());
+        else armOnLoad.set(graphic, [...(armOnLoad.get(graphic) ?? []), arm]);
       }),
     whenLoaded: () =>
       foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,

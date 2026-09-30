@@ -42,7 +42,7 @@ const MAX_OUTPUTS = 16;
 function readOutputs(value: unknown): RememberedOutput[] {
   if (!Array.isArray(value)) return [];
   const out: RememberedOutput[] = [];
-  for (const item of value.slice(0, MAX_OUTPUTS)) {
+  for (const item of value.slice(-MAX_OUTPUTS)) {
     const o = item as Partial<RememberedOutput> | null;
     if (o && typeof o.id === 'string' && typeof o.name === 'string' && typeof o.seen === 'number') {
       out.push({ id: o.id.slice(0, 40), name: o.name.slice(0, 80), seen: o.seen });
@@ -82,7 +82,8 @@ export function saveReadyMemory(productionId: string, memory: ReadyMemory): void
     }
     localStorage.setItem(
       keyFor(productionId),
-      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(0, MAX_OUTPUTS), stamp: memory.stamp }),
+      // The newest are kept: the list grows at its end (control/readiness.ts rememberOutputs).
+      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp }),
     );
   } catch {
     // Nowhere to keep it: remembered for as long as the page is open.

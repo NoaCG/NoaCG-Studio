@@ -29,7 +29,16 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { createPresenceGate } from './presenceGate';
-import { readOutputReady, type ExpectedOutput, type HeldVersion, type OutputReady, type ReadyStamp } from './readiness';
+import {
+  oneEntryPerOutput,
+  readHeld,
+  readOutputReady,
+  readReadyStamp,
+  type ExpectedOutput,
+  type HeldVersion,
+  type OutputReady,
+  type ReadyStamp,
+} from './readiness';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -436,18 +445,14 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
   const text = (v: unknown, fallback: string) => (typeof v === 'string' ? v.slice(0, 80) : fallback);
   const ready = readOutputReady(m.ready);
-  const version = (v: unknown): HeldVersion | undefined => {
-    const h = v as Partial<HeldVersion> | null;
-    return h && typeof h === 'object' && typeof h.n === 'number' && typeof h.h === 'string' ? { n: h.n, h: h.h.slice(0, 40) } : undefined;
-  };
-  const pub = version(m.pub);
+  const pub = readHeld(m.pub);
   const exp = Array.isArray(m.exp)
     ? m.exp
         .slice(0, 16)
         .filter((e): e is ExpectedOutput => !!e && typeof e.id === 'string' && typeof e.name === 'string')
         .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
     : undefined;
-  const stamp = readStamp(m.stamp);
+  const stamp = readReadyStamp(m.stamp);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -467,30 +472,27 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   };
 }
 
-function readStamp(value: unknown): ReadyStamp | undefined {
-  const s = value as Partial<ReadyStamp> | null;
-  if (!s || typeof s !== 'object' || typeof s.at !== 'number') return undefined;
-  const v = s.v as Partial<HeldVersion> | undefined;
-  if (!v || typeof v.n !== 'number' || typeof v.h !== 'string') return undefined;
-  const count = (n: unknown) => (typeof n === 'number' && n >= 0 ? Math.floor(n) : 0);
-  return { at: s.at, v: { n: v.n, h: v.h.slice(0, 40) }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
-}
-
 /**
- * THE EXPECTED OUTPUTS the production pages on the topic announced, merged into this page's own
- * (`mine`): the hosted page and the phone count the outputs the production page expects. `seen` is
- * the announcing page's clock, close enough for "not answering (3 min)"; for an output both know,
- * the later sighting wins.
+ * THE OUTPUTS THIS PAGE EXPECTS, given what it remembers itself (`mine`) and what the production
+ * pages on the topic announce. While a production page announces a list, even an empty one, that
+ * list is the answer: it is where outputs are forgotten, so the hosted page and the phone count
+ * exactly the outputs the production page expects. `mine` then only lends its sightings (this
+ * page's clock, the later one wins). With no production page on the topic, `mine` is the answer.
  */
 export function withAnnouncedOutputs(mine: readonly ExpectedOutput[], entries: readonly LiveEntry[]): ExpectedOutput[] {
-  const out = mine.map((e) => ({ ...e }));
-  for (const entry of entries) {
-    if (entry.kind !== 'operator' || !entry.exp) continue;
-    for (const e of entry.exp) {
+  const announcing = entries.filter((entry) => entry.kind === 'operator' && entry.exp);
+  if (announcing.length === 0) return mine.map((e) => ({ ...e }));
+  const out: ExpectedOutput[] = [];
+  for (const entry of announcing) {
+    for (const e of entry.exp ?? []) {
       const known = out.find((o) => o.id === e.id);
       if (!known) out.push({ ...e });
       else if (e.seen > known.seen) known.seen = e.seen;
     }
+  }
+  for (const own of mine) {
+    const known = out.find((o) => o.id === own.id);
+    if (known && own.seen > known.seen) known.seen = own.seen;
   }
   return out;
 }
@@ -687,22 +689,6 @@ function describeOutput(o: LiveEntry): string {
     `${o.engine}${o.build ? `, build ${o.build}` : ''}: connected now, ${roads}` +
     `${typeof p50 === 'number' ? `, press to screen about ${p50} ms` : ''}.`
   );
-}
-
-/**
- * The outputs among the peers, ONE PER INSTANCE, the newest entry winning. A reloaded browser
- * source keeps its instance id (session storage), and a page that was on the topic before the
- * reload can hold the old entry beside the new one for a while (seen on the preview branch: the
- * dashboard read "2 outputs" for one renderer reloaded 20 s earlier). One id is one renderer.
- */
-function oneEntryPerOutput(peers: LiveEntry[]): LiveEntry[] {
-  const byId = new Map<string, LiveEntry>();
-  for (const p of peers) {
-    if (p.kind !== 'output') continue;
-    const held = byId.get(p.id);
-    if (!held || p.at > held.at) byId.set(p.id, p);
-  }
-  return [...byId.values()];
 }
 
 const NOT_LOADED_WHY =

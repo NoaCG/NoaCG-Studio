@@ -133,7 +133,8 @@ test('an output that should be there and is not is red once it has been gone lon
   ];
   const leaving = read({ expected });
   assert.equal(leaving.summary.tone, 'idle');
-  assert.equal(leaving.outputs[0].state, 'CasparCG 1-20 not answering (5 s)');
+  assert.equal(leaving.outputs[0].state, 'not answering (5 s)');
+  assert.equal(leaving.summary.label, '○ CasparCG 1-20 not answering (5 s)');
   const dead = read({ expected: [{ ...expected[0], seen: NOW - 40_000 }, expected[1]] });
   assert.equal(dead.summary.tone, 'bad');
   assert.equal(dead.summary.label, '✕ CasparCG 1-20 not answering (40 s) · 1 of 2 outputs ready');

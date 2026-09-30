@@ -64,6 +64,11 @@ From the owner's decisions of 2026-09-29 (decision 5) and the session prompt of 
   with what to do. Nothing reloads outside Prepare for Live. This is the whole-output form of
   last-known-good; per-graphic switching is Step 4. Revert: outputs ignore the request and read
   Behind; the operator reloads them by hand.
+- **R4a. Presence is a status plane, not a trust boundary.** Every holder of one of the
+  production's links can read and write entries on its live topic (D3), so a holder could put a
+  wrong status on the READY line (a newer published version, which makes outputs read behind, or
+  an output that is not there). Nothing they announce can air, block a verb, or reload an output
+  onto anything but the version the server holds. Accepted as Step 1 accepted it.
 - **R4. The request travels on Presence, not the command road.** The production page's own
   Presence entry carries `prep: {id, n, h}`. It is not an airing command (D12 keeps those off
   Presence), and a spoofed one can do no more than a real one: an output re-reads the published

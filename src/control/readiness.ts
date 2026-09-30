@@ -155,7 +155,8 @@ export function readOutputReady(value: unknown): OutputReady | undefined {
   };
 }
 
-function readHeld(value: unknown): HeldVersion | null {
+/** A held version off the wire, or null. */
+export function readHeld(value: unknown): HeldVersion | null {
   const v = value as Partial<HeldVersion> | null;
   return v && typeof v === 'object' && typeof v.n === 'number' && typeof v.h === 'string' ? { n: v.n, h: v.h.slice(0, 40) } : null;
 }
@@ -174,6 +175,16 @@ function readIssues(value: unknown): ReadyIssue[] {
     });
   }
   return out;
+}
+
+/** A Prepare for Live stamp off the wire, or undefined. */
+export function readReadyStamp(value: unknown): ReadyStamp | undefined {
+  const s = value as Partial<ReadyStamp> | null;
+  if (!s || typeof s !== 'object' || typeof s.at !== 'number') return undefined;
+  const v = readHeld(s.v);
+  if (!v) return undefined;
+  const count = (n: unknown) => (typeof n === 'number' && n >= 0 ? Math.floor(n) : 0);
+  return { at: s.at, v, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
 }
 
 function readChange(value: unknown): ChangePrep | undefined {
@@ -294,7 +305,7 @@ export interface OutputLine {
   id: string;
   name: string;
   tone: ReadyTone;
-  /** The headline, in the plan's words. */
+  /** The headline, in the plan's words; a gone output's reads after its name ("not answering (40 s)"). */
   state: string;
   /** Everything else worth knowing: what fails and what to do, the engine, the version. */
   detail: string[];
@@ -339,8 +350,14 @@ function clockWords(at: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** The outputs among `peers`, one per instance, the newest entry winning (livePath.ts says why). */
-function outputsOf(peers: readonly LiveEntry[]): LiveEntry[] {
+/**
+ * The outputs among the peers, ONE PER INSTANCE, the newest entry winning. A reloaded browser
+ * source keeps its instance id (session storage), and a page that was on the topic before the
+ * reload can hold the old entry beside the new one for a while (seen on the preview branch: the
+ * dashboard read "2 outputs" for one renderer reloaded 20 s earlier). One id is one renderer.
+ * Step 1's health line and READY count them by this one rule.
+ */
+export function oneEntryPerOutput(peers: readonly LiveEntry[]): LiveEntry[] {
   const byId = new Map<string, LiveEntry>();
   for (const p of peers) {
     if (p.kind !== 'output') continue;
@@ -378,7 +395,7 @@ export function rememberOutputs(
   wasPresent: ReadonlySet<string> = new Set(),
 ): ExpectedOutput[] {
   const next = expected.map((e) => ({ ...e }));
-  const here = outputsOf(present);
+  const here = oneEntryPerOutput(present);
   const ids = new Set(here.map((o) => o.id));
   for (const e of next) if (wasPresent.has(e.id) && !ids.has(e.id)) e.seen = now;
   for (const o of here) {
@@ -512,7 +529,7 @@ export function describeReadiness(input: {
     outputs: [],
   });
   if (input.presence !== 'joined') return fallbackView();
-  const present = outputsOf(input.peers);
+  const present = oneEntryPerOutput(input.peers);
   const published = newestVersion(input.published, ...present.map((o) => o.ready?.v));
   const presentIds = new Set(present.map((o) => o.id));
   const gone = input.expected.filter((e) => !presentIds.has(e.id));
@@ -537,7 +554,7 @@ export function describeReadiness(input: {
         id: e.id,
         name: e.name,
         tone: late ? 'bad' : 'idle',
-        state: `${e.name} not answering${e.seen > 0 ? ` (${ageWords(age)})` : ''}`,
+        state: `not answering${e.seen > 0 ? ` (${ageWords(age)})` : ''}`,
         detail: [
           late
             ? 'It was connected and is gone. Check that its browser source or CasparCG layer is still open on the output URL, or forget it if it is not coming back.'
@@ -553,7 +570,6 @@ export function describeReadiness(input: {
     const n = (seen.get(line.name) ?? 0) + 1;
     seen.set(line.name, n);
     if (n > 1) {
-      if (!line.present) line.state = line.state.replace(line.name, `${line.name} #${n}`);
       line.name = `${line.name} #${n}`;
     }
   }
@@ -561,7 +577,9 @@ export function describeReadiness(input: {
   const total = lines.length;
   const readyCount = lines.filter((l) => l.tone === 'ok').length;
   const of = `${readyCount} of ${total} output${total === 1 ? '' : 's'}`;
-  const prefix = (line: OutputLine) => (total > 1 && line.present ? `${line.name}: ` : '');
+  // A gone output's state is about it by name ("CasparCG 1-20 not answering (40 s)"); a present
+  // one's is prefixed with its name only when there is more than one to tell apart.
+  const headline = (line: OutputLine) => (!line.present ? `${line.name} ${line.state}` : total > 1 ? `${line.name}: ${line.state}` : line.state);
   const why = lines.map((l) => `${l.name}: ${l.state}.${l.detail.length ? ` ${l.detail[0]}` : ''}`).join('\n');
   const summary = (tone: ReadyTone, label: string, short: string): ReadinessView => ({
     summary: { tone, label, short, why, show: true, outputs: total, ready: readyCount, source: 'ready' },
@@ -569,9 +587,9 @@ export function describeReadiness(input: {
   });
 
   const bad = lines.filter((l) => l.tone === 'bad');
-  if (bad.length > 0) return summary('bad', `✕ ${bad[0].state} · ${of} ready`, `✕ ${readyCount}/${total} ready`);
+  if (bad.length > 0) return summary('bad', `✕ ${headline(bad[0])} · ${of} ready`, `✕ ${readyCount}/${total} ready`);
   const warn = lines.filter((l) => l.tone === 'warn');
-  if (warn.length > 0) return summary('warn', `▲ ${prefix(warn[0])}${warn[0].state}`, `▲ ${readyCount}/${total} ready`);
+  if (warn.length > 0) return summary('warn', `▲ ${headline(warn[0])}`, `▲ ${readyCount}/${total} ready`);
   const preparing = present
     .filter((o) => o.ready && o.ready.n < o.ready.of)
     .sort((a, b) => a.ready!.n / Math.max(1, a.ready!.of) - b.ready!.n / Math.max(1, b.ready!.of));
@@ -580,7 +598,7 @@ export function describeReadiness(input: {
     return summary('idle', `○ Preparing ${r.n} of ${r.of}`, `○ ${r.n}/${r.of}`);
   }
   const idle = lines.filter((l) => l.tone === 'idle');
-  if (idle.length > 0) return summary('idle', `○ ${prefix(idle[0])}${idle[0].state}`, `○ ${readyCount}/${total} ready`);
+  if (idle.length > 0) return summary('idle', `○ ${headline(idle[0])}`, `○ ${readyCount}/${total} ready`);
   const changing = lines.find((l) => l.state.indexOf('preparing') >= 0);
   if (changing) return summary('ok', `● ${changing.state}`, `● Ready ${readyCount}/${total}`);
   const stamp = input.stamp;

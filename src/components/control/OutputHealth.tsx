@@ -33,6 +33,9 @@ import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import LibMenu from '../home/LibMenu';
 
 export interface LivePresenceView {
+  /** The production this view is of: the production page is reused when the route moves to
+   *  another, and a view still holding the last one's peers must not be read as this one's. */
+  showId: string | null;
   status: LivePresenceStatus;
   /** The outputs on the topic. */
   peers: LiveEntry[];
@@ -51,7 +54,7 @@ export interface LiveAnnouncement {
   stamp?: ReadyStamp | null;
 }
 
-const EMPTY_VIEW: LivePresenceView = { status: 'off', peers: [], operators: [], outputLeftAt: null };
+const EMPTY_VIEW: LivePresenceView = { showId: null, status: 'off', peers: [], operators: [], outputLeftAt: null };
 
 /**
  * THIS OPERATOR PAGE ON THE PRODUCTION'S LIVE TOPIC: it announces itself (its engine, build,
@@ -79,9 +82,11 @@ export function useLivePresence(
       showId,
       entry: () => {
         const a = announceRef.current;
+        // `exp` is sent even when it is empty: "I expect no output" is what lets a Forget on the
+        // production page reach the phone (livePath.ts withAnnouncedOutputs).
         return liveEntry('operator', surface, roadsRef.current, senderCounters(), {
           ...(a.pub ? { pub: a.pub } : {}),
-          ...(a.exp && a.exp.length ? { exp: a.exp } : {}),
+          ...(a.exp ? { exp: a.exp } : {}),
           ...(a.stamp ? { stamp: a.stamp } : {}),
         });
       },
@@ -93,12 +98,13 @@ export function useLivePresence(
           const had = v.peers.length > 0;
           return {
             ...v,
+            showId,
             peers: outputs,
             operators,
             outputLeftAt: outputs.length > 0 ? null : had ? Date.now() : v.outputLeftAt,
           };
         }),
-      onStatus: (status) => setView((v) => (v.status === status ? v : { ...v, status })),
+      onStatus: (status) => setView((v) => (v.status === status && v.showId === showId ? v : { ...v, showId, status })),
     });
     presenceRef.current = presence;
     // A failed send is worth announcing; a successful one rides the next entry this page sends.
@@ -174,7 +180,7 @@ export function useExpectedOutputs(
     setExpected(showId && persist ? loadReadyMemory(showId).outputs : []);
     wasPresent.current = new Set();
   }, [showId, persist]);
-  const joined = presence.status === 'joined';
+  const joined = presence.status === 'joined' && presence.showId === showId;
   const peers = presence.peers;
   useEffect(() => {
     if (!joined || !showId) return;
@@ -263,7 +269,9 @@ export function ReadyLine({
 }) {
   const [open, setOpen] = useState(false);
   const operators = presence.operators;
-  const allExpected = useMemo(() => withAnnouncedOutputs(expected, operators), [expected, operators]);
+  // A page that keeps the list (the production page, where Forget is) answers for itself; the
+  // hosted page counts what the production page announces.
+  const allExpected = useMemo(() => (onForget ? expected : withAnnouncedOutputs(expected, operators)), [expected, operators, onForget]);
   const presentIds = new Set(presence.peers.map((p) => p.id));
   const someGone = presence.status === 'joined' && allExpected.some((e) => !presentIds.has(e.id));
   const tick = useTick(someGone);
@@ -336,7 +344,7 @@ export function ReadyLine({
                   )}
                 </div>
                 <div className="pd-ready-state" data-testid="ready-state">
-                  {line.present || line.state.indexOf(line.name) !== 0 ? line.state : line.state.slice(line.name.length + 1)}
+                  {line.state}
                 </div>
                 {line.detail.map((d, i) => (
                   <div key={i} className="pd-ready-detail">
