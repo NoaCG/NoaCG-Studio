@@ -32,7 +32,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { packShards } from './e2e-affected.mjs';
+import { minutesFor, packShards } from './e2e-affected.mjs';
 import { minutesByFile, predictShardMinutes, readTable, SHARD_SAFETY_MINUTES, specFilesOnDisk } from './e2e-durations.mjs';
 import { unfinishedByFile } from './nightly-triage.mjs';
 
@@ -75,11 +75,7 @@ export function planNightly({ suite, table, reports = [], shards = NIGHTLY_SHARD
   const measured = nightlyMinutes(reports);
   const weights = { ...table, minutes: { ...table.minutes, ...measured } };
   const shardSpecs = packShards(suite, shards, weights);
-  const median = medianOf(Object.values(weights.minutes));
-  const worth = (spec) => weights.minutes[spec] ?? median;
-  const predicted = shardSpecs.map((bin) =>
-    Number(predictShardMinutes(bin.reduce((sum, spec) => sum + worth(spec), 0), weights).toFixed(1)),
-  );
+  const predicted = shardSpecs.map((bin) => Number(predictShardMinutes(minutesFor(bin, weights), weights).toFixed(1)));
   const fromNightly = suite.filter((s) => s in measured).length;
   const fromTable = suite.filter((s) => !(s in measured) && s in table.minutes).length;
   return {
@@ -88,11 +84,6 @@ export function planNightly({ suite, table, reports = [], shards = NIGHTLY_SHARD
     predicted,
     weights: { nightly: fromNightly, table: fromTable, median: suite.length - fromNightly - fromTable },
   };
-}
-
-function medianOf(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
