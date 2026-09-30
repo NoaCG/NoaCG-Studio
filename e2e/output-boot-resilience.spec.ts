@@ -54,6 +54,15 @@ async function standInBackend(page: Page, production: unknown): Promise<{ resolv
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const path = new URL(req.url()).pathname;
     let body: unknown = null;
+    if (path.endsWith('/rpc/control_output_resolve')) {
+      // A server without the sequence road (migration 0071): PostgREST has no such function, so
+      // the renderer asks today's resolve below, as it does against any unmigrated server.
+      return route.fulfill({
+        status: 404,
+        headers: { ...CORS, 'content-type': 'application/json' },
+        body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: 'Could not find the function public.control_output_resolve' }),
+      });
+    }
     if (path.endsWith('/rpc/control_output_by_slug')) {
       seen.resolves += 1;
       body = production ? [production] : [];

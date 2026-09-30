@@ -32,7 +32,9 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset - configured-mode spec');
 
 const WIRE = { timeout: 30_000 };
-const REPORT_RPC = '**/rpc/control_output_report';
+// Both report RPCs: `control_output_report` on the id road, `control_output_report_seq` on the
+// numbered log (migration 0071), whichever the renderer negotiated with this server.
+const REPORT_RPC = '**/rpc/control_output_report*';
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
 type Letter = (typeof LETTERS)[number];
 type Variant = 'settled' | 'fast' | 'rekey';

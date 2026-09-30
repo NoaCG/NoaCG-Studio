@@ -12,13 +12,18 @@ import { isBackendConfigured } from '../backend/config';
 import {
   CONTROL_POLL_MS,
   CONTROL_TAIL_PAGE,
-  controlOutputBySlug,
   controlOutputReport,
+  controlOutputReportSeq,
+  controlOutputResolve,
   controlOutputSeen,
   controlOutputTail,
+  controlOutputTailSeq,
   followControlLog,
+  followSeqLog,
   untilAnswered,
   type ControlEventRow,
+  type ControlFollowStatus,
+  type RpcAnswer,
 } from '../control/hostedControl';
 import {
   clockRowEffect,
@@ -44,7 +49,8 @@ import {
   type LivePresenceStatus,
   type LiveRoad,
 } from '../control/livePath';
-import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
+import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
+import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
 import { createOutputStage, heldLine } from './stage';
 
@@ -148,6 +154,8 @@ async function boot(): Promise<void> {
   // ANSWER decides now; a failure is retried for good, because a browser source has nothing to
   // degrade to and no one to tell.
   //
+  // Protocol 2 first (migration 0071), today's resolve when the server has no sequence road.
+  //
   // A THROW here is the client library's chunk failing to load (supabase-js is fetched on
   // demand; a failed RPC answers, it does not throw). It is retried like any other failure, but
   // two things mean a retry in this document cannot fetch it: Chromium, which every playout
@@ -160,7 +168,7 @@ async function boot(): Promise<void> {
   const answer = await untilAnswered(
     async () => {
       try {
-        const result = await controlOutputBySlug(outputSlug);
+        const result = await controlOutputResolve(outputSlug);
         thrown = 0;
         return result;
       } catch (err) {
@@ -262,8 +270,21 @@ async function boot(): Promise<void> {
   // the log, never its head — the head would count commands nobody has ever rendered as already
   // on air. The whole rule, and why, is `control/outputRecovery.ts`; it lives out there so an
   // offline spec can drive it. ──
-  const { followFrom, snapshotAt } = planOutputRecovery(stage.graphics, resolved.live);
-  let lastAppliedId = followFrom;
+  //
+  // PROTOCOL 2 (migration 0071) reads the same rule in the per-production SEQUENCE, unless this
+  // production still holds rows written before the migration that this renderer would need
+  // (`legacy`): those carry no number, so it follows by id for this whole session, exactly as
+  // before, and its reports move the baselines past them. `lastAppliedId` stays the highest id
+  // applied either way: it is the baseline an older renderer or page reads from a report.
+  const seqMode = resolved.seq && !resolved.seq.legacy ? resolved.seq : null;
+  let followEpoch = seqMode?.epoch ?? null;
+  dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
+  const byId = planOutputRecovery(stage.graphics, resolved.live);
+  const { followFrom, snapshotAt } = seqMode ? planOutputRecovery(stage.graphics, seqBaselines(resolved.live)) : byId;
+  let lastAppliedId = byId.followFrom;
+  let lastAppliedSeq = seqMode ? followFrom : 0;
+  /** Where a row sits in the log this renderer follows. */
+  const position = (row: ControlEventRow) => (seqMode ? (row.seq ?? 0) : row.id);
 
   // ── Applied-truth bookkeeping (the panel event-log pattern, parent-side): the sandbox has
   // no DOM to harvest across, so the renderer reports what it FORWARDED — update data merged
@@ -275,20 +296,69 @@ async function boot(): Promise<void> {
   const mergedData = new Map<string, Record<string, string>>();
   const lastReported = new Map<string, string>();
   const reportTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  const scheduleReport = (graphic: string) => {
+  /** Reports due even if nothing about the graphic changed (a re-bank, a republish; below). */
+  const forcedReports = new Set<string>();
+  /** Reports due because something about the graphic changed. */
+  const changedReports = new Set<string>();
+  /**
+   * A FORCED REPORT IS NEVER URGENT, so it waits a random 1 to 21 s. Every renderer of a production
+   * applies the same rows, so after a republish, or a boot on baselines a busy feed has left behind,
+   * every renderer would report every graphic in the same second, and those rows used to count
+   * toward the production's 50-commands-in-5-s cap and refuse the operator's Takes (review 3
+   * client:F2). Spread, and dropped when another renderer banks the graphic first (`apply`), a
+   * production's re-banks become a trickle. A change still reports in 800 ms, as it always did.
+   */
+  const FORCED_SPREAD_MS = 20_000;
+  const scheduleReport = (graphic: string, force = false) => {
+    if (force) {
+      forcedReports.add(graphic);
+      // A change already on its way carries the bank with it.
+      if (changedReports.has(graphic)) return;
+    } else {
+      changedReports.add(graphic);
+    }
     clearTimeout(reportTimers.get(graphic));
     reportTimers.set(
       graphic,
-      setTimeout(() => {
-        const data = mergedData.get(graphic) ?? {};
-        const state = stage.states.get(graphic) ?? null;
-        // Byte-identical truth needs no second write (the 1 s state poll answers every second).
-        const key = JSON.stringify([data, state]);
-        if (key === lastReported.get(graphic)) return;
-        lastReported.set(graphic, key);
-        void controlOutputReport(outputSlug, graphic, data, state, lastAppliedId);
-      }, 800),
+      setTimeout(
+        () => {
+          reportTimers.delete(graphic);
+          changedReports.delete(graphic);
+          const data = mergedData.get(graphic) ?? {};
+          const state = stage.states.get(graphic) ?? null;
+          // Byte-identical truth needs no second write (the 1 s state poll answers every second),
+          // unless the write is due for its baseline.
+          const key = JSON.stringify([data, state]);
+          const forced = forcedReports.delete(graphic);
+          if (!forced && key === lastReported.get(graphic)) return;
+          lastReported.set(graphic, key);
+          if (seqMode) banked(graphic);
+          void (seqMode
+            ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
+            : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
+        },
+        force ? 1_000 + Math.floor(Math.random() * FORCED_SPREAD_MS) : 800,
+      ),
     );
+  };
+  /**
+   * NO BASELINE GROWS OLD (protocol 2; review 2 recovery:F1). A boot follows from the OLDEST
+   * graphic's baseline, and a report is written only when a graphic changes, so a graphic taken
+   * once and left alone (a bug, a logo) would hold every later boot of every renderer at its Take,
+   * and a long show's reboot would read the whole retained log before painting. So every graphic
+   * that holds a report is reported again once REBANK_AFTER COMMAND rows have been applied past its
+   * bank, changed or not: `lastAppliedSeq` is the contiguous cursor, so what it banks is a true
+   * baseline, and a reboot reads about REBANK_AFTER rows at most on top of its own gap. Report rows
+   * (`live`) do not count, or re-banks would feed themselves once renderers times graphics reached
+   * the threshold; and ANY renderer's report of a graphic is its bank, so one renderer banks it.
+   */
+  const REBANK_AFTER = 500;
+  /** Per graphic that holds a report: the seq of its bank, and the command rows applied since. */
+  const bankedAt = new Map<string, number>(seqMode ? snapshotAt : []);
+  const sinceBank = new Map<string, number>([...bankedAt.keys()].map((graphic) => [graphic, 0]));
+  const banked = (graphic: string, at = lastAppliedSeq) => {
+    bankedAt.set(graphic, at);
+    sinceBank.set(graphic, 0);
   };
   stage.onState((graphic) => scheduleReport(graphic));
 
@@ -345,11 +415,15 @@ async function boot(): Promise<void> {
   const applied = createAppliedOnce();
   // `road` is set for what the LIVE follow delivers and absent for the boot catch-up, whose rows
   // are history rather than latency (livePath.ts counts and times the former only).
+  // `animate` false is an entrance a later `play` or `stop` of the same graphic in the same refill
+  // replaces (seqFollow.ts `supersededAnimations`): everything about the row applies except the
+  // stage animation nobody would see finish.
   const applyCommand = (
     graphic: string,
     incoming: ControlEventRow['msg'],
     createdAt: string | undefined,
     road?: LiveRoad,
+    animate = true,
   ) => {
     const receivedAt = Date.now();
     if (road) live.received(road, incoming);
@@ -421,20 +495,48 @@ async function boot(): Promise<void> {
     // it actually started. `rowInstant` is the match clock's own derivation, reused rather than
     // re-guessed: a server row's `created_at` wins, and a locally-authored row falls back to now,
     // which is correct there because that log has exactly one renderer.
-    stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
+    if (animate) {
+      stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
+      if (msg.t === 'play') countPlay();
+    }
     if (road) live.applied(road, incoming, receivedAt);
-    if (msg.t === 'play') countPlay();
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
 
-  const apply = (row: ControlEventRow, road?: LiveRoad) => {
+  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true) => {
+    // The id baseline is the highest id applied on either road: that is what an older reader of
+    // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
+    if (seqMode) {
+      const seq = row.seq ?? 0;
+      lastAppliedSeq = Math.max(lastAppliedSeq, seq);
+      if (row.msg.t === 'live') {
+        // A renderer's report of this graphic, this one's or another's, is its bank; a forced
+        // report of it still waiting here is no longer needed (a change still reports).
+        banked(row.graphic, seq);
+        if (forcedReports.has(row.graphic) && !changedReports.has(row.graphic)) {
+          clearTimeout(reportTimers.get(row.graphic));
+          reportTimers.delete(row.graphic);
+          forcedReports.delete(row.graphic);
+        }
+      } else {
+        for (const [graphic, at] of bankedAt) {
+          // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
+          if (seq <= at) continue;
+          const since = (sinceBank.get(graphic) ?? 0) + 1;
+          sinceBank.set(graphic, since);
+          if (since < REBANK_AFTER) continue;
+          banked(graphic);
+          scheduleReport(graphic, true);
+        }
+      }
+    }
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
-    if (alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return;
-    applyCommand(row.graphic, row.msg, row.created_at, road);
+    if (alreadyInSnapshot(snapshotAt, row.graphic, position(row))) return;
+    applyCommand(row.graphic, row.msg, row.created_at, road, animate);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
     const t = row.msg.t;
@@ -453,7 +555,7 @@ async function boot(): Promise<void> {
     // settles, so it is a cost rather than a fault - but it is a real one and not the ordering the
     // paragraph above describes.
     if (forwarded) scheduleReport(row.graphic);
-    dbg('last row', String(row.id));
+    dbg('last row', seqMode ? `${row.seq ?? '?'} (id ${row.id})` : String(row.id));
   };
 
   // ── Catch-up: everything commanded while this renderer was gone. Fetched BEFORE the rebuild
@@ -469,10 +571,21 @@ async function boot(): Promise<void> {
   // the local half this one has somewhere to stand if the retries run out - the report baseline
   // is already rebuilt below - so it stops after a few and says so on the debug overlay; the
   // follow's own refill re-reads the same gap on subscribe, on air rather than hidden.
+  // On protocol 2 the pages are numbered; a production republished since the resolve answers
+  // `reset`, which ends the catch-up here and leaves the new log to the follow.
+  const readTail = async (after: number): Promise<RpcAnswer<ControlEventRow[]>> => {
+    if (!seqMode) return controlOutputTail(outputSlug, after);
+    const answer = await controlOutputTailSeq(outputSlug, after, followEpoch);
+    if (!answer.ok) return answer;
+    if (answer.value.reset) return { ok: true, value: [] };
+    // A production with no head at the resolve gets its first epoch here, with these rows.
+    followEpoch ??= answer.value.epoch;
+    return { ok: true, value: answer.value.rows };
+  };
   const missed: ControlEventRow[] = [];
   for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
     const tail = await untilAnswered(
-      () => controlOutputTail(outputSlug, missed.length > 0 ? missed[missed.length - 1].id : followFrom),
+      () => readTail(missed.length > 0 ? position(missed[missed.length - 1]) : followFrom),
       { limit: 6, onRetry: (attempts, error) => dbg('catch-up', `log read failed (${attempts}): ${error}`) },
     );
     if (!tail.ok) {
@@ -484,7 +597,7 @@ async function boot(): Promise<void> {
   }
   const animates = missed.some(
     (row) =>
-      !alreadyInSnapshot(snapshotAt, row.graphic, row.id) &&
+      !alreadyInSnapshot(snapshotAt, row.graphic, position(row)) &&
       (row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event'),
   );
   if (animates) {
@@ -553,61 +666,109 @@ async function boot(): Promise<void> {
   const followStartedAt = Date.now();
   let warnedNotJoined = false;
   dbg('realtime', 'subscribing…');
-  await followControlLog({
-    showId: resolved.id,
-    // Everything up to here is applied — including the catch-up rows replayed above, which is
-    // why this is the applied cursor and not the baseline the catch-up started from.
-    from: lastAppliedId,
-    // The retry lives HERE rather than inside followControlLog: the shared follow takes a plain
-    // list, and a failed read that came back empty would end its refill walk early. Five tries,
-    // then the next hole in the live stream starts the walk again.
-    tail: async (after) => {
-      const tail = await untilAnswered(() => controlOutputTail(outputSlug, after), { limit: 5 });
-      const rows = tail.ok ? tail.value : [];
-      const read = { counted: false };
-      rows.forEach((row) => fromTail.set(row, read));
-      return rows;
-    },
-    onRow: (row) => {
-      const read = fromTail.get(row);
-      if (read && !read.counted) {
-        read.counted = true;
-        live.refilled();
-      }
-      apply(row, read ? 'tail' : 'log');
-    },
-    onHole: () => live.hole(),
-    // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
-    // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
-    // drops whichever copy is second.
-    onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined, 'fast')),
-    // THE FAST ROAD, on the debug overlay, because it is the only place its absence can be seen.
-    // A command channel that never joins costs no correctness - every command still arrives as a
-    // durable row - so nothing goes red and air simply goes back to being a few hundred
-    // milliseconds late. This line is what turns that into something an operator can read out to
-    // whoever asks why the graphics feel slow again.
-    onCommandStatus: (status) => {
-      cmdJoined = status === 'SUBSCRIBED';
-      presence.touch();
-      dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`);
-    },
-    onStatus: ({ status, everJoined }) => {
-      // What the Presence entry says about the log road: joined NOW, not ever.
-      logJoined = status === 'SUBSCRIBED';
-      presence.touch();
-      const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
-      dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);
-      // Only after a full interval with no join: the first status a healthy channel reports can
-      // be CHANNEL_ERROR, and supabase-js rejoins from it within seconds. Warning on that would
-      // teach an operator to ignore this line.
-      if (everJoined || warnedNotJoined || Date.now() - followStartedAt < CONTROL_POLL_MS) return;
-      warnedNotJoined = true;
-      console.warn(
-        `NoaCG output: the Realtime channel has never joined (${status || 'no status'}). ` +
-          `Following the control log by polling every ${poll} — commands can be that late on air.`,
-      );
-    },
-  });
+  const onStatus = ({ status, everJoined }: ControlFollowStatus) => {
+    // What the Presence entry says about the log road: joined NOW, not ever.
+    logJoined = status === 'SUBSCRIBED';
+    presence.touch();
+    const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
+    dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);
+    // Only after a full interval with no join: the first status a healthy channel reports can
+    // be CHANNEL_ERROR, and supabase-js rejoins from it within seconds. Warning on that would
+    // teach an operator to ignore this line.
+    if (everJoined || warnedNotJoined || Date.now() - followStartedAt < CONTROL_POLL_MS) return;
+    warnedNotJoined = true;
+    console.warn(
+      `NoaCG output: the Realtime channel has never joined (${status || 'no status'}). ` +
+        `Following the control log by polling every ${poll} — commands can be that late on air.`,
+    );
+  };
+  if (seqMode) {
+    // THE NUMBERED LOG (hostedControl.ts followSeqLog, seqFollow.ts): in seq order, a gap is a
+    // row in flight and never another production, and a refill applies every row it brings but
+    // elides an entrance a later play or stop of the same graphic replaces. No fast road: the
+    // numbered frame is written by the same transaction as the command frame and arrives with it,
+    // on `seq-<show>`, which is this renderer's log road here. Presence stays on its own topic, so
+    // nothing about Presence (a rate limit that closes its channel) can touch this road.
+    dbg('commands', 'numbered log (the fast road is not needed)');
+    followSeqLog({
+      showId: resolved.id,
+      from: lastAppliedSeq,
+      epoch: followEpoch,
+      tail: async (after, epoch) => {
+        const tail = await untilAnswered(() => controlOutputTailSeq(outputSlug, after, epoch), { limit: 5 });
+        return tail.ok ? tail.value : null;
+      },
+      onRows: (rows, replayed) => {
+        // A tail read hands over only rows that were new here, so each one that does is a refill.
+        if (replayed) live.refilled();
+        const quiet = replayed ? supersededAnimations(rows) : null;
+        for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+      },
+      onHole: () => live.hole(),
+      // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
+      // log numbered from 1, so no baseline this renderer holds means anything in it, and every
+      // graphic that carries something reports again, in the new log, within the forced spread
+      // (and only once across every renderer: the first report banks it for all): the republish
+      // emptied every report, and a graphic still up that the new log never touches would
+      // otherwise come back without it on a reboot. Without `reset` it is the first epoch of the
+      // log already followed.
+      onEpoch: (epoch, reset) => {
+        followEpoch = epoch;
+        if (!reset) return;
+        snapshotAt.clear();
+        lastAppliedSeq = 0;
+        lastReported.clear();
+        bankedAt.clear();
+        sinceBank.clear();
+        for (const graphic of stage.graphics) {
+          if (liveGraphics.has(graphic) || mergedData.has(graphic)) scheduleReport(graphic, true);
+        }
+        dbg('protocol', 'numbered log (proto 2), republished: following the new log from its start');
+      },
+      onStatus,
+    });
+  } else {
+    await followControlLog({
+      showId: resolved.id,
+      // Everything up to here is applied — including the catch-up rows replayed above, which is
+      // why this is the applied cursor and not the baseline the catch-up started from.
+      from: lastAppliedId,
+      // The retry lives HERE rather than inside followControlLog: the shared follow takes a plain
+      // list, and a failed read that came back empty would end its refill walk early. Five tries,
+      // then the next hole in the live stream starts the walk again.
+      tail: async (after) => {
+        const tail = await untilAnswered(() => controlOutputTail(outputSlug, after), { limit: 5 });
+        const rows = tail.ok ? tail.value : [];
+        const read = { counted: false };
+        rows.forEach((row) => fromTail.set(row, read));
+        return rows;
+      },
+      onRow: (row) => {
+        const read = fromTail.get(row);
+        if (read && !read.counted) {
+          read.counted = true;
+          live.refilled();
+        }
+        apply(row, read ? 'tail' : 'log');
+      },
+      onHole: () => live.hole(),
+      // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
+      // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
+      // drops whichever copy is second.
+      onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined, 'fast')),
+      // THE FAST ROAD, on the debug overlay, because it is the only place its absence can be seen.
+      // A command channel that never joins costs no correctness - every command still arrives as a
+      // durable row - so nothing goes red and air simply goes back to being a few hundred
+      // milliseconds late. This line is what turns that into something an operator can read out to
+      // whoever asks why the graphics feel slow again.
+      onCommandStatus: (status) => {
+        cmdJoined = status === 'SUBSCRIBED';
+        presence.touch();
+        dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`);
+      },
+      onStatus,
+    });
+  }
 
   // ── Heartbeat: operator surfaces read output_seen_at staleness as "renderer connected". ──
   void controlOutputSeen(outputSlug);

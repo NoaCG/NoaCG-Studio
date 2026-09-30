@@ -75,10 +75,14 @@ import {
   hostedControlRange,
   hostedControlTail,
   sendControlVerb,
+  sendControlVerbs,
+  staleSentence,
   stageHostedData,
   takeCueItems,
   untilAnswered,
   verbAired,
+  verbStale,
+  verbsLanded,
   withLiveCue,
   type ControlEventRow,
   type ControlSendItem,
@@ -430,6 +434,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         showId: resolved.id,
         from: resolved.lastEventId,
         tail,
+        // The numbered log when the server has it (migration 0071); absent, today's id road.
+        seq: resolved.seq,
         // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
         onCommand: applyCommand,
         // Reported in this page's Presence entry, so an output's operator can be told apart from
@@ -690,11 +696,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // ahead of the rate limit - the log's 50-per-5-s cap is the likeliest way to reach this at all,
   // and "slow down a moment" would tell an operator whose graphic is up that nothing happened.
   const surfaceSendError = (items: ControlSendItem[], e: Error) => {
-    const notice = verbAired(e)
-      ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
-      : /slow down/i.test(e.message)
-        ? 'Too many commands. Slow down a moment.'
-        : `Send failed: ${e.message}`;
+    // A press another screen had already overtaken reached the server and was refused there, so
+    // it is its own sentence: nothing may be "sent again" blindly (protocol 2, migration 0071).
+    const notice = verbStale(e)
+      ? staleSentence(e)
+      : verbAired(e)
+        ? `That is on this monitor only. It may not have reached the screens or the log (${e.message}). Send it again.`
+        : /slow down/i.test(e.message)
+          ? 'Too many commands. Slow down a moment.'
+          : `Send failed: ${e.message}`;
     sendDebts.current.failed(items, notice);
     setError(notice);
   };
@@ -712,7 +722,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * carries the key the cue shows, then lit that older key on air (configured run 36276590046).
    * The stage write now leaves beside the verb, so what remains is the two requests' round trip.
    */
-  const sendVerb = (items: ControlSendItem[]): Promise<boolean> => {
+  const sendVerb = (items: ControlSendItem[], allOut = false): Promise<boolean> => {
     flushTyping.current();
     return sendControlVerb({
       slug,
@@ -720,6 +730,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       items,
       applyHere: applyCommand,
       fastEvents: (graphic) => fastEventGraphics.has(graphic),
+      allOut,
     }).then(
       () => {
         setError(sendDebts.current.landed(items));
@@ -727,6 +738,32 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       },
       (e: Error) => {
         surfaceSendError(items, e);
+        return false;
+      },
+    );
+  };
+
+  /** A press that leaves as several batches (All out over more than four layers, a combined
+   *  press): numbered and based together at the press, sent in order, stopping at the first that
+   *  fails (hostedControl.ts `sendControlVerbs`). Owed, on a failure: the batch that failed. */
+  const sendVerbs = (batches: ControlSendItem[][], allOut = false): Promise<boolean> => {
+    flushTyping.current();
+    return sendControlVerbs({
+      slug,
+      showId: resolved?.id ?? null,
+      batches,
+      applyHere: applyCommand,
+      fastEvents: (graphic) => fastEventGraphics.has(graphic),
+      allOut,
+    }).then(
+      () => {
+        setError(sendDebts.current.landed(batches.flat()));
+        return true;
+      },
+      (e: Error) => {
+        const landed = verbsLanded(e);
+        if (landed > 0) sendDebts.current.landed(batches.slice(0, landed).flat());
+        surfaceSendError(batches[landed] ?? [], e);
         return false;
       },
     );
@@ -912,7 +949,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       return;
     }
     void (async () => {
-      for (const batch of commandBatches(steps)) if (!(await sendVerb(batch))) return;
+      if (!(await sendVerbs(commandBatches(steps)))) return;
       // AFTER the steps went, never before: the figure the whole production follows must not move
       // for a press the log refused.
       await patchBound(tree);
@@ -998,11 +1035,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // one verb - and each batch is its own press as far as the two roads are concerned. It STOPS
     // at the first refusal: the likeliest refusal is the command-rate cap, and pressing on past it
     // spends the rest of the allowance on batches that will be refused too.
-    void (async () => {
-      for (const batch of clearAllCueBatches(liveLayers.map((l) => l.graphic))) {
-        if (!(await sendVerb(batch))) return;
-      }
-    })();
+    void sendVerbs(clearAllCueBatches(liveLayers.map((l) => l.graphic)), true);
   };
 
   // Selecting moves the cursor and nothing else here: `previewedCue` derives what PREVIEW shows
