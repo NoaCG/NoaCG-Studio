@@ -50,10 +50,11 @@ import {
   type LivePresenceStatus,
   type LiveRoad,
 } from '../control/livePath';
-import { outputReadiness, outputStateWords, type GraphicCheck, type HeldVersion } from '../control/readiness';
+import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, type HeldVersion } from '../control/readiness';
 import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
 import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
+import { createPreparer } from './prepare';
 import { createOutputStage, heldLine } from './stage';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
@@ -132,14 +133,18 @@ function unavailable(why: Unavailable): void {
 /** Library-load failures in a row before the boot reloads (about 1.5 s after the first). */
 const RELOAD_AFTER_THROWS = 3;
 
-/** Reload, if this page's own URL answers right now. Otherwise stay put and keep retrying. */
-async function reloadIfServed(): Promise<void> {
+/** Reload, if this page's own URL answers right now; whether it is reloading. Otherwise it stays put. */
+async function reloadIfServed(): Promise<boolean> {
   try {
     const page = await fetch(window.location.href, { cache: 'no-store' });
-    if (page.ok) window.location.reload();
+    if (page.ok) {
+      window.location.reload();
+      return true;
+    }
   } catch {
-    // Unreachable: a reload would paint the browser's error page. The retry goes on.
+    // Unreachable: a reload would paint the browser's error page. The caller carries on.
   }
+  return false;
 }
 
 async function boot(): Promise<void> {
@@ -215,11 +220,13 @@ async function boot(): Promise<void> {
   const firstCue = new Map<string, Record<string, string>>();
   for (const cue of payload.cues) if (!firstCue.has(cue.graphic)) firstCue.set(cue.graphic, cue.values);
   let catchingUp = false;
+  /** A newer version being prepared beside this one (Prepare for Live, ./prepare.ts). */
+  let chg: ChangePrep | undefined;
   let markRecovered: () => void = () => {};
   const recovered = new Promise<void>((resolve) => {
     markRecovered = resolve;
   });
-  const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp });
+  const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp, chg });
   // `presence` is joined below; nothing here runs before it exists.
   const readyChanged = () => {
     dbg('ready', outputStateWords(readiness()));
@@ -288,6 +295,11 @@ async function boot(): Promise<void> {
   const presence = joinLivePresence({
     showId: resolved.id,
     entry,
+    // PREPARE FOR LIVE's request rides the production page's own entry (R4): acted on once, in its
+    // turn, and only ever onto what the server holds (./prepare.ts).
+    onPeers: (peers) => {
+      for (const peer of peers) if (peer.kind === 'operator' && peer.surface === 'production' && peer.prep) preparer.request(peer.prep);
+    },
     onStatus: (status) => {
       presenceStatus = status;
       dbg(
@@ -308,7 +320,45 @@ async function boot(): Promise<void> {
     summary: () => live.summary(),
     presence: () => presenceStatus,
     ready: readiness,
+    // The same door the production page's request comes through, for specs.
+    prepare: (prep: { id: string; n: number; h: string }) => preparer.request(prep),
   };
+  // ── PREPARE A NEWER VERSION (./prepare.ts; R3): the changes are built beside the running
+  // graphics and checked, and this page reloads onto the new version only when nothing is on air
+  // here. Nothing starts before the boot recovery has run: until then this page does not know what
+  // is on air. ──
+  /** Per graphic, whether the log's own head says it is on air (protocol 2): filled by the boot's
+   *  tail answer and every head the follower hands on. */
+  const headOn = new Map<string, boolean>();
+  const noteHead = (graphics: Record<string, { on?: boolean }> | undefined) => {
+    if (!graphics) return;
+    for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
+  };
+  const preparer = createPreparer({
+    held: payload.ver ?? null,
+    resolve: async () => {
+      await recovered;
+      const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
+      return answer.ok && answer.value ? answer.value.output : null;
+    },
+    // On protocol 2 the log's own word for it; on the id road, the graphics played and not stopped
+    // here, which leans towards "on air" (a report's machine state counts), and so towards staying.
+    onAir: () => (seqMode ? Array.from(headOn.values()).filter(Boolean).length : liveGraphics.size),
+    recheck: async () => {
+      for (const graphic of stage.graphics) {
+        const held = checks.get(graphic);
+        if (!held || !released.has(graphic)) continue;
+        const answer = await stage.warm(graphic, null);
+        if (answer) checks.set(graphic, { ...held, fontsFailed: answer.fonts.failed, fontsLoading: answer.fonts.loading, imagesBroken: answer.images.broken });
+      }
+      readyChanged();
+    },
+    report: (next) => {
+      chg = next;
+      readyChanged();
+    },
+    reload: reloadIfServed,
+  });
   /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
    *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
    *  refill once, and only if a row of it was new here: the poll and every rejoin re-read a window
@@ -652,6 +702,8 @@ async function boot(): Promise<void> {
     if (answer.value.reset) return { ok: true, value: [] };
     // A production with no head at the resolve gets its first epoch here, with these rows.
     followEpoch ??= answer.value.epoch;
+    // A tail answer carries every graphic's summary: what is on air, as the log says.
+    noteHead(answer.value.head?.graphics);
     return { ok: true, value: answer.value.rows };
   };
   const missed: ControlEventRow[] = [];
@@ -782,6 +834,8 @@ async function boot(): Promise<void> {
         for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
       },
       onHole: () => live.hole(),
+      // What is on air, as the log says, for Prepare for Live's "nothing on air here" (./prepare.ts).
+      onHead: (head) => noteHead(head.graphics),
       // IN SYNC (READY's guarantee 6, R8): the follower is busy while it holds rows behind a gap or
       // reads the tail. That is normal for a moment after every reorder; held for longer than
       // CATCH_UP_GRACE_MS it means this output is not showing what the log says yet.
@@ -808,6 +862,7 @@ async function boot(): Promise<void> {
       onEpoch: (epoch, reset) => {
         followEpoch = epoch;
         if (!reset) return;
+        headOn.clear();
         snapshotAt.clear();
         lastAppliedSeq = 0;
         lastReported.clear();

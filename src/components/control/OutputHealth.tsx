@@ -29,6 +29,7 @@ import {
   type OutputLine,
   type ReadyStamp,
 } from '../../control/readiness';
+import { stampWords, type PrepRequest } from '../../control/prepareLive';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import LibMenu from '../home/LibMenu';
 
@@ -52,6 +53,8 @@ export interface LiveAnnouncement {
   pub?: HeldVersion | null;
   exp?: ExpectedOutput[];
   stamp?: ReadyStamp | null;
+  /** Prepare for Live's request to every output (R4). */
+  prep?: PrepRequest | null;
 }
 
 const EMPTY_VIEW: LivePresenceView = { showId: null, status: 'off', peers: [], operators: [], outputLeftAt: null };
@@ -88,6 +91,7 @@ export function useLivePresence(
           ...(a.pub ? { pub: a.pub } : {}),
           ...(a.exp ? { exp: a.exp } : {}),
           ...(a.stamp ? { stamp: a.stamp } : {}),
+          ...(a.prep ? { prep: a.prep } : {}),
         });
       },
       onPeers: (peers) =>
@@ -132,7 +136,8 @@ export function useLivePresence(
   // what it announces (the expected outputs) is itself read off this hook's view. Re-sent only when
   // something another page reads changed; the Presence budget coalesces the rest.
   const announce = useCallback((a: LiveAnnouncement) => {
-    const key = (x: LiveAnnouncement) => JSON.stringify([x.pub ?? null, (x.exp ?? []).map((e) => [e.id, e.name, e.seen]), x.stamp ?? null]);
+    const key = (x: LiveAnnouncement) =>
+      JSON.stringify([x.pub ?? null, (x.exp ?? []).map((e) => [e.id, e.name, e.seen]), x.stamp ?? null, x.prep?.id ?? null]);
     const changed = key(a) !== key(announceRef.current);
     announceRef.current = a;
     if (changed) presenceRef.current?.touch();
@@ -355,7 +360,12 @@ export function ReadyLine({
             ))}
           </ul>
         )}
-        {children}
+        {children ??
+          (newestStamp && (
+            <p className={`pd-prepare-stamp${newestStamp.problems ? ' is-bad' : newestStamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="ready-stamp">
+              {stampWords(newestStamp, knownVersion, false)}
+            </p>
+          ))}
       </LibMenu>
     </span>
   );

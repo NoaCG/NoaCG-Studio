@@ -275,6 +275,25 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
 .pd-ready-row--bad .pd-ready-state { color: #ef4444; }
 .pd-ready-forget { margin-left: auto; flex: none; padding: 2px 9px; font-size: 11.5px; }
 .pd-ready-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); white-space: pre-line; }
+/* PREPARE FOR LIVE (components/control/PrepareForLive.tsx), under the outputs in the same panel:
+   the stamp, the checklist of what it found, one line of what pressing does, and the button.
+   The checklist uses the outputs' own dots and colours, so one panel speaks one language. */
+.pd-prepare { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pd-prepare-stamp { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+/* On the hosted page the stamp stands alone under the outputs, with the list's own gap above it. */
+.pd-ready-panel > .pd-prepare-stamp { margin: 12px 0 0; }
+.pd-prepare-stamp.is-ok { color: #4ade80; }
+.pd-prepare-stamp.is-warn { color: #f59e0b; }
+.pd-prepare-stamp.is-bad { color: #ef4444; }
+.pd-prepare-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.pd-prepare-line { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; line-height: 1.45; }
+.pd-prepare-line .pd-ready-detail { display: block; }
+.pd-prepare-line--ok .pd-ready-dot { color: #4ade80; }
+.pd-prepare-line--warn .pd-ready-dot { color: #f59e0b; }
+.pd-prepare-line--bad .pd-ready-dot { color: #ef4444; }
+.pd-prepare-line--running { color: var(--text-dim); }
+.pd-prepare-note { margin: 0 0 10px; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.pd-prepare-button { width: 100%; }
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {

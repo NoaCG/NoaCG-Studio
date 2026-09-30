@@ -1,0 +1,213 @@
+// PREPARE FOR LIVE (Phase 6 Step 3 landing b: docs/work-specs/playout-ready/spec.md AC-8 to AC-11;
+// the design is docs/PLAYOUT_ISOLATION_RESEARCH.md §9.4).
+//
+// An optional button on the production page that gives the operator a named moment: checked, the
+// show is ready. It publishes what changed (and says beforehand that unpublished changes will be
+// included), asks every output to prepare that version (R3, R4), checks NoaCG Bridge and CasparCG
+// when they are configured (read-only), and ends in a stamp both surfaces show. It never freezes
+// editing, and nothing waits for it: READY is a status, never permission.
+//
+// This file holds the decisions, pure: when an output has finished preparing, what each checklist
+// line says, the stamp and its words. The production page runs the flow
+// (components/control/PrepareForLive.tsx); scripts/prepare-live.test.mjs runs this in Node.
+
+import type { LiveEntry } from './livePath';
+import type { PlayoutResult } from './playoutLink';
+import type { SlotState } from './playoutProtocol';
+import { NOT_ANSWERING_MS, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp, type ReadyTone } from './readiness.ts';
+
+/** What the production page asks the outputs to prepare, in its own Presence entry (R4). A fresh
+ *  id per press, so pressing again runs everything again. */
+export interface PrepRequest {
+  id: string;
+  n: number;
+  h: string;
+}
+
+/** A prepare request off the wire, or undefined. */
+export function readPrepRequest(value: unknown): PrepRequest | undefined {
+  const p = value as Partial<PrepRequest> | null;
+  if (!p || typeof p !== 'object' || typeof p.id !== 'string' || typeof p.n !== 'number' || typeof p.h !== 'string') return undefined;
+  return { id: p.id.slice(0, 40), n: p.n, h: p.h.slice(0, 40) };
+}
+
+/** How long Prepare for Live waits for every output to settle before it stamps what it has. */
+export const PREPARE_WAIT_MS = 60_000;
+
+/** One line of the checklist. `note` lines inform and are not counted in the stamp. */
+export interface CheckLine {
+  key: string;
+  tone: ReadyTone | 'running';
+  label: string;
+  advice?: string;
+  note?: true;
+}
+
+/**
+ * HAS THIS OUTPUT FINISHED PREPARING `target` FOR REQUEST `request`? Ready on it; or, answering
+ * this very request, a change failed or everything prepared but something is on air (both final:
+ * the line says what to do); or it was loaded before READY (it cannot say more); or it is gone past
+ * the not-answering threshold. An output that has just left is not finished: preparing reloads it,
+ * and it comes back. The last run's answer never counts: the same version pressed again after an
+ * Out must wait for the reload that answer did not make (seen on four real hosts).
+ */
+export function outputSettled(entry: LiveEntry | undefined, target: HeldVersion, goneFor: number | null, request?: string): boolean {
+  if (!entry) return goneFor !== null && goneFor >= NOT_ANSWERING_MS;
+  const ready = entry.ready;
+  if (!ready) return true;
+  const chg = ready.chg;
+  const answersThis = !!chg && (request === undefined || chg.id === request);
+  if (chg && answersThis && chg.v.h === target.h && (chg.s === 'failed' || chg.s === 'waiting')) return true;
+  return !!ready.v && ready.v.h === target.h && ready.n >= ready.of && !(chg && chg.s === 'preparing');
+}
+
+/** Every output Prepare for Live waits for: the expected ones and any other present, by id. */
+export function preparedOutputs(peers: readonly LiveEntry[], expected: readonly ExpectedOutput[]): string[] {
+  const ids = expected.map((e) => e.id);
+  for (const p of peers) if (p.kind === 'output' && ids.indexOf(p.id) < 0) ids.push(p.id);
+  return ids;
+}
+
+/**
+ * THE OUTPUT LINES OF THE CHECKLIST, from READY's own lines (readiness.ts `describeReadiness`): a
+ * settled output keeps its tone and words; one still preparing is `running`, or amber once the
+ * wait is over. No output at all is a warning of its own: a show cannot be ready for no screen.
+ */
+export function outputChecks(lines: readonly OutputLine[], settled: ReadonlySet<string>, timedOut: boolean): CheckLine[] {
+  if (lines.length === 0) {
+    return [
+      {
+        key: 'outputs-none',
+        tone: 'warn',
+        label: 'No output is connected to this production',
+        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Prepare for Live again.',
+      },
+    ];
+  }
+  return lines.map((line): CheckLine => {
+    if (settled.has(line.id)) return { key: `output-${line.id}`, tone: line.tone, label: `${line.name}: ${line.state}`, advice: line.detail[0] };
+    return timedOut
+      ? { key: `output-${line.id}`, tone: 'warn', label: `${line.name}: still preparing after ${PREPARE_WAIT_MS / 1000} s`, advice: 'It may be slow or stuck. Reload it, then press Prepare for Live again.' }
+      : { key: `output-${line.id}`, tone: 'running', label: `${line.name}: ${line.state}` };
+  });
+}
+
+/** The stamp for a finished checklist. `idle` lines (an output that cannot say, one that just left)
+ *  count as warnings; `note` lines do not count. */
+export function stampOf(lines: readonly CheckLine[], target: HeldVersion, now: number): ReadyStamp {
+  const counted = lines.filter((l) => !l.note);
+  const outputs = counted.filter((l) => l.key.indexOf('output-') === 0);
+  return {
+    at: now,
+    v: { n: target.n, h: target.h },
+    outputs: outputs.length,
+    ready: outputs.filter((l) => l.tone === 'ok').length,
+    warnings: counted.filter((l) => l.tone === 'warn' || l.tone === 'idle' || l.tone === 'running').length,
+    problems: counted.filter((l) => l.tone === 'bad').length,
+  };
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function clockWords(at: number): string {
+  const d = new Date(at);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * THE STAMP IN WORDS, the plan's: "Ready for Live, checked 14:02 (v12)". It keeps its honesty
+ * after a change: "Checked 14:02 on v12, 1 change since", counting the publishes since and any
+ * edit not published yet. With warnings or problems it counts them instead of claiming ready.
+ */
+export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unpublished: boolean): string {
+  const at = clockWords(stamp.at);
+  const since = (published && published.h !== stamp.v.h ? Math.max(1, published.n - stamp.v.n) : 0) + (unpublished ? 1 : 0);
+  if (since > 0) return `Checked ${at} on v${stamp.v.n}, ${plural(since, 'change')} since`;
+  if (stamp.problems > 0) return `Not ready, checked ${at} (v${stamp.v.n}): ${plural(stamp.problems, 'problem')}`;
+  if (stamp.warnings > 0) return `Checked ${at} (v${stamp.v.n}): ${plural(stamp.warnings, 'warning')}`;
+  return `Ready for Live, checked ${at} (v${stamp.v.n})`;
+}
+
+/** What Prepare for Live found about NoaCG Bridge and CasparCG, gathered by the page (read-only). */
+export interface BridgeFacts {
+  /** The studio has a Bridge and a server set up (playoutLink.ts `playoutConfigured`). */
+  configured: boolean;
+  /** A real VERSION round trip through the Bridge (`testConnection`). */
+  status: PlayoutResult | null;
+  /** The output slot as the server holds it, or undefined when it could not be read. */
+  slot?: SlotState | null;
+  outputSlug: string | null;
+  channel: number;
+  layer: number;
+  /** The server clips and templates the rundown cues. */
+  items: { kind: 'template' | 'media'; name: string }[];
+  /** The server's library by kind; null when it could not be listed. */
+  media?: string[] | null;
+  templates?: string[] | null;
+  /** Why a library could not be listed, in the Bridge's words (a CasparCG without its media
+   *  scanner answers CLS with 501). */
+  listProblem?: string;
+}
+
+/**
+ * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
+ * through a browser source alone has nothing to check here. The output layer holding another
+ * production's output is a problem; an empty one is only a note, because the output may run in
+ * OBS or vMix instead.
+ */
+export function bridgeChecks(f: BridgeFacts): CheckLine[] {
+  if (!f.configured) return [];
+  const where = `${f.channel}-${f.layer}`;
+  if (!f.status || f.status.state !== 'ok') {
+    return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
+  }
+  const lines: CheckLine[] = [
+    { key: 'bridge', tone: 'ok', label: `NoaCG Bridge and CasparCG answer${f.status.version ? ` (CasparCG ${f.status.version.split(' ')[0]})` : ''}` },
+  ];
+  if (f.slot !== undefined) {
+    const slot = f.slot;
+    const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
+    const ours = !!f.outputSlug && file.indexOf(`production=${encodeURIComponent(f.outputSlug)}`) >= 0;
+    if (ours) lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
+    else if (file.indexOf('/output?production=') >= 0) {
+      lines.push({
+        key: 'bridge-layer',
+        tone: 'bad',
+        label: `Layer ${where} holds another production's output`,
+        advice: 'Put this production on air in Playout settings, or check which production this layer should show.',
+      });
+    } else {
+      lines.push({
+        key: 'bridge-layer',
+        tone: 'idle',
+        note: true,
+        label: `Layer ${where} does not show this production's output`,
+        advice: 'If the output should run on CasparCG, press Put on air in Playout settings. If it runs in OBS or vMix, there is nothing to do.',
+      });
+    }
+  }
+  for (const kind of ['media', 'template'] as const) {
+    const cued = f.items.filter((i) => i.kind === kind);
+    if (cued.length === 0) continue;
+    const words = kind === 'media' ? 'clip' : 'template';
+    const listed = kind === 'media' ? f.media : f.templates;
+    if (!listed) {
+      lines.push({ key: `bridge-${kind}`, tone: 'warn', label: `Could not list the server's ${words}s`, advice: f.listProblem ?? 'Check the server in Playout settings.' });
+      continue;
+    }
+    const have = new Set(listed.map((n) => n.toLowerCase()));
+    const names = cued.map((i) => i.name).filter((n, at, all) => all.indexOf(n) === at);
+    const missing = names.filter((n) => !have.has(n.toLowerCase()));
+    lines.push(
+      missing.length > 0
+        ? {
+            key: `bridge-${kind}`,
+            tone: 'bad',
+            label: `${plural(missing.length, words)} the rundown cues ${missing.length === 1 ? 'is' : 'are'} not on the server: ${missing.slice(0, 4).join(', ')}${missing.length > 4 ? ` and ${missing.length - 4} more` : ''}`,
+            advice: kind === 'media' ? "Copy them into CasparCG's media folder, or change the cues." : "Copy them into CasparCG's template folder, or change the cues.",
+          }
+        : { key: `bridge-${kind}`, tone: 'ok', label: `Every ${words} the rundown cues is on the server (${names.length})` },
+    );
+  }
+  return lines;
+}
