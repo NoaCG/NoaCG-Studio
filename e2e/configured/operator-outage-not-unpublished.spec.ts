@@ -19,7 +19,9 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 // A real unknown slug is asserted first: "not found" has to survive for the case it is for.
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
-const RESOLVE = /\/rest\/v1\/rpc\/control_show_by_slug(\?|$)/;
+// Both resolves: `control_show_by_slug` on the id road, `control_show_resolve` on the numbered log
+// (migration 0070), which a page asks first whenever the server has it.
+const RESOLVE = /\/rest\/v1\/rpc\/control_show_(by_slug|resolve)(\?|$)/;
 const NOT_FOUND = 'Control page not found';
 
 /** Route the resolve to the 2026-09-29 answer while `outage.down`, and let it through after.
