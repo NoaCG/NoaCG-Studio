@@ -18,11 +18,15 @@ import { composeDocument } from '../preview/composeDocument';
 import {
   postPreviewCmd,
   FRAME_HOLD_CAP_MS,
+  PREVIEW_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
+  PREVIEW_READY_TYPE,
   PREVIEW_STATE_TYPE,
+  type PreviewErrorMessage,
   type PreviewHeldMessage,
   type PreviewCmd,
   type PreviewMachineState,
+  type PreviewReadyMessage,
   type PreviewStateMessage,
 } from '../preview/previewProtocol';
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
@@ -98,6 +102,23 @@ export interface OutputStage {
   held: ReadonlyMap<string, { fonts: string[]; late: boolean }>;
   /** Called whenever `held` changes. */
   onHeld(cb: () => void): void;
+  /** The first error each document reported on the load-time channel (`window.onerror` and
+   *  unhandled rejections, composeDocument's capture script), from the moment it began parsing.
+   *  READY reads one that arrived before the graphic's warm pass as "not prepared". */
+  errors: ReadonlyMap<string, string>;
+  /** Called whenever `errors` gains an entry. */
+  onError(cb: (graphic: string) => void): void;
+  /** Called once per graphic, the moment its document is released to air (loaded, or held back
+   *  by a font past the cap) and handed the commands queued for it. */
+  onLoaded(cb: (graphic: string) => void): void;
+  /**
+   * THE WARM PASS AND READY CHECK (previewProtocol.ts 'warm'): hand the graphic `data` as an
+   * off-air `update` in its command queue (none: check only), then resolve with what the document
+   * reports about its fonts, images and the update. Resolves null when no answer came within
+   * `WARM_ANSWER_MS` of the document loading (a document too busy or broken to answer). Queued
+   * like any command until the document loads.
+   */
+  warm(graphic: string, data: Record<string, string> | null): Promise<PreviewReadyMessage | null>;
   /** Re-measure the fit box and rescale. The stage does this on every window resize; a host
    *  whose box changes for other reasons (a panel resize) calls it itself. */
   rescale(): void;
@@ -116,6 +137,10 @@ export interface OutputStageOptions {
    *  load exactly as they do without it. */
   foreign?: ForeignOgrafSpec[];
 }
+
+/** How long a warm pass waits for the document's answer once it has loaded: the document caps its
+ *  own wait at FRAME_HOLD_CAP_MS, so this only catches a document that answers nothing at all. */
+export const WARM_ANSWER_MS = FRAME_HOLD_CAP_MS + 5_000;
 
 /** The output's debug line for `OutputStage.held`, or null when every document loaded in time. */
 export function heldLine(held: OutputStage['held']): string | null {
@@ -182,6 +207,11 @@ export function createOutputStage(
   if (payload.graphics.length === 0) resolveLoaded();
   const held = new Map<string, { fonts: string[]; late: boolean }>();
   const heldCbs: (() => void)[] = [];
+  const errors = new Map<string, string>();
+  const errorCbs: ((graphic: string) => void)[] = [];
+  const loadedCbs: ((graphic: string) => void)[] = [];
+  /** Warm passes waiting for their document's answer, per graphic, oldest first. */
+  const warming = new Map<string, ((answer: PreviewReadyMessage | null) => void)[]>();
   const release = (graphic: string) => {
     const iframe = frames.get(graphic);
     if (!iframe || loaded.has(graphic)) return;
@@ -191,6 +221,7 @@ export function createOutputStage(
     pending.delete(graphic);
     for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
     if (loaded.size === frames.size) resolveLoaded();
+    for (const cb of [...loadedCbs]) cb(graphic);
   };
   const post = (graphic: string, cmd: PreviewCmd) => {
     if (!loaded.has(graphic)) {
@@ -270,8 +301,30 @@ export function createOutputStage(
     }
   }
 
+  /** The published graphic whose document sent `ev`, or null. */
+  const senderOf = (ev: MessageEvent): string | null => {
+    for (const [key, frame] of frames) if (frame.contentWindow === ev.source) return key;
+    return null;
+  };
+
   // State replies carry no graphic name — the SOURCE window identifies the sender.
   const onMessage = (ev: MessageEvent) => {
+    const type = (ev.data as { type?: unknown } | undefined)?.type;
+    if (type === PREVIEW_ERROR_TYPE) {
+      const key = senderOf(ev);
+      if (key === null || errors.has(key)) return;
+      const message = String((ev.data as PreviewErrorMessage).message ?? 'error').slice(0, 200);
+      errors.set(key, message);
+      console.warn(`output stage: "${key}" reported an error: ${message}`);
+      for (const cb of errorCbs) cb(key);
+      return;
+    }
+    if (type === PREVIEW_READY_TYPE) {
+      const key = senderOf(ev);
+      const settle = key === null ? undefined : warming.get(key)?.[0];
+      if (settle) settle(ev.data as PreviewReadyMessage);
+      return;
+    }
     const heldMsg = ev.data as PreviewHeldMessage | undefined;
     if (heldMsg?.type === PREVIEW_HELD_TYPE) {
       for (const [key, frame] of frames) {
@@ -373,6 +426,31 @@ export function createOutputStage(
     },
     held,
     onHeld: (cb) => heldCbs.push(cb),
+    errors,
+    onError: (cb) => errorCbs.push(cb),
+    onLoaded: (cb) => loadedCbs.push(cb),
+    warm: (graphic, data) =>
+      new Promise<PreviewReadyMessage | null>((resolve) => {
+        if (!frames.has(graphic)) return resolve(null);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const settle = (answer: PreviewReadyMessage | null) => {
+          const list = warming.get(graphic) ?? [];
+          const at = list.indexOf(settle);
+          if (at < 0) return;
+          list.splice(at, 1);
+          clearTimeout(timer);
+          resolve(answer);
+        };
+        // The clock starts when the document has loaded: until then the command waits in the
+        // queue, and that wait is the load itself, which READY already counts as preparing.
+        const arm = () => {
+          if (timer === undefined) timer = setTimeout(() => settle(null), WARM_ANSWER_MS);
+        };
+        warming.set(graphic, [...(warming.get(graphic) ?? []), settle]);
+        post(graphic, data ? { cmd: 'warm', data: JSON.stringify(data) } : { cmd: 'warm' });
+        if (loaded.has(graphic)) arm();
+        else loadedCbs.push((key) => key === graphic && arm());
+      }),
     whenLoaded: () =>
       foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
     rescale,

@@ -43,7 +43,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
 
 ```
 ┌ header ───────────────────────────────────────────────────────────────────────┐
-│ ▤ Show name  ● SHOW  00:42:17        ● output connected · N layers            │
+│ ▤ Show name  ● SHOW  00:42:17        ● Ready for Live · 2 of 2 outputs · 14:02│
 │                                         [Publish/links]  [Export…]  [■ All out]│
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
 │  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │ 1 T Strap ✎ ON AIR L1│
@@ -94,6 +94,12 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   (`src/components/AGENTS.md`, NewGraphicButton). That also puts the width of the header between
   it and **■ All out**: a hand reaching for the panic control must never land on navigation.
   **The output heartbeat is shown only when there IS an output** - see `docs/CLOUD_PLAYOUT.md` §3.
+  **It is the READY line now** (Phase 6 Step 3, `docs/work-specs/playout-ready/spec.md` R10): the
+  same slot, the same mono status face coloured by state (green ready, amber degraded, red an
+  output that is gone, dim preparing), and a button whose panel lists every output with what to
+  do. Below 1600px it takes its short form ("● Ready 2/2"); on the hosted page it sits by the
+  clock and on a phone keeps the short form with the panel spanning the screen. It never blocks a
+  verb.
 - **ON A LAPTOP THE NAME OUTRANKS THE EXTRAS** (classroom walk, 2026-09-25). At 1366×768 and
   1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock and
   Export's word stand down (Export keeps its icon) and the tabs tighten, and under 1366px the

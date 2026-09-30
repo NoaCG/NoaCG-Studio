@@ -198,14 +198,83 @@
 }
 .pd-health--ok { color: #4ade80; }
 .pd-health--warn { color: #f59e0b; }
+/* Red is kept for an output that should be there and is not ("CasparCG 1-20 not answering"):
+   the one READY state that means a screen may not be hearing you at all. */
+.pd-health--bad { color: #ef4444; }
 .pd-health-short { display: none; }
-/* The dashboard header fills up as the window narrows (the Share word gives way at 1440 for the
-   same reason). The warning is the one long line, so it takes its short form below 1600; the
-   others lead with the count, which is what survives the ellipsis. */
+/* The production dashboard's header fills up as the window narrows (the Share word gives way at
+   1440 for the same reason). READY's lines are the long ones ("Ready for Live · 2 of 2 outputs ·
+   checked 14:02"), so there every tone takes its short form ("● Ready 2/2", "▲ 1/2 ready") below
+   1600; the panel and the tooltip carry the whole sentence. The hosted page's header holds little
+   else and keeps the sentence until the phone block. */
 @media (max-width: 1600px) {
-  .pd-health--warn .pd-health-full { display: none; }
-  .pd-health--warn .pd-health-short { display: inline; }
+  .playout-dashboard:not(.hosted-dashboard) .pd-health-full { display: none; }
+  .playout-dashboard:not(.hosted-dashboard) .pd-health-short { display: inline; }
 }
+
+/* THE READY LINE IS A BUTTON (components/control/OutputHealth.tsx ReadyLine, docs/work-specs/
+   playout-ready R10): the header keeps the health line's face - mono, coloured by state, no
+   chrome - and a press opens the panel of outputs. It gives way before ■ All out does. */
+.pd-ready-host { position: relative; display: inline-flex; min-width: 0; }
+.pd-header > .pd-ready-host { flex-shrink: 1; }
+button.pd-ready {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  cursor: pointer;
+  max-width: 100%;
+}
+button.pd-ready:hover,
+button.pd-ready[aria-expanded='true'] { border-color: var(--border); background: rgba(255, 255, 255, 0.03); }
+/* The panel hangs under the line, anchored at its RIGHT edge on the production page, where the
+   line sits right of the spacer, and at its left on the hosted page, where it sits by the clock. */
+.pd-ready-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: var(--z-popover);
+  width: min(440px, 92vw);
+  padding: 12px 14px;
+  background: var(--bg-2, #14161c);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  max-height: min(76vh, 620px);
+  overflow-y: auto;
+  white-space: normal;
+}
+.pd-ready-panel--up { top: auto; bottom: calc(100% + 6px); }
+.hosted-dashboard .pd-ready-panel { right: auto; left: 0; }
+.pd-ready-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pd-ready-version { font-family: var(--mono, monospace); letter-spacing: 0; text-transform: none; font-weight: 500; }
+.pd-ready-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pd-ready-row { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
+.pd-ready-row--bad { border-color: rgba(239, 68, 68, 0.5); }
+.pd-ready-row-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.pd-ready-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-ready-state { margin-top: 3px; font-size: 13px; }
+.pd-ready-detail { margin-top: 3px; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.pd-ready-dot { flex: none; font-size: 11px; color: var(--text-dim); }
+.pd-ready-row--ok .pd-ready-dot,
+.pd-ready-row--ok .pd-ready-state { color: #4ade80; }
+.pd-ready-row--warn .pd-ready-dot,
+.pd-ready-row--warn .pd-ready-state { color: #f59e0b; }
+.pd-ready-row--bad .pd-ready-dot,
+.pd-ready-row--bad .pd-ready-state { color: #ef4444; }
+.pd-ready-forget { margin-left: auto; flex: none; padding: 2px 9px; font-size: 11.5px; }
+.pd-ready-empty { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); white-space: pre-line; }
 /* ALL OUT sits apart from the verbs on purpose: it is the panic control, and a hand reaching
    for Take must never land on it. */
 .pd-allout {
@@ -2047,12 +2116,17 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      says, and the production's NAME was paying for it (truncated to "Fri"). ● SHOW is short
      and is the one an operator must never miss, so only that one stays. */
   .pd-mode-idle { display: none; }
-  /* The output health line keeps its SHORT form here ("● 1 output", "▲ 1 output · late"): it is
-     the only way a phone operator learns the screens are not hearing them. It never shrinks:
-     the production's name is the one that truncates. */
+  /* The READY line keeps its SHORT form here ("● Ready 2/2", "✕ 1/2"): it is the only way a phone
+     operator learns the screens are not hearing them or not ready. It never shrinks: the
+     production's name is the one that truncates. */
   .pd-health { flex: none; font-size: 11px; }
+  .pd-header > .pd-ready-host { flex: none; }
+  button.pd-ready { padding: 4px 6px; }
   .pd-health-full { display: none; }
   .pd-health-short { display: inline; }
+  /* Its panel spans the phone's width under the header, as the links panel does. */
+  .pd-ready-panel,
+  .hosted-dashboard .pd-ready-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
   /* Home STAYS at this width - it is the one way off the page on a phone, and a four-letter
      word is cheaper than the name it shares the row with. */
   /* The links panel spans the phone's width under the header rather than hanging off its

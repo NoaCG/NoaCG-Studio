@@ -236,6 +236,17 @@ The page:
   most one call per 10 s, coalesced to the latest state, so at most three in any 30 s, with room
   for a rejoin. The first announce on a quiet page is immediate; counters on the Presence entry can
   be up to 10 s behind, and the `&debug=1` line stays live.
+- **READY, the renderer's own answer** (`src/control/readiness.ts`, Phase 6 Step 3,
+  `docs/work-specs/playout-ready/spec.md`). Each graphic is checked once its document has loaded
+  and the boot recovery has run: one off-air `warm` command (an `update` with the graphic's first
+  cue values, only for a graphic no command or recovery has touched, so a graphic on air keeps
+  its values), then every declared font face loaded, every image decoded, and the document's
+  answer (`spx-preview-ready`): faces that fell back, broken images, and what threw. An error on
+  the load-time channel before that answer makes the graphic "not prepared (script error)". The
+  renderer puts `ready: {n, of, v, is}` (graphics prepared, of how many, the version stamp it
+  booted with, what fails) and its `&name=` in its Presence entry, and says the same on the
+  `&debug=1` line. The version stamp is `output.ver` (`src/control/payloadVersion.ts`), written by
+  every publish: a digest per graphic and one over them all, and a number for the label.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
@@ -507,13 +518,20 @@ send.
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
     more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — the output health line (`components/control/OutputHealth.tsx`), the SAME line on
-  the production page and the hosted page, so on a phone too: how many outputs are connected,
-  their engines, and amber when one says commands may arrive late because its log or command
-  channel is not joined. It reads the outputs' Presence entries on `live-<show id>`; on a server
-  without that topic it falls back to `output_seen_at` (the production page polls it every 30 s,
-  the signed-out hosted page shows the value it resolved with and says so). Every live layer
-  with its cue + machine state + applied values (from `live` reports), publish freshness.
+- **Status** — the READY line (`components/control/OutputHealth.tsx`, words from
+  `control/readiness.ts`), the SAME line on the production page and the hosted page, so on a
+  phone too: each output's own READY answer in the plan's words ("Preparing 18 of 24", "Ready for
+  playout", "Not ready: Frost Quiz (script error)", "Behind: showing v12", "Commands may arrive up
+  to 30 s late"), and an output that was connected and is gone as "CasparCG 1-20 not answering
+  (40 s)", red after 15 s. It is a button; its panel lists every output and what to do. The
+  production page remembers the outputs it has seen per production in the browser and announces
+  them, its published version and its stamp in its own Presence entry, so the hosted page counts
+  the same outputs. READY is a status, never permission: no verb waits for it. With no output
+  reporting READY (a server without the live topic, or outputs loaded before it) the line is the
+  health line underneath: the outputs' Presence entries, or `output_seen_at` (the production page
+  polls it every 30 s, the signed-out hosted page shows the value it resolved with and says so).
+  Every live layer with its cue + machine state + applied values (from `live` reports), publish
+  freshness.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).

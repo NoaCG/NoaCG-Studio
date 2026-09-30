@@ -45,10 +45,12 @@ import {
   joinLivePresence,
   liveEntry,
   liveInstanceId,
+  outputNameParam,
   type LiveEntry,
   type LivePresenceStatus,
   type LiveRoad,
 } from '../control/livePath';
+import { outputReadiness, outputStateWords, type GraphicCheck, type HeldVersion } from '../control/readiness';
 import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
 import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
@@ -60,6 +62,8 @@ const MAX_CATCH_UP_PAGES = 40;
 const params = new URLSearchParams(window.location.search);
 const outputSlug = params.get('production');
 const debug = params.get('debug') === '1';
+/** What the operator calls this output on READY (`&name=CasparCG 1-20`), else its engine. */
+const outputName = outputNameParam(window.location.search);
 
 const debugEl = debug ? document.createElement('pre') : null;
 const debugState: Record<string, string> = {};
@@ -195,8 +199,66 @@ async function boot(): Promise<void> {
 
   const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
+
+  // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
+  // decides for itself how many of its graphics are prepared and what fails, in the same code on
+  // every host, and says so in its Presence entry. Each graphic is checked once its document has
+  // loaded AND the boot recovery below has run: the warm pass (one off-air `update` with the
+  // graphic's first cue values) is only for a graphic nothing has touched since boot - one on air,
+  // or rebuilt from its report, already holds its own values and must keep them. Registered before
+  // any await, so no document can load unobserved. ──
+  const payload = resolved.output;
+  const heldVersion: HeldVersion | null = payload.ver ? { n: payload.ver.n, h: payload.ver.h } : null;
+  const checks = new Map<string, GraphicCheck>();
+  /** Graphics a command or the recovery has reached since boot: never warmed. */
+  const touched = new Set<string>();
+  const firstCue = new Map<string, Record<string, string>>();
+  for (const cue of payload.cues) if (!firstCue.has(cue.graphic)) firstCue.set(cue.graphic, cue.values);
+  let catchingUp = false;
+  let markRecovered: () => void = () => {};
+  const recovered = new Promise<void>((resolve) => {
+    markRecovered = resolve;
+  });
+  const readiness = () => outputReadiness({ graphics: stage.graphics, checks, held: stage.held, version: heldVersion, catchingUp });
+  // `presence` is joined below; nothing here runs before it exists.
+  const readyChanged = () => {
+    dbg('ready', outputStateWords(readiness()));
+    presence.touch();
+  };
+  stage.onLoaded((graphic) => {
+    void recovered.then(async () => {
+      const data = touched.has(graphic) ? null : (firstCue.get(graphic) ?? null);
+      const answer = await stage.warm(graphic, data);
+      checks.set(graphic, {
+        done: true,
+        error: stage.errors.get(graphic) ?? answer?.error ?? null,
+        silent: answer === null,
+        fontsFailed: answer?.fonts.failed ?? [],
+        fontsLoading: answer?.fonts.loading ?? [],
+        imagesBroken: answer?.images.broken ?? [],
+      });
+      readyChanged();
+    });
+  });
+  /** A document that never loads and never says why (a script that never returns) must not read
+   *  as preparing for ever: after this long it is not prepared, and if it answers later its check
+   *  replaces that. §5.2 measured 1.4 to 3 s from open to ready. */
+  const NEVER_LOADED_MS = 20_000;
+  setTimeout(() => {
+    let changed = false;
+    for (const graphic of stage.graphics) {
+      if (checks.has(graphic)) continue;
+      checks.set(graphic, { done: true, error: stage.errors.get(graphic) ?? null, silent: true, fontsFailed: [], fontsLoading: [], imagesBroken: [] });
+      changed = true;
+    }
+    if (changed) readyChanged();
+  }, NEVER_LOADED_MS);
   // A graphic a font kept waiting past the cap airs on a fallback face (stage.ts `held`).
-  stage.onHeld(() => dbg('fonts', heldLine(stage.held) ?? ''));
+  stage.onHeld(() => {
+    dbg('fonts', heldLine(stage.held) ?? '');
+    readyChanged();
+  });
+  dbg('ready', outputStateWords(readiness()));
 
   // ── THE LIVE PATH, SEEN (control/livePath.ts): who this renderer is, how commands reach it, and
   // the Presence entry the operator pages build their health line from. Report-only: nothing
@@ -216,7 +278,8 @@ async function boot(): Promise<void> {
       presence.touch();
     },
   });
-  const entry = (): LiveEntry => liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary());
+  const entry = (): LiveEntry =>
+    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), { name: outputName, ready: readiness() });
   const presence = joinLivePresence({
     showId: resolved.id,
     entry,
@@ -239,6 +302,7 @@ async function boot(): Promise<void> {
     entry,
     summary: () => live.summary(),
     presence: () => presenceStatus,
+    ready: readiness,
   };
   /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
    *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
@@ -431,6 +495,9 @@ async function boot(): Promise<void> {
       if (road) live.duplicate(incoming);
       return;
     }
+    // A graphic a command has reached is never warmed (READY above): it holds the operator's values.
+    const verb = incoming.t;
+    if (verb === 'update' || verb === 'play' || verb === 'stop' || verb === 'next' || verb === 'event' || verb === 'snap') touched.add(graphic);
     const row = { graphic, msg: incoming, created_at: createdAt };
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
@@ -609,6 +676,7 @@ async function boot(): Promise<void> {
   for (const key of stage.graphics) {
     const mine = resolved.live[key];
     if (!mine) continue;
+    if (mine.data || mine.state?.groups) touched.add(key);
     if (mine.data) {
       mergedData.set(key, { ...mine.data });
       stage.apply(key, { t: 'update', data: mine.data });
@@ -636,6 +704,8 @@ async function boot(): Promise<void> {
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
   missed.forEach((row) => apply(row));
+  // Everything the boot knows is applied: the READY checks may now warm what nothing touched.
+  markRecovered();
   if (animates) {
     void airWhenSettled(stage)
       .then((ending) =>
@@ -690,6 +760,8 @@ async function boot(): Promise<void> {
     // on `seq-<show>`, which is this renderer's log road here. Presence stays on its own topic, so
     // nothing about Presence (a rate limit that closes its channel) can touch this road.
     dbg('commands', 'numbered log (the fast road is not needed)');
+    const CATCH_UP_GRACE_MS = 5_000;
+    let catchUpTimer: ReturnType<typeof setTimeout> | null = null;
     followSeqLog({
       showId: resolved.id,
       from: lastAppliedSeq,
@@ -705,6 +777,22 @@ async function boot(): Promise<void> {
         for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
       },
       onHole: () => live.hole(),
+      // IN SYNC (READY's guarantee 6, R8): the follower is busy while it holds rows behind a gap or
+      // reads the tail. That is normal for a moment after every reorder; held for longer than
+      // CATCH_UP_GRACE_MS it means this output is not showing what the log says yet.
+      onBusy: (busy) => {
+        if (catchUpTimer) clearTimeout(catchUpTimer);
+        catchUpTimer = null;
+        if (busy) {
+          catchUpTimer = setTimeout(() => {
+            catchingUp = true;
+            readyChanged();
+          }, CATCH_UP_GRACE_MS);
+        } else if (catchingUp) {
+          catchingUp = false;
+          readyChanged();
+        }
+      },
       // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
       // log numbered from 1, so no baseline this renderer holds means anything in it, and every
       // graphic that carries something reports again, in the new log, within the forced spread

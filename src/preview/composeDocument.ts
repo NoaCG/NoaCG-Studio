@@ -18,6 +18,7 @@ import {
   PREVIEW_PLAYHEAD_TYPE,
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
+  PREVIEW_READY_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -300,6 +301,53 @@ window.addEventListener('unhandledrejection', function (ev) {
     try { parent.postMessage({ type: ${JSON.stringify(PREVIEW_HELD_TYPE)}, fonts: fonts }, '*'); } catch (e) {}
   }
   function armHold() { setTimeout(reportHeld, ${FRAME_HOLD_CAP_MS}); }
+  /* READY'S OWN LOOK AT THIS DOCUMENT (previewProtocol.ts, PREVIEW_READY_TYPE): every declared font
+     face asked to load - a face a hidden element names is otherwise not fetched until the first
+     Take lays it out - and every image decoded, then what is left, answered once and capped at
+     ${FRAME_HOLD_CAP_MS} ms so a font host that never answers cannot hold the answer back. It runs
+     OUTSIDE the command queue: a Take arriving behind the warm pass must not wait for fonts. */
+  function checkReady(warmError) {
+    var waits = [];
+    if (document.fonts && document.fonts.forEach) {
+      document.fonts.forEach(function (face) {
+        if (face.status !== 'unloaded') return;
+        try { waits.push(face.load().then(null, function () {})); } catch (e) {}
+      });
+      if (document.fonts.ready) waits.push(document.fonts.ready.then(null, function () {}));
+    }
+    var imgs = document.images ? Array.prototype.slice.call(document.images) : [];
+    imgs.forEach(function (img) {
+      if (!img.getAttribute('src') || !img.decode) return;
+      try { waits.push(img.decode().then(null, function () {})); } catch (e) {}
+    });
+    var sent = false;
+    function answer() {
+      if (sent) return;
+      sent = true;
+      var failed = [];
+      var loading = [];
+      if (document.fonts && document.fonts.forEach) {
+        document.fonts.forEach(function (face) {
+          var name = String(face.family).replace(/^["']|["']$/g, '');
+          if (face.status === 'error' && failed.indexOf(name) < 0) failed.push(name);
+          if (face.status === 'loading' && loading.indexOf(name) < 0) loading.push(name);
+        });
+      }
+      var broken = [];
+      var pending = 0;
+      imgs.forEach(function (img) {
+        var src = img.getAttribute('src');
+        if (!src) return;
+        if (!img.complete) pending += 1;
+        else if (!img.naturalWidth) broken.push(src.indexOf('data:') === 0 ? 'an embedded image' : String(src.split('/').pop()).slice(0, 60));
+      });
+      try {
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_READY_TYPE)}, error: warmError, fonts: { failed: failed, loading: loading }, images: { broken: broken, pending: pending } }, '*');
+      } catch (e) {}
+    }
+    Promise.all(waits).then(answer, answer);
+    setTimeout(answer, ${FRAME_HOLD_CAP_MS});
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', armHold);
   else armHold();
   /* ONE COMMAND AT A TIME, IN ARRIVAL ORDER. 'play' and 'settle' wait on the fonts and every
@@ -359,6 +407,15 @@ window.addEventListener('unhandledrejection', function (ev) {
       try { window.noacgDispatch && window.noacgDispatch(msg.event, msg.payload); } catch (e) {}
     } else if (msg.cmd === 'measure') {
       report(window);
+    } else if (msg.cmd === 'warm') {
+      /* THE WARM PASS (previewProtocol.ts 'warm'): the update runs HERE, in the queue, so a Take
+         sent after it lands after it and airs its own values; what it threw is part of the answer,
+         which a plain 'update' swallows. */
+      var warmError = null;
+      if (msg.data != null) {
+        try { window.update && window.update(msg.data); } catch (e) { warmError = String((e && e.message) || e); }
+      }
+      checkReady(warmError);
     } else if (msg.cmd === 'offair') {
       /* OFF AIR, FROM THE INSIDE (previewProtocol.ts's 'offair'): the root paints transparent
          and everything under it keeps running at the frame rate it would have on air. Set as

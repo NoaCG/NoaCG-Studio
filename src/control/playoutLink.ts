@@ -640,7 +640,18 @@ export async function act(settings: PlayoutSettings, action: PlayoutAction): Pro
  * mechanism: air a production from the deployment, not from a dev server.
  */
 export function putOutputOnAir(settings: PlayoutSettings, outputUrl: string): Promise<PlayoutResult> {
-  return act(settings, { verb: 'take', item: { kind: 'url', name: outputUrl }, slot: slotOf(settings) });
+  const slot = slotOf(settings);
+  return act(settings, { verb: 'take', item: { kind: 'url', name: namedOutputUrl(outputUrl, `CasparCG ${slot.channel}-${slot.layer}`) }, slot });
+}
+
+/**
+ * THE OUTPUT URL WITH A NAME ON IT (READY, docs/work-specs/playout-ready/spec.md R5): the output
+ * announces `&name=` as what the operator calls it, so the layer the Bridge put on air reads
+ * "CasparCG 1-20 not answering (40 s)" rather than an engine string, and a layer played again takes
+ * its own place back. The output ignores the parameter for everything else.
+ */
+export function namedOutputUrl(outputUrl: string, name: string): string {
+  return `${outputUrl}${outputUrl.includes('?') ? '&' : '?'}name=${encodeURIComponent(name)}`;
 }
 
 /** Out on the output layer is a video-layer STOP, so no item is named: the Bridge refuses an

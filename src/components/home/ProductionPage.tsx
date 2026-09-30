@@ -248,7 +248,8 @@ import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
-import { OutputHealthLine, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
+import { ReadyLine, announcedExpected, useExpectedOutputs, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
+import type { ExpectedOutput, HeldVersion } from '../../control/readiness';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -535,6 +536,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     log: follow ? follow.status === 'SUBSCRIBED' : null,
     cmd: commandStatus === null ? null : commandStatus === 'SUBSCRIBED',
   });
+  /** READY (components/control/OutputHealth.tsx): the published version this page knows (its
+   *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
+   *  in this browser and announced on the live topic so the hosted page and the phone count the
+   *  same ones. */
+  const [publishedVer, setPublishedVer] = useState<HeldVersion | null>(null);
+  const { expected: expectedOutputs, forget: forgetOutput } = useExpectedOutputs(
+    hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null,
+    livePresence,
+    true,
+  );
+  const { announce } = livePresence;
+  useEffect(() => {
+    announce({ pub: publishedVer, exp: announcedExpected(expectedOutputs, livePresence) });
+  }, [announce, publishedVer, expectedOutputs, livePresence]);
   /** The production's row id — the command channel's key on the fast road. Read out here rather
    *  than inside the verbs so a send depends on the ID and not on the whole show record. */
   const showId = show?.id ?? null;
@@ -1289,6 +1304,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const resolved = answer.ok ? answer.value : null;
       if (!resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
+      const ver = resolved.output?.ver;
+      setPublishedVer(ver ? { n: ver.n, h: ver.h } : null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
@@ -2045,6 +2062,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
+        if (published.version) setPublishedVer({ n: published.version.n, h: published.version.h });
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
@@ -3468,6 +3486,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       openedAt={openedAt}
       hostedSlug={hostedSlug}
       livePresence={livePresence}
+      publishedVer={publishedVer}
+      expectedOutputs={expectedOutputs}
+      onForgetOutput={forgetOutput}
       outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
       follow={follow}
@@ -4296,6 +4317,9 @@ function ProductionShell({
   openedAt,
   hostedSlug,
   livePresence,
+  publishedVer,
+  expectedOutputs,
+  onForgetOutput,
   outputSeenAt,
   liveLayers,
   follow,
@@ -4319,6 +4343,10 @@ function ProductionShell({
   hostedSlug: string | null;
   /** The outputs on the production's live topic (components/control/OutputHealth.tsx). */
   livePresence: LivePresenceView;
+  /** READY's inputs (components/control/OutputHealth.tsx ReadyLine). */
+  publishedVer: HeldVersion | null;
+  expectedOutputs: ExpectedOutput[];
+  onForgetOutput: (id: string) => void;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
@@ -4479,15 +4507,20 @@ function ProductionShell({
             noise, not status.
             The words say what the state IS, and the tooltip says what to do about it — one line
             each, because a status nobody can act on is decoration. The line itself is shared with
-            the hosted page (components/control/OutputHealth.tsx): from Presence when the server
-            has the live topic, otherwise from the heartbeat this page polls every 30 s. */}
+            the hosted page (components/control/OutputHealth.tsx): READY from the outputs' own
+            Presence entries when the server has the live topic (docs/work-specs/playout-ready),
+            otherwise the heartbeat this page polls every 30 s. It is a button: its panel lists
+            every output. A status, never permission - nothing here waits for it. */}
         {hostedSlug && (
-          <OutputHealthLine
+          <ReadyLine
             presence={livePresence}
             seenAt={outputSeenAt}
             heartbeatLive
             known={!!show.outputOpenedAt}
             now={now}
+            published={publishedVer}
+            expected={expectedOutputs}
+            onForget={onForgetOutput}
             testId="renderer-status"
           />
         )}

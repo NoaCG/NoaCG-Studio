@@ -39,6 +39,36 @@ export interface PreviewHeldMessage {
   fonts: string[];
 }
 
+/**
+ * The load-time error channel (composeDocument's capture script): `window.onerror` and every
+ * unhandled rejection, from the moment the document starts parsing. The editor's validator treats
+ * it as an export blocker; the output stage records the first one per graphic, which is what makes
+ * a graphic "not prepared (script error)" on READY (docs/work-specs/playout-ready/spec.md R7).
+ */
+export const PREVIEW_ERROR_TYPE = 'spx-preview-error';
+export interface PreviewErrorMessage {
+  type: typeof PREVIEW_ERROR_TYPE;
+  message: string;
+  line?: number;
+}
+
+/**
+ * THE ANSWER TO `warm` (READY's guarantees 3 to 5, docs/work-specs/playout-ready/spec.md R6, R7):
+ * what the document can see about itself once the warm update has run and its fonts and images
+ * have had their chance, capped at `FRAME_HOLD_CAP_MS`. Sent only by a `liveControl` document.
+ */
+export const PREVIEW_READY_TYPE = 'spx-preview-ready';
+export interface PreviewReadyMessage {
+  type: typeof PREVIEW_READY_TYPE;
+  /** What the warm `update` threw, or null (also null when there was nothing to update). */
+  error: string | null;
+  /** Font families by the state their faces were left in: `failed` fell back, `loading` had not
+   *  answered by the cap. A typeface no face declares is invisible from here and never listed. */
+  fonts: { failed: string[]; loading: string[] };
+  /** `<img>` elements with a source: the names of the broken ones, and how many had not finished. */
+  images: { broken: string[]; pending: number };
+}
+
 export type PreviewCmd =
   | { cmd: 'play'; data?: string }
   | { cmd: 'stop' }
@@ -51,6 +81,14 @@ export type PreviewCmd =
   // the same log row agree. Absent for an editor-driven dispatch, which has neither.
   | { cmd: 'dispatch'; event: string; payload?: Record<string, string>; at?: number }
   | { cmd: 'state' }
+  /**
+   * THE WARM PASS (READY's guarantee 5): run `update` with `data` off air, in the command queue like
+   * any other command, so the first Take pays no first-layout cost; then load every declared font
+   * face, decode the images, and answer with a `PreviewReadyMessage`. Without `data` it only
+   * checks. Never sent to a graphic that is on air or that recovery has already updated: the output
+   * decides that (docs/work-specs/playout-ready/spec.md R6).
+   */
+  | { cmd: 'warm'; data?: string }
   /**
    * TAKE THIS DOCUMENT OFF AIR WITHOUT STOPPING IT: its root paints fully transparent while
    * everything inside keeps running at full speed.

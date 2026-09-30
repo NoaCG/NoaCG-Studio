@@ -29,6 +29,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { createPresenceGate } from './presenceGate';
+import { readOutputReady, type ExpectedOutput, type HeldVersion, type OutputReady, type ReadyStamp } from './readiness';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -382,14 +383,27 @@ export interface LiveEntry {
   at: number;
   /** An output's LiveSummary, an operator's SenderCounters. */
   stats?: LiveSummary | SenderCounters;
+  /** An output's name, from `&name=` on its URL (control/readiness.ts `outputName`). */
+  name?: string;
+  /** An output's READY answer (control/readiness.ts). Absent from an output built before it. */
+  ready?: OutputReady;
+  /** An operator page's newest known published version (readiness.ts `newestVersion`). */
+  pub?: HeldVersion;
+  /** The production page's expected outputs, so the hosted page counts the same ones (R5). `seen`
+   *  is on the announcing page's clock. */
+  exp?: ExpectedOutput[];
+  /** The production page's last Prepare for Live stamp (R5). */
+  stamp?: ReadyStamp;
 }
 
-/** This page's entry as it stands now: who it is, filled in here, and what only the caller knows. */
+/** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
+ *  (`extra`: an output's name and READY answer, an operator's version, expected outputs, stamp). */
 export function liveEntry(
   kind: LiveEntry['kind'],
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
+  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp'>,
 ): LiveEntry {
   return {
     kind,
@@ -402,7 +416,16 @@ export function liveEntry(
     cmd: roads.cmd,
     at: Date.now(),
     stats,
+    ...extra,
   };
+}
+
+/** An output's name from its URL: `&name=CasparCG 1-20`, trimmed to what a line can show. */
+export function outputNameParam(search: string): string | undefined {
+  const name = new URLSearchParams(search).get('name');
+  // Everything below a space (control characters) goes: a name is one line of plain text.
+  const clean = name ? name.replace(/[^ -￿]/g, '').trim().slice(0, 40) : '';
+  return clean || undefined;
 }
 
 /** A Presence entry read off the wire, or null when it is not one. Anyone holding the show id can
@@ -412,6 +435,19 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   if (!m || (m.kind !== 'output' && m.kind !== 'operator') || typeof m.id !== 'string') return null;
   const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
   const text = (v: unknown, fallback: string) => (typeof v === 'string' ? v.slice(0, 80) : fallback);
+  const ready = readOutputReady(m.ready);
+  const version = (v: unknown): HeldVersion | undefined => {
+    const h = v as Partial<HeldVersion> | null;
+    return h && typeof h === 'object' && typeof h.n === 'number' && typeof h.h === 'string' ? { n: h.n, h: h.h.slice(0, 40) } : undefined;
+  };
+  const pub = version(m.pub);
+  const exp = Array.isArray(m.exp)
+    ? m.exp
+        .slice(0, 16)
+        .filter((e): e is ExpectedOutput => !!e && typeof e.id === 'string' && typeof e.name === 'string')
+        .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
+    : undefined;
+  const stamp = readStamp(m.stamp);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -423,7 +459,40 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     cmd: bool(m.cmd),
     at: typeof m.at === 'number' ? m.at : 0,
     stats: m.stats && typeof m.stats === 'object' ? m.stats : undefined,
+    ...(typeof m.name === 'string' && m.name ? { name: m.name.slice(0, 40) } : {}),
+    ...(ready ? { ready } : {}),
+    ...(pub ? { pub } : {}),
+    ...(exp ? { exp } : {}),
+    ...(stamp ? { stamp } : {}),
   };
+}
+
+function readStamp(value: unknown): ReadyStamp | undefined {
+  const s = value as Partial<ReadyStamp> | null;
+  if (!s || typeof s !== 'object' || typeof s.at !== 'number') return undefined;
+  const v = s.v as Partial<HeldVersion> | undefined;
+  if (!v || typeof v.n !== 'number' || typeof v.h !== 'string') return undefined;
+  const count = (n: unknown) => (typeof n === 'number' && n >= 0 ? Math.floor(n) : 0);
+  return { at: s.at, v: { n: v.n, h: v.h.slice(0, 40) }, outputs: count(s.outputs), ready: count(s.ready), warnings: count(s.warnings), problems: count(s.problems) };
+}
+
+/**
+ * THE EXPECTED OUTPUTS the production pages on the topic announced, merged into this page's own
+ * (`mine`): the hosted page and the phone count the outputs the production page expects. `seen` is
+ * the announcing page's clock, close enough for "not answering (3 min)"; for an output both know,
+ * the later sighting wins.
+ */
+export function withAnnouncedOutputs(mine: readonly ExpectedOutput[], entries: readonly LiveEntry[]): ExpectedOutput[] {
+  const out = mine.map((e) => ({ ...e }));
+  for (const entry of entries) {
+    if (entry.kind !== 'operator' || !entry.exp) continue;
+    for (const e of entry.exp) {
+      const known = out.find((o) => o.id === e.id);
+      if (!known) out.push({ ...e });
+      else if (e.seen > known.seen) known.seen = e.seen;
+    }
+  }
+  return out;
 }
 
 /** Where a page's Presence stands. `joined` means the peers it reports are current; anything else
