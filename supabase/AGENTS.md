@@ -120,7 +120,8 @@ Applying to the hosted project needs no permission and no waiting: `npm run db:p
 every pending statement, applies what can only add, and REFUSES what can remove - a DROP, TRUNCATE,
 DELETE FROM, column-type change, RENAME, `disable row level security`, `owner to`, `alter database`,
 or a REVOKE on an object the same migration did not create - and a migration from 0068 on that does
-not set its own timeouts (next section). It fails CLOSED on a shape it does not
+not set its own timeouts (next section). A live-path migration waits for a quiet window instead
+(the section after that). It fails CLOSED on a shape it does not
 recognise, so a new kind of statement stops at `scripts/db-push.test.mjs` in the build rather than
 mid-push. A refusal is answered by naming the version - `npm run db:push -- --allow 0052` - and the
 run prints the before/after grant, column, policy and ledger diff, which is the evidence that the
@@ -175,6 +176,50 @@ and retries twice, and if the table is still held it says `LOCK TIMEOUT`: nothin
 applied, the files before it did (each with its ledger row), and the next landing, or a re-run of
 the post-land job, pushes it again. Post-land still goes red, because the app that landed may need
 the migration.
+
+## Live-path migrations wait for a quiet window
+
+Renderers and operator pages hold the live path open for hours and never reload, so a change to
+it can hurt a show on air without losing anything: 0056 silently dropped the `live_cue` mirror, a
+changed signature fails every send from an open page, and 0066 revoked a read renderers still used.
+
+**The live-path contract** (`LIVE_PATH_PREFIX` and its neighbours in `scripts/db-push.mjs`):
+
+- every `public` table and function named `control_*`: the RPCs renderers and operator pages call
+  (`control_send_many`, `control_send`, `control_show_by_slug`, `control_output_by_slug`,
+  `control_output_tail`, `control_output_report`, `control_output_seen`, `control_tail`,
+  `control_stage`, `control_report`, `control_data_*`, `control_live_cue_set`), the trigger and
+  helper functions behind them, and the tables `control_shows`, `control_events` and whatever comes
+  next under the prefix (`control_heads`), with their columns, indexes, policies and triggers;
+- `realtime.messages`, whose policies admit the `cmd-`, `log-` and `live-` topics;
+- the functions the policies and triggers on those tables call: `is_suspended`, `feature_denied`,
+  `is_team_member`, `set_updated_at`. These count only when a statement is about them (defining,
+  altering, dropping, granting or revoking), not when a policy elsewhere calls one.
+
+A `create`, `alter`, `drop`, `grant`, `revoke`, `insert`, `update`, `delete` or `truncate` that
+names one of these makes the migration live-path. That includes a foreign key to `control_shows`,
+which locks it. From `0068` on, such a file says so in its header comment:
+
+```sql
+-- live-path: two policies on realtime.messages for the live- topics
+```
+
+**What happens to it.** Changes to the contract are additive and backwards compatible, and set
+the usual timeouts. On a landing, `db:push` applies every pending file before the first live-path
+one, then reads the quiet window: no `control_shows.output_seen_at` in the last ten minutes. Quiet,
+it applies (its `lock_timeout` still protects it). Not quiet, or the window could not be read, it
+HOLDS that file and everything after it, prints the live production ids and the command to apply
+it, and exits 0 with a warning: the landed app must work without it. The next landing retries.
+It exits 1, so post-land goes red and reaches a person the way a refusal does, when the hold is
+older than a day or when an ordinary migration now waits behind it (that one's app may need it).
+Both alarms fire only when post-land runs, which is on a landing; the quiet window counts renderer
+heartbeats, not operator pages, which is why the change must stay backwards compatible anyway.
+
+**Applying it now**: `npm run db:push -- --live 0068`, at a moment you judge safe. It prints who is
+live and applies anyway. A destructive statement in it still needs `--allow 0068` as well.
+
+**Enforced in the build.** `scripts/db-push.test.mjs` fails for a live-path statement in a file
+without the header, and for a header in a file with no live-path statement (a stale marker).
 
 ## Two branches must never mint the same number
 

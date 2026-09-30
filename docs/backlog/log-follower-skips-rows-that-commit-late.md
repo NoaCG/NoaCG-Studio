@@ -3,7 +3,8 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-29
-state: unstarted
+state: advanced
+note: "The client stopgap landed 2026-09-30 (research §16 item 9, src/control/logFollow.ts): a follower applies a row that commits late below its cursor. Still missing: the per-show sequence and the stale-Take refusal of Phase 6 step 2, which fix the out-of-order sends and the report baseline."
 found: "A command-log follower advances its cursor past rows that are inserted but not yet committed, then drops them as duplicates when they commit; waiting sends also commit in a different order from the presses."
 serves: NOW
 size: standard
@@ -43,7 +44,14 @@ Under a database overload 23 of 79 sends arrived out of press order.
   order; followers track that sequence instead of the global id; a per-graphic revision the send
   checks, so a Take older than the graphic's current state is refused instead of airing.
 - A client-only stopgap: a refill re-reads a window behind its cursor and dedupes by a set of seen
-  ids instead of trusting that nothing below the cursor can still commit.
+  ids instead of trusting that nothing below the cursor can still commit. *Done 2026-09-30*
+  (`src/control/logFollow.ts`): a row arriving below the cursor is applied if it was never seen,
+  and the poll and every rejoin re-read from where the cursor stood 60 s earlier. What it does not
+  cover: the renderer still reports the highest applied id as its recovery baseline, so a reboot
+  inside the few seconds between a report and a late commit misses that row. Reporting a lower,
+  settled id instead would make every reboot replay rows its snapshot already contains, and a
+  replayed `next` or `event` is not idempotent, so that waits for the step 2 sequence, which makes
+  the baseline exact.
 
 ## Evidence
 

@@ -11,6 +11,11 @@ system (migration 0008), not a second control architecture. The command log, the
 the staged-vs-take model, the recovery doctrine, and the receiver semantics are all inherited
 unchanged.
 
+An open output never reloads, so the RPCs, tables, topics and policies it and the operator pages
+use are a public contract: the **live-path contract**, named in `supabase/AGENTS.md` ("Live-path
+migrations wait for a quiet window"). A migration that changes it declares so in its header and
+applies only when no production is live, or when a person names it.
+
 ## What was reused, and what is new
 
 Reused verbatim (the audit that chose this is summarized in §9):
@@ -187,6 +192,15 @@ The page:
 - **One sandboxed iframe per pool graphic**, all built at load (preload). Each iframe is
   `composeDocument(reconstructedTemplate, { liveControl: true })` — templates start invisible
   by the SPX contract, so a stacked idle graphic shows nothing.
+- **A frame is hidden, with its commands queued, until its document loads**, and **no font can
+  hold that off for long.** A web font requested during the first layout holds back `load`, so a
+  font host that never answers used to keep every graphic off air while the output counted each
+  Take (PLAYOUT_ISOLATION_RESEARCH.md §5.2). A document that is parsed but not loaded
+  `FRAME_HOLD_CAP_MS` (3 s) later reports the families it is waiting for, and the stage releases
+  it onto its fallback faces; `&debug=1` prints that as the `fonts` line. A font that loads inside
+  the cap is in place before the first Take, as before. One that arrives after a release swaps in
+  on air, which is ordinary `font-display: swap` behaviour and can move text by the difference
+  between the two faces' metrics.
 - **Every graphic is a LAYER, and pool order is the stack** — index 0 furthest back, the last
   entry on top, carried through the published payload's `graphics` array to the stage, which
   states it as an explicit `z-index` rather than relying on append order. The production page
@@ -198,10 +212,22 @@ The page:
   resolve via `control_output_by_slug`, seed `lastId` from the RECOVERY BASELINE (below),
   rebuild each graphic from `live[key]` (update, then snap), subscribe to `control_events` INSERTs filtered by
   show id, **re-tail on every `SUBSCRIBED`** (the reconnect gap the audit found in the hosted
-  page), **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
-  dedupe by row id, tail-fill on holes, route each command to its graphic's iframe as
+  page; a rejoin waits a random 0-5 s so outputs dropped together do not read at once),
+  **re-tail every `CONTROL_POLL_MS` whatever the socket is doing** (the floor below),
+  dedupe by row id, tail-fill on holes, **apply a row that commits late below the cursor**
+  (ids are taken at insert, so they commit out of order; the poll and a rejoin re-read the
+  cursor as it stood 60 s earlier, `src/control/logFollow.ts`), route each command to its graphic's iframe as
   a `previewProtocol` message, report applied state back via `control_report` (debounced),
   heartbeat `control_output_seen` every 60 s.
+- **The live path, seen** (`src/control/livePath.ts`, Phase 6 Step 1). Every renderer knows a
+  per-tab instance id, its host engine in words ("CasparCG · Chromium 71", "OBS · Chromium 127"),
+  its build and the live-path protocol version. Every command a page sends carries `snd`: the
+  sender's instance, build, protocol and PRESS time, riding the log beside `oid` with no
+  migration. The renderer counts per road (fast, log, tail), duplicates dropped, holes, refills
+  and late commands (press to receive over 2 s; exact only when sender and output share a clock),
+  and times press to receive to stage to first frame. All of it is on the `&debug=1` line, on
+  `window.__noacgLive`, and in the renderer's Realtime PRESENCE entry on the private topic
+  `live-<show id>` (migration 0068). Report-only: nothing acts on it yet.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
@@ -473,7 +499,12 @@ send.
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
     more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — renderer connected (from `output_seen_at` staleness, polled), every live layer
+- **Status** — the output health line (`components/control/OutputHealth.tsx`), the SAME line on
+  the production page and the hosted page, so on a phone too: how many outputs are connected,
+  their engines, and amber when one says commands may arrive late because its log or command
+  channel is not joined. It reads the outputs' Presence entries on `live-<show id>`; on a server
+  without that topic it falls back to `output_seen_at` (the production page polls it every 30 s,
+  the signed-out hosted page shows the value it resolved with and says so). Every live layer
   with its cue + machine state + applied values (from `live` reports), publish freshness.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
@@ -828,7 +859,8 @@ cost more in broken presets than it saves in disk.
   Asset externalization to a public bucket is the known next step if the renderer side bites.
 - **One report authority**: two open output tabs both write `control_report`; last write
   wins. Harmless for state (they converge on the same log) but `output_seen_at` cannot tell
-  two renderers apart. Multi-renderer awareness is Stage-2 work.
+  two renderers apart. Presence on `live-<show id>` can (one entry per renderer instance), once
+  the server has migration 0068.
 - **Graphic identity is still the pool NAME** (the 0008 key). Renaming a pool graphic
   between publishes orphans the old key's `live`/`staged` rows until the next publish.
 - **`control_events.id` is a GLOBAL identity**, so per-show id sequences have legitimate gaps

@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { loadBackendConfig, isBackendConfigured } from './config';
+import { realtimeReconnectAfterMs } from './realtimeReconnect';
 
 let clientPromise: Promise<SupabaseClient | null> | null = null;
 
@@ -38,5 +39,7 @@ async function create(): Promise<SupabaseClient | null> {
       autoRefreshToken: true,
       detectSessionInUrl: true, // completes the OAuth redirect when the page loads back
     },
+    // The library's reconnect steps with jitter, so pages dropped together do not retry together.
+    realtime: { reconnectAfterMs: (tries: number) => realtimeReconnectAfterMs(tries) },
   });
 }

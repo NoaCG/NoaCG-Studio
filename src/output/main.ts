@@ -31,9 +31,22 @@ import {
   type SpeakingClockPair,
 } from '../control/matchClockWire';
 import { createAppliedOnce } from '../control/commandRoads';
+import {
+  LIVE_BUILD,
+  LIVE_PROTOCOL,
+  createLiveStats,
+  describeLiveSummary,
+  hostEngine,
+  joinLivePresence,
+  liveEntry,
+  liveInstanceId,
+  type LiveEntry,
+  type LivePresenceStatus,
+  type LiveRoad,
+} from '../control/livePath';
 import { alreadyInSnapshot, planOutputRecovery } from '../control/outputRecovery';
 import { airWhenSettled } from './catchUp';
-import { createOutputStage } from './stage';
+import { createOutputStage, heldLine } from './stage';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -66,10 +79,9 @@ function dbg(key: string, value: string): void {
  * overlay. It costs nothing and settles a question that otherwise needs a changelog archaeology
  * session per install.
  */
-if (debugEl) {
-  const chrome = / (?:Chrome|Chromium)\/(\d+)/.exec(navigator.userAgent);
-  dbg('engine', chrome ? `Chromium ${chrome[1]}` : navigator.userAgent.slice(0, 60));
-}
+// The host's own marker (CasparCG's `window.caspar`) can arrive after this script runs, so the
+// line is written again once the production resolves (livePath.ts `hostEngine`).
+dbg('engine', hostEngine());
 
 /** Why the renderer has nothing to show. Published as `body[data-unavailable]`. */
 type Unavailable = 'no-token' | 'offline' | 'unpublished';
@@ -175,6 +187,56 @@ async function boot(): Promise<void> {
 
   const stage = createOutputStage(document.body, resolved.output);
   dbg('graphics', stage.graphics.join(', '));
+  // A graphic a font kept waiting past the cap airs on a fallback face (stage.ts `held`).
+  stage.onHeld(() => dbg('fonts', heldLine(stage.held) ?? ''));
+
+  // ── THE LIVE PATH, SEEN (control/livePath.ts): who this renderer is, how commands reach it, and
+  // the Presence entry the operator pages build their health line from. Report-only: nothing
+  // here changes what airs, and a server without the live topic (migration 0068) refuses only
+  // the Presence join. ──
+  const identity = { id: liveInstanceId(), build: LIVE_BUILD, protocol: LIVE_PROTOCOL };
+  dbg('engine', hostEngine());
+  dbg('identity', `${identity.id} · build ${identity.build} · protocol ${identity.protocol}`);
+  let logJoined: boolean | null = null;
+  let cmdJoined: boolean | null = null;
+  let presenceStatus: LivePresenceStatus = 'joining';
+  const live = createLiveStats({
+    onChange: () => {
+      // Built only where it is shown: the summary sorts its samples, and a playout box's main
+      // thread is the one that must not miss frames.
+      if (debug) dbg('live', describeLiveSummary(live.summary()));
+      presence.touch();
+    },
+  });
+  const entry = (): LiveEntry => liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary());
+  const presence = joinLivePresence({
+    showId: resolved.id,
+    entry,
+    onStatus: (status) => {
+      presenceStatus = status;
+      dbg(
+        'presence',
+        status === 'joined'
+          ? 'announced on the live topic'
+          : status === 'down'
+            ? 'NOT JOINED - operator pages fall back to the heartbeat'
+            : status,
+      );
+    },
+  });
+  // For specs and for whoever opens the console on a playout box.
+  (window as unknown as { __noacgLive?: unknown }).__noacgLive = {
+    identity,
+    engine: hostEngine,
+    entry,
+    summary: () => live.summary(),
+    presence: () => presenceStatus,
+  };
+  /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
+   *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
+   *  refill once, and only if a row of it was new here: the poll and every rejoin re-read a window
+   *  behind the cursor (logFollow.ts), which mostly returns rows already applied. */
+  const fromTail = new WeakMap<ControlEventRow, { counted: boolean }>();
 
   /**
    * HOW MANY ENTRANCES THIS RENDERER HAS PLAYED, published on the body as `data-plays`.
@@ -281,8 +343,20 @@ async function boot(): Promise<void> {
    * event may arrive here fast and falls back to now, which it never reads.
    */
   const applied = createAppliedOnce();
-  const applyCommand = (graphic: string, incoming: ControlEventRow['msg'], createdAt: string | undefined) => {
-    if (!applied.claim(incoming)) return;
+  // `road` is set for what the LIVE follow delivers and absent for the boot catch-up, whose rows
+  // are history rather than latency (livePath.ts counts and times the former only).
+  const applyCommand = (
+    graphic: string,
+    incoming: ControlEventRow['msg'],
+    createdAt: string | undefined,
+    road?: LiveRoad,
+  ) => {
+    const receivedAt = Date.now();
+    if (road) live.received(road, incoming);
+    if (!applied.claim(incoming)) {
+      if (road) live.duplicate(incoming);
+      return;
+    }
     const row = { graphic, msg: incoming, created_at: createdAt };
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
@@ -348,18 +422,19 @@ async function boot(): Promise<void> {
     // re-guessed: a server row's `created_at` wins, and a locally-authored row falls back to now,
     // which is correct there because that log has exactly one renderer.
     stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
+    if (road) live.applied(road, incoming, receivedAt);
     if (msg.t === 'play') countPlay();
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
 
-  const apply = (row: ControlEventRow) => {
+  const apply = (row: ControlEventRow, road?: LiveRoad) => {
     lastAppliedId = Math.max(lastAppliedId, row.id);
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
     if (alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return;
-    applyCommand(row.graphic, row.msg, row.created_at);
+    applyCommand(row.graphic, row.msg, row.created_at, road);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
     const t = row.msg.t;
@@ -447,7 +522,7 @@ async function boot(): Promise<void> {
   // it was catching up on ON AIR: the whole output flashed a second after a CasparCG browser
   // source loaded it. Both halves are fixed - the documents go off air from the inside and keep
   // their frame rate (stage.ts), and WHEN to return is asked rather than guessed (catchUp.ts).
-  missed.forEach(apply);
+  missed.forEach((row) => apply(row));
   if (animates) {
     void airWhenSettled(stage)
       .then((ending) =>
@@ -488,21 +563,38 @@ async function boot(): Promise<void> {
     // then the next hole in the live stream starts the walk again.
     tail: async (after) => {
       const tail = await untilAnswered(() => controlOutputTail(outputSlug, after), { limit: 5 });
-      return tail.ok ? tail.value : [];
+      const rows = tail.ok ? tail.value : [];
+      const read = { counted: false };
+      rows.forEach((row) => fromTail.set(row, read));
+      return rows;
     },
-    onRow: apply,
+    onRow: (row) => {
+      const read = fromTail.get(row);
+      if (read && !read.counted) {
+        read.counted = true;
+        live.refilled();
+      }
+      apply(row, read ? 'tail' : 'log');
+    },
+    onHole: () => live.hole(),
     // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
     // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
     // drops whichever copy is second.
-    onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined)),
+    onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined, 'fast')),
     // THE FAST ROAD, on the debug overlay, because it is the only place its absence can be seen.
     // A command channel that never joins costs no correctness - every command still arrives as a
     // durable row - so nothing goes red and air simply goes back to being a few hundred
     // milliseconds late. This line is what turns that into something an operator can read out to
     // whoever asks why the graphics feel slow again.
-    onCommandStatus: (status) =>
-      dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`),
+    onCommandStatus: (status) => {
+      cmdJoined = status === 'SUBSCRIBED';
+      presence.touch();
+      dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`);
+    },
     onStatus: ({ status, everJoined }) => {
+      // What the Presence entry says about the log road: joined NOW, not ever.
+      logJoined = status === 'SUBSCRIBED';
+      presence.touch();
       const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
       dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);
       // Only after a full interval with no join: the first status a healthy channel reports can

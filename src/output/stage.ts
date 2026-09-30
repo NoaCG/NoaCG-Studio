@@ -17,7 +17,10 @@
 import { composeDocument } from '../preview/composeDocument';
 import {
   postPreviewCmd,
+  FRAME_HOLD_CAP_MS,
+  PREVIEW_HELD_TYPE,
   PREVIEW_STATE_TYPE,
+  type PreviewHeldMessage,
   type PreviewCmd,
   type PreviewMachineState,
   type PreviewStateMessage,
@@ -86,6 +89,15 @@ export interface OutputStage {
    *  it. Until then nothing sent to the stage has run, so a caller timing how long a burst of
    *  commands takes to play out starts its clock here, not when it sent them. */
   whenLoaded(): Promise<void>;
+  /** Graphics released to air before their document finished loading: a font (or another
+   *  subresource) had not answered `FRAME_HOLD_CAP_MS` after the document was parsed, so the
+   *  graphic runs its commands on its fallback faces. `fonts` is what it was waiting for;
+   *  `late` turns true when the document finally loads (the font answered or failed), and the
+   *  entry stays so the debug line can still say the graphic was released early. `heldLine`
+   *  words it. */
+  held: ReadonlyMap<string, { fonts: string[]; late: boolean }>;
+  /** Called whenever `held` changes. */
+  onHeld(cb: () => void): void;
   /** Re-measure the fit box and rescale. The stage does this on every window resize; a host
    *  whose box changes for other reasons (a panel resize) calls it itself. */
   rescale(): void;
@@ -103,6 +115,19 @@ export interface OutputStageOptions {
    *  own isolated frame (foreignOgraf.ts, docs/OGRAF_ECOSYSTEM.md §3). The published graphics
    *  load exactly as they do without it. */
   foreign?: ForeignOgrafSpec[];
+}
+
+/** The output's debug line for `OutputStage.held`, or null when every document loaded in time. */
+export function heldLine(held: OutputStage['held']): string | null {
+  if (held.size === 0) return null;
+  return [...held]
+    .map(([graphic, { fonts, late }]) => {
+      const what = fonts.length ? fonts.join(', ') : 'a resource';
+      return late
+        ? `${graphic} released on a fallback face (${what} was late)`
+        : `${graphic} released on a fallback face, still waiting for ${what}`;
+    })
+    .join('; ');
 }
 
 /** Build the stage into `root` and keep it scaled to its fit box (the viewport by default). */
@@ -155,6 +180,18 @@ export function createOutputStage(
   });
   // A payload with no graphics has nothing to wait for (every `load` below checks the same).
   if (payload.graphics.length === 0) resolveLoaded();
+  const held = new Map<string, { fonts: string[]; late: boolean }>();
+  const heldCbs: (() => void)[] = [];
+  const release = (graphic: string) => {
+    const iframe = frames.get(graphic);
+    if (!iframe || loaded.has(graphic)) return;
+    iframe.style.visibility = 'visible';
+    loaded.add(graphic);
+    const queue = pending.get(graphic) ?? [];
+    pending.delete(graphic);
+    for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
+    if (loaded.size === frames.size) resolveLoaded();
+  };
   const post = (graphic: string, cmd: PreviewCmd) => {
     if (!loaded.has(graphic)) {
       pending.set(graphic, [...(pending.get(graphic) ?? []), cmd]);
@@ -198,13 +235,16 @@ export function createOutputStage(
       // nothing sent to it can have run earlier anyway because commands queue until then.
       'visibility:hidden',
     ].join(';');
+    // `load` is the normal release. A document that a font request holds back from `load`
+    // releases itself earlier instead (PREVIEW_HELD_TYPE, handled in onMessage below): by then it
+    // is fully parsed, so the reasons above for hiding it no longer apply.
     iframe.addEventListener('load', () => {
-      iframe.style.visibility = 'visible';
-      loaded.add(spec.key);
-      const queue = pending.get(spec.key) ?? [];
-      pending.delete(spec.key);
-      for (const cmd of queue) postPreviewCmd(iframe.contentWindow, cmd);
-      if (loaded.size === frames.size) resolveLoaded();
+      release(spec.key);
+      const hold = held.get(spec.key);
+      if (hold && !hold.late) {
+        hold.late = true;
+        for (const cb of heldCbs) cb();
+      }
     });
     iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true });
     stage.appendChild(iframe);
@@ -232,6 +272,20 @@ export function createOutputStage(
 
   // State replies carry no graphic name — the SOURCE window identifies the sender.
   const onMessage = (ev: MessageEvent) => {
+    const heldMsg = ev.data as PreviewHeldMessage | undefined;
+    if (heldMsg?.type === PREVIEW_HELD_TYPE) {
+      for (const [key, frame] of frames) {
+        if (frame.contentWindow !== ev.source || loaded.has(key)) continue;
+        const fonts = Array.isArray(heldMsg.fonts) ? heldMsg.fonts.map(String) : [];
+        console.warn(
+          `output stage: "${key}" released on a fallback face after ${FRAME_HOLD_CAP_MS} ms, still waiting for ${fonts.join(', ') || 'a resource'}`,
+        );
+        held.set(key, { fonts, late: false });
+        release(key);
+        for (const cb of heldCbs) cb();
+      }
+      return;
+    }
     const data = ev.data as PreviewStateMessage | undefined;
     if (!data || data.type !== PREVIEW_STATE_TYPE) return;
     for (const [key, frame] of frames) {
@@ -317,6 +371,8 @@ export function createOutputStage(
       for (const key of frames.keys()) post(key, { cmd: 'offair', on: !visible });
       for (const layer of foreign.values()) layer.setOffAir(!visible);
     },
+    held,
+    onHeld: (cb) => heldCbs.push(cb),
     whenLoaded: () =>
       foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
     rescale,

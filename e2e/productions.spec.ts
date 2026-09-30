@@ -538,7 +538,24 @@ test('a dropped recovery RPC is retried, and only an answer is ever concluded fr
       { limit: 3, wait: async () => {} },
     );
 
-    return { calls, answer, waits, capped, asked, none, tries, gaveUp };
+    // A page that has gone away stops asking (the operator pages retry for good otherwise): the
+    // walk ends at the next check with the last failure, and no further attempt is made.
+    let gone = false;
+    let knocks = 0;
+    const stopped = await untilAnswered(
+      async () => {
+        knocks += 1;
+        return { ok: false, error: 'down' };
+      },
+      {
+        stop: () => gone,
+        wait: async () => {
+          if (knocks === 2) gone = true;
+        },
+      },
+    );
+
+    return { calls, answer, waits, capped, asked, none, tries, gaveUp, knocks, stopped };
   });
 
   expect(result.answer).toEqual({ ok: true, value: 'the show' });
@@ -549,6 +566,8 @@ test('a dropped recovery RPC is retried, and only an answer is ever concluded fr
   expect(result.asked, 'an answer is final, however empty').toBe(1);
   expect(result.tries).toBe(3);
   expect(result.gaveUp).toEqual({ ok: false, error: 'log unread' });
+  expect(result.knocks, 'a stopped walk asks nothing after the wait it was stopped in').toBe(2);
+  expect(result.stopped).toEqual({ ok: false, error: 'down' });
 });
 
 

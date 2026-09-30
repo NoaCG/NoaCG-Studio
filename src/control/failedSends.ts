@@ -30,6 +30,39 @@
 export const RESEND_DELAYS_MS = [400, 1000, 2000] as const;
 export const RESEND_WINDOW_MS = 4000;
 
+/**
+ * HOW LONG ONE ATTEMPT MAY TAKE before it is abandoned, and why the window above is not enough.
+ *
+ * The window stops attempts from STARTING late; it did nothing about one already in flight.
+ * Measured (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.6): a Take whose request was held 6 s in the
+ * browser, as a slow uplink or a queue in front of the database would hold it, committed after
+ * the Out pressed 1.5 s behind it. Air ended with the graphic up while the operator's page said
+ * nothing was on air, and nobody was told.
+ *
+ * So each attempt is abandoned - its request cancelled, its answer ignored - 1.5 s after it
+ * starts, and never later than the window's end. The number: a healthy send answers in 68 ms
+ * (p95 227 ms, slowest seen 242 ms), so 1.5 s is six times the slowest healthy answer and leaves
+ * room for a phone on a poor link, where a tighter cut would abandon sends that were landing and
+ * tell the operator they had not. It is half the database's own `anon` statement timeout (3 s;
+ * 8 s signed in), which is what used to end a hung attempt. And it spaces the attempts so that
+ * a hung send makes two inside the window (0-1.5 s, 1.9-3.4 s), with the resend starting after
+ * a correction pressed as quickly as the one measured, which then stops it (`stillNewest`).
+ * An abandoned attempt counts as unanswered: it is sent again inside the window, or ends in the
+ * notice.
+ *
+ * WHAT THIS CANNOT DO: an attempt whose request already reached the server can still commit
+ * after it was abandoned, because cancelling a request on this side does not roll anything back
+ * over there (PostgREST's own queue for a database connection included). A double commit still
+ * airs once (the minted id, commandRoads.ts); a late commit is closed only by a server-side
+ * check, the per-graphic revision compare of Phase 6 Step 2.
+ */
+export const ATTEMPT_TIMEOUT_MS = 1500;
+
+/** The least time left in the window that a resend is started with: the slowest healthy answer
+ *  measured (242 ms). An attempt with less would be cancelled before it could be answered, while
+ *  its request might still reach the server and commit late. */
+export const MIN_ATTEMPT_MS = 250;
+
 /** What the operator reads when the server did not answer, in place of the server's own words. */
 export const UNANSWERED = 'the server did not answer';
 
@@ -63,31 +96,57 @@ export function rpcFailure(rpc: string, error: { message: string; code?: string 
  * Send, and send again on the schedule above while the server does not answer, the window is
  * open, and no NEWER send has gone out for the same graphics. That last rule keeps order: a Take
  * still being retried when the operator presses Out on its graphic stops trying, because landing
- * after the Out would put the graphic back on air. The error thrown is the last attempt's.
+ * after the Out would put the graphic back on air. Each attempt is abandoned at its own deadline
+ * (ATTEMPT_TIMEOUT_MS, and never past the window), and `send` is handed the signal that cancels
+ * its request then. The error thrown is the last attempt's.
  */
 export async function sendWithResend(
-  send: () => Promise<void>,
+  send: (signal: AbortSignal) => Promise<void>,
   opts: {
-    /** Epoch ms after which no attempt starts: the press plus RESEND_WINDOW_MS. */
+    /** Epoch ms after which no attempt starts or runs on: the press plus RESEND_WINDOW_MS. */
     deadline: number;
     stillNewest: () => boolean;
     now?: () => number;
     sleep?: (ms: number) => Promise<void>;
+    /** Calls `fire` after `ms` unless the returned cancel is called first. */
+    timer?: (ms: number, fire: () => void) => () => void;
   },
 ): Promise<void> {
   const now = opts.now ?? Date.now;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const timer = opts.timer ?? ((ms: number, fire: () => void) => {
+    const id = setTimeout(fire, ms);
+    return () => clearTimeout(id);
+  });
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => timer(ms, resolve)));
   for (let attempt = 0; ; attempt += 1) {
     try {
-      await send();
+      await attemptWithin(send, Math.min(ATTEMPT_TIMEOUT_MS, opts.deadline - now()), timer);
       return;
     } catch (e) {
       const wait = RESEND_DELAYS_MS[attempt];
-      if (!isUnanswered(e) || wait === undefined || now() + wait > opts.deadline) throw e;
+      if (!isUnanswered(e) || wait === undefined || now() + wait + MIN_ATTEMPT_MS > opts.deadline) throw e;
       await sleep(wait);
       if (!opts.stillNewest()) throw e;
     }
   }
+}
+
+/** One attempt, abandoned after `ms`: its request is cancelled and whatever it answers later is
+ *  ignored, so a transport that never answers (or ignores the signal) still ends the attempt. */
+function attemptWithin(
+  send: (signal: AbortSignal) => Promise<void>,
+  ms: number,
+  timer: (ms: number, fire: () => void) => () => void,
+): Promise<void> {
+  const controller = new AbortController();
+  let cancel = () => {};
+  const expired = new Promise<never>((_, reject) => {
+    cancel = timer(Math.max(0, ms), () => {
+      controller.abort();
+      reject(unansweredError());
+    });
+  });
+  return Promise.race([send(controller.signal), expired]).finally(cancel);
 }
 
 /**

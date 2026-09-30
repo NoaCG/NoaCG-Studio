@@ -9,6 +9,9 @@ export const ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH = 'f4df1ba19eb48';
 // The interpreter emitted from R1.2a.1 (PR #515) until the ease grammar learned Hold (R1.2a.2).
 // e2e/fixtures/interpreter-whole-ease-v1.js holds its text.
 export const ANIM_INTERPRETER_BEFORE_HOLD_HASH = '483ce85fd945c';
+// The interpreter emitted from R1.2a.2 (PR #547) until Out learned to leave from any step
+// (R1.2a.3). e2e/fixtures/interpreter-hold-v1.js holds its text.
+export const ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH = '033bf69c72f59';
 
 // Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
 export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----

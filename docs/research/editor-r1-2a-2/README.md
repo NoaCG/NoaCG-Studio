@@ -76,7 +76,8 @@ that segment; key `k`'s **Out side** departs through it.
     `arrivingPoint`) and null for every other named curve, and revisit `departsOnItsOwn`, which
     decides what Bounce and Overshoot protect. A consequence of either reading: Overshoot's
     overshoot sits in its departing control point, so an Out side set on the key before an
-    Overshoot key replaces the overshoot and keeps its arrival.
+    Overshoot key replaces the overshoot and keeps its arrival. **Owner answer, 2026-09-29:**
+    keep this reading. A named ease belongs wholly to the key it arrives at.
 - **Whole-segment presets.** Bounce and Overshoot replace the whole arriving segment. They
   refuse when the departing side was set on its own: a `cubic-bezier` whose departing point is
   not Linear's, or a Hold. Named curves are replaced, as the old menu replaced them. Hold
@@ -299,5 +300,5 @@ Not checked: physical 125% displays, receiving-host fonts, a real OGraf host, th
 in a headed Windows browser, and the two first-time-user trials, which stay pending as before. This
 is scoped engineering evidence, not owner acceptance; the default editor is unchanged. Two owner
 items are filed: [a decision](../../acceptance/owner-queue/2026-09-29-editor-key-ease-named-curves.md)
-on the named-curve reading and [a desktop look](../../acceptance/owner-queue/2026-09-29-editor-key-easing.md)
-at the workflow.
+on the named-curve reading, answered the same day (keep it), and
+[a desktop look](../../acceptance/owner-queue/2026-09-29-editor-key-easing.md) at the workflow.

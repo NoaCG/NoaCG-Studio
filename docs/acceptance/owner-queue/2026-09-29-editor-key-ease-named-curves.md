@@ -2,7 +2,8 @@
 kind: decision
 date: 2026-09-29
 serves: now
-answered: false
+answered: true
+done: true
 ---
 # Does Easy Ease In on a Bounce or Overshoot key replace it?
 
@@ -22,3 +23,8 @@ Recommendation: keep the shipped reading. Each preset visibly does what its name
 editable. Either way, selecting both keys and choosing Linear or Easy Ease sets the whole
 segment. Reverting is a small change in `departingPoint` (the
 [receipt](../../research/editor-r1-2a-2/README.md) says how).
+
+## Owner answer, 2026-09-29
+
+Keep the shipped reading: a named ease belongs wholly to the key it arrives at. Nothing changes in
+the code; the [R1.2a.2 receipt](../../research/editor-r1-2a-2/README.md) records the answer.

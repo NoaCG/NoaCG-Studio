@@ -1,9 +1,10 @@
 # Playout isolation research - keeping a production on air while NoaCG changes
 
-**Status: RESEARCH ONLY, nothing built, nothing decided (2026-09-29).** No product code, schema or
-infrastructure changed because of this document. It is the evidence for the owner's Phase 6
-decision ("Playout Runtime & Reliability"). Where it recommends, the recommendation is labelled a
-suggestion.
+**Status: RESEARCH, decided on 2026-09-29.** Written before anything was built; no product code,
+schema or infrastructure changed because of this document. It is the evidence for the owner's
+Phase 6 decision ("Playout Runtime & Reliability"), which is now taken: §18 is answered, and the
+work is specified in `docs/work-specs/playout-runtime-reliability/spec.md`. Where this document
+recommends, the recommendation is labelled a suggestion.
 
 **Why it exists.** On 2026-09-29 the production database stopped answering and restarted
 (06:42-06:45 UTC) after library sync lists hit statement timeouts. Every Take in that window failed,
@@ -1025,7 +1026,8 @@ version is being deployed", is mostly true today for the *running page* and fals
    `control_stage`, `control_data_*`), the topics (`cmd-`, `log-`), and the columns and policies
    they read. In place, only additive changes. Anything else is a new versioned function beside
    the old one (0033 already did this once, keeping the 4-argument report working through a
-   default).
+   default). *Done 2026-09-30 (the naming):* `supabase/AGENTS.md`, "Live-path migrations wait for a
+   quiet window", and `LIVE_PATH_PREFIX` in `scripts/db-push.mjs`, which classifies by it.
 2. **Retire old contract versions by evidence, not by waiting.** Renderers and control pages
    report their build and protocol version (in the same Presence entry as READY). "No output on a
    build older than X has been seen for 14 days" is a query; 0066's "until the renderers already
@@ -1037,7 +1039,10 @@ version is being deployed", is mostly true today for the *running page* and fals
    objects, and any redefinition of a live-path function, need an explicit `--allow` (the mechanism
    exists for destructive statements) and run in a quiet window: no production live by the
    heartbeats, or after a time-boxed hold, and always with `lock_timeout`. Every other migration
-   stays automatic.
+   stays automatic. *Done 2026-09-30,* in the shape owner decision 6 set: a live-path file declares
+   `-- live-path:` in its header (the build refuses one that does not), an automatic push holds it
+   until a landing finds no renderer heartbeat in ten minutes, `--live NNNN` applies it at once,
+   and a hold older than a day turns post-land red (`supabase/AGENTS.md`).
 5. **Behaviour self-checks for any redefined live-path function**, which the repo already requires
    (`supabase/AGENTS.md`), plus a contract test in the configured suite that runs the *previous*
    release's client calls against the new schema.
@@ -1274,8 +1279,10 @@ the ones marked *filed* have a backlog item.
    on air by itself. *Filed:* `docs/backlog/output-embed-blocked-by-frame-headers.md`.
 2. **Tell the operator the truth during an outage.** The hosted page's resolve collapses an error
    into "invalid or unpublished"; use the renderer's `RpcAnswer` pattern and retry. The production
-   page's follow gives up silently until reload. *Filed:*
-   `docs/backlog/operator-pages-read-an-outage-as-unpublished.md`.
+   page's follow gives up silently until reload. *Done 2026-09-30:* `controlShowBySlug` answers
+   with `RpcAnswer`; the hosted page says the server is not answering and retries, the production
+   page's follow retries and says so in its header, and
+   `e2e/configured/operator-outage-not-unpublished.spec.ts` replays the 503.
 3. **A renderer that cannot fail at boot on a chunk.** Bundle supabase-js into the output entry or
    stop caching a rejected import; make the "Output not available" card transparent, or show it
    only for an explicit unpublish. *Done 2026-09-30:* a failed load is retried and never cached
@@ -1284,7 +1291,10 @@ the ones marked *filed* have a backlog item.
    `e2e/output-boot-resilience.spec.ts`).
 4. **A per-attempt timeout on the send**, so an attempt started inside the resend window cannot
    commit after a later press. The real fix is step 2's revision check; this closes most of the
-   window cheaply.
+   window cheaply. *Done 2026-09-30:* each attempt is abandoned 1.5 s after it starts and never
+   past the resend window (`ATTEMPT_TIMEOUT_MS` in `src/control/failedSends.ts`;
+   `e2e/configured/late-send-abandoned.spec.ts` replays the late Take of §5.6). A request already
+   inside PostgREST can still commit; step 2 closes that.
 5. **`lock_timeout` and `statement_timeout` in every migration session** (`db-push`), with a retry
    instead of a queued lock. §5 shows the difference for a show under a lock queue. *Done
    2026-09-29:* every migration from 0068 sets both in the file, `db-push` retries a lock timeout
@@ -1292,22 +1302,39 @@ the ones marked *filed* have a backlog item.
 6. **Make the post-land alarm mean something again.** It is red on every landing today for an
    accepted advisor class, so a real migration failure would look the same. *Done 2026-09-29:*
    `unused_index` now warns and never fails (`docs/STACK_FRESHNESS.md`, Supabase advisors).
-7. **One library sync pass per browser**, not per tab per edit. *Filed already:*
-   `docs/backlog/library-sync-runs-a-pass-per-tab-per-edit.md`.
+7. **One library sync pass per browser**, not per tab per edit. *Done 2026-09-30:* the tab that
+   makes a change runs its pass, a tab that only adopted it runs none (unless the writer runs no
+   sync, as a production page opened on its own does), and a tab that closes with a pass owed
+   hands it to one of the tabs still open (`src/backend/syncController.ts`, measured in
+   `e2e/configured/sync-one-pass-per-edit.spec.ts`: two tabs and one edit went from two passes to
+   one).
 8. **Jitter the refill on reconnect**, so a Realtime restart does not send every output to the
-   tail RPC in the same second (§5 storm run).
+   tail RPC in the same second (§5 storm run). *Done 2026-09-30:* a rejoin refills after a random
+   0-5 s (`src/control/logFollow.ts`, `REJOIN_REFILL_SPREAD_MS`), and the socket's own reconnect
+   steps are jittered to 0.5-1.5 times the library's (`src/backend/realtimeReconnect.ts`).
 9. **Close the commit-order skip on the client side as a stopgap**: a refill re-reads a short
    window behind its cursor and dedupes by a set of seen ids, instead of trusting that nothing
-   below the cursor can still commit. The real fix is step 2. *Filed:*
-   `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
+   below the cursor can still commit. The real fix is step 2. *Done 2026-09-30:* the follower
+   applies an unseen row that arrives below its cursor, and the poll and every rejoin re-read the
+   cursor as it stood 60 s earlier, deduped by the ids applied (`src/control/logFollow.ts`,
+   `scripts/log-follow.test.mjs`). The renderer's report baseline is unchanged, so a reboot in the
+   seconds between a report and a late commit can still miss that row until step 2. The
+   out-of-order half stays filed: `docs/backlog/log-follower-skips-rows-that-commit-late.md`.
 10. **Write down two "never" rules** in `docs/DEPLOYMENT.md`: never enable Vercel's production pause
     without exempting `/output`; never ship a live-path function change without a behaviour
-    self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract).
+    self-check (already a `supabase/AGENTS.md` rule, not yet tied to a named contract). *Done
+    2026-09-29:* `docs/DEPLOYMENT.md`, "Two things never to do while outputs may be on air".
 11. **Show output health on the hosted page and the phone**, the one line the production page
-    already has.
+    already has. *Done 2026-09-30:* one component on both surfaces
+    (`src/components/control/OutputHealth.tsx`, words in `src/control/livePath.ts`), from the
+    outputs' Presence entries on `live-<show id>` once migration 0068 is on the server and from
+    `output_seen_at` until then (Phase 6 Step 1, spec D1).
 12. **Never let a font request gate a frame.** Serve bundled fonts with the prepared payload (or
     from whatever serves the output), or stop waiting for the frame's `load` to release commands;
     today a hanging font host leaves an output that accepts every Take and shows nothing (§5.2).
+    *Done 2026-09-30:* a document still not loaded 3 s after it was parsed releases itself onto
+    its fallback faces and the debug line names the font (`src/output/stage.ts`,
+    `e2e/output-font-hold.spec.ts`, `docs/CLOUD_PLAYOUT.md` §3).
 
 ---
 
@@ -1347,6 +1374,14 @@ the ones marked *filed* have a backlog item.
 ---
 
 ## 18. Questions that need the owner
+
+**Answered by the owner on 2026-09-29.** The answers, and the choices derived from them, are in
+[`docs/work-specs/playout-runtime-reliability/spec.md`](work-specs/playout-runtime-reliability/spec.md)
+("Owner decisions"). In short: 1 the staged path; 2 Bridge stays loopback-only and any LAN or
+second-install Local Mode comes back as alternatives first; 3 private topics; 4 the next Take from
+off air, plus an explicit Apply Update; 5 Prepare for Live publishes and says so; 6 yes; 7 when the
+numbers say so; 8 Step 0 now, Steps 1 and 2 without waiting for the Phase 5 walk. The questions
+are kept below as they were asked.
 
 Only the choices that change the outcome. Each has a suggestion.
 

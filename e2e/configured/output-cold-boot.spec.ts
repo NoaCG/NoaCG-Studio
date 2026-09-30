@@ -7,7 +7,7 @@
 // mechanism is ABSENT rather than merely untested. Their live coverage is the four /output
 // walks plus output-realtime-floor and relay-cold-boot, all in the configured suite - so a
 // change here that the offline plan reports as "covered" is covered by nothing.
-// covers: src/control/{hostedControl,hostedReceiver,outputRecovery}.ts, src/output/**
+// covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -79,7 +79,8 @@ test('a cue taken before the renderer exists is on air when the browser source b
       async () =>
         page.evaluate(async (slug) => {
           const { controlShowBySlug } = await import('/src/control/hostedControl.ts');
-          const show = await controlShowBySlug(slug!);
+          const answer = await controlShowBySlug(slug!);
+          const show = answer.ok ? answer.value : null;
           return Object.keys(show?.liveCue ?? {}).length;
         }, slugs.control),
       { timeout: 30_000 },
