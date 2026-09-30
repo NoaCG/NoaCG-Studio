@@ -458,7 +458,7 @@ function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
   if (typeof step.name !== 'string') return false;
   if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration < 0) return false;
   if (typeof step.ease !== 'string') return false;
-  if (step.carried !== undefined && (typeof step.carried !== 'number' || !(step.carried > 0) || step.carried > step.duration)) return false;
+  if (step.carried !== undefined && (typeof step.carried !== 'number' || !(step.carried >= 0) || !Number.isFinite(step.carried))) return false;
   if (!revealsAllowed && (step.reveals !== undefined || step.hides !== undefined)) return false;
   if (step.reveals !== undefined && !Array.isArray(step.reveals)) return false;
   if (step.hides !== undefined && !Array.isArray(step.hides)) return false;

@@ -93,8 +93,12 @@ function moveLayerAcross(source: AnimData, cues: number[], selector: string, del
   const exit = clone(source);
   explicitBars(exit, selector);
   explicitBars(data, selector, cues.includes(out) ? out + 1 : out);
-  const bars = joinBars(cues.flatMap(cue => data.steps[cue].spans![selector].map(bar => ({ start: round(starts[cue] + bar.start + delta), end: round(starts[cue] + bar.end + delta) }))));
+  // A bar running to the end of Out keeps running to it: the root clears the graphic there anyway.
+  const end = round(starts[out] + data.steps[out].duration);
+  const bars = joinBars(cues.flatMap(cue => data.steps[cue].spans![selector].map(bar => ({ start: round(starts[cue] + bar.start), end: round(starts[cue] + bar.end) }))))
+    .map(bar => ({ start: round(bar.start + delta), end: Math.abs(bar.end - end) < EPS ? end : round(bar.end + delta) }));
   if (bars.some(bar => bar.start < -EPS)) throw new Error(`${selector} would move before In starts. No keys or spans changed.`);
+  if (bars.some(bar => bar.end > end + EPS || bar.end - bar.start < EPS)) throw new Error(`${selector} would move past the end of Out. No keys or spans changed.`);
   for (const cue of cues) data.steps[cue].spans![selector] = [];
   let intoOut = false;
   for (const bar of bars) for (let cue = 0; cue <= out; cue++) {
@@ -103,8 +107,8 @@ function moveLayerAcross(source: AnimData, cues: number[], selector: string, del
     if (cue === out) data.steps[out].spans = { ...data.steps[out].spans, [selector]: data.steps[out].spans?.[selector] ?? exit.steps[out].spans![selector] };
     const piece = { start: round(from - starts[cue]), end: round(to - starts[cue]) }, list = data.steps[cue].spans![selector];
     if (list.some(other => other.start < piece.end - EPS && piece.start < other.end - EPS)) throw new Error(`${selector} would overlap its own visibility in ${name(cue)}. No keys or spans changed.`);
-    data.steps[cue].spans![selector] = joinBars([...list, piece].sort((a, b) => a.start - b.start));
-    if (cue === out) { intoOut = true; data.steps[out].duration = Math.max(data.steps[out].duration, piece.end); }
+    data.steps[cue].spans![selector] = [...list, piece].sort((a, b) => a.start - b.start);
+    if (cue === out) intoOut = true;
   }
   // Out gates only a layer visible as it starts: it never reveals one.
   const last = data.steps[out - 1];
@@ -562,7 +566,7 @@ const seconds = (data: AnimData, stored: number) => `${round(stored / data.speed
 
 /**
  * Move keys by one stored delta on the concatenated ruler, each landing in the cue that holds its
- * new time (a key on a flag ends the earlier cue) with its value and ease, an explicit ease where
+ * new time (on a flag, the side it came from) with its value and ease, an explicit ease where
  * the cues' default eases differ. Every flag inside a segment the move changed is cut again
  * exactly, as Add Step cuts. Keys keep their order on their track. The key a cue ends on and the
  * copy of it the next cue starts from are one key: selecting either moves both, unless `pairs` is
@@ -594,7 +598,8 @@ function moveTrack(data: AnimData, source: AnimData, selector: string, prop: str
     if (!found) throw new Error('That key no longer exists. Select it again.');
     found.moved = true;
   }
-  // The key a cue ends on and the next cue's copy of it are one key on the ruler.
+  // The key a cue ends on and the next cue's copy of it are one key on the ruler. A bar body moves
+  // only its own cue's keys: moved earlier, its copy would pass the key it copies.
   const copies = new Set<Placed>();
   for (let flag = 1; flag <= out; flag++) {
     const end = placed.find(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
@@ -602,44 +607,82 @@ function moveTrack(data: AnimData, source: AnimData, selector: string, prop: str
     if (!end || !copy || end.key.value !== copy.key.value) continue;
     copies.add(copy);
     if (pairs && copy.moved) end.moved = true;
+    if (!pairs && copy.moved && !end.moved && delta < 0) throw new Error(`${selector} ${prop} would pass its key at ${seconds(data, end.at)}. Keys keep their order on a track. No keys changed.`);
   }
   const ruler = placed.filter(p => !copies.has(p));
   const moved = ruler.filter(p => p.moved);
+  if (!moved.length) return;
   const ends = moved.flatMap(p => [p.at, round(p.at + delta)]), low = Math.min(...ends), high = Math.max(...ends);
-  // The flags inside a segment the move changes: between the keys that stay on either side of it.
+  // Which side of flag `flag` a key sits on: one on the flag belongs to the cue it is in.
+  const side = (at: number, cue: number, flag: number) => at < starts[flag] - EPS ? -1 : at > starts[flag] + EPS ? 1 : cue < flag ? -1 : 1;
+  // The cue a key moved from cue `from` lands in: the one holding its time, and on a flag the side it
+  // came from (moved later onto it, it ends the cue before; moved earlier, it starts the next).
+  const home = (at: number, from: number) => {
+    let cue = 0;
+    while (cue < out && at > starts[cue + 1] + EPS) cue++;
+    return cue < out && cue < from && Math.abs(at - starts[cue + 1]) < EPS ? cue + 1 : cue;
+  };
+  // A cue's copy of the key it starts from, or its own first key, going on from the key the cue
+  // before ends on at the flag without a jump: one curve passing through the flag.
+  const through = (flag: number) => {
+    const end = ruler.find(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
+    const first = data.steps[flag].layers[selector]?.[prop]?.[0];
+    return !!end && (!first || first.value === end.key.value);
+  };
+  // The flags the move involves: those a moved key crosses, and those the changed curve passes
+  // through between the keys that stay on either side of it.
   const involved = () => {
     const before = [...ruler].reverse().find(u => !u.moved && u.at < low - EPS), after = ruler.find(u => !u.moved && u.at > high + EPS);
     const from = before?.at ?? low, to = after?.at ?? high;
-    return starts.map((_, flag) => flag).filter(flag => flag > 0 && flag <= out && starts[flag] > from - EPS && starts[flag] < to + EPS);
+    return starts.map((_, flag) => flag).filter(flag => flag > 0 && flag <= out && (
+      moved.some(p => side(p.at, p.cue, flag) !== side(round(p.at + delta), home(round(p.at + delta), p.cue), flag)) ||
+      starts[flag] > from - EPS && starts[flag] < to + EPS && through(flag)));
   };
   // A key a flag's cut wrote there (Add Step's, Set Out's, an earlier move's) is part of the flag, not
   // of the curve: where the move reaches that flag the curve is joined there again (unsplitAt), so
-  // keys can pass it, and it is cut anew below. Keys authored on a flag stay keys, and so does a split
-  // key moved on its own.
+  // keys can pass it, and it is cut anew below. So is a key only holding a track's first value from
+  // its cue's start (joinCues). Keys authored on a flag stay keys, and so does a split key moved on
+  // its own. Rejoined eases stay explicit until the end, so a chain of cuts rejoins whole.
+  const rejoined = new Set<AnimKeyframe>(), reached = new Set<number>();
   for (let joined = true; joined;) {
     joined = false;
     for (const flag of involved()) {
+      // A flag whose cut is joined stays involved: it is cut anew below.
+      reached.add(flag);
       const i = ruler.findIndex(p => p.cue === flag - 1 && Math.abs(p.at - starts[flag]) < EPS);
-      if (i <= 0 || i === ruler.length - 1) continue;
-      const [previous, key, next] = ruler.slice(i - 1, i + 2);
-      if (key.moved && !(previous.moved && next.moved)) continue;
+      if (i < 0 || i === ruler.length - 1) continue;
+      const [previous, key, next] = [ruler[i - 1], ruler[i], ruler[i + 1]];
+      if (key.moved && !(previous?.moved && next.moved)) continue;
+      if (!previous) {
+        const only = (data.steps[flag - 1].layers[selector]?.[prop] ?? []).length === 1;
+        if (!only || key.key.ease || key.key.value !== next.key.value || key.moved) continue;
+        ruler.splice(i, 1);
+        joined = true;
+        continue;
+      }
       const curve: AnimKeyframe[] = [{ time: previous.at, value: previous.key.value }, { ...key.key, time: key.at }, { time: next.at, value: next.key.value, ease: next.key.ease || ease(next.cue) }];
-      unsplitAt(curve, key.at, ease(next.cue));
+      unsplitAt(curve, key.at, '');
       if (curve.length === 3) continue;
-      const whole = curve[1].ease;
-      next.key = { time: next.key.time, value: next.key.value, ...(whole ? { ease: whole } : {}) };
+      next.key = { time: next.key.time, value: next.key.value, ease: curve[1].ease };
+      rejoined.add(next.key);
       ruler.splice(i, 1);
       joined = true;
     }
   }
-  // Keys keep their order on their track.
+  // Keys keep their order on their track, and stay inside the ruler.
+  const end = starts[out] + data.steps[out].duration;
   for (const p of moved) {
     const to = round(p.at + delta);
     if (to < -EPS) throw new Error(`${selector} ${prop} would move before In starts. No keys changed.`);
+    if (to > end + EPS) throw new Error(`${selector} ${prop} would move past the end of Out. No keys changed.`);
     const passed = ruler.find(u => !u.moved && (delta > 0 ? u.at > p.at + EPS && u.at < to + EPS : u.at < p.at - EPS && u.at > to - EPS));
     if (passed) throw new Error(`${selector} ${prop} would pass its key at ${seconds(data, passed.at)}. Keys keep their order on a track: select that key too to move both. No keys changed.`);
   }
-  const flags = involved(), cutAt = new Set(flags);
+  const flags = [...reached].sort((a, b) => a - b);
+  // A legacy hide takes its layer off at its cue's end, which a key moved across flags would outlast.
+  if (flags.length && data.steps.some(step => step.spans?.[selector] === undefined && step.hides?.includes(selector))) {
+    throw new Error(`${selector} leaves through older source (a legacy hide), so its keys cannot move across a flag exactly. Its source is preserved.`);
+  }
   const jumps = (d: AnimData) => {
     for (const flag of flags) {
       const first = d.steps[flag].layers[selector]?.[prop]?.[0];
@@ -653,16 +696,13 @@ function moveTrack(data: AnimData, source: AnimData, selector: string, prop: str
   const jumped = jumps(source);
   if (jumped) throw new Error(`${selector} ${prop} changes at once at the flag of ${jumped}, so its keys cannot move across it exactly. Its source is preserved.`);
   // Where each key lands: a moved key by its new time (a flag's arriving side), the rest where they were.
-  const home = (at: number) => {
-    let cue = 0;
-    while (cue < out && at > starts[cue + 1] + EPS) cue++;
-    return cue;
-  };
-  const entries = [...ruler, ...[...copies].filter(copy => !cutAt.has(copy.cue))].map(p => {
+  const entries = [...ruler, ...[...copies].filter(copy => !reached.has(copy.cue))].map(p => {
     if (!p.moved || copies.has(p)) return { ...p, moved: false };
-    const at = round(p.at + delta), cue = home(at), origin = ease(p.cue);
+    const at = round(p.at + delta), cue = home(at, p.cue), origin = ease(p.cue);
     const own = cue !== p.cue && ease(cue) !== origin ? p.key.ease || origin : p.key.ease;
-    return { cue, at, moved: true, key: { time: round(at - starts[cue]), value: p.key.value, ...(own ? { ease: own } : {}) } };
+    const key = { time: round(at - starts[cue]), value: p.key.value, ...(own ? { ease: own } : {}) };
+    if (rejoined.has(p.key)) rejoined.add(key);
+    return { cue, at, moved: true, key };
   }).sort((a, b) => a.at - b.at || a.cue - b.cue);
   // Cut the curve again at every involved flag, as Add Step cuts.
   for (const flag of flags) {
@@ -683,18 +723,25 @@ function moveTrack(data: AnimData, source: AnimData, selector: string, prop: str
     }
     entries.sort((a, b) => a.at - b.at || a.cue - b.cue);
   }
+  // A rejoined curve that was not cut again says its cue's default ease as the default, as a join does.
   const lists: AnimKeyframe[][] = data.steps.map(() => []);
-  for (const e of entries) lists[e.cue].push(e.key);
+  for (const e of entries) {
+    const { ease: own, ...plain } = e.key;
+    lists[e.cue].push(rejoined.has(e.key) && own === ease(e.cue) ? plain : e.key);
+  }
   data.steps.forEach((step, cue) => {
     const was = step.layers[selector]?.[prop] ?? [], now = lists[cue];
     if (now.length === was.length && now.every((key, i) => key === was[i])) return;
     if (now.length) (step.layers[selector] ??= {})[prop] = now;
     else if (step.layers[selector]) { delete step.layers[selector][prop]; if (!Object.keys(step.layers[selector]).length) delete step.layers[selector]; }
-    // A key moved past the end of Out lengthens it.
-    if (cue === out && now.length) step.duration = Math.max(step.duration, now[now.length - 1].time);
   });
   const started = jumps(data);
   if (started) throw new Error(`${selector} ${prop} would change at once at the flag of ${started}, from the value on screen before it. Its source is preserved.`);
+  // Out's carried motion ends where the exit starts; a curve moved across that end no longer tells them apart.
+  const carried = data.steps[out].carried, exit = data.steps[out].layers[selector]?.[prop] ?? [];
+  if (carried && exit.some((key, i) => i > 0 && exit[i - 1].time < carried - EPS && key.time > carried + EPS && exit[i - 1].value !== key.value)) {
+    throw new Error(`${selector} ${prop} would move across the end of the motion Out carries, where its exit starts. Its source is preserved.`);
+  }
 }
 
 /**
@@ -1094,6 +1141,7 @@ export function resizeStep(
       }
     }
     for (const c of step.calls ?? []) c.time = round(c.time * f);
+    if (step.carried) step.carried = round(step.carried * f);
     // A loop's pause is a time quantity too — stretch scales it with the keyframes it gates.
     for (const perProp of Object.values(step.loops ?? {})) {
       for (const loop of Object.values(perProp)) {
@@ -1102,6 +1150,7 @@ export function resizeStep(
     }
   }
   step.duration = to;
+  if (step.carried !== undefined && step.carried > to) step.carried = to;
   return next;
 }
 

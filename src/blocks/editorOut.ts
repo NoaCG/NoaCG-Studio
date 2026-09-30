@@ -44,8 +44,12 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
   const reaches = (selector: string, spans: Bar[]) => !ended.has(selector) && spans.some(span => Math.abs(span.end - end) < EPS);
   if (b >= end - EPS) {
     // Later: the graphic holds longer. What was on screen at the old hold stays on until the new one.
-    for (const [selector, spans] of Object.entries(before.spans ?? {})) if (reaches(selector, spans)) {
-      for (const span of spans) if (Math.abs(span.end - end) < EPS) span.end = b;
+    // A bar that ended with rejoined carried motion ends on this very hold when Out lands where it
+    // ended: the hold shows it (its arriving side), so Out hides it from the press, as in still air.
+    for (const [selector, spans] of Object.entries(before.spans ?? {})) {
+      if (reaches(selector, spans)) {
+        for (const span of spans) if (Math.abs(span.end - end) < EPS) span.end = b;
+      } else if (b < end + EPS && spans.some(span => Math.abs(span.end - end) < EPS)) data.steps[at + 1].spans = { ...data.steps[at + 1].spans, [selector]: [] };
     }
     before.duration = b;
     return settle();
@@ -97,7 +101,7 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
   for (const [selector, spans] of Object.entries(exitBars ?? {})) {
     if (bars[selector]) continue;
     // Without bars on this cue the layer kept its visibility over what is now carried into Out.
-    bars[selector] = joinBars([...(carry > 0 && barsBefore[selector] === undefined ? [{ start: 0, end: carry }] : []), ...spans.map(shift)]);
+    bars[selector] = joinBars([...(carry > 0 && barsBefore[selector] === undefined && held(data, selector) ? [{ start: 0, end: carry }] : []), ...spans.map(shift)]);
   }
   if (exitBars || Object.keys(bars).length) exit.spans = bars;
   exit.duration = round(length + carry);
@@ -116,12 +120,13 @@ export function moveOutBoundary(source: AnimData, boundary: number, contains?: (
   return settle();
 }
 
-/** Where a cue's motion ends: its latest key that changes a value, bar edge inside it, or legacy
- *  hide (at its end). Anything after is still air. */
+/** Where a cue's motion ends: its latest key that changes a value while its layer's bars show it,
+ *  bar edge inside it, or legacy hide (at its end). Anything after is still air. */
 function motionEnd(cue: AnimStep) {
   let end = 0;
-  for (const tracks of Object.values(cue.layers)) for (const keys of Object.values(tracks)) {
-    keys.forEach((key, i) => { if (i > 0 && key.value !== keys[i - 1].value) end = Math.max(end, key.time); });
+  for (const [selector, tracks] of Object.entries(cue.layers)) for (const keys of Object.values(tracks)) {
+    const bars = cue.spans?.[selector], seen = (from: number, to: number) => !bars || bars.some(bar => bar.start < to && bar.end > from);
+    keys.forEach((key, i) => { if (i > 0 && key.value !== keys[i - 1].value && seen(keys[i - 1].time, key.time)) end = Math.max(end, key.time); });
   }
   for (const spans of Object.values(cue.spans ?? {})) for (const span of spans) for (const edge of [span.start, span.end]) {
     if (edge > EPS && edge < cue.duration - EPS) end = Math.max(end, edge);
@@ -138,31 +143,35 @@ function motionEnd(cue: AnimStep) {
  * time's end, which no longer tells the carried motion from the exit.
  */
 function rejoinCarried(data: AnimData, contains?: (ancestor: string, selector: string) => boolean) {
-  const out = data.steps.length - 1, exit = data.steps[out], carried = exit.carried, ended = new Set<string>();
-  if (!carried) return { data, ended };
+  const out = data.steps.length - 1, exit = data.steps[out], carried = Math.min(exit.carried ?? 0, exit.duration), ended = new Set<string>();
+  if (!carried) { delete exit.carried; return { data, ended }; }
   const head: AnimStep = { name: exit.name, duration: carried, ease: exit.ease, layers: {} };
   const rest: AnimStep = { ...exit, duration: round(exit.duration - carried), layers: {} };
   delete rest.carried;
   for (const [selector, tracks] of Object.entries(exit.layers)) for (const [prop, keys] of Object.entries(tracks)) {
     const below = keys.filter(key => key.time < carried - EPS), above = keys.filter(key => key.time > carried + EPS);
-    const on = keys.find(key => Math.abs(key.time - carried) < EPS), last = below[below.length - 1];
-    if (!on && last && above.length && last.value !== above[0].value) {
+    const at = keys.filter(key => Math.abs(key.time - carried) < EPS), on = at[0], last = below[below.length - 1];
+    if (at.length > 1 || !on && last && above.length && last.value !== above[0].value) {
       throw new Error(`${selector} ${prop} moves across the end of the motion Out carries, so Set Out cannot tell that motion from the exit. Its source is preserved.`);
     }
-    // A key on the carried time's end ends the carried motion when it changes a value there, and
-    // starts the exit when the exit goes on from it.
+    // A key on the carried time's end ends the carried motion when it changes a value there. The exit
+    // starts from it too when it moves on from there at once; when the exit holds that value first,
+    // it starts after its beat, at its own first key (as the interpreter reads it).
     const ends = !!on && !!last && on.value !== last.value;
     const headKeys = ends ? [...below, on!] : below;
-    const restKeys = [...on && (above.length || !ends) ? [ends ? { time: 0, value: on.value } : { ...on, time: 0 }] : [], ...above.map(key => ({ ...key, time: round(key.time - carried) }))];
+    const starts = on && (!ends || above.length && above[0].value !== on.value);
+    const restKeys = [...starts ? [ends ? { time: 0, value: on.value } : { ...on, time: 0 }] : [], ...above.map(key => ({ ...key, time: round(key.time - carried) }))];
     if (headKeys.length) (head.layers[selector] ??= {})[prop] = headKeys;
     if (restKeys.length) (rest.layers[selector] ??= {})[prop] = restKeys;
   }
   if (exit.spans) {
     head.spans = {}; rest.spans = {};
     for (const [selector, spans] of Object.entries(exit.spans)) {
-      head.spans[selector] = spans.filter(span => span.start < carried - EPS).map(span => ({ start: span.start, end: round(Math.min(span.end, carried)) }));
+      const shown = spans.filter(span => span.start < carried - EPS).map(span => ({ start: span.start, end: round(Math.min(span.end, carried)) }));
+      // A layer the cue before leaves hidden without bars of its own needs none over the carried time.
+      if (shown.length || data.steps[out - 1].spans?.[selector] !== undefined || held(data, selector)) head.spans[selector] = shown;
       const after = spans.filter(span => span.end > carried + EPS).map(span => ({ start: round(Math.max(span.start, carried) - carried), end: round(span.end - carried) }));
-      if (after.length || !head.spans[selector].length) rest.spans[selector] = after; else ended.add(selector);
+      if (after.length || !head.spans[selector]?.length) rest.spans[selector] = after; else ended.add(selector);
     }
     if (!Object.keys(rest.spans).length) delete rest.spans;
   }

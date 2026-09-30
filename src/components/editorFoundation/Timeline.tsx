@@ -13,7 +13,7 @@ const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale
 type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] | null };
 /** A key drag: the keys it moves, the pressed key's row and ruler time, and the move so far in ruler
  *  seconds with the registry's verdict on it. */
-type KeyDrag = { keys: KeyRef[]; row: string; time: number; x: number; width: number; expected: Revision; moved: boolean; delta: number; refused: string; checked: Map<number, string> };
+type KeyDrag = { keys: KeyRef[]; select: boolean; row: string; time: number; x: number; width: number; expected: Revision; moved: boolean; delta: number; refused: string; checked: Map<number, string> };
 const message = (cause: unknown) => cause instanceof Error ? cause.message : String(cause);
 
 interface Props {
@@ -37,16 +37,18 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     .map(([selector, tracks]) => [selector, Object.entries(tracks).map(([property, list]) => [property, list.map(key => key.time)])]))), [view.data]);
   const knownTimes = useRef(keyTimes);
   // Keys this timeline moved stay selected where they landed, and a nudged key keeps the keyboard.
-  const moving = useRef<{ keys: KeyRef[]; focus: boolean } | null>(null);
+  const moving = useRef<{ keys: KeyRef[]; focus: string | null } | null>(null);
   useEffect(() => {
     if (knownTimes.current === keyTimes) return;
     knownTimes.current = keyTimes;
     const moved = moving.current;
     moving.current = null;
     setPicked(moved?.keys ?? []);
-    if (!moved?.focus || !moved.keys.length) return;
-    const id = keyId(moved.keys[0]);
-    Array.from(document.querySelectorAll<HTMLElement>('.ef-timeline .ef-timeline-key')).find(button => button.dataset.keys!.split('|').includes(id))?.focus();
+    if (moved?.focus == null || !moved.keys.length) return;
+    // The nudged key keeps the keyboard, in the row it was nudged in.
+    const [selector, property] = moved.focus.split('\n'), id = keyId(moved.keys[0]);
+    const row = Array.from(document.querySelectorAll<HTMLElement>('.ef-timeline .ef-track')).find(track => track.dataset.selector === selector && (track.dataset.property ?? '') === property);
+    Array.from(row?.querySelectorAll<HTMLElement>('.ef-timeline-key') ?? []).find(button => button.dataset.keys!.split('|').includes(id))?.focus();
   }, [keyTimes]);
   const [menu, setMenu] = useState<KeyMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -104,7 +106,7 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const moveKeys = (moved: KeyRef[], delta: number, row: string, time: number, expected: Revision, focus: boolean) => {
     try {
       const result = session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations: [moveOperation(moved, delta)] });
-      moving.current = { keys: movedKeys(readTimeline(result.template).data, moved, delta * speed), focus };
+      moving.current = { keys: movedKeys(readTimeline(result.template).data, moved, delta * speed), focus: focus ? row : null };
     } catch (cause) { explain(message(cause), row, time + delta); }
   };
   const endKeyDrag = useCallback(() => { keyDrag.current = null; setKeyMove(null); }, []);
@@ -141,16 +143,16 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         setPicked(group); select(selector, false); seek(time);
       }}
       onPointerDown={event => {
-        if (event.button !== 0 || view.reason || event.ctrlKey || event.metaKey || event.shiftKey) return;
         dragged.current = false;
-        const width = event.currentTarget.closest('.ef-track-lane')!.getBoundingClientRect().width;
-        keyDrag.current = { keys: movingKeys(group), row, time, x: event.clientX, width, expected: session.version(), moved: false, delta: 0, refused: '', checked: new Map() };
+        if (event.button !== 0 || view.reason || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        const width = event.currentTarget.closest('.ef-track-lane')!.getBoundingClientRect().width, keys = movingKeys(group);
+        keyDrag.current = { keys, select: keys === group, row, time, x: event.clientX, width, expected: session.version(), moved: false, delta: 0, refused: '', checked: new Map() };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={event => {
         const d = keyDrag.current;
         if (!d || !d.moved && Math.abs(event.clientX - d.x) < 3) return;
-        if (!d.moved) { d.moved = true; pause(); if (d.keys === group) setPicked(group); }
+        if (!d.moved) { d.moved = true; pause(); if (d.select) setPicked(d.keys); }
         const raw = d.time + (event.clientX - d.x) / d.width * extent, to = event.altKey ? raw : Math.round(raw * fps) / fps;
         const delta = Math.round((to - d.time) * 1e6) / 1e6;
         if (!d.checked.has(delta)) d.checked.set(delta, delta ? verdict(d.keys, delta) : '');
@@ -177,7 +179,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
         if (event.key === 'Escape' && keyDrag.current) { event.preventDefault(); event.stopPropagation(); cancelKeyDrag(); return; }
         if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && !event.altKey && !event.ctrlKey && !event.metaKey) {
           event.preventDefault(); event.stopPropagation(); pause();
-          const moved = movingKeys(group), delta = (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1) / fps, refused = verdict(moved, delta);
+          // To the neighbouring frame, as a flag nudges: a key between frames lands on one.
+          const frames = (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 10 : 1), moved = movingKeys(group);
+          const delta = Math.round(((Math.round(time * fps) + frames) / fps - time) * 1e6) / 1e6, refused = verdict(moved, delta);
           if (refused) explain(refused, row, time + delta); else moveKeys(moved, delta, row, time, session.version(), true);
           return;
         }

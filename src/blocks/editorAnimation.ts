@@ -108,7 +108,7 @@ export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation)
   if (next === data) return template;
   const out = next.steps.length - 1, exit = out > 0 && JSON.stringify(next.steps[out]) !== JSON.stringify(data.steps[out]);
   const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
-  if (js === null) throw new Error('This interpreter has custom source, so keys cannot move into or out of Out safely. Its source is preserved.');
+  if (js === null) throw new Error('This interpreter has custom source, so the moved keys cannot be written safely. Its source is preserved.');
   return { ...template, js };
 }
 

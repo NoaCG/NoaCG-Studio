@@ -33,7 +33,10 @@ export function readTimeline(template: SpxTemplate): TimelineView {
       const spans = data!.steps[segment.index]?.spans?.[part.selector];
       if (spans) return spans.map((span, interval) => ({ selector: part.selector, step: segment.index, interval, cueStart: segment.start,
         start: segment.start + span.start / data!.speed, end: segment.start + span.end / data!.speed }));
-      if (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide) return [];
+      // A cue without bars never sets visibility: the layer stays as the last cue with bars left it.
+      const earlier = data!.steps.slice(0, segment.index).reverse().find(step => step.spans?.[part.selector]);
+      if (earlier && !earlier.spans![part.selector].some(span => span.end === earlier.duration && span.end > span.start)) return [];
+      if (!earlier && (reveal >= 0 && segment.index < reveal || hide >= 0 && segment.index > hide)) return [];
       return [{ selector: part.selector, step: segment.index, interval: 0, cueStart: segment.start, start: segment.start, end: segment.start + segment.duration }];
     });
   });

@@ -136,6 +136,7 @@ export function applyPresetData(
       // Clean swap for the WHOLE step: drop everything it held so switching presets never
       // leaves the previous preset's tracks behind on layers the new preset doesn't touch.
       targetStep.layers = {};
+      delete targetStep.carried;
       let longest = 0;
       for (const [selector, tracks] of Object.entries(donorStep.layers)) {
         // A press-revealed layer's entrance belongs to its » press, not to ▶ Play —

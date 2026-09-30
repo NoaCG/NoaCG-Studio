@@ -133,25 +133,35 @@ last Step as before):
 
 - A key drag moves every selected key (or the key group pressed, when it is not selected) by one
   delta, snapped so the pressed key lands on a frame (Alt moves freely at the stored precision).
+  The arrow keys nudge the focused key to the neighbouring frame on the ruler (Shift for ten), as
+  a flag nudge does, so a key stored between frames lands on one; the key keeps the keyboard, in
+  its row.
 - **A track is one curve on the ruler, cut by the flags.** Moved keys keep their values and eases
-  and land at their absolute time in the cue that holds it; a key landing exactly on a flag ends
-  the earlier cue (its arriving side). Every flag inside a segment the move changed is cut again
+  and land at their absolute time in the cue that holds it. A key landing exactly on a flag stays
+  on the side it came from: moved later onto it, it ends the cue before; moved earlier, it starts
+  the next cue; so a key dragged onto a flag and back gives the source. Every flag inside a segment
+  the move changed is cut again
   exactly, as Add Step cuts: a split key there with the two slices, and the next cue starting
   from a copy of its value; a flat segment needs neither. The last key of one cue and the first
   of the next at the same value are one boundary key, and move together.
 - **A key a flag's cut wrote is part of the flag.** Where a move reaches a flag, the split key an
   Add Step, a Set Out or an earlier move wrote there is joined back into its curve first (the
   R1.2a.4 `unsplitAt`), and the curve is cut anew after the move, so a key dragged across a flag
-  and back gives the source byte for byte. A split key moved on its own is a key like any other;
-  moved together with both its neighbours it is still the flag's.
+  and back gives the source byte for byte (see the limits for a layer the move empties out of a
+  cue). A split key moved on its own is a key like any other; moved together with both its
+  neighbours it is still the flag's. A key that only holds a track's first value at a flag (what
+  Add Step leaves before a track's first key) is the flag's too.
 - **Keys keep their order on their track.** A moved key cannot pass or land on a key of its track
   that is not moving, including one authored on a flag (select it too to move both). Keys cannot
-  move before In; moved past the end of Out they lengthen Out. The moved keys stay selected where
-  they landed.
+  move before In or past the end of Out: a move never changes a cue's length (the Out flag and the
+  end of Out do that). The moved keys stay selected where they landed, both halves of a boundary
+  key included.
 - **Refusals:** a track that jumps at a flag the move involves (its value there changes
   instantly, which the cut would turn into motion or lose), a move that would start a track at a
   flag with another value than the layer showed before it (R1.2a.4's join rule), a crossed
-  segment without an exact split, and keys stored past a cue's end.
+  segment without an exact split, keys stored past a cue's end, a looping track, a key moved
+  across the end of the motion Out carries, and a legacy hide in a cue the move involves (the
+  hide happens at that cue's end, which the move would shift).
 - Eases: a key moving between cues whose default eases differ takes an explicit ease, its own or
   its old cue's default, as in R1.2a.1. Keys the move does not touch, and flags it does not
   involve, stay byte-identical.
@@ -164,18 +174,21 @@ last Step as before):
   body moves every cue it runs through, and a bar dragged across a flag and back gives the source.
   Across a flag the bars are cut at the flag (a piece ending on the flag keeps the layer on screen
   at the hold, on its arriving side) and join the other cues' bars; the keys move as above,
-  without coupling a boundary key's other half. A layer on screen throughout moves as a whole, Out
-  lengthening to keep its end. A body that neither crosses nor touches a flag moves as before.
+  without coupling a boundary key's other half. A layer on screen throughout moves as a whole; its
+  bar keeps running to the end of Out, and a move that would take a key past Out's end refuses. A
+  body that neither crosses nor touches a flag moves as before.
 - Spelling out a layer's visibility in a cue without bars of its own now follows the runtime: after
   a cue with bars, the layer is as that cue left it (a cue without bars never sets visibility);
   before any, where its legacy reveal and hide put it. Until now such a cue after a hidden end was
   written as visible, which a within-cue move or trim could also write (only in mixed hand-written
   source; the runtime played it hidden). Out's visibility is spelled out only where a move reaches
-  it.
+  it. The timeline draws such a cue the same way; until now it drew a bar the runtime never plays
+  (the fixture's tag, hidden after Step 2, drawn through Out), and dragging that bar erased it.
 - **Refusals:** overlapping the layer's own bars in another cue, moving before In (which replaces
   the within-cue refusal "This move crosses a cue boundary"), a key passing one of the layer's keys
   that stays, a layer that would appear only after the Out flag (Out never reveals a hidden
-  layer), a legacy hide.
+  layer), a legacy hide, and a body moved earlier that would take its cue's copy of a boundary key
+  past the key the cue before ends on.
 - Legacy reveals convert to bars first, as within a cue; the reveal marker moves to the cue where
   the layer now first appears, and joins into In only for a layer inside the root (R1.2a.4).
 
@@ -183,7 +196,35 @@ last Step as before):
 
 - Machines, loops, calls and dynamics refuse key and bar moves as all animation authoring in this
   editor does (`sequenceAuthoringReason`); a custom interpreter body refuses.
-- No operation renames a Step: every cue keeps its `name`.
+- No operation renames a Step: every cue keeps its `name`. Stretching Out scales `carried` with
+  its keys and a shorter Out clamps it; applying a preset to Out clears it.
+
+### Limits
+
+Each is recorded rather than fixed: none changes what plays at the settled last step, and the
+first three cannot be told apart from another source once written.
+
+- **Out exactly at a bar's end, then later.** Out set exactly where a layer's bar ends shows the
+  layer at the hold (its arriving side) and hides it at the press. Moved later from there, the
+  bar reaches the new hold, so the graphic holds that pose longer, where the source hid the layer
+  at the old bar end.
+- **A layer that blinks during carried motion into an empty exit.** Its bar reached the flag but
+  had a gap inside the carried motion; with an exit of length 0 that writes the same Out as a bar
+  ending with the motion, so after a round trip the layer is hidden at the hold.
+- **An exit that starts by holding the carried motion's last value.** A track whose exit has a key
+  at its start and a later key at the same value (a beat) writes the same Out as one with no key
+  at its start. After a round trip it comes back without its first key: it plays the same at the
+  last step, but Out interrupting the cue before it holds the live value until the second key
+  instead of moving from the press.
+- **Byte identity.** Out moved into motion and back gives the source only when In and Out share a
+  default ease; otherwise the keys that went into Out come back with that ease written on them.
+  A move that empties a layer or track out of a cue and back re-adds it last in that cue's list.
+  Playback is unchanged in both.
+- **A Linear key authored on a flag** between collinear Linear neighbours reads as a cut there,
+  so a move reaching that flag joins it into the line and cuts it anew, at the line's value.
+- **Out from an earlier step, in the editor and OGraf.** The exit then plays `carried` shorter
+  than Out: the editor's Out playback still runs its playhead over Out's full length, and the
+  OGraf manifest still declares Out's full duration as its stop duration.
 
 ## Acceptance
 
@@ -194,8 +235,8 @@ last Step as before):
 | Out earlier, into motion | Pressing Out at the last step plays the carried motion exactly (the original cue's values at the same times after the flag, within 1e-3), then the exit exactly, starting as the carried motion ends. Designed exit timing is kept. | Crossed segment without an exact split; a layer hidden at Out but visible after it; a jump where the exit starts; a legacy hide. |
 | Out from a Next cue | Set Out inside the last Step's motion now moves; at the last step it plays as above; from an earlier step the exit starts at the press and no carried motion shows, in all five targets and the editor. | As above. |
 | Round trip | Out moved into motion and back to its old frame plays exactly as the original (Node playback model and five targets). | |
-| Key moves | Keys dragged within a cue and across a Step or Out flag land at their absolute times; the editor's sampling and all five targets play the curve the ruler shows; one undo; redo, Escape and save/reopen agree; the moved keys stay selected; a nudge moves a frame. | Passing or landing on a key of the same track, before In, a jump at an involved flag, a new jump at a flag. Shown live while held. |
-| Bar moves | A bar body dragged across a Step flag moves its visibility and keys into the next cue at their absolute times, one undo; a legacy reveal (card26-style) keeps appearing at its moved time. | Overlapping the layer's own bars, appearing only in Out, passing a key, a legacy hide. |
+| Key moves | Keys dragged within a cue and across a Step or Out flag land at their absolute times; the editor's sampling and all five targets play the curve the ruler shows; one undo; redo, Escape and save/reopen agree; the moved keys stay selected; a nudge moves a frame. | Passing or landing on a key of the same track, before In or past the end of Out, a jump at an involved flag, a new jump at a flag, the end of Out's carried motion, a legacy hide. Shown live while held. |
+| Bar moves | A bar body dragged across a Step flag moves its visibility and keys into the next cue at their absolute times, one undo; a legacy reveal (card26-style) keeps appearing at its moved time. | Overlapping the layer's own bars, before In, appearing only in Out, passing a key, a legacy hide. |
 | Preserved | The editor regressions (steps, out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry), anim-engine and inspector pass, except the assertions named below. Untouched keys and flags stay byte-identical. | Machines, loops, calls and dynamics refuse. |
 
 ### Existing assertions this decision changes

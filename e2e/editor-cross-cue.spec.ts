@@ -299,6 +299,15 @@ test('a key dragged across a Step flag is one undo, stays selected, nudges a fra
   expect(errors).toEqual([]);
 });
 
+test('a nudge lands a key stored between frames on the neighbouring frame and keeps the keyboard', async ({ page }) => {
+  const d = fixture(); d.steps[0].layers['#title'].x[1].time = .81;
+  await editorWith(page, d);
+  await diamond(page, '#title', '0.81').focus(); await page.keyboard.press('ArrowRight'); await ready(page);
+  // Frame 21 at 25 fps, not a frame's length past where it was stored.
+  expect((await data(page)).steps[0].layers['#title'].x.map(k => k.time)).toEqual([0, .84]);
+  await expect(diamond(page, '#title', '0.84')).toBeFocused();
+});
+
 test('a key drag the runtime cannot play shows its reason while held and changes nothing, and Escape cancels', async ({ page }) => {
   await editorWith(page, fixture());
   const before = await state(page);
@@ -317,6 +326,13 @@ test('a key drag the runtime cannot play shows its reason while held and changes
 test('a bar body dragged across a Step flag moves its visibility and keys at their absolute times as one undo', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   const original = await editorWith(page, fixture()), start = await state(page);
+  // A cue without bars draws as the runtime plays it: the tag, hidden after Step 2, has no Out bar.
+  const drawn = await page.evaluate(async () => {
+    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+    const bars = readTimeline((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).bars;
+    return ['#tag', '#box'].map(selector => bars.filter(bar => bar.selector === selector).map(bar => bar.step));
+  });
+  expect(drawn).toEqual([[1], [0, 1, 2]]);
   // The tag shows 0.2 to 0.6 s into Step 2; twelve frames earlier it starts in In and parks on the flag.
   // Its first bar on the row: In hides it and draws none.
   const bar = layerRow(page, '#tag').locator('.ef-bar').first();

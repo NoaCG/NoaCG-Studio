@@ -113,12 +113,18 @@ function noacgBuildExit(step, interrupted, silent, early) {
   entries.forEach(function (entry) {
     var keys = entry.keys;
     var proxy = noacgExitProxy(entry.element, entry.prop, entry.live);
-    var last = keys[keys.length - 1];
-    if (interrupted && keys.length > 1 && at(last.time) > at(keys[0].time)) {
+    var last = keys[keys.length - 1], first = 0;
+    // Skipping carried time, the track's exit starts at its first key after it: the key that ends
+    // the carried motion there only starts the exit when the exit moves on from it at once.
+    if (skip) {
+      while (first < keys.length - 1 && keys[first].time < skip) first++;
+      if (keys[first].time === skip && first > 0 && first < keys.length - 1 && keys[first - 1].value !== keys[first].value && keys[first + 1].value === keys[first].value) first++;
+    }
+    if (interrupted && keys.length > 1 && last.time > keys[first].time) {
       var ease = noacgWholeEase(last.ease || step.ease), shape = noacgEaseParse(ease);
       // A final jump (a Hold played backwards) happens where its own segment starts, as it does
       // when Out is not interrupted; until then the live value holds.
-      var from = at(shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time);
+      var from = at(shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[first].time);
       tl.to(proxy, { value: last.value, duration: (at(last.time) - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
     } else if (early) {
       // A one-key or zero-time track has no span to leave on. From an earlier step its value may be
@@ -332,12 +338,17 @@ function noacgExitTimeline(interrupted, silent) {
   var tl = noacgBuildExit(step, interrupted, silent, early);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
   // (unless the Out step animates them itself). Containment is checked live. The exit starts
-  // after the motion Out carries, which Out pressed at an earlier step skips.
+  // after the motion Out carries, which Out pressed at an earlier step skips; motion carried
+  // on such a layer is not the exit animating it.
   var root = document.querySelector(NOACG_ANIM.root), carried = step.carried || 0;
+  var exits = function (selector) {
+    var tracks = step.layers[selector] || {};
+    return Object.keys(tracks).some(function (prop) { return tracks[prop].some(function (key) { return key.time > carried; }); });
+  };
   for (var s = 1; s < steps.length - 1; s++) {
     (steps[s].reveals || []).forEach(function (selector) {
       var el = document.querySelector(selector);
-      if (el && root && !root.contains(el) && !steps[steps.length - 1].layers[selector]) {
+      if (el && root && !root.contains(el) && !exits(selector)) {
         tl.to(noacgExitProxy(el, 'opacity', gsap.getProperty(el, 'opacity')), { value: 0, duration: Math.min(0.3, step.duration - carried) / (NOACG_ANIM.speed || 1) }, (early ? 0 : carried) / (NOACG_ANIM.speed || 1));
       }
     });
