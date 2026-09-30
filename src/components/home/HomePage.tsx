@@ -136,7 +136,9 @@ export default function HomePage({ route }: { route: Route }) {
   // the right answer again.
   const [sync, setSync] = useState<SyncState>(getSyncState());
   useEffect(() => onSyncState(setSync), []);
-  const libraryEmpty = graphics.length === 0 && videos.length === 0 && productions.length === 0;
+  // Team productions do not count: they come from the team fetch, not from this pass, and can be
+  // on screen long before the account's own library is.
+  const libraryEmpty = graphics.length === 0 && videos.length === 0 && personalCount === 0;
   const arrival: Arrival | null = !libraryEmpty || !sync.firstPass
     ? null
     : sync.phase === 'error'
@@ -612,7 +614,7 @@ function arrivalSentence(n: IncomingCounts | undefined): string {
 function LibraryArrival({ arrival }: { arrival: Arrival }) {
   if (arrival.failed) {
     return (
-      <div className="panel-section home-arrival" data-testid="library-arrival-failed">
+      <div className="panel-section home-arrival" role="status" data-testid="library-arrival-failed">
         <h3>Your library has not reached this browser yet</h3>
         <p className="hint">
           The first sync stopped before it finished. Nothing was lost: your work is still in your
@@ -625,7 +627,7 @@ function LibraryArrival({ arrival }: { arrival: Arrival }) {
     );
   }
   return (
-    <div className="panel-section home-arrival" data-testid="library-arrival" aria-busy="true">
+    <div className="panel-section home-arrival" role="status" data-testid="library-arrival">
       <h3>Bringing your library to this browser</h3>
       <p data-testid="library-arrival-count">{arrivalSentence(arrival.incoming)}</p>
       <div className="home-arrival-bar" aria-hidden="true">

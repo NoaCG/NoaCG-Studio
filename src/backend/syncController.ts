@@ -31,8 +31,9 @@ export interface SyncState {
   phase: SyncPhase;
   detail?: string;
   last?: SyncResult;
-  /** On 'syncing' and 'error': this library has never finished a pass on this browser, so what
-   *  the account keeps in the cloud may not be here yet. A browser that has none of it reads
+  /** On 'syncing' and 'error': this library's first pass on this browser has not landed yet (it
+   *  never finished one, or the one it finished could not write its pulls), so what the account
+   *  keeps in the cloud may not be here. A browser that has none of it reads
    *  exactly like an empty account, which is why Home asks (docs/SAVED_CONTENT_MODEL.md §3). */
   firstPass?: boolean;
   /** On a first pass, once the cloud has been listed: how much is on its way. */
@@ -86,6 +87,12 @@ async function canSync(): Promise<boolean> {
 
 let running = false;
 let queued = false;
+
+/** A first pass that COMPLETED with pulls still owed (the local store refused the write) has
+ *  moved the bookmark, but the library it was bringing is still not here: the next pass is still
+ *  a first pass as far as anybody looking at Home can tell. Held for this page only; the pulls
+ *  themselves are re-derived by the next pass from the unchanged timestamps. */
+let firstPullsOwed = false;
 
 /**
  * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
@@ -149,7 +156,7 @@ export async function syncNow(): Promise<void> {
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
-  const firstPass = !hasSyncedBefore();
+  const firstPass = !hasSyncedBefore() || firstPullsOwed;
   setState({ phase: 'syncing', firstPass });
   try {
     // Sync's own pull-writes dispatch 'spx-data-changed' too; that's fine — runSync is idempotent,
@@ -173,6 +180,7 @@ export async function syncNow(): Promise<void> {
     } catch {
       // Never fail a sync on cleanup.
     }
+    firstPullsOwed = firstPass && result.failures.some((f) => f.op === 'pull');
     if (result.failures.length > 0) {
       // The pass completed and the bookmark advanced, but some records could not be applied —
       // surface them (SyncStatus shows the detail as its tooltip). They retry next pass.
@@ -182,6 +190,7 @@ export async function syncNow(): Promise<void> {
         phase: 'error',
         detail: `${result.failures.length} record${result.failures.length === 1 ? '' : 's'} failed to sync — ${shown.join('; ')}${extra}`,
         last: result,
+        firstPass: firstPullsOwed,
       });
     } else {
       setState({ phase: 'synced', last: result });
