@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-30
-state: unstarted
+state: advanced
+note: the spec landed (docs/work-specs/per-document-library-storage/spec.md, 2026-09-30); the code, in its four phases, is still to do
 asked: "I hope we have a long-term solution for this ... Let's start with 'Bringing your library to this browser' now, and a spec for per-document storage later, after the bridge connection."
 serves: NOW
 size: large
