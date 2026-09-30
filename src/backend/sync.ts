@@ -187,8 +187,16 @@ async function withWholeRecords(remote: StorageProvider, pulls: StoredRecord[]):
  * Run one full sync pass between a local and a remote provider. Idempotent: a second run right
  * after finds every record equal and does nothing. Per-record failures never sink the pass — they
  * are collected into the result and carried in the pending sets (see the header).
+ *
+ * `onPlan` hears the plan as soon as both sides are listed, before a whole record is fetched: the
+ * listing is quick and the fetch is the long part, so this is the earliest moment anyone can say
+ * how much is on its way (Home does, on a first pass - syncController.ts).
  */
-export async function runSync(local: StorageProvider, remote: StorageProvider): Promise<SyncResult> {
+export async function runSync(
+  local: StorageProvider,
+  remote: StorageProvider,
+  onPlan?: (plan: SyncPlan) => void,
+): Promise<SyncResult> {
   const meta = loadSyncMeta();
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
   // the bookmark stays put (correct — nothing was applied).
@@ -199,6 +207,7 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
   });
+  onPlan?.(plan);
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
   // the pass rather than one record (see withWholeRecords).
   plan.toLocal = await withWholeRecords(remote, plan.toLocal);
@@ -375,4 +384,10 @@ function saveSyncMeta(meta: SyncMeta): void {
 
 export function loadLastSyncedAt(): string {
   return loadSyncMeta().lastSyncedAt;
+}
+
+/** Has the library in use ever finished a pass on this browser? Only a completed pass moves the
+ *  bookmark off the epoch, so a pass that failed to list the cloud leaves this false. */
+export function hasSyncedBefore(): boolean {
+  return loadSyncMeta().lastSyncedAt !== EPOCH;
 }

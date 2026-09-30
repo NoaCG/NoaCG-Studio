@@ -11,6 +11,7 @@ import {
 import { useDocKindStore } from '../../store/docKindStore';
 import { isBackendConfigured } from '../../backend/config';
 import { subscribeAuth } from '../../backend/auth';
+import { getSyncState, onSyncState, syncNow, type IncomingCounts, type SyncState } from '../../backend/syncController';
 import {
   listMySubmissions,
   publishGraphic,
@@ -127,6 +128,23 @@ export default function HomePage({ route }: { route: Route }) {
   /* eslint-enable react-hooks/exhaustive-deps */
   const personalCount = productions.filter((p) => !p.teamId).length;
 
+  // A BROWSER THAT HAS NONE OF THE ACCOUNT'S LIBRARY YET is not an empty account. The first pass
+  // on a new browser can take a minute for a real library, and "Nothing saved yet" through all of
+  // it read as data loss (docs/SAVED_CONTENT_MODEL.md §3). While the library is empty and that
+  // pass is running, or has failed, Home says what is happening instead. Once the cloud has been
+  // listed and holds nothing to show, it is a new account after all, and the first-run hint is
+  // the right answer again.
+  const [sync, setSync] = useState<SyncState>(getSyncState());
+  useEffect(() => onSyncState(setSync), []);
+  const libraryEmpty = graphics.length === 0 && videos.length === 0 && productions.length === 0;
+  const arrival: Arrival | null = !libraryEmpty || !sync.firstPass
+    ? null
+    : sync.phase === 'error'
+      ? { failed: true }
+      : sync.phase === 'syncing' && (!sync.incoming || totalIncoming(sync.incoming) > 0)
+        ? { failed: false, incoming: sync.incoming }
+        : null;
+
   const [query, setQuery] = useState('');
   const [productionFilter, setProductionFilter] = useState<string | null>(null);
   /** One reverse index answers both filtering and every row's readout. Initialising every
@@ -228,6 +246,9 @@ export default function HomePage({ route }: { route: Route }) {
     route.view === 'home' && sections.some((s) => s.id === route.section)
       ? (route.section as Section)
       : null;
+  /** The arrival stands in for every view that would otherwise list the empty library. Teams are
+   *  fetched on their own, and brands are not what anybody signs in to find. */
+  const arrivalShown = arrival !== null && section !== 'teams' && section !== 'looks';
 
   /** "Open" puts a graphic on its CONTROL page (preview + data + operating), from where "Edit
    *  graphic" reaches the new editor (docs/GOALS_ARCHIVE.md "Student release" step 4). */
@@ -342,7 +363,9 @@ export default function HomePage({ route }: { route: Route }) {
             />
           )}
 
-          {section === null && (
+          {arrivalShown && arrival && <LibraryArrival arrival={arrival} />}
+
+          {!arrivalShown && section === null && (
             <>
               {/* The dashboard: productions lead — the unit that airs is one click from open. */}
               <ProductionsSection
@@ -411,7 +434,7 @@ export default function HomePage({ route }: { route: Route }) {
             </>
           )}
 
-          {section === 'productions' && (
+          {!arrivalShown && section === 'productions' && (
             <ProductionsSection
               productions={productions}
               onOpen={(p) => navigate({ view: 'production', id: p.id })}
@@ -427,7 +450,7 @@ export default function HomePage({ route }: { route: Route }) {
             <TeamsSection productions={productions} onOpen={(p) => navigate({ view: 'production', id: p.id })} />
           )}
 
-          {section === 'graphics' && (
+          {!arrivalShown && section === 'graphics' && (
             <>
               {/* The section's whole header - title, search, sort, view - is ONE row inside
                   GraphicsSection (re-design/handoff.md §5b): the toggle and the sort belong
@@ -481,7 +504,7 @@ export default function HomePage({ route }: { route: Route }) {
             </>
           )}
 
-          {section === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
+          {!arrivalShown && section === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
 
           {/* Applying a brand retints the WORKING graphic, so Apply lands where that graphic can
               be seen and saved: the new editor (owner, 2026-09-21: no door to the old editor). */}
@@ -564,6 +587,51 @@ function PublishSheet({
         </button>
         <button onClick={() => onDone(false)} disabled={busy}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+/** Home's first-pass state: the library is on its way, or the pass bringing it stopped. */
+type Arrival = { failed: false; incoming?: IncomingCounts } | { failed: true };
+
+function totalIncoming(n: IncomingCounts): number {
+  return n.graphics + n.productions + n.videos;
+}
+
+/** "12 graphics and 1 production are on their way": the count once the cloud has been listed,
+ *  and the kinds without a number before that. */
+function arrivalSentence(n: IncomingCounts | undefined): string {
+  if (!n) return 'Your graphics and productions are on their way from your account.';
+  const parts = ([[n.graphics, 'graphic'], [n.productions, 'production'], [n.videos, 'video']] as const)
+    .filter(([count]) => count > 0)
+    .map(([count, word]) => `${count} ${word}${count === 1 ? '' : 's'}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  return totalIncoming(n) === 1 ? `${list} is on its way from your account.` : `${list} are on their way from your account.`;
+}
+
+function LibraryArrival({ arrival }: { arrival: Arrival }) {
+  if (arrival.failed) {
+    return (
+      <div className="panel-section home-arrival" data-testid="library-arrival-failed">
+        <h3>Your library has not reached this browser yet</h3>
+        <p className="hint">
+          The first sync stopped before it finished. Nothing was lost: your work is still in your
+          account.
+        </p>
+        <button className="primary" onClick={() => void syncNow()} data-testid="library-arrival-retry">
+          Try again
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="panel-section home-arrival" data-testid="library-arrival" aria-busy="true">
+      <h3>Bringing your library to this browser</h3>
+      <p data-testid="library-arrival-count">{arrivalSentence(arrival.incoming)}</p>
+      <div className="home-arrival-bar" aria-hidden="true">
+        <span />
+      </div>
+      <p className="hint">This happens once on each browser. A large library can take a minute.</p>
     </div>
   );
 }

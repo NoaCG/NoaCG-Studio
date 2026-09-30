@@ -94,6 +94,20 @@ Back/Forward are real history):
 Home and the control panel are ROUTED SURFACES, not modals, so Graphic → Control panel →
 Back returns to the graphic, and Video ↔ Graphics is plain history.
 
+**A browser that has none of the account's library yet is not an empty account** (2026-09-30).
+The first sync on a new browser pulls the whole library, and for a real account that takes a
+while; Home used to say "Nothing saved yet" through all of it, which reads as data loss. So while
+the library on screen is EMPTY and the account's first pass on this browser is running
+(`SyncState.firstPass`, true until a pass has moved the account's bookmark off the epoch), Home
+shows "Bringing your library to this browser" in place of the dashboard and of the Productions,
+Graphics and Videos sections. The count ("12 graphics and 1 production are on their way") comes
+from the pass's own plan as soon as the cloud has been listed (`runSync`'s `onPlan`), before the
+long part, fetching the whole records. A first pass that FAILS says the library has not reached
+this browser yet, with Try again, rather than falling back to the empty hint. A first pass that
+lists an empty cloud is a new account after all and gets the first-run hint as before, and once any
+pass has completed, Home behaves exactly as it did. Pinned by `e2e/configured/library-arrival.spec.ts`
+(there is no sync offline, so no offline spec can reach it).
+
 **Card thumbnails are a LIVE render, never a stored picture** (`components/home/GraphicThumb.tsx`).
 Every Home graphic card renders the real template through `preview/composeDocument`, in a small
 iframe scaled from the template's own resolution and parked at its settled on-air state (the
