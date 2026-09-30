@@ -221,6 +221,15 @@ export-only tests, and rewording the interpreter's span-time expression (text ch
   never shows the amber answer. lt01 (In and Out only): the name drops out behind its mask as before.
 - `j-2494`, the full affected run on the final code (tip `02e84adb9`, 61 spec files) with 3 workers:
   475 passed, 244 configured skips, none failed; catalog calibration 35/35; "Overall: passed".
+- Reconciled with `origin/main` `8b8c3616f` (merge `715e4ce18`): the one conflict was
+  `e2e/catalog-baseline.json`, regenerated with its generator on the merged code (exactly 528 JS
+  rows differ from main's, no HTML or CSS; the emit check passes). On the merged tip: `j-2507`,
+  `npm run build`, 2,159 Node tests (none failed) and every gate through the after-build tier green in
+  its log; `j-2510`, `test:e2e:integration` (119 spec files) 984 passed, 363 configured skips, none
+  failed, before its catalog leg waited out the job cap behind another checkout's browser run;
+  `j-2520`, that catalog gate on its own, 35/35. The runner recorded `j-2507` and `j-2520` as dead
+  without an exit code (`reapedAsDead`) after their logs had finished, so those verdicts are read
+  from the logs.
 - A walk of card26 in the editor through the desktop browser pane (parked on the flag after its
   entrance, then Out) was attempted and gave no evidence: the pane drew no frames (screenshots timed
   out) and the sandboxed preview never answered the exit, a limitation of the pane. The same Out,
