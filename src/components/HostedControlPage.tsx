@@ -107,6 +107,7 @@ import {
 } from './playoutKeys';
 import { SpaceModeToggle } from './SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
+import { OutputHealthLine, useLivePresence } from './control/OutputHealth';
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -181,6 +182,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const [spaceMode, setSpaceMode] = useSpaceMode();
   const [openedAt] = useState(() => Date.now());
   const [now, setNow] = useState(() => Date.now());
+  /** Whether this page's own log and fast-road channels are joined, for its Presence entry. */
+  const [logJoined, setLogJoined] = useState<boolean | null>(null);
+  const [cmdJoined, setCmdJoined] = useState<boolean | null>(null);
+  /** This page on the production's live topic, and the outputs it hears there (the health line). */
+  const livePresence = useLivePresence(show && show !== 'loading' ? show.id : null, 'hosted', {
+    log: logJoined,
+    cmd: cmdJoined,
+  });
   /** The operator ACTION LOG (control/eventLog.ts) — the same feed the in-app dashboard shows,
    *  and it matters more here: this is the multi-operator surface, where "who took that?" is a
    *  real question and the page was already reading every one of these rows to drive PROGRAM. */
@@ -423,6 +432,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         tail,
         // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
         onCommand: applyCommand,
+        // Reported in this page's Presence entry, so an output's operator can be told apart from
+        // a page that is itself on the poll floor.
+        onStatus: ({ status }) => {
+          if (live) setLogJoined(status === 'SUBSCRIBED');
+        },
+        onCommandStatus: (status) => {
+          if (live) setCmdJoined(status === 'SUBSCRIBED');
+        },
         onRow: (row) => {
           const msg = row.msg;
           // The SAME door the broadcast comes through, so a command applies once whichever road
@@ -1047,6 +1064,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         <h1>{show.title}</h1>
         <span className="pd-mode pd-mode-show">● SHOW</span>
         <span className="pd-clock mono">{elapsedText}</span>
+        {/* The same output health line as the production page (components/control/OutputHealth.tsx).
+            Signed out, this page cannot re-read the heartbeat, so without Presence it shows the
+            value it resolved with and says that is what it is. */}
+        <OutputHealthLine
+          presence={livePresence}
+          seenAt={show.outputSeenAt}
+          heartbeatLive={false}
+          seenReadAt={openedAt}
+          now={now}
+          testId="hosted-output-health"
+        />
         <div className="spacer" />
         <button
           className="pd-allout"

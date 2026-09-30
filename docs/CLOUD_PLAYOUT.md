@@ -219,6 +219,15 @@ The page:
   cursor as it stood 60 s earlier, `src/control/logFollow.ts`), route each command to its graphic's iframe as
   a `previewProtocol` message, report applied state back via `control_report` (debounced),
   heartbeat `control_output_seen` every 60 s.
+- **The live path, seen** (`src/control/livePath.ts`, Phase 6 Step 1). Every renderer knows a
+  per-tab instance id, its host engine in words ("CasparCG · Chromium 71", "OBS · Chromium 127"),
+  its build and the live-path protocol version. Every command a page sends carries `snd`: the
+  sender's instance, build, protocol and PRESS time, riding the log beside `oid` with no
+  migration. The renderer counts per road (fast, log, tail), duplicates dropped, holes, refills
+  and late commands (press to receive over 2 s; exact only when sender and output share a clock),
+  and times press to receive to stage to first frame. All of it is on the `&debug=1` line, on
+  `window.__noacgLive`, and in the renderer's Realtime PRESENCE entry on the private topic
+  `live-<show id>` (migration 0068). Report-only: nothing acts on it yet.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
@@ -483,7 +492,12 @@ send.
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
     more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — renderer connected (from `output_seen_at` staleness, polled), every live layer
+- **Status** — the output health line (`components/control/OutputHealth.tsx`), the SAME line on
+  the production page and the hosted page, so on a phone too: how many outputs are connected,
+  their engines, and amber when one says commands may arrive late because its log or command
+  channel is not joined. It reads the outputs' Presence entries on `live-<show id>`; on a server
+  without that topic it falls back to `output_seen_at` (the production page polls it every 30 s,
+  the signed-out hosted page shows the value it resolved with and says so). Every live layer
   with its cue + machine state + applied values (from `live` reports), publish freshness.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
@@ -838,7 +852,8 @@ cost more in broken presets than it saves in disk.
   Asset externalization to a public bucket is the known next step if the renderer side bites.
 - **One report authority**: two open output tabs both write `control_report`; last write
   wins. Harmless for state (they converge on the same log) but `output_seen_at` cannot tell
-  two renderers apart. Multi-renderer awareness is Stage-2 work.
+  two renderers apart. Presence on `live-<show id>` can (one entry per renderer instance), once
+  the server has migration 0068.
 - **Graphic identity is still the pool NAME** (the 0008 key). Renaming a pool graphic
   between publishes orphans the old key's `live`/`staged` rows until the next publish.
 - **`control_events.id` is a GLOBAL identity**, so per-show id sequences have legitimate gaps
