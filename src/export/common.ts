@@ -177,9 +177,11 @@ The panel drives the graphic over a same-origin browser channel, so BOTH pages m
 from the same web address (http:// or https://, same host and port) in the same browser — for
 example SPX's own template server, or any local web server. Opening the files straight from
 disk (file://) does NOT connect them: browsers give every local file its own private origin.
-It also cannot reach a graphic loaded inside OBS/vMix/CasparCG — those run their own browser
-engine; use the host's own controls there (or an OBS Custom Browser Dock beside a same-origin
-graphic). In an SPX rundown you drive the template the usual way and do not need the panel.
+It cannot reach a graphic loaded inside vMix or CasparCG, which run their own browser engine;
+use the host's own controls there. In OBS it can: an OBS Custom Browser Dock and a browser
+source on the same http address share one browser. In OBS choose Docks > Custom Browser Docks
+and give the dock the address of ${panel} on the same server as the browser source's graphic.
+In an SPX rundown you drive the template the usual way and do not need the panel.
 ${hasRealtimeControl(template.js) ? `
 ## Remote control (enabled)
 This graphic also listens on a Supabase Realtime channel, so ${panel} can drive it from

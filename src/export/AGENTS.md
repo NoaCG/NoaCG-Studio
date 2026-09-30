@@ -66,7 +66,10 @@ export-time reflow, stretching, or cropping.
   CasparCG, HTML-overlay and show packages (condensed from docs/PLAYOUT_INTEGRATION.md - keep
   them in agreement). It carries the control panel's connectivity truth: BroadcastChannel is
   origin-scoped, so the panel pairs only over one http(s) origin in one browser - never over
-  file:// (private opaque origins) and never into OBS/vMix/CasparCG's own engine.
+  file:// (private opaque origins) and never into vMix's or CasparCG's own engine. OBS is the
+  exception, measured on 32.2.1 (docs/OBS_ON_A_REAL_HOST.md §5): a Custom Browser Dock and a
+  browser source on the same http address share BroadcastChannel and storage, so the guide tells
+  an OBS operator to add the panel (or, with the relay, the page the launcher opened) as a dock.
   **IT ONLY DESCRIBES WHAT THE CALLER ACTUALLY BUNDLED** (`onAirGuideMd({ localController })`,
   acceptance round 2): one text served every flavour, so a CasparCG or SPX package - which
   carries no relay ON PURPOSE - told its reader to double-click a "Start controller.cmd" that
@@ -107,17 +110,21 @@ export-time reflow, stretching, or cropping.
   (the package manifest). The panel gains a relay SEND transport (controlPanelHtml
   `sendRelay`, probe on /relay/ping) and every overlay graphic carries the relay RECEIVER
   (control/localReceiver.ts - polls the log, `?stream=` aware, inert over file:// or plain
-  static hosting). This is the only route into a graphic loaded by OBS/vMix's separate
-  browser engine. Both servers are conformance-tested for real by
-  `npm run test:local-relay` (scripts/local-relay.test.mjs - keep protocol changes in BOTH
-  implementations and that harness); the browser ends are pinned by e2e/local-relay.spec.ts
-  against an in-spec v1 implementation. SPX/CasparCG packages carry NO relay on purpose -
+  static hosting). This is the route into a graphic loaded by vMix's separate browser engine,
+  and into OBS from a panel outside OBS; a dock inside OBS pairs without it. Both servers are
+  conformance-tested for real by `npm run test:local-relay` (scripts/local-relay.test.mjs -
+  keep protocol changes in BOTH implementations and that harness); the browser ends are pinned
+  by e2e/local-relay.spec.ts against an in-spec v1 implementation. SPX/CasparCG packages carry NO relay on purpose -
   the playout host is the controller there.
 - **targets/htmlOverlay.ts** - OBS/vMix browser source: an autoplay block fills fields from baked
   sampleData -> definition defaults, then play(). An auto-out `out` = N ms setting rides
   along: the block measures the entrance from a paused throwaway timeline and schedules
   stop() at entrance + delay (the bundled control panel's Stop still works sooner). Receiver
-  + controlpanel.html bundled.
+  + controlpanel.html bundled. **Under OBS** (`window.obsstudio` present) the entrance waits for
+  `obsSourceActiveChanged` true, and a false calls stop() and finishes that exit at once, so
+  every cut to the scene plays it again; OBS sends no event at load, so the page starts from
+  `document.visibilityState`. The trigger is ACTIVE (on program), not VISIBLE: in studio mode a
+  scene on preview is visible, and the entrance would run off air again. Pinned by the OBS case in e2e/exports.spec.ts.
 - **targets/h2r.ts** - H2R Custom HTML: GDD block from DataFields + play()-toggle shim.
 - **targets/casparcg.ts** - selfContained + JSON/XML data shim. Receiver + controlpanel.html
   bundled (`inlineAssets`, because the package is one file). **It carried neither until

@@ -35,7 +35,7 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
       entranceMs = probe.duration() * 1000;
       probe.kill();
     }
-    setTimeout(function () {
+    outTimer = setTimeout(function () {
       if (typeof window.stop === 'function') window.stop();
     }, entranceMs + ${outMs});`
       : '';
@@ -45,7 +45,14 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
 // fields with the values below (baked in at export time; any field missing
 // there falls back to its default in the SPX definition), then start the
 // graphic. Edit the values here or drive them live with controlpanel.html.
+//
+// In OBS the page loads when the scene collection opens, not when you cut to the
+// scene, so there the entrance waits for the source to go ON PROGRAM (OBS's
+// obsSourceActiveChanged event) and the graphic resets when it leaves, so the
+// next time it goes on air the entrance plays again. "Active" rather than
+// "visible": in studio mode a scene on preview is visible but not on air.
 (function () {
+  var outTimer = null;
   var baked = ${JSON.stringify(baked, null, 2).replace(/\n/g, '\n  ')};
   function startData() {
     var data = {};
@@ -58,6 +65,9 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     }
     return data;
   }
+  function start() {
+    if (typeof window.play === 'function') window.play();${autoOut}
+  }
   window.addEventListener('load', function () {
     // A STREAM-ADDRESSED instance (…?stream=program / preview) is MANAGED: it belongs to a
     // production run through the local relay's ordered log (a controller monitor, or an
@@ -65,7 +75,34 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     // of popping on air by itself. The plain file keeps the classic single-overlay autoplay.
     if (/[?&]stream=/.test(location.search)) return;
     if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
-    if (typeof window.play === 'function') window.play();${autoOut}
+    if (!window.obsstudio) {
+      start();
+      return;
+    }
+    var onAir = false;
+    window.addEventListener('obsSourceActiveChanged', function (e) {
+      var active = !!(e.detail && e.detail.active);
+      if (active === onAir) return;
+      onAir = active;
+      if (active) {
+        start();
+      } else {
+        clearTimeout(outTimer);
+        if (typeof window.stop === 'function') window.stop();
+        // Nobody sees this exit, and a hidden page may not animate at all: finish it now, so
+        // the next cut starts the entrance from rest instead of racing a half-run exit.
+        if (window.gsap) {
+          var running = window.gsap.globalTimeline.getChildren(false, true, true);
+          for (var i = 0; i < running.length; i++) running[i].progress(1);
+        }
+      }
+    });
+    // OBS sends no event for the state a page loads in. A source added to the scene on
+    // air loads visible, one in a scene that is not shown loads hidden.
+    if (document.visibilityState !== 'hidden') {
+      onAir = true;
+      start();
+    }
   });
 })();`;
 }
@@ -83,7 +120,11 @@ the fields with the exported values and plays automatically.
 ## OBS Studio
 1. Sources → + → **Browser**.
 2. Tick **Local file** and pick ${name}.html.
-3. Width ${template.resolution.width}, Height ${template.resolution.height}. Done — it plays on load.
+3. Width ${template.resolution.width}, Height ${template.resolution.height}.
+
+In OBS the entrance plays each time the source goes on program, and the graphic resets when it
+leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.
+To operate it from inside OBS, add the panel as a Custom Browser Dock (see Live control below).
 
 ## vMix
 1. Add Input → **More** → **Web Browser**.
@@ -96,12 +137,14 @@ the fields with the exported values and plays automatically.
 - Live control, the easy way: double-click **"Start controller.cmd"** (Windows) or
   **"start-controller.command"** (macOS) — the bundled LOCAL RELAY serves this folder at
   http://localhost:<port>/, opens the panel, and relays commands into a graphic loaded by
-  OBS/vMix (their own browser engine, unreachable any other way). Point the browser source
-  at the graphic ON that address, not at the file on disk. Fully offline. Details in
-  GETTING-ON-AIR.md.
+  OBS or vMix. Point the browser source at the graphic ON that address, not at the file on
+  disk. Fully offline. Details in GETTING-ON-AIR.md.
+- Operating from inside OBS: Docks → Custom Browser Docks, and give the dock the panel's
+  address on the launcher, http://localhost:<port>/controlpanel.html.
 - Without the launcher the panel still pairs over a same-origin browser channel (both pages
-  from ONE http address in ONE browser); files opened straight from disk (file://) can never
-  pair — the panel says so when nothing is answering.
+  from ONE http address in ONE browser; an OBS Custom Browser Dock and a browser source on the
+  same address count as one browser). Files opened straight from disk (file://) can never
+  pair, and the panel says so when nothing is answering.
 ${hasRealtimeControl(template.js) ? `- Remote control (enabled): this graphic also listens on a Supabase Realtime channel, so
   controlpanel.html works from ANOTHER device too. The channel topic baked into both files
   is a shared secret — keep it private. The machine running the overlay must be allowed to
@@ -132,8 +175,9 @@ export const htmlOverlayTarget: ExportTarget = {
     const withReceiver = withControlReceiver(template);
     const outMs = /^\d+$/.test(template.settings.out ?? '') ? Number(template.settings.out) : null;
     // Two receivers, two transports: the BroadcastChannel one (same-origin tabs) and the
-    // LOCAL RELAY one (through the bundled localhost service — the only route into a graphic
-    // loaded by OBS/vMix's own browser engine). Both are inert where they cannot work.
+    // LOCAL RELAY one (through the bundled localhost service, the route into a graphic loaded
+    // by vMix's own browser engine, and into OBS from a panel outside it). Both are inert where
+    // they cannot work.
     root.file(
       `${name}.html`,
       await composeSelfContainedHtml(withReceiver, [

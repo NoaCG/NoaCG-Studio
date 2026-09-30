@@ -226,12 +226,18 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
 - **"Shutdown source when not visible"** will tear the page down every time you hide the scene,
   which throws away a cloud output's connection and forces a full rebuild on the way back. Leave
   it **off** for a production output.
-- **A plain exported overlay plays its entrance when the page loads**, and OBS loads a browser
-  source when the scene collection opens, not when you show the scene. So the entrance can run
-  off air and the graphic is simply there when you cut to it. Tick **"Refresh browser when scene
-  becomes active"** on that source: OBS reloads the page as the scene goes on program, and the
-  entrance plays on air. Not needed for the cloud output or a relay-driven source, which wait
-  for a command instead of playing on load.
+- **In OBS an exported overlay plays its entrance when its source goes on program**, not when
+  the page loads, and resets when the source leaves program, so every cut to the scene plays the
+  entrance again. OBS loads a browser source when the scene collection opens, which is why a
+  load-time entrance would run off air. The overlay follows OBS's `obsSourceActiveChanged`
+  (on program) rather than `obsSourceVisibleChanged`, because in studio mode a scene on preview
+  is visible but not on air; a page that loads while shown starts at once. Outside OBS it still
+  plays on load. On a **Cut** back to the scene, OBS with browser hardware acceleration shows the
+  source's last on-air frame for about one frame before the entrance starts; in studio mode that
+  was not seen (`docs/OBS_ON_A_REAL_HOST.md` §10). Overlays exported before 2026-10-01 play on
+  load: for those, tick **"Refresh browser when scene becomes active"**, and OBS reloads the page
+  as the scene goes on program. The cloud output and a relay-driven source wait for a command
+  instead of playing by themselves.
 - An exported overlay package ships a **local relay + launcher**: double-click
   "Start controller.cmd" (Windows) or "start-controller.command" (macOS; Linux
   `./start-controller.sh`). It serves the folder at `http://localhost:<port>/`, opens the
@@ -344,6 +350,9 @@ than one that admits the gaps.
   controller running in a Custom Browser Dock; the plain `controlpanel.html` in a dock driving a
   same-address browser source with no relay; "Refresh browser when scene becomes active"
   playing the entrance on air; and the engine, Chromium 127.
+- **Verified on OBS 32.2.1 on this machine** (2026-10-01, `docs/OBS_ON_A_REAL_HOST.md` §10): an
+  exported overlay as a local-file source plays its entrance when its scene goes on program,
+  plays it again on the next cut, and waits on preview in studio mode.
 - **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
   vMix, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
   local-network permission prompt with a person at the keyboard.

@@ -82,13 +82,23 @@ ${
 This package bundles a tiny **local relay**: double-click **"Start controller.cmd"** (Windows)
 or **"start-controller.command"** (macOS; Linux: \`./start-controller.sh\`). It serves this folder
 at \`http://localhost:<port>/\`, opens the operator page, and relays every command through an
-ordered log — which is the only route into a graphic loaded by OBS/vMix (they run their own
-browser engine that a browser tab can never reach directly).
+ordered log, so that page reaches a graphic loaded by OBS or vMix, which run their own browser
+engine.
 
 1. Start the launcher and keep its window open.
 2. Point the OBS/vMix browser source at the graphic ON THAT ADDRESS
    (\`http://localhost:<port>/<graphic>.html\`), not at the file on disk.
-3. Operate from the panel the launcher opened. Fully offline; no accounts, no internet.
+3. Operate from the page the launcher opened. Fully offline; no accounts, no internet.
+
+**Operating from inside OBS:** add the same page as a dock. In OBS choose **Docks → Custom
+Browser Docks**, give the dock a name, paste the address of the page the launcher opened
+(\`http://localhost:<port>/...\`) and click **Apply**. The dock drives the graphic like the
+browser tab does, as long as the launcher is running.
+
+**The entrance in OBS.** OBS loads a browser source when the scene collection opens, not when
+you cut to it. So in OBS a graphic loaded at its plain address plays its entrance when its source
+goes on program, and resets when the source leaves, so the next cut to it plays the entrance
+again. Anywhere else it plays when the page loads.
 
 macOS note: the .command file may need one-time permission (System Settings → Privacy &
 Security), and python3 comes with the OS developer tools.
@@ -99,6 +109,10 @@ ${panel ? `## The bundled control panel without the launcher
 
 - **Works:** both pages opened from the same web address (http:// or https://, same host and
   port) in the same browser — the launcher above, SPX's own template server, or any web server.
+- **Works in OBS too:** an OBS Custom Browser Dock and a browser source on the same http address
+  share one browser, so a dock showing \`${panel}\` from the address the source uses pairs with
+  the graphic and drives it. A source with **Local file** ticked has no such address; serve the
+  folder over http and use that address for both.
 - **Does not work:** opening the files straight from disk (\`file://\`) — the browser gives every
   local file its own private origin, so the pages cannot see each other. The panel will tell you
   when nothing is answering.` : ''}`
@@ -129,8 +143,11 @@ in one tab and \`${panel}\` in another, and drive it from there.
 
 - Opening the files straight from disk (\`file://\`) never pairs — the browser gives every local
   file its own private origin. The panel says so rather than pretending.
-- It can never reach a graphic loaded by OBS/vMix/CasparCG itself: those run their own browser
-  engine. Under the host, use the host's controls above.` : ''}`
+- It cannot reach a graphic loaded by vMix or CasparCG itself: those run their own browser
+  engine. Under those hosts, use the host's controls above.
+- OBS is the exception: an OBS Custom Browser Dock and a browser source on the same http address
+  share one browser. Add a dock (**Docks → Custom Browser Docks**) showing \`${panel}\` from the
+  address the browser source uses, and it pairs with the graphic and drives it.` : ''}`
 }
 
 ## When it does not work
