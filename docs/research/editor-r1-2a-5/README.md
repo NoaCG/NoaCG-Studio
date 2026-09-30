@@ -291,3 +291,114 @@ editor's key drag, nudge, refusal, undo, redo, Escape and save/reopen, and a bar
 Step flag. Then the editor regressions, the full affected run, catalog JS fingerprints, the
 catalog battery against this worktree's dev server, taste frames (card26, qz02, lt01), build,
 `/check`, `/queue-merge` and the deployed `/version.json`.
+
+## Implementation
+
+- [editorOut.ts](../../../src/blocks/editorOut.ts): `moveOutBoundary` follows the decision. Later, the
+  cue lengthens and bars reaching the hold reach the new one. Earlier, it cuts the cue with the
+  shared `holdAt`, `cutTracks` and `cutBars` (explicit eases where the cue defaults differ), moves
+  the motion up to `motionEnd` into Out at its absolute times, shifts the exit by the carried
+  length and stores it as `carried`. `rejoinCarried` first joins carried motion back into its cue
+  through `joinCues`, so every move starts from the whole motion. The R1.2a.1 `CROSSES_OUT_KEY`
+  refusal, the "own Out bars" refusal and the R1.2a.2 Next-cue guard are gone.
+- [animData.ts](../../../src/blocks/animData.ts): `carried`, an optional nonnegative number on a
+  step, parsed and serialized after `ease`. `resizeStep` scales and clamps it; `presetApply` clears
+  it when a preset replaces Out.
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts): `noacgBuildExit` skips `carried`
+  for Out pressed at an earlier step (its exit starts at its first key after the carried time,
+  keeping a designed beat), and the outside-root fade for a layer a Step revealed starts where the
+  exit starts and applies unless the exit itself animates that layer (keys after the carried
+  time; a layer whose Out keys all sit at the exit's start now fades too, where before any Out
+  track exempted it). The R1.2a.4 body is `ANIM_INTERPRETER_BEFORE_CARRIED_HASH` in
+  [animRuntimeLegacy.ts](../../../src/templates/shared/animRuntimeLegacy.ts), its text in
+  `e2e/fixtures/interpreter-one-key-hold-v1.js`, and data with `carried` re-emits the region.
+- [animEdit.ts](../../../src/blocks/animEdit.ts): `moveKeys` and `moveTrack` move keys on one
+  ruler: boundary pairs move as one key, the flags a move involves are joined (`unsplitAt`) and cut
+  anew (`splitKeyframeSegment`), a key landing on a flag stays on its side (`landingCue`), and
+  every refusal is checked before anything is written. `moveLayerSpan` takes a bar body across
+  flags through `visibleRun` and `moveLayerAcross`. `shownWithoutBars` is the one rule for a cue
+  without bars, which `explicitBars` writes and the timeline draws.
+- [editorAnimation.ts](../../../src/blocks/editorAnimation.ts) and
+  [operations.ts](../../../src/components/editorFoundation/operations.ts): the registry's `key.move`
+  (`applyKeyMove`), one undo, re-emitting a known older interpreter where Out changes.
+- [Timeline.tsx](../../../src/components/editorFoundation/Timeline.tsx): key diamonds drag by whole
+  frames (Alt: freely) with the registry's verdict live while held, show the landing time or the
+  reason beside the key, cancel on Escape, and nudge with the arrow keys to the neighbouring frame;
+  [keySelection.ts](../../../src/components/editorFoundation/keySelection.ts) `movedKeys` keeps the
+  moved keys selected where they landed.
+- Tests: [cross-cue.test.mjs](../../../scripts/cross-cue.test.mjs) (build gate, 21 tests) and
+  [editor-cross-cue.spec.ts](../../../e2e/editor-cross-cue.spec.ts), both on
+  `e2e/fixtures/cross-cue.json`; `scripts/out-boundary.test.mjs` and the editor specs named above
+  follow the decision.
+
+## Review and simplification
+
+Review ran as one workflow of four read-only reviewers (Set Out; key and bar moves; runtime and
+exports; UI, tests and docs), each followed by one refuter. It raised 35 findings; the refuters
+confirmed 34 and refuted one (a preset keeping a stale `carried`, fixed anyway). All confirmed
+findings are fixed except six recorded as limits above: the ambiguous blinking bar, byte identity
+with differing default eases and with emptied layers, the Linear key authored on a flag, and the
+editor's Out playhead and the OGraf stop duration from an earlier step. The fixes, in short:
+
+- Set Out: the outside-root fade after carried motion, a designed beat kept from an earlier step,
+  Set Out at exactly the motion end giving the same result whichever way it was reached, no bars
+  for a layer hidden by its own bars, duplicate keys at the carried end refused, the rejoin copying
+  the exit's start only when the exit moves on from there, and `carried` kept consistent by resize
+  and presets.
+- Moves: a key on a flag stays on its side, a key only holding a first value is the flag's, chained
+  linear cuts rejoin whole, moves never lengthen Out, and new refusals for the carried end, legacy
+  hides and a bar body passing a boundary key; the timeline draws a cue without bars as the runtime
+  plays it; nudges land on frames and keep focus in their row; the moved selection includes the
+  next cue's copy of a key on a flag.
+
+Simplification (four cleanup passes: reuse, simplification, efficiency, altitude) then shared the
+rules the operations and the timeline both need (`shownWithoutBars`, `landingCue`, `cueStarts`,
+`jumpsAt`, `crossesCarried`), spelled a layer's bars out once per bar move instead of three times,
+shared the key writers, and made the key drag re-render only when its frame changes and a nudge run
+the operation once. Mutation testing removed two redundant pieces of code it showed could not
+matter. Skipped as larger than this phase or a behaviour choice: one per-track cut and join shared
+by Add Step, Delete, Set Out and key moves; an explicit exit-start key in Out (the reviewer accepted
+the current form); parsing the template once per drag; and unifying the eight "bar reaches its
+cue's end" checks, which differ in tolerance.
+
+## Verification receipt
+
+- Reproduction: `e2e/editor-cross-cue.spec.ts` queued on the unmodified code from a snapshot
+  worktree (j-2665) failed 15 of 15 where expected: Out later refusing with `CROSSES_OUT_KEY` in
+  all five targets, no `key.move` operation, the Next-cue guard, no key drag or refusal in the
+  timeline, no bar crossing a flag, and Set Out inside a Next cue refused. The Node reproduction
+  is under "Reproduction".
+- Node: `scripts/cross-cue.test.mjs` (21 tests) with `out-boundary`, `out-step`, `step-authoring`,
+  `key-ease` and `ease-runtime`, 84 tests, pass. Mutation testing: 79 of 79 applicable guard
+  mutations fail a test; two further mutants were equivalent, and the code they touched was
+  removed as redundant.
+- Browser: `e2e/editor-cross-cue.spec.ts` (16 tests) with the editor regressions (steps, out-step,
+  key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry),
+  anim-engine and inspector at the tip (j-2692): 202 passed, 20 skipped, none failed. The key
+  nudge's frame snap and focus are asserted there (a key stored at 0.81 s lands on 0.84 s, where a
+  relative nudge would give 0.85 s); the Timeline.tsx guards were not mutation-run in the browser.
+- Full affected run at the tip (j-2693): 72 spec files, 593 passed and 353 skipped, and the catalog
+  gate 35 of 35. Two vite client errors in the OGraf export specs come from quiz machine code and
+  appear the same in R1.2a.4's run (j-2629).
+- Catalog: JS fingerprints re-recorded for the interpreter change (528 JS rows, nothing else), and
+  `check-catalog-emit` passes at the tip. The catalog battery against this worktree's dev server
+  (j-2697): type floor 526, overflow 528 with no regression, field coverage 526, numerals 349,
+  catalog specs 35 and baseline 4, factory 317 of 317. The 32 taste frames for card26, qz02 and
+  lt01 are byte-identical to this branch's first battery, made before review changed the
+  interpreter again; card26's Out from step 2 exits without revealing the unreached rows.
+- Real UI (j-2701), headless at 1920 on this worktree's dev server in one page, as the owner route
+  runs, with no page errors: Clean Steps from the template search, a key dragged 20 frames across a
+  Step flag (one undo, Undo restores), Set Out inside Step 5's reveal (0.4 s carried into Out),
+  saved, then on its control page Play, every Next (parked partway into the last row's reveal) and
+  Stop, and Stop right after Play, each clearing the graphic. Hairline from the template search: the
+  Out flag dragged later keeps the exit's keys unchanged, a drag back into the box's clip-path
+  reveal refuses with its reason, and Set Out inside the entrance carries 0.42 s. A drawn
+  rectangle's bar dragged 50 frames across a Step flag starts 0.24 s into the Step and runs to the
+  end of Out, one undo, and Undo restores the source byte for byte. Catalog rows animate `yPercent`,
+  which this editor does not author yet, so their bars refuse to move ("Another source channel owns
+  this transform"), as before.
+- Build (j-2699): gates, 2247 Node tests in 152 files, typecheck, lint, dependency rules and the
+  bundle pass. An earlier build (j-2696) stopped at the line-endings gate on files the editor specs
+  rewrite in `docs/research/editor-r1-1d`, restored before the rerun.
+- Not checked: the receiving CasparCG and OGraf hosts themselves (their exports run in Node and the
+  simulator), a physical desktop at 125% scaling, and a phone.
