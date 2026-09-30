@@ -26,11 +26,11 @@ async function load(entry) {
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
 
-const [steps, edit, runtime, legacy, { resolveValue }, { parseAnimData, serializeAnimData }, { deriveMachine, spxSteps }, { prepareOutRuntime }, { contentHash }, { easeCurve, parseEase }, { replaceDefinitionInHtml }] = await Promise.all([
+const [steps, edit, runtime, legacy, { resolveValue }, { parseAnimData, serializeAnimData }, { deriveMachine, spxSteps }, { prepareOutRuntime }, { contentHash }, { easeCurve, parseEase }, { replaceDefinitionInHtml }, { segmentAt }] = await Promise.all([
   'src/blocks/editorSteps.ts', 'src/blocks/animEdit.ts', 'src/templates/shared/animRuntime.ts', 'src/templates/shared/animRuntimeLegacy.ts',
   'src/blocks/animEval.ts', 'src/blocks/animData.ts', 'src/blocks/animMachine.ts', 'src/blocks/animMigration.ts', 'src/model/contentHash.ts',
-  'src/templates/shared/easeRuntime.ts', 'src/model/spxDefinition.ts'].map(load));
-const { applyStep } = steps, { splitCue, joinCues, moveStepFlag } = edit;
+  'src/templates/shared/easeRuntime.ts', 'src/model/spxDefinition.ts', 'src/components/editorFoundation/timelineView.ts'].map(load));
+const { applyStep } = steps, { splitCue, joinCues, moveStepFlag, easeKeys } = edit;
 const { emitAnimRegion, ANIM_INTERPRETER_JS, writeOutData } = runtime;
 const GSAP = readFileSync(path.join(root, 'src/assets/gsap.min.js'), 'utf8');
 
@@ -75,7 +75,7 @@ const tracksOf = (...all) => [...new Set(all.flatMap(d => d.steps.flatMap(s => O
 /** Every sample key of a graphic on the given stored points: 'a' the arriving side (a cue's end at
  *  its flag, else the left limit) and 'd' the departing side (a cue's start at its flag, else the
  *  value there), before Out. */
-function ruler(data, points) {
+function ruler(data, points, tracks = tracksOf(data), selectors = selectorsOf(data)) {
   const starts = startsOf(data), last = data.steps.length - 1, samples = {};
   // No key anywhere yet shows the design value, which for a transform is GSAP's identity.
   const IDENTITY = { x: 0, y: 0, xPercent: 0, yPercent: 0, rotation: 0, scale: 1, scaleX: 1, scaleY: 1, opacity: 1 };
@@ -88,20 +88,21 @@ function ruler(data, points) {
     for (const [side, c, t, left] of sides) {
       const key = u.toFixed(4) + ':' + side;
       samples[key] = Object.fromEntries([
-        ...tracksOf(data).map(([s, p]) => [s + ' ' + p, value(s, p, c, t)]),
-        ...selectorsOf(data).map(s => [s + ' shown', shown(data, s, c, left ? Math.max(0, t - 1e-6) : t)]),
+        ...tracks.map(([s, p]) => [s + ' ' + p, value(s, p, c, t)]),
+        ...selectors.map(s => [s + ' shown', shown(data, s, c, left ? Math.max(0, t - 1e-6) : t)]),
       ]);
     }
   }
   return samples;
 }
 /** The same playback on the concatenated ruler: every track's value within one stored quantum and
- *  every layer's visibility, on both sides of both graphics' flags and a dense grid. */
+ *  every layer's visibility, of either graphic, on both sides of both graphics' flags and a dense grid. */
 function samePlayback(before, after, label) {
   const end = startsOf(before).at(-2);
   assert.ok(Math.abs(startsOf(after).at(-2) - end) < 1e-9, `${label}: Out stays where it was`);
   const points = [...new Set([...Array.from({ length: Math.round(end / 0.01) + 1 }, (_, i) => round(i * 0.01)), ...startsOf(before).slice(1, -1), ...startsOf(after).slice(1, -1)])].sort((a, b) => a - b);
-  const a = ruler(before, points), b = ruler(after, points);
+  const tracks = tracksOf(before, after), selectors = selectorsOf(before, after);
+  const a = ruler(before, points, tracks, selectors), b = ruler(after, points, tracks, selectors);
   for (const key of Object.keys(a)) for (const [name, v] of Object.entries(a[key])) {
     // A hidden layer's values are never seen: a join may start them from another value there.
     const layer = name.split(' ')[0];
@@ -156,9 +157,10 @@ test('the parts Add Step writes: on a key, on a bar edge, inside held and flat s
   // Inside the title's Hold (0.4 to 1.2): two held halves, the new cue jumping at the Hold's key.
   assert.deepEqual(a.layers['#title'].y, [{ time: 0, value: 20 }, { time: 0.4, value: 20 }, { time: 0.5, value: 20, ease: 'hold' }]);
   assert.deepEqual(b.layers['#title'].y, [{ time: 0, value: 20 }, { time: 0.7, value: 0, ease: 'hold' }]);
-  // Before the badge's first key: hidden until its bar starts, it needs no key in In; the new cue
-  // holds its first value from its start, as the runtime does.
-  assert.equal(a.layers['#badge'], undefined);
+  // Before the badge's first key: In keeps a key holding that first value, which the runtime applies
+  // from the cue start, so the layer keeps its place in the source; the new cue holds its first
+  // value back to its start without a copy.
+  assert.deepEqual(a.layers['#badge'].opacity, [{ time: 0.5, value: 0 }]);
   assert.deepEqual(b.layers['#badge'].opacity, [{ time: 0.2, value: 0 }, { time: 0.5, value: 1 }]);
   // A layer on screen before the flag keeps a key there holding the value it takes (b before the
   // title's first key, with its x from -600).
@@ -171,7 +173,7 @@ test('the parts Add Step writes: on a key, on a bar edge, inside held and flat s
   // Frame 14, stored 0.7: on the badge's bar edge. Its bar starts the new cue.
   const edge = addAt(data, 14);
   assert.deepEqual([edge.steps[0].spans['#badge'], edge.steps[1].spans['#badge']], [[], [{ start: 0, end: 0.5 }]]);
-  assert.equal(edge.steps[0].layers['#badge'], undefined, 'hidden until the flag, it keys only the new cue');
+  assert.deepEqual(edge.steps[0].layers['#badge'].y, [{ time: 0.7, value: 30 }], 'a track\'s only key stays');
   assert.deepEqual(edge.steps[1].layers['#badge'].y, [{ time: 0, value: 30 }, { time: 0.3, value: 0, ease: 'back.out(1.6)' }]);
   // Frame 4, stored 0.2: inside the title's flat segment, which needs no key on either side.
   const flat = addAt(data, 4);
@@ -188,6 +190,46 @@ test('the parts Add Step writes: on a key, on a bar edge, inside held and flat s
   assert.deepEqual(inner.steps.map(s => s.name), ['In', 'Scores', 'Step 3', 'Out']);
   const twice = addAt(addAt(data, 28), 10);
   assert.deepEqual(twice.steps.map(s => s.name), ['In', 'Step 2', 'Step 3', 'Step 4', 'Out']);
+});
+
+test('Add Step then Delete gives back authored Hold keys, layer and track order', () => {
+  // A Hold the author set on a key sitting on the new flag is the author's key, not a split's.
+  const held = easeKeys(fixture(), [{ step: 0, selector: '#title', property: 'y', time: 0 }, { step: 0, selector: '#title', property: 'y', time: 0.4 }], 'hold');
+  assert.deepEqual(held.steps[0].layers['#title'].y.map(k => k.ease), [undefined, 'hold', 'hold']);
+  assert.equal(text(joinCues(addAt(held, 8), 0)), text(held), 'an authored Hold key');
+  // A layer whose bar starts after the flag, not last in the source, and a track starting later.
+  const order = fixture(), In = order.steps[0].layers;
+  order.steps[0].layers = { '#box': In['#box'], '#badge': In['#badge'], '#title': { scaleX: [{ time: 0.6, value: 1 }, { time: 0.9, value: 1.1 }, { time: 1.2, value: 1 }], ...In['#title'] } };
+  for (const frame of [4, 8, 10, 14]) assert.equal(text(joinCues(addAt(order, frame), 0)), text(order), `order at frame ${frame}`);
+  // Documented normalization: an explicit ease equal to its cue's default comes back as the default.
+  const same = fixture(); same.steps[0].ease = 'back.out(1.6)';
+  const added = addAt(same, 14), back = joinCues(added, 0);
+  assert.equal(back.steps[0].layers['#title'].x[1].ease, undefined);
+  samePlayback(same, back, 'an explicit default ease');
+});
+
+test('flags one frame apart at 30 and 60 fps are accepted though stored at 3 decimals', () => {
+  for (const fps of [30, 60]) {
+    const data = { version: 2, root: '.fixture', speed: 1, steps: [{ name: 'In', duration: 1, ease: 'none', layers: { '#box': { x: [{ time: 0, value: -100 }, { time: 1, value: 0 }] } } }, { name: 'Out', duration: 0, ease: 'none', layers: {} }] };
+    let t = templateOf(data, fps);
+    t = applyStep(t, { kind: 'step.add', time: 1 / fps });
+    t = applyStep(t, { kind: 'step.add', time: 2 / fps });
+    t = applyStep(t, { kind: 'step.add', time: 3 / fps });
+    const cut = parseAnimData(t.js).steps.map(s => s.duration);
+    assert.equal(cut.length, 5, `${fps} fps: three one-frame Steps`);
+    assert.ok(cut.slice(0, 3).every(d => Math.abs(d - 1 / fps) <= 0.001), `${fps} fps: ${cut}`);
+    // A nudge onto the frame beside a neighbour is still one frame from it.
+    t = applyStep(t, { kind: 'step.move', step: 3, time: 4 / fps });
+    assert.equal(parseAnimData(t.js).steps.length, 5);
+    assert.throws(() => applyStep(t, { kind: 'step.move', step: 3, time: 2 / fps }), /one frame/);
+  }
+});
+
+test('a flag read from summed cue lengths a float step off its frame is the arriving side', () => {
+  // 0.7 / 1.25 is 0.5599999999999999, the flag Add Step at 0.56 s leaves.
+  const segments = [{ index: 0, name: 'In', start: 0, duration: 0.7 / 1.25, out: false }, { index: 1, name: 'Step 2', start: 0.7 / 1.25, duration: 0.4, out: false }];
+  assert.deepEqual(segmentAt(segments, 0.56), { step: 0, time: 0.7 / 1.25 });
+  assert.deepEqual(segmentAt(segments, 0.5601), { step: 1, time: 0.5601 - 0.7 / 1.25 });
 });
 
 test('Add Step refuses on a flag, within a frame of one, and where a split is not exact', () => {
@@ -258,6 +300,34 @@ test('Delete refuses a jump at the flag, a legacy hide before it, and keys past 
   refuses(() => joinCues(past, 0), past, /#box rotation.*after the end of its cue.*preserved/);
 });
 
+test('a layer keyed again after a legacy hide keeps its playback through Add Step, and Delete refuses to guess', () => {
+  // In fades #tag in; Step 2 hides it (legacy, opacity 0 at its end); Step 3 keys it back from 0.4.
+  const data = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 0.6, ease: 'none', layers: { '#tag': { opacity: [{ time: 0, value: 0 }, { time: 0.6, value: 1 }] } } },
+    { name: 'Step 2', duration: 0.6, ease: 'none', hides: ['#tag'], layers: { '#box': { x: [{ time: 0, value: 0 }, { time: 0.6, value: 10 }] } } },
+    { name: 'Step 3', duration: 0.8, ease: 'none', layers: { '#tag': { opacity: [{ time: 0.4, value: 1 }, { time: 0.8, value: 0.5 }] } } },
+    { name: 'Out', duration: 0, ease: 'none', layers: {} }] };
+  const opacity = d => { const g = graphic(emitAnimRegion(d)), seen = []; let tl = g.play();
+    for (let i = 0; i < d.steps.length - 1; i++) { if (i) tl = g.next(); for (let u = 0.05; u < d.steps[i].duration; u += 0.1) { tl.time(u, true); seen.push(g.els['#tag'].opacity); } tl.progress(1, true); }
+    return seen; };
+  const added = splitCue(data, 2, 0.2, 0.04);
+  assert.deepEqual(added.steps[2].layers['#tag'].opacity, [{ time: 0.2, value: 1 }], 'the key holding the value it shows from its start stays');
+  // Sampled at the same interior ruler times: the split cue's samples join up to the original's.
+  assert.deepEqual(opacity(data).map(v => Math.round(v * 1e6) / 1e6), opacity(added).map(v => Math.round(v * 1e6) / 1e6));
+  const late = clone(data); late.steps.splice(3, 0, { name: 'Step 4', duration: 0.8, ease: 'none', layers: { '#tag': { opacity: [{ time: 0, value: 1 }, { time: 0.8, value: 0.5 }] } } });
+  late.steps[2] = { name: 'Step 3', duration: 0.4, ease: 'none', layers: {} };
+  refuses(() => joinCues(late, 2), late, /#tag opacity.*jumps.*preserved/);
+});
+
+test('Delete refuses legacy visibility it cannot keep: a hide beside bars, a reveal of a layer that also leaves', () => {
+  const mixed = fixture(); delete mixed.steps[1].spans['#badge']; mixed.steps[1].hides = ['#badge'];
+  refuses(() => joinCues(mixed, 0), mixed, /#badge leaves at the end of Step 2 through older source but has bars before it.*preserved/);
+  const both = fixture();
+  both.steps.splice(1, 0, { name: 'Step 2', duration: 0.4, ease: 'none', reveals: ['#note'], layers: { '#note': { opacity: [{ time: 0, value: 0 }, { time: 0.4, value: 1 }] } } });
+  both.steps[2].name = 'Step 3'; both.steps[2].hides = ['#note'];
+  refuses(() => joinCues(both, 0, inRoot), both, /#note appears and leaves through older source.*preserved/);
+});
+
 test('Delete converts a legacy reveal to bars so the layer appears where its step began', () => {
   // In, Step 2, Step 3 revealing #note (legacy), then the fixture's Step 2 as Step 4.
   const data = fixture();
@@ -283,13 +353,13 @@ test('Delete converts a legacy reveal to bars so the layer appears where its ste
 
 // ---- Flag drags ----
 
-test('a Step flag drag to any legal frame plays as before, and its reverse gives back the source', () => {
+test('a Step flag drag to any legal frame plays as before, and so does its reverse', () => {
   // A renamed Step keeps its name and its own default ease wherever its flag goes.
   const named = fixture(); named.steps[1].name = 'Scores'; named.steps[1].ease = 'power1.in';
   const far = moveStepFlag(named, 1, 0.4, FRAME);
   assert.deepEqual([far.steps[1].name, far.steps[1].ease], ['Scores', 'power1.in']);
   samePlayback(named, far, 'a renamed Step with its own default ease');
-  const data = fixture(), source = text(data);
+  const data = fixture();
   for (let frame = 1; frame < 36; frame++) {
     const b = round(frame * FRAME);
     if (frame === 24) { assert.equal(moveStepFlag(data, 1, b, FRAME), data, 'no move, no change'); continue; }
@@ -297,7 +367,14 @@ test('a Step flag drag to any legal frame plays as before, and its reverse gives
     try { moved = moveStepFlag(data, 1, b, FRAME); } catch (error) { assert.match(error.message, /preserved/, `frame ${frame}`); continue; }
     samePlayback(data, moved, `Step 2 flag at frame ${frame}`);
     assert.deepEqual([moved.steps[1].name, moved.steps[1].ease], ['Step 2', 'none']);
-    assert.equal(text(moveStepFlag(moved, 1, 1.2, FRAME)), source, `frame ${frame} and back`);
+    // Back again it plays the same; In may keep a key holding a first value at the old flag, since a
+    // cut never removes a track from the cue it cuts.
+    const back = moveStepFlag(moved, 1, 1.2, FRAME);
+    samePlayback(data, back, `frame ${frame} and back`);
+    for (const [selector, tracks] of Object.entries(back.steps[0].layers)) for (const [prop, keys] of Object.entries(tracks)) {
+      const was = data.steps[0].layers[selector]?.[prop] ?? [];
+      assert.ok(JSON.stringify(keys) === JSON.stringify(was) || !was.length && keys.length === 1 && keys[0].time === 1.2, `frame ${frame} and back: ${selector} ${prop}`);
+    }
   }
 });
 
@@ -338,13 +415,20 @@ test('applyStep snaps the playhead, keeps the step count and the SPX definition,
 });
 
 test('a legacy one-step graphic gains its Out first; machines, loops, calls, dynamics and custom bodies refuse', () => {
+  for (const [name, change] of [['calls', d => { d.steps[1].calls = [{ time: 0, call: 'startClock' }]; }], ['dynamics', d => { d.steps[0].dynamics = [{ build: 'tickerMarquee', target: '#box' }]; }]]) {
+    const d = fixture(); change(d); const t = templateOf(d);
+    refuses(() => applyStep(t, { kind: 'step.add', time: 0.4 }), t, new RegExp(name === 'calls' ? 'calls' : 'measured motion'));
+    refuses(() => joinCues(d, 0), d, /calls, measured motion or loops/);
+  }
   const single = fixture(); single.steps = [single.steps[0]];
   const added = parseAnimData(applyStep(templateOf(single), { kind: 'step.add', time: 0.4 }).js);
   assert.deepEqual(added.steps.map(s => [s.name, s.duration]), [['In', 0.5], ['Step 2', 0.7], ['Out', 0]]);
   const machine = fixture(); machine.machine = deriveMachine(machine);
-  refuses(() => applyStep(templateOf(machine), { kind: 'step.add', time: 0.4 }), machine, /state-machine/);
+  const machined = templateOf(machine);
+  refuses(() => applyStep(machined, { kind: 'step.add', time: 0.4 }), machined, /state-machine/);
   const looped = fixture(); looped.steps[0].loops = { '#box': { x: { repeat: -1 } } };
-  refuses(() => applyStep(templateOf(looped), { kind: 'step.delete', step: 1 }), looped, /loops/);
+  const looping = templateOf(looped);
+  refuses(() => applyStep(looping, { kind: 'step.delete', step: 1 }), looping, /loops/);
   const t = templateOf(fixture()), custom = { ...t, js: t.js.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;') };
   refuses(() => applyStep(custom, { kind: 'step.add', time: 0.4 }), custom, /custom/);
 });

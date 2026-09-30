@@ -62,11 +62,11 @@ within half a stored unit).
   starts from a copy. **Inside a flat segment**: no key is needed on either side, the cue holds
   the value and the next key holds it back to the new cue's start. **Before its first key**: the
   cue keeps a key holding that first value, which the runtime applies from the cue start, and the
-  new cue needs no copy. A key at the split is left out of the cut cue where that cue shows its
-  value anyway: the key before holds the same value, the layer is hidden through the cut cue, or
-  the cue already starts with that value (GSAP's identity for an unkeyed transform); the new cue's
-  copy then carries its ease. Keys after the split move into the new cue at `t - b`; tracks with
-  nothing after it stay. Anything without an exact split refuses the whole operation with the
+  new cue needs no copy. A key already at the split that only holds the value of the key before it
+  is left out of the cut cue, which holds that value anyway; the new cue's copy carries its ease.
+  A cut never removes a track from the cue it cuts, so layers and tracks keep their place in the
+  source. Keys after the split move into the new cue at `t - b`; tracks with nothing after it
+  stay. Anything without an exact split refuses the whole operation with the
   reason naming the layer and property: stepped or unknown eases, a split value outside the
   property's range or not storable at 3 decimals, a string track that would need a split, keys
   stored past the cue's end.
@@ -90,24 +90,30 @@ within half a stored unit).
 - Deleting a Step flag joins its cue into the cue before: keys and bars at `t + b`, touching bars
   one bar. The join removes exactly what a split writes at the flag, so **Add Step then Delete is
   byte-identical to the original**: the Step cue's copy of the value the cue before ends on, a key
-  the split wrote (recognized by its own ease: two slices of one curve that rejoin, or a Hold or
-  jump half), and a key only holding a first value from the cue start. A key without its own ease
-  that the author wrote at that moment stays. A rejoined ease equal to the joined cue's default is
-  written as the default, which is how a split of a key without its own ease rejoins; an explicit
-  ease equal to its cue's default therefore normalizes to the default, which plays the same.
+  the cue before held at the flag that a split wrote (recognized by its own ease: two slices of one
+  curve that rejoin, a collinear straight pair, or a Hold or jump half), and a key only holding a
+  first value from the cue start. A key without its own ease stays, and so does any key that
+  arrives as the Step cue's first key (a key the author wrote there, a Hold included, moved whole).
+  Two normalizations remain, both playing the same: a rejoined ease equal to the joined cue's
+  default is written as the default (the split cannot tell an explicit default from an implicit
+  one), and an authored key exactly at the flag that is itself a collinear straight or
+  complementary slice pair with explicit eases rejoins.
 - **Eases.** When the two cues' default eases differ, each moved key takes an explicit ease (its
   own, else the deleted cue's default), as in R1.2a.1.
 - **Refusals** (source and history unchanged, reason beside the control): a track whose Step-cue
   value jumps at the flag (its first value differs from the value it holds at the end of the cue
   before), since a joined cue has no instant jump to keep it; a track that begins with the Step
   while the layer is on screen before it showing another value (the joined cue would apply the
-  Step's first value from its start; a hidden layer shows nothing, and an unkeyed opacity or other
-  CSS value is unknown to the data, so it counts as different); keys stored past either cue's end.
+  Step's first value from its start; a layer its bars hide shows nothing, while an unkeyed opacity
+  or other CSS value is unknown to the data and a legacy hide's opacity 0 is not in its values, so
+  both count as different); keys stored past either cue's end.
 - **Bars.** A layer with bars in only one of the two cues keeps its visibility over the other
   part: through the deleted cue when a bar reaches the flag, through the cue before when the layer
   is visible entering it.
 - **Legacy visibility.** The deleted cue's `hides` move to the joined cue (same end). A legacy
-  hide on the cue before refuses: it would leave later. A layer that appears with the deleted
+  hide on the cue before refuses: it would leave later. So does a legacy hide on the deleted cue
+  for a layer with bars in the cue before (the joined cue's bars would make the hide inert), and a
+  legacy reveal of a layer that also leaves through a legacy hide (its timing has no explicit form). A layer that appears with the deleted
   Step through a legacy reveal first gets explicit bars in every cue before Out, the conversion a
   bar move makes (`moveLayerSpan`), so it still appears at its absolute time and Out keeps what it
   had. Its reveal marker moves to the joined cue, where Out's reveal checks and the fade of a
@@ -120,14 +126,16 @@ within half a stored unit).
 
 - A Step flag drag is Delete at the old flag then Add Step at the new frame, as one operation, the
   new cue keeping the dragged cue's name and default ease; keys and bars keep their absolute
-  times, so playback on the ruler is unchanged. Because the join removes only what a split wrote
-  and a split leaves out a key its cue does not need, a drag and its reverse restore the source
-  (checked on every legal frame of the fixture); where two cues' default eases differ, moved keys
-  keep the explicit eases the join gave them.
+  times, so playback on the ruler is unchanged, and so does a drag and its reverse. The reverse
+  can leave the earlier cue a key holding a layer's first value at the old flag, where a layer
+  started with the dragged Step, since a cut never removes a track; where two cues' default eases
+  differ, moved keys keep the explicit eases the join gave them.
   The Out flag drag is Set Out at the dropped frame (R1.2a.1, including the R1.2a.2 guard and the
   reverse/manual prompt when the exit has no keys).
 - Flags snap to frames, and within a few pixels to the playhead, keys and bar edges that sit on a
-  frame; Alt bypasses those magnets but never the frame. A drag or nudge **past or onto a
+  frame; Alt bypasses those magnets but never the frame. Stored at 3 decimals, a flag can sit a
+  fraction of a millisecond off its frame at 30 or 60 fps: a gap within one stored unit of a frame
+  counts as a frame, and Add Step parks the playhead on the flag itself. A drag or nudge **past or onto a
   neighbour** refuses: a Step stays at least one frame after the flag before it and before the
   flag after it, In never moves, and Out stays after the last Step.
 - **While a drag is refused** the flag follows the pointer at its snapped frame drawn as refused,
@@ -180,13 +188,13 @@ within half a stored unit).
 |---|---|---|
 | Add Step | On a key, on a bar edge, inside a held segment and inside eased segments of the fixture, In, Next pressed at each flag and Out equal the original on the concatenated ruler within 1e-3 in editor sampling, the simulator, SPX, CasparCG, OGraf and single-file exports. Parked at the new flag, Out leaves from the live pose (R1.2a.3's model). | On a flag, after Out, within a frame of a flag, a crossed segment without an exact split, keys past a cue's end, a machine graphic. |
 | Delete | Deleting restores the joined playback in all five targets; Add Step then Delete returns the byte-identical source; a join next to a cue with another default ease writes explicit eases and plays the same. | A value jump at the flag, a legacy hide on the cue before. |
-| Drags | Step flag drags and nudges keep playback identical; a drag and its reverse restore the source; the Out flag drag is Set Out. Flags stay ordered, at least one frame apart and never stacked under every drag, nudge and drag past a neighbour. | Past or onto a neighbour, shown live as refused; a crossing without an exact split. |
+| Drags | Step flag drags and nudges keep playback identical, and so does a drag and its reverse; the Out flag drag is Set Out. Flags stay ordered, at least one frame apart and never stacked under every drag, nudge and drag past a neighbour. | Past or onto a neighbour, shown live as refused; a crossing without an exact split. |
 | Transactions | Add, rename, delete and every drag are one undo each; redo, Escape, save/reopen and a second save agree. | Every refusal adds no history and shows its reason. |
 | G02 | At a flag, an existing layer keys the arriving cue's end and a layer whose bar starts there keys the departing cue at zero from its own pose; a mixed selection is one atomic undo; the inspector names each target; the arriving preview neither hides the held layer nor reveals the new one. | |
 | Step count | `settings.steps` and the SPX definition follow every change; OGraf and SPX walk the new count. | |
 | One-key Out | From an earlier step a one-key Out track holds its live value until the exit ends in the simulator, SPX, CasparCG, OGraf, single-file and the editor; from the last step it cuts as before. The R1.2a.3 body upgrades once by hash in preview, save and export. | A custom interpreter body still refuses. |
 | Legacy reveals | card26-style reveals: Add Step keeps them; Delete and drags convert the revealed layer to bars and keep it appearing at its absolute time. | A keyless reveal. |
-| Preserved | The editor regressions (out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry), anim-engine and inspector pass unchanged except assertions that encoded a lifted refusal. | |
+| Preserved | The editor regressions (out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry), anim-engine and inspector pass unchanged; the one changed assertion is `scripts/out-step.test.mjs`'s one-key cut from an earlier step, which the owner's 2026-09-30 decision replaces. | |
 
 ## Verification plan
 

@@ -232,17 +232,15 @@ export function pastEnd(step: AnimStep): string | null {
   return null;
 }
 
-/** Whether a layer shows anywhere in cue `at`: by its bars there, else by what it carried in. */
+/** Whether a layer's visibility shows it anywhere in cue `at`: by its bars there, else by the
+ *  visibility its bars left it with before. Legacy reveals and hides set opacity and first values,
+ *  never visibility, so they never count as hiding it. */
 function showsIn(data: AnimData, selector: string, at: number) {
   const bars = data.steps[at].spans?.[selector];
   if (bars) return bars.some(bar => bar.end > bar.start);
-  let visible = !data.steps.slice(1, -1).some(step => step.reveals?.includes(selector));
-  for (const step of data.steps.slice(0, at)) {
-    if (step.reveals?.includes(selector)) visible = true;
-    if (step.spans?.[selector]) visible = step.spans[selector].some(span => span.end === step.duration);
-    else if (step.hides?.includes(selector)) visible = false;
-  }
-  return visible || !!data.steps[at].reveals?.includes(selector);
+  let visible = true;
+  for (const step of data.steps.slice(0, at)) if (step.spans?.[selector]) visible = step.spans[selector].some(span => span.end === step.duration);
+  return visible;
 }
 /** What an unkeyed transform shows: GSAP's own identity, under the design's base values. Other
  *  properties show the design's value, which the data does not know. */
@@ -251,6 +249,8 @@ const IDENTITY: Record<string, number> = { x: 0, y: 0, xPercent: 0, yPercent: 0,
  *  earlier cues left it at, else its identity. A layer hidden through the cue shows nothing. */
 function startsAt(data: AnimData, selector: string, prop: string, at: number, value: number | string) {
   if (!showsIn(data, selector, at)) return true;
+  // A legacy hide sets opacity 0 at its cue's end, which the data's values do not say.
+  if (data.steps.slice(0, at).some(step => step.hides?.includes(selector) && step.spans?.[selector] === undefined)) return false;
   const carried = at > 0 ? resolveValue(data, selector, prop, at - 1, data.steps[at - 1].duration) : null;
   return carried === null ? IDENTITY[prop] === value : carried === value;
 }
@@ -302,13 +302,13 @@ export function cutTracks(data: AnimData, at: number, b: number, crossed: [strin
     const keys = cue.layers[selector][prop], kind = kinds?.get(selector + '\n' + prop);
     const kept = keys.filter(key => key.time < b + EPS), held = kept[kept.length - 1];
     const copy: AnimKeyframe[] = kind === 'flat' || kind === 'before' ? [] : [{ time: 0, value: held.value }];
-    const needless = kept.length > 1 ? kept[kept.length - 2].value === held.value : startsAt(data, selector, prop, at, held.value);
-    if ((kind === 'existing' || kind === 'before') && needless) {
+    // A key already at b that only holds the value before it is not needed there. A track's only key
+    // stays: removing the track would change where its layer sits in the source.
+    if (kind === 'existing' && kept.length > 1 && kept[kept.length - 2].value === held.value) {
       kept.pop();
       if (held.ease) copy[0].ease = held.ease;
     }
-    if (kept.length) cue.layers[selector][prop] = kept;
-    else if (delete cue.layers[selector][prop] && !Object.keys(cue.layers[selector]).length) delete cue.layers[selector];
+    cue.layers[selector][prop] = kept;
     (tail[selector] ??= {})[prop] = [...copy, ...keys.filter(key => key.time >= b + EPS).map(key => {
       const ease = explicit ? key.ease || cue.ease : key.ease;
       return { time: round(key.time - b), value: key.value, ...(ease ? { ease } : {}) };
@@ -332,7 +332,8 @@ const FLOWING = 'Steps cannot yet cut or join a cue with calls, measured motion 
 /**
  * Add a flag at stored time `b` of pre-Out cue `at`: the cue ends there and a new cue plays the
  * rest, every key and bar at its absolute time. The new cue is named by its position (or `name`)
- * with the cut cue's default ease (or `ease`). `minimum` is one frame in stored seconds. Throws
+ * with the cut cue's default ease (or `ease`). `minimum` is one frame in stored seconds; flags on
+ * frames stored at 3 decimals can sit up to one stored unit closer, which still counts. Throws
  * with the reason where the cut is not exact; `source` is never mutated.
  */
 export function splitCue(source: AnimData, at: number, b: number, minimum: number, { name, ease }: { name?: string; ease?: string } = {}): AnimData {
@@ -340,13 +341,12 @@ export function splitCue(source: AnimData, at: number, b: number, minimum: numbe
   b = round(b);
   if (!cue || at >= source.steps.length - 1 || !Number.isFinite(b)) throw new Error('Put the playhead inside a cue before Out to add a Step.');
   if (b < EPS || b > cue.duration - EPS) throw new Error('A flag is already at this frame. Put the playhead between flags to add a Step there.');
-  if (b < minimum - EPS || cue.duration - b < minimum - EPS) throw new Error('A Step needs at least one frame on each side of its flag. Its source is preserved.');
+  if (b < minimum - 2 * EPS || cue.duration - b < minimum - 2 * EPS) throw new Error('A Step needs at least one frame on each side of its flag. Its source is preserved.');
   if (cue.calls?.length || cue.dynamics?.length || Object.keys(cue.loops ?? {}).length) throw new Error(FLOWING);
   const late = pastEnd(cue);
   if (late) throw new Error(`${late} has keys after the end of its cue, so no flag splits it exactly. Its source is preserved.`);
   const { data, crossed, kinds } = holdAt(source, at, b, 'A Step', { flat: false });
   const into = ease ?? cue.ease, cut = data.steps[at];
-  // Bars first: whether a layer shows before the flag decides which keys the cut cue still needs.
   const bars = cut.spans ? cutBars(data, at, b) : undefined;
   const step: AnimStep = { name: name ?? `Step ${at + 2}`, duration: round(cue.duration - b), ease: into,
     layers: cutTracks(data, at, b, crossed, { explicit: into !== cue.ease, kinds }) };
@@ -446,7 +446,9 @@ export function joinCues(source: AnimData, at: number, contains?: (ancestor: str
       throw new Error(`${selector} ${prop} jumps at the flag of ${c.name}, from ${resolveValue(data, selector, prop, at, b) ?? 'its design value'} to ${start}, so one cue cannot play it. Its source is preserved.`);
     }
     const joined = [...kept, ...moved];
-    unsplitAt(joined, b, a.ease);
+    // Only a key the earlier cue held at the flag can be one a split wrote. A key that arrives as
+    // the later cue's first key was moved there whole, with its own ease.
+    if (own.length && Math.abs(own[own.length - 1].time - b) < EPS) unsplitAt(joined, b, a.ease);
     (a.layers[selector] ??= {})[prop] = joined;
   }
   for (const selector of new Set([...Object.keys(a.spans ?? {}), ...Object.keys(c.spans ?? {})])) {
@@ -480,7 +482,7 @@ export function moveStepFlag(source: AnimData, step: number, b: number, minimum:
   const before = source.steps[step - 1], cue = source.steps[step];
   b = round(b);
   if (Math.abs(b - before.duration) < EPS) return source;
-  if (!Number.isFinite(b) || b < minimum - EPS || before.duration + cue.duration - b < minimum - EPS) {
+  if (!Number.isFinite(b) || b < minimum - 2 * EPS || before.duration + cue.duration - b < minimum - 2 * EPS) {
     throw new Error(`Keep ${cue.name} at least one frame after ${step > 1 ? before.name : 'In'} and one frame before ${step + 1 < last ? source.steps[step + 1].name : 'Out'}. Its source is preserved.`);
   }
   return splitCue(joinCues(source, step - 1, contains), step - 1, b, minimum, { name: cue.name, ease: cue.ease });

@@ -78,10 +78,10 @@
 .ef-text-preview { background: var(--bg-input); border: 1px solid var(--ef-border); padding: 10px; overflow-wrap: anywhere; }
 .ef-outline-item { display: grid; width: 100%; text-align: left; margin-bottom: 6px; }
 .ef-outline-item code { color: var(--ef-muted); font-size: 10px; }
-.ef-timeline { min-height: 240px; display: grid; grid-template-rows: 34px 38px auto minmax(0, 1fr) 24px; border-top: 1px solid var(--border-strong); background: var(--ef-panel); }
+.ef-timeline { min-height: 240px; display: grid; grid-template-rows: 34px minmax(38px, auto) auto minmax(0, 1fr) 24px; border-top: 1px solid var(--border-strong); background: var(--ef-panel); }
 .ef-timeline > .ef-track-scroll { grid-row: 4; }
 .ef-timeline > .ef-caption { grid-row: 5; }
-.ef-transport { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); }
+.ef-transport { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); flex-wrap: wrap; }
 .ef-transport output { color: var(--accent); font: 12px monospace; min-width: 74px; }
 .ef-transport label { display: flex; gap: 8px; align-items: center; }
 .ef-notice { margin: 0; padding: 6px 12px; color: var(--warn); }

@@ -58,14 +58,15 @@ export default function StepFlag({ segment, kind, label, view, extent, fps, snap
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   const [reason, setReason] = useReason();
   useModalGate(menuAt !== null);
-  const { index } = segment, segments = view.segments, frame = 1 / fps;
+  const { index } = segment, segments = view.segments;
   const before = segments[index - 1], after = segments[index + 1];
   const flagName = (s: Segment | undefined) => !s ? '' : s.index === 0 ? 'In' : s.out ? 'Out' : s.name;
-  // Flags stay ordered and at least a frame apart: a Step between its neighbours, Out after the last Step.
+  // Flags stay ordered and at least a frame apart: a Step between its neighbours, Out after the last
+  // Step. Counted in frames, since flags are stored at 3 decimals a hair off their frame.
+  const frameOf = (t: number) => Math.round(t * fps);
   const order = (to: number) => {
-    const low = before && (kind === 'step' || before.index > 0) ? before.start + frame : 0;
-    if (kind === 'out') return to < low - NEAR ? `Keep Out at least one frame after ${flagName(before)}.` : '';
-    return to < low - NEAR || to > after.start - frame + NEAR ? `Keep ${segment.name} at least one frame after ${flagName(before)} and one frame before ${flagName(after)}.` : '';
+    if (kind === 'out') return before.index > 0 && frameOf(to) <= frameOf(before.start) ? `Keep Out at least one frame after ${flagName(before)}.` : '';
+    return frameOf(to) <= frameOf(before.start) || frameOf(to) >= frameOf(after.start) ? `Keep ${segment.name} at least one frame after ${flagName(before)} and one frame before ${flagName(after)}.` : '';
   };
   const operation = (to: number): EditorOperation => kind === 'out' ? { kind: 'out.set', time: to } : { kind: 'step.move', step: index, time: to };
   // The same registry decides, without a transaction, whether the flag could land there.
@@ -112,16 +113,19 @@ export default function StepFlag({ segment, kind, label, view, extent, fps, snap
   };
   const remove = () => {
     setMenuAt(null); pause();
-    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'step.delete', step: index }] }); }
-    catch (cause) { setReason(message(cause)); }
+    // The flag goes with its Step, so the keyboard stays on the ruler it sat on.
+    const ruler = button.current?.parentElement;
+    try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'step.delete', step: index }] }); ruler?.focus(); }
+    catch (cause) { setReason(message(cause)); button.current?.focus(); }
   };
   const startNaming = () => { setMenuAt(null); naming.current = true; setName(segment.name); };
-  const rename = (value: string) => {
+  // Enter returns the keyboard to the flag; leaving the field for another control leaves it there.
+  const rename = (value: string, refocus: boolean) => {
     if (!naming.current) return;
     naming.current = false; setName(null);
     try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'step.rename', step: index, name: value }] }); }
     catch (cause) { setReason(message(cause)); }
-    button.current?.focus();
+    if (refocus) button.current?.focus();
   };
   const key = (event: KeyboardEvent<HTMLButtonElement>) => {
     const handled = () => { event.preventDefault(); event.stopPropagation(); };
@@ -160,15 +164,16 @@ export default function StepFlag({ segment, kind, label, view, extent, fps, snap
       onContextMenu={event => { event.preventDefault(); event.stopPropagation(); if (kind === 'step') setMenuAt({ x: event.clientX, y: event.clientY }); }}
       onKeyDown={key}>{label}{shown && ' · ' + display(at)}</button>
     {name !== null && <label className="ef-flag-name" style={{ left: left + '%' }} ref={node => { const input = node?.querySelector('input'); if (input && document.activeElement !== input) { input.focus(); input.select(); } }}
-      onPointerDown={event => event.stopPropagation()} onBlur={() => rename(name)} onKeyDown={event => {
+      onPointerDown={event => event.stopPropagation()} onBlur={() => rename(name, false)} onKeyDown={event => {
         event.stopPropagation();
-        if (event.key === 'Enter') { event.preventDefault(); rename(name); }
+        if (event.key === 'Enter') { event.preventDefault(); rename(name, true); }
         if (event.key === 'Escape') { event.preventDefault(); naming.current = false; setName(null); button.current?.focus(); }
       }}>Step name<FieldControl descriptor={{ key: 'step-name', label: 'Step name', kind: 'text', defaultValue: '' }} value={name} onChange={value => setName(String(value))} /></label>}
     {(shown?.refused || reason) && <span className={'ef-flag-error' + (left > 60 ? ' is-left' : '')} style={{ left: left + '%' }} role="alert">{shown?.refused || reason}</span>}
     {/* The menu and the name field sit inside the ruler, whose own press seeks and captures the pointer. */}
     {kind === 'step' && <div ref={menu} popover="manual" role="menu" aria-label="Step" className="ef-key-menu" tabIndex={-1}
       onPointerDown={event => event.stopPropagation()} onContextMenu={event => event.preventDefault()} onKeyDown={event => {
+        event.stopPropagation(); // the ruler it sits in moves the playhead on arrows, Home and End
         const items = Array.from(event.currentTarget.querySelectorAll('button')), i = items.indexOf(document.activeElement as HTMLButtonElement);
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); items[(i + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus(); }
         if (event.key === 'Escape' || event.key === 'Tab') { event.preventDefault(); event.stopPropagation(); setMenuAt(null); button.current?.focus(); }

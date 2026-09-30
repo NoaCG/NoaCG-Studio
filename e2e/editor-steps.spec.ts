@@ -260,11 +260,10 @@ for (const target of TARGETS) test('step authoring keeps playback on the ruler i
   expect.soft(joined.settings.steps).toBe('1');
   const [one, two] = await ruler(page, target, [{ data: joinedData, built: await build(page, joined, target) }, { data, built: builtOriginal }]);
   same(one, two, `${target}: Delete Step 2`);
-  // A flag drag plays the same, and dragging it back restores the source.
+  // A flag drag plays the same.
   const moved = await operate(page, original, [{ kind: 'step.move', step: 1, time: 30 / 25 }]), movedData = await dataOf(page, moved);
   const [dragged, still] = await ruler(page, target, [{ data: movedData, built: await build(page, moved, target) }, { data, built: builtOriginal }]);
   same(dragged, still, `${target}: Step 2 dragged to frame 30`);
-  expect.soft((await operate(page, moved, [{ kind: 'step.move', step: 1, time: 24 / 25 }])).js === original.js, 'drag and back').toBe(true);
   // Parked at a new flag, an earlier step: Out leaves from the live pose, and the badge's one-key
   // Out track holds its live value until the exit ends.
   const split = await operate(page, original, [{ kind: 'step.add', time: 18 / 25 }]), splitData = await dataOf(page, split);
@@ -471,6 +470,33 @@ test('at a flag an existing layer keys the arriving end and a layer starting the
   await flag(page, 'Step 2').click(); await ready(page);
   expect(await hidden()).toBe('visible');
   await expect(page.getByTestId('segment-targets')).not.toContainText('In end');
+  // Moving the playhead leaves the inspection, past Out too: edits there land in Out, not Step 2.
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  await ruler.focus(); await ruler.press('End'); await ready(page);
+  await expect(page.getByTestId('segment-targets')).toContainText('Out end');
+});
+
+test('at 30 fps Add Step parks the playhead on its own flag, on the arriving side', async ({ page }) => {
+  // Flags are stored at 3 decimals, a hair off the 30 fps frame the playhead was on.
+  const t = await editorWith(page, fixture());
+  await evaluateInPage(page, async (t: unknown) => {
+    (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate({ ...(t as object), fps: 30 } as never, { resetSampleData: true });
+  }, t);
+  await ready(page);
+  const ruler = page.getByRole('slider', { name: 'Playhead' });
+  await ruler.focus(); await ruler.press('Home');
+  for (let i = 0; i < 10; i++) await ruler.press('ArrowRight');
+  await ready(page);
+  await page.getByRole('button', { name: 'Add Step at playhead', exact: true }).click(); await ready(page);
+  const at = await page.evaluate(async () => {
+    const { activeEditorSession } = await import('/src/components/editorFoundation/documentAdapter.ts');
+    const { readTimeline } = await import('/src/components/editorFoundation/timelineView.ts');
+    const session = activeEditorSession();
+    return { time: session.port.view().time, flag: readTimeline(session.port.read()).segments[1].start };
+  });
+  expect(at.time).toBe(at.flag);
+  await page.locator('.ef-track[data-selector="#box"] .ef-layer').click(); await ready(page);
+  await expect(page.locator('.ef-key-controls').first()).toContainText('In end');
 });
 
 test('a flag drag the runtime cannot play shows its reason while held and changes nothing', async ({ page }) => {

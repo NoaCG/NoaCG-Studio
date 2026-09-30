@@ -9,7 +9,7 @@ import { sameRevision, type EditorSession, type Revision } from './session';
 import type { RenderedPart } from './protocol';
 import { isArmed } from '../../blocks/editorAnimation';
 import { parseAnimData } from '../../blocks/animData';
-import { authoringPosition } from './animationAuthoring';
+import { authoringPosition, editingPose } from './animationAuthoring';
 import { AnimationButtons } from './AnimationProperties';
 import type { EditorOperation } from './operations';
 
@@ -111,6 +111,9 @@ export default function ArtworkAppearance(props: Props) {
   const rgb = currentColour.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
   const hex = rgb ? '#' + rgb.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('') : currentColour;
   const currentFont = FONTS.find(f => appearance?.fontFamily.replace(/["']/g, '').split(',')[0].trim() === f.family);
+  // On a flag a layer that edits the departing cue starts from that cue's opacity, not the arriving preview's.
+  const pose = editingPose(template, selector, appearance, session.port.view().time, session.port.view().cue);
+  const opacity = (pose !== appearance ? pose?.motion?.opacity : undefined) ?? appearance?.opacity ?? 1;
   return <>
     {text && <><ArtworkTextEditor key={selector + ':' + session.version().source} selector={selector} text={text.text} session={session} />
       <p className="ef-muted">{text.field ? 'Artwork and playout default. Operator sample values are kept separately.' : 'Artwork only. This text has no operator field.'}</p>
@@ -124,7 +127,7 @@ export default function ArtworkAppearance(props: Props) {
       <AppearanceField {...props} property={text ? 'color' : 'fill'} descriptor={{ key: 'appearance-color', label: text ? 'Text colour' : 'Solid fill', kind: 'color', defaultValue: '#ffffff' }} value={hex} testId="artwork-colour" />
     </>}
     {(text || shape || svg) && <>
-      <AppearanceField {...props} property="opacity" descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }} value={Math.round((appearance?.opacity ?? 1) * 100)} testId="artwork-opacity" />
+      <AppearanceField {...props} property="opacity" descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }} value={Math.round(opacity * 100)} testId="artwork-opacity" />
       <AnimationButtons {...props} property="opacity" label="Opacity" />
       <p className="ef-muted">Changes preview immediately. Enter or leave the field to finish; Escape cancels.</p>
     </>}
