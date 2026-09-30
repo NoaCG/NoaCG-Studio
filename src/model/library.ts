@@ -15,7 +15,7 @@ import type { SpxTemplate } from './types';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
-import { loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
+import { firstIndexById, loadAllPackets, upsertPacket, type Packet, type SavedGraphic } from './packets';
 import { durable } from './durableStore';
 import { uuid } from './id';
 import { newGraphicDoc, type GraphicDocBase } from './graphicDoc';
@@ -198,11 +198,27 @@ export function librarySaveEffect(
 
 /** Insert or replace a whole graphic by id (the storage seam's put('graphic'), incl. tombstones). */
 export function upsertGraphic(doc: GraphicDoc): void {
+  upsertGraphics([doc]);
+}
+
+/**
+ * Insert or replace many graphics in ONE write (the storage seam's putMany): the library is read,
+ * merged and written once, however many records arrive. A sync pull used to call `upsertGraphic`
+ * per record, and every call rewrote the whole library, so a fresh sign-in held a copy of the
+ * library per record in flight and ran Chrome out of memory. Returns the save's error, if any.
+ */
+export function upsertGraphics(docs: GraphicDoc[]): string | null {
   const all = rawGraphics();
-  const i = all.findIndex((g) => g.id === doc.id);
-  if (i >= 0) all[i] = doc;
-  else all.push(doc);
-  saveAll(all);
+  const at = firstIndexById(all);
+  for (const doc of docs) {
+    const i = at.get(doc.id);
+    if (i !== undefined) all[i] = doc;
+    else {
+      at.set(doc.id, all.length);
+      all.push(doc);
+    }
+  }
+  return saveAll(all);
 }
 
 /** Create a new library record from the working template. Returns the doc (or an error). */

@@ -135,6 +135,16 @@ function saveList(key: string, list: unknown): string | null {
   }
 }
 
+/** Where each id first appears in a stored list: the record a by-id replace targets, as
+ *  `findIndex` would pick it, looked up once for a whole batch (the bulk upserts). */
+export function firstIndexById(list: readonly { id: string }[]): Map<string, number> {
+  const at = new Map<string, number>();
+  list.forEach((item, i) => {
+    if (!at.has(item.id)) at.set(item.id, i);
+  });
+  return at;
+}
+
 /** All packets INCLUDING tombstones — for the sync engine. Back-fills a stable sync timestamp. */
 export function loadAllPackets(): Packet[] {
   return loadList<Packet>(PACKETS_KEY).map((p) => (p.updatedAt ? p : { ...p, updatedAt: BACKFILL_TS }));
@@ -214,11 +224,23 @@ export function createLook(name: string, brand: ProjectBrand): SavedLook {
  * pulled tombstone). Preserves the given id and deleted flag.
  */
 export function upsertLook(look: SavedLook): void {
+  upsertLooks([look]);
+}
+
+/** Insert or replace many looks in ONE write (the storage seam's putMany; library.ts
+ *  `upsertGraphics` says why). Returns the save's error, if any. */
+export function upsertLooks(looks: SavedLook[]): string | null {
   const all = loadAllLooks();
-  const i = all.findIndex((l) => l.id === look.id);
-  if (i >= 0) all[i] = look;
-  else all.push(look);
-  saveList(LOOKS_KEY, all);
+  const at = firstIndexById(all);
+  for (const look of looks) {
+    const i = at.get(look.id);
+    if (i !== undefined) all[i] = look;
+    else {
+      at.set(look.id, all.length);
+      all.push(look);
+    }
+  }
+  return saveList(LOOKS_KEY, all);
 }
 
 /** Delete = tombstone so the delete syncs (see deletePacket). */

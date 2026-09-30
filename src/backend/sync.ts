@@ -248,8 +248,22 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
   //    provider can rehydrate its externalized assets; every other record is applied as fetched.
   //    Falls back to the fetched record if get() returns nothing. A failed pull just retries next
   //    pass — LWW re-derives it from the unchanged timestamps.
+  //
+  //    EVERYTHING FETCHED IS APPLIED IN ONE GO when the provider can (`putMany`). The local store
+  //    keeps each kind as one list, so a put per record rewrites the whole library per record,
+  //    and once most records stopped waiting on get() those rewrites ran back to back: a fresh
+  //    sign-in to a 27 MB account held a copy of the library per record and crashed Chrome.
+  const fetched: StoredRecord[] = [];
   for (const r of plan.toLocal) {
     if (skipPull.has(recordKey(r))) continue;
+    if (local.putMany) {
+      try {
+        fetched.push(hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r);
+      } catch (e) {
+        fail('pull', r, e);
+      }
+      continue;
+    }
     try {
       // Skipping get() when there is nothing to rehydrate (see hasStorageSentinel) is not a
       // micro-optimization: the loop is sequential and a fresh device pulls everything the
@@ -265,6 +279,16 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
       pulled += 1;
     } catch (e) {
       fail('pull', r, e);
+    }
+  }
+  if (local.putMany && fetched.length > 0) {
+    try {
+      await local.putMany(fetched);
+      pulled += fetched.length;
+    } catch (e) {
+      // Nothing is known to have landed, so every record is owed again; the next pass re-derives
+      // them from the unchanged timestamps, as for any failed pull.
+      for (const r of fetched) fail('pull', r, e);
     }
   }
 

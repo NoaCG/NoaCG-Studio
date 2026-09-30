@@ -16,13 +16,14 @@
 import {
   loadAllLooks,
   upsertLook,
+  upsertLooks,
   deleteLook,
   type SavedLook,
 } from '../model/packets';
 import { loadLegacyBrand, saveLegacyBrand, clearLegacyBrand, type ProjectBrand } from '../model/brand';
 import { loadProject, upsertProject, clearProject, type SavedProject } from '../model/project';
-import { loadAllShows, upsertShow, deleteShow, type Show } from '../model/shows';
-import { loadAllGraphics, upsertGraphic, deleteGraphic, type GraphicDoc } from '../model/library';
+import { loadAllShows, upsertShow, upsertShows, deleteShow, type Show } from '../model/shows';
+import { loadAllGraphics, upsertGraphic, upsertGraphics, deleteGraphic, type GraphicDoc } from '../model/library';
 import {
   loadAllSavedVideoRecords,
   upsertSavedVideoRecord,
@@ -89,6 +90,9 @@ export interface StorageProvider {
    *  Required of a provider whose list() returns summaries. */
   getMany?(kind: SyncKind, ids: string[]): Promise<StoredRecord[]>;
   put(record: StoredRecord): Promise<void>;
+  /** Several records in one write per kind, where the provider can: a sync pull hands over
+   *  everything it fetched at once. Rejects when any kind's write failed. */
+  putMany?(records: StoredRecord[]): Promise<void>;
   remove(kind: SyncKind, id: string): Promise<void>;
 }
 
@@ -154,6 +158,35 @@ export class LocalStorageProvider implements StorageProvider {
     else if (record.kind === 'video') upsertSavedVideoRecord(record.body as SavedVideoRecord);
     else if (record.kind === 'project') upsertProject(record.body as SavedProject);
     else saveLegacyBrand(record.body as ProjectBrand);
+  }
+
+  /**
+   * ONE READ, MERGE AND WRITE PER KIND. Every stored kind is a single list under one key, so
+   * `put` rewrites the whole list for each record. A fresh sign-in pulls the whole account, and
+   * doing that once per record without waiting for anything held a full copy of the library per
+   * record in flight: on 2026-09-30 an account of 138 graphics and 13 productions (about 27 MB)
+   * ran Chrome's renderer out of memory within seconds of signing in, on every reload. Graphics,
+   * productions and looks, the kinds an account holds many of, are written once each; the rest
+   * are few and go through `put`.
+   */
+  async putMany(records: StoredRecord[]): Promise<void> {
+    const graphics: GraphicDoc[] = [];
+    const shows: Show[] = [];
+    const looks: SavedLook[] = [];
+    const rest: StoredRecord[] = [];
+    for (const record of records) {
+      if (record.kind === 'graphic') graphics.push(record.body as GraphicDoc);
+      else if (record.kind === 'show') shows.push(record.body as Show);
+      else if (record.kind === 'look') looks.push(record.body as SavedLook);
+      else rest.push(record);
+    }
+    const errors = [
+      graphics.length > 0 ? upsertGraphics(graphics) : null,
+      shows.length > 0 ? upsertShows(shows) : null,
+      looks.length > 0 ? upsertLooks(looks) : null,
+    ].filter((error): error is string => error !== null);
+    for (const record of rest) await this.put(record);
+    if (errors.length > 0) throw new Error(errors[0]);
   }
 
   async remove(kind: SyncKind, id: string): Promise<void> {
