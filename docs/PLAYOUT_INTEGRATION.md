@@ -158,12 +158,15 @@ CasparCG Client. A browser cannot open a raw TCP socket and AMCP is one, so a sm
 machine you operate from holds it: **NoaCG Bridge**. Download NoaCG Bridge (the link is
 under Settings -> Playout, and it leads to the newest release on the repository's GitHub Releases
 page) and double-click it; there is nothing to install. It opens a page that pairs your browser
-with one click. **Settings -> Playout** then holds one
+with one click and then connects to your CasparCG server: you enter its address once, and the
+Bridge remembers it, so the next pairing connects by itself. **Settings -> Playout** then holds one
 server for the whole studio - host, AMCP port, channel and layer - and the production page grows
 a **CasparCG** row beside its output URL with **Put on air** and **Take off**. The Bridge listens
 on `127.0.0.1` only; CasparCG itself may be any machine on the studio network, exactly as with
 the Client, and nothing is exposed to the internet. **Test connection** round-trips a real AMCP
-`VERSION` and shows the server's own version string.
+`VERSION` and shows the server's own version string; **Connect** beside it does the same and has
+the Bridge remember the server, and in a production's Playout settings **Put on air** sits beside
+them.
 
 With the Bridge paired, the rundown's foot gains **From the playout server…**: the templates and
 clips already in the server's own folders, listed as the server lists them, added as cues beside

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "89e9029514592438bec280fb9341c517ab80dfc1ea041be44fc673d5f60d5833",
+  "authority": {
+    "status": "agreed",
+    "source": "the owner's session prompt of 2026-09-30 (requirements a-d) and his three answers in that session: servers remembered by Bridge on disk, connect by itself after pairing, pairing ends at Open NoaCG"
+  },
+  "review": null
+}

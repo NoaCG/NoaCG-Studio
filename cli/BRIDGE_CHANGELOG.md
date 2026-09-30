@@ -12,6 +12,21 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.7.0 - 2026-09-30
+
+**Your CasparCG server is remembered.** Right after a browser pairs, NoaCG now connects to your
+CasparCG server by itself. NoaCG Bridge remembers the servers you connected to, on this computer,
+so you no longer type the server's IP address after pairing, even in a browser that forgets
+everything when it closes. If the last server does not answer, the pairing page fills in its
+address and lists the servers you used before, one click each. Connecting only asks the server for
+its version: nothing goes on air until you press Put on air.
+
+**Connect and Put on air in Playout settings.** A production's Playout settings now have Connect
+and Put on air beside Test connection, and the server field offers the servers you used before.
+
+Download the new Bridge to have the server remembered. With an older Bridge everything else works,
+and the browser remembers the one server it used last, as before.
+
 ## 0.6.0 - 2026-09-28
 
 **Folders of clips, and a folder that starts over.** On the production page, cues can now be put in
