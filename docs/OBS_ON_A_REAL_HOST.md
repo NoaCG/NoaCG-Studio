@@ -232,8 +232,10 @@ The exported HTML overlay now follows OBS instead of the page load. When `window
 present it plays its entrance on `obsSourceActiveChanged` true, and on false it calls `stop()`
 and finishes that exit at once, so the next time the source goes on program the entrance plays
 again. OBS sends no event for the state a page loads in, so a page that loads while
-`document.visibilityState` is "visible" starts at once (§3). Outside OBS it plays on load as
-before, and a `?stream=` instance still waits for the relay.
+`document.visibilityState` is "visible" starts at once (§3), and if that was only a studio-mode
+preview, the take to program plays it again. Once the panel or the relay plays or stops the
+graphic, it stops following program, so a cut never undoes the operator's Take or Stop. Outside
+OBS it plays on load as before, and a `?stream=` instance still waits for the relay.
 
 **Trigger: active, not visible.** §3 measured that visible includes a scene on preview in studio
 mode, so a visible trigger would play the entrance on preview, off air, which is the defect this
@@ -243,7 +245,10 @@ fixes. Without studio mode the two fire together, so active costs nothing there.
 ("NoaCG walk W 2026-10-01", scenes `W On Air` and `W Other`, a grey colour source under the
 graphic, **Cut** transition), with the Hairline lower third exported by this branch's
 `htmlOverlayTarget` and added as a **Local file** browser source while `W Other` was on program.
-Pictures are `GetSourceScreenshot` of `W On Air`, 960 wide.
+Pictures are `GetSourceScreenshot` of `W On Air`, 960 wide. The look ran on the branch before
+its review added two refinements: the replay after a page loads on a preview, and the hand-over
+to the operator once the panel plays or stops the graphic. Those two are pinned by the e2e in
+`e2e/exports.spec.ts` only; a second look was not possible because another session had OBS open.
 
 | Step | What OBS showed | Picture |
 |---|---|---|

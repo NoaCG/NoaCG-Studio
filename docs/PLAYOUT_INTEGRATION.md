@@ -231,8 +231,9 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
   entrance again. OBS loads a browser source when the scene collection opens, which is why a
   load-time entrance would run off air. The overlay follows OBS's `obsSourceActiveChanged`
   (on program) rather than `obsSourceVisibleChanged`, because in studio mode a scene on preview
-  is visible but not on air; a page that loads while shown starts at once. Outside OBS it still
-  plays on load. On a **Cut** back to the scene, OBS with browser hardware acceleration shows the
+  is visible but not on air; a page that loads while shown starts at once, and plays again if
+  that was only a preview. Once the panel or the relay plays or stops it, cuts no longer move
+  it, so a cut never undoes the operator's Take or Stop. Outside OBS it still plays on load. On a **Cut** back to the scene, OBS with browser hardware acceleration shows the
   source's last on-air frame for about one frame before the entrance starts; in studio mode that
   was not seen (`docs/OBS_ON_A_REAL_HOST.md` §10). Overlays exported before 2026-10-01 play on
   load: for those, tick **"Refresh browser when scene becomes active"**, and OBS reloads the page

@@ -192,7 +192,7 @@ test('html overlay under OBS: the entrance waits for program and plays again on 
 Object.defineProperty(document, 'visibilityState', { configurable: true, get: function () { return '${visible ? 'visible' : 'hidden'}'; } });</script>`,
     );
   const opacity = (view: Page) => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
-  const countPlays = (view: Page) =>
+  const countPagePlays = (view: Page) =>
     view.evaluate(() => {
       const w = window as unknown as { play(): void; plays: number };
       const play = w.play;
@@ -209,7 +209,7 @@ Object.defineProperty(document, 'visibilityState', { configurable: true, get: fu
   // Loaded in a scene that is not on air: nothing plays until the source goes on program.
   const view = await page.context().newPage();
   await view.setContent(underObs(false), { waitUntil: 'load' });
-  await countPlays(view);
+  await countPagePlays(view);
   await view.waitForTimeout(600);
   expect(await plays(view)).toBe(0);
   expect(await opacity(view)).not.toBe('1');
@@ -226,10 +226,22 @@ Object.defineProperty(document, 'visibilityState', { configurable: true, get: fu
   expect(await plays(view)).toBe(2);
   await view.close();
 
-  // Added to the scene that is on air: it plays at once, with no event.
+  // Loaded shown: it plays at once, with no event. If that was only a studio-mode preview, the
+  // take to program is the first active event, and it plays the entrance again, on air.
   const shown = await page.context().newPage();
   await shown.setContent(underObs(true), { waitUntil: 'load' });
   await expect.poll(() => opacity(shown)).toBe('1');
+  await countPagePlays(shown);
+  await active(shown, true);
+  expect(await plays(shown)).toBe(1);
+  // Once the operator stops it from the panel, cuts no longer move it.
+  await shown.evaluate(() => (window as unknown as { stop(): void }).stop());
+  await expect.poll(() => opacity(shown)).toBe('0');
+  await active(shown, false);
+  await active(shown, true);
+  await shown.waitForTimeout(600);
+  expect(await plays(shown)).toBe(1);
+  expect(await opacity(shown)).toBe('0');
   await shown.close();
 
   // Outside OBS nothing changed: it plays on load.

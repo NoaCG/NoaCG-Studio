@@ -123,8 +123,11 @@ export-time reflow, stretching, or cropping.
   + controlpanel.html bundled. **Under OBS** (`window.obsstudio` present) the entrance waits for
   `obsSourceActiveChanged` true, and a false calls stop() and finishes that exit at once, so
   every cut to the scene plays it again; OBS sends no event at load, so the page starts from
-  `document.visibilityState`. The trigger is ACTIVE (on program), not VISIBLE: in studio mode a
-  scene on preview is visible, and the entrance would run off air again. Pinned by the OBS case in e2e/exports.spec.ts.
+  `document.visibilityState` (a page that loaded on a studio-mode preview plays again on the
+  first active event). The trigger is ACTIVE (on program), not VISIBLE: in studio mode a scene on
+  preview is visible, and the entrance would run off air again. Once anything else calls play()
+  or stop() (the panel, the relay), the block stops following program, so a cut never undoes the
+  operator's Take or Stop. Pinned by the OBS case in e2e/exports.spec.ts.
 - **targets/h2r.ts** - H2R Custom HTML: GDD block from DataFields + play()-toggle shim.
 - **targets/casparcg.ts** - selfContained + JSON/XML data shim. Receiver + controlpanel.html
   bundled (`inlineAssets`, because the package is one file). **It carried neither until

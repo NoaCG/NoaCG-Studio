@@ -98,7 +98,8 @@ browser tab does, as long as the launcher is running.
 **The entrance in OBS.** OBS loads a browser source when the scene collection opens, not when
 you cut to it. So in OBS a graphic loaded at its plain address plays its entrance when its source
 goes on program, and resets when the source leaves, so the next cut to it plays the entrance
-again. Anywhere else it plays when the page loads.
+again. Anywhere else it plays when the page loads. Once you play or stop it from the panel, you
+are in charge: cuts no longer move it.
 
 macOS note: the .command file may need one-time permission (System Settings → Privacy &
 Security), and python3 comes with the OS developer tools.

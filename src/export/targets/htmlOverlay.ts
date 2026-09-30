@@ -36,7 +36,7 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
       probe.kill();
     }
     outTimer = setTimeout(function () {
-      if (typeof window.stop === 'function') window.stop();
+      call('stop');
     }, entranceMs + ${outMs});`
       : '';
   return `// ── Autoplay for browser sources (OBS / vMix) ────────────────────────────
@@ -50,9 +50,20 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
 // scene, so there the entrance waits for the source to go ON PROGRAM (OBS's
 // obsSourceActiveChanged event) and the graphic resets when it leaves, so the
 // next time it goes on air the entrance plays again. "Active" rather than
-// "visible": in studio mode a scene on preview is visible but not on air.
+// "visible": in studio mode a scene on preview is visible but not on air. Once
+// the panel or the relay plays or stops the graphic, the operator is in charge
+// and cuts no longer move it.
 (function () {
   var outTimer = null;
+  var own = false; // true while this block itself calls play() or stop()
+  function call(name) {
+    own = true;
+    try {
+      if (typeof window[name] === 'function') window[name]();
+    } finally {
+      own = false;
+    }
+  }
   var baked = ${JSON.stringify(baked, null, 2).replace(/\n/g, '\n  ')};
   function startData() {
     var data = {};
@@ -66,7 +77,52 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     return data;
   }
   function start() {
-    if (typeof window.play === 'function') window.play();${autoOut}
+    clearTimeout(outTimer);
+    call('play');${autoOut}
+  }
+  function followProgram() {
+    var operated = false; // a panel or the relay has played or stopped the graphic
+    var onAir = false;    // OBS has said the source is on program
+    var shown = false;    // the entrance has run since the last reset
+    function watch(name) {
+      var fn = window[name];
+      if (typeof fn !== 'function') return;
+      window[name] = function () {
+        if (!own) operated = true;
+        return fn.apply(this, arguments);
+      };
+    }
+    watch('play');
+    watch('stop');
+    function enter() {
+      shown = true;
+      start();
+    }
+    function reset() {
+      shown = false;
+      clearTimeout(outTimer);
+      call('stop');
+      // Nobody sees this exit, and a hidden page may not animate at all: finish it now, so
+      // the next cut starts the entrance from rest instead of racing a half-run exit. An
+      // endless loop (GSAP reports 1e10 s) has no end to jump to, and play() rebuilds it.
+      if (window.gsap) {
+        var running = window.gsap.globalTimeline.getChildren(false, true, true);
+        for (var i = 0; i < running.length; i++) {
+          var end = running[i].totalDuration();
+          if (end < 1e9) running[i].totalTime(end);
+        }
+      }
+    }
+    window.addEventListener('obsSourceActiveChanged', function (e) {
+      if (operated) return;
+      var active = !!(e.detail && e.detail.active);
+      if (active && !onAir) enter();
+      else if (!active && shown) reset();
+      onAir = active;
+    });
+    // OBS sends no event for the state a page loads in. A page that loads visible starts at
+    // once; if that was only a studio-mode preview, the take to program plays it again.
+    if (document.visibilityState !== 'hidden') enter();
   }
   window.addEventListener('load', function () {
     // A STREAM-ADDRESSED instance (…?stream=program / preview) is MANAGED: it belongs to a
@@ -75,34 +131,8 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     // of popping on air by itself. The plain file keeps the classic single-overlay autoplay.
     if (/[?&]stream=/.test(location.search)) return;
     if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
-    if (!window.obsstudio) {
-      start();
-      return;
-    }
-    var onAir = false;
-    window.addEventListener('obsSourceActiveChanged', function (e) {
-      var active = !!(e.detail && e.detail.active);
-      if (active === onAir) return;
-      onAir = active;
-      if (active) {
-        start();
-      } else {
-        clearTimeout(outTimer);
-        if (typeof window.stop === 'function') window.stop();
-        // Nobody sees this exit, and a hidden page may not animate at all: finish it now, so
-        // the next cut starts the entrance from rest instead of racing a half-run exit.
-        if (window.gsap) {
-          var running = window.gsap.globalTimeline.getChildren(false, true, true);
-          for (var i = 0; i < running.length; i++) running[i].progress(1);
-        }
-      }
-    });
-    // OBS sends no event for the state a page loads in. A source added to the scene on
-    // air loads visible, one in a scene that is not shown loads hidden.
-    if (document.visibilityState !== 'hidden') {
-      onAir = true;
-      start();
-    }
+    if (window.obsstudio) followProgram();
+    else start();
   });
 })();`;
 }
@@ -124,7 +154,10 @@ the fields with the exported values and plays automatically.
 
 In OBS the entrance plays each time the source goes on program, and the graphic resets when it
 leaves, so cutting back to the scene plays it again. Everywhere else it plays on load.
-To operate it from inside OBS, add the panel as a Custom Browser Dock (see Live control below).
+To operate it from inside OBS with the panel as a Custom Browser Dock, start the launcher and
+point the source at the graphic's http address instead of ticking Local file (see Live control
+below): a Local file source cannot pair with a dock. Once the panel plays or stops it, cuts no
+longer move it.
 
 ## vMix
 1. Add Input → **More** → **Web Browser**.
