@@ -28,6 +28,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
+import { createPresenceGate } from './presenceGate';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -431,15 +432,16 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
 export type LivePresenceStatus = 'off' | 'joining' | 'joined' | 'down';
 
 export interface LivePresence {
-  /** Re-send this page's entry. Throttled to one track per MIN_TRACK_MS, and skipped when nothing
-   *  but the timestamp changed. */
+  /** Re-send this page's entry, through the page's Presence budget (presenceGate.ts): coalesced to
+   *  the latest state, and skipped when nothing but the timestamp changed. */
   touch(): void;
   close(): void;
 }
 
-/** Every track goes to every page on the topic, so an output under a busy show re-announces at
- *  most this often; its counters are a few seconds behind, which nothing reads live. */
-const MIN_TRACK_MS = 5000;
+/** EVERY Presence call this page makes goes through this one gate: Realtime closes a client that
+ *  makes more than 5 in 30 s (presenceGate.ts has the measurement and the numbers). */
+const pagePresenceGate = createPresenceGate();
+let gateKeys = 0;
 /** A join refused before it ever succeeded (a server without 0068, or no Realtime at all) is asked
  *  again on this backoff instead of supabase-js's own 1 to 10 s rejoin loop: a private join is
  *  authorised by a database query, and a refused one would otherwise cost that query every 10 s
@@ -461,19 +463,17 @@ export function joinLivePresence(opts: {
   let everJoined = false;
   let retryMs = RETRY_FIRST_MS;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
-  let trackTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastTrackAt = 0;
   let lastSent = '';
+  const gateKey = `live-${(gateKeys += 1)}`;
 
-  const track = () => {
-    trackTimer = null;
+  /** One track, if there is anything to say. Returns whether it called the server. */
+  const track = (): boolean => {
     const ch = channel;
-    if (!ch || !joined || closed) return;
+    if (!ch || !joined || closed) return false;
     const entry = opts.entry();
     const key = JSON.stringify({ ...entry, at: 0 });
-    if (key === lastSent) return;
+    if (key === lastSent) return false;
     lastSent = key;
-    lastTrackAt = Date.now();
     void ch.track(entry).then((answer) => {
       // Not accepted (a server that allows the join but not the track): try again on the next
       // change rather than believing it was sent.
@@ -481,10 +481,10 @@ export function joinLivePresence(opts: {
       lastSent = '';
       setTimeout(touch, RETRY_FIRST_MS);
     });
+    return true;
   };
   const touch = () => {
-    if (closed || trackTimer) return;
-    trackTimer = setTimeout(track, Math.max(0, lastTrackAt + MIN_TRACK_MS - Date.now()));
+    if (!closed) pagePresenceGate.request(gateKey, track);
   };
 
   const open = async () => {
@@ -564,7 +564,7 @@ export function joinLivePresence(opts: {
     close() {
       closed = true;
       if (retryTimer) clearTimeout(retryTimer);
-      if (trackTimer) clearTimeout(trackTimer);
+      pagePresenceGate.cancel(gateKey);
       const ch = channel;
       channel = null;
       if (ch) void getSupabase().then((sb) => sb?.removeChannel(ch));
