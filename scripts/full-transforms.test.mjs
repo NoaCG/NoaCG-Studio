@@ -21,7 +21,7 @@ async function load(entry) {
   await bundle.close();
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
-const [animation, { displayedBase, nativeValue }, { resolveValue }] = await Promise.all(
+const [animation, { displayedBase, nativeValue, transformOperations }, { resolveValue }] = await Promise.all(
   ['src/blocks/editorAnimation.ts', 'src/components/editorFoundation/animationAuthoring.ts', 'src/blocks/animEval.ts'].map(load));
 const { writeChannel, armedChannels, isArmed, controlsOf, layerOwner, channelValue, animateLayer } = animation;
 
@@ -152,14 +152,16 @@ test('a key on a catalog channel lands in that channel at the playhead, leaving 
   assert.equal(scaled.steps[0].layers['.info-card-box'].scaleX, undefined);
   assert.equal(untouched(scaled, ['.info-card-box']), untouched(panel, ['.info-card-box']));
   refuses(() => animateLayer(panel, '.info-card-box', key('.info-card-box', 0, 'scaleX', 0.3, 1.05), frame), panel, /Scale X is animated as scale/);
-  refuses(() => animateLayer(one({}), '#a', key('#a', 0, 'scale', 0.3, 1.05), frame), one({}), /Scale X is animated as scaleX/);
+  const empty = one({});
+  refuses(() => animateLayer(empty, '#a', key('#a', 0, 'scale', 0.3, 1.05), frame), empty, /Scale X is animated as scaleX/);
   // autoAlpha takes an Opacity key, in its range.
   const alpha = one({ '#a': { autoAlpha: [k(0, 0), k(1, 1)] } });
   assert.deepEqual(animateLayer(alpha, '#a', key('#a', 0, 'autoAlpha', 0.5, 0.2), frame).data.steps[0].layers['#a'], { autoAlpha: [k(0, 0), k(0.5, 0.2), k(1, 1)] });
   refuses(() => animateLayer(alpha, '#a', key('#a', 0, 'opacity', 0.5, 0.2), frame), alpha, /Opacity is animated as autoAlpha/);
   refuses(() => animateLayer(alpha, '#a', key('#a', 0, 'autoAlpha', 0.5, 1.2), frame), alpha, /finite numeric value/);
-  refuses(() => animateLayer(one({ '#a': { transform: [k(0, 'none')] } }), '#a', key('#a', 0, 'x', 0.5, 1), frame), one({ '#a': { transform: [k(0, 'none')] } }), /raw transform string/);
-  refuses(() => animateLayer(one({}), '#a', key('#a', 0, 'clipPath', 0.5, 1), frame), one({}), /finite numeric value/);
+  const raw = one({ '#a': { transform: [k(0, 'none')] } });
+  refuses(() => animateLayer(raw, '#a', key('#a', 0, 'x', 0.5, 1), frame), raw, /raw transform string/);
+  refuses(() => animateLayer(empty, '#a', key('#a', 0, 'clipPath', 0.5, 1), frame), empty, /finite numeric value/);
   // An aliased layer's key is its owner's.
   const aq = houseQuestion();
   const aliased = animateLayer(aq, '.audience-question', key('#f1', 0, 'yPercent', 0.6, 30), frame).data;
@@ -187,7 +189,11 @@ test('the stopwatch and the diamond act on every channel of their control, and k
   assert.deepEqual(diamond.ended, []);
   const last = one({ '#a': { yPercent: [k(1, 0)] } });
   assert.deepEqual(animateLayer(last, '#a', key('#a', 0, 'y', 1, 0, 'remove'), frame).ended, ['y']);
-  refuses(() => animateLayer(one({ '#a': { yPercent: [k(1, 40)] } }), '#a', key('#a', 0, 'y', 1, 0, 'remove'), frame), one({ '#a': { yPercent: [k(1, 40)] } }), /height/);
+  const offset = one({ '#a': { yPercent: [k(1, 40)] } });
+  refuses(() => animateLayer(offset, '#a', key('#a', 0, 'y', 1, 0, 'remove'), frame), offset, /height/);
+  // A percent that is not a number is no 0 either.
+  const relative = one({ '#a': { yPercent: [k(0, '+=100'), k(1, '+=100')] } });
+  refuses(() => animateLayer(relative, '#a', key('#a', 0, 'y', 0.5, 0, 'disable'), frame), relative, /yPercent offset of "\+=100"/);
   refuses(() => animateLayer(both, '#a', key('#a', 0, 'y', 0.5, 0, 'remove'), frame), both, /no key at this time/);
   refuses(() => animateLayer(both, '#a', key('#a', 0, 'yPercent', 0, 0, 'remove'), frame), both, /Name the control/);
   // A shared scale track is both axes: removing its last key ends both.
@@ -195,11 +201,18 @@ test('the stopwatch and the diamond act on every channel of their control, and k
   const scale = animateLayer(panel, '#a', key('#a', 0, 'scaleX', 0, 0.9, 'remove'), frame);
   assert.deepEqual(scale.ended, ['scaleX', 'scaleY']);
   assert.deepEqual(scale.data.steps[0].layers['#a'], { y: [k(0, 3)] });
-  // autoAlpha is Opacity's, and a raw transform refuses Position.
-  assert.deepEqual(animateLayer(one({ '#a': { autoAlpha: [k(0, 0), k(1, 1)] } }), '#a', key('#a', 0, 'opacity', 0, 0.5, 'disable'), frame).ended, ['opacity']);
+  // autoAlpha is Opacity's: a key of it goes, but its last key or the stopwatch off refuse, since
+  // autoAlpha also sets visibility, which a fixed opacity cannot keep. A raw transform refuses Position.
+  const alpha = one({ '#a': { autoAlpha: [k(0, 0), k(1, 1)] } });
+  assert.deepEqual(animateLayer(alpha, '#a', key('#a', 0, 'opacity', 0, 0, 'remove'), frame), { data: one({ '#a': { autoAlpha: [k(1, 1)] } }), ended: [] });
+  refuses(() => animateLayer(alpha, '#a', key('#a', 0, 'opacity', 0, 0.5, 'disable'), frame), alpha, /#a animates autoAlpha, which also sets its visibility, so a fixed opacity cannot keep where it shows/);
+  const twoOpacities = one({ '#a': { opacity: [k(0, 1)], autoAlpha: [k(0, 1)] } });
+  refuses(() => animateLayer(twoOpacities, '#a', key('#a', 0, 'opacity', 0, 1, 'disable'), frame), twoOpacities, /autoAlpha/);
+  assert.deepEqual(animateLayer(one({ '#a': { opacity: [k(0, 0), k(1, 1)] } }), '#a', key('#a', 0, 'opacity', 0, 0.5, 'disable'), frame).ended, ['opacity']);
   const transform = one({ '#a': { transform: [k(0, 'none')], x: [k(0, 1)] } });
   refuses(() => animateLayer(transform, '#a', key('#a', 0, 'x', 0, 0, 'disable'), frame), transform, /raw transform string/);
-  refuses(() => animateLayer(one({}), '#a', key('#a', 0, 'y', 0, 0, 'disable'), frame), one({}), /no animation to disable/);
+  const still = one({});
+  refuses(() => animateLayer(still, '#a', key('#a', 0, 'y', 0, 0, 'disable'), frame), still, /no animation to disable/);
 });
 
 test('bars move and trim on every channel but autoAlpha\'s, keeping untouched tracks byte-identical', () => {
@@ -256,6 +269,7 @@ test('the displayed value and its inverse agree: a typed value lands where the f
   }
   assert.equal(nativeValue(pose({}), '#a', 'y', 'yPercent', shown + 10, shown), 40 + 10 * 1.5 * 100 / 50);
   const left = displayedBase(base, pose({ xPercent: -20 }), 'x');
+  assert.equal(nativeValue(pose({ xPercent: -20 }), '#a', 'x', 'xPercent', left + 6, left), -20 + 6 * 1.5 * 100 / 300, 'xPercent is a share of the width');
   assert.ok(Math.abs(displayedBase(base, pose({ xPercent: nativeValue(pose({ xPercent: -20 }), '#a', 'x', 'xPercent', left - 6, left) }), 'x') - (left - 6)) < 1e-9);
   // Scale multiplies, whichever channel carries it.
   const scaleX = displayedBase(base, pose({}), 'scaleX');
@@ -264,4 +278,38 @@ test('the displayed value and its inverse agree: a typed value lands where the f
   assert.throws(() => nativeValue(pose({}, [300, 0]), '#a', 'y', 'yPercent', shown + 10, shown), /#a has no height to measure its yPercent offset against/);
   assert.throws(() => nativeValue(pose({}, null), '#a', 'x', 'xPercent', 1, 0), /no width/);
   assert.throws(() => nativeValue({ ...pose({}), motion: undefined }, '#a', 'y', 'y', 1, 0), /rendered property pose/);
+});
+
+test('each control takes its own channel\'s key; the rest move the base by the change, and one scale track keys only a linked change', () => {
+  const base = { selector: '#a', target: '#a', mode: 'flow', scaled: true, originX: 0, originY: 0, scaleReason: null, x: 40, y: 100, scaleX: 1, scaleY: 1, rotation: 0 };
+  const pose = motion => ({ motion: { x: 0, y: 0, xPercent: 0, yPercent: 20, scaleX: 0.95, scaleY: 0.95, rotation: 0, opacity: 1, ...motion },
+    initialMotion: { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 }, unit: 2, size: [200, 50] });
+  const at = { step: 0, time: 0.4 };
+  // A yPercent row: Position Y keys yPercent; X is unarmed and moves the base by the change.
+  const row = one({ '#a': { yPercent: [k(0, 110), k(1, 0)] } }), shown = displayedBase(base, pose({}), 'y');
+  assert.deepEqual(transformOperations(row, '#a', '#a', base, pose({}), { x: 46, y: shown + 5 }, at), [
+    { kind: 'animation.key', selector: '#a', property: 'yPercent', step: 0, time: 0.4, value: 20 + 5 * 2 * 100 / 50, action: 'set' },
+    { kind: 'base.set', selector: '#a', values: { x: 46 } },
+  ]);
+  // Motion the editor does not key (a raw transform's x) stays motion: the base moves by the change only.
+  const moved = pose({ x: 60 }), shownX = displayedBase(base, moved, 'x');
+  assert.equal(shownX, 40 + 60 / 2);
+  assert.deepEqual(transformOperations(one({ '#a': { transform: [k(0, 'translateX(0px)'), k(1, 'translateX(120px)')] } }), '#a', '#a', base, moved, { x: shownX + 10 }, at),
+    [{ kind: 'base.set', selector: '#a', values: { x: 50 } }]);
+  // A graphic whose sequence the editor does not author edits the base by the change too.
+  const machine = { ...one({ '#a': { y: [k(0, 3)] } }), machine: {} };
+  assert.deepEqual(transformOperations(machine, '#a', '#a', base, pose({ y: 6 }), { y: displayedBase(base, pose({ y: 6 }), 'y') + 4 }, at), [{ kind: 'base.set', selector: '#a', values: { y: 104 } }]);
+  // A shared scale track: a linked change is one scale key; one axis alone or unequal ratios refuse.
+  const panel = one({ '#a': { scale: [k(0, 0.9), k(1, 1)] } });
+  const sx = displayedBase(base, pose({}), 'scaleX');
+  const linked = transformOperations(panel, '#a', '#a', base, pose({}), { scaleX: sx * 1.2, scaleY: sx * 1.2 }, at);
+  assert.deepEqual(linked.map(o => [o.property, o.step, o.time]), [['scale', 0, 0.4]]);
+  assert.ok(Math.abs(linked[0].value - 0.95 * 1.2) < 1e-9);
+  assert.throws(() => transformOperations(panel, '#a', '#a', base, pose({}), { scaleX: sx * 1.2 }, at), /Scale X and Y share one scale track on #a/);
+  assert.throws(() => transformOperations(panel, '#a', '#a', base, pose({}), { scaleX: sx * 1.2, scaleY: sx * 1.1 }, at), /share one/);
+  // Per-axis scale keys each axis.
+  const axes = one({ '#a': { scaleX: [k(0, 0.9)], scaleY: [k(0, 0.9)] } });
+  assert.deepEqual(transformOperations(axes, '#a', '#a', base, pose({}), { scaleX: sx * 1.2, scaleY: sx * 1.1 }, at).map(o => o.property), ['scaleX', 'scaleY']);
+  // An aliased layer keys under its owner's channels but names the layer.
+  assert.deepEqual(transformOperations(houseQuestion(), '#f1', '.audience-question', base, pose({}), { y: shown + 5 }, at).map(o => [o.selector, o.property]), [['#f1', 'yPercent']]);
 });

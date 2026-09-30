@@ -85,7 +85,8 @@ by their data selector. Refused, source and history unchanged, the reason beside
 - **The inverse** writes the native value at the playhead: a Position change of d pixels adds
   d x document scale to `y`, or d x document scale x 100 / height to `yPercent`; a Scale change
   multiplies the key's value. The numeric fields and canvas gestures go through the same adapter,
-  so both give the same key.
+  so both give the same key. A control that is not animated moves the base by the change, so
+  motion the editor does not key (a raw transform, another selector's track) stays motion.
 - A key on `scale` changes both axes, so it is written only by a change that keeps their ratio
   (linked proportions, a corner handle without Shift). A change to one axis refuses: "Scale X and
   Y share one `scale` track on this layer. Keep them linked to key it."
@@ -93,8 +94,10 @@ by their data selector. Refused, source and history unchanged, the reason beside
   (Position Y: `y` and `yPercent`; Scale on a `scale` layer: the `scale` track, both axes) and keep
   the displayed value as the base, as before. A percent channel is kept only where its value at
   the playhead is 0: elsewhere the offset is a share of the layer's height, which changes with its
-  text, so no pixel base keeps it, and the edit refuses with that reason. The diamond at a key
-  removes that control's keys at the playhead in each of its channels.
+  text, so no pixel base keeps it, and the edit refuses with that reason (a percent that is not a
+  number refuses too). Ending an Opacity that `autoAlpha` animates refuses, since `autoAlpha` also
+  sets visibility, which a fixed opacity cannot keep. The diamond at a key removes that control's
+  keys at the playhead in each of its channels, in that cue only.
 
 ### Time edits
 
@@ -113,8 +116,8 @@ Source and history stay byte-identical and the reason shows beside the control:
 - `scale` beside `scaleX` or `scaleY`, and `opacity` beside `autoAlpha`, on one layer refuse keys
   on that control (two tracks own it);
 - a change to one axis of a `scale` track; a percent key on a layer with no height or width;
-- a percent channel that would be baked away where it is not 0;
-- the owner refusals above, and `autoAlpha` bars;
+- a percent channel that would be baked away where it is not 0 or not a number;
+- the owner refusals above, `autoAlpha` bars, and ending an `autoAlpha` Opacity;
 - unchanged: the graphic root, machines, loops, calls and dynamics, legacy hides, and every
   R1.2a.1 to R1.2a.5 timing refusal.
 
@@ -166,8 +169,9 @@ None. The editor regressions, anim-engine and inspector pass unchanged.
 
 `scripts/full-transforms.test.mjs` (build gate, beside `cross-cue`, `step-authoring` and
 `out-boundary`) runs the pure adapter and owner rules on data: the channel each control reads and
-writes, the displayed value and its inverse (a round trip lands on the typed value), linked and
-unlinked `scale`, the stopwatch and diamond over two channels, percent baking at 0 and its
+writes, the displayed value and its inverse (a round trip lands on the typed value), the
+operations a field or gesture writes (`transformOperations`: keyed channels, base changes, linked
+and unlinked `scale`), the stopwatch and diamond over two channels, percent baking at 0 and its
 refusal, every refusal atomic, bar move and trim on `yPercent`, `scale`, `transform` and aliased
 layers with untouched tracks byte-identical, and the alias and several-layer rules. Each new guard
 is mutation-tested. `e2e/editor-transforms.spec.ts` is written first and queued on the unmodified
@@ -193,8 +197,9 @@ catalog JS fingerprints, battery and taste frames are not re-run unless it does.
   pose as the base, as before. The blanket channel refusal in `animationTarget` is gone.
 - [animationAuthoring.ts](../../../src/components/editorFoundation/animationAuthoring.ts):
   `displayedBase` adds the percent channel as a distance (`percentOffset`), `nativeValue` is its
-  inverse per channel, and `authoredTransform` keys each armed control's own channel, refusing a
-  change to one axis of a shared `scale` track. A flag edit on the departing side reads every
+  inverse per channel, and `transformOperations` (the pure half of `authoredTransform`) keys each
+  armed control's own channel, moves the base of the rest by the change, and refuses a change to
+  one axis of a shared `scale` track. A flag edit on the departing side reads every
   channel (`channelValue`).
 - [runtime.ts](../../../src/components/editorFoundation/runtime.ts) reports `xPercent`, `yPercent`
   and the layer's border box (`percentBox`) with each pose;
@@ -205,5 +210,40 @@ catalog JS fingerprints, battery and taste frames are not re-run unless it does.
   [ArtworkAppearance.tsx](../../../src/components/editorFoundation/ArtworkAppearance.tsx) and
   [useArtworkGesture.ts](../../../src/components/editorFoundation/useArtworkGesture.ts) key through
   the adapter.
-- Tests: [full-transforms.test.mjs](../../../scripts/full-transforms.test.mjs) (build gate, 8 tests)
+- Tests: [full-transforms.test.mjs](../../../scripts/full-transforms.test.mjs) (build gate, 9 tests)
   and [editor-transforms.spec.ts](../../../e2e/editor-transforms.spec.ts) (7 tests).
+
+## Verification receipt
+
+- Reproduction: `e2e/editor-transforms.spec.ts` queued on the unmodified code from a snapshot
+  worktree (j-2706) failed 7 of 7 where expected: the catalog sweep found the 354 channel refusals
+  in 129 designs, Position Y read no `yPercent`, the Frosted Panel handle refused, House Question's
+  `#f1` row showed no keys, and bar moves and keys on Clean Steps refused with the channel refusal.
+  The Node probe of the same catalog is under "Reproduction"; after the change it finds no layer
+  refused as another channel (1250 layers edit, up from 896).
+- Node: `scripts/full-transforms.test.mjs` (9 tests) with `cross-cue`, `out-boundary`, `out-step`,
+  `step-authoring`, `key-ease` and `ease-runtime` pass. Mutation testing: 38 of 38 guard mutations
+  fail a test, including the fixes review asked for; one earlier mutant was equivalent, and the
+  code it touched was removed as redundant.
+- Browser: `e2e/editor-transforms.spec.ts` 7 of 7 (j-2713). The catalog sweep keys Position Y on
+  all 354 formerly refused layers and trims all 354 bars; 330 bars move by a frame, and the other
+  24 (the `scale` panels) refuse only because their exit ends with Out. The editor regressions
+  (cross-cue, steps, out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability,
+  foundation, alpha-entry), anim-engine and inspector (j-2709) passed 205 with 20 skipped; the
+  one regression failure there, an editor-ease page that did not open within 7 s under load, passed
+  on its rerun with the whole editor-ease spec (j-2711). No existing assertion changed.
+- Full affected run (j-2720): 28 spec files, 238 passed and 134 skipped, none failed, and the
+  catalog gate 35 of 35.
+- The interpreter is unchanged, so catalog JS fingerprints, the battery and taste frames were not
+  re-run.
+- Real UI (j-2718), headless at 1920 on this worktree's dev server in one page, as the owner route
+  runs, with no page errors: Clean Steps from the template search, the Step 2 row's bar dragged five
+  frames across the Step 4 flag (one undo, split exactly at the flag), the playhead at 0.8 s during
+  the Heading's reveal where Layout offset Y read 1.216 (yPercent 4.864 of a 25 px line), a canvas
+  drag of 10 px keying `yPercent` 44.864 at the playhead with the field at 11.216 and the line
+  10.00 px lower, two undos restoring the source and two redos the edit, the accent's linked
+  corner drag refusing as recorded under Limits, then saved and played from its control page
+  (Play, four Nexts, Stop). Frosted Panel from the template search: a corner drag at 0.28 s keyed
+  `scale` 1.284 and `y` in one undo, and a Shift corner drag refused with the reason on the canvas.
+  The built-in browser pane was hidden, so its preview did not draw; the walk ran as a queued
+  headless job instead.

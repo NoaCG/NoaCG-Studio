@@ -138,9 +138,9 @@ export function scaleWritable(template: SpxTemplate, selector: string) {
 function requireZeroPercent(data: AnimData, owner: string, property: NumericProperty, step: number, time: number) {
   const channel = property === 'x' ? 'xPercent' : property === 'y' ? 'yPercent' : null;
   if (!channel || !animates(data, owner, channel)) return;
-  const value = Number(resolveValue(data, owner, channel, step, time) ?? 0);
-  if (Math.abs(value) >= EPS) {
-    throw new Error(`${NAMES[property]} here includes a ${channel} offset of ${Math.round(value * 10) / 10}% of ${owner}'s ${property === 'x' ? 'width' : 'height'}, which is a different distance for other text, so no fixed base keeps it. Turn it off where the offset is 0%. Its source is preserved.`);
+  const value = resolveValue(data, owner, channel, step, time) ?? 0;
+  if (typeof value !== 'number' || Math.abs(value) >= EPS) {
+    throw new Error(`${NAMES[property]} here includes a ${channel} offset of ${typeof value === 'number' ? Math.round(value * 10) / 10 + '%' : `"${value}"`} of ${owner}'s ${property === 'x' ? 'width' : 'height'}, which is a different distance for other text, so no fixed base keeps it. Turn it off where the offset is 0%. Its source is preserved.`);
   }
 }
 /**
@@ -195,6 +195,10 @@ export function animateLayer(source: AnimData, owner: string, operation: Animati
   }
   const ended = armed.filter(c => !isArmed(data, owner, c));
   for (const c of ended) requireZeroPercent(before, owner, c, step, time);
+  // autoAlpha also sets visibility, which a fixed opacity in the base cannot keep.
+  if (ended.includes('opacity') && animates(before, owner, 'autoAlpha')) {
+    throw new Error(`${selector} animates autoAlpha, which also sets its visibility, so a fixed opacity cannot keep where it shows. Keep one key, or remove the track in source. Its source is preserved.`);
+  }
   return { data, ended };
 }
 export function applyAnimation(template: SpxTemplate, operation: AnimationOperation): SpxTemplate {

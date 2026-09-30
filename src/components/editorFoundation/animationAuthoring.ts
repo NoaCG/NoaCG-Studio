@@ -1,6 +1,7 @@
 import type { SpxTemplate } from '../../model/types';
 import type { BasePatch, BaseValues } from '../../blocks/baseEdits';
 import { channelValue, isArmed, sequenceAuthoringReason, writeChannel, type Channel, type NumericPose } from '../../blocks/editorAnimation';
+import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
 import { FLOAT_STEP, readTimeline, segmentAt } from './timelineView';
@@ -83,28 +84,33 @@ export function nativeValue(pose: RenderedPart['appearance'], owner: string, key
   return key === 'x' || key === 'y' ? current + (value - before) * unit : key === 'rotation' ? current + value - before : before === 0 ? value : current * value / before;
 }
 /** A combined gesture keeps separated axes and mixed selections independent: each layer resolves
- *  its own segment and pose, and the caller commits every operation as one transaction. Each armed
- *  control keys the channel it writes (`writeChannel`), in that channel's own units. */
+ *  its own segment and pose, and the caller commits every operation as one transaction. */
 export function authoredTransform(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], values: BasePatch, time: number): EditorOperation[] {
   requireCurrentPose(appearance, time, undefined, appearance?.cue);
-  const edit = editSegment(template, selector, time, appearance?.cue), { view } = edit, position = positionOf(edit), pose = poseOf(edit, selector, appearance);
-  const owner = view.owners[selector] ?? selector;
-  const operations: EditorOperation[] = [], unarmed: BasePatch = {};
+  const edit = editSegment(template, selector, time, appearance?.cue), { view } = edit, pose = poseOf(edit, selector, appearance);
+  return transformOperations(view.data, selector, view.owners[selector] ?? selector, base, pose, values, positionOf(edit));
+}
+/**
+ * The operations that take a layer's controls to `values` from the pose shown (R1.2a.6): each armed
+ * control keys the channel it writes (`writeChannel`) in that channel's own units at `position`;
+ * the rest move the base by the change, so motion the editor does not key (another selector's, a
+ * raw transform's) stays motion. One scale track keys both axes, so only a change keeping their
+ * ratio can write it.
+ */
+export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: BasePatch, position: { step: number; time: number }): EditorOperation[] {
+  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = {};
   for (const [key, value] of Object.entries(values) as [keyof BasePatch, number][]) {
     const before = displayedBase(base, pose, key);
     if (Math.abs(value - before) < .00001) continue;
-    if (sequenceAuthoringReason(view.data)) unarmed[key] = base[key] + value - before;
-    else if (isArmed(view.data, owner, key)) {
-      const channel = writeChannel(view.data, owner, key);
+    if (!sequenceAuthoringReason(data) && isArmed(data, owner, key)) {
+      const channel = writeChannel(data, owner, key);
       operations.push({ kind: 'animation.key', selector, property: channel, ...position, value: nativeValue(pose, owner, key, channel, value, before), action: 'set' });
-    } else unarmed[key] = value;
+    } else unarmed[key] = base[key] + value - before;
   }
-  // One scale track keys both axes, so only a change keeping their ratio can write it.
-  const shared = operations.filter(operation => operation.kind === 'animation.key' && operation.property === 'scale') as Extract<EditorOperation, { kind: 'animation.key' }>[];
+  const shared = operations.filter(operation => operation.property === 'scale');
   if (shared.length && (shared.length < 2 || Math.abs(shared[0].value - shared[1].value) > 1e-6 * Math.max(1, Math.abs(shared[0].value)))) {
     throw new Error(`Scale X and Y share one scale track on ${owner}. Keep them linked to key it. Its source is preserved.`);
   }
-  if (shared.length) operations.splice(operations.indexOf(shared[1]), 1);
-  if (Object.keys(unarmed).length) operations.push({ kind: 'base.set', selector, values: unarmed });
-  return operations;
+  const keyed: EditorOperation[] = operations.filter(operation => operation !== shared[1]);
+  return Object.keys(unarmed).length ? [...keyed, { kind: 'base.set', selector, values: unarmed }] : keyed;
 }
