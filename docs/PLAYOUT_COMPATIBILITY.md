@@ -16,8 +16,11 @@ itself, and that copy is frozen at the version the application shipped with.**
 
 Updating Chrome on the playout machine changes nothing. Updating the playout application is the
 only thing that moves it. This is the Chromium Embedded Framework (CEF), and CasparCG, OBS Studio
-and vMix all work this way. SPX Graphics is the exception: it renders in the operator's own
-installed browser, which auto-updates.
+and vMix all work this way. SPX Graphics is not an engine of its own: on air, its renderer page
+runs in whatever loads it (OBS, vMix, CasparCG or a browser window), so a template on SPX meets
+that host's engine. SPX's controller also runs a monitor copy of the renderer in the operator's
+own browser, so the template has to work there too (measured on SPX 1.4.1 and 1.2.1,
+`docs/SPX_ON_A_REAL_SERVER.md` §5).
 
 | Playout system | Engine | How we know |
 |---|---|---|
@@ -25,9 +28,9 @@ installed browser, which auto-updates.
 | OBS Studio 30.x | Chromium 103 | an OBS not updated since 2023 — below the floor |
 | vMix 27+ | Chromium 103 | changelog only, never measured here |
 | **CasparCG 2.4.x** | **Chromium 117** | **THE SUPPORTED FLOOR** |
-| OBS Studio (current) | Chromium 127 | measured 2026-08-07 |
+| OBS Studio 31.x and 32.x | Chromium 127 | measured 2026-09-30 on 32.2.1 (`docs/OBS_ON_A_REAL_HOST.md`) |
 | CasparCG 2.5.x | Chromium 142 | measured 2026-08-07 |
-| SPX Graphics | the operator's own | current, auto-updating |
+| SPX Graphics | on air, the host that loads its renderer; its monitor copy, the operator's browser | measured 2026-09-30 |
 
 `PLAYOUT_ENGINES` and `SUPPORTED_FLOOR` in `src/validation/engineSupport.ts` are the source of
 truth; this table is a copy for reading. If they disagree, the code is right.
@@ -84,7 +87,8 @@ What is deliberately excluded, and why:
   shim when a design starts doing something new with flex
   (`docs/backlog/flex-gap-shim-follow-ups.md`).
 - **OBS 30.x and vMix 27 (103).** Below the floor, so a design using `color-mix()` (111) loses
-  its fills there. A current OBS is fine; vMix has never been measured here. Left as a known,
+  its fills there. OBS 31 and 32 are fine (127, measured on 32.2.1); vMix has never been measured
+  here. Left as a known,
   recorded gap rather than a reason to migrate 189 declarations speculatively — revisit if a real
   vMix user appears.
 
