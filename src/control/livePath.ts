@@ -487,6 +487,10 @@ interface LiveTopicState {
 }
 
 const liveTopics = new Map<string, LiveTopicState>();
+/** Removals in flight, by production. supabase-js keeps a channel in its list until its removal
+ *  finishes, so a join opened meanwhile would be handed the channel being removed, and its
+ *  subscribe would never report. */
+const leaving = new Map<string, Promise<unknown>>();
 
 export function joinLiveTopic(showId: string, user: LiveTopicUser): LiveTopicJoin {
   let state = liveTopics.get(showId);
@@ -511,7 +515,14 @@ export function joinLiveTopic(showId: string, user: LiveTopicUser): LiveTopicJoi
       if (joined.retryTimer) clearTimeout(joined.retryTimer);
       const ch = joined.channel;
       joined.channel = null;
-      if (ch) void getSupabase().then((sb) => sb?.removeChannel(ch));
+      if (!ch) return;
+      const removal = getSupabase()
+        .then((sb) => sb?.removeChannel(ch))
+        .catch(() => undefined);
+      leaving.set(showId, removal);
+      void removal.then(() => {
+        if (leaving.get(showId) === removal) leaving.delete(showId);
+      });
     },
   };
 }
@@ -519,6 +530,7 @@ export function joinLiveTopic(showId: string, user: LiveTopicUser): LiveTopicJoi
 async function openLiveTopic(showId: string, state: LiveTopicState): Promise<void> {
   state.retryTimer = null;
   const sb = await getSupabase();
+  await leaving.get(showId);
   if (state.closed) return;
   const tell = (status: string) => {
     state.status = status;
