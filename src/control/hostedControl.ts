@@ -27,6 +27,7 @@ import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
+import { readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
@@ -152,6 +153,10 @@ export interface OutputPayload {
   graphics: OutputGraphicSpec[];
   cues: OutputCue[];
   playoutCues?: OutputPlayoutCue[];
+  /** THE VERSION THIS PAYLOAD IS (control/payloadVersion.ts; Phase 6 Step 3 R2): written by every
+   *  publish from 2026-10 on. ADDITIVE OPTIONAL: a payload published before it has none, and is
+   *  then never called behind. */
+  ver?: PayloadVersion;
 }
 
 /** Per graphic: the renderer's last reported truth, plus (0033) `event` — the log row it had
@@ -314,6 +319,7 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   if (!output || typeof output !== 'object') return null;
   const o = output as OutputPayload;
   if (o.v !== 1 || !Array.isArray(o.graphics)) return null;
+  const ver = readPayloadVersion(o.ver);
   return {
     v: 1,
     resolution: o.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
@@ -322,6 +328,8 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
     // Carried through, not dropped: the hosted page lists these beside the graphics' cues.
     // Before 2026-09-23 this reader left them out and the list was never shown.
     ...(Array.isArray(o.playoutCues) && o.playoutCues.length ? { playoutCues: o.playoutCues } : {}),
+    // The version stamp, when the publish wrote one (READY's guarantee 2).
+    ...(ver ? { ver } : {}),
   };
 }
 
@@ -403,6 +411,8 @@ export interface PublishedCapabilities {
   outputSlug: string | null;
   joinSlug: string | null;
   presenterSlug: string | null;
+  /** The version stamp this publish wrote into the payload (payloadVersion.ts). */
+  version?: PayloadVersion;
 }
 
 /** Publish (or update) a production's hosted pages: the operator panel spec (live-resolved,
@@ -419,7 +429,14 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   assertProductionGate(show.graphics, library);
   const sb = await getSupabase();
   if (!sb) return null;
-  const output = await buildOutputPayload(show, library);
+  const built = await buildOutputPayload(show, library);
+  // THE VERSION STAMP (payloadVersion.ts): the previous stamp's number, read as ONE field so the
+  // multi-megabyte payload is not downloaded to learn it. A production published for the first
+  // time, or last published before stamps existed, starts at 1. A read that fails decides nothing
+  // worse than the label.
+  const previous = await sb.from('control_shows').select('ver:output->ver').eq('id', show.id).maybeSingle();
+  const version = await stampPayload(built, readPayloadVersion((previous.data as { ver?: unknown } | null)?.ver));
+  const output: OutputPayload = { ...built, ver: version };
   // The upsert names only the columns it owns, which is what keeps `audience_state` (0035) —
   // open/mode/prompt/round/rev, all of it live operator state — from being reset by a
   // re-publish mid-show. A whole-row write here would close the audience door every time
@@ -489,7 +506,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     const legacy = await sb.from('control_shows').select('slug, outputSlug:output_slug').eq('id', show.id).single();
     if (legacy.error) throw new Error(legacy.error.message);
     const row = legacy.data as { slug: string; outputSlug: string | null };
-    return { ...row, joinSlug: null, presenterSlug: null };
+    return { ...row, joinSlug: null, presenterSlug: null, version };
   }
   const row = readBack.data as {
     slug: string;
@@ -520,6 +537,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     outputSlug: row.outputSlug,
     joinSlug,
     presenterSlug: row.presenterSlug,
+    version,
   };
 }
 

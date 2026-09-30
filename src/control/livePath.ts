@@ -29,6 +29,16 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { createPresenceGate } from './presenceGate';
+import {
+  oneEntryPerOutput,
+  readHeld,
+  readOutputReady,
+  readReadyStamp,
+  type ExpectedOutput,
+  type HeldVersion,
+  type OutputReady,
+  type ReadyStamp,
+} from './readiness';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -382,14 +392,27 @@ export interface LiveEntry {
   at: number;
   /** An output's LiveSummary, an operator's SenderCounters. */
   stats?: LiveSummary | SenderCounters;
+  /** An output's name, from `&name=` on its URL (control/readiness.ts `outputName`). */
+  name?: string;
+  /** An output's READY answer (control/readiness.ts). Absent from an output built before it. */
+  ready?: OutputReady;
+  /** An operator page's newest known published version (readiness.ts `newestVersion`). */
+  pub?: HeldVersion;
+  /** The production page's expected outputs, so the hosted page counts the same ones (R5). `seen`
+   *  is on the announcing page's clock. */
+  exp?: ExpectedOutput[];
+  /** The production page's last Prepare for Live stamp (R5). */
+  stamp?: ReadyStamp;
 }
 
-/** This page's entry as it stands now: who it is, filled in here, and what only the caller knows. */
+/** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
+ *  (`extra`: an output's name and READY answer, an operator's version, expected outputs, stamp). */
 export function liveEntry(
   kind: LiveEntry['kind'],
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
+  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp'>,
 ): LiveEntry {
   return {
     kind,
@@ -402,7 +425,16 @@ export function liveEntry(
     cmd: roads.cmd,
     at: Date.now(),
     stats,
+    ...extra,
   };
+}
+
+/** An output's name from its URL: `&name=CasparCG 1-20`, trimmed to what a line can show. */
+export function outputNameParam(search: string): string | undefined {
+  const name = new URLSearchParams(search).get('name');
+  // Everything below a space (control characters) goes: a name is one line of plain text.
+  const clean = name ? name.replace(/[^ -￿]/g, '').trim().slice(0, 40) : '';
+  return clean || undefined;
 }
 
 /** A Presence entry read off the wire, or null when it is not one. Anyone holding the show id can
@@ -412,6 +444,15 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
   if (!m || (m.kind !== 'output' && m.kind !== 'operator') || typeof m.id !== 'string') return null;
   const bool = (v: unknown) => (typeof v === 'boolean' ? v : null);
   const text = (v: unknown, fallback: string) => (typeof v === 'string' ? v.slice(0, 80) : fallback);
+  const ready = readOutputReady(m.ready);
+  const pub = readHeld(m.pub);
+  const exp = Array.isArray(m.exp)
+    ? m.exp
+        .slice(0, 16)
+        .filter((e): e is ExpectedOutput => !!e && typeof e.id === 'string' && typeof e.name === 'string')
+        .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
+    : undefined;
+  const stamp = readReadyStamp(m.stamp);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -423,7 +464,37 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     cmd: bool(m.cmd),
     at: typeof m.at === 'number' ? m.at : 0,
     stats: m.stats && typeof m.stats === 'object' ? m.stats : undefined,
+    ...(typeof m.name === 'string' && m.name ? { name: m.name.slice(0, 40) } : {}),
+    ...(ready ? { ready } : {}),
+    ...(pub ? { pub } : {}),
+    ...(exp ? { exp } : {}),
+    ...(stamp ? { stamp } : {}),
   };
+}
+
+/**
+ * THE OUTPUTS THIS PAGE EXPECTS, given what it remembers itself (`mine`) and what the production
+ * pages on the topic announce. While a production page announces a list, even an empty one, that
+ * list is the answer: it is where outputs are forgotten, so the hosted page and the phone count
+ * exactly the outputs the production page expects. `mine` then only lends its sightings (this
+ * page's clock, the later one wins). With no production page on the topic, `mine` is the answer.
+ */
+export function withAnnouncedOutputs(mine: readonly ExpectedOutput[], entries: readonly LiveEntry[]): ExpectedOutput[] {
+  const announcing = entries.filter((entry) => entry.kind === 'operator' && entry.exp);
+  if (announcing.length === 0) return mine.map((e) => ({ ...e }));
+  const out: ExpectedOutput[] = [];
+  for (const entry of announcing) {
+    for (const e of entry.exp ?? []) {
+      const known = out.find((o) => o.id === e.id);
+      if (!known) out.push({ ...e });
+      else if (e.seen > known.seen) known.seen = e.seen;
+    }
+  }
+  for (const own of mine) {
+    const known = out.find((o) => o.id === own.id);
+    if (known && own.seen > known.seen) known.seen = own.seen;
+  }
+  return out;
 }
 
 /** Where a page's Presence stands. `joined` means the peers it reports are current; anything else
@@ -618,22 +689,6 @@ function describeOutput(o: LiveEntry): string {
     `${o.engine}${o.build ? `, build ${o.build}` : ''}: connected now, ${roads}` +
     `${typeof p50 === 'number' ? `, press to screen about ${p50} ms` : ''}.`
   );
-}
-
-/**
- * The outputs among the peers, ONE PER INSTANCE, the newest entry winning. A reloaded browser
- * source keeps its instance id (session storage), and a page that was on the topic before the
- * reload can hold the old entry beside the new one for a while (seen on the preview branch: the
- * dashboard read "2 outputs" for one renderer reloaded 20 s earlier). One id is one renderer.
- */
-function oneEntryPerOutput(peers: LiveEntry[]): LiveEntry[] {
-  const byId = new Map<string, LiveEntry>();
-  for (const p of peers) {
-    if (p.kind !== 'output') continue;
-    const held = byId.get(p.id);
-    if (!held || p.at > held.at) byId.set(p.id, p);
-  }
-  return [...byId.values()];
 }
 
 const NOT_LOADED_WHY =

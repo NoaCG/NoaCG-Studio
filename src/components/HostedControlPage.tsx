@@ -111,7 +111,7 @@ import {
 } from './playoutKeys';
 import { SpaceModeToggle } from './SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
-import { OutputHealthLine, useLivePresence } from './control/OutputHealth';
+import { ReadyLine, useExpectedOutputs, useLivePresence } from './control/OutputHealth';
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -194,6 +194,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     log: logJoined,
     cmd: cmdJoined,
   });
+  /** READY's expected outputs: those this page has seen while open, plus whatever the production
+   *  page announces on the live topic (components/control/OutputHealth.tsx). */
+  const { expected: expectedOutputs } = useExpectedOutputs(show && show !== 'loading' ? show.id : null, livePresence, false);
   /** The operator ACTION LOG (control/eventLog.ts) — the same feed the in-app dashboard shows,
    *  and it matters more here: this is the multi-operator surface, where "who took that?" is a
    *  real question and the page was already reading every one of these rows to drive PROGRAM. */
@@ -1100,12 +1103,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         {/* The same output health line as the production page (components/control/OutputHealth.tsx).
             Signed out, this page cannot re-read the heartbeat, so without Presence it shows the
             value it resolved with and says that is what it is. */}
-        <OutputHealthLine
+        <ReadyLine
           presence={livePresence}
           seenAt={show.outputSeenAt}
           heartbeatLive={false}
           seenReadAt={openedAt}
           now={now}
+          published={show.output?.ver ? { n: show.output.ver.n, h: show.output.ver.h } : null}
+          expected={expectedOutputs}
           testId="hosted-output-health"
         />
         <div className="spacer" />

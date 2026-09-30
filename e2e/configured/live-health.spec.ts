@@ -174,14 +174,17 @@ test('an output says who it is and how commands reach it, and both operator page
 
   if (serverHasLiveTopic) {
     // ONE output: the announced one. The refused one is on air but not in the line, by design.
-    await expect(hostedLine).toHaveAttribute('data-source', 'presence', { timeout: 30_000 });
+    // Since READY (docs/work-specs/playout-ready) the line is the output's own READY answer, read
+    // from the same entry; its tooltip names the engine. Amber only if this host could not fetch a
+    // typeface, which READY reports rather than hides.
+    await expect(hostedLine).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
     await expect(hostedLine).toHaveAttribute('data-outputs', '1');
-    await expect(hostedLine).toHaveAttribute('data-tone', 'ok');
+    await expect(hostedLine).not.toHaveAttribute('data-tone', 'bad');
     await expect(hostedLine).toContainText('1 output');
-    await expect(hostedLine).toContainText('Chrome');
+    await expect(hostedLine).toHaveAttribute('title', /Chrome/);
     // The production dashboard reads the same line from the same entries.
     const deskLine = page.getByTestId('renderer-status');
-    await expect(deskLine).toHaveAttribute('data-source', 'presence', { timeout: 30_000 });
+    await expect(deskLine).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
     await expect(deskLine).toContainText('1 output');
   } else {
     await expect(hostedLine).toHaveAttribute('data-source', 'heartbeat');
@@ -221,14 +224,13 @@ test('an output says who it is and how commands reach it, and both operator page
     .toBeGreaterThan(0.9);
 
   if (serverHasLiveTopic) {
-    // Closing the output drops it: Presence is held by the socket, not written anywhere.
+    // Closing the output drops it: Presence is held by the socket, not written anywhere. Since READY
+    // an output that was there and is gone is not an absence but a line of its own ("not
+    // answering", red after 15 s: live-ready.spec.ts), on both surfaces.
     await output.close();
-    await expect(hostedLine).toHaveAttribute('data-outputs', '0', { timeout: 30_000 });
-    await expect(hostedLine).toContainText('no output connected');
-    // …on the dashboard too, which had heard that output since before its reload. (The refused
-    // output keeps beating over REST, so the dashboard may go on to say one is off the live
-    // channel; what it must not do is keep listing the closed one.)
-    await expect(page.getByTestId('renderer-status')).not.toContainText('Chrome', { timeout: 30_000 });
+    await expect(hostedLine).toContainText('not answering', { timeout: 30_000 });
+    // …on the dashboard too, which had heard that output since before its reload.
+    await expect(page.getByTestId('renderer-status')).toContainText('not answering', { timeout: 30_000 });
   }
 
   // Out, unpublish, and leave the throwaway account clean.

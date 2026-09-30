@@ -45,7 +45,8 @@ test('an output stays listed on the hosted health line through 90 s of a busy sh
   await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
   const line = hosted.getByTestId('hosted-output-health');
   await expect(line).toHaveAttribute('data-outputs', '1', { timeout: 30_000 });
-  await expect(line).toHaveAttribute('data-source', 'presence');
+  // The output's READY answer rides the same entry (docs/work-specs/playout-ready).
+  await expect(line).toHaveAttribute('data-source', 'ready');
 
   // A busy show: a Take or an Out every 3 s moves the output's counters, and each change asks for
   // a re-announce. Sampled every second for 90 s: the line must list the output every time, and
@@ -62,7 +63,7 @@ test('an output stays listed on the hosted health line through 90 s of a busy sh
     press += 1;
     await page.waitForTimeout(1000);
     const at = `${Math.round((Date.now() - started) / 1000)} s`;
-    if ((await line.getAttribute('data-outputs')) !== '1' || (await line.getAttribute('data-source')) !== 'presence') {
+    if ((await line.getAttribute('data-outputs')) !== '1' || (await line.getAttribute('data-source')) !== 'ready') {
       dropped.push(`${at}: line ${await line.textContent()}`);
     }
     if ((await presence()) !== 'joined') dropped.push(`${at}: output presence ${await presence()}`);

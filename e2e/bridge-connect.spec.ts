@@ -707,11 +707,12 @@ test('one button puts the production on the configured channel, and one takes it
   // durable command log the /output page already follows, which is why there is no per-cue
   // traffic here and no second copy of the graphics on the wire. The dev port is per checkout
   // (docs/DEV_PORTS.md), so the ORIGIN is not pinned - what is pinned is that the action carries
-  // this production's own output URL and nothing else, in the protocol's own words.
+  // this production's own output URL and nothing else, in the protocol's own words - named for
+  // the layer it lands on, which is what READY calls it (docs/work-specs/playout-ready R5).
   expect(bridge.actions).toHaveLength(1);
   expect(bridge.actions[0]).toMatchObject({
     verb: 'take',
-    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output$/) },
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&name=CasparCG%202-30$/) },
     slot: { adapter: 'casparcg', channel: 2, layer: 30 },
   });
 
@@ -796,7 +797,7 @@ test("the production's Playout dialog puts its output on air with one press, and
   expect(bridge.actions).toHaveLength(1);
   expect(bridge.actions[0]).toMatchObject({
     verb: 'take',
-    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output$/) },
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&name=CasparCG%202-30$/) },
     slot: { adapter: 'casparcg', channel: 2, layer: 30 },
   });
 });
