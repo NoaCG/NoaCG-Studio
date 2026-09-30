@@ -261,8 +261,13 @@ and shared helpers for the Node tests' loaders.
   foundation, alpha-entry), anim-engine and inspector (j-2709) passed 205 with 20 skipped; the
   one regression failure there, an editor-ease page that did not open within 7 s under load, passed
   on its rerun with the whole editor-ease spec (j-2711). No existing assertion changed.
-- Full affected run (j-2720): 28 spec files, 238 passed and 134 skipped, none failed, and the
-  catalog gate 35 of 35.
+- Full affected run (j-2720, before review): 28 spec files, 238 passed and 134 skipped, none
+  failed, and the catalog gate 35 of 35. Again at the tip after review and simplification
+  (j-2738): 238 passed and 134 skipped, none failed, catalog gate 35 of 35.
+- Build at the tip (j-2737): gates, 2256 Node tests in 153 files (2254 pass, 2 skipped), typecheck,
+  lint, dependency rules, the bundle and the after-build line-endings check pass. An earlier build
+  (j-2732) stopped at the e2e-affected gate test: the new spec sweeps the catalog, so its header now
+  covers `src/templates/**`.
 - The interpreter is unchanged, so catalog JS fingerprints, the battery and taste frames were not
   re-run.
 - Real UI (j-2718), headless at 1920 on this worktree's dev server in one page, as the owner route
@@ -275,4 +280,7 @@ and shared helpers for the Node tests' loaders.
   (Play, four Nexts, Stop). Frosted Panel from the template search: a corner drag at 0.28 s keyed
   `scale` 1.284 and `y` in one undo, and a Shift corner drag refused with the reason on the canvas.
   The built-in browser pane was hidden, so its preview did not draw; the walk ran as a queued
-  headless job instead.
+  headless job instead. The walk ran before review; the review fixes change base edits only where
+  motion is not keyed and add two refusals, which the browser spec covers at the tip.
+- Not checked: a physical desktop at 125% scaling, a phone, and the receiving CasparCG and OGraf
+  hosts (their exports are unchanged by this phase; the simulator and SPX playback is checked).
