@@ -94,6 +94,22 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   `e2e/configured/expected-run.json` `allowedSkips` with that reason, because the migrations land
   on their own gated branch: the landing that brings 0069 and 0070 into the tree removes the
   entry and raises `minTests`. Revert: drop the runtime skip once both are in the tree.
+- **D-p. Specs that intercept a send or a report now match both roads** (`control_send_*`,
+  `control_output_report*`): the CI stack applies every migration in the tree, so once 0070 is
+  there the pages and renderers in those specs negotiate protocol 2.
+
+### Known limits (recorded, not fixed)
+
+- **K1. Two accumulating presses under a failing send.** The queue keeps two Nexts in order while
+  sends answer; if the first has been failing for longer than one attempt deadline, the second
+  leaves, and if it lands before the first's resend, the first is refused as superseded, silently,
+  and air advances one step where the page's monitor shows two. Only reachable while a send of that
+  graphic is already failing.
+- **K2. The old bundle's publish upsert still blocks Takes** until that page reloads (D8), and old
+  pages' own Updates now wait behind a new publish (D-n).
+- **K3. A frame Realtime fails to write is only found by the next frame or the 30 s poll**, as on
+  the id road: `realtime.send` swallows its errors into a warning, by design, so a command is
+  never lost to a broadcast.
 
 ## What changed from v1, and why (one line each)
 

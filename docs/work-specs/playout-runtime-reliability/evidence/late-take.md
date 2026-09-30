@@ -33,8 +33,9 @@ it (see `configured-specs.md`).
 
 ## Limitations
 
-- On this branch the page's request was held by Playwright and then continued; Step 0's attempt
-  deadline (landing separately) abandons an attempt at 1.5 s on the page. After that lands, this
-  harness run exercises the page's abandon, and the server's refusal is exercised by the
-  configured spec's `route.fetch()` delivery.
+- This harness run predates the rebase onto Step 0's attempt deadline (#559): the page's request
+  was held by Playwright and then continued to the server. With the deadline, the page abandons
+  that attempt at 1.5 s and a continued request finds nothing to send, so from here on this harness
+  scenario exercises the page's abandon, and the server's refusal is exercised by the configured
+  spec's `route.fetch()` delivery (run after the rebase, `configured-specs.md` j-2499: passed).
 - The graphic's picture was judged by opaque pixels (0 means the stage painted nothing).
