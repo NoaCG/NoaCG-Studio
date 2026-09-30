@@ -934,6 +934,33 @@ const value = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1
 /** A flag's comma-separated migration versions (`--allow 0052,0053`), as a set. */
 const versions = (argv, name) => new Set(value(argv, name).split(',').map((v) => v.trim()).filter(Boolean));
 
+const SWITCHES = new Set(['--json', '--dry-run', '--help', '-h']);
+const VALUED = new Set(['--allow', '--live', '--ref']);
+
+/**
+ * THE ARGUMENTS THIS RUN WAS NOT BUILT FOR. With no flag at all this command plans AND APPLIES to
+ * production, so a flag it does not know must stop it before it contacts anything: on
+ * 2026-09-30 a `--help` that nothing read ran a real plan against production. Returns the
+ * unknown arguments; a valued flag consumes the argument after it.
+ */
+export function unknownArgs(argv) {
+  const unknown = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    if (VALUED.has(argv[i])) i += 1;
+    else if (!SWITCHES.has(argv[i])) unknown.push(argv[i]);
+  }
+  return unknown;
+}
+
+const USAGE = [
+  'npm run db:push                  plan, refuse anything dangerous, otherwise APPLY to production',
+  'npm run db:push -- --dry-run     plan and snapshot only; never writes',
+  "npm run db:push -- --allow NNNN  apply, accepting NNNN's refused statements by name",
+  'npm run db:push -- --live NNNN   apply live-path NNNN now, even with a production live',
+  'npm run db:push -- --json        one JSON object, for a caller that wants the plan',
+  'npm run db:push -- --ref <ref>   a DIFFERENT project: staging, rather than production',
+].join('\n');
+
 /**
  * Is the remote ledger still the one this repository's filenames describe? Pure, so the refusal
  * that protects the worst documented failure is testable without a database.
@@ -1039,6 +1066,15 @@ function reportHold(held, { quiet, ref, target, dryRun }) {
 }
 
 async function main(argv) {
+  const unknown = unknownArgs(argv);
+  if (unknown.length) {
+    console.error(`Cannot push: unknown argument(s) ${unknown.join(' ')}. Nothing was read or written.\n\n${USAGE}`);
+    return 2;
+  }
+  if (flag(argv, '--help') || flag(argv, '-h')) {
+    console.log(USAGE);
+    return 0;
+  }
   const env = ambientEnv(ROOT);
   const asJson = flag(argv, '--json');
   const dryRun = flag(argv, '--dry-run');

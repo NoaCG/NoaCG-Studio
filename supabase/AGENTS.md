@@ -128,6 +128,10 @@ run prints the before/after grant, column, policy and ledger diff, which is the 
 migration did what its header claims. It drives `supabase db push` underneath, so everything below
 still holds.
 
+**With no argument it applies to production**, so an argument it does not know stops it before it
+reads or writes anything; `--help` prints the forms. To look without writing, use `--dry-run`, and
+`--ref` for any project that is not production.
+
 The remote ledger keys each migration by the four-digit `version` parsed from the filename
 (`0017_admin_roles.sql` -> version `0017`, name `admin_roles`), and `db push` decides what is
 pending by diffing that column against this folder.
