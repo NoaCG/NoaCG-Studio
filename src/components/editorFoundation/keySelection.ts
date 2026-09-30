@@ -20,6 +20,20 @@ export function liveKeys(data: AnimData | null, keys: KeyRef[]): KeyRef[] {
   return data ? keys.filter(key => data.steps[key.step]?.layers[key.selector]?.[key.property]?.some(k => Math.abs(k.time - key.time) < EPS)) : [];
 }
 
+/** Where keys are after moving by a stored delta (animEdit.ts moveKeys): each track's key at its new
+ *  time on the ruler, in the cue holding that time (a key on a flag ends the earlier cue). */
+export function movedKeys(data: AnimData | null, keys: KeyRef[], delta: number): KeyRef[] {
+  if (!data) return [];
+  const last = data.steps.length - 1, starts = data.steps.reduce<number[]>((acc, step, i) => [...acc, Math.round((acc[i] + step.duration) * 1000) / 1000], [0]);
+  return addKeys([], keys.flatMap(key => {
+    const at = starts[key.step] + key.time + delta;
+    let cue = 0;
+    while (cue < last && at > starts[cue + 1] + EPS) cue++;
+    const found = data.steps[cue].layers[key.selector]?.[key.property]?.find(k => Math.abs(k.time - (at - starts[cue])) < EPS);
+    return found ? [{ step: cue, selector: key.selector, property: key.property, time: found.time }] : [];
+  }));
+}
+
 /** Toggle a group of keys: all of them leave when all are selected, else all join. */
 export function toggleKeys(selection: KeyRef[], keys: KeyRef[]): KeyRef[] {
   const chosen = new Set(selection.map(keyId)), ids = new Set(keys.map(keyId));

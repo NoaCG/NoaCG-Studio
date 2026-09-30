@@ -286,8 +286,12 @@ test('the exit keeps its own timing when Out moves into still air or later, and 
   const trailing = plain(); trailing.steps[0].layers['#a'].x.push({ time: 1.8, value: 0 });
   trailing.steps[0].layers['#b'] = { y: [{ time: 1.9, value: 5 }] };
   const trimmed = moveOutBoundary(trailing, 1.5);
-  assert.deepEqual([trimmed.steps[0].layers['#a'].x.map(k => k.time), trimmed.steps[0].layers['#b'].y], [[0, 1], [{ time: 1.5, value: 5 }]]);
+  assert.deepEqual([trimmed.steps[0].layers['#a'].x.map(k => k.time), trimmed.steps[0].layers['#b'].y, trimmed.steps[1].carried], [[0, 1], [{ time: 1.5, value: 5 }], undefined]);
   exitPlays(trailing, trimmed, 1.5, 'trailing keys');
+  // Into the motion they still carry nothing past its end: the exit starts as the motion ends.
+  const inside = moveOutBoundary(trailing, 0.5);
+  assert.deepEqual([inside.steps[1].carried, inside.steps[1].layers['#a'].x.map(k => k.time)], [0.5, [0, 0.5, 1, 1.5]]);
+  exitPlays(trailing, inside, 0.5, 'trailing keys, into the motion');
   // An exit without keys or bars stays an instant cut.
   const empty = plain(); empty.steps[1] = { name: 'Out', duration: 0, ease: 'none', layers: {} };
   assert.deepEqual(moveOutBoundary(empty, 1.5).steps.map(s => s.duration), [1.5, 0]);

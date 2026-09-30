@@ -264,6 +264,7 @@ const diamond = (page: Page, selector: string, seconds: string) => layerRow(page
 async function extent(page: Page) { return Number(await page.getByRole('slider', { name: 'Playhead' }).getAttribute('data-extent')); }
 /** Press on `handle`, drag it by `seconds` along its lane and, unless `hold`, let go. */
 async function dragBy(page: Page, handle: Locator, seconds: number, hold = false) {
+  await handle.scrollIntoViewIfNeeded();
   const lane = (await handle.locator('xpath=ancestor::*[contains(@class,"ef-track-lane")]').boundingBox())!, at = (await handle.boundingBox())!;
   const x = at.x + at.width / 2, y = at.y + at.height / 2;
   await page.mouse.move(x, y); await page.mouse.down();
@@ -314,15 +315,16 @@ test('a key drag the runtime cannot play shows its reason while held and changes
 });
 
 test('a bar body dragged across a Step flag moves its visibility and keys at their absolute times as one undo', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
   const original = await editorWith(page, fixture()), start = await state(page);
-  // The tag shows 0.2 to 0.6 s into Step 2; half a second earlier it starts in In and parks on the flag.
+  // The tag shows 0.2 to 0.6 s into Step 2; twelve frames earlier it starts in In and parks on the flag.
   // Its first bar on the row: In hides it and draws none.
   const bar = layerRow(page, '#tag').locator('.ef-bar').first();
-  await dragBy(page, bar, -.5); await ready(page);
+  await dragBy(page, bar, -.48); await ready(page);
   const d = await data(page);
-  expect([d.steps[0].spans!['#tag'], d.steps[1].spans!['#tag']]).toEqual([[{ start: .9, end: 1.2 }], [{ start: 0, end: .1 }]]);
-  expect(d.steps[0].layers['#tag'].x.map(k => k.time)).toEqual([.9, 1.2]);
-  expect(d.steps[1].layers['#tag'].x.map(k => [k.time, k.value])).toEqual([[0, d.steps[0].layers['#tag'].x[1].value], [.1, 0]]);
+  expect([d.steps[0].spans!['#tag'], d.steps[1].spans!['#tag']]).toEqual([[{ start: .92, end: 1.2 }], [{ start: 0, end: .12 }]]);
+  expect(d.steps[0].layers['#tag'].x.map(k => k.time)).toEqual([.92, 1.2]);
+  expect(d.steps[1].layers['#tag'].x.map(k => [k.time, k.value])).toEqual([[0, d.steps[0].layers['#tag'].x[1].value], [.12, 0]]);
   expect((await state(page)).history).toBe(start.history + 1);
   await undo(page); expect((await state(page)).js).toBe(original.js);
 });

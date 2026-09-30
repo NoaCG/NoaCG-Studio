@@ -505,11 +505,12 @@ test('at 30 fps Add Step parks the playhead on its own flag, on the arriving sid
 });
 
 test('a flag drag the runtime cannot play shows its reason while held and changes nothing', async ({ page }) => {
-  await editorWith(page, fixture());
-  const before = await state(page), reason = page.getByRole('alert').filter({ hasText: /cross an Out key/ });
-  // Out keeps its keys at their absolute times (R1.2a.1), so moving it later would put the box's
-  // first Out key before Out.
-  const release = await dragFlag(page, 'Out', 5, true);
+  // Step 2's box slides on a stepped ease, which no flag splits exactly. (Out moved later takes its
+  // exit along now, so R1.2a.1's refusal to cross an Out key is gone: docs/research/editor-r1-2a-5.)
+  const stepped = fixture(); stepped.steps[1].layers['#box'].x[1].ease = 'steps(4)';
+  await editorWith(page, stepped);
+  const before = await state(page), reason = page.getByRole('alert').filter({ hasText: /steps\(4\)/ });
+  const release = await dragFlag(page, 'Out', -5, true);
   await expect(flag(page, 'Out')).toHaveClass(/is-refused/); await expect(reason).toBeVisible();
   await release!(); await ready(page);
   expect(await state(page)).toEqual(before); await expect(reason).toBeVisible();

@@ -81,19 +81,30 @@ last Step as before):
   track); bars that reached E reach b. Out is unchanged, except that a layer whose bar ends
   exactly at b, which the hold now shows on its arriving side, is hidden by Out from the press.
 - **b earlier than M (into motion)**: the cue is cut at b exactly as Add Step cuts (crossed
-  segments split with `splitKeyframeSegment`, a flat segment needs no key); the motion after b
-  up to M moves into Out at its absolute times with explicit eases; the exit, all of Out's former
-  keys and bars, starts C = M - b later on Out's clock, keeping its own timing; the stillness
-  between M and E goes. Out stores `carried: C`.
-- **Carried motion rejoins first.** When Out already has carried motion, it is joined back into
-  the cue before (`joinCues`, which also rejoins the split) and the exit returns to Out's start,
-  so the rule above applies to the whole motion. Setting Out into the entrance and then back to
-  where it was plays exactly what the original played.
+  segments split with `splitKeyframeSegment`; a flat segment needs no key, and a track whose first
+  key comes after b needs no copy at Out's start, since each cue holds its first value from its
+  start); the motion after b up to M moves into Out at its absolute times, with explicit eases
+  where the two cues' default eases differ; a track with nothing but still air after b carries
+  nothing; the exit, all of Out's former keys and bars, starts C = M - b later on Out's clock,
+  keeping its own timing; the stillness between M and E goes. Out stores `carried: C`.
+- **Carried motion rejoins first.** When Out already has carried motion, Out's first C seconds
+  become a cue of their own and are joined back into the cue before (`joinCues`, which also
+  rejoins the curves the cut split, and every cue keeps its name), and the exit returns to Out's
+  start, so the rule above applies to the whole motion: any two moves equal one, and setting Out
+  into the entrance and back gives the source. A key moved by hand across the end of the carried
+  motion refuses, since it no longer tells that motion from the exit.
 - **Visibility bars follow the same rule.** The exit's own bars keep their timing from the exit's
   start. Carried bars keep their absolute times. A layer visible at the new Out stays visible
   through the carried part and then shows as its exit bars say (or throughout the exit when it has
-  none); the part of a bar that only covered the removed stillness goes. A layer visible after b
-  but hidden at b refuses, since Out never reveals a hidden layer (R1.2a.1).
+  none, needing no Out bars of its own); the part of a bar that only covered the removed stillness
+  goes. A layer visible after b but hidden at b refuses, since Out never reveals a hidden layer
+  (R1.2a.1). A bar that ended within carried motion keeps its end where the ruler showed it when
+  that motion rejoins: it does not follow a later Out as a bar reaching the hold does. One case
+  cannot be told apart once carried and is recorded as a limit: a layer whose bar ran on through
+  the stillness while its own Out bars hid it from the press plays after a round trip as one whose
+  bar ended with the motion (hidden in the returned stillness instead of shown).
+- **A layer outside the root** revealed by a Step fades where the exit starts, after the carried
+  motion (R1.2a.1 refused this crossing instead).
 - **Refusals kept** (source and history unchanged, reason beside the control): a crossed segment
   without an exact split, a nonnumeric crossed track, keys stored past the cue's end, a carried
   track whose exit starts on another value (that instant change would become motion), a layer
@@ -128,9 +139,15 @@ last Step as before):
   exactly, as Add Step cuts: a split key there with the two slices, and the next cue starting
   from a copy of its value; a flat segment needs neither. The last key of one cue and the first
   of the next at the same value are one boundary key, and move together.
+- **A key a flag's cut wrote is part of the flag.** Where a move reaches a flag, the split key an
+  Add Step, a Set Out or an earlier move wrote there is joined back into its curve first (the
+  R1.2a.4 `unsplitAt`), and the curve is cut anew after the move, so a key dragged across a flag
+  and back gives the source byte for byte. A split key moved on its own is a key like any other;
+  moved together with both its neighbours it is still the flag's.
 - **Keys keep their order on their track.** A moved key cannot pass or land on a key of its track
-  that is not moving, including a key sitting on a flag (select it too to move both). Keys cannot
-  move before In; moved past the end of Out they lengthen Out.
+  that is not moving, including one authored on a flag (select it too to move both). Keys cannot
+  move before In; moved past the end of Out they lengthen Out. The moved keys stay selected where
+  they landed.
 - **Refusals:** a track that jumps at a flag the move involves (its value there changes
   instantly, which the cut would turn into motion or lose), a move that would start a track at a
   flag with another value than the layer showed before it (R1.2a.4's join rule), a crossed
@@ -142,12 +159,23 @@ last Step as before):
 ### Moving a bar body across flags
 
 - As within a cue, the body moves the layer's visibility in that cue and every key of the layer in
-  that cue by one delta. Across a flag the bars are cut at the flag (a piece ending on the flag
-  keeps the layer on screen at the hold, on its arriving side) and join the next cue's bars; the
-  keys move as above, without coupling a boundary key's other half.
-- **Refusals:** overlapping the layer's own bars in another cue, moving before In, a key passing
-  one of the layer's keys that stays, a layer that would appear only after the Out flag (Out never
-  reveals a hidden layer), a legacy hide.
+  that cue by one delta. **A bar the layer's visibility continues across a flag moves as one**: a
+  bar reaching its cue's end and the next cue's bar from its start are one bar on the ruler, so the
+  body moves every cue it runs through, and a bar dragged across a flag and back gives the source.
+  Across a flag the bars are cut at the flag (a piece ending on the flag keeps the layer on screen
+  at the hold, on its arriving side) and join the other cues' bars; the keys move as above,
+  without coupling a boundary key's other half. A layer on screen throughout moves as a whole, Out
+  lengthening to keep its end. A body that neither crosses nor touches a flag moves as before.
+- Spelling out a layer's visibility in a cue without bars of its own now follows the runtime: after
+  a cue with bars, the layer is as that cue left it (a cue without bars never sets visibility);
+  before any, where its legacy reveal and hide put it. Until now such a cue after a hidden end was
+  written as visible, which a within-cue move or trim could also write (only in mixed hand-written
+  source; the runtime played it hidden). Out's visibility is spelled out only where a move reaches
+  it.
+- **Refusals:** overlapping the layer's own bars in another cue, moving before In (which replaces
+  the within-cue refusal "This move crosses a cue boundary"), a key passing one of the layer's keys
+  that stays, a layer that would appear only after the Out flag (Out never reveals a hidden
+  layer), a legacy hide.
 - Legacy reveals convert to bars first, as within a cue; the reveal marker moves to the cue where
   the layer now first appears, and joins into In only for a layer inside the root (R1.2a.4).
 
@@ -172,10 +200,16 @@ last Step as before):
 
 ### Existing assertions this decision changes
 
-Each encodes the old absolute exit timing, which the owner's decision replaces; nothing else in
-them changes.
+Each encodes the old absolute exit timing, which the owner's decision replaces, or a refusal this
+phase lifts; nothing else in them changes.
 
 - `scripts/out-boundary.test.mjs`
+  - "Set Out across the last In key keeps every absolute value, both velocities at b and the
+    untouched keys", "the parts it writes" and "Set Out across a Hold splits it into two held
+    halves and plays as before": Set Out cuts as Add Step does so the carried motion can rejoin
+    exactly, so the box's scale, which starts after the new Out, holds its first value from Out's
+    start without a copy, and the title's jump, finished by then, carries nothing. Playback is
+    unchanged.
   - "a move with nothing after b behaves as before, and bars no longer refuse it": Out keys keep
     their Out-clock times earlier and later, Out later no longer refuses, and a bar reaching the
     old Out is clipped to the new one with Out unchanged.
@@ -190,12 +224,17 @@ them changes.
     0.6 s long (the carried motion) instead of 1.6 s, since the entrance's stillness goes.
   - "Set Out inside a Next cue refuses until Step/Next editing, keeping source and history":
     replaced by the same Set Out succeeding as one undo.
+  - "Out interrupting an In shortened across its keys starts from the live pose in" each target:
+    the exit timeline it finds is 0.4 s long instead of 1.4 s; the live-pose values it checks are
+    unchanged.
 - `e2e/editor-steps.spec.ts`
   - "a flag drag the runtime cannot play shows its reason while held and changes nothing": Out
-    later no longer refuses, so the refused drag is a Step flag crossing a segment without an
-    exact split.
-
-Any other assertion the implementation turns out to change is added here with its reason.
+    later no longer refuses, so the refused drag is the Out flag moved into a Step whose segment
+    has no exact split.
+- `e2e/editor-keys.spec.ts`
+  - "bar movement carries disjoint spans and keys, cancel and refusal are atomic": a bar nudged
+    before In now refuses as moving before In starts, since crossing a cue boundary no longer
+    refuses.
 
 ## Verification plan
 

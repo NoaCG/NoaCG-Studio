@@ -282,6 +282,14 @@ test('keys keep their order and their cue defaults, and a boundary key moves as 
     const pair = moveKeys(split, [ref], -0.1);
     assert.deepEqual([pair.steps[0].layers['#box'].x.map(k => k.time), pair.steps[1].layers['#box'].x.map(k => k.time)], [[0, 0.3, 0.4], [0, 0.2]], JSON.stringify(ref));
   }
+  // A key dropped on a flag ends the cue before it, and the next cue starts from a copy of it.
+  const onto = { version: 2, root: '.fixture', speed: 1, steps: [
+    { name: 'In', duration: 1, ease: 'none', layers: { '#box': { x: [{ time: 0, value: 0 }, { time: 0.5, value: 10 }] } } },
+    { name: 'Step 2', duration: 1, ease: 'none', layers: { '#box': { x: [{ time: 0.3, value: 10 }, { time: 0.7, value: 20 }] } } },
+    { name: 'Out', duration: 0, ease: 'none', layers: {} },
+  ] };
+  const dropped = moveKeys(onto, [key(1, '#box', 'x', 0.3)], -0.3);
+  assert.deepEqual([dropped.steps[0].layers['#box'].x.map(k => k.time), dropped.steps[1].layers['#box'].x], [[0, 0.5, 1], [{ time: 0, value: 10 }, { time: 0.7, value: 20 }]]);
   // An Add Step cut is part of its flag: a key passes it and the curve is cut there anew.
   const across = moveKeys(split, [key(1, '#box', 'x', 0.2)], 0.3);
   playsOnRuler(before, across, { '#box x': u => u <= 0.9 ? -900 + 900 * easeCurve('power2.out')(u / 0.9) : ruler(before, '#box', 'x', u) }, 'past an Add Step cut');
