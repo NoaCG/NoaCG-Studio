@@ -10,17 +10,45 @@ import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './account
 import { changeSyncedElsewhere, libraryInUse, markOwnWritesSynced } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
-import { runSync, type SyncResult } from './sync';
+import { libraryHasArrived, runSync, type SyncResult } from './sync';
+import type { StoredRecord } from './storage';
 import { purgeOldTombstones } from '../model/packets';
 import { purgeOldShowTombstones } from '../model/shows';
 import { purgeOldVideoTombstones } from '../model/videoProject';
 import { purgeOldGraphicTombstones } from '../model/library';
 
 export type SyncPhase = 'offline' | 'syncing' | 'synced' | 'error';
+
+/** What a pass is about to pull, in the things Home lists. A tombstone brings nothing to look at,
+ *  so it is not counted. */
+export interface IncomingCounts {
+  graphics: number;
+  productions: number;
+  videos: number;
+}
+
 export interface SyncState {
   phase: SyncPhase;
   detail?: string;
   last?: SyncResult;
+  /** On 'syncing' and 'error': this library's first pass on this browser has not landed yet (it
+   *  never finished one, or the one it finished could not write its pulls), so what the account
+   *  keeps in the cloud may not be here. A browser that has none of it reads
+   *  exactly like an empty account, which is why Home asks (docs/SAVED_CONTENT_MODEL.md §3). */
+  firstPass?: boolean;
+  /** On a first pass, once the cloud has been listed: how much is on its way. */
+  incoming?: IncomingCounts;
+}
+
+function countIncoming(records: StoredRecord[]): IncomingCounts {
+  const counts: IncomingCounts = { graphics: 0, productions: 0, videos: 0 };
+  for (const r of records) {
+    if (r.deleted) continue;
+    if (r.kind === 'graphic') counts.graphics += 1;
+    else if (r.kind === 'show') counts.productions += 1;
+    else if (r.kind === 'video') counts.videos += 1;
+  }
+  return counts;
 }
 
 const local = new LocalStorageProvider();
@@ -59,6 +87,7 @@ async function canSync(): Promise<boolean> {
 
 let running = false;
 let queued = false;
+
 
 /**
  * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
@@ -122,12 +151,17 @@ export async function syncNow(): Promise<void> {
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
-  setState({ phase: 'syncing' });
+  const firstPass = !libraryHasArrived();
+  setState({ phase: 'syncing', firstPass });
   try {
     // Sync's own pull-writes dispatch 'spx-data-changed' too; that's fine — runSync is idempotent,
     // so the extra pass they schedule finds nothing to do. Not suppressing them means a genuine
     // user edit that lands DURING a sync is never swallowed and gets its own follow-up pass.
-    const result = await runSync(local, remote);
+    const result = await runSync(
+      local,
+      remote,
+      firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
+    );
     // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
     // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
@@ -150,12 +184,15 @@ export async function syncNow(): Promise<void> {
         phase: 'error',
         detail: `${result.failures.length} record${result.failures.length === 1 ? '' : 's'} failed to sync — ${shown.join('; ')}${extra}`,
         last: result,
+        // A first pass whose pulls the store refused has not brought the library either.
+        firstPass: !libraryHasArrived(),
       });
     } else {
       setState({ phase: 'synced', last: result });
     }
   } catch (e) {
-    setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e) });
+    // A pass that throws never moved the bookmark, so a first pass is still owed.
+    setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
   } finally {
     running = false;
     answer(answered);

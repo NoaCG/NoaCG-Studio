@@ -10,7 +10,7 @@
 import { test, expect, devices, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
-import { E2E_EMAIL, E2E_PASSWORD, haveCreds, settleSync, wipeMyGraphics, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { E2E_EMAIL, E2E_PASSWORD, haveCreds, mintAccount, signInOnHome, wipeMyGraphics, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { awaitDurableReady, settleDurableWrites } from '../_durable';
 
 // A SHARED LAB COMPUTER, against a real backend (src/backend/accountLibrary.ts).
@@ -38,21 +38,6 @@ const canRun = haveCreds && Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);
 
 const STUDENT_2_EMAIL = 'e2e-lab-student-2@noacg.local';
 const STUDENT_2_PASSWORD = 'noacg-e2e-lab-pw';
-
-/** Sign in through the Home topbar's own Sign in button, as a student at the computer would. */
-async function signInOnHome(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/app#/home');
-  await expect(page.getByTestId('home-page')).toBeVisible();
-  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
-  await page.locator('.auth-signin').click();
-  await page.locator('#auth-email').fill(email);
-  await page.locator('#auth-pass').fill(password);
-  await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
-  // Signing in may RELOAD the page onto the account's library (an account this browser has seen
-  // before). Both paths end with the profile button showing and the first sync settled.
-  await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
-  await settleSync(page);
-}
 
 /** Sign out through the account menu. The page reloads onto the signed-out workspace. */
 async function signOutFromMenu(page: Page): Promise<void> {
@@ -115,20 +100,7 @@ test.describe('shared lab computer (configured)', () => {
     const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
     if (listError) throw new Error(`could not list users: ${listError.message}`);
     student1 = list.users.find((u) => u.email === E2E_EMAIL)?.id ?? '';
-    // A leftover from a run that died before its cleanup is deleted and made again, so every run
-    // starts student 2 with an empty cloud.
-    const leftover = list.users.find((u) => u.email === STUDENT_2_EMAIL);
-    if (leftover) {
-      const { error: leftoverError } = await admin.auth.admin.deleteUser(leftover.id);
-      if (leftoverError) throw new Error(`could not delete a leftover student 2: ${leftoverError.message}`);
-    }
-    const { data, error } = await admin.auth.admin.createUser({
-      email: STUDENT_2_EMAIL,
-      password: STUDENT_2_PASSWORD,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`could not create student 2: ${error.message}`);
-    student2 = data.user.id;
+    student2 = await mintAccount(admin, STUDENT_2_EMAIL, STUDENT_2_PASSWORD);
   });
 
   test.afterAll(async () => {

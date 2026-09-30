@@ -115,6 +115,36 @@ h2 + .lib-row,
 }
 .home-shelf-card .muted { padding: 2px 11px 10px; font-size: 11px; }
 
+/* ── THE LIBRARY ARRIVING (docs/SAVED_CONTENT_MODEL.md §3) ────────────────────────────────
+   A first sync on a new browser, shown in place of an empty library. The bar is INDETERMINATE
+   on purpose: the pull lands in one write at the end, so there is no honest fraction to draw -
+   only that the pass is still running. */
+.home-arrival { max-width: 560px; }
+.home-arrival p:not(.hint) { margin: 0 0 4px; font-size: 14px; }
+.home-arrival-bar {
+  position: relative;
+  height: 3px;
+  margin: 14px 0 12px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--hairline-2);
+}
+.home-arrival-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  border-radius: inherit;
+  background: var(--accent-2);
+  animation: home-arrival-slide 1.4s ease-in-out infinite;
+}
+@keyframes home-arrival-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-arrival-bar span { animation: none; width: 100%; opacity: 0.45; }
+}
+
 /* ── PRODUCTION CARDS (re-design/handoff.md §5a) ──────────────────────────────────────── */
 .prod-grid {
   display: grid;

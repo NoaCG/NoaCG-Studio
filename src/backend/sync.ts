@@ -187,9 +187,18 @@ async function withWholeRecords(remote: StorageProvider, pulls: StoredRecord[]):
  * Run one full sync pass between a local and a remote provider. Idempotent: a second run right
  * after finds every record equal and does nothing. Per-record failures never sink the pass — they
  * are collected into the result and carried in the pending sets (see the header).
+ *
+ * `onPlan` hears the plan as soon as both sides are listed, before a whole record is fetched: the
+ * listing is quick and the fetch is the long part, so this is the earliest moment anyone can say
+ * how much is on its way (Home does, on a first pass - syncController.ts).
  */
-export async function runSync(local: StorageProvider, remote: StorageProvider): Promise<SyncResult> {
+export async function runSync(
+  local: StorageProvider,
+  remote: StorageProvider,
+  onPlan?: (plan: SyncPlan) => void,
+): Promise<SyncResult> {
   const meta = loadSyncMeta();
+  const arriving = !arrived(meta);
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
   // the bookmark stays put (correct — nothing was applied).
   const localRecs = (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat();
@@ -199,6 +208,7 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     push: new Set(meta.pendingPush),
     conflict: new Set(meta.pendingConflict),
   });
+  onPlan?.(plan);
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
   // the pass rather than one record (see withWholeRecords).
   plan.toLocal = await withWholeRecords(remote, plan.toLocal);
@@ -318,6 +328,7 @@ export async function runSync(local: StorageProvider, remote: StorageProvider): 
     lastSyncedAt: new Date().toISOString(),
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
+    pullsOwed: arriving && failures.some((f) => f.op === 'pull'),
   });
   return { pushed, pulled, conflicts, failures };
 }
@@ -348,6 +359,10 @@ interface SyncMeta {
   lastSyncedAt: string;
   pendingPush: string[];
   pendingConflict: string[];
+  /** The library's first pass on this browser COMPLETED without landing its pulls (the local
+   *  store refused them). The bookmark moved anyway, so this is what still says the library has
+   *  not arrived (`libraryHasArrived`) until a later pass lands them. */
+  pullsOwed: boolean;
 }
 
 function loadSyncMeta(): SyncMeta {
@@ -359,9 +374,10 @@ function loadSyncMeta(): SyncMeta {
       lastSyncedAt: typeof m.lastSyncedAt === 'string' && m.lastSyncedAt ? m.lastSyncedAt : EPOCH,
       pendingPush: strings(m.pendingPush),
       pendingConflict: strings(m.pendingConflict),
+      pullsOwed: m.pullsOwed === true,
     };
   } catch {
-    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [] };
+    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pullsOwed: false };
   }
 }
 
@@ -373,6 +389,13 @@ function saveSyncMeta(meta: SyncMeta): void {
   }
 }
 
-export function loadLastSyncedAt(): string {
-  return loadSyncMeta().lastSyncedAt;
+function arrived(meta: SyncMeta): boolean {
+  return meta.lastSyncedAt !== EPOCH && !meta.pullsOwed;
+}
+
+/** Has the library in use ARRIVED on this browser: a pass completed and landed what it pulled?
+ *  Only a completed pass moves the bookmark off the epoch, so a pass that failed to list the cloud
+ *  leaves this false, and so does one whose pulls the local store refused. */
+export function libraryHasArrived(): boolean {
+  return arrived(loadSyncMeta());
 }
