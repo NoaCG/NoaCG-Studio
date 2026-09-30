@@ -27,9 +27,10 @@
 --   protocol 2 this topic is a renderer's only road for commands.
 -- - control_send_seq: the same batch as control_send_many, plus the sender's id, press number,
 --   epoch and the revision it last saw per graphic. A press made without seeing a change another
---   screen made is refused as `stale` and says what is on air now; the same page's earlier press
---   arriving after its later one is refused as `superseded`; a resent press is answered as
---   applied. All out is never refused, but never undoes the same page's later press.
+--   screen made is refused as `stale` and says what is on air now; a graphic the same page has
+--   pressed again since is left as that later press left it (`skipped`) while the batch's other
+--   graphics apply; nothing a page pressed before its own All out airs after it (the whole press
+--   is refused as `superseded`); a resent press is answered as applied. All out is never refused.
 -- - control_show_resolve / control_output_resolve / control_tail_seq / control_output_tail_seq /
 --   control_output_report_seq: the reads and the report for a follower that follows by seq.
 --   Reports now live in control_heads.live, off the hot row.
@@ -317,7 +318,8 @@ declare
   v_mine boolean;
   v_cur_press numeric;
   v_stale text[] := '{}';
-  v_superseded boolean := false;
+  v_wall bigint;
+  v_panic jsonb;
   v_skip text[] := '{}';
   v_items jsonb;
   v_n int;
@@ -358,10 +360,12 @@ begin
   v_base := case when jsonb_typeof(p_sender->'base') = 'object' then p_sender->'base' else '{}'::jsonb end;
   v_key := v_sender::text || ':' || v_press::text;
   select array_agg(distinct x.value->>'graphic') into v_touched from jsonb_array_elements(p_items) x;
-  -- A press that cannot get the head within 1 s answers 55P03 and is sent again by the page: the
+  -- Each lock wait below is bounded at 1 s, which answers 55P03, and the page sends again: the
   -- send is idempotent, so that is safe. 1 s is below the page's 1.5 s attempt (failedSends.ts
-  -- ATTEMPT_TIMEOUT_MS) less a round trip, so the answer reaches the page before it gives up, and
-  -- an attempt the page has abandoned cannot go on waiting and commit late.
+  -- ATTEMPT_TIMEOUT_MS) less a round trip, so one stalled lock answers before the page gives up.
+  -- The bound is per lock, not per call: a press that waits for the show row AND the head can take
+  -- about 2 s, outlive its attempt and commit late. That is safe too: a resend of it is answered
+  -- as a duplicate, and a later press of the same page already on the head skips it (step 6).
   perform set_config('lock_timeout', '1000', true);
 
   -- 2. The lock order: the production's row at KEY SHARE (a publish's or a report's NO KEY UPDATE
@@ -372,8 +376,10 @@ begin
   select * into v_head from public.control_heads h where h.show_id = v_show for update;
   -- HOLDING THE HEAD, nothing may wait long: every other send and report of this production is
   -- queued behind it. What remains takes only this transaction's own rows and realtime.messages
-  -- (the per-row log- broadcast, the seq- frame, the cmd- frame), so a stall there answers 55P03
-  -- in 250 ms, the page sends again, and the head is free.
+  -- (the per-row log- broadcast, the seq- frame, the cmd- frame), each through realtime.send,
+  -- which swallows a lock timeout into a warning: under a stall on realtime.messages each of them
+  -- gives up after 250 ms and the head is free, and the press commits without that frame (its
+  -- followers find the rows on the next frame or the 30 s poll, design K3).
   perform set_config('lock_timeout', '250ms', true);
 
   -- 3. A press already applied is answered as applied, and applied once.
@@ -392,30 +398,51 @@ begin
       'stale', to_jsonb(v_touched), 'graphics', public.control_head_pick(v_head.graphics, v_touched));
   end if;
 
-  -- 5. The revision, per touched graphic: applied when nothing changed since this page last
-  --    looked, or when every change since was this page's own earlier press. All out is never
-  --    refused, but a graphic this page has pressed again since is left as that press left it.
+  -- 5. Nothing a page pressed before its own All out airs after it. Every All out a sender lands
+  --    leaves its press in the head (`panic`); a later-arriving press of that sender numbered below
+  --    it is refused whole as superseded, whatever it touches: a Take queued behind another send
+  --    must not put a graphic back on air after the panic control (review 2 ordering:F2).
+  select max((p->>'p')::bigint) into v_wall
+    from jsonb_array_elements(v_head.panic) p where p->>'s' = v_sender::text;
+  if not v_all_out and v_wall is not null and v_press < v_wall then
+    return jsonb_build_object('ok', false, 'refused', 'superseded', 'epoch', v_head.epoch,
+      'stale', '[]'::jsonb, 'graphics', public.control_head_pick(v_head.graphics, v_touched));
+  end if;
+
+  -- 6. Per touched graphic. One this page has pressed again since (its own LATER press stands) is
+  --    left as that press left it and named in `skipped`; the batch's other graphics still apply,
+  --    so an Out of nine graphics loses none of them to a re-Take of one (review 3 client:F1).
+  --    Otherwise it applies when nothing changed since this page last looked, or when every change
+  --    since was this page's own earlier press. A change another screen made that this page had
+  --    not seen refuses the whole batch as stale; All out is never refused.
   foreach v_g in array v_touched loop
     v_cur := case when jsonb_typeof(v_head.graphics->v_g) = 'object' then v_head.graphics->v_g else '{}'::jsonb end;
     v_mine := coalesce(v_cur->>'by' = v_sender::text, false);
     v_cur_press := case when jsonb_typeof(v_cur->'press') = 'number' then (v_cur->>'press')::numeric else 0 end;
-    if v_all_out then
-      if v_mine and v_cur_press > v_press then
-        v_skip := v_skip || v_g;
-      end if;
-    elsif not (
+    if v_mine and v_cur_press > v_press then
+      v_skip := v_skip || v_g;
+    elsif not v_all_out and not (
         (case when jsonb_typeof(v_base->v_g) = 'number' then (v_base->>v_g)::numeric else 0 end)
           = (case when jsonb_typeof(v_cur->'rev') = 'number' then (v_cur->>'rev')::numeric else 0 end)
         or (v_mine and v_cur_press < v_press)) then
-      if v_mine then v_superseded := true; else v_stale := v_stale || v_g; end if;
+      v_stale := v_stale || v_g;
     end if;
   end loop;
-  if cardinality(v_stale) > 0 or v_superseded then
-    return jsonb_build_object('ok', false,
-      'refused', case when cardinality(v_stale) > 0 then 'stale' else 'superseded' end,
-      'epoch', v_head.epoch,
+  if cardinality(v_stale) > 0 then
+    return jsonb_build_object('ok', false, 'refused', 'stale', 'epoch', v_head.epoch,
       'stale', to_jsonb(v_stale),
       'graphics', public.control_head_pick(v_head.graphics, v_touched));
+  end if;
+
+  -- An All out raises its sender's panic mark, the newest 16 senders kept.
+  v_panic := v_head.panic;
+  if v_all_out then
+    select coalesce(jsonb_agg(p order by o), '[]'::jsonb) into v_panic
+      from jsonb_array_elements(v_head.panic) with ordinality x(p, o) where p->>'s' <> v_sender::text;
+    v_panic := v_panic || jsonb_build_array(jsonb_build_object('s', v_sender::text, 'p', greatest(v_press, coalesce(v_wall, v_press))));
+    while jsonb_array_length(v_panic) > 16 loop
+      v_panic := v_panic - 0;
+    end loop;
   end if;
 
   select coalesce(jsonb_agg(x.value order by x.ord), '[]'::jsonb) into v_items
@@ -423,21 +450,27 @@ begin
    where not ((x.value->>'graphic') = any (v_skip));
   v_n := jsonb_array_length(v_items);
   if v_n = 0 then
+    if v_all_out then
+      update public.control_heads h set panic = v_panic, updated_at = now() where h.show_id = v_show;
+    end if;
     return jsonb_build_object('ok', true, 'epoch', v_head.epoch, 'skipped', to_jsonb(v_skip),
       'head', jsonb_build_object('seq', v_head.seq, 'graphics', public.control_head_pick(v_head.graphics, v_touched)));
   end if;
 
-  -- 6. The burst cap, 0057's rule over at most the last 51 rows (the (show_id, id) index), so it
-  --    costs the same on a production with a long log.
+  -- 7. The burst cap, 0057's rule over at most the last 51 COMMAND rows (the (show_id, id) index),
+  --    so it costs the same on a production with a long log. A renderer's report (`live`) is not
+  --    an operator's command: counted, a burst of reports (every renderer re-banking after a
+  --    republish) refused the operator's Takes (review 3 client:F2).
   select count(*) into v_recent
     from (select e.created_at from public.control_events e
-           where e.show_id = v_show order by e.id desc limit 51) t
+           where e.show_id = v_show and e.msg->>'t' is distinct from 'live'
+           order by e.id desc limit 51) t
    where t.created_at > now() - interval '5 seconds';
   if v_recent + v_n > 50 then
     raise exception 'too many commands — slow down' using errcode = 'check_violation';
   end if;
 
-  -- 7. The numbers and the summary, in one write of the head.
+  -- 8. The numbers and the summary, in one write of the head.
   v_graphics := v_head.graphics;
   for v_item in select x.value from jsonb_array_elements(v_items) with ordinality as x(value, ord) order by x.ord loop
     v_graphics := public.control_head_effect(v_graphics, v_item->>'graphic', v_item->'msg', v_sender::text, v_press);
@@ -448,16 +481,16 @@ begin
   end if;
   v_from := v_head.seq + 1;
   update public.control_heads h
-     set seq = v_head.seq + v_n, graphics = v_graphics, recent = v_recent_keys, updated_at = now()
+     set seq = v_head.seq + v_n, graphics = v_graphics, recent = v_recent_keys, panic = v_panic, updated_at = now()
    where h.show_id = v_show;
 
-  -- 8. The rows, numbered, in ONE statement: one frame on seq-<show id>.
+  -- 9. The rows, numbered, in ONE statement: one frame on seq-<show id>.
   insert into public.control_events (show_id, graphic, msg, seq, created_at)
     select v_show, x.value->>'graphic', x.value->'msg', v_from + x.ord - 1, clock_timestamp()
       from jsonb_array_elements(v_items) with ordinality as x(value, ord)
      order by x.ord;
 
-  -- 9. The fast frame on cmd-<show id>, exactly as 0057 sends it, for old followers.
+  -- 10. The fast frame on cmd-<show id>, exactly as 0057 sends it, for old followers.
   select jsonb_agg(jsonb_build_object('graphic', x.value->>'graphic', 'msg', x.value->'msg') order by x.ord)
     into v_fast
     from jsonb_array_elements(v_items) with ordinality as x(value, ord)
@@ -466,7 +499,7 @@ begin
     perform realtime.send(jsonb_build_object('items', v_fast), 'cmd', 'cmd-' || v_show::text, true);
   end if;
 
-  -- 10. What this press made of the touched graphics.
+  -- 11. What this press made of the touched graphics.
   return jsonb_build_object('ok', true, 'epoch', v_head.epoch, 'seq_from', v_from, 'seq_to', v_from + v_n - 1,
     'skipped', to_jsonb(v_skip),
     'head', jsonb_build_object('seq', v_from + v_n - 1, 'graphics', public.control_head_pick(v_graphics, v_touched)));
@@ -785,6 +818,7 @@ declare
   v_show  uuid := gen_random_uuid();
   v_a     uuid := '00000000-0070-4000-8000-00000000000a';
   v_b     uuid := '00000000-0070-4000-8000-00000000000b';
+  v_c     uuid := '00000000-0070-4000-8000-00000000000c';
   v_slug  text;
   v_out   text;
   v_epoch uuid;
@@ -849,16 +883,21 @@ begin
                   and p.cmd in ('SELECT', 'ALL') and p.qual like '%seq-%') then
     raise exception '0071 self-check failed: no read policy admits the seq- topic (0070 must apply first)';
   end if;
-  if exists (select 1 from pg_policies p where p.schemaname = 'realtime' and p.tablename = 'messages'
-              and p.cmd in ('INSERT', 'ALL') and coalesce(p.with_check, p.qual, '') like '%seq-%') then
-    raise exception '0071 self-check failed: a client can write on the seq- topic';
-  end if;
-  -- And no client may put a broadcast on any private topic (0056's rule): a client insert policy
-  -- on realtime.messages is admissible only for Presence (0068).
-  if exists (select 1 from pg_policies p where p.schemaname = 'realtime' and p.tablename = 'messages'
-              and p.cmd in ('INSERT', 'ALL') and (p.roles::text[] && array['anon', 'authenticated', 'public'])
-              and coalesce(p.with_check, '') not like '%presence%') then
-    raise exception '0071 self-check failed: a client can broadcast on realtime.messages';
+  -- And no client may write on any private topic but Presence on live- (0056's rule and 0068's
+  -- allow-list, word for word, plus: nothing naming seq). An allow-list, not a search for the
+  -- string 'seq-': a policy on '^(live|seq)-' or on any topic with Presence would pass a search.
+  select string_agg(p.policyname, ', ') into v_err from pg_policies p
+   where p.schemaname = 'realtime' and p.tablename = 'messages'
+     and p.cmd in ('INSERT', 'ALL')
+     and (p.roles::text[] && array['anon', 'authenticated', 'public'])
+     and not (
+       p.cmd = 'INSERT'
+       and coalesce(p.with_check, '') ~ 'extension = ''presence'''
+       and coalesce(p.with_check, '') ~ '\^live-'
+       and coalesce(p.with_check, '') !~ 'seq'
+     );
+  if v_err is not null then
+    raise exception '0071 self-check failed: a client can write on realtime.messages beyond Presence on live- (%)', v_err;
   end if;
 
   -- (b) CALL it, as an owner hosted control is open to (a suspended account or a switched-off
@@ -960,16 +999,19 @@ begin
     raise exception '0071 self-check failed: an Out through the head did not take the layer off in the resolve';
   end if;
 
-  -- (h) The page's later press (4) lands first; its earlier one (3) arriving after it is superseded.
+  -- (h) The page's later press (4) lands first; its earlier one (3) arriving after it leaves Bug
+  --     as press 4 left it, and writes nothing.
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"z"}}}]'::jsonb,
     jsonb_build_object('id', v_a, 'press', 4, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if v_ans->>'ok' <> 'true' then
     raise exception '0071 self-check failed: a chained press was refused (%)', v_ans;
   end if;
+  v_n := (select count(*) from public.control_events e where e.show_id = v_show);
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"play"}}]'::jsonb,
     jsonb_build_object('id', v_a, 'press', 3, 'epoch', v_epoch, 'base', '{}'::jsonb));
-  if v_ans->>'refused' is distinct from 'superseded' then
-    raise exception '0071 self-check failed: an earlier press arriving late was not superseded (%)', v_ans;
+  if v_ans->>'ok' is distinct from 'true' or v_ans->'skipped' is distinct from '["Bug"]'::jsonb
+     or (select count(*) from public.control_events e where e.show_id = v_show) <> v_n then
+    raise exception '0071 self-check failed: an earlier press arriving late was not left out (%)', v_ans;
   end if;
 
   -- (i) A resend of a press that applied is answered as applied, and inserts nothing.
@@ -989,6 +1031,48 @@ begin
      or (select count(*) from public.control_events e where e.show_id = v_show and e.seq > v_n) <> 2
      or exists (select 1 from public.control_events e where e.show_id = v_show and e.seq > v_n and e.graphic = 'Bug') then
     raise exception '0071 self-check failed: All out undid the page''s later press, or was refused (%)', v_ans;
+  end if;
+
+  -- (j2) Per graphic: a third page's press on Card (10) lands; its earlier press (9) on Card and
+  --      Bug arrives after it. Card is left as press 10 left it, and Bug still applies.
+  v_ans := public.control_send_seq(v_slug, '[{"graphic":"Card","msg":{"t":"update","data":{"f0":"c10"}}}]'::jsonb,
+    jsonb_build_object('id', v_c, 'press', 10, 'epoch', v_epoch,
+      'base', jsonb_build_object('Card', (select (h.graphics->'Card'->>'rev')::int from public.control_heads h where h.show_id = v_show))));
+  if v_ans->>'ok' is distinct from 'true' then
+    raise exception '0071 self-check failed: a current press on Card was refused (%)', v_ans;
+  end if;
+  v_n := (select count(*) from public.control_events e where e.show_id = v_show);
+  v_ans := public.control_send_seq(v_slug,
+    '[{"graphic":"Card","msg":{"t":"play"}},{"graphic":"Bug","msg":{"t":"update","data":{"f0":"c9"}}}]'::jsonb,
+    jsonb_build_object('id', v_c, 'press', 9, 'epoch', v_epoch,
+      'base', jsonb_build_object('Bug', (select (h.graphics->'Bug'->>'rev')::int from public.control_heads h where h.show_id = v_show))));
+  if v_ans->>'ok' is distinct from 'true' or v_ans->'skipped' is distinct from '["Card"]'::jsonb
+     or (select count(*) from public.control_events e where e.show_id = v_show) <> v_n + 1
+     or not exists (select 1 from public.control_events e where e.show_id = v_show and e.graphic = 'Bug'
+                     and e.msg->'data'->>'f0' = 'c9') then
+    raise exception '0071 self-check failed: a late press did not leave Card alone and apply Bug (%)', v_ans;
+  end if;
+  -- (j3) The panic mark: that page's All out (20) lands; a press it made before (15) arriving after
+  --      is refused whole and writes nothing, and a press after (21) applies.
+  v_ans := public.control_send_seq(v_slug, '[{"graphic":"Card","msg":{"t":"stop"}}]'::jsonb,
+    jsonb_build_object('id', v_c, 'press', 20, 'epoch', v_epoch, 'base', '{}'::jsonb, 'all_out', true));
+  if v_ans->>'ok' is distinct from 'true'
+     or not exists (select 1 from public.control_heads h, jsonb_array_elements(h.panic) p
+                     where h.show_id = v_show and p->>'s' = v_c::text and (p->>'p')::bigint = 20) then
+    raise exception '0071 self-check failed: an All out did not leave its panic mark (%)', v_ans;
+  end if;
+  v_n := (select count(*) from public.control_events e where e.show_id = v_show);
+  v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"play"}}]'::jsonb,
+    jsonb_build_object('id', v_c, 'press', 15, 'epoch', v_epoch,
+      'base', jsonb_build_object('Bug', (select (h.graphics->'Bug'->>'rev')::int from public.control_heads h where h.show_id = v_show))));
+  if v_ans->>'refused' is distinct from 'superseded' or (select count(*) from public.control_events e where e.show_id = v_show) <> v_n then
+    raise exception '0071 self-check failed: a press made before the page''s All out aired after it (%)', v_ans;
+  end if;
+  v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"c21"}}}]'::jsonb,
+    jsonb_build_object('id', v_c, 'press', 21, 'epoch', v_epoch,
+      'base', jsonb_build_object('Bug', (select (h.graphics->'Bug'->>'rev')::int from public.control_heads h where h.show_id = v_show))));
+  if v_ans->>'ok' is distinct from 'true' then
+    raise exception '0071 self-check failed: a press after the page''s All out was refused (%)', v_ans;
   end if;
 
   -- (k) Another epoch is stale; a sender that is not a uuid, and the two batch refusals, still raise.
@@ -1074,7 +1158,7 @@ begin
   v_err := (public.control_output_tail_seq(v_out, 0, gen_random_uuid()))::text;
   v_id := null;
   v_ans := v_ans || jsonb_build_object('_send', public.control_send_seq(v_slug, '[{"graphic":"Card","msg":{"t":"next"}}]'::jsonb,
-    jsonb_build_object('id', v_b, 'press', 2, 'epoch', v_epoch,
+    jsonb_build_object('id', v_b, 'press', 6, 'epoch', v_epoch,
       'base', jsonb_build_object('Card', (v_ans->'graphics'->'Card'->>'rev')::int))));
   execute format('set local role %I', v_role);
   if v_res->>'proto' <> '2' or v_res->>'epoch' is distinct from v_epoch::text or (v_res->>'legacy')::boolean
@@ -1109,6 +1193,9 @@ begin
     raise exception '0071 self-check failed: a republished production did not start a new epoch at 1';
   end if;
 
+  -- The throwaway goes. The identity its insert recorded (0040's trigger, not cascaded by design)
+  -- stays, as 0057's and 0060's do: db-push refuses a delete from a table this block does not
+  -- write itself (design K14).
   delete from public.control_shows where id = v_show;
 exception when others then
   execute format('set local role %I', v_role);

@@ -48,13 +48,21 @@ begin
                   and policyname = 'seq_topic_readable' and cmd = 'SELECT') then
     raise exception 'seq topic self-check failed: the read policy is missing';
   end if;
-  -- Nothing a client holds may write on this topic: no policy that can admit an INSERT names it.
+  -- Nothing a client holds may write on this topic. An allow-list, as 0068's: every client-role
+  -- policy that can admit an INSERT must be Presence on live- and name nothing else (a search for
+  -- the string 'seq-' would pass a policy on '^(live|seq)-' or on any topic with Presence).
   select string_agg(policyname, ', ') into v_writes from pg_policies
    where schemaname = 'realtime' and tablename = 'messages'
      and cmd in ('INSERT', 'ALL')
-     and coalesce(with_check, qual, '') ~ 'seq-';
+     and (roles::text[] && array['anon', 'authenticated', 'public'])
+     and not (
+       cmd = 'INSERT'
+       and coalesce(with_check, '') ~ 'extension = ''presence'''
+       and coalesce(with_check, '') ~ '\^live-'
+       and coalesce(with_check, '') !~ 'seq'
+     );
   if v_writes is not null then
-    raise exception 'seq topic self-check failed: a policy lets a client write on the seq- topic (%)', v_writes;
+    raise exception 'seq topic self-check failed: a client can write on realtime.messages beyond Presence on live- (%)', v_writes;
   end if;
   if not (has_table_privilege('anon', 'realtime.messages', 'SELECT')
           and has_table_privilege('authenticated', 'realtime.messages', 'SELECT')) then
