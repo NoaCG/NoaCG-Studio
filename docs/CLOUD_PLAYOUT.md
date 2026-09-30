@@ -228,6 +228,14 @@ The page:
   and times press to receive to stage to first frame. All of it is on the `&debug=1` line, on
   `window.__noacgLive`, and in the renderer's Realtime PRESENCE entry on the private topic
   `live-<show id>` (migration 0068). Report-only: nothing acts on it yet.
+  **Presence has a budget.** Supabase Realtime allows 5 Presence calls (track or untrack) per
+  client per 30 s on every plan and closes a client that goes over ("Client presence rate limit
+  exceeded"), and the project as a whole gets 50 Presence messages per second on Pro. The first
+  build re-announced every 5 s and had its live channel closed 25 to 27 s after every join. Every
+  Presence call a page makes now passes one gate per page (`src/control/presenceGate.ts`): at
+  most one call per 10 s, coalesced to the latest state, so at most three in any 30 s, with room
+  for a rejoin. The first announce on a quiet page is immediate; counters on the Presence entry can
+  be up to 10 s behind, and the `&debug=1` line stays live.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
