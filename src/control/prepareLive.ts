@@ -14,7 +14,7 @@
 import type { LiveEntry } from './livePath';
 import type { PlayoutResult } from './playoutLink';
 import type { SlotState } from './playoutProtocol';
-import { NOT_ANSWERING_MS, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp, type ReadyTone } from './readiness.ts';
+import { NOT_ANSWERING_MS, clockWords, plural, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp, type ReadyTone } from './readiness.ts';
 
 /** What the production page asks the outputs to prepare, in its own Presence entry (R4). A fresh
  *  id per press, so pressing again runs everything again. */
@@ -105,13 +105,6 @@ export function stampOf(lines: readonly CheckLine[], target: HeldVersion, now: n
     warnings: counted.filter((l) => l.tone === 'warn' || l.tone === 'idle' || l.tone === 'running').length,
     problems: counted.filter((l) => l.tone === 'bad').length,
   };
-}
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
-function clockWords(at: number): string {
-  const d = new Date(at);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /**

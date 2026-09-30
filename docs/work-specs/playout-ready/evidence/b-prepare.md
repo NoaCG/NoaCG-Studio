@@ -60,8 +60,20 @@ never production.
   `prepare-desk-1920-not-ready`, `prepare-hosts-desk-1920-panel` (four hosts, 2.3's change not
   prepared), `prepare-hosts-phone-390-panel`.
 
+- **Review** (inline, 5 findings, 3 fixed): the run's state lived in the READY popover, which
+  unmounts when it closes, so a click outside it (a Take) abandoned the run before its stamp and
+  left the request announced. It now lives in the production page; the configured spec shuts the
+  panel while the run is still publishing and expects the stamp and the checklist when it reopens
+  (j-2751, 1 of 1; the same spec on the old code fails with the stamp stuck on v1, j-2750). On
+  protocol 2 an output counted what is on air from the log's heads alone, which reads as nothing
+  on air before it has heard one; it now falls back to the graphics it played until then. A throw
+  while preparing now leaves the output on its version instead of stuck on preparing. Offline
+  output specs after the fixes: j-2747, 11 of 11; configured READY and Prepare: j-2748, 2 of 2.
+
 ## Limits
 
 - The Prepare for Live stamp lives in the production page's browser and on the live topic; a
   hosted page opened while no production page is open shows no stamp.
 - The Bridge checks ran against CasparCG 2.5.0 only.
+- A publish made while a run is out moves the server past the version the run waits for: the run
+  ends on its 60 s wait with "still preparing" warnings, and pressing again settles it.

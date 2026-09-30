@@ -208,7 +208,7 @@ function readChange(value: unknown): ChangePrep | undefined {
 
 // ── THE WORDS FOR ONE ISSUE ──────────────────────────────────────────────────────────────────
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
@@ -349,7 +349,7 @@ export function ageWords(ms: number): string {
 }
 
 /** "14:02", on the reading page's clock. */
-function clockWords(at: number): string {
+export function clockWords(at: number): string {
   const d = new Date(at);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
