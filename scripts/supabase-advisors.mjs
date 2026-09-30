@@ -121,6 +121,38 @@ const ACCEPTED_CLASSES = {
 };
 
 /**
+ * The one class whose NEW members are reported as warnings and never fail the run.
+ *
+ * `unused_index` reads `pg_stat_user_indexes.idx_scan = 0`, a usage counter, not a property of the
+ * schema. It is zero for every index a migration has just added (the feature has had no production
+ * traffic yet, and the baseline cannot be recorded before production has the index), and it goes
+ * back to zero for EVERY index whenever Postgres resets its statistics, which an unclean restart
+ * does. On 2026-09-29 that turned 38 indexes from migrations 0003 to 0054 into new findings at once,
+ * `render_jobs_active` among them, which production had scanned on 2026-09-24. A finding that fires
+ * for a new index, for an old one after a restart, and for nothing a migration did wrong carries no
+ * signal for this alarm. Every other class keeps failing on a new member.
+ */
+export const WARN_ONLY_CLASSES = new Set(['unused_index']);
+
+/**
+ * Compare a live report against the baseline. Pure, so the rule that decides the exit code is
+ * tested without the Management API (scripts/supabase-advisors.test.mjs).
+ *
+ * `seen` maps each finding's `cache_key` to `{ name, level, detail }`; `accepted` is the set of
+ * baseline keys. Returns the sorted key lists and the exit code the header's table defines.
+ */
+export function judge(seen, accepted) {
+  const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
+  const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
+  const warnings = added.filter((k) => WARN_ONLY_CLASSES.has(seen.get(k).name));
+  const failing = added.filter((k) => !WARN_ONLY_CLASSES.has(seen.get(k).name));
+  // EVERY ACCEPTED FINDING CLEARING AT ONCE IS NOT GOOD NEWS: see the message in main().
+  const comparedAgainstNothing = accepted.size > 0 && cleared.length === accepted.size;
+  const exitCode = comparedAgainstNothing ? 3 : failing.length ? 1 : 0;
+  return { added, failing, warnings, cleared, comparedAgainstNothing, exitCode };
+}
+
+/**
  * The project to ask about: an explicit `SUPABASE_PROJECT_REF`, otherwise the one the CLIENT is
  * built against, taken from `VITE_SUPABASE_URL`.
  *
@@ -210,14 +242,116 @@ const readInput = (file) => {
   throw new Error(`${file}: expected an array, or an object with a lints/findings array`);
 };
 
+const recordBaseline = (seen) => {
+  const entries = {};
+  for (const key of [...seen.keys()].sort()) entries[key] = seen.get(key);
+  writeFileSync(
+    BASELINE,
+    `${JSON.stringify(
+      {
+        note:
+          'Advisor findings seen and accepted. Regenerate with ' +
+          '`node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because ' +
+          'of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording ' +
+          'accepts everything currently reported, so read the diff before committing one.',
+        recordedAt: new Date().toISOString().slice(0, 10),
+        count: Object.keys(entries).length,
+        entries,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  console.log(`Recorded ${Object.keys(entries).length} accepted findings to supabase/advisor-baseline.json`);
+};
+
+const compareWithBaseline = (seen) => {
+  if (!existsSync(BASELINE)) {
+    console.error(
+      'supabase-advisors: no baseline yet. Record one with:\n' +
+        '  node scripts/supabase-advisors.mjs --update-baseline\n' +
+        'Read the recorded file before committing it - it accepts everything currently reported.',
+    );
+    process.exitCode = 2;
+    return;
+  }
+  const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
+  // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
+  // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
+  // a zero here would fail the gate for succeeding. What is never honest is `entries` having
+  // been renamed away, which would silently compare every live finding against nothing.
+  if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
+    throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
+  }
+  const accepted = new Set(Object.keys(baseline.entries));
+  measured.optional(
+    accepted.size,
+    'accepted baseline findings',
+    'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
+  );
+  const verdict = judge(seen, accepted);
+  const { failing, warnings, cleared } = verdict;
+
+  if (asJson) {
+    const expand = (keys) => keys.map((k) => ({ key: k, ...seen.get(k) }));
+    console.log(JSON.stringify({ total: seen.size, added: expand(failing), warnings: expand(warnings), cleared }, null, 2));
+  } else {
+    console.log(`${seen.size} advisor findings; ${accepted.size} accepted in the baseline.`);
+    if (failing.length) {
+      console.log('\nNEW since the baseline:');
+      for (const key of failing) {
+        const f = seen.get(key);
+        console.log(`  - [${f.level}] ${f.name}`);
+        console.log(`      ${f.detail}`);
+        const why = ACCEPTED_CLASSES[f.name];
+        // A new member of an accepted class is still new. Say what the class is accepted
+        // FOR, so the reader can judge whether this occurrence is the same thing or a real
+        // mistake wearing a familiar name.
+        if (why) console.log(`      (this class is accepted because: ${why})`);
+      }
+    }
+    // Printed, never failing: see WARN_ONLY_CLASSES for why this class carries no signal here.
+    if (warnings.length) {
+      console.log(`\nWarning, not failing (${warnings.length}): new since the baseline, in a class that never fails this check:`);
+      for (const key of warnings) console.log(`  - [${seen.get(key).level}] ${seen.get(key).name}: ${seen.get(key).detail}`);
+    }
+    // A cleared finding is good news and must never fail the run - but it should be
+    // re-recorded, or the baseline slowly becomes a list of things that no longer exist and
+    // stops meaning "accepted".
+    if (cleared.length) {
+      console.log(`\nGone since the baseline (${cleared.length}) - re-record when convenient:`);
+      for (const key of cleared) console.log(`  - ${key}`);
+    }
+    if (!verdict.added.length && !cleared.length) console.log('No change against the baseline.');
+  }
+
+  // EVERY ACCEPTED FINDING CLEARING AT ONCE IS NOT GOOD NEWS. A hundred-odd standing
+  // advisories are not fixed by one landing, so the plausible causes are a payload this
+  // script could not read properly and a baseline that no longer describes this project -
+  // and a cleared finding never fails, by design, so without this the run exits 0 having
+  // compared nothing. The report above still prints, because the list of what "cleared" is
+  // what tells the reader which of the two it is.
+  //
+  // Exit 3, not 1: nobody should be sent hunting for a new finding that does not exist, and
+  // post-land should not red a landing for something upstream most likely did.
+  if (verdict.comparedAgainstNothing) {
+    console.error(
+      `\nsupabase-advisors: all ${accepted.size} accepted findings are absent from a report of ` +
+        `${seen.size} - that is a comparison against the wrong data, not a clean project. ` +
+        'Check the project ref and the payload before re-recording anything.',
+    );
+  }
+  process.exitCode = verdict.exitCode;
+};
+
 // EXIT 2 FOR ANY UNEXPECTED ERROR, never the uncaught throw's 1: a mangled baseline, an
 // unconfigured project ref or a bug in this file would otherwise send somebody hunting for a new
 // advisor finding that does not exist. The exit-code table in the header says what each means.
-try {
-  const lints = inputArg ? readInput(inputArg) : await fetchAdvisors();
-  if (lints === null) {
-    // fetchAdvisors already explained itself and set the exit code.
-  } else {
+const main = async () => {
+  try {
+    const lints = inputArg ? readInput(inputArg) : await fetchAdvisors();
+    // null: fetchAdvisors already explained itself and set the exit code.
+    if (lints === null) return;
     // `cache_key` is the advisors' own stable identity for a finding - it survives rewording of
     // the human-facing detail, which a hash of the message would not.
     const seen = new Map();
@@ -229,103 +363,15 @@ try {
         'check hopes for rather than a sign it stopped looking. The baseline count below is the ' +
         'report that would notice a comparison against nothing.',
     );
-
-    if (updating) {
-      const entries = {};
-      for (const key of [...seen.keys()].sort()) entries[key] = seen.get(key);
-      writeFileSync(
-        BASELINE,
-        `${JSON.stringify(
-          {
-            note:
-              'Advisor findings seen and accepted. Regenerate with ' +
-              '`node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because ' +
-              'of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording ' +
-              'accepts everything currently reported, so read the diff before committing one.',
-            recordedAt: new Date().toISOString().slice(0, 10),
-            count: Object.keys(entries).length,
-            entries,
-          },
-          null,
-          2,
-        )}\n`,
-      );
-      console.log(`Recorded ${Object.keys(entries).length} accepted findings to supabase/advisor-baseline.json`);
-    } else {
-      if (!existsSync(BASELINE)) {
-        console.error(
-          'supabase-advisors: no baseline yet. Record one with:\n' +
-            '  node scripts/supabase-advisors.mjs --update-baseline\n' +
-            'Read the recorded file before committing it - it accepts everything currently reported.',
-        );
-        process.exitCode = 2;
-      } else {
-        const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
-        // THE KEY, NOT THE COUNT. An empty baseline is the state this project is trying to reach -
-        // fix every standing advisory, re-record, and `entries` is legitimately `{}` - so refusing
-        // a zero here would fail the gate for succeeding. What is never honest is `entries` having
-        // been renamed away, which would silently compare every live finding against nothing.
-        if (!baseline || typeof baseline.entries !== 'object' || baseline.entries === null) {
-          throw new Error(`${BASELINE} has no \`entries\` object - the baseline's shape changed, and every live finding would read as new against nothing.`);
-        }
-        const accepted = new Set(Object.keys(baseline.entries));
-        measured.optional(
-          accepted.size,
-          'accepted baseline findings',
-          'zero is honest once every standing advisory has been fixed and the baseline re-recorded; the shape check above is what makes a zero here mean "clean" rather than "renamed away".',
-        );
-        const added = [...seen.keys()].filter((k) => !accepted.has(k)).sort();
-        const cleared = [...accepted].filter((k) => !seen.has(k)).sort();
-
-        if (asJson) {
-          console.log(JSON.stringify({ total: seen.size, added: added.map((k) => ({ key: k, ...seen.get(k) })), cleared }, null, 2));
-        } else {
-          console.log(`${seen.size} advisor findings; ${accepted.size} accepted in the baseline.`);
-          if (added.length) {
-            console.log('\nNEW since the baseline:');
-            for (const key of added) {
-              const f = seen.get(key);
-              console.log(`  - [${f.level}] ${f.name}`);
-              console.log(`      ${f.detail}`);
-              const why = ACCEPTED_CLASSES[f.name];
-              // A new member of an accepted class is still new. Say what the class is accepted
-              // FOR, so the reader can judge whether this occurrence is the same thing or a real
-              // mistake wearing a familiar name.
-              if (why) console.log(`      (this class is accepted because: ${why})`);
-            }
-          }
-          // A cleared finding is good news and must never fail the run - but it should be
-          // re-recorded, or the baseline slowly becomes a list of things that no longer exist and
-          // stops meaning "accepted".
-          if (cleared.length) {
-            console.log(`\nGone since the baseline (${cleared.length}) - re-record when convenient:`);
-            for (const key of cleared) console.log(`  - ${key}`);
-          }
-          if (!added.length && !cleared.length) console.log('No change against the baseline.');
-        }
-        process.exitCode = added.length ? 1 : 0;
-
-        // EVERY ACCEPTED FINDING CLEARING AT ONCE IS NOT GOOD NEWS. A hundred-odd standing
-        // advisories are not fixed by one landing, so the plausible causes are a payload this
-        // script could not read properly and a baseline that no longer describes this project -
-        // and a cleared finding never fails, by design, so without this the run exits 0 having
-        // compared nothing. The report above still prints, because the list of what "cleared" is
-        // what tells the reader which of the two it is.
-        //
-        // Exit 3, not 1: nobody should be sent hunting for a new finding that does not exist, and
-        // post-land should not red a landing for something upstream most likely did.
-        if (accepted.size > 0 && cleared.length === accepted.size) {
-          console.error(
-            `\nsupabase-advisors: all ${accepted.size} accepted findings are absent from a report of ` +
-              `${seen.size} - that is a comparison against the wrong data, not a clean project. ` +
-              'Check the project ref and the payload before re-recording anything.',
-          );
-          process.exitCode = 3;
-        }
-      }
-    }
+    if (updating) recordBaseline(seen);
+    else compareWithBaseline(seen);
+  } catch (err) {
+    console.error(`supabase-advisors: ${err.message}`);
+    process.exitCode = 2;
   }
-} catch (err) {
-  console.error(`supabase-advisors: ${err.message}`);
-  process.exitCode = 2;
+};
+
+// Only run when invoked directly - the test imports `judge` from this same file.
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  await main();
 }

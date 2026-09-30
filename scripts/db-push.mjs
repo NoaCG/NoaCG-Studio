@@ -25,8 +25,22 @@
 // fails CLOSED, and `scripts/db-push.test.mjs` keeps the recognised set honest by classifying every
 // migration in the repo.
 //
+// AND IT REFUSES A MIGRATION FROM 0068 ON THAT DOES NOT SET ITS OWN `lock_timeout` (at most 5 s) AND
+// `statement_timeout` before its first statement, so no migration can queue a live show's Takes
+// behind a lock (FIRST_TIMED_MIGRATION says why the file, and not this script, has to set them). A
+// push that fails on that lock timeout (SQLSTATE 55P03) is retried twice, then reported as what it
+// is: nothing in that file applied, and the next landing tries again.
+//
 // Overriding is per-version and explicit: `--allow 0052` says "I read 0052 and I accept what it
 // does". There is no blanket override, because a blanket override is the old rule again.
+//
+// A LIVE-PATH MIGRATION WAITS FOR A QUIET WINDOW. One that touches the contract renderers and
+// operator pages hold open for hours (LIVE_PATH_PREFIX says what that is) applies on its own only
+// when no renderer sent a heartbeat in the last ten minutes. Otherwise the files before it apply,
+// it and everything after it are HELD, and the next landing tries again; `--live 0068` applies it
+// at once, after printing who is live. A hold is not a failure (exit 0 with a warning) until it is
+// a day old or an ordinary migration waits behind it; then it exits 1, so the post-land run goes
+// red and a person sees it.
 //
 // WHAT IT IS NOT, stated so nobody reads more into a green run than is there. This guard is about
 // LOSS, not about EXPOSURE. A migration that grants a client role new reach, or replaces a
@@ -53,6 +67,7 @@
 //   npm run db:push                  # plan, refuse if anything is dangerous, otherwise apply
 //   npm run db:push -- --dry-run     # plan and snapshot only; never writes
 //   npm run db:push -- --allow 0052  # apply, accepting 0052's dangerous statements by name
+//   npm run db:push -- --live 0068   # apply live-path 0068 now, even with a production live
 //   npm run db:push -- --json        # one JSON object, for a caller that wants the plan
 //   npm run db:push -- --ref <ref>   # a DIFFERENT project: staging, rather than production
 //
@@ -64,9 +79,10 @@
 // portable: `VAR=x npm run …` is a shell-ism PowerShell does not have, and the machine this runs
 // on is a Windows laptop - so a refusal that tells a person how to re-run it by hand has to print
 // something they can paste.
-import { readFileSync, readdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ambientEnv } from './read-dotenv.mjs';
@@ -496,12 +512,178 @@ export function classifyStatement(raw, created = new Set()) {
   return { verdict: 'safe', reasons: [], code };
 }
 
+// ── Session timeouts ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * EVERY MIGRATION FROM THIS VERSION ON SETS ITS OWN `lock_timeout` AND `statement_timeout`.
+ *
+ * Why: a statement that needs a strong lock (an `alter table`, a trigger, a policy) queues behind
+ * any open reader, and every Take on air then queues behind IT. Measured on a preview branch
+ * (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.3): an instant `add column` on `control_events` behind a
+ * 12 s reader failed 12 of 38 sends; with `set lock_timeout = '2s'` it gave up after 2.2 s and none
+ * failed.
+ *
+ * Why IN THE FILE rather than applied from outside: nothing outside reaches the CLI's session.
+ * `supabase db push --linked` (2.111) ignores `PGOPTIONS` and a `PGSERVICEFILE` service, runs
+ * `RESET ALL` before each file, and on a hosted project logs in as `cli_login_postgres`, whose own
+ * defaults are `lock_timeout = 0` and `statement_timeout = 2min` (all measured on a preview branch,
+ * 2026-09-29). A `set` at the top of the file applies to exactly that file, because the CLI runs
+ * each file in one transaction, and it travels with the SQL to every other route that runs it.
+ *
+ * Older files are exempt: they are applied everywhere already.
+ */
+export const FIRST_TIMED_MIGRATION = '0068';
+/** The longest `lock_timeout` a migration may set without `--allow`: longer is a queue again. */
+export const MAX_LOCK_TIMEOUT_MS = 5000;
+
+const GUC_UNITS_MS = { us: 0.001, ms: 1, s: 1000, min: 60_000, h: 3_600_000, d: 86_400_000 };
+
+/** A Postgres time setting in milliseconds; a bare number is milliseconds. null if unreadable. */
+export function timeoutMs(value) {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(us|ms|s|min|h|d)?\s*$/i.exec(value);
+  return m ? Number(m[1]) * GUC_UNITS_MS[(m[2] || 'ms').toLowerCase()] : null;
+}
+
+/**
+ * The timeouts a migration sets before its first real statement: the leading run of `set`
+ * statements only, because a `set lock_timeout` after the `alter table` protects nothing.
+ */
+export function leadingTimeouts(statements) {
+  const found = {};
+  for (const { raw } of statements) {
+    const text = raw.replace(/^(?:\s|--[^\n]*|\/\*[\s\S]*?\*\/)*/, '');
+    if (!/^set\s/i.test(text)) break;
+    const m = /^set\s+(?:session\s+|local\s+)?(lock_timeout|statement_timeout)\s*(?:=|to)\s*'?([^';]*?)'?\s*$/i.exec(text.trim());
+    if (m) found[m[1].toLowerCase()] = m[2].trim();
+  }
+  return found;
+}
+
+/** The refusal for a migration from FIRST_TIMED_MIGRATION on, or null when it sets both. */
+function missingTimeouts(version, statements) {
+  if (!/^[0-9]+$/.test(version) || version < FIRST_TIMED_MIGRATION) return null;
+  const set = leadingTimeouts(statements);
+  const problems = [];
+  const lock = set.lock_timeout === undefined ? null : timeoutMs(set.lock_timeout);
+  if (set.lock_timeout === undefined) problems.push('sets no lock_timeout before its first statement');
+  else if (!lock || lock > MAX_LOCK_TIMEOUT_MS) {
+    problems.push(`sets lock_timeout = '${set.lock_timeout}', and anything but 1ms to ${MAX_LOCK_TIMEOUT_MS / 1000}s lets a statement queue behind a reader with every Take behind it`);
+  }
+  if (set.statement_timeout === undefined) problems.push('sets no statement_timeout before its first statement');
+  else if (!timeoutMs(set.statement_timeout)) {
+    problems.push(`sets statement_timeout = '${set.statement_timeout}', which is no bound at all; a long backfill states how long instead`);
+  }
+  if (!problems.length) return null;
+  return {
+    id: 'timeouts',
+    why:
+      `${problems.join(', and ')}. Start the file with \`set lock_timeout = '2s';\` and ` +
+      "`set statement_timeout = '30s';` (a longer statement_timeout is the file's own override, for a " +
+      'real backfill). supabase/AGENTS.md, "Every migration sets its own timeouts"',
+  };
+}
+
+// ── The live-path class ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE LIVE-PATH CONTRACT: what renderers and operator pages hold open for hours without reloading
+ * (supabase/AGENTS.md, "Live-path migrations wait for a quiet window"). A migration that changes it
+ * can hurt a show already on air even when it loses nothing: 0056 redefined `control_send_many` and
+ * silently dropped the `live_cue` mirror, a changed signature failed every send from open pages,
+ * and 0066 revoked a read three hours after 0064 while renderers still depended on it
+ * (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.3, §11).
+ *
+ * - every table and function in `public` whose name starts with `control_`: the RPCs the pages call
+ *   (`control_send_many`, `control_show_by_slug`, `control_output_*`, `control_tail`, …), the
+ *   functions and triggers behind them, and the tables they read and write (`control_shows`,
+ *   `control_events`, and `control_heads` or whatever comes next under the same prefix);
+ * - `realtime.messages`, whose policies admit the `cmd-`, `log-` and `live-` topics;
+ * - the predicates the policies on those tables call and the trigger function they share. These
+ *   are named everywhere else too, so only a statement ABOUT them counts (defining, dropping,
+ *   altering, granting or revoking the function), not every policy that calls one.
+ */
+export const LIVE_PATH_PREFIX = 'control_';
+export const LIVE_PATH_TABLES = ['realtime.messages'];
+export const LIVE_PATH_FUNCTIONS = ['is_suspended', 'feature_denied', 'is_team_member', 'set_updated_at'];
+/** Files from this version on must declare the class; older ones are applied everywhere already. */
+export const FIRST_LIVE_PATH_MIGRATION = '0068';
+/** A production is live when its renderer sent a heartbeat this recently. */
+export const QUIET_MINUTES = 10;
+/** A hold older than this turns the post-land run red, the channel a refusal already uses. */
+export const HOLD_ALARM_HOURS = 24;
+
+/** Statement verbs that change the contract or take a lock on it. `select`, `do`, `set` and
+ *  `comment` do neither; a `do` block's body is not scanned here (dynamic DDL is not a shape this
+ *  repository writes). */
+const LIVE_PATH_VERBS = /^(?:create|alter|drop|grant|revoke|insert|update|delete|truncate)\b/;
+const LIVE_PATH_NAME = new RegExp(
+  `(?<![\\w.$])(?:public\\.)?(${LIVE_PATH_PREFIX}\\w+)` +
+    `|\\b(${LIVE_PATH_TABLES.map((t) => t.replace('.', '\\.')).join('|')})\\b` +
+    // `execute function public.set_updated_at()` in a trigger on another table only CALLS it.
+    `|(?<!execute )\\bfunction\\s+(?:if\\s+exists\\s+)?(?:public\\.)?(${LIVE_PATH_FUNCTIONS.join('|')})\\b`,
+  'g',
+);
+
+/** The live-path objects one normalized statement changes or locks, or [] when it touches none. */
+export function livePathNames(code) {
+  if (!LIVE_PATH_VERBS.test(code)) return [];
+  const names = new Set();
+  for (const m of code.matchAll(LIVE_PATH_NAME)) names.add(m[1] || m[2] || m[3]);
+  return [...names];
+}
+
+/** The `-- live-path: <what it changes>` line in the file's leading comment, or null. */
+export function livePathHeader(text) {
+  // A byte-order mark, spelled as a code point so it cannot turn into an invisible literal.
+  const bom = String.fromCharCode(0xfeff);
+  for (const line of (text.startsWith(bom) ? text.slice(1) : text).split(/\r?\n/)) {
+    if (/^\s*$/.test(line)) continue;
+    if (!/^\s*--/.test(line)) break;
+    const m = /^\s*--\s*live-path:\s*(\S.*?)\s*$/i.exec(line);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/** What the build refuses about a file's live-path declaration, or null. Pure; the test runs it
+ *  over the real folder, so a missing or stale header fails before anything lands. */
+export function livePathProblem(migration) {
+  const { version, livePath } = migration;
+  if (!/^[0-9]+$/.test(version) || version < FIRST_LIVE_PATH_MIGRATION) return null;
+  if (livePath.statements.length && !livePath.declared) {
+    const first = livePath.statements[0];
+    return (
+      `changes the live-path contract (${first.names.join(', ')} at line ${first.line}) but does not ` +
+      'say so: add `-- live-path: <what it changes on the live path>` to its header comment ' +
+      '(supabase/AGENTS.md, "Live-path migrations wait for a quiet window")'
+    );
+  }
+  if (livePath.declared && !livePath.statements.length) {
+    return 'declares `-- live-path:` but no statement touches a live-path object; remove the stale line';
+  }
+  return null;
+}
+
 /** Classify a whole migration file. `dangerous` and `unknown` statements are both blockers; they
- *  are reported apart because they mean different things to whoever reads the refusal. */
+ *  are reported apart because they mean different things to whoever reads the refusal. The
+ *  live-path class is separate and composes with them: it never refuses, it decides WHEN. */
 export function classifyMigration(version, name, text) {
   const statements = splitStatements(text).map((s) => ({ ...s, ...normalize(s.raw) }));
   const created = createdObjects(statements);
+  const livePath = {
+    declared: livePathHeader(text),
+    statements: statements
+      .map((s) => ({ line: s.line, excerpt: s.code.slice(0, 140), names: livePathNames(s.code) }))
+      .filter((s) => s.names.length),
+  };
+  // A declared file counts even with no matching statement. The build refuses that combination
+  // from FIRST_LIVE_PATH_MIGRATION on (a stale marker), so this only errs toward holding.
+  livePath.is = Boolean(livePath.declared || livePath.statements.length);
   const findings = [];
+  const timeouts = missingTimeouts(version, statements);
+  if (timeouts) {
+    findings.push({ verdict: 'dangerous', line: statements[0]?.line ?? 1, index: 1, excerpt: statements[0]?.code.slice(0, 140) ?? '', reasons: [timeouts] });
+  }
   for (const statement of statements) {
     const { verdict, reasons } = classifyStatement(statement.raw, created);
     if (verdict !== 'safe') {
@@ -514,7 +696,79 @@ export function classifyMigration(version, name, text) {
       });
     }
   }
-  return { version, name, statements: statements.length, findings, blocked: findings.length > 0 };
+  return { version, name, statements: statements.length, findings, blocked: findings.length > 0, livePath };
+}
+
+/**
+ * The quiet window, read through the same Management API query the push uses: which productions
+ * had a renderer heartbeat (`control_shows.output_seen_at`) in the last QUIET_MINUTES. `read` is
+ * injected so the decision is testable. Any failure is `ok: false`, and that HOLDS: a window nobody
+ * could read is not a quiet one.
+ */
+export async function readQuietWindow(read) {
+  try {
+    const rows = await read(
+      `select id::text as id from public.control_shows where output_seen_at > now() - interval '${QUIET_MINUTES} minutes' order by output_seen_at desc`,
+    );
+    if (!Array.isArray(rows) || rows.some((r) => typeof r?.id !== 'string')) throw new Error('unexpected answer shape');
+    return { ok: true, shows: rows.map((r) => r.id) };
+  } catch (error) {
+    return { ok: false, error: error?.message || String(error) };
+  }
+}
+
+/**
+ * Which pending migrations this run applies and which it holds. Pure.
+ *
+ * Every file before the first live-path one applies as it always did. That file, and everything
+ * after it, applies only when the window is quiet, or when it is named with `--live`; otherwise it
+ * waits for the next run, and the files behind it wait too, because the ledger has no gaps.
+ */
+export function liveHold(migrations, { live = new Set(), window = null } = {}) {
+  const first = migrations.findIndex((m) => m.livePath?.is && !live.has(m.version));
+  if (first === -1 || (window?.ok && window.shows.length === 0)) return { apply: migrations, held: [] };
+  return { apply: migrations.slice(0, first), held: migrations.slice(first) };
+}
+
+/** Is a hold that began at `since` (ISO time, or null when nobody could tell) overdue at `now`?
+ *  Unknown counts as overdue: an alarm that cannot tell stays loud rather than silent. */
+export function holdOverdue(since, now = Date.now()) {
+  const t = since ? Date.parse(since) : NaN;
+  return Number.isNaN(t) || now - t > HOLD_ALARM_HOURS * 3_600_000;
+}
+
+/** Why a hold needs a person now, or [] while waiting is fine. Pure. A hold that has lasted about
+ *  a day needs one; so does a hold with an ORDINARY migration behind it, because only the
+ *  live-path file promised that the app landed with it works without it. */
+export function holdAlarms(held, since, now = Date.now()) {
+  const alarms = [];
+  if (holdOverdue(since, now)) alarms.push(`held for more than ${HOLD_ALARM_HOURS} hours`);
+  const ordinary = held.filter((m) => !m.livePath?.is).length;
+  if (ordinary) alarms.push(`${ordinary} ordinary migration(s) wait behind it, which the app that landed them may need`);
+  return alarms;
+}
+
+/** When a migration file reached this branch: the first-parent commit that added it. null in a
+ *  shallow checkout (whose one commit "adds" every file) or for a file git does not know. */
+function landedAt(file) {
+  const git = (args) => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  if ((git(['rev-parse', '--is-shallow-repository']).stdout ?? '').trim() !== 'false') return null;
+  const out = git(['log', '--first-parent', '--no-renames', '--diff-filter=A', '--format=%cI', '--', `supabase/migrations/${file}`]).stdout ?? '';
+  return out.trim().split('\n').filter(Boolean).pop() || null;
+}
+
+/** A throwaway Supabase project directory holding every migration EXCEPT the held ones, so the
+ *  CLI's own `db push` (which has no "up to version") applies exactly the files before the hold. */
+export function stagedWorkdir(keep) {
+  const dir = mkdtempSync(join(tmpdir(), 'noacg-db-push-'));
+  const migrations = join(dir, 'supabase', 'migrations');
+  mkdirSync(migrations, { recursive: true });
+  for (const file of ['config.toml', 'seed.sql']) {
+    const from = resolve(ROOT, 'supabase', file);
+    if (existsSync(from)) copyFileSync(from, join(dir, 'supabase', file));
+  }
+  for (const file of keep) copyFileSync(resolve(MIGRATIONS, file), join(migrations, file));
+  return dir;
 }
 
 // ── The hosted project ───────────────────────────────────────────────────────────────────────────
@@ -621,16 +875,19 @@ function diffSnapshots(before, after) {
  */
 let cliCommand = null;
 
-function runSupabase(args, token) {
+function runSupabase(args, token, { capture = false, cwd = ROOT } = {}) {
   for (const arg of args) {
     if (!/^[A-Za-z0-9._-]+$/.test(arg)) throw new Error(`refusing to run the CLI with argument "${arg}"`);
   }
   const env = { ...process.env, SUPABASE_ACCESS_TOKEN: token };
+  // `cwd` is the Supabase project directory the CLI reads: the checkout, or a staged copy that
+  // leaves out held migrations (stagedWorkdir). A directory, not a `--workdir` argument, so the
+  // argument check above stays as strict as it is.
   const spawn = (command, commandArgs, options = {}) =>
     (process.platform === 'win32'
       ? spawnSync(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', [command, ...commandArgs].join(' ')],
-        { cwd: ROOT, env, encoding: 'utf8', windowsVerbatimArguments: true, ...options })
-      : spawnSync(command, commandArgs, { cwd: ROOT, env, encoding: 'utf8', ...options }));
+        { cwd, env, encoding: 'utf8', windowsVerbatimArguments: true, ...options })
+      : spawnSync(command, commandArgs, { cwd, env, encoding: 'utf8', ...options }));
 
   // Decide ONCE, with a probe, which command to use - never by retrying a failed run through the
   // other one. A `db push` that exits non-zero must not be attempted a second time just because
@@ -640,15 +897,42 @@ function runSupabase(args, token) {
     cliCommand = !probe.error && probe.status === 0 ? ['supabase', []] : ['npx', ['--yes', 'supabase']];
   }
   const [command, prefix] = cliCommand;
-  const result = spawn(command, [...prefix, ...args], { stdio: 'inherit' });
+  // CAPTURED, then echoed, when the caller has to read what the CLI said: a lock timeout is told
+  // apart from a broken migration only by its SQLSTATE in the CLI's error text.
+  const result = spawn(command, [...prefix, ...args], { stdio: capture ? ['inherit', 'pipe', 'pipe'] : 'inherit' });
   if (result.error) throw result.error;
-  return result.status ?? 1;
+  if (!capture) return result.status ?? 1;
+  process.stdout.write(result.stdout || '');
+  process.stderr.write(result.stderr || '');
+  return { status: result.status ?? 1, output: `${result.stdout || ''}\n${result.stderr || ''}` };
 }
+
+/**
+ * Did the push fail because a migration could not get its lock in time (SQLSTATE 55P03)? Returns
+ * the file the CLI was applying, or null for any other outcome. Pure, so it is tested on the CLI's
+ * real words (scripts/db-push.test.mjs).
+ *
+ * That failure is not a broken migration. The file runs in one transaction, so none of it applied;
+ * the files before it did, with their ledger rows. Running the same push again later is the fix.
+ */
+export function lockTimeoutFailure(output) {
+  // The server's words only: the CLI also echoes the failing statement, and a migration's own text
+  // may mention a lock timeout.
+  if (!/SQLSTATE 55P03|canceling statement due to lock timeout/.test(output)) return null;
+  const applying = [...output.matchAll(/Applying migration (\S+?\.sql)/g)];
+  return { file: applying.length ? applying[applying.length - 1][1] : 'a pending migration' };
+}
+
+/** Waits before the second and third attempt after a lock timeout. A reader that holds a table
+ *  for a minute is rare; one that holds it for a few seconds is an ordinary busy moment. */
+export const LOCK_RETRY_WAITS_MS = [10_000, 30_000];
 
 const flag = (argv, name) => argv.includes(name);
 /** A flag's value, with a trailing `--allow` (no version after it) reading as absent rather than
  *  crashing - the difference between "you forgot the version" and a stack trace. */
 const value = (argv, name) => (argv.includes(name) ? argv[argv.indexOf(name) + 1] || '' : '');
+/** A flag's comma-separated migration versions (`--allow 0052,0053`), as a set. */
+const versions = (argv, name) => new Set(value(argv, name).split(',').map((v) => v.trim()).filter(Boolean));
 
 /**
  * Is the remote ledger still the one this repository's filenames describe? Pure, so the refusal
@@ -690,10 +974,18 @@ export async function plan({ ref, token, allow = new Set() }) {
   const pending = local.filter((m) => !applied.has(m.version));
   if (!pending.length) return { status: 'up-to-date', applied: applied.size };
 
-  const migrations = pending.map((m) =>
-    classifyMigration(m.version, m.name, readFileSync(resolve(MIGRATIONS, m.file), 'utf8')));
+  const migrations = pending.map((m) => ({
+    ...classifyMigration(m.version, m.name, readFileSync(resolve(MIGRATIONS, m.file), 'utf8')),
+    file: m.file,
+  }));
   const blocked = migrations.filter((m) => m.blocked && !allow.has(m.version));
-  return { status: blocked.length ? 'refused' : 'ready', migrations, blocked, pending: pending.map((m) => m.file) };
+  return {
+    status: blocked.length ? 'refused' : 'ready',
+    migrations,
+    blocked,
+    pending: pending.map((m) => m.file),
+    appliedFiles: local.filter((m) => applied.has(m.version)).map((m) => m.file),
+  };
 }
 
 function describe(migration) {
@@ -702,14 +994,56 @@ function describe(migration) {
     lines.push(`    ${f.verdict === 'unknown' ? 'UNKNOWN' : 'REFUSED'} at line ${f.line}: ${f.reasons.map((r) => r.why).join('; ')}`);
     lines.push(`      ${f.excerpt}${f.excerpt.length >= 140 ? '…' : ''}`);
   }
+  const { livePath } = migration;
+  if (livePath.is) {
+    const touches = [...new Set(livePath.statements.flatMap((s) => s.names))].join(', ') || 'nothing the classifier names';
+    lines.push(`    LIVE-PATH: ${livePath.declared || '(no header)'}  [touches ${touches}]`);
+  }
   return lines.join('\n');
+}
+
+/** Who was live, for a CI log: production ids only, never titles. */
+function describeWindow(ref, quiet) {
+  if (!quiet.ok) return `\nQuiet window on ${ref}: could not be read (${quiet.error}), so it counts as NOT quiet.`;
+  if (!quiet.shows.length) return `\nQuiet window on ${ref}: no renderer heartbeat in the last ${QUIET_MINUTES} minutes.`;
+  const shown = quiet.shows.slice(0, 20).join(', ');
+  const more = quiet.shows.length > 20 ? ` and ${quiet.shows.length - 20} more` : '';
+  return `\nQuiet window on ${ref}: ${quiet.shows.length} production(s) had a renderer heartbeat in the last ${QUIET_MINUTES} minutes: ${shown}${more}.`;
+}
+
+/**
+ * Say what is held and how to apply it, and decide the exit code. 0 while the hold is young and
+ * holds only live-path files: the class requires the landed app to work without them, so waiting
+ * is not a failure. 1 once it is older than HOLD_ALARM_HOURS, or as soon as an ORDINARY migration
+ * waits behind it (a later landing's app may need that one, and nothing promised it would not),
+ * so a red post-land run reaches a person exactly as a refusal does. A dry run reports and exits 0.
+ */
+function reportHold(held, { quiet, ref, target, dryRun }) {
+  const first = held[0];
+  const { file } = first;
+  const since = landedAt(file);
+  const alarms = holdAlarms(held, since);
+  const why = quiet.ok ? `productions were live on ${ref}` : `the quiet window on ${ref} could not be read`;
+  const command = `npm run db:push --${target} --live ${held.filter((m) => m.livePath.is).map((m) => m.version).join(',')}`;
+  console.error(`\nHELD: ${file} is a live-path migration (${first.livePath.declared || 'no header'}) and ${why}.`);
+  if (held.length > 1) console.error(`  Held behind it: ${held.slice(1).map((m) => m.file).join(', ')}`);
+  console.error(`  In the repository since ${since || 'an unknown time (a shallow checkout, or a file git does not know)'}.`);
+  console.error('  The next landing retries it and applies it if the window is quiet. To apply it now,');
+  console.error(`  at a moment you judge safe: ${command}`);
+  if (alarms.length) console.error(`  NEEDS A PERSON: ${alarms.join('; ')}. Apply it by name when no show is on air.`);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const level = alarms.length ? 'error' : 'warning';
+    console.log(`::${level} title=Live-path migration held::${file} waits for a quiet window (${why}). ${alarms.length ? `Needs a person: ${alarms.join('; ')}. ` : 'The next landing retries it. '}Apply now: ${command}`);
+  }
+  return alarms.length && !dryRun ? 1 : 0;
 }
 
 async function main(argv) {
   const env = ambientEnv(ROOT);
   const asJson = flag(argv, '--json');
   const dryRun = flag(argv, '--dry-run');
-  const allow = new Set(value(argv, '--allow').split(',').map((v) => v.trim()).filter(Boolean));
+  const allow = versions(argv, '--allow');
+  const live = versions(argv, '--live');
 
   const token = env.SUPABASE_ACCESS_TOKEN || '';
   const named = value(argv, '--ref');
@@ -758,24 +1092,69 @@ async function main(argv) {
     else console.log(`\n  --allow ${version}: accepting the ${m.findings.length} refusal(s) above.`);
   }
 
+  // Carry the ref through every command this prints, or a pasted command applies to production
+  // instead of whatever this run was actually pointed at - the one paste that must never go to the
+  // wrong database.
+  const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
+
   if (decision.status === 'refused') {
-    console.error('\nREFUSED. These statements can remove something, and nothing here can tell');
-    console.error('whether that is intended. Read them, then re-run naming the versions you accept:');
-    // Carry the ref through, or the pasted command applies to production instead of whatever this
-    // run was actually pointed at - the one paste that must never go to the wrong database.
-    const target = ref === productionRef(env) ? '' : ` --ref ${ref}`;
+    console.error('\nREFUSED. These statements can remove something, or can queue every Take behind a');
+    console.error('lock, and nothing here can tell whether that is intended. Read them, then fix the');
+    console.error('file or re-run naming the versions you accept:');
     console.error(`  npm run db:push --${target} --allow ${decision.blocked.map((m) => m.version).join(',')}`);
     if (asJson) console.log(JSON.stringify(decision));
     return 1;
   }
 
+  // THE LIVE-PATH CLASS. The window is read only when a live-path file is pending, and read just
+  // before the push; a named (`--live`) file applies whatever it says, after printing who is live.
+  const quiet = decision.migrations.some((m) => m.livePath.is)
+    ? await readQuietWindow((sql) => query(ref, token, sql))
+    : null;
+  if (quiet) console.log(describeWindow(ref, quiet));
+  const hold = liveHold(decision.migrations, { live, window: quiet });
+  for (const version of live) {
+    const m = decision.migrations.find((x) => x.version === version);
+    // Say it after the decision: a named file behind an earlier, unnamed live-path file is held
+    // with it, and a log that said "applying" would be believed.
+    if (!m) console.log(`\n  --live ${version}: no pending migration has that version - check the number.`);
+    else if (!m.livePath.is) console.log(`\n  --live ${version}: not a live-path migration; it applies like any other.`);
+    else if (hold.held.includes(m)) console.log(`\n  --live ${version}: still HELD, behind ${hold.held[0].version}; name that one too.`);
+    else console.log(`\n  --live ${version}: applying it now, whatever the quiet window says.`);
+  }
+  decision.livePath = { apply: hold.apply.map((m) => m.version), held: hold.held.map((m) => m.version), window: quiet };
+  const holdStatus = () => reportHold(hold.held, { quiet, ref, target, dryRun });
+  if (hold.held.length) {
+    console.log(`\nApplying ${hold.apply.length} migration(s) and holding ${hold.held.length} (live-path, see below).`);
+  }
+  if (!hold.apply.length) {
+    const status = holdStatus();
+    if (asJson) console.log(JSON.stringify(decision));
+    return status;
+  }
+
+  // The applied files and the ones this run applies, so the CLI applies exactly the files before
+  // the hold. With nothing held, the checkout itself, exactly as before the class existed.
+  const cwd = hold.held.length
+    ? stagedWorkdir([...decision.appliedFiles, ...hold.apply.map((m) => m.file)])
+    : ROOT;
+  try {
+    const status = await push({ ref, token, dryRun, asJson, decision, apply: hold.apply, cwd });
+    return status !== 0 || !hold.held.length ? status : holdStatus();
+  } finally {
+    if (cwd !== ROOT) rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+/** Snapshot, push `apply` from `cwd`, snapshot again, and prove the ledger took exactly `apply`. */
+async function push({ ref, token, dryRun, asJson, decision, apply, cwd }) {
   console.log('\nSnapshotting before…');
   const before = await snapshot(ref, token);
 
   if (dryRun) {
     console.log('--dry-run: asking the CLI what it would do, and stopping.\n');
-    const linkedForDryRun = runSupabase(['link', '--project-ref', ref], token);
-    const status = linkedForDryRun === 0 ? runSupabase(['db', 'push', '--linked', '--dry-run'], token) : linkedForDryRun;
+    const linkedForDryRun = runSupabase(['link', '--project-ref', ref], token, { cwd });
+    const status = linkedForDryRun === 0 ? runSupabase(['db', 'push', '--linked', '--dry-run'], token, { cwd }) : linkedForDryRun;
     if (asJson) console.log(JSON.stringify({ ...decision, dryRun: true }));
     return status;
   }
@@ -784,12 +1163,26 @@ async function main(argv) {
   // Link explicitly rather than trusting whatever this checkout was last pointed at: `db push`
   // takes no --project-ref, so the link IS the target, and a stale one is how a staging push
   // becomes a production push.
-  const linked = runSupabase(['link', '--project-ref', ref], token);
+  const linked = runSupabase(['link', '--project-ref', ref], token, { cwd });
   if (linked !== 0) {
     console.error(`\nsupabase link failed (exit ${linked}). Nothing was pushed.`);
     return linked;
   }
-  const pushed = runSupabase(['db', 'push', '--linked'], token);
+  // A LOCK TIMEOUT IS RETRIED, anything else is not. Every migration from 0068 on gives up on a
+  // lock after a couple of seconds rather than queueing Takes behind it, so "could not get the
+  // lock" is an expected, harmless outcome at a busy moment, and pushing again picks up exactly
+  // the files still pending.
+  let pushed;
+  let locked;
+  for (let attempt = 0; ; attempt++) {
+    const run = runSupabase(['db', 'push', '--linked'], token, { capture: true, cwd });
+    pushed = run.status;
+    locked = pushed === 0 ? null : lockTimeoutFailure(run.output);
+    if (!locked || attempt >= LOCK_RETRY_WAITS_MS.length) break;
+    const wait = LOCK_RETRY_WAITS_MS[attempt];
+    console.error(`\n${locked.file} could not get a lock in time; nothing in it was applied. Trying again in ${wait / 1000}s…\n`);
+    await new Promise((done) => setTimeout(done, wait));
+  }
 
   console.log('\nSnapshotting after…');
   const after = await snapshot(ref, token);
@@ -805,6 +1198,16 @@ async function main(argv) {
     for (const x of removed) console.log(`    - ${x}`);
   }
 
+  if (locked) {
+    console.error(
+      `\nLOCK TIMEOUT: ${locked.file} could not get a lock within its lock_timeout, ` +
+        `${LOCK_RETRY_WAITS_MS.length + 1} times. Nothing in that file was applied, and nothing after it ` +
+        'was attempted; the diff above is what did land. Something held the table longer than the ' +
+        'migration may wait, which is the guard working, not a broken migration. The next landing ' +
+        'retries, or re-run this job.',
+    );
+    return pushed;
+  }
   if (pushed !== 0) {
     console.error(`\nsupabase db push exited ${pushed}. The diff above is what actually landed.`);
     return pushed;
@@ -813,7 +1216,7 @@ async function main(argv) {
   // The push says it worked; the ledger says what it wrote. A version that is not four digits
   // here means something applied the file by a route that is not `db push`.
   const ledgerAdded = changes.ledger?.added || [];
-  const expected = decision.migrations.map((m) => m.version);
+  const expected = apply.map((m) => m.version);
   const wrote = ledgerAdded.map((row) => row.split(' ')[0]).sort();
   if (wrote.join(',') !== expected.sort().join(',')) {
     console.error(`\nLEDGER MISMATCH: expected rows for ${expected.join(', ')}, got ${wrote.join(', ') || 'none'}.`);

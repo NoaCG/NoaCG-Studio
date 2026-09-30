@@ -1,0 +1,5 @@
+# Observation (supabase)
+
+Recorded 2026-09-29 on `claude/migration-safety-guardrails` at 518538cfe.
+
+2026-09-29, preview branch of the production project (Postgres 17.6, CLI 2.111): supabase db push --linked ignores PGOPTIONS and a PGSERVICEFILE service (a probe migration read lock_timeout=0, statement_timeout=2min, session_user cli_login_postgres, current_user postgres in all three runs). The CLI runs RESET ALL, then each file in one transaction. ALTER TABLE control_events ADD COLUMN with no timeouts behind a 15 s ACCESS SHARE reader: applied after about 15 s, and a plain read of the table queued behind it took 11.3 s. The same ALTER with set lock_timeout = '2s' through db-push: behind a 90 s reader it gave up three times with 55P03, ledger and columns unchanged, slowest read 1.9 s; behind a 20 s reader it gave up once and applied on the retry, slowest read 1.8 s. So migrations from 0068 set lock_timeout and statement_timeout in the file, db-push refuses one that does not, and retries a 55P03 twice.

@@ -82,8 +82,9 @@ crawl, `Page speed (%)` on the one-pager swap - as a percentage of the pace the 
 **100 is exactly the authored pace**, 150 is half again as fast, 60 is a slow ceremonial read;
 blank, zero or nonsense all mean 100 rather than "stop", and the value is clamped to 10-400 so a
 roll always finishes. It is an operator control because a roll has to fit whatever is under it,
-and that is decided at the desk (owner walk 2026-08-28). It applies from the next take: the
-travel is measured when `play()` runs, so retyping it does not retime a roll already on air.
+and that is decided at the desk (owner walk 2026-08-28). A value changed with the roll on air
+(Update, or the dashboard's live-number buttons) changes the pace from that moment: the roll
+keeps its place and does not restart, and the closing mark arrives sooner or later to match.
 The static board has no speed field - nothing there moves.
 
 **The list runs all the way through.** A roll travels until the last name has left the top of the
@@ -136,7 +137,7 @@ operator pastes follows them. The sample itself is hidden on air.
 
 **Scroll speed 100** means the list moves at about 1.75 of its own lines a second, so about thirty
 lines pass through a 1080-high frame in about thirty seconds, whatever size the type is. 200 is
-twice as fast, 50 half; the value applies from the next take.
+twice as fast, 50 half; a value changed on air changes the pace of the running roll at once.
 
 ## For maintainers
 
