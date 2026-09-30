@@ -217,23 +217,37 @@ client; it is the only place the two vocabularies meet.
    otherwise), and **FPS** to your channel's.
 4. Leave the background alone — the page is already transparent.
 
-Two OBS-specific notes:
+OBS-specific notes (the dock, local-file and refresh behaviour below was measured on OBS 32.2.1,
+`docs/OBS_ON_A_REAL_HOST.md`):
 
 - **"Shutdown source when not visible"** will tear the page down every time you hide the scene,
   which throws away a cloud output's connection and forces a full rebuild on the way back. Leave
   it **off** for a production output.
+- **A plain exported overlay plays its entrance when the page loads**, and OBS loads a browser
+  source when the scene collection opens, not when you show the scene. So the entrance can run
+  off air and the graphic is simply there when you cut to it. Tick **"Refresh browser when scene
+  becomes active"** on that source: OBS reloads the page as the scene goes on program, and the
+  entrance plays on air. Not needed for the cloud output or a relay-driven source, which wait
+  for a command instead of playing on load.
 - An exported overlay package ships a **local relay + launcher**: double-click
   "Start controller.cmd" (Windows) or "start-controller.command" (macOS; Linux
   `./start-controller.sh`). It serves the folder at `http://localhost:<port>/`, opens the
-  operator page, and relays every command through an ordered log — the only route into a
-  graphic loaded by OBS/vMix's own browser engine. Point the browser source at the graphic ON
+  operator page, and relays every command through an ordered log, which reaches a graphic in
+  OBS or vMix whichever page the operator uses. Point the browser source at the graphic ON
   that address (not the file on disk) and operate from the panel. Fully offline, no installs
   (Windows PowerShell / macOS python3 are OS-bundled).
+- **Operate from inside OBS with a Custom Browser Dock** (**Docks → Custom Browser Docks**):
+  give it the operator page's address on the relay, for example
+  `http://localhost:8787/controller.html`. Two graphics were taken, updated and taken out that
+  way.
 - Without the launcher, `controlpanel.html` still pairs with the graphic over a **same-origin
-  browser channel**: both pages from one http(s) address in one browser (files opened straight
-  from `file://` get private origins and can never pair, and the panel says so when nothing
-  answers). An OBS **Custom Browser Dock** pointing at the panel on the same local address
-  works too. For remote operation use the hosted control page instead.
+  browser channel**: both pages from one http(s) address (files opened straight from `file://`
+  get private origins and can never pair, and the panel says so when nothing answers). An OBS
+  Custom Browser Dock counts as the same browser: OBS 32 gives docks and browser sources one
+  shared storage, so a dock showing the panel from the same local address as the browser source
+  pairs with it and drives it, no relay needed. A source added with **Local file** does not
+  have that address (OBS serves it as `http://absolute/<path>`), so serve the folder and use its
+  http address for both. For remote operation use the hosted control page instead.
 
 ## 5. vMix
 
@@ -321,6 +335,12 @@ than one that admits the gaps.
   revealed and a scoreboard scored from the dashboard inside CasparCG's browser, and the server's
   own templates and clips listed, cued, taken, updated and taken off - `docs/BRIDGE.md` §8 has the
   walk and what it does not cover.
+- **Verified on OBS 32.2.1 on this machine** (2026-09-30, driven over obs-websocket,
+  `docs/OBS_ON_A_REAL_HOST.md`): an exported overlay as a local-file and an http browser source;
+  a two-graphic show package through the bundled relay, taken, updated and taken out from its
+  controller running in a Custom Browser Dock; the plain `controlpanel.html` in a dock driving a
+  same-address browser source with no relay; "Refresh browser when scene becomes active"
+  playing the entrance on air; and the engine, Chromium 127.
 - **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
   vMix, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
   local-network permission prompt with a person at the keyboard.

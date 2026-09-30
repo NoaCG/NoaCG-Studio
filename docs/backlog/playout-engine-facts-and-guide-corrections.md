@@ -3,15 +3,16 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-30
-state: unstarted
-found: "The engine table lists vMix 27+ at Chromium 103 (vMix's release notes say 115 from vMix 27), says SPX renders in the operator's own browser (only its preview does), has no OBS 33 row (Chromium 150), and the guide says an OBS dock pairs with a source over the same-origin channel, which OBS's separate dock context probably prevents (docs/PLAYOUT_TARGETS_RESEARCH.md section 5)"
+state: advanced
+note: "The OBS facts and the SPX renderer row were measured and corrected on 2026-09-30 (docs/OBS_ON_A_REAL_HOST.md, docs/SPX_ON_A_REAL_SERVER.md §5, branch claude/s-obs-real-host). Left: the vMix facts, which wait for a vMix walk, the OBS 33 row, and the SPX route guidance."
+found: "The engine table lists vMix 27+ at Chromium 103 (vMix's release notes say 115 from vMix 27) and has no OBS 33 row (Chromium 150, in beta); the vMix guide section is four lines, and the SPX guide section does not say which route suits which setup (docs/PLAYOUT_TARGETS_RESEARCH.md section 5)"
 serves: NOW
 size: small
 touches: src/validation/engineSupport.ts, docs/PLAYOUT_COMPATIBILITY.md, docs/PLAYOUT_INTEGRATION.md
 needs-owner: none
 ---
 
-# Correct the playout engine table and the vMix, SPX and OBS guide sections
+# Correct the vMix engine facts and guide, add OBS 33, and say which SPX route suits which setup
 
 **Filed:** 2026-09-30. **Source:** the playout target research,
 [`PLAYOUT_TARGETS_RESEARCH.md`](../PLAYOUT_TARGETS_RESEARCH.md) §5, with the documentation routes
@@ -20,32 +21,31 @@ of §4.
 ## Why
 
 `PLAYOUT_ENGINES` decides what the export screen tells an author about playout compatibility, and
-`docs/PLAYOUT_INTEGRATION.md` is what an operator follows. Both carry facts the research
-contradicts, and the vMix section is four lines for a target that outcome 5 wants proven. The
-research row did not edit them because another row owned those files that night.
+`docs/PLAYOUT_INTEGRATION.md` is what an operator follows. Both carried facts the research
+contradicted. The OBS and SPX ones were measured and corrected on 2026-09-30:
+[`OBS_ON_A_REAL_HOST.md`](../OBS_ON_A_REAL_HOST.md) (OBS 32.2.1 is Chromium 127; a Custom Browser
+Dock does pair with a same-address browser source; "Refresh browser when scene becomes active"
+plays the entrance on air) and [`SPX_ON_A_REAL_SERVER.md`](../SPX_ON_A_REAL_SERVER.md) §5 (SPX on
+air runs in its host's engine). What remains is below. The vMix facts stay unmeasured until a vMix
+walk (`docs/backlog/vmix-trial-walk-and-local-docker.md`).
 
 ## What it would take
 
 Measure first where a real app is at hand (`&debug=1` prints the engine), then:
 
 - **Engine table** (`src/validation/engineSupport.ts`, `docs/PLAYOUT_COMPATIBILITY.md` §1): vMix
-  27 to 29 at Chromium 115 (vMix 26 was 103), still below the 117 floor; an OBS 33 row at 150 once
-  it leaves beta; SPX's row saying the on-air renderer runs in the host's Chromium (CasparCG, OBS or
-  vMix), and only the controller preview runs in the operator's browser.
+  27 to 29 at Chromium 115 (vMix 26 was 103), still below the 117 floor, once measured; an OBS 33
+  row at 150 once it leaves beta and is measured.
 - **vMix guide section:** the HTML overlay plays its entrance on page load, so use the cloud output
   or the relay for a live show, or a vMix trigger that reloads the input on overlay in if the walk
   proves it; "enhanced security" stops scripts in browser inputs from reaching the API; enabling the
   keyboard takes vMix's shortcuts away; the custom CSS field exists.
-- **SPX guide section:** which route for which setup. Through CasparCG AMCP, use the native SPX
-  export (SPX has no OGraf path to CasparCG); OGraf needs SPX's web renderer; Solo has five layers
-  and a mostly closed API.
-- **OBS guide section:** "Refresh browser when scene becomes active" as the workaround for an
-  entrance that played off air (until `obs-play-when-source-shown.md` lands); test the claim that a
-  Custom Browser Dock pairs with a source without the relay, and remove it if it fails. The export
-  contract (`src/export/AGENTS.md`, the `onAirGuide.ts` entry) already says the panel never pairs
-  into OBS's own engine, so the guide line disagrees with the repository as well as with OBS.
+- **SPX guide section:** which route for which setup, from
+  [`SPX_ON_A_REAL_SERVER.md`](../SPX_ON_A_REAL_SERVER.md) §6. Through CasparCG AMCP, use the native
+  SPX export (SPX has no OGraf path to CasparCG); OGraf needs SPX's web renderer; Solo has five
+  layers and a mostly closed API.
 
 ## Evidence
 
-[`PLAYOUT_TARGETS_RESEARCH.md`](../PLAYOUT_TARGETS_RESEARCH.md) §1.6 (vMix release notes), §2.2
-(SPX renderer), §3.1 and §3.2 (OBS), each with its source link.
+[`PLAYOUT_TARGETS_RESEARCH.md`](../PLAYOUT_TARGETS_RESEARCH.md) §1.6 (vMix release notes) and §2.2
+(SPX renderer), each with its source link.
