@@ -50,7 +50,7 @@ with CasparCG, OBS and vMix?
   app, so player actions cannot share it; Chromium only), or a module that writes the log itself (the
   dispatcher written twice, and no server clips). An Elgato Stream Deck plugin speaking the same
   cloud protocol is a reasonable second host later.
-- **The owner's decisions (§11)**, the first two above all: whether this is the route (the 2026-09-28
+- **The owner's decisions are in §11; two matter most:** whether this is the route (the 2026-09-28
   backlog note assumed the Bridge relay), and how a panel is authorised. The suggestion for the second
   is a per-production **panel key made by pairing**: the production page shows a short one-time code,
   the operator types it into the module, and the key can only ask an open page to run named verbs. It
@@ -158,9 +158,8 @@ a panel credential. Two variants:
   screen's change refused as stale with air unchanged. It is also the fastest route measured (p50
   82 ms), probably because no page runs before the send [inferred]. But the module would have to
   compose every verb's items (a Take is update, stop previous, play, cue, with the layer and
-  SPACE-mode rules) and mint
-  fresh command ids, which is the page's dispatcher written a second time, outside this repository,
-  and it cannot reach CasparCG server clips at all. **Verdict: no**, unless the owner wants a no-page
+  SPACE-mode rules) and mint fresh command ids, which is the page's dispatcher written a second
+  time, outside this repository, and it cannot reach CasparCG server clips at all. **Verdict: no**, unless the owner wants a no-page
   subset later (§11 Q3).
 - **3c-relay: the module asks the open page to run the verb.** The press goes to the cloud and is
   broadcast to the production's answering operator page, which runs it through `onVerb`, the path a
@@ -241,10 +240,12 @@ pictures are the players' own captures (CasparCG's image consumer, OBS's `GetSou
   took it off and the second put it back, in all three.
 - "Press to screen" is each output's own report on the operator page's health line, measured from the
   moment the page ran the relayed verb; the relay hop is not in it.
-- **vMix's engine, measured for the first time here:** vMix 29.0.0.49's Web Browser input reported
-  Chrome 115, below the supported floor of 117, as `docs/PLAYOUT_TARGETS_RESEARCH.md` predicted from
-  vMix's release notes. The scorebug rendered correctly. (`docs/PLAYOUT_COMPATIBILITY.md` still lists
-  vMix as never measured; `docs/backlog/playout-engine-facts-and-guide-corrections.md` waits for it.)
+- **vMix's engine, measured here:** vMix 29.0.0.49's Web Browser input reported Chrome 115, below the
+  supported floor of 117, as `docs/PLAYOUT_TARGETS_RESEARCH.md` predicted from vMix's release notes.
+  The scorebug rendered correctly. (`docs/PLAYOUT_COMPATIBILITY.md` still lists vMix as never
+  measured; `docs/backlog/playout-engine-facts-and-guide-corrections.md` waits for it.) The health
+  line named the CasparCG and OBS outputs by host but showed the vMix one only as "Chrome 115": the
+  output does not recognise vMix as a host.
 - **The owner's setups were left as found.** CasparCG ran from a scratch config written into its
   folder for the run and removed after. OBS worked in a new scene collection, was switched back to the
   owner's "Untitled" and closed normally, and the test collection's files were moved out. vMix was
@@ -286,10 +287,12 @@ pictures are the players' own captures (CasparCG's image consumer, OBS's `GetSou
   took exactly the keyboard's path to `onVerb`; a product build would call the dispatcher directly.
 - **Companion:** 5.0.6, run headless from a scratch copy of its install with the Stream Deck and
   X-keys surface modules removed and a scratch config directory, so it could not open the owner's
-  deck or touch his configuration; USB hot-plug and auto-enable were also off. Generic HTTP 3.1.1.
-  Its button's POST went to a local forwarder that passed it to the RPC at once, because the admin UI
-  could not be driven reliably from a hidden window to retarget the button; the forwarder adds about
-  a millisecond, and Companion's own dispatch was measured separately (§6.2).
+  deck or touch the owner's configuration; USB hot-plug and auto-enable were also off. Generic HTTP
+  3.1.1. Presses came through Companion's HTTP API (`/api/location/.../press`), which runs a button's
+  actions exactly as a deck or emulator key does; the emulator page itself was not used, because the
+  admin UI could not be driven reliably from a hidden window. For the same reason the button's POST
+  went to a local forwarder that passed it to the RPC at once, rather than being retargeted; the
+  forwarder adds about a millisecond, and Companion's own dispatch was measured separately (§6.2).
 - **Timing:** every interval is taken on one machine clock. "First frame" is the first animation
   frame inside the output's graphic document in which the graphic's effective opacity (the product
   of every ancestor's) rose above 0.05, stamped with `performance.timeOrigin + performance.now()`.
@@ -396,8 +399,8 @@ pages.
 Two observations carry weight. Good key feedback in these products comes from state pushed over a
 persistent connection, and H2R's way of sending a clip's start and end and letting the panel count
 down is the right one for the 10 s and 5 s warnings. And no product gives a panel a verb-scoped
-credential; NoaCG would be the first to, which is cheap because its log already has a single writer
-model.
+credential; NoaCG would be the first to, which is cheap here because every press already goes through
+one dispatcher on the page.
 
 ## 9. The brief's requirements, against the suggested route
 
@@ -406,7 +409,7 @@ model.
 | Run a live show from hardware buttons | every named verb, plus select and take cue N, as module actions | [code] `playoutKeys.ts` |
 | Feedback: on air, selected cue, clip time left with the 10 s and 5 s warnings, allowed verbs | published by the answering page; clip clocks sent as start and end and counted in the module; on air also from `seq-` frames | [code], [measured] §6.3 |
 | Minimal friction | one module install, one pairing code, presets built from the production's own cues | [web] Companion presets; §8 |
-| A stale or duplicate press refused, never aired twice | the page's press-id memory and target check, then the page's own Step 2 send | [measured] §6.4 |
+| A stale or duplicate press refused, never aired twice | the page's press-id memory and target check (design, §10.1), then the page's own Step 2 send | the server half [measured] §6.4 |
 | CasparCG, OBS and vMix | the relayed press is the page's Take, which reaches every output URL | [measured] §4 |
 | A panel never holds a credential that sends raw AMCP | the panel key can only ask an open page to run a named verb | §7 |
 | Player actions stay with the players' own modules | Companion hosts the OBS, vMix and CasparCG modules beside NoaCG's | [web] §3f, §8 |
