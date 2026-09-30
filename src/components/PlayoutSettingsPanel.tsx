@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
@@ -18,10 +18,10 @@ import {
   type PlayoutSettings,
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
+import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 
 /** The panel's three presses. */
 type Verb = 'test' | 'connect' | 'air';
-import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 
 /**
  * "Playout" - the one playout server this studio drives, through NoaCG Bridge (docs/BRIDGE.md).
@@ -49,6 +49,10 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
   const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; address?: string } | null>(null);
   // The servers NoaCG Bridge remembers this studio connecting to, offered on the host field.
   const [servers, setServers] = useState<RememberedServer[]>([]);
+  // The port the box held before a remembered server's replaced it. Typing passes THROUGH
+  // addresses (10.0.0.1 on the way to 10.0.0.12), so a port taken from one has to be given back
+  // when the address moves on; a port typed by hand is the operator's and is never undone.
+  const portBeforePick = useRef<number | null>(null);
   const paired = Boolean(settings.agentToken.trim());
   useEffect(() => {
     if (!paired) return;
@@ -178,8 +182,17 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
               value={settings.host}
               onChange={(e) => {
                 // Picking a server used before brings its port with it.
-                const known = servers.find((server) => server.host === e.target.value);
-                set({ host: e.target.value, ...(known ? { amcpPort: known.port } : {}) });
+                const host = e.target.value;
+                const known = servers.find((server) => server.host === host);
+                if (known) {
+                  portBeforePick.current ??= settings.amcpPort;
+                  set({ host, amcpPort: known.port });
+                } else if (portBeforePick.current !== null) {
+                  set({ host, amcpPort: portBeforePick.current });
+                  portBeforePick.current = null;
+                } else {
+                  set({ host });
+                }
               }}
               placeholder="127.0.0.1"
               spellCheck={false}
@@ -200,7 +213,10 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
               min={1}
               max={65535}
               value={settings.amcpPort}
-              onChange={(e) => set({ amcpPort: Number(e.target.value) || 0 })}
+              onChange={(e) => {
+                portBeforePick.current = null;
+                set({ amcpPort: Number(e.target.value) || 0 });
+              }}
               aria-label="AMCP port"
               data-testid="caspar-amcp-port"
             />
@@ -350,7 +366,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           <button
             onClick={() => void run('air')}
             disabled={busy !== null || !configured || !outputUrl}
-            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${settings.host}` : 'Start the production first: it has no output URL yet'}
+            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress({ host: settings.host, port: settings.amcpPort })}` : 'Start the production first: it has no output URL yet'}
             data-testid="playout-put-on-air"
           >
             {busy === 'air' ? 'Sending…' : 'Put on air'}

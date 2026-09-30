@@ -377,13 +377,19 @@ test('Settings: the host offers the servers used before, Connect remembers one, 
   });
   await openPlayoutSettings(page);
   await expect(page.locator('#caspar-servers option')).toHaveCount(2);
-  // Choosing a server used before brings its port with it.
-  await page.getByTestId('caspar-host').fill('192.168.1.30');
+  // Choosing a server used before brings its port with it, and typing on past that address gives
+  // the port back: 192.168.1.30 is on the way to 192.168.1.300, which is not that server.
+  const host = page.getByTestId('caspar-host');
+  await host.fill('');
+  await host.pressSequentially('192.168.1.300');
+  await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5250');
+  await host.fill('192.168.1.30');
   await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5251');
 
+  // Test connection is /status and remembers nothing; only Connect is /connect.
   await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable');
-  expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.20', port: 5250 });
+  expect(bridge.routes).not.toContain('/connect');
 
   await page.getByTestId('playout-connect').click();
   await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable. NoaCG Bridge remembers this server.');

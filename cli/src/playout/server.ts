@@ -35,6 +35,7 @@ import {
   type ItemKind,
   type MediaPlayback,
   type PlayoutAction,
+  type RememberedServer,
   type RenderTargetId,
   type SequenceEntry,
   type Slot,
@@ -487,7 +488,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
-          let list;
+          let list: RememberedServer[];
           try {
             list = await servers.remember({ host: target.host, port: target.port });
           } catch (e) {

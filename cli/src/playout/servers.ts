@@ -50,13 +50,20 @@ export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.j
       return [];
     }
   };
+  // One write at a time: each is a read-modify-write of the whole file, so two Connects at once
+  // (two tabs) would otherwise both read the old list and the second would drop the first server.
+  let writing: Promise<unknown> = Promise.resolve();
   return {
     list,
-    async remember(server) {
-      const next = [server, ...(await list()).filter((s) => !same(s, server))].slice(0, MAX_SERVERS);
-      await fs.mkdir(path.dirname(file), { recursive: true });
-      await fs.writeFile(file, `${JSON.stringify({ servers: next }, null, 2)}\n`, 'utf8');
-      return next;
+    remember(server) {
+      const done = writing.then(async () => {
+        const next = [server, ...(await list()).filter((s) => !same(s, server))].slice(0, MAX_SERVERS);
+        await fs.mkdir(path.dirname(file), { recursive: true });
+        await fs.writeFile(file, `${JSON.stringify({ servers: next }, null, 2)}\n`, 'utf8');
+        return next;
+      });
+      writing = done.catch(() => undefined);
+      return done;
     },
   };
 }

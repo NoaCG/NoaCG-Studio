@@ -74,6 +74,10 @@ test('the list keeps the newest first, once each, at most eight, and a bad file 
     assert.equal(list.length, MAX_SERVERS);
     assert.deepEqual(list[0], { host: `10.0.0.${MAX_SERVERS + 1}`, port: 5250 });
 
+    // Two Connects at once (two tabs): both servers are kept, not only the one written last.
+    await Promise.all([memory.remember({ host: 'tab-a.local', port: 5250 }), memory.remember({ host: 'tab-b.local', port: 5250 })]);
+    assert.deepEqual((await memory.list()).slice(0, 2).map((s) => s.host), ['tab-b.local', 'tab-a.local']);
+
     await writeFile(file, '{ not json', 'utf8');
     assert.deepEqual(await memory.list(), []);
     await writeFile(file, JSON.stringify({ servers: [{ host: 'ok.local', port: 5250 }, { host: '', port: 1 }, { host: 'x', port: 99999 }, 'junk'] }), 'utf8');
