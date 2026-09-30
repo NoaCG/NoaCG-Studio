@@ -1,5 +1,5 @@
 // covers: src/blocks/{editorAnimation,animEdit,editorOut,editorSteps,animEval,animData,baseEdits}.ts, src/components/editorFoundation/**
-// covers: src/templates/catalog.ts, src/templates/shared/animRuntime.ts, src/model/structure.ts
+// covers: src/templates/**, src/model/structure.ts
 //
 // R1.2a.6 full transforms (docs/research/editor-r1-2a-6): the editor edits the transform and
 // visibility channels catalog designs animate instead of refusing them. Each control reads the
