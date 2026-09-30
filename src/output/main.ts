@@ -5,8 +5,8 @@
 //
 // Nothing but graphics ever renders on air: no connection text, no UI. A disconnected renderer
 // keeps its last applied state and recovers silently; `&debug=1` overlays a status readout for
-// setup and rehearsal. The "not available" card exists only for a wrong URL or an offline
-// build — states a live production can never be in.
+// setup and rehearsal. "Not available" (a wrong URL, an offline build, an unpublished
+// production) paints nothing either; its words show only under `&debug=1`.
 
 import { isBackendConfigured } from '../backend/config';
 import {
@@ -89,26 +89,62 @@ function dbg(key: string, value: string): void {
 // line is written again once the production resolves (livePath.ts `hostEngine`).
 dbg('engine', hostEngine());
 
-/** The wrong-URL / offline card. Never part of a live production's air. */
-function unavailable(reason: string): void {
+/** Why the renderer has nothing to show. Published as `body[data-unavailable]`. */
+type Unavailable = 'no-token' | 'offline' | 'unpublished';
+
+const UNAVAILABLE_TEXT: Record<Unavailable, string> = {
+  'no-token': 'This URL is missing its <code>?production=</code> token.',
+  offline: 'This build runs offline. Browser output needs the cloud backend.',
+  unpublished: 'This link is invalid or the production was unpublished.',
+};
+
+/**
+ * "Output not available": a wrong URL, an offline build, or a production that is not published.
+ *
+ * IT PAINTS NOTHING ON AIR. It used to be an opaque full-frame card, on the theory that a live
+ * production can never be in these states - but a CasparCG layer or OBS source that reloads onto
+ * a production somebody unpublished is exactly that, and it put a dark frame on air. So the page
+ * stays transparent: the reason goes to `body[data-unavailable]` and the console, and its words
+ * appear only with `&debug=1`, where setup and rehearsal already expect a readout.
+ */
+function unavailable(why: Unavailable): void {
+  document.body.setAttribute('data-unavailable', why);
+  console.warn(`NoaCG output: not available (${why}). Add &debug=1 to the URL to see why on the page.`);
+  if (!debug) return;
   const card = document.createElement('div');
+  card.setAttribute('data-testid', 'output-unavailable');
   card.style.cssText =
     // Longhands, not `inset` (Chromium 87): this card exists to explain a failure, and an old
-    // CasparCG CEF is exactly where one happens — a card that unpositions itself there would
-    // print its explanation into the corner of a live layer.
-    'position:fixed;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;background:#0a0a0c;color:#8a8a92;' +
+    // CasparCG CEF is exactly where one happens. The frame stays transparent; only the words
+    // sit on a panel, the debug readout's.
+    'position:fixed;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;background:transparent;' +
     'font:15px/1.6 system-ui,sans-serif;text-align:center;';
-  card.innerHTML = `<div><div style="font-size:18px;color:#c9c9cf;margin-bottom:6px">Output not available</div>${reason}</div>`;
+  card.innerHTML =
+    '<div style="padding:14px 18px;border-radius:6px;background:rgba(10,10,12,0.82);color:#8a8a92">' +
+    `<div style="font-size:18px;color:#c9c9cf;margin-bottom:6px">Output not available</div>${UNAVAILABLE_TEXT[why]}</div>`;
   document.body.appendChild(card);
+}
+
+/** Library-load failures in a row before the boot reloads (about 1.5 s after the first). */
+const RELOAD_AFTER_THROWS = 3;
+
+/** Reload, if this page's own URL answers right now. Otherwise stay put and keep retrying. */
+async function reloadIfServed(): Promise<void> {
+  try {
+    const page = await fetch(window.location.href, { cache: 'no-store' });
+    if (page.ok) window.location.reload();
+  } catch {
+    // Unreachable: a reload would paint the browser's error page. The retry goes on.
+  }
 }
 
 async function boot(): Promise<void> {
   if (!outputSlug) {
-    unavailable('This URL is missing its <code>?production=</code> token.');
+    unavailable('no-token');
     return;
   }
   if (!isBackendConfigured()) {
-    unavailable('This build runs offline — browser output needs the cloud backend.');
+    unavailable('offline');
     return;
   }
   // THE RESOLVE IS THE ONE REQUEST THE WHOLE AIRING HANGS ON: show id, log baseline and every
@@ -117,13 +153,36 @@ async function boot(): Promise<void> {
   // dropped request painted the wrong-URL card over a live production and left it there. Only an
   // ANSWER decides now; a failure is retried for good, because a browser source has nothing to
   // degrade to and no one to tell.
+  //
   // Protocol 2 first (migration 0070), today's resolve when the server has no sequence road.
-  const answer = await untilAnswered(() => controlOutputResolve(outputSlug), {
-    onRetry: (attempts, error) => dbg('production', `resolving… (${attempts} failed: ${error})`),
-  });
+  //
+  // A THROW here is the client library's chunk failing to load (supabase-js is fetched on
+  // demand; a failed RPC answers, it does not throw). It is retried like any other failure, but
+  // two things mean a retry in this document cannot fetch it: Chromium, which every playout
+  // host embeds, keeps a failed module fetch for the life of the document (measured
+  // 2026-09-30), and an old deployment's hashed chunk answers 404 for good once a deploy lands
+  // between this page's HTML and its import. Both need the page again, so after a few throws in
+  // a row it reloads, but only once its own URL answers: reloading during an outage would swap
+  // a transparent page for the browser's error page, on air.
+  let thrown = 0;
+  const answer = await untilAnswered(
+    async () => {
+      try {
+        const result = await controlOutputResolve(outputSlug);
+        thrown = 0;
+        return result;
+      } catch (err) {
+        thrown += 1;
+        // Not awaited: a probe that hangs on a half-dead network must not stall the retries.
+        if (thrown >= RELOAD_AFTER_THROWS) void reloadIfServed();
+        throw err;
+      }
+    },
+    { onRetry: (attempts, error) => dbg('production', `resolving… (${attempts} failed: ${error})`) },
+  );
   const resolved = answer.ok ? answer.value : null;
   if (!resolved) {
-    unavailable('This link is invalid or the production was unpublished.');
+    unavailable('unpublished');
     return;
   }
   dbg('production', resolved.title);

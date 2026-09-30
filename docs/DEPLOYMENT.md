@@ -429,8 +429,9 @@ programme and nobody reloads them. Deploying every landing is safe for them; the
   the output reloads again. An open output keeps its picture; the next reload does not.
 - **Never ship a change to a live-path function without a behaviour self-check that CALLS it.**
   The live path is the contract renderers and operator pages hold open for hours: the
-  `control_*` RPCs they call, the `cmd-` and `log-` topics, and the columns and policies those
-  read (`docs/PLAYOUT_ISOLATION_RESEARCH.md` §11.2 names it). 0056 redefined `control_send_many`
+  `control_*` RPCs they call, the `cmd-`, `log-` and `live-` topics, and the columns and policies
+  those read (`supabase/AGENTS.md`, "Live-path migrations wait for a quiet window", names it and
+  `scripts/db-push.mjs` enforces it). 0056 redefined `control_send_many`
   from an older body and silently dropped the `live_cue` mirror for every production; only a
   self-check that calls the function and asserts what it must still do catches a behaviour that
   was removed (`supabase/AGENTS.md`, "A self-check proves SHAPE, never behaviour").
