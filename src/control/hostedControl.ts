@@ -8,6 +8,7 @@
 // library at publish time (docs/SAVED_CONTENT_MODEL.md §4) — the hosted page renders them as
 // a read-only switcher, so picking one stages its data and airing it stays a deliberate take.
 
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
@@ -23,10 +24,10 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
-import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
-import { joinLiveTopic, noteSend, withSender } from './livePath';
-import { createSeqFollower, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
+import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
+import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { noteSend, withSender } from './livePath';
+import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
   createGraphicFifo,
@@ -165,7 +166,7 @@ export type LiveReportMap = Record<
     state?: { groups?: Record<string, string> } | null;
     at?: string;
     event?: number;
-    /** Protocol 2 only: the same baseline in the per-production sequence (0070). */
+    /** Protocol 2 only: the same baseline in the per-production sequence (0071). */
     seq?: number;
   }
 >;
@@ -207,9 +208,9 @@ export interface ResolvedControlShow {
    */
   profile: ShowProfile | null;
   /**
-   * PROTOCOL 2 (migration 0070): how this page follows the numbered log, or absent when the
+   * PROTOCOL 2 (migration 0071): how this page follows the numbered log, or absent when the
    * server has no sequence road, in which case everything runs today's way. Present means the
-   * page follows `live-<show>` by seq (`followControlLog` takes it as `seq`) and sends through
+   * page follows `seq-<show>` by seq (`followControlLog` takes it as `seq`) and sends through
    * `control_send_seq` (`sendControlVerb` finds the session by slug).
    */
   seq?: SeqPlan;
@@ -227,7 +228,7 @@ export interface SeqPlan {
   session: SeqSession;
 }
 
-/** A log row with its per-production number (0070). */
+/** A log row with its per-production number (0071). */
 export type SeqLogRow = ControlEventRow & { seq: number };
 
 /** What the output renderer resolves — payload + live snapshot, never panel/staged/slug. */
@@ -240,7 +241,7 @@ export interface ResolvedOutputShow {
   live: LiveReportMap;
   lastEventId: number;
   /**
-   * PROTOCOL 2 (migration 0070), absent on an older server. `legacy` means rows written before
+   * PROTOCOL 2 (migration 0071), absent on an older server. `legacy` means rows written before
    * the migration exist that this renderer would need and that carry no seq: it then follows by
    * id for the whole session, exactly as before, and its reports move the baselines past them.
    */
@@ -257,7 +258,7 @@ export interface CueStatusMsg {
 /** A log row as delivered by Realtime / the tail RPC. */
 export interface ControlEventRow {
   id: number;
-  /** The row's number in its production's sequence (migration 0070). Absent on the id road and on
+  /** The row's number in its production's sequence (migration 0071). Absent on the id road and on
    *  rows written before that migration. */
   seq?: number;
   graphic: string;
@@ -453,7 +454,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   // = excluded."id", ...`, read off pg_stat_statements on a preview branch), and a key column in
   // the SET makes Postgres lock the existing row FOR UPDATE, which blocks every Take's KEY SHARE on
   // it for the whole multi-megabyte write. An update that leaves `id` out of the SET takes FOR NO
-  // KEY UPDATE, which a Take passes (migration 0070, review finding ordering:F1).
+  // KEY UPDATE, which a Take passes (migration 0071, review finding ordering:F1).
   const error = await writeControlShow(sb, published);
   // AN INSTANCE THAT HAS NOT RUN 0058 MUST STILL BE ABLE TO PUBLISH. PostgREST refuses the WHOLE
   // upsert when one named column is not in its schema cache, so naming `profile` unconditionally
@@ -636,7 +637,7 @@ export async function unpublishControlShow(id: string): Promise<void> {
 // ── The operator side (capability-addressed; works signed-out) ───────────────
 
 /**
- * DOES THIS SERVER HAVE THE SEQUENCE ROAD (migration 0070)? Asked once per page load, by the first
+ * DOES THIS SERVER HAVE THE SEQUENCE ROAD (migration 0071)? Asked once per page load, by the first
  * resolve: the new resolve answers, or PostgREST says it has no such function (PGRST202) - or any
  * other answer that is not "unanswered" - and then this page runs today's protocol for the rest of
  * its life. A page is not switched mid-session: a live-path migration can land while it is open
@@ -644,25 +645,32 @@ export async function unpublishControlShow(id: string): Promise<void> {
  * "Unanswered" (the network, a 5xx gateway, 57014) decides nothing: the caller asks again.
  */
 let seqRoad: 'unknown' | 'present' | 'absent' = 'unknown';
+/** Statement timeouts (57014) the protocol-2 resolve has answered in a row. */
+let seqTimeouts = 0;
 
 /** Ask a protocol-2 resolve. `undefined` means use today's RPC (this server has no sequence road,
- *  learned now or before); a failure means the server did not answer and nothing was decided. */
+ *  learned now or before); a failure means the server did not answer and nothing was decided.
+ *  `timeoutsBeforeAbsent`: after that many statement timeouts in a row, give up on the new road
+ *  for this page's life, as if the server had none. */
 async function askSeqRoad(
   sb: NonNullable<Awaited<ReturnType<typeof getSupabase>>>,
   rpc: string,
   args: Record<string, unknown>,
+  timeoutsBeforeAbsent = Infinity,
 ): Promise<RpcAnswer<Record<string, unknown> | null> | undefined> {
   if (seqRoad === 'absent') return undefined;
   const { data, error, status } = await sb.rpc(rpc, args);
+  seqTimeouts = error?.code === '57014' ? seqTimeouts + 1 : 0;
   if (!error) {
     seqRoad = 'present';
     return { ok: true, value: data && typeof data === 'object' ? (data as Record<string, unknown>) : null };
   }
-  if (unansweredStatus(status, error.code)) return { ok: false, error: error.message };
+  if (unansweredStatus(status, error.code) && seqTimeouts < timeoutsBeforeAbsent) return { ok: false, error: error.message };
   seqRoad = 'absent';
   console.info(
-    `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - this server has no sequence road, ` +
-      'so this page follows and sends by row id, as before.',
+    `[control] ${rpc}: ${error.code ?? ''} ${error.message.slice(0, 160)} - ` +
+      (error.code === '57014' ? `${seqTimeouts} statement timeouts in a row` : 'this server has no sequence road') +
+      ', so this page follows and sends by row id, as before.',
   );
   return undefined;
 }
@@ -835,17 +843,24 @@ async function controlOutputBySlug(outputSlug: string): Promise<RpcAnswer<Resolv
 }
 
 /**
- * The renderer's resolve, protocol 2 first (`control_output_resolve`, migration 0070), today's
+ * The renderer's resolve, protocol 2 first (`control_output_resolve`, migration 0071), today's
  * `controlOutputBySlug` when this server has no sequence road (`seqRoad`). Same answer shape as
  * that one; on protocol 2 it also carries `seq` and every report carries its seq baseline.
  */
 export async function controlOutputResolve(outputSlug: string): Promise<RpcAnswer<ResolvedOutputShow | null>> {
   const sb = await getSupabase();
   if (!sb) return { ok: false, error: 'no backend client' };
-  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug });
+  // A renderer is never left dark by the new road: its resolve reads more than today's (the
+  // reports' seq baselines, the legacy check), and if that keeps running out of statement time
+  // the renderer boots on today's resolve and follows by row id for this session (review
+  // oldclients:F2). An operator page has a person to tell and keeps asking.
+  const next = await askSeqRoad(sb, 'control_output_resolve', { p_output_slug: outputSlug }, OUTPUT_RESOLVE_TIMEOUTS);
   if (next) return next.ok ? { ok: true, value: next.value ? readResolvedOutput(next.value, true) : null } : next;
   return controlOutputBySlug(outputSlug);
 }
+
+/** Statement timeouts in a row on the renderer's protocol-2 resolve before it gives up on it. */
+const OUTPUT_RESOLVE_TIMEOUTS = 3;
 
 function readResolvedOutput(row: Record<string, unknown>, proto2: boolean): ResolvedOutputShow {
   return {
@@ -873,7 +888,7 @@ function readSeqHead(value: unknown): SeqHead | undefined {
     : undefined;
 }
 
-/** A `batch` frame off `live-<show>`, or null (the database is the only writer, and a frame is
+/** A `batch` frame off `seq-<show>`, or null (the database is the only writer, and a frame is
  *  still checked before anything is applied from it). */
 function readSeqFrame(payload: unknown): SeqFrame<SeqLogRow> | null {
   const p = payload as { epoch?: unknown; rows?: unknown; head?: unknown } | null;
@@ -1086,7 +1101,10 @@ export async function sendControlVerb(opts: {
   /** This batch is (part of) All out, the panic control: on protocol 2 it is never refused as
    *  stale and never waits behind another send of its graphics (seqSend.ts). */
   allOut?: boolean;
-}): Promise<{ skipped: string[] }> {
+  /** Protocol 2: this batch's number and base, taken at the press of a verb that leaves as several
+   *  batches (`sendControlVerbs`). Absent, they are taken now. */
+  sender?: SenderBody | null;
+}): Promise<VerbSent> {
   const now = Date.now();
   const { showId } = opts;
   // A follower that is catching up takes NOTHING fast, its own presses included (see `recovering`
@@ -1129,15 +1147,13 @@ export async function sendControlVerb(opts: {
   // PROTOCOL 2 when this page resolved its production on it: the press gets its number and what
   // the operator had seen, read NOW, at the press - not when the send leaves (seqSend.ts).
   const session = seqSessions.get(opts.slug);
-  const sender = session
-    ? senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(wire.map((item) => item.graphic))], !!opts.allOut)
-    : null;
-  // What an All out left alone because this page pressed those graphics again since (protocol 2):
-  // they are still on air, and a caller that marks every cleared layer off must not mark these.
-  let skipped: string[] = [];
+  const sender = session ? (opts.sender ?? pressSender(session, opts.items, !!opts.allOut)) : null;
+  const sent: VerbSent = { skipped: [], superseded: [] };
   try {
     if (session && sender) {
-      skipped = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
+      const settled = await sendSeqVerb(opts.slug, wire, session, sender, resend, !!opts.allOut);
+      sent.skipped = settled.skipped;
+      if (settled.superseded) sent.superseded = Object.keys(sender.base);
     } else {
       // A server that did not answer gets the same items again, minted ids and all, for a few
       // seconds (failedSends.ts says why that is safe and why it stops). Each attempt is abandoned
@@ -1160,12 +1176,66 @@ export async function sendControlVerb(opts: {
     // the window, and a Take pressed after it expired would then overtake the event's own row.
     // A send that ended abandoned (failedSends.ts ATTEMPT_TIMEOUT_MS) may still commit after this;
     // that is the late commit only a server-side revision check closes: on protocol 2 the server
-    // refuses it as superseded by this page's later press (migration 0070).
+    // refuses it as superseded by this page's later press (migration 0071).
     const landed = Date.now() + SLOW_AFTER_EVENT_MS;
     for (const key of held) slowUntil.set(key, landed);
     for (const key of keys) if (newestSend.get(key) === send) newestSend.delete(key);
   }
-  return { skipped };
+  return sent;
+}
+
+/**
+ * WHAT A VERB'S SEND CAME TO, beyond landing (protocol 2 only; both lists are empty on protocol 1).
+ * A caller that writes a picture after the answer (a chip, a cue marked on or off air) must not
+ * write it for either list: what stands there is this page's LATER press, whose own handler has
+ * already written it, and a write now would overwrite it with this older one (review ordering:F2).
+ */
+export interface VerbSent {
+  /** Graphics an All out left alone because this page pressed them again since: still on air. */
+  skipped: string[];
+  /** Graphics of a batch the server refused as superseded by this page's own later press. */
+  superseded: string[];
+}
+
+/** One batch's number and base, read now. */
+function pressSender(session: SeqSession, items: readonly ControlSendItem[], allOut: boolean): SenderBody {
+  return senderBody(session, SENDER_ID, (lastPress += 1), [...new Set(items.map((item) => item.graphic))], allOut);
+}
+
+/**
+ * ONE PRESS THAT LEAVES AS SEVERAL BATCHES (All out over more than four layers, an Out of several
+ * graphics, a combined press): every batch is numbered and based HERE, at the press, then the
+ * batches are sent one after another, stopping at the first that fails. Numbered as each one
+ * left, a later batch took a number above a press the operator made while an earlier batch was on
+ * its way, so an All out could undo that later press, and it counted as "seen" whatever another
+ * screen did in the meantime (review ordering:F1). The error thrown carries `landed`: how many
+ * batches landed before it. Protocol 1 numbers nothing and sends exactly as one call per batch.
+ */
+export async function sendControlVerbs(
+  opts: Omit<Parameters<typeof sendControlVerb>[0], 'items' | 'sender'> & { batches: ControlSendItem[][] },
+): Promise<VerbSent> {
+  const { batches, ...one } = opts;
+  const session = seqSessions.get(one.slug);
+  const senders = batches.map((batch) => (session ? pressSender(session, batch, !!one.allOut) : null));
+  const sent: VerbSent = { skipped: [], superseded: [] };
+  let landed = 0;
+  try {
+    for (const [index, batch] of batches.entries()) {
+      const each = await sendControlVerb({ ...one, items: batch, sender: senders[index] });
+      sent.skipped.push(...each.skipped);
+      sent.superseded.push(...each.superseded);
+      landed += 1;
+    }
+  } catch (e) {
+    throw Object.assign(e as Error, { landed });
+  }
+  return sent;
+}
+
+/** How many batches of a `sendControlVerbs` press landed before the one that failed. */
+export function verbsLanded(e: unknown): number {
+  const landed = (e as { landed?: unknown } | null)?.landed;
+  return typeof landed === 'number' ? landed : 0;
 }
 
 /** Did this send put commands on THIS surface's screen before failing? Read off the thrown
@@ -1200,21 +1270,26 @@ async function sendSeqVerb(
   sender: SenderBody,
   resend: { deadline: number; stillNewest: () => boolean },
   allOut: boolean,
-): Promise<string[]> {
+): Promise<{ skipped: string[]; superseded: boolean }> {
   const graphics = Object.keys(sender.base);
-  let skipped: string[] = [];
+  let settled: { outcome: 'landed' | 'superseded'; skipped: string[] } = { outcome: 'landed', skipped: [] };
   const send = () =>
-    sendWithResend(async (signal) => {
-      skipped = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics).skipped;
-    }, resend);
+    // A press that waited in the queue past its own resend window has no fair attempt left: it
+    // is unanswered, never a 0 ms attempt that may still reach the server (review ordering:F5).
+    resend.deadline - Date.now() < MIN_ATTEMPT_MS
+      ? Promise.reject(unansweredError())
+      : sendWithResend(async (signal) => {
+          settled = settleAnswer(session, await sendSeqBatch(slug, wire, sender, signal), graphics);
+        }, resend);
   await (allOut ? send() : seqQueue.run(graphics, send));
-  return skipped;
+  return { skipped: settled.skipped, superseded: settled.outcome === 'superseded' };
 }
 
 /**
  * `control_send_seq`: the batch `control_send_many` takes, plus who pressed it and what they had
- * seen (migration 0070). A lock timeout (55P03, the head held past the RPC's own 2 s) wrote nothing
- * and the send is idempotent, so it counts as unanswered and is sent again (review latency:F9).
+ * seen (migration 0071). A lock timeout (55P03: the head held past the RPC's own 1 s, which is below
+ * this page's 1.5 s attempt so the answer arrives) wrote nothing and the send is idempotent, so it
+ * counts as unanswered and is sent again (review latency:F9 and latency:L2).
  */
 async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody, signal: AbortSignal): Promise<SendAnswer | null> {
   const sb = await getSupabase();
@@ -1407,7 +1482,7 @@ export async function followControlLog(opts: {
    *  a count the output reports (livePath.ts). */
   onHole?: () => void;
   /**
-   * PROTOCOL 2 (the resolve's `seq`): follow the numbered log on `live-<show>` instead, with the
+   * PROTOCOL 2 (the resolve's `seq`): follow the numbered log on `seq-<show>` instead, with the
    * same `onRow`, `onHole` and `onStatus`. `from`, `tail` and the fast road are the id road's and
    * are not used then: a numbered frame arrives at the same moment as the command frame (both are
    * written by one transaction), so there is nothing for a fast road to win, and every frame also
@@ -1418,7 +1493,7 @@ export async function followControlLog(opts: {
   if (opts.seq) {
     const plan = opts.seq;
     const { showId } = opts;
-    return followLiveSeq({
+    return followSeqLog({
       showId,
       from: plan.from,
       epoch: plan.epoch,
@@ -1481,13 +1556,13 @@ export async function followControlLog(opts: {
 }
 
 /**
- * FOLLOW THE NUMBERED LOG (protocol 2, migration 0070): `live-<show>` frames through the sequence
- * follower (seqFollow.ts has every rule and why), a refill on every join (spread on a rejoin) and
- * every CONTROL_POLL_MS whatever the socket does, and the same status reporting as the id road.
- * The renderer calls this directly, because it needs each batch whole (`replayed` is where a
- * superseded animation may be elided); a page gets it through `followControlLog`'s `seq`.
+ * FOLLOW THE NUMBERED LOG (protocol 2, migrations 0070 and 0071): `seq-<show>` frames through the
+ * sequence follower (seqFollow.ts has every rule and why), a refill on every join (spread on a
+ * rejoin) and every CONTROL_POLL_MS whatever the socket does, and the same status reporting as the
+ * id road. The renderer calls this directly, because it needs each batch whole (`replayed` is where
+ * a superseded animation may be elided); a page gets it through `followControlLog`'s `seq`.
  */
-export function followLiveSeq(opts: {
+export function followSeqLog(opts: {
   showId: string;
   from: number;
   epoch: string | null;
@@ -1518,8 +1593,7 @@ export function followLiveSeq(opts: {
     report();
     void follower.refill();
   }, CONTROL_POLL_MS);
-  // The topic Step 1's Presence is on: one join per page and production (livePath.ts).
-  const topic = joinLiveTopic(opts.showId, {
+  const leave = joinSeqTopic(opts.showId, {
     onBatch: (payload) => {
       const frame = readSeqFrame(payload);
       if (frame) follower.offer(frame);
@@ -1536,8 +1610,97 @@ export function followLiveSeq(opts: {
   return () => {
     clearInterval(poll);
     follower.stop();
-    topic.leave();
+    leave();
   };
+}
+
+/** What one follower of a production's numbered topic hears. */
+interface SeqTopicUser {
+  onBatch: (payload: unknown) => void;
+  /** Each status the join reports; a user that arrives after the join hears where it stands. */
+  onStatus: (status: string) => void;
+}
+
+interface SeqTopicState {
+  users: Set<SeqTopicUser>;
+  channel: RealtimeChannel | null;
+  /** The last status the join reported ('' before any). */
+  status: string;
+  everJoined: boolean;
+  /** Failed joins (or server closes) in a row since the last SUBSCRIBED. */
+  failures: number;
+  retryTimer: ReturnType<typeof setTimeout> | null;
+  closed: boolean;
+}
+
+/**
+ * ONE JOIN OF `seq-<show>` PER PAGE, however many followers: supabase-js hands back the same
+ * channel object for a topic a page already has, a second `subscribe` on it never reports, and
+ * removing it for one user removes it for all, so the join lives here and leaves with its last
+ * user. Nothing but the numbered frames is on this channel: no Presence, so no Presence limit can
+ * close it (commandRoads.ts `seqTopic`).
+ */
+const seqTopics = new Map<string, SeqTopicState>();
+
+function joinSeqTopic(showId: string, user: SeqTopicUser): () => void {
+  let state = seqTopics.get(showId);
+  if (!state) {
+    state = { users: new Set(), channel: null, status: '', everJoined: false, failures: 0, retryTimer: null, closed: false };
+    seqTopics.set(showId, state);
+    void openSeqTopic(showId, state);
+  }
+  const joined = state;
+  joined.users.add(user);
+  if (joined.status) user.onStatus(joined.status);
+  return () => {
+    if (!joined.users.delete(user) || joined.users.size > 0) return;
+    joined.closed = true;
+    if (seqTopics.get(showId) === joined) seqTopics.delete(showId);
+    if (joined.retryTimer) clearTimeout(joined.retryTimer);
+    const ch = joined.channel;
+    joined.channel = null;
+    if (ch) void getSupabase().then((sb) => sb?.removeChannel(ch));
+  };
+}
+
+async function openSeqTopic(showId: string, state: SeqTopicState): Promise<void> {
+  state.retryTimer = null;
+  const sb = await getSupabase().catch(() => null);
+  if (state.closed) return;
+  const tell = (status: string) => {
+    state.status = status;
+    for (const user of [...state.users]) user.onStatus(status);
+  };
+  if (!sb) {
+    // No client (none configured, or its chunk failed to load): the poll floor carries on, and
+    // the next attempt is on the same schedule as a refused join.
+    tell('CHANNEL_ERROR');
+    state.failures += 1;
+    state.retryTimer = setTimeout(() => void openSeqTopic(showId, state), seqJoinRetryDelay(state.failures));
+    return;
+  }
+  const ch = sb.channel(seqTopic(showId), { config: { private: true } });
+  state.channel = ch;
+  ch.on('broadcast', { event: SEQ_BATCH_EVENT }, (frame: { payload?: unknown }) => {
+    for (const user of [...state.users]) user.onBatch(frame.payload);
+  });
+  ch.subscribe((status) => {
+    if (state.closed || state.channel !== ch) return;
+    if (status === 'SUBSCRIBED') {
+      state.everJoined = true;
+      state.failures = 0;
+    }
+    tell(status);
+    if (status === 'SUBSCRIBED') return;
+    // Once joined, supabase-js rejoins by itself after an error or a timeout. It does not after the
+    // server CLOSES the channel, and a join that never succeeded is asked again on this file's own
+    // schedule (seqFollow.ts `seqJoinRetryDelay`) rather than supabase-js's quick loop.
+    if (state.everJoined && status !== 'CLOSED') return;
+    state.channel = null;
+    void sb.removeChannel(ch);
+    state.failures += 1;
+    state.retryTimer = setTimeout(() => void openSeqTopic(showId, state), seqJoinRetryDelay(state.failures));
+  });
 }
 
 /** Stage PREPARED data — shared with every operator page on this slug. A refusal THROWS: the

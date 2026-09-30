@@ -140,15 +140,12 @@ test('an output says who it is and how commands reach it, and both operator page
     .not.toBeNull();
 
   // ── A SECOND output whose server refuses the live topic: it still follows and airs, it only
-  //    goes unannounced. On a server with the numbered log (migration 0070, which needs 0068, so no
-  //    real server refuses the topic there) the live topic is also the renderer's log road: refused,
-  //    that output follows on the poll floor and says so. ──
-  const numbered = ((await debug.textContent()) ?? '').includes('protocol: numbered log');
+  //    goes unannounced. ──
   const refused = await anon.newPage();
   await refuseLiveTopic(refused);
   await refused.goto(outputUrl);
   const refusedDebug = refused.locator('pre');
-  await expect(refusedDebug).toContainText(numbered ? 'realtime: NOT JOINED' : 'realtime: following', { timeout: 60_000 });
+  await expect(refusedDebug).toContainText('realtime: following', { timeout: 60_000 });
   await expect(refusedDebug).toContainText('presence: NOT JOINED', { timeout: 30_000 });
 
   const hosted = await anon.newPage();

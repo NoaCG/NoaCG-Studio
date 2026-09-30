@@ -19,7 +19,7 @@ import {
   controlOutputTail,
   controlOutputTailSeq,
   followControlLog,
-  followLiveSeq,
+  followSeqLog,
   untilAnswered,
   type ControlEventRow,
   type ControlFollowStatus,
@@ -154,7 +154,7 @@ async function boot(): Promise<void> {
   // ANSWER decides now; a failure is retried for good, because a browser source has nothing to
   // degrade to and no one to tell.
   //
-  // Protocol 2 first (migration 0070), today's resolve when the server has no sequence road.
+  // Protocol 2 first (migration 0071), today's resolve when the server has no sequence road.
   //
   // A THROW here is the client library's chunk failing to load (supabase-js is fetched on
   // demand; a failed RPC answers, it does not throw). It is retried like any other failure, but
@@ -271,7 +271,7 @@ async function boot(): Promise<void> {
   // on air. The whole rule, and why, is `control/outputRecovery.ts`; it lives out there so an
   // offline spec can drive it. ──
   //
-  // PROTOCOL 2 (migration 0070) reads the same rule in the per-production SEQUENCE, unless this
+  // PROTOCOL 2 (migration 0071) reads the same rule in the per-production SEQUENCE, unless this
   // production still holds rows written before the migration that this renderer would need
   // (`legacy`): those carry no number, so it follows by id for this whole session, exactly as
   // before, and its reports move the baselines past them. `lastAppliedId` stays the highest id
@@ -296,23 +296,41 @@ async function boot(): Promise<void> {
   const mergedData = new Map<string, Record<string, string>>();
   const lastReported = new Map<string, string>();
   const reportTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  const scheduleReport = (graphic: string) => {
+  /** Reports due even if nothing about the graphic changed (a re-bank, below). */
+  const forcedReports = new Set<string>();
+  const scheduleReport = (graphic: string, force = false) => {
+    if (force) forcedReports.add(graphic);
     clearTimeout(reportTimers.get(graphic));
     reportTimers.set(
       graphic,
       setTimeout(() => {
         const data = mergedData.get(graphic) ?? {};
         const state = stage.states.get(graphic) ?? null;
-        // Byte-identical truth needs no second write (the 1 s state poll answers every second).
+        // Byte-identical truth needs no second write (the 1 s state poll answers every second),
+        // unless the write is due for its baseline.
         const key = JSON.stringify([data, state]);
-        if (key === lastReported.get(graphic)) return;
+        const forced = forcedReports.delete(graphic);
+        if (!forced && key === lastReported.get(graphic)) return;
         lastReported.set(graphic, key);
+        if (seqMode) bankedAt.set(graphic, lastAppliedSeq);
         void (seqMode
           ? controlOutputReportSeq(outputSlug, graphic, data, state, { seq: lastAppliedSeq, epoch: followEpoch, event: lastAppliedId })
           : controlOutputReport(outputSlug, graphic, data, state, lastAppliedId));
       }, 800),
     );
   };
+  /**
+   * NO BASELINE GROWS OLD (protocol 2; review recovery:F1). A boot follows from the OLDEST
+   * graphic's baseline, and a report is written only when a graphic changes, so a graphic taken
+   * once and left alone (a bug, a logo) would hold every later boot of every renderer at its Take,
+   * and a long show's reboot would read the whole retained log before painting. So every graphic
+   * that holds a report is reported again once this renderer has applied REBANK_AFTER numbered rows
+   * past its last one, changed or not: `lastAppliedSeq` is the contiguous cursor, so what it banks
+   * is a true baseline, and a reboot reads about REBANK_AFTER rows at most on top of its own gap.
+   */
+  const REBANK_AFTER = 500;
+  /** Per graphic, the seq its last report banked (the resolve's, then this renderer's own). */
+  const bankedAt = new Map<string, number>(seqMode ? snapshotAt : []);
   stage.onState((graphic) => scheduleReport(graphic));
 
   // ── Which graphics are LIVE (played/snapped and not yet stopped): only those can change
@@ -461,7 +479,14 @@ async function boot(): Promise<void> {
     // The id baseline is the highest id applied on either road: that is what an older reader of
     // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
-    if (seqMode) lastAppliedSeq = Math.max(lastAppliedSeq, row.seq ?? 0);
+    if (seqMode) {
+      lastAppliedSeq = Math.max(lastAppliedSeq, row.seq ?? 0);
+      for (const [graphic, at] of bankedAt) {
+        if (lastAppliedSeq - at < REBANK_AFTER) continue;
+        bankedAt.set(graphic, lastAppliedSeq);
+        scheduleReport(graphic, true);
+      }
+    }
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
@@ -613,13 +638,14 @@ async function boot(): Promise<void> {
     );
   };
   if (seqMode) {
-    // THE NUMBERED LOG (hostedControl.ts followLiveSeq, seqFollow.ts): in seq order, a gap is a
+    // THE NUMBERED LOG (hostedControl.ts followSeqLog, seqFollow.ts): in seq order, a gap is a
     // row in flight and never another production, and a refill applies every row it brings but
     // elides an entrance a later play or stop of the same graphic replaces. No fast road: the
     // numbered frame is written by the same transaction as the command frame and arrives with it,
-    // on the live topic, which is this renderer's log road here.
+    // on `seq-<show>`, which is this renderer's log road here. Presence stays on its own topic, so
+    // nothing about Presence (a rate limit that closes its channel) can touch this road.
     dbg('commands', 'numbered log (the fast road is not needed)');
-    followLiveSeq({
+    followSeqLog({
       showId: resolved.id,
       from: lastAppliedSeq,
       epoch: followEpoch,
@@ -636,13 +662,20 @@ async function boot(): Promise<void> {
       onHole: () => live.hole(),
       // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
       // log numbered from 1, so no baseline this renderer holds means anything in it, and every
-      // graphic reports again. Without `reset` it is the first epoch of the log already followed.
+      // graphic that carries something reports again, in the new log, once its first rows have
+      // applied (the report's 800 ms debounce): the republish emptied every report, and a graphic
+      // still up that the new log never touches would otherwise come back without it on a reboot.
+      // Without `reset` it is the first epoch of the log already followed.
       onEpoch: (epoch, reset) => {
         followEpoch = epoch;
         if (!reset) return;
         snapshotAt.clear();
         lastAppliedSeq = 0;
         lastReported.clear();
+        bankedAt.clear();
+        for (const graphic of stage.graphics) {
+          if (liveGraphics.has(graphic) || mergedData.has(graphic)) scheduleReport(graphic, true);
+        }
         dbg('protocol', 'numbered log (proto 2), republished: following the new log from its start');
       },
       onStatus,

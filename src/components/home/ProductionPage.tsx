@@ -181,19 +181,21 @@ import {
   claimJoinName,
   outputPageUrl,
   publishControlShow,
-  sendControlVerb,
+  sendControlVerbs,
   staleSentence,
   takeCueItems,
   unpublishControlShow,
   untilAnswered,
   verbAired,
   verbStale,
+  verbsLanded,
   withLiveCue,
   type ControlEventRow,
   type ControlFollowStatus,
   type ControlSendItem,
   type LiveCueMap,
   type ResolvedControlShow,
+  type VerbSent,
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { createSendDebts } from '../../control/failedSends';
@@ -1356,7 +1358,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         showId: show.id,
         from: resolved.lastEventId,
         tail,
-        // The numbered log when the server has it (migration 0070); absent, today's id road.
+        // The numbered log when the server has it (migration 0071); absent, today's id road.
         seq: resolved.seq,
         // Reported on every status change AND on every poll tick, so this stays true rather
         // than recording only the first answer.
@@ -1702,7 +1704,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       batches: ControlSendItem[][],
       label: string,
       allOut = false,
-    ): Promise<{ ok: true; skipped: string[] } | { ok: false; note: string }> => {
+    ): Promise<({ ok: true } & VerbSent) | { ok: false; note: string }> => {
       if (!hostedSlug) {
         // Not published: the verbs still drive the local PROGRAM monitor, which is what makes
         // the whole surface usable (and provable) offline. Nothing leaves the machine.
@@ -1722,32 +1724,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           )
           .filter((e): e is LogEntry => !!e);
         setWireLog((l) => appendLogEntries(l, entries));
-        return { ok: true, skipped: [] };
+        return { ok: true, skipped: [], superseded: [] };
       }
-      let landed = 0;
-      // Graphics an All out left on air because this page pressed them again since (protocol 2).
-      const skipped: string[] = [];
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
         // applying locally as well as off the log would have doubled every command it sent, and
         // the minted id is what makes doing both safe. Every other surface gets the database's
         // own broadcast on the production's private topic, with the durable row behind it, and
-        // applies whichever won.
-        for (const batch of batches) {
-          const sent = await sendControlVerb({
-            slug: hostedSlug,
-            showId,
-            items: batch,
-            applyHere: applyCommand,
-            fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
-            allOut,
-          });
-          skipped.push(...sent.skipped);
-          landed += 1;
-        }
+        // applies whichever won. Several batches are ONE press: numbered and based together, now.
+        const sent = await sendControlVerbs({
+          slug: hostedSlug,
+          showId,
+          batches,
+          applyHere: applyCommand,
+          fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
+          allOut,
+        });
         setNote(sendDebts.current.landed(batches.flat()));
-        return { ok: true, skipped };
+        return { ok: true, ...sent };
       } catch (e) {
         // A verb whose picture MOVED HERE and then failed to send is a different sentence from
         // one that never happened, and an operator has to be told which they are looking at: this
@@ -1756,24 +1751,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // refused verb aired nowhere else - and a send that failed on the way BACK may have aired
         // everywhere, which is why this says "may".
         // A press another screen had already overtaken was refused by the server, so it is its own
-        // sentence rather than "send it again" (protocol 2, migration 0070).
+        // sentence rather than "send it again" (protocol 2, migration 0071).
         const note = verbStale(e)
           ? staleSentence(e as Error)
           : verbAired(e)
             ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`;
         // Owed: the batch that failed and those after it. The ones before it landed.
-        sendDebts.current.failed(batches.slice(landed).flat(), note);
+        sendDebts.current.failed(batches.slice(verbsLanded(e)).flat(), note);
         return { ok: false, note };
       }
     },
     [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
   );
+  /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
   const runVerb = useCallback(
-    async (batches: ControlSendItem[][], label: string): Promise<boolean> => {
+    async (batches: ControlSendItem[][], label: string): Promise<VerbSent | null> => {
       const sent = await sendVerb(batches, label);
       if (!sent.ok) setNote(sent.note);
-      return sent.ok;
+      return sent.ok ? sent : null;
     },
     [sendVerb],
   );
@@ -2282,7 +2278,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const values = withBoundValues(graphic, cueView(cue).values);
     const sent = await sendVerb([takeCueItems({ id: cue.id, graphic, values })], label);
     if (!sent.ok) return { ok: false, note: sent.note };
-    setLiveCue((m) => withLiveCue(m, graphic, cue.id));
+    // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
+    if (!sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cue.id));
     clearMisses([cue.id]);
     return { ok: true, note: `✓ ${label}: ${cue.label}` };
   };
@@ -2372,9 +2369,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // any combined control still counting down loses its tail rather than firing into a screen
     // that is now empty (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b).
     cancelCombines('Out');
-    if (await runVerb([clearCueItems(selectedGraphic)], 'Out')) {
-      setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
-    }
+    const sent = await runVerb([clearCueItems(selectedGraphic)], 'Out');
+    if (sent && !sent.superseded.includes(selectedGraphic)) setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
   };
 
   /**
@@ -2385,9 +2381,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const takeOffAir = async (graphic: string) => {
     if (!liveCue[graphic]) return;
     cancelCombines('Out');
-    if (await runVerb([clearCueItems(graphic)], 'Out')) {
-      setLiveCue((m) => withLiveCue(m, graphic, null));
-    }
+    const sent = await runVerb([clearCueItems(graphic)], 'Out');
+    if (sent && !sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, null));
   };
 
   /** Remove one cue. When it is its graphic's LAST cue the graphic goes with it (shows.ts
@@ -2448,7 +2443,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     // A graphic this page pressed again while the All out was on its way stays as that later press
     // left it (the server skipped it, protocol 2), so it is not marked off here.
-    const off = cleared.filter((g) => !sent.skipped.includes(g));
+    const off = cleared.filter((g) => !sent.skipped.includes(g) && !sent.superseded.includes(g));
     setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
   };
   /** What plays on a slot this rundown uses now - an item's, or a Play-through folder's - with no cue
@@ -2653,8 +2648,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     const sent = await sendVerb([clearCueItems(m.graphic)], 'Out');
-    if (sent.ok) setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
-    else setNote(sent.note);
+    if (!sent.ok) setNote(sent.note);
+    else if (!sent.superseded.includes(m.graphic)) setLiveCue((lc) => withLiveCue(lc, m.graphic, null));
   };
   const takeFolder = async (folder: ShowFolder) => {
     const members = rundown.members.get(folder.id) ?? [];
@@ -2707,7 +2702,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cancelCombines('Out');
     const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
     if (!sent.ok) return sent.note;
-    setLiveCue((m) => graphics.reduce((acc, g) => withLiveCue(acc, g, null), m));
+    const off = graphics.filter((g) => !sent.superseded.includes(g));
+    setLiveCue((m) => off.reduce((acc, g) => withLiveCue(acc, g, null), m));
     return null;
   };
   /** Out on a folder takes all of it off - each server cue with its own fade out, its graphics
@@ -3032,9 +3028,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // construction — it reaches graphics this event never touched — so nothing but this order
     // keeps the two in step, and a press that failed on the way to the log must not leave every
     // other bound graphic showing a figure this one never took.
-    if (await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`)) {
-      await patchBoundValues(tree);
-    }
+    const sent = await runVerb([[{ graphic: selectedGraphic, msg }]], `Event ${button.event}`);
+    if (sent && !sent.superseded.includes(selectedGraphic)) await patchBoundValues(tree);
   };
 
   /** Snap the live graphic straight to a state — recovery, never an animation. A null group
@@ -3236,7 +3231,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     void runVerb(commandBatches(steps), `“${control.name}”`).then((sent) => {
       if (!sent) return;
-      for (const [graphic, cueId] of liveAfter) setLiveCue((m) => withLiveCue(m, graphic, cueId));
+      for (const [graphic, cueId] of liveAfter) {
+        if (!sent.superseded.includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cueId));
+      }
       void patchBoundValues(tree);
     });
   };

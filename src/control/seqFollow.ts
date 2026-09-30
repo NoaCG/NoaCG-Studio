@@ -1,7 +1,7 @@
 /**
- * THE SEQUENCE FOLLOWER (protocol 2, migration 0070): which numbered log rows a following surface
+ * THE SEQUENCE FOLLOWER (protocol 2, migration 0071): which numbered log rows a following surface
  * applies, in which order, and when it reads the log to find the ones the live channel did not
- * bring. `followLiveSeq` (hostedControl.ts) wires it to Realtime and the poll; this module holds no
+ * bring. `followSeqLog` (hostedControl.ts) wires it to Realtime and the poll; this module holds no
  * Supabase, so the whole discipline runs in Node with the clock faked (scripts/seq-follow.test.mjs).
  *
  * WHY A SEQUENCE AND NOT THE ROW ID. `control_events.id` is global and taken at INSERT, so a row
@@ -9,7 +9,7 @@
  * past it), and every other production's rows leave gaps in every production's ids. The first cost
  * a watcher the delayed Take in 5 of 5 trials; the second cost 92 ms per Take while the follower
  * read a tail to fill gaps that were never there (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.1, §5.3).
- * 0070 numbers each production's rows under that production's head lock, so seq n+1 cannot commit
+ * 0071 numbers each production's rows under that production's head lock, so seq n+1 cannot commit
  * before seq n: a gap in front of a frame is a row still in flight to this socket, never a row
  * still to commit, and never another production.
  *
@@ -48,7 +48,7 @@ export interface SeqRowLike {
   msg: { t: string };
 }
 
-/** What 0070 keeps per graphic: the revision, whether it is on air, its cue and step, and whose
+/** What 0071 keeps per graphic: the revision, whether it is on air, its cue and step, and whose
  *  press last moved it. Every field optional: a graphic that has only had a cue has no rev. */
 export interface HeadSummary {
   rev?: number;
@@ -64,7 +64,7 @@ export interface SeqHead {
   graphics: Record<string, HeadSummary>;
 }
 
-/** One `batch` frame on `live-<show id>`: one inserting statement's rows. */
+/** One `batch` frame on `seq-<show id>`: one inserting statement's rows. */
 export interface SeqFrame<R> {
   epoch: string | null;
   rows: R[];
@@ -77,7 +77,7 @@ export interface SeqTail<R> extends SeqFrame<R> {
   reset?: boolean;
 }
 
-/** The tail RPCs' page size (0070: at most 500 rows) - a full page means "there is more". */
+/** The tail RPCs' page size (0071: at most 500 rows) - a full page means "there is more". */
 export const SEQ_TAIL_PAGE = 500;
 /** Runaway guard on one refill walk, as the id follower has. */
 const MAX_TAIL_PAGES = 40;
@@ -85,6 +85,20 @@ const MAX_TAIL_PAGES = 40;
 export const HELD_RETRY_MS = 1_000;
 /** Heads kept waiting for their rows; beyond this the oldest go (a newer head supersedes them). */
 const MAX_WAITING_HEADS = 64;
+
+/**
+ * HOW SOON THE NUMBERED TOPIC IS JOINED AGAIN after the `failures`-th failed join in a row (or the
+ * server closing it): the first time within 1 to 5 s, spread at random, then 15 s doubling to
+ * 120 s. On protocol 2 this topic is a renderer's road for commands, and a first join fails for
+ * passing reasons too (a playout box whose network is not up yet, a slow authorisation): on a
+ * 15 s backoff from the start, every Take in between waited for the 30 s poll (review
+ * oldclients:F1). A private join is authorised by a database query, so a server that keeps
+ * refusing is asked at the backoff's pace from the second failure on, not supabase-js's 1 to 10 s.
+ */
+export function seqJoinRetryDelay(failures: number, random: () => number = Math.random): number {
+  if (failures <= 1) return 1_000 + Math.floor(random() * 4_000);
+  return Math.min(120_000, 15_000 * 2 ** (failures - 2));
+}
 
 export interface SeqFollower<R extends SeqRowLike> {
   /** A frame off the live channel, in whatever order it arrived. */

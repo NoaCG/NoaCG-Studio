@@ -154,13 +154,14 @@ test('an output URL can render the show and cannot push a command onto it', asyn
       // EVERY TOPIC REACHABLE FROM THE SHOW ID, public and private. `control-<id>` is the channel
       // the log follower has always joined; `cmd-<id>` is the private command topic; `log-<id>` is
       // the durable log mirrored by the database (migration 0064), where a follower applies any
-      // `row` frame whose id is next in line; `live-<id>` carries the numbered log (migration
-      // 0070), where a follower applies a `batch` frame in its epoch whose seq is next in line. A
-      // road added later belongs in this list - a road nobody attacks here is a road nobody has
-      // proved is closed.
-      const topics = [`control-${showId}`, `cmd-${showId}`, `log-${showId}`, `live-${showId}`];
+      // `row` frame whose id is next in line; `seq-<id>` carries the numbered log (migrations 0070
+      // and 0071), where a follower applies a `batch` frame in its epoch whose seq is next in line;
+      // `live-<id>` is Presence's (0068), which admits a client's Presence and nothing else, and is
+      // sent the same forged frame. A road added later belongs in this list - a road nobody attacks
+      // here is a road nobody has proved is closed.
+      const topics = [`control-${showId}`, `cmd-${showId}`, `log-${showId}`, `seq-${showId}`, `live-${showId}`];
       // The numbered log's current epoch and head, as the read-only capability answers them, so the
-      // forged frame is exactly what a follower would apply (on a server without 0070 the resolve
+      // forged frame is exactly what a follower would apply (on a server without 0071 the resolve
       // does not exist, and the frame goes to a topic nobody follows).
       const numbered = await sb.rpc('control_output_resolve', { p_output_slug: outputSlug });
       const headNow = numbered.error ? null : (numbered.data as { epoch?: string | null; seq?: number } | null);
@@ -170,7 +171,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
       const forgedFor = (topic: string, attempt: string) =>
         topic.startsWith('log-')
           ? { event: 'row', payload: { id: 2_000_000_000, graphic, msg: { t: 'play', oid: `forged-row-${attempt}-${Date.now()}` } } }
-          : topic.startsWith('live-')
+          : topic.startsWith('seq-') || topic.startsWith('live-')
             ? {
                 event: 'batch',
                 payload: {

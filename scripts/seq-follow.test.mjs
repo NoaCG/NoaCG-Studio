@@ -1,17 +1,17 @@
 // guards: src/control/seqFollow.ts
 //
-// The sequence follower (Phase 6 Step 2, migration 0070): numbered rows are applied once and in
+// The sequence follower (Phase 6 Step 2, migration 0071): numbered rows are applied once and in
 // seq order; a frame ahead of the cursor is held for the reorder window and drains when the gap
 // closes; a gap still open is ONE tail read; a tail answer is authoritative over gaps (a prune);
 // another epoch (unpublish + republish) starts the log again; and a refill leaves out only the
 // animations a later play/stop of the same graphic replaces. Run in Node with the clock and the
 // log faked. The wiring - Realtime, the poll, the renderer and the pages - is read in
-// src/control/hostedControl.ts (followLiveSeq) and src/output/main.ts.
+// src/control/hostedControl.ts (followSeqLog) and src/output/main.ts.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { HELD_RETRY_MS, SEQ_TAIL_PAGE, createSeqFollower, supersededAnimations } = await import('../src/control/seqFollow.ts');
+const { HELD_RETRY_MS, SEQ_TAIL_PAGE, createSeqFollower, seqJoinRetryDelay, supersededAnimations } = await import('../src/control/seqFollow.ts');
 const { REORDER_WINDOW_MS, REJOIN_REFILL_SPREAD_MS } = await import('../src/control/logFollow.ts');
 
 const row = (seq, graphic = 'G', t = 'update') => ({ id: 1000 + seq, seq, graphic, msg: { t } });
@@ -335,4 +335,11 @@ test('an event, next or snap between them fences the entrance: the machine neede
 
 test('a batch with one animation per graphic elides nothing', () => {
   assert.deepEqual([...supersededAnimations([row(1, 'A', 'update'), row(2, 'A', 'play'), row(3, 'A', 'cue')])], []);
+});
+
+test('a failed numbered join is asked again within 1 to 5 s the first time, then on 15 s doubling to 120 s', () => {
+  // The first retry is quick because on protocol 2 this topic carries a renderer's commands.
+  assert.equal(seqJoinRetryDelay(1, () => 0), 1000);
+  assert.ok(seqJoinRetryDelay(1, () => 0.999) < 5000);
+  assert.deepEqual([2, 3, 4, 5, 6, 9].map((n) => seqJoinRetryDelay(n, () => 0.5)), [15_000, 30_000, 60_000, 120_000, 120_000, 120_000]);
 });

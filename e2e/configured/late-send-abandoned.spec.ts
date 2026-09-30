@@ -65,7 +65,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   // THE HOLD: every send carrying a `play` waits HOLD_MS in the browser before it may leave. The
   // Out carries none and goes straight through. An attempt the page abandons meanwhile is
   // cancelled, so letting it go afterwards finds nothing to send. Both send RPCs: `control_send_many`
-  // on the id road, `control_send_seq` on the numbered log (migration 0070), whichever the page
+  // on the id road, `control_send_seq` on the numbered log (migration 0071), whichever the page
   // negotiated with this server.
   const held: Promise<void>[] = [];
   await op.route('**/rest/v1/rpc/control_send_*', async (route) => {

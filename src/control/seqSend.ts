@@ -1,5 +1,5 @@
 /**
- * THE SEND THAT KNOWS WHAT IT IS REPLACING (protocol 2, `control_send_seq`, migration 0070).
+ * THE SEND THAT KNOWS WHAT IT IS REPLACING (protocol 2, `control_send_seq`, migration 0071).
  *
  * Measured (docs/PLAYOUT_ISOLATION_RESEARCH.md §5.3, §5.6): a Take held 6 s on its way to the
  * database aired after the Out pressed 1.5 s behind it, and four presses waiting on a lock aired in

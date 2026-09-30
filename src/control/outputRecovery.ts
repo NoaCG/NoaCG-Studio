@@ -62,7 +62,7 @@ export function planOutputRecovery(graphics: readonly string[], live: LiveReport
 }
 
 /**
- * THE SAME REPORTS, READ IN THE PER-PRODUCTION SEQUENCE (protocol 2, migration 0070). Every report
+ * THE SAME REPORTS, READ IN THE PER-PRODUCTION SEQUENCE (protocol 2, migration 0071). Every report
  * a proto-2 resolve answers carries `seq`: the renderer's own, or the server's mapping of `event`
  * to the last seq below the first numbered row after it (a lower bound, so nothing the report did
  * not contain is skipped). The rule above is unchanged; only the position it compares is the seq.

@@ -1,10 +1,10 @@
 // guards: src/control/seqSend.ts
 //
-// The protocol-2 send (Phase 6 Step 2, migration 0070): what a page tells control_send_seq about
+// The protocol-2 send (Phase 6 Step 2, migration 0071): what a page tells control_send_seq about
 // each press (its id, press number, epoch and the revisions it had seen when the operator pressed),
 // what it learns from answers and frames, what it does with each answer, and the one-send-in-flight
 // queue per graphic that keeps two Nexts from arriving in the wrong order. Run in Node. The wiring
-// is sendControlVerb in src/control/hostedControl.ts; the server half is 0070's own self-check.
+// is sendControlVerb in src/control/hostedControl.ts; the server half is 0071's own self-check.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';

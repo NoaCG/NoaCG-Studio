@@ -27,7 +27,7 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
-import { LIVE_BATCH_EVENT, mintOid } from './commandRoads';
+import { mintOid } from './commandRoads';
 
 // ── WHO IT IS ────────────────────────────────────────────────────────────────────────────────
 
@@ -358,8 +358,7 @@ export function describeLiveSummary(s: LiveSummary): string {
 
 /** The production's PRIVATE presence topic (migration 0068): readable and trackable by a holder
  *  of the show id - the reach the `log-` and `cmd-` topics have - and written by nobody but
- *  Presence itself and, on a server with migration 0070, the database's numbered-log frames
- *  (commandRoads.ts `LIVE_BATCH_EVENT`), so no client can broadcast on it. */
+ *  Presence itself, so no client can broadcast on it. */
 export function liveTopic(showId: string): string {
   return `live-${showId}`;
 }
@@ -448,122 +447,6 @@ const MIN_TRACK_MS = 5000;
 const RETRY_FIRST_MS = 15_000;
 const RETRY_MAX_MS = 120_000;
 
-// ── ONE JOIN PER PAGE AND PRODUCTION on `live-<show id>` ─────────────────────────────────────
-//
-// Two things ride this topic: Presence (below) and, on a server with migration 0070, the numbered
-// log's frames (hostedControl.ts `followLiveSeq`). supabase-js hands back the SAME channel object
-// for a topic a page already has, a second `subscribe` on it never reports, and removing it for one
-// user removes it for every user. So a page joins the topic here, once per production, with every
-// binding in place before the subscribe, and each user registers for what it wants to hear. The
-// join leaves when its last user does.
-
-/** What one user of the topic hears. */
-export interface LiveTopicUser {
-  /** Each status the join reports ('SUBSCRIBED', 'CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'; 'off' in
-   *  a build with no backend). A user that arrives after the join hears where it stands at once. */
-  onStatus?: (status: string) => void;
-  /** A numbered-log frame's payload, unread (`LIVE_BATCH_EVENT`). */
-  onBatch?: (payload: unknown) => void;
-  /** A Presence event, with the channel it came from: a refused join is asked again on a new
-   *  channel, whose Presence starts empty. */
-  onPresence?: (event: 'join' | 'leave' | 'sync', payload: unknown, channel: RealtimeChannel) => void;
-}
-
-export interface LiveTopicJoin {
-  /** The channel as it stands: null before the join opens and between a refused join and its retry. */
-  channel(): RealtimeChannel | null;
-  leave(): void;
-}
-
-interface LiveTopicState {
-  users: Set<LiveTopicUser>;
-  channel: RealtimeChannel | null;
-  /** The last status the join reported ('' before any). */
-  status: string;
-  everJoined: boolean;
-  retryMs: number;
-  retryTimer: ReturnType<typeof setTimeout> | null;
-  closed: boolean;
-}
-
-const liveTopics = new Map<string, LiveTopicState>();
-
-export function joinLiveTopic(showId: string, user: LiveTopicUser): LiveTopicJoin {
-  let state = liveTopics.get(showId);
-  if (!state) {
-    state = { users: new Set(), channel: null, status: '', everJoined: false, retryMs: RETRY_FIRST_MS, retryTimer: null, closed: false };
-    liveTopics.set(showId, state);
-    void openLiveTopic(showId, state);
-  }
-  const joined = state;
-  joined.users.add(user);
-  if (joined.status) user.onStatus?.(joined.status);
-  let left = false;
-  return {
-    channel: () => joined.channel,
-    leave() {
-      if (left) return;
-      left = true;
-      joined.users.delete(user);
-      if (joined.users.size > 0) return;
-      joined.closed = true;
-      if (liveTopics.get(showId) === joined) liveTopics.delete(showId);
-      if (joined.retryTimer) clearTimeout(joined.retryTimer);
-      const ch = joined.channel;
-      joined.channel = null;
-      if (ch) void getSupabase().then((sb) => sb?.removeChannel(ch));
-    },
-  };
-}
-
-async function openLiveTopic(showId: string, state: LiveTopicState): Promise<void> {
-  state.retryTimer = null;
-  const sb = await getSupabase();
-  if (state.closed) return;
-  const tell = (status: string) => {
-    state.status = status;
-    for (const user of [...state.users]) user.onStatus?.(status);
-  };
-  if (!sb) {
-    tell('off');
-    return;
-  }
-  const ch = sb.channel(liveTopic(showId), {
-    config: { private: true, presence: { key: liveInstanceId(), enabled: true } },
-  });
-  state.channel = ch;
-  const users = () => [...state.users];
-  ch.on('broadcast', { event: LIVE_BATCH_EVENT }, (frame: { payload?: unknown }) => {
-    for (const user of users()) user.onBatch?.(frame.payload);
-  });
-  ch.on('presence', { event: 'join' }, (payload: unknown) => {
-    for (const user of users()) user.onPresence?.('join', payload, ch);
-  });
-  ch.on('presence', { event: 'leave' }, (payload: unknown) => {
-    for (const user of users()) user.onPresence?.('leave', payload, ch);
-  });
-  ch.on('presence', { event: 'sync' }, () => {
-    for (const user of users()) user.onPresence?.('sync', null, ch);
-  });
-  ch.subscribe((status) => {
-    if (state.closed || state.channel !== ch) return;
-    if (status === 'SUBSCRIBED') {
-      state.everJoined = true;
-      state.retryMs = RETRY_FIRST_MS;
-    }
-    tell(status);
-    if (status === 'SUBSCRIBED') return;
-    // Once joined, supabase-js rejoins by itself after an error or a timeout. It does not after
-    // the server CLOSES the channel, and a join that never succeeded is left alone for a while
-    // instead of its own quick loop (see RETRY_FIRST_MS): both are asked again from scratch.
-    if (state.everJoined && status !== 'CLOSED') return;
-    state.channel = null;
-    void sb.removeChannel(ch);
-    state.retryTimer = setTimeout(() => void openLiveTopic(showId, state), state.retryMs);
-    state.retryMs = Math.min(RETRY_MAX_MS, state.retryMs * 2);
-  });
-}
-
 export function joinLivePresence(opts: {
   showId: string;
   /** This page's entry, read at every track so it is always current. */
@@ -573,14 +456,18 @@ export function joinLivePresence(opts: {
   onStatus?: (status: LivePresenceStatus) => void;
 }): LivePresence {
   let closed = false;
+  let channel: RealtimeChannel | null = null;
   let joined = false;
+  let everJoined = false;
+  let retryMs = RETRY_FIRST_MS;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let trackTimer: ReturnType<typeof setTimeout> | null = null;
   let lastTrackAt = 0;
   let lastSent = '';
 
   const track = () => {
     trackTimer = null;
-    const ch = topic.channel();
+    const ch = channel;
     if (!ch || !joined || closed) return;
     const entry = opts.entry();
     const key = JSON.stringify({ ...entry, at: 0 });
@@ -600,55 +487,57 @@ export function joinLivePresence(opts: {
     trackTimer = setTimeout(track, Math.max(0, lastTrackAt + MIN_TRACK_MS - Date.now()));
   };
 
-  // THE PEERS ARE KEPT HERE, from the join and leave events, and NOT read off presenceState().
-  // supabase-js's presence adapter (2.110) rewrites the metas it holds when it builds its event
-  // payloads - it deletes their `phx_ref` in place - so once an entry has been re-tracked (an
-  // update is a join and a leave on the same key), the leave that should remove the old meta
-  // matches nothing, and presenceState() keeps a ghost of every page that ever updated. Seen on
-  // the preview branch: a dashboard went on listing an output for good after it was closed. The
-  // events themselves carry intact refs, so a map of ref to entry stays right; a key that
-  // presenceState() no longer has at all is dropped too, which is how a rejoin reconciles. A new
-  // channel (a refused join asked again) starts a new map, as its Presence starts empty.
-  const { onPeers } = opts;
-  const byRef = new Map<string, { key: string; entry: LiveEntry }>();
-  let heardOn: RealtimeChannel | null = null;
-  type PresenceEvent = { key?: string; newPresences?: unknown[]; leftPresences?: unknown[] } | null;
-  const refOf = (meta: unknown) => (meta as { presence_ref?: unknown } | null)?.presence_ref;
-  const onPresence = (event: 'join' | 'leave' | 'sync', payload: unknown, ch: RealtimeChannel) => {
-    if (!onPeers || closed) return;
-    if (heardOn !== ch) {
-      heardOn = ch;
-      byRef.clear();
+  const open = async () => {
+    retryTimer = null;
+    const sb = await getSupabase();
+    if (closed) return;
+    if (!sb) {
+      opts.onStatus?.('off');
+      return;
     }
-    const p = payload as PresenceEvent;
-    if (event === 'join') {
-      for (const meta of p?.newPresences ?? []) {
-        const ref = refOf(meta);
-        const entry = readLiveEntry(meta);
-        if (typeof ref === 'string' && entry) byRef.set(ref, { key: p?.key ?? '', entry });
-      }
-    } else if (event === 'leave') {
-      for (const meta of p?.leftPresences ?? []) {
-        const ref = refOf(meta);
-        if (typeof ref === 'string') byRef.delete(ref);
-      }
-    } else {
-      const keys = new Set(Object.keys(ch.presenceState()));
-      for (const [ref, held] of byRef) if (!keys.has(held.key)) byRef.delete(ref);
-      onPeers([...byRef.values()].map((held) => held.entry));
+    const ch = sb.channel(liveTopic(opts.showId), {
+      config: { private: true, presence: { key: liveInstanceId(), enabled: true } },
+    });
+    channel = ch;
+    const { onPeers } = opts;
+    if (onPeers) {
+      // THE PEERS ARE KEPT HERE, from the join and leave events, and NOT read off presenceState().
+      // supabase-js's presence adapter (2.110) rewrites the metas it holds when it builds its event
+      // payloads - it deletes their `phx_ref` in place - so once an entry has been re-tracked (an
+      // update is a join and a leave on the same key), the leave that should remove the old meta
+      // matches nothing, and presenceState() keeps a ghost of every page that ever updated. Seen on
+      // the preview branch: a dashboard went on listing an output for good after it was closed. The
+      // events themselves carry intact refs, so a map of ref to entry stays right; a key that
+      // presenceState() no longer has at all is dropped too, which is how a rejoin reconciles.
+      const byRef = new Map<string, { key: string; entry: LiveEntry }>();
+      const emit = () => {
+        const keys = new Set(Object.keys(ch.presenceState()));
+        for (const [ref, held] of byRef) if (!keys.has(held.key)) byRef.delete(ref);
+        onPeers([...byRef.values()].map((held) => held.entry));
+      };
+      type PresenceEvent = { key?: string; newPresences?: unknown[]; leftPresences?: unknown[] };
+      const refOf = (meta: unknown) => (meta as { presence_ref?: unknown } | null)?.presence_ref;
+      ch.on('presence', { event: 'join' }, (payload: PresenceEvent) => {
+        for (const meta of payload.newPresences ?? []) {
+          const ref = refOf(meta);
+          const entry = readLiveEntry(meta);
+          if (typeof ref === 'string' && entry) byRef.set(ref, { key: payload.key ?? '', entry });
+        }
+      });
+      ch.on('presence', { event: 'leave' }, (payload: PresenceEvent) => {
+        for (const meta of payload.leftPresences ?? []) {
+          const ref = refOf(meta);
+          if (typeof ref === 'string') byRef.delete(ref);
+        }
+      });
+      ch.on('presence', { event: 'sync' }, emit);
     }
-  };
-
-  opts.onStatus?.('joining');
-  const topic = joinLiveTopic(opts.showId, {
-    onStatus: (status) => {
-      if (closed) return;
-      if (status === 'off') {
-        opts.onStatus?.('off');
-        return;
-      }
+    ch.subscribe((status) => {
+      if (closed || channel !== ch) return;
       if (status === 'SUBSCRIBED') {
         joined = true;
+        everJoined = true;
+        retryMs = RETRY_FIRST_MS;
         // A rejoin starts with no entry on the server: send it again even if nothing changed.
         lastSent = '';
         opts.onStatus?.('joined');
@@ -657,15 +546,28 @@ export function joinLivePresence(opts: {
       }
       joined = false;
       opts.onStatus?.('down');
-    },
-    onPresence,
-  });
+      // Once joined, supabase-js rejoins by itself after an error or a timeout. It does not after
+      // the server CLOSES the channel, and a join that never succeeded is left alone for a while
+      // instead of its own quick loop (see RETRY_FIRST_MS): both are asked again from scratch.
+      if (everJoined && status !== 'CLOSED') return;
+      channel = null;
+      void sb.removeChannel(ch);
+      retryTimer = setTimeout(() => void open(), retryMs);
+      retryMs = Math.min(RETRY_MAX_MS, retryMs * 2);
+    });
+  };
+
+  opts.onStatus?.('joining');
+  void open();
   return {
     touch,
     close() {
       closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (trackTimer) clearTimeout(trackTimer);
-      topic.leave();
+      const ch = channel;
+      channel = null;
+      if (ch) void getSupabase().then((sb) => sb?.removeChannel(ch));
     },
   };
 }

@@ -97,13 +97,24 @@ export function logTopic(showId: string): string {
 export const LOG_ROW_EVENT = 'row';
 
 /**
- * THE NUMBERED LOG'S FRAME (protocol 2, migration 0070), on the production's private `live-<show>`
- * topic (livePath.ts `liveTopic`; its read policy is 0068's): one `batch` frame per inserting
- * statement, carrying that statement's rows with their per-production `seq`, the head's epoch, and
- * the summary of every graphic it touched (src/control/seqFollow.ts). Step 1's Presence shares the
- * topic, so a page joins it once (livePath.ts `joinLiveTopic`). Only the database sends this event.
+ * THE PRIVATE TOPIC THE NUMBERED LOG IS DELIVERED ON (protocol 2, migrations 0070 and 0071): one
+ * `batch` frame per inserting statement, carrying that statement's rows with their per-production
+ * `seq`, the head's epoch, and the summary of every graphic it touched (src/control/seqFollow.ts).
+ * Readable by a holder of the show id (0070's policy, the reach `log-` and `cmd-` have), written by
+ * the database only.
+ *
+ * ITS OWN TOPIC, never Presence's `live-<show>` (docs/work-specs/playout-runtime-reliability/
+ * step-2-design.md D-s): Realtime closes a channel that exceeds its Presence rate limit, and on
+ * protocol 2 this is a renderer's only road for commands. Measured on the preview branch with the
+ * two sharing one channel: it closed 25 to 27 s after opening, and a third of the Takes pressed
+ * before it joined again never played.
  */
-export const LIVE_BATCH_EVENT = 'batch';
+export function seqTopic(showId: string): string {
+  return `seq-${showId}`;
+}
+
+/** The numbered topic's broadcast event name. */
+export const SEQ_BATCH_EVENT = 'batch';
 
 /**
  * HOW MANY APPLIED IDS A SURFACE REMEMBERS.
