@@ -1,12 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import BrandLogo from './BrandLogo';
 import {
+  connectServer,
   isFirefox,
+  loadPlayoutSettings,
   localNetworkGateApplies,
   pairBridge,
   parseBridgePair,
+  PLAYOUT_DEFAULTS,
+  rememberedServers,
+  savePlayoutSettings,
+  serverAddress,
   type PlayoutResult,
 } from '../control/playoutLink';
+import type { RememberedServer } from '../control/playoutProtocol';
 
 /**
  * The BRIDGE PAIRING page: `<app-url>?bridge=<port>&code=<code>` (docs/BRIDGE.md §2). NoaCG
@@ -55,14 +62,9 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
         <h1>Paired</h1>
         <p className="hint" data-testid="bridge-pair-done">
           This browser can now drive your playout server through NoaCG Bridge on{' '}
-          <code>127.0.0.1:{request.port}</code>. Open a production and press <strong>Playout</strong> in
-          its header to fill in the CasparCG server, if you have not yet.
+          <code>127.0.0.1:{request.port}</code>.
         </p>
-        <div className="agent-consent-actions">
-          <button className="primary" onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
-            Open NoaCG
-          </button>
-        </div>
+        <ConnectStep />
       </Frame>
     );
   }
@@ -108,6 +110,155 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
         </button>
       </div>
     </Frame>
+  );
+}
+
+/**
+ * THE NEXT STEP AFTER PAIRING (owner decisions 2026-09-30, docs/work-specs/bridge-casparcg-connect):
+ * connect to the CasparCG server. The last server this studio connected to is tried at once -
+ * NoaCG Bridge 0.7.0 remembers it on disk, so it survives a browser that forgets its storage - and
+ * when it answers the page just says so. Otherwise its address is filled in and every server used
+ * before is one click. Connecting is a VERSION call and nothing else: nothing goes on air from
+ * here. Put on air stays in the production, where the operator sees what is on air.
+ */
+function ConnectStep() {
+  const [servers, setServers] = useState<RememberedServer[] | null>(null);
+  const [host, setHost] = useState('');
+  const [port, setPort] = useState(PLAYOUT_DEFAULTS.amcpPort);
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<PlayoutResult | null>(null);
+  const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; remembered: boolean } | null>(null);
+  const [changing, setChanging] = useState(false);
+  // Once per pairing. StrictMode runs a mount's effect twice in development, and each run would be
+  // one more VERSION on the server.
+  const started = useRef(false);
+
+  const connect = async (server: RememberedServer) => {
+    setHost(server.host);
+    setPort(server.port);
+    setBusy(true);
+    setFailure(null);
+    try {
+      const { result, servers: remembered } = await connectServer({ ...loadPlayoutSettings(), host: server.host, amcpPort: server.port });
+      if (remembered) setServers(remembered);
+      if (result.state !== 'ok') {
+        setFailure(result);
+        return;
+      }
+      savePlayoutSettings({ host: server.host, amcpPort: server.port });
+      setConnected({ server, version: result.version, remembered: !!result.features?.includes('servers') });
+      setChanging(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    void (async () => {
+      const own = loadPlayoutSettings();
+      const list = await rememberedServers(own);
+      setServers(list);
+      // The last server used: the Bridge's, else this browser's own once somebody has changed it.
+      // The untouched default is nobody's choice, so it is offered as nothing rather than tried.
+      const ownChosen = own.host !== PLAYOUT_DEFAULTS.host || own.amcpPort !== PLAYOUT_DEFAULTS.amcpPort;
+      const last = list[0] ?? (ownChosen ? { host: own.host, port: own.amcpPort } : null);
+      if (last) await connect(last);
+    })();
+  }, []);
+
+  const open = (
+    <button
+      className={connected && !changing ? 'primary' : ''}
+      onClick={() => window.location.assign('/app#/home')}
+      data-testid="bridge-pair-open"
+    >
+      Open NoaCG
+    </button>
+  );
+
+  if (servers === null) {
+    return (
+      <p className="hint" data-testid="bridge-connect-checking">
+        Looking for your CasparCG server…
+      </p>
+    );
+  }
+
+  if (connected && !changing) {
+    return (
+      <>
+        <p className="status-ok" data-testid="bridge-connected">
+          ✓ Connected to CasparCG{connected.version ? ` ${connected.version}` : ''} at {serverAddress(connected.server)}.
+        </p>
+        <p className="hint">
+          {connected.remembered && 'NoaCG Bridge remembers this server, so it connects by itself the next time you pair. '}
+          To put a production on air, open it and press <strong>Put on air</strong> in its Playout
+          settings or its output links.
+        </p>
+        <div className="agent-consent-actions">
+          <button onClick={() => setChanging(true)} data-testid="bridge-connect-change">
+            Change server
+          </button>
+          {open}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <h2 className="bridge-connect-title">Connect to your CasparCG server</h2>
+      <p className="hint">
+        The computer running CasparCG on your studio network, and its AMCP port. Connecting only checks
+        that CasparCG answers; nothing goes on air.
+      </p>
+      <form
+        className="bridge-connect-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void connect({ host: host.trim(), port });
+        }}
+      >
+        <input
+          value={host}
+          onChange={(e) => setHost(e.target.value)}
+          placeholder="IP address"
+          aria-label="CasparCG server"
+          spellCheck={false}
+          data-testid="bridge-connect-host"
+        />
+        <input
+          type="number"
+          min={1}
+          max={65535}
+          value={port}
+          onChange={(e) => setPort(Number(e.target.value) || 0)}
+          aria-label="AMCP port"
+          data-testid="bridge-connect-port"
+        />
+        <button className="primary" type="submit" disabled={busy || !host.trim() || !port} data-testid="bridge-connect">
+          {busy ? 'Connecting…' : 'Connect'}
+        </button>
+      </form>
+      {servers.length > 0 && (
+        <div className="bridge-connect-recent" data-testid="bridge-connect-recent">
+          <span className="hint">Used before:</span>
+          {servers.map((server) => (
+            <button key={`${server.host}:${server.port}`} onClick={() => void connect(server)} disabled={busy}>
+              {serverAddress(server)}
+            </button>
+          ))}
+        </div>
+      )}
+      {failure && (
+        <p className="status-bad" data-testid="bridge-connect-error" data-state={failure.state}>
+          {failure.detail}
+        </p>
+      )}
+      <div className="agent-consent-actions">{open}</div>
+    </>
   );
 }
 

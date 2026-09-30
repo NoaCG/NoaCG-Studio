@@ -20,7 +20,14 @@ import { IconSliders } from './icons';
  * today), and the plain fact that OBS, vMix and any other browser source need no setup here at
  * all, only the output URL.
  */
-export default function PlayoutSettingsDialog({ onClose }: { onClose: () => void }) {
+export default function PlayoutSettingsDialog({
+  onClose,
+  outputUrl,
+}: {
+  onClose: () => void;
+  /** The production's output URL, null until it is started: the form's Put on air airs it. */
+  outputUrl: string | null;
+}) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
   return (
@@ -73,7 +80,7 @@ export default function PlayoutSettingsDialog({ onClose }: { onClose: () => void
           </section>
           <section>
             <p className="dlg-caption">{DEFAULT_PLAYOUT_SYSTEM.name}</p>
-            <PlayoutSettingsPanel />
+            <PlayoutSettingsPanel outputUrl={outputUrl} />
           </section>
         </div>
       </div>

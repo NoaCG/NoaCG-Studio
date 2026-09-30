@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
+  connectServer,
   defaultChannelName,
   loadPlayoutSettings,
   playoutConfigured,
+  putOutputOnAir,
+  rememberedServers,
   savePlayoutSettings,
+  serverAddress,
   slotAddress,
   slotOf,
   testConnection,
@@ -13,13 +17,18 @@ import {
   type PlayoutResult,
   type PlayoutSettings,
 } from '../control/playoutLink';
+import type { RememberedServer } from '../control/playoutProtocol';
+
+/** The panel's three presses. */
+type Verb = 'test' | 'connect' | 'air';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 
 /**
  * "Playout" - the one playout server this studio drives, through NoaCG Bridge (docs/BRIDGE.md).
  * App-wide and persisted, never per production: a studio has one playout box, and retyping it
  * per show is the friction this removes. NoaCG owns these settings; the Bridge is told its
- * target on every call and stores nothing.
+ * target on every call, and keeps only the servers the page CONNECTED to, so it can hand them back
+ * to a browser that forgot (control/playoutLink.ts `rememberedServers`).
  *
  * FEATURE-DETECTED, not gated. With no Bridge running the section is complete and explains what
  * to run - it must never look broken, because the CasparCG routes in
@@ -31,10 +40,26 @@ import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
  * server did not answer" have nothing to do with each other, and most of them are the person's
  * own to fix.
  */
-export default function PlayoutSettingsPanel() {
+export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string | null } = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
-  const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<PlayoutResult | null>(null);
+  const [busy, setBusy] = useState<Verb | null>(null);
+  // WHICH button produced the verdict and, for Put on air, the address it went to: the sentence
+  // is past tense, so it must not be re-derived from settings typed since (ProductionLinks.tsx,
+  // BridgeAirRow, says what that cost once).
+  const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; address?: string } | null>(null);
+  // The servers NoaCG Bridge remembers this studio connecting to, offered on the host field.
+  const [servers, setServers] = useState<RememberedServer[]>([]);
+  const paired = Boolean(settings.agentToken.trim());
+  useEffect(() => {
+    if (!paired) return;
+    let alive = true;
+    void rememberedServers(loadPlayoutSettings()).then((list) => {
+      if (alive) setServers(list);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [paired]);
 
   const set = (patch: Partial<PlayoutSettings>) => {
     savePlayoutSettings(patch);
@@ -42,18 +67,28 @@ export default function PlayoutSettingsPanel() {
     setResult(null); // a changed setting makes the last verdict stale, and a stale tick lies
   };
 
-  const test = async () => {
-    setTesting(true);
+  const run = async (verb: Verb) => {
+    // Read at the moment of the press, like every other door that sends: the form saves as it is
+    // typed, and a copy latched earlier would name the old server.
+    const now = loadPlayoutSettings();
+    setBusy(verb);
     setResult(null);
     try {
-      setResult(await testConnection(settings));
+      if (verb === 'test') {
+        setResult({ verb, result: await testConnection(now) });
+      } else if (verb === 'connect') {
+        const connected = await connectServer(now);
+        if (connected.servers) setServers(connected.servers);
+        setResult({ verb, result: connected.result });
+      } else if (outputUrl) {
+        setResult({ verb, result: await putOutputOnAir(now, outputUrl), address: `${slotAddress(slotOf(now))} of ${serverAddress({ host: now.host, port: now.amcpPort })}` });
+      }
     } finally {
-      setTesting(false);
+      setBusy(null);
     }
   };
 
   const configured = playoutConfigured(settings);
-  const paired = Boolean(settings.agentToken.trim());
 
   // ── The channel table. A row's NUMBER is what the defaults point at, so renumbering the
   //    graphics or clip channel carries its default along rather than leaving it pointing at a
@@ -141,11 +176,25 @@ export default function PlayoutSettingsPanel() {
             <input
               id="caspar-host"
               value={settings.host}
-              onChange={(e) => set({ host: e.target.value })}
+              onChange={(e) => {
+                // Picking a server used before brings its port with it.
+                const known = servers.find((server) => server.host === e.target.value);
+                set({ host: e.target.value, ...(known ? { amcpPort: known.port } : {}) });
+              }}
               placeholder="127.0.0.1"
               spellCheck={false}
+              list={servers.length > 0 ? 'caspar-servers' : undefined}
               data-testid="caspar-host"
             />
+            {/* The servers used before (NoaCG Bridge remembers them), as the field's own
+                suggestions. */}
+            {servers.length > 0 && (
+              <datalist id="caspar-servers" data-testid="caspar-servers">
+                {servers.map((server) => (
+                  <option key={`${server.host}:${server.port}`} value={server.host} label={serverAddress(server)} />
+                ))}
+              </datalist>
+            )}
             <input
               type="number"
               min={1}
@@ -285,20 +334,51 @@ export default function PlayoutSettingsPanel() {
         </div>
       </div>
 
-      <div className="dlg-pair dlg-pair--wide">
-        <button onClick={() => void test()} disabled={testing || !configured} data-testid="playout-test">
-          {testing ? 'Testing…' : 'Test connection'}
+      {/* TEST, CONNECT, PUT ON AIR (owner, 2026-09-30). Test asks whether the server answers and
+          remembers nothing. Connect asks the same and has NoaCG Bridge remember the server, so the
+          next pairing connects by itself. Put on air is offered only where there is a production
+          to air - this dialog opened from one - and is the ONE press that sends anything to a
+          layer; nothing here does it by itself. */}
+      <div className="playout-actions">
+        <button onClick={() => void run('test')} disabled={busy !== null || !configured} data-testid="playout-test">
+          {busy === 'test' ? 'Testing…' : 'Test connection'}
         </button>
+        <button onClick={() => void run('connect')} disabled={busy !== null || !configured} data-testid="playout-connect">
+          {busy === 'connect' ? 'Connecting…' : 'Connect'}
+        </button>
+        {outputUrl !== undefined && (
+          <button
+            onClick={() => void run('air')}
+            disabled={busy !== null || !configured || !outputUrl}
+            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${settings.host}` : 'Start the production first: it has no output URL yet'}
+            data-testid="playout-put-on-air"
+          >
+            {busy === 'air' ? 'Sending…' : 'Put on air'}
+          </button>
+        )}
       </div>
+      {outputUrl === null && (
+        <p className="dlg-hint" data-testid="playout-air-unstarted">
+          Put on air needs the production started: press <strong>Start production</strong> in its
+          output links first.
+        </p>
+      )}
       {result && (
         <p
-          className={result.state === 'ok' ? 'status-ok' : 'status-bad'}
+          className={result.result.state === 'ok' ? 'status-ok' : 'status-bad'}
           data-testid="playout-result"
-          data-state={result.state}
+          data-state={result.result.state}
+          data-verb={result.verb}
         >
-          {result.state === 'ok'
-            ? `✓ Connected${result.version ? ` - CasparCG ${result.version}` : ''}`
-            : result.detail}
+          {result.result.state !== 'ok'
+            ? result.result.detail
+            : result.verb === 'air'
+              ? `✓ On ${result.address}`
+              : `✓ Connected${result.result.version ? ` - CasparCG ${result.result.version}` : ''}${
+                  result.verb === 'connect' && result.result.features?.includes('servers')
+                    ? '. NoaCG Bridge remembers this server.'
+                    : ''
+                }`}
         </p>
       )}
       <p className="dlg-hint">

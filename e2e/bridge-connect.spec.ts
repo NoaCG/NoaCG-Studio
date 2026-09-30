@@ -81,10 +81,19 @@ interface FakeBridge {
   refuses?: string;
   /** The pairing code the Bridge holds; spent on first use. */
   pairCode?: string;
+  /** What `/health` lists. None by default: the 0.4.0 this fake started as. */
+  features?: string[];
+  /** The servers a Bridge with the `servers` feature remembers, most recent first. `/connect`
+   *  moves the one it reached to the front, as the real Bridge's file does. */
+  servers?: { host: string; port: number }[];
+  /** Servers that do not answer: a `/status` or `/connect` naming one reports the target hop. */
+  downHosts?: string[];
   /** Every action the page sent, in order. */
   actions: unknown[];
   /** Every pairing code presented. */
   paired: string[];
+  /** Every token-guarded route the page called, in order. */
+  routes: string[];
 }
 
 /**
@@ -97,7 +106,7 @@ interface FakeBridge {
  * ever entered for the POST), so a fake that omitted them would pass a spec the browser fails.
  */
 async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promise<FakeBridge> {
-  const state: FakeBridge = { actions: [], paired: [], ...options };
+  const state: FakeBridge = { actions: [], paired: [], routes: [], ...options };
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -120,7 +129,7 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
         200,
         state.outdated
           ? { ok: true, agent: 'noacg-caspar', v: 1 }
-          : { ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0', adapters: ['casparcg'] },
+          : { ok: true, agent: 'noacg-bridge', v: 2, version: '0.4.0', adapters: ['casparcg'], ...(state.features ? { features: state.features } : {}) },
       );
       return;
     }
@@ -149,7 +158,27 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
         return;
       }
     }
+    state.routes.push(path);
     if (path === '/act') state.actions.push(body.action);
+    if (path === '/servers') {
+      await json(route, 200, { ok: true, v: 2, servers: state.servers ?? [] });
+      return;
+    }
+    const aimed = body.target as { host?: string; port?: number } | undefined;
+    if ((path === '/status' || path === '/connect') && aimed?.host && state.downHosts?.includes(aimed.host)) {
+      await json(route, 200, {
+        ok: false,
+        v: 2,
+        error: { hop: 'target', code: 'unreachable', detail: `CasparCG did not answer on ${aimed.host}:${aimed.port}. Is the server running, and is that its AMCP port?` },
+      });
+      return;
+    }
+    if (path === '/connect' && aimed?.host && !state.serverDown) {
+      const reached = { host: aimed.host, port: aimed.port ?? 5250 };
+      state.servers = [reached, ...(state.servers ?? []).filter((s) => s.host !== reached.host || s.port !== reached.port)];
+      await json(route, 200, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', servers: state.servers });
+      return;
+    }
     if (state.serverDown) {
       // The Bridge is fine; the socket behind it is not. The Bridge's own sentence, address included.
       await json(route, 200, {
@@ -249,6 +278,119 @@ test('a spent or wrong pairing code is refused on the page, and a malformed link
   await page.goto('/app?bridge=80&code=nope');
   await expect(page.getByTestId('bridge-pair-invalid')).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('spx-gfx-caspar'))).toBeNull();
+});
+
+// ── After pairing: connecting to CasparCG (docs/work-specs/bridge-casparcg-connect) ─────────────
+
+const CODE = 'a1b2c3d4e5f60718a1b2c3d4e5f60718';
+/** A Bridge 0.7.0: everything 0.6.0 understood, and the servers it remembers. */
+const WITH_SERVERS = ['state', 'playback', 'sequence', 'sequence-loop', 'servers'];
+
+async function pair(page: Page): Promise<void> {
+  await page.goto(`/app?bridge=8899&code=${CODE}`);
+  await page.getByTestId('bridge-pair-connect').click();
+  await expect(page.getByTestId('bridge-pair-done')).toBeVisible();
+}
+
+const storedHost = (page: Page) =>
+  page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}') as { host?: string; amcpPort?: number };
+    return `${s.host}:${s.amcpPort}`;
+  });
+
+test('after pairing, the server the Bridge remembers is connected by itself, and nothing goes on air', async ({ page }) => {
+  const bridge = await fakeBridge(page, { pairCode: CODE, features: WITH_SERVERS, servers: [{ host: '192.168.1.20', port: 5250 }] });
+  await pair(page);
+  const connected = page.getByTestId('bridge-connected');
+  await expect(connected).toHaveText('✓ Connected to CasparCG 2.5.0 69e8ad5 Stable at 192.168.1.20.');
+  await expect(page.getByTestId('bridge-pair')).toContainText('NoaCG Bridge remembers this server');
+  // The studio's server is now this browser's too, so every production page names it.
+  expect(await storedHost(page)).toBe('192.168.1.20:5250');
+  // AC-5: pairing and connecting ask the server its VERSION and nothing else. No take, no out.
+  expect(bridge.routes).toEqual(['/servers', '/connect']);
+  expect(bridge.actions).toEqual([]);
+  // Open NoaCG is the next step once connected; Put on air lives in the production.
+  await expect(page.getByTestId('bridge-pair-open')).toHaveClass(/primary/);
+});
+
+test('when the last server does not answer, pairing offers it and the others, and Connect remembers the one that does', async ({ page }) => {
+  const bridge = await fakeBridge(page, {
+    pairCode: CODE,
+    features: WITH_SERVERS,
+    servers: [
+      { host: '192.168.1.20', port: 5250 },
+      { host: '192.168.1.30', port: 5251 },
+    ],
+    downHosts: ['192.168.1.20'],
+  });
+  await pair(page);
+  // The last server used is filled in and said not to answer, rather than the page going quiet.
+  await expect(page.getByTestId('bridge-connect-host')).toHaveValue('192.168.1.20');
+  await expect(page.getByTestId('bridge-connect-error')).toContainText('did not answer on 192.168.1.20:5250');
+  const recent = page.getByTestId('bridge-connect-recent');
+  await expect(recent.getByRole('button')).toHaveText(['192.168.1.20', '192.168.1.30:5251']);
+  // One click on a server used before connects to it, port and all.
+  await recent.getByRole('button', { name: '192.168.1.30:5251' }).click();
+  await expect(page.getByTestId('bridge-connected')).toContainText('at 192.168.1.30:5251.');
+  expect(await storedHost(page)).toBe('192.168.1.30:5251');
+  expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.30', port: 5251 });
+  expect(bridge.actions).toEqual([]);
+});
+
+test('a first pairing with nothing remembered asks for the server once, and Change goes back to it', async ({ page }) => {
+  const bridge = await fakeBridge(page, { pairCode: CODE, features: WITH_SERVERS });
+  await pair(page);
+  // Nobody has chosen a server yet, so none is tried and none is blamed.
+  await expect(page.getByTestId('bridge-connect-host')).toHaveValue('');
+  await expect(page.getByTestId('bridge-connect-error')).toHaveCount(0);
+  await expect(page.getByTestId('bridge-connect-recent')).toHaveCount(0);
+  await expect(page.getByTestId('bridge-connect')).toBeDisabled();
+  await page.getByTestId('bridge-connect-host').fill('10.0.0.5');
+  await page.getByTestId('bridge-connect').click();
+  await expect(page.getByTestId('bridge-connected')).toContainText('at 10.0.0.5.');
+  expect(bridge.servers).toEqual([{ host: '10.0.0.5', port: 5250 }]);
+  await page.getByTestId('bridge-connect-change').click();
+  await expect(page.getByTestId('bridge-connect-host')).toHaveValue('10.0.0.5');
+  // The server just connected is one of the servers used before now, without a reload.
+  await expect(page.getByTestId('bridge-connect-recent').getByRole('button')).toHaveText(['10.0.0.5']);
+});
+
+test('with a Bridge from before 0.7.0, pairing still connects to the server this browser used', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.40' });
+  const bridge = await fakeBridge(page, { pairCode: CODE });
+  await pair(page);
+  await expect(page.getByTestId('bridge-connected')).toContainText('at 192.168.1.40.');
+  // No memory to write in an old Bridge: the connect is its Test connection, and it says nothing
+  // about a Bridge remembering anything.
+  expect(bridge.routes).toEqual(['/status']);
+  await expect(page.getByTestId('bridge-pair')).not.toContainText('remembers');
+});
+
+test('Settings: the host offers the servers used before, Connect remembers one, and Test does not', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page, {
+    features: WITH_SERVERS,
+    servers: [
+      { host: '192.168.1.20', port: 5250 },
+      { host: '192.168.1.30', port: 5251 },
+    ],
+  });
+  await openPlayoutSettings(page);
+  await expect(page.locator('#caspar-servers option')).toHaveCount(2);
+  // Choosing a server used before brings its port with it.
+  await page.getByTestId('caspar-host').fill('192.168.1.30');
+  await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5251');
+
+  await page.getByTestId('playout-test').click();
+  await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable');
+  expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.20', port: 5250 });
+
+  await page.getByTestId('playout-connect').click();
+  await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable. NoaCG Bridge remembers this server.');
+  expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.30', port: 5251 });
+  // General Settings has no production, so there is nothing to put on air from here.
+  await expect(page.getByTestId('playout-put-on-air')).toHaveCount(0);
+  expect(bridge.actions).toEqual([]);
 });
 
 // ── The hops, each told apart ───────────────────────────────────────────────────────────────
@@ -584,10 +726,10 @@ test('a failure to air is reported on the row, and never as a success', async ({
 
 /** A published production seeded through the model and opened from its own URL - no editor on
  *  the way. Publishing is backend-gated, so its capabilities are faked in, as above. */
-async function seededPublishedProduction(page: Page): Promise<void> {
+async function seededPublishedProduction(page: Page, published = true): Promise<void> {
   await page.goto('/app');
   await awaitDurableReady(page);
-  const id = await page.evaluate(async () => {
+  const id = await page.evaluate(async (started) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
     const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
@@ -595,10 +737,12 @@ async function seededPublishedProduction(page: Page): Promise<void> {
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-    setShowHostedSlug(show.id, 'demo-slug');
-    setShowOutputSlug(show.id, 'demo-output');
+    if (started) {
+      setShowHostedSlug(show.id, 'demo-slug');
+      setShowOutputSlug(show.id, 'demo-output');
+    }
     return show.id;
-  });
+  }, published);
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
   await page.reload();
@@ -625,4 +769,34 @@ test('a paired Bridge that is not running reads as "Bridge not running" on the h
   const door = page.getByTestId('playout-settings-open');
   await expect(door).toHaveAttribute('data-state', 'warn');
   await expect(door).toHaveAttribute('aria-label', /Bridge not running/);
+});
+
+test("the production's Playout dialog puts its output on air with one press, and says where it went", async ({ page }) => {
+  await seedSettings(page, { channel: 2, layer: 30 });
+  const bridge = await fakeBridge(page, { features: WITH_SERVERS });
+  await seededPublishedProduction(page);
+  await page.getByTestId('playout-settings-open').click();
+  await expect(page.getByTestId('playout-settings')).toBeVisible();
+  // Opening the dialog, and the status poll behind the header, send nothing to a layer (AC-5).
+  await expect(page.getByTestId('playout-put-on-air')).toBeEnabled();
+  expect(bridge.actions).toEqual([]);
+  await page.getByTestId('playout-put-on-air').click();
+  await expect(verdict(page)).toHaveText('✓ On 2-30 of 127.0.0.1');
+  await expect(verdict(page)).toHaveAttribute('data-verb', 'air');
+  expect(bridge.actions).toHaveLength(1);
+  expect(bridge.actions[0]).toMatchObject({
+    verb: 'take',
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output$/) },
+    slot: { adapter: 'casparcg', channel: 2, layer: 30 },
+  });
+});
+
+test('a production that is not started cannot be put on air from its Playout dialog, and says why', async ({ page }) => {
+  await seedSettings(page);
+  const bridge = await fakeBridge(page);
+  await seededPublishedProduction(page, false);
+  await page.getByTestId('playout-settings-open').click();
+  await expect(page.getByTestId('playout-put-on-air')).toBeDisabled();
+  await expect(page.getByTestId('playout-air-unstarted')).toContainText('Start production');
+  expect(bridge.actions).toEqual([]);
 });
