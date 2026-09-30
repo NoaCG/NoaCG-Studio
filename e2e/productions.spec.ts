@@ -933,9 +933,17 @@ test('the output embed is a legal SPX template whose frame IS the production out
   expect(definition.steps).toBe('1');
   expect(definition.dataformat).toBe('json');
   expect(definition.playlayer).toBe(definition.webplayout);
+  // Layer 1, inside SPX 1.4 Solo's five: the old 20 was capped to 5 on import.
+  expect(definition.webplayout).toBe('1');
   expect(definition.DataFields.find((f: { field?: string }) => f.field === 'f0').value).toBe(outputUrl);
-  // The pair Chromium needs, or it paints the framed page opaque - a white card over the video.
-  expect(html).toContain('<meta name="color-scheme" content="dark" />');
+  // No button: an SPX button runs its fcall in the CONTROLLER page, where nothing this file
+  // defines exists, so "Reload output" threw there and did nothing (SPX_ON_A_REAL_SERVER.md §4).
+  expect(definition.DataFields.filter((f: { ftype: string }) => f.ftype === 'button')).toEqual([]);
+  expect(html).not.toContain('noacgReloadOutput');
+  // The colour scheme sits on the IFRAME ELEMENT and the page declares none: a page-level dark
+  // scheme matched the output page but not SPX's renderer, and SPX painted the file opaque.
+  expect(html).not.toMatch(/<meta[^>]+color-scheme/);
+  expect(html).toMatch(/#noacg-frame \{[^}]*color-scheme: dark;/);
   expect(html).toContain('background: transparent');
   // ES5 only, measured on the emitted script rather than trusted: `?.`, `??` and arrow functions
   // all kill the whole file on CasparCG 2.3.x's engine.
@@ -984,11 +992,59 @@ test('the output embed is a legal SPX template whose frame IS the production out
   await page.waitForTimeout(300); // KEEP as a sleep: this asserts a reload never comes
   expect(await page.evaluate(() => (window as unknown as { noacgLoads: number }).noacgLoads)).toBe(0);
 
+  // SPX 1.2.1 sends a text field back HTML-escaped: "&amp;" must reach the frame as "&".
+  await page.evaluate((url) => {
+    (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: `${url}&amp;x=1`, f1: '0' }));
+  }, outputUrl);
+  await expect(frame).toHaveAttribute('src', `${outputUrl}&x=1`);
+
   // CasparCG sends missing values as the literal string "undefined" - the baked URL survives it.
   await page.evaluate(() => {
     (window as unknown as { update: (d: string) => void }).update(JSON.stringify({ f0: 'undefined', f1: '0' }));
   });
   await expect(frame).toHaveAttribute('src', outputUrl);
+});
+
+test('the output embed stays transparent inside a host page that declares no colour scheme', async ({ page }) => {
+  // SPX loads the embed into an iframe of its renderer, whose page declares no colour scheme, and
+  // the output page inside declares dark. With the scheme on the embed's PAGE, Chromium painted
+  // SPX's layer iframe opaque: a dark 1920x1080 card over the video, on SPX 1.4.1 and 1.2.1
+  // (docs/SPX_ON_A_REAL_SERVER.md §4). Measured here as pixels over a known host colour.
+  const html = outputEmbedHtml({ production: 'Evening News', outputUrl: 'https://studio.example/output?production=x' });
+  await page.route('https://host.example/**', (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/embed.html') return route.fulfill({ contentType: 'text/html', body: html });
+    // The SPX renderer's shape: no color-scheme anywhere, one full-size layer iframe.
+    return route.fulfill({
+      contentType: 'text/html',
+      body:
+        '<!DOCTYPE html><html><head><style>html,body{margin:0;background:rgb(255,0,0)}' +
+        'iframe{position:absolute;top:0;left:0;width:400px;height:300px;border:0;background:transparent}</style></head>' +
+        '<body><iframe id="layer1" src="/embed.html" allowtransparency="true"></iframe></body></html>',
+    });
+  });
+  // The output page as production serves it: dark scheme, transparent, nothing on air.
+  await page.route('https://studio.example/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<!DOCTYPE html><html><head><meta name="color-scheme" content="dark"><style>html,body{background:transparent}</style></head><body></body></html>',
+    }),
+  );
+  await page.goto('https://host.example/renderer');
+  await expect(page.frameLocator('#layer1').frameLocator('#noacg-frame').locator('body')).toBeAttached();
+  const png = (await page.screenshot({ clip: { x: 150, y: 100, width: 100, height: 100 } })).toString('base64');
+  const pixel = await page.evaluate(async (data) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${data}`;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    return Array.from(ctx.getImageData(50, 50, 1, 1).data.slice(0, 3));
+  }, png);
+  expect(pixel).toEqual([255, 0, 0]);
 });
 
 test('a published production offers the SPX template file beside its output URL', async ({ page }) => {

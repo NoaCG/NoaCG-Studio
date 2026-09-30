@@ -22,8 +22,8 @@ press Download on the Template file row. On the laptop, with SPX running (1.2.1 
 3. On the NoaCG production page, take one graphic, then the other, then Out on both.
 
 **What to look at.** Whether the graphics you cue in NoaCG appear in SPX's renderer, on time and
-looking as they do in your preview. Expect one known fault: the whole frame is dark grey behind the
-graphics, even after Stop in SPX. That is `docs/backlog/spx-output-embed-opaque-frame.md`, found in
-this round, with a tested fix; if it has landed by the time you do this, the background should be
-transparent instead. The Reload output button in the SPX item does nothing, also known
-(`spx-output-embed-reload-button-dead.md`). Anything else that goes wrong is new.
+looking as they do in your preview, and that everything around them is transparent, in play and
+after Stop. The dark frame found in this round is fixed and was walked transparent on both servers
+(`docs/SPX_ON_A_REAL_SERVER.md` §9), so a dark background now is a new fault. Download a fresh
+Template file: one downloaded before this fix reached noacg.studio still has the dark frame. The SPX item has no Reload
+button any more; to reload the output, Stop and Play the item. Anything else that goes wrong is new.

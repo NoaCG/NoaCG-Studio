@@ -666,7 +666,7 @@ test('an exported package recovers a running match clock when the renderer reloa
     if (!root) root = `${name.split('/')[0]}/`;
     files.set(name.replace(root, ''), await zip.file(name)!.async('string'));
   }
-  const graphicFile = [...files.keys()].find((n) => n.endsWith('.html') && n !== 'controlpanel.html')!;
+  const graphicFile = [...files.keys()].find((n) => n.endsWith('.html') && n !== 'controlpanel.shtml')!;
   // A plain static host, NOT the relay: this is the BroadcastChannel pairing (the panel and the
   // graphic in one browser), which is the transport that carries the recovery replay.
   const serve = (route: Route) => {
@@ -683,7 +683,7 @@ test('an exported package recovers a running match clock when the renderer reloa
   await graphic.goto(`${origin}/${graphicFile}`, { waitUntil: 'load' });
   const panel = await context.newPage();
   await panel.route(`${origin}/**`, serve);
-  await panel.goto(`${origin}/controlpanel.html`, { waitUntil: 'load' });
+  await panel.goto(`${origin}/controlpanel.shtml`, { waitUntil: 'load' });
   await expect(panel.locator('.state-chip')).toBeVisible();
 
   // Kick off: the board airs at 10:00 and the clock starts counting down.
