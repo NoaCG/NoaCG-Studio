@@ -10,7 +10,7 @@ import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './account
 import { changeSyncedElsewhere, libraryInUse, markOwnWritesSynced } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
-import { hasSyncedBefore, runSync, type SyncResult } from './sync';
+import { libraryHasArrived, runSync, type SyncResult } from './sync';
 import type { StoredRecord } from './storage';
 import { purgeOldTombstones } from '../model/packets';
 import { purgeOldShowTombstones } from '../model/shows';
@@ -88,11 +88,6 @@ async function canSync(): Promise<boolean> {
 let running = false;
 let queued = false;
 
-/** A first pass that COMPLETED with pulls still owed (the local store refused the write) has
- *  moved the bookmark, but the library it was bringing is still not here: the next pass is still
- *  a first pass as far as anybody looking at Home can tell. Held for this page only; the pulls
- *  themselves are re-derived by the next pass from the unchanged timestamps. */
-let firstPullsOwed = false;
 
 /**
  * Callers who asked for a sync WHILE ONE WAS ALREADY RUNNING, waiting to be told that a pass
@@ -156,7 +151,7 @@ export async function syncNow(): Promise<void> {
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
-  const firstPass = !hasSyncedBefore() || firstPullsOwed;
+  const firstPass = !libraryHasArrived();
   setState({ phase: 'syncing', firstPass });
   try {
     // Sync's own pull-writes dispatch 'spx-data-changed' too; that's fine — runSync is idempotent,
@@ -165,7 +160,7 @@ export async function syncNow(): Promise<void> {
     const result = await runSync(
       local,
       remote,
-      firstPass ? (plan) => setState({ phase: 'syncing', firstPass, incoming: countIncoming(plan.toLocal) }) : undefined,
+      firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
     );
     // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
     // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
@@ -180,7 +175,6 @@ export async function syncNow(): Promise<void> {
     } catch {
       // Never fail a sync on cleanup.
     }
-    firstPullsOwed = firstPass && result.failures.some((f) => f.op === 'pull');
     if (result.failures.length > 0) {
       // The pass completed and the bookmark advanced, but some records could not be applied —
       // surface them (SyncStatus shows the detail as its tooltip). They retry next pass.
@@ -190,7 +184,8 @@ export async function syncNow(): Promise<void> {
         phase: 'error',
         detail: `${result.failures.length} record${result.failures.length === 1 ? '' : 's'} failed to sync — ${shown.join('; ')}${extra}`,
         last: result,
-        firstPass: firstPullsOwed,
+        // A first pass whose pulls the store refused has not brought the library either.
+        firstPass: !libraryHasArrived(),
       });
     } else {
       setState({ phase: 'synced', last: result });

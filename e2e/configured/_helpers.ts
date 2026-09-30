@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { finishIntoEditor, finishIntoNewEditor, startNewProject } from '../_create';
 import { chooseType, pickDesign } from '../_browse';
 
@@ -59,6 +60,39 @@ export async function signInAs(page: Page, account: string, password: string): P
   await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
   // Restore the state downstream helpers expect (wizard open, as on a fresh load).
   await startNewProject(page);
+}
+
+/** Sign in through the Home topbar's own Sign in button, as a person at the computer would.
+ *  Signing in may RELOAD the page onto the account's library (an account this browser has seen
+ *  before); both paths end with the profile button showing. By default it then waits for the
+ *  first sync to settle; `settle: false` leaves that pass running, for a spec that watches it. */
+export async function signInOnHome(page: Page, email: string, password: string, { settle = true } = {}): Promise<void> {
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
+  await page.locator('.auth-signin').click();
+  await page.locator('#auth-email').fill(email);
+  await page.locator('#auth-pass').fill(password);
+  await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
+  await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
+  if (settle) await settleSync(page);
+}
+
+/** Mint a throwaway account through the admin API and return its id. A leftover from a run that
+ *  died before its cleanup is deleted first, so every run starts the account with an empty cloud.
+ *  Deleting the account later takes its documents with it (`on delete cascade`). */
+export async function mintAccount(admin: SupabaseClient, email: string, password: string): Promise<string> {
+  // One page large enough for any test project; the default page of 50 could hide the user.
+  const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (listError) throw new Error(`could not list users: ${listError.message}`);
+  const leftover = list.users.find((u) => u.email === email);
+  if (leftover) {
+    const { error } = await admin.auth.admin.deleteUser(leftover.id);
+    if (error) throw new Error(`could not delete a leftover ${email}: ${error.message}`);
+  }
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error) throw new Error(`could not create ${email}: ${error.message}`);
+  return data.user.id;
 }
 
 /** Create a project through the wizard (which opens on load) and land in the OLD editor through

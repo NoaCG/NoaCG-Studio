@@ -198,6 +198,7 @@ export async function runSync(
   onPlan?: (plan: SyncPlan) => void,
 ): Promise<SyncResult> {
   const meta = loadSyncMeta();
+  const arriving = !arrived(meta);
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
   // the bookmark stays put (correct — nothing was applied).
   const localRecs = (await Promise.all(SYNC_KINDS.map((k) => local.list(k)))).flat();
@@ -327,6 +328,7 @@ export async function runSync(
     lastSyncedAt: new Date().toISOString(),
     pendingPush: [...pendingPush],
     pendingConflict: [...pendingConflict],
+    pullsOwed: arriving && failures.some((f) => f.op === 'pull'),
   });
   return { pushed, pulled, conflicts, failures };
 }
@@ -357,6 +359,10 @@ interface SyncMeta {
   lastSyncedAt: string;
   pendingPush: string[];
   pendingConflict: string[];
+  /** The library's first pass on this browser COMPLETED without landing its pulls (the local
+   *  store refused them). The bookmark moved anyway, so this is what still says the library has
+   *  not arrived (`libraryHasArrived`) until a later pass lands them. */
+  pullsOwed: boolean;
 }
 
 function loadSyncMeta(): SyncMeta {
@@ -368,9 +374,10 @@ function loadSyncMeta(): SyncMeta {
       lastSyncedAt: typeof m.lastSyncedAt === 'string' && m.lastSyncedAt ? m.lastSyncedAt : EPOCH,
       pendingPush: strings(m.pendingPush),
       pendingConflict: strings(m.pendingConflict),
+      pullsOwed: m.pullsOwed === true,
     };
   } catch {
-    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [] };
+    return { lastSyncedAt: EPOCH, pendingPush: [], pendingConflict: [], pullsOwed: false };
   }
 }
 
@@ -382,12 +389,13 @@ function saveSyncMeta(meta: SyncMeta): void {
   }
 }
 
-export function loadLastSyncedAt(): string {
-  return loadSyncMeta().lastSyncedAt;
+function arrived(meta: SyncMeta): boolean {
+  return meta.lastSyncedAt !== EPOCH && !meta.pullsOwed;
 }
 
-/** Has the library in use ever finished a pass on this browser? Only a completed pass moves the
- *  bookmark off the epoch, so a pass that failed to list the cloud leaves this false. */
-export function hasSyncedBefore(): boolean {
-  return loadSyncMeta().lastSyncedAt !== EPOCH;
+/** Has the library in use ARRIVED on this browser: a pass completed and landed what it pulled?
+ *  Only a completed pass moves the bookmark off the epoch, so a pass that failed to list the cloud
+ *  leaves this false, and so does one whose pulls the local store refused. */
+export function libraryHasArrived(): boolean {
+  return arrived(loadSyncMeta());
 }

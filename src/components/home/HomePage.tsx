@@ -33,6 +33,7 @@ import SyncStatus from '../SyncStatus';
 import { BetaFeedbackButton } from '../feedback/BetaFeedback';
 import SettingsDialog from '../SettingsDialog';
 import { copyLink } from './copyLink';
+import { nameList } from './CueRundown';
 import { activeValues } from './GraphicRow';
 import GraphicThumb from './GraphicThumb';
 import GraphicsSection from './sections/GraphicsSection';
@@ -134,18 +135,16 @@ export default function HomePage({ route }: { route: Route }) {
   // pass is running, or has failed, Home says what is happening instead. Once the cloud has been
   // listed and holds nothing to show, it is a new account after all, and the first-run hint is
   // the right answer again.
+  // Only a first pass matters here, so an ordinary pass (one every few seconds while somebody
+  // works) keeps the state it found and re-renders nothing.
   const [sync, setSync] = useState<SyncState>(getSyncState());
-  useEffect(() => onSyncState(setSync), []);
+  useEffect(() => onSyncState((next) => setSync((prev) => (prev.firstPass || next.firstPass ? next : prev))), []);
   // Team productions do not count: they come from the team fetch, not from this pass, and can be
   // on screen long before the account's own library is.
   const libraryEmpty = graphics.length === 0 && videos.length === 0 && personalCount === 0;
-  const arrival: Arrival | null = !libraryEmpty || !sync.firstPass
-    ? null
-    : sync.phase === 'error'
-      ? { failed: true }
-      : sync.phase === 'syncing' && (!sync.incoming || totalIncoming(sync.incoming) > 0)
-        ? { failed: false, incoming: sync.incoming }
-        : null;
+  const cloudEmpty = sync.incoming !== undefined && totalIncoming(sync.incoming) === 0;
+  // `firstPass` is only ever set on a pass that is running or has failed.
+  const arriving = libraryEmpty && sync.firstPass === true && !cloudEmpty;
 
   const [query, setQuery] = useState('');
   const [productionFilter, setProductionFilter] = useState<string | null>(null);
@@ -248,9 +247,11 @@ export default function HomePage({ route }: { route: Route }) {
     route.view === 'home' && sections.some((s) => s.id === route.section)
       ? (route.section as Section)
       : null;
-  /** The arrival stands in for every view that would otherwise list the empty library. Teams are
-   *  fetched on their own, and brands are not what anybody signs in to find. */
-  const arrivalShown = arrival !== null && section !== 'teams' && section !== 'looks';
+  /** What the main column shows. The arrival stands in for every view that would otherwise list
+   *  the empty library; teams are fetched on their own, and brands are not what anybody signs in
+   *  to find. */
+  const view: Section | 'dashboard' | 'arrival' =
+    arriving && section !== 'teams' && section !== 'looks' ? 'arrival' : (section ?? 'dashboard');
 
   /** "Open" puts a graphic on its CONTROL page (preview + data + operating), from where "Edit
    *  graphic" reaches the new editor (docs/GOALS_ARCHIVE.md "Student release" step 4). */
@@ -365,9 +366,9 @@ export default function HomePage({ route }: { route: Route }) {
             />
           )}
 
-          {arrivalShown && arrival && <LibraryArrival arrival={arrival} />}
+          {view === 'arrival' && <LibraryArrival failed={sync.phase === 'error'} incoming={sync.incoming} />}
 
-          {!arrivalShown && section === null && (
+          {view === 'dashboard' && (
             <>
               {/* The dashboard: productions lead — the unit that airs is one click from open. */}
               <ProductionsSection
@@ -436,7 +437,7 @@ export default function HomePage({ route }: { route: Route }) {
             </>
           )}
 
-          {!arrivalShown && section === 'productions' && (
+          {view === 'productions' && (
             <ProductionsSection
               productions={productions}
               onOpen={(p) => navigate({ view: 'production', id: p.id })}
@@ -448,11 +449,11 @@ export default function HomePage({ route }: { route: Route }) {
             />
           )}
 
-          {section === 'teams' && (
+          {view === 'teams' && (
             <TeamsSection productions={productions} onOpen={(p) => navigate({ view: 'production', id: p.id })} />
           )}
 
-          {!arrivalShown && section === 'graphics' && (
+          {view === 'graphics' && (
             <>
               {/* The section's whole header - title, search, sort, view - is ONE row inside
                   GraphicsSection (re-design/handoff.md §5b): the toggle and the sort belong
@@ -506,11 +507,11 @@ export default function HomePage({ route }: { route: Route }) {
             </>
           )}
 
-          {!arrivalShown && section === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
+          {view === 'videos' && <VideosSection videos={videos} onOpen={openVideo} onChanged={refresh} />}
 
           {/* Applying a brand retints the WORKING graphic, so Apply lands where that graphic can
               be seen and saved: the new editor (owner, 2026-09-21: no door to the old editor). */}
-          {section === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={openNewEditor} />}
+          {view === 'looks' && <LooksSection looks={looks} onChanged={refresh} onDone={openNewEditor} />}
         </main>
       </div>
 
@@ -593,9 +594,6 @@ function PublishSheet({
   );
 }
 
-/** Home's first-pass state: the library is on its way, or the pass bringing it stopped. */
-type Arrival = { failed: false; incoming?: IncomingCounts } | { failed: true };
-
 function totalIncoming(n: IncomingCounts): number {
   return n.graphics + n.productions + n.videos;
 }
@@ -604,15 +602,17 @@ function totalIncoming(n: IncomingCounts): number {
  *  and the kinds without a number before that. */
 function arrivalSentence(n: IncomingCounts | undefined): string {
   if (!n) return 'Your graphics and productions are on their way from your account.';
-  const parts = ([[n.graphics, 'graphic'], [n.productions, 'production'], [n.videos, 'video']] as const)
-    .filter(([count]) => count > 0)
-    .map(([count, word]) => `${count} ${word}${count === 1 ? '' : 's'}`);
-  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  const list = nameList(
+    ([[n.graphics, 'graphic'], [n.productions, 'production'], [n.videos, 'video']] as const)
+      .filter(([count]) => count > 0)
+      .map(([count, word]) => `${count} ${word}${count === 1 ? '' : 's'}`),
+  );
   return totalIncoming(n) === 1 ? `${list} is on its way from your account.` : `${list} are on their way from your account.`;
 }
 
-function LibraryArrival({ arrival }: { arrival: Arrival }) {
-  if (arrival.failed) {
+/** Home's first-pass state: the library is on its way, or the pass bringing it stopped. */
+function LibraryArrival({ failed, incoming }: { failed: boolean; incoming?: IncomingCounts }) {
+  if (failed) {
     return (
       <div className="panel-section home-arrival" role="status" data-testid="library-arrival-failed">
         <h3>Your library has not reached this browser yet</h3>
@@ -629,7 +629,7 @@ function LibraryArrival({ arrival }: { arrival: Arrival }) {
   return (
     <div className="panel-section home-arrival" role="status" data-testid="library-arrival">
       <h3>Bringing your library to this browser</h3>
-      <p data-testid="library-arrival-count">{arrivalSentence(arrival.incoming)}</p>
+      <p data-testid="library-arrival-count">{arrivalSentence(incoming)}</p>
       <div className="home-arrival-bar" aria-hidden="true">
         <span />
       </div>

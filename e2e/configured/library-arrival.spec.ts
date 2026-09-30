@@ -6,9 +6,9 @@
 // the plan the sync engine hands it, and the state the controller publishes.
 // covers: src/components/home/HomePage.tsx, src/backend/{sync,syncController}.ts
 
-import { test, expect, devices, type Page } from '@playwright/test';
+import { test, expect, devices } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { haveCreds, settleSync, shot, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
+import { haveCreds, mintAccount, settleSync, shot, signInOnHome, SERVICE_ROLE_KEY, SUPABASE_URL } from './_helpers';
 import { settleDurableWrites } from '../_durable';
 
 // A SIGNED-IN BROWSER THAT HAS NONE OF THE ACCOUNT'S LIBRARY YET.
@@ -32,18 +32,7 @@ const canRun = haveCreds && Boolean(SERVICE_ROLE_KEY && SUPABASE_URL);
 
 const EMAIL = 'e2e-library-arrival@noacg.local';
 const PASSWORD = 'noacg-e2e-arrival-pw';
-
-/** Sign in through Home's own Sign in button. Leaves the first sync running. */
-async function signInOnHome(page: Page): Promise<void> {
-  await page.goto('/app#/home');
-  await expect(page.getByTestId('home-page')).toBeVisible();
-  await expect(page.getByTestId('auth-state')).toHaveText('Not signed in');
-  await page.locator('.auth-signin').click();
-  await page.locator('#auth-email').fill(EMAIL);
-  await page.locator('#auth-pass').fill(PASSWORD);
-  await page.locator('.auth-card').getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.locator('.auth-status')).toBeVisible({ timeout: 20_000 });
-}
+const PHONE = { width: 390, height: 844 };
 
 /** The pass's listing of the cloud: summaries only (backend/supabaseProvider.ts `list`). */
 function isCloudListing(url: URL): boolean {
@@ -80,17 +69,7 @@ test.describe('library arriving on a new browser (configured)', () => {
 
   test.beforeAll(async () => {
     admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-    const { data: list, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    if (listError) throw new Error(`could not list users: ${listError.message}`);
-    // A leftover from a run that died before its cleanup would arrive holding that run's library.
-    const leftover = list.users.find((u) => u.email === EMAIL);
-    if (leftover) {
-      const { error } = await admin.auth.admin.deleteUser(leftover.id);
-      if (error) throw new Error(`could not delete a leftover account: ${error.message}`);
-    }
-    const { data, error } = await admin.auth.admin.createUser({ email: EMAIL, password: PASSWORD, email_confirm: true });
-    if (error) throw new Error(`could not create the account: ${error.message}`);
-    userId = data.user.id;
+    userId = await mintAccount(admin, EMAIL, PASSWORD);
   });
 
   test.afterAll(async () => {
@@ -102,8 +81,7 @@ test.describe('library arriving on a new browser (configured)', () => {
   test('Home says the library is on its way, not that nothing is saved', async ({ page, browser, baseURL }) => {
     // 1. Computer A: a brand-new account. Its first pass finds an empty cloud, and that IS an
     //    empty library, so the first-run hint is the right answer.
-    await signInOnHome(page);
-    await settleSync(page);
+    await signInOnHome(page, EMAIL, PASSWORD);
     await expect(page.getByText('Nothing saved yet')).toBeVisible();
     await expect(page.getByTestId('library-arrival')).toHaveCount(0);
 
@@ -140,14 +118,14 @@ test.describe('library arriving on a new browser (configured)', () => {
       await route.continue();
     });
     try {
-      await signInOnHome(b);
+      await signInOnHome(b, EMAIL, PASSWORD, { settle: false });
       const failed = b.getByTestId('library-arrival-failed');
       await expect(failed).toBeVisible({ timeout: 20_000 });
       await expect(failed).toContainText('Your library has not reached this browser yet');
       await expect(b.getByText('Nothing saved yet')).toHaveCount(0);
       await shot(b, 'library-arrival-failed-desktop');
       const desktop = b.viewportSize();
-      await b.setViewportSize({ width: 390, height: 844 });
+      await b.setViewportSize(PHONE);
       await shot(b, 'library-arrival-failed-phone');
       if (desktop) await b.setViewportSize(desktop);
 
@@ -169,7 +147,7 @@ test.describe('library arriving on a new browser (configured)', () => {
       await b.getByTestId('home-nav-graphics').click();
       await expect(arrival).toBeVisible();
       await b.getByTestId('home-door').click();
-      await b.setViewportSize({ width: 390, height: 844 });
+      await b.setViewportSize(PHONE);
       await expect(arrival).toBeVisible();
       await shot(b, 'library-arrival-phone');
 
@@ -181,7 +159,7 @@ test.describe('library arriving on a new browser (configured)', () => {
       await expect(b.getByText('Arrival show').first()).toBeVisible();
       await b.reload();
       await expect(b.getByTestId('shelf-graphic')).toHaveCount(3);
-      await expect(b.getByTestId('library-arrival')).toHaveCount(0);
+      await expect(arrival).toHaveCount(0);
     } finally {
       releaseRecords();
       await b.unrouteAll({ behavior: 'ignoreErrors' });
