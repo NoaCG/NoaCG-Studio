@@ -195,7 +195,7 @@ changed signature fails every send from an open page, and 0066 revoked a read re
   `control_stage`, `control_report`, `control_data_*`, `control_live_cue_set`), the trigger and
   helper functions behind them, and the tables `control_shows`, `control_events` and whatever comes
   next under the prefix (`control_heads`), with their columns, indexes, policies and triggers;
-- `realtime.messages`, whose policies admit the `cmd-`, `log-` and `live-` topics;
+- `realtime.messages`, whose policies admit the `cmd-`, `log-`, `live-` and `seq-` topics;
 - the functions the policies and triggers on those tables call: `is_suspended`, `feature_denied`,
   `is_team_member`, `set_updated_at`. These count only when a statement is about them (defining,
   altering, dropping, granting or revoking), not when a policy elsewhere calls one.

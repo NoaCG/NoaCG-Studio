@@ -597,7 +597,7 @@ function missingTimeouts(version, statements) {
  *   (`control_send_many`, `control_show_by_slug`, `control_output_*`, `control_tail`, …), the
  *   functions and triggers behind them, and the tables they read and write (`control_shows`,
  *   `control_events`, and `control_heads` or whatever comes next under the same prefix);
- * - `realtime.messages`, whose policies admit the `cmd-`, `log-` and `live-` topics;
+ * - `realtime.messages`, whose policies admit the `cmd-`, `log-`, `live-` and `seq-` topics;
  * - the predicates the policies on those tables call and the trigger function they share. These
  *   are named everywhere else too, so only a statement ABOUT them counts (defining, dropping,
  *   altering, granting or revoking the function), not every policy that calls one.
