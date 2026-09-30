@@ -102,6 +102,9 @@ async function openOperator(page: Page, hosted: string): Promise<Page> {
  * server's answer to the first. Holding only the first attempt is not enough: the page abandons it
  * at 1.5 s and sends it again 0.4 s later (failedSends.ts), and that resend, let through, raced
  * the next press to the server, so which one landed first was up to the machine's load.
+ * Fault-injected with the Out pressed 2.5 s after the Take, so the resend always leaves first:
+ * holding only the first request, the late Take was answered as a duplicate (`ok: true`); holding
+ * every attempt, as superseded.
  */
 function holdNextPress(op: Page, release: Promise<void>): Promise<unknown> {
   return new Promise((resolveAnswer) => {
@@ -114,9 +117,10 @@ function holdNextPress(op: Page, release: Promise<void>): Promise<unknown> {
       const answerThis = first;
       first = false;
       await release;
-      const response = await route.fetch();
-      if (answerThis) resolveAnswer(await response.json().catch(() => null));
-      await route.fulfill({ response }).catch(() => {});
+      // A resend still held when the test closes its pages has nowhere to go: nothing to deliver.
+      const response = await route.fetch().catch(() => null);
+      if (answerThis) resolveAnswer(response ? await response.json().catch(() => null) : null);
+      if (response) await route.fulfill({ response }).catch(() => {});
     });
   });
 }

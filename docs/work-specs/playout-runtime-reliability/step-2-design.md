@@ -88,9 +88,17 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   epoch. An older reader of that report follows by id from it, as it always did; the highest id
   is what its snapshot contains (review R-4 replaced "the last row in seq order", which after an
   id/seq inversion made old readers replay a row twice).
-- **D-l. `live-<show>` is joined once per page** (`joinLiveTopic`, reference counted), because
-  Realtime returns the same channel object for a topic already joined and a second `subscribe`
-  on it never reports; Step 1's Presence should register through the same join.
+- **D-l. `live-<show>` is joined once per page and production, in `src/control/livePath.ts`**
+  (`joinLiveTopic`), because supabase-js 2.110 returns the same channel object for a topic a page
+  already has, a second `subscribe` on it never reports, and removing it for one user removes it
+  for every user. The join is created with Presence's config (key = the instance id, enabled) and
+  with the Presence bindings and the `batch` frame binding in place before the subscribe; it keeps
+  Step 1's retry policy (a join refused before it ever succeeded, or closed by the server, is
+  asked again from scratch on 15 s doubling to 120 s); it leaves when its last user leaves. Step
+  1's `joinLivePresence` and this step's `followLiveSeq` both register there. Built when Step 1
+  landed (merge of #563); it replaced this branch's own reference-counted join in hostedControl.ts.
+  Revert: none short of moving the numbered frames to their own topic, which costs every page a
+  second private join (a database-authorised join each).
 - **D-m. The publish updates by id and inserts only when nothing matched** (and updates again on a
   23505), with the same columns and the same 0058 fallback. Old bundles keep their upsert until
   they reload: Takes wait behind it as they do today, and never deadlock.
@@ -105,6 +113,17 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
 - **D-p. Specs that intercept a send or a report now match both roads** (`control_send_*`,
   `control_output_report*`): the CI stack applies every migration in the tree, so once 0070 is
   there the pages and renderers in those specs negotiate protocol 2.
+- **D-q. The command-sequence spec holds EVERY attempt of the press it delays**, keyed by
+  `p_sender.press`. Holding only the first let Step 0's resend (1.9 s after the press) reach the
+  server first when the machine was loaded, so the late Take was applied and its held first
+  attempt answered as a duplicate (a flake in j-2517, not a product fault: air still ended on
+  the Out, in press order). Fault-injected with the Out at 2.5 s: the old hold fails on the same
+  line, the new one passes (`evidence/configured-specs.md`).
+- **D-r. Step 1's counters read the numbered road too.** On protocol 2 a renderer counts a live
+  frame's rows as the `log` road and a tail read's as `tail` (one refill per read that brought
+  new rows), the sequence follower reports holes that outlived the reorder window (a retry after
+  a failed read is not a new hole), and a numbered send counts in the sender's counters like any
+  send. No fast road exists there, so `cmd` stays null in the Presence entry.
 
 ### Known limits (recorded, not fixed)
 
@@ -125,10 +144,27 @@ Code: `supabase/migrations/0069_control_heads.sql`, `0070_command_sequence.sql`;
   400,000 rows over its 40 pages; `control_head_legacy` scans the production's retained rows once
   per renderer resolve. Bounded by the 7-day prune and only at a boot with no baseline; a later,
   ordinary migration can add the index when measurements say so.
-- **K5. Step 1 and Step 2 both join `live-<show>`.** Realtime hands back the existing channel for
-  a topic and a second `subscribe` never reports, so Step 1's Presence join and this step's
-  `joinLiveTopic` must become one join (the channel created once with Presence's config, both
-  listeners on it, removed when both have left). Whichever of the two lands second does it.
+- **K5 (resolved). Step 1 and Step 2 both join `live-<show>`.** Step 1 landed first; this branch
+  made the two one join when it merged it (D-l).
+- **K6. On protocol 2 the live topic is the renderer's log road.** Refusing a page's `live-` join
+  (what a server without 0068 does, and what `e2e/configured/live-health.spec.ts` injects) leaves a
+  proto-2 renderer on the 30 s poll floor, where on protocol 1 only its Presence went. No real
+  server refuses it on protocol 2 (0070 requires 0068), and a join refused for any other reason
+  (Realtime down, its authorisation query failing) refuses the id road's private topics the same
+  way. The spec expects "NOT JOINED" for that renderer on protocol 2.
+- **K7. Protocol 1 stands its fast road down during every walk, and a shared instance walks
+  often.** Measured 2026-09-30 on branch A (unmigrated, shared with other sessions):
+  `late-send-abandoned` failed 3 of 3 on main's own code and 3 of 3 on this branch, every time
+  with the Take pressed while the page's id-road follower was reading the tail (a hole in front
+  of a row, the ids being global across productions), so the Take took the durable road and the
+  page's chip never moved. Protocol 1's code is unchanged by this branch; on protocol 2 a gap is
+  never another production, and the same spec passed 3 of 3 on branch B. Not fixed here: it is
+  protocol 1's documented stand-down (hostedControl.ts `recovering`), and the spec's first
+  assertion assumes a quiet instance. Evidence: `evidence/configured-specs.md`.
+- **K8. The Presence entry still reports protocol 1** (livePath.ts `LIVE_PROTOCOL`). Step 1 wrote
+  that Step 2 would raise it; what a page speaks is now decided per server at load (D-g), so a
+  constant cannot state it, and nothing reads the field yet. Left for Step 3, whose READY is the
+  first reader: decide then whether it states the build's ability (2) or the road negotiated.
 
 ### The review of the finished diff (2026-09-30, before queueing)
 
