@@ -393,7 +393,7 @@ test('presence answers any origin without a token and says nothing about the stu
       v: PLAYOUT_V,
       version: '0.0.0-test',
       adapters: ['casparcg'],
-      features: ['state', 'playback', 'sequence', 'sequence-loop'],
+      features: ['state', 'playback', 'sequence', 'sequence-loop', 'servers'],
     });
 
     const noToken = await fetch(`${base}/status`, { method: 'POST', headers: { Origin: 'https://noacg.studio' } });
