@@ -173,6 +173,84 @@ test('html overlay: self-contained, autoplays with the Data panel values, contro
   await view.close();
 });
 
+test('html overlay under OBS: the entrance waits for program and plays again on the next cut', async ({ page }) => {
+  // OBS loads a browser source when the scene collection opens, so a load-time entrance ran off
+  // air (docs/OBS_ON_A_REAL_HOST.md §2). Under OBS the overlay follows obsSourceActiveChanged, and
+  // OBS sends no event for the state a page loads in, so it starts from document.visibilityState.
+  await page.goto('/app');
+  const html = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { htmlOverlayTarget } = await import('/src/export/targets/htmlOverlay.ts');
+    const zip = await htmlOverlayTarget.build(variantById('lt01')!.create({}));
+    return zip.file('hairline/hairline.html')!.async('string');
+  });
+  // A stand-in for obs-browser: window.obsstudio, and a visibilityState the test sets.
+  const underObs = (visible: boolean) =>
+    html.replace(
+      /<head>/i,
+      `<head><script>window.obsstudio = { pluginVersion: '2.26.9' };
+Object.defineProperty(document, 'visibilityState', { configurable: true, get: function () { return '${visible ? 'visible' : 'hidden'}'; } });</script>`,
+    );
+  const opacity = (view: Page) => view.locator('.lower-third').evaluate((el) => getComputedStyle(el).opacity);
+  const countPagePlays = (view: Page) =>
+    view.evaluate(() => {
+      const w = window as unknown as { play(): void; plays: number };
+      const play = w.play;
+      w.plays = 0;
+      w.play = function () {
+        w.plays++;
+        play();
+      };
+    });
+  const plays = (view: Page) => view.evaluate(() => (window as unknown as { plays: number }).plays);
+  const active = (view: Page, on: boolean) =>
+    view.evaluate((on) => window.dispatchEvent(new CustomEvent('obsSourceActiveChanged', { detail: { active: on } })), on);
+
+  // Loaded in a scene that is not on air: nothing plays until the source goes on program.
+  const view = await page.context().newPage();
+  await view.setContent(underObs(false), { waitUntil: 'load' });
+  await countPagePlays(view);
+  await view.waitForTimeout(600);
+  expect(await plays(view)).toBe(0);
+  expect(await opacity(view)).not.toBe('1');
+  await active(view, true);
+  await expect.poll(() => opacity(view)).toBe('1');
+  expect(await plays(view)).toBe(1);
+  await active(view, true); // a repeat is not a second take
+  expect(await plays(view)).toBe(1);
+  // Off program it resets, and the next cut plays the entrance again.
+  await active(view, false);
+  await expect.poll(() => opacity(view)).toBe('0');
+  await active(view, true);
+  await expect.poll(() => opacity(view)).toBe('1');
+  expect(await plays(view)).toBe(2);
+  await view.close();
+
+  // Loaded shown: it plays at once, with no event. If that was only a studio-mode preview, the
+  // take to program is the first active event, and it plays the entrance again, on air.
+  const shown = await page.context().newPage();
+  await shown.setContent(underObs(true), { waitUntil: 'load' });
+  await expect.poll(() => opacity(shown)).toBe('1');
+  await countPagePlays(shown);
+  await active(shown, true);
+  expect(await plays(shown)).toBe(1);
+  // Once the operator stops it from the panel, cuts no longer move it.
+  await shown.evaluate(() => (window as unknown as { stop(): void }).stop());
+  await expect.poll(() => opacity(shown)).toBe('0');
+  await active(shown, false);
+  await active(shown, true);
+  await shown.waitForTimeout(600);
+  expect(await plays(shown)).toBe(1);
+  expect(await opacity(shown)).toBe('0');
+  await shown.close();
+
+  // Outside OBS nothing changed: it plays on load.
+  const plain = await page.context().newPage();
+  await plain.setContent(html, { waitUntil: 'load' });
+  await expect.poll(() => opacity(plain)).toBe('1');
+  await plain.close();
+});
+
 test('casparcg: one self-contained html that speaks JSON and CasparCG XML', async ({ page }) => {
   await createHairline(page);
   const zip = await downloadTarget(page, 'CasparCG export');
