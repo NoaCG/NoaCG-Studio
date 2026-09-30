@@ -249,7 +249,11 @@ export function summarise(facts) {
   const quality = usage?.delegationOutcomes?.quality;
   if (quality) lines.push(`- Delegation outcomes: ${fmt(usage?.delegationOutcomes?.tasks)} tasks; ${quality.accepted ?? '-'} accepted of ${quality.attributable ?? '-'} attributable to a worker; ${quality.ours ?? '-'} burned a call on our own invocation; ${quality.unclassified ?? 0} predate the outcome vocabulary and count nowhere.`);
   const unverified = (usage?.capabilities ?? []).filter((row) => row.standing === 'unverified').map((row) => row.id);
-  lines.push(`- Capability observations unverified on the installed builds: ${unverified.length}${unverified.length ? ` (${unverified.join(', ')})` : ''}.`, '');
+  lines.push(`- Capability observations unverified on the installed builds: ${unverified.length}${unverified.length ? ` (${unverified.join(', ')})` : ''}.`);
+  // A failed re-probe (scripts/harness-reprobe.mjs) is no longer "unverified": it is measured false.
+  const failed = (usage?.capabilities ?? []).filter((row) => row.standing === 'failed').map((row) => row.id);
+  if (failed.length) lines.push(`- Capability observations that FAILED their re-probe on the installed builds: ${failed.length} (${failed.join(', ')}).`);
+  lines.push('');
 
   lines.push('## Waves and rows', '');
   // Everything read off a wave plan is unmeasured when no plan survived, so the whole block is
