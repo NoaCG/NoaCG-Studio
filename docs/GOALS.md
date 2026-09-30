@@ -151,9 +151,9 @@ Each outcome carries its priority (now, next, later). List order is not priority
   that plays out to every environment the production uses. No player is preferred forever. A
   production and its rundown belong to the team, not to one account.
 - **Current state:** CasparCG with NoaCG Bridge is production-proven and the main production path;
-  OBS and browser sources are proven; vMix exports exist but are unproven in vMix. On real SPX servers the native SPX export plays with
-  fields, Continue, Stop and three layers set by the operator; the OGraf package and the output embed are not usable on air yet
-  (`SPX_ON_A_REAL_SERVER.md`). Bridge cues the server's clips from the rundown with each clip's ending, fades, level, trim, Play next and
+  OBS and browser sources are proven; vMix exports exist but are unproven in vMix. On real SPX 1.2.1 and 1.4.1 the native and production SPX
+  exports play three graphics on their own layers as imported, with fields, Continue and Stop; the output embed frames the output
+  transparently, but cueing a published production through it is unproven; the OGraf package is not usable on air yet (`SPX_ON_A_REAL_SERVER.md`). Bridge cues the server's clips from the rundown with each clip's ending, fades, level, trim, Play next and
   folders; the owner's check on a real production is open. Teams exist, and a three-member walk on a local backend proves members adding
   graphics from their own libraries and one playing the production out with its creator signed out. Saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**

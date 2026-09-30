@@ -68,10 +68,10 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   // listed every NoaCG template as "index" — student-release acceptance finding).
   expect(names).toContain('evening_show/hairline/hairline.html');
   expect(names).toContain('evening_show/arena_quiz/arena_quiz.html');
-  expect(names).toContain('evening_show/show_controlpanel.html');
+  expect(names).toContain('evening_show/show_controlpanel.shtml');
   expect(names.filter((n) => n.endsWith('index.html'))).toEqual([]);
 
-  const panelHtml = await zip.file('evening_show/show_controlpanel.html')!.async('string');
+  const panelHtml = await zip.file('evening_show/show_controlpanel.shtml')!.async('string');
   expect(panelHtml).toContain('spx-control-hairline'); // each card on its own channel
   expect(panelHtml).toContain('spx-control-arena_quiz');
   expect(panelHtml).toContain('Select answer'); // the quiz's machine buttons ride along
@@ -99,7 +99,7 @@ test('a show collects graphics in rundown order and exports one aggregated panel
 
   const panel = await context.newPage();
   await panel.route('http://show-rt.local/**', serve);
-  await panel.goto('http://show-rt.local/show_controlpanel.html', { waitUntil: 'load' });
+  await panel.goto('http://show-rt.local/show_controlpanel.shtml', { waitUntil: 'load' });
 
   await expect(panel.locator('.card')).toHaveCount(2);
   const thirdCard = panel.locator('.card', { hasText: 'Hairline' });
@@ -328,17 +328,23 @@ test('a production package never carries the hosted receiver, and each graphic g
     return {
       anyReceiver: jsPaths.some((p) => texts[p].includes('== HOSTED CONTROL')),
       snapshotClean: graphics.every((g) => !g.template.js.includes('== HOSTED CONTROL')),
-      // The package declares the STORED layer number, verbatim — every generated template used
-      // to say playlayer '7', so two templates in one SPX rundown evicted each other.
+      // The package declares the operator's layer ORDER in SPX's own range - every generated
+      // template used to say playlayer '7', so two templates in one SPX rundown evicted each
+      // other, and the stored 20, 21 both landed on 5 in SPX 1.4 Solo, which caps at 5.
       thirdLayer: layerOf(third.name),
       tickerLayer: layerOf(ticker.name),
+      readme: texts['baked_show/README.md'],
       guideShipped: Object.keys(texts).some((n) => n.endsWith('GETTING-ON-AIR.md')),
     };
   });
   expect(result.anyReceiver).toBe(false);
   expect(result.snapshotClean).toBe(true);
-  expect(result.thirdLayer).toEqual({ play: '20', web: '20' });
-  expect(result.tickerLayer).toEqual({ play: '21', web: '21' });
+  expect(result.thirdLayer).toEqual({ play: '1', web: '1' });
+  expect(result.tickerLayer).toEqual({ play: '2', web: '2' });
+  // The README names both numbers, so the dashboard's 20 and SPX's 1 are one fact.
+  expect(result.readme).toContain('(SPX layer 1, production layer 20)');
+  expect(result.readme).toContain('(SPX layer 2, production layer 21)');
+  expect(result.readme).not.toContain('SPX 1.4 Solo has 5 layers');
   expect(result.guideShipped).toBe(true);
 });
 
@@ -467,7 +473,7 @@ test("a show export bakes each graphic's saved library entries into both panels"
       const path = Object.keys(zip.files).find((n) => n.endsWith(suffix))!;
       return zip.file(path)!.async('string');
     };
-    return { aggregated: await at('show_controlpanel.html'), perGraphic: await at('presenter_lt/controlpanel.html') };
+    return { aggregated: await at('show_controlpanel.shtml'), perGraphic: await at('presenter_lt/controlpanel.shtml') };
   });
 
   for (const html of [panels.aggregated, panels.perGraphic]) {

@@ -633,7 +633,11 @@ swapped from `/output` to the user's own hosting. The long-term output model:
    URL. It is downloaded from the Links block beside the URL, and it is that same live output:
    one SPX-legal `.html` framing it, whose Play/Stop move the FRAME while cues stay with the
    operator. It carries the output capability only — a template able to air a cue would have to
-   carry the control slug onto a playout machine.
+   carry the control slug onto a playout machine. The opaque-iframe rule above applies to it one
+   level up: the embed is itself framed by the host (SPX's renderer declares no scheme), so its
+   `color-scheme: dark` sits on its iframe ELEMENT, matching the output page, and its page
+   declares none. A page-level meta made SPX paint it as an opaque dark card
+   (`docs/SPX_ON_A_REAL_SERVER.md` §4 and §9).
    Because the embed is served from another origin or a file path, `/output` is the one page any
    origin may frame: `vercel.json` sends it no `X-Frame-Options` and no `frame-ancestors`, while
    every other page keeps `frame-ancestors 'self'`. It holds only the render capability, so a

@@ -66,7 +66,7 @@ test('a number field becomes a +/- stepper (no per-template code)', async ({ pag
   await expect(num).toHaveValue(String(before + 1));
 });
 
-test("export bundles controlpanel.html + injects the receiver into the graphic's own html", async ({ page }) => {
+test("export bundles controlpanel.shtml + injects the receiver into the graphic's own html", async ({ page }) => {
   await createScoreboard(page);
   await openExportWindow(page);
   const [download] = await Promise.all([
@@ -75,7 +75,7 @@ test("export bundles controlpanel.html + injects the receiver into the graphic's
   ]);
   const zip = await JSZip.loadAsync(readFileSync(await download.path()));
   const names = Object.keys(zip.files);
-  expect(names).toContain('match_strip/controlpanel.html');
+  expect(names).toContain('match_strip/controlpanel.shtml');
   // The template file carries the graphic's own name — SPX rundowns list files, and an
   // index.html-per-folder package listed every template as "index".
   expect(names).toContain('match_strip/match_strip.html');
@@ -84,7 +84,7 @@ test("export bundles controlpanel.html + injects the receiver into the graphic's
   expect(index).toContain('spx-control-receiver');
   expect(index).toContain('new BroadcastChannel');
 
-  const panel = await zip.file('match_strip/controlpanel.html')!.async('string');
+  const panel = await zip.file('match_strip/controlpanel.shtml')!.async('string');
   expect(panel).toContain('spx-control-match_strip'); // channel name matches the receiver's
   expect(panel).toContain('"key":"f0"'); // controls are field-derived
 });
@@ -232,7 +232,7 @@ test('round-trip: the exported panel fires machine events, greys illegal ones, a
 
   const panel = await context.newPage();
   await panel.route('http://cp-machine.local/**', serve);
-  await panel.goto('http://cp-machine.local/controlpanel.html', { waitUntil: 'load' });
+  await panel.goto('http://cp-machine.local/controlpanel.shtml', { waitUntil: 'load' });
 
   const select = panel.getByRole('button', { name: '⚡ Select answer' });
   const lock = panel.getByRole('button', { name: '⚡ Lock it in' });
@@ -318,7 +318,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
   await graphic.goto('http://cp-rec.local/arena_quiz.html', { waitUntil: 'load' });
   const panel = await context.newPage();
   await panel.route('http://cp-rec.local/**', serve);
-  await panel.goto('http://cp-rec.local/controlpanel.html', { waitUntil: 'load' });
+  await panel.goto('http://cp-rec.local/controlpanel.shtml', { waitUntil: 'load' });
 
   const machineStateOf = () =>
     graphic.evaluate(() => {
@@ -395,7 +395,7 @@ test('round-trip: the exported control panel drives the exported graphic over th
 
   const panel = await context.newPage();
   await panel.route('http://cp-rt.local/**', serve);
-  await panel.goto('http://cp-rt.local/controlpanel.html', { waitUntil: 'load' });
+  await panel.goto('http://cp-rt.local/controlpanel.shtml', { waitUntil: 'load' });
 
   // Drive from the control panel: type a score (Live is on → posts immediately), then Play.
   // The score is a number field, so the panel renders a stepper — the value box and a step-size

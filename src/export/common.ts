@@ -124,20 +124,25 @@ export function withControlReceiver(template: SpxTemplate): SpxTemplate {
   return { ...template, html: injectControlReceiver(template.html, template) };
 }
 
-/** Bundle the generated controlpanel.html next to the graphic. When the graphic has the remote-
- *  control block, the panel also gets the Supabase Realtime send path (same project + topic).
- *  `entries` (resolved from the library by the caller) bake into the panel as a data switcher. */
+/** Bundle the generated operator page next to the graphic, as `controlpanel.html` unless the
+ *  caller names it (an SPX package calls it `controlpanel.shtml`, targets/spxStarter.ts). When
+ *  the graphic has the remote-control block, the panel also gets the Supabase Realtime send path
+ *  (same project + topic). `entries` (resolved from the library by the caller) bake into the
+ *  panel as a data switcher. */
 export function addControlPanel(
   root: JSZip,
   template: SpxTemplate,
-  opts?: { inlineAssets?: boolean; entries?: ControlEntry[] },
+  opts?: { inlineAssets?: boolean; entries?: ControlEntry[]; fileName?: string },
 ): void {
   const remote = hasRealtimeControl(template.js) ? remoteControlConfig(template.name) : null;
-  root.file('controlpanel.html', renderControlPanelHtml(template, remote, opts));
+  root.file(
+    opts?.fileName ?? 'controlpanel.html',
+    renderControlPanelHtml(template, remote, { inlineAssets: opts?.inlineAssets, entries: opts?.entries }),
+  );
 }
 
 /** A short README explaining how to deploy the package in SPX. */
-export function spxReadme(template: SpxTemplate, fileName?: string): string {
+export function spxReadme(template: SpxTemplate, fileName?: string, panel = 'controlpanel.html'): string {
   const file = fileName ?? `${slug(template.name)}.html`;
   return `# ${template.name} — SPX template
 
@@ -154,19 +159,20 @@ project folder, so you get:
     [TemplatesFolder]/${slug(template.name)}/images/...
 
 (For SPX that is typically ASSETS/templates/<company>/${slug(template.name)}/.)
-Then select the template in an SPX rundown.
+Then select the template in an SPX rundown. It plays on layer ${template.settings.webplayout};
+SPX's project settings can change that.
 
 ## Files
 - ${file}  The template (loads css/js below).
 - css/template.css  Styles.
 - js/template.js    Runtime: play(), stop(), update(data).
 - js/gsap.min.js    Bundled GSAP animation library (no internet required).
-${templateUsesLottie(template) ? '- js/lottie.min.js  Bundled Lottie player (MIT) — included because this graphic uses a Lottie animation.\n' : ''}${template.assets.length ? '- images/...        Images used by the template (image fields list this folder).\n' : ''}- controlpanel.html An operator page auto-built from the fields (see below).
+${templateUsesLottie(template) ? '- js/lottie.min.js  Bundled Lottie player (MIT) — included because this graphic uses a Lottie animation.\n' : ''}${template.assets.length ? '- images/...        Images used by the template (image fields list this folder).\n' : ''}- ${panel} An operator page auto-built from the fields (see below).
 
 ## Data fields
 ${template.fields.map((f) => `- ${f.field} (${f.ftype}): ${f.title}`).join('\n') || '- (none)'}
 
-## Operating it live (controlpanel.html)
+## Operating it live (${panel})
 The panel drives the graphic over a same-origin browser channel, so BOTH pages must be opened
 from the same web address (http:// or https://, same host and port) in the same browser — for
 example SPX's own template server, or any local web server. Opening the files straight from
@@ -176,7 +182,7 @@ engine; use the host's own controls there (or an OBS Custom Browser Dock beside 
 graphic). In an SPX rundown you drive the template the usual way and do not need the panel.
 ${hasRealtimeControl(template.js) ? `
 ## Remote control (enabled)
-This graphic also listens on a Supabase Realtime channel, so controlpanel.html can drive it from
+This graphic also listens on a Supabase Realtime channel, so ${panel} can drive it from
 ANOTHER device — not just the same browser. The channel topic is a shared secret baked into both
 files; anyone who has it plus the publishable key can control the graphic, so keep it private. The
 render host must be allowed to reach wss://*.supabase.co. Delete the marked "REMOTE CONTROL" block

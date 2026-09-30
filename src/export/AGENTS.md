@@ -33,7 +33,16 @@ export-time reflow, stretching, or cropping.
   (`hairline/hairline.html`, never index.html): SPX rundowns list FILES, and an
   index.html-per-folder package listed every NoaCG template as "index" (real SPX packs name
   every template file - see example_projects/). The show export passes `fileName` so a
-  collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`).
+  collision-suffixed folder and its file agree (`ticker_2/ticker_2.html`). Three things an SPX
+  operator meets, measured on SPX 1.2.1 and 1.4.1 (docs/SPX_ON_A_REAL_SERVER.md §2 and §9):
+  each kind lands on its own layer inside SPX Solo's five (`SPX_LAYER_BY_TYPE`, `spxLayerFor`;
+  a declared 1 to 5 survives), because everything declaring 7 put every graphic on one layer;
+  the operator page is **`controlpanel.shtml`**, because SPX lists every `.htm`/`.html` as a
+  template, 1.2.1 hides only dot files and SPX will not serve a dot file (the dual package of
+  noacgPackage.ts keeps `controlpanel.html`, which its CLI documents); and a stepped graphic
+  carries `spxStepGuardScript`, which turns the Continue after the last step into stop(), because
+  SPX 1.2.1 sends one more `next` there and shows the item as stopped. The guard is stripped on
+  import by its id.
 - **outputEmbed.ts** - the OUTPUT EMBED: one standalone .html that frames a published production's
   `/output?production=<slug>` URL, downloaded from the production page's Links block beside the URL
   itself (never from the export dialog - it packages no graphics, it IS that link in another
@@ -42,10 +51,15 @@ export-time reflow, stretching, or cropping.
   It is a legal SPX template (definition + the classic play/stop/update/next globals) whose verbs
   move the FRAME only: Play shows it, Stop hides it, and cues stay with the NoaCG operator, because
   the file carries the OUTPUT capability alone - a template that could air a cue would have to
-  carry the control slug onto every playout machine. The emitted script is **ES5 with a
-  color-scheme meta**, for the two failure modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's
-  Chromium 71 CEF rejects the whole file on a `?.`, and Chromium paints a framed page opaque when
-  the schemes disagree. `update()` re-points the frame at another production and only reloads on a
+  carry the control slug onto every playout machine. The emitted script is **ES5 with its
+  color-scheme on the iframe ELEMENT** (`#noacg-frame`), never on the page, for the two failure
+  modes docs/CLOUD_PLAYOUT.md §3 records: CasparCG 2.3.x's Chromium 71 CEF rejects the whole file
+  on a `?.`, and Chromium paints a framed page opaque when the element's scheme and the framed
+  document's disagree. A page-level dark meta matched the output page but not SPX's renderer,
+  which declares none, so SPX painted the whole file as a dark card (SPX_ON_A_REAL_SERVER.md §4).
+  It has **no button field**: an SPX button's `fcall` runs in the controller page, out of this
+  file's reach; Stop and Play reloads it, since SPX loads a template afresh on every Play. It sits
+  on layer 1 (`OUTPUT_EMBED_LAYER`), and it reads SPX's HTML-escaped `&amp;` back as `&`. `update()` re-points the frame at another production and only reloads on a
   REAL change - a repeat would throw the connection away and rebuild what is on air. Pinned by the
   two embed cases in e2e/productions.spec.ts, which run the generated file for real.
 - **onAirGuide.ts** - GETTING-ON-AIR.md, the playout-side quick guide bundled into the SPX,
@@ -191,8 +205,11 @@ export-time reflow, stretching, or cropping.
   recovery snapped graphics to their last reported (off) state right after the host's play()
   ("flashes in and disappears" on real hardware; cloud-driven browser sources are the
   HTML-overlay flavor's opt-in job) - **and DISTINCT playout layers per pool graphic**
-  (`showGraphicLayer`: 5 + pool index, capped at SPX's webplayout 20), because every generated
-  template declaring playlayer '7' meant two templates in one rundown evicted each other.
+  (`spxShowLayers`: the operator's stored layers in their own order, renumbered from 1 and capped
+  at SPX's 20, with a README note past SPX Solo's five), because every generated template
+  declaring playlayer '7' meant two templates in one rundown evicted each other, and the stored
+  20, 21, 22 all landed on 5 in SPX 1.4 Solo. The other flavours keep the stored numbers. The
+  SPX flavour's aggregated panel is `show_controlpanel.shtml`, for the reason spxStarter gives.
   **`buildShowZipFor(show, targetId)` is the production TARGET PICKER's build** (the
   acceptance round's "couldn't choose the platform"): 'spx' keeps the dedicated builder
   above; every other registry id runs the generic merge - each pool graphic goes through the

@@ -1,5 +1,5 @@
 // Whole-show export (Phase 5): one zip with every graphic of the show as its own SPX
-// Starter folder PLUS one aggregated show_controlpanel.html at the root — the show's
+// Starter folder PLUS one aggregated show_controlpanel.shtml at the root — the show's
 // control page, generated from every graphic's fields and state machine. Run each
 // graphic's own .html as a browser source and open the show panel FROM THE SAME
 // http(s) ORIGIN in the same browser: every card drives its graphic over that graphic's
@@ -8,11 +8,14 @@
 // Each graphic's saved control-panel ENTRIES live in the library, not in the show's embedded
 // copy — they are resolved out of the library at export time (entriesForSavedGraphic, by
 // graphicId with a unique-name fallback, the same resolver the hosted control page uses) and
-// baked into both the aggregated panel and each graphic's own controlpanel.html.
+// baked into both the aggregated panel and each graphic's own panel.
 //
-//   <show>/show_controlpanel.html
+//   <show>/show_controlpanel.shtml
 //   <show>/GETTING-ON-AIR.md
-//   <show>/<graphic>/<graphic>.html + css/ js/ images/ fonts/ + controlpanel.html
+//   <show>/<graphic>/<graphic>.html + css/ js/ images/ fonts/ + controlpanel.shtml
+//
+// The operator pages are `.shtml` so SPX's template browser skips them: it lists every .html in
+// a folder as a template (targets/spxStarter.ts, the panel file name).
 //
 // TWO PLAYOUT RULES this exporter owns (student-release acceptance findings, 2026-08-05):
 // 1. NO HOSTED RECEIVER. SPX/CasparCG are the controller for these files — a baked log
@@ -21,13 +24,15 @@
 //    which read as "the graphic flashes in and disappears" on a real CasparCG server.
 //    Cloud-driven browser sources are the HTML-overlay flavor's job, opt-in, not this one's.
 // 2. DISTINCT LAYERS. Every generated template used to declare playlayer/webplayout '7', so
-//    two templates in one SPX rundown silently evicted each other. Here each pool graphic
-//    gets its own layer from its pool position (paint order), like real SPX packs do.
+//    two templates in one SPX rundown silently evicted each other. Each pool graphic carries
+//    the layer the operator gave it, and in THIS package that order is mapped onto SPX's own
+//    range, 1 upward (`spxShowLayers`), because SPX 1.4 Solo has five layers and caps anything
+//    higher to 5, which put the operator's 20, 21, 22 all on layer 5.
 
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { slug } from '../model/slug';
-import { buildStarterInto } from './targets/spxStarter';
+import { buildStarterInto, spxLayerListMd, spxLayersInOrder, withPlayoutLayer } from './targets/spxStarter';
 import { onAirGuideMd } from './onAirGuide';
 import { spxLeftBehindMd, spxReportedFieldRulesMd, type PackagedGraphic } from './spxLeftBehind';
 import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldReference';
@@ -41,7 +46,6 @@ import { stripHostedReceiver } from '../control/hostedReceiver';
 // The library->air gate (docs/ARCHITECTURE.md §3, export -> validation): a production export is
 // the other door a library draft leaves through, and it is gated like the publish.
 import { assertProductionGate } from '../validation/productionGate';
-import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import {
   loadGraphics,
   entriesForSavedGraphic,
@@ -73,17 +77,22 @@ export function showGraphicLayer(graphic: Pick<SavedGraphic, 'layer'>): number {
   return graphicLayer(graphic);
 }
 
-/** One template, re-declared onto its own playout layer (definition block + parsed settings). */
-function withPlayoutLayer(template: SpxTemplate, layer: number): SpxTemplate {
-  const settings = { ...template.settings, playlayer: String(layer), webplayout: String(layer) };
-  return { ...template, settings, html: replaceDefinitionInHtml(template.html, settings, template.fields) };
+/** The layer each pool graphic lands on in the SPX package (targets/spxStarter.ts
+ *  `spxLayersInOrder`): the operator's stored layers in their own order, renumbered from 1. */
+export function spxShowLayers(graphics: Pick<SavedGraphic, 'layer'>[]): number[] {
+  return spxLayersInOrder(graphics.map(showGraphicLayer));
 }
 
 /** A pool graphic's export-ready template: the LIVE library record (embedded snapshot only as
  *  the fallback), NO hosted receiver (rule 1), its own playout layer (rule 2), and — on a slug
  *  collision inside the package — a suffixed NAME, so every per-target packager that derives
  *  paths from slug(template.name) lands each graphic in its own folder/file. */
-function exportTemplateFor(graphic: SavedGraphic, library: GraphicDoc[], usedSlugs: Set<string>): SpxTemplate {
+function exportTemplateFor(
+  graphic: SavedGraphic,
+  library: GraphicDoc[],
+  usedSlugs: Set<string>,
+  layer = showGraphicLayer(graphic),
+): SpxTemplate {
   let template = templateForSavedGraphic(graphic, library);
   let name = graphic.name;
   let n = 2;
@@ -91,7 +100,7 @@ function exportTemplateFor(graphic: SavedGraphic, library: GraphicDoc[], usedSlu
   usedSlugs.add(slug(name));
   if (name !== template.name) template = { ...template, name };
   template = { ...template, js: stripHostedReceiver(template.js) };
-  return withPlayoutLayer(template, showGraphicLayer(graphic));
+  return withPlayoutLayer(template, layer);
 }
 
 /** The values a serverless flavor bakes as on-load data: the operator's ACTIVE entry on the
@@ -100,6 +109,10 @@ function activeEntryValues(graphic: SavedGraphic, library: GraphicDoc[]): Record
   const doc = resolveSavedGraphicDoc(graphic, library);
   return doc?.entries.find((e) => e.id === doc.activeEntryId)?.values ?? {};
 }
+
+/** The aggregated operator page in the SPX production package, `.shtml` like the per-graphic
+ *  ones so SPX's template browser skips it (targets/spxStarter.ts). */
+const SHOW_PANEL_FILE = 'show_controlpanel.shtml';
 
 export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promise<JSZip> {
   // Each graphic's saved control-panel entries live in the library, not in the show's embedded
@@ -116,19 +129,21 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   const folderNames: string[] = [];
   const fieldGraphics: ProductionFieldGraphic[] = [];
   const packaged: PackagedGraphic[] = [];
-  for (const graphic of show.graphics) {
-    const template = exportTemplateFor(graphic, library, usedSlugs);
+  const spxLayers = spxShowLayers(show.graphics);
+  for (const [i, graphic] of show.graphics.entries()) {
+    const template = exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
     const name = slug(template.name);
     folderNames.push(name);
     packaged.push({ poolId: graphic.id, poolName: graphic.name, template });
-    fieldGraphics.push({ template, layer: showGraphicLayer(graphic), file: `${name}/${name}.html` });
+    fieldGraphics.push({ template, layer: spxLayers[i], file: `${name}/${name}.html` });
     await buildStarterInto(root.folder(name)!, template, {
       entries: entriesForSavedGraphic(graphic, library),
       fileName: `${name}.html`,
+      forSpx: true,
     });
   }
   root.file(
-    'show_controlpanel.html',
+    SHOW_PANEL_FILE,
     renderShowControlPanelHtml(
       show.name,
       show.graphics.map((g) => ({ template: templateForSavedGraphic(g, library), entries: entriesForSavedGraphic(g, library) })),
@@ -140,7 +155,7 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   const spxNotes = [spxLeftBehindMd(show, packaged), spxReportedFieldRulesMd(packaged)].filter(Boolean).join('\n');
   // The aggregated panel written just above is the one a reader standing at this root wants;
   // each graphic folder carries its own as well.
-  root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: 'show_controlpanel.html', spxNotes }));
+  root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: SHOW_PANEL_FILE, spxNotes }));
   // ONE table for the whole production: which graphic is on which layer, and every field ID it
   // answers to. The package is driven by SPX or a CasparCG client here, and both speak ids.
   root.file(
@@ -156,12 +171,12 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   root.file(
     'README.md',
     `# ${show.name} — show package\n\nGenerated by NoaCG Studio.\n\n` +
-      `Each folder is one plug-and-play template (rundown order, each on its own playout\n` +
-      `layer so they never evict each other):\n\n` +
-      folderNames.map((name, i) => `- ${name}/${name}.html  (layer ${showGraphicLayer(show.graphics[i])})`).join('\n') +
-      `\n\n## Operating the show (show_controlpanel.html)\n` +
+      spxLayerListMd(
+        folderNames.map((name, i) => ({ file: `${name}/${name}.html`, spx: spxLayers[i], stored: showGraphicLayer(show.graphics[i]) })),
+      ) +
+      `\n\n## Operating the show (${SHOW_PANEL_FILE})\n` +
       `Serve this folder over http (SPX's template server, or any local web server), run each\n` +
-      `graphic's own .html as a browser source FROM THAT ADDRESS, and open show_controlpanel.html\n` +
+      `graphic's own .html as a browser source FROM THAT ADDRESS, and open ${SHOW_PANEL_FILE}\n` +
       `from the same address in the same browser. One card per graphic: fields, the state\n` +
       `machine's buttons, and Play/Stop/Update/Next — each card drives its own graphic over a\n` +
       `same-origin BroadcastChannel.\n\n` +

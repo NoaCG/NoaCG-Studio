@@ -60,7 +60,8 @@ test("a saved graphic's control entries ride into its own export, not just the s
   // no saved rows is a panel an operator has to retype the show into.
   for (const label of ['SPX export', 'HTML overlay (OBS / vMix)', 'CasparCG export']) {
     const zip = await downloadTarget(page, label);
-    const path = Object.keys(zip.files).find((n) => n.endsWith('controlpanel.html'))!;
+    // The SPX package names it controlpanel.shtml, so SPX's template browser skips it.
+    const path = Object.keys(zip.files).find((n) => /controlpanel\.s?html$/.test(n))!;
     const html = await zip.file(path)!.async('string');
     expect(html, label).toContain('Anna · Presenter');
     expect(html, label).toContain('Björn Berg');
