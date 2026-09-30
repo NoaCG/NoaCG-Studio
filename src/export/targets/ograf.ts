@@ -22,6 +22,7 @@ import { addReferencedFonts, projectFormatReadme } from '../common';
 import { slug } from '../../model/slug';
 import { fieldReferenceMd } from '../fieldReference';
 import type { ExportTarget, GraphicUsage } from '../registry';
+import { spxLayerFor } from './spxStarter';
 import { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage } from './ografSchema';
 
 export { OGRAF_SCHEMA_URL, validateOgrafManifest, validateOgrafPackage };
@@ -62,6 +63,7 @@ function dataSchema(fields: SpxField[]) {
   for (const f of fields) {
     if (!['textfield', 'textarea', 'number', 'dropdown', 'filelist', 'checkbox', 'color', 'hidden'].includes(f.ftype)) continue;
     const kind = kindForField(f);
+    const spx = spxFieldHint(f);
     properties[f.field] = {
       type: schemaType(f.ftype),
       title: f.title || f.field,
@@ -69,9 +71,40 @@ function dataSchema(fields: SpxField[]) {
       ...(f.ftype === 'dropdown' && f.items?.length ? { enum: f.items.map((i) => i.value) } : {}),
       ...(f.ftype === 'hidden' ? { hidden: true } : {}),
       ...(kind ? { v_noacg: { kind } } : {}),
+      ...(spx ? { v_spx: spx } : {}),
     };
   }
   return { type: 'object', properties };
+}
+
+/**
+ * The per-property `v_spx` hint: the SPX field type the field already is, so SPX 1.4's OGraf
+ * import (`addOgrafTemplateToProfile` in SPX's routes/routes-application.js) draws the
+ * operator's own control - a dropdown with its items, a colour picker, a text area, a file
+ * list - instead of the text box it draws for any string without one. A checkbox carries none:
+ * SPX's own boolean conversion is the one that writes its value as "1"/"0", while the hint path
+ * would copy the typed `true` verbatim. Other renderers ignore the key (spec: `v_` vendor data).
+ */
+function spxFieldHint(f: SpxField): Record<string, unknown> | null {
+  if (f.ftype === 'checkbox') return null;
+  if (f.ftype === 'dropdown') return { ftype: 'dropdown', items: (f.items ?? []).map((i) => ({ text: i.text, value: i.value })) };
+  if (f.ftype === 'filelist') {
+    return { ftype: 'filelist', assetfolder: f.assetfolder || './images/', extension: f.extension || 'png' };
+  }
+  return { ftype: f.ftype };
+}
+
+/**
+ * The manifest-level `v_spx` block: the layer and out mode SPX 1.4 copies into its template
+ * definition on import. Without it SPX writes the layer `"NaN"` (its `max5(undefined)` is the
+ * truthy string "NaN", so the `|| "1"` default never applies) and Play shows nothing, in
+ * silence (docs/SPX_ON_A_REAL_SERVER.md §3). The layer is the one the native SPX export gives
+ * the same graphic (`spxLayerFor`), so the two packages land alike, inside SPX Solo's five.
+ * SPX also bakes this layer into every custom-action button it generates.
+ */
+function spxManifestHint(template: SpxTemplate): Record<string, string> {
+  const layer = String(spxLayerFor(template));
+  return { playlayer: layer, webplayout: layer, out: 'manual' };
 }
 
 /**
@@ -317,6 +350,7 @@ export function buildOgrafManifest(
     renderRequirements: renderRequirements(template),
     ...(opts.thumbnails?.length ? { thumbnails: opts.thumbnails } : {}),
     ...(opts.noacg ? { v_noacg: opts.noacg } : {}),
+    v_spx: spxManifestHint(template),
   };
 }
 
@@ -751,8 +785,8 @@ export function assertScopedCss(original: string, scoped: string, self: string):
  * calling the wrong function. Keep this in step with the declarations in `graphicModule`.
  */
 const WRAPPER_BINDINGS = new Set([
-  'ensureGsap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls',
-  'scopedDocument', 'scopedWindow', 'initTemplate', 'Graphic',
+  'ensureGsap', 'ensureLottie', 'packageUrl', 'substitute', 'withPackageUrls', 'withPackagePaths',
+  'scopedDocument', 'scopedWindow', 'scopedGsap', 'initTemplate', 'Graphic',
 ]);
 
 /**
@@ -891,8 +925,20 @@ const GRAPHIC_ID = ${JSON.stringify(graphicId)};
 // Injected ahead of the template's own rules, which then re-state the canvas exactly as the
 // non-real-time document's <head> does for its own body - and at zero specificity, so a
 // renderer that sizes its layers itself overrides it with any rule of its own.
+// The same box also keeps the RENDERER's page out of the graphic. The template was authored as
+// a whole document, whose root inherits nothing; here it inherits the host's text settings, and
+// SPX's renderer sets \`body, html { font-size: 3em }\` and \`* { box-sizing: border-box;
+// overflow: hidden; margin: 0; padding: 0 }\`, which grew a scorebug's bar to four times its
+// height (docs/SPX_ON_A_REAL_SERVER.md §3). So the element starts from every property's initial
+// value, as a document root does, except the three a renderer uses to hide or disable a whole
+// layer; and its descendants get back the browser's own box model and overflow wherever a
+// zero-specificity host rule took them. Outside SVG only, for overflow: an SVG element's
+// \`overflow\` attribute is author-level and \`revert\` would discard it. Any rule of the
+// template's own comes later or weighs more, so it still wins.
 const GRAPHIC_BOX_CSS = ${JSON.stringify(
-    `${self} { display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }`,
+    `${self} { all: initial; visibility: inherit; pointer-events: inherit; cursor: inherit; display: block; position: relative; width: ${template.resolution.width}px; height: ${template.resolution.height}px; overflow: hidden; }\n` +
+      `${self} :where(*) { box-sizing: revert; margin: revert; padding: revert; }\n` +
+      `${self} :where(:not(svg, svg *)) { overflow: revert; }`,
   )};
 
 const TEMPLATE_CSS = ${JSON.stringify(scopedCss)};
@@ -926,6 +972,20 @@ const withPackageUrls = {
   css: (css) => css.replace(/url\\(\\s*(['"]?)([^'")]+)\\1\\s*\\)/gi, (whole, _q, ref) => substitute(whole, ref)),
   html: (html) => html.replace(/\\b(?:src|href|poster|data)\\s*=\\s*(['"])([^'"]+)\\1/gi, (whole, _q, ref) => substitute(whole, ref)),
 };
+
+// A file-list field's value is a path inside the package (\`./images/logo.png\`), which is also the
+// form SPX's own file list hands back; resolved against the renderer's page it 404s and the
+// image goes blank on air (docs/SPX_ON_A_REAL_SERVER.md §10). Only a relative path with a folder
+// and an extension is resolved, so an empty value or a file list's "none" means what it said.
+const FILE_FIELDS = ${JSON.stringify(template.fields.filter((f) => f.ftype === 'filelist').map((f) => f.field))};
+function withPackagePaths(data) {
+  const out = Object.assign({}, data);
+  for (const key of FILE_FIELDS) {
+    const value = typeof out[key] === 'string' ? out[key].trim() : '';
+    if (/^(?:\\.{1,2}\\/)*[\\w.-]+\\/[^\\s?#]*\\.[a-z0-9]+$/i.test(value)) out[key] = packageUrl(value);
+  }
+  return out;
+}
 
 // Non-real-time rendering runs in an isolated, virtual-clock document. The document is
 // recreated for every seek, so no prior playback, timer, GSAP state, or seek order can leak.
@@ -1029,11 +1089,41 @@ function scopedWindow(names) {
   });
 }
 
+/**
+ * A \`gsap\` scoped to ONE mounted Graphic, for the reason \`scopedDocument\` gives.
+ *
+ * The template's runtime clears its own animation with \`gsap.killTweensOf('*')\` before it
+ * plays, resets or exits, and under SPX the page is the template's, so \`'*'\` is its own
+ * elements. GSAP resolves a selector string against the renderer's WHOLE document, so in a
+ * renderer the second Graphic's Play killed the first one's entrance and left it half drawn on
+ * air - measured in SPX 1.4.1 with a quiz and a scorebug played 0.8 s apart
+ * (docs/SPX_ON_A_REAL_SERVER.md §10). So a string target given to GSAP's own target-taking
+ * calls is resolved inside this Graphic (the element itself included, being the template's
+ * \`html\` and \`body\`); element targets and everything else are GSAP itself.
+ */
+function scopedGsap(root) {
+  const real = window.gsap;
+  const own = (targets) => {
+    if (typeof targets !== 'string') return targets;
+    const inside = Array.from(root.querySelectorAll(targets));
+    return root.matches(targets) ? [root].concat(inside) : inside;
+  };
+  const scoped = {};
+  for (const name of ['to', 'from', 'fromTo', 'set', 'killTweensOf', 'getTweensOf', 'isTweening', 'getProperty', 'quickSetter', 'quickTo']) {
+    scoped[name] = (targets, ...rest) => real[name](own(targets), ...rest);
+  }
+  return new Proxy(real, {
+    get(target, key) {
+      return key in scoped ? scoped[key] : target[key];
+    },
+  });
+}
+
 // initTemplate(): runs the template's own JS AFTER the markup is in the DOM and returns
 // its runtime entry points. The code inside is exactly what the editor shows — the
-// \`document\` and \`window\` parameters shadow the global ones so its lookups stay inside
-// this Graphic.
-function initTemplate(document, window) {
+// \`document\`, \`window\` and \`gsap\` parameters shadow the global ones so its lookups stay
+// inside this Graphic.
+function initTemplate(document, window, gsap) {
 ${template.js.replace(/^/gm, '  ')}
 
   // THE TIMELINE'S OWN VOCABULARY, handed to the scoped window above. Every name here is one
@@ -1161,9 +1251,9 @@ class Graphic extends HTMLElement {
     holder.innerHTML = withPackageUrls.html(TEMPLATE_HTML);
     this.appendChild(holder);
 
-    this._runtime = initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS));
+    this._runtime = initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS), scopedGsap(this));
     this._step = -1; // not on air yet
-    if (params && params.data) this._runtime.update(JSON.stringify(params.data));
+    if (params && params.data) this._runtime.update(JSON.stringify(withPackagePaths(params.data)));
     return { statusCode: 200 };
   }
 
@@ -1241,7 +1331,7 @@ class Graphic extends HTMLElement {
       await this._applyOfflineAction('updateAction', params);
       return { statusCode: 200 };
     }
-    this._runtime.update(JSON.stringify(params.data || {}));
+    this._runtime.update(JSON.stringify(withPackagePaths(params.data || {})));
     if (params.skipAnimation) this._settle();
     return { statusCode: 200 };
   }
@@ -1359,7 +1449,7 @@ export default Graphic;
 
 /**
  * Write the complete OGraf Graphic package (manifest, graphic.mjs, bundled GSAP, fonts,
- * assets — everything except a README) into `root`. The manifest is validated against the
+ * assets — everything except a README) into `root`, and return the manifest it wrote. The manifest is validated against the
  * spec's own schema rules BEFORE it is written, and the finished package is then checked to
  * contain every file the manifest names — so conformance is a build gate every target built
  * on this package inherits, rather than something a reviewer has to remember. The LiveOS
@@ -1381,7 +1471,7 @@ export async function addOgrafPackage(
   template: SpxTemplate,
   usage: GraphicUsage = 'live',
   opts: OgrafPackageOptions = {},
-): Promise<void> {
+): Promise<Record<string, unknown>> {
   template = { ...template, js: prepareOutRuntime(template.js) };
   if (usage !== 'live') {
     const compatibility = validateOgrafOfflineCompatibility(template);
@@ -1439,6 +1529,71 @@ export async function addOgrafPackage(
 
   const missing = validateOgrafPackage(manifest, packaged);
   if (missing.length) throw new Error(`OGraf package incomplete: ${missing.join(' ')}`);
+  return manifest;
+}
+
+// ── SPX 1.4 ───────────────────────────────────────────────────────────────────
+
+/** The file an SPX project loads to make its OGraf custom-action buttons work. */
+export const SPX_CUSTOM_ACTIONS_FILE = 'spx-custom-actions.js';
+
+/**
+ * SPX 1.4.1 turns each manifest custom action into a controller button whose click runs
+ * `customActionHandler('<id>', '<layer>')`, and defines no such function anywhere, so every
+ * button throws (docs/SPX_ON_A_REAL_SERVER.md §3). Everything behind it exists: the server
+ * forwards a `customAction` playout command to the renderers, and the renderer calls the
+ * graphic's `customAction({ id })`. This file is the missing function, loaded by the project's
+ * own script setting in SPX, outside the graphic: the Graphic stays plain OGraf and never reaches
+ * into the page that hosts it.
+ *
+ * The layer SPX bakes into the call is the one the manifest declared at import and never changes
+ * after, so the handler prefers the layer of the rundown item the button sits in. SPX's route
+ * never answers the request, so it is abandoned once sent rather than holding one of the
+ * browser's few connections to the server. If SPX ever ships its own handler, that one wins.
+ */
+export const SPX_CUSTOM_ACTIONS_JS = `// NoaCG Studio: makes SPX 1.4's OGraf custom-action buttons work.
+// Load it once per project: project settings, "Javascript function library of this project",
+// /templates/<the folder holding this package>/${SPX_CUSTOM_ACTIONS_FILE}
+(function () {
+  if (typeof window.customActionHandler === 'function') return;
+  window.customActionHandler = function (id, layer) {
+    var button = window.event && window.event.target;
+    var item = button && button.closest ? button.closest('.itemrow') : null;
+    var field = item ? item.querySelector('[name="RundownItem[webplayout]"]') : null;
+    var webplayout = (field && field.value) || layer;
+    var abort = typeof AbortController === 'function' ? new AbortController() : null;
+    fetch('/gc/playout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: 'customAction', id: id, webplayout: webplayout }),
+      signal: abort ? abort.signal : undefined
+    }).catch(function () {});
+    if (abort) setTimeout(function () { abort.abort(); }, 2000);
+  };
+})();
+`;
+
+/** The README's SPX section: what SPX 1.4.1 does with this package, measured on a real server. */
+function spxReadmeMd(template: SpxTemplate, manifest: Record<string, unknown>): string {
+  const layer = (manifest.v_spx as { webplayout: string }).webplayout;
+  const actions = (manifest.customActions as Array<{ name: string; schema: unknown }> | undefined) ?? [];
+  const needValues = actions.filter((a) => a.schema).map((a) => a.name);
+  return (
+    `\n## In SPX 1.4\n\n` +
+    `Put this folder under SPX's ASSETS/templates folder, make an OGRAF-format project and add\n` +
+    `${slug(template.name)}.ograf.json to it. The graphic lands on layer ${layer} and its fields arrive as SPX's own\n` +
+    `controls. Play, Continue and Stop work.\n\n` +
+    `Update does nothing in SPX 1.4.1. To change a graphic on air, Save, then Stop and Play.\n` +
+    (actions.length
+      ? `\nSPX 1.4.1 draws a button for each custom action but ships nothing behind it. This package\n` +
+        `carries ${SPX_CUSTOM_ACTIONS_FILE} for that. Once per project, open the project's settings, enter\n` +
+        `/templates/<the folder holding this package>/${SPX_CUSTOM_ACTIONS_FILE} as the project's Javascript\n` +
+        `function library, save, and open the rundown again. Any NoaCG package's copy serves them all.\n` +
+        (needValues.length
+          ? `SPX sends no values with an action, so these fire without the values they take: ${needValues.join(', ')}.\n`
+          : '')
+      : '')
+  );
 }
 
 // ── The target ────────────────────────────────────────────────────────────────
@@ -1451,13 +1606,17 @@ export const ografTarget: ExportTarget = {
   async build(template, ctx) {
     const zip = new JSZip();
     const root = zip.folder(slug(template.name))!;
-    await addOgrafPackage(root, template, ctx?.graphicUsage ?? 'live');
+    const usage = ctx?.graphicUsage ?? 'live';
+    const manifest = await addOgrafPackage(root, template, usage);
+    const live = usage !== 'post-production';
+    if (live && manifest.customActions) root.file(SPX_CUSTOM_ACTIONS_FILE, SPX_CUSTOM_ACTIONS_JS);
     root.file(
       'README.md',
       `# ${template.name} — OGraf Graphic\n\nGenerated by NoaCG Studio.\n\n` +
         `Load the manifest (${slug(template.name)}.ograf.json) in any OGraf v1 compatible renderer.\n` +
         `Actions map to the embedded template runtime: load/updateAction → update(), playAction → play()/next(), stopAction → stop().\n` +
-        `When the graphic carries a state machine, its operator events are declared as customActions in the manifest — customAction({id, payload}) fires them through the template's own serial event queue, payload applied only if the machine accepts the event.\n`,
+        `When the graphic carries a state machine, its operator events are declared as customActions in the manifest — customAction({id, payload}) fires them through the template's own serial event queue, payload applied only if the machine accepts the event.\n` +
+        (live ? spxReadmeMd(template, manifest) : ''),
     );
     return zip;
   },

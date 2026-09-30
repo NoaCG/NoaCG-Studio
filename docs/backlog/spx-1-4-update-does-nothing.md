@@ -41,7 +41,7 @@ open pull request, <https://github.com/TuomoKu/SPX-GC/pull/161> (2026-03-13), fi
 - Drop the line for HTML templates when an SPX release ships the fix. It does not cover the OGraf
   route: there the renderer always calls the controller's `updateItem()` (`updateLayer` in
   `views/view-renderer.handlebars`), so the OGraf package's README needs the same line until SPX
-  changes that too.
+  changes that too. The OGraf package's README carries it since `SPX_ON_A_REAL_SERVER.md` §10.
 
 ## Evidence
 

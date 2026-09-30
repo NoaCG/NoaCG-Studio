@@ -247,7 +247,11 @@ export-time reflow, stretching, or cropping.
   and at the root `noacgVendorBlock()` = `{format:'noacg-graphic', version:1, type, source
   {html,css,js}, sourceHash, generator}` when the package ships sources. `thumbnails` is written
   only when the caller supplies a raster (the CLI's settled on-air shot; the in-app export
-  ships none).
+  ships none). Beside it sits `v_spx`, SPX's own vendor keys (root layer and out mode, each
+  property's SPX field type), and the `ograf` target adds `spx-custom-actions.js` to a graphic
+  with custom actions, the controller function SPX 1.4.1 lacks. The Graphic also hands its
+  template a `gsap` that resolves selector strings inside itself (`scopedGsap`) and starts its
+  element from initial values against the host's styles. Why, measured: docs/SPX_ON_A_REAL_SERVER.md §10.
 - **targets/ografImport.ts** - the READER: `readOgrafPackage(files)` finds the shallowest
   manifest, validates manifest + package, reads `v_noacg` (`readNoacgVendorBlock`), compares the
   recorded `sourceHash` with the shipped sources (`stale`), and derives the operator contract for
