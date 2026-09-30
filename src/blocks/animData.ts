@@ -76,6 +76,10 @@ export interface AnimStep {
   duration: number;
   /** The step's default GSAP ease (keyframes may override per-keyframe). */
   ease: string;
+  /** Out only: how long Out first plays motion Set Out carried over from the cue before it (that
+   *  cue ends mid-motion at the Out flag); the exit proper starts after it. Out pressed at an
+   *  earlier step skips it (docs/research/editor-r1-2a-5). */
+  carried?: number;
   /** Layers that FIRST become visible when this step plays (activation is explicit data,
    *  never inferred from keyframes). Only meaningful on the middle steps. */
   reveals?: string[];
@@ -454,6 +458,7 @@ function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
   if (typeof step.name !== 'string') return false;
   if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration < 0) return false;
   if (typeof step.ease !== 'string') return false;
+  if (step.carried !== undefined && (typeof step.carried !== 'number' || !(step.carried > 0) || step.carried > step.duration)) return false;
   if (!revealsAllowed && (step.reveals !== undefined || step.hides !== undefined)) return false;
   if (step.reveals !== undefined && !Array.isArray(step.reveals)) return false;
   if (step.hides !== undefined && !Array.isArray(step.hides)) return false;
@@ -678,6 +683,7 @@ function serializeStep(step: AnimStep, indent: string, label = ''): string[] {
   lines.push(`${i1}"name": ${JSON.stringify(step.name)},`);
   lines.push(`${i1}"duration": ${round(step.duration)},`);
   lines.push(`${i1}"ease": ${JSON.stringify(step.ease)},`);
+  if (step.carried !== undefined) lines.push(`${i1}"carried": ${round(step.carried)},`);
   if (step.spans) {
     lines.push(`${i1}"spans": {`);
     const entries = Object.entries(step.spans).sort(([a], [b]) => a.localeCompare(b));

@@ -1,6 +1,6 @@
 import type { SpxTemplate } from '../model/types';
 import { losslessAnimData, type AnimData } from './animData';
-import { deleteKeyframe, easeKeys, setKeyframe, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
+import { deleteKeyframe, easeKeys, setKeyframe, moveKeys, moveLayerSpan, trimLayerSpan, type KeyEasePreset, type KeyRef } from './animEdit';
 import { artworkNode, editArtworkStyle } from './artworkEdits';
 import { baseValues, editBase } from './baseEdits';
 import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
@@ -8,6 +8,8 @@ import { writeAnimData, writeOutData } from '../templates/shared/animRuntime';
 export type NumericProperty = 'x' | 'y' | 'scaleX' | 'scaleY' | 'rotation' | 'opacity';
 /** One preset over a key selection, as one transaction (R1.2a.2, docs/research/editor-r1-2a-2). */
 export type KeyEaseOperation = { kind: 'key.ease'; keys: KeyRef[]; preset: KeyEasePreset };
+/** Keys moved by one stored delta on the ruler, across flags too (R1.2a.5, docs/research/editor-r1-2a-5). */
+export type KeyMoveOperation = { kind: 'key.move'; keys: KeyRef[]; delta: number };
 export interface NumericPose { x: number; y: number; scaleX: number; scaleY: number; rotation: number; opacity: number }
 export type AnimationOperation =
   | { kind: 'animation.key'; selector: string; step: number; property: NumericProperty; time: number; value: number; action: 'set' | 'remove' | 'disable'; baseValue?: number }
@@ -26,6 +28,17 @@ export function sequenceAuthoringReason(data: AnimData | null): string | null {
   if (!data) return 'This source has no supported animation data.';
   return data.machine || data.steps.some(step => step.calls?.length || step.dynamics?.length || Object.keys(step.loops ?? {}).length)
     ? 'This sequence has calls, measured motion, loops or state-machine ownership. Canvas edits base placement; its animation is preserved.' : null;
+}
+const documents = new Map<string, Document>();
+/** Whether a layer sits inside another in the template's document, parsed once per html. */
+export function documentContains(html: string) {
+  return (ancestor: string, selector: string) => {
+    try {
+      let doc = documents.get(html);
+      if (!doc) { doc = new DOMParser().parseFromString(html, 'text/html'); documents.clear(); documents.set(html, doc); }
+      return Array.from(doc.querySelectorAll(selector)).some(element => !!element.parentElement?.closest(ancestor));
+    } catch { return false; }
+  };
 }
 export function animationTarget(template: SpxTemplate, data: AnimData, selector: string) {
   const node = artworkNode(template, selector);
@@ -48,7 +61,7 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   if (operation.kind === 'layer.trim') {
     data = trimLayerSpan(data, step, selector, operation.interval, operation.edge, operation.time, data.speed / template.fps);
   } else if (operation.kind === 'layer.move') {
-    data = moveLayerSpan(data, step, selector, operation.delta);
+    data = moveLayerSpan(data, step, selector, operation.delta, documentContains(template.html));
   }
   else {
     const { property, time, value, action } = operation;
@@ -82,6 +95,20 @@ export function applyAnimation(template: SpxTemplate, operation: AnimationOperat
   }
   const js = step > 0 && step === data.steps.length - 1 ? writeOutData(template.js, data) : writeAnimData(template.js, data);
   if (js === null) throw new Error('The animation region cannot be written without replacing source.');
+  return { ...template, js };
+}
+
+/** Move the selected keys, across flags too. An older known interpreter is re-emitted where Out
+ *  changes, as Set Out does, and a custom one refuses there. */
+export function applyKeyMove(template: SpxTemplate, operation: KeyMoveOperation): SpxTemplate {
+  const data = animationSource(template);
+  const reason = sequenceAuthoringReason(data);
+  if (reason) throw new Error(reason);
+  const next = moveKeys(data, operation.keys, operation.delta);
+  if (next === data) return template;
+  const out = next.steps.length - 1, exit = out > 0 && JSON.stringify(next.steps[out]) !== JSON.stringify(data.steps[out]);
+  const js = exit ? writeOutData(template.js, next) : writeAnimData(template.js, next);
+  if (js === null) throw new Error('This interpreter has custom source, so keys cannot move into or out of Out safely. Its source is preserved.');
   return { ...template, js };
 }
 

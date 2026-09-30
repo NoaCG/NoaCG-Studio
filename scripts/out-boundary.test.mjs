@@ -3,8 +3,12 @@
 // R1.2a.1 SET OUT ACROSS THE LAST IN KEY, THE MATHEMATICS (docs/research/editor-r1-2a-1/README.md).
 // Moving Out to a boundary b inside the entrance keeps every key and visibility bar at its
 // absolute time on the concatenated ruler: each crossed segment splits exactly at b
-// (splitKeyframeSegment), the rest of the entrance moves into Out, and In then Out plays what it
-// played before. Anything without an exact form refuses the whole move with the input untouched.
+// (splitKeyframeSegment) and the rest of the entrance moves into Out. Since the owner's 2026-09-30
+// decision (docs/research/editor-r1-2a-5) the exit belongs to the Out flag: it keeps its own timing
+// and starts where that carried motion ends, so pressing Out plays the rest of the entrance exactly,
+// then the exit exactly, with no pause. Where the entrance has no stillness before Out, In then Out
+// still plays what it played before. Anything without an exact form refuses the whole move with the
+// input untouched.
 // What needs Chromium - the emitted interpreter playing it in the simulator and exported packages,
 // and the editor's buttons, history and save - is in e2e/editor-ease.spec.ts and
 // e2e/editor-out.spec.ts.
@@ -80,6 +84,31 @@ function visibleAt(data, selector, u, cues = data.steps.length) {
 /** The on-air hold: the pre-Out cue settled at its end, before Out is pressed. */
 const held = (data, selector) => visibleAt(data, selector, total(data) - data.steps.at(-1).duration, data.steps.length - 1);
 
+/** The owner's 2026-09-30 rule, sampled as the editor samples it: pressing Out at the last step of
+ *  `after` (Out moved to b) plays the original's cue from b up to where Out's carried motion ends,
+ *  then the original exit from its start, with no pause between; the hold at b is what the original
+ *  showed there. Visibility follows the same clock. */
+function exitPlays(before, after, b, label) {
+  const at = before.steps.length - 2, out = after.steps.length - 1, carry = after.steps[out].carried ?? 0;
+  const start = data => total(data) - data.steps.at(-1).duration;
+  assert.ok(Math.abs(after.steps[at].duration - b) < 1e-9, `${label}: Out is at b`);
+  for (const [selector, prop] of tracks(before, after)) {
+    const heldBefore = resolveValue(before, selector, prop, at, Math.min(b, before.steps[at].duration)), heldAfter = resolveValue(after, selector, prop, at, b);
+    assert.ok(heldBefore === heldAfter || Math.abs(heldBefore - heldAfter) <= 1e-3 + 1e-9, `${label}: ${selector} ${prop} held ${heldAfter} vs ${heldBefore}`);
+    for (let i = 0; i <= 2000; i++) {
+      const u = after.steps[out].duration * i / 2000, got = resolveValue(after, selector, prop, out, u);
+      const want = u < carry - 1e-9 ? resolveValue(before, selector, prop, at, b + u) : resolveValue(before, selector, prop, before.steps.length - 1, u - carry);
+      assert.ok(got === want || Math.abs(got - want) <= 1e-3 + 1e-9, `${label}: ${selector} ${prop} at ${u} of Out: ${got} vs ${want}`);
+    }
+  }
+  const selectors = [...new Set([before, after].flatMap(d => d.steps.flatMap(s => Object.keys(s.spans ?? {}))))];
+  for (const selector of selectors) for (let i = 0; i < 1000; i++) {
+    const u = after.steps[out].duration * i / 1000 + 1e-7;
+    const want = u < carry ? visibleAt(before, selector, start(before) - before.steps[at].duration + b + u) : visibleAt(before, selector, start(before) + u - carry);
+    assert.equal(visibleAt(after, selector, start(after) + u), want, `${label}: ${selector} visibility at ${u} of Out`);
+  }
+}
+
 /** A refusal throws with its reason and leaves the input exactly as it was. */
 function refuses(data, b, pattern, contains) {
   const frozen = JSON.stringify(data);
@@ -106,9 +135,11 @@ test('Set Out across the last In key keeps every absolute value, both velocities
       for (const key of keys.filter(k => k.time < b - 5e-4)) assert.deepEqual(kept.find(k => k.time === key.time), key, `${selector} ${prop} key ${key.time}`);
       assert.ok(kept.every(k => k.time <= b), `${selector} ${prop} ends by b`);
       if (!keys.some(k => k.time > b + 5e-4)) { assert.deepEqual(kept, keys, `${selector} ${prop} does not cross`); continue; }
-      // A crossed track starts the exit from the value it holds at b, and every moved key says its ease.
+      // A crossed track starts the exit from the value it holds at b, or, starting after b, holds its
+      // first value from the cue start as Add Step's cut does; every moved key says its ease.
       const exit = after.steps[1].layers[selector][prop];
-      assert.deepEqual(exit[0], { time: 0, value: kept.at(-1).value });
+      if (keys[0].time < b + 5e-4) assert.deepEqual(exit[0], { time: 0, value: kept.at(-1).value });
+      else assert.deepEqual([exit[0].time > 0, exit[0].value], [true, keys[0].value]);
       for (const key of exit.slice(1, 1 + keys.filter(k => k.time > b + 5e-4).length)) assert.equal(typeof key.ease, 'string', `${selector} ${prop} Out key ${key.time} has an explicit ease`);
     }
   }
@@ -119,9 +150,10 @@ test('the parts it writes: a split, a hold key, moved keys and an exit joined wi
   // back.out(1.6) split at a third of its segment; the rest moves with its slice and explicit ease.
   assert.deepEqual(In['#box'].x.slice(-1), [{ time: 1.2, value: -11.852, ease: 'slice(back.out(1.6),0,0.333333333333)' }]);
   assert.deepEqual(Out['#box'].x, [{ time: 0, value: -11.852 }, { time: 0.8, value: 0, ease: 'slice(back.out(1.6),0.333333333333,1)' }]);
-  // Out before the box scales: it holds its first value from the cue start, as the runtime does.
+  // Out before the box scales: each cue holds its first value from its start, as the runtime does,
+  // so Out needs no copy of it (Add Step's cut).
   assert.deepEqual(In['#box'].scaleX, [{ time: 1.2, value: 0.8 }]);
-  assert.deepEqual(Out['#box'].scaleX, [{ time: 0, value: 0.8 }, { time: 0.2, value: 0.8, ease: 'power1.inOut' }, { time: 0.7, value: 1, ease: 'back.out(1.6)' }]);
+  assert.deepEqual(Out['#box'].scaleX, [{ time: 0.2, value: 0.8, ease: 'power1.inOut' }, { time: 0.7, value: 1, ease: 'back.out(1.6)' }]);
   // The default ease of the In cue follows a moved key that relied on it.
   assert.equal(Out['#title'].scaleX[1].ease, 'slice(power1.inOut,0.571428571429,1)');
   assert.equal(Out['#box'].opacity, undefined, 'a track that ends before b stays in the entrance');
@@ -235,50 +267,75 @@ test('a graphic saved with the G01 interpreter upgrades once an exit can end on 
   assert.equal(writeOutData(saved.replace('var noacgStepsPlayed = 0;', 'var noacgStepsPlayed = 0; window.customTail = true;'), crossed), null, 'custom source still refuses');
 });
 
-test('a move with nothing after b behaves as before, and bars no longer refuse it', () => {
+test('the exit keeps its own timing when Out moves into still air or later, and bars follow the hold', () => {
+  // The entrance ends at 1 s of a 2 s In; the exit has a designed half-second beat before it moves.
   const plain = () => ({ version: 2, root: '.g', speed: 1, steps: [
     { name: 'In', duration: 2, ease: 'none', layers: { '#a': { x: [{ time: 0, value: -900 }, { time: 1, value: 0 }] } } },
     { name: 'Out', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0.5, value: 0 }, { time: 1, value: -900 }] } } },
   ] });
-  // Earlier and later, the exit keys keep their absolute times as they always did.
-  assert.deepEqual(moveOutBoundary(plain(), 1.5).steps.map(s => [s.duration, s.layers['#a'].x.map(k => k.time)]), [[1.5, [0, 1]], [1.5, [1, 1.5]]]);
-  assert.deepEqual(moveOutBoundary(plain(), 2.3).steps.map(s => [s.duration, s.layers['#a'].x.map(k => k.time)]), [[2.3, [0, 1]], [0.7, [0.2, 0.7]]]);
-  assert.throws(() => moveOutBoundary(plain(), 2.6), /Out key/);
+  // Earlier into still air and later, even past where Out's first key would have crossed, the exit
+  // keeps its keys on its own clock: pressing Out plays the beat and then the exit (owner decision
+  // 2026-09-30, which replaces R1.2a.1's refusal to cross an Out key).
+  for (const b of [1, 1.5, 2.3, 2.6, 4]) {
+    const after = moveOutBoundary(plain(), b);
+    assert.deepEqual(after.steps.map(s => [s.duration, s.layers['#a'].x.map(k => k.time)]), [[b, [0, 1]], [1, [0.5, 1]]], `Out at ${b}`);
+    assert.equal(after.steps[1].carried, undefined);
+    exitPlays(plain(), after, b, `Out at ${b}`);
+  }
+  // Keys after the motion only repeat its last value: they go, the track keeping one.
+  const trailing = plain(); trailing.steps[0].layers['#a'].x.push({ time: 1.8, value: 0 });
+  trailing.steps[0].layers['#b'] = { y: [{ time: 1.9, value: 5 }] };
+  const trimmed = moveOutBoundary(trailing, 1.5);
+  assert.deepEqual([trimmed.steps[0].layers['#a'].x.map(k => k.time), trimmed.steps[0].layers['#b'].y], [[0, 1], [{ time: 1.5, value: 5 }]]);
+  exitPlays(trailing, trimmed, 1.5, 'trailing keys');
   // An exit without keys or bars stays an instant cut.
   const empty = plain(); empty.steps[1] = { name: 'Out', duration: 0, ease: 'none', layers: {} };
   assert.deepEqual(moveOutBoundary(empty, 1.5).steps.map(s => s.duration), [1.5, 0]);
-  // A bar across the new Out is clipped and carried, where it used to refuse the move.
-  const bar = plain(); bar.steps[0].spans = { '#a': [{ start: 0, end: 2 }] };
-  const moved = moveOutBoundary(bar, 1.5);
-  assert.deepEqual([moved.steps[0].spans, moved.steps[1].spans], [{ '#a': [{ start: 0, end: 1.5 }] }, { '#a': [{ start: 0, end: 1.5 }] }]);
-  samePlayback(bar, moved, 'bar only');
+  // A bar reaching the old Out reaches the new one; Out keeps what it had.
+  for (const b of [1.5, 2.5]) {
+    const bar = plain(); bar.steps[0].spans = { '#a': [{ start: 0, end: 2 }] };
+    const moved = moveOutBoundary(bar, b);
+    assert.deepEqual([moved.steps[0].spans, moved.steps[1].spans], [{ '#a': [{ start: 0, end: b }] }, undefined]);
+    exitPlays(bar, moved, b, `bar with Out at ${b}`);
+  }
+  // A bar ending exactly at the new Out shows the layer at the hold (its arriving side), so Out
+  // hides it from the press, where the stillness used to.
+  const ending = plain(); ending.steps[0].spans = { '#a': [{ start: 0, end: 1.5 }] };
+  assert.deepEqual(moveOutBoundary(ending, 1.5).steps[1].spans, { '#a': [] });
 });
 
-test('Set Out moves nothing out of a Next cue until Step/Next editing, and still moves within it', () => {
-  // Out pressed before a Next cue would play what moved into Out from it (docs/research/editor-r1-2a-2).
+test('Set Out inside a Next cue carries its motion into Out, and moving Out back gives the source', () => {
+  // R1.2a.2 refused this, since Out pressed before that cue would have played it; Out from an
+  // earlier step never plays it now (R1.2a.3), and skips its time (scripts/cross-cue.test.mjs).
   const before = textAndBox();
   before.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', layers: { '#box': {
     rotation: [{ time: 0, value: 0 }, { time: 0.8, value: 90, ease: 'bounce.out' }],
   } } });
-  refuses(before, 0.5, /#box rotation out of the Next cue "Step 1"/);
-  refuses(before, 0.79, /Next cue/);
-  // A bar edge after the boundary is Next-cue behaviour too; a bar running to the cue's end is not.
+  for (const b of [0.5, 0.79]) {
+    const after = moveOutBoundary(before, b);
+    assert.deepEqual([after.steps[1].duration, after.steps[2].carried, after.steps[2].duration], [b, Math.round((0.8 - b) * 1000) / 1000, Math.round((0.8 - b + 1) * 1000) / 1000]);
+    exitPlays(before, after, b, `Next cue at ${b}`);
+    assert.deepEqual(moveOutBoundary(after, 1), before, `Next cue at ${b} and back`);
+  }
+  // Bar edges after the boundary are motion the cue has not finished too.
   const edge = structuredClone(before); edge.steps[1].layers = {}; edge.steps[1].spans = { '#title': [{ start: 0.2, end: 0.7 }] };
-  refuses(edge, 0.5, /#title out of the Next cue/);
+  const shown = moveOutBoundary(edge, 0.5);
+  assert.deepEqual([shown.steps[2].carried, shown.steps[2].spans], [0.2, { '#title': [{ start: 0, end: 0.2 }] }]);
+  exitPlays(edge, shown, 0.5, 'a bar edge after b');
   edge.steps[1].spans = { '#title': [{ start: 0.6, end: 1 }] };
-  refuses(edge, 0.5, /#title out of the Next cue/);
-  // Nothing after the boundary: only the cue's still air shortens, and In then Out plays as before.
+  refuses(edge, 0.5, /#title is hidden at this Out and visible after it/);
+  // Into its still air, only the cue's stillness goes, and a bar running to its end follows.
   for (const b of [0.8, 0.9]) {
     const after = moveOutBoundary(before, b);
     assert.deepEqual(after.steps.slice(0, 2).map(s => s.layers), before.steps.slice(0, 2).map(s => s.layers));
-    assert.deepEqual([after.steps[1].duration, after.steps[2].duration], [b, Math.round((1 + 1 - b) * 1000) / 1000]);
-    samePlayback(before, after, `Next cue at ${b}`);
+    assert.deepEqual([after.steps[1].duration, after.steps[2]], [b, before.steps[2]]);
+    exitPlays(before, after, b, `Next cue still air at ${b}`);
   }
   const running = structuredClone(before); running.steps[1].spans = { '#title': [{ start: 0.2, end: 1 }] };
-  assert.doesNotThrow(() => moveOutBoundary(running, 0.9));
-  // A legacy hide at the cue's end would move to the new boundary.
+  assert.deepEqual(moveOutBoundary(running, 0.9).steps[1].spans, { '#title': [{ start: 0.2, end: 0.9 }] });
+  // A legacy hide at the cue's end would have to leave before the carried motion does.
   const hiding = structuredClone(before); hiding.steps[1].hides = ['#title'];
-  refuses(hiding, 0.9, /#title out of the Next cue/);
+  refuses(hiding, 0.9, /#title leaves at the end of this cue \(a legacy hide\)/);
 });
 
 test('every refusal leaves the input untouched and names what could not be kept', () => {
@@ -294,11 +351,11 @@ test('every refusal leaves the input untouched and names what could not be kept'
   refuse(d => { box(d).x.push({ time: 2.5, value: 50 }); }, 2.2, /#box x.*after the end of its cue/);
   refuse(d => { box(d).filter = [{ time: 0, value: 'blur(8px)' }, { time: 2, value: 'blur(0px)' }]; }, 1.2, /#box filter.*numeric/);
   refuse(d => { d.steps[0].hides = ['#box']; }, 1.2, /#box.*hide/);
-  // A Next cue's reveal outside the root, which R1.2a.1 refused on its own, no longer crosses at all.
+  // A Next cue's reveal outside the root, which R1.2a.1 refused and R1.2a.2 kept from crossing,
+  // moves: Out now animates it, and a layer it does not animate fades where the exit starts.
   const revealed = textAndBox();
   revealed.steps.splice(1, 0, { name: 'Step 1', duration: 1, ease: 'none', reveals: ['#box'], layers: { '#box': { rotation: [{ time: 0, value: 0 }, { time: 1, value: 90 }] } } });
-  refuses(revealed, 0.5, /#box rotation out of the Next cue/);
-  refuses(revealed, 0.5, /#box rotation out of the Next cue/, ancestor => ancestor === '.fixture');
+  for (const contains of [undefined, ancestor => ancestor === '.fixture']) exitPlays(revealed, moveOutBoundary(revealed, 0.5, contains), 0.5, 'a revealed Next cue');
   refuse(() => {}, Number.NaN, /finite/);
   // The template writer: source is kept byte for byte, and the reason is the same.
   const stepped = textAndBox(); stepped.steps[0].layers['#title'].x[1].ease = 'steps(4)';
@@ -329,7 +386,9 @@ test('Set Out across a Hold splits it into two held halves and plays as before',
   assert.deepEqual(In['#box'].x, [{ time: 0, value: -900 }, { time: 0.5, value: -900, ease: 'hold' }]);
   assert.deepEqual(Out['#box'].x.slice(0, 2), [{ time: 0, value: -900 }, { time: 0.3, value: -200, ease: 'hold' }]);
   assert.deepEqual(In['#title'].x, [{ time: 0, value: -900 }, { time: 0.5, value: 0, ease: 'jump' }]);
-  assert.deepEqual(Out['#title'].x.slice(0, 2), [{ time: 0, value: 0 }, { time: 1.1, value: 0, ease: 'jump' }]);
+  // The title's jump has happened by then, so none of it is carried: its own exit starts where the
+  // rest of the entrance ends.
+  assert.deepEqual(Out['#title'].x, [{ time: 1.5, value: 0 }, { time: 2.5, value: -900, ease: 'power2.in' }]);
   // Reversal writes the mirror: a held entrance leaves by jumping at once.
   const entrance = textAndBox(); entrance.steps.pop();
   entrance.steps[0].layers = { '#box': { x: [{ time: 0, value: -900 }, { time: 0.8, value: -200, ease: 'hold' }, { time: 2, value: 0, ease: 'power2.out' }] } };
@@ -362,18 +421,13 @@ test('Out moved later keeps a layer visible at the old hold visible up to the ne
     { name: 'In', duration: 1, ease: 'none', spans: { '#a': [{ start: 0, end: 1 }] }, layers: { '#a': { x: [{ time: 0, value: -100 }, { time: 1, value: 0 }] } } },
     { name: 'Out', duration: 1, ease: 'none', layers: { '#a': { x: [{ time: 0.6, value: 0 }, { time: 1, value: -100 }] } } },
   ] });
-  const before = data(), after = moveOutBoundary(before, 1.4);
-  assert.deepEqual(after.steps[0].spans, { '#a': [{ start: 0, end: 1.4 }] });
-  assert.equal(held(after, '#a'), true, 'visible as Out starts, so Out plays its motion');
-  for (let i = 0; i < 2000; i++) {
-    const u = 2 * i / 2000 + 1e-7;
-    assert.equal(visibleAt(after, '#a', u), visibleAt(before, '#a', u), `visibility at ${u}`);
+  // The graphic holds longer, whatever its own Out bars do from the press: they keep their timing
+  // (owner decision 2026-09-30; R1.2a.1 kept them at their absolute times and refused the last case).
+  for (const own of [undefined, [], [{ start: 0.6, end: 1 }]]) {
+    const before = data(); if (own) before.steps[1].spans = { '#a': own };
+    const after = moveOutBoundary(before, 1.4);
+    assert.deepEqual([after.steps[0].spans, after.steps[1]], [{ '#a': [{ start: 0, end: 1.4 }] }, before.steps[1]]);
+    assert.equal(held(after, '#a'), true, 'visible as Out starts, so Out plays its motion');
+    exitPlays(before, after, 1.4, `Out later with Out bars ${JSON.stringify(own)}`);
   }
-  samePlayback(before, after, 'Out later');
-  // Hidden through the exit by its own empty Out bars: its bar still ends where it did.
-  const cut = data(); cut.steps[1].spans = { '#a': [] };
-  assert.deepEqual(moveOutBoundary(cut, 1.4).steps[0].spans, { '#a': [{ start: 0, end: 1 }] });
-  // Shown again by its own Out bars: hidden as the later Out starts, Out would skip it.
-  const later = data(); later.steps[1].spans = { '#a': [{ start: 0.6, end: 1 }] };
-  refuses(later, 1.4, /#a has its own Out bars/);
 });

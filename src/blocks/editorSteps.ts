@@ -2,8 +2,7 @@ import type { SpxTemplate } from '../model/types';
 import { replaceDefinitionInHtml } from '../model/spxDefinition';
 import { EPS, joinCues, moveStepFlag, renameStep, round, splitCue, withOut } from './animEdit';
 import { spxSteps } from './animMachine';
-import { animationSource, sequenceAuthoringReason } from './editorAnimation';
-import { documentContains } from './editorOut';
+import { animationSource, documentContains, sequenceAuthoringReason } from './editorAnimation';
 import { writeOutData } from '../templates/shared/animRuntime';
 
 /** Step authoring on the one timeline (R1.2a.4, docs/research/editor-r1-2a-4). Times are ruler

@@ -8,7 +8,7 @@
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
 import { locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
-import { ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
+import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
 
@@ -70,6 +70,11 @@ function noacgWholeEase(text) {
 }
 function noacgBuildExit(step, interrupted, silent, early) {
   var speed = NOACG_ANIM.speed || 1;
+  // Out's first "carried" seconds finish the motion of the cue before it, which Set Out cut
+  // mid-motion; the exit proper starts after them. Out pressed at an earlier step never reached
+  // that cue, so it skips them and the exit starts at the press.
+  var skip = early ? step.carried || 0 : 0;
+  var at = function (time) { return Math.max(0, time - skip); };
   var entries = [];
   Object.keys(step.layers).forEach(function (selector) {
     document.querySelectorAll(selector).forEach(function (element) {
@@ -82,7 +87,7 @@ function noacgBuildExit(step, interrupted, silent, early) {
   });
   if (noacgLiveTimeline) noacgLiveTimeline.kill();
   gsap.killTweensOf('*');
-  var effects = Object.assign({}, step, { layers: {}, spans: undefined, hides: undefined, loops: undefined });
+  var effects = Object.assign({}, step, { duration: at(step.duration), layers: {}, spans: undefined, hides: undefined, loops: undefined });
   if (silent) { effects.calls = []; effects.dynamics = []; }
   var tl = buildStepTimeline(effects);
   // Gate only already-visible layers. Object targets survive legacy repeated stop(). An
@@ -95,29 +100,31 @@ function noacgBuildExit(step, interrupted, silent, early) {
       var proxy = noacgExitProxy(element, 'visibility', getComputedStyle(element).visibility);
       if (!interrupted) spans.forEach(function (span) { times.push(span.start, span.end); });
       times.sort(function (a, b) { return a - b; }).forEach(function (time) {
-        tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
+        tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, at(time) / speed);
       });
     });
   });
   (step.hides || []).forEach(function (selector) {
     if (step.spans && step.spans[selector] !== undefined) return;
     document.querySelectorAll(selector).forEach(function (element) {
-      tl.set(noacgExitProxy(element, 'opacity', gsap.getProperty(element, 'opacity')), { value: 0 }, step.duration / speed);
+      tl.set(noacgExitProxy(element, 'opacity', gsap.getProperty(element, 'opacity')), { value: 0 }, at(step.duration) / speed);
     });
   });
   entries.forEach(function (entry) {
     var keys = entry.keys;
     var proxy = noacgExitProxy(entry.element, entry.prop, entry.live);
-    if (interrupted && keys.length > 1 && keys[keys.length - 1].time > keys[0].time) {
-      var last = keys[keys.length - 1], ease = noacgWholeEase(last.ease || step.ease), shape = noacgEaseParse(ease);
+    var last = keys[keys.length - 1];
+    if (interrupted && keys.length > 1 && at(last.time) > at(keys[0].time)) {
+      var ease = noacgWholeEase(last.ease || step.ease), shape = noacgEaseParse(ease);
       // A final jump (a Hold played backwards) happens where its own segment starts, as it does
       // when Out is not interrupted; until then the live value holds.
-      var from = shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time;
-      tl.to(proxy, { value: last.value, duration: (last.time - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
+      var from = at(shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time);
+      tl.to(proxy, { value: last.value, duration: (at(last.time) - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
     } else if (early) {
       // A one-key or zero-time track has no span to leave on. From an earlier step its value may be
       // a pose the viewer never saw, so it holds the live value and takes its own as the exit ends.
-      tl.set(proxy, { value: keys[keys.length - 1].value }, step.duration / speed);
+      // So does a track whose motion is all carried.
+      tl.set(proxy, { value: last.value }, at(step.duration) / speed);
     } else {
       tl.set(proxy, { value: keys[0].value }, 0);
       for (var k = 1; k < keys.length; k++) {
@@ -324,13 +331,14 @@ function noacgExitTimeline(interrupted, silent) {
   if (early) interrupted = true;
   var tl = noacgBuildExit(step, interrupted, silent, early);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
-  // (unless the Out step animates them itself). Containment is checked live.
-  var root = document.querySelector(NOACG_ANIM.root);
+  // (unless the Out step animates them itself). Containment is checked live. The exit starts
+  // after the motion Out carries, which Out pressed at an earlier step skips.
+  var root = document.querySelector(NOACG_ANIM.root), carried = step.carried || 0;
   for (var s = 1; s < steps.length - 1; s++) {
     (steps[s].reveals || []).forEach(function (selector) {
       var el = document.querySelector(selector);
       if (el && root && !root.contains(el) && !steps[steps.length - 1].layers[selector]) {
-        tl.to(noacgExitProxy(el, 'opacity', gsap.getProperty(el, 'opacity')), { value: 0, duration: Math.min(0.3, step.duration) / (NOACG_ANIM.speed || 1) }, 0);
+        tl.to(noacgExitProxy(el, 'opacity', gsap.getProperty(el, 'opacity')), { value: 0, duration: Math.min(0.3, step.duration - carried) / (NOACG_ANIM.speed || 1) }, (early ? 0 : carried) / (NOACG_ANIM.speed || 1));
       }
     });
   }
@@ -1063,7 +1071,7 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
-  if ((data.steps.some(step => step.spans) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
+  if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
     return writeOutData(js, data);
   }
   if (data.machine && !hasMachineRuntime(js)) return replaceRegionWithAnimData(js, data);
@@ -1087,7 +1095,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH].includes(contentHash(body))) return null;
+      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH].includes(contentHash(body))) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

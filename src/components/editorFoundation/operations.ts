@@ -6,7 +6,7 @@ import { createArtwork, editBase, baseValues, type BasePatch, type Creation } fr
 import { setSlotSize, setLineFit } from '../../blocks/designLayout';
 import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
-import { applyAnimation, applyKeyEase, type AnimationOperation, type KeyEaseOperation } from '../../blocks/editorAnimation';
+import { applyAnimation, applyKeyEase, applyKeyMove, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation } from '../../blocks/editorAnimation';
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
 import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
@@ -15,6 +15,7 @@ import { commitSvgIdentity } from '../../blocks/svgIdentity';
 export type EditorOperation =
   | AnimationOperation
   | KeyEaseOperation
+  | KeyMoveOperation
   | OutOperation
   | StepOperation
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
@@ -67,6 +68,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyAnimation(next, operation); targets.add(operation.selector);
     } else if (operation.kind === 'key.ease') {
       next = applyKeyEase(next, operation); operation.keys.forEach(key => targets.add(key.selector));
+    } else if (operation.kind === 'key.move') {
+      next = applyKeyMove(next, operation); operation.keys.forEach(key => targets.add(key.selector));
     } else if (operation.kind === 'base.set') {
       next = editBase(next, operation.selector, operation.values); targets.add(operation.selector);
     } else if (operation.kind === 'layer.create') {
