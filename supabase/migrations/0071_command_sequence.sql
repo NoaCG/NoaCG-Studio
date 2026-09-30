@@ -20,9 +20,11 @@
 --   higher seq can never commit before a lower one. Old writers are numbered by a BEFORE trigger;
 --   the new send numbers its own rows. The per-row `log-` broadcast (0064) and the `cmd-` fast
 --   frame (0056) keep running for old followers.
--- - One `batch` frame per inserting statement on the private topic `live-<show id>` (0068's read
+-- - One `batch` frame per inserting statement on the private topic `seq-<show id>` (0070's read
 --   policy), carrying the rows with their seq, the head's epoch, and a summary of every graphic
---   the statement touched: {rev, on, cue, step, by, press}.
+--   the statement touched: {rev, on, cue, step, by, press}. Its own topic, never Presence's
+--   `live-<show id>`: Realtime closes a channel that exceeds its Presence rate limit, and on
+--   protocol 2 this topic is a renderer's only road for commands.
 -- - control_send_seq: the same batch as control_send_many, plus the sender's id, press number,
 --   epoch and the revision it last saw per graphic. A press made without seeing a change another
 --   screen made is refused as `stale` and says what is on air now; the same page's earlier press
@@ -62,11 +64,12 @@
 -- a timeout is 55P03, which db-push retries, and nothing in this file applies. control_shows is not
 -- locked by any statement here. The self-check works on its own throwaway production only.
 --
--- ── PREREQUISITE: 0068 ───────────────────────────────────────────────────────────────────────
--- The frames go to the private topic `live-<show id>`, which a follower can join only through
--- Step 1's read policy (0068). Without it every new follower's join is refused and it falls back
--- to the 30 s poll, so this file refuses to apply until that policy exists (its self-check, (a)),
--- rather than applying and quietly slowing every output. Land it after 0068, never without it.
+-- ── PREREQUISITE: 0070 ───────────────────────────────────────────────────────────────────────
+-- The frames go to the private topic `seq-<show id>`, which a follower can join only through
+-- 0070's read policy. Without it every new follower's join is refused and it falls back to the
+-- 30 s poll, so this file refuses to apply until that policy exists (its self-check, (a)), rather
+-- than applying and quietly slowing every output. 0070 is its own file because a policy locks
+-- realtime.messages, and this one already locks control_events: one live table per file.
 --
 -- ── PRE-MIGRATION ROWS ───────────────────────────────────────────────────────────────────────
 -- Rows written before this file keep seq null; nothing numbers them (no backfill under a lock).
@@ -79,7 +82,7 @@ set statement_timeout = '5s';
 alter table public.control_events add column seq bigint;
 
 comment on column public.control_events.seq is
-  'Per-production sequence (0070), allocated under the control_heads row lock, so commit order equals seq order. Null on rows written before 0070.';
+  'Per-production sequence (0071), allocated under the control_heads row lock, so commit order equals seq order. Null on rows written before 0071.';
 
 -- ── 1. One row's effect on the summary: one rule, used by the trigger and by the new send ─────
 -- cue sets the layer's cue (null = off air, kept as an entry so it overrides the old column);
@@ -162,7 +165,7 @@ create trigger control_events_seq
   for each row when (new.seq is null)
   execute function public.control_events_seq();
 
--- ── 3. One frame per inserting statement on `live-<show id>` ──────────────────────────────────
+-- ── 3. One frame per inserting statement on `seq-<show id>` ──────────────────────────────────
 -- realtime.send swallows its own errors into a warning, so a Realtime fault costs this road and
 -- never a command; a short lock_timeout around it keeps a stall on realtime.messages from holding
 -- the head (and so every Take of this production) for long.
@@ -197,7 +200,7 @@ begin
     v_lock := current_setting('lock_timeout');
     perform set_config('lock_timeout', '250ms', true);
     begin
-      perform realtime.send(v_payload, 'batch', 'live-' || v_show::text, true);
+      perform realtime.send(v_payload, 'batch', 'seq-' || v_show::text, true);
     exception when others then
       null; -- the rows are written; the next frame's gap or the poll brings them (0064's rule)
     end;
@@ -239,7 +242,7 @@ begin
     raise exception 'unknown data source';
   end if;
   -- NO KEY UPDATE serialises two feeds (or a feed and an operator) racing on the same production
-  -- exactly as FOR UPDATE did, and lets a Take's KEY SHARE through (0070).
+  -- exactly as FOR UPDATE did, and lets a Take's KEY SHARE through (0071).
   select s.owner_id, s.data, s.bindings
     into v_owner_id, v_before, v_bindings
     from public.control_shows s
@@ -369,7 +372,7 @@ begin
   select * into v_head from public.control_heads h where h.show_id = v_show for update;
   -- HOLDING THE HEAD, nothing may wait long: every other send and report of this production is
   -- queued behind it. What remains takes only this transaction's own rows and realtime.messages
-  -- (the per-row log- broadcast, the live- frame, the cmd- frame), so a stall there answers 55P03
+  -- (the per-row log- broadcast, the seq- frame, the cmd- frame), so a stall there answers 55P03
   -- in 250 ms, the page sends again, and the head is free.
   perform set_config('lock_timeout', '250ms', true);
 
@@ -448,7 +451,7 @@ begin
      set seq = v_head.seq + v_n, graphics = v_graphics, recent = v_recent_keys, updated_at = now()
    where h.show_id = v_show;
 
-  -- 8. The rows, numbered, in ONE statement: one frame on live-<show id>.
+  -- 8. The rows, numbered, in ONE statement: one frame on seq-<show id>.
   insert into public.control_events (show_id, graphic, msg, seq, created_at)
     select v_show, x.value->>'graphic', x.value->'msg', v_from + x.ord - 1, clock_timestamp()
       from jsonb_array_elements(v_items) with ordinality as x(value, ord)
@@ -603,7 +606,7 @@ begin
 end $$;
 revoke all on function public.control_live_seq(uuid, jsonb, bigint) from public, anon, authenticated;
 
--- Would a renderer following by seq miss a command? Only a row written before 0070 (seq null) can
+-- Would a renderer following by seq miss a command? Only a row written before 0071 (seq null) can
 -- be missed, and only a renderer COMMAND of a graphic whose report baseline is below it (a graphic
 -- with no report replays from the log's start, so any such row of it counts).
 -- Every seq-null row has an id below every numbered row (this file's ACCESS EXCLUSIVE waits out
@@ -770,8 +773,9 @@ grant execute on function public.control_output_tail_seq(text, bigint, uuid) to 
 
 -- ── 10. Prove it, or refuse to apply ──────────────────────────────────────────────────────────
 -- CALLS every path on a throwaway production (supabase/AGENTS.md: a self-check proves shape, never
--- behaviour). The live- read policy is 0068's; this file only asserts it (creating or re-creating
--- a policy on realtime.messages would lock all of Realtime's database traffic).
+-- behaviour). The seq- read policy is 0070's; this file only asserts it, through pg_policies, which
+-- takes no lock (creating or re-creating a policy on realtime.messages would lock all of
+-- Realtime's database traffic).
 do $$
 declare
   v_role  text := current_role;
@@ -808,7 +812,7 @@ begin
      or to_regprocedure('public.control_tail_seq(text,bigint,uuid)') is null
      or to_regprocedure('public.control_output_tail_seq(text,bigint,uuid)') is null
      or to_regprocedure('public.control_output_report_seq(text,text,jsonb,jsonb,bigint,bigint,uuid)') is null then
-    raise exception '0070 self-check failed: a new RPC is missing';
+    raise exception '0071 self-check failed: a new RPC is missing';
   end if;
   if not has_function_privilege('anon', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
      or not has_function_privilege('anon', 'public.control_show_resolve(text)', 'execute')
@@ -819,7 +823,7 @@ begin
      or not has_function_privilege('authenticated', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
      or not has_function_privilege('anon', 'public.control_show_by_slug(text)', 'execute')
      or not has_function_privilege('anon', 'public.control_output_by_slug(text)', 'execute') then
-    raise exception '0070 self-check failed: a signed-out page cannot reach an RPC it needs';
+    raise exception '0071 self-check failed: a signed-out page cannot reach an RPC it needs';
   end if;
   foreach v_sig in array array[
       'public.control_head_effect(jsonb,text,jsonb,text,bigint)', 'public.control_head_pick(jsonb,text[])',
@@ -828,7 +832,7 @@ begin
       'public.control_live_seq(uuid,jsonb,bigint)', 'public.control_head_legacy(uuid,jsonb)',
       'public.control_tail_seq_for(uuid,bigint,uuid)', 'public.control_data_apply(uuid,jsonb,text)'] loop
     if has_function_privilege('anon', v_sig, 'execute') or has_function_privilege('authenticated', v_sig, 'execute') then
-      raise exception '0070 self-check failed: an internal function is reachable from a client (%)', v_sig;
+      raise exception '0071 self-check failed: an internal function is reachable from a client (%)', v_sig;
     end if;
   end loop;
   if not exists (select 1 from pg_trigger t where t.tgrelid = 'public.control_events'::regclass
@@ -837,19 +841,24 @@ begin
                   and t.tgname = 'control_events_frame' and not t.tgisinternal)
      or not exists (select 1 from pg_trigger t where t.tgrelid = 'public.control_events'::regclass
                   and t.tgname = 'control_events_broadcast' and not t.tgisinternal) then
-    raise exception '0070 self-check failed: a trigger on control_events is missing';
+    raise exception '0071 self-check failed: a trigger on control_events is missing';
   end if;
-  -- The frames go to live-<show id>; a follower can read them only through 0068's policy.
+  -- The frames go to seq-<show id>; a follower can read them only through 0070's policy, and
+  -- nothing may be written there by a client, Presence included (0070 admits no insert).
   if not exists (select 1 from pg_policies p where p.schemaname = 'realtime' and p.tablename = 'messages'
-                  and p.cmd in ('SELECT', 'ALL') and p.qual like '%live-%') then
-    raise exception '0070 self-check failed: no read policy admits the live- topic (0068 must apply first)';
+                  and p.cmd in ('SELECT', 'ALL') and p.qual like '%seq-%') then
+    raise exception '0071 self-check failed: no read policy admits the seq- topic (0070 must apply first)';
+  end if;
+  if exists (select 1 from pg_policies p where p.schemaname = 'realtime' and p.tablename = 'messages'
+              and p.cmd in ('INSERT', 'ALL') and coalesce(p.with_check, p.qual, '') like '%seq-%') then
+    raise exception '0071 self-check failed: a client can write on the seq- topic';
   end if;
   -- And no client may put a broadcast on any private topic (0056's rule): a client insert policy
   -- on realtime.messages is admissible only for Presence (0068).
   if exists (select 1 from pg_policies p where p.schemaname = 'realtime' and p.tablename = 'messages'
               and p.cmd in ('INSERT', 'ALL') and (p.roles::text[] && array['anon', 'authenticated', 'public'])
               and coalesce(p.with_check, '') not like '%presence%') then
-    raise exception '0070 self-check failed: a client can broadcast on realtime.messages';
+    raise exception '0071 self-check failed: a client can broadcast on realtime.messages';
   end if;
 
   -- (b) CALL it, as an owner hosted control is open to (a suspended account or a switched-off
@@ -857,11 +866,11 @@ begin
   -- production that sends, and must still apply.
   select u.id into v_owner from auth.users u where not public.feature_denied_for(u.id, 'control.hosted') limit 1;
   if v_owner is null then
-    raise notice '0070 self-check skipped the live half: no account on this instance may use hosted control';
+    raise notice '0071 self-check skipped the live half: no account on this instance may use hosted control';
     return;
   end if;
   insert into public.control_shows (id, owner_id, title, output, bindings)
-    values (v_show, v_owner, '0070 self-check', '{"v":1,"graphics":[{"key":"Bug"},{"key":"Card"}],"cues":[]}'::jsonb,
+    values (v_show, v_owner, '0071 self-check', '{"v":1,"graphics":[{"key":"Bug"},{"key":"Card"}],"cues":[]}'::jsonb,
             '{"Bug":{"f0":"score"}}'::jsonb)
     returning slug, output_slug into v_slug, v_out;
 
@@ -869,19 +878,19 @@ begin
   perform public.control_send_many(v_slug, '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"x"}},"fast":true},
     {"graphic":"Bug","msg":{"t":"play"},"fast":true},{"graphic":"Bug","msg":{"t":"cue","cue":"cue-a"},"fast":true}]'::jsonb);
   if (select array_agg(e.seq order by e.id) from public.control_events e where e.show_id = v_show) is distinct from array[1,2,3]::bigint[] then
-    raise exception '0070 self-check failed: an old send''s rows were not numbered 1, 2, 3';
+    raise exception '0071 self-check failed: an old send''s rows were not numbered 1, 2, 3';
   end if;
   select h.epoch into v_epoch from public.control_heads h where h.show_id = v_show;
   if (select h.seq from public.control_heads h where h.show_id = v_show) <> 3
      or (select h.graphics->'Bug' from public.control_heads h where h.show_id = v_show)
           is distinct from '{"rev":2,"on":true,"step":0,"cue":"cue-a","by":"legacy","press":0}'::jsonb then
-    raise exception '0070 self-check failed: the head did not follow an old send (%)',
+    raise exception '0071 self-check failed: the head did not follow an old send (%)',
       (select h.graphics from public.control_heads h where h.show_id = v_show);
   end if;
   if (select s.live_cue->'layers'->'Bug'->>'cue' from public.control_shows s where s.id = v_show) is distinct from 'cue-a' then
-    raise exception '0070 self-check failed: the old send stopped writing live_cue';
+    raise exception '0071 self-check failed: the old send stopped writing live_cue';
   end if;
-  -- One frame per statement on live-, one row per row on log-, the marked items on cmd-. Asserted
+  -- One frame per statement on seq-, one row per row on log-, the marked items on cmd-. Asserted
   -- where Realtime can write at all (a stack whose realtime.messages has no partition for today
   -- cannot, and that is not this file's fault). Every read is bounded to this apply's minute, the
   -- table's partition key, so none of them scans Realtime's history under this file's lock.
@@ -889,25 +898,25 @@ begin
   if v_rt then
     if (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'log-' || v_show::text) <> 3
        or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'cmd-' || v_show::text) <> 1
-       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text) <> 1 then
-      raise exception '0070 self-check failed: an old send did not write 3 log-, 1 cmd- and 1 live- messages';
+       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'seq-' || v_show::text) <> 1 then
+      raise exception '0071 self-check failed: an old send did not write 3 log-, 1 cmd- and 1 seq- messages';
     end if;
-    select m.payload into v_frame from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text;
+    select m.payload into v_frame from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'seq-' || v_show::text;
     if v_frame->>'epoch' is distinct from v_epoch::text
        or (select array_agg((r.value->>'seq')::bigint order by r.ord) from jsonb_array_elements(v_frame->'rows') with ordinality r(value, ord))
             is distinct from array[1,2,3]::bigint[]
        or v_frame->'head'->'graphics'->'Bug'->>'cue' is distinct from 'cue-a'
        or (v_frame->'head'->>'seq')::bigint <> 3 then
-      raise exception '0070 self-check failed: the live- frame is not the rows in seq order with the head (%)', v_frame;
+      raise exception '0071 self-check failed: the seq- frame is not the rows in seq order with the head (%)', v_frame;
     end if;
   else
-    raise notice '0070 self-check: realtime.messages took no row on this instance; the frame counts are not asserted';
+    raise notice '0071 self-check: realtime.messages took no row on this instance; the frame counts are not asserted';
   end if;
 
   -- (d) control_send still answers the id it inserted, and that row is numbered 4.
   v_id := public.control_send(v_slug, 'Card', '{"t":"update","data":{}}'::jsonb);
   if (select e.seq from public.control_events e where e.id = v_id) is distinct from 4 then
-    raise exception '0070 self-check failed: control_send''s row was not numbered 4';
+    raise exception '0071 self-check failed: control_send''s row was not numbered 4';
   end if;
 
   -- (e) control_send_seq accepts a press made on the current revision (Bug rev 2).
@@ -915,20 +924,20 @@ begin
     jsonb_build_object('id', v_a, 'press', 1, 'epoch', v_epoch, 'base', jsonb_build_object('Bug', 2)));
   if v_ans->>'ok' <> 'true' or (v_ans->>'seq_from')::bigint <> 5 or (v_ans->>'seq_to')::bigint <> 7
      or (v_ans->'head'->'graphics'->'Bug'->>'rev')::int <> 4 then
-    raise exception '0070 self-check failed: a current press was not accepted as 5..7 (%)', v_ans;
+    raise exception '0071 self-check failed: a current press was not accepted as 5..7 (%)', v_ans;
   end if;
   if (select bool_and(x.ok) from (select e.created_at >= lag(e.created_at) over (order by e.seq) as ok
                                      from public.control_events e where e.show_id = v_show) x where x.ok is not null) is not true then
-    raise exception '0070 self-check failed: created_at runs backwards in seq order';
+    raise exception '0071 self-check failed: created_at runs backwards in seq order';
   end if;
-  if v_rt and ((select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text) <> 3
+  if v_rt and ((select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'seq-' || v_show::text) <> 3
        or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'cmd-' || v_show::text) <> 2
        or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'log-' || v_show::text) <> 7) then
-    raise exception '0070 self-check failed: the new send did not write one live- frame, one cmd- frame and a log- row per row';
+    raise exception '0071 self-check failed: the new send did not write one seq- frame, one cmd- frame and a log- row per row';
   end if;
   -- The head, not the old column, now says which cue is up, and the old resolve answers the head.
   if (select r.live_cue->'layers'->'Bug'->>'cue' from public.control_show_by_slug(v_slug) r) is distinct from 'cue-b' then
-    raise exception '0070 self-check failed: control_show_by_slug did not answer the head''s cue';
+    raise exception '0071 self-check failed: control_show_by_slug did not answer the head''s cue';
   end if;
 
   -- (f) Another screen's press made without seeing that change is refused as stale, and inserts nothing.
@@ -937,30 +946,30 @@ begin
   if v_ans->>'refused' is distinct from 'stale' or (v_ans->'graphics'->'Bug'->>'rev')::int <> 4
      or v_ans->'stale' is distinct from '["Bug"]'::jsonb
      or (select count(*) from public.control_events e where e.show_id = v_show) <> 7 then
-    raise exception '0070 self-check failed: a stale press was not refused, or its answer did not name Bug (%)', v_ans;
+    raise exception '0071 self-check failed: a stale press was not refused, or its answer did not name Bug (%)', v_ans;
   end if;
 
   -- (g) The same page's next press is accepted on its own chain, without having seen its answer.
   v_ans := public.control_send_seq(v_slug, v_off,
     jsonb_build_object('id', v_a, 'press', 2, 'epoch', v_epoch, 'base', jsonb_build_object('Bug', 2)));
   if v_ans->>'ok' <> 'true' or (v_ans->>'seq_from')::bigint <> 8 then
-    raise exception '0070 self-check failed: the page''s own next press was refused (%)', v_ans;
+    raise exception '0071 self-check failed: the page''s own next press was refused (%)', v_ans;
   end if;
   if (select r.live_cue->'layers' ? 'Bug' from public.control_show_by_slug(v_slug) r)
      or (select s.live_cue->'layers'->'Bug'->>'cue' from public.control_shows s where s.id = v_show) is distinct from 'cue-a' then
-    raise exception '0070 self-check failed: an Out through the head did not take the layer off in the resolve';
+    raise exception '0071 self-check failed: an Out through the head did not take the layer off in the resolve';
   end if;
 
   -- (h) The page's later press (4) lands first; its earlier one (3) arriving after it is superseded.
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"z"}}}]'::jsonb,
     jsonb_build_object('id', v_a, 'press', 4, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if v_ans->>'ok' <> 'true' then
-    raise exception '0070 self-check failed: a chained press was refused (%)', v_ans;
+    raise exception '0071 self-check failed: a chained press was refused (%)', v_ans;
   end if;
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"play"}}]'::jsonb,
     jsonb_build_object('id', v_a, 'press', 3, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if v_ans->>'refused' is distinct from 'superseded' then
-    raise exception '0070 self-check failed: an earlier press arriving late was not superseded (%)', v_ans;
+    raise exception '0071 self-check failed: an earlier press arriving late was not superseded (%)', v_ans;
   end if;
 
   -- (i) A resend of a press that applied is answered as applied, and inserts nothing.
@@ -968,7 +977,7 @@ begin
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"z"}}}]'::jsonb,
     jsonb_build_object('id', v_a, 'press', 4, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if v_ans->>'duplicate' is distinct from 'true' or (select count(*) from public.control_events e where e.show_id = v_show) <> v_n then
-    raise exception '0070 self-check failed: a resent press was not answered as applied (%)', v_ans;
+    raise exception '0071 self-check failed: a resent press was not answered as applied (%)', v_ans;
   end if;
 
   -- (j) A late All out (press 3) is never refused, but leaves Bug as the page's later press 4 left it.
@@ -979,7 +988,7 @@ begin
   if v_ans->>'ok' <> 'true' or v_ans->'skipped' <> '["Bug"]'::jsonb
      or (select count(*) from public.control_events e where e.show_id = v_show and e.seq > v_n) <> 2
      or exists (select 1 from public.control_events e where e.show_id = v_show and e.seq > v_n and e.graphic = 'Bug') then
-    raise exception '0070 self-check failed: All out undid the page''s later press, or was refused (%)', v_ans;
+    raise exception '0071 self-check failed: All out undid the page''s later press, or was refused (%)', v_ans;
   end if;
 
   -- (k) Another epoch is stale; a sender that is not a uuid, and the two batch refusals, still raise.
@@ -987,14 +996,14 @@ begin
     jsonb_build_object('id', v_a, 'press', 9, 'epoch', gen_random_uuid(), 'base', '{}'::jsonb));
   if v_ans->>'refused' is distinct from 'stale' or v_ans->>'why' is distinct from 'epoch'
      or v_ans->>'epoch' is distinct from v_epoch::text then
-    raise exception '0070 self-check failed: another epoch was not refused as stale, for the epoch (%)', v_ans;
+    raise exception '0071 self-check failed: another epoch was not refused as stale, for the epoch (%)', v_ans;
   end if;
   -- ...except All out, the panic control, which no epoch refuses.
   v_ans := public.control_send_seq(v_slug,
     '[{"graphic":"Card","msg":{"t":"stop"}},{"graphic":"Card","msg":{"t":"cue","cue":null}}]'::jsonb,
     jsonb_build_object('id', v_b, 'press', 5, 'epoch', gen_random_uuid(), 'base', '{}'::jsonb, 'all_out', true));
   if v_ans->>'ok' is distinct from 'true' then
-    raise exception '0070 self-check failed: All out was refused for an old epoch (%)', v_ans;
+    raise exception '0071 self-check failed: All out was refused for an old epoch (%)', v_ans;
   end if;
   v_err := null;
   begin
@@ -1002,7 +1011,7 @@ begin
   exception when others then v_err := sqlerrm;
   end;
   if v_err is distinct from 'not a sender' then
-    raise exception '0070 self-check failed: a sender that is not a uuid was accepted (%)', v_err;
+    raise exception '0071 self-check failed: a sender that is not a uuid was accepted (%)', v_err;
   end if;
   v_err := null;
   begin
@@ -1010,7 +1019,7 @@ begin
   exception when others then v_err := sqlerrm;
   end;
   if v_err is distinct from 'not a command batch' then
-    raise exception '0070 self-check failed: an empty batch was not refused (%)', v_err;
+    raise exception '0071 self-check failed: an empty batch was not refused (%)', v_err;
   end if;
   v_err := null;
   begin
@@ -1018,7 +1027,7 @@ begin
   exception when others then v_err := sqlerrm;
   end;
   if v_err is distinct from 'not a control command' then
-    raise exception '0070 self-check failed: an unknown command was not refused (%)', v_err;
+    raise exception '0071 self-check failed: an unknown command was not refused (%)', v_err;
   end if;
 
   -- (l) Reports: the new one lands on the head with its seq and row; the old one still on the
@@ -1028,21 +1037,21 @@ begin
   if (select h.live->'Bug'->>'seq' from public.control_heads h where h.show_id = v_show) is distinct from v_row.seq::text
      or not exists (select 1 from public.control_events e where e.show_id = v_show and e.graphic = 'Bug'
                      and e.msg->>'t' = 'live' and e.seq = (select h.seq from public.control_heads h where h.show_id = v_show)) then
-    raise exception '0070 self-check failed: the new report did not land on the head with a numbered live row';
+    raise exception '0071 self-check failed: the new report did not land on the head with a numbered live row';
   end if;
   -- A renderer still following another epoch (it has not seen a republish yet) keeps its data but
   -- banks no seq: a baseline from a dead log would make the next boot skip rows.
   perform public.control_output_report_seq(v_out, 'Hair', '{}'::jsonb, null, 999999, v_row.id, gen_random_uuid());
   if (select h.live->'Hair' ? 'seq' from public.control_heads h where h.show_id = v_show) is not false then
-    raise exception '0070 self-check failed: a report from another epoch banked its seq';
+    raise exception '0071 self-check failed: a report from another epoch banked its seq';
   end if;
   perform public.control_output_report(v_out, 'Card', '{"f0":"c"}'::jsonb, null, v_id);
   select r.live into v_res from public.control_show_by_slug(v_slug) r;
   if v_res->'Bug'->>'seq' is distinct from v_row.seq::text or v_res->'Card'->>'event' is distinct from v_id::text then
-    raise exception '0070 self-check failed: control_show_by_slug did not merge the two report homes (%)', v_res;
+    raise exception '0071 self-check failed: control_show_by_slug did not merge the two report homes (%)', v_res;
   end if;
   if (select r.live from public.control_output_by_slug(v_out) r) is distinct from v_res then
-    raise exception '0070 self-check failed: control_output_by_slug answers other reports than control_show_by_slug';
+    raise exception '0071 self-check failed: control_output_by_slug answers other reports than control_show_by_slug';
   end if;
 
   -- (m) A production-data merge still merges and appends, numbered, and does not make a press stale.
@@ -1052,7 +1061,7 @@ begin
      or (select e.seq from public.control_events e where e.id = (v_ans->'writes'->0->>'event')::bigint)
           is distinct from (select h.seq from public.control_heads h where h.show_id = v_show)
      or (select (h.graphics->'Bug'->>'rev')::int from public.control_heads h where h.show_id = v_show) <> v_n then
-    raise exception '0070 self-check failed: control_data_apply did not merge, append and leave the revision (%)', v_ans;
+    raise exception '0071 self-check failed: control_data_apply did not merge, append and leave the revision (%)', v_ans;
   end if;
 
   -- (n) The proto 2 reads, called as a signed-out page would call them.
@@ -1071,33 +1080,33 @@ begin
   if v_res->>'proto' <> '2' or v_res->>'epoch' is distinct from v_epoch::text or (v_res->>'legacy')::boolean
      or v_res->'live'->'Bug'->>'seq' is distinct from v_row.seq::text
      or v_res->'live'->'Card'->>'seq' is distinct from '4' then
-    raise exception '0070 self-check failed: control_output_resolve (%)', v_res;
+    raise exception '0071 self-check failed: control_output_resolve (%)', v_res;
   end if;
   if v_ans->>'proto' <> '2' or (v_ans->>'seq')::bigint <> v_live or v_ans->'live_cue'->'layers' ? 'Bug'
      or v_ans->'_send'->>'ok' <> 'true' then
-    raise exception '0070 self-check failed: control_show_resolve, or a send as anon (%)', v_ans;
+    raise exception '0071 self-check failed: control_show_resolve, or a send as anon (%)', v_ans;
   end if;
   if jsonb_array_length(v_frame->'rows') <> v_live
      or (select bool_and((r.value->>'seq')::bigint = r.ord) from jsonb_array_elements(v_frame->'rows') with ordinality r(value, ord)) is not true then
-    raise exception '0070 self-check failed: control_tail_seq did not answer every row in seq order';
+    raise exception '0071 self-check failed: control_tail_seq did not answer every row in seq order';
   end if;
   if jsonb_array_length((v_state::jsonb)->'rows') <> 2 or ((v_err::jsonb)->>'reset')::boolean is not true
      or ((v_state::jsonb)->'head'->>'seq')::bigint is distinct from v_live
      or (v_state::jsonb)->'head'->'graphics' ? 'Bug' is not true then
-    raise exception '0070 self-check failed: control_output_tail_seq (% / %)', v_state, v_err;
+    raise exception '0071 self-check failed: control_output_tail_seq (% / %)', v_state, v_err;
   end if;
 
   -- (o) Unpublish takes the head with it; a republish under the same id starts a new epoch at 1.
   delete from public.control_shows where id = v_show;
   if exists (select 1 from public.control_heads h where h.show_id = v_show) then
-    raise exception '0070 self-check failed: the head outlived its production';
+    raise exception '0071 self-check failed: the head outlived its production';
   end if;
-  insert into public.control_shows (id, owner_id, title) values (v_show, v_owner, '0070 self-check')
+  insert into public.control_shows (id, owner_id, title) values (v_show, v_owner, '0071 self-check')
     returning slug into v_slug;
   perform public.control_send_many(v_slug, v_off);
   if (select h.seq from public.control_heads h where h.show_id = v_show) <> 2
      or (select h.epoch from public.control_heads h where h.show_id = v_show) = v_epoch then
-    raise exception '0070 self-check failed: a republished production did not start a new epoch at 1';
+    raise exception '0071 self-check failed: a republished production did not start a new epoch at 1';
   end if;
 
   delete from public.control_shows where id = v_show;
