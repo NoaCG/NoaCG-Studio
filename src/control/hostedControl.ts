@@ -663,7 +663,14 @@ export async function untilAnswered<T>(
   const limit = opts.limit ?? 0;
   const wait = opts.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   for (let tries = 0; ; tries += 1) {
-    const answer = await attempt();
+    // A THROW is a question nobody answered too (the client library's chunk failing to load is
+    // one), never a reason to reject the whole walk: that left the renderer's boot dead.
+    let answer: RpcAnswer<T>;
+    try {
+      answer = await attempt();
+    } catch (err) {
+      answer = { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
     if (answer.ok) return answer;
     if ((limit > 0 && tries + 1 >= limit) || opts.stop?.()) return answer;
     opts.onRetry?.(tries + 1, answer.error);
