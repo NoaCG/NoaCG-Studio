@@ -1,26 +1,279 @@
-// The interpreter emitted from PR #472 (R1.1c) until G01 added the shared ease runtime. It is
-// recognized by content hash (model/contentHash.ts over the trimmed LF body) instead of being
-// kept a second time verbatim; e2e/fixtures/interpreter-pre-g01.js holds its text for the tests
-// proving that a graphic saved with it upgrades once and then plays exact eases.
-export const ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH = '61a45be2c0511';
-// The interpreter emitted from G01 (PR #505) until an interrupted exit learned to play a sliced
-// last ease as its whole curve. e2e/fixtures/interpreter-shared-ease-v1.js holds its text.
-export const ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH = 'f4df1ba19eb48';
-// The interpreter emitted from R1.2a.1 (PR #515) until the ease grammar learned Hold (R1.2a.2).
-// e2e/fixtures/interpreter-whole-ease-v1.js holds its text.
-export const ANIM_INTERPRETER_BEFORE_HOLD_HASH = '483ce85fd945c';
-// The interpreter emitted from R1.2a.2 (PR #547) until Out learned to leave from any step
-// (R1.2a.3). e2e/fixtures/interpreter-hold-v1.js holds its text.
-export const ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH = '033bf69c72f59';
-
-// Frozen PR #469 interpreter for exact, source-preserving upgrades. Do not edit.
-export const ANIM_INTERPRETER_PRE_OUT_JS = `// ---- The interpreter (the same in every template — edit the DATA above instead) ----
+// ---- The interpreter (the same in every template — edit the DATA above instead) ----
 // Steps play on the operator's cues: steps[0] on play(), each middle step on one next()
 // press, the last step on stop(). Keyframe times sit on the step's local clock and are
 // divided by the speed knob. A keyframe's ease is the ease INTO it (default: the step's).
 // When the data carries a "machine", the same cues drive its default path, and the state
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
+// ---- Eases (shared with the editor, which samples, splits and reverses keys with this code) ----
+// Capability: shared-ease-v2. noacgEase(text) returns the curve E(p) of an ease string, or null
+// when the string is outside this grammar; the interpreter then hands the string to GSAP as it
+// always did. A recognized ease reaches GSAP as this function, never as a string it could replace
+// with its default.
+//   none | linear, power0-4, quad, cubic, quart, quint, strong, sine, expo, circ, bounce, back(s)
+//   or elastic(a, p), each with .in, .out or .inOut (bare means .out) | steps(n) | steps(n, true)
+//   | cubic-bezier(x1, y1, x2, y2) with x1 and x2 in 0..1
+//   | slice(ease, a, b): that ease between a and b, rescaled to run from 0 to 1
+//   | hold: keep the departing key's value, then jump to the arriving key's (a Hold keyframe)
+//   | jump: jump to the arriving key's value at once, then keep it (a Hold played backwards).
+// Named curves repeat GSAP 3.15's formulas in its operation order, so they match it exactly.
+var noacgEaseCache = {};
+// GSAP rounds timeline times to 1e-7 s, so at a key's exact time the segment arriving there can
+// read 0.9999987 rather than 1. A hold jumps in the last 1e-5 of its segment, which that rounding
+// still reaches for any segment of 10 ms or more, and a jump mirrors it at the start.
+var NOACG_EASE_EDGE = 1e-5;
+var NOACG_EASE_POWER = { linear: 1, power0: 1, quad: 2, power1: 2, cubic: 3, power2: 3, quart: 4, power3: 4, quint: 5, power4: 5, strong: 5 };
+var NOACG_EASE_SHAPED = { sine: 1, expo: 1, circ: 1, bounce: 1, back: 1, elastic: 1 };
+var NOACG_EASE_TWO_PI = 2 * Math.PI;
+function noacgEaseHas(map, name) { return Object.prototype.hasOwnProperty.call(map, name); }
+function noacgEaseNumber(text) {
+  return /^\s*[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?\s*$/i.test(text) ? Number(text) : NaN;
+}
+// An argument list split on its top-level commas: a slice carries a whole ease inside it.
+function noacgEaseArgs(text) {
+  var parts = [], depth = 0, from = 0;
+  for (var i = 0; i < text.length; i++) {
+    var c = text.charAt(i);
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) { parts.push(text.slice(from, i)); from = i + 1; }
+  }
+  parts.push(text.slice(from));
+  return parts;
+}
+
+// Describe an ease string, or return null. The text itself is never rewritten.
+function noacgEaseParse(text) {
+  if (typeof text !== 'string') return null;
+  if (text === 'none') return { kind: 'none', text: text };
+  var m = /^([a-z][a-z0-9]*(?:-[a-z]+)?)(?:\.(in|out|inOut))?(?:\((.*)\))?$/.exec(text);
+  if (!m) return null;
+  var name = m[1], side = m[2], called = m[3] !== undefined, args = called ? noacgEaseArgs(m[3]) : [], values = [], i;
+  for (i = 0; i < args.length; i++) values.push(noacgEaseNumber(args[i]));
+  if (noacgEaseHas(NOACG_EASE_POWER, name) || noacgEaseHas(NOACG_EASE_SHAPED, name)) {
+    var most = name === 'back' ? 1 : name === 'elastic' ? 2 : 0;
+    if (called && (args.length > most || values.some(function (v) { return !isFinite(v); }))) return null;
+    return { kind: 'family', text: text, name: name, side: side || 'out', args: called ? values : [], argText: called ? '(' + m[3] + ')' : '' };
+  }
+  if ((name === 'hold' || name === 'jump') && !side && !called) return { kind: name, text: text };
+  if (side || !called) return null;
+  if (name === 'steps' && args.length <= 2) {
+    var count = values[0];
+    if (!(count >= 1 && count === Math.floor(count))) return null;
+    if (args.length === 2 && args[1].replace(/^\s+|\s+$/g, '') !== 'true') return null;
+    return { kind: 'steps', text: text, count: count, start: args.length === 2 };
+  }
+  if (name === 'cubic-bezier' && args.length === 4) {
+    if (values.some(function (v) { return !isFinite(v); })) return null;
+    // x1 and x2 inside 0..1 keep time monotonic, so every moment has one value.
+    if (!(values[0] >= 0 && values[0] <= 1 && values[2] >= 0 && values[2] <= 1)) return null;
+    return { kind: 'bezier', text: text, x1: values[0], y1: values[1], x2: values[2], y2: values[3] };
+  }
+  if (name === 'slice' && args.length === 3) {
+    var base = noacgEaseParse(args[0]), from = values[1], to = values[2];
+    // A slice rescales a moving part; a step, a hold or a jump has only flat parts and one instant.
+    if (!base || base.kind === 'slice' || base.kind === 'steps' || base.kind === 'hold' || base.kind === 'jump' || !(from >= 0 && from < to && to <= 1)) return null;
+    var curve = noacgEaseCurve(base), low = curve(from), high = curve(to);
+    // Equal ends leave nothing to rescale: no slice can carry motion between them.
+    if (!isFinite(low) || !isFinite(high) || low === high) return null;
+    return { kind: 'slice', text: text, base: base, from: from, to: to };
+  }
+  return null;
+}
+
+function noacgEaseBounceOut(t) {
+  if (t < 1 / 2.75) return 7.5625 * t * t;
+  if (t < 0.7272727272727273) return 7.5625 * Math.pow(t - 1.5 / 2.75, 2) + 0.75;
+  if (t < 0.9090909090909092) { var u = t - 2.25 / 2.75; return 7.5625 * u * u + 0.9375; }
+  return 7.5625 * Math.pow(t - 2.625 / 2.75, 2) + 0.984375;
+}
+// CSS cubic-bezier: solve x(s) = p (Newton, then bisection), then read y(s).
+function noacgEaseBezier(x1, y1, x2, y2) {
+  function at(a, b, s) { return ((1 - 3 * b + 3 * a) * s + 3 * b - 6 * a) * s * s + 3 * a * s; }
+  function slope(a, b, s) { return 3 * (1 - 3 * b + 3 * a) * s * s + 2 * (3 * b - 6 * a) * s + 3 * a; }
+  return function (p) {
+    if (p <= 0) return 0;
+    if (p >= 1) return 1;
+    var s = p, i, x, d;
+    for (i = 0; i < 8; i++) {
+      x = at(x1, x2, s) - p;
+      if (Math.abs(x) < 1e-12) return at(y1, y2, s);
+      d = slope(x1, x2, s);
+      if (Math.abs(d) < 1e-9) break;
+      s -= x / d;
+      if (s < 0 || s > 1) break;
+    }
+    var low = 0, high = 1;
+    for (s = p, i = 0; i < 100; i++) {
+      x = at(x1, x2, s);
+      if (Math.abs(x - p) < 1e-12) break;
+      if (x < p) low = s; else high = s;
+      s = (low + high) / 2;
+    }
+    return at(y1, y2, s);
+  };
+}
+
+// The curve of a parsed ease. Named families follow GSAP: out(p) = 1 - in(1 - p) unless GSAP
+// defines out directly (power, back, elastic, bounce), and inOut joins two halves at 0.5.
+function noacgEaseCurve(e) {
+  if (e.kind === 'none') return function (p) { return p; };
+  if (e.kind === 'hold') return function (p) { return p >= 1 - NOACG_EASE_EDGE ? 1 : 0; };
+  if (e.kind === 'jump') return function (p) { return p > NOACG_EASE_EDGE ? 1 : 0; };
+  if (e.kind === 'bezier') return noacgEaseBezier(e.x1, e.y1, e.x2, e.y2);
+  if (e.kind === 'steps') {
+    var share = 1 / e.count, levels = e.count + (e.start ? 0 : 1), lift = e.start ? 1 : 0;
+    return function (p) { var c = p > 0.99999999 ? 0.99999999 : p < 0 ? 0 : p; return ((levels * c | 0) + lift) * share; };
+  }
+  if (e.kind === 'slice') {
+    var base = noacgEaseCurve(e.base), a = e.from, b = e.to, low = base(a), span = base(b) - low;
+    return function (p) { return p === 0 ? 0 : p === 1 ? 1 : (base(a + (b - a) * p) - low) / span; };
+  }
+  var name = e.name, easeIn, easeOut, easeInOut;
+  if (noacgEaseHas(NOACG_EASE_POWER, name)) {
+    var r = NOACG_EASE_POWER[name];
+    easeIn = r === 1 ? function (p) { return p; } : function (p) { return Math.pow(p, r); };
+    easeOut = function (p) { return 1 - Math.pow(1 - p, r); };
+    easeInOut = function (p) { return p < 0.5 ? Math.pow(2 * p, r) / 2 : 1 - Math.pow(2 * (1 - p), r) / 2; };
+  } else if (name === 'back' || name === 'elastic') {
+    if (name === 'back') {
+      var s = e.args.length ? e.args[0] : 1.70158;
+      easeOut = function (p) { if (!p) return 0; var u = p - 1; return u * u * ((s + 1) * u + s) + 1; };
+    } else {
+      var type = e.side === 'inOut' ? undefined : e.side, amplitude = e.args[0], period = e.args[1];
+      var amp = amplitude >= 1 ? amplitude : 1;
+      var per = (period || (type ? 0.3 : 0.45)) / (amplitude < 1 ? amplitude : 1);
+      var shift = per / NOACG_EASE_TWO_PI * (Math.asin(1 / amp) || 0), w = NOACG_EASE_TWO_PI / per;
+      easeOut = function (p) { return p === 1 ? 1 : amp * Math.pow(2, -10 * p) * Math.sin((p - shift) * w) + 1; };
+    }
+    easeIn = function (p) { return 1 - easeOut(1 - p); };
+    easeInOut = function (p) { return p < 0.5 ? (1 - easeOut(1 - 2 * p)) / 2 : 0.5 + easeOut(2 * (p - 0.5)) / 2; };
+  } else {
+    if (name === 'bounce') {
+      easeOut = noacgEaseBounceOut;
+      easeIn = function (p) { return 1 - noacgEaseBounceOut(1 - p); };
+    } else {
+      easeIn = name === 'sine' ? function (p) { return p === 1 ? 1 : 1 - Math.cos(p * (NOACG_EASE_TWO_PI / 4)); }
+        : name === 'expo' ? function (p) { return Math.pow(2, 10 * (p - 1)) * p + p * p * p * p * p * p * (1 - p); }
+        : function (p) { return -(Math.sqrt(1 - p * p) - 1); };
+      easeOut = function (p) { return 1 - easeIn(1 - p); };
+    }
+    easeInOut = function (p) { return p < 0.5 ? easeIn(p * 2) / 2 : 1 - easeIn((1 - p) * 2) / 2; };
+  }
+  return e.side === 'in' ? easeIn : e.side === 'inOut' ? easeInOut : easeOut;
+}
+
+// The curve for an ease string, parsed once per string.
+function noacgEase(text) {
+  var key = '~' + text;
+  if (!noacgEaseHas(noacgEaseCache, key)) {
+    var parsed = noacgEaseParse(text);
+    noacgEaseCache[key] = parsed ? noacgEaseCurve(parsed) : null;
+  }
+  return noacgEaseCache[key];
+}
+// What the interpreter hands GSAP: the shared curve when recognized, else the string as before.
+function noacgEaseOf(text) { return noacgEase(text) || text; }
+
+// A dynamics builder takes the step's ease as a string (its API). It gets the shared curve only
+// when GSAP cannot read a string the shared grammar recognizes, so nothing it builds defaults.
+function noacgEaseForBuilder(text) {
+  return typeof gsap.parseEase(text) === 'function' ? text : noacgEaseOf(text);
+}
+
 var noacgStepsPlayed = 0; // how many steps have run (play() = the first)
+var noacgLiveTimeline = null;
+var noacgOutTimeline = null;
+
+// Capability: live-pose-out-v1. Capture before killing or applying any first key.
+function noacgOutActive() { return !!noacgOutTimeline; }
+function noacgRememberEntrance(tl) {
+  if (noacgOutTimeline) noacgOutTimeline.kill();
+  noacgOutTimeline = null;
+  noacgLiveTimeline = tl;
+  return tl;
+}
+
+// Exit motion uses object targets so an older stop() scaffold's killTweensOf('*')
+// cannot destroy a repeated Out. The property setter also runs during silent seek.
+function noacgExitProxy(element, prop, value) {
+  var proxy = {};
+  Object.defineProperty(proxy, 'value', {
+    get: function () { return value; },
+    set: function (next) { value = next; var vars = {}; vars[prop] = next; gsap.set(element, vars); }
+  });
+  return proxy;
+}
+function noacgExitVisible(element, selector) {
+  for (var el = element; el; el = el.parentElement) {
+    var style = getComputedStyle(el);
+    if (style.visibility === 'hidden' || style.display === 'none') return false;
+  }
+  for (var s = noacgStepsPlayed; s < NOACG_ANIM.steps.length - 1; s++) {
+    if ((NOACG_ANIM.steps[s].reveals || []).indexOf(selector) >= 0) return false;
+  }
+  return true;
+}
+// An interrupted exit stretches its last ease over the whole way from the live pose. A slice is
+// part of a curve rescaled to its own ends, so stretched that far it can swing well past both;
+// the interruption plays the whole curve it was cut from instead.
+function noacgWholeEase(text) {
+  var parsed = noacgEaseParse(text);
+  return parsed && parsed.kind === 'slice' ? parsed.base.text : text;
+}
+function noacgBuildExit(step, interrupted, silent) {
+  var speed = NOACG_ANIM.speed || 1;
+  var entries = [];
+  Object.keys(step.layers).forEach(function (selector) {
+    document.querySelectorAll(selector).forEach(function (element) {
+      if (!noacgExitVisible(element, selector)) return;
+      Object.keys(step.layers[selector]).forEach(function (prop) {
+        var keys = step.layers[selector][prop];
+        if (keys.length) entries.push({ element: element, prop: prop, keys: keys, live: gsap.getProperty(element, prop) });
+      });
+    });
+  });
+  if (noacgLiveTimeline) noacgLiveTimeline.kill();
+  gsap.killTweensOf('*');
+  var effects = Object.assign({}, step, { layers: {}, spans: undefined, hides: undefined, loops: undefined });
+  if (silent) { effects.calls = []; effects.dynamics = []; }
+  var tl = buildStepTimeline(effects);
+  // Gate only already-visible layers. Object targets survive legacy repeated stop().
+  if (!interrupted) Object.keys(step.spans || {}).forEach(function (selector) {
+    document.querySelectorAll(selector).forEach(function (element) {
+      if (!noacgExitVisible(element, selector)) return;
+      var spans = step.spans[selector], times = [0];
+      var proxy = noacgExitProxy(element, 'visibility', getComputedStyle(element).visibility);
+      spans.forEach(function (span) { times.push(span.start, span.end); });
+      times.sort(function (a, b) { return a - b; }).forEach(function (time) {
+        tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
+      });
+    });
+  });
+  (step.hides || []).forEach(function (selector) {
+    if (step.spans && step.spans[selector] !== undefined) return;
+    document.querySelectorAll(selector).forEach(function (element) {
+      tl.set(noacgExitProxy(element, 'opacity', gsap.getProperty(element, 'opacity')), { value: 0 }, step.duration / speed);
+    });
+  });
+  entries.forEach(function (entry) {
+    var keys = entry.keys;
+    var proxy = noacgExitProxy(entry.element, entry.prop, entry.live);
+    if (interrupted && keys.length > 1 && keys[keys.length - 1].time > keys[0].time) {
+      var last = keys[keys.length - 1], ease = noacgWholeEase(last.ease || step.ease), shape = noacgEaseParse(ease);
+      // A final jump (a Hold played backwards) happens where its own segment starts, as it does
+      // when Out is not interrupted; until then the live value holds.
+      var from = shape && shape.kind === 'jump' ? keys[keys.length - 2].time : keys[0].time;
+      tl.to(proxy, { value: last.value, duration: (last.time - from) / speed, ease: noacgEaseOf(ease) }, from / speed);
+    } else {
+      tl.set(proxy, { value: keys[0].value }, 0);
+      for (var k = 1; k < keys.length; k++) {
+        tl.to(proxy, { value: keys[k].value, duration: (keys[k].time - keys[k - 1].time) / speed,
+          ease: noacgEaseOf(keys[k].ease || step.ease) }, keys[k - 1].time / speed);
+      }
+    }
+  });
+  return tl;
+}
 
 // Visibility is independent of opacity. At an arriving hold keep the interval's
 // endpoint; a new cue's timeline owns its departing zero. Disjoint sets seek both ways.
@@ -68,7 +321,7 @@ function buildStepTimeline(index) {
           var lv = {};
           lv[prop] = kfs[j].value;
           lv.duration = (kfs[j].time - kfs[j - 1].time) / speed;
-          lv.ease = kfs[j].ease || step.ease;
+          lv.ease = noacgEaseOf(kfs[j].ease || step.ease);
           sub.to(selector, lv, (kfs[j - 1].time - kfs[0].time) / speed);
         }
         tl.add(sub, kfs[0].time / speed);
@@ -81,7 +334,7 @@ function buildStepTimeline(index) {
         var vars = {};
         vars[prop] = kfs[i].value;
         vars.duration = (kfs[i].time - kfs[i - 1].time) / speed;
-        vars.ease = kfs[i].ease || step.ease;
+        vars.ease = noacgEaseOf(kfs[i].ease || step.ease);
         tl.to(selector, vars, kfs[i - 1].time / speed);
       }
     });
@@ -130,7 +383,7 @@ function buildStepTimeline(index) {
       var build = window[name];
       if (typeof build !== 'function') return;
       var lead = (at || 0) / speed;
-      var segment = build(target, { speed: speed, ease: step.ease, lead: lead });
+      var segment = build(target, { speed: speed, ease: noacgEaseForBuilder(step.ease), lead: lead });
       if (segment) tl.add(segment, segment.noacgLeadApplied ? 0 : lead);
     })(step.dynamics[d].build, step.dynamics[d].target, step.dynamics[d].time);
   }
@@ -201,13 +454,16 @@ function noacgEntranceTimeline() {
   var tl = buildStepTimeline(0);
   tl.set(NOACG_ANIM.root, { opacity: 1 }, 0); // reveal the (CSS-hidden) graphic
   noacgApplyReveals(tl);
-  return noacgPaintFirstFrame(tl);
+  return noacgRememberEntrance(noacgPaintFirstFrame(tl));
 }
 
 // The exit recipe — the Out step plus the off-air cleanup, shared the same way.
-function noacgExitTimeline() {
+function noacgExitTimeline(interrupted, silent) {
+  if (!silent && noacgOutTimeline) return noacgOutTimeline;
   var steps = NOACG_ANIM.steps;
-  var tl = buildStepTimeline(steps.length - 1);
+  var step = steps.length > 1 ? steps[steps.length - 1] : { duration: 0, ease: 'none', layers: {} };
+  if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();
+  var tl = noacgBuildExit(step, interrupted, silent);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
   // (unless the Out step animates them itself). Containment is checked live.
   var root = document.querySelector(NOACG_ANIM.root);
@@ -215,17 +471,21 @@ function noacgExitTimeline() {
     (steps[s].reveals || []).forEach(function (selector) {
       var el = document.querySelector(selector);
       if (el && root && !root.contains(el) && !steps[steps.length - 1].layers[selector]) {
-        tl.to(selector, { opacity: 0, duration: 0.3 / (NOACG_ANIM.speed || 1) }, 0);
+        tl.to(noacgExitProxy(el, 'opacity', gsap.getProperty(el, 'opacity')), { value: 0, duration: Math.min(0.3, step.duration) / (NOACG_ANIM.speed || 1) }, 0);
       }
     });
   }
-  tl.set(NOACG_ANIM.root, { opacity: 0 }); // fully hidden; ready to play again
-  return tl;
+  if (root) tl.set(noacgExitProxy(root, 'opacity', gsap.getProperty(root, 'opacity')), { value: 0 }); // fully hidden; ready to play again
+  if (!silent) noacgOutTimeline = tl;
+  return noacgPaintFirstFrame(tl);
 }
 
 // buildInTimeline(): the entrance. Called by play(). With a machine, play() is the built-in
 // reset-and-enter event; without one, the classic linear walk (byte-for-byte).
 function buildInTimeline() {
+  if (noacgOutTimeline) noacgOutTimeline.kill();
+  noacgOutTimeline = null;
+  noacgLiveTimeline = null;
   if (NOACG_ANIM.machine) return noacgMachinePlay();
   noacgStepsPlayed = 1;
   var tl = noacgEntranceTimeline();
@@ -241,6 +501,7 @@ function revealNextStep() {
   // graphic the viewer is already watching, so a frame of the previous step's end pose is the
   // most visible case of all (noacgPaintFirstFrame above).
   var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+  noacgLiveTimeline = tl;
   noacgTrackPath();
   return tl;
 }
@@ -248,6 +509,7 @@ function revealNextStep() {
 // buildOutTimeline(): the exit. Called by stop() — the built-in event that is legal from
 // EVERY state (an operator can always take the graphic off air).
 function buildOutTimeline() {
+  if (noacgOutTimeline) return noacgOutTimeline;
   if (NOACG_ANIM.machine) return noacgMachineStop();
   var tl = noacgExitTimeline();
   noacgResetPointers();
@@ -447,7 +709,7 @@ function noacgStyleTimeline(group, edge) {
   if (!style || !root || !known[style]) return null;
   var speed = NOACG_ANIM.speed || 1;
   var half = ((edge.duration || 0.6) / speed) / 2;
-  var ease = edge.ease || 'power2.inOut';
+  var ease = noacgEaseOf(edge.ease || 'power2.inOut');
   var isPush = style.indexOf('push-') === 0;
   var axis = style === 'push-left' || style === 'push-right' ? 'xPercent' : 'yPercent';
   var sign = style === 'push-left' || style === 'push-up' ? -1 : 1;
@@ -750,6 +1012,9 @@ function noacgCanonicalPath(group, targetId) {
 // Return the graphic to its CSS rest: clear every inline style the animations wrote.
 // Self-contained (no editor needed), so snap works identically in exports.
 function noacgResetGraphic() {
+  if (noacgOutTimeline) noacgOutTimeline.kill();
+  noacgOutTimeline = null;
+  noacgLiveTimeline = null;
   var root = document.querySelector(NOACG_ANIM.root);
   if (root) {
     gsap.set(root, { clearProps: 'all' });
@@ -828,4 +1093,4 @@ function noacgMachineState() {
     out.groups[id] = noacgCurrent[id];
   }
   return out;
-}`;
+}

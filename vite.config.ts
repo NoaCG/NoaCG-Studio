@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
@@ -68,6 +69,23 @@ function appCleanUrl(): Plugin {
   };
 }
 
+/**
+ * THE BUILD A PAGE REPORTS (src/control/livePath.ts `LIVE_BUILD`): the short commit, so a renderer
+ * on air can say which deploy it was loaded from. Vercel hands the commit in the build env; a local
+ * build or dev server asks the checkout; neither means `dev`.
+ */
+function buildStamp(): string {
+  let sha = process.env.VERCEL_GIT_COMMIT_SHA ?? '';
+  if (!sha) {
+    try {
+      sha = execSync('git rev-parse HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      // not a checkout: `dev` below
+    }
+  }
+  return sha ? sha.slice(0, 7) : 'dev';
+}
+
 export default defineConfig(({ command, mode }) => {
   // Keep the Claude preview launch config pointing at this checkout's port (worktrees get
   // their own — see scripts/dev-port.mjs). Serve-time only: builds shouldn't touch files.
@@ -84,6 +102,7 @@ export default defineConfig(({ command, mode }) => {
     }
   }
   return {
+    define: { __NOACG_BUILD__: JSON.stringify(buildStamp()) },
     // renderApiPlugin mounts the real api/render handlers on the dev server, so the cloud
     // render loop runs fully offline (local Remotion executor) during development.
     plugins: [

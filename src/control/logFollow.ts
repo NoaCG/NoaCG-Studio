@@ -97,6 +97,8 @@ export function createLogFollower<R extends { id: number }>(opts: {
   onRow: (row: R) => void;
   /** A walk started (true) or the last one in flight ended (false). */
   onWalk?: (walking: boolean) => void;
+  /** A gap outlived the reorder window and sent the follow to the tail (counted by the output). */
+  onHole?: () => void;
   now?: () => number;
   random?: () => number;
 }): LogFollower<R> {
@@ -212,6 +214,7 @@ export function createLogFollower<R extends { id: number }>(opts: {
           drainHeld();
           if (held.size > 0) {
             held.clear();
+            opts.onHole?.();
             void refill('ahead');
           }
         }, REORDER_WINDOW_MS);

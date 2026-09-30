@@ -97,17 +97,12 @@ export function logTopic(showId: string): string {
 export const LOG_ROW_EVENT = 'row';
 
 /**
- * THE PRIVATE TOPIC THE NUMBERED LOG IS DELIVERED ON (protocol 2, migration 0070; its read policy
- * is 0068's): one `batch` frame per inserting statement, carrying that statement's rows with their
- * per-production `seq`, the head's epoch, and the summary of every graphic it touched
- * (src/control/seqFollow.ts). Step 1's Presence shares the topic, so a page joins it once
- * (`joinLiveTopic` in hostedControl.ts). Like the other two, only the database writes to it.
+ * THE NUMBERED LOG'S FRAME (protocol 2, migration 0070), on the production's private `live-<show>`
+ * topic (livePath.ts `liveTopic`; its read policy is 0068's): one `batch` frame per inserting
+ * statement, carrying that statement's rows with their per-production `seq`, the head's epoch, and
+ * the summary of every graphic it touched (src/control/seqFollow.ts). Step 1's Presence shares the
+ * topic, so a page joins it once (livePath.ts `joinLiveTopic`). Only the database sends this event.
  */
-export function liveTopic(showId: string): string {
-  return `live-${showId}`;
-}
-
-/** The live topic's broadcast event name for a numbered frame. */
 export const LIVE_BATCH_EVENT = 'batch';
 
 /**

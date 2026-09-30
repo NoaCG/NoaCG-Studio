@@ -23,8 +23,9 @@ import { audienceBrandFor } from '../audience/audienceBrand';
 // boundary where a library draft becomes something a renderer trusts.
 import { assertProductionGate } from '../validation/productionGate';
 import { joinNameCandidates } from './joinName';
-import { COMMAND_EVENT, LIVE_BATCH_EVENT, LOG_ROW_EVENT, commandTopic, liveTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
+import { COMMAND_EVENT, LOG_ROW_EVENT, commandTopic, logTopic, readCommandFrame, withOid } from './commandRoads';
 import { ATTEMPT_TIMEOUT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
+import { joinLiveTopic, noteSend, withSender } from './livePath';
 import { createSeqFollower, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
@@ -1089,7 +1090,9 @@ export async function sendControlVerb(opts: {
   const fast: ControlSendItem[] = [];
   const held: string[] = [];
   for (const item of opts.items) {
-    const stamped: ControlSendItem = { graphic: item.graphic, msg: withOid(item.msg) };
+    // Who pressed, and when, ride beside the id (livePath.ts `withSender`), so an output can time
+    // the command from the press to its screen.
+    const stamped: ControlSendItem = { graphic: item.graphic, msg: withSender(withOid(item.msg), now) };
     const key = slowKey(showId, item.graphic);
     // Left to right, so an event EARLIER IN THE SAME BATCH already holds its graphic back — a
     // snap-then-update pair must not have its second half overtake its first.
@@ -1135,7 +1138,9 @@ export async function sendControlVerb(opts: {
       // commit after a later press.
       await sendWithResend((signal) => sendHostedControlBatch(opts.slug, wire, signal), resend);
     }
+    noteSend(true);
   } catch (e) {
+    noteSend(false);
     // THE PICTURE MOVED HERE AND NOWHERE ELSE. The surfaces word their notice off this flag,
     // because "Take failed" is a lie to an operator looking at the graphic on their own monitor.
     const failed = e as Error & { aired?: boolean };
@@ -1391,12 +1396,15 @@ export async function followControlLog(opts: {
    *  surface with a debug line has anywhere to put. Never joining means commands still arrive,
    *  on the durable road, at yesterday's speed. */
   onCommandStatus?: (status: string) => void;
+  /** Told each time a gap in the ids outlived the reorder window and sent the follow to the tail:
+   *  a count the output reports (livePath.ts). */
+  onHole?: () => void;
   /**
    * PROTOCOL 2 (the resolve's `seq`): follow the numbered log on `live-<show>` instead, with the
-   * same `onRow` and `onStatus`. `from`, `tail` and the fast road are the id road's and are not
-   * used then: a numbered frame arrives at the same moment as the command frame (both are written
-   * by one transaction), so there is nothing for a fast road to win, and every frame also keeps the
-   * page's revisions current for its next press.
+   * same `onRow`, `onHole` and `onStatus`. `from`, `tail` and the fast road are the id road's and
+   * are not used then: a numbered frame arrives at the same moment as the command frame (both are
+   * written by one transaction), so there is nothing for a fast road to win, and every frame also
+   * keeps the page's revisions current for its next press.
    */
   seq?: SeqPlan;
 }): Promise<() => void> {
@@ -1415,6 +1423,7 @@ export async function followControlLog(opts: {
       // road (see `recovering` above): applied to its monitor now, they would land ahead of older
       // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
       onBusy: (busy) => (busy ? recovering.add(showId) : recovering.delete(showId)),
+      onHole: opts.onHole,
       onStatus: opts.onStatus,
     });
   }
@@ -1430,6 +1439,7 @@ export async function followControlLog(opts: {
     tail: opts.tail,
     onRow: opts.onRow,
     onWalk: (walking) => (walking ? recovering.add(opts.showId) : recovering.delete(opts.showId)),
+    onHole: opts.onHole,
   });
   const { onCommand } = opts;
   let everJoined = false;
@@ -1470,7 +1480,7 @@ export async function followControlLog(opts: {
  * The renderer calls this directly, because it needs each batch whole (`replayed` is where a
  * superseded animation may be elided); a page gets it through `followControlLog`'s `seq`.
  */
-export async function followLiveSeq(opts: {
+export function followLiveSeq(opts: {
   showId: string;
   from: number;
   epoch: string | null;
@@ -1480,8 +1490,10 @@ export async function followLiveSeq(opts: {
   /** `reset`: the production was published again, and every seq held is from a log that is gone. */
   onEpoch?: (epoch: string | null, reset: boolean) => void;
   onBusy?: (busy: boolean) => void;
+  /** A gap outlived the reorder window and sent the follow to the tail (livePath.ts counts it). */
+  onHole?: () => void;
   onStatus?: (status: ControlFollowStatus) => void;
-}): Promise<() => void> {
+}): () => void {
   const follower = createSeqFollower<SeqLogRow>({
     from: opts.from,
     epoch: opts.epoch,
@@ -1490,6 +1502,7 @@ export async function followLiveSeq(opts: {
     onHead: opts.onHead,
     onEpoch: opts.onEpoch,
     onBusy: opts.onBusy,
+    onHole: opts.onHole,
   });
   let everJoined = false;
   let status = '';
@@ -1498,7 +1511,8 @@ export async function followLiveSeq(opts: {
     report();
     void follower.refill();
   }, CONTROL_POLL_MS);
-  const leave = await joinLiveTopic(opts.showId, {
+  // The topic Step 1's Presence is on: one join per page and production (livePath.ts).
+  const topic = joinLiveTopic(opts.showId, {
     onBatch: (payload) => {
       const frame = readSeqFrame(payload);
       if (frame) follower.offer(frame);
@@ -1515,50 +1529,7 @@ export async function followLiveSeq(opts: {
   return () => {
     clearInterval(poll);
     follower.stop();
-    leave();
-  };
-}
-
-interface LiveListener {
-  onBatch?: (payload: unknown) => void;
-  onStatus?: (status: string) => void;
-}
-
-/** One join of `live-<show>` per page, however many listeners (the numbered log here, Step 1's
- *  Presence beside it): Realtime hands back the SAME channel for a topic already joined, and a
- *  second `subscribe` on it never reports, so each listener registers here instead. */
-const liveJoins = new Map<string, { listeners: Set<LiveListener>; status: string; leave: () => void }>();
-
-export async function joinLiveTopic(showId: string, listener: LiveListener): Promise<() => void> {
-  const sb = await getSupabase();
-  if (!sb) return () => {};
-  let join = liveJoins.get(showId);
-  if (!join) {
-    const listeners = new Set<LiveListener>();
-    const entry = { listeners, status: '', leave: () => {} };
-    const channel = sb
-      .channel(liveTopic(showId), { config: { private: true } })
-      .on('broadcast', { event: LIVE_BATCH_EVENT }, (frame) => {
-        for (const each of listeners) each.onBatch?.((frame as { payload?: unknown }).payload);
-      })
-      .subscribe((status) => {
-        entry.status = status;
-        for (const each of listeners) each.onStatus?.(status);
-      });
-    entry.leave = () => void sb.removeChannel(channel);
-    liveJoins.set(showId, entry);
-    join = entry;
-  }
-  const joined = join;
-  joined.listeners.add(listener);
-  // A listener that arrives after the join hears where it stands, or it would wait for a change.
-  if (joined.status) listener.onStatus?.(joined.status);
-  return () => {
-    joined.listeners.delete(listener);
-    if (joined.listeners.size === 0 && liveJoins.get(showId) === joined) {
-      liveJoins.delete(showId);
-      joined.leave();
-    }
+    topic.leave();
   };
 }
 

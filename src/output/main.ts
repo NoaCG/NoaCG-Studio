@@ -36,6 +36,19 @@ import {
   type SpeakingClockPair,
 } from '../control/matchClockWire';
 import { createAppliedOnce } from '../control/commandRoads';
+import {
+  LIVE_BUILD,
+  LIVE_PROTOCOL,
+  createLiveStats,
+  describeLiveSummary,
+  hostEngine,
+  joinLivePresence,
+  liveEntry,
+  liveInstanceId,
+  type LiveEntry,
+  type LivePresenceStatus,
+  type LiveRoad,
+} from '../control/livePath';
 import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
 import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
@@ -72,10 +85,9 @@ function dbg(key: string, value: string): void {
  * overlay. It costs nothing and settles a question that otherwise needs a changelog archaeology
  * session per install.
  */
-if (debugEl) {
-  const chrome = / (?:Chrome|Chromium)\/(\d+)/.exec(navigator.userAgent);
-  dbg('engine', chrome ? `Chromium ${chrome[1]}` : navigator.userAgent.slice(0, 60));
-}
+// The host's own marker (CasparCG's `window.caspar`) can arrive after this script runs, so the
+// line is written again once the production resolves (livePath.ts `hostEngine`).
+dbg('engine', hostEngine());
 
 /** The wrong-URL / offline card. Never part of a live production's air. */
 function unavailable(reason: string): void {
@@ -126,6 +138,54 @@ async function boot(): Promise<void> {
   dbg('graphics', stage.graphics.join(', '));
   // A graphic a font kept waiting past the cap airs on a fallback face (stage.ts `held`).
   stage.onHeld(() => dbg('fonts', heldLine(stage.held) ?? ''));
+
+  // ── THE LIVE PATH, SEEN (control/livePath.ts): who this renderer is, how commands reach it, and
+  // the Presence entry the operator pages build their health line from. Report-only: nothing
+  // here changes what airs, and a server without the live topic (migration 0068) refuses only
+  // the Presence join. ──
+  const identity = { id: liveInstanceId(), build: LIVE_BUILD, protocol: LIVE_PROTOCOL };
+  dbg('engine', hostEngine());
+  dbg('identity', `${identity.id} · build ${identity.build} · protocol ${identity.protocol}`);
+  let logJoined: boolean | null = null;
+  let cmdJoined: boolean | null = null;
+  let presenceStatus: LivePresenceStatus = 'joining';
+  const live = createLiveStats({
+    onChange: () => {
+      // Built only where it is shown: the summary sorts its samples, and a playout box's main
+      // thread is the one that must not miss frames.
+      if (debug) dbg('live', describeLiveSummary(live.summary()));
+      presence.touch();
+    },
+  });
+  const entry = (): LiveEntry => liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary());
+  const presence = joinLivePresence({
+    showId: resolved.id,
+    entry,
+    onStatus: (status) => {
+      presenceStatus = status;
+      dbg(
+        'presence',
+        status === 'joined'
+          ? 'announced on the live topic'
+          : status === 'down'
+            ? 'NOT JOINED - operator pages fall back to the heartbeat'
+            : status,
+      );
+    },
+  });
+  // For specs and for whoever opens the console on a playout box.
+  (window as unknown as { __noacgLive?: unknown }).__noacgLive = {
+    identity,
+    engine: hostEngine,
+    entry,
+    summary: () => live.summary(),
+    presence: () => presenceStatus,
+  };
+  /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
+   *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
+   *  refill once, and only if a row of it was new here: the poll and every rejoin re-read a window
+   *  behind the cursor (logFollow.ts), which mostly returns rows already applied. */
+  const fromTail = new WeakMap<ControlEventRow, { counted: boolean }>();
 
   /**
    * HOW MANY ENTRANCES THIS RENDERER HAS PLAYED, published on the body as `data-plays`.
@@ -247,11 +307,24 @@ async function boot(): Promise<void> {
    * event may arrive here fast and falls back to now, which it never reads.
    */
   const applied = createAppliedOnce();
-  // `animate` false is a `play` or `stop` a later one of the same graphic in the same refill
+  // `road` is set for what the LIVE follow delivers and absent for the boot catch-up, whose rows
+  // are history rather than latency (livePath.ts counts and times the former only).
+  // `animate` false is an entrance a later `play` or `stop` of the same graphic in the same refill
   // replaces (seqFollow.ts `supersededAnimations`): everything about the row applies except the
   // stage animation nobody would see finish.
-  const applyCommand = (graphic: string, incoming: ControlEventRow['msg'], createdAt: string | undefined, animate = true) => {
-    if (!applied.claim(incoming)) return;
+  const applyCommand = (
+    graphic: string,
+    incoming: ControlEventRow['msg'],
+    createdAt: string | undefined,
+    road?: LiveRoad,
+    animate = true,
+  ) => {
+    const receivedAt = Date.now();
+    if (road) live.received(road, incoming);
+    if (!applied.claim(incoming)) {
+      if (road) live.duplicate(incoming);
+      return;
+    }
     const row = { graphic, msg: incoming, created_at: createdAt };
     // `let`, because an update row's CLOCK fields are forwarded as this renderer HOLDS them
     // rather than as the row carried them — see the rewrite in the update branch below.
@@ -320,11 +393,12 @@ async function boot(): Promise<void> {
       stage.apply(row.graphic, msg.t === 'event' ? { ...msg, at: rowInstant(row.created_at, Date.now()) } : msg);
       if (msg.t === 'play') countPlay();
     }
+    if (road) live.applied(road, incoming, receivedAt);
     if (clock && effect?.when === 'after') applyClock(row.graphic, { [clock.field]: effect.value });
     if (pairEffect?.when === 'after') applyClock(row.graphic, pairEffect.values);
   };
 
-  const apply = (row: ControlEventRow, animate = true) => {
+  const apply = (row: ControlEventRow, road?: LiveRoad, animate = true) => {
     // The id baseline is the highest id applied on either road: that is what an older reader of
     // the report (an old renderer, a page's id-road boot replay) takes as "already in the snapshot".
     lastAppliedId = Math.max(lastAppliedId, row.id);
@@ -333,7 +407,7 @@ async function boot(): Promise<void> {
     // The FAST road cannot reach this guard and does not need to: it is only joined once the
     // boot catch-up has finished, so nothing it delivers can predate the snapshot.
     if (alreadyInSnapshot(snapshotAt, row.graphic, position(row))) return;
-    applyCommand(row.graphic, row.msg, row.created_at, animate);
+    applyCommand(row.graphic, row.msg, row.created_at, road, animate);
     // Status rows ('cue'/'staged'/'live') are for the operator pages; the stage ignored them
     // and so does the report path.
     const t = row.msg.t;
@@ -464,6 +538,9 @@ async function boot(): Promise<void> {
   let warnedNotJoined = false;
   dbg('realtime', 'subscribing…');
   const onStatus = ({ status, everJoined }: ControlFollowStatus) => {
+    // What the Presence entry says about the log road: joined NOW, not ever.
+    logJoined = status === 'SUBSCRIBED';
+    presence.touch();
     const poll = `${Math.round(CONTROL_POLL_MS / 1000)} s`;
     dbg('realtime', everJoined ? `following (${status})` : `NOT JOINED (${status || 'no status'}) — polling every ${poll}`);
     // Only after a full interval with no join: the first status a healthy channel reports can
@@ -479,10 +556,11 @@ async function boot(): Promise<void> {
   if (seqMode) {
     // THE NUMBERED LOG (hostedControl.ts followLiveSeq, seqFollow.ts): in seq order, a gap is a
     // row in flight and never another production, and a refill applies every row it brings but
-    // elides an entrance or exit a later one of the same graphic replaces. No fast road: the
-    // numbered frame is written by the same transaction as the command frame and arrives with it.
+    // elides an entrance a later play or stop of the same graphic replaces. No fast road: the
+    // numbered frame is written by the same transaction as the command frame and arrives with it,
+    // on the live topic, which is this renderer's log road here.
     dbg('commands', 'numbered log (the fast road is not needed)');
-    await followLiveSeq({
+    followLiveSeq({
       showId: resolved.id,
       from: lastAppliedSeq,
       epoch: followEpoch,
@@ -491,9 +569,12 @@ async function boot(): Promise<void> {
         return tail.ok ? tail.value : null;
       },
       onRows: (rows, replayed) => {
+        // A tail read hands over only rows that were new here, so each one that does is a refill.
+        if (replayed) live.refilled();
         const quiet = replayed ? supersededAnimations(rows) : null;
-        for (const row of rows) apply(row, !quiet?.has(row.seq));
+        for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
       },
+      onHole: () => live.hole(),
       // REPUBLISHED under the same address (unpublish + publish keeps the id and the slugs): a new
       // log numbered from 1, so no baseline this renderer holds means anything in it, and every
       // graphic reports again. Without `reset` it is the first epoch of the log already followed.
@@ -518,20 +599,34 @@ async function boot(): Promise<void> {
       // then the next hole in the live stream starts the walk again.
       tail: async (after) => {
         const tail = await untilAnswered(() => controlOutputTail(outputSlug, after), { limit: 5 });
-        return tail.ok ? tail.value : [];
+        const rows = tail.ok ? tail.value : [];
+        const read = { counted: false };
+        rows.forEach((row) => fromTail.set(row, read));
+        return rows;
       },
-      onRow: (row) => apply(row),
+      onRow: (row) => {
+        const read = fromTail.get(row);
+        if (read && !read.counted) {
+          read.counted = true;
+          live.refilled();
+        }
+        apply(row, read ? 'tail' : 'log');
+      },
+      onHole: () => live.hole(),
       // THE FAST ROAD, on the surface it matters most for: the audience's picture. Every command
       // here also arrives as a durable row a few hundred milliseconds later, and `applyCommand`
       // drops whichever copy is second.
-      onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined)),
+      onCommand: (items) => items.forEach((item) => applyCommand(item.graphic, item.msg, undefined, 'fast')),
       // THE FAST ROAD, on the debug overlay, because it is the only place its absence can be seen.
       // A command channel that never joins costs no correctness - every command still arrives as a
       // durable row - so nothing goes red and air simply goes back to being a few hundred
       // milliseconds late. This line is what turns that into something an operator can read out to
       // whoever asks why the graphics feel slow again.
-      onCommandStatus: (status) =>
-        dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`),
+      onCommandStatus: (status) => {
+        cmdJoined = status === 'SUBSCRIBED';
+        presence.touch();
+        dbg('commands', status === 'SUBSCRIBED' ? 'fast road joined' : `NOT JOINED (${status}) — the log road only`);
+      },
       onStatus,
     });
   }

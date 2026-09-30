@@ -115,6 +115,8 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
   onEpoch?: (epoch: string | null, reset: boolean) => void;
   /** Holding rows or reading the tail (true), or level with everything it has been told (false). */
   onBusy?: (busy: boolean) => void;
+  /** A gap outlived the reorder window and sent the follow to the tail (livePath.ts counts it). */
+  onHole?: () => void;
   random?: () => number;
 }): SeqFollower<R> {
   const random = opts.random ?? Math.random;
@@ -183,12 +185,16 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
     flushHeads();
     if (held.size === 0) clearHole();
   };
-  /** Once `ms` has passed, apply what has arrived since, and read the tail for what still has not. */
-  const armHole = (ms: number) => {
+  /** Once `ms` has passed, apply what has arrived since, and read the tail for what still has not.
+   *  `hole`: a gap is being given its reorder window (a retry after a failed read is not a new one). */
+  const armHole = (ms: number, hole: boolean) => {
     holeTimer ??= setTimeout(() => {
       holeTimer = null;
       drain();
-      if (held.size > 0) void refill();
+      if (held.size > 0) {
+        if (hole) opts.onHole?.();
+        void refill();
+      }
       noteBusy();
     }, ms);
   };
@@ -229,7 +235,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
           void refill();
         } else if (!stopped && held.size > 0) {
           // The read failed or fell short while rows wait behind a gap: try again soon.
-          armHole(HELD_RETRY_MS);
+          armHole(HELD_RETRY_MS, false);
         }
         noteBusy();
       }
@@ -245,7 +251,7 @@ export function createSeqFollower<R extends SeqRowLike>(opts: {
       if (frame.head) waitHead(frame.head);
       for (const row of frame.rows) if (row.seq > cursor) held.set(row.seq, row);
       drain();
-      if (held.size > 0) armHole(REORDER_WINDOW_MS);
+      if (held.size > 0) armHole(REORDER_WINDOW_MS, true);
       noteBusy();
     },
     joined() {

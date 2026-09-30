@@ -8,7 +8,7 @@
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
 import { locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
-import { ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
+import { ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
 
@@ -85,13 +85,15 @@ function noacgBuildExit(step, interrupted, silent) {
   var effects = Object.assign({}, step, { layers: {}, spans: undefined, hides: undefined, loops: undefined });
   if (silent) { effects.calls = []; effects.dynamics = []; }
   var tl = buildStepTimeline(effects);
-  // Gate only already-visible layers. Object targets survive legacy repeated stop().
-  if (!interrupted) Object.keys(step.spans || {}).forEach(function (selector) {
+  // Gate only already-visible layers. Object targets survive legacy repeated stop(). An
+  // interrupted exit keeps each layer's visibility until it ends and then takes the Out's end
+  // state, which also reaches a layer outside the root that the root's own hide cannot.
+  Object.keys(step.spans || {}).forEach(function (selector) {
     document.querySelectorAll(selector).forEach(function (element) {
       if (!noacgExitVisible(element, selector)) return;
-      var spans = step.spans[selector], times = [0];
+      var spans = step.spans[selector], times = [interrupted ? step.duration : 0];
       var proxy = noacgExitProxy(element, 'visibility', getComputedStyle(element).visibility);
-      spans.forEach(function (span) { times.push(span.start, span.end); });
+      if (!interrupted) spans.forEach(function (span) { times.push(span.start, span.end); });
       times.sort(function (a, b) { return a - b; }).forEach(function (time) {
         tl.set(proxy, { value: noacgSpanVisible(spans, time, step.duration) ? 'visible' : 'hidden' }, time / speed);
       });
@@ -311,6 +313,10 @@ function noacgExitTimeline(interrupted, silent) {
   var steps = NOACG_ANIM.steps;
   var step = steps.length > 1 ? steps[steps.length - 1] : { duration: 0, ease: 'none', layers: {} };
   if (interrupted === undefined) interrupted = !!noacgLiveTimeline && noacgLiveTimeline.time() < noacgLiveTimeline.duration();
+  // Out from an earlier step, with a Next cue not yet played, leaves from what is on screen as an
+  // interrupted Out does: never through the last step's pose or motion the viewer has not seen.
+  // A machine's states are an authored graph, not a linear reveal, so it keeps its own exit.
+  if (!NOACG_ANIM.machine && noacgStepsPlayed > 0 && noacgStepsPlayed < steps.length - 1) interrupted = true;
   var tl = noacgBuildExit(step, interrupted, silent);
   // Press-revealed layers OUTSIDE the root miss its hide — fade them with the exit
   // (unless the Out step animates them itself). Containment is checked live.
@@ -341,10 +347,11 @@ function buildInTimeline() {
   return tl;
 }
 
-// revealNextStep(): one default-path advance per next() press; null when only Out remains.
+// revealNextStep(): one default-path advance per next() press; null when only Out remains, and
+// once Out has started, until the next play(): a Next cue never plays on the way out.
 function revealNextStep() {
   if (NOACG_ANIM.machine) return noacgMachineNext();
-  if (noacgStepsPlayed >= NOACG_ANIM.steps.length - 1) return null;
+  if (noacgOutTimeline || noacgStepsPlayed >= NOACG_ANIM.steps.length - 1) return null;
   // Paint the step's opening values on the press, not a frame after it: next() is pressed on a
   // graphic the viewer is already watching, so a frame of the previous step's end pose is the
   // most visible case of all (noacgPaintFirstFrame above).
@@ -1075,7 +1082,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH].includes(contentHash(body))) return null;
+      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH].includes(contentHash(body))) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

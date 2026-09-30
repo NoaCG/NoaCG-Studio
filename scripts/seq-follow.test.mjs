@@ -31,6 +31,7 @@ function rig(t, { from = 0, epoch = 'E1', random } = {}) {
   const heads = [];
   const busy = [];
   let failNext = 0;
+  let holes = 0;
   let duringRead = null;
   const follower = createSeqFollower({
     from,
@@ -56,6 +57,7 @@ function rig(t, { from = 0, epoch = 'E1', random } = {}) {
     onEpoch: (e, reset) => epochs.push([e, reset]),
     onHead: (head, e) => heads.push([head.seq, e]),
     onBusy: (b) => busy.push(b),
+    onHole: () => (holes += 1),
     random,
   });
   const settle = async () => {
@@ -71,6 +73,7 @@ function rig(t, { from = 0, epoch = 'E1', random } = {}) {
     heads,
     busy,
     failNext: (n) => (failNext = n),
+    holes: () => holes,
     duringNextRead: (fn) => (duringRead = fn),
     commit: (...seqs) => seqs.forEach((s) => log.rows.set(s, row(s))),
     frame: (seqs, e = log.epoch, head) => follower.offer({ epoch: e, rows: seqs.map((s) => row(s)), ...(head ? { head } : {}) }),
@@ -183,6 +186,23 @@ test('a failed read with rows still held tries again a second later, not at the 
   await r.wait(HELD_RETRY_MS);
   assert.equal(r.reads.length, 2);
   assert.deepEqual(r.applied, [1, 2]);
+});
+
+test('a hole is counted once, when its window runs out; a reorder or a retry after a failed read is none', async (t) => {
+  const r = rig(t);
+  r.frame([2]);
+  await r.wait(REORDER_WINDOW_MS - 5);
+  r.frame([1]);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.holes(), 0, 'a gap closed inside the window was a reorder, not a hole');
+  r.commit(1, 2, 3, 4);
+  r.failNext(1);
+  r.frame([4]);
+  await r.wait(REORDER_WINDOW_MS);
+  assert.equal(r.holes(), 1);
+  await r.wait(HELD_RETRY_MS);
+  assert.deepEqual(r.applied, [1, 2, 3, 4]);
+  assert.equal(r.holes(), 1, 'the retry filled the same hole');
 });
 
 test('another epoch in a frame (unpublish + republish) starts the log again from 1', async (t) => {

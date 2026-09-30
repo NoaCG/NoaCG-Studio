@@ -51,8 +51,12 @@ headline goes behind the expander instead.
 
 ## Evidence
 
-- `src/components/home/ProductionPage.tsx` - `outputHealth()` (the three reachable states and
-  their wording) and the header gate around `data-testid="renderer-status"`, which carries the
-  2026-08-29 walk note about reading a false fault with no browser source set up.
-- `docs/CLOUD_PLAYOUT.md` §3 - the heartbeat (`output_seen_at`) that is currently the whole of
-  what the renderer reports, and therefore the whole of what any indicator can say today.
+- `src/control/livePath.ts` - `describeOutputHealth()` (every reachable state and its wording),
+  and `src/components/control/OutputHealth.tsx`, the line the production page
+  (`data-testid="renderer-status"`, whose header gate carries the 2026-08-29 walk note about
+  reading a false fault with no browser source set up) and the hosted page now share.
+- Since 2026-09-30 (Phase 6 Step 1) a renderer reports more than a heartbeat: its engine, build,
+  whether its log and command channels are joined, per-road counters and press-to-frame latency,
+  in a Presence entry on `live-<show id>` once migration 0068 is on the server
+  (`docs/CLOUD_PLAYOUT.md` §3). That is most of the data a technician view would show; the
+  always-visible light and the expander are still not built, per the ruling above.

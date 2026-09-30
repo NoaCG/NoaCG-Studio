@@ -245,6 +245,7 @@ import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
+import { OutputHealthLine, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -490,6 +491,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * anything, which is also the offline and unpublished case - there is no channel to judge.
    */
   const [follow, setFollow] = useState<ControlFollowStatus | null>(null);
+  /** The FAST road's own join status (null until it reports), for this page's Presence entry. */
+  const [commandStatus, setCommandStatus] = useState<string | null>(null);
   /** The follow's resolve has FAILED and is being asked again (a database or PostgREST outage).
    *  Before this the follow gave up on one failure and the page stayed silent until a reload. */
   const [resolveWaiting, setResolveWaiting] = useState(false);
@@ -524,6 +527,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [now, setNow] = useState(() => Date.now());
   const [openedAt] = useState(() => Date.now());
   const hostedSlug = show?.hostedSlug ?? null;
+  /** This page on the production's live topic, and the outputs it hears there (the health line). */
+  const livePresence = useLivePresence(hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null, 'production', {
+    log: follow ? follow.status === 'SUBSCRIBED' : null,
+    cmd: commandStatus === null ? null : commandStatus === 'SUBSCRIBED',
+  });
   /** The production's row id — the command channel's key on the fast road. Read out here rather
    *  than inside the verbs so a send depends on the ID and not on the whole show record. */
   const showId = show?.id ?? null;
@@ -1355,6 +1363,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         onStatus: (s) => {
           if (alive) setFollow(s);
         },
+        onCommandStatus: (s) => {
+          if (alive) setCommandStatus(s);
+        },
         // THE FAST ROAD. The same verbs, broadcast by the database on the production's private
         // topic and here before their rows are - which is what moves this page's PROGRAM monitor
         // when the press came from another operator's phone.
@@ -1836,7 +1847,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const presenterUrl = show.presenterSlug ? presenterPageUrl(show.presenterSlug) : null;
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
   const unpublishedChanges = !!show.publishedAt && show.updatedAt > show.publishedAt;
-  const rendererFresh = outputSeenAt ? now - Date.parse(outputSeenAt) < 90_000 : false;
   const clashes = duplicateLayers(show.graphics);
 
   /**
@@ -3459,7 +3469,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       now={now}
       openedAt={openedAt}
       hostedSlug={hostedSlug}
-      rendererFresh={rendererFresh}
+      livePresence={livePresence}
       outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
       follow={follow}
@@ -4281,42 +4291,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
 /** The shell: header + the two-column body, plus the keyboard verbs. Split out so the page body
  *  above reads as the surface it is rather than as chrome wrapped around a surface. */
-/**
- * The browser-output renderer's health, in the operator's words plus what to do about it.
- *
- * The WORD and the SENTENCE are chosen together, in one place, because they are one statement:
- * a status line nobody can act on is decoration, and two parallel ternaries are how the label
- * and its explanation come to describe different states.
- *
- * The three states are the only ones reachable, and the header decides SEPARATELY whether to ask
- * at all - see its own comment. `outputSeenAt` is the renderer's last heartbeat
- * (docs/CLOUD_PLAYOUT.md §3), `rendererFresh` that heartbeat inside the staleness window.
- */
-function outputHealth(rendererFresh: boolean, outputSeenAt: string | null): { label: string; why: string } {
-  if (rendererFresh) {
-    return {
-      label: '● output connected',
-      why: 'A browser source is loading the output URL and reporting in. What you take goes on air.',
-    };
-  }
-  if (outputSeenAt) {
-    return {
-      label: '○ output not answering',
-      why: 'The output URL was loading, but nothing has reported in for over a minute. Check the browser source (OBS, vMix, CasparCG) is still open on it.',
-    };
-  }
-  return {
-    label: '○ output not loaded yet',
-    why: 'Nobody has loaded the output URL yet. Open it once in your browser source and it stays connected.',
-  };
-}
-
 function ProductionShell({
   show,
   now,
   openedAt,
   hostedSlug,
-  rendererFresh,
+  livePresence,
   outputSeenAt,
   liveLayers,
   follow,
@@ -4338,7 +4318,8 @@ function ProductionShell({
   now: number;
   openedAt: number;
   hostedSlug: string | null;
-  rendererFresh: boolean;
+  /** The outputs on the production's live topic (components/control/OutputHealth.tsx). */
+  livePresence: LivePresenceView;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
@@ -4498,15 +4479,18 @@ function ProductionShell({
             Unpublished the mode chip already says so, and a second "not published" beside it is
             noise, not status.
             The words say what the state IS, and the tooltip says what to do about it — one line
-            each, because a status nobody can act on is decoration. */}
-        {hostedSlug && (outputSeenAt || show.outputOpenedAt) && (
-          <span
-            className={`pd-status${rendererFresh ? ' ok' : ''}`}
-            data-testid="renderer-status"
-            title={outputHealth(rendererFresh, outputSeenAt).why}
-          >
-            {outputHealth(rendererFresh, outputSeenAt).label}
-          </span>
+            each, because a status nobody can act on is decoration. The line itself is shared with
+            the hosted page (components/control/OutputHealth.tsx): from Presence when the server
+            has the live topic, otherwise from the heartbeat this page polls every 30 s. */}
+        {hostedSlug && (
+          <OutputHealthLine
+            presence={livePresence}
+            seenAt={outputSeenAt}
+            heartbeatLive
+            known={!!show.outputOpenedAt}
+            now={now}
+            testId="renderer-status"
+          />
         )}
         {/* WHERE THE GRAPHICS PLAY: the Playout settings door, beside the renderer heartbeat it
             belongs with. Setup lives in its dialog, never as more controls in this header. */}

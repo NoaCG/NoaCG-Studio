@@ -7,6 +7,8 @@ import { readTimeline, segmentAt } from './timelineView';
 import { sameRevision, type Revision } from './session';
 
 export function requireCurrentPose(appearance: RenderedPart['appearance'], time: number, revision?: Revision, cue?: number) {
+  // An Out played from the parked playhead can leave from a pose the Out cue's keys never hold.
+  if (appearance?.exiting) throw new Error('This is the Out preview, not the Out cue’s own pose. Click the timeline to edit Out here.');
   if (appearance?.time === undefined || appearance.cue !== cue || Math.abs(appearance.time - time) > .00001 || revision && (!appearance.revision || !sameRevision(appearance.revision, revision))) {
     throw new Error('Wait for the preview to reach this playhead and revision before editing.');
   }
