@@ -71,7 +71,8 @@
 -- ── PRE-MIGRATION ROWS ───────────────────────────────────────────────────────────────────────
 -- Rows written before this file keep seq null; nothing numbers them (no backfill under a lock).
 -- control_output_resolve says `legacy: true` when a renderer would need one of them, and that
--- renderer follows by id for the session, exactly as today; the 7-day prune removes them.
+-- renderer follows by id for the session, exactly as today; the prune removes them (7 days at a
+-- publish, 14 by the daily sweep, 0039).
 set lock_timeout = '500ms';
 set statement_timeout = '5s';
 
@@ -354,14 +355,16 @@ begin
   v_base := case when jsonb_typeof(p_sender->'base') = 'object' then p_sender->'base' else '{}'::jsonb end;
   v_key := v_sender::text || ':' || v_press::text;
   select array_agg(distinct x.value->>'graphic') into v_touched from jsonb_array_elements(p_items) x;
-  -- A press that cannot get the head within 2 s answers 55P03 and is sent again by the page: the
-  -- send is idempotent, so that is safe, and it keeps a stalled head from eating the role's
-  -- whole statement timeout.
-  perform set_config('lock_timeout', '2000', true);
+  -- A press that cannot get the head within 1 s answers 55P03 and is sent again by the page: the
+  -- send is idempotent, so that is safe. 1 s is below the page's 1.5 s attempt (failedSends.ts
+  -- ATTEMPT_TIMEOUT_MS) less a round trip, so the answer reaches the page before it gives up, and
+  -- an attempt the page has abandoned cannot go on waiting and commit late.
+  perform set_config('lock_timeout', '1000', true);
 
   -- 2. The lock order: the production's row at KEY SHARE (a publish's or a report's NO KEY UPDATE
-  --    passes it), then the head.
+  --    passes it), then the head. The row can be gone since the lookup above (an unpublish).
   perform 1 from public.control_shows s where s.id = v_show for key share;
+  if not found then raise exception 'unknown control page'; end if;
   insert into public.control_heads (show_id) values (v_show) on conflict (show_id) do nothing;
   select * into v_head from public.control_heads h where h.show_id = v_show for update;
   -- HOLDING THE HEAD, nothing may wait long: every other send and report of this production is
@@ -491,8 +494,10 @@ begin
     raise exception 'hosted control is switched off for this page' using errcode = '42501';
   end if;
   if coalesce(p_graphic, '') = '' then raise exception 'not a control command'; end if;
-  perform set_config('lock_timeout', '2000', true);
+  -- 1 s, as the send's: below a page's 1.5 s attempt, so a report is never left waiting unseen.
+  perform set_config('lock_timeout', '1000', true);
   perform 1 from public.control_shows s where s.id = v_show for key share;
+  if not found then raise exception 'unknown output page'; end if;
   insert into public.control_heads (show_id) values (v_show) on conflict (show_id) do nothing;
   select h.seq, h.epoch into v_prev, v_epoch from public.control_heads h where h.show_id = v_show for update;
   perform set_config('lock_timeout', '250ms', true);
@@ -601,11 +606,17 @@ revoke all on function public.control_live_seq(uuid, jsonb, bigint) from public,
 -- Would a renderer following by seq miss a command? Only a row written before 0070 (seq null) can
 -- be missed, and only a renderer COMMAND of a graphic whose report baseline is below it (a graphic
 -- with no report replays from the log's start, so any such row of it counts).
+-- Every seq-null row has an id below every numbered row (this file's ACCESS EXCLUSIVE waits out
+-- every earlier insert, and the trigger numbers every later one), so the read stops at the first
+-- numbered row through (show_id, id): it costs the production's seq-null rows, and nothing once
+-- the prune has taken them.
 create or replace function public.control_head_legacy(p_show uuid, p_live jsonb)
 returns boolean language sql stable set search_path = '' as $$
   select exists (
     select 1 from public.control_events e
      where e.show_id = p_show and e.seq is null
+       and e.id < coalesce((select min(e2.id) from public.control_events e2
+                             where e2.show_id = p_show and e2.seq is not null), 9223372036854775807)
        and e.msg->>'t' in ('update', 'play', 'stop', 'next', 'event', 'snap')
        and e.id > coalesce(case when jsonb_typeof(p_live->e.graphic->'event') = 'number'
                                 then (p_live->e.graphic->>'event')::bigint end, 0));
@@ -708,19 +719,21 @@ begin
       'head', jsonb_build_object('seq', v_seq, 'graphics', v_graphics));
   end if;
   -- The newest rows by id, through the (show_id, id) index: seq order and id order differ only by
-  -- rows in flight together, which 64 covers. Anything short of what the head says exists falls
-  -- back to the per-production read below.
-  select coalesce(jsonb_agg(r order by r.seq), '[]'::jsonb), count(*) into v_rows, v_found
-    from (select t.id, t.seq, t.graphic, t.msg, t.created_at
-            from (select e.id, e.seq, e.graphic, e.msg, e.created_at
-                    from public.control_events e
-                   where e.show_id = p_show
-                   order by e.id desc
-                   limit (v_seq - v_after) + 64) t
-           where t.seq > v_after
-           order by t.seq
-           limit 500) r;
-  if v_found < v_want then
+  -- rows in flight together, which 64 covers. The window is trusted only when it holds EVERY row
+  -- the head says exists after the cursor (seqs are gap-free under the head lock), so a row pushed
+  -- out of it (a legacy writer that took its id and then waited on the show row) or a prune gap
+  -- falls back to the per-production read below instead of being jumped over.
+  with w as (
+    select e.id, e.seq, e.graphic, e.msg, e.created_at
+      from public.control_events e
+     where e.show_id = p_show
+     order by e.id desc
+     limit (v_seq - v_after) + 64)
+  select (select count(*) from w where w.seq > v_after),
+         (select coalesce(jsonb_agg(r order by r.seq), '[]'::jsonb)
+            from (select * from w where w.seq > v_after order by w.seq limit 500) r)
+    into v_found, v_rows;
+  if v_found <> v_seq - v_after then
     select coalesce(jsonb_agg(r order by r.seq), '[]'::jsonb) into v_rows
       from (select e.id, e.seq, e.graphic, e.msg, e.created_at
               from public.control_events e
@@ -781,7 +794,8 @@ declare
   v_live  bigint;
   v_frame jsonb;
   v_row   record;
-  v_take  jsonb := '[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"y"}},"fast":true},
+  v_sig   text;
+  v_take  jsonb :='[{"graphic":"Bug","msg":{"t":"update","data":{"f0":"y"}},"fast":true},
                      {"graphic":"Bug","msg":{"t":"play"},"fast":true},
                      {"graphic":"Bug","msg":{"t":"cue","cue":"cue-b"},"fast":true}]';
   v_off   jsonb := '[{"graphic":"Bug","msg":{"t":"stop"},"fast":true},
@@ -807,13 +821,16 @@ begin
      or not has_function_privilege('anon', 'public.control_output_by_slug(text)', 'execute') then
     raise exception '0070 self-check failed: a signed-out page cannot reach an RPC it needs';
   end if;
-  if has_function_privilege('anon', 'public.control_tail_seq_for(uuid,bigint,uuid)', 'execute')
-     or has_function_privilege('authenticated', 'public.control_tail_seq_for(uuid,bigint,uuid)', 'execute')
-     or has_function_privilege('anon', 'public.control_head_effect(jsonb,text,jsonb,text,bigint)', 'execute')
-     or has_function_privilege('anon', 'public.control_live_seq(uuid,jsonb,bigint)', 'execute')
-     or has_function_privilege('anon', 'public.control_data_apply(uuid,jsonb,text)', 'execute') then
-    raise exception '0070 self-check failed: an internal function is reachable from a client';
-  end if;
+  foreach v_sig in array array[
+      'public.control_head_effect(jsonb,text,jsonb,text,bigint)', 'public.control_head_pick(jsonb,text[])',
+      'public.control_events_seq()', 'public.control_events_frame()',
+      'public.control_live_merged(jsonb,jsonb)', 'public.control_live_cue_view(jsonb,jsonb)',
+      'public.control_live_seq(uuid,jsonb,bigint)', 'public.control_head_legacy(uuid,jsonb)',
+      'public.control_tail_seq_for(uuid,bigint,uuid)', 'public.control_data_apply(uuid,jsonb,text)'] loop
+    if has_function_privilege('anon', v_sig, 'execute') or has_function_privilege('authenticated', v_sig, 'execute') then
+      raise exception '0070 self-check failed: an internal function is reachable from a client (%)', v_sig;
+    end if;
+  end loop;
   if not exists (select 1 from pg_trigger t where t.tgrelid = 'public.control_events'::regclass
                   and t.tgname = 'control_events_seq' and not t.tgisinternal)
      or not exists (select 1 from pg_trigger t where t.tgrelid = 'public.control_events'::regclass
@@ -835,10 +852,12 @@ begin
     raise exception '0070 self-check failed: a client can broadcast on realtime.messages';
   end if;
 
-  -- (b) CALL it. An instance with no account cannot own a production, and must still apply.
-  select u.id into v_owner from auth.users u limit 1;
+  -- (b) CALL it, as an owner hosted control is open to (a suspended account or a switched-off
+  -- feature would refuse the sends below). An instance with no such account cannot own a
+  -- production that sends, and must still apply.
+  select u.id into v_owner from auth.users u where not public.feature_denied_for(u.id, 'control.hosted') limit 1;
   if v_owner is null then
-    raise notice '0070 self-check skipped the live half: no account on this instance';
+    raise notice '0070 self-check skipped the live half: no account on this instance may use hosted control';
     return;
   end if;
   insert into public.control_shows (id, owner_id, title, output, bindings)
@@ -864,15 +883,16 @@ begin
   end if;
   -- One frame per statement on live-, one row per row on log-, the marked items on cmd-. Asserted
   -- where Realtime can write at all (a stack whose realtime.messages has no partition for today
-  -- cannot, and that is not this file's fault).
-  select count(*) > 0 into v_rt from realtime.messages m where m.topic = 'log-' || v_show::text;
+  -- cannot, and that is not this file's fault). Every read is bounded to this apply's minute, the
+  -- table's partition key, so none of them scans Realtime's history under this file's lock.
+  select count(*) > 0 into v_rt from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'log-' || v_show::text;
   if v_rt then
-    if (select count(*) from realtime.messages m where m.topic = 'log-' || v_show::text) <> 3
-       or (select count(*) from realtime.messages m where m.topic = 'cmd-' || v_show::text) <> 1
-       or (select count(*) from realtime.messages m where m.topic = 'live-' || v_show::text) <> 1 then
+    if (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'log-' || v_show::text) <> 3
+       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'cmd-' || v_show::text) <> 1
+       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text) <> 1 then
       raise exception '0070 self-check failed: an old send did not write 3 log-, 1 cmd- and 1 live- messages';
     end if;
-    select m.payload into v_frame from realtime.messages m where m.topic = 'live-' || v_show::text;
+    select m.payload into v_frame from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text;
     if v_frame->>'epoch' is distinct from v_epoch::text
        or (select array_agg((r.value->>'seq')::bigint order by r.ord) from jsonb_array_elements(v_frame->'rows') with ordinality r(value, ord))
             is distinct from array[1,2,3]::bigint[]
@@ -901,9 +921,9 @@ begin
                                      from public.control_events e where e.show_id = v_show) x where x.ok is not null) is not true then
     raise exception '0070 self-check failed: created_at runs backwards in seq order';
   end if;
-  if v_rt and ((select count(*) from realtime.messages m where m.topic = 'live-' || v_show::text) <> 3
-       or (select count(*) from realtime.messages m where m.topic = 'cmd-' || v_show::text) <> 2
-       or (select count(*) from realtime.messages m where m.topic = 'log-' || v_show::text) <> 7) then
+  if v_rt and ((select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'live-' || v_show::text) <> 3
+       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'cmd-' || v_show::text) <> 2
+       or (select count(*) from realtime.messages m where m.inserted_at >= now() - interval '1 minute' and m.topic = 'log-' || v_show::text) <> 7) then
     raise exception '0070 self-check failed: the new send did not write one live- frame, one cmd- frame and a log- row per row';
   end if;
   -- The head, not the old column, now says which cue is up, and the old resolve answers the head.
