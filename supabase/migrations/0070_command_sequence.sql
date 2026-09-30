@@ -62,6 +62,12 @@
 -- a timeout is 55P03, which db-push retries, and nothing in this file applies. control_shows is not
 -- locked by any statement here. The self-check works on its own throwaway production only.
 --
+-- ── PREREQUISITE: 0068 ───────────────────────────────────────────────────────────────────────
+-- The frames go to the private topic `live-<show id>`, which a follower can join only through
+-- Step 1's read policy (0068). Without it every new follower's join is refused and it falls back
+-- to the 30 s poll, so this file refuses to apply until that policy exists (its self-check, (a)),
+-- rather than applying and quietly slowing every output. Land it after 0068, never without it.
+--
 -- ── PRE-MIGRATION ROWS ───────────────────────────────────────────────────────────────────────
 -- Rows written before this file keep seq null; nothing numbers them (no backfill under a lock).
 -- control_output_resolve says `legacy: true` when a renderer would need one of them, and that
@@ -189,7 +195,11 @@ begin
     end if;
     v_lock := current_setting('lock_timeout');
     perform set_config('lock_timeout', '250ms', true);
-    perform realtime.send(v_payload, 'batch', 'live-' || v_show::text, true);
+    begin
+      perform realtime.send(v_payload, 'batch', 'live-' || v_show::text, true);
+    exception when others then
+      null; -- the rows are written; the next frame's gap or the poll brings them (0064's rule)
+    end;
     perform set_config('lock_timeout', v_lock, true);
   end loop;
   return null;
@@ -302,7 +312,7 @@ declare
   v_cur jsonb;
   v_mine boolean;
   v_cur_press numeric;
-  v_stale boolean := false;
+  v_stale text[] := '{}';
   v_superseded boolean := false;
   v_skip text[] := '{}';
   v_items jsonb;
@@ -354,6 +364,11 @@ begin
   perform 1 from public.control_shows s where s.id = v_show for key share;
   insert into public.control_heads (show_id) values (v_show) on conflict (show_id) do nothing;
   select * into v_head from public.control_heads h where h.show_id = v_show for update;
+  -- HOLDING THE HEAD, nothing may wait long: every other send and report of this production is
+  -- queued behind it. What remains takes only this transaction's own rows and realtime.messages
+  -- (the per-row log- broadcast, the live- frame, the cmd- frame), so a stall there answers 55P03
+  -- in 250 ms, the page sends again, and the head is free.
+  perform set_config('lock_timeout', '250ms', true);
 
   -- 3. A press already applied is answered as applied, and applied once.
   if v_head.recent ? v_key or (
@@ -365,10 +380,10 @@ begin
   end if;
 
   -- 4. A page following another epoch (the production was unpublished and published again) knows
-  --    nothing current: it re-learns from this answer.
-  if v_epoch is not null and v_epoch <> v_head.epoch then
-    return jsonb_build_object('ok', false, 'refused', 'stale', 'epoch', v_head.epoch,
-      'graphics', public.control_head_pick(v_head.graphics, v_touched));
+  --    nothing current: it re-learns from this answer. Not All out, which is never refused.
+  if v_epoch is not null and v_epoch <> v_head.epoch and not v_all_out then
+    return jsonb_build_object('ok', false, 'refused', 'stale', 'why', 'epoch', 'epoch', v_head.epoch,
+      'stale', to_jsonb(v_touched), 'graphics', public.control_head_pick(v_head.graphics, v_touched));
   end if;
 
   -- 5. The revision, per touched graphic: applied when nothing changed since this page last
@@ -386,13 +401,14 @@ begin
         (case when jsonb_typeof(v_base->v_g) = 'number' then (v_base->>v_g)::numeric else 0 end)
           = (case when jsonb_typeof(v_cur->'rev') = 'number' then (v_cur->>'rev')::numeric else 0 end)
         or (v_mine and v_cur_press < v_press)) then
-      if v_mine then v_superseded := true; else v_stale := true; end if;
+      if v_mine then v_superseded := true; else v_stale := v_stale || v_g; end if;
     end if;
   end loop;
-  if v_stale or v_superseded then
+  if cardinality(v_stale) > 0 or v_superseded then
     return jsonb_build_object('ok', false,
-      'refused', case when v_stale then 'stale' else 'superseded' end,
+      'refused', case when cardinality(v_stale) > 0 then 'stale' else 'superseded' end,
       'epoch', v_head.epoch,
+      'stale', to_jsonb(v_stale),
       'graphics', public.control_head_pick(v_head.graphics, v_touched));
   end if;
 
@@ -454,14 +470,19 @@ grant execute on function public.control_send_seq(text, jsonb, jsonb) to anon, a
 -- ── 6. The renderer's report, off the hot row ─────────────────────────────────────────────────
 -- control_output_report's write, moved to the head: the report (with the seq AND the log row it
 -- had applied, so an old reader keeps a dated baseline) and its `live` status row, numbered.
+-- THE SEQ IS STORED ONLY IN THE EPOCH THE RENDERER FOLLOWS, and never past the head: a renderer
+-- that has not yet seen a republish reports seqs of the dead log, and banked in the new one they
+-- would make the next boot skip rows it never applied. Such a report keeps its data and its `event`
+-- (the resolve maps that to a safe seq).
 create or replace function public.control_output_report_seq(
-  p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_seq bigint, p_event bigint)
+  p_output_slug text, p_graphic text, p_data jsonb, p_state jsonb, p_seq bigint, p_event bigint, p_epoch uuid)
 returns void language plpgsql security definer set search_path = '' as $$
 declare
   v_show uuid;
   v_owner uuid;
   v_entry jsonb;
-  v_seq bigint;
+  v_prev bigint;
+  v_epoch uuid;
 begin
   select s.id, s.owner_id into v_show, v_owner
     from public.control_shows s where s.output_slug = p_output_slug and p_output_slug is not null;
@@ -471,25 +492,28 @@ begin
   end if;
   if coalesce(p_graphic, '') = '' then raise exception 'not a control command'; end if;
   perform set_config('lock_timeout', '2000', true);
+  perform 1 from public.control_shows s where s.id = v_show for key share;
+  insert into public.control_heads (show_id) values (v_show) on conflict (show_id) do nothing;
+  select h.seq, h.epoch into v_prev, v_epoch from public.control_heads h where h.show_id = v_show for update;
+  perform set_config('lock_timeout', '250ms', true);
   v_entry := jsonb_build_object(
     'data', coalesce(p_data, '{}'::jsonb),
     'state', p_state,
     'at', to_char(now(), 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
-  if p_seq is not null then v_entry := v_entry || jsonb_build_object('seq', p_seq); end if;
+  if p_seq is not null and p_epoch is not null and p_epoch = v_epoch then
+    v_entry := v_entry || jsonb_build_object('seq', least(p_seq, v_prev));
+  end if;
   if p_event is not null then v_entry := v_entry || jsonb_build_object('event', p_event); end if;
-  perform 1 from public.control_shows s where s.id = v_show for key share;
-  insert into public.control_heads (show_id) values (v_show) on conflict (show_id) do nothing;
   update public.control_heads h
-     set seq = h.seq + 1,
+     set seq = v_prev + 1,
          live = jsonb_set(case when jsonb_typeof(h.live) = 'object' then h.live else '{}'::jsonb end,
                           array[p_graphic], v_entry),
          updated_at = now()
-   where h.show_id = v_show
-  returning h.seq into v_seq;
+   where h.show_id = v_show;
   insert into public.control_events (show_id, graphic, msg, seq, created_at)
-    values (v_show, p_graphic, jsonb_build_object('t', 'live', 'data', p_data, 'state', p_state), v_seq, clock_timestamp());
+    values (v_show, p_graphic, jsonb_build_object('t', 'live', 'data', p_data, 'state', p_state), v_prev + 1, clock_timestamp());
 end $$;
-grant execute on function public.control_output_report_seq(text, text, jsonb, jsonb, bigint, bigint) to anon, authenticated;
+grant execute on function public.control_output_report_seq(text, text, jsonb, jsonb, bigint, bigint, uuid) to anon, authenticated;
 
 -- ── 7. The reports and the cue snapshot, read from both homes ────────────────────────────────
 -- Per graphic, the newer report by `at` (both writers stamp it the same way). An old reader keeps
@@ -657,18 +681,21 @@ grant execute on function public.control_output_resolve(text) to anon, authentic
 
 -- Rows after a seq, in seq order, at most 500. The answer is authoritative: a gap inside or before
 -- it is a deletion (the 7-day prune, a cascade), never a row still to come, because a row cannot
--- commit before a lower seq. A different epoch answers `reset`.
+-- commit before a lower seq. A different epoch answers `reset`. Every answer in the epoch carries
+-- the head (its seq and every graphic's summary), so a follower that heals through a tail read
+-- learns the revisions its operator now sees, exactly as one that got the frames does.
 create or replace function public.control_tail_seq_for(p_show uuid, p_after bigint, p_epoch uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
   v_epoch uuid;
   v_seq bigint;
+  v_graphics jsonb;
   v_after bigint := greatest(coalesce(p_after, 0), 0);
   v_want bigint;
   v_rows jsonb;
   v_found int;
 begin
-  select h.epoch, h.seq into v_epoch, v_seq from public.control_heads h where h.show_id = p_show;
+  select h.epoch, h.seq, h.graphics into v_epoch, v_seq, v_graphics from public.control_heads h where h.show_id = p_show;
   if v_epoch is null then
     return jsonb_build_object('epoch', null, 'rows', '[]'::jsonb, 'reset', p_epoch is not null);
   end if;
@@ -677,7 +704,8 @@ begin
   end if;
   v_want := least(greatest(v_seq - v_after, 0), 500);
   if v_want = 0 then
-    return jsonb_build_object('epoch', v_epoch, 'rows', '[]'::jsonb);
+    return jsonb_build_object('epoch', v_epoch, 'rows', '[]'::jsonb,
+      'head', jsonb_build_object('seq', v_seq, 'graphics', v_graphics));
   end if;
   -- The newest rows by id, through the (show_id, id) index: seq order and id order differ only by
   -- rows in flight together, which 64 covers. Anything short of what the head says exists falls
@@ -700,7 +728,8 @@ begin
              order by e.seq
              limit 500) r;
   end if;
-  return jsonb_build_object('epoch', v_epoch, 'rows', v_rows);
+  return jsonb_build_object('epoch', v_epoch, 'rows', v_rows,
+    'head', jsonb_build_object('seq', v_seq, 'graphics', v_graphics));
 end $$;
 revoke all on function public.control_tail_seq_for(uuid, bigint, uuid) from public, anon, authenticated;
 
@@ -734,7 +763,9 @@ do $$
 declare
   v_role  text := current_role;
   v_owner uuid;
-  v_show  uuid := '00000000-0070-4000-8000-000000000070';
+  -- A fresh id each time, so the realtime.messages counts below are this apply's own even where a
+  -- previous apply (a retried push, a rolled-back one) left messages on a fixed id's topics.
+  v_show  uuid := gen_random_uuid();
   v_a     uuid := '00000000-0070-4000-8000-00000000000a';
   v_b     uuid := '00000000-0070-4000-8000-00000000000b';
   v_slug  text;
@@ -762,7 +793,7 @@ begin
      or to_regprocedure('public.control_output_resolve(text)') is null
      or to_regprocedure('public.control_tail_seq(text,bigint,uuid)') is null
      or to_regprocedure('public.control_output_tail_seq(text,bigint,uuid)') is null
-     or to_regprocedure('public.control_output_report_seq(text,text,jsonb,jsonb,bigint,bigint)') is null then
+     or to_regprocedure('public.control_output_report_seq(text,text,jsonb,jsonb,bigint,bigint,uuid)') is null then
     raise exception '0070 self-check failed: a new RPC is missing';
   end if;
   if not has_function_privilege('anon', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
@@ -770,7 +801,7 @@ begin
      or not has_function_privilege('anon', 'public.control_output_resolve(text)', 'execute')
      or not has_function_privilege('anon', 'public.control_tail_seq(text,bigint,uuid)', 'execute')
      or not has_function_privilege('anon', 'public.control_output_tail_seq(text,bigint,uuid)', 'execute')
-     or not has_function_privilege('anon', 'public.control_output_report_seq(text,text,jsonb,jsonb,bigint,bigint)', 'execute')
+     or not has_function_privilege('anon', 'public.control_output_report_seq(text,text,jsonb,jsonb,bigint,bigint,uuid)', 'execute')
      or not has_function_privilege('authenticated', 'public.control_send_seq(text,jsonb,jsonb)', 'execute')
      or not has_function_privilege('anon', 'public.control_show_by_slug(text)', 'execute')
      or not has_function_privilege('anon', 'public.control_output_by_slug(text)', 'execute') then
@@ -884,8 +915,9 @@ begin
   v_ans := public.control_send_seq(v_slug, v_off,
     jsonb_build_object('id', v_b, 'press', 1, 'epoch', v_epoch, 'base', jsonb_build_object('Bug', 2)));
   if v_ans->>'refused' is distinct from 'stale' or (v_ans->'graphics'->'Bug'->>'rev')::int <> 4
+     or v_ans->'stale' is distinct from '["Bug"]'::jsonb
      or (select count(*) from public.control_events e where e.show_id = v_show) <> 7 then
-    raise exception '0070 self-check failed: a stale press was not refused (%)', v_ans;
+    raise exception '0070 self-check failed: a stale press was not refused, or its answer did not name Bug (%)', v_ans;
   end if;
 
   -- (g) The same page's next press is accepted on its own chain, without having seen its answer.
@@ -933,8 +965,16 @@ begin
   -- (k) Another epoch is stale; a sender that is not a uuid, and the two batch refusals, still raise.
   v_ans := public.control_send_seq(v_slug, v_off,
     jsonb_build_object('id', v_a, 'press', 9, 'epoch', gen_random_uuid(), 'base', '{}'::jsonb));
-  if v_ans->>'refused' is distinct from 'stale' or v_ans->>'epoch' is distinct from v_epoch::text then
-    raise exception '0070 self-check failed: another epoch was not refused as stale (%)', v_ans;
+  if v_ans->>'refused' is distinct from 'stale' or v_ans->>'why' is distinct from 'epoch'
+     or v_ans->>'epoch' is distinct from v_epoch::text then
+    raise exception '0070 self-check failed: another epoch was not refused as stale, for the epoch (%)', v_ans;
+  end if;
+  -- ...except All out, the panic control, which no epoch refuses.
+  v_ans := public.control_send_seq(v_slug,
+    '[{"graphic":"Card","msg":{"t":"stop"}},{"graphic":"Card","msg":{"t":"cue","cue":null}}]'::jsonb,
+    jsonb_build_object('id', v_b, 'press', 5, 'epoch', gen_random_uuid(), 'base', '{}'::jsonb, 'all_out', true));
+  if v_ans->>'ok' is distinct from 'true' then
+    raise exception '0070 self-check failed: All out was refused for an old epoch (%)', v_ans;
   end if;
   v_err := null;
   begin
@@ -964,11 +1004,17 @@ begin
   -- (l) Reports: the new one lands on the head with its seq and row; the old one still on the
   --     column; the old resolves answer both, each from its newer home.
   select e.id, e.seq into v_row from public.control_events e where e.show_id = v_show order by e.seq desc limit 1;
-  perform public.control_output_report_seq(v_out, 'Bug', '{"f0":"z"}'::jsonb, '{"groups":{"g":"s"}}'::jsonb, v_row.seq, v_row.id);
+  perform public.control_output_report_seq(v_out, 'Bug', '{"f0":"z"}'::jsonb, '{"groups":{"g":"s"}}'::jsonb, v_row.seq, v_row.id, v_epoch);
   if (select h.live->'Bug'->>'seq' from public.control_heads h where h.show_id = v_show) is distinct from v_row.seq::text
      or not exists (select 1 from public.control_events e where e.show_id = v_show and e.graphic = 'Bug'
                      and e.msg->>'t' = 'live' and e.seq = (select h.seq from public.control_heads h where h.show_id = v_show)) then
     raise exception '0070 self-check failed: the new report did not land on the head with a numbered live row';
+  end if;
+  -- A renderer still following another epoch (it has not seen a republish yet) keeps its data but
+  -- banks no seq: a baseline from a dead log would make the next boot skip rows.
+  perform public.control_output_report_seq(v_out, 'Hair', '{}'::jsonb, null, 999999, v_row.id, gen_random_uuid());
+  if (select h.live->'Hair' ? 'seq' from public.control_heads h where h.show_id = v_show) is not false then
+    raise exception '0070 self-check failed: a report from another epoch banked its seq';
   end if;
   perform public.control_output_report(v_out, 'Card', '{"f0":"c"}'::jsonb, null, v_id);
   select r.live into v_res from public.control_show_by_slug(v_slug) r;
@@ -1015,7 +1061,9 @@ begin
      or (select bool_and((r.value->>'seq')::bigint = r.ord) from jsonb_array_elements(v_frame->'rows') with ordinality r(value, ord)) is not true then
     raise exception '0070 self-check failed: control_tail_seq did not answer every row in seq order';
   end if;
-  if jsonb_array_length((v_state::jsonb)->'rows') <> 2 or ((v_err::jsonb)->>'reset')::boolean is not true then
+  if jsonb_array_length((v_state::jsonb)->'rows') <> 2 or ((v_err::jsonb)->>'reset')::boolean is not true
+     or ((v_state::jsonb)->'head'->>'seq')::bigint is distinct from v_live
+     or (v_state::jsonb)->'head'->'graphics' ? 'Bug' is not true then
     raise exception '0070 self-check failed: control_output_tail_seq (% / %)', v_state, v_err;
   end if;
 
