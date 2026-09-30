@@ -135,7 +135,8 @@ within half a stored unit).
 - Flags snap to frames, and within a few pixels to the playhead, keys and bar edges that sit on a
   frame; Alt bypasses those magnets but never the frame. Stored at 3 decimals, a flag can sit a
   fraction of a millisecond off its frame at 30 or 60 fps: a gap within one stored unit of a frame
-  counts as a frame, and Add Step parks the playhead on the flag itself. A drag or nudge **past or onto a
+  counts as a frame, and a seek to a frame within half a stored unit of a flag lands on the flag
+  itself, on its arriving side, as Add Step's playhead does. A drag or nudge **past or onto a
   neighbour** refuses: a Step stays at least one frame after the flag before it and before the
   flag after it, In never moves, and Out stays after the last Step.
 - **While a drag is refused** the flag follows the pointer at its snapped frame drawn as refused,
@@ -158,8 +159,8 @@ within half a stored unit).
   a selected layer whose bar starts on that flag (a bar of the departing cue starting at its zero
   with no bar of the arriving cue ending there; a legacy reveal's derived bar counts): that layer
   writes the departing cue at local zero, starting from the departing cue's own pose there (the
-  shared sampler), not from the arriving preview, which keeps it hidden. Flags are read within a
-  microsecond, as the preview bridge reads them.
+  shared sampler), not from the arriving preview, which keeps it hidden. A seek to a flag's frame
+  lands on the flag's own time, so the preview and edits read it there at 30 and 60 fps too.
 - A mixed selection resolves per layer and commits as one undo. The inspector names each target:
   the segment and whether the edit lands at its start or its end.
 - A click on a Step flag inspects its departing segment explicitly, as Edit Out does for Out: the
@@ -208,3 +209,99 @@ redo, Escape, save/reopen, G02) and the one-key hold in the editor. Then the edi
 full affected run, catalog JS fingerprints, the catalog battery against this worktree's own dev
 server, taste frames (card26, qz02, lt01), build, `/check`, `/queue-merge` and the deployed
 `/version.json`.
+
+## Implementation
+
+- [animEdit.ts](../../../src/blocks/animEdit.ts): the shared cut (`holdAt`, `cutTracks`, `cutBars`,
+  `joinBars`, `requireCuttable`, `withOut`) next to `splitKeyframeSegment`, and `splitCue`, `joinCues` (with
+  `unsplitAt`, the inverse of a split at the flag) and `moveStepFlag`. `moveLayerSpan` and
+  `trimLayerSpan` share `explicitBars` for the legacy-to-bars conversion a join also makes.
+  [editorOut.ts](../../../src/blocks/editorOut.ts): `moveOutBoundary` cuts its cue with the same
+  pieces, its output unchanged (the 14 Set Out tests pass as before).
+- [editorSteps.ts](../../../src/blocks/editorSteps.ts): `applyStep` for `step.add`, `step.rename`,
+  `step.delete` and `step.move` in the operation registry
+  ([operations.ts](../../../src/components/editorFoundation/operations.ts)): frame snapping, flag and
+  after-Out refusals, a legacy one-step Out, `settings.steps` and the SPX definition, and the same
+  interpreter upgrade Set Out writes.
+- [StepFlag.tsx](../../../src/components/editorFoundation/StepFlag.tsx): the Step and Out flags on the
+  ruler (drag with magnets, refused state, nudges, inline rename through `FieldControl`, the Step
+  menu) and Add Step at playhead; [Timeline.tsx](../../../src/components/editorFoundation/Timeline.tsx)
+  renders them, [OutControls.tsx](../../../src/components/editorFoundation/OutControls.tsx) takes the
+  Out flag's drop through its Set Out path. G02 is `editSegment`, `editTarget` and `editingPose` in
+  [animationAuthoring.ts](../../../src/components/editorFoundation/animationAuthoring.ts), used by the
+  numeric fields, diamonds, the Opacity field and canvas drags; the inspector lists each selected
+  layer's target. Every seek goes through `onFlag` (timelineView.ts): a frame within the view's
+  `near`, half a stored unit on the ruler, of a flag lands on the flag, as Add Step's playhead does.
+  The flags ask the operation registry whether a drag or nudge could land, so order, frames and
+  exactness refuse there with the same reasons as the operations.
+- [animRuntime.ts](../../../src/templates/shared/animRuntime.ts): `noacgExitTimeline` passes `early`
+  to `noacgBuildExit`, which holds a one-key or zero-time track's live value and sets its last key
+  at the exit's end. The R1.2a.3 body is `ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH` in
+  [animRuntimeLegacy.ts](../../../src/templates/shared/animRuntimeLegacy.ts), its text in
+  `e2e/fixtures/interpreter-step-out-v1.js`.
+- Tests: [step-authoring.test.mjs](../../../scripts/step-authoring.test.mjs) (build gate) and
+  [editor-steps.spec.ts](../../../e2e/editor-steps.spec.ts), both on `e2e/fixtures/steps-authoring.json`;
+  `scripts/out-step.test.mjs`'s one-key assertion follows the owner decision.
+
+## Review and simplification
+
+Review ran as one workflow of four read-only reviewers (repartition and exactness; flags, drags
+and UI; runtime and exports; tests, docs and scope), each followed by one refuter. It raised 19
+findings, 18 confirmed and one partly. All are fixed except three recorded above as decisions: the
+two Delete normalizations that play the same, and the key a drag's reverse can leave. The fixes:
+
+- A cut never removes a track from the cue it cuts, so Add Step then Delete keeps layers and
+  tracks in source order; the join rejoins only a key the earlier cue held at the flag, so an
+  authored Hold arriving as the Step's first key survives.
+- A legacy hide's opacity 0 counts when a join decides whether a layer starts where it stood, so
+  it refuses instead of showing the layer early.
+- At 30 and 60 fps a one-frame gap stored at 3 decimals counts as a frame, and the playhead parks
+  on a new flag's arriving side.
+- A Step inspection ends when the playhead moves past Out; leaving the name field keeps focus where
+  it went; the Opacity field starts from the departing cue's value under G02; keys in the Step menu
+  stay in the menu; Delete returns focus to the ruler; the transport wraps between 700 and 880 px.
+- The Node playback model compares every track and layer of both graphics, with cases for Hold
+  keys, source order, 30 and 60 fps, a float-off flag, legacy hides, calls and dynamics.
+
+Simplification (four cleanup passes) then made the flags ask the operation registry whether a
+drag or nudge could land instead of repeating its ordering rule, so an Out flag gets its reason
+from Set Out; gave the timeline view one tolerance for "on a flag" (`near`, half a stored unit on
+the ruler) at the seek, so a frame walked onto a flag at 30 or 60 fps lands on it as Add Step's
+playhead does, and edits there go to the arriving side (G02) instead of a hair into the Step (a
+first attempt read the tolerance in `segmentAt` instead, which moved the preview's reported pose
+off the playhead and refused edits beside a flag; the editor regressions caught it);
+and folded Set Out's and the steps' shared checks into `requireCuttable` and `withOut`; Set Out
+now names the last Step when Out would land within a frame of it. Skipped as outside this change or not worth a layer:
+sharing the key-ease menu's popover and reason hooks, extracting shared e2e helpers (which would
+widen the affected run to the whole suite), sharing the identity transform with the importer, and
+bundling the tests.
+
+## Verification receipt
+
+- Reproduction: `e2e/editor-steps.spec.ts` queued on the unmodified code (j-2553) failed where
+  expected: no Add Step control, no step operation, and the one-key Out track cutting from an
+  earlier step.
+- Node: `scripts/step-authoring.test.mjs` (20 tests, build gate) with `out-step` and
+  `out-boundary`, 42 tests, pass. Each guard was mutation-tested: 36 of 36 source mutations
+  failed a test.
+- Browser: `e2e/editor-steps.spec.ts` (14 tests) and the editor regressions (out-step, key-ease,
+  ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry), anim-engine and
+  inspector at the tip (j-2605): 185 passed, 20 skipped, one failure in editor-keys' scale-handle
+  test under load, which passed 6 of 6 repeated alone (j-2609). Seven UI mutations each failed
+  the spec (j-2599, j-2610): the Step menu letting its press reach the ruler, G02 edits starting
+  from the arriving preview, a Step inspection surviving a seek past Out, the one-key hold in the
+  editor and in the simulator walk, the parking of Add Step, and the flag tolerance at the seek.
+- Catalog: JS fingerprints re-recorded once for the interpreter change (528 JS rows, nothing
+  else), and `check-catalog-emit` passes at the tip. The catalog battery against this worktree's
+  dev server (j-2576): type floor 526, overflow 528 with no regression, field coverage 526,
+  numerals 349, catalog specs 35 and baseline 4, factory 317 of 317. Taste frames for card26,
+  qz02 and lt01 are byte-identical to R1.2a.3's.
+- Real UI (j-2616, j-2619): a headless walk at 1920 and 1366 with no page errors (Add Step,
+  rename, a refused drag held, a legal drag, the Step menu, G02 labels on a mixed selection,
+  card26's Delete), then the owner's route: the wizard's default lower third through Open editor
+  Alpha (Add Step in its settled air, rename, nudge, Delete back to the original, Undo), and
+  Clean Steps through the wizard, a nudged and renamed Step, saved, then Play, four Nexts and Stop
+  on its control page, each row appearing at its Step and Stop taking it out.
+- Build (j-2617): gates, 2178 Node tests, typecheck, lint and the bundle pass.
+- Not checked: the receiving CasparCG and OGraf hosts themselves (their exports run executed in
+  Node and the simulator), a physical desktop at 125% scaling, and a phone.

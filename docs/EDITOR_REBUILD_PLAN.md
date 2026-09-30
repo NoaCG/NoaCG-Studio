@@ -239,8 +239,11 @@ interpret safely. Goal: simple, predictable show control that advances when aske
 the graphic cleanly whenever Out is pressed. The Out half is implemented in R1.2a.3
 ([receipt](research/editor-r1-2a-3/README.md)): Out from an earlier step is the interrupted Out
 of D02, and next() after Out does nothing until play(). Step authoring and strict markers are
-R1.2a.4; cross-cue key moves are R1.2a.5. Until R1.2a.5, Set Out refuses to move keys or
-visibility-bar edges out of a Next cue (R1.2a.2); crossing the In cue stays allowed.
+R1.2a.4 ([receipt](research/editor-r1-2a-4/README.md)): Add Step at the playhead, inline rename,
+delete, and Step and Out flag drags and nudges repartition cues at absolute times as one undo each,
+refusing onto or past a neighbour and wherever the runtime could not play the result exactly.
+Cross-cue key moves are R1.2a.5. Until R1.2a.5, Set Out refuses to move keys or visibility-bar
+edges out of a Next cue (R1.2a.2); crossing the In cue stays allowed.
 
 A flag marks BOTH the end of the preceding segment and the start of the segment waiting
 for its command. Play/Take runs In and parks at the first flag. At a Step flag, Next plays
@@ -314,6 +317,9 @@ Minimum one-frame nonempty segments, ordered flags and collision checks keep sou
 Set Out at playhead is the first flag move built this way (R1.2a.1): crossed tracks split at the
 boundary with the shared exact split, a copy of the boundary value starts the exit, visibility
 bars are clipped and carried, and a crossed track whose Out keys start with a jump refuses.
+Step flags follow in R1.2a.4 with the same cut (`holdAt`, `cutTracks`, `cutBars` in
+`animEdit.ts`): Add Step splits a cue, Delete joins two and removes only what a split wrote, and
+a drag is a join then a split, so Add Step then Delete returns the source byte for byte.
 
 Retain step-local `NOACG_ANIM` clocks behind this continuous visual surface. Compile visual
 boundaries to step-local times and reveal/hide ownership atomically. If the current source
