@@ -33,7 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import { packShards } from './e2e-affected.mjs';
-import { minutesByFile, predictShardMinutes, readTable, specFilesOnDisk } from './e2e-durations.mjs';
+import { minutesByFile, predictShardMinutes, readTable, SHARD_SAFETY_MINUTES, specFilesOnDisk } from './e2e-durations.mjs';
 import { unfinishedByFile } from './nightly-triage.mjs';
 
 /** Runners the nightly asks for. Eight since the tier began; the packing, not the count, was wrong. */
@@ -123,10 +123,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // A warning, not a refusal: an over-budget shard still tests more than one that never starts,
     // and its report will name what it did not reach. On stdout only in Actions, which reads
     // workflow commands there; elsewhere stdout is the JSON alone.
-    if (worst > NIGHTLY_TEST_BUDGET_MINUTES) {
+    //
+    // The line sits the variance margin under the budget, as ci.yml's does under its cap. The first
+    // packed nightly (run 36771185828, 2026-09-30) planned every shard at 15.2 min and ran them in
+    // 12.4-17.2 min of job time, so a plan that only just clears 20 is a shard that stops short.
+    const line = NIGHTLY_TEST_BUDGET_MINUTES - SHARD_SAFETY_MINUTES;
+    if (worst > line) {
       console.log(
-        `::warning title=Nightly shard plan::A shard is predicted at ${worst} min, over the ${NIGHTLY_TEST_BUDGET_MINUTES}-minute ` +
-          'test budget each shard stops itself at. Add a runner (NIGHTLY_SHARDS, scripts/nightly-shards.mjs) or find what grew.',
+        `::warning title=Nightly shard plan::A shard is predicted at ${worst} min, past ${line}: less than the ${SHARD_SAFETY_MINUTES}-minute ` +
+          `variance margin under the ${NIGHTLY_TEST_BUDGET_MINUTES}-minute test budget each shard stops itself at. ` +
+          'Add a runner (NIGHTLY_SHARDS, scripts/nightly-shards.mjs) or find what grew.',
       );
     }
   }
