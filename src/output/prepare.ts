@@ -130,7 +130,9 @@ export function createPreparer(opts: {
       const failed: ReadyIssue[] = [];
       // One at a time: a playout box's main thread is the one that must not miss frames.
       for (const key of changed) {
-        const issue = await testGraphic(payload, key, firstCue(key));
+        const issue = await testGraphic(payload, key, firstCue(key)).catch(
+          (e: unknown): ReadyIssue => ({ k: 'script', g: key, d: String((e as Error)?.message ?? e).slice(0, 120) }),
+        );
         if (issue) failed.push(issue);
         chg.n += 1;
         opts.report({ ...chg });
@@ -145,6 +147,9 @@ export function createPreparer(opts: {
         return;
       }
       if (!(await opts.reload())) opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: 0, id: prep.id });
+    } catch {
+      // The server did not answer as expected: this page keeps its version and says nothing new.
+      opts.report(undefined);
     } finally {
       running = false;
       pump();

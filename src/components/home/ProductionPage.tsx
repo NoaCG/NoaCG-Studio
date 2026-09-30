@@ -253,7 +253,7 @@ import type { ExpectedOutput, HeldVersion, ReadyStamp } from '../../control/read
 import type { PrepRequest } from '../../control/prepareLive';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
-import { PrepareForLive } from '../control/PrepareForLive';
+import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -558,6 +558,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setReadyStamp(show?.id ? loadReadyMemory(show.id).stamp : null);
     setPrepRequest(null);
   }, [show?.id]);
+  /** Prepare for Live's own publish, set once `publishNow` exists below. */
+  const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
+  const prepareFlow = usePrepareForLive({
+    showId: show?.id ?? null,
+    presence: livePresence,
+    expected: expectedOutputs,
+    published: publishedVer,
+    unpublishedChanges: !!show?.publishedAt && show.updatedAt > show.publishedAt,
+    publish: () => preparePublishRef.current(),
+    onPrep: setPrepRequest,
+    onStamp: (stamp) => {
+      if (!show) return;
+      setReadyStamp(stamp);
+      saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
+    },
+    bridge: () => gatherBridgeFacts(loadPlayoutSettings(), show ?? {}),
+  });
   const { announce } = livePresence;
   useEffect(() => {
     announce({ pub: publishedVer, exp: announcedExpected(expectedOutputs, livePresence), stamp: readyStamp, prep: prepRequest });
@@ -2104,6 +2121,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const publish = async () => {
     await publishNow();
   };
+  preparePublishRef.current = () => publishNow(true);
 
   publishRef.current = publish;
 
@@ -3515,22 +3533,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       readyStamp={readyStamp}
       readyPanel={
         <PrepareForLive
-          presence={livePresence}
-          expected={expectedOutputs}
+          flow={prepareFlow}
           published={publishedVer}
           unpublishedChanges={unpublishedChanges}
-          publish={() => publishNow(true)}
-          onPrep={setPrepRequest}
           // This desk's own, or a newer one another production page announced.
           stamp={[readyStamp, ...livePresence.operators.map((o) => o.stamp ?? null)].reduce<ReadyStamp | null>(
             (best, s) => (s && (!best || s.at > best.at) ? s : best),
             null,
           )}
-          onStamp={(stamp) => {
-            setReadyStamp(stamp);
-            saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
-          }}
-          bridge={() => gatherBridgeFacts(loadPlayoutSettings(), show)}
         />
       }
       outputSeenAt={outputSeenAt}

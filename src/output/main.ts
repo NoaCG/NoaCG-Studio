@@ -330,8 +330,11 @@ async function boot(): Promise<void> {
   /** Per graphic, whether the log's own head says it is on air (protocol 2): filled by the boot's
    *  tail answer and every head the follower hands on. */
   const headOn = new Map<string, boolean>();
+  /** A head has been heard in this epoch: until then headOn says nothing, not "nothing on air". */
+  let headHeard = false;
   const noteHead = (graphics: Record<string, { on?: boolean }> | undefined) => {
     if (!graphics) return;
+    headHeard = true;
     for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
   };
   const preparer = createPreparer({
@@ -341,9 +344,10 @@ async function boot(): Promise<void> {
       const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
       return answer.ok && answer.value ? answer.value.output : null;
     },
-    // On protocol 2 the log's own word for it; on the id road, the graphics played and not stopped
-    // here, which leans towards "on air" (a report's machine state counts), and so towards staying.
-    onAir: () => (seqMode ? Array.from(headOn.values()).filter(Boolean).length : liveGraphics.size),
+    // On protocol 2 the log's own word for it, once a head has been heard (the boot's tail answer
+    // carries one); otherwise the graphics played and not stopped here, which leans towards "on
+    // air" (a report's machine state counts), and so towards staying.
+    onAir: () => (seqMode && headHeard ? Array.from(headOn.values()).filter(Boolean).length : liveGraphics.size),
     recheck: async () => {
       for (const graphic of stage.graphics) {
         const held = checks.get(graphic);
@@ -863,6 +867,7 @@ async function boot(): Promise<void> {
         followEpoch = epoch;
         if (!reset) return;
         headOn.clear();
+        headHeard = false;
         snapshotAt.clear();
         lastAppliedSeq = 0;
         lastReported.clear();

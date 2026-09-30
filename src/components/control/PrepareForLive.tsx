@@ -1,7 +1,9 @@
 // PREPARE FOR LIVE on the production page (Phase 6 Step 3 landing b: docs/work-specs/playout-ready/
-// spec.md AC-8 to AC-11). It lives in the READY panel (OutputHealth.tsx ReadyLine), under the
-// outputs it waits for. The decisions are control/prepareLive.ts; this runs the flow: publish what
-// changed, ask the outputs to prepare, check the Bridge and CasparCG, and stamp the result.
+// spec.md AC-8 to AC-11). It shows in the READY panel (OutputHealth.tsx ReadyLine), under the
+// outputs it waits for. The decisions are control/prepareLive.ts; `usePrepareForLive` runs the
+// flow: publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, and stamp
+// the result. The flow lives in the page, not the panel: the panel closes on any click outside it
+// (a Take, say), and a run goes on to its stamp while it is shut.
 //
 // Optional, and never a gate: editing goes on during and after it, every verb works while it runs,
 // and the button is only ever busy with its own run.
@@ -33,17 +35,27 @@ function requestId(): string {
 
 const DOT: Record<CheckLine['tone'], string> = { ok: '●', warn: '▲', bad: '✕', idle: '○', running: '…' };
 
-export function PrepareForLive({
+/** A run as the panel shows it. */
+export interface PrepareFlow {
+  phase: Phase;
+  /** The checklist while running and after, or null before the first run. */
+  shown: CheckLine[] | null;
+  run: () => Promise<void>;
+}
+
+export function usePrepareForLive({
+  showId,
   presence,
   expected,
   published,
   unpublishedChanges,
   publish,
   onPrep,
-  stamp,
   onStamp,
   bridge,
 }: {
+  /** The production: another one starts from nothing. */
+  showId: string | null;
   presence: LivePresenceView;
   expected: ExpectedOutput[];
   /** The version the server holds, as this page knows it (null: never published with a stamp). */
@@ -54,11 +66,10 @@ export function PrepareForLive({
   publish: () => Promise<HeldVersion | null>;
   /** Put a prepare request in this page's Presence entry, or take it out. */
   onPrep: (prep: PrepRequest | null) => void;
-  stamp: ReadyStamp | null;
   onStamp: (stamp: ReadyStamp) => void;
   /** Gather what the Bridge and CasparCG say (read-only). */
   bridge: () => Promise<BridgeFacts>;
-}) {
+}): PrepareFlow {
   const [phase, setPhase] = useState<Phase>('idle');
   const [publishLine, setPublishLine] = useState<CheckLine | null>(null);
   const [bridgeLines, setBridgeLines] = useState<CheckLine[] | null>(null);
@@ -67,6 +78,12 @@ export function PrepareForLive({
   const [request, setRequest] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [finalLines, setFinalLines] = useState<CheckLine[] | null>(null);
+  useEffect(() => {
+    setPhase('idle');
+    setFinalLines(null);
+    setTarget(null);
+    setRequest(null);
+  }, [showId]);
 
   // The outputs' lines as READY words them, for the version being prepared.
   const readiness = describeReadiness({
@@ -153,6 +170,21 @@ export function PrepareForLive({
           ? [{ key: 'publish', tone: 'running', label: 'Publishing your changes' }]
           : null;
 
+  return { phase, shown, run };
+}
+
+export function PrepareForLive({
+  flow,
+  stamp,
+  published,
+  unpublishedChanges,
+}: {
+  flow: PrepareFlow;
+  stamp: ReadyStamp | null;
+  published: HeldVersion | null;
+  unpublishedChanges: boolean;
+}) {
+  const { phase, shown, run } = flow;
   const busy = phase === 'publishing' || phase === 'preparing';
   return (
     <section className="pd-prepare" data-testid="prepare-for-live">

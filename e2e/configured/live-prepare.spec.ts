@@ -86,7 +86,22 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect(page.getByTestId('prepare-stamp')).toContainText(/Checked \d\d:\d\d on v1, 1 change since/, { timeout: 15_000 });
   await expect(prepare).toContainText('Your unpublished changes will be published and included');
   await page.getByTestId('prepare-for-live-button').click();
-  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2', { timeout: 30_000 });
+  // The panel shuts on any click outside it (a Take, say), here while the run is still publishing;
+  // the run goes on to its stamp regardless, and the checklist is there when the panel reopens.
+  await page.getByTestId('renderer-status').click();
+  await expect(page.getByTestId('renderer-status-panel')).toHaveCount(0);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (id) => {
+          const { loadReadyMemory } = await import('/src/model/readyMemory.ts');
+          return loadReadyMemory(id).stamp?.v.n ?? 0;
+        }, showId),
+      { timeout: 90_000 },
+    )
+    .toBe(2);
+  await openPanel(page, 'renderer-status');
+  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2');
   await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d \(v2\)/i, { timeout: 90_000 });
   // A cue-only change moved the number, not what the output renders: it prepared nothing, and holds v1.
   expect((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n).toBe(1);
