@@ -78,3 +78,22 @@ every migration in the tree, 0001 to 0071) with the throwaway accounts CI uses
 - CasparCG 2.3's Chromium 71 has no DevTools port that Playwright can attach to; its READY was read
   from its Presence entry on the production page, not from inside it.
 - The configured suite was run for the READY, health and Presence specs only.
+
+## On the reviewed tip
+
+The review found nine things; seven were fixed (the Presence view now names its production, so a
+production page moved to another route cannot file one production's outputs under the next; the
+production page always announces its expected outputs and the hosted page counts that list, so a
+Forget reaches the phone; a graphic waiting for the boot recovery is no longer called unanswering;
+the browser memory keeps the newest outputs; the per-instance rule and the wire readers live once;
+a warm pass asked before load no longer leaks a callback). One is accepted and written into the
+spec (R4a: Presence is a status plane, not a trust boundary) and one needs no change (the warm
+update follows the SPX invisible-start contract the boot recovery already relies on).
+
+- `npm run build` (job j-2734): green, `fail 0`.
+- `npm run test:e2e:affected` (j-2735): 1265 passed, 544 skipped, 3 failed while another
+  session's suite ran beside it (the editor foundation not visible within 7 s, a 60 s timeout, and
+  a Bridge-restart note in `playout-folders`); the same three alone (j-2740): 7 of 7 passed.
+- Configured on the local stack (j-2736): `live-ready.spec.ts` and `live-health.spec.ts`, 2 of 2.
+- The real-host runs above were made before the review's fixes; none of those fixes changes what
+  an output reports.
