@@ -376,6 +376,16 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   const byId = new Map(options.adapters.map((a) => [a.id, a]));
   const memory = options.memory ?? new SlotMemoryBank();
   const servers = options.servers ?? fileServerMemory();
+  /** Remember a server the page connected to, and answer the list. A config folder that cannot be
+   *  written costs the memory, never the connection. */
+  const rememberServer = async (server: RememberedServer): Promise<RememberedServer[]> => {
+    try {
+      return await servers.remember(server);
+    } catch (e) {
+      log(`could not remember ${server.host}:${server.port}: ${e instanceof Error ? e.message : String(e)}`);
+      return servers.list();
+    }
+  };
   let runner = options.runner;
   if (!runner) {
     runner = new SequenceRunner({ memory, adapters: options.adapters, log });
@@ -477,40 +487,28 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         const adapter = byId.get(target.adapter)!;
         const at = targetLabel(target);
 
-        // CONNECT: `/status`, and on success the server becomes the one remembered first. Only this
-        // route writes the list - a Test and the page's status poll are `/status` and never do - and
-        // like `/status` it sends VERSION and nothing else, so connecting never touches a layer.
-        if (url === '/connect') {
-          if (target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server is connected to and remembered.');
+        // STATUS, and CONNECT: the same VERSION round trip, and on success a Connect makes the server
+        // the one remembered first. Only `/connect` writes the list - a Test and the page's status
+        // poll are `/status` and never do - and neither sends anything else, so neither touches a layer.
+        if (url === '/status' || url === '/connect') {
+          const connect = url === '/connect';
+          if (connect && target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server is connected to and remembered.');
           const r = await adapter.status(target);
-          log(`${at} connect -> ${r.ok ? r.raw : r.error.code}`);
+          log(`${at} ${connect ? 'connect' : 'status'} -> ${r.ok ? r.raw : r.error.code}`);
           if (!r.ok) {
             send(200, { ok: false, v: PLAYOUT_V, error: r.error }, true);
             return;
           }
-          let list: RememberedServer[];
-          try {
-            list = await servers.remember({ host: target.host, port: target.port });
-          } catch (e) {
-            // A config folder that cannot be written costs the memory, never the connection.
-            log(`could not remember ${at}: ${e instanceof Error ? e.message : String(e)}`);
-            list = await servers.list();
-          }
           send(
             200,
-            { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw, capabilities: adapter.capabilities(r.value.version).target, servers: list },
-            true,
-          );
-          return;
-        }
-        if (url === '/status') {
-          const r = await adapter.status(target);
-          log(`${at} status -> ${r.ok ? r.raw : r.error.code}`);
-          send(
-            200,
-            r.ok
-              ? { ok: true, v: PLAYOUT_V, version: r.value.version, raw: r.raw, capabilities: adapter.capabilities(r.value.version).target }
-              : { ok: false, v: PLAYOUT_V, error: r.error },
+            {
+              ok: true,
+              v: PLAYOUT_V,
+              version: r.value.version,
+              raw: r.raw,
+              capabilities: adapter.capabilities(r.value.version).target,
+              ...(connect && target.adapter === 'casparcg' ? { servers: await rememberServer({ host: target.host, port: target.port }) } : {}),
+            },
             true,
           );
           return;

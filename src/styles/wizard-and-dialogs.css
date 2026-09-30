@@ -259,6 +259,11 @@
    rather than squeezing a label onto two lines. */
 .playout-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .playout-actions > button { white-space: nowrap; }
+/* The servers NoaCG Bridge remembers (components/RecentServers.tsx), one button each, wrapping. In a
+   form row it sits in the control column under the address it fills. */
+.recent-servers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.recent-servers .hint { margin: 0 4px 0 0; }
+.dlg-row > .recent-servers { grid-column: 2; }
 
 /* SETTINGS -> PLAYOUT's channel table: number | name | remove, one channel per line, and the
    add button under the last one. The number box is sized for two digits, CasparCG's range in

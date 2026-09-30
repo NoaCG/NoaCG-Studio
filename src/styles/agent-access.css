@@ -31,12 +31,11 @@
 
 /* The Bridge pairing page's next step, connecting to CasparCG (components/BridgePairPage.tsx): the
    server's address and port are one address, so they share a row with Connect, the way Settings ->
-   Playout lays them out; the servers used before wrap under it as one-click buttons. */
+   Playout lays them out. The servers used before under it are RecentServers (wizard-and-dialogs.css). */
 .agent-consent-card h2.bridge-connect-title { font-size: 15px; line-height: 1.3; margin: 20px 0 6px; }
 .bridge-connect-form { display: grid; grid-template-columns: minmax(0, 1fr) 80px auto; gap: 8px; margin-top: 10px; }
 .bridge-connect-form > button { white-space: nowrap; }
-.bridge-connect-recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-.bridge-connect-recent .hint { margin: 0 4px 0 0; }
+.agent-consent-card .recent-servers { margin-top: 10px; }
 
 .agent-keys { margin-top: 18px; }
 .agent-keys-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import BrandLogo from './BrandLogo';
+import RecentServers from './RecentServers';
 import {
   connectServer,
   isFirefox,
@@ -128,7 +129,6 @@ function ConnectStep() {
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<PlayoutResult | null>(null);
   const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; remembered: boolean } | null>(null);
-  const [changing, setChanging] = useState(false);
   // Once per pairing. StrictMode runs a mount's effect twice in development, and each run would be
   // one more VERSION on the server.
   const started = useRef(false);
@@ -147,7 +147,6 @@ function ConnectStep() {
       }
       savePlayoutSettings({ host: server.host, amcpPort: server.port });
       setConnected({ server, version: result.version, remembered: !!result.features?.includes('servers') });
-      setChanging(false);
     } finally {
       setBusy(false);
     }
@@ -168,12 +167,8 @@ function ConnectStep() {
     })();
   }, []);
 
-  const open = (
-    <button
-      className={connected && !changing ? 'primary' : ''}
-      onClick={() => window.location.assign('/app#/home')}
-      data-testid="bridge-pair-open"
-    >
+  const open = (primary: boolean) => (
+    <button className={primary ? 'primary' : ''} onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
       Open NoaCG
     </button>
   );
@@ -186,7 +181,7 @@ function ConnectStep() {
     );
   }
 
-  if (connected && !changing) {
+  if (connected) {
     return (
       <>
         <p className="status-ok" data-testid="bridge-connected">
@@ -198,10 +193,10 @@ function ConnectStep() {
           settings or its output links.
         </p>
         <div className="agent-consent-actions">
-          <button onClick={() => setChanging(true)} data-testid="bridge-connect-change">
+          <button onClick={() => setConnected(null)} data-testid="bridge-connect-change">
             Change server
           </button>
-          {open}
+          {open(true)}
         </div>
       </>
     );
@@ -242,22 +237,13 @@ function ConnectStep() {
           {busy ? 'Connecting…' : 'Connect'}
         </button>
       </form>
-      {servers.length > 0 && (
-        <div className="bridge-connect-recent" data-testid="bridge-connect-recent">
-          <span className="hint">Used before:</span>
-          {servers.map((server) => (
-            <button key={`${server.host}:${server.port}`} onClick={() => void connect(server)} disabled={busy}>
-              {serverAddress(server)}
-            </button>
-          ))}
-        </div>
-      )}
+      <RecentServers servers={servers} onPick={(server) => void connect(server)} disabled={busy} testId="bridge-connect-recent" />
       {failure && (
         <p className="status-bad" data-testid="bridge-connect-error" data-state={failure.state}>
           {failure.detail}
         </p>
       )}
-      <div className="agent-consent-actions">{open}</div>
+      <div className="agent-consent-actions">{open(false)}</div>
     </>
   );
 }

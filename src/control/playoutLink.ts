@@ -532,7 +532,7 @@ function readReply(settings: PlayoutSettings, call: Call): { result: PlayoutResu
 /** One request through the Bridge with every hop told apart. */
 async function through(
   settings: PlayoutSettings,
-  path: '/status' | '/list' | '/thumbnail' | '/act',
+  path: '/status' | '/connect' | '/list' | '/thumbnail' | '/act',
   extra: Record<string, unknown>,
   hop: 'act' | 'list' = 'act',
 ): Promise<{ result: PlayoutResult; body?: BridgeReply }> {
@@ -543,7 +543,8 @@ async function through(
   if (unreachable) return { result: unreachable };
   const call = await callBridge(
     settings.agentUrl,
-    path,
+    // A Bridge from before 0.7.0 has no `/connect`: the same round trip without the memory.
+    path === '/connect' && !features.includes('servers') ? '/status' : path,
     { target: targetOf(settings), ...extra },
     hop === 'list' ? LIST_TIMEOUT_MS : ACT_TIMEOUT_MS,
     settings.agentToken,
@@ -584,16 +585,8 @@ export async function testConnection(settings: PlayoutSettings): Promise<Playout
  * pairing page do it by itself: connecting never touches a layer.
  */
 export async function connectServer(settings: PlayoutSettings): Promise<{ result: PlayoutResult; servers?: RememberedServer[] }> {
-  if (!playoutConfigured(settings)) {
-    return { result: { state: 'config', detail: 'Pair NoaCG Bridge and fill in the playout server first (Playout settings).' } };
-  }
-  const { unreachable, features } = await probeBridge(settings.agentUrl);
-  if (unreachable) return { result: unreachable };
-  const route = features.includes('servers') ? '/connect' : '/status';
-  const call = await callBridge(settings.agentUrl, route, { target: targetOf(settings) }, ACT_TIMEOUT_MS, settings.agentToken);
-  const { result, body } = readReply(settings, call);
-  if (result.state !== 'ok') return { result };
-  return { result: { ...result, features }, servers: serverList(body?.servers) };
+  const { result, body } = await through(settings, '/connect', {});
+  return { result, servers: result.state === 'ok' && Array.isArray(body?.servers) ? body.servers : undefined };
 }
 
 /** The servers NoaCG Bridge remembers this page connecting to, most recent first. Empty when the
@@ -603,16 +596,9 @@ export async function rememberedServers(settings: PlayoutSettings): Promise<Reme
   if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return [];
   const { unreachable, features } = await probeBridge(settings.agentUrl);
   if (unreachable || !features.includes('servers')) return [];
-  const call = await callBridge(settings.agentUrl, '/servers', {}, BRIDGE_TIMEOUT_MS, settings.agentToken);
-  return 'http' in call && call.body.ok ? (serverList(call.body.servers) ?? []) : [];
-}
-
-function serverList(value: unknown): RememberedServer[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value.filter(
-    (s): s is RememberedServer =>
-      !!s && typeof s === 'object' && typeof (s as RememberedServer).host === 'string' && Number.isInteger((s as RememberedServer).port),
-  );
+  // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
+  const call = await callBridge(settings.agentUrl, '/servers', {}, STATE_TIMEOUT_MS, settings.agentToken);
+  return 'http' in call && call.body.ok && Array.isArray(call.body.servers) ? call.body.servers : [];
 }
 
 /** A server as a person writes it: the host alone on CasparCG's own port, host:port otherwise. */

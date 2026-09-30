@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
@@ -12,6 +12,7 @@ import {
   serverAddress,
   slotAddress,
   slotOf,
+  targetOf,
   testConnection,
   type PlayoutChannel,
   type PlayoutResult,
@@ -19,6 +20,7 @@ import {
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
+import RecentServers from './RecentServers';
 
 /** The panel's three presses. */
 type Verb = 'test' | 'connect' | 'air';
@@ -43,16 +45,12 @@ type Verb = 'test' | 'connect' | 'air';
 export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string | null } = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const [busy, setBusy] = useState<Verb | null>(null);
-  // WHICH button produced the verdict and, for Put on air, the address it went to: the sentence
-  // is past tense, so it must not be re-derived from settings typed since (ProductionLinks.tsx,
-  // BridgeAirRow, says what that cost once).
-  const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; address?: string } | null>(null);
-  // The servers NoaCG Bridge remembers this studio connecting to, offered on the host field.
+  // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
+  // re-derived from settings typed since (ProductionLinks.tsx, BridgeAirRow, says what that cost
+  // once). WHICH button produced it rides along for the specs.
+  const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; ok: string } | null>(null);
+  // The servers NoaCG Bridge remembers this studio connecting to, one press each.
   const [servers, setServers] = useState<RememberedServer[]>([]);
-  // The port the box held before a remembered server's replaced it. Typing passes THROUGH
-  // addresses (10.0.0.1 on the way to 10.0.0.12), so a port taken from one has to be given back
-  // when the address moves on; a port typed by hand is the operator's and is never undone.
-  const portBeforePick = useRef<number | null>(null);
   const paired = Boolean(settings.agentToken.trim());
   useEffect(() => {
     if (!paired) return;
@@ -77,15 +75,19 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
     const now = loadPlayoutSettings();
     setBusy(verb);
     setResult(null);
+    const connectedTo = (r: PlayoutResult) => `✓ Connected${r.version ? ` - CasparCG ${r.version}` : ''}`;
     try {
       if (verb === 'test') {
-        setResult({ verb, result: await testConnection(now) });
+        const r = await testConnection(now);
+        setResult({ verb, result: r, ok: connectedTo(r) });
       } else if (verb === 'connect') {
         const connected = await connectServer(now);
         if (connected.servers) setServers(connected.servers);
-        setResult({ verb, result: connected.result });
+        const r = connected.result;
+        setResult({ verb, result: r, ok: `${connectedTo(r)}${r.features?.includes('servers') ? '. NoaCG Bridge remembers this server.' : ''}` });
       } else if (outputUrl) {
-        setResult({ verb, result: await putOutputOnAir(now, outputUrl), address: `${slotAddress(slotOf(now))} of ${serverAddress({ host: now.host, port: now.amcpPort })}` });
+        const r = await putOutputOnAir(now, outputUrl);
+        setResult({ verb, result: r, ok: `✓ On ${slotAddress(slotOf(now))} of ${serverAddress(targetOf(now))}` });
       }
     } finally {
       setBusy(null);
@@ -180,47 +182,32 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             <input
               id="caspar-host"
               value={settings.host}
-              onChange={(e) => {
-                // Picking a server used before brings its port with it.
-                const host = e.target.value;
-                const known = servers.find((server) => server.host === host);
-                if (known) {
-                  portBeforePick.current ??= settings.amcpPort;
-                  set({ host, amcpPort: known.port });
-                } else if (portBeforePick.current !== null) {
-                  set({ host, amcpPort: portBeforePick.current });
-                  portBeforePick.current = null;
-                } else {
-                  set({ host });
-                }
-              }}
+              onChange={(e) => set({ host: e.target.value })}
               placeholder="127.0.0.1"
               spellCheck={false}
-              list={servers.length > 0 ? 'caspar-servers' : undefined}
               data-testid="caspar-host"
             />
-            {/* The servers used before (NoaCG Bridge remembers them), as the field's own
-                suggestions. */}
-            {servers.length > 0 && (
-              <datalist id="caspar-servers" data-testid="caspar-servers">
-                {servers.map((server) => (
-                  <option key={`${server.host}:${server.port}`} value={server.host} label={serverAddress(server)} />
-                ))}
-              </datalist>
-            )}
             <input
               type="number"
               min={1}
               max={65535}
               value={settings.amcpPort}
-              onChange={(e) => {
-                portBeforePick.current = null;
-                set({ amcpPort: Number(e.target.value) || 0 });
-              }}
+              onChange={(e) => set({ amcpPort: Number(e.target.value) || 0 })}
               aria-label="AMCP port"
               data-testid="caspar-amcp-port"
             />
           </div>
+          {/* A server used before is ONE press: it fills in the address and port and connects,
+              as on the pairing page. */}
+          <RecentServers
+            servers={servers}
+            onPick={(server) => {
+              set({ host: server.host, amcpPort: server.port });
+              void run('connect');
+            }}
+            disabled={busy !== null}
+            testId="caspar-recent"
+          />
           <p className="dlg-hint">
             The machine running CasparCG on your studio network, and its AMCP port (5250 unless it
             was changed). It is reached from this machine only, never from the internet.
@@ -366,7 +353,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           <button
             onClick={() => void run('air')}
             disabled={busy !== null || !configured || !outputUrl}
-            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress({ host: settings.host, port: settings.amcpPort })}` : 'Start the production first: it has no output URL yet'}
+            title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress(targetOf(settings))}` : 'Start the production first: it has no output URL yet'}
             data-testid="playout-put-on-air"
           >
             {busy === 'air' ? 'Sending…' : 'Put on air'}
@@ -386,15 +373,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           data-state={result.result.state}
           data-verb={result.verb}
         >
-          {result.result.state !== 'ok'
-            ? result.result.detail
-            : result.verb === 'air'
-              ? `✓ On ${result.address}`
-              : `✓ Connected${result.result.version ? ` - CasparCG ${result.result.version}` : ''}${
-                  result.verb === 'connect' && result.result.features?.includes('servers')
-                    ? '. NoaCG Bridge remembers this server.'
-                    : ''
-                }`}
+          {result.result.state === 'ok' ? result.ok : result.result.detail}
         </p>
       )}
       <p className="dlg-hint">

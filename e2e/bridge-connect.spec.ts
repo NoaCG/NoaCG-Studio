@@ -366,7 +366,7 @@ test('with a Bridge from before 0.7.0, pairing still connects to the server this
   await expect(page.getByTestId('bridge-pair')).not.toContainText('remembers');
 });
 
-test('Settings: the host offers the servers used before, Connect remembers one, and Test does not', async ({ page }) => {
+test('Settings: a server used before is one press, Connect remembers one, and Test does not', async ({ page }) => {
   await seedSettings(page);
   const bridge = await fakeBridge(page, {
     features: WITH_SERVERS,
@@ -376,24 +376,28 @@ test('Settings: the host offers the servers used before, Connect remembers one, 
     ],
   });
   await openPlayoutSettings(page);
-  await expect(page.locator('#caspar-servers option')).toHaveCount(2);
-  // Choosing a server used before brings its port with it, and typing on past that address gives
-  // the port back: 192.168.1.30 is on the way to 192.168.1.300, which is not that server.
-  const host = page.getByTestId('caspar-host');
-  await host.fill('');
-  await host.pressSequentially('192.168.1.300');
-  await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5250');
-  await host.fill('192.168.1.30');
-  await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5251');
+  const recent = page.getByTestId('caspar-recent');
+  await expect(recent.getByRole('button')).toHaveText(['192.168.1.20', '192.168.1.30:5251']);
 
   // Test connection is /status and remembers nothing; only Connect is /connect.
   await page.getByTestId('playout-test').click();
   await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable');
   expect(bridge.routes).not.toContain('/connect');
 
-  await page.getByTestId('playout-connect').click();
+  // One press on a server used before fills in its address AND port, and connects to it.
+  await recent.getByRole('button', { name: '192.168.1.30:5251' }).click();
   await expect(verdict(page)).toHaveText('✓ Connected - CasparCG 2.5.0 69e8ad5 Stable. NoaCG Bridge remembers this server.');
+  await expect(page.getByTestId('caspar-host')).toHaveValue('192.168.1.30');
+  await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5251');
   expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.30', port: 5251 });
+  await expect(recent.getByRole('button')).toHaveText(['192.168.1.30:5251', '192.168.1.20']);
+
+  // A typed address connects the same way.
+  await page.getByTestId('caspar-host').fill('192.168.1.40');
+  await page.getByTestId('caspar-amcp-port').fill('5250');
+  await page.getByTestId('playout-connect').click();
+  await expect(verdict(page)).toContainText('NoaCG Bridge remembers this server.');
+  expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.40', port: 5250 });
   // General Settings has no production, so there is nothing to put on air from here.
   await expect(page.getByTestId('playout-put-on-air')).toHaveCount(0);
   expect(bridge.actions).toEqual([]);
