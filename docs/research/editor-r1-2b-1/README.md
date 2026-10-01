@@ -49,8 +49,9 @@ ANCHOR-VERIFICATION
 
 The new editor has numeric Rotation and Scale and four corner handles, but no rotation handle, no
 edge handles and no anchor point at all. The plan's "Familiar 2D transforms" table puts all five
-groups in R1, with After Effects as the interaction reference, and B03 needs rotation, the anchor
-and its compensated drag on supported artwork.
+groups in R1, with After Effects as the interaction reference, and B03 needs rotation and the
+anchor on supported artwork (the plan then asked for a compensated anchor drag; the owner's answer
+above replaced it).
 
 Goal: on any supported layer, rotate by a canvas handle (Shift snaps to 15 degrees), scale one axis
 by an edge handle, and set the anchor numerically, by a Center anchor command, or by dragging it
@@ -253,10 +254,9 @@ Recorded rather than changed here:
 
 Pure parts first, in Node, beside `full-transforms`, `cross-cue` and `step-authoring`:
 `scripts/canvas-transforms.test.mjs` checks the gesture math (unwrapped rotation, the 15 degree
-snap, edge and corner ratios in a rotated layer's own axes, the opposite-side and anchor pivots, the
-anchor's compensation and its round trip) and the operations an anchor edit writes (the pair alone
-when typed; the base where rotation and scale never change; a Position key where they are
-animated; a rendered skew in M). The shared `scale` refusal stays in `full-transforms`; the anchor
+snap, edge and corner ratios in a rotated layer's own axes, the opposite-side and anchor pivots, and,
+as first shipped, the anchor's compensation and its round trip) and the operations an anchor edit
+writes (since the owner's answer, the pair alone). The shared `scale` refusal stays in `full-transforms`; the anchor
 refusals and the placed-text key refusal need a DOM and are in the browser spec. Each guard is
 mutation-tested. `e2e/editor-canvas-transforms.spec.ts` is written first and queued on the
 unmodified code from a snapshot worktree, then the editor regressions (transforms, cross-cue, steps,

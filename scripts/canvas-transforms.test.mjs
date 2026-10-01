@@ -1,4 +1,4 @@
-// guards: src/components/editorFoundation/transformGestures.ts, src/components/editorFoundation/animationAuthoring.ts, src/blocks/editorAnimation.ts, src/blocks/baseEdits.ts
+// guards: src/components/editorFoundation/transformGestures.ts, src/components/editorFoundation/animationAuthoring.ts, src/blocks/editorAnimation.ts, src/blocks/baseEdits.ts, src/blocks/edit.ts
 //
 // R1.2b.1 CANVAS TRANSFORM TOOLS (docs/research/editor-r1-2b-1/README.md). The rotation handle, the
 // edge scale handles and the anchor point are pure geometry over what the preview renders, and every
@@ -22,8 +22,8 @@ async function load(entry) {
   await bundle.close();
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
-const [gestures, { anchorOperations, shownAnchor, transformOperations }] = await Promise.all(
-  ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts'].map(load));
+const [gestures, { anchorOperations, shownAnchor, transformOperations }, { setCssDeclaration }] = await Promise.all(
+  ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts', 'src/blocks/edit.ts'].map(load));
 const { apply, invert, multiply, localFrame, edgePoints, centreOf, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear } = gestures;
 
 const k = (time, value) => ({ time, value });
@@ -169,7 +169,18 @@ test('an anchor edit writes the pivot alone, whatever the layer animates, and sh
   assert.equal(shownAnchor(base, pose({ origin: undefined })), null);
   // Typed, centred or dragged: one base write of the pair, never Position or a key.
   assert.deepEqual(anchorOperations('#a', { x: 0, y: 7 }), [{ kind: 'base.set', selector: '#a', values: { anchorX: 0, anchorY: 7 } }]);
-  assert.equal(gestures.anchorShift, undefined, 'no Position compensation remains');
+});
+
+test('a declaration added after a commented one keeps the rule clean: no stray separator after the comment', () => {
+  const added = body => setCssDeclaration('#a {' + body + '}', '#a', '--base-anchor-x', '4px');
+  // A catalog rule annotates its last declaration (Frosted Panel's will-change).
+  assert.equal(added('\n  will-change: transform; /* hint */\n'), '#a {\n  will-change: transform; /* hint */\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1; /* one */ /* two */\n'), '#a {\n  a: 1; /* one */ /* two */\n  --base-anchor-x: 4px;\n}');
+  // A declaration without its semicolon still gets one, after its comment; an earlier comment is not the last one.
+  assert.equal(added('\n  a: 1 /* one */\n'), '#a {\n  a: 1 /* one */;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1; /* one */ b: 2 /* two */\n'), '#a {\n  a: 1; /* one */ b: 2 /* two */;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1\n'), '#a {\n  a: 1;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added(' /* empty */ '), '#a { /* empty */\n  --base-anchor-x: 4px;\n}');
 });
 
 test('a handle gesture writes what typing writes: a turn keys an animated rotation unwrapped, else the base, which a raw transform leaves to the base write', () => {

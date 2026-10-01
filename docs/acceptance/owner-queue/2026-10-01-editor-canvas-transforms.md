@@ -29,9 +29,9 @@ After `claude/editor-r1-2b-anchor-typography-bf62be` lands and deploys, open
    to its top-left corner and the rectangle turns about that corner now, so it shifts. Click
    **Center anchor**: the crosshair is back in the middle and the rectangle turns about it again.
    Position X and Y never change.
-4. Pick the **Anchor** tool and drag the crosshair onto a corner: it stays under the pointer, and
-   the rectangle turns about the new point. Back on **Select**, drag the rotation handle: it turns
-   about that corner.
+4. Pick the **Anchor** tool and drag the crosshair onto a corner: it stays under the pointer. Since
+   the rectangle is turned, it now turns about that point and shifts, so the crosshair ends up off
+   the corner. Back on **Select**, drag the rotation handle: it turns about the crosshair.
 5. Click **+ New graphic**, **Start from a template**, search for **Frosted Panel**, pick it, click
    **Skip to finish**, then **Edit this graphic**. Click the ruler at about 0.3 s, while the panel
    is still growing in, select the **Panel**, pick the **Anchor** tool and drag the crosshair to the

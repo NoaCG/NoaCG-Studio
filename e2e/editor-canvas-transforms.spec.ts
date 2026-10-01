@@ -129,12 +129,14 @@ const untouched = (d: Data, except: string[]) => JSON.stringify(d.steps.map(s =>
 /** An anchor edit writes the anchor and nothing else (owner, 2026-10-01): the script, the markup and
  *  the stylesheet apart from the anchor's declarations stay byte for byte, and so does every Position,
  *  Rotation and Scale value. */
-const withoutAnchor = (css: string) => css.replace(/[ \t]*(?:--base-anchor-[xy]|transform-origin)\s*:[^;}]*;?\n?/g, '');
+const withoutAnchor = (css: string, target: string) => css.replace(new RegExp(target.replace(/[.#]/g, '\\$&') + '\\s*\\{[^}]*\\}', 'g'),
+  rule => rule.replace(/[ \t]*(?:--base-anchor-[xy]|transform-origin)\s*:[^;}]*;?\n?/g, ''));
 async function onlyAnchor(page: Page, before: Template, selector: string, placed: Base) {
   const after = await source(page), now = await base(page, selector);
   expect(after.js).toBe(before.js); expect(after.html).toBe(before.html);
   expect(after.css).not.toBe(before.css);
-  expect(withoutAnchor(after.css)).toBe(withoutAnchor(before.css));
+  // Only the base target's own rule may lose or gain these declarations.
+  expect(withoutAnchor(after.css, placed.target)).toBe(withoutAnchor(before.css, placed.target));
   expect([now.x, now.y, now.rotation, now.scaleX, now.scaleY]).toEqual([placed.x, placed.y, placed.rotation, placed.scaleX, placed.scaleY]);
 }
 /** Where a layer turned by `degrees` (and not scaled) moves when only its pivot moves by `by`: (I - R) by. */
