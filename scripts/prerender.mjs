@@ -195,6 +195,10 @@ function sitemap(entries) {
     { loc: `${SITE_ORIGIN}/ograf`, priority: '0.8' },
     // The Downloads page (downloads.html) — NoaCG Bridge and the NoaCG CLI, the tools you install.
     { loc: `${SITE_ORIGIN}/downloads`, priority: '0.7' },
+    // What's new (whats-new.html) and the roadmap (roadmap.html) - public pages built from
+    // docs/whats-new/ and docs/GOALS.md.
+    { loc: `${SITE_ORIGIN}/whats-new`, priority: '0.6' },
+    { loc: `${SITE_ORIGIN}/roadmap`, priority: '0.6' },
     ...entries.map((entry) => ({ loc: `${SITE_ORIGIN}/templates/${entry.slug}`, priority: '0.6' })),
   ];
   // sitemapS.org, plural - the sitemaps.org protocol namespace. A crawler that does not

@@ -25,11 +25,13 @@ test('the sitemap declares the sitemaps.org namespace', () => {
   // The plural is the protocol namespace; "sitemap.org" is discarded wholesale by crawlers.
   assert.match(xml, /xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/);
   assert.doesNotMatch(xml, /www\.sitemap\.org/);
-  // Landing + editor + the docs home + the OGraf starters page + Downloads + every template.
-  assert.equal((xml.match(/<url>/g) ?? []).length, 6);
+  // Landing + editor + docs + OGraf starters + Downloads + What's new + roadmap + every template.
+  assert.equal((xml.match(/<url>/g) ?? []).length, 8);
   assert.match(xml, /<loc>https:\/\/noacg\.studio\/docs<\/loc>/);
   assert.match(xml, /<loc>https:\/\/noacg\.studio\/ograf<\/loc>/);
   assert.match(xml, /<loc>https:\/\/noacg\.studio\/downloads<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/noacg\.studio\/whats-new<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/noacg\.studio\/roadmap<\/loc>/);
 });
 
 test('slugs are readable, unique, and stable against a later addition', () => {

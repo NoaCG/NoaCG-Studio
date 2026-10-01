@@ -29,7 +29,8 @@ capture (`shot-obs`, under the routes): a real OBS window on a real host, a NoaC
 program and the control panel in a Custom Browser Dock, never composited. How to take it again
 is in `docs/OBS_ON_A_REAL_HOST.md`, "The landing picture". The page takes one
 framing liberty: the playout shot is shown through a fixed-ratio frame (`.shot-frame`) that crops
-the empty panel under it.
+the empty panel under it, and on a phone both it and the OBS capture (`.obs-frame`) close in on
+the part that has to read.
 
 **Two more public pages live beside the landing and are linked from its `#free` section and
 footer: What's new (`whats-new.html`, `/whats-new`) and the roadmap (`roadmap.html`,
