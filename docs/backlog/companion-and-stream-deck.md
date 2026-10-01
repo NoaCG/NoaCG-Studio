@@ -3,10 +3,11 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-28
-state: unstarted
+state: advanced
+note: "Researched and decided: docs/HARDWARE_CONTROL_RESEARCH.md landed in c029d2450, and the owner chose its suggestion on 2026-10-01 (recorded below). Still missing: the build itself, about four weeks (the research's section 10)."
 asked: "Built for Companion and Stream Deck: their integration is a later task, but nothing built now may make it harder. Every operator action a named command through the one verb dispatcher and keymap; every state a hardware button would show plain data from one place; it connects through the Bridge's local HTTP (paraphrase of the phase 2 work prompt, 2026-09-28)"
 size: standard
-touches: cli/src/playout/, src/control/serverState.ts, src/control/serverPlayoutStore.ts, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx
+touches: supabase/migrations/, src/control/serverState.ts, src/control/serverPlayoutStore.ts, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx
 needs-owner: none
 ---
 # Drive the production page from Bitfocus Companion and a Stream Deck, with live feedback
@@ -27,27 +28,42 @@ laptop. Companion is the free, widely used bridge between a Stream Deck (and oth
 software, so one Companion connection reaches most of the hardware a school or a small studio owns
 (`LANDSCAPE.md`, the Stream Deck row).
 
+## Decided (owner, 2026-10-01)
+
+After `docs/HARDWARE_CONTROL_RESEARCH.md` (measurements, the routes compared, the design sketch in its
+§10), the owner chose its suggestion on every question in its §11. **This replaces the Bridge relay
+the 2026-09-28 prompt assumed.**
+
+- **Route:** a NoaCG Companion module that relays each press through the NoaCG cloud to the open
+  operator page, which runs it through `onVerb` exactly as a key press. The keyboard route stays.
+  No Bridge relay, no WebHID in the page, and the module never writes the command log itself.
+- **Panel access:** a per-production panel key made by pairing. The production page shows a one-time
+  code; the module exchanges it for a key that can only ask an open page to run named verbs on that
+  production and read the feedback the page publishes. Listed and revocable on the page.
+- **Who pairs, and expiry:** anyone who can operate the production may pair a panel; keys do not
+  expire and are revoked on the page.
+- **No page open:** keys show "no operator page" and presses are refused, never queued.
+- **Which page answers:** an explicit "Answer the panel on this page" switch on the production page
+  and the hosted control page; the last one switched on wins.
+- **Publishing:** the module goes into Bitfocus's repository under the MIT licence they require.
+
 ## What it would take
 
-**Where it connects: the Bridge.** A panel cannot reach a page in a browser. NoaCG Bridge already
-serves local HTTP on `127.0.0.1:8899` with a token and an origin check (`BRIDGE.md` §3), and it is the
-only thing that reaches the operator's playout server. The shape that fits is a small relay there:
+**Where it connects: the NoaCG cloud, through the open page** (decided above). A panel cannot reach a
+page in a browser by itself, so the module holds a persistent connection to the cloud and the press is
+broadcast to the answering page:
 
-- the page PUBLISHES its feedback state to the Bridge (on each change of the store's ownership part,
-  and a few times a second at most for the timing part), and asks the Bridge for commands a panel
-  pressed;
-- a Companion module, or at first Companion's generic HTTP connection, talks to the Bridge: it reads
-  the states and posts a named verb. The page runs that verb through its one dispatcher (`onVerb`),
-  exactly as a key press does, so a hardware press can never do what the page's own buttons would
-  refuse: a greyed Out stays greyed.
-- **One decision at build time, for the owner**: how a panel authenticates. A second token scoped to
-  verbs, paired the way the page is, is the likely answer: the new consented permission, not an
-  extension of an existing key, that `LANDSCAPE.md` (its NEXT list, item 10) already asks for. The
-  fixed rule is that a panel never holds the credential that sends raw AMCP.
+- the answering page PUBLISHES its feedback state (on each change; a server clip's clock as start,
+  end, paused and looping so the module counts down itself), and runs relayed presses;
+- the page runs each press through its one dispatcher (`onVerb`), exactly as a key press does, so a
+  hardware press can never do what the page's own buttons would refuse: a greyed Out stays greyed.
+  It refuses a press id it has already run, and a press whose target no longer matches what the key
+  showed; the Take it then sends carries the page's own Step 2 sender protocol;
+- server clips keep working because the page drives them through its own Bridge connection; the
+  panel key never reaches Bridge, so a panel never holds the credential that sends raw AMCP.
 
-The hosted route of `CONTROL_PANEL_ROAD.md` §4 (an automation client as one more writer of the
-published command log) still stands for graphics with no page open. It cannot reach a server cue,
-because only the operator's Bridge reaches the server; the Bridge relay reaches both, through the page.
+The design sketch, the cases (two tabs, phone page, outages) and a build estimate of about four weeks
+are in `docs/HARDWARE_CONTROL_RESEARCH.md` §10.
 
 **The actions**, each already a NAMED verb in `src/components/playoutKeys.ts` and dispatched by the
 production page's `onVerb`:
@@ -61,7 +77,7 @@ production page's `onVerb`:
 | Out | `out` | 0 |
 | Select the previous / next cue | `select-prev` / `select-next` | ↑ / ↓ |
 | Pause / resume a server clip | `pause` / `resume` | none yet (`P` comes with phase 3) |
-| All out | not a verb yet: the header's panic control needs its own named command before hardware gets it | none |
+| All out (the header's panic control) | `all-out` | none, on purpose |
 | Select cue N, take cue N | not verbs yet: a module will want them, and they belong in the dispatcher, not in the relay | none |
 
 **The feedback states**, each plain data in the store's two parts
@@ -83,7 +99,8 @@ functions the page draws with:
 server-state markers are computed by plain functions over the store (`clipClock`, `remainingAt`,
 `applyReading`), never inside a component, so a relay can publish exactly what the page shows.
 Pause and Resume became named verbs through `onVerb` rather than click handlers. The Bridge reads
-the server's state itself (`/state`), and it is the same process a module would talk to.
+the server's state itself (`/state`) for the page; the module reads it from the page's published
+feedback, never from the Bridge.
 
 **Not in the first slice:** editing cue values from hardware, a phone surface, and any control that
 bypasses the page: a hardware Take is the page's Take.
@@ -91,7 +108,10 @@ bypasses the page: a hardware Take is the page's Take.
 ## Evidence
 
 - `PLAYOUT_DASHBOARD.md` §2: the Stream Deck as a keyboard emulator, today's only route.
-- `BRIDGE.md` §3: the Bridge's routes, token and origin rules a relay would sit behind.
+- `HARDWARE_CONTROL_RESEARCH.md`: the routes compared and measured (press to first frame p50: keyboard
+  133 ms, Companion through the cloud relay 192 ms), the check on CasparCG, OBS and vMix, the panel
+  key, and the design sketch the owner chose on 2026-10-01.
+- `BRIDGE.md` §3: why the Bridge's token stays away from panels (it also opens `/amcp`).
 - `RUNDOWN_AUTOMATION_PLAN.md` item 7 and `LANDSCAPE.md` NEXT item 10: the size (weeks, a module in
   Bitfocus's own repository and review) and the permission question.
 - Companion modules are Node packages that call an HTTP or TCP API; its generic HTTP connection can
