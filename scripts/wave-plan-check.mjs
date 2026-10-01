@@ -34,6 +34,12 @@
 //     rejected with a reason. All three pass; silence does not. On 2026-09-08 the weekly review
 //     emitted three well-formed rows and both of that day's plans were written afterwards without
 //     lifting one or mentioning the file, and nothing recorded the miss.
+//   - a weekly deferral whose reason hands the work to a ROUTINE ("next orchestrator-week session",
+//     "for the morning brief"). Routines report and never write (docs/ROUTINES.md), so that
+//     deferral has no actor: WEEK-2026-09-15-1 was deferred to the weekly session and never landed.
+//   - a THIRD consecutive deferral of one WEEK id, counted over the earlier plans in the wave-plan
+//     store. Two deferrals pass; the third plan plans the row or drops it in writing, which is a
+//     `rejected:` line with the reason. WEEK-2026-09-22-3 was deferred four plans running.
 //
 // THE WEEKLY LINE IS ALWAYS PRINTED, pass or fail, and it names the directory it searched. Both
 // the weekly file and the answered rulings live in the PRIMARY checkout, gitignored, so a
@@ -54,7 +60,7 @@ import { fileURLToPath } from 'node:url';
 import { alignmentState, mentionsId } from './alignment-answers.mjs';
 import { checkWorkFile } from './work-spec.mjs';
 import { drain, handoffFiles, newestWavePlan, parseHandoffSection } from './handoff-drain.mjs';
-import { inStore, wavePlansDir } from './wave-plan-store.mjs';
+import { inStore, wavePlanFiles, wavePlansDir } from './wave-plan-store.mjs';
 import { isStanding, readReceipts } from './owner-receipts.mjs';
 import { parseWindowEnd, parseWindowStart } from './wave-horizon.mjs';
 import { candidateProblems, parseCandidateSection, planDate, summaryLine, weeklyCandidates } from './weekly-candidates.mjs';
@@ -334,13 +340,49 @@ export function economyNotes(text, rows) {
   return notes;
 }
 
+/** How many plans running may defer one weekly candidate. The next one plans it or drops it. */
+export const DEFERRAL_LIMIT = 2;
+
+// The routines of docs/ROUTINES.md, by the names plans use for them: title, task id, and the
+// weekly session's workflow name.
+const ROUTINE = String.raw`(?:\/?orchestrator-week|weekly[- ](?:owner[- ])?(?:session|review|run)|(?:daily[- ])?morning[- ]brief|codex-update-check|delegation tooling update|(?:monthly[- ])?(?:competitor|quality(?: and refactor| \/ refactor)?)[- ]review)`;
+// A routine named as the one that will do the work: the deferral points FORWARD at it ("next",
+// "to", "for", "until") or gives it the verb ("will", "can"). A routine named as evidence, "the
+// morning brief showed Codex at its cap", is not an actor and passes.
+const ROUTINE_AS_ACTOR = new RegExp(String.raw`\b(?:next|to|for|until|till)\s+(?:the\s+|a\s+)?(?:next\s+)?${ROUTINE}|${ROUTINE}(?:\s+session)?\s+(?:will|can|should|is to)\b`, 'i');
+
+/**
+ * The deferrals this plan may not make. `earlier` is the text of every plan in the store written
+ * before this one, newest first: a streak is the run of those that deferred the same id, and it
+ * breaks at the first plan that did anything else with it or said nothing.
+ */
+export function deferralProblems(owed, classified, earlier = []) {
+  const problems = [];
+  const sections = earlier.map(parseCandidateSection);
+  for (const row of owed) {
+    const entry = classified.get(row.id);
+    if (entry?.cls !== 'deferred') continue;
+    const what = `${row.id} ("${row.title}")`;
+    if (ROUTINE_AS_ACTOR.test(entry.trace)) {
+      problems.push(`weekly candidate ${what} is deferred to a routine, and routines report but never write (docs/ROUTINES.md) - name the wave that will carry it, or reject it with the reason`);
+    }
+    let streak = 0;
+    while (streak < sections.length && sections[streak].get(row.id)?.cls === 'deferred') streak += 1;
+    if (streak >= DEFERRAL_LIMIT) {
+      problems.push(`weekly candidate ${what} was already deferred by the ${streak} plan(s) before this one - plan it as a row, or drop it in writing: "rejected: ${row.id} - <why it is dropped>"`);
+    }
+  }
+  return problems;
+}
+
 /**
  * The whole verdict, from the plan text plus injected facts so the pure part is testable.
  * `exists(relativePath)`, `handoffs` (from handoff-drain), `receipts` (from owner-receipts),
  * `alignment` (the pending answers from alignment-answers), `candidates` (the weekly review's rows
- * this plan is inside the window of, from weekly-candidates).
+ * this plan is inside the window of, from weekly-candidates), `earlier` (the text of every stored
+ * plan written before this one, newest first, for the deferral streak).
  */
-export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
+export function checkPlan(text, { exists, handoffs = [], receipts = [], alignment = [], candidates = [], earlier = [], now = Date.now(), night = false, workSpec = (file, criteria) => checkWorkFile(file, { criteria }) } = {}) {
   const problems = [];
   const table = parseWaveTable(text);
   problems.push(...table.problems);
@@ -463,7 +505,10 @@ export function checkPlan(text, { exists, handoffs = [], receipts = [], alignmen
   // A candidate row from a weekly review inside this plan's window. Unlike an alignment answer it
   // may be turned down - the owner's ruling is that nothing is forced into a wave - so all three
   // classes pass and only silence, or a refusal with no reason behind it, is a problem.
-  problems.push(...candidateProblems(candidates, parseCandidateSection(text), seenLetters));
+  // And a deferral needs an actor and an end: never a routine, and never three plans running.
+  const classified = parseCandidateSection(text);
+  problems.push(...candidateProblems(candidates, classified, seenLetters));
+  problems.push(...deferralProblems(candidates, classified, earlier));
   return { problems, notes: economyNotes(text, table.rows), rows: table.rows.length, pools: [...new Set(table.rows.flatMap(rowPools))] };
 }
 
@@ -493,6 +538,11 @@ export function main(argv = process.argv.slice(2), { root = REPO_ROOT, now = Dat
     receipts: readReceipts(root, { now }),
     alignment: alignmentState(root).pending,
     candidates: weekly.owed,
+    // The store, never a checkout: a plan in a checkout dies with it. Names sort by date and
+    // `day` before `night`, so every name below this one's was written earlier.
+    earlier: wavePlanFiles()
+      .filter((name) => name < path.basename(planPath))
+      .map((name) => readFileSync(path.join(wavePlansDir(), name), 'utf8')),
     now,
     night: /-night-/.test(path.basename(planPath)),
     workSpec: (file, criteria) => checkWorkFile(file, { root, criteria }),

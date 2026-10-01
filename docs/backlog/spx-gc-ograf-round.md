@@ -42,11 +42,8 @@ ways that are ours to fix; the claim is only whole once they pass.
 
 ## What remains
 
-1. When these land, re-run the record's walk on SPX 1.4.1 (and the embed on 1.2.1) and update the
-   record: `spx-output-embed-opaque-frame.md`, `spx-layers-collapse-onto-one.md`,
-   `ograf-package-does-not-play-in-spx.md` with `ograf-manifest-v-spx-hints.md`,
-   `ograf-graphic-inherits-host-font-size.md`. Done means: each route passes with no step in
-   project settings, and the OGraf graphics match their bare-page positions.
+1. Done: the fixes were re-walked on the servers (`SPX_ON_A_REAL_SERVER.md` §9 and §10); every
+   route plays as imported, and the OGraf graphics lay out to 0 px of their bare-page positions.
 2. The output embed with a real published production (the owner check
    `docs/acceptance/owner-queue/2026-09-30-r-spx-output-embed.md`).
 3. SPX playing through a connected CasparCG server: the native export's CasparCG path, and the

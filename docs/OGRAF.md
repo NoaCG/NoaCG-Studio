@@ -138,7 +138,8 @@ renders the real control components from a hand-written third-party manifest.
   fonts/FONT_LICENSES.md   OFL 1.1 + the per-font copyright notices, beside the bytes they cover
   images/*                 the graphic's own assets, at the paths its markup uses
   FIELDS.md                the data contract: id -> field -> type -> default
-  README.md                how to load it
+  README.md                how to load it, and what SPX 1.4 does with it
+  spx-custom-actions.js    only with custom actions: the handler SPX 1.4.1 lacks (below)
 ```
 
 Everything is referenced relatively and nothing is fetched from the network at runtime. The
@@ -161,6 +162,7 @@ package does not contain, fails the export rather than shipping.
 | `customActions` | one action per operator event the graphic's state machine declares |
 | `actionDurations` | play/stop/update durations in ms, read off the graphic's own timeline |
 | `renderRequirements` | the authored resolution and frame rate, as `ideal` constraints |
+| `v_spx` | SPX's vendor hints: the layer and out mode at the root, each property's SPX field type |
 
 **`schema`** is the public state model. Each property carries `type` (`string`, `number` or
 `boolean`, from the field type), `title` (the operator-facing label), a `default` typed to match,
@@ -263,8 +265,11 @@ disagree with each other.
   machine's current state.
 - **Light DOM, not shadow DOM.** The graphic's markup is injected into the element directly so
   its own `getElementById` lookups behave exactly as under SPX. Host page CSS that targets bare
-  element selectors could therefore reach into a graphic, exactly as before this was scoped - a
-  pre-existing, unchanged limit. The other direction is closed for the TEMPLATE'S STYLESHEET:
+  element or class selectors could therefore reach into a graphic. What a host page sets on
+  itself no longer does: the element starts from initial values, as a document root does, and
+  its subtree gets the browser's box model and overflow back from a zero-specificity reset such
+  as SPX's `*` rule, so SPX's `body, html { font-size: 3em }` no longer grows a graphic four
+  times (docs/SPX_ON_A_REAL_SERVER.md §10). The other direction is closed for the TEMPLATE'S STYLESHEET:
   `template.css` is re-addressed from the document to the graphic's own element before it is
   injected (`scopeCssToGraphic` in `src/export/targets/ograf.ts`) - `html, body` and `:root`
   become the element, `*` its subtree, every other rule is nested under it at zero specificity -
@@ -286,6 +291,11 @@ disagree with each other.
   neighbour's identically-named field, and disposing one leaves the others running. Two instances
   of the *same* design still collide, because the design's motion is keyed on its own class names
   and those are shared by both copies. Give the second copy its own document or frame.
+- **In SPX 1.4.1** the package plays as imported, on the layer its `v_spx` names, with SPX's own
+  controls. Custom actions fire only once the project loads `spx-custom-actions.js` as its
+  function library, because SPX's controller calls a `customActionHandler` it never defines; the
+  Graphic itself stays plain OGraf. SPX sends no payload with an action, and its Update never
+  reaches the Graphic. Measured and explained in docs/SPX_ON_A_REAL_SERVER.md §10.
 - **`graphic.mjs` is an ES module**, so a renderer must load the package over `http(s)` - browsers
   refuse module imports over `file://`. Our single-file targets (CasparCG, OBS/vMix, H2R) are the
   ones that run from a bare file on disk.
