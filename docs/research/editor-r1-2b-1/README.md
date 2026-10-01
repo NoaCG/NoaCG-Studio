@@ -162,6 +162,20 @@ None expected. New handles are drawn before the corner handles, so `.ef-selectio
 still a corner and `[data-handle]` still names corners, and none of them is a `rect`, so
 `.ef-selection rect` still counts selected layers.
 
+## Verification plan
+
+Pure parts first, in Node, beside `full-transforms`, `cross-cue` and `step-authoring`:
+`scripts/canvas-transforms.test.mjs` checks the gesture math (unwrapped rotation, the 15 degree
+snap, edge and corner ratios in a rotated layer's own axes, the opposite-side and anchor pivots, the
+anchor's compensation and its round trip) and the operations a gesture writes (keys where animated,
+base elsewhere, the shared `scale` refusal, the placed-text key refusal). Each guard is
+mutation-tested. `e2e/editor-canvas-transforms.spec.ts` is written first and queued on the
+unmodified code from a snapshot worktree, then the editor regressions (transforms, cross-cue, steps,
+out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
+alpha-entry), anim-engine and inspector as one job, the full affected run, build, `/check`,
+`/queue-merge` and the deployed `/version.json`. The interpreter does not change, so catalog JS
+fingerprints, the battery and taste frames are not re-run unless it does.
+
 ## Implementation
 
 - [transformGestures.ts](../../../src/components/editorFoundation/transformGestures.ts) is the pure
@@ -196,16 +210,42 @@ still a corner and `[data-handle]` still names corners, and none of them is a `r
   in its matrix (a placed text's wrapper is never folded by GSAP, so its turned corners were drawn
   unturned), measures corners on the unrounded box, and reports each layer's box and pivot.
 
-## Verification plan
+## Verification receipt
 
-Pure parts first, in Node, beside `full-transforms`, `cross-cue` and `step-authoring`:
-`scripts/canvas-transforms.test.mjs` checks the gesture math (unwrapped rotation, the 15 degree
-snap, edge and corner ratios in a rotated layer's own axes, the opposite-side and anchor pivots, the
-anchor's compensation and its round trip) and the operations a gesture writes (keys where animated,
-base elsewhere, the shared `scale` refusal, the placed-text key refusal). Each guard is
-mutation-tested. `e2e/editor-canvas-transforms.spec.ts` is written first and queued on the
-unmodified code from a snapshot worktree, then the editor regressions (transforms, cross-cue, steps,
-out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
-alpha-entry), anim-engine and inspector as one job, the full affected run, build, `/check`,
-`/queue-merge` and the deployed `/version.json`. The interpreter does not change, so catalog JS
-fingerprints, the battery and taste frames are not re-run unless it does.
+- Reproduction: a probe on the unmodified code (j-2772) recorded the table above, and
+  `e2e/editor-canvas-transforms.spec.ts`, written first and queued on the unmodified code from a
+  snapshot worktree (j-2773), failed 8 of 8 where expected: no rotation knob, side handle, anchor
+  marker, Anchor tool or Anchor fields, and the catalog sweep found 1878 layers with base placement
+  and no anchor written.
+- Node: `scripts/canvas-transforms.test.mjs` (6 tests) with `full-transforms` pass. Mutation
+  testing: 39 of 39 guard mutations fail a test, 23 of the pure geometry and operations in Node and
+  16 of the DOM guards in the browser spec (one queued job, j-2779): the SVG, script, other-rule,
+  own-rule and placed-text anchor reasons, the pair rule, `requireTextPivot`, the raw-transform
+  message, the rotation press trial, the Anchor tool kept on Escape, the anchor tool's press
+  refusal, CSS `rotate` in the measured matrix, the `--scale` anchor units, the side hit test and an
+  SVG element's scale frame. Two early survivors were an equivalent branch (a side's Shift is the
+  corner rule, since its other ratio is 1; the code now says it once) and an untested Alt pivot for
+  a side, which now has a test.
+- Browser: `e2e/editor-canvas-transforms.spec.ts` 8 of 8 (j-2777, and again at j-2779 after the
+  added checks). The catalog sweep writes an anchor on 1872 of 1878 layers with base placement,
+  only CSS changing; 5 refuse because the design's script sets transformOrigin and 1 is SVG; a
+  15 degree Rotation applies on all 1878. The editor regressions (transforms, cross-cue, steps,
+  out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
+  alpha-entry), anim-engine and inspector as one job (j-2781): 209 passed, 20 skipped, none failed.
+  No existing assertion changed.
+- Real UI (j-2782), headless at 1920 on this worktree's dev server in one page, as the owner route
+  runs, with no page errors: Hairline from the template search, a rectangle drawn with the Rectangle
+  tool, a Shift turn of its handle to 45, its right side to Scale X 126 with Y 100, Anchor 0, 0 and a
+  turn about that corner (the corner moved 0.00 px), Center anchor (bounds within 0.01 px), the
+  Anchor tool onto its bottom-right corner (bounds within 0.01 px, one undo), a turn about it, undo
+  and redo, then saved and reopened with Rotation 55.003 and the anchor 326.391, 129.594 intact.
+  Frosted Panel from the template search: at 0.32 s the Anchor tool kept the panel within 0.01 px
+  and keyed Position Y at the playhead in one undo; at 0.88 s a turn wrote Rotation 8 and a Shift
+  side drag keyed Scale 108.5; saved and played from its control page (Play, then Stop), where the
+  panel enters turned and scaled about its new anchor. The built-in browser pane was not used; the
+  walk ran as a queued headless job.
+- The interpreter is unchanged, so catalog JS fingerprints, the battery and taste frames were not
+  re-run.
+- Not checked: a physical desktop at 125% scaling, a phone, and the receiving CasparCG and OGraf
+  hosts (an anchor is CSS, which every export carries; the simulator renders the edited rectangle
+  within 0.5 px of the editor).
