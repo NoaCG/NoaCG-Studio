@@ -71,12 +71,14 @@ export interface PingSent {
   detail?: string;
 }
 
-/** Has this output finished with the ping: answered, or past the wait, or there is no ping. */
+/** Has this output finished with the ping: answered, or past the wait, or there is no ping. The
+ *  wait runs from the send even while the send has not answered: a request that hangs must not
+ *  keep the run open. */
 export function pingSettled(entry: LiveEntry | undefined, ping: PingSent | null, now: number): boolean {
   if (!ping || ping.state === 'unavailable' || ping.state === 'failed') return true;
   if (!entry || !entry.ack) return true;
   if (entry.ack && entry.ack.id === ping.id) return true;
-  return ping.state === 'sent' && now - ping.sentAt >= PING_WAIT_MS;
+  return now - ping.sentAt >= PING_WAIT_MS;
 }
 
 /**
@@ -115,7 +117,7 @@ export function withPing(checks: readonly CheckLine[], peers: readonly LiveEntry
     if (entry.ack.id === ping.id) {
       return { ...check, label: `${check.label} · ${entry.ack.ms === null ? 'commands reach it' : `command path ${entry.ack.ms} ms`}` };
     }
-    if (ping.state === 'sent' && now - ping.sentAt >= PING_WAIT_MS) {
+    if (now - ping.sentAt >= PING_WAIT_MS) {
       return {
         ...check,
         tone: check.tone === 'bad' ? 'bad' : 'warn',

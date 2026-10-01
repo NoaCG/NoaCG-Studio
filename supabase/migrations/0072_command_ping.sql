@@ -61,7 +61,7 @@ begin
            order by e.id desc limit 51) t
    where t.created_at > now() - interval '5 seconds';
   if v_recent + 1 > 50 then
-    raise exception 'too many commands — slow down' using errcode = 'check_violation';
+    raise exception 'too many commands, slow down' using errcode = 'check_violation';
   end if;
   -- 4. The number, then the row: one statement, one frame. The summary does not move.
   v_seq := v_head.seq + 1;

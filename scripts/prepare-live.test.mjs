@@ -146,13 +146,14 @@ test("the ping is said on each output's own line: a time, a wait, or that comman
   assert.deepEqual(withPing(checks, peers, null, 2_000), checks);
 });
 
-test('an output is done with the ping when it answers, or its wait runs out; a ping still sending waits', () => {
+test('an output is done with the ping when it answers, or its wait from the send runs out', () => {
   const sent = { id: 'p1', sentAt: 1_000, state: 'sent' };
   assert.equal(pingSettled(entry(undefined, { ack: { id: 'p1', ms: 5 } }), sent, 1_100), true);
   const waiting = entry(undefined, { ack: { id: '', ms: null } });
   assert.equal(pingSettled(waiting, sent, 1_100), false);
   assert.equal(pingSettled(waiting, sent, 1_000 + PING_WAIT_MS), true);
-  assert.equal(pingSettled(waiting, { ...sent, state: 'sending' }, 1_000 + PING_WAIT_MS), false);
+  assert.equal(pingSettled(waiting, { ...sent, state: 'sending' }, 1_100), false);
+  assert.equal(pingSettled(waiting, { ...sent, state: 'sending' }, 1_000 + PING_WAIT_MS), true, 'a send that hangs does not keep the run open');
   assert.equal(pingSettled(entry(undefined), sent, 1_100), true, 'an output that cannot answer is not waited for');
   assert.equal(pingSettled(entry(undefined), { ...sent, state: 'unavailable' }, 1_100), true);
 });
