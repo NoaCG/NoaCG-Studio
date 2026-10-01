@@ -34,6 +34,101 @@ export function readPrepRequest(value: unknown): PrepRequest | undefined {
 /** How long Prepare for Live waits for every output to settle before it stamps what it has. */
 export const PREPARE_WAIT_MS = 60_000;
 
+// ── THE COMMAND PATH PING (R9, AC-12; migration 0072) ──────────────────────────────────────────
+
+/** How long an output has to answer a ping before its line says commands did not reach it. */
+export const PING_WAIT_MS = 15_000;
+
+/** An output's answer to a ping, in its Presence entry: the ping's id, and how long after the
+ *  server wrote the row it arrived there (null when the two clocks cannot be compared honestly).
+ *  An output that can answer always carries one (id '' until a ping arrives); an entry without it
+ *  is an output loaded before the ping existed. */
+export interface PingAck {
+  id: string;
+  ms: number | null;
+}
+
+/** A ping answer off the wire, or undefined. */
+export function readPingAck(value: unknown): PingAck | undefined {
+  const a = value as Partial<PingAck> | null;
+  if (!a || typeof a !== 'object' || typeof a.id !== 'string') return undefined;
+  return { id: a.id.slice(0, 40), ms: typeof a.ms === 'number' && a.ms >= 0 ? Math.round(a.ms) : null };
+}
+
+/** How long after the server's `at` a ping arrived, on the output's clock. A negative or huge
+ *  figure is the two clocks disagreeing, not the road: then there is no figure to give. */
+export function pingDelay(at: number, now: number): number | null {
+  const ms = now - at;
+  return ms >= 0 && ms < 60_000 ? Math.round(ms) : null;
+}
+
+/** The ping as the production page sent it. */
+export interface PingSent {
+  id: string;
+  /** When this page sent it, on its own clock. */
+  sentAt: number;
+  state: 'sending' | 'sent' | 'unavailable' | 'failed';
+  detail?: string;
+}
+
+/** Has this output finished with the ping: answered, or past the wait, or there is no ping. The
+ *  wait runs from the send even while the send has not answered: a request that hangs must not
+ *  keep the run open. */
+export function pingSettled(entry: LiveEntry | undefined, ping: PingSent | null, now: number): boolean {
+  if (!ping || ping.state === 'unavailable' || ping.state === 'failed') return true;
+  if (!entry || !entry.ack) return true;
+  if (entry.ack && entry.ack.id === ping.id) return true;
+  return now - ping.sentAt >= PING_WAIT_MS;
+}
+
+/**
+ * THE COMMAND PATH, ON EACH OUTPUT'S OWN LINE (AC-12: "its line reads 'command path 110 ms'"):
+ * "Desk A: Ready for playout · command path 110 ms", amber "· commands did not reach it in 15 s"
+ * for one that has not answered in PING_WAIT_MS, and a note for one loaded before the ping existed.
+ * An output that has gone is already "not answering"; its line is left as it is. A server without
+ * the ping, or a ping that could not be sent, is one line of its own after the outputs.
+ */
+export function withPing(checks: readonly CheckLine[], peers: readonly LiveEntry[], ping: PingSent | null, now: number): CheckLine[] {
+  if (!ping) return checks.slice();
+  if (ping.state === 'unavailable') {
+    return checks.concat({
+      key: 'ping',
+      tone: 'idle',
+      note: true,
+      label: 'The command path check is not on this server yet',
+      advice: 'It arrives with a database update (0072). Take and every other verb work as before.',
+    });
+  }
+  if (ping.state === 'failed') {
+    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Prepare for Live again.' });
+  }
+  return checks.map((check): CheckLine => {
+    if (check.key.indexOf('output-') !== 0) return check;
+    const id = check.key.slice('output-'.length);
+    const entry = peers.filter((p) => p.kind === 'output' && p.id === id).sort((a, b) => b.at - a.at)[0];
+    if (!entry) return check;
+    if (!entry.ack) {
+      return {
+        ...check,
+        label: `${check.label} · cannot answer the command path check`,
+        advice: check.advice ?? 'It was loaded before the check existed. Reload it when nothing is on air to include it.',
+      };
+    }
+    if (entry.ack.id === ping.id) {
+      return { ...check, label: `${check.label} · ${entry.ack.ms === null ? 'commands reach it' : `command path ${entry.ack.ms} ms`}` };
+    }
+    if (now - ping.sentAt >= PING_WAIT_MS) {
+      return {
+        ...check,
+        tone: check.tone === 'bad' ? 'bad' : 'warn',
+        label: `${check.label} · commands did not reach it in ${PING_WAIT_MS / 1000} s`,
+        advice: (check.tone === 'ok' ? undefined : check.advice) ?? 'It may be reading commands only every 30 s. Reload it, or check its network.',
+      };
+    }
+    return { ...check, tone: check.tone === 'ok' ? 'running' : check.tone, label: `${check.label} · checking the command path` };
+  });
+}
+
 /** One line of the checklist. `note` lines inform and are not counted in the stamp. */
 export interface CheckLine {
   key: string;

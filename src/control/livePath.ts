@@ -29,7 +29,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { createPresenceGate } from './presenceGate';
-import { readPrepRequest, type PrepRequest } from './prepareLive';
+import { readPingAck, readPrepRequest, type PingAck, type PrepRequest } from './prepareLive';
 import {
   oneEntryPerOutput,
   readHeld,
@@ -406,6 +406,8 @@ export interface LiveEntry {
   stamp?: ReadyStamp;
   /** The production page asking every output to prepare a version (Prepare for Live, R4). */
   prep?: PrepRequest;
+  /** An output's answer to the last command path ping it received (migration 0072, R9). */
+  ack?: PingAck;
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -415,7 +417,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep'>,
+  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
 ): LiveEntry {
   return {
     kind,
@@ -457,6 +459,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     : undefined;
   const stamp = readReadyStamp(m.stamp);
   const prep = readPrepRequest(m.prep);
+  const ack = readPingAck(m.ack);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -474,6 +477,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(exp ? { exp } : {}),
     ...(stamp ? { stamp } : {}),
     ...(prep ? { prep } : {}),
+    ...(ack ? { ack } : {}),
   };
 }
 

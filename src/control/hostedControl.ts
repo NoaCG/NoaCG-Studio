@@ -275,7 +275,9 @@ export interface ControlEventRow {
     | ControlMessage
     | CueStatusMsg
     | { t: 'staged'; data: Record<string, string> }
-    | { t: 'live'; data?: Record<string, string>; state?: { groups?: Record<string, string> } | null };
+    | { t: 'live'; data?: Record<string, string>; state?: { groups?: Record<string, string> } | null }
+    // A ping through the command path (migration 0072): an empty graphic, and nothing to air.
+    | { t: 'ping'; id: string; at: number };
 }
 
 /** The stored operator spec for a show — one entry per graphic, no template payload. The
@@ -1338,6 +1340,23 @@ async function sendSeqBatch(slug: string, items: WireItem[], sender: SenderBody,
     throw rpcFailure('control_send_seq', error, status);
   }
   return readSendAnswer(data);
+}
+
+/** What `control_ping_seq` answered: the server's clock at the commit, or why there was no ping. */
+export type PingAnswer = { ok: true; at: number } | { ok: false; unavailable: boolean; detail: string };
+
+/**
+ * `control_ping_seq` (migration 0072, docs/work-specs/playout-ready/spec.md R9): one row through
+ * the numbered send path that airs nothing; each output answers in its Presence entry. A server
+ * without the migration answers PGRST202, which is `unavailable`, never an error on screen.
+ */
+export async function controlPingSeq(slug: string, id: string): Promise<PingAnswer> {
+  const sb = await getSupabase();
+  if (!sb) return { ok: false, unavailable: true, detail: 'no backend' };
+  const { data, error } = await sb.rpc('control_ping_seq', { p_slug: slug, p_id: id });
+  if (error) return { ok: false, unavailable: error.code === 'PGRST202', detail: error.message.slice(0, 160) };
+  const at = (data as { at?: unknown } | null)?.at;
+  return typeof at === 'number' ? { ok: true, at } : { ok: false, unavailable: false, detail: 'no answer' };
 }
 
 /** One wire item of a batched send. */

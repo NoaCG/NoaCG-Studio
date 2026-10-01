@@ -179,6 +179,7 @@ import {
   joinPageUrl,
   presenterPageUrl,
   claimJoinName,
+  controlPingSeq,
   outputPageUrl,
   publishControlShow,
   sendControlVerbs,
@@ -574,6 +575,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
     bridge: () => gatherBridgeFacts(loadPlayoutSettings(), show ?? {}),
+    ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
   const { announce } = livePresence;
   useEffect(() => {
@@ -846,9 +848,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         // two, the graphic would be up for a third of a second while the rundown still said the
         // layer was clear.
         if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
-        // 'staged' is another operator typing and 'live' is the renderer REPORTING - neither is
-        // a command and the stage has no meaning for either.
-        else if (msg.t !== 'staged' && msg.t !== 'live') {
+        // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
+        // Prepare for Live's check of the command path - none is a command for the stage.
+        else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
           rememberAired([{ graphic: item.graphic, msg }]);
           applyProgram([{ graphic: item.graphic, msg }]);
         }
