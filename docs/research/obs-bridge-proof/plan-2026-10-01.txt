@@ -1,0 +1,162 @@
+obs-bridge-proof, mode plan, node v24.13.0, 2026-10-01T00:02:29.603Z
+
+status (connect, then read)
+  -> GetVersion
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetSceneList
+  <- 100
+  = {"version":"OBS 32.2.1, obs-websocket 5.7.4","canvas":{"width":1920,"height":1080},"programScene":"Scene","previewScene":null,"scenes":["Scene"]}
+
+take url, first time (Put on air creates the source)
+  -> GetSceneList
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 600
+  -> CreateInput {"sceneName":"Scene","inputName":"NoaCG my-show","inputKind":"browser_source","inputSettings":{"url":"https://noacg.studio/output?production=my-show","width":1920,"height":1080,"shutdown":false,"restart_when_active":false},"sceneItemEnabled":true}
+  <- 100
+  = {"created":true}
+
+out url (Take off, a bare out: the page carries no marker, so it hides)
+  -> GetSceneList
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 100
+  -> GetSceneItemId {"sceneName":"Scene","sourceName":"NoaCG my-show"}
+  <- 100
+  -> SetSceneItemEnabled {"sceneName":"Scene","sceneItemId":1,"sceneItemEnabled":false}
+  <- 100
+  = {"slot":"url","hidden":true}
+
+take url, again (shown again, the page is not reloaded)
+  -> GetSceneList
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 100
+  -> GetSceneItemId {"sceneName":"Scene","sourceName":"NoaCG my-show"}
+  <- 100
+  -> SetSceneItemEnabled {"sceneName":"Scene","sceneItemId":1,"sceneItemEnabled":true}
+  <- 100
+  = {"created":false,"urlChanged":false,"addedToScene":false}
+
+take url, another production (the URL changes)
+  -> GetSceneList
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 100
+  -> SetInputSettings {"inputName":"NoaCG my-show","inputSettings":{"is_local_file":false,"url":"https://noacg.studio/output?production=my-show-2","width":1920,"height":1080}}
+  <- 100
+  -> GetSceneItemId {"sceneName":"Scene","sourceName":"NoaCG my-show"}
+  <- 100
+  -> SetSceneItemEnabled {"sceneName":"Scene","sceneItemId":1,"sceneItemEnabled":true}
+  <- 100
+  = {"created":false,"urlChanged":true,"addedToScene":false}
+
+take url, a name held by another kind of source (refused, nothing sent after the read)
+  -> GetSceneList
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetInputSettings {"inputName":"Webcam"}
+  <- 100
+  = {"refused":"OBS already has a source named \"Webcam\" that is a dshow_input, not a browser source"}
+
+take url, a name held by a scene (refused)
+  -> GetSceneList
+  <- 100
+  -> GetVideoSettings
+  <- 100
+  -> GetInputSettings {"inputName":"Scene"}
+  <- 602
+  = {"refused":"\"Scene\" is the name of a scene in OBS, not of a source"}
+
+take url, a scene that is not there (not-found, nothing else sent)
+  -> GetSceneList
+  <- 100
+  = {"notFound":"OBS has no scene \"Gone\""}
+
+(the operator adds an exported overlay as a hidden local-file source)
+  -> CreateInput {"sceneName":"Scene","inputName":"House Strap","inputKind":"browser_source","inputSettings":{"is_local_file":true,"local_file":"C:/shows/house_strap/house_strap.html"},"sceneItemEnabled":false}
+  <- 100
+
+list template (the marker is read once per page and cached)
+  -> GetInputList {"inputKind":"browser_source"}
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  = [{"name":"House Strap","label":"House Strap","kind":"graphic"}]
+
+take template (hidden source: emit first, then show)
+  -> GetSceneList
+  <- 100
+  -> GetSceneItemId {"sceneName":"Scene","sourceName":"House Strap"}
+  <- 100
+  -> GetSceneItemEnabled {"sceneName":"Scene","sceneItemId":2}
+  <- 100
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"House Strap","msgs":[{"t":"update","data":{"f0":"Anna","f1":"Host"}},{"t":"play"}]}}}
+  <- 100
+  -> SetSceneItemEnabled {"sceneName":"Scene","sceneItemId":2,"sceneItemEnabled":true}
+  <- 100
+  = {"shownBefore":false}
+
+update (no item: the marker says template)
+  -> GetSceneList
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"House Strap","msgs":[{"t":"update","data":{"f0":"Ben"}}]}}}
+  <- 100
+  = {"slot":"template","emitted":"House Strap"}
+
+next
+  -> GetSceneList
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"House Strap","msgs":[{"t":"next"}]}}}
+  <- 100
+  = {"slot":"template","emitted":"House Strap"}
+
+out (a bare out on a template slot emits stop, it does not hide)
+  -> GetSceneList
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"House Strap","msgs":[{"t":"stop"}]}}}
+  <- 100
+  = {"slot":"template","emitted":"House Strap"}
+
+clear (stop, then hide)
+  -> GetSceneList
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"House Strap","msgs":[{"t":"stop"}]}}}
+  <- 100
+  -> GetSceneItemId {"sceneName":"Scene","sourceName":"House Strap"}
+  <- 100
+  -> SetSceneItemEnabled {"sceneName":"Scene","sceneItemId":2,"sceneItemEnabled":false}
+  <- 100
+  = {"slot":"template","hidden":true}
+
+state
+  -> GetSceneList
+  <- 100
+  -> GetSceneItemList {"sceneName":"Scene"}
+  <- 100
+  -> GetInputSettings {"inputName":"NoaCG my-show"}
+  <- 100
+  -> GetInputSettings {"inputName":"House Strap"}
+  <- 100
+  = {"scene":"Scene","onProgram":true,"onPreview":false,"slots":[{"source":"NoaCG my-show","shown":true,"producer":"html","page":"https://noacg.studio/output?production=my-show-2"},{"source":"House Strap","shown":false,"producer":"empty","page":"C:/shows/house_strap/house_strap.html"}]}
+
+pause, resume, media, sequence, thumbnail: refused by the adapter before anything is sent.
