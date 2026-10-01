@@ -1,0 +1,65 @@
+/* WHAT'S NEW (whats-new.html) AND THE ROADMAP (roadmap.html). The header, type, footer and colours
+   come from src/docs/docs.css; this file adds only the two generated lists. The markup inside
+   <main> is written by scripts/whats-new.mjs and scripts/roadmap.mjs at build. */
+
+/* ── What's new: one update per row, its date beside its areas on a wide screen ── */
+.wn-list { padding: 18px 0 72px; font-family: var(--read); color: var(--text); }
+.wn-update {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 8px 32px;
+  padding: 30px 0 14px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 24px;
+}
+.wn-update h2 {
+  font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--amber); margin: 4px 0 0;
+}
+.wn-area { grid-column: 2; max-width: var(--measure); }
+.wn-area + .wn-area { margin-top: 20px; }
+.wn-area h3 {
+  font-family: "Space Grotesk", Arial, sans-serif; font-size: 19px; font-weight: 600;
+  color: var(--paper); margin: 0 0 6px;
+}
+.wn-area ul { margin: 0 0 0 22px; font-size: 16.5px; line-height: 1.6; }
+.wn-area li { margin: 6px 0; }
+.wn-area li::marker { color: var(--faint); }
+@media (max-width: 760px) {
+  .wn-update { grid-template-columns: minmax(0, 1fr); }
+  .wn-area { grid-column: 1; }
+}
+
+/* ── Roadmap: Now, Next and Later, each a row of plain cards ── */
+.rm-list { padding: 18px 0 72px; font-family: var(--read); color: var(--text); }
+.rm-col { padding: 30px 0 8px; border-top: 1px solid var(--line); scroll-margin-top: 24px; }
+.rm-col h2 { margin: 0 0 4px; }
+.rm-note { font-size: 15.5px; color: var(--caption); margin: 0 0 18px; max-width: var(--measure); }
+.rm-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.rm-item {
+  border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px 10px;
+  background: linear-gradient(180deg, rgba(232, 237, 242, 0.02), transparent 60%), var(--panel);
+}
+/* Now is the work in hand: its cards carry the amber edge, the rest stay plain. */
+#now .rm-item { border-color: rgba(246, 166, 35, 0.32); }
+.rm-item h3 {
+  font-family: "Space Grotesk", Arial, sans-serif; font-size: 17px; font-weight: 600;
+  color: var(--paper); margin: 0 0 6px;
+}
+.rm-item ul { margin: 0 0 0 20px; font-size: 15px; line-height: 1.55; }
+.rm-item li { margin: 6px 0; }
+.rm-item li::marker { color: var(--faint); }
+@media (max-width: 420px) {
+  .rm-items { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A phone header holds the wordmark, the current page and the button; the row tightens so the
+   button keeps its label on one line (the same rule src/downloads/downloads.css carries). */
+@media (max-width: 420px) {
+  header.top nav { gap: 14px; }
+  header.top .btn { padding: 10px 16px; white-space: nowrap; }
+}

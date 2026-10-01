@@ -60,8 +60,8 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // https://noacg.studio rather than at anything local, which is a tier the three configs above
   // cannot cover, so it sits beside them rather than inside e2e/.
   'playwright.production.config.ts',
-  'privacy.html', 'public', 're-design', 'render-worker', 'scripts', 'src',
-  'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts',
+  'privacy.html', 'public', 're-design', 'render-worker', 'roadmap.html', 'scripts', 'src',
+  'supabase', 'terms.html', 'tsconfig.api.json', 'tsconfig.json', 'vercel.json', 'vite.config.ts', 'whats-new.html',
 ]);
 
 /** Tracked paths, one per line, from git itself rather than a directory walk - the question is

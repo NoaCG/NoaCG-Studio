@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+  THE ROADMAP (/roadmap): what NoaCG is building now, next and later, in plain words.
+
+  Nothing here is written by hand. The build puts the three columns in place of the marker below
+  from docs/GOALS.md and docs/whats-new/roadmap.md together (the generated-pages plugin in
+  vite.config.ts, through scripts/roadmap.mjs): GOALS decides which column an item is in, the
+  wording file says it for a visitor, and the build fails when the two disagree. So a priority
+  changed in GOALS moves the item here on the next build, and nobody has to remember the page.
+
+  No dates, no competitors, nothing from private context, and nothing claimed as built: what has
+  shipped is on /whats-new. Static and complete with no JavaScript.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roadmap - NoaCG Studio</title>
+  <meta name="description" content="What NoaCG Studio is building now, next and later: creating graphics, the AI agent route, the editor, controls, playout, OGraf and live data." />
+  <meta name="theme-color" content="#0a0c10" />
+  <link rel="canonical" href="https://noacg.studio/roadmap" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
+  <meta property="og:title" content="NoaCG Studio roadmap" />
+  <meta property="og:description" content="What NoaCG Studio is building now, next and later." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://noacg.studio/roadmap" />
+  <link rel="stylesheet" href="/src/docs/docs.css" />
+  <link rel="stylesheet" href="/src/landing/updates.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
+      <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
+      <nav>
+        <a class="gh" href="/docs">Docs</a>
+        <a class="gh" href="/downloads">Downloads</a>
+        <a class="gh" href="/whats-new">What's new</a>
+        <a href="/roadmap" aria-current="page">Roadmap</a>
+        <a class="btn btn-amber" href="/app#/new">Start creating</a>
+      </nav>
+    </header>
+
+    <div class="doc-hero">
+      <p class="kicker">Roadmap</p>
+      <h1>Where NoaCG is going</h1>
+      <p class="lede">
+        The features we are adding and improving, now, next and later. It is made from the
+        project's goals, so it changes when they do, and it gives no dates. What has already
+        shipped is in <a href="/whats-new">What's new</a>.
+      </p>
+    </div>
+
+    <main class="rm-list" data-testid="roadmap-columns">
+<!--roadmap:columns-->
+    </main>
+
+    <footer>
+      <span class="fm">NoaCG Studio &middot; Roadmap</span>
+      <span>
+        <a href="/">Home</a> &middot;
+        <a href="/whats-new">What's new</a> &middot;
+        <a href="/docs">Docs</a> &middot;
+        <a href="/downloads">Downloads</a> &middot;
+        <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a> &middot;
+        <a href="mailto:contact.noacg@gmail.com">Contact</a>
+      </span>
+    </footer>
+  </div>
+</body>
+</html>

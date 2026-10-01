@@ -8,9 +8,11 @@ import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
+import { renderUpdatesHtml } from './scripts/whats-new.mjs';
+import { renderRoadmapHtml } from './scripts/roadmap.mjs';
 
 // NoaCG Studio — dev/build config.
-// Eleven pages: index.html is the static public landing at "/", docs.html is the public docs
+// Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
 // home at "/docs" (static, indexed, no React), app.html is the editor at
 // "/app", admin.html is the private admin surface at "/admin" (unlinked and noindex — it is
 // a 404 for everyone the server does not recognise, see docs/ADMIN.md), output.html is
@@ -19,11 +21,13 @@ import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
 // ograf.html is the public FREE OGRAF STARTERS page at "/ograf" (docs/OGRAF.md), and
 // bridge.html is the headless BRIDGE at "/bridge" the `noacg` CLI / MCP server drives
 // (noindex, docs/AGENT_CLI.md), and downloads.html is the public DOWNLOADS page at "/downloads"
-// (static, indexed): NoaCG Bridge and the NoaCG CLI, the two tools you install.
+// (static, indexed): NoaCG Bridge and the NoaCG CLI, the two tools you install. whats-new.html
+// ("/whats-new") and roadmap.html ("/roadmap") are public pages whose lists are generated at
+// build from docs/whats-new/ and docs/GOALS.md (generatedPages below).
 // Vercel serves the clean URLs via cleanUrls (vercel.json); this tiny plugin gives the dev
 // and preview servers the same ones. Terms and Privacy are public pages for the optional
 // hosted service. `?raw` imports bundle GSAP + template snippets.
-const CLEAN_PAGES = ['/app', '/admin', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads'] as const;
+const CLEAN_PAGES = ['/app', '/admin', '/output', '/join', '/terms', '/privacy', '/ograf', '/bridge', '/docs', '/downloads', '/whats-new', '/roadmap'] as const;
 
 // `/join/<name>` — the READABLE join URL an operator reads out on air. Vercel serves it through
 // a rewrite (vercel.json); the same shape has to work here, or a vanity link is testable only
@@ -70,6 +74,35 @@ function appCleanUrl(): Plugin {
 }
 
 /**
+ * THE PAGES WHOSE LISTS ARE GENERATED: What's new from the notes in docs/whats-new/, and the
+ * roadmap from docs/GOALS.md with its public wording. Each page holds a marker comment that this
+ * replaces, in the dev server on every request and in the build once. The render functions throw
+ * when a note is not fit to publish or the roadmap is out of step with GOALS, so neither page can
+ * be built from bad input; the same checks also run as build gates (scripts/whats-new.mjs,
+ * scripts/roadmap.mjs), so the refusal reads the same from the command line.
+ */
+const GENERATED: Record<string, () => string> = {
+  '<!--whats-new:updates-->': () => renderUpdatesHtml(),
+  '<!--roadmap:columns-->': () => renderRoadmapHtml(),
+};
+
+function generatedPages(): Plugin {
+  return {
+    name: 'generated-pages',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        let out = html;
+        for (const [marker, render] of Object.entries(GENERATED)) {
+          if (out.includes(marker)) out = out.replace(marker, () => render());
+        }
+        return out;
+      },
+    },
+  };
+}
+
+/**
  * THE BUILD A PAGE REPORTS (src/control/livePath.ts `LIVE_BUILD`): the short commit, so a renderer
  * on air can say which deploy it was loaded from. Vercel hands the commit in the build env; a local
  * build or dev server asks the checkout; neither means `dev`.
@@ -108,6 +141,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       react(),
       appCleanUrl(),
+      generatedPages(),
       renderApiPlugin(),
       aiApiPlugin(),
       eventsApiPlugin(),
@@ -149,6 +183,8 @@ export default defineConfig(({ command, mode }) => {
           ograf: 'ograf.html',
           bridge: 'bridge.html',
           downloads: 'downloads.html',
+          whatsNew: 'whats-new.html',
+          roadmap: 'roadmap.html',
         },
       },
     },

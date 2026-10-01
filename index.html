@@ -205,6 +205,7 @@
     .sub { color: var(--dim); max-width: 620px; }
     .sub a, .feat p a { color: var(--amber); }
     .sub a:hover, .feat p a:hover { color: var(--glow); }
+    .sub + .sub { margin-top: 12px; }
     .note { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
 
     /* ═══ Product screenshots ═══
@@ -250,6 +251,12 @@
     .route.main { border-color: rgba(246, 166, 35, 0.4); }
     .route h3 { font-size: 15px; font-weight: 700; }
     .route p { font-size: 14px; color: var(--dim); margin-top: 4px; }
+    /* The OBS capture sits under the routes, smaller than the dashboard: one route's picture. */
+    .obs-shot { margin-top: 18px; max-width: 720px; }
+    .obs-shot figcaption {
+      padding: 9px 13px; border-top: 1px solid var(--line);
+      font-size: 13px; color: var(--faint);
+    }
     .playout-actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 22px; }
     .text-link { color: var(--amber); font-size: 15px; }
     .text-link:hover { color: var(--glow); }
@@ -512,9 +519,15 @@
               This is our main production setup.
             </p>
           </div>
-          <div class="route">
+          <!-- OBS: the output URL as a browser source, and the control panel in a Custom Browser
+               Dock, measured on OBS 32.2.1 (docs/OBS_ON_A_REAL_HOST.md sections 2, 5 and 10). -->
+          <div class="route" id="obs">
             <h3>OBS and browser sources</h3>
-            <p>Play graphics straight from NoaCG: load the production's output URL as a browser source.</p>
+            <p>
+              Play graphics straight from NoaCG: add the production's output URL as a browser
+              source. In OBS the control panel can sit in a Custom Browser Dock, so you run the
+              show from inside OBS.
+            </p>
           </div>
           <div class="route">
             <h3>Export packages</h3>
@@ -524,6 +537,13 @@
             </p>
           </div>
         </div>
+        <!-- A capture of a real OBS 32.2 window (docs/OBS_ON_A_REAL_HOST.md, "The landing picture"):
+             a NoaCG lower third on program and the control panel in a Custom Browser Dock. -->
+        <figure class="screen obs-shot" data-reveal>
+          <div class="screen-top"><i></i><i></i><i></i><span class="screen-name">OBS Studio</span></div>
+          <img src="/landing/shot-obs.png" alt="OBS Studio with a NoaCG lower third on program and the NoaCG control panel in a Custom Browser Dock beside the preview, with Play, Stop and Take" width="1438" height="788" loading="lazy" />
+          <figcaption>In OBS: the graphic as a browser source, the control panel as a dock.</figcaption>
+        </figure>
         <div class="playout-actions" data-reveal>
           <a class="btn btn-ghost" href="/downloads#bridge">Download NoaCG Bridge</a>
           <a class="text-link" href="/docs#dashboard">How playout works →</a>
@@ -567,6 +587,10 @@
           service runs for you, such as publishing an output URL or running AI. We would like to
           <a href="mailto:contact.noacg@gmail.com">hear what you think</a>.
         </p>
+        <p class="sub" data-reveal>
+          See <a href="/whats-new">what changed lately</a> and
+          <a href="/roadmap">where NoaCG is going</a>.
+        </p>
       </section>
     </main>
   </div>
@@ -585,6 +609,8 @@
         <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> ·
         <a href="/docs">Docs</a> ·
         <a href="/downloads">Downloads</a> ·
+        <a href="/whats-new">What's new</a> ·
+        <a href="/roadmap">Roadmap</a> ·
         <a href="/terms">Terms</a> ·
         <a href="/privacy">Privacy</a> ·
         <a href="https://github.com/NoaCG/NoaCG-Studio" target="_blank" rel="noopener noreferrer">Source</a> ·
