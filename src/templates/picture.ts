@@ -139,7 +139,10 @@ html, body {
 /* The stage fades as one, so the picture never animates independently of its own frame. */
 #picture-stage {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;              /* longhands, not inset: CasparCG 2.3's Chromium 71 drops inset */
+  height: 100%;
   opacity: 0;              /* hidden until play() — the SPX contract */
 }
 

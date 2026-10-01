@@ -737,11 +737,22 @@ async function boot(): Promise<void> {
     missed.push(...tail.value);
     if (tail.value.length < CONTROL_TAIL_PAGE) break;
   }
-  const animates = missed.some(
-    (row) =>
-      !alreadyInSnapshot(snapshotAt, row.graphic, position(row)) &&
-      (row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event'),
+  const replayed = missed.filter((row) => !alreadyInSnapshot(snapshotAt, row.graphic, position(row)));
+  // ON AIR WITH NO POSE TO PUT BACK. A graphic with no state machine (a picture, a hand-written
+  // template) reports no pose, so its report says nothing about whether it was up, and the Take
+  // that put it up is older than the report, so it is not replayed either: an output that reloaded
+  // while a picture was on air came back without it (CasparCG 2.3, 2026-10-01). The log's own head
+  // says what is on air (protocol 2); such a graphic is played again inside the hidden catch-up
+  // below, unless a play of it is among the rows replayed anyway.
+  const onWithoutPose = stage.graphics.filter(
+    (key) =>
+      headOn.get(key) === true &&
+      !resolved.live[key]?.state?.groups &&
+      !replayed.some((row) => row.graphic === key && (row.msg.t === 'play' || row.msg.t === 'snap')),
   );
+  const animates =
+    onWithoutPose.length > 0 ||
+    replayed.some((row) => row.msg.t === 'play' || row.msg.t === 'stop' || row.msg.t === 'next' || row.msg.t === 'event');
   if (animates) {
     stage.setVisible(false);
     dbg('catch-up', `${missed.length} row(s), off air while they settle`);
@@ -767,6 +778,12 @@ async function boot(): Promise<void> {
       if (mine.data) stage.apply(key, { t: 'update', data: mine.data });
     }
   }
+  for (const key of onWithoutPose) {
+    stage.apply(key, { t: 'play' });
+    liveGraphics.add(key);
+    touched.add(key);
+  }
+  if (onWithoutPose.length > 0) dbg('catch-up', `on air with no pose, played again: ${onWithoutPose.join(', ')}`);
 
   // ── Replay what was missed, then come back on air once the replay has stood still. ──
   //

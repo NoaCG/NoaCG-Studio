@@ -30,6 +30,7 @@ import {
   CANVAS_MARK,
 } from './canvasControlProtocol';
 import type { SpxTemplate } from '../model/types';
+import { expandInset, expandInsetInMarkup } from './cssCompat';
 
 /** Remove <link>/<script> tags that point at local template files we will inline instead.
  *  (Exported: render/composeRenderDocument composes its own self-contained document.) */
@@ -147,8 +148,9 @@ export function composeDocument(template: SpxTemplate, options: ComposeOptions =
   template = { ...template, js: prepareOutRuntime(template.js) };
   // Inline uploaded assets (assets/foo.png -> data URL) so the preview renders media
   // without a server. The exported package keeps the relative paths + real files.
-  let html = stripLocalAssetTags(inlineAssetRefs(template.html, template.assets));
-  const css = inlineAssetRefs(template.css, template.assets);
+  // `inset` rewritten into longhands for CasparCG 2.3's Chromium 71, which drops it (./cssCompat.ts).
+  let html = expandInsetInMarkup(stripLocalAssetTags(inlineAssetRefs(template.html, template.assets)));
+  const css = expandInset(inlineAssetRefs(template.css, template.assets));
 
   const { width, height } = template.resolution;
 
