@@ -117,7 +117,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
   return <section className="ef-canvas" aria-label="Graphic canvas">
     <div className="ef-toolbar">
       {(['select', 'anchor', 'text', 'rectangle', 'ellipse'] as const).map(tool => <button key={tool} aria-pressed={gesture.tool === tool}
-        title={tool === 'anchor' ? 'Drag a layer’s anchor; it keeps its pose at the playhead' : undefined}
+        title={tool === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
         onClick={() => { gesture.cancel(); gesture.setTool(tool); }} aria-label={tool + ' tool'}>{tool[0].toUpperCase() + tool.slice(1)}</button>)}
       <span className="ef-spacer" />
       <span className="ef-muted">{width} × {height}</span>
@@ -263,7 +263,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
       <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'
-        : gesture.tool === 'anchor' ? 'Drag the anchor: the layer keeps its pose at the playhead · Escape: cancel'
+        : gesture.tool === 'anchor' ? 'Drag the anchor: the point the layer turns and scales about · Escape: cancel'
         : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
   </section>;
 }

@@ -172,10 +172,9 @@ export const foundationRuntime = String.raw`
       var points = corners(target, targetMatrix, rect, box);
       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
-      var own = svg ? undefined : ownMatrix(targetStyle);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, own: own && [own.a, own.b, own.c, own.d], fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points, origin) }];
     });
