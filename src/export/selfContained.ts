@@ -16,6 +16,7 @@ import { fontLicenseComment } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
 import { flexGapShimTag } from '../assets/flexGapSupport';
 import { appendToBody, injectProjectFormatMeta } from './common';
+import { expandInset, expandInsetInMarkup } from '../assets/cssCompat';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
@@ -31,13 +32,14 @@ export async function composeSelfContainedHtml(
 ): Promise<string> {
   template = { ...template, js: prepareOutRuntime(template.js) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
-  let html = injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template)
+  // `inset` becomes longhands: a CasparCG 2.3 loads this file into Chromium 71 (assets/cssCompat.ts).
+  let html = expandInsetInMarkup(injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template))
     // Drop the external stylesheet/script references — their contents go inline below.
     .replace(/<link\b[^>]*href=["'](?:\.\/)?(?:css\/|js\/)[^"']*["'][^>]*>\s*/gi, '')
     .replace(/<script\b[^>]*src=["'](?:\.\/)?(?:js\/|css\/)[^"']*["'][^>]*>\s*<\/script>\s*/gi, '');
   // Uploaded fonts are assets and are already substituted by the line below; whatever still
   // reads url("fonts/…") afterwards is a builder-bundled face, embedded here.
-  const { css, embedded } = await inlineBundledFonts(inlineAssetRefs(template.css, template.assets));
+  const { css, embedded } = await inlineBundledFonts(expandInset(inlineAssetRefs(template.css, template.assets)));
   // A single-file export has nowhere to put a FONT_LICENSES.md, so when it carries font bytes
   // the licence rides along as a human-readable header — OFL §2's second permitted form.
   const licence = embedded.length > 0 || template.assets.some((a) => isFontAsset(a.path))
