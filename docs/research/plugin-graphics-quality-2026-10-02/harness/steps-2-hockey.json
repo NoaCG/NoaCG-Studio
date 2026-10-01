@@ -1,0 +1,20 @@
+[
+  {"text": "panel at load"},
+  {"shot": "ready"},
+  {"click": "verb-take"}, {"wait": 2000},
+  {"button": "Start clock"}, {"wait": 3000},
+  {"shot": "take-clock-running"},
+  {"button": "Goal Team A"}, {"wait": 800},
+  {"button": "Team B power play"}, {"wait": 2500},
+  {"shot": "goal-a-then-pp-b"},
+  {"button": "Stop clock"}, {"wait": 2500},
+  {"shot": "clock-stopped"},
+  {"text": "controls after stop", "from": "controls-panel"},
+  {"button": "End power play"}, {"wait": 1000},
+  {"button": "Intermission"}, {"wait": 2000},
+  {"shot": "intermission"},
+  {"button": "Final"}, {"wait": 2000},
+  {"shot": "final"},
+  {"click": "verb-out"}, {"wait": 1500},
+  {"shot": "out"}
+]

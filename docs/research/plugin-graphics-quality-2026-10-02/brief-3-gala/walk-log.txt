@@ -1,0 +1,6 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take F0 · Event name F1 · Tagline F2 · Host label F3 · Host OPERATOR NOTE ▸ Advanced Layer 20 CONTROLS as the graphic declared them Activity
+shot 01-ready
+shot 02-take-mid-entrance
+shot 03-take
+shot 04-update-host-finnish-label
+shot 05-out

@@ -1,0 +1,24 @@
+brief-4-quiz/pub-quiz: a NoaCG graphic package
+
+Inputs (10)
+key  label            kind              default
+f0   Round            text              Round 3
+f1   Question number  text              Question 7
+f2   Question         text              How many hearts does an octopus have?
+f3   Answer A         text              One
+f4   Answer B         text              Two
+f5   Answer C         text              Three
+f6   Answer D         text              Eight
+f7   Correct answer   select [A|B|C|D]  C
+f8   Answers shown    select [2|3|4]    4
+f9   Timer (seconds)  number            30
+
+Buttons (3)
+event       label          section  payload
+judge       Reveal answer  Answer   f7
+startTimer  Start timer    Timer    -
+hideTimer   Hide timer     Timer    -
+
+Steps: 2 (» Next advances)
+State groups: main [Off, Question, Answer revealed, Out]; timer [Timer hidden, Timer running]
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.
