@@ -198,7 +198,15 @@ function tickerItemHtml(item) {
 }
 
 // rebuildTicker(): re-render the items from the hidden #f0 source.
-function rebuildTicker() {
+//
+// update() passes keepIfSame, and then an update that changes nothing the items draw (a speed
+// press, a new label, or the data resent as it stands) leaves the items alone. It has to: a flip
+// cycle tweens the .ticker-item elements themselves, so replacing them on air leaves the running
+// cycle fading nodes that are gone - measured on tk03 as a blank strip until the next take.
+// play() always rebuilds, because a take must start from clean items. The credit rolls guard
+// their rows the same way, in rebuildCredits().
+var tickerBuiltHtml = null;
+function rebuildTicker(keepIfSame) {
   var track = document.getElementById('ticker-track');
   // A ROTATING ticker shows one item at a time and the graphic's own timer advances it, so
   // rendering the whole list here would both look wrong and pile every item into the strip at
@@ -209,20 +217,24 @@ function rebuildTicker() {
     html += tickerItemHtml(item);
   });
   // The marquee loop needs the set twice: sliding one set length reads as endless.
-  track.innerHTML = TICKER_DOUBLE_ITEMS ? html + html : html;
+  if (TICKER_DOUBLE_ITEMS) html += html;
+  if (keepIfSame === true && html === tickerBuiltHtml) return;
+  tickerBuiltHtml = html;
+  track.innerHTML = html;
 }
 
 ${setFieldValueJs}
 
 // update(data): SPX sends field values as JSON; the label (f1) is written straight into
-// its element, the items (f0) into the hidden source — then the track re-renders.
+// its element, the items (f0) into the hidden source, and the track re-renders only if the
+// items it draws changed (see rebuildTicker).
 function update(data) {
   var fields = (typeof data === 'string') ? JSON.parse(data) : data;
   for (var key in fields) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  rebuildTicker();
+  rebuildTicker(true);
   // A new SPEED reaches a strip that is already travelling, rather than waiting for the next
   // take. The dashboard's ± live-number buttons send exactly this update and say they act on
   // air, so the field has to mean it (see tickerApplySpeed).
