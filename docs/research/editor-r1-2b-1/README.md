@@ -29,7 +29,43 @@ What changed (branch `claude/editor-r1-2b-anchor-typography-bf62be`, from `ded0e
 - The Anchor tool's tooltip and caption and the Anchor point note say the anchor is the point the
   layer turns and scales about, instead of promising to keep the pose.
 
-ANCHOR-VERIFICATION
+Review found one defect outside the anchor code, now fixed: `setCssDeclaration` decided whether a
+new declaration needed a separator from the rule's last character, so a rule ending in a comment
+(Frosted Panel's `will-change: ...; /* hint */`) gained a stray `/* hint */;` whenever a declaration
+was added to it. It now looks at the declaration before any trailing comments (`edit.ts`, pinned in
+`canvas-transforms.test.mjs`).
+
+Verification of the correction:
+
+- Reproduction: the changed `e2e/editor-canvas-transforms.spec.ts`, queued on the unmodified code
+  from a snapshot worktree at `ded0eb16` (j-2807), failed exactly the four changed tests (Center
+  anchor and the Anchor tool moved base Position; Frosted Panel's drag keyed `y`) and passed the
+  other six.
+- Node: `scripts/canvas-transforms.test.mjs` (7 tests) and `full-transforms` pass. Mutation: 26 of
+  26 guard mutations fail a test (the anchor pair, the shown anchor, the separator and the kept
+  R1.2b.1 geometry); in the browser, 8 of 8 (j-2810, j-2812): the drag mapped through the layer's
+  own frame or not mapped at all, a Position write added to the drag, to `anchorOperations` or to
+  Center, a swapped axis, and the departing-side refusal put back. The unmapped drag survived on
+  Hairline's unscaled root, so the spec now also drags inside a parent turned 20 degrees and scaled
+  1.25.
+- Browser: the editor regressions (canvas-transforms, transforms, cross-cue, steps, out-step,
+  key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation, alpha-entry),
+  anim-engine and inspector as one job (j-2817): 220 passed, 20 skipped, none failed. An earlier
+  run of the same job (j-2813) failed the Frosted Panel test on the stray separator above and one
+  cross-cue test whose editor page did not appear within 7 s on a loaded machine; it passed in
+  j-2817. Full affected run (j-2822): 29 spec files, 263 passed and 134 skipped, none failed;
+  catalog gate 35 of 35.
+- Real UI (j-2814), headless at 1920 on this worktree's dev server: Hairline from the template
+  search, a rectangle drawn with the Rectangle tool and turned 30 degrees; Anchor 0, 0 typed; Center
+  anchor kept Position 744, -649.517 and put the crosshair in the middle (one undo); the Anchor tool
+  dragged onto the bottom-right corner kept Position, left the crosshair under the pointer (within
+  0.001 px) and the rectangle shifted about it; a 20 degree turn afterwards kept the crosshair and
+  every corner's distance from it; undo, redo, save and reopen kept Rotation, the anchor and
+  Position. Frosted Panel from the template search at 0.32 s: the Anchor tool left the script
+  byte-identical and the Layout offset unchanged, with the crosshair under the pointer; saved, its
+  control page played and stopped. No page errors.
+- Not checked: a physical desktop at 125% scaling, a phone, and the receiving CasparCG and OGraf
+  hosts (the anchor is CSS, which every export carries).
 
 ## The R1.2b split
 
