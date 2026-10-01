@@ -200,11 +200,11 @@ function tickerItemHtml(item) {
 // rebuildTicker(): re-render the items from the hidden #f0 source.
 //
 // update() passes keepIfSame, and then an update that changes nothing the items draw (a speed
-// press, a new label, or the data resent as it stands) leaves the items alone. It has to: a flip
-// cycle tweens the .ticker-item elements themselves, so replacing them on air leaves the running
-// cycle fading nodes that are gone - measured on tk03 as a blank strip until the next take.
-// play() always rebuilds, because a take must start from clean items. The credit rolls guard
-// their rows the same way, in rebuildCredits().
+// press, a new label, or the data resent as it stands) leaves the items alone, and the answer is
+// whether it re-rendered. A flip cycle tweens the .ticker-item elements themselves, so replacing
+// them is something the running motion has to be told about (tickerItemsChanged), and a press
+// that changes no item should not cost it a handover. play() always rebuilds, because a take must
+// start from clean items. The credit rolls guard their rows the same way, in rebuildCredits().
 var tickerBuiltHtml = null;
 function rebuildTicker(keepIfSame) {
   var track = document.getElementById('ticker-track');
@@ -218,32 +218,37 @@ function rebuildTicker(keepIfSame) {
   });
   // The marquee loop needs the set twice: sliding one set length reads as endless.
   if (TICKER_DOUBLE_ITEMS) html += html;
-  if (keepIfSame === true && html === tickerBuiltHtml) return;
+  if (keepIfSame === true && html === tickerBuiltHtml) return false;
   tickerBuiltHtml = html;
   track.innerHTML = html;
+  return true;
 }
 
 ${setFieldValueJs}
 
 // update(data): SPX sends field values as JSON; the label (f1) is written straight into
 // its element, the items (f0) into the hidden source, and the track re-renders only if the
-// items it draws changed (see rebuildTicker).
+// items it draws changed (see rebuildTicker). New items reach a strip that is already running,
+// from a flip's next item boundary or from where a marquee stands, rather than waiting for a take.
 function update(data) {
   var fields = (typeof data === 'string') ? JSON.parse(data) : data;
   for (var key in fields) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  rebuildTicker(true);
+  var itemsChanged = rebuildTicker(true);
   // A new SPEED reaches a strip that is already travelling, rather than waiting for the next
   // take. The dashboard's ± live-number buttons send exactly this update and say they act on
-  // air, so the field has to mean it (see tickerApplySpeed).
+  // air, so the field has to mean it (see tickerApplySpeed). It goes first, so a story still
+  // finishing its turn after the new items arrive in the same update finishes at the new pace.
   tickerApplySpeed();
+  if (itemsChanged) tickerItemsChanged();
 }
 
 // play(): rebuild (fresh measurements), then start the loop.
 function play() {
   gsap.killTweensOf('*');
+  tickerMotionEnd();
   rebuildTicker();
   buildInTimeline();
 }
@@ -251,6 +256,7 @@ function play() {
 // stop(): take the ticker off air (also stops the loop).
 function stop() {
   gsap.killTweensOf('*');
+  tickerMotionEnd();
   buildOutTimeline();
 }
 
