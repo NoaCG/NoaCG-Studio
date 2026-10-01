@@ -348,6 +348,75 @@ test('a production package never carries the hosted receiver, and each graphic g
   expect(result.guideShipped).toBe(true);
 });
 
+test('the SPX package carries a ready SPX project: the templates as SPX imports them and the cues as a rundown', async ({ page }) => {
+  // docs/SPX_ON_A_REAL_SERVER.md §11: the operator copies the folder and DATAROOT/<show> into SPX,
+  // opens the rundown, and plays the production's cues with their values, on the package's layers.
+  // The item shape itself is pinned against SPX's own sample by scripts/spx-rundown.test.mjs.
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const result = await page.evaluate(async () => {
+    const { variantById } = await import('/src/templates/catalog.ts');
+    const { buildShowZip } = await import('/src/export/showExport.ts');
+    const { parseDefinition } = await import('/src/model/spxDefinition.ts');
+    const hairline = variantById('lt01')!.create({});
+    const quiz = variantById('qz04')!.create({});
+    const graphics = [hairline, quiz].map((template, i) => ({
+      id: `g-${i}`, name: template.name, type: template.type, savedAt: '2026-01-01T00:00:00.000Z', template,
+      layer: 21 - i,
+    }));
+    const base = { id: 'c1c1c1c1-d2d2-4e3e-8f4f-a5a5a5a5a5a5', name: 'Rundown Show', graphics, updatedAt: '2026-01-01T00:00:00.000Z' };
+    const cues = [
+      { id: 'c-1', sourceId: 'g-0', label: 'Anna Andersson', values: { f0: 'Anna Andersson', f1: 'Presenter' } },
+      { id: 'c-2', sourceId: 'g-1', label: 'Question one', values: { f0: 'Which planet is red?' } },
+      { id: 'c-3', sourceId: 'clip-1', source: 'playout' as const, label: 'Opener clip', values: {} },
+      { id: 'c-4', sourceId: 'g-0', label: '', values: { f0: 'Ben Berg', f1: 'Reporter' } },
+    ];
+    const read = async (show: Parameters<typeof buildShowZip>[0]) => {
+      const zip = await buildShowZip(show);
+      const text = (n: string) => zip.file(`rundown_show/${n}`)?.async('string') ?? Promise.resolve(null);
+      const profile = JSON.parse((await text('DATAROOT/rundown_show/profile.json'))!);
+      const rundown = JSON.parse((await text('DATAROOT/rundown_show/data/rundown.json'))!);
+      // Each relpath, read from SPX's templates folder with this folder in it, is a file the zip has.
+      const missing = profile.templates.filter((t: { relpath: string }) => !zip.file(t.relpath.slice(1)));
+      // The profile's settings and fields are what SPX's import reads from each template's own file.
+      const imported = await Promise.all(
+        profile.templates.map(async (t: { relpath: string }) => parseDefinition(await zip.file(t.relpath.slice(1))!.async('string'))),
+      );
+      return { profile, rundown, missing: missing.length, imported, readme: await text('README.md'), guide: await text('GETTING-ON-AIR.md') };
+    };
+    return { withCues: await read({ ...base, cues }), without: await read(base) };
+  });
+
+  const { profile, rundown, imported, readme, guide } = result.withCues;
+  expect(result.withCues.missing).toBe(0);
+  expect(profile.templates.map((t: { relpath: string }) => t.relpath)).toEqual([
+    '/rundown_show/hairline/hairline.html',
+    '/rundown_show/clean_quiz/clean_quiz.html',
+  ]);
+  profile.templates.forEach((t: Record<string, unknown>, i: number) => {
+    const def = imported[i]!;
+    expect(Object.fromEntries(Object.keys(def.settings).map((k) => [k, t[k]]))).toEqual(def.settings);
+    expect(t.DataFields).toEqual(JSON.parse(JSON.stringify(def.fields)));
+  });
+  // The operator's layers 21 and 20 in SPX's range, the same numbers the template files declare.
+  expect(profile.templates.map((t: { webplayout: string }) => t.webplayout)).toEqual(['2', '1']);
+  // One item per graphic cue, in rundown order; the clip cue has no SPX template.
+  expect(rundown.templates.map((t: { description: string }) => t.description)).toEqual(['Anna Andersson', 'Question one', 'Hairline']);
+  expect(rundown.templates.map((t: { webplayout: string }) => t.webplayout)).toEqual(['2', '1', '2']);
+  expect(rundown.templates[0].DataFields.map((f: { value: string }) => f.value)).toEqual(['Anna Andersson', 'Presenter']);
+  expect(rundown.templates[2].DataFields.map((f: { value: string }) => f.value)).toEqual(['Ben Berg', 'Reporter']);
+  expect(rundown.templates[1].DataFields[0].value).toBe('Which planet is red?');
+  expect(new Set(rundown.templates.map((t: { itemID: string }) => t.itemID)).size).toBe(3);
+  expect(readme).toContain('## The SPX project and rundown (DATAROOT/rundown_show)');
+  expect(readme).toContain('`ASSETS/templates/rundown_show/`');
+  expect(readme).toContain('1 cue of this production plays a clip from the playout server');
+  expect(guide).toContain('DATAROOT/rundown_show');
+
+  // No cues yet: one item per graphic, so the rundown is never empty.
+  expect(result.without.rundown.templates.map((t: { description: string }) => t.description)).toEqual(['Hairline', 'Clean Quiz']);
+  expect(result.without.readme).not.toContain('playout server');
+});
+
 test('the SPX package says what it leaves behind, and the SPX rule for the votes board Shown field', async ({ page }) => {
   // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6h: the SPX starter package is the proof case's offline
   // fallback, and it carries no combined control, no bindings and no tree (§6f, by design). What

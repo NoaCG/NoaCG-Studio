@@ -11,6 +11,9 @@ server; where a claim rests on reading SPX's source instead, it says so.
   1.2.1 and does nothing on 1.4.1, for every HTML template, because of an SPX 1.4 defect.
   Out of the box every NoaCG graphic landed on the same layer, so each Play evicted the last;
   since the fixes in §9 the three land on their own layers on both servers as imported.
+- **The production package opens in SPX as a ready rundown** (§11, 2026-10-02): copy two folders,
+  open the project, and the production's cues are there with their values, on their layers, and
+  play, continue and stop on 1.4.1 and 1.2.1.
 - **The OGraf package works only partly on SPX 1.4.1.** As imported it does not play at all (SPX
   gives it layer `NaN`). With layers set by hand it plays, continues and stops, three at once,
   but the graphics render distorted, dropdowns and colours arrive as plain text boxes, and custom
@@ -230,8 +233,8 @@ loads the renderer, and that the operator's browser runs a monitor copy. The cor
 1. Graphics on distinct layers inside SPX's range, so two can be on air together without a trip
    to project settings. Every NoaCG route lands them on one layer today.
 2. A rundown, not a folder of templates: SPX projects are files, and our production export
-   writes none (`docs/backlog/spx-show-export-rundown.md`, not exercised here because nothing
-   writes a rundown yet).
+   writes none (not exercised here because nothing
+   writes a rundown yet). Since §11 it writes one, walked on both servers.
 3. The right controls: dropdowns and colour pickers in the OGraf route, and no stray
    `controlpanel.html` in the template browser.
 4. Update that works on SPX 1.4. It is SPX's defect, but our packages can say "Save, then Stop
@@ -433,7 +436,62 @@ and file-path checks were each run against the code without their fix, and faile
 bare test page); the project `DATAROOT\NoaCG_V_OGraf` with rundowns `Round` and `Layers`, which
 SPX put at the top of `config.json`'s recent list. The server was stopped afterwards.
 
-## 11. Not verified
+## 11. The production's rundown, walked on both servers (2026-10-02)
+
+Branch `claude/x-spx-rundown-export` made the SPX production package carry a ready SPX project,
+`DATAROOT/<production>/profile.json` and `data/rundown.json` (`src/export/spxProject.ts`, called
+from `buildShowZip`), and walked it on SPX 1.4.1 and then 1.2.1, one at a time. Two packages were
+built by the real exporter: **NoaCG X Show** (Hairline, Clean Quiz and House Scorebug at
+production layers 20, 21, 22, with four cues: Anna Andersson, a quiz question, a half-time score
+and Ben Berg) and **NoaCG X Six** (six graphics at 20 to 25, no cues). Each was installed the way
+its README says, with file copies only: the package folder into `ASSETS/templates/`, its
+`DATAROOT/<production>` folder into SPX's `DATAROOT`. Nothing was imported or added through SPX.
+SPX was then driven through its own pages and the controller's own `playItem` and `nextItem`,
+with a second page on `/renderer` at 1920x1080 over grey.
+
+| What an operator meets | SPX 1.4.1 | SPX 1.2.1 |
+|---|---|---|
+| The project in SPX's project list, the rundown in the project | Listed, no restart | Listed, no restart |
+| The rundown | **Four items in cue order**, each named by its cue (`HAIRLINE · Anna Andersson`), with the cue's values in its fields | Same |
+| Play the first three | Anna, the question and HEL 2 TPS 1 2H **on air together**, on layers 1, 2, 3 | Same |
+| Continue the quiz | Reveals the answer | Same |
+| Stop Anna, Play Ben | Ben replaces Anna on layer 1; the other two stay | Same |
+| Stop, and Continue past the quiz's last step | Everything off air | Same |
+| Six graphics, no cues | Six items with the graphics' defaults. Items 5 and 6 show layer 5; playing the sixth **replaced the fifth**, as the README says for SPX Solo | Six items on layers 1 to 6; **all six on air together** |
+| The files after the walk | SPX re-saved the rundown with its own `project`, `rundown` and `copyright` keys added, the items untouched | Not compared |
+
+![The rundown's cues on SPX 1.4.1: Ben Berg, the revealed question and the score, as exported](images/spx-real-server/rundown-141-cues-on-air.jpg)
+
+**What the files are, and why that shape.** A profile template is what SPX's own import writes
+(`addTemplateToProfile` in `routes/routes-application.js`): the template's definition, with
+`onair`, `imported` and `relpath`. A rundown item is that object with the item's values and an
+`itemID`, which is how SPX's "Add all" builds one (`addAllItemsToRundown`). Both files say
+`projectFormat: SPX`, which 1.4 reads and 1.2.1 ignores. The item names are the cue labels: SPX
+shows them beside the template's file name, and the operator can rename them there. A checkbox is
+written `1` or `0`, the values SPX's controller ticks and saves. A cue that plays a server clip
+through NoaCG Bridge has no SPX template; the README counts those. A production without cues gets
+one item per graphic with its active entry's values. The layer is the package's SPX layer, the same
+number each template file declares; past five, SPX 1.4 Solo plays it on layer 5, which the README
+already said. `scripts/spx-rundown.test.mjs` pins the item shape against an item of SPX's own
+sample rundown, and `e2e/shows.spec.ts` pins the files the package writes: each `relpath` is a file
+in the package, and each profile template matches the definition in that file.
+
+**Found on the way, filed:** SPX HTML-escapes every value it plays, after turning a line break
+into `<br>`, and NoaCG templates show the escaped text. On 1.4.1 `Anna O'Brien & Sons` went on air
+as `Anna O&#039;Brien &amp; Sons`; on both servers the News Strip ticker's items were joined by a
+literal `&lt;br&gt;`. It happens whatever hands SPX the values, the exported rundown or values
+typed in SPX (`docs/backlog/spx-field-values-arrive-html-escaped.md`).
+
+**Test projects added**, deletable as whole folders, on both servers: the templates
+`ASSETS\templates\noacg_x_show\` and `ASSETS\templates\noacg_x_six\`, and the projects
+`DATAROOT\noacg_x_show` and `DATAROOT\noacg_x_six`, each with the rundown `rundown`. SPX put the
+two rundowns at the top of `config.json`'s recent list on both; each `config.json` was put back as
+it was after its server stopped. Both servers are stopped.
+
+## 12. Not verified
+
+- A production exported from the app's own dialog (the walk built its packages with the same
+  `buildShowZip`, called directly) and a production whose graphics come from a saved library entry.
 
 - A real published production's graphics, cued from NoaCG, inside SPX (the owner check).
 - The fix-check embed as the top document in OBS, vMix and CasparCG 2.3 (Chromium 71 ignores

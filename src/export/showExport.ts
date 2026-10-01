@@ -13,6 +13,7 @@
 //   <show>/show_controlpanel.shtml
 //   <show>/GETTING-ON-AIR.md
 //   <show>/<graphic>/<graphic>.html + css/ js/ images/ fonts/ + controlpanel.shtml
+//   <show>/DATAROOT/<show>/profile.json + data/rundown.json   (a ready SPX project, spxProject.ts)
 //
 // The operator pages are `.shtml` so SPX's template browser skips them: it lists every .html in
 // a folder as a template (targets/spxStarter.ts, the panel file name).
@@ -37,6 +38,13 @@ import { onAirGuideMd } from './onAirGuide';
 import { spxLeftBehindMd, spxReportedFieldRulesMd, type PackagedGraphic } from './spxLeftBehind';
 import { showFieldReferenceMd, type ProductionFieldGraphic } from './fieldReference';
 import { addLocalControlBundle } from './localControl';
+import {
+  spxProjectFiles,
+  spxProjectGuideNote,
+  spxProjectReadmeMd,
+  type SpxProjectTemplate,
+  type SpxRundownEntry,
+} from './spxProject';
 import { EXPORT_TARGETS } from './registry';
 import { emitGraphic, renderShowControlPanelHtml } from '../control/controlPanelHtml';
 import { arrangeFor } from '../control/controlModel';
@@ -124,9 +132,11 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   // for every caller, not only the dialog that happens to show the verdict.
   assertProductionGate(show.graphics, library);
   const zip = new JSZip();
-  const root = zip.folder(slug(show.name))!;
+  const folder = slug(show.name);
+  const root = zip.folder(folder)!;
   const usedSlugs = new Set<string>();
   const folderNames: string[] = [];
+  const projectTemplates: SpxProjectTemplate[] = [];
   const fieldGraphics: ProductionFieldGraphic[] = [];
   const packaged: PackagedGraphic[] = [];
   const spxLayers = spxShowLayers(show.graphics);
@@ -136,6 +146,7 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
     folderNames.push(name);
     packaged.push({ poolId: graphic.id, poolName: graphic.name, template });
     fieldGraphics.push({ template, layer: spxLayers[i], file: `${name}/${name}.html` });
+    projectTemplates.push({ relpath: `/${folder}/${name}/${name}.html`, settings: template.settings, fields: template.fields });
     await buildStarterInto(root.folder(name)!, template, {
       entries: entriesForSavedGraphic(graphic, library),
       fileName: `${name}.html`,
@@ -153,9 +164,20 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   // SPX operator's own actions (§6h). Both are '' when there is nothing to say, so a plain
   // production's README and guide read exactly as before.
   const spxNotes = [spxLeftBehindMd(show, packaged), spxReportedFieldRulesMd(packaged)].filter(Boolean).join('\n');
+  // The SPX project: the templates as SPX imports them, and the production's cues as a rundown,
+  // so the operator opens the show in SPX instead of building it again (spxProject.ts).
+  const rundown = spxRundownEntries(show, library, projectTemplates);
+  const project = root.folder('DATAROOT')!.folder(folder)!;
+  for (const [path, text] of Object.entries(spxProjectFiles(projectTemplates, rundown.entries))) project.file(path, text);
   // The aggregated panel written just above is the one a reader standing at this root wants;
   // each graphic folder carries its own as well.
-  root.file('GETTING-ON-AIR.md', onAirGuideMd({ controlPanel: SHOW_PANEL_FILE, spxNotes }));
+  root.file(
+    'GETTING-ON-AIR.md',
+    onAirGuideMd({
+      controlPanel: SHOW_PANEL_FILE,
+      spxNotes: spxProjectGuideNote(folder) + (spxNotes ? `\n${spxNotes}` : ''),
+    }),
+  );
   // ONE table for the whole production: which graphic is on which layer, and every field ID it
   // answers to. The package is driven by SPX or a CasparCG client here, and both speak ids.
   root.file(
@@ -187,9 +209,38 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
       `Every graphic's fields with the ID a playout client sends them under (f0, f1, …). Keep it\n` +
       `open beside a CasparCG client — the client shows ids, FIELDS.md says what they mean.\n` +
       `\nExtract this folder into your SPX/CasparCG templates directory as-is.\n` +
+      spxProjectReadmeMd(folder, rundown.entries.length, rundown.clipCues) +
       (spxNotes ? `\n${spxNotes}` : ''),
   );
   return zip;
+}
+
+/** The SPX rundown's items: one per cue over a pool graphic, in rundown order, with the cue's own
+ *  values and label. A production with no such cues gets one item per pool graphic with its
+ *  active entry's values instead, so the rundown is never empty. A cue of a playout-server clip
+ *  plays through NoaCG Bridge and has no SPX template; those are counted for the README. */
+function spxRundownEntries(
+  show: Show,
+  library: GraphicDoc[],
+  templates: SpxProjectTemplate[],
+): { entries: SpxRundownEntry[]; clipCues: number } {
+  const poolIndex = new Map(show.graphics.map((g, i) => [g.id, i]));
+  const cues = show.cues ?? [];
+  const entries = cues.flatMap((cue): SpxRundownEntry[] => {
+    const i = cue.source === 'playout' ? undefined : poolIndex.get(cue.sourceId);
+    if (i === undefined) return [];
+    return [{ template: i, description: cue.label || templates[i].settings.description, values: cue.values }];
+  });
+  const clipCues = cues.filter((cue) => cue.source === 'playout').length;
+  if (entries.length) return { entries, clipCues };
+  return {
+    entries: show.graphics.map((g, i) => ({
+      template: i,
+      description: templates[i].settings.description,
+      values: activeEntryValues(g, library),
+    })),
+    clipCues,
+  };
 }
 
 /** Download the production package under the one filename every surface agrees on — the two
