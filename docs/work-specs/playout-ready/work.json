@@ -5,5 +5,154 @@
     "status": "agreed",
     "source": "the owner's Phase 6 decision 5 of 2026-09-29 and the Step 3 session prompt of 2026-09-30 (READY automatic and never permission, Prepare for Live optional and may publish, the plan's wording, both operator surfaces)"
   },
-  "review": null
+  "review": {
+    "revision": "119ed354293c39adffdd24f42387c56fa3b9887d",
+    "specSha256": "74ddd341f156a60e3bc6a52c01a5ce3484ceb06838ee2a2c9401e572f5db9234",
+    "evidence": [
+      {
+        "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+        "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+      },
+      {
+        "path": "docs/work-specs/playout-ready/evidence/b-prepare.md",
+        "sha256": "eaa33873a6b1fa5477506b8bd326eeaed96d693993c8a5760efd5630002fd14f"
+      },
+      {
+        "path": "docs/work-specs/playout-ready/evidence/c-ping.md",
+        "sha256": "56165d9e4f0ae36fd418d8b2165ac0c668587516c56895aecfaf454a59cbcb40"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-7",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/a-readiness.md",
+            "sha256": "d806db66e9428f27102c49a403f47d42043004871becbcdfdcdd17dc07c4e7dd"
+          }
+        ]
+      },
+      {
+        "id": "AC-8",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/b-prepare.md",
+            "sha256": "eaa33873a6b1fa5477506b8bd326eeaed96d693993c8a5760efd5630002fd14f"
+          }
+        ]
+      },
+      {
+        "id": "AC-9",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/b-prepare.md",
+            "sha256": "eaa33873a6b1fa5477506b8bd326eeaed96d693993c8a5760efd5630002fd14f"
+          }
+        ]
+      },
+      {
+        "id": "AC-10",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/b-prepare.md",
+            "sha256": "eaa33873a6b1fa5477506b8bd326eeaed96d693993c8a5760efd5630002fd14f"
+          }
+        ]
+      },
+      {
+        "id": "AC-11",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/b-prepare.md",
+            "sha256": "eaa33873a6b1fa5477506b8bd326eeaed96d693993c8a5760efd5630002fd14f"
+          }
+        ]
+      },
+      {
+        "id": "AC-12",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/c-ping.md",
+            "sha256": "56165d9e4f0ae36fd418d8b2165ac0c668587516c56895aecfaf454a59cbcb40"
+          }
+        ]
+      },
+      {
+        "id": "AC-13",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/playout-ready/evidence/c-ping.md",
+            "sha256": "56165d9e4f0ae36fd418d8b2165ac0c668587516c56895aecfaf454a59cbcb40"
+          }
+        ]
+      }
+    ]
+  }
 }
