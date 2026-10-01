@@ -117,6 +117,10 @@ test('the landing reads create first, then play or export', async ({ page }) => 
   // OBS has its place: the output as a browser source, and the control panel in an OBS dock.
   await expect(routes.nth(1)).toContainText('OBS');
   await expect(routes.nth(1)).toContainText('Custom Browser Dock');
+  // ...with a real OBS capture, which has to load rather than leave a broken frame.
+  const obsShot = playout.locator('.obs-shot img');
+  await obsShot.scrollIntoViewIfNeeded();
+  await expect.poll(() => obsShot.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBe(1438);
   await expect(routes.nth(2)).toContainText('Export');
   await expect(routes.nth(2)).toContainText('not yet tested');
   await expect(playout).not.toContainText(/proven/i);

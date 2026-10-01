@@ -25,9 +25,9 @@ stale PNG cannot fail a build, so the only thing keeping the policy true is that
 picture costs one command. It makes only the shots the page shows: one the page stops using
 leaves the script and `public/landing/` in the same change. The on-air frames (`shot-strap`,
 `shot-markets`, `shot-title`) are captures of graphics on air, not generated, and so is the OBS
-capture (`shot-obs*`, when the page shows one): a real OBS window on a real host, with NoaCG as a
-browser source or in a dock, never composited. The OBS route ships without a picture until such
-a capture is presentable for the public. The page takes one
+capture (`shot-obs`, under the routes): a real OBS window on a real host, a NoaCG graphic on
+program and the control panel in a Custom Browser Dock, never composited. How to take it again
+is in `docs/OBS_ON_A_REAL_HOST.md`, "The landing picture". The page takes one
 framing liberty: the playout shot is shown through a fixed-ratio frame (`.shot-frame`) that crops
 the empty panel under it.
 

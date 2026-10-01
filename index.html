@@ -251,6 +251,12 @@
     .route.main { border-color: rgba(246, 166, 35, 0.4); }
     .route h3 { font-size: 15px; font-weight: 700; }
     .route p { font-size: 14px; color: var(--dim); margin-top: 4px; }
+    /* The OBS capture sits under the routes, smaller than the dashboard: one route's picture. */
+    .obs-shot { margin-top: 18px; max-width: 720px; }
+    .obs-shot figcaption {
+      padding: 9px 13px; border-top: 1px solid var(--line);
+      font-size: 13px; color: var(--faint);
+    }
     .playout-actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 22px; }
     .text-link { color: var(--amber); font-size: 15px; }
     .text-link:hover { color: var(--glow); }
@@ -531,6 +537,13 @@
             </p>
           </div>
         </div>
+        <!-- A capture of a real OBS 32.2 window (docs/OBS_ON_A_REAL_HOST.md, "The landing picture"):
+             a NoaCG lower third on program and the control panel in a Custom Browser Dock. -->
+        <figure class="screen obs-shot" data-reveal>
+          <div class="screen-top"><i></i><i></i><i></i><span class="screen-name">OBS Studio</span></div>
+          <img src="/landing/shot-obs.png" alt="OBS Studio with a NoaCG lower third on program and the NoaCG control panel in a Custom Browser Dock beside the preview, with Play, Stop and Take" width="1438" height="788" loading="lazy" />
+          <figcaption>In OBS: the graphic as a browser source, the control panel as a dock.</figcaption>
+        </figure>
         <div class="playout-actions" data-reveal>
           <a class="btn btn-ghost" href="/downloads#bridge">Download NoaCG Bridge</a>
           <a class="text-link" href="/docs#dashboard">How playout works →</a>
