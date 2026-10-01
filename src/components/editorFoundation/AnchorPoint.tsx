@@ -23,6 +23,7 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   const { time, cue } = session.port.view();
   if (base.anchorReason) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason}</p></div>;
   const anchor = shownAnchor(base, editingPose(template, selector, appearance, time, cue));
+  if (!anchor) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">Reading the layer’s pivot from the preview…</p></div>;
   const view = readTimeline(template), owner = ownerOf(view, selector);
   const animated = (['rotation', 'scaleX', 'scaleY'] as const).some(property => isArmed(view.data, owner, property));
   const run = (operations: () => EditorOperation[], expected: Revision) => {
@@ -34,7 +35,6 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   };
   const commit = (axis: 'x' | 'y') => (value: number, expected: Revision, at: number, atCue?: number) => run(() => {
     if (at !== session.port.view().time || atCue !== session.port.view().cue) throw new Error('The playhead moved. Inspect the value again before editing.');
-    if (!anchor) throw new Error('Wait for the rendered anchor before editing it.');
     return authoredAnchor(template, selector, base, appearance, { ...anchor, [axis]: value }, at, false);
   }, expected);
   const centre = () => run(() => {
@@ -45,8 +45,8 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   return <div className="ef-anchor">
     <span className="ef-section-label">Anchor point</span>
     <div className="ef-number-row">
-      <AnimationNumber label="Anchor X" value={anchor?.x ?? 0} commit={commit('x')} session={session} />
-      <AnimationNumber label="Anchor Y" value={anchor?.y ?? 0} commit={commit('y')} session={session} />
+      <AnimationNumber label="Anchor X" value={anchor.x} commit={commit('x')} session={session} />
+      <AnimationNumber label="Anchor Y" value={anchor.y} commit={commit('y')} session={session} />
     </div>
     <div className="ef-key-controls">
       <button onClick={centre}>Center anchor</button>
