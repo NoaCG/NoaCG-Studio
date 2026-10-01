@@ -6,10 +6,10 @@
 //
 // The shape is SPX's own, read off the sample project SPX ships (DATAROOT/MyFirstProject) and off
 // the files SPX 1.2.1 and 1.4.1 wrote when NoaCG packages were imported and added by hand
-// (docs/SPX_ON_A_REAL_SERVER.md §11). A profile template is the template's definition plus
+// (docs/SPX_ON_A_REAL_SERVER.md §9). A profile template is the template's definition plus
 // `onair`, `imported` and `relpath` (`addTemplateToProfile` in SPX's routes-application.js); a
 // rundown item is that same object with the item's own values and an `itemID`
-// (`addAllItemsToRundown`). Both are walked on real servers in the same record.
+// (`addAllItemsToRundown`). The written files were walked on both servers (same record, §11).
 //
 // This module imports nothing at run time, so scripts/spx-rundown.test.mjs runs it in Node.
 
