@@ -1,10 +1,10 @@
 # Hardware control research - running a NoaCG production from a Stream Deck and other panels
 
-**Status: RESEARCH, nothing built (2026-09-30 to 2026-10-01).** No product code, schema or
+**Status: RESEARCH, decided on 2026-10-01; nothing built yet.** No product code, schema or
 infrastructure changed because of this document. Prototypes ran in a session scratchpad, against a
-temporary Supabase preview branch (deleted afterwards) and an isolated Bitfocus Companion. Where this
-document recommends, the recommendation is labelled a suggestion; §11 lists what is the owner's to
-decide.
+temporary Supabase preview branch (deleted afterwards) and an isolated Bitfocus Companion. The owner
+answered §11 on 2026-10-01 and chose the suggestion on every question; the build is the design in
+§10, and `docs/backlog/companion-and-stream-deck.md` carries the decision.
 
 **The question.** How should an operator run a live NoaCG show from hardware buttons, with feedback on
 the keys (on air, the selected cue, clip time left with the 10 s and 5 s warnings, which verbs are
@@ -50,9 +50,9 @@ with CasparCG, OBS and vMix?
   app, so player actions cannot share it; Chromium only), or a module that writes the log itself (the
   dispatcher written twice, and no server clips). An Elgato Stream Deck plugin speaking the same
   cloud protocol is a reasonable second host later.
-- **The owner's decisions are in §11; two matter most:** whether this is the route (the 2026-09-28
-  backlog note assumed the Bridge relay), and how a panel is authorised. The suggestion for the second
-  is a per-production **panel key made by pairing**: the production page shows a short one-time code,
+- **The owner's decisions (§11), answered on 2026-10-01 with the suggestion on each:** this is the
+  route (replacing the Bridge relay the 2026-09-28 backlog note assumed), and a panel is authorised
+  by a per-production **panel key made by pairing**: the production page shows a short one-time code,
   the operator types it into the module, and the key can only ask an open page to run named verbs. It
   never writes the log, never reaches Bridge or AMCP, and can be revoked from the page.
 - **Build estimate (§10.4): about 4 weeks** of focused work, plus Bitfocus's volunteer review before
@@ -498,6 +498,13 @@ the meantime (Companion 5.0 allows it from the same machine). An Elgato plugin o
 would add about 5-8 days and Elgato's 4-10 working-day review.
 
 ## 11. The owner's questions
+
+**Answered on 2026-10-01: the suggestion on every question.** The Companion module with the cloud
+relay to the open page; a paired, verb-only panel key per production; anyone who can operate the
+production may pair, and keys do not expire (revoked on the page); with no page open, presses are
+refused and the keys say so; an explicit "Answer the panel on this page" switch, last one wins; the
+module published in Bitfocus's repository under MIT. The practice show stays on the keyboard. The
+questions as they were put:
 
 1. **Route.** Build the Companion module on a cloud relay to the open page as the one supported panel
    route, keep the keyboard, and not build WebHID or the Bridge relay? This changes the 2026-09-28
