@@ -51,6 +51,19 @@ never production.
   onto the new bundle with them), and only then the ping: 2.3 14 ms, OBS 13 ms, vMix 14 ms, 2.5
   13 ms, "Ready for Live, checked 03:48 (v8)". The ping going out after the outputs settle is what
   lets an output that reloads answer from the page that will air.
+- **Offline e2e** (j-2760, `e2e/output-prepare.spec.ts` with `output-ready` and `live-path`): 12 of
+  12. A ping row in the boot's tail read is answered (`ack.id` set, a delay within a minute) while
+  a graphic is on air, with its one frame, its version and readiness unchanged, no page error and
+  no reload.
+- **Configured e2e on the local stack** (j-2763, after merging main): `live-prepare`, `live-ready`,
+  `live-health` and `live-presence-steady`, 4 of 4. Prepare for Live's checklist reads "Desk A:
+  Ready for playout · command path N ms" from the real road.
+- **Review** (inline, 2 findings, 2 fixed): a ping request that never answered kept the run open
+  (the 15 s wait now runs from the send), and the burst-cap error text carried a dash that could
+  reach the checklist.
+- **Build and affected suite after merging main**: `npm run build` (j-2762) green;
+  `npm run test:e2e:affected` (j-2764) 1289 passed, 544 skipped, none failed, and the catalog gate
+  35 of 35.
 - **Screenshots** (session scratchpad `shots/`): `ping-desk-1920-panel`, `ping-desk-1366-panel`,
   `ping-production-390-panel`, `ping-hosted-390-panel`.
 
