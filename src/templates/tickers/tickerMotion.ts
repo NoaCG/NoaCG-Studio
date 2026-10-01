@@ -68,6 +68,8 @@ function tickerMotionSpeed() {
 // tickerApplySpeed() can reach whichever one is live.
 var tickerMotionLive = null;
 var tickerMotionBuiltAt = 1;
+// A flip story kept on screen after an edit until its turn ends (see tickerFlipHandover).
+var tickerLeftover = null;
 
 ${speedFieldId
       ? `// tickerApplySpeed(): make a speed change land on a strip that is ALREADY RUNNING.
@@ -148,6 +150,7 @@ function tickerShowCurrent() {
 function tickerMarquee(target) {
   var track = document.querySelector(target);
   if (!track) return null;
+  tickerTakeStart();
   var oneSetWidth = track.scrollWidth / 2;        // the items are rendered twice
   if (oneSetWidth <= 0) return null;            // nothing to scroll yet
   tickerMotionLive = tickerMarqueeLoop(track, oneSetWidth);
@@ -170,7 +173,8 @@ function tickerMarqueeLoop(track, oneSetWidth) {
       repeat: -1,                               // loop until stop()
     }
   );
-  travel.noacgMarquee = { track: track, width: oneSetWidth, pixelsPerSecond: pixelsPerSecond };
+  // What tickerItemsChanged() reads when the items change with the strip running.
+  travel.noacgTicker = { kind: 'marquee', track: track, width: oneSetWidth, pixelsPerSecond: pixelsPerSecond };
   tickerMotionBuiltAt = speed;
   return travel;
 }
@@ -181,6 +185,7 @@ function tickerMarqueeLoop(track, oneSetWidth) {
 function tickerFlipCycle(target) {
   var track = document.querySelector(target);
   if (!track) return null;
+  tickerTakeStart();
   var items = Array.prototype.slice.call(track.querySelectorAll('.ticker-item'));
   if (!items.length) return null;
   tickerMotionLive = tickerFlipLoop(track, items, 0);
@@ -205,8 +210,8 @@ function tickerFlipLoop(track, items, first) {
     cycle.to(item, { y: -18, opacity: 0, duration: 0.35 / speed, ease: 'power2.in' }, '+=' + holdSeconds);
   });
   // What tickerItemsChanged() reads to find the item on screen. \`lead\` is how long a story from
-  // before an edit still has on screen before this cycle starts: none, when play() built it.
-  cycle.noacgFlip = { track: track, cycle: cycle, items: items, order: order, lead: 0 };
+  // before an edit still has on screen before the cycle starts: none, when a take built it.
+  cycle.noacgTicker = { kind: 'flip', track: track, cycle: cycle, items: items, order: order, lead: 0 };
   tickerMotionBuiltAt = speed;
   return cycle;
 }
@@ -216,87 +221,156 @@ function tickerFlipLoop(track, items, first) {
 // update() calls this when it has just re-rendered the track. Both builders measured at play(),
 // so without it the running motion kept working on what it measured then. A flip cycle went on
 // fading the old item nodes, which were gone, and the strip was blank until the next take
-// (measured on tk03 in Chromium: 1 item visible before an update, 0 in every sample for 4 s
+// (measured on tk03 in Chromium: 1 item visible before an update, 0 in every sample for 20 s
 // after it). A marquee went on sliding the OLD set width, so with a list of another length its
-// loop point no longer landed on the second copy and the strip jumped once a loop.
+// loop point no longer landed on the second copy and the strip jumped once a loop (888 px on
+// tk01).
 //
-// So the running motion is swapped for a handover built on the new items, from where the strip
+// So the running motion is swapped for a HANDOVER built on the new items, from where the strip
 // is. It goes into the same parent at the parent's current time, so nothing before it moves, and
-// it becomes the live motion, so a speed press or a second edit reaches it the same way.
+// it becomes the live motion, so a speed press or a second edit reaches it the same way. An edit
+// during the entrance, before the motion has begun, rebuilds it where it was going to start. An
+// emptied list leaves an empty handover in place, so the stories typed next still reach it.
 function tickerItemsChanged() {
   var live = tickerMotionLive;
-  if (!live || !live.parent) return;            // nothing on air: the next take builds fresh
-  if (live.noacgFlip) tickerFlipHandover(live);
-  else if (live.noacgMarquee) tickerMarqueeHandover(live);
+  if (!live || !tickerOnAir(live)) return;      // nothing on air: the next take builds fresh
+  var parent = live.parent, begun = parent.time() >= live.startTime();
+  var at = begun ? parent.time() : live.startTime();
+  if (live.noacgTicker.kind === 'flip') tickerFlipHandover(live, parent, at, begun);
+  else tickerMarqueeHandover(live, parent, at, begun);
+}
+
+// On air means still reachable from GSAP's root. Another entrance path (the simulator, a snap,
+// a render) can kill the step this motion sits in, and an edit must not build on that.
+function tickerOnAir(motion) {
+  while (motion.parent) motion = motion.parent;
+  return motion === gsap.globalTimeline;
+}
+
+// The handover takes the old motion's place: the same parent, the live handle, today's pace.
+// With no items left it still has to run forever, as the loop it replaces did: a step whose
+// children all end completes, GSAP's root lets it go, and the stories typed next reach nothing.
+function tickerHandoverPlace(parent, handover, at, loop) {
+  if (!loop) {
+    handover.to({}, { duration: 1, repeat: -1 }, handover.duration());
+    tickerMotionBuiltAt = tickerMotionSpeed();  // a loop sets this itself when it is built
+  }
+  parent.add(handover, at);
+  tickerMotionLive = handover;
 }
 
 // A marquee keeps its PICTURE: the offset into one set of the old items is where the same
 // stories stand in the new track, since an edit rarely moves the ones already passing. It
 // travels to the end of the new set and the endless loop starts there, a whole new set wide,
 // so the loop point lands on the second copy again.
-function tickerMarqueeHandover(live) {
-  var info = live.noacgMarquee, track = info.track, parent = live.parent;
-  var into = (((-gsap.getProperty(track, 'x')) % info.width) + info.width) % info.width;
+function tickerMarqueeHandover(live, parent, at, begun) {
+  var info = live.noacgTicker, track = info.track;
+  var into = begun && info.width ? (((-gsap.getProperty(track, 'x')) % info.width) + info.width) % info.width : 0;
+  live.kill();
   var oneSetWidth = track.scrollWidth / 2;
-  tickerMotionEnd();
-  if (oneSetWidth <= 0) { gsap.set(track, { x: 0 }); return; }   // every item removed
-  into = into % oneSetWidth;                    // a shorter list can end before the picture
-  var loop = tickerMarqueeLoop(track, oneSetWidth);
-  var handover = gsap.timeline();
-  handover.fromTo(track, { x: -into }, {
-    x: -oneSetWidth, duration: (oneSetWidth - into) / loop.noacgMarquee.pixelsPerSecond, ease: 'none',
-  });
-  handover.add(loop);
-  handover.noacgMarquee = loop.noacgMarquee;
-  parent.add(handover, parent.time());
-  tickerMotionLive = handover;
+  var handover = gsap.timeline(), loop = null;
+  if (oneSetWidth > 0) {
+    into = into % oneSetWidth;                  // a shorter list can end before the picture
+    loop = tickerMarqueeLoop(track, oneSetWidth);
+    handover.fromTo(track, { x: -into }, {
+      x: -oneSetWidth, duration: (oneSetWidth - into) / loop.noacgTicker.pixelsPerSecond, ease: 'none',
+    });
+    handover.add(loop);
+  } else {
+    gsap.set(track, { x: 0 });                  // every item removed
+  }
+  handover.noacgTicker = loop ? loop.noacgTicker : { kind: 'marquee', track: track, width: 0 };
+  tickerHandoverPlace(parent, handover, at, loop);
 }
 
 // A flip lets the story on screen FINISH: it stays for the rest of its hold and flips out on
-// time, and the new list starts at that boundary with the story after the one that was showing.
-// That one is found by its text, so a story added above it does not make the strip repeat
-// itself; an item edited in place is not found, and the one after its old place comes next.
-function tickerFlipHandover(live) {
-  var flip = live.noacgFlip, track = flip.track, parent = live.parent;
-  var now = live.time(), showing, position, endsAt;
-  if (now < flip.lead) {                        // still finishing a story from an earlier edit
-    showing = flip.leadItem; position = flip.leadPosition; endsAt = flip.lead;
-  } else {
-    var turn = flip.cycle.duration() / flip.order.length;
-    var into = flip.cycle.time();
-    var k = Math.min(flip.order.length - 1, Math.floor(into / turn));
-    position = flip.order[k]; showing = flip.items[position];
-    endsAt = now + (k + 1) * turn - into;
-  }
+// time, and the new list starts at that boundary (tickerFlipNext says with which story).
+function tickerFlipHandover(live, parent, at, begun) {
+  var info = live.noacgTicker, track = info.track;
+  var showing = begun ? tickerFlipShowing(live) : null;
   var items = Array.prototype.slice.call(track.querySelectorAll('.ticker-item'));
-  live.pause();
-  parent.remove(live);
-  tickerMotionLive = null;
-  if (!items.length) { live.kill(); return; }   // every item removed: the strip empties
-  var next = position + 1;
-  for (var i = 0; i < items.length; i++) {
-    if (items[i].textContent === showing.textContent) { next = i + 1; break; }
+  var handover = gsap.timeline(), lead = 0, loop = null;
+  if (showing) {
+    // The rest of its turn is played off the motion that was running it, so it eases out exactly
+    // as it was going to, at the pace it was running. That is the old cycle, or, when the story
+    // was already finishing after an earlier edit, the same cycle that edit kept: handovers do
+    // not nest, however fast the edits come.
+    var source = showing.source;
+    if (source === live) { live.pause(); parent.remove(live); } else live.kill();
+    var rest = source.tweenFromTo(showing.from, showing.to, { duration: showing.left });
+    handover.add(rest, 0);
+    lead = showing.left;
+    var item = showing.item;
+    track.insertBefore(item, track.firstChild);   // the story on screen stays until its turn ends
+    tickerLeftover = item;
+    handover.call(function () {
+      if (item.parentNode) item.parentNode.removeChild(item);
+      if (tickerLeftover === item) tickerLeftover = null;
+      handover.noacgTicker.leadItem = null;
+      rest.kill(); source.kill();               // let the old motion and its story go
+      rest = source = item = null;
+    }, null, lead);
+  } else {
+    live.kill();
   }
-  gsap.set(items, { opacity: 0 });              // the new items wait for their turn
-  track.insertBefore(showing, track.firstChild);   // the story on screen stays until its turn ends
-  var handover = gsap.timeline();
-  // The rest of its turn is played off the old cycle itself, so it eases out exactly as it was
-  // going to, at the pace it was running.
-  handover.add(live.tweenFromTo(now, endsAt), 0);
-  var lead = handover.duration();
-  handover.call(function () { if (showing.parentNode) showing.parentNode.removeChild(showing); }, null, lead);
-  var cycle = tickerFlipLoop(track, items, next % items.length);
-  handover.add(cycle, lead);
-  handover.noacgFlip = {
-    track: track, cycle: cycle, items: items, order: cycle.noacgFlip.order,
-    lead: lead, leadItem: showing, leadPosition: position,
+  if (items.length) {
+    gsap.set(items, { opacity: 0 });            // the new items wait for their turn
+    loop = tickerFlipLoop(track, items, tickerFlipNext(showing, items, info.items));
+    handover.add(loop, lead);
+  }
+  handover.noacgTicker = {
+    kind: 'flip', track: track, cycle: loop, items: items, order: loop ? loop.noacgTicker.order : [],
+    lead: lead, leadItem: showing && showing.item, leadPosition: showing && showing.position,
+    restOf: showing && showing.source, restTo: showing && showing.to,
   };
-  parent.add(handover, parent.time());
-  tickerMotionLive = handover;
+  tickerHandoverPlace(parent, handover, at, loop);
 }
 
-// tickerMotionEnd(): drop the running motion. A take builds its own, and a strip taken off air
-// has nothing left for an edit to reach.
+// The story on a flip's screen now and where it sits in its list, with the rest of its turn:
+// the motion that runs it, the span of that motion left, and how long that takes on air. Null
+// when nothing is showing (the list was emptied).
+function tickerFlipShowing(live) {
+  var info = live.noacgTicker, now = live.time();
+  if (now < info.lead) {                        // still finishing a story from an earlier edit
+    return { item: info.leadItem, position: info.leadPosition, source: info.restOf,
+      from: info.restOf.time(), to: info.restTo, left: (info.lead - now) / live.timeScale() };
+  }
+  if (!info.cycle) return null;
+  var turn = info.cycle.duration() / info.order.length, into = info.cycle.time();
+  var k = Math.min(info.order.length - 1, Math.floor(into / turn));
+  var ends = now + (k + 1) * turn - into;
+  return { item: info.items[info.order[k]], position: info.order[k], source: live,
+    from: now, to: ends, left: (ends - now) / live.timeScale() };
+}
+
+// Which story of the new list comes next: the one after the story on screen, found by its text
+// (the copy nearest its old place, if it appears twice), so a story added above it does not
+// make the strip repeat itself. Not found, it was edited in place and the one after its old
+// place comes next - unless no story of the old list is left, and a new list starts at its top.
+function tickerFlipNext(showing, items, before) {
+  if (!showing) return 0;
+  var texts = items.map(function (item) { return item.textContent; });
+  var found = -1;
+  for (var i = 0; i < texts.length; i++) {
+    if (texts[i] !== showing.item.textContent) continue;
+    if (found < 0 || Math.abs(i - showing.position) < Math.abs(found - showing.position)) found = i;
+  }
+  if (found >= 0) return (found + 1) % items.length;
+  var kept = before.some(function (item) { return texts.indexOf(item.textContent) >= 0; });
+  return kept ? (showing.position + 1) % items.length : 0;
+}
+
+// tickerTakeStart(): a take starts from clean items. A story an edit was still finishing when
+// the strip was stopped goes (play() re-renders the track anyway; an entrance that skips play()
+// does not), and the handle lets go of the last take's motion.
+function tickerTakeStart() {
+  if (tickerLeftover && tickerLeftover.parentNode) tickerLeftover.parentNode.removeChild(tickerLeftover);
+  tickerLeftover = null;
+  tickerMotionLive = null;
+}
+
+// tickerMotionEnd(): stop the running motion. A strip taken off air has nothing left for an
+// edit to reach. A story still finishing its turn stays where it is, for the strip's fade.
 function tickerMotionEnd() {
   if (tickerMotionLive) tickerMotionLive.kill();
   tickerMotionLive = null;

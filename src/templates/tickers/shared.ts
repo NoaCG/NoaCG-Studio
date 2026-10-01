@@ -236,11 +236,13 @@ function update(data) {
     var el = document.getElementById(key);
     if (el) setFieldValue(el, fields[key]);
   }
-  if (rebuildTicker(true)) tickerItemsChanged();
+  var itemsChanged = rebuildTicker(true);
   // A new SPEED reaches a strip that is already travelling, rather than waiting for the next
   // take. The dashboard's ± live-number buttons send exactly this update and say they act on
-  // air, so the field has to mean it (see tickerApplySpeed).
+  // air, so the field has to mean it (see tickerApplySpeed). It goes first, so a story still
+  // finishing its turn after the new items arrive in the same update finishes at the new pace.
   tickerApplySpeed();
+  if (itemsChanged) tickerItemsChanged();
 }
 
 // play(): rebuild (fresh measurements), then start the loop.

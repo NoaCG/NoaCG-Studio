@@ -247,7 +247,7 @@ function live({ speedFieldId = 'f2', typed = 100, animSpeed = 1, preset = 'marqu
   };
   const build = preset === 'flip' ? 'tickerFlipCycle' : 'tickerMarquee';
   const run = new Function('gsap', 'document', 'NOACG_ANIM',
-    `${tickerMotionJs(speedFieldId)}\nreturn { motion: ${build}('#ticker-track'), apply: tickerApplySpeed,
+    `${tickerMotionJs(speedFieldId)}\nreturn { motion: ${build}('#ticker-track'), apply: tickerApplySpeed, build: ${build},
       changed: typeof tickerItemsChanged === 'function' ? tickerItemsChanged : function () {},
       end: typeof tickerMotionEnd === 'function' ? tickerMotionEnd : function () {} };`);
   const result = run(realGsap, document, { speed: animSpeed });
@@ -262,6 +262,8 @@ function live({ speedFieldId = 'f2', typed = 100, animSpeed = 1, preset = 'marqu
     retype: (v) => { typed = v; result.apply(); },
     edit: (list) => { track.render(list); result.changed(); },
     end: result.end,
+    /** A new take through the builder alone, as an entrance that skips play() makes one. */
+    take: () => { const motion = result.build('#ticker-track'); if (motion) steps.push(motion); return motion; },
     /** The stories a viewer can see: nodes still in the track that are not fully faded. */
     visible: () => track.children.filter((node) => node.opacity > 0.001).map((node) => node.textContent),
   };
@@ -414,6 +416,20 @@ test('a second edit before the boundary still lets the same story finish', () =>
   assert.deepEqual(flipSequence(s, LEAD + 2.1, LEAD + 3 * TURN + 1), ['One', 'Other', 'Three', 'One']);
 });
 
+test('a speed press and a second edit while a story finishes keep its boundary where it was', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit([...STORIES, 'Five']);        // "One" has 2.95 s left
+  s.at(LEAD + 1.5);
+  s.retype(200);                       // 2.45 s left becomes 1.225 s: the boundary is LEAD + 2.725
+  s.at(LEAD + 2);
+  s.edit(['One', 'Other', 'Three']);
+  s.at(LEAD + 2.6);
+  assert.deepEqual(s.visible(), ['One'], 'the story left before its turn ended');
+  s.at(LEAD + 2.85);
+  assert.deepEqual(s.visible(), ['Other']);
+});
+
 test('a speed press after an edit reaches the new cycle', () => {
   const s = live({ preset: 'flip' });
   s.at(LEAD + 1);
@@ -430,6 +446,81 @@ test('an edit after the strip is taken off reaches nothing that is running', () 
   s.edit([...STORIES, 'Five']);
   s.at(LEAD + 6);
   assert.deepEqual(s.visible(), []);
+});
+
+test('a speed and new items in the same update: the story on screen finishes at the new pace', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.retype(200);                       // update() applies the speed first, then the items
+  s.edit([...STORIES, 'Five']);
+  // 2.6 s of hold and 0.35 s out at 200% is 1.475 s, so "Two" is up 1.6 s later, not 3 s.
+  s.at(LEAD + 1 + 1.6);
+  assert.deepEqual(s.visible(), ['Two']);
+});
+
+test('a whole new list starts at its top once the story on screen has finished', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit(['Ex', 'Why', 'Zed']);
+  assert.deepEqual(flipSequence(s, LEAD + 1.1, LEAD + 3 * TURN + 1), ['One', 'Ex', 'Why', 'Zed']);
+});
+
+test('a story that appears twice continues from the copy that is showing', () => {
+  const list = ['Weather', 'Aa', 'Bb', 'Weather', 'Cc'];
+  const s = live({ preset: 'flip', stories: list });
+  s.at(LEAD + 3 * TURN + 1);           // the second "Weather" is up
+  s.edit([...list, 'Dd']);
+  assert.deepEqual(flipSequence(s, LEAD + 3 * TURN + 1.1, LEAD + 6 * TURN + 1), ['Weather', 'Cc', 'Dd', 'Weather']);
+});
+
+test('an edit during the entrance waits for the motion to begin where it would have', () => {
+  for (const preset of ['flip', 'marquee']) {
+    const s = live({ preset });
+    s.at(LEAD - 0.2);                  // the panel is still fading in; the motion starts at LEAD
+    s.edit(['Ex', 'Why', 'Zed']);
+    s.at(LEAD - 0.05);
+    if (preset === 'flip') assert.deepEqual(s.visible(), [], 'a story came in before the lead');
+    else assert.equal(s.track.x, 0, 'the marquee moved before the lead');
+    s.at(LEAD + 1);
+    if (preset === 'flip') assert.deepEqual(s.visible(), ['Ex']);
+    else moved(-s.track.x, 140);
+  }
+});
+
+test('an emptied list, then new stories: the strip picks them up without a take', () => {
+  const flip = live({ preset: 'flip' });
+  flip.at(LEAD + 1);
+  flip.edit([]);
+  flip.at(LEAD + 5);                   // "One" finished its turn and nothing followed
+  assert.deepEqual(flip.visible(), []);
+  flip.edit(['Ex', 'Why']);
+  assert.deepEqual(flipSequence(flip, LEAD + 5.1, LEAD + 5 + TURN + 1), ['Ex', 'Why']);
+
+  const marquee = live();
+  marquee.at(LEAD + 2);
+  marquee.edit([]);
+  marquee.at(LEAD + 3);
+  marquee.edit(['Ex', 'Why']);
+  marquee.at(LEAD + 4);
+  moved(-marquee.track.x, 140);
+});
+
+test('an edit reaching a step another entrance already killed builds nothing on it', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.step.kill();                       // the simulator or a snap tore the step down
+  s.edit([...STORIES, 'Five']);
+  assert.equal(s.track.children.length, 5, 'the old story was put back into the track');
+});
+
+test('a take after a stop during the handover drops the story that was finishing', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit([...STORIES, 'Five']);
+  s.end();                             // stop() while "One" is still finishing: it stays for the fade
+  assert.equal(s.track.children.length, 6);
+  s.take();                            // an entrance that does not re-render the track
+  assert.equal(s.track.children.length, 5);
 });
 
 // A marquee keeps sliding until its loop point, and the loop is seamless only when that point is
