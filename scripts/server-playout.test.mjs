@@ -698,3 +698,12 @@ test('P pauses the clip the operator is looking at: the selected cue when it is 
   assert.deepEqual(pauseTarget(own, timing, [a, b], 'other'), { itemId: 'b', cueId: '2', paused: true });
   assert.equal(pauseTarget(NO_OWNERSHIP, {}, [a, b], null), null);
 });
+
+test('a server item is refused only on the NoaCG output slot, naming it (studio-day-playout AC-3)', async () => {
+  const { outputSlotRefusal } = await import('../src/control/playoutSlots.ts');
+  const output = { channel: 1, layer: 20 };
+  assert.equal(outputSlotRefusal('1-20', output), 'Layer 20 on Channel 1 is the NoaCG output. Choose another layer for this.');
+  // Under it, over it, and the same layer on another channel are the operator's to use.
+  for (const address of ['1-10', '1-21', '1-5', '2-20']) assert.equal(outputSlotRefusal(address, output), null);
+  assert.equal(outputSlotRefusal('2-10', { channel: 2, layer: 10 }), 'Layer 10 on Channel 2 is the NoaCG output. Choose another layer for this.');
+});

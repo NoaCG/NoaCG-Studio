@@ -1058,16 +1058,17 @@ export default function CueRundown({
               onClose={() => setPickerOpen(false)}
               library={library}
               onAdd={(item) => {
-                // The studio's default channel for its kind: a clip to the clip channel, a
-                // template to the graphics one. The graphics channel is stored as NO channel,
-                // which is what "graphics channel" has always meant on this record.
+                // The studio's default channel for its kind: media to "New media starts on", a
+                // template to the NoaCG output's channel. Stored as a number, so the item stays
+                // where it was put when the studio later moves its output; and never defaulted
+                // onto the output's own layer, which playing it would replace.
                 const settings = loadPlayoutSettings();
                 const channel = defaultChannelFor(settings, item.kind);
-                const { shows: next, cueId } = addPlayoutItem(show.id, {
-                  adapter: 'casparcg',
-                  ...item,
-                  ...(channel === settings.channel ? {} : { channel }),
-                });
+                const { shows: next, cueId } = addPlayoutItem(
+                  show.id,
+                  { adapter: 'casparcg', ...item, channel },
+                  channel === settings.channel ? { avoidLayer: settings.layer } : {},
+                );
                 setShows(next);
                 if (cueId) selectCue(cueId);
               }}

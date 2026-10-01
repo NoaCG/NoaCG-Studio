@@ -17,6 +17,18 @@ export function slotAddress(slot: Pick<CasparSlot, 'channel' | 'layer'> | OgrafS
   return `${slot.channel}-${slot.layer}`;
 }
 
+/**
+ * Why a server item may not play at `address`, or null: the NoaCG output's own slot. A clip or a
+ * template taken there REPLACES the output on the server, and with it every NoaCG graphic on air
+ * (measured on CasparCG 2.3 and 2.5, docs/work-specs/studio-day-playout/evidence). Every other
+ * slot is the operator's to choose, including the layers above the output's on its channel.
+ */
+export function outputSlotRefusal(address: string, output: Pick<CasparSlot, 'channel' | 'layer'>): string | null {
+  return address === slotAddress(output)
+    ? `Layer ${output.layer} on Channel ${output.channel} is the NoaCG output. Choose another layer for this.`
+    : null;
+}
+
 /** The order live slots are named in: by channel and then front to back, the way the server
  *  stacks them. An OGraf slot has no channel, so it follows, by its address. */
 export function compareSlots(a: Slot, b: Slot): number {

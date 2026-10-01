@@ -227,12 +227,12 @@ export default function FolderEditor({
               </label>
               {slot.set && (
                 <button type="button" onClick={() => onSlot({ channel: null, layer: null })} data-testid="folder-slot-default">
-                  Clip default
+                  Use the default
                 </button>
               )}
               <span className="muted pd-clip-hint" data-testid="folder-slot-summary">
                 {channelLabel(playoutSettings, slot.channel)} · layer {slot.layer}
-                {slot.set ? ', set for this folder' : ', the clip default'}
+                {slot.set ? ', set for this folder' : ', the default for new media'}
                 {allAudio && slot.layer === PLAYOUT_CLIP_LAYER ? '. Audio files on layer 10 replace a clip there; layer 5 plays them under the clips' : ''}
               </span>
             </div>

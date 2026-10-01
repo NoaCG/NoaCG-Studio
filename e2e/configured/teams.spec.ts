@@ -449,6 +449,14 @@ test.describe('teams: the share door', () => {
         await expect(owner.getByTestId('production-page')).toBeVisible();
         const showId = owner.url().split('#/production/')[1]?.split('/')[0] ?? '';
         expect(showId).toMatch(/^[0-9a-f-]{36}$/);
+        // The header's primary controls keep their places when the production becomes a team's:
+        // Share and the team's button differ in width, and operators press these by muscle memory
+        // (docs/work-specs/studio-day-playout AC-6).
+        const fixedControls = ['playout-settings-open', 'export-production', 'verb-out-all'];
+        const controlXs = () =>
+          Promise.all(fixedControls.map(async (id) => Math.round((await owner.getByTestId(id).boundingBox())?.x ?? -1)));
+        await expect(owner.getByTestId('share-with-team')).toBeVisible();
+        const personalXs = await controlXs();
 
         await owner.getByTestId(TEAM.door).click();
         await owner.getByTestId(TEAM.newTeam).click();
@@ -466,6 +474,7 @@ test.describe('teams: the share door', () => {
         await owner.getByRole('button', { name: 'Done', exact: true }).click();
         // The page stays on the same production - same id - now wearing the team's chip.
         await expect(owner.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        expect(await controlXs()).toEqual(personalXs);
         await shot(owner, 'teams-production-header');
 
         // On A's Home it has LEFT "My productions" and sits in the team's band.

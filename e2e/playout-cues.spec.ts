@@ -423,12 +423,12 @@ test('each setting goes out with its Take: Clear with a fade, a fade in, a level
   for (let i = 0; i < 12; i += 1) await page.keyboard.press('ArrowLeft');
   await expect(page.getByTestId('clip-level-value')).toHaveText('−12 dB');
   // The trim, under Advanced: its summary says what is inside before it is opened.
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('whole clip');
   await page.getByTestId('clip-advanced-toggle').click();
   await page.getByTestId('clip-trim-in').fill('0:05');
   await page.getByTestId('clip-trim-out').fill('20');
   await page.getByTestId('clip-trim-out').press('Enter');
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:05–0:20');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:05–0:20');
   // The row and PREVIEW read what the cue plays, not the whole minute of the file.
   await expect(cue.getByTestId('cue-length')).toHaveText('0:15');
   await expect(page.getByTestId('preview-length')).toHaveText('0:15');
@@ -470,7 +470,7 @@ test('each setting goes out with its Take: Clear with a fade, a fade in, a level
   await page.getByTestId('clip-fade-out-cut').click();
   await page.getByTestId('clip-level-reset').click();
   await page.getByTestId('clip-trim-clear').click();
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('whole clip');
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'take', item: { kind: 'media', name: 'GIORNO' }, slot: { adapter: 'casparcg', channel: 1, layer: 10 } });
   const playback = await page.evaluate(async () => {
@@ -490,11 +490,11 @@ test('a trim outside the file or ending before it starts is refused in the panel
   await page.getByTestId('clip-trim-in').fill('1:30');
   await page.getByTestId('clip-trim-in').press('Enter');
   await expect(page.getByTestId('clip-trim-problem')).toHaveText('The start lies past the end of the 1:00 file.');
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · whole clip');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('whole clip');
   // A start that holds on its own is kept as the box is left...
   await page.getByTestId('clip-trim-in').fill('0:40');
   await page.getByTestId('clip-trim-in').press('Enter');
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:40–end');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:40–end');
   // ...and an end before it, or a time that is not one, is refused and never saved.
   await page.getByTestId('clip-trim-out').fill('0:10');
   await page.getByTestId('clip-trim-out').press('Enter');
@@ -502,7 +502,7 @@ test('a trim outside the file or ending before it starts is refused in the panel
   await page.getByTestId('clip-trim-out').fill('soon');
   await page.getByTestId('clip-trim-out').press('Enter');
   await expect(page.getByTestId('clip-trim-problem')).toHaveText('Write a time as 0:05, 1:05.5 or 65.5.');
-  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('Channel 1 · layer 10 · 0:40–end');
+  await expect(page.getByTestId('clip-advanced-summary')).toHaveText('0:40–end');
   await settleDurableWrites(page);
   const stored = await page.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');
@@ -805,7 +805,7 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   const bridge = await fakeBridge(page);
   await productionPage(page);
 
-  // A server template: the graphics channel, which the record stores as no channel at all.
+  // A server template: the NoaCG output's channel, stored as its number, on a layer above the output.
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
@@ -823,17 +823,19 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
   const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
-  // A clip keeps its channel and layer under Advanced (docs/CLIP_PLAYBACK_PLAN.md §6.5).
-  await expect(editor.getByTestId('clip-advanced-summary')).toHaveText('Channel 2 · layer 10 · whole clip');
-  await editor.getByTestId('clip-advanced-toggle').click();
+  // A clip shows its channel and layer beside its note, as a template does, with nothing to open
+  // first (owner, 2026-10-01: moving a clip to another channel is as easy as another layer).
+  await expect(editor.getByTestId('playout-channel')).toBeVisible();
   await expect(editor.getByTestId('playout-channel')).toHaveValue('2');
+  await expect(editor.getByTestId('playout-layer')).toHaveValue('10');
+  await expect(editor.getByTestId('clip-advanced-summary')).toHaveText('whole clip');
   await expect(editor.getByTestId('playout-cue-where')).toContainText('2-10');
   const stored = await page.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');
     return (loadShows()[0].playoutItems ?? []).map((i) => ({ name: i.name, channel: i.channel ?? null }));
   });
   expect(stored).toEqual([
-    { name: 'HOUSE_STRAP/HOUSE_STRAP', channel: null },
+    { name: 'HOUSE_STRAP/HOUSE_STRAP', channel: 1 },
     { name: 'GIORNO', channel: 2 },
   ]);
 
@@ -901,6 +903,39 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
     { name: 'HOUSE_STRAP/HOUSE_STRAP', channel: 1, channelName: 'Graphics', layer: 21 },
     { name: 'GIORNO', channel: 2, channelName: 'Inserts', layer: 10 },
   ]);
+});
+
+test('nothing replaces the NoaCG output: a server item on its slot is refused with the reason, and a new template never defaults there', async ({ page }) => {
+  // The output on 1-21, so the template's usual default (the layer after the pool graphic's 20) is
+  // exactly the output's slot.
+  await seedSettings(page, { ...TWO_CHANNELS, layer: 21 });
+  const bridge = await fakeBridge(page);
+  await productionPage(page);
+
+  await page.getByTestId('add-from-server').click();
+  await page.getByTestId('picker-field-ids').fill('f0');
+  await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await expect(strap.getByTestId('cue-layer')).toHaveText('1-22');
+
+  // A clip moved onto the output's slot: the editor says why Take is off, and Take sends nothing.
+  await addClip(page);
+  const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
+  const editor = page.getByTestId('playout-cue-editor');
+  await editor.getByTestId('playout-channel').selectOption('1');
+  await editor.getByTestId('playout-layer').fill('21');
+  await expect(clip.getByTestId('cue-layer')).toHaveText('1-21');
+  const reason = 'Layer 21 on Channel 1 is the NoaCG output. Choose another layer for this.';
+  await expect(editor.getByTestId('playout-take-blocked')).toHaveText(reason);
+  await expect(page.getByTestId('verb-take')).toBeDisabled();
+  await expect(page.getByTestId('verb-take')).toHaveAttribute('title', reason);
+  expect(bridge.actions).toEqual([]);
+
+  // One layer above the output is the operator's to use: it plays over the graphics.
+  await editor.getByTestId('playout-layer').fill('22');
+  await expect(editor.getByTestId('playout-take-blocked')).toHaveCount(0);
+  await page.getByTestId('verb-take').click();
+  await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'take', slot: { channel: 1, layer: 22 } });
 });
 
 test('a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself', async ({ page }) => {

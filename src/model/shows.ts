@@ -655,24 +655,32 @@ export const PLAYOUT_AUDIO_LAYER = 5;
  * same NAME and kind is one item (adding twice keeps its cues); a template takes the next free
  * layer counted across graphics AND templates, a clip the shared clip layer. The CHANNEL is the
  * caller's to give, from the studio's defaults (playoutLink.ts `defaultChannelFor`), because
- * the record does not know the studio; none given stores none, which means the graphics channel.
+ * the record does not know the studio; none given stores none, which means the output's channel.
+ * `avoidLayer` is the NoaCG output's layer when the item lands on the output's channel: a default
+ * never puts a server item there, since playing it would replace the output.
  */
 export function addPlayoutItem(
   showId: string,
   item: Omit<PlayoutItem, 'id' | 'layer'> & { layer?: number },
+  { avoidLayer }: { avoidLayer?: number } = {},
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
   const shows = patchShow(showId, (show) => {
     const items = show.playoutItems ?? [];
     let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
     if (!entry) {
+      const media = item.mediaKind === 'audio' ? PLAYOUT_AUDIO_LAYER : PLAYOUT_CLIP_LAYER;
       const layer =
         item.layer ??
         (item.kind === 'media'
-          ? item.mediaKind === 'audio'
-            ? PLAYOUT_AUDIO_LAYER
-            : PLAYOUT_CLIP_LAYER
-          : nextFreeLayer([...show.graphics, ...items.filter((i) => i.kind === 'template')]));
+          ? media === avoidLayer
+            ? media + 1
+            : media
+          : nextFreeLayer([
+              ...show.graphics,
+              ...items.filter((i) => i.kind === 'template'),
+              ...(avoidLayer === undefined ? [] : [{ layer: avoidLayer }]),
+            ]));
       entry = { ...item, id: uuid(), layer };
       show.playoutItems = [...items, entry];
     } else {

@@ -56,7 +56,7 @@ The core playout path worked all day. What cost time was uncertainty and setup:
   marked in its editor, and its Take is refused with "Layer 20 on Channel 1 is the NoaCG output".
   This is a guard against wiping the output, not a readiness check: it refuses only that slot.
   Revert: drop the check in the take path.
-- **D4. New media starts on a neutral default,** "New media starts on Channel N" in Settings (it
+- **D4. New media starts on a neutral default,** "New media" in Settings (it
   was the "Clips" channel). Revert: rename the label back.
 - **D5. Unpublished changes are judged by content:** the version hash a publish would write
   (`ver.h`, R2 of `playout-ready`) computed from the current production and library, compared
@@ -74,20 +74,21 @@ The core playout path worked all day. What cost time was uncertainty and setup:
 
 ### AC-1: Every server item has Channel and Layer side by side
 
-A server video, still, audio file or template shows Channel and Layer in the first row of its
-editor. Changing the channel is one pick from the studio's channel list, as easy as the layer.
-Judged rendered at 1366 and 390 px wide.
+A server video, still, audio file or template shows Channel and Layer side by side in its editor,
+in the same place for every kind and with nothing to open first. Changing the channel is one pick
+from the studio's channel list, as easy as the layer. Judged rendered at 1366 and 390 px wide.
 
 ### AC-2: Settings names no channel by purpose
 
 Settings lists the channels as Channel 1, Channel 2 (each may carry a name), one "NoaCG output"
-slot (channel and layer), and one "New media starts on" default. The words "Graphics channel" and
+slot (channel and layer), and one "New media" default channel. The words "Graphics channel" and
 "Clips channel" are gone from the app and the user guide.
 
 ### AC-3: Nothing replaces the NoaCG output by accident
 
 A server item on the output's channel and layer is marked in its editor, and Take refuses it with
-a message naming the slot, on the production page and the hosted page. A new server template never
+a message naming the slot (on the production page: the hosted page lists server cues but never takes
+them, since they go through the operator's own Bridge). A new server template never
 defaults onto that slot. Every other channel and layer, including layers above the output's on its
 channel, plays as chosen.
 

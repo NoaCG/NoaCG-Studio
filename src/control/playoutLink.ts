@@ -229,7 +229,7 @@ export function channelTitle(s: PlayoutSettings, channel: number): string {
 
 // `slotAddress` (`1-20`) lives in ./playoutSlots.ts with `compareSlots`, where rules that must run
 // without a browser can import them; it is re-exported here for the callers of this module.
-export { slotAddress } from './playoutSlots';
+export { slotAddress, outputSlotRefusal } from './playoutSlots';
 
 // ---------------------------------------------------------------------------------------------
 // Local Network Access

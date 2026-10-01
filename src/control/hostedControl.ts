@@ -422,6 +422,16 @@ export interface PublishedCapabilities {
  *  the two surfaces must agree on the cue list). Prunes log rows older than 7 days (the 0029
  *  owner DELETE policy) so a 24/7 output URL never grows the log without bound.
  *  Returns every capability slug, or null offline. */
+/**
+ * The render identity a publish of `show` would write NOW: the stamp's `h` (payloadVersion.ts),
+ * built from the same payload `publishControlShow` builds. Equal to the published `h`, publishing
+ * would change nothing the outputs render; different, it would - which is how a graphic edited in
+ * the library, never touching the production record, still counts as an unpublished change.
+ */
+export async function renderIdentity(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<string> {
+  return (await stampPayload(await buildOutputPayload(show, library), null)).h;
+}
+
 export async function publishControlShow(show: Show): Promise<PublishedCapabilities | null> {
   // THE LIBRARY->AIR GATE, before anything else - including the backend check: an invalid
   // graphic cannot publish, and that is true of this function whoever calls it and wherever it
