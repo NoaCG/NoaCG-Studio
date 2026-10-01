@@ -231,7 +231,8 @@ export function animateLayer(source: AnimData, owner: string, operation: Animati
 /** Placed text keys its text, which turns and scales inside its box about the text's own centre: where
  *  the box has an anchor of its own (R1.2b.1), a Rotation or Scale key there would not turn about it. */
 function requireTextPivot(template: SpxTemplate, selector: string, channel: Channel) {
-  if (!['rotation', 'scale', 'scaleX', 'scaleY'].includes(channel)) return;
+  // Only a declared anchor can refuse, and it names its custom properties: most graphics skip the inspection.
+  if (!['rotation', 'scale', 'scaleX', 'scaleY'].includes(channel) || !template.css.includes('--base-anchor-')) return;
   let base;
   try { base = baseValues(template, selector); } catch { return; }
   if (base.mode === 'placed' && base.anchor) throw new Error(`${selector} has its anchor on its placed box, but a ${channel} key turns or scales its text inside that box about the text's own centre, not the anchor. Its source is preserved.`);

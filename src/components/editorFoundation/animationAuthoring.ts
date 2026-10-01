@@ -1,5 +1,5 @@
 import type { SpxTemplate } from '../../model/types';
-import type { BaseValues, TransformPatch } from '../../blocks/baseEdits';
+import type { BasePatch, BaseValues, TransformPatch } from '../../blocks/baseEdits';
 import { channelValue, isArmed, poseKey, sequenceAuthoringReason, turnsOrScales, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
@@ -84,6 +84,9 @@ export function nativeValue(pose: RenderedPart['appearance'], owner: string, key
   }
   return key === 'x' || key === 'y' ? current + (value - before) * unit : key === 'rotation' ? current + value - before : before === 0 ? value : current * value / before;
 }
+/** Whether an edit of this control is a key (on a sequence the editor authors, where the control is
+ *  animated) rather than a base write. */
+export const keysControl = (data: AnimData | null, owner: string, property: keyof TransformPatch) => !sequenceAuthoringReason(data) && isArmed(data, owner, property);
 /** A combined gesture keeps separated axes and mixed selections independent: each layer resolves
  *  its own segment and pose, and the caller commits every operation as one transaction. */
 export function authoredTransform(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], values: TransformPatch, time: number): EditorOperation[] {
@@ -98,12 +101,12 @@ export function authoredTransform(template: SpxTemplate, selector: string, base:
  * raw transform's) stays motion. One scale track keys both axes, so only a change keeping their
  * ratio can write it.
  */
-export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }): EditorOperation[] {
-  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: TransformPatch = {}, authored = !sequenceAuthoringReason(data);
+export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }, extra: BasePatch = {}): EditorOperation[] {
+  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = { ...extra };
   for (const [key, value] of Object.entries(values) as [keyof TransformPatch, number][]) {
     const before = displayedBase(base, pose, key);
     if (Math.abs(value - before) < .00001) continue;
-    if (authored && isArmed(data, owner, key)) {
+    if (keysControl(data, owner, key)) {
       const channel = writeChannel(data, owner, key);
       operations.push({ kind: 'animation.key', selector, property: channel, ...position, value: nativeValue(pose, owner, key, channel, value, before), action: 'set' });
     } else unarmed[key] = base[key] + value - before;
@@ -143,11 +146,8 @@ export function anchorOperations(data: AnimData | null, selector: string, owner:
     const moves = Math.abs(shift.x) >= .00001 || Math.abs(shift.y) >= .00001;
     return [{ kind: 'base.set', selector, values: moves ? { x: base.x + shift.x, y: base.y + shift.y, ...values } : values }];
   }
-  const moved = transformOperations(data, selector, owner, base, pose, { x: displayedBase(base, pose, 'x') + shift.x, y: displayedBase(base, pose, 'y') + shift.y }, position);
   // One base write carries the anchor and whatever part of Position is not animated.
-  const placed = moved.find(operation => operation.kind === 'base.set');
-  return placed?.kind === 'base.set' ? moved.map(operation => operation === placed ? { ...placed, values: { ...placed.values, ...values } } : operation)
-    : [...moved, { kind: 'base.set', selector, values }];
+  return transformOperations(data, selector, owner, base, pose, { x: displayedBase(base, pose, 'x') + shift.x, y: displayedBase(base, pose, 'y') + shift.y }, position, values);
 }
 /** `anchorOperations` at the playhead, from the pose the edit lands on (as `authoredTransform`). */
 export function authoredAnchor(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], anchor: Point, time: number, compensate: boolean): EditorOperation[] {

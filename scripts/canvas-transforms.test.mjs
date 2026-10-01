@@ -24,7 +24,7 @@ async function load(entry) {
 }
 const [gestures, { anchorOperations, shownAnchor, transformOperations, displayedBase }] = await Promise.all(
   ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts'].map(load));
-const { apply, invert, multiply, localFrame, edgePoints, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear, anchorShift } = gestures;
+const { apply, invert, multiply, localFrame, edgePoints, centreOf, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear, anchorShift } = gestures;
 
 const k = (time, value) => ({ time, value });
 const one = layers => ({ version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration: 2, ease: 'none', layers }, { name: 'Out', duration: 1, ease: 'none', layers: {} }] });
@@ -117,6 +117,7 @@ test('scale handles measure the pointer in the layer\'s own axes and keep the op
 test('the rotation handle sits outside the top side, away from the centre, however the layer turns', () => {
   for (const rotation of [0, 90, 200]) {
     const l = layer({ rotation }), { from, at } = rotationKnob(l.corners, 24), centre = l.screen({ x: l.w / 2, y: l.h / 2 });
+    samePoint(centreOf(l.corners), centre);
     samePoint(from, edgePoints(l.corners)[0]);
     assert.ok(close(Math.hypot(at.x - from.x, at.y - from.y), 24));
     assert.ok(Math.hypot(at.x - centre.x, at.y - centre.y) > Math.hypot(from.x - centre.x, from.y - centre.y));

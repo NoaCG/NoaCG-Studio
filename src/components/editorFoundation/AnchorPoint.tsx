@@ -6,7 +6,7 @@ import type { EditorSession, Revision } from './session';
 import type { EditorOperation } from './operations';
 import type { RenderedPart } from './protocol';
 import { ownerOf, readTimeline } from './timelineView';
-import { authoredAnchor, editingPose, requireCurrentPose, shownAnchor } from './animationAuthoring';
+import { authoredAnchor, requireCurrentPose, shownAnchor } from './animationAuthoring';
 import { AnimationNumber } from './AnimationProperties';
 
 /**
@@ -20,10 +20,9 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   const [error, setError] = useState('');
   let base;
   try { base = baseValues(template, selector); } catch { return null; }
-  const { time, cue } = session.port.view();
-  if (base.anchorReason) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason}</p></div>;
-  const anchor = shownAnchor(base, editingPose(template, selector, appearance, time, cue));
-  if (!anchor) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">Reading the layer’s pivot from the preview…</p></div>;
+  // The pivot's place in the box is the same on every cue, so the rendered pose gives it.
+  const anchor = base.anchorReason ? null : shownAnchor(base, appearance);
+  if (!anchor) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">{base.anchorReason ?? 'Reading the layer’s pivot from the preview…'}</p></div>;
   const view = readTimeline(template), owner = ownerOf(view, selector);
   const animated = turnsOrScales(view.data, owner);
   const run = (operations: () => EditorOperation[], expected: Revision) => {

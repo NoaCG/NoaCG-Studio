@@ -8,9 +8,9 @@ export type Point = { x: number; y: number };
 export type Linear = [number, number, number, number];
 
 export const apply = ([a, b, c, d]: Linear, p: Point): Point => ({ x: a * p.x + c * p.y, y: b * p.x + d * p.y });
-export function invert([a, b, c, d]: Linear): Linear {
+export function invert([a, b, c, d]: Linear, singular = 'This layer or its parent has a zero scale, so a pointer cannot be mapped into it. Restore a nonzero scale first.'): Linear {
   const det = a * d - b * c;
-  if (!Number.isFinite(det) || Math.abs(det) < 1e-8) throw new Error('This layer or its parent has a zero scale, so a pointer cannot be mapped into it. Restore a nonzero scale first.');
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-8) throw new Error(singular);
   return [d / det, -b / det, -c / det, a / det];
 }
 export const multiply = ([a, b, c, d]: Linear, [e, f, g, h]: Linear): Linear => [a * e + c * f, b * e + d * f, a * g + c * h, b * g + d * h];
@@ -23,12 +23,14 @@ export function localFrame(corners: Point[], box: [number, number]): Linear {
   if (!(w > 0 && h > 0) || corners.length < 4) throw new Error('This layer has no area to transform. Restore its size first.');
   return [(corners[1].x - corners[0].x) / w, (corners[1].y - corners[0].y) / w, (corners[3].x - corners[0].x) / h, (corners[3].y - corners[0].y) / h];
 }
+/** The middle of a box from its corners: the midpoint of a diagonal. */
+export const centreOf = (c: Point[]): Point => ({ x: (c[0].x + c[2].x) / 2, y: (c[0].y + c[2].y) / 2 });
 /** The midpoints of a box's sides from its corners: top, right, bottom, left. */
 export const edgePoints = (c: Point[]): Point[] => [0, 1, 2, 3].map(i => ({ x: (c[i].x + c[(i + 1) % 4].x) / 2, y: (c[i].y + c[(i + 1) % 4].y) / 2 }));
 
 /** Where the rotation handle sits: `distance` outside the middle of the top side, away from the centre. */
 export function rotationKnob(c: Point[], distance: number): { from: Point; at: Point } {
-  const from = edgePoints(c)[0], centre = { x: (c[0].x + c[2].x) / 2, y: (c[0].y + c[2].y) / 2 };
+  const from = edgePoints(c)[0], centre = centreOf(c);
   let out = minus(from, centre);
   // A box without height has its top on its centre: point away from the side's direction instead.
   if (Math.hypot(out.x, out.y) < 1e-6) out = { x: c[1].y - c[0].y, y: c[0].x - c[1].x };

@@ -5,21 +5,18 @@ import type { EditorSession, Revision } from './session';
 import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { authoredAnchor, authoredTransform, displayedBase, editingPose, requireCurrentPose, shownAnchor } from './animationAuthoring';
-import { isArmed, requireScaleWritable, sequenceAuthoringReason } from '../../blocks/editorAnimation';
+import { authoredAnchor, authoredTransform, displayedBase, editingPose, keysControl, requireCurrentPose, shownAnchor } from './animationAuthoring';
+import { requireScaleWritable } from '../../blocks/editorAnimation';
 import { ownerOf, readTimeline } from './timelineView';
-import { apply, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear } from './transformGestures';
+import { apply, centreOf, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear, type Point } from './transformGestures';
 
-type Point = { x: number; y: number };
-export function inverseDelta(matrix: number[], point: Point): Point {
-  const [a, b, c, d] = matrix, det = a * d - b * c;
-  if (!Number.isFinite(det) || Math.abs(det) < 1e-8) throw new Error('This parent transform is singular. Restore a nonzero parent scale first.');
-  return { x: (d * point.x - c * point.y) / det, y: (-b * point.x + a * point.y) / det };
-}
+/** A screen vector in a parent's coordinates (the 2x2 part of `matrix`, which may carry a translation). */
+export const inverseDelta = (matrix: number[], point: Point): Point =>
+  apply(invert(matrix.slice(0, 4) as Linear, 'This parent transform is singular. Restore a nonzero parent scale first.'), point);
 /** What a press on the selected layer grabbed (R1.2b.1): a corner or side scale handle (corners and
  *  sides numbered from the top-left, clockwise), the rotation handle, or the anchor (the Anchor tool). */
 export type Handle = { kind: 'corner' | 'edge'; index: number } | { kind: 'rotate' } | { kind: 'anchor' };
-export type Tool = 'select' | 'anchor' | CreationKind;
+type Tool = 'select' | 'anchor' | CreationKind;
 interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: Handle; creation?: Creation;
@@ -27,8 +24,10 @@ interface Gesture {
   time: number;
   /** The rotation handle's last pointer and the angle swept so far, unwrapped. */
   turn?: { last: Point; swept: number };
+  /** Whether the preview shows this drag's draft rather than the source. */
+  drafted?: boolean;
 }
-const centre = (part: RenderedPart) => part.corners ? { x: (part.corners[0].x + part.corners[2].x) / 2, y: (part.corners[0].y + part.corners[2].y) / 2 } : { x: part.x + part.width / 2, y: part.y + part.height / 2 };
+const centre = (part: RenderedPart) => part.corners ? centreOf(part.corners) : { x: part.x + part.width / 2, y: part.y + part.height / 2 };
 /** The layer's own frame on screen, from its rendered corners. */
 const frameOf = (part: RenderedPart) => localFrame(part.corners ?? [], part.appearance?.box ?? [0, 0]);
 export function useArtworkGesture(template: SpxTemplate, session: EditorSession, preview: () => PreviewController | null,
@@ -37,6 +36,13 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
   const [draft, setDraft] = useState<Creation | null>(null);
   const [error, setError] = useState('');
   const current = useRef<Gesture | null>(null);
+  /** Preview a move's operations; a move back to where the drag began (a Shift turn snapping to its
+   *  start) shows the source again, once. */
+  const show = (gesture: Gesture) => {
+    preview()?.noteInput('drag');
+    if (gesture.operations.length) { preview()?.previewTemplate(session.preview(gesture.operations).template); gesture.drafted = true; }
+    else if (gesture.drafted) { preview()?.previewTemplate(template); gesture.drafted = false; }
+  };
   const cancel = () => {
     const active = !!current.current;
     if (active) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
@@ -93,8 +99,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
           const pose = editingPose(template, base.selector, part.appearance, gesture.time, part.appearance?.cue);
           return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, gesture.time);
         });
-        preview()?.noteInput('drag');
-        preview()?.previewTemplate(gesture.operations.length ? session.preview(gesture.operations).template : template);
+        show(gesture);
         return;
       }
       if (gesture.creation && drawingSpace) {
@@ -110,13 +115,13 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       }
       const originalBase = gesture.base!, part = gesture.part!, handle = gesture.handle;
       const pose = editingPose(template, originalBase.selector, part.appearance, gesture.time, part.appearance?.cue);
-      const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY'] as const).map(p => [p, displayedBase(originalBase, pose, p)])) };
+      const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(originalBase, pose, p)])) };
       const anchor = part.anchor ?? centre(part);
       if (handle?.kind === 'rotate') {
         // Unwrapped: each move adds the angle swept since the last one, so two turns are 720.
         const turn = gesture.turn!;
         turn.swept += sweep(part.parent!, anchor, turn.last, point); turn.last = point;
-        const turned = displayedBase(originalBase, pose, 'rotation') + turn.swept;
+        const turned = base.rotation + turn.swept;
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { rotation: modifiers.shiftKey ? snapRotation(turned) : turned }, gesture.time);
       } else if (handle?.kind === 'anchor') {
         // The anchor follows the pointer in the layer's own pixels; Position keeps the pose.
@@ -132,9 +137,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const corner = handle.kind === 'corner', points = corner ? part.corners : edgePoints(part.corners);
         const pivot = modifiers.altKey ? anchor : points[(handle.index + 2) % 4];
         const view = readTimeline(template), owner = ownerOf(view, originalBase.selector);
-        const keyed = !sequenceAuthoringReason(view.data) && (isArmed(view.data, owner, 'scaleX') || isArmed(view.data, owner, 'scaleY'));
-        const turned = originalBase.mode === 'placed' ? originalBase.rotation : displayedBase(originalBase, pose, 'rotation');
-        const frame = keyed ? frameOf(part) : multiply(part.parent as Linear, ownLinear(turned, 1, 1));
+        const keyed = keysControl(view.data, owner, 'scaleX') || keysControl(view.data, owner, 'scaleY');
+        const frame = keyed ? frameOf(part) : multiply(part.parent!, ownLinear(originalBase.mode === 'placed' ? originalBase.rotation : base.rotation, 1, 1));
         const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', corner ? linked !== modifiers.shiftKey : modifiers.shiftKey);
         const shift = pivotShift(part.parent!, frame, ratios, pivot, anchor);
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + shift.x, y: base.y + shift.y,
@@ -142,11 +146,9 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       } else {
         let change = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
         if (modifiers.shiftKey) change = Math.abs(change.x) >= Math.abs(change.y) ? { x: change.x, y: 0 } : { x: 0, y: change.y };
-        gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY }, gesture.time);
+        gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + change.x, y: base.y + change.y }, gesture.time);
       }
-      preview()?.noteInput('drag');
-      // A drag back to where it began (a Shift turn snapping to its start) shows the source again.
-      preview()?.previewTemplate(gesture.operations.length ? session.preview(gesture.operations).template : template);
+      show(gesture);
     } catch (cause) { cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const end = () => {

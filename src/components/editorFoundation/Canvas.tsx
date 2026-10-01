@@ -64,7 +64,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
     if (corner >= 0) return { kind: 'corner', index: corner };
     const edge = edges.findIndex(q => near(q, radius));
     if (edge >= 0) return { kind: 'edge', index: edge };
-    return knob && near(knob.at, 8) ? { kind: 'rotate' } : null;
+    return near(knob!.at, 8) ? { kind: 'rotate' } : null;
   };
   const containers = useMemo(() => {
     const doc = new DOMParser().parseFromString(template.html, 'text/html');
@@ -166,6 +166,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (event.button !== 0 || pending || status.error) return;
         const { x, y } = pointerPoint(event, size, pan, scale, width, height);
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (gesture.tool !== 'select' && gesture.tool !== 'anchor') { gesture.begin({ x, y }); return; }
         const hits = parts.filter(p => p.selector !== rootSelector && x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height)
           .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height || parts.indexOf(b) - parts.indexOf(a));
         if (gesture.tool === 'anchor') {
@@ -176,7 +177,6 @@ export default function Canvas({ template, sampleData, session, time, selection,
           select(hits[0]?.selector ?? null, false);
           return;
         }
-        if (gesture.tool !== 'select') { gesture.begin({ x, y }); return; }
         const handle = handleAt({ x, y });
         if (handle) { gesture.begin({ x, y }, single!, handle); return; }
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
@@ -238,7 +238,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
           {/* A turned layer's own outline, through its corners; its bounds stay faint behind it. */}
           {single && turned && <polygon points={single.corners!.map(p => p.x + ',' + p.y).join(' ')} fill="none" stroke="var(--accent)" strokeWidth={1.5 / scale} />}
           {/* Drawn before the corners, so the corner handles stay the last circles. */}
-          {single && gesture.tool === 'select' && knob && <>
+          {knob && gesture.tool === 'select' && <>
             <line x1={knob.from.x} y1={knob.from.y} x2={knob.at.x} y2={knob.at.y} stroke="var(--accent)" strokeWidth={1 / scale} />
             <circle data-rotate cx={knob.at.x} cy={knob.at.y} r={4.5 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />
             {edges.map((p, i) => <circle key={i} data-edge={i} cx={p.x} cy={p.y} r={3 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />)}
@@ -247,7 +247,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
             <circle r={5 / scale} />
             <line x1={-9 / scale} x2={9 / scale} /><line y1={-9 / scale} y2={9 / scale} />
           </g>}
-          {selected.length === 1 && gesture.tool !== 'anchor' && selected[0].corners?.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
+          {single && gesture.tool !== 'anchor' && single.corners!.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
           {gesture.draft && drawingSpace && <rect x={gesture.draft.x} y={gesture.draft.y} width={gesture.draft.width} height={gesture.draft.height}
             transform={'matrix(' + drawingSpace.join(' ') + ')'} fill="color-mix(in srgb, var(--accent) 20%, transparent)" stroke="var(--accent)" strokeWidth={1 / scale} />}
         </svg>
