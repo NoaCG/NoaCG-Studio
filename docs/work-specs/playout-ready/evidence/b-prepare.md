@@ -70,6 +70,12 @@ never production.
   while preparing now leaves the output on its version instead of stuck on preparing. Offline
   output specs after the fixes: j-2747, 11 of 11; configured READY and Prepare: j-2748, 2 of 2.
 
+- **Build and affected suite after merging main** (`npm run build` j-2752, green;
+  `npm run test:e2e:affected` j-2754): 1285 passed, 540 skipped, 4 failed. The four (flows "image
+  lands in the logo slot" and three import-canvas walks) failed when the page navigated under them:
+  I was editing files in this tree during the run and Vite reloaded the pages. Run again alone
+  (j-2757) they reach their own skip, as every clean run does: they lead to the retired code editor.
+
 ## Limits
 
 - The Prepare for Live stamp lives in the production page's browser and on the live topic; a
