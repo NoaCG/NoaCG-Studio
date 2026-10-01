@@ -1580,8 +1580,9 @@ had been deferred twice. `npm run harness:reprobe -- run` now re-runs every one 
 bounded probe, one at a time, and appends each verdict with the fallbacks it observed to
 `<git-common-dir>/noacg-reprobe.jsonl`; a session records the probes only it can run with
 `harness:reprobe -- record`. `npm run harness:usage` reads that ledger and prints a failed re-probe
-first. The entries themselves were not rewritten by this run: the three failures below stay on the
-morning read until somebody rewrites them from this evidence.
+first. The run did not rewrite the entries; the three failures below were rewritten from this evidence
+afterwards (2026-10-02), which moved each entry's `measuredOn` to the installed build and cleared the
+failed block.
 
 **Failed (3).** Route on these, not on the entries:
 
