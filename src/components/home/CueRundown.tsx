@@ -1058,7 +1058,7 @@ export default function CueRundown({
               onClose={() => setPickerOpen(false)}
               library={library}
               onAdd={(item) => {
-                // The studio's default channel for its kind: media to "New media starts on", a
+                // The studio's default channel for its kind: media to the "New media" channel, a
                 // template to the NoaCG output's channel. Stored as a number, so the item stays
                 // where it was put when the studio later moves its output; and never defaulted
                 // onto the output's own layer, which playing it would replace.

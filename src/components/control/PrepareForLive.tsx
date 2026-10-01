@@ -53,6 +53,7 @@ export function usePrepareForLive({
   expected,
   published,
   unpublishedChanges,
+  recheckChanges,
   publish,
   onPrep,
   onStamp,
@@ -67,6 +68,10 @@ export function usePrepareForLive({
   published: HeldVersion | null;
   /** The production was edited since its last publish. */
   unpublishedChanges: boolean;
+  /** Asked at the press when `unpublishedChanges` is false: would a publish change what the outputs
+   *  render right now? It catches a library edit made a moment before, which the page's own reading
+   *  has not caught up with yet (components/home/usePublishDrift.ts). */
+  recheckChanges?: () => Promise<boolean>;
   /** Publish now; the version written, or null when it did not publish (the reason is on the page). */
   publish: () => Promise<HeldVersion | null>;
   /** Put a prepare request in this page's Presence entry, or take it out. */
@@ -174,7 +179,8 @@ export function usePrepareForLive({
     setPublishLine(null);
     setPingSent(null);
     let version = published;
-    if (unpublishedChanges || !published) {
+    const changed = unpublishedChanges || (!!recheckChanges && (await recheckChanges()));
+    if (changed || !published) {
       setPhase('publishing');
       const written = await publish();
       if (!written) {

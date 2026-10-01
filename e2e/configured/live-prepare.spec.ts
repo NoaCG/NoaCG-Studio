@@ -9,6 +9,8 @@
 // offline e2e/output-prepare.spec.ts; the words are scripts/prepare-live.test.mjs.
 // The command path ping (landing c, AC-12) is said on each output's line once the outputs settle.
 // covers: src/components/control/PrepareForLive.tsx, src/control/prepareLive.ts, src/output/prepare.ts, src/components/home/ProductionPage.tsx, supabase/migrations/0072_command_ping.sql
+// A graphic edited in the library counts as an unpublished change (docs/work-specs/studio-day-playout AC-5).
+// covers: src/components/home/usePublishDrift.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -32,6 +34,9 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
+  // A House Scorebug left in the synced test account by a run that died would make the library
+  // name match below ambiguous, and the AC-5 step would fail for a reason that is not the product.
+  await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   // In the LIBRARY too, as a graphic saved and added from Home is: a publish then reads its design
   // from the library record (by its name, `resolveSavedGraphicDoc`), which the AC-5 step edits.

@@ -548,8 +548,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  in this browser and announced on the live topic so the hosted page and the phone count the
    *  same ones. */
   const [publishedVer, setPublishedVer] = useState<HeldVersion | null>(null);
+  /** The published stamp's per-graphic digests, beside `publishedVer` (payloadVersion.ts `g`). */
+  const [publishedDigests, setPublishedDigests] = useState<Record<string, string> | null>(null);
   /** A publish now would change what the outputs render (usePublishDrift): a library edit counts. */
-  const publishDrift = usePublishDrift(show, publishedVer);
+  const { drift: publishDrift, check: checkPublishDrift } = usePublishDrift(show, publishedDigests);
   const { expected: expectedOutputs, forget: forgetOutput } = useExpectedOutputs(
     hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null,
     livePresence,
@@ -571,6 +573,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     expected: expectedOutputs,
     published: publishedVer,
     unpublishedChanges: !!show?.publishedAt && (show.updatedAt > show.publishedAt || publishDrift),
+    recheckChanges: checkPublishDrift,
     publish: () => preparePublishRef.current(),
     onPrep: setPrepRequest,
     onStamp: (stamp) => {
@@ -1341,6 +1344,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setOutputSeenAt(resolved.outputSeenAt);
       const ver = resolved.output?.ver;
       setPublishedVer(ver ? { n: ver.n, h: ver.h } : null);
+      setPublishedDigests(ver ? ver.g : null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
@@ -2101,7 +2105,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
-        if (published.version) setPublishedVer({ n: published.version.n, h: published.version.h });
+        if (published.version) {
+          setPublishedVer({ n: published.version.n, h: published.version.h });
+          setPublishedDigests(published.version.g);
+        }
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer

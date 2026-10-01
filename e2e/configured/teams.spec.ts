@@ -453,8 +453,14 @@ test.describe('teams: the share door', () => {
         // Share and the team's button differ in width, and operators press these by muscle memory
         // (docs/work-specs/studio-day-playout AC-6).
         const fixedControls = ['playout-settings-open', 'export-production', 'verb-out-all'];
+        // Each control must be ON SCREEN to be measured: a missing box would compare equal to itself.
         const controlXs = () =>
-          Promise.all(fixedControls.map(async (id) => Math.round((await owner.getByTestId(id).boundingBox())?.x ?? -1)));
+          Promise.all(
+            fixedControls.map(async (id) => {
+              await expect(owner.getByTestId(id)).toBeVisible();
+              return Math.round((await owner.getByTestId(id).boundingBox())!.x);
+            }),
+          );
         await expect(owner.getByTestId('share-with-team')).toBeVisible();
         const personalXs = await controlXs();
 
