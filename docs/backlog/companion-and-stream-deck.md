@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-28
-state: unstarted
+state: advanced
+note: "Researched and decided: docs/HARDWARE_CONTROL_RESEARCH.md landed in c029d2450, and the owner chose its suggestion on 2026-10-01 (recorded below). Still missing: the build itself, about four weeks (the research's section 10)."
 asked: "Built for Companion and Stream Deck: their integration is a later task, but nothing built now may make it harder. Every operator action a named command through the one verb dispatcher and keymap; every state a hardware button would show plain data from one place; it connects through the Bridge's local HTTP (paraphrase of the phase 2 work prompt, 2026-09-28)"
 size: standard
 touches: supabase/migrations/, src/control/serverState.ts, src/control/serverPlayoutStore.ts, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx
