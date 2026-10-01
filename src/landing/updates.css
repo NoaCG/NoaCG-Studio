@@ -55,6 +55,11 @@
 .rm-item li::marker { color: var(--faint); }
 @media (max-width: 420px) {
   .rm-items { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* A phone header holds the wordmark, the current page and the button; the row tightens so the
+   button keeps its label on one line (the same rule src/downloads/downloads.css carries). */
+@media (max-width: 420px) {
   header.top nav { gap: 14px; }
   header.top .btn { padding: 10px 16px; white-space: nowrap; }
 }

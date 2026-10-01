@@ -22,7 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { measured } from './measured.mjs';
-import { bulletProblems } from './whats-new.mjs';
+import { bulletProblems, escapeHtml } from './whats-new.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const GOALS_FILE = path.join(ROOT, 'docs', 'GOALS.md');
@@ -151,9 +151,6 @@ export function buildRoadmap(goalsText, wordingText) {
 export function loadRoadmap() {
   return buildRoadmap(readFileSync(GOALS_FILE, 'utf8'), readFileSync(WORDING_FILE, 'utf8'));
 }
-
-const escapeHtml = (value) =>
-  String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const COLUMN_HEADINGS = { now: 'Now', next: 'Next', later: 'Later' };
 const COLUMN_NOTES = {
