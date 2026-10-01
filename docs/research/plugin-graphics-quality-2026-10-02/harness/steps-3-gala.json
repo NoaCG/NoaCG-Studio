@@ -1,0 +1,14 @@
+[
+  {"text": "panel at load"},
+  {"shot": "ready"},
+  {"click": "verb-take"}, {"wait": 600},
+  {"shot": "take-mid-entrance"},
+  {"wait": 2000},
+  {"shot": "take"},
+  {"fill": "f3", "value": "Krista Kosonen"},
+  {"fill": "f2", "value": "Juontaa"},
+  {"click": "verb-update"}, {"wait": 2000},
+  {"shot": "update-host-finnish-label"},
+  {"click": "verb-out"}, {"wait": 1500},
+  {"shot": "out"}
+]

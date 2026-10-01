@@ -1,0 +1,13 @@
+[
+  {"text": "panel at load"},
+  {"shot": "ready"},
+  {"click": "verb-take"}, {"wait": 2500},
+  {"shot": "take"},
+  {"fill": "f0", "value": "Jyrki Häkkinen"},
+  {"fill": "f1", "value": "Ympäristöterveydenhuollon ylitarkastaja, Pohjois-Pohjanmaan ELY-keskus"},
+  {"fill": "f2", "value": ""},
+  {"click": "verb-update"}, {"wait": 2000},
+  {"shot": "update-long-title-no-location"},
+  {"click": "verb-out"}, {"wait": 1500},
+  {"shot": "out"}
+]

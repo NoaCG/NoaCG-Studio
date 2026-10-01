@@ -1,0 +1,8 @@
+{
+  "enabledPlugins": {
+    "vercel@claude-plugins-official": false,
+    "codex@openai-codex": false,
+    "frontend-design@claude-plugins-official": false,
+    "noacg@noacg-studio": false
+  }
+}

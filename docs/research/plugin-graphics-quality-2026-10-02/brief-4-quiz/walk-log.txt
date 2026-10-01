@@ -1,0 +1,8 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take F0 · Round F1 · Question number F2 · Question F3 · Answer A F4 · Answer B F5 · Answer C F6 · Answer D F7 · Correct answer A B C D F8 · Answers shown 2 3 4 F9 · Timer (seconds) − + STEP OPERATOR NOTE ▸ Advanced Layer 20 ⚡ GRAPHIC ACTIONS act on air not on air Snap to state… ⟲ Back to start (visual reset) main: Off main: Question main: Answer revealed main: Out timer: Timer hidden timer: Timer running These fire the graphic’s own beats on the layer that is on air, immediately. They carry values from this cue, so type them above first. “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation. ANSWER ⚡ Reveal answer TIMER ⚡ Start timer ⚡ Hide timer ± LIVE NUMBERS act on air One press changes the figure on the live graphic and keeps this cue in step, with no ✎ Update needed. Typing a value above still stages it for ✎ Update instead. Timer (seconds) − + CONTROLS as the graphic declared them Activity
+shot 01-ready
+shot 02-take
+shot 03-timer-running
+shot 04-reveal
+shot 05-next-question-retake
+shot 06-next-reveals
+shot 07-out
