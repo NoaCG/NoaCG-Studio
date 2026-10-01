@@ -49,7 +49,7 @@ ways that are ours to fix; the claim is only whole once they pass.
 3. SPX playing through a connected CasparCG server: the native export's CasparCG path, and the
    OGraf package's expected absence there.
 4. A graphic whose canvas is not 1920x1080, in both routes.
-5. Load a NoaCG-written rundown once `spx-show-export-rundown.md` exists.
+5. Done: a NoaCG-written rundown loaded and played on both servers (`SPX_ON_A_REAL_SERVER.md` §11).
 6. Script the walk. The first round was driven by throwaway Playwright scripts against SPX's own
    pages (the record's §1 says how); keeping one as `scripts/spx-walk.mjs`, like
    `scripts/ograf-external-walk.mjs`, would make item 1 a command.

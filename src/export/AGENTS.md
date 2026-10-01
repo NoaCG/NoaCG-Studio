@@ -235,6 +235,13 @@ export-time reflow, stretching, or cropping.
   invalid graphic cannot export whoever calls them; the dialog shows the SAME verdict
   (`productionGateFailures`), never a second opinion. The edge is `export -> validation`,
   `productionGate` only (docs/ARCHITECTURE.md §3). Pinned by e2e/production-gate.spec.ts.
+- **spxProject.ts** - the SPX project the SPX production package carries:
+  `DATAROOT/<production>/profile.json` and `data/rundown.json`, one rundown item per cue over a
+  pool graphic with the cue's values (one per graphic when there are no cues), in SPX's own file
+  shape, so the operator copies two folders and opens the show in SPX
+  (docs/SPX_ON_A_REAL_SERVER.md §11). It imports nothing at run time: scripts/spx-rundown.test.mjs
+  runs it in Node against SPX's sample item. `relpath` assumes the package folder sits directly
+  in SPX's `ASSETS/templates`, which the README says.
 - **spxLeftBehind.ts** - what the SPX production package (`buildShowZip`) SAYS it drops
   (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6h), written into its README and GETTING-ON-AIR.md. The
   package still carries none of the production (§6f); these are words, in SPX's own actions.

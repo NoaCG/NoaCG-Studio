@@ -432,7 +432,7 @@ item; unfiled routes are recorded here so nobody re-derives them.
 | # | Route | What it would take | Who it serves | Filed |
 |---|---|---|---|---|
 | 1 | **`v_spx` hints in the OGraf manifest** | Map each NoaCG field kind to an SPX field type (dropdown with items, textarea, color, filelist, number) and set a default layer; a test that reads the manifest the way SPX's importer does | An SPX 1.4 operator using the OGraf package: the right controls instead of text boxes | `ograf-manifest-v-spx-hints.md` |
-| 2 | **An SPX rundown in the production export** | Write `profile.json` and a rundown JSON with one item per cue, entry values filled, beside the template folders the SPX flavour already writes | An SPX operator who wants the whole show ready to play, on any edition | `spx-show-export-rundown.md` |
+| 2 | **An SPX rundown in the production export** | Write `profile.json` and a rundown JSON with one item per cue, entry values filled, beside the template folders the SPX flavour already writes | An SPX operator who wants the whole show ready to play, on any edition | Done, `SPX_ON_A_REAL_SERVER.md` §11 |
 | 3 | The real SPX round | Already filed; add the Solo API limits and "OGraf only in the web renderer" to what it checks | Proving outcome 5 | `spx-gc-ograf-round.md` (existing) |
 | 4 | Documentation: which SPX route for which setup | CasparCG through SPX needs the native export; OGraf needs the web renderer; Solo is five layers | Every SPX user | `playout-engine-facts-and-guide-corrections.md` |
 | 5 | Bridge SPX adapter over the HTTP API | On Solo it can only play, continue and stop the focused item | Few: the SPX operator already has the rundown | Not filed |
