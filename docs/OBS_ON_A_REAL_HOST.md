@@ -9,7 +9,8 @@ where a statement rests on something else, it says so.
 
 - **Since 2026-10-01 an exported overlay plays its entrance when its source goes on program**,
   not when OBS loads it, and plays it again on the next cut. §10 has the look, the trigger choice
-  and one stale frame on a Cut that the page cannot clear.
+  and one stale frame on a Cut that the page cannot clear. §11 re-checked it in OBS on 2026-10-02
+  and measured that frame: exactly one frame on every Cut, and a Fade or Studio Mode avoids it.
 
 - **NoaCG graphics work as OBS browser sources.** An exported overlay loaded as a local file plays
   on load. A two-graphic show package, served by its own bundled relay, was taken, updated and
@@ -248,7 +249,7 @@ graphic, **Cut** transition), with the Hairline lower third exported by this bra
 Pictures are `GetSourceScreenshot` of `W On Air`, 960 wide. The look ran on the branch before
 its review added two refinements: the replay after a page loads on a preview, and the hand-over
 to the operator once the panel plays or stops the graphic. Those two are pinned by the e2e in
-`e2e/exports.spec.ts` only; a second look was not possible because another session had OBS open.
+`e2e/exports.spec.ts`, and a second look in OBS on 2026-10-02 confirmed both (§11).
 
 | Step | What OBS showed | Picture |
 |---|---|---|
@@ -264,9 +265,8 @@ hidden browser source last painted. Screenshots taken back to back right after a
 scene, in three rounds, showed the settled lower third for the first 10 to 40 ms, then the start
 of the entrance: about one frame at 30 fps of the old graphic before it animates in. The page
 cannot paint while hidden, so it cannot clear that texture itself. In studio mode the scene is
-painted at rest on preview before the take, and no stale frame was seen there. Whether turning
-hardware acceleration off or using a Fade avoids it was not measured; that is
-`docs/backlog/obs-stale-frame-on-cut-back.md`.
+painted at rest on preview before the take, and no stale frame was seen there. §11 measured it
+from recordings of the program output, with hardware acceleration off and with a Fade.
 
 **The dock guidance.** GETTING-ON-AIR.md, the overlay and SPX package READMEs and
 `src/export/AGENTS.md` now say what §5 measured: the panel reaches a graphic in OBS from a Custom
@@ -277,3 +277,85 @@ banner is in `src/control` and is `docs/backlog/control-panel-banner-names-the-o
 Afterwards OBS was switched back to `Untitled` and closed normally (no crash sentinel, zero
 leaks), the test collection's files were moved out of `%APPDATA%\obs-studio\basic\scenes`, and
 obs-websocket was turned off in its `config.json`. The owner's scenes and docks were not touched.
+
+## 11. Second look, the stale frame and the landing picture, 2026-10-02
+
+**The host.** A portable copy of the same OBS Studio 32.2.1 (obs-websocket 5.7.4, Chromium 127),
+copied out of `C:\Program Files\obs-studio` with a `portable_mode.txt`, so it kept everything in
+its own `config\obs-studio`: profile, scene collection, dock list and obs-websocket settings (on,
+port 4466, a generated password that was never printed or kept). The owner's OBS config and
+scenes were neither read nor touched, and no other OBS was running. 1920x1080 at 30 fps, browser
+hardware acceleration on unless said otherwise. Windows asked once about the firewall for the
+copy's WebSocket server; the prompt was closed without allowing, and no firewall rule exists for
+the copy. The same OBS ran the Bridge proof (`docs/research/obs-bridge-proof/`, 23 of 23).
+
+**The review's two refinements, seen in OBS.** The Hairline lower third, exported by
+`htmlOverlayTarget` from `main`, as a browser source on `http://127.0.0.1`. Pictures are
+`GetSourceScreenshot` of its scene
+([02](research/obs-real-host-2026-10-02/02-review-fixes.png)).
+
+| Step | What OBS showed |
+|---|---|
+| Loaded with its scene off air, 4 s | Nothing |
+| Cut to it, 200 ms | Mid-entrance, the bar drawn and the text not yet in |
+| Studio mode: the page loaded while its scene was on preview, 3.5 s | Settled on preview: a page that loads visible starts at once |
+| Transition to program, 200 ms | Mid-entrance: the take played it again, on air |
+| The panel's Stop | Clear |
+| Cut away and back, 1.5 s | Still clear: the cut did not play it again |
+| The panel's Play, then cut away and back, 200 ms | Settled: no reset and no replay, the operator is in charge |
+
+The panel's commands came from a page on the same address posting the control panel's own
+BroadcastChannel messages (`{t: 'stop'}`, `{t: 'play'}`), the path a docked `controlpanel.html`
+takes (§5).
+
+**The stale frame, measured.** OBS recorded its program output (x264, 30 fps) while
+obs-websocket switched between a blue scene and the grey scene holding the overlay, 2.5 s on air
+and 1.5 s off, ten times per row. [`measure-cut-back.py`](research/obs-real-host-2026-10-02/measure-cut-back.py)
+reads every frame of the recording and counts, after each switch back, the frames that still show
+the settled graphic before the entrance starts;
+[`measure-item-show.py`](research/obs-real-host-2026-10-02/measure-item-show.py) does the same
+for a source shown again in a scene that stays on program.
+
+| Condition | Frames of the old graphic after the switch |
+|---|---|
+| Cut | exactly 1, in 10 of 10 ([01](research/obs-real-host-2026-10-02/01-cut-back-frames.png)) |
+| Cut, with the page also resetting on `obsSourceVisibleChanged` false (an experiment, not shipped) | 1 in 9 of 10, 2 in the other |
+| Cut, browser hardware acceleration off (an OBS restart) | 1 in 4 of the 9 switches the recording caught, none in 5 |
+| Fade, 300 ms | none from the second fade frame on; in 5 of 10 the first fade frame held it at 5 to 9% opacity |
+| The hidden item shown again (`SetSceneItemEnabled`), scene on program | exactly 1, in 10 of 10 |
+
+So there is no page-side fix. The frame is the texture OBS kept from the last paint before it hid
+the page, and a hidden page does not paint: resetting on the earlier visible event did not get a
+frame out before the hide. Turning hardware acceleration off only makes it intermittent, at a CPU
+cost. A Fade hides it, and §10 saw none in Studio Mode, where the scene is painted on preview
+before the take. The operator line is in `docs/PLAYOUT_INTEGRATION.md` §4, and it closes the
+backlog item that asked for this measurement. Showing a hidden item has the same
+frame, which matters to the Bridge's take (`docs/work-specs/bridge-obs-adapter/spec.md`).
+
+**The landing picture.** [`public/landing/shot-obs.png`](../public/landing/shot-obs.png),
+1438x788: OBS with the House Strap lower third on program over a dark background, and the
+exported package's `controlpanel.html` in a Custom Browser Dock beside the preview, paired with
+the graphic over the same address ("connected: spx-control-house_strap"). It is a capture of a
+real OBS, like the landing's on-air frames, not one `scripts/landing-shots.mjs` makes. To take it
+again:
+
+1. Copy `C:\Program Files\obs-studio` to a folder of your own and add an empty
+   `portable_mode.txt` to it. Before the first start, write `config\obs-studio\user.ini` with
+   `[General]` `FirstRun=true` (no auto-configuration wizard) and `[BasicWindow]`
+   `ExtraBrowserDocks=[{"title":"NoaCG","url":"http://127.0.0.1:8823/house_strap/controlpanel.html","uuid":"<a new uuid>"}]`.
+2. Export the House Strap lower third (catalog `lt11`, its default Lina Berg, Anchor · Evening
+   News) as an HTML overlay, unzip it beside a `bg\index.html` copied from
+   [`landing-background.html`](research/obs-real-host-2026-10-02/landing-background.html), and
+   serve that folder with `python -m http.server 8823 --bind 127.0.0.1`.
+3. In OBS: a scene **Studio** with browser sources **Lower third**
+   (`http://127.0.0.1:8823/house_strap/house_strap.html`) over **Background**
+   (`http://127.0.0.1:8823/bg/index.html`), both 1920x1080; a scene **Break** with Background;
+   the **Fade** transition at 300 ms; Studio on program.
+4. **Docks > NoaCG** to show the dock, drag it to the window's right edge so it docks at full
+   height, and untick **Docks > Audio Mixer** (it is empty). Size the window to 1440x820, the dock
+   to about 420 wide, and drag the line above Scene Transitions down until the preview fills its
+   width. Click inside the dock, so no source is selected and the preview has no red box.
+5. Capture the window, then crop the Windows title bar and the 1 px border.
+
+**Afterwards** the copy's obs-websocket was turned off, the copy was closed normally (zero leaks)
+and deleted with its config, recordings and scenes, and the local servers were stopped.

@@ -233,9 +233,12 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
   (on program) rather than `obsSourceVisibleChanged`, because in studio mode a scene on preview
   is visible but not on air; a page that loads while shown starts at once, and plays again if
   that was only a preview. Once the panel or the relay plays or stops it, cuts no longer move
-  it, so a cut never undoes the operator's Take or Stop. Outside OBS it still plays on load. On a **Cut** back to the scene, OBS with browser hardware acceleration shows the
-  source's last on-air frame for about one frame before the entrance starts; in studio mode that
-  was not seen (`docs/OBS_ON_A_REAL_HOST.md` §10). Overlays exported before 2026-10-01 play on
+  it, so a cut never undoes the operator's Take or Stop. Outside OBS it still plays on load.
+  **Use a Fade, not a Cut, into a scene with a NoaCG overlay** (or Studio Mode): on a Cut back,
+  OBS shows the graphic's last on-air frame for exactly one frame before the entrance starts, every
+  time, and the page cannot clear it; with a 300 ms Fade the old frame never got past 9% opacity,
+  and turning off browser hardware acceleration did not remove it (measured on OBS 32.2.1 at
+  30 fps, `docs/OBS_ON_A_REAL_HOST.md` §11). Overlays exported before 2026-10-01 play on
   load: for those, tick **"Refresh browser when scene becomes active"**, and OBS reloads the page
   as the scene goes on program. The cloud output and a relay-driven source wait for a command
   instead of playing by themselves.
@@ -354,6 +357,10 @@ than one that admits the gaps.
 - **Verified on OBS 32.2.1 on this machine** (2026-10-01, `docs/OBS_ON_A_REAL_HOST.md` §10): an
   exported overlay as a local-file source plays its entrance when its scene goes on program,
   plays it again on the next cut, and waits on preview in studio mode.
+- **Verified on a portable OBS 32.2.1 on this machine** (2026-10-02, `docs/OBS_ON_A_REAL_HOST.md`
+  §11): the replay after a page loads on a preview, the hand-over to the panel's Stop and Play,
+  the one stale frame on a Cut measured from recordings of the program output, and the OBS Bridge
+  proof's every verb (`docs/research/obs-bridge-proof/`).
 - **Not yet verified on hardware**: a Decklink card, a LAN hop between the Bridge and CasparCG,
   vMix, a Linux CasparCG and whether its media scanner is running, and the hosted studio's
   local-network permission prompt with a person at the keyboard.

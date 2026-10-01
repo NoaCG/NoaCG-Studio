@@ -20,11 +20,11 @@
 // The password is read from OBS's config and used for the handshake only. It is never printed,
 // logged or written anywhere, and neither is the authentication string derived from it.
 
-import { readFileSync, existsSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, existsSync, openSync, readSync, closeSync, writeFileSync, unlinkSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { connect as tcpConnect } from 'node:net';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const argv = process.argv.slice(2);
@@ -35,8 +35,11 @@ const EVENT_NAME = 'noacg';
 const SUBSCRIPTIONS = 1 | 2 | 4 | 128; // General, Config, Scenes, SceneItems (the proof reads more than the Bridge needs)
 const REQUEST_TIMEOUT_MS = 3000;
 
+/** Every line goes out with the user's home folder as `~`, plain or JSON-escaped, so a record
+ *  can be committed without naming whose machine ran it. */
 function say(line = '') {
-  process.stdout.write(`${line}\n`);
+  const home = homedir();
+  process.stdout.write(`${String(line).split(home).join('~').split(home.replace(/\\/g, '\\\\')).join('~')}\n`);
 }
 function json(value) {
   return JSON.stringify(value);
@@ -587,6 +590,10 @@ async function live() {
   const SCENE = `NoaCG Bridge proof ${stamp}`;
   const OUT = `NoaCG proof output ${stamp}`;
   const TPL = `NoaCG proof graphic ${stamp}`;
+  const SCENE2 = `NoaCG Bridge proof 2 ${stamp}`;
+  const COLOR = `NoaCG proof colour ${stamp}`;
+  const LOCALNAME = `NoaCG proof local ${stamp}`;
+  const LOCAL = join(tmpdir(), `noacg-proof-${stamp}.html`);
   const created = [];
   const results = [];
   const check = (name, pass, detail) => {
@@ -603,7 +610,7 @@ async function live() {
     say(`  = ${json(st)}`);
     before = { program: st.programScene, preview: st.previewScene };
     // Every name this run creates must be new, so cleanup can only ever remove its own.
-    for (const name of [SCENE, OUT, TPL]) {
+    for (const name of [SCENE, OUT, TPL, SCENE2, COLOR, LOCALNAME]) {
       if ((await s.request('GetInputSettings', { inputName: name })).code !== 600 || st.scenes.includes(name)) throw new Error(`"${name}" already exists in OBS; nothing was changed`);
     }
     await must(s, 'CreateScene', { sceneName: SCENE });
@@ -673,6 +680,33 @@ async function live() {
 
     say('\n== state');
     say(`  = ${json(await stateOf(s, SCENE))}`);
+
+    say('\n== take url, the source exists but is not in this scene (CreateSceneItem)');
+    await must(s, 'CreateScene', { sceneName: SCENE2 });
+    created.push(['scene', SCENE2]);
+    const t4 = await takeUrl(s, { scene: SCENE2, source: OUT, url: `${outUrl}&v=2` });
+    check('take url adds the existing source to the other scene, shown', t4.addedToScene === true && (await stateOf(s, SCENE2)).slots.find((x) => x.source === OUT)?.shown === true, json(t4));
+
+    say('\n== take url, refused and not-found cases');
+    await must(s, 'CreateInput', { sceneName: SCENE, inputName: COLOR, inputKind: 'color_source_v3', inputSettings: {}, sceneItemEnabled: false });
+    created.push(['input', COLOR]);
+    const r1 = await takeUrl(s, { scene: SCENE, source: COLOR, url: outUrl });
+    const colorKind = (await must(s, 'GetInputSettings', { inputName: COLOR })).inputKind;
+    check('a name held by another kind of source is refused, the source unchanged', !!r1.refused && colorKind === 'color_source_v3', json(r1));
+    const r2 = await takeUrl(s, { scene: SCENE, source: SCENE2, url: outUrl });
+    check('a name held by a scene is refused (602)', !!r2.refused, json(r2));
+    const r3 = await takeUrl(s, { scene: `${SCENE} missing`, source: OUT, url: outUrl });
+    check('a missing scene is not-found', !!r3.notFound, json(r3));
+
+    say('\n== a local-file graphic: the marker read from the file, then take url over it');
+    writeFileSync(LOCAL, `<!doctype html><html><head><meta charset="utf-8"><meta name="noacg-graphic" content="${LOCALNAME}"></head><body></body></html>`);
+    await must(s, 'CreateInput', { sceneName: SCENE, inputName: LOCALNAME, inputKind: 'browser_source', inputSettings: { is_local_file: true, local_file: LOCAL, width: st.canvas.width, height: st.canvas.height }, sceneItemEnabled: false });
+    created.push(['input', LOCALNAME]);
+    const listed2 = await listTemplates(s, readPage);
+    check('list template reads the marker from a local file', listed2.some((x) => x.name === LOCALNAME && x.label === LOCALNAME), json(listed2.filter((x) => x.label === LOCALNAME)));
+    const t5 = await takeUrl(s, { scene: SCENE, source: LOCALNAME, url: `${base}/output?graphic=output&v=3` });
+    const after5 = (await must(s, 'GetInputSettings', { inputName: LOCALNAME })).inputSettings;
+    check('take url over a local-file source switches it to the URL', t5.urlChanged === true && after5.is_local_file === false && /v=3/.test(after5.url), json({ t5, is_local_file: after5.is_local_file, url: after5.url }));
   } catch (e) {
     check('run', false, e.state ? `handshake failed, state ${e.state} (${e.message})` : e.message);
   } finally {
@@ -682,9 +716,27 @@ async function live() {
         if (kind === 'input') await s.request('RemoveInput', { inputName: name }).catch(() => {});
         else await s.request('RemoveScene', { sceneName: name }).catch(() => {});
       }
-      const after = await must(s, 'GetSceneList').catch(() => null);
+      // OBS can still hold the local file for a moment after RemoveInput, so try for up to 2 s.
+      for (let i = 0; i < 40 && existsSync(LOCAL); i++) {
+        try {
+          unlinkSync(LOCAL);
+        } catch {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      // Measured on OBS 32.2.1: RemoveScene answers 100 and SceneRemoved arrives, yet a
+      // GetSceneList sent at once still lists the scene for a moment. So poll, and say how long.
+      const removedAt = Date.now();
+      let after = null;
+      let lagged = 0;
+      for (;;) {
+        after = await must(s, 'GetSceneList').catch(() => null);
+        if (!after || !after.scenes.some((x) => x.sceneName === SCENE || x.sceneName === SCENE2) || Date.now() - removedAt > 3000) break;
+        lagged++;
+        await new Promise((r) => setTimeout(r, 50));
+      }
       if (after && before) {
-        check('the proof scene is gone', !after.scenes.some((x) => x.sceneName === SCENE));
+        check('the proof scenes are gone', !after.scenes.some((x) => x.sceneName === SCENE || x.sceneName === SCENE2), `GetSceneList still listed them ${lagged} time(s), for ${Date.now() - removedAt} ms`);
         check('program and preview are what they were', after.currentProgramSceneName === before.program && after.currentPreviewSceneName === before.preview, json({ before, after: { program: after.currentProgramSceneName, preview: after.currentPreviewSceneName } }));
       }
       say(`events seen: ${json([...new Set(s.events.map((e) => e.eventType))])}`);

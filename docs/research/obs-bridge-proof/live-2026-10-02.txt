@@ -1,0 +1,316 @@
+obs-bridge-proof, mode live, node v24.13.0, 2026-10-01T21:13:02.253Z
+settings: {"file":"~\\AppData\\Local\\Temp\\noacg-ad-obs\\config\\obs-studio\\plugin_config\\obs-websocket\\config.json","enabled":true,"port":4466,"authRequired":true,"password":"present (not shown)"}
+  <- Hello {"obsStudioVersion":"32.2.1","obsWebSocketVersion":"5.7.4","rpcVersion":1,"authentication":"{challenge, salt}"}
+  -> Identify {"rpcVersion":1,"eventSubscriptions":135,"authentication":"<derived, not shown>"}
+  <- Identified {"negotiatedRpcVersion":1}
+
+== status
+  -> GetVersion
+  <- GetVersion 100 {"obsVersion":"32.2.1","obsWebSocketVersion":"5.7.4","rpcVersion":1,"platform":"windows","availableRequests":"151 names"}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  = {"version":"OBS 32.2.1, obs-websocket 5.7.4","canvas":{"width":1920,"height":1080},"programScene":"Scene","previewScene":null,"scenes":["Scene"]}
+  -> GetInputSettings {"inputName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG Bridge proof 2026-10-01-21-13-02` within the canvas `Main`."
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG proof output 2026-10-01-21-13-02` within the canvas `Main`."
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG proof graphic 2026-10-01-21-13-02` within the canvas `Main`."
+  -> GetInputSettings {"inputName":"NoaCG Bridge proof 2 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG Bridge proof 2 2026-10-01-21-13-02` within the canvas `Main`."
+  -> GetInputSettings {"inputName":"NoaCG proof colour 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG proof colour 2026-10-01-21-13-02` within the canvas `Main`."
+  -> GetInputSettings {"inputName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG proof local 2026-10-01-21-13-02` within the canvas `Main`."
+  -> CreateScene {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- CreateScene 100 {"sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+
+== take url (Put on air), first time
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- event SceneCreated {"isGroup":false,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- event SceneCreated {"isGroup":false,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- event SceneListChanged {"scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 600 "No source was found by the name of `NoaCG proof output 2026-10-01-21-13-02` within the canvas `Main`."
+  -> CreateInput {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","inputName":"NoaCG proof output 2026-10-01-21-13-02","inputKind":"browser_source","inputSettings":{"url":"http://127.0.0.1:63945/output?graphic=output","width":1920,"height":1080,"shutdown":false,"restart_when_active":false},"sceneItemEnabled":true}
+  <- event SceneItemCreated {"sceneItemId":1,"sceneItemIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2","sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"}
+  <- CreateInput 100 {"inputUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57","sceneItemId":1}
+PASS take url creates the browser source at the canvas size: {"created":true}
+  <- event SceneItemSelected {"sceneItemId":1,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+PASS the page loaded in OBS: {"t":"load","href":"http://127.0.0.1:63945/output?graphic=output","visibility":"hidden","obs":true,"page":"output","at":1790889182419}
+
+== out url (Take off, a bare out)
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output","width":1920}}
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":1}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":1,"sceneItemEnabled":false}
+  <- SetSceneItemEnabled 100
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":false,"sceneItemId":1,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":false,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output","width":1920}}
+PASS a bare out on the output hides it: {"scene":"NoaCG Bridge proof 2026-10-01-21-13-02","onProgram":false,"onPreview":false,"slots":[{"source":"NoaCG proof output 2026-10-01-21-13-02","shown":false,"producer":"empty","page":"http://127.0.0.1:63945/output?graphic=output"}]}
+
+== take url again, same URL
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output","width":1920}}
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":1}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":1,"sceneItemEnabled":true}
+  <- SetSceneItemEnabled 100
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":true,"sceneItemId":1,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output","width":1920}}
+PASS take shows it again: {"created":false,"urlChanged":false,"addedToScene":false}
+PASS the same URL is not reloaded
+
+== take url, a new URL
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output","width":1920}}
+  -> SetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02","inputSettings":{"is_local_file":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920,"height":1080}}
+  <- SetInputSettings 100
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":1}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":1,"sceneItemEnabled":true}
+  <- SetSceneItemEnabled 100
+PASS a new URL loads the new page: http://127.0.0.1:63945/output?graphic=output&v=2
+
+== a graphic source, hidden, and list template
+  -> CreateInput {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","inputName":"NoaCG proof graphic 2026-10-01-21-13-02","inputKind":"browser_source","inputSettings":{"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920,"height":1080},"sceneItemEnabled":false}
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":false,"sceneItemId":2,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- CreateInput 100 {"inputUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012","sceneItemId":2}
+  <- event SceneItemCreated {"sceneItemId":2,"sceneItemIndex":1,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2","sourceName":"NoaCG proof graphic 2026-10-01-21-13-02","sourceUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012"}
+  <- event SceneItemSelected {"sceneItemId":2,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  -> GetInputList {"inputKind":"browser_source"}
+  <- GetInputList 100 {"inputs":[{"inputKind":"browser_source","inputKindCaps":32939,"inputName":"NoaCG proof output 2026-10-01-21-13-02","inputUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57","unversionedInputKind":"browser_source"},{"inputKind":"browser_source","inputKindCaps":32939,"inputName":"NoaCG proof graphic 2026-10-01-21-13-02","inputUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012","unversionedInputKind":"browser_source"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+PASS list template finds the NoaCG page by its marker, and not the output: [{"name":"NoaCG proof graphic 2026-10-01-21-13-02","label":"NoaCG proof graphic 2026-10-01-21-13-02","kind":"graphic"}]
+
+== take template (hidden: emit, then show)
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":2}
+  -> GetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":2}
+  <- GetSceneItemEnabled 100 {"sceneItemEnabled":false}
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"update","data":{"f0":"Anna","f1":"Host"}},{"t":"play"}]}}}
+  <- CallVendorRequest 100 {"requestType":"emit_event","responseData":{},"vendorName":"obs-browser"}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":2,"sceneItemEnabled":true}
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":true,"sceneItemId":2,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- SetSceneItemEnabled 100
+PASS the page got update then play in one event: {"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"data":{"f0":"Anna","f1":"Host"},"t":"update"},{"t":"play"}],"v":1}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"},{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":2,"sceneItemIndex":1,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof graphic 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+PASS the hidden item was shown after the emit
+PASS the output page heard it too and knows it is not its graphic
+
+== update on the graphic's slot, no item
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"update","data":{"f0":"Ben"}}]}}}
+  <- CallVendorRequest 100 {"requestType":"emit_event","responseData":{},"vendorName":"obs-browser"}
+PASS update is emitted and reaches the page: {"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"data":{"f0":"Ben"},"t":"update"}],"v":1}
+
+== next on the graphic's slot, no item
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"next"}]}}}
+  <- CallVendorRequest 100 {"requestType":"emit_event","responseData":{},"vendorName":"obs-browser"}
+PASS next is emitted and reaches the page: {"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"next"}],"v":1}
+
+== out on the graphic's slot, no item
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"stop"}]}}}
+  <- CallVendorRequest 100 {"requestType":"emit_event","responseData":{},"vendorName":"obs-browser"}
+PASS out is emitted and reaches the page: {"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"stop"}],"v":1}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"},{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":2,"sceneItemIndex":1,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof graphic 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+PASS out on a graphic does not hide it
+
+== clear on the graphic (stop, then hide)
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  -> CallVendorRequest {"vendorName":"obs-browser","requestType":"emit_event","requestData":{"event_name":"noacg","event_data":{"v":1,"graphic":"NoaCG proof graphic 2026-10-01-21-13-02","msgs":[{"t":"stop"}]}}}
+  <- CallVendorRequest 100 {"requestType":"emit_event","responseData":{},"vendorName":"obs-browser"}
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":2}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":2,"sceneItemEnabled":false}
+  <- SetSceneItemEnabled 100
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":false,"sceneItemId":2,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"},{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":false,"sceneItemId":2,"sceneItemIndex":1,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof graphic 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+PASS clear hides the item
+
+== state
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"},{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":false,"sceneItemId":2,"sceneItemIndex":1,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof graphic 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  = {"scene":"NoaCG Bridge proof 2026-10-01-21-13-02","onProgram":false,"onPreview":false,"slots":[{"source":"NoaCG proof output 2026-10-01-21-13-02","shown":true,"producer":"html","page":"http://127.0.0.1:63945/output?graphic=output&v=2"},{"source":"NoaCG proof graphic 2026-10-01-21-13-02","shown":false,"producer":"empty","page":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02"}]}
+
+== take url, the source exists but is not in this scene (CreateSceneItem)
+  -> CreateScene {"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02"}
+  <- event SceneCreated {"isGroup":false,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"}
+  <- event SceneListChanged {"scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  <- CreateScene 100 {"sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"}
+  <- event SceneCreated {"isGroup":false,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sourceName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetSceneItemId 600 "No scene items were found in the specified scene by that name or offset."
+  -> CreateSceneItem {"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sourceName":"NoaCG proof output 2026-10-01-21-13-02","sceneItemEnabled":true}
+  <- CreateSceneItem 100 {"sceneItemId":1}
+  <- event SceneItemCreated {"sceneItemId":1,"sceneItemIndex":0,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba","sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneItemList {"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02"}
+  <- GetSceneItemList 100 {"sceneItems":[{"inputKind":"browser_source","isGroup":null,"sceneItemBlendMode":"OBS_BLEND_NORMAL","sceneItemEnabled":true,"sceneItemId":1,"sceneItemIndex":0,"sceneItemLocked":false,"sceneItemTransform":{"alignment":5,"boundsAlignment":0,"boundsHeight":0,"boundsType":"OBS_BOUNDS_NONE","boundsWidth":0,"cropBottom":0,"cropLeft":0,"cropRight":0,"cropToBounds":false,"cropTop":0,"height":1080,"positionX":0,"positionY":0,"rotation":0,"scaleX":1,"scaleY":1,"sourceHeight":1080,"sourceWidth":1920,"width":1920},"sourceName":"NoaCG proof output 2026-10-01-21-13-02","sourceType":"OBS_SOURCE_TYPE_INPUT","sourceUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+PASS take url adds the existing source to the other scene, shown: {"created":false,"urlChanged":false,"addedToScene":true}
+
+== take url, refused and not-found cases
+  -> CreateInput {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","inputName":"NoaCG proof colour 2026-10-01-21-13-02","inputKind":"color_source_v3","inputSettings":{},"sceneItemEnabled":false}
+  <- CreateInput 100 {"inputUuid":"46c3dd19-7685-43e8-805e-32b08456b9c5","sceneItemId":3}
+  -> GetSceneList
+  <- event SceneItemCreated {"sceneItemId":3,"sceneItemIndex":2,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2","sourceName":"NoaCG proof colour 2026-10-01-21-13-02","sourceUuid":"46c3dd19-7685-43e8-805e-32b08456b9c5"}
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":false,"sceneItemId":3,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof colour 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"color_source_v3","inputSettings":{}}
+  -> GetInputSettings {"inputName":"NoaCG proof colour 2026-10-01-21-13-02"}
+  <- event SceneItemSelected {"sceneItemId":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"}
+  <- GetInputSettings 100 {"inputKind":"color_source_v3","inputSettings":{}}
+PASS a name held by another kind of source is refused, the source unchanged: {"refused":"OBS already has a source named \"NoaCG proof colour 2026-10-01-21-13-02\" that is a color_source_v3, not a browser source"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG Bridge proof 2 2026-10-01-21-13-02"}
+  <- GetInputSettings 602 "The specified source is not an input."
+PASS a name held by a scene is refused (602): {"refused":"\"NoaCG Bridge proof 2 2026-10-01-21-13-02\" is the name of a scene in OBS, not of a source"}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+PASS a missing scene is not-found: {"notFound":"OBS has no scene \"NoaCG Bridge proof 2026-10-01-21-13-02 missing\""}
+
+== a local-file graphic: the marker read from the file, then take url over it
+  -> CreateInput {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","inputName":"NoaCG proof local 2026-10-01-21-13-02","inputKind":"browser_source","inputSettings":{"is_local_file":true,"local_file":"~\\AppData\\Local\\Temp\\noacg-proof-2026-10-01-21-13-02.html","width":1920,"height":1080},"sceneItemEnabled":false}
+  <- event SceneItemCreated {"sceneItemId":4,"sceneItemIndex":3,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2","sourceName":"NoaCG proof local 2026-10-01-21-13-02","sourceUuid":"d8de3aee-e9ca-41fd-8247-f03a946a6016"}
+  <- CreateInput 100 {"inputUuid":"d8de3aee-e9ca-41fd-8247-f03a946a6016","sceneItemId":4}
+  -> GetInputList {"inputKind":"browser_source"}
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":false,"sceneItemId":4,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- GetInputList 100 {"inputs":[{"inputKind":"browser_source","inputKindCaps":32939,"inputName":"NoaCG proof output 2026-10-01-21-13-02","inputUuid":"b6bc3fca-61a2-43d8-84df-cefca214ab57","unversionedInputKind":"browser_source"},{"inputKind":"browser_source","inputKindCaps":32939,"inputName":"NoaCG proof graphic 2026-10-01-21-13-02","inputUuid":"ba13c5a7-2f84-441d-b26e-88c4f5b91012","unversionedInputKind":"browser_source"},{"inputKind":"browser_source","inputKindCaps":32939,"inputName":"NoaCG proof local 2026-10-01-21-13-02","inputUuid":"d8de3aee-e9ca-41fd-8247-f03a946a6016","unversionedInputKind":"browser_source"}]}
+  -> GetInputSettings {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"restart_when_active":false,"shutdown":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=2","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"url":"http://127.0.0.1:63945/graphic?graphic=NoaCG%20proof%20graphic%202026-10-01-21-13-02","width":1920}}
+  -> GetInputSettings {"inputName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":true,"local_file":"~\\AppData\\Local\\Temp\\noacg-proof-2026-10-01-21-13-02.html","width":1920}}
+PASS list template reads the marker from a local file: [{"name":"NoaCG proof local 2026-10-01-21-13-02","label":"NoaCG proof local 2026-10-01-21-13-02","kind":"graphic"}]
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetInputSettings {"inputName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- event SceneItemSelected {"sceneItemId":3,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":true,"local_file":"~\\AppData\\Local\\Temp\\noacg-proof-2026-10-01-21-13-02.html","width":1920}}
+  -> SetInputSettings {"inputName":"NoaCG proof local 2026-10-01-21-13-02","inputSettings":{"is_local_file":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=3","width":1920,"height":1080}}
+  <- SetInputSettings 100
+  -> GetSceneItemId {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sourceName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- GetSceneItemId 100 {"sceneItemId":4}
+  -> SetSceneItemEnabled {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneItemId":4,"sceneItemEnabled":true}
+  <- SetSceneItemEnabled 100
+  -> GetInputSettings {"inputName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- event SceneItemEnableStateChanged {"sceneItemEnabled":true,"sceneItemId":4,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- GetInputSettings 100 {"inputKind":"browser_source","inputSettings":{"height":1080,"is_local_file":false,"local_file":"~\\AppData\\Local\\Temp\\noacg-proof-2026-10-01-21-13-02.html","url":"http://127.0.0.1:63945/output?graphic=output&v=3","width":1920}}
+PASS take url over a local-file source switches it to the URL: {"t5":{"created":false,"urlChanged":true,"addedToScene":false},"is_local_file":false,"url":"http://127.0.0.1:63945/output?graphic=output&v=3"}
+
+== cleanup
+  -> RemoveInput {"inputName":"NoaCG proof local 2026-10-01-21-13-02"}
+  <- RemoveInput 100
+  -> RemoveInput {"inputName":"NoaCG proof colour 2026-10-01-21-13-02"}
+  <- RemoveInput 100
+  -> RemoveScene {"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02"}
+  <- event SceneRemoved {"isGroup":false,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"}
+  <- RemoveScene 100
+  -> RemoveInput {"inputName":"NoaCG proof graphic 2026-10-01-21-13-02"}
+  <- RemoveInput 100
+  -> RemoveInput {"inputName":"NoaCG proof output 2026-10-01-21-13-02"}
+  <- RemoveInput 100
+  -> RemoveScene {"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02"}
+  <- event SceneRemoved {"isGroup":false,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"}
+  <- RemoveScene 100
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"NoaCG Bridge proof 2 2026-10-01-21-13-02","sceneUuid":"aa5576d5-79b4-4420-8e9a-d6359f5b70ba"},{"sceneIndex":2,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  <- event SceneListChanged {"scenes":[{"sceneIndex":0,"sceneName":"NoaCG Bridge proof 2026-10-01-21-13-02","sceneUuid":"5a6de3f4-55e8-4628-9e29-95166f5c43a2"},{"sceneIndex":1,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  <- event SceneListChanged {"scenes":[{"sceneIndex":0,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+PASS the proof scenes are gone: GetSceneList still listed them 1 time(s), for 53 ms
+PASS program and preview are what they were: {"before":{"program":"Scene","preview":null},"after":{"program":"Scene","preview":null}}
+events seen: ["SceneCreated","SceneListChanged","SceneItemCreated","SceneItemSelected","SceneItemEnableStateChanged","SceneRemoved"]
+
+23/23 checks passed

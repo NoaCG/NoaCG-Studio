@@ -105,6 +105,21 @@ means b is sent after a's answer. `600` is ResourceNotFound, `602` InvalidResour
 | state | `GetSceneList` → `GetSceneItemList {sceneName}` → `GetInputSettings` for each browser source in it |
 | pause, resume, sequence, take media, thumbnail | refused `unsupported` before anything is sent |
 
+**What real OBS answers** (32.2.1 and obs-websocket 5.7.4, 2026-10-02, `docs/research/obs-bridge-proof/`):
+
+- `GetInputSettings` returns only the settings that differ from the defaults. A key that is
+  absent has its default: `is_local_file` absent is false, `shutdown` and `restart_when_active`
+  absent are false. After take url switches a local-file source to a URL, `local_file` stays in
+  the settings with `is_local_file` false, so `page` follows `is_local_file`, never the presence
+  of `local_file`.
+- A name held by a scene answers 602 with "The specified source is not an input."
+- `CreateInput` also selects the new item in OBS's Sources list, so the operator's preview shows
+  its bounding box until they click elsewhere. Program is not affected; the adapter sends nothing
+  to undo it.
+- Removal lands after the reply: right after `RemoveScene` answers 100, `GetSceneList` can still
+  list the scene for about 50 ms, and `CreateInput` with a just-removed input's name answers 601.
+  The adapter never removes anything; a test that does (AC-7) waits for the list to change.
+
 **Url slot or template slot.** Update, next, out and clear do not always carry an item (the
 page's Take off sends a bare `out`), and a restarted Bridge remembers nothing. So the adapter
 decides from the source itself: `GetInputSettings` gives its page, and a page that carries the
@@ -146,8 +161,11 @@ beside `noacg-project-format` (`src/export/common.ts`). Two sources of the same 
 stream act together, as they do on the relay.
 
 Take emits before it shows: a hidden page that comes on program is then already under the
-operator's command, so its baked values are never played first. The stale frame of §10 (the
-texture a hidden source last painted, about one frame on a Cut) can still show when it is shown.
+operator's command, so its baked values are never played first. The stale frame still shows when
+it is shown: with browser hardware acceleration on, showing a hidden item in a scene on program
+put the texture it last painted on air for exactly one frame in 10 of 10 shows at 30 fps
+(`OBS_ON_A_REAL_HOST.md` §11). The page cannot paint while hidden, so it cannot clear it. For a
+take url whose page kept following the production while hidden, that frame is the old content.
 
 This envelope is also what a Companion user sends with the OBS module's **Send Vendor Request**
 (vendor `obs-browser`, request `emit_event`), with no NoaCG module and no Bridge. `docs/BRIDGE.md`
@@ -168,7 +186,9 @@ and the exported `GETTING-ON-AIR.md` document it.
   answer `kicked` without connecting, and only `/connect` clears the latch, as the protocol
   requires.
 - **Status codes** map to the protocol's errors: 600 `not-found` naming the scene or source,
-  207 `refused` (busy), any other failure `refused` with OBS's comment in `raw`.
+  207 `refused` (busy), any other failure `refused` with OBS's comment in `raw`. The adapter
+  decides by the code only and writes its own sentence: OBS 32's comments name the canvas
+  ("… within the canvas `Main`").
 - Each verb has one 7 s budget for all its requests, as the OGraf adapter does.
 - The generation and instance per slot are kept as `slots.ts` keeps them, so a reading taken
   before a Take never undoes it on screen.
@@ -249,7 +269,8 @@ thumbnail are refused before anything is sent; one session serves repeated `/sta
 On a real OBS 32, `docs/research/obs-bridge-proof/obs-bridge-proof.mjs --live` passes, and the
 built Bridge, driven from the page, puts a published production's output on air in a scene of the
 test's own, cues a graphic that appears in a `GetSourceScreenshot` of that scene, takes it off and
-drives an exported overlay through take, update and out, then removes its scene.
+drives an exported overlay through take, update and out, then removes its scene and waits for
+`GetSceneList` to stop listing it.
 
 ### AC-8: A Bridge release carries it
 
@@ -259,15 +280,12 @@ the release workflow can publish `NoaCG-Bridge-0.8.0.exe` from `main`.
 
 ## Proof so far
 
-`docs/research/obs-bridge-proof/` holds a standalone script and its records (2026-10-01). On this
-machine it read the settings from OBS's own config and diagnosed `server-off` correctly; every
-live call is UNVERIFIED here, because the OBS open on this machine belonged to another session
-with obs-websocket off, and turning it on was not this session's to do. The exact calls are
-recorded by `--plan`. The requests themselves were already seen working on OBS 32.2.1 and
-obs-websocket 5.7.4 on 2026-09-30 (`OBS_ON_A_REAL_HOST.md` §1, §3, §4): the handshake with a
-password, `CreateInput` of a browser source, `SetSceneItemEnabled`, `GetInputDefaultSettings`,
-`GetSourceScreenshot` and `CallVendorRequest` `emit_event` reaching a hidden source. Not yet seen
-on real OBS: `GetInputSettings`, `SetInputSettings`, `GetSceneItemId`, `CreateSceneItem`,
-`GetSceneItemEnabled`, `GetSceneItemList`, `GetInputList`, `CreateScene`, `RemoveScene`,
-`RemoveInput`, a `msgs` array arriving in order, and the marker read. The proof's README has the
-command that runs them.
+`docs/research/obs-bridge-proof/` holds a standalone script and its records. On 2026-10-01 it read
+the settings from OBS's own config and diagnosed `server-off` correctly, and recorded every verb's
+calls with `--plan`. On 2026-10-02 `--live` ran them against a real OBS 32.2.1 with obs-websocket
+5.7.4 (a portable copy with its own config): 23 of 23 checks passed, every request in the table
+above was answered as the spec expects, a `msgs` array arrived whole and in order, the marker was
+read from a loopback page and from a local file, and a wrong password closed with 4009. What
+differed from the spec as first written is in "What real OBS answers" above and in the status
+codes line. Still owed: AC-7's round through the built Bridge and the page, macOS and Linux, and
+the `global.ini` fallback on an older obs-websocket.
