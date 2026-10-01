@@ -160,18 +160,24 @@ export const foundationRuntime = String.raw`
       var rect = target.getBoundingClientRect();
       var parent = target instanceof SVGGraphicsElement ? target.parentElement : target.offsetParent;
       var matrix = basis(parent);
+      var targetStyle = target === element ? style : getComputedStyle(target);
       var unit = adapter && adapter.scaled || adapter && adapter.mode === 'flow'
-        ? parseFloat(getComputedStyle(target).getPropertyValue('--scale')) || 1 : 1;
+        ? parseFloat(targetStyle.getPropertyValue('--scale')) || 1 : 1;
       var motion = window.gsap ? numericPose(element) : undefined;
       // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
       // walk was repeated three times per layer; no value survives this measure.
       var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
-      var points = corners(target, targetMatrix, rect);
+      var svg = target instanceof SVGGraphicsElement, bbox = svg && target.getBBox();
+      var box = svg ? [bbox.width, bbox.height] : percentBox(target, targetStyle);
+      var points = corners(target, targetMatrix, rect, box);
+      // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
+      var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
+      var own = svg ? undefined : ownMatrix(targetStyle);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, own: own && [own.a, own.b, own.c, own.d], fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
-        corners: points, anchor: anchor(target, targetMatrix, points) }];
+        corners: points, anchor: anchor(target, targetMatrix, points, origin) }];
     });
   }
   // Translation cancels for pointer deltas. SVG supplies an exact CTM; HTML composes
@@ -181,21 +187,28 @@ export const foundationRuntime = String.raw`
     var matrix = new DOMMatrix();
     for (var node = element; node && node instanceof Element; node = node.parentElement) {
       var style = getComputedStyle(node);
-      var transform = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
-      var scales = style.scale === 'none' ? [1, 1] : style.scale.split(' ').map(Number);
-      var own = new DOMMatrix().scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
-      matrix = own.multiply(matrix);
+      matrix = ownMatrix(style).multiply(matrix);
     }
     return matrix;
   }
-  function corners(element, matrix, rect) {
+  // An element's own transform: CSS applies rotate, then scale, then transform (all about transform-origin).
+  // An independent rotate is GSAP's to fold once it reads the element; DOMMatrix reads its angle unit.
+  function ownMatrix(style) {
+    var transform = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
+    var rotate = new DOMMatrix(style.rotate && style.rotate !== 'none' ? 'rotate(' + style.rotate.split(' ').pop() + ')' : undefined);
+    var scales = style.scale === 'none' ? [1, 1] : style.scale.split(' ').map(Number);
+    return rotate.scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
+  }
+  // The box's corners on screen: an SVG element's bounding box, else the unrounded border box
+  // (size; offsetWidth rounds to whole pixels, transform-origin percentages do not).
+  function corners(element, matrix, rect, size) {
     if (element instanceof SVGGraphicsElement) {
       var box = element.getBBox(), m = element.getScreenCTM();
       if (m) return [[box.x,box.y],[box.x+box.width,box.y],[box.x+box.width,box.y+box.height],[box.x,box.y+box.height]].map(function (p) {
         return { x:m.a*p[0]+m.c*p[1]+m.e, y:m.b*p[0]+m.d*p[1]+m.f };
       });
     }
-    var m = matrix || basis(element), w = element.offsetWidth, h = element.offsetHeight;
+    var m = matrix || basis(element), w = size[0], h = size[1];
     var points = [[0,0],[w,0],[w,h],[0,h]].map(function (p) { return { x:m.a*p[0]+m.c*p[1], y:m.b*p[0]+m.d*p[1] }; });
     var left = Math.min.apply(null, points.map(function (p) { return p.x; }));
     var top = Math.min.apply(null, points.map(function (p) { return p.y; }));
@@ -212,10 +225,11 @@ export const foundationRuntime = String.raw`
     probe.remove();
     return [m.a,m.b,m.c,m.d,rect.x,rect.y];
   }
-  function anchor(element, matrix, points) {
-    var origin = getComputedStyle(element).transformOrigin.split(' ').map(parseFloat);
+  function anchor(element, matrix, points, origin) {
     if (element instanceof SVGGraphicsElement) {
-      var m = element.getScreenCTM();
+      // CSS rotate and scale turn about the origin in the parent's user space, outside the element's
+      // own transform attribute, so the origin maps through the parent.
+      var parentNode = element.parentElement, m = parentNode instanceof SVGGraphicsElement && parentNode.getScreenCTM() || element.getScreenCTM();
       return { x:m.a*origin[0]+m.c*origin[1]+m.e, y:m.b*origin[0]+m.d*origin[1]+m.f };
     }
     var m = matrix, corner = points[0];

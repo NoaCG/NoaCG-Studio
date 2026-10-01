@@ -3,7 +3,8 @@ import type { SpxTemplate } from '../../model/types';
 import type { EditorSession } from './session';
 import { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { useArtworkGesture, pointerPoint } from './useArtworkGesture';
+import { useArtworkGesture, pointerPoint, type Handle } from './useArtworkGesture';
+import { edgePoints, rotationKnob } from './transformGestures';
 import { artworkText } from '../../blocks/artworkEdits';
 import ArtworkTextEditor from './ArtworkTextEditor';
 import { sameRevision, type Revision } from './session';
@@ -46,6 +47,25 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const fit = Math.max(0.01, Math.min((size.width - 80) / width, (size.height - 64) / height));
   const scale = fit * zoom;
   const selected = parts.filter(part => selection.includes(part.selector));
+  // One selected layer's transform handles (R1.2b.1): sides, the rotation knob outside the top side,
+  // and its anchor. Composition pixels; screen sizes divide by the view scale.
+  const single = selected.length === 1 && selected[0].corners?.length === 4 ? selected[0] : null;
+  const edges = single ? edgePoints(single.corners!) : [];
+  const turned = !!single && (Math.abs(single.corners![0].y - single.corners![1].y) > .01 || Math.abs(single.corners![0].x - single.corners![3].x) > .01);
+  const knob = single ? rotationKnob(single.corners!, 24 / scale) : null;
+  /** The handle under a point on the single selected layer: a corner, a side, then the rotation knob. */
+  const handleAt = (p: { x: number; y: number }): Handle | null => {
+    if (!single) return null;
+    // Keep a draggable centre even when Fit makes a small layer narrower than the normal hit area:
+    // measured on the layer's own sides, since a turned layer's bounds are wider than it is.
+    const [c0, c1, , c3] = single.corners!, side = (q: { x: number; y: number }) => Math.hypot(q.x - c0.x, q.y - c0.y) * scale / 4;
+    const radius = Math.min(8, side(c1), side(c3)), near = (q: { x: number; y: number }, r: number) => Math.hypot(q.x - p.x, q.y - p.y) * scale <= r;
+    const corner = single.corners!.findIndex(q => near(q, radius));
+    if (corner >= 0) return { kind: 'corner', index: corner };
+    const edge = edges.findIndex(q => near(q, radius));
+    if (edge >= 0) return { kind: 'edge', index: edge };
+    return near(knob!.at, 8) ? { kind: 'rotate' } : null;
+  };
   const containers = useMemo(() => {
     const doc = new DOMParser().parseFromString(template.html, 'text/html');
     const parts = getTemplateParts(template.html, template.fields, true);
@@ -96,7 +116,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
 
   return <section className="ef-canvas" aria-label="Graphic canvas">
     <div className="ef-toolbar">
-      {(['select', 'text', 'rectangle', 'ellipse'] as const).map(tool => <button key={tool} aria-pressed={gesture.tool === tool}
+      {(['select', 'anchor', 'text', 'rectangle', 'ellipse'] as const).map(tool => <button key={tool} aria-pressed={gesture.tool === tool}
+        title={tool === 'anchor' ? 'Drag a layer’s anchor; it keeps its pose at the playhead' : undefined}
         onClick={() => { gesture.cancel(); gesture.setTool(tool); }} aria-label={tool + ' tool'}>{tool[0].toUpperCase() + tool.slice(1)}</button>)}
       <span className="ef-spacer" />
       <span className="ef-muted">{width} × {height}</span>
@@ -106,7 +127,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
       <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>
     </div>
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
-      data-testid="foundation-canvas" data-pending={pending} data-request={status.request} data-generation={status.generation}
+      data-testid="foundation-canvas" data-tool={gesture.tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
@@ -145,16 +166,19 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (event.button !== 0 || pending || status.error) return;
         const { x, y } = pointerPoint(event, size, pan, scale, width, height);
         event.currentTarget.setPointerCapture(event.pointerId);
-        if (gesture.tool !== 'select') { gesture.begin({ x, y }); return; }
-        if (selected.length === 1) {
-          // Keep a draggable centre even when Fit makes a small layer narrower
-          // than the normal handle hit area.
-          const radius = Math.min(8, selected[0].width * scale / 4, selected[0].height * scale / 4);
-          const handle = selected[0].corners?.findIndex(p => Math.hypot(p.x - x, p.y - y) * scale <= radius) ?? -1;
-          if (handle >= 0) { gesture.begin({ x, y }, selected[0], handle); return; }
-        }
+        if (gesture.tool !== 'select' && gesture.tool !== 'anchor') { gesture.begin({ x, y }); return; }
         const hits = parts.filter(p => p.selector !== rootSelector && x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height)
           .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height || parts.indexOf(b) - parts.indexOf(a));
+        if (gesture.tool === 'anchor') {
+          // The Anchor tool drags the selected layer's anchor from on or near it, or from inside the
+          // layer; elsewhere it selects the layer under the pointer without moving it.
+          const onAnchor = single?.anchor && Math.hypot(single.anchor.x - x, single.anchor.y - y) * scale <= 10;
+          if (single && (onAnchor || hits[0]?.selector === single.selector)) { gesture.begin({ x, y }, single, { kind: 'anchor' }); return; }
+          select(hits[0]?.selector ?? null, false);
+          return;
+        }
+        const handle = handleAt({ x, y });
+        if (handle) { gesture.begin({ x, y }, single!, handle); return; }
         const index = event.altKey ? (hits.findIndex(p => p.selector === selection[0]) + 1) % Math.max(1, hits.length) : 0;
         const hit = hits[index], additive = event.shiftKey || event.ctrlKey || event.metaKey;
         if (!hit || (containers.has(hit.selector) && !selection.includes(hit.selector) && !event.altKey)) {
@@ -210,8 +234,20 @@ export default function Canvas({ template, sampleData, session, time, selection,
         <svg className="ef-selection" width={width} height={height} aria-hidden="true">
           {marquee && <rect {...marquee} fill="var(--accent)" fillOpacity=".12" stroke="var(--accent)" strokeWidth={1 / scale} />}
           {selected.map(part => <rect key={part.selector} x={part.x} y={part.y} width={part.width}
-            height={part.height} fill="none" stroke="var(--accent)" strokeWidth={1.5 / scale} />)}
-          {selected.length === 1 && selected[0].corners?.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
+            height={part.height} fill="none" stroke="var(--accent)" strokeWidth={1.5 / scale} {...part === single && turned ? { strokeOpacity: .35, strokeDasharray: 4 / scale } : {}} />)}
+          {/* A turned layer's own outline, through its corners; its bounds stay faint behind it. */}
+          {single && turned && <polygon points={single.corners!.map(p => p.x + ',' + p.y).join(' ')} fill="none" stroke="var(--accent)" strokeWidth={1.5 / scale} />}
+          {/* Drawn before the corners, so the corner handles stay the last circles. */}
+          {knob && gesture.tool === 'select' && <>
+            <line x1={knob.from.x} y1={knob.from.y} x2={knob.at.x} y2={knob.at.y} stroke="var(--accent)" strokeWidth={1 / scale} />
+            <circle data-rotate cx={knob.at.x} cy={knob.at.y} r={4.5 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />
+            {edges.map((p, i) => <circle key={i} data-edge={i} cx={p.x} cy={p.y} r={3 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />)}
+          </>}
+          {single?.anchor && <g data-anchor transform={'translate(' + single.anchor.x + ' ' + single.anchor.y + ')'} stroke="var(--accent)" strokeWidth={(gesture.tool === 'anchor' ? 2 : 1.25) / scale} fill="none">
+            <circle r={5 / scale} />
+            <line x1={-9 / scale} x2={9 / scale} /><line y1={-9 / scale} y2={9 / scale} />
+          </g>}
+          {single && gesture.tool !== 'anchor' && single.corners!.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
           {gesture.draft && drawingSpace && <rect x={gesture.draft.x} y={gesture.draft.y} width={gesture.draft.width} height={gesture.draft.height}
             transform={'matrix(' + drawingSpace.join(' ') + ')'} fill="color-mix(in srgb, var(--accent) 20%, transparent)" stroke="var(--accent)" strokeWidth={1 / scale} />}
         </svg>
@@ -226,6 +262,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
       {gesture.error && <div className="ef-stage-error" role="alert">{gesture.error}</div>}
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
-      <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain' : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
+      <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'
+        : gesture.tool === 'anchor' ? 'Drag the anchor: the layer keeps its pose at the playhead · Escape: cancel'
+        : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
   </section>;
 }

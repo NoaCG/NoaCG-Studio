@@ -2,16 +2,25 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
 import { parseTransform } from '../assets/svgGeometry';
-import { parseAnimData } from './animData';
-import { addCatalogLine, appendCss, setCssDeclaration } from './edit';
+import { locateAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
+import { allTimelines } from './animMachine';
+import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
+import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 
 export interface BaseValues {
   selector: string; target: string; mode: 'placed' | 'svg' | 'flow' | 'absolute';
   x: number; y: number; originX: number; originY: number; scaled: boolean;
   scaleX: number; scaleY: number; rotation: number;
   scaleReason: string | null;
+  /** Why a base rotation would compete with motion on the base target, or null. */
+  rotationReason: string | null;
+  /** The declared anchor (R1.2b.1), in layer pixels from the top-left of the base target's box, or null
+   *  where the CSS default (or a source declaration the editor does not own) places the pivot. */
+  anchor: { x: number; y: number } | null;
+  /** Why no anchor can be written exactly here, or null. */
+  anchorReason: string | null;
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const precise = (n: number) => Math.round(n * 1000) / 1000;
@@ -32,19 +41,48 @@ function length(css: string, selector: string, property: string) {
 
 /** Inspect matching authored rules without ever serializing CSSOM back into source.
  * Refuse competing constraints even in conditional rules: changing the viewport must
- * not silently change which placement or independent transform the editor owns. */
-function matchingStyles(css: string, node: Element): CSSStyleDeclaration[] {
+ * not silently change which placement or independent transform the editor owns. Each rule
+ * says whether it sits inside a grouping rule (`@media`, `@supports`). */
+function matchingRules(css: string, node: Element): { rule: CSSStyleRule; nested: boolean }[] {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css);
-  const styles: CSSStyleDeclaration[] = [];
-  const visit = (rules: CSSRuleList) => {
-    for (const rule of rules) {
-      if (rule instanceof CSSStyleRule && node.matches(rule.selectorText)) styles.push(rule.style);
-      if (rule instanceof CSSGroupingRule) visit(rule.cssRules);
+  const rules: { rule: CSSStyleRule; nested: boolean }[] = [];
+  const visit = (list: CSSRuleList, nested: boolean) => {
+    for (const rule of list) {
+      if (rule instanceof CSSStyleRule && node.matches(rule.selectorText)) rules.push({ rule, nested });
+      if (rule instanceof CSSGroupingRule) visit(rule.cssRules, true);
     }
   };
-  visit(sheet.cssRules);
-  return styles;
+  visit(sheet.cssRules, false);
+  return rules;
+}
+/** The rule, other than the target's own (the first top-level rule with exactly its selector, which
+ *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule whose `transform-box` measures
+ *  an HTML element's origin from a box other than its border box. */
+function originOwner(rules: { rule: CSSStyleRule; nested: boolean }[], target: string): string | null {
+  const own = rules.find(({ rule, nested }) => !nested && rule.selectorText === target)?.rule;
+  return rules.find(({ rule }) => {
+    const box = rule.style.getPropertyValue('transform-box');
+    return box && !['border-box', 'view-box', 'stroke-box'].includes(box) || rule !== own && rule.style.getPropertyValue('transform-origin');
+  })?.rule.selectorText ?? null;
+}
+/** The tracks the animation data gives an element: under every data selector that names it. */
+function tracksOn(steps: AnimStep[], node: Element): AnimLayerTracks[] {
+  return steps.flatMap(step => Object.entries(step.layers).flatMap(([key, tracks]) => {
+    try { return node.matches(key) ? [tracks] : []; } catch { return []; }
+  }));
+}
+/** Whether the graphic's script or animation data sets this element's transformOrigin itself: a
+ *  transformOrigin track under a data selector naming it, or a script (outside the generated
+ *  interpreter, which only names the property) that sets transformOrigin and names it by its id or a
+ *  class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
+ *  text, never its box) leaves the anchor alone. */
+function originSetFor(js: string, data: AnimData | null, node: Element): boolean {
+  if (tracksOn(data ? allTimelines(data) : [], node).some(tracks => tracks.transformOrigin?.length)) return true;
+  const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), at = locateAnimData(js);
+  const script = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
+  if (!/transformOrigin|transform-origin/.test(script)) return false;
+  return [node.id, ...Array.from(node.classList)].filter(Boolean).some(name => new RegExp('(?:^|[^\\w-])' + esc(name) + '(?![\\w-])').test(script));
 }
 
 // A gesture repeatedly inspects the same immutable document. Retain only its derived
@@ -78,14 +116,15 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   // flow offset as text. Their existing animation still owns transform.
   const mode = placed ? 'placed' : svg ? 'svg' : left && top ? 'absolute' : ['line', 'panel', 'block'].includes(part.kind) ? 'flow' : null;
   if (!mode) throw new Error('This layer has no supported base placement. Its source is preserved.');
-  const styles = matchingStyles(template.css, doc.querySelector(target)!);
   const targetNode = doc.querySelector(target)!;
+  const rules = matchingRules(template.css, targetNode), styles = rules.map(({ rule }) => rule.style);
   const motion = parseAnimData(template.js);
-  const owned = new Set(motion?.steps.flatMap(step => Object.entries(step.layers).flatMap(([key, tracks]) => {
-    try { return targetNode.matches(key) ? Object.keys(tracks) : []; } catch { return []; }
-  })) ?? []);
+  // The channels animated on the base target: a placed text's box, which its text's tracks never touch.
+  const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
+  const rotationReason = owned.has('rotation') ? 'Rotation is animated on this layer. Use its animation controls to preserve motion.'
+    : owned.has('transform') ? `${selector} animates a raw transform string, which would replace a base rotation. Its source is preserved.` : null;
   if (svg && ['xPercent', 'yPercent', 'transform'].some(key => owned.has(key))) throw new Error('This SVG uses an unsupported position channel. Its source is preserved.');
   // Existing independent transforms are not ours to replace. Our declarations are marked
   // by the readable custom properties, so reopening requires no hidden metadata.
@@ -123,15 +162,35 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const y = parseFloat(node.getAttribute('y') ?? node.getAttribute('cy') ?? '0');
     originX = m.a * x + m.c * y + m.e; originY = m.b * x + m.d * y + m.f;
   }
-  return { selector, target, mode, scaleReason, scaled: placed?.scaled ?? left?.scaled ?? false,
-    originX, originY,
+  // The anchor is the base target's transform-origin, ours where it names our custom properties, read
+  // from the rule the writer writes (the first top-level rule with exactly the target's selector).
+  const own = findRuleBody(template.css, target)?.body ?? '';
+  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
+  const anchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
+  // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
+  const repeated = (own.match(/(?:^|[;{\s]|\*\/)(?:-webkit-)?transform-origin\s*:/g) ?? []).length > 1;
+  // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
+  const textMotion = mode === 'placed' && tracksOn(motion?.steps ?? [], node).some(tracks => ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length));
+  const rival = svg ? null : originOwner(rules, target);
+  const anchorReason = svg ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
+    : originSetFor(template.js, motion, targetNode) ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+    : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
+    : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
+    : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
+    : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
+    : null;
+  return { selector, target, mode, scaleReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
+    originX, originY, anchor, anchorReason,
     x: placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
     scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
     rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
 }
-export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number }
+/** Base values a source edit writes. The anchor (R1.2b.1) is written as a pair, in layer pixels. */
+export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number; anchorX?: number; anchorY?: number }
+/** The base values that are also transform controls (Position, Scale, Rotation). */
+export type TransformPatch = Omit<BasePatch, 'anchorX' | 'anchorY'>;
 export function editBase(template: SpxTemplate, selector: string, patch: BasePatch): SpxTemplate {
   if (!Object.keys(patch).length || Object.values(patch).some(n => !Number.isFinite(n) || Math.abs(n!) > 100000)) {
     throw new Error('Enter finite artwork coordinates and scale.');
@@ -139,8 +198,12 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   const base = baseValues(template, selector);
   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
-  if (patch.rotation !== undefined && parseAnimData(template.js)?.steps.some(step => Object.entries(step.layers).some(([target, tracks]) => artworkNode(template, selector).matches(target) && ('rotation' in tracks || 'transform' in tracks)))) throw new Error('Rotation is animated on this layer. Use its animation controls to preserve motion.');
-  if (Object.entries(patch).every(([key, value]) => value === base[key as keyof BasePatch])) return template;
+  if (patch.rotation !== undefined && base.rotationReason) throw new Error(base.rotationReason);
+  const anchored = patch.anchorX !== undefined || patch.anchorY !== undefined;
+  if (anchored && (patch.anchorX === undefined || patch.anchorY === undefined)) throw new Error('Set both anchor coordinates.');
+  if (anchored && base.anchorReason) throw new Error(base.anchorReason);
+  const unchanged = (key: string, value: number | undefined) => key === 'anchorX' ? base.anchor?.x === value : key === 'anchorY' ? base.anchor?.y === value : value === base[key as keyof BaseValues];
+  if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
   const x = precise(patch.x ?? base.x), y = precise(patch.y ?? base.y);
   let html = template.html;
   const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
@@ -198,6 +261,14 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (patch.rotation !== undefined) {
     css = setCssDeclaration(css, base.target, '--base-rotation', String(precise(patch.rotation)));
     css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
+  }
+  if (anchored) {
+    // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
+    // scales with the design measures its anchor in the same units, as its Layout offset does.
+    const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
+    css = setCssDeclaration(css, base.target, '--base-anchor-x', precise(patch.anchorX!) + 'px');
+    css = setCssDeclaration(css, base.target, '--base-anchor-y', precise(patch.anchorY!) + 'px');
+    css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
   }
   return { ...template, html, css };
 }

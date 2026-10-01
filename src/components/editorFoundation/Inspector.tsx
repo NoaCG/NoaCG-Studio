@@ -8,6 +8,7 @@ import type { EditorSession } from './session';
 import type { EditorOperation } from './operations';
 import ArtworkAppearance from './ArtworkAppearance';
 import AnimationProperties from './AnimationProperties';
+import AnchorPoint from './AnchorPoint';
 import type { RenderedPart } from './protocol';
 import { editTarget } from './animationAuthoring';
 interface Props {
@@ -76,6 +77,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
         </ul>}</>}
       {part ? <>
         {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
+          <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} />
           <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}
         <div className="ef-edit-actions">

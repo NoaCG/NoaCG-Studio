@@ -49,6 +49,12 @@ export function armedChannels(data: AnimData | null, owner: string, property: Nu
 export function isArmed(data: AnimData | null, owner: string, property: NumericProperty) {
   return armedChannels(data, owner, property).length > 0;
 }
+/** Whether a layer's own rotation or scale changes over time (R1.2b.1): a Rotation or Scale channel,
+ *  or a raw transform string. Where it does not, an anchor change moves its pose by the same amount
+ *  at every time. */
+export function turnsOrScales(data: AnimData | null, owner: string) {
+  return (['rotation', 'scaleX', 'scaleY'] as const).some(property => isArmed(data, owner, property)) || animates(data, owner, 'transform');
+}
 /** Whether any channel of a control has a key at a time on a cue's clock. */
 export function keyedAt(data: AnimData | null, owner: string, property: NumericProperty, step: number, time: number) {
   return CONTROL_CHANNELS[property].some(channel => data?.steps[step]?.layers[owner]?.[channel]?.some(k => Math.abs(k.time - time) < EPS));
@@ -222,8 +228,18 @@ export function animateLayer(source: AnimData, owner: string, operation: Animati
   }
   return { data, ended };
 }
+/** Placed text keys its text, which turns and scales inside its box about the text's own centre: where
+ *  the box has an anchor of its own (R1.2b.1), a Rotation or Scale key there would not turn about it. */
+function requireTextPivot(template: SpxTemplate, selector: string, channel: Channel) {
+  // Only a declared anchor can refuse, and it names its custom properties: most graphics skip the inspection.
+  if (!['rotation', 'scale', 'scaleX', 'scaleY'].includes(channel) || !template.css.includes('--base-anchor-')) return;
+  let base;
+  try { base = baseValues(template, selector); } catch { return; }
+  if (base.mode === 'placed' && base.anchor) throw new Error(`${selector} has its anchor on its placed box, but a ${channel} key turns or scales its text inside that box about the text's own centre, not the anchor. Its source is preserved.`);
+}
 export function applyAnimation(template: SpxTemplate, operation: AnimationOperation): SpxTemplate {
   const source = animationSource(template), { selector, step } = operation;
+  if (operation.kind === 'animation.key' && operation.action === 'set') requireTextPivot(template, selector, operation.property);
   const owner = animationTarget(template, source, selector);
   const { data, ended } = animateLayer(source, owner, operation, source.speed / template.fps, documentContains(template.html));
   // The controls whose motion ended (only a key removal ends any) keep the displayed pose as their base.

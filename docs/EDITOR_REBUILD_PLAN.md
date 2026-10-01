@@ -114,6 +114,12 @@ matrices or changing siblings. A compensated anchor gesture adjusts the affected
 values as one transaction. On animated layers it preserves the parked pose; it must not
 claim to preserve an entire path without a validated all-keys compensation operation.
 Singular/unsupported parent transforms get a specific capability explanation and retain source.
+R1.2b.1 delivers the rotation handle (unwrapped, Shift snaps to 15 degrees), edge scale handles in a
+layer's own axes and the anchor point ([spec](research/editor-r1-2b-1/README.md)). The anchor is a
+static base value in this phase (owner decision 2026-10-01): CSS `transform-origin` in the layer's
+base rule, set numerically, by Center anchor, or by the Anchor tool, whose compensated drag keeps
+the pose at the playhead. Its stopwatch follows in a later R1.2 phase; SVG elements refuse an
+anchor, since GSAP places their origin itself.
 
 ### Position source adapter (D03)
 

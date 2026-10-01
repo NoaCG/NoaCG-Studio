@@ -44,6 +44,7 @@
 .ef-toolbar select { width: auto; }
 .ef-tool { border: 1px solid var(--accent-line); background: var(--accent-bg); padding: 4px 10px; border-radius: 3px; color: var(--accent); }
 .ef-viewport { position: relative; overflow: hidden; min-height: 0; touch-action: none; user-select: none; background: var(--bg-deepest); }
+.ef-viewport[data-tool=anchor] { cursor: crosshair; }
 .ef-inline-text { user-select: text; }
 .ef-artboard {
   position: absolute; left: 50%; top: 50%; transform-origin: center;
@@ -145,6 +146,7 @@
 .ef-key-controls button[aria-pressed=true] { color: var(--accent); }
 .ef-animation-properties .ef-number { display: flex; justify-content: space-between; gap: 8px; }
 .ef-animation-properties input { width: 100px; }
+.ef-anchor .ef-key-controls { margin-top: 8px; }
 .ef-shell .ef-timeline-key { position: absolute; top: 17px; width: 12px; height: 12px; min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); font-size: 10px; line-height: 12px; transform: translateX(-50%); z-index: 2; }
 .ef-bar-error { position: relative; background: var(--bg-panel); z-index: 5; margin: 0; font-size: 12px; }
 /* R1.2a.2 key selection: property rows under a layer, selected keys, the marquee and the ease menu. */
