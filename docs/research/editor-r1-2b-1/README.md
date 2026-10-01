@@ -287,6 +287,26 @@ kept as consistency). Fixed:
 Recorded as limits, not changed: a zero placement's anchor units and a keyed rotation over a CSS
 rotation (see Limits).
 
+Simplification (four cleanup passes: reuse, simplification, efficiency, altitude) kept behaviour
+and removed work: the stylesheet is parsed once for the matching rules and the anchor's rival rule;
+one helper reads an element's data tracks (with `allTimelines`); a base rotation's refusal is
+decided at inspection (`rotationReason`) instead of reparsing the document on every write; the
+preview runtime reads each target's computed style once and its origin once, and `DOMMatrix` reads
+a CSS rotate's unit; the gestures share one 2x2 inverse, one box centre and, with the writer, one
+test for a keyed control (`keysControl`); the anchor merges through `transformOperations`' base
+write; a drag back to its start sends the source to the preview once, not on every move. Skipped as
+larger than this phase or outside the diff, and recorded here:
+
+- The departing side of a flag shows the arriving pose's geometry to every handle, not only the
+  anchor: a scale handle there measures sides the edit does not land on (as since R1.2a.4). A
+  deeper fix marks such a pose as unrendered for every geometric handle.
+- `setCssDeclaration` replaces the first of repeated declarations while the cascade uses the last;
+  the anchor refuses that case, other properties do not. One declaration reader and writer in
+  `edit.ts` would serve them all.
+- A measured backstop for the anchor (a declared anchor whose rendered origin differs means
+  something else owns it), and `session.preview([])` returning the source rather than refusing an
+  empty batch.
+
 ## Verification receipt
 
 - Reproduction: a probe on the unmodified code (j-2772) recorded the table above, and
@@ -295,32 +315,33 @@ rotation (see Limits).
   marker, Anchor tool or Anchor fields, and the catalog sweep found 1878 layers with base placement
   and no anchor written.
 - Node: `scripts/canvas-transforms.test.mjs` (6 tests) with `full-transforms` pass. Mutation
-  testing: 39 of 39 guard mutations fail a test, 23 of the pure geometry and operations in Node and
-  16 of the DOM guards in the browser spec (one queued job, j-2779): the SVG, script, other-rule,
-  own-rule and placed-text anchor reasons, the pair rule, `requireTextPivot`, the raw-transform
-  message, the rotation press trial, the Anchor tool kept on Escape, the anchor tool's press
-  refusal, CSS `rotate` in the measured matrix, the `--scale` anchor units, the side hit test and an
-  SVG element's scale frame. Two early survivors were an equivalent branch (a side's Shift is the
-  corner rule, since its other ratio is 1; the code now says it once) and an untested Alt pivot for
-  a side, which now has a test.
-- Browser: `e2e/editor-canvas-transforms.spec.ts` 8 of 8 (j-2777, and again at j-2779 after the
-  added checks). The catalog sweep writes an anchor on 1872 of 1878 layers with base placement,
-  only CSS changing; 5 refuse because the design's script sets transformOrigin and 1 is SVG; a
+  testing on the final code: 62 of 62 guard mutations fail a test, 30 of the pure geometry and
+  operations in Node and 32 of the DOM guards in the browser spec (j-2800, j-2801). Along the way
+  three survivors exposed weak tests and one equivalent branch: the nested SVG text never had the
+  transform attribute its test meant to give it (the replace hit a comment), a keyed scale under a
+  layer's own CSS rotation was untested, a drag snapping back to its start was restored twice, and
+  `centreOf` was unpinned; each now has a test or was removed.
+- Browser, at the tip: `e2e/editor-canvas-transforms.spec.ts` 10 of 10. The catalog sweep writes an
+  anchor on 1872 of 1878 layers with base placement, only CSS changing; 5 refuse because their
+  design's script turns that very element (the game timers' clock and accent) and 1 is SVG; a
   15 degree Rotation applies on all 1878. The editor regressions (transforms, cross-cue, steps,
   out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
-  alpha-entry), anim-engine and inspector as one job (j-2781): 209 passed, 20 skipped, none failed.
-  No existing assertion changed.
-- Real UI (j-2782), headless at 1920 on this worktree's dev server in one page, as the owner route
-  runs, with no page errors: Hairline from the template search, a rectangle drawn with the Rectangle
-  tool, a Shift turn of its handle to 45, its right side to Scale X 126 with Y 100, Anchor 0, 0 and a
-  turn about that corner (the corner moved 0.00 px), Center anchor (bounds within 0.01 px), the
-  Anchor tool onto its bottom-right corner (bounds within 0.01 px, one undo), a turn about it, undo
-  and redo, then saved and reopened with Rotation 55.003 and the anchor 326.391, 129.594 intact.
-  Frosted Panel from the template search: at 0.32 s the Anchor tool kept the panel within 0.01 px
-  and keyed Position Y at the playhead in one undo; at 0.88 s a turn wrote Rotation 8 and a Shift
-  side drag keyed Scale 108.5; saved and played from its control page (Play, then Stop), where the
-  panel enters turned and scaled about its new anchor. The built-in browser pane was not used; the
-  walk ran as a queued headless job.
+  alpha-entry), anim-engine and inspector as one job (j-2802): 209 passed, 20 skipped, none failed.
+  No existing assertion changed. Full affected run (j-2803): 29 spec files, 262 passed and 134
+  skipped, none failed; catalog gate 35 of 35.
+- Build at the tip (j-2804): gates, 2319 Node tests (2317 pass, 2 skipped), typecheck, lint,
+  dependency rules, the bundle and the after-build line-endings check pass.
+- Real UI (j-2805, at the tip), headless at 1920 on this worktree's dev server in one page, as the
+  owner route runs, with no page errors: Hairline from the template search, a rectangle drawn with
+  the Rectangle tool, a Shift turn of its handle to 45, its right side to Scale X 126 with Y 100,
+  Anchor 0, 0 and a turn about that corner (the corner moved 0.00 px), Center anchor (bounds within
+  0.01 px), the Anchor tool onto its bottom-right corner (bounds within 0.01 px, one undo), a turn
+  about it, undo and redo, then saved and reopened with Rotation 55.003 and the anchor 326.391,
+  129.594 intact. Frosted Panel from the template search: at 0.32 s the Anchor tool kept the panel
+  within 0.01 px and keyed Position Y at the playhead in one undo; at 0.88 s a turn wrote Rotation
+  8 and a Shift side drag keyed Scale 108.5; saved and played from its control page (Play, then
+  Stop), where the panel enters turned and scaled about its new anchor. The built-in browser pane
+  was not used; the walk ran as a queued headless job.
 - The interpreter is unchanged, so catalog JS fingerprints, the battery and taste frames were not
   re-run.
 - Not checked: a physical desktop at 125% scaling, a phone, and the receiving CasparCG and OGraf
