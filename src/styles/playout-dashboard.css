@@ -2493,8 +2493,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-clip-row { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
   .pd-clip-label { width: auto; }
 }
-/* Its ADVANCED: where it plays, then the start and end in the file, then (on an older item) its kind. */
-.pd-clip-advanced .pd-cue-meta { grid-template-columns: 170px 96px; margin-top: 0; padding-top: 0; border-top: none; }
+/* Its ADVANCED: the start and end in the file, then (on an older item) its kind. */
 .pd-clip-trim { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 14px; margin-top: 8px; }
 .pd-clip-trim .pd-field { width: 110px; }
 .pd-clip-trim-note { margin: 6px 0 0; font-size: 12px; }

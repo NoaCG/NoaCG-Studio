@@ -649,31 +649,40 @@ export const PLAYOUT_CLIP_LAYER = 10;
  *  bed survives both (docs/CLIP_PLAYBACK_PLAN.md §6.6). */
 export const PLAYOUT_AUDIO_LAYER = 5;
 
+/** Where a new server item goes when nobody says: a template on the next free layer counted across
+ *  graphics and templates, a clip on the clip layer, an audio file on the audio layer - never on
+ *  `avoid`, the NoaCG output's layer when the item is on the output's channel. */
+function defaultItemLayer(item: Pick<PlayoutItem, 'kind' | 'mediaKind'>, show: Show, items: readonly PlayoutItem[], avoid: number | undefined): number {
+  if (item.kind !== 'media') {
+    return nextFreeLayer([...show.graphics, ...items.filter((i) => i.kind === 'template'), ...(avoid === undefined ? [] : [{ layer: avoid }])]);
+  }
+  const layer = item.mediaKind === 'audio' ? PLAYOUT_AUDIO_LAYER : PLAYOUT_CLIP_LAYER;
+  return layer === avoid ? layer + 1 : layer;
+}
+
 /**
  * Put an item of the playout server's library into the production, with one cue on it - the
  * same shape addGraphicToShow gives a graphic, so the rundown is never empty-but-working. The
  * same NAME and kind is one item (adding twice keeps its cues); a template takes the next free
  * layer counted across graphics AND templates, a clip the shared clip layer. The CHANNEL is the
  * caller's to give, from the studio's defaults (playoutLink.ts `defaultChannelFor`), because
- * the record does not know the studio; none given stores none, which means the graphics channel.
+ * the record does not know the studio; none given stores none, which means the output's channel.
+ * `output` is the NoaCG output's slot: a default never puts a server item on it, since playing it
+ * there would replace the output.
  */
 export function addPlayoutItem(
   showId: string,
   item: Omit<PlayoutItem, 'id' | 'layer'> & { layer?: number },
+  { output }: { output?: { channel: number; layer: number } } = {},
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
   const shows = patchShow(showId, (show) => {
     const items = show.playoutItems ?? [];
     let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
     if (!entry) {
-      const layer =
-        item.layer ??
-        (item.kind === 'media'
-          ? item.mediaKind === 'audio'
-            ? PLAYOUT_AUDIO_LAYER
-            : PLAYOUT_CLIP_LAYER
-          : nextFreeLayer([...show.graphics, ...items.filter((i) => i.kind === 'template')]));
-      entry = { ...item, id: uuid(), layer };
+      // The output's layer is taken only on the output's own channel; no channel means that one.
+      const avoid = output && (item.channel ?? output.channel) === output.channel ? output.layer : undefined;
+      entry = { ...item, id: uuid(), layer: item.layer ?? defaultItemLayer(item, show, items, avoid) };
       show.playoutItems = [...items, entry];
     } else {
       if (item.fields && !entry.fields?.length) entry.fields = item.fields;

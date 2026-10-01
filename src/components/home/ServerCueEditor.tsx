@@ -50,7 +50,7 @@ export interface ThroughPlace {
  * before pressing Take on something nothing here shows.
  *
  * A CLIP OR AN AUDIO FILE gets its settings (docs/CLIP_PLAYBACK_PLAN.md §6.5): At the end, Fade and
- * Level always visible, and channel, layer and the trim under Advanced. Each belongs to THIS cue,
+ * Level always visible, channel and layer beside the note, and the trim under Advanced. Each belongs to THIS cue,
  * except the channel and layer, which belong to the file every cue of it shares. A control is
  * offered only when the Bridge and its server can both honour it (§6.9); going back to a default
  * always is, so a cue nobody here can play is never stuck that way.
@@ -239,9 +239,10 @@ export default function ServerCueEditor({
       {/* WHERE IT PLAYS, as a CasparCG client puts it: the channel, then the layer. The
           channel is a pick from the channels Settings names, never a typed number; a
           channel this studio does not name (a production made elsewhere, a row removed
-          since) stays listed as itself rather than silently moving the cue. A clip keeps both
-          under Advanced, beside its trim. */}
-      <div className={`pd-cue-meta${media ? '' : ' pd-cue-meta--slot'}`} data-testid="cue-meta">
+          since) stays listed as itself rather than silently moving the cue. Every server item
+          shows both here, beside its note, so moving a clip to another channel is as easy as
+          moving it to another layer (owner, 2026-10-01). */}
+      <div className="pd-cue-meta pd-cue-meta--slot" data-testid="cue-meta">
         <label className="pd-field pd-field-note">
           <span>Operator note</span>
           <input
@@ -251,18 +252,19 @@ export default function ServerCueEditor({
             data-testid="cue-note"
           />
         </label>
-        {!media && channelPick}
-        {!media && layerBox}
+        {channelPick}
+        {layerBox}
       </div>
+      {through && (
+        <p className="muted pd-clip-trim-note" data-testid="clip-folder-slot">
+          In {through.folderName} it plays on {through.slot}. Its own slot is for a Take outside the folder.
+        </p>
+      )}
       {media && (
         <ClipAdvanced
           item={item}
           cue={cue}
-          through={through}
-          channel={channel}
           ability={ability}
-          channelPick={channelPick}
-          layerBox={layerBox}
           setTrim={(trim) => setShows(setCuePlayback(showId, cue.id, trim))}
           setKind={(kind) => setShows(setPlayoutItemMediaKind(showId, item.id, kind))}
         />
@@ -465,28 +467,20 @@ const KIND_WORDS: { value: PlayoutMediaKind; word: string }[] = [
 ];
 
 /**
- * ADVANCED for a clip (plan §6.5): the channel and layer, the start and end in the file, and - on an
- * item saved before the server's kind was kept - the kind. Closed by default, with a one-line
- * summary of what is inside (`Channel 2 · layer 10 · whole clip`).
+ * ADVANCED for a clip (plan §6.5): the start and end in the file, and - on an item saved before the
+ * server's kind was kept - the kind. Closed by default, with a one-line summary of what is inside
+ * (`whole clip`). Its channel and layer sit beside the note, always visible.
  */
 function ClipAdvanced({
   item,
   cue,
-  through,
-  channel,
   ability,
-  channelPick,
-  layerBox,
   setTrim,
   setKind,
 }: {
   item: PlayoutItem;
   cue: ShowCue;
-  through: ThroughPlace | null;
-  channel: number;
   ability: PlaybackAbility | null;
-  channelPick: React.ReactNode;
-  layerBox: React.ReactNode;
   setTrim: (trim: { trimIn: number | null; trimOut: number | null }) => void;
   setKind: (kind: PlayoutMediaKind) => void;
 }) {
@@ -505,7 +499,7 @@ function ClipAdvanced({
   const whole = fileSeconds(item);
   const trimmed = trimIn !== undefined || trimOut !== undefined;
   const trimOff = trimmed ? null : offerBlocked(ability, NEEDS.trim);
-  const summary = `Channel ${channel} · layer ${item.layer} · ${trimmed ? `${clockOf(trimIn ?? 0)}–${trimOut !== undefined ? clockOf(trimOut) : 'end'}` : 'whole clip'}${item.mediaKind ? '' : ' · kind not known'}`;
+  const summary = `${trimmed ? `${clockOf(trimIn ?? 0)}–${trimOut !== undefined ? clockOf(trimOut) : 'end'}` : 'whole clip'}${item.mediaKind ? '' : ' · kind not known'}`;
   /** Read both boxes, check them against each other and the file, and keep them only when they hold. */
   const commit = () => {
     const readBox = (text: string): number | null | 'bad' => (text.trim() === '' ? null : (parseClock(text) ?? 'bad'));
@@ -538,16 +532,7 @@ function ClipAdvanced({
         </span>
       </button>
       {open && (
-        <div className="pd-advanced-body pd-clip-advanced">
-          <div className="pd-cue-meta pd-clip-where">
-            {channelPick}
-            {layerBox}
-          </div>
-          {through && (
-            <p className="muted pd-clip-trim-note" data-testid="clip-folder-slot">
-              In {through.folderName} it plays on {through.slot}. Its own slot is for a Take outside the folder.
-            </p>
-          )}
+        <div className="pd-advanced-body">
           <div className="pd-clip-trim" title={trimOff ?? undefined}>
             <label className="pd-field">
               <span>Start at</span>

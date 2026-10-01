@@ -159,10 +159,15 @@ Two surfaces here mount it, and both must ask the SAME gate: **`useTeamsAvailabl
   invitation is the news.
 - **sections/TeamsSection** - `#/home/teams`, listed in the nav only while the account is in a
   team: one card per team with its members, its productions and the join-code door.
-- **ProductionPage** - the header button, beside Export… and a header's width from ■ All out. On a
-  team production the Share button's place holds the TEAM's button instead, on the same width
-  budget (its name stands down under 1440px like Share's word). Opened cold on a team production
-  before the first team fetch, the page says "Loading" rather than "no longer exists".
+- **ProductionPage** - the header button, FIRST in the right cluster: it is the one control there
+  whose width changes (signed out, personal, team, saving), and the cluster is right-aligned, so
+  only what sits left of a control can never move it. Playout, Export… and ■ All out keep their
+  places in every team state, because operators press them by muscle memory
+  (`e2e/configured/teams.spec.ts` measures it). On a
+  team production the Share button's place holds the TEAM's button instead, compact: its name
+  stands down under 1440px like Share's word, and "edited by" lives in its tooltip. Opened cold on
+  a team production before the first team fetch, the page says "Loading" rather than "no longer
+  exists".
 
 **Never gate a team surface on `useAuthState().signedIn`** - it is TRUE offline (deliberately,
 so a gate cannot trap a user in a build with no login), so that reading renders the door in

@@ -53,6 +53,7 @@ import {
   playoutConfigured,
   readState,
   slotAddress,
+  outputSlotRefusal,
   stateReadable,
   subscribeTargetStatus,
   type PlayoutResult,
@@ -250,6 +251,8 @@ import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 import { ReadyLine, announcedExpected, useExpectedOutputs, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
+import { usePublishDrift } from './usePublishDrift';
+import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ExpectedOutput, HeldVersion, ReadyStamp } from '../../control/readiness';
 import type { PrepRequest } from '../../control/prepareLive';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
@@ -545,7 +548,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
    *  in this browser and announced on the live topic so the hosted page and the phone count the
    *  same ones. */
-  const [publishedVer, setPublishedVer] = useState<HeldVersion | null>(null);
+  const [publishedStamp, setPublishedStamp] = useState<PayloadVersion | null>(null);
+  const publishedVer = useMemo<HeldVersion | null>(() => (publishedStamp ? { n: publishedStamp.n, h: publishedStamp.h } : null), [publishedStamp]);
+  /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
+   *  edited in the library, which never touches the record) - usePublishDrift. */
+  const { unpublished: unpublishedChanges, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   const { expected: expectedOutputs, forget: forgetOutput } = useExpectedOutputs(
     hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null,
     livePresence,
@@ -566,7 +573,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     presence: livePresence,
     expected: expectedOutputs,
     published: publishedVer,
-    unpublishedChanges: !!show?.publishedAt && show.updatedAt > show.publishedAt,
+    unpublishedChanges,
+    recheckChanges: checkUnpublished,
     publish: () => preparePublishRef.current(),
     onPrep: setPrepRequest,
     onStamp: (stamp) => {
@@ -1336,7 +1344,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (!resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
       const ver = resolved.output?.ver;
-      setPublishedVer(ver ? { n: ver.n, h: ver.h } : null);
+      setPublishedStamp(ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
@@ -1891,7 +1899,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  absent for the same reason when the server predates 0035. */
   const presenterUrl = show.presenterSlug ? presenterPageUrl(show.presenterSlug) : null;
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
-  const unpublishedChanges = !!show.publishedAt && show.updatedAt > show.publishedAt;
   const clashes = duplicateLayers(show.graphics);
 
   /**
@@ -2095,7 +2102,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
-        if (published.version) setPublishedVer({ n: published.version.n, h: published.version.h });
+        if (published.version) setPublishedStamp(published.version);
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
@@ -2582,35 +2589,66 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const throughFolderIdOf = (cueId: string) => places.get(cueId)?.folder.id;
   const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => places.get(cue.id) ?? null;
   /**
+   * WHERE A TAKE OF THIS CUE - OR THIS FOLDER - LANDS on the server: one plan per slot it plays on,
+   * with the cues that will hold it. A Play-through folder plays on its own slot; another folder's
+   * server cues each on their own; a cue on its Play-through folder's slot when it is in one, else on
+   * its own. The cues are worked out only when asked, since only the air-clash check needs them.
+   */
+  const takePlans = (target: ShowCue | ShowFolder): { slot: string; cueIds: () => readonly string[]; folderId?: string }[] => {
+    if (!('sourceId' in target)) {
+      const members = rundown.members.get(target.id) ?? [];
+      if (folderMode(target) === 'through') return [{ slot: folderSlotOf(target), cueIds: () => members.map((c) => c.id), folderId: target.id }];
+      return members.flatMap((c) => {
+        const item = playoutItemFor(c);
+        return item ? [{ slot: addressOfItem(item), cueIds: () => [c.id] }] : [];
+      });
+    }
+    const item = playoutItemFor(target);
+    if (!item) return [];
+    const through = places.get(target.id)?.folder;
+    if (through) {
+      return [
+        {
+          slot: folderSlotOf(through),
+          cueIds: () => {
+            const run = folderRun(through, cues, playoutItems, target.id);
+            return run.ok ? run.run.members.map((m) => m.cue.id) : [target.id];
+          },
+          folderId: through.id,
+        },
+      ];
+    }
+    return [
+      {
+        slot: addressOfItem(item),
+        cueIds: () => {
+          const chain = item.kind === 'media' && effectiveEnd(target, item) === 'next' ? sequenceMembers(cues, playoutItems, target.id, addressOfItem, folders) : null;
+          return chain?.ok ? chain.members.map((m) => m.cue.id) : [target.id];
+        },
+      },
+    ];
+  };
+  /**
    * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
    * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never
    * taken as a Hold, a folder answers by how it plays, and a file this page already has up on another
-   * slot is never taken onto a second.
+   * slot is never taken onto a second. FIRST of all, nothing is taken onto the NoaCG output's own slot,
+   * which would replace the output and every graphic on it - so that is the reason the operator reads.
    */
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => {
     if (!target) return null;
+    const plans = takePlans(target);
+    for (const plan of plans) {
+      const onOutput = outputSlotRefusal(plan.slot, playoutSettings);
+      if (onOutput) return onOutput;
+    }
     const blocked = takeBlocker(target, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue);
     if (blocked) return blocked;
-    const clash = (plan: { slot: string; cueIds: readonly string[]; folderId?: string }) => airClash(plan, serverOwnership, cues, throughFolderIdOf);
-    if (!('sourceId' in target)) {
-      const members = rundown.members.get(target.id) ?? [];
-      if (folderMode(target) === 'through') return clash({ slot: folderSlotOf(target), cueIds: members.map((c) => c.id), folderId: target.id });
-      for (const c of members) {
-        const item = playoutItemFor(c);
-        const why = item ? clash({ slot: addressOfItem(item), cueIds: [c.id] }) : null;
-        if (why) return why;
-      }
-      return null;
+    for (const plan of plans) {
+      const why = airClash({ slot: plan.slot, cueIds: plan.cueIds(), folderId: plan.folderId }, serverOwnership, cues, throughFolderIdOf);
+      if (why) return why;
     }
-    const item = playoutItemFor(target);
-    if (!item) return null;
-    const through = places.get(target.id)?.folder;
-    if (through) {
-      const run = folderRun(through, cues, playoutItems, target.id);
-      return clash({ slot: folderSlotOf(through), cueIds: run.ok ? run.run.members.map((m) => m.cue.id) : [target.id], folderId: through.id });
-    }
-    const chain = item.kind === 'media' && effectiveEnd(target, item) === 'next' ? sequenceMembers(cues, playoutItems, target.id, addressOfItem, folders) : null;
-    return clash({ slot: addressOfItem(item), cueIds: chain?.ok ? chain.members.map((m) => m.cue.id) : [target.id] });
+    return null;
   };
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
@@ -4558,6 +4596,41 @@ function ProductionShell({
           })}
         </nav>
         <div className="spacer" />
+        {/* THE TEAM DOOR (docs/TEAMS_PLAN.md §6) comes FIRST in the right cluster, because it is
+            the one control here whose width changes with who is signed in, whether the production
+            is a team's, and every save. The cluster is right-aligned, so whatever sits left of a
+            control never moves it: Playout, Export… and ■ All out keep their places in every one
+            of those states (owner, 2026-10-01: operators build muscle memory). It is absent
+            offline and signed out - `useTeamsAvailable` is the one gate, and this surface asks it
+            rather than testing the auth state itself. A team production's door is its team, in
+            the Share button's place: the name gives way to the people icon under 1440px exactly
+            as Share's word does, and "edited by" rides the tooltip. Saving… and Not saved are
+            never hidden - they are the two states an operator must not miss. */}
+        {teamsAvailable && team && (
+          <button
+            className="pd-team"
+            onClick={() => openTeam(team.id)}
+            title={`In team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
+            aria-label={`Team ${team.name}`}
+            data-testid="production-team"
+          >
+            <IconUsers />
+            <span className="pd-team-name">{team.name}</span>
+            <span className={`pd-team-save${saving ? ` ${saving}` : ''}`} data-testid="production-team-save">
+              {saving === 'pending' ? 'Saving…' : saving === 'failed' ? 'Not saved' : edited}
+            </span>
+          </button>
+        )}
+        {teamsAvailable && !show.teamId && (
+          <button
+            onClick={() => openShare(show.id, show.name)}
+            title="Share this production with a team, so everyone works on it from their own account"
+            aria-label="Share"
+            data-testid="share-with-team"
+          >
+            <IconUsers /> <span className="pd-share-label">Share</span>
+          </button>
+        )}
         {/* The renderer heartbeat — only once published, and only once there IS an output to
             ask about (owner walk, 2026-08-29: he had no browser source set up anywhere and
             still read "output not seen lately", which sounds like something has gone wrong).
@@ -4591,39 +4664,6 @@ function ProductionShell({
         {/* WHERE THE GRAPHICS PLAY: the Playout settings door, beside the renderer heartbeat it
             belongs with. Setup lives in its dialog, never as more controls in this header. */}
         {playoutTarget}
-        {/* The team door (docs/TEAMS_PLAN.md §6), beside the other two "hand this to someone
-            else" controls and a header's width away from ■ All out. It is absent offline and
-            signed out - `useTeamsAvailable` is the one gate, and this surface asks it rather
-            than testing the auth state itself. */}
-        {/* A TEAM production's door is its team, in the Share button's place and on the same
-            width budget: the team's name gives way to the people icon under 1440px exactly as
-            Share's word does, and "edited by" rides the tooltip until 1600px. Saving… and Not
-            saved are never hidden - they are the two states an operator must not miss. */}
-        {teamsAvailable && team && (
-          <button
-            className="pd-team"
-            onClick={() => openTeam(team.id)}
-            title={`In team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
-            aria-label={`Team ${team.name}`}
-            data-testid="production-team"
-          >
-            <IconUsers />
-            <span className="pd-team-name">{team.name}</span>
-            <span className={`pd-team-save${saving ? ` ${saving}` : ''}`} data-testid="production-team-save">
-              {saving === 'pending' ? 'Saving…' : saving === 'failed' ? 'Not saved' : edited}
-            </span>
-          </button>
-        )}
-        {teamsAvailable && !show.teamId && (
-          <button
-            onClick={() => openShare(show.id, show.name)}
-            title="Share this production with a team, so everyone works on it from their own account"
-            aria-label="Share"
-            data-testid="share-with-team"
-          >
-            <IconUsers /> <span className="pd-share-label">Share</span>
-          </button>
-        )}
         <button
           onClick={onExport}
           title="Export this production as a package"

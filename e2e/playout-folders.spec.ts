@@ -711,7 +711,7 @@ test('Play through: one Take sends one sequence on the folder slot, ON AIR follo
   const fake = await fakeBridge(page);
   await production(page, CLIPS);
   await throughFolder(page);
-  await expect(page.getByTestId('folder-slot-summary')).toHaveText('2 · Inserts · layer 10, the clip default');
+  await expect(page.getByTestId('folder-slot-summary')).toHaveText('2 · Inserts · layer 10, the default for new media');
   await expect(folder(page, 'Folder 1').getByTestId('folder-slot')).toHaveText('2-10');
   // Each clip before the last plays the next by the folder's rule, and says so on its row.
   await expect(cue(page, 'ALPHA').getByRole('img', { name: 'Plays the next, set by the folder' })).toBeVisible();
@@ -1048,7 +1048,7 @@ test('Play through: each clip gives up its own ending but the last, the sequence
   await page.getByTestId('verb-out').click();
   await expect(cue(page, 'ALPHA')).not.toContainText('ON AIR');
   await page.getByTestId('folder-slot-default').click();
-  await expect(page.getByTestId('folder-slot-summary')).toContainText('layer 10, the clip default');
+  await expect(page.getByTestId('folder-slot-summary')).toContainText('layer 10, the default for new media');
   expect(sent(fake)).toEqual(['sequence 2-10 ALPHA,BRAVO,CHARLIE', 'out 2-10', 'sequence 2-12 ALPHA,BRAVO,CHARLIE', 'out 2-12']);
 });
 

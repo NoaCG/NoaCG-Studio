@@ -291,13 +291,11 @@
   color: var(--accent);
   white-space: nowrap;
 }
-.pd-team-name { max-width: 160px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+/* Compact (owner, 2026-10-01: "the Groups control is too large"): the name is short, and the
+   resting "edited by Anna, 12:03" lives in the tooltip at every width. */
+.pd-team-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .pd-team-save { font-size: 11.5px; color: var(--text-faint); }
-/* The resting state ("edited by Anna, 12:03") is detail, and stands down to the tooltip first. */
 .pd-team-save:not(.pending):not(.failed) { display: none; }
-@media (min-width: 1600px) {
-  .pd-team-save:not(.pending):not(.failed) { display: inline; }
-}
 .pd-team-save.failed { color: var(--danger); }
 @media (max-width: 1440px) {
   .pd-team-name { display: none; }

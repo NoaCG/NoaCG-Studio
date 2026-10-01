@@ -9,6 +9,8 @@
 // offline e2e/output-prepare.spec.ts; the words are scripts/prepare-live.test.mjs.
 // The command path ping (landing c, AC-12) is said on each output's line once the outputs settle.
 // covers: src/components/control/PrepareForLive.tsx, src/control/prepareLive.ts, src/output/prepare.ts, src/components/home/ProductionPage.tsx, supabase/migrations/0072_command_ping.sql
+// A graphic edited in the library counts as an unpublished change (docs/work-specs/studio-day-playout AC-5).
+// covers: src/components/home/usePublishDrift.ts
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -32,7 +34,22 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await signIn(page);
   await page.keyboard.press('Escape');
   await clearPublishedShows(page);
+  // A House Scorebug left in the synced test account by a run that died would make the library
+  // name match below ambiguous, and the AC-5 step would fail for a reason that is not the product.
+  await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
+  // In the LIBRARY too, as a graphic saved and added from Home is: a publish then reads its design
+  // from the library record (by its name, `resolveSavedGraphicDoc`), which the AC-5 step edits.
+  expect(
+    await page.evaluate(async () => {
+      const { createGraphic } = await import('/src/model/library.ts');
+      const { useTemplateStore } = await import('/src/store/templateStore.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const { template } = useTemplateStore.getState();
+      const { error } = createGraphic(template, { name: template.name });
+      return error ?? (await commitDurableWrites());
+    }),
+  ).toBeFalsy();
   const showId = await openProductionWithCurrent(page, `Prepare ${Date.now()}`);
   await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
@@ -109,10 +126,37 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   // A cue-only change moved the number, not what the output renders: it prepared nothing, and holds v1.
   expect((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n).toBe(1);
 
+  // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
+  //    save does, with the production record untouched. It is still an unpublished change (a
+  //    publish resolves the library's current template), the next run publishes it, and the
+  //    output moves onto it. On the studio day this read "Nothing changed" and stayed off air. ──
+  const readUpdatedAt = () =>
+    page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)?.updatedAt ?? '', showId);
+  const recordBefore = await readUpdatedAt();
+  const edited = await page.evaluate(async (id) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const { loadGraphics, resolveSavedGraphicDoc, updateGraphic } = await import('/src/model/library.ts');
+    const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+    const pooled = loadShows().find((s) => s.id === id)?.graphics[0];
+    // The record a publish reads this graphic from (hostedControl.ts, templateForSavedGraphic).
+    const doc = pooled ? resolveSavedGraphicDoc(pooled, loadGraphics()) : undefined;
+    if (!doc) return false;
+    const { error } = updateGraphic(doc.id, { template: { ...doc.template, css: `${doc.template.css}\n/* edited in the library */` } });
+    return !error && !(await commitDurableWrites());
+  }, showId);
+  expect(edited, 'the production names its graphic in the library').toBe(true);
+  await expect(prepare).toContainText('Your unpublished changes will be published and included', { timeout: 15_000 });
+  expect(await readUpdatedAt()).toBe(recordBefore);
+  await page.getByTestId('prepare-for-live-button').click();
+  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v3', { timeout: 90_000 });
+  await expect
+    .poll(async () => (await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n ?? 0, { timeout: 90_000 })
+    .toBe(3);
+
   // ── AC-11: an output that has gone makes the stamp say so. ──
   await air.close();
   await page.getByTestId('prepare-for-live-button').click();
-  await expect(page.getByTestId('prepare-stamp')).toContainText(/Not ready, checked \d\d:\d\d \(v2\): 1 problem/, { timeout: 90_000 });
+  await expect(page.getByTestId('prepare-stamp')).toContainText(/Not ready, checked \d\d:\d\d \(v3\): 1 problem/, { timeout: 90_000 });
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A: not answering');
   await page.screenshot({ path: shot('desk-1920-not-ready') });
 

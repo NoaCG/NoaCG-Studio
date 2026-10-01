@@ -13,7 +13,7 @@ import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { readPublishedProfile, type ShowProfile } from '../model/profile';
-import { loadGraphics, entriesForSavedGraphic, templateForSavedGraphic, type GraphicDoc } from '../model/library';
+import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
@@ -27,7 +27,7 @@ import { joinNameCandidates } from './joinName';
 import { COMMAND_EVENT, LOG_ROW_EVENT, SEQ_BATCH_EVENT, commandTopic, logTopic, readCommandFrame, seqTopic, withOid } from './commandRoads';
 import { ATTEMPT_TIMEOUT_MS, MIN_ATTEMPT_MS, RESEND_WINDOW_MS, rpcFailure, sendWithResend, unansweredError, unansweredStatus } from './failedSends';
 import { noteSend, withSender } from './livePath';
-import { readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
+import { graphicDigest, readPayloadVersion, stampPayload, type PayloadVersion } from './payloadVersion';
 import { createSeqFollower, seqJoinRetryDelay, type HeadSummary, type SeqFrame, type SeqHead, type SeqTail } from './seqFollow';
 import { uuid } from '../model/id';
 import {
@@ -345,26 +345,26 @@ async function serializeAssets(template: SpxTemplate): Promise<{ path: string; d
   );
 }
 
+/** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
+async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
+  return {
+    key: g.name,
+    html: template.html,
+    css: template.css,
+    js: template.js,
+    assets: await serializeAssets(template),
+    resolution: template.resolution,
+    fps: template.fps,
+    layer: graphicLayer(g),
+  };
+}
+
 /** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
  *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
  *  graphic name. Async because Blob assets serialize to data URLs. */
 export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
-  const graphics: OutputGraphicSpec[] = await Promise.all(
-    show.graphics.map(async (g) => {
-      const template = templateForSavedGraphic(g, library);
-      return {
-        key: g.name,
-        html: template.html,
-        css: template.css,
-        js: template.js,
-        assets: await serializeAssets(template),
-        resolution: template.resolution,
-        fps: template.fps,
-        layer: graphicLayer(g),
-      };
-    }),
-  );
+  const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));
   // The stage: big enough for every graphic (they render 1:1 inside it, the page scales it).
   const resolution = graphics.reduce<Resolution>(
     (r, g) => ({
@@ -415,6 +415,38 @@ export interface PublishedCapabilities {
   presenterSlug: string | null;
   /** The version stamp this publish wrote into the payload (payloadVersion.ts). */
   version?: PayloadVersion;
+}
+
+/** Digests already computed, by library record, its save time and the graphic's layer: a record
+ *  that has not changed is not serialised and hashed again (its pictures can be megabytes). */
+const libraryDigestMemo = new Map<string, string>();
+
+/**
+ * What a publish would write NOW for each graphic this browser resolves from ITS OWN library: the
+ * stamp's per-graphic digest (payloadVersion.ts `g`), by key. Compared with the published stamp it
+ * says whether publishing would change what the outputs render - which is how a graphic edited in
+ * the library, never touching the production record, still counts as an unpublished change.
+ *
+ * A graphic that falls back to the snapshot embedded in the production record is left out: that
+ * copy changes only with the record, whose own timestamp already says so. In a team production a
+ * member without the publisher's library record therefore never reads the publisher's newer design
+ * as a change of their own to publish over it (docs/backlog/a-team-productions-output-depends-on-who-publishes.md).
+ */
+export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<Record<string, string>> {
+  const digests: Record<string, string> = {};
+  for (const g of show.graphics) {
+    const doc = resolveSavedGraphicDoc(g, library);
+    if (!doc) continue;
+    const memoKey = `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}`;
+    let digest = libraryDigestMemo.get(memoKey);
+    if (digest === undefined) {
+      digest = await graphicDigest(await graphicSpec(g, doc.template));
+      if (libraryDigestMemo.size > 200) libraryDigestMemo.clear();
+      libraryDigestMemo.set(memoKey, digest);
+    }
+    digests[g.name] = digest;
+  }
+  return digests;
 }
 
 /** Publish (or update) a production's hosted pages: the operator panel spec (live-resolved,

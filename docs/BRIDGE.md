@@ -558,9 +558,17 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   the studio does not name (a production made elsewhere) stays listed as itself. The channel
   lives on the item beside the layer, so every cue of one server item shares its slot, the way
   every cue of one graphic shares its layer. The production's own graphics stay on the graphics
-  channel with the output URL; a second output page on another channel is a later slice.
+  channel with the output URL; a second output page on another channel is a later slice
+  (`docs/backlog/noacg-graphics-on-several-channels.md`).
+- **No purpose names (2026-10-01, docs/work-specs/studio-day-playout).** Settings calls the two
+  defaults what they are: **NoaCG output** (the slot the output URL plays on, stored as
+  `channel`/`layer`) and **New media** (the channel a new video, still or audio file starts on,
+  stored as `clipChannel`). A new item stores its channel as a number. Channel and layer sit
+  beside the note for every server item, clips included. The output's own slot is guarded: a
+  server item set to it is refused at Take with the reason, because playing anything there
+  replaces the output (measured on 2.3 and 2.5), and no default puts an item there.
 - **Layers.** A server template takes the next free layer counted across graphics and templates,
-  like a graphic. Clips share layer 10, below every graphic, on purpose: one clip at a time, and
+  like a graphic, skipping the NoaCG output's layer on its channel. Clips share layer 10, below every graphic, on purpose: one clip at a time, and
   a strap never disappears behind a rolling VT. Audio files (the server's own word for them, kept
   since 2026-09-28) play on layer 5, below the clips, so a sting never knocks a VT off and a music
   bed survives both.

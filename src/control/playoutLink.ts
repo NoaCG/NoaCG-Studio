@@ -70,17 +70,19 @@ export interface PlayoutSettings {
   /** The playout server itself - may be any machine on the studio LAN. */
   host: string;
   amcpPort: number;
-  /** The GRAPHICS channel: where the production's output URL goes on air, and where a server
-   *  template (and any cue saved before channels had names) plays unless its cue says otherwise. */
+  /** The NOACG OUTPUT's channel (Settings: "NoaCG output"): where the production's output URL goes
+   *  on air, and where a server template, and any item saved without a channel, plays unless its
+   *  cue says otherwise. The stored name is from when this was called the graphics channel. */
   channel: number;
-  /** The output URL's layer on the graphics channel. */
+  /** The output URL's layer on that channel: the one slot no server item may take. */
   layer: number;
   /** The channels this studio uses, each with the operator's word for it (`Channel 1` until
    *  somebody renames it `Graphics`, `Inserts` or whatever it carries). A cue picks its channel from this list rather than typing a number. ADDITIVE:
    *  a record saved before it existed reads as one row, the graphics channel. Always holds the
    *  graphics channel after load. */
   channels: PlayoutChannel[];
-  /** Where a NEW server clip is cued. The graphics channel until the studio names another one. */
+  /** Where a NEW server video, still or audio file starts (Settings: "New media"). The output's
+   *  channel until the studio names another one. */
   clipChannel: number;
 }
 
@@ -183,8 +185,8 @@ export function slotOf(s: PlayoutSettings, layer = s.layer, channel = s.channel)
   return { adapter: 'casparcg', channel, layer };
 }
 
-/** The channel a new server item is cued on: a clip goes to the clip channel, a template to the
- *  graphics channel, the way a CasparCG client's rundown defaults its own items. */
+/** The channel a new server item is cued on: media to the New media channel, a template to the
+ *  NoaCG output's channel, the way a CasparCG client's rundown defaults its own items. */
 export function defaultChannelFor(s: PlayoutSettings, kind: ItemKind): number {
   return kind === 'media' ? s.clipChannel : s.channel;
 }
@@ -229,7 +231,7 @@ export function channelTitle(s: PlayoutSettings, channel: number): string {
 
 // `slotAddress` (`1-20`) lives in ./playoutSlots.ts with `compareSlots`, where rules that must run
 // without a browser can import them; it is re-exported here for the callers of this module.
-export { slotAddress } from './playoutSlots';
+export { slotAddress, outputSlotRefusal } from './playoutSlots';
 
 // ---------------------------------------------------------------------------------------------
 // Local Network Access

@@ -252,7 +252,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
                     disabled={isGraphics}
                     title={
                       isGraphics
-                        ? 'The graphics channel. Choose another channel for graphics below before removing this one.'
+                        ? 'The NoaCG output plays on this channel. Move the NoaCG output to another channel below before removing this one.'
                         : `Remove channel ${row.channel}. Cues already on it keep playing there.`
                     }
                     aria-label={`Remove channel ${row.channel}`}
@@ -280,13 +280,16 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             </p>
           )}
           <p className="dlg-hint">
-            The channels in this server&rsquo;s <code>casparcg.config</code>, named for what they carry.
-            Every server cue in a rundown picks one of these beside its layer.
+            The channels in this server&rsquo;s <code>casparcg.config</code>. A name is optional.
+            Every server item in a rundown picks one of these beside its layer.
           </p>
         </div>
 
+        {/* THE NOACG OUTPUT'S SLOT, stored as `channel` and `layer` since before channels had
+            names. NoaCG does not say what a channel is for (owner, 2026-10-01): this is only
+            where its own output plays, and the one slot a server item may never take. */}
         <div className="dlg-row">
-          <label htmlFor="caspar-graphics-channel">Graphics</label>
+          <label htmlFor="caspar-graphics-channel">NoaCG output</label>
           <div className="dlg-pair dlg-pair--num">
             <select
               id="caspar-graphics-channel"
@@ -310,14 +313,13 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             />
           </div>
           <p className="dlg-hint">
-            Where a production&rsquo;s own graphics go on air: CasparCG calls this{' '}
-            <code>{slotAddress(slotOf(settings))}</code>. Server templates are cued on this channel,
-            on the next free layer above it.
+            NoaCG&rsquo;s own graphics play on <code>{slotAddress(slotOf(settings))}</code>. No server item
+            may use that slot.
           </p>
         </div>
 
         <div className="dlg-row">
-          <label htmlFor="caspar-clip-channel">Clips</label>
+          <label htmlFor="caspar-clip-channel">New media</label>
           <select
             id="caspar-clip-channel"
             value={settings.clipChannel}
@@ -331,8 +333,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             ))}
           </select>
           <p className="dlg-hint">
-            Where a server clip is cued when it is added to a rundown, on layer 10. Any cue can
-            pick another channel in its own editor.
+            The channel a server video, still or audio file starts on. Each can move in its own editor.
           </p>
         </div>
       </div>

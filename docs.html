@@ -1457,22 +1457,44 @@ Storm warning issued</code></pre>
             field ids (<code>f0, f1</code>) once. Get them from its own FIELDS.md or from its
             author.
           </p>
-          <h4 id="casparcg-channels">More than one channel</h4>
+          <h4 id="casparcg-channels">Channels and layers</h4>
           <p>
-            Some studios run graphics on one CasparCG channel and video inserts on another. Name
-            both under <strong>Settings &rarr; Playout</strong>:
+            A CasparCG channel is whatever your studio makes it: a key channel into a vision
+            mixer, a fill channel, a screen in the set. NoaCG does not decide. List the channels
+            your server has under <strong>Settings &rarr; Playout</strong>, then put each server
+            item where it belongs:
           </p>
           <ul>
-            <li><strong>Add channel</strong> adds <code>Channel 2</code>. Rename it to whatever it
-              carries. New clips go there, while templates and the production's own graphics stay
-              on the graphics channel.</li>
-            <li>Every server cue shows its address in the rundown the way CasparCG writes it:
-              <code>2-10</code> is channel 2, layer 10. The cue's editor has a
-              <strong>Channel</strong> pick beside the layer to move it to another channel.</li>
+            <li><strong>Add channel</strong> adds <code>Channel 2</code>. A name is optional.</li>
+            <li>Every server video, still, audio file and template has a <strong>Channel</strong>
+              pick beside its <strong>Layer</strong> in its editor. The rundown shows its address
+              the way CasparCG writes it: <code>2-10</code> is channel 2, layer 10.</li>
+            <li><strong>NoaCG output</strong> is where NoaCG plays the production's own graphics,
+              <code>1-20</code> unless you change it. Media on that channel plays under the
+              graphics on a lower layer (videos and stills start on 10, audio on 5) and over them
+              on a higher one. No server item may use the output's own layer: playing something
+              there would replace the output.</li>
+            <li><strong>New media</strong> is the channel a newly added video, still or
+              audio file gets.</li>
             <li><strong>All out</strong> takes off every server cue the rundown put up, on any
               channel, and leaves everything else on the server alone.</li>
           </ul>
           <p>A studio with one channel sees one row, and nothing changes.</p>
+          <h4 id="casparcg-alpha">Video with transparency</h4>
+          <p>
+            A video with an alpha channel can play over the programme from a key channel, for
+            example as fill and key into a vision mixer's downstream keyer. Render it as ProRes
+            4444 or QuickTime Animation with <strong>premultiplied</strong> alpha (in After
+            Effects, "Premultiplied (Matted)" with black). CasparCG reads a video's alpha as
+            premultiplied, so a straight-alpha render looks too bright wherever it is partly
+            transparent: soft edges, shadows and fades. WebM (VP9) alpha does not work on CasparCG
+            2.3. Transparent PNG stills are always right. On the vision mixer, set the keyer to a
+            pre-multiplied key.
+          </p>
+          <p>
+            Checked on CasparCG 2.3 and 2.5 by recording the channel. Not yet checked through an
+            SDI card and a vision mixer.
+          </p>
           <div class="callout truth">
             <span class="lbl">What has been verified</span>
             <p>
