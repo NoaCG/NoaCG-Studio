@@ -35,11 +35,30 @@ const EVENT_NAME = 'noacg';
 const SUBSCRIPTIONS = 1 | 2 | 4 | 128; // General, Config, Scenes, SceneItems (the proof reads more than the Bridge needs)
 const REQUEST_TIMEOUT_MS = 3000;
 
-/** Every line goes out with the user's home folder as `~`, plain or JSON-escaped, so a record
- *  can be committed without naming whose machine ran it. */
-function say(line = '') {
+/** The user's home folder in any spelling a line may carry it: either slash, a JSON-escaped
+ *  backslash, any letter case, and only as a whole folder name. */
+const HOME = (() => {
   const home = homedir();
-  process.stdout.write(`${String(line).split(home).join('~').split(home.replace(/\\/g, '\\\\')).join('~')}\n`);
+  const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const separator = String.raw`(?:\\\\|\\|/)`; // a doubled backslash, a backslash or a slash
+  const folders = home.split(/[\\/]+/).filter(Boolean).map(escape).join(separator);
+  return new RegExp(`${home.startsWith('/') ? '/' : ''}${folders}(?![\\w.-])`, 'gi');
+})();
+/** Every line goes out with the user's home folder as `~`, so a record can be committed without
+ *  naming whose machine ran it. */
+function say(line = '') {
+  process.stdout.write(`${String(line).replace(HOME, '~')}\n`);
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Polls `done` every 50 ms until it is true or `ms` has passed; says how many polls missed. */
+async function until(done, ms) {
+  const start = Date.now();
+  let missed = 0;
+  while (!(await done()) && Date.now() - start < ms) {
+    missed++;
+    await sleep(50);
+  }
+  return { missed, ms: Date.now() - start };
 }
 function json(value) {
   return JSON.stringify(value);
@@ -98,10 +117,11 @@ function readObsWebSocketSettings(dirs = obsConfigDirs()) {
   return null;
 }
 
-/** A path as a record may show it: the user's own folders by their variable, not their name. */
+/** A path as a record may show it: OBS's usual folder by its variable. `say` writes any other
+ *  path under the home folder with `~`. */
 function shown(p) {
   if (process.env.APPDATA && p.startsWith(process.env.APPDATA)) return `%APPDATA%${p.slice(process.env.APPDATA.length)}`;
-  return p.startsWith(homedir()) ? `~${p.slice(homedir().length)}` : p;
+  return p;
 }
 
 function redacted(s) {
@@ -575,7 +595,7 @@ async function waitFor(reports, pred, ms = 4000) {
   while (Date.now() < end) {
     const hit = reports.find((r, i) => pred(r, i));
     if (hit) return hit;
-    await new Promise((r) => setTimeout(r, 50));
+    await sleep(50);
   }
   return null;
 }
@@ -634,7 +654,7 @@ async function live() {
     const t2 = await takeUrl(s, { scene: SCENE, source: OUT, url: outUrl });
     state = await stateOf(s, SCENE);
     check('take shows it again', state.slots.find((x) => x.source === OUT)?.shown === true && t2.urlChanged === false, json(t2));
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(800);
     check('the same URL is not reloaded', reports.filter((r) => r.t === 'load' && r.page === 'output').length === loadsBefore);
 
     say('\n== take url, a new URL');
@@ -716,27 +736,26 @@ async function live() {
         if (kind === 'input') await s.request('RemoveInput', { inputName: name }).catch(() => {});
         else await s.request('RemoveScene', { sceneName: name }).catch(() => {});
       }
-      // OBS can still hold the local file for a moment after RemoveInput, so try for up to 2 s.
-      for (let i = 0; i < 40 && existsSync(LOCAL); i++) {
-        try {
-          unlinkSync(LOCAL);
-        } catch {
-          await new Promise((r) => setTimeout(r, 50));
-        }
-      }
       // Measured on OBS 32.2.1: RemoveScene answers 100 and SceneRemoved arrives, yet a
       // GetSceneList sent at once still lists the scene for a moment. So poll, and say how long.
-      const removedAt = Date.now();
+      const ours = (list) => list.scenes.some((x) => x.sceneName === SCENE || x.sceneName === SCENE2);
       let after = null;
-      let lagged = 0;
-      for (;;) {
+      const lag = await until(async () => {
         after = await must(s, 'GetSceneList').catch(() => null);
-        if (!after || !after.scenes.some((x) => x.sceneName === SCENE || x.sceneName === SCENE2) || Date.now() - removedAt > 3000) break;
-        lagged++;
-        await new Promise((r) => setTimeout(r, 50));
-      }
+        return !after || !ours(after);
+      }, 3000);
+      // OBS can still hold the local file for a moment after RemoveInput, so try for up to 2 s.
+      await until(() => {
+        try {
+          if (existsSync(LOCAL)) unlinkSync(LOCAL);
+          return true;
+        } catch {
+          return false;
+        }
+      }, 2000);
+      if (existsSync(LOCAL)) say(`note: could not remove ${LOCAL}; delete it by hand`);
       if (after && before) {
-        check('the proof scenes are gone', !after.scenes.some((x) => x.sceneName === SCENE || x.sceneName === SCENE2), `GetSceneList still listed them ${lagged} time(s), for ${Date.now() - removedAt} ms`);
+        check('the proof scenes are gone', !ours(after), `GetSceneList still listed them ${lag.missed} time(s), for ${lag.ms} ms`);
         check('program and preview are what they were', after.currentProgramSceneName === before.program && after.currentPreviewSceneName === before.preview, json({ before, after: { program: after.currentProgramSceneName, preview: after.currentPreviewSceneName } }));
       }
       say(`events seen: ${json([...new Set(s.events.map((e) => e.eventType))])}`);

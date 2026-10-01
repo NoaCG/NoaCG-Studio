@@ -4,7 +4,10 @@
 # many pixels of the lower-third region stand above that background by more than a threshold:
 # text drawn there before the entrance has started is the stale frame.
 #   python measure-cut-back.py <rec.mkv> [threshold, default 25; 6 finds text faded to about 5%]
-# Needs ffmpeg on the PATH and numpy.
+# Needs ffmpeg on the PATH and numpy. The colours are fixed: Other is pure blue #0000FF and On Air
+# is #808080, both full-frame colour sources. A frame counts as stale while more than 30% of the
+# settled graphic shows; that holds for an entrance like Hairline's, whose first frames draw only
+# its bar, and the per-switch lines print the counts so a reader can check it.
 import subprocess, sys
 import numpy as np
 
@@ -18,12 +21,14 @@ while True:
     buf = p.stdout.read(W * H * 3)
     if len(buf) < W * H * 3:
         break
-    f = np.frombuffer(buf, np.uint8).reshape(H, W, 3).astype(int)
+    f = np.frombuffer(buf, np.uint8).reshape(H, W, 3)
     bg = f[100:120, 900:920].reshape(-1, 3).mean(0)
     grey = min(1.0, max(0.0, bg[0] / 128.0))  # red is 0 on Other and 128 on On Air
     region = f[Y:Y + HH, X:X + WW]
     lift = (region - bg).min(2)  # how far each pixel stands above the background in every channel
     rows.append((grey, int((lift > THRESHOLD).sum())))
+if p.wait() != 0 or not rows:
+    sys.exit(f'ffmpeg could not read {rec}')
 print(f'frames {len(rows)}')
 settled = max(t for g, t in rows)
 print(f'settled graphic pixels {settled}')

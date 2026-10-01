@@ -10,7 +10,8 @@ where a statement rests on something else, it says so.
 - **Since 2026-10-01 an exported overlay plays its entrance when its source goes on program**,
   not when OBS loads it, and plays it again on the next cut. §10 has the look, the trigger choice
   and one stale frame on a Cut that the page cannot clear. §11 re-checked it in OBS on 2026-10-02
-  and measured that frame: exactly one frame on every Cut, and a Fade or Studio Mode avoids it.
+  and measured that frame: with OBS's default browser hardware acceleration, exactly one frame in
+  10 of 10 Cuts; a 300 ms Fade kept it under 10% opacity.
 
 - **NoaCG graphics work as OBS browser sources.** An exported overlay loaded as a local file plays
   on load. A two-graphic show package, served by its own bundled relay, was taken, updated and
@@ -309,12 +310,16 @@ BroadcastChannel messages (`{t: 'stop'}`, `{t: 'play'}`), the path a docked `con
 takes (§5).
 
 **The stale frame, measured.** OBS recorded its program output (x264, 30 fps) while
-obs-websocket switched between a blue scene and the grey scene holding the overlay, 2.5 s on air
+obs-websocket switched between a scene holding only a #0000FF colour source and one holding a
+#808080 colour source under the overlay, 2.5 s on air
 and 1.5 s off, ten times per row. [`measure-cut-back.py`](research/obs-real-host-2026-10-02/measure-cut-back.py)
 reads every frame of the recording and counts, after each switch back, the frames that still show
 the settled graphic before the entrance starts;
 [`measure-item-show.py`](research/obs-real-host-2026-10-02/measure-item-show.py) does the same
-for a source shown again in a scene that stays on program.
+for a source shown again in a scene that stays on program. Both gained an error exit and a
+stricter test for a show after review; the recordings were deleted with the copy, so the counts
+below come from their first versions, whose per-frame lines showed every flash as one full frame
+between empty or bar-only frames.
 
 | Condition | Frames of the old graphic after the switch |
 |---|---|
@@ -327,8 +332,10 @@ for a source shown again in a scene that stays on program.
 So there is no page-side fix. The frame is the texture OBS kept from the last paint before it hid
 the page, and a hidden page does not paint: resetting on the earlier visible event did not get a
 frame out before the hide. Turning hardware acceleration off only makes it intermittent, at a CPU
-cost. A Fade hides it, and §10 saw none in Studio Mode, where the scene is painted on preview
-before the take. The operator line is in `docs/PLAYOUT_INTEGRATION.md` §4, and it closes the
+cost. A Fade hides it. Studio Mode was not recorded here; §10's screenshots saw no stale frame
+there, where the scene is painted at rest on preview before the take. A scene transition does not
+help when the source itself is hidden and shown in a scene on program; a source's own Show
+Transition might, and was not measured. The operator line is in `docs/PLAYOUT_INTEGRATION.md` §4, and it closes the
 backlog item that asked for this measurement. Showing a hidden item has the same
 frame, which matters to the Bridge's take (`docs/work-specs/bridge-obs-adapter/spec.md`).
 

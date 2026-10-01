@@ -234,11 +234,12 @@ OBS-specific notes (the dock, local-file and refresh behaviour below was measure
   is visible but not on air; a page that loads while shown starts at once, and plays again if
   that was only a preview. Once the panel or the relay plays or stops it, cuts no longer move
   it, so a cut never undoes the operator's Take or Stop. Outside OBS it still plays on load.
-  **Use a Fade, not a Cut, into a scene with a NoaCG overlay** (or Studio Mode): on a Cut back,
-  OBS shows the graphic's last on-air frame for exactly one frame before the entrance starts, every
-  time, and the page cannot clear it; with a 300 ms Fade the old frame never got past 9% opacity,
-  and turning off browser hardware acceleration did not remove it (measured on OBS 32.2.1 at
-  30 fps, `docs/OBS_ON_A_REAL_HOST.md` §11). Overlays exported before 2026-10-01 play on
+  **Use a Fade, not a Cut, into a scene with a NoaCG overlay**: on a Cut back, OBS shows the
+  graphic's last on-air frame for exactly one frame before the entrance starts (10 of 10), and
+  the page cannot clear it; with a 300 ms Fade the old frame never got past 9% opacity, and
+  turning off browser hardware acceleration did not remove it (OBS 32.2.1 at 30 fps,
+  `docs/OBS_ON_A_REAL_HOST.md` §11). Showing a hidden source in a scene already on program has
+  the same frame. Overlays exported before 2026-10-01 play on
   load: for those, tick **"Refresh browser when scene becomes active"**, and OBS reloads the page
   as the scene goes on program. The cloud output and a relay-driven source wait for a command
   instead of playing by themselves.

@@ -54,7 +54,9 @@ Also measured there:
   affected.
 
 After the run its temp file was once left behind (OBS still held it); the cleanup now retries the
-removal for up to 2 s. That change came after the recorded run. `--plan` prints the same calls as
+removal for up to 2 s, after timing the scene list. That change, and a home-folder redaction that
+also catches forward slashes and other letter case, came after the recorded run; the probe and
+plan modes were run again after them, OBS was not. `--plan` prints the same calls as
 on 2026-10-01.
 
 ## What ran on this machine first, 2026-10-01
@@ -67,7 +69,7 @@ obs-websocket's server off (`server_enabled` false in its config; its log for th
   `%APPDATA%\obs-studio\plugin_config\obs-websocket\config.json`, read port 4455, authentication
   required and a password present, found nothing listening on `127.0.0.1:4455`, and gave the
   `server-off` sentence. That is the right answer for this machine.
-- **Every verb's calls: recorded, then unverified on real OBS** (run live on 2026-10-02, above). [`plan-2026-10-01.txt`](plan-2026-10-01.txt)
+- **Every verb's calls: recorded; not run on real OBS that day** (run live on 2026-10-02, above). [`plan-2026-10-01.txt`](plan-2026-10-01.txt)
   is each verb's exact request sequence from `--plan`. The command that runs them against OBS is
 
   ```sh
@@ -75,7 +77,7 @@ obs-websocket's server off (`server_enabled` false in its config; its log for th
   ```
 
   on a machine whose OBS has **Tools > WebSocket Server Settings > Enable WebSocket server**
-  ticked. It prints each request and answer and ends with `N/17 checks passed`. Every scene and
+  ticked. It prints each request and answer and ends with `N/M checks passed` (23 since 2026-10-02). Every scene and
   source it creates carries the run's timestamp, it stops before changing anything if one of those names
   already exists, and cleanup removes only what it created.
 - **The script's own live path** was run once against a scratch obs-websocket stand-in (a
