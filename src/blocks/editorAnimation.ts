@@ -49,6 +49,12 @@ export function armedChannels(data: AnimData | null, owner: string, property: Nu
 export function isArmed(data: AnimData | null, owner: string, property: NumericProperty) {
   return armedChannels(data, owner, property).length > 0;
 }
+/** Whether a layer's own rotation or scale changes over time (R1.2b.1): a Rotation or Scale channel,
+ *  or a raw transform string. Where it does not, an anchor change moves its pose by the same amount
+ *  at every time. */
+export function turnsOrScales(data: AnimData | null, owner: string) {
+  return (['rotation', 'scaleX', 'scaleY'] as const).some(property => isArmed(data, owner, property)) || animates(data, owner, 'transform');
+}
 /** Whether any channel of a control has a key at a time on a cue's clock. */
 export function keyedAt(data: AnimData | null, owner: string, property: NumericProperty, step: number, time: number) {
   return CONTROL_CHANNELS[property].some(channel => data?.steps[step]?.layers[owner]?.[channel]?.some(k => Math.abs(k.time - time) < EPS));

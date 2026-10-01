@@ -169,6 +169,19 @@ test('anchor operations: one base write unanimated, a key where Position is anim
   assert.ok(close(keyed[1].values.x, 40 + move.x));
   // A shown scale or rotation is the base and the motion together (displayedBase), as rendered.
   assert.ok(close(displayedBase(base, posed, 'scaleX'), 0.95));
+  // Where rotation and scale never move (a Clean Steps row animates yPercent only), M is the same at
+  // every time: the base moves, keeping the whole path, and no Position key is added.
+  const row = one({ '#a': { yPercent: [k(0.5, 110), k(1.2, 0)] } }), turnedRow = { ...base, rotation: 90 };
+  const whole = anchorOperations(row, '#a', '#a', turnedRow, pose({ yPercent: 40 }), { x: 0, y: 0 }, true, at);
+  assert.deepEqual(whole.map(o => o.kind), ['base.set']);
+  assert.ok(close(whole[0].values.x, 40 + shift.x) && close(whole[0].values.y, 100 + shift.y));
+  // A raw transform string can turn or scale, so it is motion too: only the pose at the playhead can
+  // be kept, by a Position key, which a raw transform refuses (R1.2a.6), so the drag refuses.
+  assert.throws(() => anchorOperations(one({ '#a': { transform: [k(0, 'rotate(0deg)'), k(1, 'rotate(40deg)')], y: [k(0, 0), k(1, 10)] } }), '#a', '#a', turnedRow, pose({}), { x: 0, y: 0 }, true, at), /raw transform/);
+  // The rendered own transform wins over the shown Rotation and Scale: a CSS skew of the layer's own.
+  const skew = [1, 0, Math.tan(-8 * Math.PI / 180), 1];
+  const skewed = anchorOperations(one({}), '#a', '#a', base, pose({}, { own: skew }), { x: 150, y: 260 }, true, at);
+  assert.ok(close(skewed[0].values.x, 40 + Math.tan(-8 * Math.PI / 180) * 200) && close(skewed[0].values.y, 100), JSON.stringify(skewed));
 });
 
 test('a handle gesture writes what typing writes: a turn keys an animated rotation unwrapped, else the base, which a raw transform leaves to the base write', () => {

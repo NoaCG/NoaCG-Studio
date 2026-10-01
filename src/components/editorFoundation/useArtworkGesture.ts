@@ -6,7 +6,8 @@ import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
 import { authoredAnchor, authoredTransform, displayedBase, editingPose, requireCurrentPose, shownAnchor } from './animationAuthoring';
-import { requireScaleWritable } from '../../blocks/editorAnimation';
+import { isArmed, requireScaleWritable, sequenceAuthoringReason } from '../../blocks/editorAnimation';
+import { ownerOf, readTimeline } from './timelineView';
 import { apply, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear } from './transformGestures';
 
 type Point = { x: number; y: number };
@@ -93,7 +94,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
           return authoredTransform(template, base.selector, base, part.appearance, { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, gesture.time);
         });
         preview()?.noteInput('drag');
-        if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
+        preview()?.previewTemplate(gesture.operations.length ? session.preview(gesture.operations).template : template);
         return;
       }
       if (gesture.creation && drawingSpace) {
@@ -123,12 +124,17 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         if (!from) throw new Error('Wait for the rendered anchor before editing it.');
         gesture.operations = authoredAnchor(template, base.selector, originalBase, part.appearance, { x: from.x + moved.x / unit, y: from.y + moved.y / unit }, gesture.time, true);
       } else if (handle && part.corners) {
-        // Scale in the layer's own axes about the opposite corner or side, or the anchor with Alt. An SVG
-        // element's own transform attribute sits inside its CSS scale, so its axes are its parent's turned
-        // by its rotation; an HTML layer's are its rendered sides.
+        // Scale in the layer's own axes about the opposite corner or side, or the anchor with Alt. A keyed
+        // scale is GSAP's, the innermost part of what renders, so its axes are the rendered sides. A base
+        // scale is CSS scale, which turns with the layer's rotation but sits outside its own CSS transform
+        // (a skew, or an SVG element's transform attribute): its axes are its parent's turned by the
+        // layer's rotation (a placed text's box, by its base rotation only).
         const corner = handle.kind === 'corner', points = corner ? part.corners : edgePoints(part.corners);
         const pivot = modifiers.altKey ? anchor : points[(handle.index + 2) % 4];
-        const frame = originalBase.mode === 'svg' ? multiply(part.parent as Linear, ownLinear(displayedBase(originalBase, pose, 'rotation'), 1, 1)) : frameOf(part);
+        const view = readTimeline(template), owner = ownerOf(view, originalBase.selector);
+        const keyed = !sequenceAuthoringReason(view.data) && (isArmed(view.data, owner, 'scaleX') || isArmed(view.data, owner, 'scaleY'));
+        const turned = originalBase.mode === 'placed' ? originalBase.rotation : displayedBase(originalBase, pose, 'rotation');
+        const frame = keyed ? frameOf(part) : multiply(part.parent as Linear, ownLinear(turned, 1, 1));
         const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', corner ? linked !== modifiers.shiftKey : modifiers.shiftKey);
         const shift = pivotShift(part.parent!, frame, ratios, pivot, anchor);
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + shift.x, y: base.y + shift.y,
@@ -139,7 +145,8 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY }, gesture.time);
       }
       preview()?.noteInput('drag');
-      if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
+      // A drag back to where it began (a Shift turn snapping to its start) shows the source again.
+      preview()?.previewTemplate(gesture.operations.length ? session.preview(gesture.operations).template : template);
     } catch (cause) { cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
   };
   const end = () => {

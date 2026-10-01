@@ -170,9 +170,10 @@ export const foundationRuntime = String.raw`
       var points = corners(target, targetMatrix, rect, box);
       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
       var origin = target instanceof SVGElement ? undefined : getComputedStyle(target).transformOrigin.split(' ').slice(0, 2).map(parseFloat);
+      var own = target instanceof SVGElement ? undefined : ownMatrix(getComputedStyle(target));
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), box: box, origin: origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), box: box, origin: origin, own: own && [own.a, own.b, own.c, own.d], fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points) }];
     });
@@ -196,13 +197,15 @@ export const foundationRuntime = String.raw`
     var matrix = new DOMMatrix();
     for (var node = element; node && node instanceof Element; node = node.parentElement) {
       var style = getComputedStyle(node);
-      var transform = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
-      var scales = style.scale === 'none' ? [1, 1] : style.scale.split(' ').map(Number);
-      // CSS applies rotate, then scale, then transform (all about transform-origin).
-      var own = new DOMMatrix().rotate(rotateOf(style)).scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
-      matrix = own.multiply(matrix);
+      matrix = ownMatrix(style).multiply(matrix);
     }
     return matrix;
+  }
+  // An element's own transform: CSS applies rotate, then scale, then transform (all about transform-origin).
+  function ownMatrix(style) {
+    var transform = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
+    var scales = style.scale === 'none' ? [1, 1] : style.scale.split(' ').map(Number);
+    return new DOMMatrix().rotate(rotateOf(style)).scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
   }
   function corners(element, matrix, rect, size) {
     if (element instanceof SVGGraphicsElement) {
@@ -231,7 +234,9 @@ export const foundationRuntime = String.raw`
   function anchor(element, matrix, points) {
     var origin = getComputedStyle(element).transformOrigin.split(' ').map(parseFloat);
     if (element instanceof SVGGraphicsElement) {
-      var m = element.getScreenCTM();
+      // CSS rotate and scale turn about the origin in the parent's user space, outside the element's
+      // own transform attribute, so the origin maps through the parent.
+      var parentNode = element.parentElement, m = parentNode instanceof SVGGraphicsElement && parentNode.getScreenCTM() || element.getScreenCTM();
       return { x:m.a*origin[0]+m.c*origin[1]+m.e, y:m.b*origin[0]+m.d*origin[1]+m.f };
     }
     var m = matrix, corner = points[0];

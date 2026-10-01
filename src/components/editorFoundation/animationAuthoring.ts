@@ -1,6 +1,6 @@
 import type { SpxTemplate } from '../../model/types';
 import type { BaseValues, TransformPatch } from '../../blocks/baseEdits';
-import { channelValue, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
+import { channelValue, isArmed, poseKey, sequenceAuthoringReason, turnsOrScales, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
@@ -124,18 +124,25 @@ export function shownAnchor(base: BaseValues, pose: RenderedPart['appearance']):
 }
 /**
  * The operations that put a layer's anchor at `anchor` (layer pixels, R1.2b.1). A numeric edit moves
- * only the pivot. A compensated one (Center anchor, the Anchor tool) keeps the pose at `position`:
- * Position moves by (M - I) x the anchor's change, M the layer's own rotation and scale shown there,
- * keyed where Position is animated and on the base elsewhere (`transformOperations`). An animated
- * Rotation or Scale keeps its keys, so at other times the layer turns about the new point.
+ * only the pivot. A compensated one (Center anchor, the Anchor tool) keeps the pose: Position moves
+ * by (M - I) x the anchor's change, M the layer's own linear transform as rendered (`own`: its
+ * rotation, scale and any CSS transform of its own), else its shown Rotation and Scale. Where that
+ * rotation and scale never change (`turnsOrScales`; a placed text's box never does), M is the same
+ * at every time, so moving the base keeps the whole path. Where they are animated only the pose at
+ * `position` can be kept: Position is keyed there where it is animated and moved on the base
+ * elsewhere (`transformOperations`), and at other times the layer turns about the new point.
  */
 export function anchorOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], anchor: Point, compensate: boolean, position: { step: number; time: number }): EditorOperation[] {
   const before = shownAnchor(base, pose);
   if (!before) throw new Error('Wait for the rendered anchor before editing it.');
   const values = { anchorX: anchor.x, anchorY: anchor.y };
   if (!compensate) return [{ kind: 'base.set', selector, values }];
-  const own = ownLinear(displayedBase(base, pose, 'rotation'), displayedBase(base, pose, 'scaleX'), displayedBase(base, pose, 'scaleY'));
+  const own = pose?.own ?? ownLinear(displayedBase(base, pose, 'rotation'), displayedBase(base, pose, 'scaleX'), displayedBase(base, pose, 'scaleY'));
   const shift = anchorShift(own, { x: anchor.x - before.x, y: anchor.y - before.y });
+  if (!turnsOrScales(data, owner)) {
+    const moves = Math.abs(shift.x) >= .00001 || Math.abs(shift.y) >= .00001;
+    return [{ kind: 'base.set', selector, values: moves ? { x: base.x + shift.x, y: base.y + shift.y, ...values } : values }];
+  }
   const moved = transformOperations(data, selector, owner, base, pose, { x: displayedBase(base, pose, 'x') + shift.x, y: displayedBase(base, pose, 'y') + shift.y }, position);
   // One base write carries the anchor and whatever part of Position is not animated.
   const placed = moved.find(operation => operation.kind === 'base.set');
@@ -146,5 +153,7 @@ export function anchorOperations(data: AnimData | null, selector: string, owner:
 export function authoredAnchor(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], anchor: Point, time: number, compensate: boolean): EditorOperation[] {
   requireCurrentPose(appearance, time, undefined, appearance?.cue);
   const edit = editSegment(template, selector, time, appearance?.cue);
+  // The departing cue's start is a pose the arriving preview does not show, so its own transform is unknown.
+  if (compensate && edit.departing) throw new Error('On this flag the layer edits its next cue’s start, which the preview does not show. Move the playhead a frame to move its anchor there.');
   return anchorOperations(edit.view.data, selector, ownerOf(edit.view, selector), base, poseOf(edit, selector, appearance), anchor, compensate, positionOf(edit));
 }

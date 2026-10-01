@@ -229,7 +229,7 @@ function escapeRe(s: string): string {
 }
 
 /** Body of the rule whose selector list exactly equals `selector` (comments stripped). */
-function findRuleBody(css: string, selector: string): { body: string; start: number; end: number } | null {
+export function findRuleBody(css: string, selector: string): { body: string; start: number; end: number } | null {
   let i = 0;
   let ruleStart = 0;
   while (i < css.length) {

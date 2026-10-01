@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { baseValues } from '../../blocks/baseEdits';
-import { isArmed } from '../../blocks/editorAnimation';
+import { turnsOrScales } from '../../blocks/editorAnimation';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession, Revision } from './session';
 import type { EditorOperation } from './operations';
 import type { RenderedPart } from './protocol';
 import { ownerOf, readTimeline } from './timelineView';
-import { authoredAnchor, editingPose, shownAnchor } from './animationAuthoring';
+import { authoredAnchor, editingPose, requireCurrentPose, shownAnchor } from './animationAuthoring';
 import { AnimationNumber } from './AnimationProperties';
 
 /**
@@ -25,7 +25,7 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   const anchor = shownAnchor(base, editingPose(template, selector, appearance, time, cue));
   if (!anchor) return <div className="ef-anchor"><span className="ef-section-label">Anchor point</span><p className="ef-muted">Reading the layer’s pivot from the preview…</p></div>;
   const view = readTimeline(template), owner = ownerOf(view, selector);
-  const animated = (['rotation', 'scaleX', 'scaleY'] as const).some(property => isArmed(view.data, owner, property));
+  const animated = turnsOrScales(view.data, owner);
   const run = (operations: () => EditorOperation[], expected: Revision) => {
     try {
       const batch = operations();
@@ -35,9 +35,12 @@ export default function AnchorPoint({ template, selector, session, appearance }:
   };
   const commit = (axis: 'x' | 'y') => (value: number, expected: Revision, at: number, atCue?: number) => run(() => {
     if (at !== session.port.view().time || atCue !== session.port.view().cue) throw new Error('The playhead moved. Inspect the value again before editing.');
+    requireCurrentPose(appearance, at, expected, atCue);
     return authoredAnchor(template, selector, base, appearance, { ...anchor, [axis]: value }, at, false);
   }, expected);
   const centre = () => run(() => {
+    // The compensation reads the rendered pose, so it must be this playhead's and this revision's.
+    requireCurrentPose(appearance, session.port.view().time, session.version(), session.port.view().cue);
     const box = appearance?.box, unit = appearance?.unit ?? 1;
     if (!box) throw new Error('Wait for the rendered box before centring its anchor.');
     return authoredAnchor(template, selector, base, appearance, { x: box[0] / 2 / unit, y: box[1] / 2 / unit }, session.port.view().time, true);

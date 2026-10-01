@@ -406,8 +406,8 @@ row is closed and the default editor is unchanged.
 ## R1.2b.1 scoped canvas-transform-tools receipt, 2026-10-01
 
 The [bounded spec, reproduction and verification](editor-r1-2b-1/README.md) add the canvas rotation
-handle, edge scale handles and the anchor point, so all five familiar 2D groups have canvas and
-numeric controls. Rotation keeps unwrapped degrees and Shift snaps to 15; a side handle scales one
+handle, edge scale handles and the anchor point, so Position, Scale, Rotation and the anchor have
+canvas and numeric controls and Opacity its numeric one. Rotation keeps unwrapped degrees and Shift snaps to 15; a side handle scales one
 axis of the layer's own frame about the opposite side, Shift both, Alt about the anchor; corners and
 sides scale a turned layer along its own sides. The anchor is a static base value (owner decision
 2026-10-01): CSS `transform-origin` in the layer's base rule, typed, centred or dragged with the

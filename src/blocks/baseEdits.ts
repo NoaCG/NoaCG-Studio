@@ -2,8 +2,8 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
 import { parseTransform } from '../assets/svgGeometry';
-import { locateAnimData, parseAnimData } from './animData';
-import { addCatalogLine, appendCss, setCssDeclaration } from './edit';
+import { locateAnimData, parseAnimData, type AnimData } from './animData';
+import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
@@ -53,8 +53,8 @@ function matchingStyles(css: string, node: Element): CSSStyleDeclaration[] {
   return styles;
 }
 /** The rule, other than the target's own (the first top-level rule with exactly its selector, which
- *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule setting `transform-box`, which
- *  would measure an anchor from another box. */
+ *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule whose `transform-box` measures
+ *  an HTML element's origin from a box other than its border box. */
 function originOwner(css: string, node: Element, target: string): string | null {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(css);
@@ -64,7 +64,8 @@ function originOwner(css: string, node: Element, target: string): string | null 
       if (rule instanceof CSSStyleRule && node.matches(rule.selectorText)) {
         const mine = !nested && !own && rule.selectorText === target;
         own ||= mine;
-        if (rule.style.getPropertyValue('transform-box') || !mine && rule.style.getPropertyValue('transform-origin')) return rule.selectorText;
+        const box = rule.style.getPropertyValue('transform-box');
+        if (box && !['border-box', 'view-box', 'stroke-box'].includes(box) || !mine && rule.style.getPropertyValue('transform-origin')) return rule.selectorText;
       }
       const found = rule instanceof CSSGroupingRule ? visit(rule.cssRules, true) : null;
       if (found) return found;
@@ -73,13 +74,20 @@ function originOwner(css: string, node: Element, target: string): string | null 
   };
   return visit(sheet.cssRules, false);
 }
-/** Whether the graphic's script or animation data sets transformOrigin itself: outside the generated
- *  interpreter (which only names it), or anywhere in a script without animation data. */
-function scriptSetsOrigin(js: string): boolean {
-  const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), data = locateAnimData(js);
-  const own = start >= 0 && end > start && data && data.start > start && data.end < end
-    ? js.slice(0, start) + js.slice(data.start, data.end) + js.slice(end) : js;
-  return /transformOrigin|transform-origin/.test(own);
+/** Whether the graphic's script or animation data sets this element's transformOrigin itself: a
+ *  transformOrigin track under a data selector naming it, or a script (outside the generated
+ *  interpreter, which only names the property) that sets transformOrigin and names it by its id or a
+ *  class. A script naming neither (the imported designs' text fit, which squeezes a placed line's
+ *  text, never its box) leaves the anchor alone. */
+function originSetFor(js: string, data: AnimData | null, node: Element): boolean {
+  const timelines = [...data?.steps ?? [], ...(data?.machine?.groups ?? []).flatMap(group => group.states.flatMap(state => state.timeline ? [state.timeline] : []))];
+  if (timelines.some(step => Object.entries(step.layers).some(([key, tracks]) => {
+    try { return !!tracks.transformOrigin?.length && node.matches(key); } catch { return false; }
+  }))) return true;
+  const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), at = locateAnimData(js);
+  const script = start >= 0 && end > start && at && at.start > start && at.end < end ? js.slice(0, start) + js.slice(end) : js;
+  if (!/transformOrigin|transform-origin/.test(script)) return false;
+  return [node.id, ...Array.from(node.classList)].filter(Boolean).some(name => new RegExp('(?:^|[^\\w-])' + esc(name) + '(?![\\w-])').test(script));
 }
 
 // A gesture repeatedly inspects the same immutable document. Retain only its derived
@@ -158,17 +166,22 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const y = parseFloat(node.getAttribute('y') ?? node.getAttribute('cy') ?? '0');
     originX = m.a * x + m.c * y + m.e; originY = m.b * x + m.d * y + m.f;
   }
-  // The anchor is the base target's transform-origin, ours where it names our custom properties.
-  const declaredOrigin = declaration(template.css, target, 'transform-origin');
-  const anchor = declaredOrigin?.includes('--base-anchor-') ? { x: number(template.css, target, '--base-anchor-x'), y: number(template.css, target, '--base-anchor-y') } : null;
+  // The anchor is the base target's transform-origin, ours where it names our custom properties, read
+  // from the rule the writer writes (the first top-level rule with exactly the target's selector).
+  const own = findRuleBody(template.css, target)?.body ?? '';
+  const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
+  const anchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
+  // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
+  const repeated = (own.match(/(?:^|[;{\s]|\*\/)(?:-webkit-)?transform-origin\s*:/g) ?? []).length > 1;
   // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
   const textMotion = mode === 'placed' && motion?.steps.some(step => Object.entries(step.layers).some(([key, tracks]) => {
     try { return node.matches(key) && ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length); } catch { return false; }
   }));
   const rival = svg ? null : originOwner(template.css, targetNode, target);
   const anchorReason = svg ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
-    : scriptSetsOrigin(template.js) ? 'This graphic\'s script or animation data sets transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
-    : rival ? `This layer's transform-origin or transform-box is set by another rule (${rival}), so an anchor written here could lose to it or be measured from another box. Its source is preserved.`
+    : originSetFor(template.js, motion, targetNode) ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+    : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
+    : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
     : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
     : null;
@@ -191,7 +204,9 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   const base = baseValues(template, selector);
   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
-  const turning = patch.rotation === undefined ? [] : parseAnimData(template.js)?.steps.flatMap(step => Object.entries(step.layers).filter(([target]) => artworkNode(template, selector).matches(target)).flatMap(([, tracks]) => Object.keys(tracks))) ?? [];
+  // Base rotation turns the base target: a placed text's box, which its text's tracks never touch.
+  const turnedNode = base.mode === 'placed' ? new DOMParser().parseFromString(template.html, 'text/html').querySelector(base.target)! : artworkNode(template, selector);
+  const turning = patch.rotation === undefined ? [] : parseAnimData(template.js)?.steps.flatMap(step => Object.entries(step.layers).filter(([target]) => turnedNode.matches(target)).flatMap(([, tracks]) => Object.keys(tracks))) ?? [];
   if (turning.includes('rotation')) throw new Error('Rotation is animated on this layer. Use its animation controls to preserve motion.');
   if (turning.includes('transform')) throw new Error(`${selector} animates a raw transform string, which would replace a base rotation. Its source is preserved.`);
   const anchored = patch.anchorX !== undefined || patch.anchorY !== undefined;

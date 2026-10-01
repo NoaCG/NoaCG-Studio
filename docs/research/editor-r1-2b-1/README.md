@@ -12,7 +12,8 @@ nothing reorders R1.2b, so the split below follows the plan's order.
 [EDITOR_PLAN.md](../../EDITOR_PLAN.md)'s R1.2b row now lists its bounded phases, in order:
 
 1. **R1.2b.1, canvas transform tools** (this spec): the rotation handle, edge scale handles and the
-   anchor point, so the five familiar 2D groups are complete on the canvas (B03/E04).
+   anchor point, so all five familiar 2D groups have their controls: Position, Scale, Rotation and
+   the anchor on the canvas and in the inspector, Opacity in the inspector (B03/E04).
 2. R1.2b.2, typography and fit (E05/B04).
 3. R1.2b.3, images, assets and file/drop import into the open graphic (E06/B04).
 4. R1.2b.4, the bounded Pen (E06).
@@ -93,13 +94,20 @@ stopwatch and keys in a later R1.2 phase. So:
 - **Layer-local pixels.** Anchor X/Y are measured from the top-left of the layer's own box (the
   border box of its base target), in the same units as its Position. Without a declared anchor the
   fields show the rendered default (the box centre for HTML).
-- **On an animated layer** a numeric anchor edit moves the pivot for the whole path, which is what
-  changing a pivot means. The compensated edits (Center anchor and the Anchor tool) keep the pose
-  at the playhead, exactly: they change Position by (M - I) x (the anchor's change), where M is
-  the layer's own rotation and scale as rendered there. Where Position is animated that change is a
-  key at the playhead (the R1.2a.6 adapter); elsewhere it moves the base. Where Rotation or Scale
-  is animated, other times keep their keys and so change pose; the editor says so beside the
-  control and does not claim to preserve the path.
+- **A numeric anchor edit moves only the pivot**, for the whole path, which is what changing a
+  pivot means. The compensated edits (Center anchor and the Anchor tool) change Position by
+  (M - I) x (the anchor's change), where M is the layer's own linear transform as the preview
+  renders it: its rotation and scale with any CSS `transform` of its own (a skew, a turned accent).
+- **Where the layer's rotation and scale never change** (no Rotation or Scale channel and no raw
+  `transform` track; a placed text's box never turns with its text), M is the same at every time,
+  so the compensation goes to the base and keeps the whole path, keyed Position included.
+- **Where Rotation or Scale is animated**, no base move keeps the path, so only the pose at the
+  playhead is kept: Position is keyed there where it is animated (the R1.2a.6 adapter) and moved on
+  the base elsewhere, and at other times the layer turns about the new point. The Anchor point
+  section says so; nothing claims to keep the path.
+- **On a flag's departing side** (G02: a layer whose bar starts on the flag edits its next cue's
+  start), the preview shows the arriving pose, not the one being edited, so a compensated edit
+  refuses there; typing the anchor still works.
 
 ### Gestures
 
@@ -113,9 +121,17 @@ stopwatch and keys in a later R1.2 phase. So:
   or bottom handle its Y, keeping the opposite side in place; Shift scales both axes by the same
   ratio (After Effects' Shift); Alt scales about the anchor, which is what typing the Scale value
   does. The Link proportions setting governs corners only.
-- **Rotated layers**: corner and edge handles measure the pointer in the layer's own axes (the
-  rendered matrix of the layer), so a rotated layer still scales along its own sides and keeps its
-  opposite side or corner in place. Unrotated layers get the same numbers as before.
+- **Rotated layers**: corner and edge handles measure the pointer in the axes the scale acts in,
+  so a turned layer still scales along its own sides and keeps its opposite side or corner in
+  place. A keyed scale is GSAP's, the innermost part of what renders: its axes are the rendered
+  sides. A base scale is CSS `scale`, which turns with the layer's rotation but sits outside the
+  layer's own CSS `transform` (and an SVG element's transform attribute): its axes are the
+  parent's turned by the layer's rotation. An unrotated layer's are its parent's, which is what
+  R1.1a used, so its numbers are unchanged. On a layer turned or skewed by its own CSS, a base
+  scale along those axes shears it, as typing that Scale does, and the opposite side's midpoint is
+  what stays in place.
+- **The pivot on screen** is the computed `transform-origin`: an HTML layer's from its box, an SVG
+  element's in its parent's user space (outside its own transform attribute).
 - **Anchor**: a marker at the pivot of the single selected layer. The Anchor tool (toolbar) drags
   it: the marker follows the pointer and Position compensates, one undo, Escape cancels. The
   inspector's Anchor point section has Anchor X, Anchor Y and Center anchor (compensated, as
@@ -131,15 +147,20 @@ Anchor point section):
 - **Anchor on an SVG element**: GSAP turns an SVG element about an origin it places itself, and
   folds a CSS rotation as if about the user-space origin (above), so a CSS anchor cannot hold
   exactly. The marker still shows where the pivot is. Rotation and edge handles work on SVG.
-- **Anchor owned elsewhere**: another rule, a later duplicate rule, a rule inside `@media`, or the
-  inline style sets `transform-origin` or `transform-box`; the animation data has a
-  `transformOrigin` track on the layer; or the graphic's script outside the animation data sets
-  `transformOrigin`.
+- **Anchor owned elsewhere**: another rule (a later rule of the same selector, a rule inside
+  `@media`, a descendant rule) sets `transform-origin`; the layer's own rule declares it twice (or
+  adds the `-webkit-` alias); the inline style sets it; a `transform-box` other than the border box
+  measures it; the animation data has a `transformOrigin` track under a selector naming this
+  element; or a script outside the generated interpreter sets `transformOrigin` and names this
+  element by its id or a class. A script naming neither leaves the anchor alone: every imported
+  design's text-fit script squeezes a placed line's text, never its box or a drawn layer.
 - **Placed text whose text animates Rotation or Scale**: its keys turn the text inside its box
   about the text's own centre, which no anchor on the box can follow (their offset changes with the
   number of lines). Both directions refuse: an anchor on such a layer, and a Rotation or Scale key
   on placed text with an anchor of its own.
-- **Kept**: a raw `transform` track refuses Rotation keys and the rotation handle (as R1.2a.6); a
+- **Kept**: a raw `transform` track refuses Rotation keys and the rotation handle (as R1.2a.6; the
+  base-rotation refusal now says so, and looks at the base target, so a placed text whose text
+  animates a raw transform can turn its box); a
   `scale` track refuses a one-axis edge drag ("Keep them linked"); base scale beside an animated
   scale refuses (R1.1a), so the Clean Steps accent's top and bottom edges refuse while its side
   edges key `scaleX`; a singular parent or own matrix, a zero scale axis, the graphic root,
@@ -150,10 +171,10 @@ Anchor point section):
 | Portion | Observable result | Refusal (source and history byte-identical, reason beside the control) |
 |---|---|---|
 | Rotation handle | On a created rectangle, a quarter turn of the handle about its anchor writes base Rotation 90 (within 0.5) in one undo; the Rotation field shows it and typing that value gives the same source; Shift lands on a multiple of 15; two full turns write 720, which saves and reopens as 720; Escape cancels. On a layer whose Rotation is animated, the handle keys `rotation` at the playhead and leaves the other keys byte-identical. | A raw `transform` track. |
-| Edge handles | On a created rectangle, the right handle scales X only with the left side in place, the bottom handle Y only with the top in place, Shift both by one ratio, Alt about the anchor with the same source as typing that Scale; each one undo; Escape cancels. Rotated 30 degrees, its right handle still scales its own X with its left side in place. On Clean Steps at 0.3 s the accent's side handle keys `scaleX`; on Frosted Panel at 0.28 s a Shift edge drag keys `scale` (and `y`). | The accent's top handle (R1.1a), a plain edge drag on Frosted Panel ("Keep them linked"). |
-| Anchor point | Anchor X/Y show the rendered pivot (the box centre by default). Typing writes `--base-anchor-x/y` and `transform-origin` in the layer's base rule, CSS only, one undo: an unrotated layer does not move, a rotated one turns about the new point, and the canvas marker sits at it. Center anchor puts it at the box centre with every corner within 0.5 px. With the Anchor tool, dragging the marker of a rotated, scaled rectangle moves the marker with the pointer, keeps every corner within 0.5 px, and writes the anchor and base Position in one undo; Escape cancels. On Frosted Panel's box at 0.28 s the drag keys `y` at the playhead and moves the base Layout offset X, with the pose there within 0.5 px. On created text it writes the wrapper's anchor and rotates about it. | Nested SVG text; another rule owning `transform-origin`; placed text animating Rotation; a Rotation key on placed text with its own anchor. |
-| Nested SVG | On fixture-svg's text inside translate(100,80) rotate(30) scale(2), the rotation handle and an edge handle give the same source as typing those values. | Its anchor. |
-| Catalog | A sweep over every catalog layer with base placement: a numeric anchor edit applies (only CSS changes) or refuses with one of the reasons above, and a Rotation change of 15 degrees applies or refuses with a kept reason. | Kept reasons only. |
+| Edge handles | On a created rectangle, the right handle scales X only with the left side in place, the bottom handle Y only with the top in place, Shift both by one ratio, Alt about the anchor with the same source as typing that Scale; each one undo; Escape cancels. Rotated 30 degrees, its right handle still scales its own X with its left side in place. On Clean Steps at 0.3 s the accent's side handle keys `scaleX`; on Frosted Panel at 0.28 s a Shift edge drag keys `scale`. A thin turned layer moves from its centre. On a rectangle turned 30 degrees by its own CSS, a side drag scales along the parent's X about the opposite side's midpoint. | The accent's top handle (R1.1a), a plain edge drag on Frosted Panel ("Keep them linked"). |
+| Anchor point | Anchor X/Y show the rendered pivot (the box centre by default). Typing writes `--base-anchor-x/y` and `transform-origin` in the layer's base rule, CSS only, one undo: an unrotated layer does not move, a rotated one turns about the new point, and the canvas marker sits at it. Center anchor puts it at the box centre with every corner within 0.5 px. With the Anchor tool, dragging the marker of a rotated, scaled rectangle moves the marker with the pointer, keeps every corner within 0.5 px, and writes the anchor and base Position in one undo; Escape cancels. On Frosted Panel's box at 0.28 s (scale animated) the drag keys `y` at the playhead and moves the base Layout offset X, with the pose there within 0.5 px. On a Clean Steps row turned on its base, whose rotation and scale never change, the drag moves only the base: the yPercent reveal is byte-identical and the row's pose at 0.8 s and at 1.6 s stays within 0.5 px. On created text it writes the wrapper's anchor and rotates about it. Saved and reopened, the anchor is the same. | Nested SVG text; another rule, a second declaration, the inline style or a `transform-box` owning the origin; this layer's data track or a script naming it; placed text animating Rotation; a Rotation key on placed text with its own anchor; a compensated edit on a flag's departing side. |
+| Nested SVG | On fixture-svg's text, with a transform attribute of its own, inside translate(100,80) rotate(30) scale(2): a 25 degree turn writes Rotation 25, an Alt side drag gives the same source as typing that Scale, and a side drag without Alt keeps the opposite side in place. | Its anchor. |
+| Catalog | A sweep over every catalog layer with base placement: a numeric anchor edit applies (only CSS changes, in `--scale` units where the placement scales) or refuses with an anchor reason, and a Rotation change of 15 degrees applies on every one. | Anchor reasons only. |
 | Preserved | Untouched keys, tracks and flags stay byte-identical; saved graphics reopen exactly; a rectangle with an anchor and a rotation renders the same box in the simulator as in the editor; the editor regressions pass except the assertions named below. | |
 
 ### Existing assertions this decision changes
@@ -162,13 +183,30 @@ None expected. New handles are drawn before the corner handles, so `.ef-selectio
 still a corner and `[data-handle]` still names corners, and none of them is a `rect`, so
 `.ef-selection rect` still counts selected layers.
 
+## Limits
+
+Recorded rather than changed here:
+
+- **An anchor at a zero placement does not follow `--scale`.** A layer placed at `left: 0; top: 0`
+  reads as unscaled, so its anchor is written in plain pixels while its box may grow with the
+  design's `--scale` (a catalog accent); played at another scale, its pivot stays at the old
+  pixel. Such a layer's Position never drifts, since it is 0.
+- **A keyed rotation over a CSS rotation of the layer's own** (rare): the scale handles' axes for a
+  base scale come from the shown rotation, which then misses the stylesheet's angle.
+- **Placed text animates inside its box**: its keyed Position, Rotation and Scale move the text
+  within the box, while base edits, the handles and the anchor act on the box (R1.1a's split). An
+  anchor never pretends otherwise (the refusals above).
+- **An SVG element's own pivot** is GSAP's once it moves; an SVG anchor needs its own adapter.
+
 ## Verification plan
 
 Pure parts first, in Node, beside `full-transforms`, `cross-cue` and `step-authoring`:
 `scripts/canvas-transforms.test.mjs` checks the gesture math (unwrapped rotation, the 15 degree
 snap, edge and corner ratios in a rotated layer's own axes, the opposite-side and anchor pivots, the
-anchor's compensation and its round trip) and the operations a gesture writes (keys where animated,
-base elsewhere, the shared `scale` refusal, the placed-text key refusal). Each guard is
+anchor's compensation and its round trip) and the operations an anchor edit writes (the pair alone
+when typed; the base where rotation and scale never change; a Position key where they are
+animated; a rendered skew in M). The shared `scale` refusal stays in `full-transforms`; the anchor
+refusals and the placed-text key refusal need a DOM and are in the browser spec. Each guard is
 mutation-tested. `e2e/editor-canvas-transforms.spec.ts` is written first and queued on the
 unmodified code from a snapshot worktree, then the editor regressions (transforms, cross-cue, steps,
 out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
@@ -209,6 +247,45 @@ fingerprints, the battery and taste frames are not re-run unless it does.
 - [runtime.ts](../../../src/components/editorFoundation/runtime.ts) measures a layer's CSS `rotate`
   in its matrix (a placed text's wrapper is never folded by GSAP, so its turned corners were drawn
   unturned), measures corners on the unrounded box, and reports each layer's box and pivot.
+
+## Review and simplification
+
+Review ran as one workflow of four read-only reviewers (the gesture geometry and the preview's
+measurements; the anchor's storage and refusals; the authoring and inspector wiring; tests and
+docs), each followed by one refuter, eight agents in all. They raised 26 findings; the refuters
+confirmed 19 and 6 in part, and refuted 1 (the declared anchor read from an `@media` rule cannot
+make a placed text, since its placement is read the same way; reading from the written rule is
+kept as consistency). Fixed:
+
+- **M was only the shown Rotation and Scale**, so a layer with a CSS `transform` of its own (a
+  turned accent, a skewed divider) jumped when its anchor moved. The preview now reports each
+  layer's own linear transform and the compensation uses it. Two reviewers found this.
+- **Scale handles regressed R1.1a on such layers**: they measured in the rendered sides, inside
+  the layer's own transform, though CSS `scale` acts outside it. A base scale now measures in the
+  parent's axes turned by the layer's rotation (R1.1a's frame when unrotated); a keyed scale, which
+  is GSAP's and innermost, keeps the rendered sides.
+- **The anchor's compensation keyed Position even where nothing turns or scales**, distorting a
+  reveal and, on placed text, keying the text inside its box in the wrong frame. Where rotation
+  and scale never change, the base now takes the compensation and the whole path is kept; keys
+  remain only where Rotation or Scale is animated. A compensated edit on a flag's departing side,
+  whose pose the preview does not show, refuses.
+- **The script refusal was graphic-wide**: every imported design's text-fit script set it off on
+  every layer. It now refuses only where the data or a script names this element. A second
+  declaration in the layer's own rule now refuses; a `transform-box` of the border box no longer
+  does, and the message names the box; the base-rotation refusal looks at a placed text's box.
+- **The preview stayed on a snapped pose** when a Shift turn came back to its start; a thin turned
+  layer's centre grabbed a side handle (the reach now comes from its own sides); an SVG element's
+  pivot was mapped through its own transform attribute; the Anchor point section wrote without
+  checking the preview's revision and cue; its note missed a raw transform track.
+- **Tests and docs**: the SVG checks could not fail for a wrong frame (the text now has a transform
+  attribute of its own, and a side drag must keep its opposite side); the untested refusals,
+  per-gesture undo, neighbouring keys, the anchor's save and reopen and a skewed layer are now
+  asserted; the sweep pins its reasons per kind; the covers header names `designLayout` and
+  `artworkEdits`; the receipt's claims (five groups, Frosted Panel's `y`, the Node test's reach,
+  the mutation count) are corrected.
+
+Recorded as limits, not changed: a zero placement's anchor units and a keyed rotation over a CSS
+rotation (see Limits).
 
 ## Verification receipt
 
