@@ -111,7 +111,8 @@ test('every change prepared and nothing on air: the output reloads onto the new 
   await page.evaluate(() => (window as ReadyWindow).__noacgLive!.prepare({ id: 'p2', n: 2, h: 'h2' }));
   await expect.poll(() => documents.length, { timeout: 30_000 }).toBe(2);
   await expect.poll(async () => (await readyOf(page))?.v?.n, { timeout: 20_000 }).toBe(2);
-  expect((await readyOf(page))!.n).toBe(2);
+  // The version is known at boot; the graphics are counted as they load, so wait for the count.
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(2);
   // Handed the same request again after the reload, it does nothing: it acts on a request once.
   await page.evaluate(() => (window as ReadyWindow).__noacgLive!.prepare({ id: 'p2', n: 2, h: 'h2' }));
   await page.waitForTimeout(1_000);
