@@ -1,0 +1,6 @@
+obs-bridge-proof, mode probe, node v24.13.0, 2026-10-01T00:02:29.263Z
+OBS config dirs looked at: ["%APPDATA%\\obs-studio"]
+settings: {"file":"%APPDATA%\\obs-studio\\plugin_config\\obs-websocket\\config.json","enabled":false,"port":4455,"authRequired":true,"password":"present (not shown)"}
+tcp 127.0.0.1:4455: refused
+Bridge would say (server-off): OBS's WebSocket server is off. In OBS, open Tools > WebSocket Server Settings, tick Enable WebSocket server, press OK, then Try again.
+handshake: not attempted, nothing is listening
