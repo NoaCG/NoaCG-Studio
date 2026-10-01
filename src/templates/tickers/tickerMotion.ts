@@ -149,13 +149,18 @@ function tickerMarquee(target) {
   var track = document.querySelector(target);
   if (!track) return null;
   var oneSetWidth = track.scrollWidth / 2;        // the items are rendered twice
+  if (oneSetWidth <= 0) return null;            // nothing to scroll yet
+  tickerMotionLive = tickerMarqueeLoop(track, oneSetWidth);
+  return tickerMotionLive;
+}
+
+// tickerMarqueeLoop(): one set width of travel, repeated forever.
+function tickerMarqueeLoop(track, oneSetWidth) {
   // Travel speed. Edit the 140 to change what this design ships at; the operator's percentage
   // multiplies it, and a later change to that percentage reaches this tween through
   // tickerApplySpeed() rather than waiting for the next take.
   var speed = tickerMotionSpeed();
   var pixelsPerSecond = 140 * speed;
-  if (oneSetWidth <= 0) return null;            // nothing to scroll yet
-
   var travel = gsap.fromTo(track,
     { x: 0 },
     {
@@ -165,8 +170,8 @@ function tickerMarquee(target) {
       repeat: -1,                               // loop until stop()
     }
   );
+  travel.noacgMarquee = { track: track, width: oneSetWidth, pixelsPerSecond: pixelsPerSecond };
   tickerMotionBuiltAt = speed;
-  tickerMotionLive = travel;
   return travel;
 }
 
@@ -176,22 +181,124 @@ function tickerMarquee(target) {
 function tickerFlipCycle(target) {
   var track = document.querySelector(target);
   if (!track) return null;
-  var items = track.querySelectorAll('.ticker-item');
+  var items = Array.prototype.slice.call(track.querySelectorAll('.ticker-item'));
   if (!items.length) return null;
+  tickerMotionLive = tickerFlipLoop(track, items, 0);
+  return tickerMotionLive;
+}
+
+// tickerFlipLoop(): the endless rotation, starting at item number \`first\` of the list.
+function tickerFlipLoop(track, items, first) {
   // The hold IS this design's speed: nothing travels, so what an operator turns up is how
   // long each item stays. The flips either side of it scale with it, exactly as the credits'
   // paged preset does, so a faster strip is faster all through rather than snappy and patient.
   var speed = tickerMotionSpeed();
   var holdSeconds = 3.2 / speed;                // reading time per item
+  var order = [];                               // list positions, in the order they show
+  for (var k = 0; k < items.length; k++) order.push((first + k) % items.length);
 
   var cycle = gsap.timeline({ repeat: -1 });    // the endless item rotation
   cycle.set(items, { opacity: 0 }, 0);          // all items start hidden
-  items.forEach(function (item) {
+  order.forEach(function (index) {
+    var item = items[index];
     cycle.fromTo(item, { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 / speed, ease: 'power3.out' });
     cycle.to(item, { y: -18, opacity: 0, duration: 0.35 / speed, ease: 'power2.in' }, '+=' + holdSeconds);
   });
+  // What tickerItemsChanged() reads to find the item on screen. \`lead\` is how long a story from
+  // before an edit still has on screen before this cycle starts: none, when play() built it.
+  cycle.noacgFlip = { track: track, cycle: cycle, items: items, order: order, lead: 0 };
   tickerMotionBuiltAt = speed;
-  tickerMotionLive = cycle;
   return cycle;
+}
+
+// tickerItemsChanged(): new ITEMS reach a strip that is already running.
+//
+// update() calls this when it has just re-rendered the track. Both builders measured at play(),
+// so without it the running motion kept working on what it measured then. A flip cycle went on
+// fading the old item nodes, which were gone, and the strip was blank until the next take
+// (measured on tk03 in Chromium: 1 item visible before an update, 0 in every sample for 4 s
+// after it). A marquee went on sliding the OLD set width, so with a list of another length its
+// loop point no longer landed on the second copy and the strip jumped once a loop.
+//
+// So the running motion is swapped for a handover built on the new items, from where the strip
+// is. It goes into the same parent at the parent's current time, so nothing before it moves, and
+// it becomes the live motion, so a speed press or a second edit reaches it the same way.
+function tickerItemsChanged() {
+  var live = tickerMotionLive;
+  if (!live || !live.parent) return;            // nothing on air: the next take builds fresh
+  if (live.noacgFlip) tickerFlipHandover(live);
+  else if (live.noacgMarquee) tickerMarqueeHandover(live);
+}
+
+// A marquee keeps its PICTURE: the offset into one set of the old items is where the same
+// stories stand in the new track, since an edit rarely moves the ones already passing. It
+// travels to the end of the new set and the endless loop starts there, a whole new set wide,
+// so the loop point lands on the second copy again.
+function tickerMarqueeHandover(live) {
+  var info = live.noacgMarquee, track = info.track, parent = live.parent;
+  var into = (((-gsap.getProperty(track, 'x')) % info.width) + info.width) % info.width;
+  var oneSetWidth = track.scrollWidth / 2;
+  tickerMotionEnd();
+  if (oneSetWidth <= 0) { gsap.set(track, { x: 0 }); return; }   // every item removed
+  into = into % oneSetWidth;                    // a shorter list can end before the picture
+  var loop = tickerMarqueeLoop(track, oneSetWidth);
+  var handover = gsap.timeline();
+  handover.fromTo(track, { x: -into }, {
+    x: -oneSetWidth, duration: (oneSetWidth - into) / loop.noacgMarquee.pixelsPerSecond, ease: 'none',
+  });
+  handover.add(loop);
+  handover.noacgMarquee = loop.noacgMarquee;
+  parent.add(handover, parent.time());
+  tickerMotionLive = handover;
+}
+
+// A flip lets the story on screen FINISH: it stays for the rest of its hold and flips out on
+// time, and the new list starts at that boundary with the story after the one that was showing.
+// That one is found by its text, so a story added above it does not make the strip repeat
+// itself; an item edited in place is not found, and the one after its old place comes next.
+function tickerFlipHandover(live) {
+  var flip = live.noacgFlip, track = flip.track, parent = live.parent;
+  var now = live.time(), showing, position, endsAt;
+  if (now < flip.lead) {                        // still finishing a story from an earlier edit
+    showing = flip.leadItem; position = flip.leadPosition; endsAt = flip.lead;
+  } else {
+    var turn = flip.cycle.duration() / flip.order.length;
+    var into = flip.cycle.time();
+    var k = Math.min(flip.order.length - 1, Math.floor(into / turn));
+    position = flip.order[k]; showing = flip.items[position];
+    endsAt = now + (k + 1) * turn - into;
+  }
+  var items = Array.prototype.slice.call(track.querySelectorAll('.ticker-item'));
+  live.pause();
+  parent.remove(live);
+  tickerMotionLive = null;
+  if (!items.length) { live.kill(); return; }   // every item removed: the strip empties
+  var next = position + 1;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].textContent === showing.textContent) { next = i + 1; break; }
+  }
+  gsap.set(items, { opacity: 0 });              // the new items wait for their turn
+  track.insertBefore(showing, track.firstChild);   // the story on screen stays until its turn ends
+  var handover = gsap.timeline();
+  // The rest of its turn is played off the old cycle itself, so it eases out exactly as it was
+  // going to, at the pace it was running.
+  handover.add(live.tweenFromTo(now, endsAt), 0);
+  var lead = handover.duration();
+  handover.call(function () { if (showing.parentNode) showing.parentNode.removeChild(showing); }, null, lead);
+  var cycle = tickerFlipLoop(track, items, next % items.length);
+  handover.add(cycle, lead);
+  handover.noacgFlip = {
+    track: track, cycle: cycle, items: items, order: cycle.noacgFlip.order,
+    lead: lead, leadItem: showing, leadPosition: position,
+  };
+  parent.add(handover, parent.time());
+  tickerMotionLive = handover;
+}
+
+// tickerMotionEnd(): drop the running motion. A take builds its own, and a strip taken off air
+// has nothing left for an edit to reach.
+function tickerMotionEnd() {
+  if (tickerMotionLive) tickerMotionLive.kill();
+  tickerMotionLive = null;
 }`;
 }

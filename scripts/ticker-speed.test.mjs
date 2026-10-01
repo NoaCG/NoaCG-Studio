@@ -198,21 +198,58 @@ function moved(delta, px) {
   assert.ok(Math.abs(delta - px) < 0.01, `expected ${px}px, measured ${delta}`);
 }
 
+const ITEM_WIDTH = ONE_SET_WIDTH / ITEM_COUNT;   // 350px a story, so four make the 1400px set
+const STORIES = ['One', 'Two', 'Three', 'Four'];
+
+/**
+ * The track as rebuildTicker() leaves it: one node per story, rendered twice for a marquee, each
+ * starting hidden as a flip design's CSS has it (tk03: `opacity: 0` until the cycle reveals it).
+ * `render()` is what an update with new items does to it: every node replaced.
+ */
+function fakeTrack(stories, doubled) {
+  const track = {
+    x: 0, children: [],
+    get scrollWidth() { return track.children.length * ITEM_WIDTH; },
+    querySelectorAll: () => track.children.slice(),
+    insertBefore(node, before) {
+      track.removeChild(node);
+      const at = track.children.indexOf(before);
+      track.children.splice(at < 0 ? track.children.length : at, 0, node);
+      node.parentNode = track;
+    },
+    removeChild(node) {
+      const at = track.children.indexOf(node);
+      if (at >= 0) track.children.splice(at, 1);
+      node.parentNode = null;
+    },
+    render(list) {
+      for (const node of track.children) node.parentNode = null;
+      const set = doubled ? [...list, ...list] : list;
+      track.children = set.map((textContent) => ({ textContent, y: 0, opacity: 0, parentNode: track }));
+    },
+  };
+  track.render(stories);
+  return track;
+}
+
 /**
  * One emitted builder on the real GSAP, added to a step timeline at the lead. `at(t)` moves the
  * root clock to `t` seconds after the step began; `retype(v)` is what update() does when a new
- * speed arrives with the strip running.
+ * speed arrives with the strip running, and `edit(stories)` what it does when new ITEMS arrive:
+ * the track is re-rendered, then the running motion is told.
  */
-function live({ speedFieldId = 'f2', typed = 100, animSpeed = 1, preset = 'marquee', paused = false } = {}) {
-  const items = Array.from({ length: ITEM_COUNT }, () => ({ y: 0, opacity: 1 }));
-  const track = { x: 0, scrollWidth: ONE_SET_WIDTH * 2, querySelectorAll: () => items };
+function live({ speedFieldId = 'f2', typed = 100, animSpeed = 1, preset = 'marquee', paused = false, stories = STORIES } = {}) {
+  const track = fakeTrack(stories, preset !== 'flip');
+  const items = track.children.slice();
   const document = {
     querySelector: () => track,
     getElementById: (id) => (id === speedFieldId ? { textContent: String(typed) } : null),
   };
   const build = preset === 'flip' ? 'tickerFlipCycle' : 'tickerMarquee';
   const run = new Function('gsap', 'document', 'NOACG_ANIM',
-    `${tickerMotionJs(speedFieldId)}\nreturn { motion: ${build}('#ticker-track'), apply: tickerApplySpeed };`);
+    `${tickerMotionJs(speedFieldId)}\nreturn { motion: ${build}('#ticker-track'), apply: tickerApplySpeed,
+      changed: typeof tickerItemsChanged === 'function' ? tickerItemsChanged : function () {},
+      end: typeof tickerMotionEnd === 'function' ? tickerMotionEnd : function () {} };`);
   const result = run(realGsap, document, { speed: animSpeed });
   assert.ok(result.motion, `${build} built nothing`);
   const start = clock;
@@ -223,6 +260,10 @@ function live({ speedFieldId = 'f2', typed = 100, animSpeed = 1, preset = 'marqu
     track, items, step, motion: result.motion,
     at: (t) => { clock = start + t; realGsap.updateRoot(clock); return track; },
     retype: (v) => { typed = v; result.apply(); },
+    edit: (list) => { track.render(list); result.changed(); },
+    end: result.end,
+    /** The stories a viewer can see: nodes still in the track that are not fully faded. */
+    visible: () => track.children.filter((node) => node.opacity > 0.001).map((node) => node.textContent),
   };
 }
 
@@ -296,13 +337,134 @@ test('a design with no speed field never scales its motion', () => {
   assert.equal(s.motion.timeScale(), 1);
 });
 
+// ── New ITEMS reach a strip that is already running ──
+//
+// Editing the stories of a ticker on air is the most ordinary edit there is. update() re-renders
+// the track, which replaces every item node, and the motion built at play() was still working
+// on the old ones: measured on tk03 in Chromium, a flip went from 1 visible item to 0 for the
+// next 4 s and stayed blank until the next take. These read what a viewer would see, sampled
+// every 0.1 s off the real GSAP after an edit.
+
+const TURN = 0.4 + 3.2 + 0.35;   // one story's turn on a flip at 100%: in, hold, out
+
+/**
+ * The stories a flip shows from `from` to `to` seconds into the step, in order, one per turn.
+ * The design itself is blank for an instant at each boundary (one story is fully out as the next
+ * starts in), so a sample may land on that; two blank samples in a row is a blank strip.
+ */
+function flipSequence(s, from, to) {
+  const shown = [];
+  let blank = 0;
+  for (let t = from; t <= to + 1e-9; t += 0.1) {
+    s.at(t);
+    const now = s.visible();
+    assert.ok(now.length <= 1, `${now.length} stories visible at ${t.toFixed(1)}s (${now})`);
+    blank = now.length ? 0 : blank + 1;
+    assert.ok(blank < 2, `the strip is blank at ${t.toFixed(1)}s`);
+    if (now.length && shown.at(-1) !== now[0]) shown.push(now[0]);
+  }
+  return shown;
+}
+
+test('new items reach a running flip: the story on screen finishes, then the new list', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);                      // "One" is up, with 2.6 s of its hold left
+  assert.deepEqual(s.visible(), ['One']);
+  s.edit([...STORIES, 'Five']);
+  // Never blank: "One" holds to its boundary, then the story after it, and the new one in turn.
+  assert.deepEqual(flipSequence(s, LEAD + 1.1, LEAD + 5 * TURN + 1),
+    ['One', 'Two', 'Three', 'Four', 'Five', 'One']);
+});
+
+test('the boundary is the one the strip was already heading for', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit([...STORIES, 'Five']);
+  s.at(LEAD + TURN - 0.36);            // "One" still holding, exactly as it would have
+  assert.equal(s.items[0].opacity, 1);
+  s.at(LEAD + TURN - 0.01);            // nearly out
+  assert.ok(s.items[0].opacity < 0.1, `"One" at ${s.items[0].opacity}`);
+  s.at(LEAD + TURN + 0.2);             // gone from the track, and "Two" on its way in
+  assert.ok(!s.track.children.includes(s.items[0]), 'the old node is still in the track');
+  assert.deepEqual(s.visible(), ['Two']);
+});
+
+test('a story added above the one showing does not make the strip repeat itself', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + TURN + 1);               // "Two" is up
+  s.edit(['Breaking', ...STORIES]);
+  assert.deepEqual(flipSequence(s, LEAD + TURN + 1.1, LEAD + 6 * TURN + 1),
+    ['Two', 'Three', 'Four', 'Breaking', 'One', 'Two']);
+});
+
+test('the story on screen edited in place: the one after its old place comes next', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit(['One, corrected', 'Two', 'Three', 'Four']);
+  assert.deepEqual(flipSequence(s, LEAD + 1.1, LEAD + 4 * TURN + 1),
+    ['One', 'Two', 'Three', 'Four', 'One, corrected']);
+});
+
+test('a second edit before the boundary still lets the same story finish', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit([...STORIES, 'Five']);
+  s.at(LEAD + 2);
+  s.edit(['One', 'Other', 'Three']);
+  assert.deepEqual(flipSequence(s, LEAD + 2.1, LEAD + 3 * TURN + 1), ['One', 'Other', 'Three', 'One']);
+});
+
+test('a speed press after an edit reaches the new cycle', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.edit([...STORIES, 'Five']);
+  s.retype(200);                       // 2.6 s of hold left is 1.3 s, and each turn after is half
+  assert.deepEqual(flipSequence(s, LEAD + 1.1, LEAD + 1 + 1.3 + 0.35 / 2 + 2 * TURN / 2 - 0.2),
+    ['One', 'Two', 'Three']);
+});
+
+test('an edit after the strip is taken off reaches nothing that is running', () => {
+  const s = live({ preset: 'flip' });
+  s.at(LEAD + 1);
+  s.end();                             // stop(): the motion is dropped with the strip
+  s.edit([...STORIES, 'Five']);
+  s.at(LEAD + 6);
+  assert.deepEqual(s.visible(), []);
+});
+
+// A marquee keeps sliding until its loop point, and the loop is seamless only when that point is
+// exactly one set of the CURRENT items: the track then shows the second copy where the first one
+// was. Each 1/60 s step must move the picture by the travel of that step, measured modulo one set
+// of the items on screen; a wrong loop point shows as a step of hundreds of pixels.
+for (const [name, list] of [
+  ['longer', [...STORIES, 'Five']],
+  ['shorter', STORIES.slice(0, 3)],
+]) {
+  test(`a marquee given a ${name} list keeps moving without a seam`, () => {
+    const s = live();
+    s.at(LEAD + 2);                    // 280px in
+    s.edit(list);
+    const set = list.length * ITEM_WIDTH;
+    let x = s.track.x;
+    assert.equal(x, -280, 'the picture moved when the items changed');
+    for (let frame = 1; frame <= 60 * 15; frame++) {    // more than a loop at either width
+      s.at(LEAD + 2 + frame / 60);
+      const step = (((x - s.track.x) % set) + set) % set;
+      assert.ok(Math.abs(step - 140 / 60) < 0.01, `a ${step.toFixed(1)}px step at ${(2 + frame / 60).toFixed(2)}s`);
+      assert.ok(s.track.x <= 0 && s.track.x > -set - 1e-6, `x ${s.track.x} is off the doubled track`);
+      x = s.track.x;
+    }
+  });
+}
+
 // ── A speed press leaves the items where they are ──
 //
 // update() re-renders the track from #f0, and rewriting it replaces the nodes a running flip
 // cycle is animating: measured on tk03 in Chromium, one speed press left the cycle fading
 // detached items and the strip blank until the next take. So an update rewrites the track only
-// when the items it draws changed. rebuildTicker() and update() are plain text in shared.ts,
-// sliced out and run here with every write to the track counted.
+// when the items it draws changed, and only then tells the running motion (tickerItemsChanged,
+// pinned above). rebuildTicker() and update() are plain text in shared.ts, sliced out and run
+// here with every write to the track counted.
 
 function updateRun() {
   const source = readFileSync(ticker('shared.ts'), 'utf8');
@@ -311,16 +473,18 @@ function updateRun() {
   assert.ok(start > 0 && end > start, 'rebuildTicker() and update() not found in shared.ts');
   const block = source.slice(start, end).replace('${setFieldValueJs}', '');
   assert.ok(!block.includes('${') && !block.includes('`'), 'the block is no longer plain text');
-  const writes = { track: 0, speed: 0 };
+  const writes = { track: 0, speed: 0, items: 0 };
   const track = { set innerHTML(_html) { writes.track++; } };
   const els = { 'ticker-track': track, f0: { textContent: 'One\nTwo' }, f1: { textContent: 'NEWS' }, f2: { textContent: '100' } };
   const run = new Function('document', 'setFieldValue', 'parseTickerItems', 'tickerItemHtml', 'tickerApplySpeed',
+    'tickerItemsChanged',
     `var TICKER_ROTATE = false, TICKER_DOUBLE_ITEMS = true;\n${block}\nreturn { rebuildTicker, update };`)(
     { getElementById: (id) => els[id] ?? null },
     (el, v) => { el.textContent = v; },
     (text) => text.split('\n').map((line) => ({ kicker: '', text: line })),
     (item) => `<span class="ticker-item">${item.text}</span>`,
     () => { writes.speed++; },
+    () => { writes.items++; },
   );
   run.rebuildTicker();             // what play() does: the first render, always
   writes.track = 0;
@@ -331,13 +495,13 @@ test('a speed or label press reaches the pace without re-rendering the items', (
   const { update, writes } = updateRun();
   update({ f2: '300' });
   update(JSON.stringify({ f0: 'One\nTwo', f1: 'LATEST', f2: '200' }));   // SPX re-sends the lot
-  assert.deepEqual(writes, { track: 0, speed: 2 });
+  assert.deepEqual(writes, { track: 0, speed: 2, items: 0 });
 });
 
-test('new items still re-render the track, and a take always does', () => {
+test('new items still re-render the track and reach the running motion, and a take always re-renders', () => {
   const { update, rebuildTicker, writes } = updateRun();
   update({ f0: 'One\nTwo\nThree' });
-  assert.deepEqual(writes, { track: 1, speed: 1 });
+  assert.deepEqual(writes, { track: 1, speed: 1, items: 1 });
   rebuildTicker();                 // play(): a take starts from clean items even when unchanged
   assert.equal(writes.track, 2);
 });
