@@ -14,6 +14,10 @@
 // and its footer, so both of those specs ride along. public/downloads/ holds the SVG examples
 // zip the page links, and downloads.spec.ts fetches it.
 // covers: {downloads.html,src/downloads/**,public/downloads/**}
+//
+// What's new and the roadmap: two public pages the landing links, whose lists the build generates
+// from docs/whats-new/ and docs/GOALS.md (scripts/whats-new.mjs, scripts/roadmap.mjs).
+// covers: {whats-new.html,roadmap.html,docs/whats-new/**,scripts/whats-new.mjs,scripts/roadmap.mjs}
 
 import { test, expect } from '@playwright/test';
 import { createProject } from './_create';
@@ -110,6 +114,9 @@ test('the landing reads create first, then play or export', async ({ page }) => 
   await expect(routes.nth(0)).toContainText('NoaCG Bridge');
   await expect(routes.nth(0)).toContainText('CasparCG');
   await expect(routes.nth(1)).toContainText('browser source');
+  // OBS has its place: the output as a browser source, and the control panel in an OBS dock.
+  await expect(routes.nth(1)).toContainText('OBS');
+  await expect(routes.nth(1)).toContainText('Custom Browser Dock');
   await expect(routes.nth(2)).toContainText('Export');
   await expect(routes.nth(2)).toContainText('not yet tested');
   await expect(playout).not.toContainText(/proven/i);
@@ -151,6 +158,54 @@ test('the pages and anchors the landing links to exist', async ({ page }) => {
     await expect(page.locator(`[id="${anchor}"]`).first(), `${path}#${anchor}`).toBeAttached();
   }
 });
+
+// The two pages are generated at build from notes in the repository, so the assertions are about
+// their shape, never their words: an update a week from now must pass this as written today.
+for (const [width, height] of [
+  [1280, 900],
+  [390, 844],
+]) {
+  test(`What's new and the roadmap are linked, generated and fit the screen at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+    await page.goto('/');
+    await expect(page.locator('footer a[href="/whats-new"]')).toHaveCount(1);
+    await expect(page.locator('#free a[href="/whats-new"]')).toBeVisible();
+    await expect(page.locator('#free a[href="/roadmap"]')).toBeVisible();
+
+    await page.locator('#free a[href="/whats-new"]').click();
+    await expect(page).toHaveURL(/\/whats-new$/);
+    await expect(page.locator('h1')).toHaveText("What changed in NoaCG");
+    const updates = page.locator('.wn-update');
+    expect(await updates.count()).toBeGreaterThan(0);
+    // Newest first, each headed by its date, each area one of the six a note may name.
+    const dates = await updates.locator('h2 time').evaluateAll((els) => els.map((e) => e.getAttribute('datetime') ?? ''));
+    expect(dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
+    expect([...dates].sort().reverse()).toEqual(dates);
+    const areas = await page.locator('.wn-area h3').allTextContents();
+    expect(areas.length).toBeGreaterThan(0);
+    for (const area of areas) {
+      expect(['Playout systems', 'Editor and templates', 'CLI', 'MCP server', 'AI workflows', 'NoaCG Bridge']).toContain(area);
+    }
+    await expect(page.locator('.wn-area li').first()).toBeVisible();
+    expect(await page.content()).not.toContain('whats-new:updates');
+    expect(await fits()).toBe(true);
+
+    await page.locator('.doc-hero a[href="/roadmap"]').click();
+    await expect(page).toHaveURL(/\/roadmap$/);
+    await expect(page.locator('h1')).toHaveText('Where NoaCG is going');
+    // Now, next and later, in that order, each holding at least one item from GOALS.
+    await expect(page.locator('.rm-col')).toHaveCount(3);
+    const columns = await page.locator('.rm-col').evaluateAll((els) => els.map((e) => e.id));
+    expect(columns).toEqual(['now', 'next', 'later']);
+    for (const id of columns) expect(await page.locator(`#${id} .rm-item`).count()).toBeGreaterThan(0);
+    await expect(page.locator('#now .rm-item li').first()).toBeVisible();
+    expect(await page.content()).not.toContain('roadmap:columns');
+    await expect(page.locator('.doc-hero a[href="/whats-new"]')).toHaveCount(1);
+    expect(await fits()).toBe(true);
+  });
+}
 
 test('old root share links redirect into the app with their query intact', async ({ page }) => {
   await page.goto('/?chat=my-show');

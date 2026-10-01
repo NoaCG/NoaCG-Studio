@@ -9,7 +9,9 @@ shipped.
 **The page is short on purpose, and it reads in the product's order: create, then play.** A
 stranger should understand NoaCG in about thirty seconds: the hero, then step 1, the three ways
 to create (a template, your own SVGs, your AI coding agent - the wizard's card order), then step 2, the three ways to use them (NoaCG Playout with NoaCG Bridge to
-CasparCG, OBS and browser sources, export packages), then OGraf and free/open source. The
+CasparCG, OBS and browser sources, export packages), then OGraf and free/open source. CasparCG
+stays the main production path; OBS gets its own place in its route (a browser source, and the
+control panel in a Custom Browser Dock, measured in `docs/OBS_ON_A_REAL_HOST.md`). The
 wizard's intro (`EntryStep.tsx`) is the owner's wording of the same story; borrow from it rather
 than writing a second version. Every claim about a playout target is held to the current state
 in `docs/GOALS.md` outcomes 5 and 6: no route wears a badge, and an untested target is said to be
@@ -22,9 +24,22 @@ import's text step, and the playout dashboard). Re-run it after any change to th
 stale PNG cannot fail a build, so the only thing keeping the policy true is that re-taking the
 picture costs one command. It makes only the shots the page shows: one the page stops using
 leaves the script and `public/landing/` in the same change. The on-air frames (`shot-strap`,
-`shot-markets`, `shot-title`) are captures of graphics on air, not generated. The page takes one
+`shot-markets`, `shot-title`) are captures of graphics on air, not generated, and so is the OBS
+capture (`shot-obs*`, when the page shows one): a real OBS window on a real host, with NoaCG as a
+browser source or in a dock, never composited. The OBS route ships without a picture until such
+a capture is presentable for the public. The page takes one
 framing liberty: the playout shot is shown through a fixed-ratio frame (`.shot-frame`) that crops
 the empty panel under it.
+
+**Two more public pages live beside the landing and are linked from its `#free` section and
+footer: What's new (`whats-new.html`, `/whats-new`) and the roadmap (`roadmap.html`,
+`/roadmap`).** Neither list is written in HTML. The build replaces each page's marker comment
+(the generated-pages plugin in `vite.config.ts`): What's new from the notes in `docs/whats-new/`
+(`scripts/whats-new.mjs`, which refuses slop; how to write one is `docs/whats-new/README.md`),
+and the roadmap from `docs/GOALS.md`, which decides now, next or later, with the plain wording in
+`docs/whats-new/roadmap.md` (`scripts/roadmap.mjs`, which fails the build when the two disagree).
+Both pages borrow the docs stylesheet; `updates.css` here adds only their two lists. Change what
+they say in those notes, never in the pages.
 
 - **gsap.ts** - evaluates the vendored UMD via `?raw` (it can't be ESM-imported; its global
   branch throws in strict mode).

@@ -205,6 +205,7 @@
     .sub { color: var(--dim); max-width: 620px; }
     .sub a, .feat p a { color: var(--amber); }
     .sub a:hover, .feat p a:hover { color: var(--glow); }
+    .sub + .sub { margin-top: 12px; }
     .note { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
 
     /* ═══ Product screenshots ═══
@@ -512,9 +513,15 @@
               This is our main production setup.
             </p>
           </div>
-          <div class="route">
+          <!-- OBS: the output URL as a browser source, and the control panel in a Custom Browser
+               Dock, measured on OBS 32.2.1 (docs/OBS_ON_A_REAL_HOST.md sections 2, 5 and 10). -->
+          <div class="route" id="obs">
             <h3>OBS and browser sources</h3>
-            <p>Play graphics straight from NoaCG: load the production's output URL as a browser source.</p>
+            <p>
+              Play graphics straight from NoaCG: add the production's output URL as a browser
+              source. In OBS the control panel can sit in a Custom Browser Dock, so you run the
+              show from inside OBS.
+            </p>
           </div>
           <div class="route">
             <h3>Export packages</h3>
@@ -567,6 +574,10 @@
           service runs for you, such as publishing an output URL or running AI. We would like to
           <a href="mailto:contact.noacg@gmail.com">hear what you think</a>.
         </p>
+        <p class="sub" data-reveal>
+          See <a href="/whats-new">what changed lately</a> and
+          <a href="/roadmap">where NoaCG is going</a>.
+        </p>
       </section>
     </main>
   </div>
@@ -585,6 +596,8 @@
         <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> ·
         <a href="/docs">Docs</a> ·
         <a href="/downloads">Downloads</a> ·
+        <a href="/whats-new">What's new</a> ·
+        <a href="/roadmap">Roadmap</a> ·
         <a href="/terms">Terms</a> ·
         <a href="/privacy">Privacy</a> ·
         <a href="https://github.com/NoaCG/NoaCG-Studio" target="_blank" rel="noopener noreferrer">Source</a> ·
