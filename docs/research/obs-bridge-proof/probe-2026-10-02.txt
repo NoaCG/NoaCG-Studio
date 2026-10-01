@@ -1,0 +1,15 @@
+obs-bridge-proof, mode probe, node v24.13.0, 2026-10-01T21:13:06.216Z
+OBS config dirs looked at: ["~\\AppData\\Local/Temp/noacg-ad-obs/config/obs-studio"]
+settings: {"file":"~\\AppData\\Local\\Temp\\noacg-ad-obs\\config\\obs-studio\\plugin_config\\obs-websocket\\config.json","enabled":true,"port":4466,"authRequired":true,"password":"present (not shown)"}
+tcp 127.0.0.1:4466: listening
+  <- Hello {"obsStudioVersion":"32.2.1","obsWebSocketVersion":"5.7.4","rpcVersion":1,"authentication":"{challenge, salt}"}
+  -> Identify {"rpcVersion":1,"eventSubscriptions":135,"authentication":"<derived, not shown>"}
+  <- Identified {"negotiatedRpcVersion":1}
+handshake: identified in 33 ms
+  -> GetVersion
+  <- GetVersion 100 {"obsVersion":"32.2.1","obsWebSocketVersion":"5.7.4","rpcVersion":1,"platform":"windows","availableRequests":"151 names"}
+  -> GetVideoSettings
+  <- GetVideoSettings 100 {"baseHeight":1080,"baseWidth":1920,"fpsDenominator":1,"fpsNumerator":30,"outputHeight":1080,"outputWidth":1920}
+  -> GetSceneList
+  <- GetSceneList 100 {"currentPreviewSceneName":null,"currentPreviewSceneUuid":null,"currentProgramSceneName":"Scene","currentProgramSceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f","scenes":[{"sceneIndex":0,"sceneName":"Scene","sceneUuid":"ce45116d-012b-4349-beb2-c80588f2550f"}]}
+status: {"version":"OBS 32.2.1, obs-websocket 5.7.4","canvas":{"width":1920,"height":1080},"programScene":"Scene","previewScene":null,"scenes":["Scene"]}
