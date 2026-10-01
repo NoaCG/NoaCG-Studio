@@ -81,6 +81,12 @@ morning. Deleting is what keeps it honest: the file's whole meaning is *this was
 today*, so yesterday's must never survive into today. `npm run night:report` on demand answers the
 same question over any window (`-- --hours 24`, `-- --since 2026-09-04T18:00`, `-- --json`).
 
+**Since 2026-10-02 it also reads the capability re-probe.** The brief runs
+`node scripts/harness-usage.mjs --landed --hours 1` and speaks when that prints a `FAILED RE-PROBE`
+block, quoting the block with its evidence lines: a wave routing on a claim that was measured false
+is something this morning needs the owner or the orchestrator to know. With no such block it says
+nothing about it. The scheduled task was edited to say so on 2026-10-01 with the owner's approval.
+
 ## Daily - delegation tooling
 
 `codex-update-check` upgrades the Codex CLI, the Codex plugin and the Antigravity `agy` CLI on
@@ -115,9 +121,8 @@ time, and appends each verdict (holds, failed, partial, not probed) with every f
 to `<git-common-dir>/noacg-reprobe.jsonl`, beside the job store. It never spends API money and never
 makes a Codex model call, and it never edits `harness-capabilities.json`. `harness-usage.mjs` reads
 the ledger: a re-probe that failed on the installed build prints first as `FAILED RE-PROBE`, one that
-held counts as backed, and the rest show their last re-probe. Neither routine runs the re-probe or
-quotes that block yet; the exact lines to add to their prompts are in
-`docs/backlog/morning-brief-prints-failed-reprobes.md`.
+held counts as backed, and the rest show their last re-probe. The morning brief now reads that block
+(see "Daily - the morning brief"); neither routine runs the re-probe itself.
 
 ## Weekly - the owner session
 
@@ -183,9 +188,18 @@ candidate rows, both of that day's wave plans were written afterwards without li
 the file, and nothing recorded the miss. `npm run weekly:candidates` lists the rows with a
 `WEEK-<date>-<n>` id each - reading the main checkout from whatever checkout it runs in, and naming
 the folder it read either way - and for a week after the review `scripts/wave-plan-check.mjs`
-refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it all pass;
-only silence fails. Nothing is forced into a wave, by the same ruling that keeps the owner queue
-from expiring - the ask is that a skipped row is skipped on purpose and says so.
+refuses a plan that leaves one unmentioned. Planning it, deferring it and rejecting it pass, with
+two limits on deferring. Silence fails. Nothing is forced into a wave, by the same ruling that keeps
+the owner queue from expiring - the ask is that a skipped row is skipped on purpose and says so.
+
+**Two deferrals are refused.** (1) A deferral whose reason hands the work to a routine ("next
+orchestrator-week session", "for the morning brief"). Routines report and never write, so that
+deferral has no actor: WEEK-2026-09-15-1 was deferred to the weekly session and never landed. A
+routine named as evidence ("the morning brief showed Codex at its cap") still passes; name the wave
+that will carry the row, or reject it with the reason. (2) A third consecutive deferral of one WEEK
+id, counted over the earlier plans in the wave-plan store. Two plans running may defer a row; the
+third plans it as a row or drops it in writing as `rejected: <id> - <why>`. WEEK-2026-09-22-3 was
+deferred four plans running.
 
 Tuesday and not Monday, by his ruling (2026-09-03): his weekly allowance can be spent by Monday, and
 he reads the weekly percentage off his account page himself, so the routine never computes or asks
