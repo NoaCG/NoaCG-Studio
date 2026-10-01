@@ -532,7 +532,7 @@ function ClipAdvanced({
         </span>
       </button>
       {open && (
-        <div className="pd-advanced-body pd-clip-advanced">
+        <div className="pd-advanced-body">
           <div className="pd-clip-trim" title={trimOff ?? undefined}>
             <label className="pd-field">
               <span>Start at</span>

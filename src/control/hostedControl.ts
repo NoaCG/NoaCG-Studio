@@ -345,9 +345,6 @@ async function serializeAssets(template: SpxTemplate): Promise<{ path: string; d
   );
 }
 
-/** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
- *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
- *  graphic name. Async because Blob assets serialize to data URLs. */
 /** One graphic as the output renders it: the payload's entry, and what its version digest covers. */
 async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): Promise<OutputGraphicSpec> {
   return {
@@ -362,6 +359,9 @@ async function graphicSpec(g: Show['graphics'][number], template: SpxTemplate): 
   };
 }
 
+/** The PINNED renderable payload written at publish (docs/CLOUD_PLAYOUT.md §2): the pool
+ *  graphics' live library templates snapshotted, plus the cue rundown re-keyed by the wire
+ *  graphic name. Async because Blob assets serialize to data URLs. */
 export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loadGraphics()): Promise<OutputPayload> {
   const byId = new Map(show.graphics.map((g) => [g.id, g] as const));
   const graphics: OutputGraphicSpec[] = await Promise.all(show.graphics.map((g) => graphicSpec(g, templateForSavedGraphic(g, library))));

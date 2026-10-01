@@ -132,6 +132,17 @@ export function changedGraphics(held: PayloadVersion | null, next: PayloadVersio
   return keys.filter((key) => !held || !held.g[key] || held.g[key] !== next.g[key]);
 }
 
+/**
+ * Would a publish now change what the outputs render (docs/work-specs/studio-day-playout AC-5)?
+ * `now` is what a publish would write for the graphics this page reads from its own library, by key;
+ * `published` the published stamp's `g`. A graphic the stamp does not name (added since, or published
+ * before stamps existed) is not counted: adding or removing a graphic changes the production record,
+ * whose own timestamp already says so.
+ */
+export function rendersDiffer(now: Record<string, string>, published: Record<string, string>): boolean {
+  return Object.keys(now).some((key) => published[key] !== undefined && published[key] !== now[key]);
+}
+
 /** "v12", or "" for no stamp. */
 export function versionLabel(v: { n: number } | null | undefined): string {
   return v ? `v${v.n}` : '';

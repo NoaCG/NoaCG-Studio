@@ -223,3 +223,13 @@ test('the version stamp: a digest per graphic, one identity, a number that count
   assert.equal(readPayloadVersion(undefined), null);
   assert.deepEqual(readPayloadVersion({ n: 3, h: 'x', g: { a: 'y', b: 7 } }), { n: 3, at: '', h: 'x', g: { a: 'y' } });
 });
+
+test('a publish renders differently only where a graphic the stamp names has another digest now (studio-day-playout AC-5)', async () => {
+  const { rendersDiffer } = await import('../src/control/payloadVersion.ts');
+  assert.equal(rendersDiffer({ Strap: 'aaaa' }, { Strap: 'aaaa', Clock: 'cccc' }), false);
+  assert.equal(rendersDiffer({ Strap: 'bbbb' }, { Strap: 'aaaa' }), true);
+  // A graphic the published stamp does not name is the record's to report, not this.
+  assert.equal(rendersDiffer({ Strap: 'aaaa', Added: 'dddd' }, { Strap: 'aaaa' }), false);
+  // Graphics this page does not read from its own library are simply absent from `now`.
+  assert.equal(rendersDiffer({}, { Theirs: 'eeee' }), false);
+});

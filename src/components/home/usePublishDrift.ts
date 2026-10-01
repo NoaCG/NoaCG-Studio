@@ -1,56 +1,57 @@
-// WOULD A PUBLISH CHANGE WHAT THE OUTPUTS RENDER? (docs/work-specs/studio-day-playout AC-5)
+// HAS THE PRODUCTION CHANGED SINCE IT WAS PUBLISHED? (docs/work-specs/studio-day-playout AC-5)
 //
-// A publish resolves every graphic's CURRENT template out of the library (model/library.ts
+// Two ways. The production record itself (cues, items, folders) moved past its publish: its own
+// timestamps say so. Or a publish would render something different although the record did not
+// move: a publish resolves every graphic's CURRENT template out of the library (model/library.ts
 // `templateForSavedGraphic`), so a graphic edited in the editor changes the next publish without
-// ever touching the production record - and "unpublished changes", read off the record's own
-// timestamps, stayed clean. On the studio day of 2026-10-01 that is how graphics stayed off air
-// until somebody published again, and how Prepare for Live could say "Nothing changed".
+// touching the record. On the studio day of 2026-10-01 that second kind stayed invisible: graphics
+// stayed off air until somebody published again, and Prepare for Live said "Nothing changed".
 //
-// So the page also compares, graphic by graphic, what a publish WOULD write for the graphics this
-// browser reads from its own library (`libraryGraphicDigests`) with the published stamp's digests.
-// Only that: a cue-only change moves no digest by design, a graphic added or removed changes the
-// record, and the record's timestamp already covers both.
+// The second is read graphic by graphic: what a publish would write for the graphics this browser
+// reads from its own library (`libraryGraphicDigests`) against the published stamp's digests. It is
+// read only when the first has not already answered, since the library has to be parsed for it.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryGraphicDigests } from '../../control/hostedControl';
+import { rendersDiffer } from '../../control/payloadVersion';
 import { loadGraphics } from '../../model/library';
 import type { Show } from '../../model/shows';
 
 /** How long the production must sit still before the digests are read again. */
 const SETTLE_MS = 400;
 
-/** A graphic whose published digest differs from what a publish would write now. A graphic the
- *  published stamp does not name (added since, or published before stamps existed) is the record's
- *  to report, not this. */
-function drifted(local: Record<string, string>, published: Record<string, string>): boolean {
-  return Object.keys(local).some((key) => published[key] !== undefined && published[key] !== local[key]);
+/** The record moved past its publish. */
+function recordChanged(show: Show | null): boolean {
+  return !!show?.publishedAt && show.updatedAt > show.publishedAt;
 }
 
 /**
- * `drift`: publishing `show` now would change what its outputs render. False while it is not
- * published, while the published digests are unknown (published before stamps existed, or still
- * being read), and when they cannot be computed: this never claims a change it has not seen.
- * `show` is re-read by the page on every landed write, a library edit in another tab included,
- * and the library is read fresh each time, so either kind of change reaches it.
+ * `unpublished`: publishing `show` now would change something - the record, or what its outputs
+ * render. Never claimed for a production that is not published, or while the published digests are
+ * unknown (published before stamps existed, or still being read), or when they cannot be computed.
+ * `show` is re-read by the page on every landed write, a library edit in another tab included, and
+ * the library is read fresh each time, so either kind of change reaches it.
  *
  * `check()` answers the same question NOW, without the settle delay, for a press that must not act
  * on a reading a moment old (Prepare for Live deciding whether to publish).
  */
-export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { drift: boolean; check: () => Promise<boolean> } {
+export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; check: () => Promise<boolean> } {
   const [drift, setDrift] = useState(false);
   const latest = useRef({ show, published });
   latest.current = { show, published };
   const check = useCallback(async () => {
     const { show: s, published: p } = latest.current;
+    if (recordChanged(s)) return true;
     if (!s?.publishedAt || !p) return false;
     try {
-      return drifted(await libraryGraphicDigests(s, loadGraphics()), p);
+      return rendersDiffer(await libraryGraphicDigests(s, loadGraphics()), p);
     } catch {
       return false;
     }
   }, []);
+  const changed = recordChanged(show);
   useEffect(() => {
-    if (!show?.publishedAt || !published) {
+    if (changed || !show?.publishedAt || !published) {
       setDrift(false);
       return;
     }
@@ -62,6 +63,6 @@ export function usePublishDrift(show: Show | null, published: Record<string, str
       alive = false;
       clearTimeout(timer);
     };
-  }, [show, published, check]);
-  return { drift, check };
+  }, [show, published, changed, check]);
+  return { unpublished: changed || drift, check };
 }

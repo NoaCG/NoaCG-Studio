@@ -1067,7 +1067,7 @@ export default function CueRundown({
                 const { shows: next, cueId } = addPlayoutItem(
                   show.id,
                   { adapter: 'casparcg', ...item, channel },
-                  channel === settings.channel ? { avoidLayer: settings.layer } : {},
+                  { output: { channel: settings.channel, layer: settings.layer } },
                 );
                 setShows(next);
                 if (cueId) selectCue(cueId);

@@ -252,6 +252,7 @@ import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 import { ReadyLine, announcedExpected, useExpectedOutputs, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
+import type { PayloadVersion } from '../../control/payloadVersion';
 import type { ExpectedOutput, HeldVersion, ReadyStamp } from '../../control/readiness';
 import type { PrepRequest } from '../../control/prepareLive';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
@@ -547,11 +548,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  resolve, then each of its own publishes), and the outputs it expects, remembered per production
    *  in this browser and announced on the live topic so the hosted page and the phone count the
    *  same ones. */
-  const [publishedVer, setPublishedVer] = useState<HeldVersion | null>(null);
-  /** The published stamp's per-graphic digests, beside `publishedVer` (payloadVersion.ts `g`). */
-  const [publishedDigests, setPublishedDigests] = useState<Record<string, string> | null>(null);
-  /** A publish now would change what the outputs render (usePublishDrift): a library edit counts. */
-  const { drift: publishDrift, check: checkPublishDrift } = usePublishDrift(show, publishedDigests);
+  const [publishedStamp, setPublishedStamp] = useState<PayloadVersion | null>(null);
+  const publishedVer = useMemo<HeldVersion | null>(() => (publishedStamp ? { n: publishedStamp.n, h: publishedStamp.h } : null), [publishedStamp]);
+  /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
+   *  edited in the library, which never touches the record) - usePublishDrift. */
+  const { unpublished: unpublishedChanges, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   const { expected: expectedOutputs, forget: forgetOutput } = useExpectedOutputs(
     hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null,
     livePresence,
@@ -572,8 +573,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     presence: livePresence,
     expected: expectedOutputs,
     published: publishedVer,
-    unpublishedChanges: !!show?.publishedAt && (show.updatedAt > show.publishedAt || publishDrift),
-    recheckChanges: checkPublishDrift,
+    unpublishedChanges,
+    recheckChanges: checkUnpublished,
     publish: () => preparePublishRef.current(),
     onPrep: setPrepRequest,
     onStamp: (stamp) => {
@@ -1343,8 +1344,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (!resolved) return;
       setOutputSeenAt(resolved.outputSeenAt);
       const ver = resolved.output?.ver;
-      setPublishedVer(ver ? { n: ver.n, h: ver.h } : null);
-      setPublishedDigests(ver ? ver.g : null);
+      setPublishedStamp(ver ?? null);
       fastEventGraphicsRef.current = fastEventGraphics(resolved.output?.graphics ?? []);
       // The boot-recovery effect below replays each live layer's last REPORT into the local
       // monitor, so the reports must be in hand before the wire's picture commits and fires it.
@@ -1899,9 +1899,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  absent for the same reason when the server predates 0035. */
   const presenterUrl = show.presenterSlug ? presenterPageUrl(show.presenterSlug) : null;
   const controlUrl = show.hostedSlug ? controlPageUrl(show.hostedSlug) : null;
-  // Changed since the last publish: the record itself (cues, items, folders), or what the outputs
-  // would render (a graphic edited in the library, which never touches the record).
-  const unpublishedChanges = !!show.publishedAt && (show.updatedAt > show.publishedAt || publishDrift);
   const clashes = duplicateLayers(show.graphics);
 
   /**
@@ -2105,10 +2102,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           presenterSlug: published.presenterSlug,
         });
         setShows(setShowOutputSlug(show.id, published.outputSlug ?? undefined));
-        if (published.version) {
-          setPublishedVer({ n: published.version.n, h: published.version.h });
-          setPublishedDigests(published.version.g);
-        }
+        if (published.version) setPublishedStamp(published.version);
         // A REPUBLISH PINS A NEW PAYLOAD, and the follow effect does not run again for it (the
         // slug is deliberately the same one). A graphic that has just gained a clock would
         // otherwise keep its events on the fast road for the rest of the session, so the answer
@@ -2594,57 +2588,67 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const folderSlotOf = (folder: ShowFolder) => slotAddress(folderSlot(playoutSettings, folder));
   const throughFolderIdOf = (cueId: string) => places.get(cueId)?.folder.id;
   const throughRoleOf = (cue: ShowCue): { folder: ShowFolder; role: ThroughRole } | null => places.get(cue.id) ?? null;
-  /** A server item set to play on the NoaCG output's own slot, which would replace the output and
-   *  every graphic on it: the cue's own slot, a Play-through folder's, or any member's of another
-   *  folder. Refused before anything else, so the reason the operator reads is the one that matters. */
-  const outputClashOf = (target: ShowCue | ShowFolder): string | null => {
-    const at = (address: string) => outputSlotRefusal(address, playoutSettings);
+  /**
+   * WHERE A TAKE OF THIS CUE - OR THIS FOLDER - LANDS on the server: one plan per slot it plays on,
+   * with the cues that will hold it. A Play-through folder plays on its own slot; another folder's
+   * server cues each on their own; a cue on its Play-through folder's slot when it is in one, else on
+   * its own. The cues are worked out only when asked, since only the air-clash check needs them.
+   */
+  const takePlans = (target: ShowCue | ShowFolder): { slot: string; cueIds: () => readonly string[]; folderId?: string }[] => {
     if (!('sourceId' in target)) {
-      if (folderMode(target) === 'through') return at(folderSlotOf(target));
-      for (const c of rundown.members.get(target.id) ?? []) {
+      const members = rundown.members.get(target.id) ?? [];
+      if (folderMode(target) === 'through') return [{ slot: folderSlotOf(target), cueIds: () => members.map((c) => c.id), folderId: target.id }];
+      return members.flatMap((c) => {
         const item = playoutItemFor(c);
-        const why = item ? at(addressOfItem(item)) : null;
-        if (why) return why;
-      }
-      return null;
+        return item ? [{ slot: addressOfItem(item), cueIds: () => [c.id] }] : [];
+      });
     }
     const item = playoutItemFor(target);
-    if (!item) return null;
+    if (!item) return [];
     const through = places.get(target.id)?.folder;
-    return at(through ? folderSlotOf(through) : addressOfItem(item));
+    if (through) {
+      return [
+        {
+          slot: folderSlotOf(through),
+          cueIds: () => {
+            const run = folderRun(through, cues, playoutItems, target.id);
+            return run.ok ? run.run.members.map((m) => m.cue.id) : [target.id];
+          },
+          folderId: through.id,
+        },
+      ];
+    }
+    return [
+      {
+        slot: addressOfItem(item),
+        cueIds: () => {
+          const chain = item.kind === 'media' && effectiveEnd(target, item) === 'next' ? sequenceMembers(cues, playoutItems, target.id, addressOfItem, folders) : null;
+          return chain?.ok ? chain.members.map((m) => m.cue.id) : [target.id];
+        },
+      },
+    ];
   };
   /**
    * WHY A TAKE OF THIS CUE - OR THIS FOLDER - WOULD NOT GO, or null (plan §6.9): a setting nobody here
    * can honour is never dropped on the way to air, a Play next whose clips cannot be found is never
    * taken as a Hold, a folder answers by how it plays, and a file this page already has up on another
-   * slot is never taken onto a second.
+   * slot is never taken onto a second. FIRST of all, nothing is taken onto the NoaCG output's own slot,
+   * which would replace the output and every graphic on it - so that is the reason the operator reads.
    */
   const takeBlockerFor = (target: ShowCue | ShowFolder | null): string | null => {
     if (!target) return null;
-    const onOutput = outputClashOf(target);
-    if (onOutput) return onOutput;
+    const plans = takePlans(target);
+    for (const plan of plans) {
+      const onOutput = outputSlotRefusal(plan.slot, playoutSettings);
+      if (onOutput) return onOutput;
+    }
     const blocked = takeBlocker(target, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue);
     if (blocked) return blocked;
-    const clash = (plan: { slot: string; cueIds: readonly string[]; folderId?: string }) => airClash(plan, serverOwnership, cues, throughFolderIdOf);
-    if (!('sourceId' in target)) {
-      const members = rundown.members.get(target.id) ?? [];
-      if (folderMode(target) === 'through') return clash({ slot: folderSlotOf(target), cueIds: members.map((c) => c.id), folderId: target.id });
-      for (const c of members) {
-        const item = playoutItemFor(c);
-        const why = item ? clash({ slot: addressOfItem(item), cueIds: [c.id] }) : null;
-        if (why) return why;
-      }
-      return null;
+    for (const plan of plans) {
+      const why = airClash({ slot: plan.slot, cueIds: plan.cueIds(), folderId: plan.folderId }, serverOwnership, cues, throughFolderIdOf);
+      if (why) return why;
     }
-    const item = playoutItemFor(target);
-    if (!item) return null;
-    const through = places.get(target.id)?.folder;
-    if (through) {
-      const run = folderRun(through, cues, playoutItems, target.id);
-      return clash({ slot: folderSlotOf(through), cueIds: run.ok ? run.run.members.map((m) => m.cue.id) : [target.id], folderId: through.id });
-    }
-    const chain = item.kind === 'media' && effectiveEnd(target, item) === 'next' ? sequenceMembers(cues, playoutItems, target.id, addressOfItem, folders) : null;
-    return clash({ slot: addressOfItem(item), cueIds: chain?.ok ? chain.members.map((m) => m.cue.id) : [target.id] });
+    return null;
   };
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
