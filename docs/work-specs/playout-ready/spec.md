@@ -246,3 +246,14 @@ check on a timer that writes to the database. Blocking or delaying a verb.
 Recorded above as R1 to R10 and revertible; the ones that change what an operator sees are R3
 (what prepare does on today's payload), R5 (how outputs are expected and named) and R10
 (placement). Screenshots go with the handoff.
+
+Two more from building landing c:
+
+- The ping is said on each output's own line ("Desk A: Ready for playout · command path 6 ms")
+  rather than as a second list, and an output loaded before the ping reads "cannot answer the
+  command path check", never amber. Revert: list the ping lines separately (`withPing` in
+  `control/prepareLive.ts`).
+- With four outputs the panel is taller than a 1366 screen or a phone, so Prepare for Live's
+  checklist and button sit below the panel's fold and the panel scrolls. Recommendation: keep it
+  for now; if it gets in the way, put the Prepare for Live section above the output cards, or fold
+  the cards once a checklist exists.
