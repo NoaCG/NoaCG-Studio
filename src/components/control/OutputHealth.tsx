@@ -146,14 +146,15 @@ export function useLivePresence(
   return useMemo(() => ({ ...view, announce }), [view, announce]);
 }
 
-/** What the line reads off the outputs: who, on which engine and build, which roads, READY, and
- *  the median the tooltip quotes (rounded, so latency jitter re-renders nothing). */
+/** What the line reads off the outputs: who, on which engine and build, which roads, READY, the
+ *  last ping answered, and the median the tooltip quotes (rounded, so latency jitter re-renders
+ *  nothing). */
 function outputsKey(outputs: LiveEntry[]): string {
   return outputs
     .map((o) => {
       const lat = (o.stats as { lat?: Record<string, { p50?: number }> } | undefined)?.lat;
       const p50 = lat ? Object.values(lat).find((l) => typeof l?.p50 === 'number')?.p50 : undefined;
-      return `${o.id}|${o.engine}|${o.build}|${o.name ?? ''}|${o.log}|${o.cmd}|${p50 === undefined ? '' : Math.round(p50 / 50)}|${JSON.stringify(o.ready ?? null)}`;
+      return `${o.id}|${o.engine}|${o.build}|${o.name ?? ''}|${o.log}|${o.cmd}|${p50 === undefined ? '' : Math.round(p50 / 50)}|${JSON.stringify(o.ready ?? null)}|${o.ack ? o.ack.id : '-'}`;
     })
     .sort()
     .join(',');

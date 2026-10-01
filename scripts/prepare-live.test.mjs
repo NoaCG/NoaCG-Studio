@@ -109,3 +109,59 @@ test('the Bridge and CasparCG checks say what answers, what the layer holds and 
   const unlisted = bridgeChecks({ ...base, status: ok, items: [{ kind: 'media', name: 'a' }], media: null });
   assert.equal(unlisted[1].tone, 'warn');
 });
+
+// ── The command path ping (landing c, R9, AC-12) ──
+const { withPing, pingSettled, pingDelay, readPingAck, PING_WAIT_MS } = await import('../src/control/prepareLive.ts');
+
+test("the ping is said on each output's own line: a time, a wait, or that commands did not reach it", () => {
+  const check = (id, name, tone = 'ok', advice) => ({ key: `output-${id}`, tone, label: `${name}: Ready for playout`, ...(advice ? { advice } : {}) });
+  const checks = [check('o1', 'Desk A'), check('o2', 'Desk B'), check('o3', 'Gone'), { key: 'bridge', tone: 'ok', label: 'NoaCG Bridge and CasparCG answer' }];
+  const peers = [entry(undefined, { id: 'o1', ack: { id: 'p1', ms: 110 } }), entry(undefined, { id: 'o2', ack: { id: 'old', ms: 90 } })];
+  const sent = { id: 'p1', sentAt: 1_000, state: 'sent' };
+  assert.deepEqual(
+    withPing(checks, peers, sent, 2_000).map((l) => `${l.tone}|${l.label}`),
+    [
+      'ok|Desk A: Ready for playout · command path 110 ms',
+      'running|Desk B: Ready for playout · checking the command path',
+      'ok|Gone: Ready for playout',
+      'ok|NoaCG Bridge and CasparCG answer',
+    ],
+    "an earlier ping's answer does not count, and an output that has gone keeps its line",
+  );
+  const late = withPing(checks, peers, sent, 1_000 + PING_WAIT_MS)[1];
+  assert.equal(late.label, 'Desk B: Ready for playout · commands did not reach it in 15 s');
+  assert.equal(late.tone, 'warn');
+  assert.match(late.advice, /every 30 s/);
+  const behind = withPing([check('o2', 'Desk B', 'warn', 'Take it out first.')], peers, sent, 1_000 + PING_WAIT_MS)[0];
+  assert.equal(behind.advice, 'Take it out first.', "the output's own advice comes first");
+  const unclocked = [entry(undefined, { id: 'o1', ack: { id: 'p1', ms: null } })];
+  assert.equal(withPing(checks, unclocked, sent, 2_000)[0].label, 'Desk A: Ready for playout · commands reach it');
+  const old = withPing(checks, [entry(undefined, { id: 'o1' })], sent, 1_000 + PING_WAIT_MS)[0];
+  assert.equal(old.tone, 'ok', 'an output loaded before the ping cannot answer: never a false alarm');
+  assert.equal(old.label, 'Desk A: Ready for playout · cannot answer the command path check');
+  const missing = withPing(checks, peers, { ...sent, state: 'unavailable' }, 2_000);
+  assert.equal(missing.length, checks.length + 1);
+  assert.equal(missing[missing.length - 1].note, true, 'a server without 0072 is a note, never a warning');
+  assert.equal(withPing(checks, peers, { ...sent, state: 'failed', detail: 'x' }, 2_000).pop().tone, 'warn');
+  assert.deepEqual(withPing(checks, peers, null, 2_000), checks);
+});
+
+test('an output is done with the ping when it answers, or its wait runs out; a ping still sending waits', () => {
+  const sent = { id: 'p1', sentAt: 1_000, state: 'sent' };
+  assert.equal(pingSettled(entry(undefined, { ack: { id: 'p1', ms: 5 } }), sent, 1_100), true);
+  const waiting = entry(undefined, { ack: { id: '', ms: null } });
+  assert.equal(pingSettled(waiting, sent, 1_100), false);
+  assert.equal(pingSettled(waiting, sent, 1_000 + PING_WAIT_MS), true);
+  assert.equal(pingSettled(waiting, { ...sent, state: 'sending' }, 1_000 + PING_WAIT_MS), false);
+  assert.equal(pingSettled(entry(undefined), sent, 1_100), true, 'an output that cannot answer is not waited for');
+  assert.equal(pingSettled(entry(undefined), { ...sent, state: 'unavailable' }, 1_100), true);
+});
+
+test('a delay is only given when the two clocks allow it, and an answer off the wire is checked', () => {
+  assert.equal(pingDelay(1_000, 1_110), 110);
+  assert.equal(pingDelay(1_000, 900), null, 'the output clock behind the server: no figure');
+  assert.equal(pingDelay(1_000, 1_000 + 120_000), null);
+  assert.deepEqual(readPingAck({ id: 'p1', ms: 12.4 }), { id: 'p1', ms: 12 });
+  assert.deepEqual(readPingAck({ id: 'p1', ms: -3 }), { id: 'p1', ms: null });
+  assert.equal(readPingAck({ ms: 3 }), undefined);
+});

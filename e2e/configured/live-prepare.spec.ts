@@ -7,7 +7,8 @@
 // page's Presence entry, and ends in a stamp both surfaces show. Nothing is locked meanwhile.
 // The output's own preparation (changes built beside the running graphics, the reload) is the
 // offline e2e/output-prepare.spec.ts; the words are scripts/prepare-live.test.mjs.
-// covers: src/components/control/PrepareForLive.tsx, src/control/prepareLive.ts, src/output/prepare.ts, src/components/home/ProductionPage.tsx
+// The command path ping (landing c, AC-12) is said on each output's line once the outputs settle.
+// covers: src/components/control/PrepareForLive.tsx, src/control/prepareLive.ts, src/output/prepare.ts, src/components/home/ProductionPage.tsx, supabase/migrations/0072_command_ping.sql
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -65,6 +66,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   test.info().annotations.push({ type: 'stamp', description: (await stamp.textContent()) ?? '' });
   await expect(page.getByTestId('prepare-checklist')).toContainText('Nothing changed since v1');
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A');
+  // ── AC-12: one ping through the command path, answered by the output (migration 0072). ──
+  await expect(page.getByTestId('prepare-checklist')).toContainText(/Desk A: .* · (command path \d+ ms|commands reach it)/);
   await page.screenshot({ path: shot('desk-1920-stamp') });
   if (clean) await expect(desk.locator('.pd-health-full')).toContainText('● Ready for Live · 1 of 1 output · checked', { timeout: 30_000 });
 

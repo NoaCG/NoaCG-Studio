@@ -3,6 +3,9 @@
 // output-ready.spec.ts. The request that starts it rides the production page's Presence entry;
 // here the page's own door for it, `__noacgLive.prepare`, hands it in, because the offline suite
 // has no topic to announce on (the configured live-prepare.spec.ts walks the real road).
+//
+// The last test is landing c's ping (R9, AC-12): a `{t: 'ping'}` row in the log, answered in the
+// Presence entry and never handed to the stage.
 // covers: src/output/prepare.ts, src/output/main.ts, src/output/stage.ts
 
 import { test, expect, type Page, type Route } from '@playwright/test';
@@ -32,8 +35,9 @@ function production(n: number, h: string, graphics: ReturnType<typeof graphic>[]
   };
 }
 
-/** The stood-in backend; `current()` is what the resolve answers at the moment it is asked. */
-async function standInBackend(page: Page, current: () => unknown): Promise<{ resolves: number }> {
+/** The stood-in backend; `current()` is what the resolve answers at the moment it is asked, and
+ *  `tail` the log rows a tail read answers (none by default). */
+async function standInBackend(page: Page, current: () => unknown, tail: unknown[] = []): Promise<{ resolves: number }> {
   const seen = { resolves: 0 };
   await page.route('**/src/backend/config.ts*', (route) => route.fulfill({ contentType: 'text/javascript', body: CONFIG_MODULE }));
   await page.route(`${BACKEND}/**`, async (route: Route) => {
@@ -52,6 +56,7 @@ async function standInBackend(page: Page, current: () => unknown): Promise<{ res
       seen.resolves += 1;
       body = [current()];
     }
+    if (path.endsWith('/rpc/control_output_tail')) body = tail;
     return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
   });
   return seen;
@@ -61,6 +66,7 @@ type ReadyWindow = {
   __noacgLive?: {
     ready: () => { n: number; of: number; v: { n: number; h: string } | null; chg?: { s: string; n: number; of: number; is?: { k: string; g?: string }[] } };
     prepare: (prep: { id: string; n: number; h: string }) => void;
+    ack: () => { id: string; ms: number | null };
   };
 };
 const readyOf = (page: Page) => page.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
@@ -138,5 +144,27 @@ test('asked to prepare the version it already holds, the output only checks agai
   await expect.poll(() => backend.resolves, { timeout: 10_000 }).toBe(2);
   await page.waitForTimeout(1_000);
   expect((await readyOf(page))!.chg).toBeUndefined();
+  expect(documents).toHaveLength(1);
+});
+
+test('a ping in the log is answered in the Presence entry and never reaches the stage', async ({ page }) => {
+  const live = { Strap: { data: { f0: 'x' }, state: { groups: { main: 'in' } }, event: 0 } };
+  const v1 = production(1, 'h1', [graphic('Strap')], { Strap: 'aa' }, live);
+  const at = Date.now();
+  // The row an old output receives too, here in the boot's tail read: an empty graphic, no command.
+  await standInBackend(page, () => v1, [{ id: 7, graphic: '', msg: { t: 'ping', id: 'pingoffline01', at }, created_at: new Date(at).toISOString() }]);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const documents = documentsOf(page);
+  await page.goto('/output?production=prepare-probe');
+  await expect.poll(async () => (await readyOf(page))?.n, { timeout: 20_000 }).toBe(1);
+  await expect.poll(() => page.evaluate(() => (window as ReadyWindow).__noacgLive!.ack().id), { timeout: 15_000 }).toBe('pingoffline01');
+  const ack = await page.evaluate(() => (window as ReadyWindow).__noacgLive!.ack());
+  expect(ack.ms === null || (ack.ms >= 0 && ack.ms < 60_000)).toBe(true);
+  // Nothing built for it and nothing broken by it: the graphic on air keeps its one frame, its
+  // version and its readiness, and the page did not reload.
+  await expect(page.locator('iframe')).toHaveCount(1);
+  expect(await readyOf(page)).toMatchObject({ n: 1, of: 1, v: { n: 1, h: 'h1' } });
+  expect(errors).toEqual([]);
   expect(documents).toHaveLength(1);
 });

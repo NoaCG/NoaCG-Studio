@@ -1,8 +1,8 @@
 // PREPARE FOR LIVE on the production page (Phase 6 Step 3 landing b: docs/work-specs/playout-ready/
 // spec.md AC-8 to AC-11). It shows in the READY panel (OutputHealth.tsx ReadyLine), under the
 // outputs it waits for. The decisions are control/prepareLive.ts; `usePrepareForLive` runs the
-// flow: publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, and stamp
-// the result. The flow lives in the page, not the panel: the panel closes on any click outside it
+// flow: publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, ping the
+// command path, and stamp the result. The flow lives in the page, not the panel: the panel closes on any click outside it
 // (a Take, say), and a run goes on to its stamp while it is shut.
 //
 // Optional, and never a gate: editing goes on during and after it, every verb works while it runs,
@@ -14,13 +14,17 @@ import {
   bridgeChecks,
   outputChecks,
   outputSettled,
+  pingSettled,
   preparedOutputs,
   stampOf,
   stampWords,
+  withPing,
   type BridgeFacts,
   type CheckLine,
+  type PingSent,
   type PrepRequest,
 } from '../../control/prepareLive';
+import type { PingAnswer } from '../../control/hostedControl';
 import { describeReadiness, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp } from '../../control/readiness';
 import type { LivePresenceView } from './OutputHealth';
 
@@ -53,6 +57,7 @@ export function usePrepareForLive({
   onPrep,
   onStamp,
   bridge,
+  ping,
 }: {
   /** The production: another one starts from nothing. */
   showId: string | null;
@@ -69,6 +74,8 @@ export function usePrepareForLive({
   onStamp: (stamp: ReadyStamp) => void;
   /** Gather what the Bridge and CasparCG say (read-only). */
   bridge: () => Promise<BridgeFacts>;
+  /** Send one ping through the command path (migration 0072). */
+  ping: (id: string) => Promise<PingAnswer>;
 }): PrepareFlow {
   const [phase, setPhase] = useState<Phase>('idle');
   const [publishLine, setPublishLine] = useState<CheckLine | null>(null);
@@ -78,11 +85,13 @@ export function usePrepareForLive({
   const [request, setRequest] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [finalLines, setFinalLines] = useState<CheckLine[] | null>(null);
+  const [pingSent, setPingSent] = useState<PingSent | null>(null);
   useEffect(() => {
     setPhase('idle');
     setFinalLines(null);
     setTarget(null);
     setRequest(null);
+    setPingSent(null);
   }, [showId]);
 
   // The outputs' lines as READY words them, for the version being prepared.
@@ -113,18 +122,46 @@ export function usePrepareForLive({
     if (target && outputSettled(entry, target, gone, request ?? undefined)) settled.add(id);
   }
   const timedOut = phase === 'preparing' && now - startedAt >= PREPARE_WAIT_MS;
-  const allSettled = phase === 'preparing' && bridgeLines !== null && waitingFor.every((id) => settled.has(id));
+  // Every output settled on the target (and the Bridge answered), or the wait is over.
+  const outputsDone = phase === 'preparing' && !!target && ((bridgeLines !== null && waitingFor.every((id) => settled.has(id))) || timedOut);
+  // THE PING goes out only then: an output that reloads onto the new version while preparing
+  // would lose its answer with the page it answered from. Then every output present answers, or
+  // its PING_WAIT_MS runs out.
+  const pingDone =
+    !!pingSent &&
+    presence.peers.filter((p) => p.kind === 'output').every((p) => pingSettled(p, pingSent, now));
 
-  // THE END OF A RUN, once: every output settled (and the Bridge answered), or the wait is over.
-  // What it stamps is read as it stands at that render.
-  const finished = phase === 'preparing' && !!target && (allSettled || timedOut);
-  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeLines, target, onPrep, onStamp, now });
-  latest.current = { publishLine, lines, settled, timedOut, bridgeLines, target, onPrep, onStamp, now };
+  // THE END OF A RUN, once. What it stamps is read as it stands at that render.
+  const finished = outputsDone && pingDone;
+  const peers = presence.peers;
+  const latest = useRef({ publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping });
+  latest.current = { publishLine, lines, settled, timedOut, bridgeLines, peers, target, onPrep, onStamp, now, request, pingSent, ping };
+  useEffect(() => {
+    if (!outputsDone) return;
+    const at = latest.current;
+    const id = at.request;
+    if (!id || (at.pingSent && at.pingSent.id === id)) return;
+    setPingSent({ id, sentAt: at.now, state: 'sending' });
+    const answered = (next: PingSent) => setPingSent((cur) => (cur && cur.id === id ? next : cur));
+    at.ping(id).then(
+      (answer) =>
+        answered(
+          answer.ok
+            ? { id, sentAt: Date.now(), state: 'sent' }
+            : { id, sentAt: Date.now(), state: answer.unavailable ? 'unavailable' : 'failed', detail: answer.detail },
+        ),
+      () => answered({ id, sentAt: Date.now(), state: 'failed' }),
+    );
+  }, [outputsDone]);
   useEffect(() => {
     if (!finished) return;
     const at = latest.current;
     if (!at.target) return;
-    const done = [...(at.publishLine ? [at.publishLine] : []), ...outputChecks(at.lines, at.settled, at.timedOut), ...(at.bridgeLines ?? [])];
+    const done = [
+      ...(at.publishLine ? [at.publishLine] : []),
+      ...withPing(outputChecks(at.lines, at.settled, at.timedOut), at.peers, at.pingSent, at.now),
+      ...(at.bridgeLines ?? []),
+    ];
     setFinalLines(done);
     setPhase('done');
     at.onPrep(null);
@@ -135,6 +172,7 @@ export function usePrepareForLive({
     setFinalLines(null);
     setBridgeLines(null);
     setPublishLine(null);
+    setPingSent(null);
     let version = published;
     if (unpublishedChanges || !published) {
       setPhase('publishing');
@@ -165,7 +203,11 @@ export function usePrepareForLive({
     phase === 'done'
       ? finalLines
       : phase === 'preparing'
-        ? [...(publishLine ? [publishLine] : []), ...outputChecks(lines, settled, false), ...(bridgeLines ?? [{ key: 'bridge', tone: 'running', label: 'Checking NoaCG Bridge and CasparCG' } as CheckLine])]
+        ? [
+            ...(publishLine ? [publishLine] : []),
+            ...withPing(outputChecks(lines, settled, false), peers, pingSent, now),
+            ...(bridgeLines ?? [{ key: 'bridge', tone: 'running', label: 'Checking NoaCG Bridge and CasparCG' } as CheckLine]),
+          ]
         : phase === 'publishing'
           ? [{ key: 'publish', tone: 'running', label: 'Publishing your changes' }]
           : null;

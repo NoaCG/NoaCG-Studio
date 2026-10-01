@@ -258,6 +258,15 @@ The page:
   same version as it holds: it only checks again. Each answer names the request it answers, a
   request is acted on once (session storage keeps the ids across the reload), and a preparation
   starts at most every 15 s. "On air" is the log's own head summary on the numbered log.
+- **The command path ping** (migration 0072, Phase 6 Step 3 landing c). `control_ping_seq` writes
+  one row `{t: 'ping', id, at}` with an empty graphic under the next number, with the same locks
+  and burst cap as a Take, so it takes a Take's road on both protocols (the per-row `log-`
+  broadcast and the `seq-` frame). `at` is the server's clock at the commit. The renderer never
+  hands it to the stage: it answers in its Presence entry with `ack: {id, ms}`, how long after `at`
+  the row arrived on its own clock (no figure when the two clocks disagree: negative, or over a
+  minute). A renderer from this landing on always carries `ack` (empty until a ping arrives), so a
+  page can tell one that cannot answer from one that did not. Older renderers and pages ignore the
+  row: its type is unknown to them and its graphic names nothing they hold.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
@@ -550,7 +559,10 @@ send.
   checks NoaCG Bridge and CasparCG when they are configured (`control/prepareBridge.ts`: a VERSION
   round trip, whether the output layer holds this production's output URL, and whether every
   server clip and template the rundown cues is on the server - read-only), waits up to 60 s for
-  every output to settle, and ends in a checklist and a stamp: "Ready for Live, checked 14:02
+  every output to settle, then sends one ping through the command path and waits up to 15 s for
+  each output present to answer (said on its line: "Desk A: Ready for playout · command path 6 ms",
+  amber "· commands did not reach it in 15 s"; a server without migration 0072 gets one note
+  instead), and ends in a checklist and a stamp: "Ready for Live, checked 14:02
   (v12)", or the warnings and problems counted. The stamp is kept per production in the browser,
   announced for the hosted page and the phone, and after a later change reads "Checked 14:02 on
   v12, 1 change since". Editing goes on during and after it.

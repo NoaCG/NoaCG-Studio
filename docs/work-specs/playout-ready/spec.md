@@ -106,11 +106,16 @@ From the owner's decisions of 2026-09-29 (decision 5) and the session prompt of 
   (migration 0072, live-path class) takes the production's row at KEY SHARE and the head FOR
   UPDATE exactly as `control_send_seq` does, and writes one row `{t: 'ping', id, at}` with an
   empty graphic under the next seq: the same locks, the same numbered frame, the same poll floor as
-  a Take, and no revision moves (0071's head effect ignores the type). Old outputs and pages
-  already ignore an unknown type. Each output answers in its Presence entry with the ping's id
-  and its own press-to-receive time; the operator page shows "command path 110 ms". It is sent by
-  Prepare for Live and by "Check again", never on a timer. Revert: stop calling it; guarantee 7 is
-  judged from the join, as in landing a.
+  a Take, and no revision moves (0071's head effect ignores the empty graphic). Old outputs and
+  pages already ignore an unknown type. Each output answers in its Presence entry with the ping's
+  id and how long after the server's commit (`at`, the server's clock) the row arrived on its own
+  clock; the operator page shows "command path 110 ms" on that output's line, and "commands reach
+  it" without a figure when the two clocks disagree. It is sent by Prepare for Live once every
+  output has settled, so an output that reloads onto the new version answers from the page that
+  will air; pressing Prepare for Live again is the "Check again". Never on a timer. An output from
+  this landing on always carries `ack` (empty until a ping arrives); one without it was loaded
+  before the ping and is said to be unable to answer, never to have failed. Revert: stop calling
+  it; guarantee 7 is judged from the join, as in landing a.
 - **R10. Placement.** The READY summary takes the health line's place in both headers and is a
   button: it opens a panel with one line per output, the checks, the stamp and (production page
   only) Prepare for Live. On a phone it keeps its short form ("● Ready 2/2") and the panel spans

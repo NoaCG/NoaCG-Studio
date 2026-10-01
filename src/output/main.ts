@@ -54,6 +54,7 @@ import { outputReadiness, outputStateWords, type ChangePrep, type GraphicCheck, 
 import { alreadyInSnapshot, planOutputRecovery, seqBaselines } from '../control/outputRecovery';
 import { supersededAnimations } from '../control/seqFollow';
 import { airWhenSettled } from './catchUp';
+import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { createOutputStage, heldLine } from './stage';
 
@@ -222,6 +223,9 @@ async function boot(): Promise<void> {
   let catchingUp = false;
   /** A newer version being prepared beside this one (Prepare for Live, ./prepare.ts). */
   let chg: ChangePrep | undefined;
+  /** The answer to the last command path ping this page received (migration 0072, R9). Always in
+   *  the entry, empty until a ping arrives: an entry without it is an output that cannot answer. */
+  let ack: PingAck = { id: '', ms: null };
   let markRecovered: () => void = () => {};
   const recovered = new Promise<void>((resolve) => {
     markRecovered = resolve;
@@ -291,7 +295,7 @@ async function boot(): Promise<void> {
     },
   });
   const entry = (): LiveEntry =>
-    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), { name: outputName, ready: readiness() });
+    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), { name: outputName, ready: readiness(), ack });
   const presence = joinLivePresence({
     showId: resolved.id,
     entry,
@@ -322,6 +326,7 @@ async function boot(): Promise<void> {
     ready: readiness,
     // The same door the production page's request comes through, for specs.
     prepare: (prep: { id: string; n: number; h: string }) => preparer.request(prep),
+    ack: () => ack,
   };
   // ── PREPARE A NEWER VERSION (./prepare.ts; R3): the changes are built beside the running
   // graphics and checked, and this page reloads onto the new version only when nothing is on air
@@ -646,7 +651,7 @@ async function boot(): Promise<void> {
           reportTimers.delete(row.graphic);
           forcedReports.delete(row.graphic);
         }
-      } else {
+      } else if (row.msg.t !== 'ping') {
         for (const [graphic, at] of bankedAt) {
           // A catch-up replays rows from the oldest bank; rows before this graphic's do not count.
           if (seq <= at) continue;
@@ -657,6 +662,15 @@ async function boot(): Promise<void> {
           scheduleReport(graphic, true);
         }
       }
+    }
+    // PREPARE FOR LIVE's check of the command path (R9): answered in the Presence entry with how
+    // long the row took from the server's commit, and never handed to the stage. Its graphic is
+    // empty, so it names nothing here to air or to report.
+    if (row.msg.t === 'ping') {
+      ack = { id: row.msg.id, ms: pingDelay(row.msg.at, Date.now()) };
+      dbg('ping', ack.ms === null ? ack.id : ack.id + ' in ' + ack.ms + ' ms');
+      presence.touch();
+      return;
     }
     // Already inside the state this graphic was rebuilt from — replaying it would re-air it.
     // The FAST road cannot reach this guard and does not need to: it is only joined once the

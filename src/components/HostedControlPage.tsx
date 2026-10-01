@@ -324,9 +324,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       // rides the same road as the picture, or the ON AIR marker and the monitor would disagree
       // for a third of a second.
       if (msg.t === 'cue') setLiveCue((m) => withLiveCue(m, item.graphic, msg.cue));
-      // 'staged' is another operator typing and 'live' is the renderer REPORTING - neither is a
-      // command, and both are the follower's business rather than the stage's.
-      else if (msg.t !== 'staged' && msg.t !== 'live') {
+      // 'staged' is another operator typing, 'live' is the renderer REPORTING and 'ping' is
+      // Prepare for Live's check of the command path - none is a command for the stage.
+      else if (msg.t !== 'staged' && msg.t !== 'live' && msg.t !== 'ping') {
         // A RENDERER command: mirror it onto the PROGRAM monitor, so this page shows what
         // actually reached air rather than only what its own buttons sent.
         programRef.current?.apply([{ graphic: item.graphic, msg }]);
@@ -377,7 +377,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         // 'staged' and 'live' rows are not commands.
         bootReplay.current = (rows ?? []).flatMap((row) => {
           const msg = row.msg;
-          if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live') return [];
+          if (msg.t === 'cue' || msg.t === 'staged' || msg.t === 'live' || msg.t === 'ping') return [];
           if (!onAir.includes(row.graphic) || alreadyInSnapshot(snapshotAt, row.graphic, row.id)) return [];
           return [{ graphic: row.graphic, msg }];
         });
