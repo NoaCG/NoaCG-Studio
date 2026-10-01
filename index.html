@@ -257,6 +257,16 @@
       padding: 9px 13px; border-top: 1px solid var(--line);
       font-size: 13px; color: var(--faint);
     }
+    /* On a phone the whole OBS window is too small to read, so the frame closes in on the
+       preview's lower third and the NoaCG dock (x 330-1430, y 50-420 of the 1438x788 capture):
+       the same picture, framed tighter. */
+    @media (max-width: 640px) {
+      .obs-frame { position: relative; aspect-ratio: 1100 / 370; overflow: hidden; }
+      .screen .obs-frame img {
+        position: absolute; width: calc(100% * 1438 / 1100);
+        left: calc(-100% * 330 / 1100); top: calc(-100% * 50 / 370);
+      }
+    }
     .playout-actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-top: 22px; }
     .text-link { color: var(--amber); font-size: 15px; }
     .text-link:hover { color: var(--glow); }
@@ -541,7 +551,7 @@
              a NoaCG lower third on program and the control panel in a Custom Browser Dock. -->
         <figure class="screen obs-shot" data-reveal>
           <div class="screen-top"><i></i><i></i><i></i><span class="screen-name">OBS Studio</span></div>
-          <img src="/landing/shot-obs.png" alt="OBS Studio with a NoaCG lower third on program and the NoaCG control panel in a Custom Browser Dock beside the preview, with Play, Stop and Take" width="1438" height="788" loading="lazy" />
+          <div class="obs-frame"><img src="/landing/shot-obs.png" alt="OBS Studio with a NoaCG lower third on program and the NoaCG control panel in a Custom Browser Dock beside the preview, with Play, Stop and Take" width="1438" height="788" loading="lazy" /></div>
           <figcaption>In OBS: the graphic as a browser source, the control panel as a dock.</figcaption>
         </figure>
         <div class="playout-actions" data-reveal>

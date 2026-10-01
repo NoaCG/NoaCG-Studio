@@ -163,6 +163,22 @@ test('the pages and anchors the landing links to exist', async ({ page }) => {
   }
 });
 
+// The OBS capture is a whole OBS window. On a desktop it shows whole; on a phone it would be too
+// small to read, so its frame closes in on the preview's lower third and the NoaCG dock.
+test('the OBS capture shows whole on a desktop and closes in on a phone', async ({ page }) => {
+  const scale = () =>
+    page.locator('.obs-frame').evaluate((frame) => {
+      const img = frame.querySelector('img') as HTMLImageElement;
+      return img.getBoundingClientRect().width / frame.getBoundingClientRect().width;
+    });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  expect(await scale()).toBeCloseTo(1, 2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await scale()).toBeGreaterThan(1.25);
+  await expect(page.locator('.obs-frame')).toBeVisible();
+});
+
 // The two pages are generated at build from notes in the repository, so the assertions are about
 // their shape, never their words: an update a week from now must pass this as written today.
 for (const [width, height] of [
