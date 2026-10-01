@@ -16,7 +16,7 @@ import { fontLicenseComment } from '../model/fonts';
 import type { SpxTemplate } from '../model/types';
 import { flexGapShimTag } from '../assets/flexGapSupport';
 import { appendToBody, injectProjectFormatMeta } from './common';
-import { expandInset, expandInsetInMarkup } from '../preview/cssCompat';
+import { expandInset, expandInsetInMarkup } from '../assets/cssCompat';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
@@ -32,7 +32,7 @@ export async function composeSelfContainedHtml(
 ): Promise<string> {
   template = { ...template, js: prepareOutRuntime(template.js) };
   // Inline uploaded assets (images/foo.png -> data URL) in markup and styles.
-  // `inset` becomes longhands: a CasparCG 2.3 loads this file into Chromium 71 (preview/cssCompat.ts).
+  // `inset` becomes longhands: a CasparCG 2.3 loads this file into Chromium 71 (assets/cssCompat.ts).
   let html = expandInsetInMarkup(injectProjectFormatMeta(inlineAssetRefs(template.html, template.assets), template))
     // Drop the external stylesheet/script references — their contents go inline below.
     .replace(/<link\b[^>]*href=["'](?:\.\/)?(?:css\/|js\/)[^"']*["'][^>]*>\s*/gi, '')

@@ -1,4 +1,4 @@
-// guards: src/preview/cssCompat.ts
+// guards: src/assets/cssCompat.ts
 //
 // The `inset` shorthand rewritten into longhands for CasparCG 2.3.x's Chromium 71, which drops
 // `inset` while parsing: a full-frame stage written `inset: 0` had no size there, so a picture
@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { expandInset, expandInsetInMarkup } = await import('../src/preview/cssCompat.ts');
+const { expandInset, expandInsetInMarkup } = await import('../src/assets/cssCompat.ts');
 
 test('one to four values become top, right, bottom and left, as the shorthand means them', () => {
   assert.equal(expandInset('#s { position: absolute; inset: 0; }'), '#s { position: absolute; top: 0; right: 0; bottom: 0; left: 0; }');

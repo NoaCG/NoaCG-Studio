@@ -24,7 +24,7 @@ import type { ExportTarget } from '../registry';
 import type { ControlEntry } from '../../model/library';
 import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import type { SpxTemplate, TemplateType } from '../../model/types';
-import { expandInset } from '../../preview/cssCompat';
+import { expandInset } from '../../assets/cssCompat';
 
 /**
  * The operator page's file name in an SPX package. SPX's template browser lists every `.htm` and
@@ -195,7 +195,7 @@ export async function buildStarterInto(
   const steps = Number(template.settings.steps);
   if (opts?.forSpx && steps >= 2) html = appendToBody(html, spxStepGuardScript(steps));
   root.file(fileName, html);
-  // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (preview/cssCompat.ts).
+  // SPX plays it on CasparCG, which on 2.3 is Chromium 71: no `inset` (assets/cssCompat.ts).
   root.file('css/template.css', cssForSubfolder(expandInset(template.css)));
   root.file('js/template.js', template.js);
   root.file('README.md', spxReadme(template, fileName, panelFile));
