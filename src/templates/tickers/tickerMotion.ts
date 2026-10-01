@@ -80,12 +80,26 @@ ${speedFieldId
 //
 // A timeScale is what makes that true without a seam. Restarting the tween would honour the
 // number and snap a half-scrolled strip back to its start, which is worse than ignoring it;
-// scaling the running tween changes the pace from this frame on and never moves the strip.
+// scaling the running tween changes the pace from this frame on, from where the strip is.
 // The ratio is against the speed the tween was BUILT at, so repeated changes compose correctly
 // rather than each one measuring from the design's own rate.
+//
+// The builder's tween sits INSIDE the step's timeline, which has no smoothChildTiming, and
+// without it GSAP jumps the child to where the new pace would have had it (287px on tk01 at
+// 300%). The flag is lent for the one call - but only to a PLAYING parent: on a paused one (a
+// settled preview, an editor scrub) GSAP answers a slow-down by moving the parent's start to
+// -Infinity, so a paused strip takes the plain timeScale and the next seek shows it. The
+// credit rolls do the same in creditsApplySpeed().
 function tickerApplySpeed() {
-  if (!tickerMotionLive || !tickerMotionBuiltAt) return;
-  tickerMotionLive.timeScale(tickerMotionSpeed() / tickerMotionBuiltAt);
+  var live = tickerMotionLive;
+  if (!live || !tickerMotionBuiltAt) return;
+  var scale = tickerMotionSpeed() / tickerMotionBuiltAt;
+  var parent = live.parent;
+  if (!parent || parent.paused()) { live.timeScale(scale); return; }
+  var smooth = parent.smoothChildTiming;
+  parent.smoothChildTiming = true;
+  live.timeScale(scale);
+  parent.smoothChildTiming = smooth;
 }`
       : `// This design has no speed field (see tickerSpeed above), so there is nothing for an
 // update() to change about its pace. update() calls this either way, so it exists and does
