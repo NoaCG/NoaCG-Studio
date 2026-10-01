@@ -29,6 +29,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { mintOid } from './commandRoads';
 import { createPresenceGate } from './presenceGate';
+import { readPrepRequest, type PrepRequest } from './prepareLive';
 import {
   oneEntryPerOutput,
   readHeld,
@@ -403,6 +404,8 @@ export interface LiveEntry {
   exp?: ExpectedOutput[];
   /** The production page's last Prepare for Live stamp (R5). */
   stamp?: ReadyStamp;
+  /** The production page asking every output to prepare a version (Prepare for Live, R4). */
+  prep?: PrepRequest;
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
@@ -412,7 +415,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp'>,
+  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep'>,
 ): LiveEntry {
   return {
     kind,
@@ -453,6 +456,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
         .map((e) => ({ id: e.id.slice(0, 40), name: e.name.slice(0, 80), seen: typeof e.seen === 'number' ? e.seen : 0 }))
     : undefined;
   const stamp = readReadyStamp(m.stamp);
+  const prep = readPrepRequest(m.prep);
   return {
     kind: m.kind,
     id: m.id.slice(0, 40),
@@ -469,6 +473,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     ...(pub ? { pub } : {}),
     ...(exp ? { exp } : {}),
     ...(stamp ? { stamp } : {}),
+    ...(prep ? { prep } : {}),
   };
 }
 

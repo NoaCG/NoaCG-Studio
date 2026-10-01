@@ -107,7 +107,9 @@ test('the operator reads the plan’s words for every state', () => {
     peers: [output({ log: false, ready: { n: 4, of: 4, v: V12, is: [{ k: 'font', g: 'A', d: 'Space Grotesk' }, { k: 'font', g: 'A', d: 'JetBrains Mono' }, { k: 'font', g: 'B', d: 'Inter' }] } })],
   });
   assert.equal(fonts.outputs[0].state, 'Commands may arrive up to 30 s late');
-  assert.equal(fonts.outputs[0].detail[0], 'Also: Using a fallback font for Space Grotesk, JetBrains Mono and Inter.');
+  // What to do about the headline first, then what else is wrong.
+  assert.match(fonts.outputs[0].detail[0], /not on the live channel/);
+  assert.equal(fonts.outputs[0].detail[1], 'Also: Using a fallback font for Space Grotesk, JetBrains Mono and Inter.');
 
   const late = read({ peers: [output({ log: false })] });
   assert.equal(late.summary.label, '▲ Commands may arrive up to 30 s late');

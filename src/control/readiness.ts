@@ -63,6 +63,9 @@ export interface ChangePrep {
   is?: ReadyIssue[];
   /** For `waiting`, how many graphics are on air. */
   air?: number;
+  /** The Prepare for Live request this answers (prepareLive.ts `PrepRequest.id`), so a run never
+   *  takes the last run's answer for its own. */
+  id?: string;
 }
 
 /** What an output says about itself: its Presence entry's `ready`. */
@@ -199,12 +202,13 @@ function readChange(value: unknown): ChangePrep | undefined {
     n: c.n,
     ...(c.s === 'failed' ? { is: readIssues(c.is) } : {}),
     ...(typeof c.air === 'number' ? { air: c.air } : {}),
+    ...(typeof c.id === 'string' ? { id: c.id.slice(0, 40) } : {}),
   };
 }
 
 // ── THE WORDS FOR ONE ISSUE ──────────────────────────────────────────────────────────────────
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
@@ -345,7 +349,7 @@ export function ageWords(ms: number): string {
 }
 
 /** "14:02", on the reading page's clock. */
-function clockWords(at: number): string {
+export function clockWords(at: number): string {
   const d = new Date(at);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
@@ -483,7 +487,11 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // Preparing the published version is the one way of being behind that is on its way to being
   // fixed: it reads as the plan's "Ready · 1 change preparing", green, below.
   const preparingPublished = !!(chg && chg.s === 'preparing' && published && chg.v.h === published.h);
-  const behind = !preparingPublished && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
+  // A change that failed for the published version already says why this output is behind, and
+  // pressing Prepare for Live again would not fix it: no second line for it.
+  const failedPublished = !!(chg && chg.s === 'failed' && published && chg.v.h === published.h);
+  const behind =
+    !preparingPublished && !failedPublished && published && published.h !== (ready.v?.h ?? '') && (!ready.v || ready.v.n < published.n);
   if (behind) {
     degraded.push({
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
@@ -495,8 +503,9 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   }
   for (const d of degraded) problems.push({ line: d.line, advice: [d.advice] });
   if (problems.length > 0) {
+    // What to do first, then what else is wrong, then who it is.
     const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
-    return warn(problems[0].line, also.concat(...problems.map((p) => p.advice)));
+    return warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
   }
   if (preparingPublished && chg) {
     return { ...base, tone: 'ok', state: `Ready · ${plural(chg.of, 'change')} preparing`, detail: [`Preparing v${chg.v.n}: ${chg.n} of ${chg.of} done.`].concat(detail) };

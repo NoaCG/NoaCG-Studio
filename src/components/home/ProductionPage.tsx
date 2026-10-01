@@ -249,7 +249,11 @@ import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 import { ReadyLine, announcedExpected, useExpectedOutputs, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
-import type { ExpectedOutput, HeldVersion } from '../../control/readiness';
+import type { ExpectedOutput, HeldVersion, ReadyStamp } from '../../control/readiness';
+import type { PrepRequest } from '../../control/prepareLive';
+import { gatherBridgeFacts } from '../../control/prepareBridge';
+import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
+import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -546,10 +550,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     livePresence,
     true,
   );
+  /** PREPARE FOR LIVE (components/control/PrepareForLive.tsx): the last stamp, kept per production
+   *  in this browser, and the request to the outputs while a run is out. Both are announced. */
+  const [readyStamp, setReadyStamp] = useState<ReadyStamp | null>(null);
+  const [prepRequest, setPrepRequest] = useState<PrepRequest | null>(null);
+  useEffect(() => {
+    setReadyStamp(show?.id ? loadReadyMemory(show.id).stamp : null);
+    setPrepRequest(null);
+  }, [show?.id]);
+  /** Prepare for Live's own publish, set once `publishNow` exists below. */
+  const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
+  const prepareFlow = usePrepareForLive({
+    showId: show?.id ?? null,
+    presence: livePresence,
+    expected: expectedOutputs,
+    published: publishedVer,
+    unpublishedChanges: !!show?.publishedAt && show.updatedAt > show.publishedAt,
+    publish: () => preparePublishRef.current(),
+    onPrep: setPrepRequest,
+    onStamp: (stamp) => {
+      if (!show) return;
+      setReadyStamp(stamp);
+      saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
+    },
+    bridge: () => gatherBridgeFacts(loadPlayoutSettings(), show ?? {}),
+  });
   const { announce } = livePresence;
   useEffect(() => {
-    announce({ pub: publishedVer, exp: announcedExpected(expectedOutputs, livePresence) });
-  }, [announce, publishedVer, expectedOutputs, livePresence]);
+    announce({ pub: publishedVer, exp: announcedExpected(expectedOutputs, livePresence), stamp: readyStamp, prep: prepRequest });
+  }, [announce, publishedVer, expectedOutputs, livePresence, readyStamp, prepRequest]);
   /** The production's row id — the command channel's key on the fast road. Read out here rather
    *  than inside the verbs so a send depends on the ID and not on the whole show record. */
   const showId = show?.id ?? null;
@@ -2041,11 +2070,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     });
   };
 
-  const publish = async () => {
+  /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
+   *  Prepare for Live's own publish, which leaves the links panel shut and says what it did. */
+  const publishNow = async (forPrepare = false): Promise<HeldVersion | null> => {
     if (accountBlocks(PUBLISH_NEEDS_ACCOUNT)) {
       // Only a real sign-in prompt is worth finishing; the "still checking" answer is not one.
-      if (needsSignIn) publishAfterSignIn.current = true;
-      return;
+      if (needsSignIn && !forPrepare) publishAfterSignIn.current = true;
+      return null;
     }
     flushDraft();
     setBusy(true);
@@ -2070,17 +2101,27 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         fastEventGraphicsRef.current = fastEventGraphics(
           (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
         );
-        setLinksOpen(true);
-        setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
-      } else {
-        setNote('Publishing needs the cloud backend, and this build runs offline.');
+        if (forPrepare) {
+          setNote(`✓ Published as v${published.version?.n ?? '?'} for Prepare for Live. Every output now prepares it.`);
+        } else {
+          setLinksOpen(true);
+          setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
+        }
+        return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
+      setNote('Publishing needs the cloud backend, and this build runs offline.');
+      return null;
     } catch (e) {
       setNote(`Publish failed: ${(e as Error).message}`);
+      return null;
     } finally {
       setBusy(false);
     }
   };
+  const publish = async () => {
+    await publishNow();
+  };
+  preparePublishRef.current = () => publishNow(true);
 
   publishRef.current = publish;
 
@@ -3489,6 +3530,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       publishedVer={publishedVer}
       expectedOutputs={expectedOutputs}
       onForgetOutput={forgetOutput}
+      readyStamp={readyStamp}
+      readyPanel={
+        <PrepareForLive
+          flow={prepareFlow}
+          published={publishedVer}
+          unpublishedChanges={unpublishedChanges}
+          // This desk's own, or a newer one another production page announced.
+          stamp={[readyStamp, ...livePresence.operators.map((o) => o.stamp ?? null)].reduce<ReadyStamp | null>(
+            (best, s) => (s && (!best || s.at > best.at) ? s : best),
+            null,
+          )}
+        />
+      }
       outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
       follow={follow}
@@ -4320,6 +4374,8 @@ function ProductionShell({
   publishedVer,
   expectedOutputs,
   onForgetOutput,
+  readyStamp,
+  readyPanel,
   outputSeenAt,
   liveLayers,
   follow,
@@ -4347,6 +4403,9 @@ function ProductionShell({
   publishedVer: HeldVersion | null;
   expectedOutputs: ExpectedOutput[];
   onForgetOutput: (id: string) => void;
+  /** The last Prepare for Live stamp, and the panel's Prepare for Live section. */
+  readyStamp: ReadyStamp | null;
+  readyPanel: React.ReactNode;
   outputSeenAt: string | null;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
@@ -4521,8 +4580,11 @@ function ProductionShell({
             published={publishedVer}
             expected={expectedOutputs}
             onForget={onForgetOutput}
+            stamp={readyStamp}
             testId="renderer-status"
-          />
+          >
+            {readyPanel}
+          </ReadyLine>
         )}
         {/* WHERE THE GRAPHICS PLAY: the Playout settings door, beside the renderer heartbeat it
             belongs with. Setup lives in its dialog, never as more controls in this header. */}

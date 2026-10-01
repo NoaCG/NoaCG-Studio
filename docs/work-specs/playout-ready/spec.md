@@ -72,12 +72,13 @@ From the owner's decisions of 2026-09-29 (decision 5) and the session prompt of 
 - **R4. The request travels on Presence, not the command road.** The production page's own
   Presence entry carries `prep: {id, n, h}`. It is not an airing command (D12 keeps those off
   Presence), and a spoofed one can do no more than a real one: an output re-reads the published
-  payload at most once a minute, and reloads only when the server really holds a newer version.
+  payload at most once every 15 s, and reloads only when the server really holds a newer version.
   Revert: outputs stop reading operator entries.
 - **R5. Expected outputs are remembered by the production page and carried on Presence.** An
   output the production page has seen on the live topic is expected (kept per production in that
-  browser's storage, `noacg-ready-v1-<show id>`), and each Prepare for Live re-bases the list on
-  the outputs present at its end. An expected output with no entry for 15 s reads
+  browser's storage, `noacg-ready-v1-<show id>`). The list changes only by what is seen and by
+  Forget, and Prepare for Live counts it as it stands, so a dead output keeps its red line until
+  the operator forgets it. An expected output with no entry for 15 s reads
   "<output> not answering (40 s)" in red; a line can be forgotten. The production page announces
   the list and the stamp in its entry, so the hosted page and the phone show the same summary
   while it is open; without it they count the outputs present and those seen since they opened.

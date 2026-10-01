@@ -247,6 +247,17 @@ The page:
   booted with, what fails) and its `&name=` in its Presence entry, and says the same on the
   `&debug=1` line. The version stamp is `output.ver` (`src/control/payloadVersion.ts`), written by
   every publish: a digest per graphic and one over them all, and a number for the label.
+- **Preparing a newer version** (`src/output/prepare.ts`, Phase 6 Step 3 landing b). An open
+  renderer keeps the version it booted with. When Prepare for Live asks (a `prep: {id, n, h}` in
+  the production page's own Presence entry), it re-reads the published payload, builds only the
+  new and changed graphics in hidden frames beside the ones on air, one at a time, and runs the
+  same checks on them. Every change prepared and nothing on air here: it reloads onto the new
+  version once its own URL answers, through the boot recovery above. A change that failed: it
+  keeps the version it runs ("Ready · 1 change not prepared: Frost Quiz (script error)"). A
+  graphic on air: it keeps its version and says so ("Behind", with how many are on air). The
+  same version as it holds: it only checks again. Each answer names the request it answers, a
+  request is acted on once (session storage keeps the ids across the reload), and a preparation
+  starts at most every 15 s. "On air" is the log's own head summary on the numbered log.
 - **Nothing on air but graphics.** No UI, no connection text — a disconnected renderer keeps
   the last applied state and recovers silently. `&debug=1` overlays a status readout for
   setup and rehearsal; without it the page renders nothing but the stage.
@@ -532,6 +543,17 @@ send.
   polls it every 30 s, the signed-out hosted page shows the value it resolved with and says so).
   Every live layer with its cue + machine state + applied values (from `live` reports), publish
   freshness.
+- **Prepare for Live** — production page only, in the READY panel
+  (`components/control/PrepareForLive.tsx`, decisions in `control/prepareLive.ts`). Optional and
+  never a gate. Before the press it says whether unpublished changes will be included; pressed, it
+  publishes them (or says "Nothing changed since v12"), asks every output to prepare that version,
+  checks NoaCG Bridge and CasparCG when they are configured (`control/prepareBridge.ts`: a VERSION
+  round trip, whether the output layer holds this production's output URL, and whether every
+  server clip and template the rundown cues is on the server - read-only), waits up to 60 s for
+  every output to settle, and ends in a checklist and a stamp: "Ready for Live, checked 14:02
+  (v12)", or the warnings and problems counted. The stamp is kept per production in the browser,
+  announced for the hosted page and the phone, and after a later change reads "Checked 14:02 on
+  v12, 1 change since". Editing goes on during and after it.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).
