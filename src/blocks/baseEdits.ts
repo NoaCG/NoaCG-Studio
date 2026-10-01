@@ -2,16 +2,22 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
 import { parseTransform } from '../assets/svgGeometry';
-import { parseAnimData } from './animData';
+import { locateAnimData, parseAnimData } from './animData';
 import { addCatalogLine, appendCss, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
 import { artworkNode, artworkRange } from './artworkEdits';
+import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../templates/lowerThirds/animPresets';
 
 export interface BaseValues {
   selector: string; target: string; mode: 'placed' | 'svg' | 'flow' | 'absolute';
   x: number; y: number; originX: number; originY: number; scaled: boolean;
   scaleX: number; scaleY: number; rotation: number;
   scaleReason: string | null;
+  /** The declared anchor (R1.2b.1), in layer pixels from the top-left of the base target's box, or null
+   *  where the CSS default (or a source declaration the editor does not own) places the pivot. */
+  anchor: { x: number; y: number } | null;
+  /** Why no anchor can be written exactly here, or null. */
+  anchorReason: string | null;
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const precise = (n: number) => Math.round(n * 1000) / 1000;
@@ -45,6 +51,35 @@ function matchingStyles(css: string, node: Element): CSSStyleDeclaration[] {
   };
   visit(sheet.cssRules);
   return styles;
+}
+/** The rule, other than the target's own (the first top-level rule with exactly its selector, which
+ *  `setCssDeclaration` writes), that sets `transform-origin`; or any rule setting `transform-box`, which
+ *  would measure an anchor from another box. */
+function originOwner(css: string, node: Element, target: string): string | null {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  let own = false;
+  const visit = (rules: CSSRuleList, nested: boolean): string | null => {
+    for (const rule of rules) {
+      if (rule instanceof CSSStyleRule && node.matches(rule.selectorText)) {
+        const mine = !nested && !own && rule.selectorText === target;
+        own ||= mine;
+        if (rule.style.getPropertyValue('transform-box') || !mine && rule.style.getPropertyValue('transform-origin')) return rule.selectorText;
+      }
+      const found = rule instanceof CSSGroupingRule ? visit(rule.cssRules, true) : null;
+      if (found) return found;
+    }
+    return null;
+  };
+  return visit(sheet.cssRules, false);
+}
+/** Whether the graphic's script or animation data sets transformOrigin itself: outside the generated
+ *  interpreter (which only names it), or anywhere in a script without animation data. */
+function scriptSetsOrigin(js: string): boolean {
+  const start = js.indexOf(ANIMATION_MARK_OPEN), end = js.indexOf(ANIMATION_MARK_CLOSE), data = locateAnimData(js);
+  const own = start >= 0 && end > start && data && data.start > start && data.end < end
+    ? js.slice(0, start) + js.slice(data.start, data.end) + js.slice(end) : js;
+  return /transformOrigin|transform-origin/.test(own);
 }
 
 // A gesture repeatedly inspects the same immutable document. Retain only its derived
@@ -123,15 +158,32 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     const y = parseFloat(node.getAttribute('y') ?? node.getAttribute('cy') ?? '0');
     originX = m.a * x + m.c * y + m.e; originY = m.b * x + m.d * y + m.f;
   }
+  // The anchor is the base target's transform-origin, ours where it names our custom properties.
+  const declaredOrigin = declaration(template.css, target, 'transform-origin');
+  const anchor = declaredOrigin?.includes('--base-anchor-') ? { x: number(template.css, target, '--base-anchor-x'), y: number(template.css, target, '--base-anchor-y') } : null;
+  // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
+  const textMotion = mode === 'placed' && motion?.steps.some(step => Object.entries(step.layers).some(([key, tracks]) => {
+    try { return node.matches(key) && ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length); } catch { return false; }
+  }));
+  const rival = svg ? null : originOwner(template.css, targetNode, target);
+  const anchorReason = svg ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
+    : scriptSetsOrigin(template.js) ? 'This graphic\'s script or animation data sets transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+    : rival ? `This layer's transform-origin or transform-box is set by another rule (${rival}), so an anchor written here could lose to it or be measured from another box. Its source is preserved.`
+    : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
+    : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
+    : null;
   return { selector, target, mode, scaleReason, scaled: placed?.scaled ?? left?.scaled ?? false,
-    originX, originY,
+    originX, originY, anchor, anchorReason,
     x: placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
     scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
     rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
 }
-export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number }
+/** Base values a source edit writes. The anchor (R1.2b.1) is written as a pair, in layer pixels. */
+export interface BasePatch { x?: number; y?: number; scaleX?: number; scaleY?: number; rotation?: number; anchorX?: number; anchorY?: number }
+/** The base values that are also transform controls (Position, Scale, Rotation). */
+export type TransformPatch = Omit<BasePatch, 'anchorX' | 'anchorY'>;
 export function editBase(template: SpxTemplate, selector: string, patch: BasePatch): SpxTemplate {
   if (!Object.keys(patch).length || Object.values(patch).some(n => !Number.isFinite(n) || Math.abs(n!) > 100000)) {
     throw new Error('Enter finite artwork coordinates and scale.');
@@ -139,8 +191,14 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   const base = baseValues(template, selector);
   const changeScale = patch.scaleX !== undefined && patch.scaleX !== base.scaleX || patch.scaleY !== undefined && patch.scaleY !== base.scaleY;
   if (changeScale && base.scaleReason) throw new Error(base.scaleReason);
-  if (patch.rotation !== undefined && parseAnimData(template.js)?.steps.some(step => Object.entries(step.layers).some(([target, tracks]) => artworkNode(template, selector).matches(target) && ('rotation' in tracks || 'transform' in tracks)))) throw new Error('Rotation is animated on this layer. Use its animation controls to preserve motion.');
-  if (Object.entries(patch).every(([key, value]) => value === base[key as keyof BasePatch])) return template;
+  const turning = patch.rotation === undefined ? [] : parseAnimData(template.js)?.steps.flatMap(step => Object.entries(step.layers).filter(([target]) => artworkNode(template, selector).matches(target)).flatMap(([, tracks]) => Object.keys(tracks))) ?? [];
+  if (turning.includes('rotation')) throw new Error('Rotation is animated on this layer. Use its animation controls to preserve motion.');
+  if (turning.includes('transform')) throw new Error(`${selector} animates a raw transform string, which would replace a base rotation. Its source is preserved.`);
+  const anchored = patch.anchorX !== undefined || patch.anchorY !== undefined;
+  if (anchored && (patch.anchorX === undefined || patch.anchorY === undefined)) throw new Error('Set both anchor coordinates.');
+  if (anchored && base.anchorReason) throw new Error(base.anchorReason);
+  const unchanged = (key: string, value: number | undefined) => key === 'anchorX' ? base.anchor?.x === value : key === 'anchorY' ? base.anchor?.y === value : value === base[key as keyof BaseValues];
+  if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
   const x = precise(patch.x ?? base.x), y = precise(patch.y ?? base.y);
   let html = template.html;
   const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
@@ -198,6 +256,14 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (patch.rotation !== undefined) {
     css = setCssDeclaration(css, base.target, '--base-rotation', String(precise(patch.rotation)));
     css = setCssDeclaration(css, base.target, 'rotate', 'calc(var(--base-rotation) * 1deg)');
+  }
+  if (anchored) {
+    // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
+    // scales with the design measures its anchor in the same units, as its Layout offset does.
+    const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
+    css = setCssDeclaration(css, base.target, '--base-anchor-x', precise(patch.anchorX!) + 'px');
+    css = setCssDeclaration(css, base.target, '--base-anchor-y', precise(patch.anchorY!) + 'px');
+    css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
   }
   return { ...template, html, css };
 }

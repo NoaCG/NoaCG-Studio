@@ -166,13 +166,28 @@ export const foundationRuntime = String.raw`
       // Reuse this pose's HTML geometry for both handles and pivot. Each ancestor
       // walk was repeated three times per layer; no value survives this measure.
       var targetMatrix = target instanceof SVGGraphicsElement ? null : basis(target);
-      var points = corners(target, targetMatrix, rect);
+      var box = localBox(target);
+      var points = corners(target, targetMatrix, rect, box);
+      // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
+      var origin = target instanceof SVGElement ? undefined : getComputedStyle(target).transformOrigin.split(' ').slice(0, 2).map(parseFloat);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: percentBox(element, style), box: box, origin: origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points) }];
     });
+  }
+  // The box a layer's corners and pivot are measured on: an SVG element's bounding box, else the
+  // border box, unrounded (offsetWidth rounds to whole pixels; transform-origin percentages do not).
+  function localBox(element) {
+    if (element instanceof SVGGraphicsElement) { var b = element.getBBox(); return [b.width, b.height]; }
+    return percentBox(element, getComputedStyle(element));
+  }
+  // An independent CSS rotate, in degrees; GSAP folds it into its transform once it reads the element.
+  function rotateOf(style) {
+    var value = style.rotate && style.rotate !== 'none' ? style.rotate.split(' ').pop() : '0deg';
+    var angle = parseFloat(value);
+    return /rad$/.test(value) && !/grad$/.test(value) ? angle * 180 / Math.PI : /turn$/.test(value) ? angle * 360 : /grad$/.test(value) ? angle * .9 : angle || 0;
   }
   // Translation cancels for pointer deltas. SVG supplies an exact CTM; HTML composes
   // the linear transforms up its ancestors, including independent base scale.
@@ -183,19 +198,20 @@ export const foundationRuntime = String.raw`
       var style = getComputedStyle(node);
       var transform = new DOMMatrix(style.transform === 'none' ? undefined : style.transform);
       var scales = style.scale === 'none' ? [1, 1] : style.scale.split(' ').map(Number);
-      var own = new DOMMatrix().scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
+      // CSS applies rotate, then scale, then transform (all about transform-origin).
+      var own = new DOMMatrix().rotate(rotateOf(style)).scale(scales[0], scales[1] === undefined ? scales[0] : scales[1]).multiply(transform);
       matrix = own.multiply(matrix);
     }
     return matrix;
   }
-  function corners(element, matrix, rect) {
+  function corners(element, matrix, rect, size) {
     if (element instanceof SVGGraphicsElement) {
       var box = element.getBBox(), m = element.getScreenCTM();
       if (m) return [[box.x,box.y],[box.x+box.width,box.y],[box.x+box.width,box.y+box.height],[box.x,box.y+box.height]].map(function (p) {
         return { x:m.a*p[0]+m.c*p[1]+m.e, y:m.b*p[0]+m.d*p[1]+m.f };
       });
     }
-    var m = matrix || basis(element), w = element.offsetWidth, h = element.offsetHeight;
+    var m = matrix || basis(element), w = size[0], h = size[1];
     var points = [[0,0],[w,0],[w,h],[0,h]].map(function (p) { return { x:m.a*p[0]+m.c*p[1], y:m.b*p[0]+m.d*p[1] }; });
     var left = Math.min.apply(null, points.map(function (p) { return p.x; }));
     var top = Math.min.apply(null, points.map(function (p) { return p.y; }));

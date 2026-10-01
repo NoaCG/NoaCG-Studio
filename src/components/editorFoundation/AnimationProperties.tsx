@@ -74,7 +74,7 @@ export default function AnimationProperties({ template, selector, session, appea
     {error && <p role="alert">{error}</p>}
   </div>;
 }
-function AnimationNumber({ label, value, commit, session }: { label: string; value: number; commit: (n: number, revision: Revision, time: number, cue?: number) => void; session: EditorSession }) {
+export function AnimationNumber({ label, value, commit, session }: { label: string; value: number; commit: (n: number, revision: Revision, time: number, cue?: number) => void; session: EditorSession }) {
   const [draft, setDraft] = useState<string | null>(null);
   const started = useRef<{ expected: Revision; time: number; cue?: number } | null>(null);
   const finish = () => {

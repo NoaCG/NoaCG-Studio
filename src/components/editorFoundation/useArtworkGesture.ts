@@ -2,11 +2,12 @@ import { useRef, useState, type MouseEvent } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BaseValues, type Creation, type CreationKind } from '../../blocks/baseEdits';
 import type { EditorSession, Revision } from './session';
-import type { EditorOperation } from './operations';
+import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { authoredTransform, displayedBase, editingPose, requireCurrentPose } from './animationAuthoring';
+import { authoredAnchor, authoredTransform, displayedBase, editingPose, requireCurrentPose, shownAnchor } from './animationAuthoring';
 import { requireScaleWritable } from '../../blocks/editorAnimation';
+import { apply, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear } from './transformGestures';
 
 type Point = { x: number; y: number };
 export function inverseDelta(matrix: number[], point: Point): Point {
@@ -14,43 +15,66 @@ export function inverseDelta(matrix: number[], point: Point): Point {
   if (!Number.isFinite(det) || Math.abs(det) < 1e-8) throw new Error('This parent transform is singular. Restore a nonzero parent scale first.');
   return { x: (d * point.x - c * point.y) / det, y: (-b * point.x + a * point.y) / det };
 }
+/** What a press on the selected layer grabbed (R1.2b.1): a corner or side scale handle (corners and
+ *  sides numbered from the top-left, clockwise), the rotation handle, or the anchor (the Anchor tool). */
+export type Handle = { kind: 'corner' | 'edge'; index: number } | { kind: 'rotate' } | { kind: 'anchor' };
+export type Tool = 'select' | 'anchor' | CreationKind;
 interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
-  base?: BaseValues; part?: RenderedPart; handle?: number; creation?: Creation;
+  base?: BaseValues; part?: RenderedPart; handle?: Handle; creation?: Creation;
   members?: { base: BaseValues; part: RenderedPart }[];
   time: number;
+  /** The rotation handle's last pointer and the angle swept so far, unwrapped. */
+  turn?: { last: Point; swept: number };
 }
+const centre = (part: RenderedPart) => part.corners ? { x: (part.corners[0].x + part.corners[2].x) / 2, y: (part.corners[0].y + part.corners[2].y) / 2 } : { x: part.x + part.width / 2, y: part.y + part.height / 2 };
+/** The layer's own frame on screen, from its rendered corners. */
+const frameOf = (part: RenderedPart) => localFrame(part.corners ?? [], part.appearance?.box ?? [0, 0]);
 export function useArtworkGesture(template: SpxTemplate, session: EditorSession, preview: () => PreviewController | null,
   linked: boolean, drawingSpace: PreviewReply['drawingSpace']) {
-  const [tool, setTool] = useState<'select' | CreationKind>('select');
+  const [tool, setTool] = useState<Tool>('select');
   const [draft, setDraft] = useState<Creation | null>(null);
   const [error, setError] = useState('');
   const current = useRef<Gesture | null>(null);
   const cancel = () => {
-    if (current.current) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
-    current.current = null; setDraft(null); setTool('select');
+    const active = !!current.current;
+    if (active) { session.cancel(); preview()?.previewTemplate(template, 'cancel'); }
+    current.current = null; setDraft(null);
+    // Escape during an anchor drag ends the drag; the Anchor tool stays for the next one.
+    if (!(active && tool === 'anchor')) setTool('select');
   };
-  const begin = (point: Point, part?: RenderedPart, handle?: number, selected?: RenderedPart[]) => {
+  const begin = (point: Point, part?: RenderedPart, handle?: Handle, selected?: RenderedPart[]) => {
     setError('');
     try {
       const expected = session.version();
       const base = part ? baseValues(template, part.selector) : undefined;
-      if (part) requireCurrentPose(part.appearance, session.port.view().time, expected, session.port.view().cue);
+      const { time, cue } = session.port.view();
+      if (part) requireCurrentPose(part.appearance, time, expected, cue);
+      const scaling = handle?.kind === 'corner' || handle?.kind === 'edge';
       // Animated Scale keys its own channels: refuse at the press where none can take the key.
-      if (handle !== undefined && base?.scaleReason) requireScaleWritable(template, base.selector);
-      if (handle !== undefined && base && (base.scaleX === 0 || base.scaleY === 0)) {
+      if (scaling && base?.scaleReason) requireScaleWritable(template, base.selector);
+      if (scaling && base && (base.scaleX === 0 || base.scaleY === 0)) {
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');
+      }
+      if (handle?.kind === 'anchor' && base?.anchorReason) throw new Error(base.anchorReason);
+      if (part && (scaling || handle?.kind === 'anchor')) invert(frameOf(part));
+      // A turn writes what typing a Rotation writes: try one degree now, so a refusal shows at the press.
+      if (handle?.kind === 'rotate' && base && part) {
+        const shown = displayedBase(base, editingPose(template, base.selector, part.appearance, time, part.appearance?.cue), 'rotation');
+        const trial = authoredTransform(template, base.selector, base, part.appearance, { rotation: shown + 1 }, time);
+        if (trial.length) applyOperations(template, trial, false);
       }
       if (base && part?.parent) inverseDelta(part.parent, { x: 0, y: 0 });
       const doc = new DOMParser().parseFromString(template.html, 'text/html');
       const members = selected?.filter(item => !selected.some(other => other !== item && doc.querySelector(other.selector)?.contains(doc.querySelector(item.selector) ?? null)))
         .map(part => { const base = baseValues(template, part.selector); inverseDelta(part.parent ?? [1, 0, 0, 1], { x: 0, y: 0 }); return { base, part }; });
-      if (!base && tool === 'select') return;
+      if (!base && (tool === 'select' || tool === 'anchor')) return;
       if (!base && !drawingSpace) throw new Error('The drawing surface is not ready.');
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
-      const creation = !base && tool !== 'select' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
+      const creation = !base && tool !== 'select' && tool !== 'anchor' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
-      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time: session.port.view().time };
+      current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time,
+        turn: handle?.kind === 'rotate' ? { last: point, swept: 0 } : undefined };
     } catch (cause) { setError(String(cause instanceof Error ? cause.message : cause)); }
   };
   const move = (point: Point, modifiers: { shiftKey: boolean; altKey: boolean }) => {
@@ -83,27 +107,37 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         gesture.operations = [{ kind: 'layer.create', geometry }]; setDraft(geometry);
         return;
       }
-      const originalBase = gesture.base!, part = gesture.part!;
+      const originalBase = gesture.base!, part = gesture.part!, handle = gesture.handle;
       const pose = editingPose(template, originalBase.selector, part.appearance, gesture.time, part.appearance?.cue);
       const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY'] as const).map(p => [p, displayedBase(originalBase, pose, p)])) };
-      let change = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
-      let values = { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY };
-      if (gesture.handle !== undefined && part.corners) {
-        const handle = part.corners[gesture.handle], opposite = part.corners[(gesture.handle + 2) % 4];
-        const pivot = modifiers.altKey ? part.anchor ?? { x: (handle.x + opposite.x) / 2, y: (handle.y + opposite.y) / 2 } : opposite;
-        const start = inverseDelta(part.parent!, { x: handle.x - pivot.x, y: handle.y - pivot.y });
-        let sx = Math.abs(start.x) < .001 ? 1 : (start.x + change.x) / start.x;
-        let sy = Math.abs(start.y) < .001 ? 1 : (start.y + change.y) / start.y;
-        if (linked !== modifiers.shiftKey) sx = sy = Math.abs(sx - 1) >= Math.abs(sy - 1) ? sx : sy;
-        const anchor = part.anchor ?? { x: (handle.x + opposite.x) / 2, y: (handle.y + opposite.y) / 2 };
-        const offset = inverseDelta(part.parent!, { x: anchor.x - pivot.x, y: anchor.y - pivot.y });
-        values = { x: base.x + (sx - 1) * offset.x, y: base.y + (sy - 1) * offset.y,
-          scaleX: base.scaleX === 0 ? sx - 1 : base.scaleX * sx, scaleY: base.scaleY === 0 ? sy - 1 : base.scaleY * sy };
-      } else if (modifiers.shiftKey) {
-        change = Math.abs(change.x) >= Math.abs(change.y) ? { x: change.x, y: 0 } : { x: 0, y: change.y };
-        values = { ...values, x: base.x + change.x, y: base.y + change.y };
+      const anchor = part.anchor ?? centre(part);
+      if (handle?.kind === 'rotate') {
+        // Unwrapped: each move adds the angle swept since the last one, so two turns are 720.
+        const turn = gesture.turn!;
+        turn.swept += sweep(part.parent!, anchor, turn.last, point); turn.last = point;
+        const turned = displayedBase(originalBase, pose, 'rotation') + turn.swept;
+        gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { rotation: modifiers.shiftKey ? snapRotation(turned) : turned }, gesture.time);
+      } else if (handle?.kind === 'anchor') {
+        // The anchor follows the pointer in the layer's own pixels; Position keeps the pose.
+        const moved = apply(invert(frameOf(part)), delta), unit = part.appearance?.unit ?? 1, from = shownAnchor(originalBase, pose);
+        if (!from) throw new Error('Wait for the rendered anchor before editing it.');
+        gesture.operations = authoredAnchor(template, base.selector, originalBase, part.appearance, { x: from.x + moved.x / unit, y: from.y + moved.y / unit }, gesture.time, true);
+      } else if (handle && part.corners) {
+        // Scale in the layer's own axes about the opposite corner or side, or the anchor with Alt. An SVG
+        // element's own transform attribute sits inside its CSS scale, so its axes are its parent's turned
+        // by its rotation; an HTML layer's are its rendered sides.
+        const corner = handle.kind === 'corner', points = corner ? part.corners : edgePoints(part.corners);
+        const pivot = modifiers.altKey ? anchor : points[(handle.index + 2) % 4];
+        const frame = originalBase.mode === 'svg' ? multiply(part.parent as Linear, ownLinear(displayedBase(originalBase, pose, 'rotation'), 1, 1)) : frameOf(part);
+        const ratios = handleRatios(frame, points[handle.index], pivot, delta, corner ? 'xy' : handle.index % 2 ? 'x' : 'y', corner ? linked !== modifiers.shiftKey : modifiers.shiftKey);
+        const shift = pivotShift(part.parent!, frame, ratios, pivot, anchor);
+        gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + shift.x, y: base.y + shift.y,
+          scaleX: base.scaleX * ratios.x, scaleY: base.scaleY * ratios.y }, gesture.time);
+      } else {
+        let change = inverseDelta(part.parent ?? [1, 0, 0, 1], delta);
+        if (modifiers.shiftKey) change = Math.abs(change.x) >= Math.abs(change.y) ? { x: change.x, y: 0 } : { x: 0, y: change.y };
+        gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { x: base.x + change.x, y: base.y + change.y, scaleX: base.scaleX, scaleY: base.scaleY }, gesture.time);
       }
-      gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, values, gesture.time);
       preview()?.noteInput('drag');
       if (gesture.operations.length) preview()?.previewTemplate(session.preview(gesture.operations).template);
     } catch (cause) { cancel(); setError(cause instanceof Error ? cause.message : String(cause)); }
