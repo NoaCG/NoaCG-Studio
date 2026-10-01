@@ -110,7 +110,7 @@ export function spxLayerListMd(rows: { file: string; spx: number; stored: number
 
 /** The layer a single graphic's SPX package declares: the template's own number when SPX Solo
  *  can hold it (1 to 5, so a number somebody chose survives), else its kind's. */
-function spxLayerFor(template: Pick<SpxTemplate, 'type' | 'settings'>): number {
+export function spxLayerFor(template: Pick<SpxTemplate, 'type' | 'settings'>): number {
   const declared = Number(template.settings.webplayout);
   if (Number.isInteger(declared) && declared >= 1 && declared <= SPX_SOLO_LAYERS) return declared;
   return SPX_LAYER_BY_TYPE[template.type] ?? 2;

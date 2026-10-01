@@ -94,6 +94,30 @@ test('every catalog graphic emits a manifest that satisfies the OGraf v1 schema,
       } catch (err) {
         failures.push(`${template.name} (stylesheet): ${(err as Error).message}`);
       }
+      // SPX 1.4's OGraf import (addOgrafTemplateToProfile in SPX's routes/routes-application.js),
+      // transcribed: the layer it keeps and the control it draws for each property. Without the
+      // manifest's `v_spx` the layer was "NaN" and Play showed nothing; without a property's, a
+      // dropdown or a colour arrived as a text box (docs/SPX_ON_A_REAL_SERVER.md §3).
+      {
+        const manifest = buildOgrafManifest(template, 'live') as {
+          v_spx?: { playlayer?: string; webplayout?: string; out?: string };
+          schema: { properties: Record<string, { type: string; v_spx?: { ftype: string; items?: unknown } }> };
+        };
+        const max5 = (n: unknown) => String(Math.min(5, parseInt(String(n))));
+        const layers = [max5(manifest.v_spx?.playlayer) || '1', max5(manifest.v_spx?.webplayout) || '1'];
+        if (!layers.every((l) => ['1', '2', '3', '4', '5'].includes(l)) || layers[0] !== layers[1] || manifest.v_spx?.out !== 'manual') {
+          failures.push(`${template.name} (SPX import): layers ${layers.join('/')}, out ${manifest.v_spx?.out}`);
+        }
+        for (const field of template.fields) {
+          const prop = manifest.schema.properties[field.field];
+          if (!prop) continue;
+          const drawn = prop.v_spx ? prop.v_spx.ftype : prop.type === 'boolean' ? 'checkbox' : prop.type === 'number' ? 'number' : 'textfield';
+          if (drawn !== field.ftype) failures.push(`${template.name} (SPX import): ${field.field} is a ${field.ftype}, SPX draws a ${drawn}`);
+          if (field.ftype === 'dropdown' && JSON.stringify(prop.v_spx?.items) !== JSON.stringify((field.items ?? []).map((i) => ({ text: i.text, value: i.value })))) {
+            failures.push(`${template.name} (SPX import): ${field.field}'s dropdown items differ`);
+          }
+        }
+      }
       for (const usage of ['live', 'post-production', 'both'] as const) {
         const manifest = buildOgrafManifest(template, usage);
         checked += 1;
@@ -424,6 +448,209 @@ test('actions called concurrently, too early, or after dispose all answer with a
   expect(result.disposed).toBe(200);
   expect(result.afterDispose, 'an action after dispose() should answer 4xx, not throw').toBe(409);
   expect(result.cleared).toBe(true);
+});
+
+// ── The graphic inside SPX 1.4.1's renderer ────────────────────────────────────────────────
+//
+// SPX's /renderer page (views/view-renderer.handlebars in SPX 1.4.1) mounts each OGraf Graphic
+// in its own light DOM under these rules. The first two made every NoaCG graphic air distorted
+// there - the scorebug's bar four times its height (docs/SPX_ON_A_REAL_SERVER.md §3) - because
+// the element inherited the page's 144 px text and its descendants lost their box model.
+const SPX_RENDERER_RULES = `
+  * { box-sizing: border-box; overflow: hidden; margin: 0; padding: 0px; }
+  body, html { margin: 0; padding: 0px; background-color: rgba(0,0,0,0); color: black; font-size: 3em; }
+  .ografRenderTarget { margin: 0; width: 100%; height: 100%; padding: 0px; overflow: hidden; position: absolute; }`;
+
+/** Build catalog graphics' OGraf packages in-page and serve each from its own fake origin. */
+async function serveCatalogPackages(page: Page, names: string[]): Promise<Array<{ name: string; origin: string; files: string[] }>> {
+  const built = await page.evaluate(async (names) => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { ografTarget } = await import('/src/export/targets/ograf.ts');
+    const all = Object.values(CATALOG).flat().filter(Boolean);
+    const out: Array<{ name: string; b64: string }> = [];
+    for (const name of names) {
+      const variant = all.find((v) => v.name === name)!;
+      const zip = await ografTarget.build(variant.create({}), { graphicUsage: 'live' });
+      out.push({ name, b64: await zip.generateAsync({ type: 'base64' }) });
+    }
+    return out;
+  }, names);
+  const served = [];
+  for (const [i, { name, b64 }] of built.entries()) {
+    const zip = await JSZip.loadAsync(b64, { base64: true });
+    const folder = Object.keys(zip.files)[0].split('/')[0];
+    const origin = `http://ograf-spx-${i}.local`;
+    served.push({ name, origin, files: await serve(page, zip, origin, folder) });
+  }
+  return served;
+}
+
+/** A page at `origin`, with `rules` in its head, that mounts the origin's Graphic the way SPX does. */
+async function spxLikeHost(page: Page, origin: string, rules: string) {
+  await page.route(`${origin}/host`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><html><head><meta charset="utf-8"><style>${rules}</style></head>
+<body style="margin: 0"><div id="root" style="position: relative; width: 1920px; height: 1080px"><div id="div1" style="position: absolute; inset: 0"></div></div></body></html>`,
+    }),
+  );
+  await page.goto(`${origin}/host`);
+}
+
+test("a renderer page's own text and box rules do not reach the graphic (SPX 1.4.1's renderer)", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  // The six /ograf starters and the three graphics of the SPX record.
+  const names = ['Hairline', 'Glass Mark', 'News Strip', 'Match Strip', 'Big Stat', 'House Hold', 'Clean Quiz', 'House Scorebug'];
+  const served = await serveCatalogPackages(page, names);
+
+  const measure = async (origin: string, rules: string) => {
+    await spxLikeHost(page, origin, rules);
+    return page.evaluate(async () => {
+      type Driver = HTMLElement & { load(p: unknown): Promise<unknown>; playAction(p: unknown): Promise<unknown> };
+      const mod = await import(`${location.origin}/graphic.mjs`);
+      customElements.define('spx-host-under-test', mod.default);
+      const el = document.createElement('spx-host-under-test') as Driver;
+      el.className = 'ografRenderTarget';
+      document.getElementById('div1')!.appendChild(el);
+      await el.load({ renderType: 'realtime', data: {} });
+      await el.playAction({ skipAnimation: true });
+      await document.fonts.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const boxes = [...el.querySelectorAll('*')]
+        .filter((e) => !['STYLE', 'SCRIPT'].includes(e.tagName))
+        .map((e) => {
+          const r = e.getBoundingClientRect();
+          return [r.x, r.y, r.width, r.height];
+        });
+      return { boxes, fontSize: getComputedStyle(el).fontSize };
+    });
+  };
+
+  const report: string[] = [];
+  for (const { name, origin } of served) {
+    const bare = await measure(origin, '');
+    const spx = await measure(origin, SPX_RENDERER_RULES);
+    expect(bare.boxes.length, `${name} mounted nothing`).toBeGreaterThan(3);
+    expect(spx.boxes.length).toBe(bare.boxes.length);
+    let worst = 0;
+    bare.boxes.forEach((b, i) => b.forEach((v, k) => (worst = Math.max(worst, Math.abs(v - spx.boxes[i][k])))));
+    // Measured before the fix: 0 to 299 px (the scorebug's bar), and 3106 px on the ticker's track.
+    if (worst > 1 || spx.fontSize !== '16px') report.push(`${name}: moved ${worst.toFixed(1)} px, element font ${spx.fontSize}`);
+  }
+  expect(report, 'a graphic laid out differently under the renderer page\'s rules').toEqual([]);
+});
+
+test("one graphic's play or stop leaves the other graphics' animation alone, and a file field resolves inside the package", async ({ page }) => {
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  // A quiz and a scorebug played 0.8 s apart in SPX 1.4.1 left the quiz half drawn: the
+  // template runtime's `gsap.killTweensOf('*')` meant its own page under SPX and the renderer's
+  // whole page here (docs/SPX_ON_A_REAL_SERVER.md §10).
+  const [quiz, bug, mark] = await serveCatalogPackages(page, ['Clean Quiz', 'House Scorebug', 'Glass Mark']);
+  await spxLikeHost(page, quiz.origin, SPX_RENDERER_RULES);
+  const result = await page.evaluate(async ({ origins }) => {
+    type Driver = HTMLElement & {
+      load(p: unknown): Promise<unknown>;
+      playAction(p: unknown): Promise<unknown>;
+      stopAction(p: unknown): Promise<unknown>;
+      updateAction(p: unknown): Promise<unknown>;
+    };
+    const mount = async (origin: string, tag: string) => {
+      const mod = await import(`${origin}/graphic.mjs`);
+      customElements.define(tag, mod.default);
+      const el = document.createElement(tag) as Driver;
+      document.getElementById('div1')!.appendChild(el);
+      await el.load({ renderType: 'realtime', data: {} });
+      return el;
+    };
+    const a = await mount(origins[0], 'spx-quiz');
+    const gsap = (window as unknown as { gsap: { getTweensOf(t: NodeListOf<Element>): unknown[]; globalTimeline: { pause(): void; resume(): void } } }).gsap;
+    await a.playAction({});
+    // Hold the clock so the quiz's entrance is still running whatever the machine's speed.
+    gsap.globalTimeline.pause();
+    const before = gsap.getTweensOf(a.querySelectorAll('*')).length;
+    // SPX's own sequence for a Play: load, updateAction, playAction.
+    const b = await mount(origins[1], 'spx-bug');
+    await b.updateAction({ data: {} });
+    await b.playAction({});
+    await b.stopAction({});
+    const after = gsap.getTweensOf(a.querySelectorAll('*')).length;
+    gsap.globalTimeline.resume();
+    const c = await mount(origins[2], 'spx-mark');
+    await c.updateAction({ data: { f1: './images/logo.png' } });
+    return {
+      before,
+      after,
+      images: [...c.querySelectorAll('img')].map((img) => img.getAttribute('src')),
+    };
+  }, { origins: [quiz.origin, bug.origin, mark.origin] });
+  expect(result.before, 'the quiz had no entrance running - nothing was proven').toBeGreaterThan(0);
+  expect(result.after, "another graphic's play or stop killed this graphic's entrance").toBe(result.before);
+  expect(result.images, 'a file field\'s package path was resolved against the renderer page').toContain(`${mark.origin}/images/logo.png`);
+});
+
+test("SPX 1.4.1's custom-action buttons reach the graphic through the package's handler, on the item's own layer", async ({ page }) => {
+  // SPX writes each custom action as a controller button running
+  // `customActionHandler('<id>', '<layer baked in at import>')` and defines no such function.
+  // The package's handler posts SPX's own customAction playout command, measured to fire the
+  // graphic's customAction() in SPX 1.4.1 (docs/SPX_ON_A_REAL_SERVER.md §10).
+  await page.goto('/app');
+  await page.keyboard.press('Escape');
+  const pkg = await page.evaluate(async () => {
+    const { CATALOG } = await import('/src/templates/catalog.ts');
+    const { ografTarget, SPX_CUSTOM_ACTIONS_FILE } = await import('/src/export/targets/ograf.ts');
+    const all = Object.values(CATALOG).flat().filter(Boolean);
+    const read = async (name: string) => {
+      const zip = await ografTarget.build(all.find((v) => v.name === name)!.create({}), { graphicUsage: 'live' });
+      const file = (path: string) => zip.file(new RegExp(`/${path.replace('.', '\\.')}$`))[0]?.async('string');
+      return { script: await file(SPX_CUSTOM_ACTIONS_FILE), readme: (await file('README.md')) ?? '' };
+    };
+    return { quiz: await read('Clean Quiz'), strap: await read('Hairline'), file: SPX_CUSTOM_ACTIONS_FILE };
+  });
+  expect(pkg.quiz.script, 'a graphic with custom actions ships no SPX handler').toBeTruthy();
+  expect(pkg.strap.script, 'a graphic without custom actions ships an SPX handler it cannot use').toBeUndefined();
+  expect(pkg.quiz.readme).toContain('## In SPX 1.4');
+  expect(pkg.quiz.readme).toContain(pkg.file);
+  expect(pkg.quiz.readme).toContain('layer 4');
+
+  // A stand-in for SPX's controller: an item played on layer 3 whose buttons still say 4, and
+  // SPX's playout route, which never answers.
+  const posts: unknown[] = [];
+  await page.route('http://spx-controller.local/**', (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === '/gc/playout') {
+      posts.push(route.request().postDataJSON());
+      return; // SPX's route sends no response; the handler must not wait on it
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: `<!doctype html><html><body>
+<div class="itemrow"><input type="hidden" name="RundownItem[webplayout]" value="3">
+<div class="gcpluginbuttondiv"><button id="inside" onclick="customActionHandler('judge', '4')">Judge</button></div></div>
+<button id="outside" onclick="customActionHandler('select', '4')">Select</button>
+</body></html>`,
+    });
+  });
+  await page.goto('http://spx-controller.local/gc/project/rundown');
+  await page.addScriptTag({ content: pkg.quiz.script! });
+  await page.click('#inside');
+  await page.click('#outside');
+  await expect.poll(() => posts.length).toBe(2);
+  expect(posts).toEqual([
+    { command: 'customAction', id: 'judge', webplayout: '3' },
+    { command: 'customAction', id: 'select', webplayout: '4' },
+  ]);
+
+  // A handler SPX ships itself one day wins over ours.
+  await page.goto('http://spx-controller.local/gc/project/rundown');
+  await page.evaluate(() => { (window as unknown as { customActionHandler: () => string }).customActionHandler = () => 'spx'; });
+  await page.addScriptTag({ content: pkg.quiz.script! });
+  expect(await page.evaluate(() => (window as unknown as { customActionHandler: () => string }).customActionHandler())).toBe('spx');
 });
 
 test('a production holding two designs with the same name ships two distinct manifest ids', async ({ page }) => {

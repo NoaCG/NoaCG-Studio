@@ -153,7 +153,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Current state:** CasparCG with NoaCG Bridge is production-proven and the main production path;
   OBS and browser sources are proven; vMix exports exist but are unproven in vMix. On real SPX 1.2.1 and 1.4.1 the native and production SPX
   exports play three graphics on their own layers as imported, with fields, Continue and Stop; the output embed frames the output
-  transparently, but cueing a published production through it is unproven; the OGraf package is not usable on air yet (`SPX_ON_A_REAL_SERVER.md`). Bridge cues the server's clips from the rundown with each clip's ending, fades, level, trim, Play next and
+  transparently, but cueing a published production through it is unproven; on SPX 1.4.1 the OGraf package plays as imported on its own layer with SPX's own controls, at its authored size, beside other graphics, with Continue and Stop, and its custom actions fire once the project loads the package's handler script; Update does nothing there, an SPX defect (`SPX_ON_A_REAL_SERVER.md` §10). Bridge cues the server's clips from the rundown with each clip's ending, fades, level, trim, Play next and
   folders; the owner's check on a real production is open. Teams exist, and a three-member walk on a local backend proves members adding
   graphics from their own libraries and one playing the production out with its creator signed out. Saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**

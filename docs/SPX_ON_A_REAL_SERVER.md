@@ -14,7 +14,10 @@ server; where a claim rests on reading SPX's source instead, it says so.
 - **The OGraf package works only partly on SPX 1.4.1.** As imported it does not play at all (SPX
   gives it layer `NaN`). With layers set by hand it plays, continues and stops, three at once,
   but the graphics render distorted, dropdowns and colours arrive as plain text boxes, and custom
-  action buttons do nothing. Update does nothing, as for HTML templates.
+  action buttons do nothing. Update does nothing, as for HTML templates. Since the fixes in §10 it
+  plays as imported, on its own layer, with SPX's own controls and at its authored size, and its
+  custom actions fire once the project loads the handler script the package carries. Update
+  still does nothing: that is SPX's.
 - **The output embed loads and frames the production on both servers, but puts an opaque dark
   frame over the whole picture**, which stays after Stop. A small change, tested here in a
   scratch copy, makes it transparent; it shipped, and §9 walks the shipped file transparent on
@@ -261,6 +264,10 @@ loads the renderer, and that the operator's browser runs a monitor copy. The cor
 | `docs/backlog/spx-1-4-update-does-nothing.md` | SPX upstream; our package wording | Update fails on 1.4 |
 | `docs/backlog/spx-1-4-ograf-custom-actions-dead.md` | SPX upstream; our package wording | Custom actions fail on 1.4.1 |
 
+The two OGraf items above, `ograf-manifest-v-spx-hints.md` beside them and the custom-action
+item were closed by §10; the OGraf package's README also carries the Update line of
+`spx-1-4-update-does-nothing.md`.
+
 ## 8. What was added to the SPX installs
 
 Both servers are stopped. Everything added is named `noacg_round` or `NoaCG_round_*` and can be
@@ -339,7 +346,94 @@ which held the §8 round's entries. Both servers are stopped.
 **Still not proven here:** a published production's graphics cued from NoaCG inside SPX (the
 owner check), the embed as the top document in OBS, vMix or CasparCG 2.3, and any CasparCG path.
 
-## 10. Not verified
+## 10. The OGraf package, fixed and walked on SPX 1.4.1 (2026-10-01)
+
+Branch `claude/v-ograf-in-spx` fixed the three OGraf items of §7 and found two more defects on
+the way. Packages were built by the real exporter (`ografTarget`) and put in
+`ASSETS/templates/noacg_v/ograf/`; the project was made and the packages added through SPX's own
+endpoints (`POST /shows/` with format OGRAF, then `POST /show/<project>/config` with
+`addtemplate`, which is what the template browser posts), and everything after that through the
+controller's own functions and buttons, with a second page on `/renderer` at 1920x1080 over grey.
+
+| What an operator meets | Before (§3) | Now |
+|---|---|---|
+| Layers as imported (Hairline, Clean Quiz, House Scorebug) | `NaN`, Play shows nothing | **2, 4, 5**, the native export's layers; all three on air together |
+| Controls SPX draws | Text boxes, except numbers | **Two dropdowns** for the quiz, **two colour pickers** and two numbers for the scorebug, a **file list** for Glass Mark |
+| Look | Scorebug bar four times its height, lower third's lines 200 px apart | **As authored** (below) |
+| Fields | Reached `load()` | Same: a name edited, saved, then Stop and Play went on air |
+| Custom action buttons | `customActionHandler is not defined` | With the handler script loaded: **Start clock** ran the clock (0:00 to 0:03) and **Stop clock** stopped it; **Select answer**, **Lock it in** and **Reveal correct** moved the quiz from question to selected, locked and reveal |
+| A button after its item moved layer | Would reach the import-time layer | The quiz moved to layer 3 in the profile and put in a new rundown: its buttons still say `customActionHandler('select', '4')`, and **Select answer moved the quiz on layer 3** |
+| A second graphic played during an entrance | Not seen | Found here: the quiz froze half drawn when the scorebug played 0.8 s after it; **fixed** |
+| A file-list image | Not tried | Found here: SPX hands back `./images/<file>`, which the graphic loaded from the renderer's folder and got nothing; **fixed**, the image shows |
+| Update | Nothing changes | **Still nothing**: the renderer throws `Cannot read properties of null (reading 'value')` in `updateItem`. Save, then Stop and Play, which the package README now says |
+| Continue, Stop | Worked | Same |
+
+![Three NoaCG OGraf packages on SPX 1.4.1, as imported, after the quiz's Reveal correct](images/spx-real-server/ograf-141-three-layers-fixed.jpg)
+
+**What changed, all in `src/export/targets/ograf.ts`, and why that shape.**
+
+- **Manifest hints.** A manifest-level `v_spx` gives `playlayer` and `webplayout` (the native SPX
+  export's layer, `spxLayerFor`) and `out: manual`; each property gets a `v_spx` with its SPX
+  field type (`items` for a dropdown, `assetfolder` and `extension` for a file list). A checkbox
+  gets none, because SPX's own boolean conversion is the one that writes "1"/"0". `v_` keys are
+  the spec's vendor door: the official schema check (`node scripts/check-ograf-schema.mjs --from`
+  the eight packages) passes.
+- **The host's styles stop at the graphic.** The graphic element starts from every property's
+  initial value (`all: initial`), as a document root does, keeping only visibility, pointer
+  events and cursor inherited, since a renderer uses those to hide or disable a whole layer; its
+  descendants get back the browser's box model, margins, padding and overflow where a
+  zero-specificity host rule such as SPX's `*` reset took them (overflow outside SVG, whose
+  attribute `revert` would drop). On a bare page that adds SPX's renderer rules, the six /ograf
+  starters and the three graphics above now lay out identically to the bare page, every element
+  to 0 px; before, they moved by up to 299 px, and the ticker's track changed width by 3106 px.
+  A Shadow DOM would isolate more, but the template's GSAP string selectors and SPX's own
+  `querySelector('iframe')` look into the light DOM, so it was not taken.
+- **Custom actions, without leaving the standard.** SPX 1.4.1's controller button runs
+  `customActionHandler('<id>', '<layer>')`, which SPX never defines, while its server already
+  forwards a `customAction` playout command (`POST /gc/playout`) and its renderer calls the
+  graphic's `customAction({ id })`. A graphic with custom actions now ships
+  `spx-custom-actions.js`, which defines that function: it posts the command with the layer of the
+  rundown item the button sits in (the one in the call is the import-time layer), and abandons
+  the request after 2 s because SPX's route never answers. SPX loads it as the project's
+  function library (project settings, "Javascript function library of this project", the path
+  `/templates/<folder>/spx-custom-actions.js`), once per project. The Graphic itself stays
+  plain OGraf: a graphic that defined globals in the controller page would work with no setting,
+  but only by reaching out of its component into the host, which is what the standard's model
+  forbids. A handler SPX ships itself wins over this one.
+- **One graphic no longer stops another's animation.** The template runtime clears its own
+  animation with `gsap.killTweensOf('*')`; under SPX's HTML route `*` is the template's own page,
+  here it was the renderer's, so a Play on one layer killed the entrance running on another. The
+  graphic now hands its template a `gsap` whose target-taking calls resolve a selector string
+  inside the graphic.
+- **File-list values are package paths.** A file-list field's relative value is resolved against
+  the package on load and update, as the markup's own references already were.
+
+**What SPX would need** (none of it is ours to change; recheck on the next SPX release):
+
+- a `customActionHandler` in the controller (`static/js/spx_gc.js`) that posts
+  `{ command: 'customAction', id, webplayout }` for the item's current layer, and a response from
+  that route;
+- the action's payload forwarded (`/gc/playout` keeps only `id` and `webplayout`, and the renderer
+  calls `customAction({ id })`), so an action that takes values fires without them: the quiz's
+  Select answer, a score's goal. The README lists which;
+- Update for OGraf calling the graphic's `updateAction` instead of the controller's `updateItem()`
+  (`updateLayer` in `views/view-renderer.handlebars`);
+- a `max5` that does not turn a missing layer into the string `"NaN"`.
+
+**CI pins** (`e2e/ograf-conformance.spec.ts`): the catalog sweep runs SPX's import expressions on
+every live manifest (layer 1 to 5, each field's control, dropdown items); a test lays out the eight
+graphics on a page with and without SPX's renderer rules and requires the same boxes and a 16 px
+element; one requires another graphic's load, update, play and stop to leave a running entrance
+alone and a file-list path to resolve inside the package; one drives the handler script in a
+stand-in controller and requires SPX's command with the item's own layer. The layout, animation
+and file-path checks were each run against the code without their fix, and failed.
+
+**Test projects added**, deletable as whole folders: templates in `ASSETS\templates\noacg_v\`
+(`ograf\` with eight packages, one with an added `images\noacg_v_logo.png`, and `probe.html`, the
+bare test page); the project `DATAROOT\NoaCG_V_OGraf` with rundowns `Round` and `Layers`, which
+SPX put at the top of `config.json`'s recent list. The server was stopped afterwards.
+
+## 11. Not verified
 
 - A real published production's graphics, cued from NoaCG, inside SPX (the owner check).
 - The fix-check embed as the top document in OBS, vMix and CasparCG 2.3 (Chromium 71 ignores
