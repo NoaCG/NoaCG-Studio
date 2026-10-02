@@ -1066,6 +1066,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // filled, and a file the list does not have stays unknown, which Play next says.
   const learntFacts = useRef<string | null>(null);
   const bridgeOk = bridgeStatus?.state === 'ok';
+  // A SETUP CHANGE MADE WHILE NOACG BRIDGE WAS AWAY goes to it as soon as the status says it answers
+  // again (D17), rather than waiting for the next page or Playout settings to open.
+  useEffect(() => {
+    if (bridgeOk && loadPlayoutSettings().studioPending) void syncStudio();
+  }, [bridgeOk]);
   useEffect(() => {
     if (!bridgeOk || !show) return;
     // A still has no length to learn.

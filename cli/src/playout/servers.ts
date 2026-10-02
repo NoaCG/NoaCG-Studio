@@ -15,7 +15,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { configDir } from '../config.js';
-import { MAX_CHANNEL_NAME, MAX_STUDIO_CHANNELS, type RememberedServer, type StudioSetup } from './protocol.js';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_CHANNEL, MAX_STUDIO_CHANNELS, MAX_STUDIO_LAYER, type RememberedServer, type StudioSetup } from './protocol.js';
 
 /** Enough for every server one studio laptop meets; the oldest falls off. */
 export const MAX_SERVERS = 8;
@@ -58,20 +58,24 @@ export function readStudio(v: unknown): StudioSetup | null {
   const rows: StudioSetup['channels'] = [];
   for (const row of channels) {
     const { channel, name } = (row ?? {}) as Record<string, unknown>;
-    if (!wholeIn(channel, 1, 999) || typeof name !== 'string' || name.length > MAX_CHANNEL_NAME) return null;
+    if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || typeof name !== 'string' || name.length > MAX_CHANNEL_NAME) return null;
     rows.push({ channel, name });
   }
   const { channel, layer } = (output ?? {}) as Record<string, unknown>;
-  if (!wholeIn(channel, 1, 999) || !wholeIn(layer, 0, 9999) || !wholeIn(newMedia, 1, 999)) return null;
+  if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || !wholeIn(layer, 0, MAX_STUDIO_LAYER) || !wholeIn(newMedia, 1, MAX_STUDIO_CHANNEL)) return null;
   return { channels: rows, output: { channel, layer }, newMedia };
 }
 
 const same = (a: RememberedServer, b: RememberedServer) => a.host.toLowerCase() === b.host.toLowerCase() && a.port === b.port;
 
-/** One row of the file: the server as the page sees it, and the row as written, kept for rewriting. */
-interface Row {
-  server: RememberedServer;
-  raw: Record<string, unknown>;
+/** One row of the file as written, every field kept, so a field this Bridge does not know - even
+ *  inside a setup - survives a rewrite. */
+type Row = RememberedServer & Record<string, unknown>;
+
+/** A row as the page sees it: host, port, and the setup when this Bridge can read it. */
+function toServer(row: Row): RememberedServer {
+  const studio = readStudio(row.studio);
+  return { host: row.host, port: row.port, ...(studio ? { studio } : {}) };
 }
 
 /** The list kept in a file: `caspar-servers.json` beside the token unless a test names another. */
@@ -80,24 +84,16 @@ export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.j
     try {
       const top = JSON.parse(await fs.readFile(file, 'utf8')) as Record<string, unknown> | null;
       const servers = top?.servers;
-      const rows = Array.isArray(servers)
-        ? servers.filter(isServer).map((raw): Row => {
-            const studio = readStudio((raw as { studio?: unknown }).studio);
-            return { server: { host: raw.host, port: raw.port, ...(studio ? { studio } : {}) }, raw: raw as unknown as Record<string, unknown> };
-          })
-        : [];
-      return { rows: rows.slice(0, MAX_SERVERS), top: top && typeof top === 'object' && !Array.isArray(top) ? top : {} };
+      const rows = Array.isArray(servers) ? (servers.filter(isServer) as Row[]).slice(0, MAX_SERVERS) : [];
+      return { rows, top: top && typeof top === 'object' && !Array.isArray(top) ? top : {} };
     } catch {
       return { rows: [], top: {} };
     }
   };
   const write = async (top: Record<string, unknown>, rows: Row[]) => {
-    // Each row is written over what was read for it, setup included unless `setStudio` replaced it,
-    // so a field this Bridge does not know, even inside a setup, survives.
-    const servers = rows.map(({ server, raw }) => ({ ...raw, host: server.host, port: server.port }));
     await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, `${JSON.stringify({ ...top, servers }, null, 2)}\n`, 'utf8');
-    return rows.map((r) => r.server);
+    await fs.writeFile(file, `${JSON.stringify({ ...top, servers: rows }, null, 2)}\n`, 'utf8');
+    return rows.map(toServer);
   };
   // One write at a time: each is a read-modify-write of the whole file, so two Connects at once
   // (two tabs) would otherwise both read the old list and the second would drop the first server.
@@ -108,26 +104,22 @@ export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.j
     return done;
   };
   return {
-    list: async () => (await read()).rows.map((r) => r.server),
+    list: async () => (await read()).rows.map(toServer),
     remember(server) {
       return serial(async () => {
         const { rows, top } = await read();
-        const known = rows.find((r) => same(r.server, server));
+        const known = rows.find((r) => same(r, server));
         // The address as typed this time, the setup and any other field as they were.
-        const first: Row = known
-          ? { raw: known.raw, server: { ...known.server, host: server.host, port: server.port } }
-          : { raw: {}, server: { host: server.host, port: server.port } };
+        const first: Row = { ...known, host: server.host, port: server.port };
         return write(top, [first, ...rows.filter((r) => r !== known)].slice(0, MAX_SERVERS));
       });
     },
     setStudio(server, studio) {
       return serial(async () => {
         const { rows, top } = await read();
-        const known = rows.find((r) => same(r.server, server));
+        const known = rows.find((r) => same(r, server));
         if (!known) return null;
-        known.server = { ...known.server, studio };
-        known.raw = { ...known.raw, studio };
-        return write(top, rows);
+        return write(top, rows.map((r) => (r === known ? { ...r, studio } : r)));
       });
     },
   };

@@ -51,30 +51,12 @@
 .bridge-copy-link { margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
 .bridge-copy-link + .hint { margin-top: 6px; }
 
-/* ONE LINE AND AN INFO BUTTON (components/InfoLine.tsx): the button sits at the end of the line, as
-   small as the text beside it, and what it opens reads as the line's own small print. */
+/* ONE LINE AND AN INFO BUTTON (components/InfoLine.tsx): SectionHead's ⓘ and body (.wz-why-btn,
+   .wz-why in wizard-and-dialogs.css), sat at the end of a line of text rather than in a heading row. */
 .info-line > p,
 .info-line > h1 { margin: 0; }
-.info-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  margin-left: 2px;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  background: transparent;
-  color: var(--text-dim);
-  font: italic 600 11px/1 Georgia, 'Times New Roman', serif;
-  vertical-align: 0.1em;
-}
-.info-btn:hover,
-.info-btn[aria-expanded='true'] { color: var(--text); border-color: var(--text-dim); background: var(--bg-3); }
-.info-more { margin-top: 6px; padding: 8px 10px; border-left: 2px solid var(--border-strong); font-size: 12px; line-height: 1.5; color: var(--text-dim); }
-.info-more p { margin: 0; }
-.info-more p + p { margin-top: 6px; }
+.info-line .wz-why-btn { vertical-align: middle; }
+.info-line .wz-why { margin: 6px 0 0; }
 
 .agent-keys { margin-top: 18px; }
 .agent-keys-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }

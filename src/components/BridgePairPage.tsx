@@ -19,6 +19,7 @@ import {
   type PlayoutResult,
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
+import { plural } from '../control/readiness';
 
 /**
  * The BRIDGE PAIRING page: `<app-url>?bridge=<port>&code=<code>` (docs/BRIDGE.md §2). NoaCG
@@ -254,7 +255,7 @@ function ConnectStep() {
           ✓ Connected to CasparCG{connected.version ? ` ${connected.version}` : ''} at {serverAddress(connected.server)}.
           {connected.setup && (
             <span data-testid="bridge-connected-setup">
-              {` ${connected.setup.channels === 1 ? '1 channel' : `${connected.setup.channels} channels`}, NoaCG output on `}
+              {` ${plural(connected.setup.channels, 'channel')}, NoaCG output on `}
               <span className="nowrap">{connected.setup.slot}</span>.
             </span>
           )}

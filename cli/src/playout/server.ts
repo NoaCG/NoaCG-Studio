@@ -45,7 +45,7 @@ import {
 import { SequenceRunner } from './runner.js';
 import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
-import { PAIRING_TTL_MS, PairingCodes, secretMatches, type Pairing } from './token.js';
+import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
 import { UsageError } from '../output.js';
 
@@ -54,7 +54,6 @@ import { UsageError } from '../output.js';
 export const DEFAULT_BRIDGE_PORT = 8899;
 /** CasparCG's AMCP port since forever. */
 export const DEFAULT_AMCP_PORT = 5250;
-export { PAIRING_TTL_MS, PairingCodes, type Pairing };
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
 export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link'];
@@ -104,8 +103,6 @@ export interface BridgeOptions {
   /** The pairing codes this Bridge honours: the one minted at start, and each one `/pair-link` or
    *  the window mints later. The command hands in its own so Enter in the window can add one. */
   pairings?: PairingCodes;
-  /** One more code to honour, a test's own. */
-  pairing?: Pairing;
   /** Somebody can press Enter in the Bridge's window for a new pairing link, so a refused code says
    *  so. A Bridge started by another program has no keyboard behind it. */
   keyboard?: boolean;
@@ -375,7 +372,6 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   const memory = options.memory ?? new SlotMemoryBank();
   const servers = options.servers ?? fileServerMemory();
   const pairings = options.pairings ?? new PairingCodes();
-  if (options.pairing) pairings.add(options.pairing);
   /** Remember a server the page connected to, and answer the list. A config folder that cannot be
    *  written costs the memory, never the connection. */
   const rememberServer = async (server: RememberedServer): Promise<RememberedServer[]> => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
@@ -18,10 +18,12 @@ import {
   type PlayoutChannel,
   type PlayoutResult,
   type PlayoutSettings,
+  type PlayoutState,
   type StudioKeeper,
+  type StudioSync,
 } from '../control/playoutLink';
-import type { RememberedServer } from '../control/playoutProtocol';
-import { CHANNEL_NAME_MAX, studioOf } from '../control/studioSetup';
+import { MAX_CHANNEL_NAME, type RememberedServer } from '../control/playoutProtocol';
+import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import CopyPairingLink from './CopyPairingLink';
 import RecentServers from './RecentServers';
@@ -30,7 +32,7 @@ import RecentServers from './RecentServers';
 const KEEP_AFTER_MS = 600;
 
 /** Where the setup above is kept, in one line (D17). */
-function keeperLine(keeper: StudioKeeper, s: PlayoutSettings): string {
+function keeperLine(keeper: StudioKeeper, s: PlayoutSettings, reason?: PlayoutState): string {
   switch (keeper) {
     case 'bridge':
       return `NoaCG Bridge keeps this setup for ${serverAddress(targetOf(s))}, for every browser paired with it.`;
@@ -39,7 +41,9 @@ function keeperLine(keeper: StudioKeeper, s: PlayoutSettings): string {
     case 'unconnected':
       return `Kept in this browser. Press Connect, and NoaCG Bridge keeps it for ${serverAddress(targetOf(s))} and every browser paired with it.`;
     case 'away':
-      return 'NoaCG Bridge does not answer, so this is the setup this browser holds.';
+      return reason === 'token'
+        ? "NoaCG Bridge rejected this browser's token, so this is the setup this browser holds. Pair this browser again from the link the Bridge prints."
+        : 'NoaCG Bridge does not answer, so this is the setup this browser holds.';
     case 'waiting':
       return 'Kept in this browser. NoaCG Bridge is given it the next time it answers.';
     default:
@@ -76,19 +80,25 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
   const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; ok: string } | null>(null);
   // The servers NoaCG Bridge remembers this studio connecting to, one press each.
   const [servers, setServers] = useState<RememberedServer[]>([]);
-  // Where the studio setup is kept (D17). Unknown until the first sync answers.
-  const [keeper, setKeeper] = useState<StudioKeeper | null>(null);
+  // Where the studio setup is kept (D17), and why the Bridge was not asked. Unknown until the first
+  // sync answers.
+  const [keeper, setKeeper] = useState<{ keeper: StudioKeeper; reason?: PlayoutState } | null>(null);
   const paired = Boolean(settings.agentToken.trim());
 
-  /** Bring this browser's setup and the Bridge's together, and show what came of it: the Bridge's
-   *  setup when it held a newer one, and the list it answered with. */
-  const sync = async (alive: () => boolean = () => true) => {
-    const done = await syncStudio();
-    if (!alive()) return;
+  /** What a sync came to: the Bridge's setup when it held a newer one, its list, and the keeper line. */
+  const show = useCallback((done: StudioSync) => {
     if (done.servers) setServers(done.servers);
-    setKeeper(done.keeper);
+    setKeeper({ keeper: done.keeper, reason: done.reason });
     if (done.changed) setSettings(loadPlayoutSettings());
-  };
+  }, []);
+  /** Bring this browser's setup and the Bridge's together, and show what came of it. */
+  const sync = useCallback(
+    async (alive: () => boolean = () => true) => {
+      const done = await syncStudio();
+      if (alive()) show(done);
+    },
+    [show],
+  );
   useEffect(() => {
     if (!paired) return;
     let alive = true;
@@ -96,7 +106,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
     return () => {
       alive = false;
     };
-  }, [paired]);
+  }, [paired, sync]);
 
   // A CHANGE TO THE SETUP goes to NoaCG Bridge a moment after the last keystroke (the table saves on
   // every one), and at once when the panel closes, so another browser opens with it. Only a change
@@ -104,9 +114,12 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
   const studioKey = JSON.stringify(studioOf(settings));
   useEffect(() => {
     if (!paired || !loadPlayoutSettings().studioPending) return;
-    const timer = setTimeout(() => void sync(), KEEP_AFTER_MS);
+    // Asked again when it fires: the sync the panel opened with may have given the Bridge it already.
+    const timer = setTimeout(() => {
+      if (loadPlayoutSettings().studioPending) void sync();
+    }, KEEP_AFTER_MS);
     return () => clearTimeout(timer);
-  }, [studioKey, paired]);
+  }, [studioKey, paired, sync]);
   useEffect(
     () => () => {
       if (loadPlayoutSettings().studioPending) void syncStudio();
@@ -135,10 +148,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
         const connected = await connectServer(now);
         if (connected.servers) setServers(connected.servers);
         // The server's setup, from NoaCG Bridge when it keeps one: the table below shows it.
-        if (connected.studio) {
-          setKeeper(connected.studio.keeper);
-          if (connected.studio.changed) setSettings(loadPlayoutSettings());
-        }
+        if (connected.studio) show(connected.studio);
         const r = connected.result;
         setResult({ verb, result: r, ok: `${connectedTo(r)}${r.features?.includes('servers') ? '. NoaCG Bridge remembers this server.' : ''}` });
       } else if (outputUrl) {
@@ -313,7 +323,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
                     value={row.name}
                     onChange={(e) => setRow(i, { name: e.target.value })}
                     placeholder="Name this channel"
-                    maxLength={CHANNEL_NAME_MAX}
+                    maxLength={MAX_CHANNEL_NAME}
                     aria-label={`Channel ${row.channel} name`}
                     data-testid="caspar-channel-name"
                   />
@@ -410,8 +420,8 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
       {/* WHERE THE SETUP ABOVE IS KEPT (D17): in NoaCG Bridge for this server, so every browser and
           account paired with it opens with it, or in this browser only, and why. */}
       {keeper && (
-        <p className="dlg-hint" data-testid="playout-studio-keeper" data-keeper={keeper}>
-          {keeperLine(keeper, settings)}
+        <p className="dlg-hint" data-testid="playout-studio-keeper" data-keeper={keeper.keeper}>
+          {keeperLine(keeper.keeper, settings, keeper.reason)}
         </p>
       )}
 

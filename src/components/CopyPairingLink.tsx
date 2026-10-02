@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { copyLink } from './home/copyLink';
 import InfoLine from './InfoLine';
 
 /**
@@ -12,35 +13,23 @@ export default function CopyPairingLink({
   lead,
   button,
   link,
-  unavailable = 'This NoaCG Bridge cannot make another link. Start it again and copy the link it opens into the other browser.',
   more,
   testId,
 }: {
   lead: string;
   button: string;
-  /** The link to copy, or null when there is none to give. */
-  link: () => Promise<string | null>;
-  /** What to say when there is no link: a Bridge from before 0.8.0, or one not answering. */
-  unavailable?: string;
+  /** The link to copy, or why there is none (a Bridge from before 0.8.0, one that refused this browser). */
+  link: () => Promise<string | { unavailable: string }>;
   more?: ReactNode;
   testId: string;
 }) {
-  const [state, setState] = useState<{ url: string | null; copied: boolean } | null>(null);
+  const [state, setState] = useState<{ url: string; copied: boolean } | { unavailable: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const copy = async () => {
     setBusy(true);
     try {
-      const url = await link();
-      let copied = false;
-      if (url) {
-        try {
-          await navigator.clipboard.writeText(url);
-          copied = true;
-        } catch {
-          // No clipboard here (permission, or an insecure page): the box below is the copy.
-        }
-      }
-      setState({ url, copied });
+      const made = await link();
+      setState(typeof made === 'string' ? { url: made, copied: await copyLink(made) } : made);
     } finally {
       setBusy(false);
     }
@@ -62,7 +51,7 @@ export default function CopyPairingLink({
       ) : (
         <p className="hint">{line}</p>
       )}
-      {state?.url && (
+      {state && 'url' in state && (
         <>
           <input className="bridge-copy-link" readOnly value={state.url} onFocus={(e) => e.target.select()} aria-label="Pairing link" data-testid={`${testId}-link`} />
           <p className="hint" data-testid={`${testId}-done`}>
@@ -70,9 +59,9 @@ export default function CopyPairingLink({
           </p>
         </>
       )}
-      {state && !state.url && (
+      {state && 'unavailable' in state && (
         <p className="hint status-warn" data-testid={`${testId}-unavailable`}>
-          {unavailable}
+          {state.unavailable}
         </p>
       )}
     </div>

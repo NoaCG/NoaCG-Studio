@@ -46,11 +46,10 @@ export function mintPairingCode(): string {
   return randomBytes(16).toString('hex');
 }
 
-/** One pairing code, and whether it has been spent. */
+/** One pairing code, open until it is spent or `expiresAt`. */
 export interface Pairing {
   code: string;
   expiresAt: number;
-  used: boolean;
 }
 
 /** How long a pairing code lives unless it is spent first. */
@@ -73,7 +72,7 @@ export class PairingCodes {
 
   /** A fresh code, open for PAIRING_TTL_MS. */
   mint(): Pairing {
-    return this.add({ code: mintPairingCode(), expiresAt: this.now() + PAIRING_TTL_MS, used: false });
+    return this.add({ code: mintPairingCode(), expiresAt: this.now() + PAIRING_TTL_MS });
   }
 
   /** Honour a code made elsewhere (a test's, with its own expiry). */
@@ -85,15 +84,15 @@ export class PairingCodes {
   /** Spend a code: true once for a code that is open and fresh, false for any other. Each comparison
    *  is constant time, so the answer says nothing about how close a guess came. */
   spend(presented: string): boolean {
-    const hit = this.live().find((p) => (presented ? secretMatches(presented, p.code) : false));
+    if (!presented) return false;
+    const hit = this.live().find((p) => secretMatches(presented, p.code));
     if (!hit) return false;
-    hit.used = true;
-    this.open = this.live();
+    this.open = this.live().filter((p) => p !== hit);
     return true;
   }
 
   private live(): Pairing[] {
     const now = this.now();
-    return this.open.filter((p) => !p.used && now <= p.expiresAt);
+    return this.open.filter((p) => now <= p.expiresAt);
   }
 }

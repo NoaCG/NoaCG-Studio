@@ -4,7 +4,7 @@ import { sameServer } from '../control/studioSetup';
 
 /** CasparCG on the computer the Bridge runs on, on its own port: the one server every studio can name
  *  without looking anything up. */
-export const THIS_COMPUTER: RememberedServer = { host: '127.0.0.1', port: PLAYOUT_DEFAULTS.amcpPort };
+export const THIS_COMPUTER: RememberedServer = { host: PLAYOUT_DEFAULTS.host, port: PLAYOUT_DEFAULTS.amcpPort };
 
 /**
  * The servers to pick from with one press: "This computer", then the CasparCG servers NoaCG Bridge

@@ -28,7 +28,7 @@
 // every surface reads, and the only one with an older Bridge.
 
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
-import { DEFAULT_STUDIO, sameServer, sameStudio, STUDIO_FIELDS, studioFields, studioOf, studioStep } from './studioSetup';
+import { DEFAULT_STUDIO, defaultChannelName, sameServer, sameStudio, studioFields, studioOf, studioStep } from './studioSetup';
 import {
   PLAYOUT_V,
   type AdapterId,
@@ -110,10 +110,9 @@ export const PLAYOUT_DEFAULTS: PlayoutSettings = {
   ...studioFields(DEFAULT_STUDIO),
 };
 
-/** The name a channel row starts with until the operator renames it: `Channel 2`. */
-export function defaultChannelName(channel: number): string {
-  return `Channel ${channel}`;
-}
+// `defaultChannelName` lives in ./studioSetup.ts, beside the default setup that names its channel
+// with it; it is re-exported here for the callers of this module.
+export { defaultChannelName };
 
 /** A channel number as stored, or null when it is not one. */
 function channelNumber(value: unknown): number | null {
@@ -168,7 +167,7 @@ export function loadPlayoutSettings(): PlayoutSettings {
 export function savePlayoutSettings(patch: Partial<PlayoutSettings>): void {
   const was = loadPlayoutSettings();
   const next = { ...was, ...patch };
-  const studioChanged = STUDIO_FIELDS.some((key) => key in patch) && !sameStudio(studioOf(was), studioOf(normalized(next)));
+  const studioChanged = !sameStudio(studioOf(was), studioOf(normalized(next)));
   writeSettings(studioChanged ? { ...next, studioPending: { host: next.host.trim(), port: next.amcpPort } } : next);
 }
 
@@ -607,7 +606,7 @@ export async function connectServer(settings: PlayoutSettings): Promise<{ result
   if (!servers || !result.features?.includes('studio')) return { result, servers };
   // And its setup: the Bridge's, or this browser's given to it (D17, D18).
   const studio = await oneAtATime(() => syncWith(loadPlayoutSettings(), servers));
-  return { result, servers: studio.servers ?? servers, studio };
+  return { result, servers: studio.servers, studio };
 }
 
 /** The servers NoaCG Bridge remembers this page connecting to, most recent first. Empty when the
@@ -615,22 +614,47 @@ export async function connectServer(settings: PlayoutSettings): Promise<{ result
  *  browser holds, which is all it ever had before. */
 export async function rememberedServers(settings: PlayoutSettings): Promise<RememberedServer[]> {
   const memory = await bridgeMemory(settings);
-  return memory?.reached ? (memory.servers ?? []) : [];
+  return memory && 'servers' in memory ? (memory.servers ?? []) : [];
 }
 
-/** What a paired Bridge remembers (null when this browser is not paired): whether it answered, its
- *  servers (null from a Bridge older than 0.7.0, which keeps none), and whether it keeps setups. */
+/**
+ * ONE OF THE BRIDGE'S OWN ROUTES, which name no server (`/servers`, `/studio`, `/pair-link`): what it
+ * answered, or why not in the words every other route uses - a rejected token, a refused site, no
+ * answer - never a bare "did not answer". `ownRoute` is the call alone, for a Bridge already probed.
+ */
+async function ownRoute(settings: PlayoutSettings, path: '/servers' | '/studio' | '/pair-link', body: Record<string, unknown>): Promise<{ body: BridgeReply } | { failed: PlayoutResult }> {
+  // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
+  const call = await callBridge(settings.agentUrl, path, body, STATE_TIMEOUT_MS, settings.agentToken);
+  if (!('http' in call)) {
+    return { failed: { state: 'bridge', detail: 'timedOut' in call ? `NoaCG Bridge did not answer on ${settings.agentUrl}.` : `NoaCG Bridge stopped answering: ${call.networkError}` } };
+  }
+  const reply = readReply(settings, call);
+  return reply.result.state === 'ok' && reply.body ? { body: reply.body } : { failed: reply.result };
+}
+
+/** `ownRoute`, asked only of a paired Bridge that lists `feature`; `missing` from an older one. */
+async function askBridge(
+  settings: PlayoutSettings,
+  feature: BridgeFeature,
+  path: '/servers' | '/pair-link',
+): Promise<{ body: BridgeReply; features: BridgeFeature[] } | { failed: PlayoutResult } | { missing: true }> {
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  if (unreachable) return { failed: unreachable };
+  if (!features.includes(feature)) return { missing: true };
+  const asked = await ownRoute(settings, path, {});
+  return 'body' in asked ? { body: asked.body, features } : asked;
+}
+
+/** What a paired Bridge remembers (null when this browser is not paired): its servers (null from a
+ *  Bridge older than 0.7.0, which keeps none) and whether it keeps setups, or why it did not say. */
 async function bridgeMemory(
   settings: PlayoutSettings,
-): Promise<{ reached: false } | { reached: true; servers: RememberedServer[] | null; studio: boolean } | null> {
+): Promise<{ failed: PlayoutResult } | { servers: RememberedServer[] | null; studio: boolean } | null> {
   if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return null;
-  const { unreachable, features } = await probeBridge(settings.agentUrl);
-  if (unreachable) return { reached: false };
-  if (!features.includes('servers')) return { reached: true, servers: null, studio: false };
-  // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
-  const call = await callBridge(settings.agentUrl, '/servers', {}, STATE_TIMEOUT_MS, settings.agentToken);
-  if (!('http' in call) || !call.body.ok || !Array.isArray(call.body.servers)) return { reached: false };
-  return { reached: true, servers: call.body.servers, studio: features.includes('studio') };
+  const asked = await askBridge(settings, 'servers', '/servers');
+  if ('missing' in asked) return { servers: null, studio: false };
+  if ('failed' in asked) return asked;
+  return { servers: Array.isArray(asked.body.servers) ? asked.body.servers : [], studio: asked.features.includes('studio') };
 }
 
 /**
@@ -640,7 +664,8 @@ async function bridgeMemory(
  *                first change made here is kept there
  *   unconnected  the Bridge keeps setups, but has not connected to this server: Connect, and it does
  *   browser      this browser only: no Bridge paired, or one from before 0.8.0
- *   away         the Bridge does not answer, so this is the browser's copy
+ *   away         the Bridge does not answer, or refuses this browser (`reason`), so this is the
+ *                browser's copy
  *   waiting      changed here while the Bridge did not answer; it gets the change when it does
  */
 export type StudioKeeper = 'bridge' | 'ready' | 'unconnected' | 'browser' | 'away' | 'waiting';
@@ -651,6 +676,8 @@ export interface StudioSync {
   changed: boolean;
   /** The Bridge's list as it stands after the sync, when it answered. */
   servers?: RememberedServer[];
+  /** Why the Bridge was not asked, when it did not answer or refused (`away` and `waiting`). */
+  reason?: PlayoutState;
 }
 
 /**
@@ -666,7 +693,7 @@ export function syncStudio(): Promise<StudioSync> {
     const settings = loadPlayoutSettings();
     const memory = await bridgeMemory(settings);
     if (!memory) return { keeper: 'browser', changed: false };
-    if (!memory.reached) return { keeper: pendingServer(settings) ? 'waiting' : 'away', changed: false };
+    if ('failed' in memory) return { keeper: pendingServer(settings) ? 'waiting' : 'away', changed: false, reason: memory.failed.state };
     if (!memory.studio || !memory.servers) return { keeper: 'browser', changed: false, servers: memory.servers ?? undefined };
     return syncWith(settings, memory.servers);
   });
@@ -732,33 +759,22 @@ function pendingServer(s: PlayoutSettings): { host: string; port: number } | nul
 /** Give the Bridge this browser's setup for `server`. The Bridge's new list, or null when it did not
  *  take it (it stopped answering, or refused). */
 async function keepStudio(settings: PlayoutSettings, server: { host: string; port: number }): Promise<RememberedServer[] | null> {
-  const call = await callBridge(
-    settings.agentUrl,
-    '/studio',
-    { target: { adapter: 'casparcg', host: server.host, port: server.port }, studio: studioOf(settings) },
-    STATE_TIMEOUT_MS,
-    settings.agentToken,
-  );
-  return 'http' in call && call.body.ok && Array.isArray(call.body.servers) ? call.body.servers : null;
+  const kept = await ownRoute(settings, '/studio', { target: { adapter: 'casparcg', host: server.host, port: server.port }, studio: studioOf(settings) });
+  return 'body' in kept && Array.isArray(kept.body.servers) ? kept.body.servers : null;
 }
 
 /**
  * A PAIRING LINK FOR ANOTHER BROWSER (D19): NoaCG Bridge opens one more one-time code, good for two
- * minutes, and the link is this page's own `?bridge=<port>&code=<code>`. Null when the Bridge does not
- * answer or is older than 0.8.0; the page then says to start the Bridge again for a fresh link.
+ * minutes, and the link is this page's own, the shape `parseBridgePair` reads. Otherwise why there is
+ * none: a Bridge older than 0.8.0 cannot make one, so the page says to start it again for a fresh link.
  */
-export async function pairingLinkForAnotherBrowser(settings: PlayoutSettings): Promise<string | null> {
-  if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return null;
-  const { unreachable, features } = await probeBridge(settings.agentUrl);
-  if (unreachable || !features.includes('pair-link')) return null;
-  const call = await callBridge(settings.agentUrl, '/pair-link', {}, STATE_TIMEOUT_MS, settings.agentToken);
-  if (!('http' in call) || !call.body.ok || typeof call.body.code !== 'string') return null;
-  try {
-    const { port } = new URL(settings.agentUrl);
-    return port ? `${window.location.origin}/app?bridge=${port}&code=${encodeURIComponent(call.body.code)}` : null;
-  } catch {
-    return null;
-  }
+export async function pairingLinkForAnotherBrowser(settings: PlayoutSettings): Promise<string | { unavailable: string }> {
+  const asked = await askBridge(settings, 'pair-link', '/pair-link');
+  if ('missing' in asked) return { unavailable: 'This NoaCG Bridge cannot make another link. Start it again and copy the link it opens into the other browser.' };
+  if ('failed' in asked) return { unavailable: asked.failed.detail };
+  const port = Number(URL.canParse(settings.agentUrl) ? new URL(settings.agentUrl).port : '');
+  if (typeof asked.body.code !== 'string' || !port) return { unavailable: `NoaCG Bridge on ${settings.agentUrl} made no link.` };
+  return bridgePairLink(window.location.origin, port, asked.body.code);
 }
 
 /** A server as a person writes it: the host alone on CasparCG's own port, host:port otherwise. */
@@ -823,6 +839,12 @@ export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult>
 // ---------------------------------------------------------------------------------------------
 // Pairing
 // ---------------------------------------------------------------------------------------------
+
+/** The pairing link on `origin`: what NoaCG Bridge prints and opens (`pairingUrl` in its command),
+ *  what a paired page hands another browser, and what `parseBridgePair` reads. */
+export function bridgePairLink(origin: string, port: number, code: string): string {
+  return `${origin}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
+}
 
 /** `/app?bridge=<port>&code=<code>` - the link NoaCG Bridge prints and opens. */
 export function isBridgePairUrl(params: URLSearchParams): boolean {

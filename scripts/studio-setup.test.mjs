@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { CHANNEL_NAME_MAX, DEFAULT_STUDIO, sameServer, sameStudio, studioFields, studioOf, studioStep } = await import('../src/control/studioSetup.ts');
+const { DEFAULT_STUDIO, sameServer, sameStudio, studioFields, studioOf, studioStep } = await import('../src/control/studioSetup.ts');
 
 const ours = {
   channels: [
@@ -60,13 +60,6 @@ test('what the browser gives the Bridge is always a setup the Bridge accepts', (
   assert.equal(sent.channels[0].name.length, 60, 'a name longer than the Bridge keeps is cut to its length');
   assert.equal(sent.newMedia, 3);
   assert.ok(sameStudio(studioOf(studioFields(ours)), ours), 'the two shapes go back and forth unchanged');
-});
-
-test("the name limit is the one the Bridge keeps", async () => {
-  // studioSetup.ts imports nothing, so the limit is written twice; a longer name than the Bridge keeps
-  // would have every setup refused and left waiting.
-  const { MAX_CHANNEL_NAME } = await import('../src/control/playoutProtocol.ts');
-  assert.equal(CHANNEL_NAME_MAX, MAX_CHANNEL_NAME);
 });
 
 test('a server is its host in any case and its port', () => {

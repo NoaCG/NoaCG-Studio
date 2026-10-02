@@ -7,7 +7,7 @@
 // Pure, so the rules that decide which copy wins are tested without a browser
 // (scripts/studio-setup.test.mjs). control/playoutLink.ts does the reading and writing.
 
-import type { RememberedServer, StudioSetup } from './playoutProtocol';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_CHANNEL, MAX_STUDIO_LAYER, type RememberedServer, type StudioSetup } from './playoutProtocol.ts';
 
 /** The setup's fields as the browser stores them (`PlayoutSettings`), under their old names. */
 export interface StudioFields {
@@ -20,8 +20,10 @@ export interface StudioFields {
   clipChannel: number;
 }
 
-/** The stored names of the setup's fields: a change to one of these is a change to the setup. */
-export const STUDIO_FIELDS = ['channel', 'layer', 'channels', 'clipChannel'] as const;
+/** The name a channel row starts with until the operator renames it: `Channel 2`. */
+export function defaultChannelName(channel: number): string {
+  return `Channel ${channel}`;
+}
 
 /**
  * What a studio has before anybody sets it up (`PLAYOUT_DEFAULTS` is made from it). One channel: a
@@ -30,13 +32,10 @@ export const STUDIO_FIELDS = ['channel', 'layer', 'channels', 'clipChannel'] as 
  * Layer 20 is the one this project's CasparCG guide has always used (docs/PLAYOUT_INTEGRATION.md §3).
  */
 export const DEFAULT_STUDIO: StudioSetup = {
-  channels: [{ channel: 1, name: 'Channel 1' }],
+  channels: [{ channel: 1, name: defaultChannelName(1) }],
   output: { channel: 1, layer: 20 },
   newMedia: 1,
 };
-
-/** The longest name a channel keeps: what NoaCG Bridge stores (MAX_CHANNEL_NAME). */
-export const CHANNEL_NAME_MAX = 60;
 
 const whole = (n: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number.isFinite(n) ? n : min)));
 
@@ -44,9 +43,9 @@ const whole = (n: number, min: number, max: number) => Math.min(max, Math.max(mi
  *  length. The browser's own copy is left as it is. */
 export function studioOf(s: StudioFields): StudioSetup {
   return {
-    channels: s.channels.map((row) => ({ channel: whole(row.channel, 1, 999), name: row.name.slice(0, CHANNEL_NAME_MAX) })),
-    output: { channel: whole(s.channel, 1, 999), layer: whole(s.layer, 0, 9999) },
-    newMedia: whole(s.clipChannel, 1, 999),
+    channels: s.channels.map((row) => ({ channel: whole(row.channel, 1, MAX_STUDIO_CHANNEL), name: row.name.slice(0, MAX_CHANNEL_NAME) })),
+    output: { channel: whole(s.channel, 1, MAX_STUDIO_CHANNEL), layer: whole(s.layer, 0, MAX_STUDIO_LAYER) },
+    newMedia: whole(s.clipChannel, 1, MAX_STUDIO_CHANNEL),
   };
 }
 

@@ -30,6 +30,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import type { RememberedServer, StudioSetup } from '../src/control/playoutProtocol';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
 // either, so both are FAKED at the network layer: `page.route` answers the Bridge's own HTTP
@@ -68,13 +69,9 @@ async function seedSettings(page: Page, patch: Record<string, unknown> = {}): Pr
   );
 }
 
-/** A studio setup as NoaCG Bridge keeps it per server (src/control/playoutProtocol.ts `StudioSetup`). */
-interface Studio {
-  channels: { channel: number; name: string }[];
-  output: { channel: number; layer: number };
-  newMedia: number;
-}
-type Server = { host: string; port: number; studio?: Studio };
+/** A studio setup as NoaCG Bridge keeps it per server, and a server it remembers. */
+type Studio = StudioSetup;
+type Server = RememberedServer;
 
 interface FakeBridge {
   /** Nothing is listening at all - the Bridge is not running. */
@@ -602,6 +599,17 @@ test('a production page opens with the setup the Bridge keeps for its server', a
   await seededPublishedProduction(page);
   await page.getByTestId('production-status').click();
   await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels');
+});
+
+test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {
+  // Changed here while NoaCG Bridge was closed: the browser holds the change, marked for the Bridge.
+  await seedOnce(page, { channels: [{ channel: 1, name: 'Program' }], studioPending: { host: '127.0.0.1', port: 5250 } });
+  const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  await seededPublishedProduction(page);
+  await expect(page.getByTestId('production-status')).toContainText('Bridge not running');
+  // The Bridge is started again; the page's own status poll sees it, and the change goes to it.
+  bridge.missing = false;
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[0].name, { timeout: 15_000 }).toBe('Program');
 });
 
 // ── Pairing says only what is needed (AC-12, D8, D19) ───────────────────────────────────────────

@@ -225,6 +225,9 @@ export interface StudioSetup {
 export const MAX_STUDIO_CHANNELS = 99;
 /** The longest name a channel row keeps, in characters. */
 export const MAX_CHANNEL_NAME = 60;
+/** The highest channel number, and the highest layer, a studio setup holds. */
+export const MAX_STUDIO_CHANNEL = 999;
+export const MAX_STUDIO_LAYER = 9999;
 
 /** A CasparCG server a Bridge remembers connecting to: host and port, and with the `studio` feature
  *  the studio's setup for it once a page has kept one there. */

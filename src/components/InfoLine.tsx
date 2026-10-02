@@ -2,9 +2,11 @@ import { useId, useState, type ReactNode } from 'react';
 
 /**
  * ONE LINE, THE REST BEHIND A SMALL INFO BUTTON (docs/work-specs/studio-day-playout D8): the line
- * says what to do, and the button beside it opens the why and the details underneath, for whoever
- * wants them. A button rather than a hover tooltip, so it works with a finger and a keyboard, and
- * reads out as expanded or not.
+ * says what to do, and the ⓘ beside it opens the why and the details underneath, for whoever wants
+ * them. The line-level sibling of wizard/SectionHead, the house pattern for a section's one line
+ * (contract `wizard/give-section-line-info-button-rest`), and drawn with its ⓘ and body styles so the
+ * app has one info button. A button rather than a hover tooltip, so it works with a finger and a
+ * keyboard, and reads out as expanded or not.
  */
 export default function InfoLine({
   children,
@@ -33,18 +35,18 @@ export default function InfoLine({
         {children}{' '}
         <button
           type="button"
-          className="info-btn"
+          className={`wz-why-btn${open ? ' active' : ''}`}
           aria-label={label}
           aria-expanded={open}
           aria-controls={id}
           onClick={() => setOpen((o) => !o)}
           data-testid={testId ? `${testId}-info` : undefined}
         >
-          i
+          ⓘ
         </button>
       </Line>
       {open && (
-        <div id={id} className="info-more" data-testid={testId ? `${testId}-more` : undefined}>
+        <div id={id} className="wz-why hint" data-testid={testId ? `${testId}-more` : undefined}>
           {more}
         </div>
       )}
