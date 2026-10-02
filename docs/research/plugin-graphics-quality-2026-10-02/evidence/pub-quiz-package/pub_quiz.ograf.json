@@ -1,0 +1,294 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "noacg-pub-quiz",
+  "version": "1.0.0",
+  "name": "Pub Quiz",
+  "description": "Pub Quiz",
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "f0": {
+        "type": "string",
+        "title": "Question",
+        "default": "Which planet is known as the Red Planet?",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f1": {
+        "type": "string",
+        "title": "Answer A",
+        "default": "Venus",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f2": {
+        "type": "string",
+        "title": "Answer B",
+        "default": "Mars",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f3": {
+        "type": "string",
+        "title": "Answer C",
+        "default": "Jupiter",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f4": {
+        "type": "string",
+        "title": "Answer D",
+        "default": "Saturn",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f5": {
+        "type": "string",
+        "title": "Correct answer",
+        "default": "B",
+        "enum": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "v_noacg": {
+          "kind": "select"
+        },
+        "v_spx": {
+          "ftype": "dropdown",
+          "items": [
+            {
+              "text": "A",
+              "value": "A"
+            },
+            {
+              "text": "B",
+              "value": "B"
+            },
+            {
+              "text": "C",
+              "value": "C"
+            },
+            {
+              "text": "D",
+              "value": "D"
+            }
+          ]
+        }
+      },
+      "f6": {
+        "type": "number",
+        "title": "Round",
+        "default": 1,
+        "v_noacg": {
+          "kind": "number"
+        },
+        "v_spx": {
+          "ftype": "number"
+        }
+      },
+      "f7": {
+        "type": "number",
+        "title": "Question number",
+        "default": 1,
+        "v_noacg": {
+          "kind": "number"
+        },
+        "v_spx": {
+          "ftype": "number"
+        }
+      },
+      "f8": {
+        "type": "string",
+        "title": "Timer seconds",
+        "default": "30",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      },
+      "f9": {
+        "type": "string",
+        "title": "Word for Round",
+        "default": "ROUND",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      },
+      "f10": {
+        "type": "string",
+        "title": "Word for Question",
+        "default": "QUESTION",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      },
+      "f11": {
+        "type": "string",
+        "title": "Word for time up",
+        "default": "TIME'S UP",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      }
+    }
+  },
+  "stepCount": 2,
+  "customActions": [
+    {
+      "id": "judge",
+      "name": "Reveal answer",
+      "description": "Answer — fires the \"judge\" event.",
+      "v_noacg": {
+        "section": "Answer"
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "f5": {
+            "type": "string",
+            "title": "Correct answer",
+            "default": "B"
+          }
+        }
+      }
+    },
+    {
+      "id": "timerStart",
+      "name": "Start timer",
+      "description": "Timer — fires the \"timerStart\" event.",
+      "v_noacg": {
+        "section": "Timer"
+      },
+      "schema": null
+    },
+    {
+      "id": "timerEnd",
+      "name": "Stop timer",
+      "description": "Timer — fires the \"timerEnd\" event.",
+      "v_noacg": {
+        "section": "Timer"
+      },
+      "schema": null
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 1450,
+      "steps": [
+        {
+          "step": 0,
+          "duration": 1450
+        },
+        {
+          "step": 1,
+          "duration": 550
+        }
+      ]
+    },
+    {
+      "type": "stopAction",
+      "duration": 400
+    },
+    {
+      "type": "updateAction",
+      "duration": 0
+    },
+    {
+      "type": "customAction",
+      "customActionId": "judge",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "timerStart",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "timerEnd",
+      "duration": -1
+    }
+  ],
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      },
+      "frameRate": {
+        "ideal": 25
+      }
+    }
+  ],
+  "thumbnails": [
+    {
+      "file": "thumbnail.png",
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      }
+    }
+  ],
+  "v_noacg": {
+    "format": "noacg-graphic",
+    "version": 1,
+    "type": "quiz",
+    "source": {
+      "html": "pub_quiz.html",
+      "css": "css/template.css",
+      "js": "js/template.js"
+    },
+    "sourceHash": "17ab63465ccef",
+    "generator": "noacg-studio"
+  },
+  "v_spx": {
+    "playlayer": "4",
+    "webplayout": "4",
+    "out": "manual"
+  }
+}

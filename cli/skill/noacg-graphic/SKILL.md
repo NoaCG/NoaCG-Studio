@@ -1,20 +1,22 @@
 ---
 name: noacg-graphic
 description: >-
-  Make a broadcast graphic - or a whole graphics package for a show - for NoaCG Studio (lower
-  third, scoreboard, bug, ticker, countdown, full-screen, any on-air graphic) and put it in the
-  user's NoaCG library or on their Home ready to install as a production. Use when the user says
-  "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants graphics operated live
-  (editable fields, Take/Update/Out). Teaches the NoaCG contract, the noacg tools and the loop,
-  not how to design.
+  Make, critique or improve a broadcast graphic - or a whole graphics package for a show - for
+  NoaCG Studio (lower third, scoreboard, bug, ticker, countdown, full-screen, any on-air graphic)
+  and put it in the user's NoaCG library or on Home ready to install as a production. Use when
+  the user says "for NoaCG", names NoaCG, SPX, CasparCG or OGraf playout, or wants graphics
+  operated live (editable fields, Take/Update/Out). Teaches the contract, tools and loop, not
+  how to design.
 ---
 
 # Make a NoaCG graphic
 
 You are building a real broadcast graphic: HTML + CSS + JS that a playout system loads, an
 operator drives from a control panel, and NoaCG saves, edits and plays out. Design it the way you
-normally design - this skill tells you the CONTRACT the graphic must satisfy, the TOOLS that
-check it, and how it reaches the user's library. It does not tell you how it should look.
+normally design - this skill tells you the CONTRACT the graphic must satisfy, how its FIELDS AND
+BEHAVIOUR should work for the operator, the TOOLS that check it, and how it reaches the user's
+library. It does not tell you how it should look: the look is yours, unless the user switches on
+one of the two opt-in tools at the end of this file.
 
 ## The loop
 
@@ -55,8 +57,10 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    the step semantics. If the operator cannot change what they will need to change, add the field;
    if an action is missing, it belongs in the machine - a type's, or one you author
    (`references/contract.md` §5). Read the printed BUTTONS against what the brief's operator must
-   do live - a clean validate does not prove the actions exist. **With an authored machine this is
-   the remaining gate, and it is the one with a human in it**: SHOW the user the buttons - "these
+   do live - a clean validate does not prove the actions exist - and read the INPUTS against
+   "Fields and behaviour" below: a word set once per show is not a live input, and a counter the
+   operator steps through is a number. **With an authored machine this is the remaining gate,
+   and it is the one with a human in it**: SHOW the user the buttons - "these
    are your buttons" - so a person confirms the operator surface before it is saved.
 5. **Save.** `noacg save ./my-graphic --name "…"` validates once more and puts it in the user's
    NoaCG library, printing the `#/graphic/<id>` link (it opens at once; it is in Home → Graphics).
@@ -64,8 +68,12 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    ask the user to run `noacg login` (it opens a consent page in THEIR browser - you cannot and
    must not do that step for them), or set `NOACG_AGENT_KEY` in CI. The key can only create
    graphics in the library - save never publishes, adds to a production or airs anything. (No
-   account? `zip` the folder - it imports through the studio's Import door, and it is also a
-   complete OGraf package any OGraf renderer plays.)
+   account? Zip the package folder: `zip -r my-graphic.zip my-graphic` on macOS or Linux;
+   on Windows `Compress-Archive my-graphic my-graphic.zip` in PowerShell, or
+   `C:/Windows/System32/tar.exe -a -cf my-graphic.zip my-graphic` from any shell (Git Bash's own
+   `tar` writes a tar file, not a zip). `noacg validate my-graphic.zip` confirms it, and it
+   imports through the studio's Import door. It is also a complete OGraf package any OGraf
+   renderer plays.)
 
 ## A whole package: several graphics for one show
 
@@ -110,6 +118,36 @@ genuinely fixed semantic labels may stay static. Never bake event-specific or us
 into the design. A repeated list (rows, credits, items) is ONE multi-line field the runtime
 renders, never f7…f26.
 
+## Fields and behaviour: build for the operator's show
+
+However it looks, the graphic is driven live by one person under time pressure. These decide
+whether that person can keep up, and `noacg inspect` shows you the result.
+
+- **Live or set once.** For every field, decide whether the operator changes it during the show,
+  between items included (a score, the next guest's name, a title between segments), or once per
+  show (team names, a channel's word for FINAL). The operator page should hold what changes
+  during the show; a thing done live with a press is a ⚡ button, never a field to retype. A goal
+  is one button that adds 1 to the score (`"adjust": { "f1": 1 }` in `machine.controls`); the
+  number field stays for corrections.
+- **Set-once words are hidden word sources.** A word a state shows (POWER PLAY, END 1ST, FINAL,
+  LIVE) is still a field, because the broadcaster names it, but when it is set once it is
+  `"ftype": "hidden"` in a holder `<div id="f9" class="noacg-data-source">FINAL</div>`. The studio's
+  Data panel edits it, the operator page stays live-only, and your runtime copies the word into
+  the visible element when the state is entered and again in `update()`
+  (`references/contract.md` §5e has the pattern).
+- **A counter is a number.** Something the operator steps through (a question, a round, a period,
+  a lap) is a `number` field, which gets - / + on the panel, with its label kept apart: "Question"
+  as fixed text or a word source, `7` as the number. Never one text field holding "Question 7"
+  that has to be retyped for the next question.
+- **A default is a safe sample or empty.** A default airs whenever nobody types over it. Use a
+  value that is right on air for most shows (`0` for a score, `20:00` for a period clock, `LIVE`),
+  or leave it empty and let the design close up around it. Never a placeholder that reads as a
+  mistake on air: "Host Name", "Lorem ipsum", or a city that is not this show's.
+- **The common behaviours have worked patterns** in `references/contract.md` §5e: an optional
+  line that collapses when its field is empty, a state's word painted from a hidden source, a
+  second state group beside the lifecycle (a timer), a graphic that ends its own timed state, and
+  an action the operator can press in every state.
+
 ## What is fixed and what is yours
 
 Fixed because playout, editability or compatibility needs it (the validator checks every line of
@@ -131,5 +169,24 @@ does not apply to a fixed broadcast frame.
   authors resolve it.
 - `references/control.md` - how NoaCG derives the operator surface; the two markup conventions
   the control layer reads; the OGraf contract (`schema`, `customActions`, `stepCount`).
-- `references/design-notes.md` - OPTIONAL, off by default: NoaCG's own design notes. Read only
-  when the user asks for "the NoaCG look" or house guidance.
+- `references/critique.md` and `references/design-notes.md` - the two opt-in tools below. Do not
+  read them unless one is switched on.
+
+## Two opt-in tools (both OFF unless the user asks)
+
+By default NoaCG asks nothing of the design beyond the fixed list above. Two tools exist for
+users who want more, and you use one only when it is asked for:
+
+- **Critique and improve** (`references/critique.md`): a taste check on the graphic you made.
+  You render it, judge it against the brief and the paid-asset bar, make the changes that matter
+  and show the before and after frames. It is ON when the user asks for it ("critique my
+  graphic", "make it better", `/noacg:graphic --critique ./my-graphic` in Claude Code). You may
+  offer it in one sentence when you report a finished graphic; run it only if the user says yes.
+- **NoaCG's design guidelines** (`references/design-notes.md`): the studio's own rules for type,
+  colour, placement and motion, for users who want guard rails. It is ON when the user asks for
+  NoaCG's design guidelines or the NoaCG look, passes `--guidelines` to `/noacg:graphic`, or
+  their project instructions (`CLAUDE.md`, `AGENTS.md`) contain the line
+  `NoaCG design guidelines: on`. When it is on, read it before you design and follow it.
+
+When neither is on, do not open either file: the look is yours, judged the way you normally
+judge your own work.

@@ -409,11 +409,33 @@ glossary of WHAT THE VALIDATOR MEASURES so a finding is understood. The loop it 
 -> author the way the agent normally works -> `validate` (+ screenshots) until clean -> `save`.
 The one content rule: content an operator or another broadcaster would change is a field;
 decoration and genuinely fixed semantic labels may stay static; never bake event-specific
-content. NOT in the default skill: taste rules, motion doctrine, composition/hierarchy/shape
-guidance - those live in `references/design-notes.md`, off by default, to be tested as its own
-arm. With a design skill active, NoaCG's rules bind only for correctness, editability,
-compatibility and playout; the look is the agent's; page/responsive/mobile guidance does not
-apply to a fixed 1920x1080 frame.
+content. With a design skill active, NoaCG's rules bind only for correctness, editability,
+compatibility and playout; page/responsive/mobile guidance does not apply to a fixed 1920x1080
+frame.
+
+**Design (owner decision D1, 2026-10-02, `docs/work-specs/plugin-design-quality/spec.md`).** By
+default the agent designs freely: the default skill carries no house look, no taste rules, no
+motion durations and no design step in its loop. NoaCG's half is everything around the artwork,
+and the skill teaches it in "Fields and behaviour": what the operator changes during the show
+versus sets once, set-once words as `hidden` word sources off the operator page, counters as
+numbers, defaults that are a safe sample or empty, and five worked behaviour patterns in
+`references/contract.md` §5e. Taste is two OPT-IN tools, both off unless asked for:
+
+- **Critique and improve** (`references/critique.md`): render, judge against the brief and the
+  paid-asset bar (questions drawn from `docs/DESIGN_LANGUAGE.md` §9), change what matters, show
+  before and after. On when the user asks ("critique my graphic") or passes
+  `/noacg:graphic --critique <folder>`; the agent may offer it in one sentence.
+- **NoaCG's design guidelines** (`references/design-notes.md`): the catalog's own rules, with
+  `docs/DESIGN_LANGUAGE.md`'s floors. On when the user asks, passes `/noacg:graphic --guidelines`,
+  or their own `CLAUDE.md` / `AGENTS.md` carries the line `NoaCG design guidelines: on`.
+
+Both switches are words first because Codex loads the skill and not the command; both ride the
+one skill and the one command the plugin already had, so the always-on cost is unchanged (~155
+tokens by `claude plugin details`, measured before and after; a separate user-only command was
+measured at ~179 and dropped). `cli/test/unit.test.mjs` pins the fields-and-behaviour rules, the
+absence of house rules from the default text and loop, both tools' off-by-default wording, and
+the plugin's one-skill, one-command shape with description ceilings. The first runs per arm, in
+Claude and Codex, are in `docs/work-specs/plugin-design-quality/evidence/`.
 
 **Since 0.3.2 the skill also teaches an AUTHORED machine** (`references/contract.md` §5), which
 closes the gap `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §2c measured: the gates had been armed since

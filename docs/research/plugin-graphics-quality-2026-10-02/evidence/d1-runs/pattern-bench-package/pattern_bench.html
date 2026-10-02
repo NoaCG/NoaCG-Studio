@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pattern bench</title>
+
+  <!-- GSAP animation library (bundled locally — no internet needed at playout). -->
+  <script src="js/gsap.min.js"></script>
+
+  <!-- Template styles and logic. -->
+  <link rel="stylesheet" href="css/template.css" />
+  <script src="js/template.js"></script>
+
+  <!-- SPX template definition: the data fields shown to the operator. -->
+  <script id="spx-template-definition" type="text/javascript">
+window.SPXGCTemplateDefinition = {
+    "description": "Pattern bench",
+    "playserver": "OVERLAY",
+    "playchannel": "1",
+    "playlayer": "7",
+    "webplayout": "7",
+    "out": "manual",
+    "steps": "1",
+    "dataformat": "json",
+    "uicolor": "7",
+    "DataFields": [
+        {
+            "field": "f0",
+            "ftype": "textfield",
+            "title": "Name",
+            "value": "Anna Virtanen"
+        },
+        {
+            "field": "f1",
+            "ftype": "textfield",
+            "title": "Place",
+            "value": ""
+        },
+        {
+            "field": "f2",
+            "ftype": "number",
+            "title": "Score",
+            "value": "0"
+        },
+        { "field": "f3", "ftype": "hidden", "title": "Timer seconds", "value": "30" },
+        { "field": "f4", "ftype": "hidden", "title": "Final word", "value": "FINAL" }
+    ]
+};
+</script>
+  <script src="js/flex-gap-shim.js"></script>
+  <meta name="noacg-project-format" content="width=1920;height=1080;fps=25" />
+</head>
+<body>
+  <!-- Graphic root — zone-positioned; opacity 0 until play() runs the entrance. -->
+  <div class="graphic">
+    <!-- NEUTRAL SPINE: a valid graphic with the fields you declared. The structure is the
+         contract (the box, one mask per line, the ids); how it looks is yours. -->
+    <div class="graphic-box">
+      <div class="graphic-stack">
+        <!-- Name (f0) — SPX writes this field's value straight into the element. -->
+        <div class="graphic-mask"><span id="f0" class="graphic-name">Anna Virtanen</span></div>
+        <!-- Place (f1) — SPX writes this field's value straight into the element. -->
+        <div class="graphic-mask graphic-empty"><span id="f1" class="graphic-title"></span></div>
+        <!-- Score (f2) — SPX writes this field's value straight into the element. -->
+        <div class="graphic-mask"><span id="f2" class="graphic-data">0</span></div>
+        <div class="graphic-mask"><span class="graphic-timer"></span></div>
+        <div class="graphic-mask"><span class="graphic-status"></span></div>
+        <!-- Set-once values: hidden holders the runtime reads, never drawn. -->
+        <div id="f3" class="noacg-data-source">30</div>
+        <div id="f4" class="noacg-data-source">FINAL</div>
+      </div>
+    </div>
+  </div>
+<script id="spx-control-receiver">
+/* Control receiver — Pattern bench.
+   A control panel on the same machine (controlpanel.html) posts messages here; we forward
+   them to the graphic's own update()/play()/stop()/next() — and, when this graphic carries a
+   state machine, 'event' and 'snap' to noacgDispatch()/noacgSnap() (the machine cues a
+   generated control page sends). After every handled message the receiver answers with the
+   machine state, and a lightweight watcher reports timer-driven changes too, so the panel's
+   state chip stays honest. Remove this block to opt out. */
+(function () {
+  if (typeof BroadcastChannel === 'undefined') return;
+  try {
+    var ch = new BroadcastChannel('spx-control-pattern_bench');
+    var lastSent = '';
+    function reply(force) {
+      var hasState = typeof noacgMachineState === 'function';
+      var hasOver = typeof noacgTextOverflow === 'function';
+      if (!hasState && !hasOver) return;
+      try {
+        var state = hasState ? noacgMachineState() : null;
+        // WHICH VALUES DID NOT FIT — the field ids this graphic could not size down far enough
+        // to hold (its fit ladder's last rung). The panel warns the operator with it; the copy
+        // is never cut and the artwork is never reshaped to hide it.
+        var over = hasOver ? noacgTextOverflow() : null;
+        var key = JSON.stringify([state, over]);
+        if (!force && key === lastSent) return;
+        lastSent = key;
+        ch.postMessage({ t: 'state', state: state, over: over });
+      } catch (e) { /* state unavailable — the panel just shows no chip */ }
+    }
+    ch.onmessage = function (ev) {
+      var m = ev.data || {};
+      if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
+      else if (m.t === 'play' && typeof play === 'function') play();
+      else if (m.t === 'stop' && typeof stop === 'function') stop();
+      else if (m.t === 'next' && typeof next === 'function') next();
+      else if (m.t === 'event' && typeof noacgDispatch === 'function') {
+        // WHEN this event happened. A graphic that runs a clock of its own reads it instead of
+        // Date.now(), so every renderer given the same row anchors to the same instant.
+        //
+        // It is SET AND LEFT, never cleared after the call. noacgDispatch queues the event and
+        // the state's own calls fire a frame later, so clearing it on the next line puts the
+        // instant back to null before the thing that needed it runs — which is exactly the bug
+        // the first cut of this shipped: a replayed 90-second-old switch still started the
+        // speech from five minutes. Leaving it is safe because it is rewritten by every event,
+        // to null when there is no instant, so it always reads as the MOST RECENT event's.
+        window.noacgEventAt = (typeof m.at === 'number' && m.at > 0) ? m.at : null;
+        noacgDispatch(m.event, m.payload);
+      }
+      else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
+      reply(m.t === 'hello');
+      watch();
+    };
+    // Timers advance the machine with no message to answer, and a webfont arriving re-runs the
+    // text fit — a cheap watcher reports both.
+    //
+    // ARMED AGAIN ON THE FIRST MESSAGE, not only at load. In a SINGLE-FILE package (CasparCG,
+    // the OBS/vMix overlay) this block goes in at the end of the body and the composer appends
+    // the template's own JS after it, so at load neither global exists yet and the watcher used
+    // to stay disarmed for the life of the page: the panel then paired, answered every press,
+    // and silently never reported a timer-driven change. Re-checking costs a boolean per message.
+    //
+    // NOTHING IN THIS SCRIPT MAY CONTAIN THE CLOSING BODY TAG, not even inside a comment. Both
+    // injectControlReceiver and composeSelfContainedHtml find their insertion point with
+    // /<\/body>/i and replace the FIRST match, so one written here becomes the first one in the
+    // document and the template's whole JS lands inside this comment. Nine specs went red on it.
+    var watching = false;
+    function watch() {
+      if (watching) return;
+      if (typeof noacgMachineState !== 'function' && typeof noacgTextOverflow !== 'function') return;
+      watching = true;
+      setInterval(function () { reply(false); }, 1000);
+    }
+    watch();
+    // Announce the boot: a control panel that kept an event log hears this and rebuilds a
+    // refreshed graphic (latest data, then snap to the last known state) — crash recovery.
+    ch.postMessage({ t: 'graphic-online' });
+  } catch (e) { /* channel unavailable — the graphic still works, just not remotely driven */ }
+})();
+</script>
+</body>
+</html>

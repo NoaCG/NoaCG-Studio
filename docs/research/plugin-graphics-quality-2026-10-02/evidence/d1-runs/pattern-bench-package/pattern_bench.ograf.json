@@ -1,0 +1,219 @@
+{
+  "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+  "id": "noacg-pattern-bench",
+  "version": "1.0.0",
+  "name": "Pattern bench",
+  "description": "Pattern bench",
+  "main": "graphic.mjs",
+  "supportsRealTime": true,
+  "supportsNonRealTime": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "f0": {
+        "type": "string",
+        "title": "Name",
+        "default": "Anna Virtanen",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f1": {
+        "type": "string",
+        "title": "Place",
+        "default": "",
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "textfield"
+        }
+      },
+      "f2": {
+        "type": "number",
+        "title": "Score",
+        "default": 0,
+        "v_noacg": {
+          "kind": "number"
+        },
+        "v_spx": {
+          "ftype": "number"
+        }
+      },
+      "f3": {
+        "type": "string",
+        "title": "Timer seconds",
+        "default": "30",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      },
+      "f4": {
+        "type": "string",
+        "title": "Final word",
+        "default": "FINAL",
+        "hidden": true,
+        "v_noacg": {
+          "kind": "text"
+        },
+        "v_spx": {
+          "ftype": "hidden"
+        }
+      }
+    }
+  },
+  "stepCount": 1,
+  "customActions": [
+    {
+      "id": "goal",
+      "name": "Goal",
+      "description": "Score — fires the \"goal\" event.",
+      "v_noacg": {
+        "section": "Score",
+        "adjust": {
+          "f2": 1
+        }
+      },
+      "schema": {
+        "type": "object",
+        "properties": {
+          "f2": {
+            "type": "number",
+            "title": "Score",
+            "default": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "timerStart",
+      "name": "Start timer",
+      "description": "Timer — fires the \"timerStart\" event.",
+      "v_noacg": {
+        "section": "Timer"
+      },
+      "schema": null
+    },
+    {
+      "id": "timerEnd",
+      "name": "End timer",
+      "description": "Timer — fires the \"timerEnd\" event.",
+      "v_noacg": {
+        "section": "Timer"
+      },
+      "schema": null
+    },
+    {
+      "id": "final",
+      "name": "Final",
+      "description": "Result — fires the \"final\" event.",
+      "v_noacg": {
+        "section": "Result",
+        "destructive": true
+      },
+      "schema": null
+    },
+    {
+      "id": "resume",
+      "name": "Back to live",
+      "description": "Result — fires the \"resume\" event.",
+      "v_noacg": {
+        "section": "Result"
+      },
+      "schema": null
+    }
+  ],
+  "actionDurations": [
+    {
+      "type": "playAction",
+      "duration": 1260,
+      "steps": [
+        {
+          "step": 0,
+          "duration": 1260
+        }
+      ]
+    },
+    {
+      "type": "stopAction",
+      "duration": 550
+    },
+    {
+      "type": "updateAction",
+      "duration": 0
+    },
+    {
+      "type": "customAction",
+      "customActionId": "goal",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "timerStart",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "timerEnd",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "final",
+      "duration": -1
+    },
+    {
+      "type": "customAction",
+      "customActionId": "resume",
+      "duration": -1
+    }
+  ],
+  "renderRequirements": [
+    {
+      "resolution": {
+        "width": {
+          "ideal": 1920
+        },
+        "height": {
+          "ideal": 1080
+        }
+      },
+      "frameRate": {
+        "ideal": 25
+      }
+    }
+  ],
+  "thumbnails": [
+    {
+      "file": "thumbnail.png",
+      "resolution": {
+        "width": 1920,
+        "height": 1080
+      }
+    }
+  ],
+  "v_noacg": {
+    "format": "noacg-graphic",
+    "version": 1,
+    "type": "blank",
+    "source": {
+      "html": "pattern_bench.html",
+      "css": "css/template.css",
+      "js": "js/template.js"
+    },
+    "sourceHash": "e833956dcd9c6",
+    "generator": "noacg-studio"
+  },
+  "v_spx": {
+    "playlayer": "2",
+    "webplayout": "2",
+    "out": "manual"
+  }
+}
