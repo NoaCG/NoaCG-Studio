@@ -13,11 +13,6 @@
 @media (max-width: 1600px) {
   .pd-target-state { display: none; }
 }
-/* On a phone the production page's header keeps identity, mode and ■ All out only: the door stands
-   down with the other setup doors there (playout-dashboard.css, the phone tier). */
-@media (max-width: 900px) {
-  .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target { display: none; }
-}
 
 .wz-modal.settings-modal.panel-modal { width: min(560px, 94vw); max-width: 560px; height: auto; max-height: 88vh; }
 .panel-modal .settings-content { flex: 1; overflow: auto; }

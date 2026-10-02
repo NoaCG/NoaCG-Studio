@@ -10,47 +10,20 @@
 // covers: src/components/home/ProductionPage.tsx, src/components/control/PanelControl.tsx
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts
 
-import { test, expect, type Page } from '@playwright/test';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, SUPABASE_URL } from './_helpers';
-import { ANON_KEY, panelModule, type Json } from './_panel';
+import { test, expect } from '@playwright/test';
+import { haveCreds, SUPABASE_URL } from './_helpers';
+import { ANON_KEY, panelModule, publishTwoCues, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
-/** A published production of two cues, Anna and Ben, open on its production page. */
-async function publishTwoCues(page: Page): Promise<string> {
-  await signIn(page);
-  await page.keyboard.press('Escape');
-  await clearPublishedShows(page);
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  const showName = `Panel Production ${Date.now()}`;
-  await openProductionWithCurrent(page, showName);
-  const rows = page.getByTestId('cue-list').locator('.pd-cue');
-  await page.getByTestId('cue-label').fill('Anna');
-  await expect(rows.first()).toContainText('Anna');
-  await page.getByTestId('add-cue').click();
-  await expect(rows).toHaveCount(2);
-  await page.getByTestId('cue-label').fill('Ben');
-  await expect(rows.nth(1)).toContainText('Ben');
-  await page.getByTestId('cue-label').blur();
-  await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
-  // A publish opens the Playout panel by itself; shut it, so the header's doors are in reach.
-  const status = page.getByTestId('production-status-panel');
-  if (await status.isVisible()) await page.getByTestId('production-status').click();
-  await expect(status).toBeHidden();
-  const slug = await page.evaluate(async (name) => {
-    const { loadShows } = await import('/src/model/shows.ts');
-    return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;
-  }, showName);
-  expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
-  return slug as string;
-}
-
 test('the production page pairs a panel, answers it, runs its presses and refuses repeated and stale ones', async ({ page, context }) => {
   test.setTimeout(300_000);
-  const slug = await publishTwoCues(page);
+  const slug = await publishTwoCues(page, `Panel Production ${Date.now()}`);
   const op = page;
+  // A publish opens the Playout panel by itself; shut it, so the header's doors are in reach.
+  const status = op.getByTestId('production-status-panel');
+  if (await status.isVisible()) await op.getByTestId('production-status').click();
+  await expect(status).toBeHidden();
 
   // Nothing panel-related runs until the switch is on: the door says Off.
   await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off');

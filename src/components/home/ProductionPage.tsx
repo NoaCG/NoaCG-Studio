@@ -1951,15 +1951,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // hears that part directly; it publishes only when a key would show a difference.
   const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
   const [panelOpen, setPanelOpen] = useState(false);
-  // A reading moves timing and then ownership in one fold: publish after both, never between.
-  useEffect(() => serverPlayout.timing.subscribe(() => queueMicrotask(panel.changed)), [serverPlayout, panel.changed]);
-  // What moves with time alone (a clip the page counts reaching its end, a reading gone quiet and
-  // the count turning estimated) changes no store and no render: look again once a second.
+  // While answering, the panel also hears the timing part, after the whole fold: a reading moves
+  // timing and then ownership, and a state pairing the two halves must never go out. What moves
+  // with time alone (a counted clip reaching its end, a count turning estimated) is caught by the
+  // render the header clock causes every second.
   useEffect(() => {
     if (!panel.on) return;
-    const t = setInterval(panel.changed, 1_000);
-    return () => clearInterval(t);
-  }, [panel.on, panel.changed]);
+    return serverPlayout.timing.subscribe(() => queueMicrotask(panel.changed));
+  }, [panel.on, serverPlayout, panel.changed]);
   const panelRows = useMemo(() => rundownPanelRows(rundown.rows), [rundown]);
 
   if (!show) {
@@ -2301,6 +2300,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
   const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
+  /** The selected cue is a clip this page has up on the server: what Pause and Resume act on. */
+  const selectedClipUp = !!selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media';
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
   const selectedLayerLive = !!selectedLayerCueId || selectedPlayoutLive;
@@ -3588,30 +3589,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // row in `press.cue`. Select moves the cursor there and airs nothing: a folder row holds the
     // folder. Take airs that cue whatever the SPACE mode, or takes it off when it is the one on air,
     // and leaves the cursor where the operator put it.
-    if (key === 'select-cue' || key === 'take-cue') {
-      if (press?.repeat || !press?.cue) return;
-      const row = rundown.rows.find((r) => r.id === press.cue);
-      if (row?.kind === 'folder') {
-        if (key === 'select-cue') {
-          selectFolder(row.folder.id, row.id);
-          revealCue(rowTestId(row));
-        }
-        return;
-      }
-      const cue = cues.find((c) => c.id === press.cue);
+    if (key === 'select-cue') {
+      // The drawn row: the cue's own, its collapsed folder's header, or the header pressed.
+      const shown = press?.cue ? rundown.rows.find((r) => r.id === (rundown.rowOf.get(press.cue!) ?? press.cue)) : undefined;
+      if (!shown) return;
+      if (shown.kind === 'folder' && shown.id === press!.cue) selectFolder(shown.folder.id, shown.id);
+      else selectCue(press!.cue!);
+      revealCue(rowTestId(shown));
+      return;
+    }
+    if (key === 'take-cue') {
+      const cue = press?.repeat ? undefined : cues.find((c) => c.id === press?.cue);
       if (!cue) return;
-      if (key === 'select-cue') {
-        selectCue(cue.id);
-        // A collapsed folder's cue is shown by its header.
-        const shown = rundown.rows.find((r) => r.id === rundown.rowOf.get(cue.id));
-        if (shown) revealCue(rowTestId(shown));
-      } else if (cueOnAirNow(cue)) {
-        if (cue.source === 'playout') void playoutVerb(cue, 'out', 'Out');
-        else
-          void graphicsOff([cue]).then((failed) => {
-            if (failed) setNote(failed);
-          });
-      } else if (!stepBlocker(cue)) void takeCue(cue);
+      if (cueOnAirNow(cue)) void stepOff([cue]);
+      else if (!stepBlocker(cue)) void takeCue(cue);
       return;
     }
     // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
@@ -3688,7 +3679,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (key === 'out' && selectedLayerLive) void outLive();
     // A server clip's transport. Only the cue this page has up on the server: nothing to pause
     // anywhere else, and a panel or a key pressing it on another cue must not reach the slot.
-    if ((key === 'pause' || key === 'resume') && selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media') {
+    if ((key === 'pause' || key === 'resume') && selectedCue && selectedClipUp) {
       void playoutVerb(selectedCue, key, key === 'pause' ? 'Pause' : 'Resume');
     }
     // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the
@@ -3720,9 +3711,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
   // only while the page answers a panel, at each publish and each press.
+  /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
+   *  between renders, and only the clock can have moved then. */
+  let takeRefused: Set<string> | null = null;
   panel.feed(
     () => {
       const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
+      takeRefused ??= new Set(cues.filter((c) => !!stepBlocker(c)).map((c) => c.id));
+      const refused = takeRefused;
+      // The clip the clock follows: what the panel counts down, and what its pause-toggle key names.
+      const clip = panelClipNow(serverPlayout, playoutItems, cues);
       return {
         title: show.name,
         // The row the verbs act on: a held folder's header, else the selected cue itself, even while
@@ -3739,22 +3737,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           out: selectedFolder ? selectedFolderUp || heldStarted : selectedLayerLive,
           'select-prev': rundown.rows.length > 0,
           'select-next': rundown.rows.length > 0,
-          pause: !!selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media',
-          resume: !!selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media',
-          'pause-toggle': pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, selectedCue?.id ?? null) !== null,
+          pause: selectedClipUp,
+          resume: selectedClipUp,
+          'pause-toggle': clip !== null,
           'all-out': allOutEnabled,
         },
         // A cue's own Take key is refused when its Take would not go; taking one off air never is.
         blocked: [
           ...rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),
-          ...cues.filter((c) => !live.has(c.id) && !!stepBlocker(c)).map((c) => c.id),
+          ...cues.filter((c) => !live.has(c.id) && refused.has(c.id)).map((c) => c.id),
         ],
-        clip: panelClipNow(serverPlayout, playoutItems, cues),
+        clip,
         bridge: !playoutIsConfigured ? 'off' : bridgeDown ? 'down' : 'ok',
         rows: panelRows,
       };
     },
-    (verb, target) => onVerb(verb, { repeat: false, cue: target }),
+    // Only the verbs whose key names a row or a clip read it; the rest act on the selection.
+    (verb, target) => onVerb(verb, { repeat: false, ...(verb === 'select-cue' || verb === 'take-cue' || verb === 'pause-toggle' ? { cue: target } : {}) }),
     (text) => feedNote(text, ''),
   );
 

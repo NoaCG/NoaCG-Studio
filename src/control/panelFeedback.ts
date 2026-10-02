@@ -146,6 +146,8 @@ export function snapshotChanged(prev: PanelSnapshot | null, next: PanelSnapshot)
 }
 
 export function rowsChanged(prev: readonly PanelRow[] | null, next: readonly PanelRow[]): boolean {
+  // The production page hands the same rows until its rundown changes: no need to compare them.
+  if (prev === next) return false;
   return !prev || JSON.stringify(prev.slice(0, PANEL_ROWS_MAX)) !== JSON.stringify(next.slice(0, PANEL_ROWS_MAX));
 }
 

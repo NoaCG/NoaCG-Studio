@@ -145,7 +145,8 @@ test("the production page's rows go to a panel as drawn, with a collapsed folder
     { id: 'f', name: 'Opening', mode: 'manual' },
     { id: 'shut', name: ' ', mode: 'manual', collapsed: true },
   ];
-  assert.deepEqual(rundownPanelRows(rundownView({ cues, folders }).rows), [
+  const rows = rundownPanelRows(rundownView({ cues, folders }).rows);
+  assert.deepEqual(rows, [
     { id: 'a', label: 'Anna', kind: 'cue', source: 'graphic' },
     { id: 'folder:f', label: 'Opening', kind: 'folder', source: null },
     { id: 'vt', label: 'Opening VT', kind: 'cue', source: 'server', folder: 'f' },
@@ -155,6 +156,5 @@ test("the production page's rows go to a panel as drawn, with a collapsed folder
     { id: 'c', label: 'Cleo', kind: 'cue', source: 'graphic', folder: 'shut' },
   ]);
   // A take-cue for a hidden cue is judged against these rows, so it is a row and not stale.
-  const rows = rundownPanelRows(rundownView({ cues, folders }).rows);
   assert.equal(judgePress(press({ verb: 'take-cue', target: 'c' }), snap({ rows }), snap({ rows }), ALL), null);
 });

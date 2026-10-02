@@ -1,11 +1,13 @@
 // THE COMPANION MODULE'S SIDE of a hardware panel, for the configured specs that walk an answering
 // page (panel-page.spec.ts on the hosted control page, panel-production-page.spec.ts on the
 // production page): an anonymous Supabase client holding only the panel key, as the module is
-// (docs/work-specs/hardware-panel-control/protocol.md §4, §7).
+// (docs/work-specs/hardware-panel-control/protocol.md §4, §7), and the published production both
+// walk.
 
-import { expect } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_URL } from './_helpers';
+import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { clearPublishedShows, signIn, SUPABASE_URL } from './_helpers';
 
 export const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
 
@@ -76,4 +78,30 @@ export async function panelModule(code: string) {
       sb.realtime.disconnect();
     },
   };
+}
+
+/** A published production of two cues, Anna and Ben, left open on its production page; its
+ *  hosted control slug. */
+export async function publishTwoCues(page: Page, showName: string): Promise<string> {
+  await signIn(page);
+  await page.keyboard.press('Escape');
+  await clearPublishedShows(page);
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await openProductionWithCurrent(page, showName);
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('cue-label').fill('Anna');
+  await expect(rows.first()).toContainText('Anna');
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await page.getByTestId('cue-label').fill('Ben');
+  await expect(rows.nth(1)).toContainText('Ben');
+  await page.getByTestId('cue-label').blur();
+  await page.getByTestId('production-publish').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  const slug = await page.evaluate(async (name) => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;
+  }, showName);
+  expect(slug, 'publishing must mint a hosted control slug').toBeTruthy();
+  return slug as string;
 }
