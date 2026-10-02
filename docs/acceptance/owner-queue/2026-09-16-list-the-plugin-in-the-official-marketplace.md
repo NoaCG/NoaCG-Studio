@@ -44,7 +44,7 @@ metadata. Read back from the registries the same day:
   Graphics and Playout, pointing at `@noacg/cli@0.7.0`. Step 8 is therefore open.
 - **The Codex upload** for step 6 is the newest one, the artifact `noacg-codex-plugin-0.7.2` on the
   0.7.2 run of **Release CLI to npm** (tag `cli-v0.7.2`, published 2026-10-02; the skill changed
-  since 0.7.0, so use it rather than the 0.7.0 one). GitHub deletes it after 90 days; after that,
+  since 0.7.0, so use it rather than the 0.7.0 one). GitHub deletes it on **2026-12-31**; after that,
   use the artifact of a later release.
 
 ## Your steps, once
