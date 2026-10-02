@@ -341,10 +341,10 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
           : action.verb === 'ending'
             ? "a change to a clip's ending"
             : action.verb === 'take' && action.playback
-            ? "a clip's playback (its ending, fades, level or trim)"
-            : action.verb === 'out' && action.fadeOut !== undefined
-              ? 'a fade out'
-              : '';
+              ? "a clip's playback (its ending, fades, level or trim)"
+              : action.verb === 'out' && action.fadeOut !== undefined
+                ? 'a fade out'
+                : '';
       if (unhonoured) {
         return { ok: false, error: { hop: 'agent', code: 'unsupported', detail: `The OGraf adapter cannot play ${unhonoured}, so nothing was sent.` } };
       }

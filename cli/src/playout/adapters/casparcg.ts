@@ -202,7 +202,8 @@ function needsRate(action: PlayoutAction): boolean {
   if (action.verb === 'take') return timed(action.playback);
   if (action.verb === 'out') return action.fadeOut !== undefined;
   if (action.verb === 'sequence') return action.entries.some((e) => timed(e.playback));
-  if (action.verb === 'ending') return action.then ? timed(action.then[0].playback) : action.playback?.end === 'clear' && action.playback.fadeOut !== undefined;
+  if (action.verb === 'ending' && action.then) return timed(action.then[0].playback);
+  if (action.verb === 'ending') return action.playback?.fadeOut !== undefined;
   return false;
 }
 
@@ -301,16 +302,19 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
     }
     case 'ending': {
       // The server's own switch on the clip that plays, with nothing played again: `CALL … LOOP 0`
-      // lets it end at the end of the pass it is in, and whatever is queued behind it after that
-      // plays there (measured on 2.5.0 and 2.3, 2026-10-02: a 3 s clip in its third pass switched to
-      // the file queued with AUTO at the end of that pass). LOOP goes first, so the clip never ends
-      // into the old follower in between.
-      const end = action.then ? undefined : (action.playback?.end ?? 'hold');
+      // lets it end at the end of the pass it is in, and whatever waits behind it with AUTO plays
+      // there (measured on 2.5.0 and 2.3, 2026-10-02: a 3 s clip in its third pass switched to the
+      // queued file at the end of that pass). Each order leaves no moment the clip could end into
+      // the wrong thing: what is to follow is queued FIRST, while the loop still holds it back
+      // (behind a looping clip AUTO never fires, measured on 2.5.0), and then the loop goes off;
+      // for Hold the old follower goes first; for Loop the loop goes on first.
+      if (action.then) return [queueLine(at, action.then[0], action.then.length === 1, rate), `CALL ${at} LOOP 0`];
+      const end = action.playback?.end ?? 'hold';
       const loop = `CALL ${at} LOOP ${end === 'loop' ? 1 : 0}`;
-      if (action.then) return [loop, queueLine(at, action.then[0], action.then.length === 1, rate)];
-      if (end === 'clear') return [loop, clearLine(at, action.playback?.fadeOut, rate)];
+      if (end === 'clear') return [clearLine(at, action.playback?.fadeOut, rate), loop];
       // Hold or loop: what this Bridge queued behind the clip is taken away, without AUTO.
-      return context.follower ? [loop, `LOADBG ${at} EMPTY`] : [loop];
+      if (!context.follower) return [loop];
+      return end === 'loop' ? [loop, disarmLine(action.slot)] : [disarmLine(action.slot), loop];
     }
     case 'update':
       return [`CG ${at} UPDATE 1 ${amcpQuote(JSON.stringify(action.data))}`];
@@ -566,9 +570,13 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
       else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
       else if (action.verb === 'out') follower = null;
-      // A second line refused leaves the background as it was, whatever that is.
-      else if (action.verb === 'ending' && r.sent === lines.length) {
-        follower = action.then ? { file: action.then[0].item.name } : action.playback?.end === 'clear' ? { file: 'EMPTY' } : null;
+      // The first line went, so what it queued or took away is so; only Loop takes its follower
+      // away second, and a refusal of that leaves it queued behind a clip that never ends.
+      else if (action.verb === 'ending') {
+        const end = action.playback?.end;
+        if (action.then) follower = { file: action.then[0].item.name };
+        else if (end === 'clear') follower = { file: 'EMPTY' };
+        else if (end !== 'loop' || r.sent === lines.length) follower = null;
       }
       const held =
         (action.verb === 'take' && action.playback?.end === 'clear' && startsPartWay(action.playback)) ||

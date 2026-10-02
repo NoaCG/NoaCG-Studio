@@ -1011,9 +1011,10 @@ test('a looping clip set to play next goes on to the next file at the end of its
   const sent = caspar.seen.length;
   const r = await act({ verb: 'ending', slot: AT, item: A, then: [entry('B', { fadeIn: 0.5 }), entry('C', { end: 'clear' })] });
   assert.equal(r.body.ok, true, JSON.stringify(r.body));
-  // The same clip on air: no PLAY, the loop switched off where it is, and B queued behind it.
+  // The same clip on air: no PLAY, B queued behind it while the loop still holds it back, then the
+  // loop switched off where the clip is.
   assert.equal(r.body.instance, took.instance);
-  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), ['CALL 2-10 LOOP 0', 'LOADBG 2-10 "B" MIX 25 AUTO']);
+  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), ['LOADBG 2-10 "B" MIX 25 AUTO', 'CALL 2-10 LOOP 0']);
   let s = (await state()).body.slots[0];
   assert.deepEqual([s.file, s.cueId, s.loop, s.sequence.next.map((e) => e.cueId)], ['A', 'cue-A', false, ['cue-B', 'cue-C']]);
   const files = await watch(caspar, runner, 30_000);
@@ -1023,7 +1024,7 @@ test('a looping clip set to play next goes on to the next file at the end of its
   assert.ok(Math.abs((files.indexOf('B') + 1) * 50 - 5_500) <= 50, `B starts 5.5 s on, not ${(files.indexOf('B') + 1) * 50} ms`);
   assert.deepEqual(
     caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')),
-    ['CALL 2-10 LOOP 0', 'LOADBG 2-10 "B" MIX 25 AUTO', 'LOADBG 2-10 "C" AUTO', 'LOADBG 2-10 EMPTY AUTO'],
+    ['LOADBG 2-10 "B" MIX 25 AUTO', 'CALL 2-10 LOOP 0', 'LOADBG 2-10 "C" AUTO', 'LOADBG 2-10 EMPTY AUTO'],
   );
   s = (await state()).body.slots[0];
   assert.equal(s.sequence, undefined);
@@ -1032,7 +1033,7 @@ test('a looping clip set to play next goes on to the next file at the end of its
 test('a looping clip set to hold or to clear ends at the end of its pass the way it now says', async (t) => {
   for (const [playback, lines, last] of [
     [undefined, ['CALL 2-10 LOOP 0'], 'A'],
-    [{ end: 'clear', fadeOut: 0.5 }, ['CALL 2-10 LOOP 0', 'LOADBG 2-10 EMPTY MIX 25 AUTO'], 'EMPTY'],
+    [{ end: 'clear', fadeOut: 0.5 }, ['LOADBG 2-10 EMPTY MIX 25 AUTO', 'CALL 2-10 LOOP 0'], 'EMPTY'],
   ]) {
     const caspar = await server(t);
     const { act, runner } = await bridgeOver(t, caspar);
@@ -1102,4 +1103,45 @@ test('a changed ending is refused when its shape is wrong, before anything is se
   }
   assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), []);
   assert.equal(onAir(caspar).loop, true);
+});
+
+test('a clip set to play next that is changed to hold loses its follower first, and holds', async (t) => {
+  const caspar = await server(t);
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B')] });
+  await run(caspar, runner, 3_000);
+  const sent = caspar.seen.length;
+  const r = await act({ verb: 'ending', slot: AT, item: A });
+  assert.equal(r.body.ok, true, JSON.stringify(r.body));
+  assert.deepEqual(caspar.seen.slice(sent).filter((l) => !l.startsWith('INFO')), ['LOADBG 2-10 EMPTY', 'CALL 2-10 LOOP 0']);
+  const files = await watch(caspar, runner, 10_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A']);
+  assert.equal(onAir(caspar).ended, true, 'A holds its last frame');
+  assert.equal((await state()).body.slots[0].sequence, undefined);
+});
+
+test('an ending the server refuses leaves the sequence that was running, and it plays on', async (t) => {
+  const caspar = await server(t, { intercept: (line) => (line.startsWith('CALL') ? '403 CALL ERROR\r\n' : undefined) });
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'sequence', slot: AT, entries: [entry('A'), entry('B'), entry('C')] });
+  await run(caspar, runner, 3_000);
+  const r = await act({ verb: 'ending', slot: AT, item: A, playback: { end: 'loop' } });
+  assert.equal(r.body.ok, false);
+  assert.deepEqual((await state()).body.slots[0].sequence.next.map((e) => e.cueId), ['cue-B', 'cue-C']);
+  const files = await watch(caspar, runner, 20_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B', 'C'], 'the sequence went on as it was');
+});
+
+test('a loop that wraps just before its ending changes is not taken for a restart', async (t) => {
+  const caspar = await server(t);
+  const { act, state, runner } = await bridgeOver(t, caspar);
+  await act({ verb: 'take', item: A, slot: AT, loop: true, cueId: 'cue-A' });
+  // The page reads A late in a pass, and the loop wraps before the change arrives.
+  caspar.advance(29_600);
+  assert.equal((await state()).body.slots[0].instance, 'b1.1');
+  caspar.advance(800);
+  const r = await act({ verb: 'ending', slot: AT, item: A, then: [entry('B'), entry('C')] });
+  assert.equal(r.body.ok, true, JSON.stringify(r.body));
+  const files = await watch(caspar, runner, 25_000);
+  assert.deepEqual(airedFiles(caspar, files), ['A', 'B', 'C'], 'C is queued too: the run was not dropped');
 });

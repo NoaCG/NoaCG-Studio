@@ -368,10 +368,10 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
       }
       if (playback?.fadeOut !== undefined && playback.end !== 'clear') throw new UsageError('A fade out goes with a Clear at the end.');
       if (a.then === undefined) return { verb: 'ending', slot, item, ...playbackField(playback) };
+      if (playback) throw new UsageError('A clip that plays the next file has no ending of its own: send the playback or the files after it, not both.');
       const then = a.then;
       if (!Array.isArray(then) || then.length < 1) throw new UsageError('Then plays at least one file after the clip on air.');
       if (then.length + 1 > MAX_SEQUENCE_ENTRIES) throw new UsageError(`A sequence plays at most ${MAX_SEQUENCE_ENTRIES} files.`);
-      if (playback) throw new UsageError('A clip that plays the next file has no ending of its own: send the playback or the files after it, not both.');
       // Numbered as the sequence they make, the clip on air first.
       return { verb: 'ending', slot, item, then: then.map((e, i) => readEntry(e, i + 1, then.length + 1, false)) };
     }
@@ -604,8 +604,18 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           const action = readAction(body);
           const { slot } = action;
           // An ending is changed only on the clip this Bridge put on air there: on somebody else's,
-          // or after this Bridge restarted, nothing is sent and nothing it runs moves. Asked before
-          // the generation moves, and again in the slot's queue, behind whatever was sent first.
+          // or after this Bridge restarted, nothing is sent and nothing it runs moves. Asked of a
+          // fresh reading before the generation moves - the server may have switched the clip, or
+          // another client taken the layer, since the last one - and again in the slot's queue,
+          // behind whatever was sent first.
+          if (action.verb === 'ending' && slot.adapter === 'casparcg' && adapter.state) {
+            const fresh = await adapter.state(target, slot.channel);
+            if (!fresh.ok) {
+              send(200, { ok: false, v: PLAYOUT_V, error: fresh.error }, true);
+              return;
+            }
+            memory.annotate(target, slot.channel, fresh.value);
+          }
           const notOurs = (): AgentError | undefined =>
             action.verb === 'ending' && !memory.plays(target, slot, action.item)
               ? { hop: 'agent', code: 'refused', detail: `${action.item.name} is not the clip this NoaCG Bridge has on air there, so its ending was not changed. Take the cue again.` }
@@ -620,9 +630,9 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           // new sequence or a changed ending - moves the slot's generation BEFORE it is sent, so a
           // reading that was already on its way reports the older number and the page can set it
           // aside, and anything the runner planned before it is dropped unsent. Pause and Resume
-          // keep a running sequence; a changed ending starts its own when it plays the next file.
+          // keep a running sequence, and so does a changed ending until the server accepts it.
           const moves = action.verb !== 'update' && action.verb !== 'next';
-          if (moves) memory.advance(target, slot, action.verb === 'pause' || action.verb === 'resume');
+          if (moves) memory.advance(target, slot, action.verb === 'pause' || action.verb === 'resume' || action.verb === 'ending');
           let r: ActResult;
           let instance: string | undefined;
           try {
