@@ -1,0 +1,6 @@
+rows: 2
+unsent line visible: 1
+after walking off, unsent line count: 0
+next title at Question: Advance House Quiz to its next step
+state after one Next from Question: Reveal
+control page ON AIR badge: 1
