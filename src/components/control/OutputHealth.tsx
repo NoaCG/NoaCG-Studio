@@ -237,20 +237,8 @@ function useTick(running: boolean): number {
 
 const DOT: Record<OutputLine['tone'], string> = { ok: '●', warn: '▲', bad: '✕', idle: '○' };
 
-export function ReadyLine({
-  presence,
-  seenAt,
-  heartbeatLive,
-  seenReadAt,
-  known,
-  now: pageNow,
-  published,
-  expected,
-  stamp,
-  onForget,
-  testId = 'output-health',
-  children,
-}: {
+/** What READY reads from: one page's view of its production's outputs. */
+export interface ReadyInputs {
   presence: LivePresenceView;
   /** The renderer heartbeat (`output_seen_at`), for Step 1's line underneath. */
   seenAt: string | null;
@@ -269,11 +257,14 @@ export function ReadyLine({
   stamp?: ReadyStamp | null;
   /** Offered on a gone output's line when this page keeps the list (the production page). */
   onForget?: (id: string) => void;
-  testId?: string;
-  /** More of the panel: the production page's Prepare for Live. */
-  children?: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
+}
+
+/**
+ * READY as one page sees it: the summary, a line per output, the newest version and stamp. The
+ * hosted page draws it as its header line (`ReadyLine`); the production page rolls the summary into
+ * its one playout status and lists the outputs in its Playout panel (`ReadyOutputList`).
+ */
+export function useReadinessView({ presence, seenAt, heartbeatLive, seenReadAt, known, now: pageNow, published, expected, stamp, onForget }: ReadyInputs) {
   const operators = presence.operators;
   // A page that keeps the list (the production page, where Forget is) answers for itself; the
   // hosted page counts what the production page announces.
@@ -306,7 +297,44 @@ export function ReadyLine({
     fallback,
     now,
   });
-  const { summary, outputs } = view;
+  return { ...view, knownVersion, newestStamp };
+}
+
+/** One card per output, with Forget on a gone one where the page keeps the list. */
+export function ReadyOutputList({ outputs, why, onForget }: { outputs: OutputLine[]; why: string; onForget?: (id: string) => void }) {
+  if (outputs.length === 0) return <p className="pd-ready-empty">{why}</p>;
+  return (
+    <ul className="pd-ready-list">
+      {outputs.map((line) => (
+        <li key={line.id} className={`pd-ready-row pd-ready-row--${line.tone}`} data-testid="ready-output">
+          <div className="pd-ready-row-head">
+            <span className="pd-ready-dot" aria-hidden="true">
+              {DOT[line.tone]}
+            </span>
+            <span className="pd-ready-name">{line.name}</span>
+            {line.gone && onForget && (
+              <button type="button" className="pd-ready-forget" onClick={() => onForget(line.id)} data-testid="ready-forget">
+                Forget
+              </button>
+            )}
+          </div>
+          <div className="pd-ready-state" data-testid="ready-state">
+            {line.state}
+          </div>
+          {line.detail.map((d, i) => (
+            <div key={i} className="pd-ready-detail">
+              {d}
+            </div>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ReadyLine({ testId = 'output-health', children, ...inputs }: ReadyInputs & { testId?: string; children?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const { summary, outputs, knownVersion, newestStamp } = useReadinessView(inputs);
   if (!summary.show) return null;
   return (
     <span className="pd-ready-host">
@@ -332,35 +360,7 @@ export function ReadyLine({
           <span>Outputs</span>
           {knownVersion && <span className="pd-ready-version">published v{knownVersion.n}</span>}
         </div>
-        {outputs.length === 0 ? (
-          <p className="pd-ready-empty">{summary.why}</p>
-        ) : (
-          <ul className="pd-ready-list">
-            {outputs.map((line) => (
-              <li key={line.id} className={`pd-ready-row pd-ready-row--${line.tone}`} data-testid="ready-output">
-                <div className="pd-ready-row-head">
-                  <span className="pd-ready-dot" aria-hidden="true">
-                    {DOT[line.tone]}
-                  </span>
-                  <span className="pd-ready-name">{line.name}</span>
-                  {line.gone && onForget && (
-                    <button type="button" className="pd-ready-forget" onClick={() => onForget(line.id)} data-testid="ready-forget">
-                      Forget
-                    </button>
-                  )}
-                </div>
-                <div className="pd-ready-state" data-testid="ready-state">
-                  {line.state}
-                </div>
-                {line.detail.map((d, i) => (
-                  <div key={i} className="pd-ready-detail">
-                    {d}
-                  </div>
-                ))}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ReadyOutputList outputs={outputs} why={summary.why} onForget={inputs.onForget} />
         {children ??
           (newestStamp && (
             <p className={`pd-prepare-stamp${newestStamp.problems ? ' is-bad' : newestStamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="ready-stamp">

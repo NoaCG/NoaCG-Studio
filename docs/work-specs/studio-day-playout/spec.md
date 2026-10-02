@@ -69,6 +69,24 @@ The core playout path worked all day. What cost time was uncertainty and setup:
 - **D8. Pairing says only what is needed:** one line per step, details behind small info buttons,
   "This computer" offered beside the servers used before, which stay visible, and a visible
   "copy this link for another browser". Revert: the old copy.
+- **D9. The hosted page keeps its READY line.** The status's Bridge and slot checks need the
+  operator's own Bridge, which lives on the production page only; both pages read the same
+  outputs through `useReadinessView`. Revert: render the status control on the hosted page from
+  the READY facts alone.
+- **D10. Setup in the panel is a one-line summary and a button to the existing Playout settings
+  dialog,** folded once the Bridge answers; the header's own Playout button is gone. Revert: put
+  the header button back in `ProductionShell`.
+- **D11. An empty output slot is red only while no output reports READY:** a studio may air the
+  graphics in OBS or vMix and use the Bridge for media alone. Another production on the slot is
+  always red once started. Revert: the `readyAny` condition in `control/playoutStatus.ts`.
+- **D12. A Bridge too old to read its slot reads grey "Connected",** never green on that alone.
+  Revert: count `unreadable` as on air.
+- **D13. A graphic that cannot play reads red in the status** and stays amber on READY's own line,
+  whose wording is preserved. Revert: drop `broken` from the status facts.
+- **D14. Only a re-publish of a started production sends the prepare request,** for the same 60 s
+  as Prepare for Live; Start production does not, because the outputs load the first version
+  fresh. Put on air and Take off read the slot again at once. Revert: the `wasStarted` condition
+  in `publishNow`.
 
 ## Behaviour
 
@@ -114,18 +132,20 @@ production is a team production, a personal one, signed out, or saving. Judged a
 ### AC-7: One status control says whether this production can play
 
 The header shows one control with a colour and a short text, worst state wins: grey "Offline"
-(not started); amber "2 unpublished", "Behind", "Preparing"; green "Ready · on air 1-20"; red
-"Bridge not running", "Output not responding", "Channel 1 shows another production", "Not ready:
-<graphic>". With the Bridge configured and the production started, an output that never reported
-reads red, never nothing. Take is never blocked or delayed by it. The hosted page shows the same.
+(not started) or "Checking…"; amber "Unpublished changes", "Behind: showing v2", "Preparing 3 of
+8", "No output connected"; green "Ready · on air 1-20" or "Ready · 2 outputs"; red "Bridge not
+running", "CasparCG not answering", "Output not on air", "Another production on 1-20", "Output not
+responding", "Not ready: <graphic>". With the Bridge configured and the production started, an
+output slot that holds nothing while no output reports reads red, never nothing (D11). Take is
+never blocked or delayed by it. The hosted page keeps its READY line over the same outputs (D9).
 
 ### AC-8: One Playout panel holds status, actions, setup and links
 
 Clicking the status opens one panel: the checks behind the state first (each green, amber, red or
 grey, each saying what to do), then the actions (Start production or Publish changes, Put on air
 and Take off, Prepare for Live, Check again), then the server and channel setup, folded once it
-works, then the browser-output links. Output links and Playout settings are no longer separate
-panels.
+works (D10), then the browser-output links. Output links and Playout settings are no longer
+separate header controls.
 
 ### AC-9: The monitor says whether it is on air
 

@@ -48,7 +48,7 @@ function clipBounds(host: HTMLElement): { top: number; bottom: number } {
  * "where it fits best", is off-screen at one end whatever we choose.
  *
  * `surface` is the popover's own base class, so this shell is not tied to the library's look:
- * the production dashboard's links panel (`pd-links`) is the same measurement problem wearing a
+ * the production dashboard's Playout panel (`pd-ready-panel`) is the same measurement problem wearing a
  * different skin. A surface owes the shell two CSS rules — its own downward offset, and a
  * `<surface>--up` that swaps `top` for `bottom`.
  */

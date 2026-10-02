@@ -98,6 +98,8 @@ test('the operator reads the plan’s words for every state', () => {
   const broken = read({ peers: [output({ ready: { n: 4, of: 4, v: V12, is: [{ k: 'script', g: 'Frost Quiz', d: 'boom' }] } })] });
   assert.equal(broken.summary.label, '▲ Not ready: Frost Quiz (script error)');
   assert.equal(broken.summary.tone, 'warn');
+  assert.equal(broken.outputs[0].broken, true, 'marked for the production page, which reads it red');
+  assert.equal(ready.outputs[0].broken, undefined);
   assert.match(broken.outputs[0].detail[0], /Frost Quiz threw an error while loading: boom/);
 
   const font = read({ peers: [output({ ready: { n: 4, of: 4, v: V12, is: [{ k: 'font', g: 'Strap', d: 'Manrope' }] } })] });

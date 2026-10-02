@@ -58,7 +58,7 @@ test('an operator page waits out a database outage instead of calling the produc
   const showName = `Outage Walk ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
   const slug = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');

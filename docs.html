@@ -1260,7 +1260,8 @@ Storm warning issued</code></pre>
             live. Any source that can load a web page can show it.
           </p>
           <ul>
-            <li>Copy the URL from the <strong>Output links</strong> button in the production page header.
+            <li>Copy the URL from the <strong>Playout panel</strong>: press the playout status in
+              the production page header.
               It ends <code>&hellip;/output?production=&lt;slug&gt;</code>, where the slug is a
               random id made when you publish. You never type it.</li>
             <li>Load it once and leave it up. The operator cues the graphics, so there is no need
@@ -1321,7 +1322,7 @@ Storm warning issued</code></pre>
             <tr><td>Motion judders</td><td>Set the source's FPS to the channel's.</td></tr>
             <tr><td>Output URL shows "not available"</td><td>Re-copy the URL from the production page. Unpublishing revokes the URL.</td></tr>
             <tr><td>Blank after a network drop</td><td>Wait. It rebuilds on its own without replaying animations on screen. If it does not, reload the layer.</td></tr>
-            <tr><td>A take airs nothing</td><td>Read the production page's header. <strong>NOT PUBLISHED</strong> means there is no output to air to, so press <strong>&#9654; Start production</strong>. If it says <strong>SHOW</strong>, re-copy the output URL and check the browser source is still loading it.</td></tr>
+            <tr><td>A take airs nothing</td><td>Read the playout status in the production page's header. <strong>Offline</strong> means there is no output to air to, so press <strong>&#9654; Start production</strong>. If the production is started, press the status to see which check is failing, then re-copy the output URL and check the browser source is still loading it.</td></tr>
           </table></div>
           <p>
             The full playout setup reference, including the self-hosted routes, is
@@ -1342,8 +1343,8 @@ Storm warning issued</code></pre>
           <pre><code>CG 1-20 ADD 1 "https://noacg.studio/output?production=&lt;slug&gt;" 1</code></pre>
           <ul>
             <li><code>1-20</code> is channel 1, layer 20. Use whatever your rundown expects.</li>
-            <li>Put your own production's URL in place of the quoted one. It is behind the
-              <strong>Output links</strong> button on the production page.</li>
+            <li>Put your own production's URL in place of the quoted one. It is in the
+              <strong>Playout panel</strong> on the production page.</li>
             <li>The URL is a <strong>capability</strong>: anyone who has it can show the
               production, but not operate it. Treat it like a password.</li>
             <li>Load it <strong>once</strong> at the start and leave it up. Graphics are cued from
@@ -1560,14 +1561,30 @@ CG 1-20 STOP</code></pre>
               control page for operating from another device.</li>
           </ol>
           <p>
-            Both links are behind the <strong>Output links</strong> button in the header, each with a Copy
-            button. Publishing needs an account, because the published pages live in your cloud
-            space. Everything before it works offline.
+            Publishing needs an account, because the published pages live in your cloud space.
+            Everything before it works offline.
           </p>
+
+          <h3 id="production-status">The playout status</h3>
           <p>
-            The header reads <strong>NOT PUBLISHED</strong> before you publish and
-            <strong>SHOW</strong> after. To send later changes to the output, press
-            <strong>&#10227; Publish changes</strong> in the Output links panel.
+            The header has one status for playout, a colour with a short text beside it. Press it
+            to open the <strong>Playout panel</strong>: it says which check set the colour, lists
+            the outputs, and holds the actions, the playout setup and the links, each with a Copy
+            button.
+          </p>
+          <div class="doc-table"><table>
+            <tr><th>Colour</th><th>Means</th><th>For example</th></tr>
+            <tr><td>Grey</td><td>Not started, or nothing to check yet</td><td>Offline, Connected, Checking</td></tr>
+            <tr><td>Amber</td><td>Something needs your attention</td><td>Unpublished changes, an output behind, preparing, no output connected</td></tr>
+            <tr><td>Green</td><td>Live, connected and ready</td><td>Ready &middot; on air 1-20</td></tr>
+            <tr><td>Red</td><td>Something that should work is broken</td><td>Bridge not running, CasparCG not answering, output not on air, another production on the layer</td></tr>
+          </table></div>
+          <p>
+            The program monitor says the same in its heading: <strong>PROGRAM &middot; ON
+            AIR</strong> once the production is started, <strong>PREVIEW &middot; NOT LIVE</strong>
+            before. To send later changes to the output, press <strong>&#10227; Publish
+            changes</strong> in the Playout panel. Every publish also asks the outputs to load the
+            new version, and the status reads Preparing until they have.
           </p>
 
           <h3 id="production-run">Running it</h3>
@@ -1602,8 +1619,8 @@ CG 1-20 STOP</code></pre>
           <h3 id="teams-links">Running a show together needs no accounts</h3>
           <p>
             Publish the production and it makes links that work for whoever holds them. All of
-            them are behind the <strong>Output links</strong> button in the production page header, each
-            with a Copy button.
+            them are in the <strong>Playout panel</strong>, which opens from the playout status in
+            the production page header, each with a Copy button.
           </p>
           <ul>
             <li>The <strong>control page</strong> drives the show from a second laptop or a phone
@@ -1775,7 +1792,7 @@ CG 1-20 STOP</code></pre>
             air.
           </p>
           <p>
-            The link is behind the same <strong>Output links</strong> button as the output URL. Its name
+            The link is in the same <strong>Playout panel</strong> as the output URL. Its name
             comes from the production's name at the first publish, and the
             <strong>Readable name</strong> row changes it to something you can say out loud. Do
             that before you give the link out: a new name breaks the old one, and everybody
@@ -2166,8 +2183,8 @@ CG 1-20 STOP</code></pre>
               do. An unpublished production shows <strong>&#9654; Start production</strong> in
               the header and has no links to give out. Publishing is free and needs an
               account.</li>
-            <li><strong>Get the audience link.</strong> Press <strong>Output links</strong> in the
-              header, then <strong>Audience link</strong>. It reads
+            <li><strong>Get the audience link.</strong> Press the playout status in the header,
+              then <strong>Audience link</strong> in the panel it opens. It reads
               <code>noacg.studio/join/&lt;name&gt;</code>. The name comes from the production's
               name when you first published it.</li>
             <li><strong>Give it a name you can say.</strong> The <strong>Readable name</strong>

@@ -452,7 +452,7 @@ test.describe('teams: the share door', () => {
         // The header's primary controls keep their places when the production becomes a team's:
         // Share and the team's button differ in width, and operators press these by muscle memory
         // (docs/work-specs/studio-day-playout AC-6).
-        const fixedControls = ['playout-settings-open', 'export-production', 'verb-out-all'];
+        const fixedControls = ['production-status', 'tab-playout', 'export-production', 'verb-out-all'];
         // Each control must be ON SCREEN to be measured: a missing box would compare equal to itself.
         const controlXs = () =>
           Promise.all(
@@ -647,9 +647,9 @@ test.describe('teams: the share door', () => {
 
         // Published FROM the team: the row is team-stamped, and the slugs travel in the team's doc.
         await anna.getByTestId('production-publish').click();
-        await expect(anna.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+        await expect(anna.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
         await expect(anna.getByTestId('production-links')).toBeVisible();
-        await anna.getByTestId('production-links-toggle').click();
+        await anna.getByTestId('production-status').click();
         await expect(anna.getByTestId('production-links')).toBeHidden();
         await expect.poll(async () => (await serverRundown(anna, showId))?.outputSlug ?? null, { timeout: 30_000 }).not.toBeNull();
         const published = (await serverRundown(anna, showId))!;
@@ -722,11 +722,11 @@ test.describe('teams: the share door', () => {
 
         // B REPUBLISHES - the payload is pinned at publish, and A's publish predates B's and C's
         // graphics - and the output address is the one A's publish minted.
-        await expect(ben.getByTestId('production-mode')).toContainText('SHOW');
-        await ben.getByTestId('production-links-toggle').click();
+        await expect(ben.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
+        await ben.getByTestId('production-status').click();
         await ben.getByTestId('production-republish').click();
         await expect(ben.getByTestId('publish-freshness')).toHaveCount(0, { timeout: 30_000 });
-        await ben.getByTestId('production-links-toggle').click();
+        await ben.getByTestId('production-status').click();
         await expect(ben.getByTestId('production-links')).toBeHidden();
         const benHeld = (await heldRundown(ben, showId))!;
         expect(benHeld.outputSlug, 'a member republishing must keep the address the creator published').toBe(published.outputSlug);

@@ -58,6 +58,7 @@ export default function PlayoutMonitors({
   onState,
   onReady,
   onOverflow,
+  live = false,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -90,6 +91,9 @@ export default function PlayoutMonitors({
   onReady: () => void;
   /** The field ids PREVIEW reports as too long to fit, each time the answer changes. */
   onOverflow: (keys: string[]) => void;
+  /** The production is started, so a Take goes on the wire. Not started, a Take plays on this
+   *  monitor only, and the monitor must not call itself on air. */
+  live?: boolean;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
@@ -227,10 +231,16 @@ export default function PlayoutMonitors({
         </div>
       </div>
 
-      <div className="pd-monitor pd-pgm">
+      {/* ON AIR ONLY WHEN IT IS (docs/work-specs/studio-day-playout AC-9; owner, 2026-10-01). A
+          production that is not started keeps every verb on this page, so its Takes land here and
+          nowhere else; calling the monitor PROGRAM · ON AIR then is how an operator once believed
+          a show was live that was not. Not started, it reads PREVIEW · NOT LIVE in grey. */}
+      <div className={`pd-monitor pd-pgm${live ? '' : ' pd-pgm--not-live'}`} data-live={live ? 'true' : 'false'} data-testid="program-monitor">
         <h2>
           <span className="pd-dot" aria-hidden="true" />
-          <span className="pd-monitor-name">PROGRAM · ON AIR</span>
+          <span className="pd-monitor-name" data-testid="program-monitor-name">
+            {live ? 'PROGRAM · ON AIR' : 'PREVIEW · NOT LIVE'}
+          </span>
           {/* The names can run past the monitor's width and end in an ellipsis, so the title
               carries them whole. The badge names EVERY live layer, in the names' order: with a
               quiz and a score both up it used to show one layer beside two names. */}

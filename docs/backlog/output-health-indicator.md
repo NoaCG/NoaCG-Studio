@@ -3,8 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-08-29
-state: parked
-note: "owner: not to be built now - the hidden-until-opened heartbeat that ships is accepted"
+state: advanced
+note: "the always-visible light landed with docs/work-specs/studio-day-playout AC-7 and AC-8 (the production page header's playout status, grey, amber, green or red with words, its panel naming the check behind it); the technician view (latency, memory, dropped frames) is still not built"
 asked: "a simple green healthy indicator whenever an output is relevant, plus an expandable technician view (paraphrase)"
 ---
 # An always-visible output health light, with a technician's view behind it
@@ -12,8 +12,11 @@ asked: "a simple green healthy indicator whenever an output is relevant, plus an
 **Filed:** 2026-08-29. **Source:** owner ruling, 2026-08-29 walk (the same walk that produced the
 hidden-until-opened heartbeat now shipping in `ProductionPage.tsx`).
 
-**NOT TO BE BUILT NOW.** The ruling explicitly accepts what ships today. This file exists so the
-end state is not re-derived from scratch the next time somebody looks at the status chip.
+**THE LIGHT IS BUILT; THE TECHNICIAN VIEW IS NOT.** The 2026-08-29 ruling parked this. The studio
+day of 2026-10-01 asked for the light again, and it landed as the production page's one playout
+status (`home/PlayoutStatusControl.tsx`, `control/playoutStatus.ts`): always in the header,
+grey offline, green on air and ready, amber or red with words, and a panel naming the check behind
+the colour. What remains is the technician view below.
 
 ## Why
 
@@ -52,9 +55,11 @@ headline goes behind the expander instead.
 ## Evidence
 
 - `src/control/livePath.ts` - `describeOutputHealth()` (every reachable state and its wording),
-  and `src/components/control/OutputHealth.tsx`, the line the production page
-  (`data-testid="renderer-status"`, whose header gate carries the 2026-08-29 walk note about
-  reading a false fault with no browser source set up) and the hosted page now share.
+  and `src/components/control/OutputHealth.tsx`, the hosted page's line; the production page reads
+  the same outputs through its playout status (`data-testid="production-status"`), which answers
+  "is an output relevant" by asking whether the production is started and what its slot and its
+  outputs say, so a production with no browser source reads amber "No output connected", never a
+  fault.
 - Since 2026-09-30 (Phase 6 Step 1) a renderer reports more than a heartbeat: its engine, build,
   whether its log and command channels are joined, per-road counters and press-to-frame latency,
   in a Presence entry on `live-<show id>` once migration 0068 is on the server

@@ -316,6 +316,10 @@ export interface OutputLine {
   present: boolean;
   /** An absent expected output: forgetting it is offered. */
   gone: boolean;
+  /** A graphic here cannot play (its headline is "Not ready: …"). READY reads it amber, because
+   *  the output's other graphics still air; the production page's status reads it red
+   *  (control/playoutStatus.ts). */
+  broken?: boolean;
 }
 
 export interface ReadySummary {
@@ -505,7 +509,8 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   if (problems.length > 0) {
     // What to do first, then what else is wrong, then who it is.
     const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
-    return warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
+    const line = warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
+    return broken.length > 0 ? { ...line, broken: true } : line;
   }
   if (preparingPublished && chg) {
     return { ...base, tone: 'ok', state: `Ready · ${plural(chg.of, 'change')} preparing`, detail: [`Preparing v${chg.v.n}: ${chg.n} of ${chg.of} done.`].concat(detail) };

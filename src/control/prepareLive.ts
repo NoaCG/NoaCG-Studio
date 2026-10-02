@@ -238,6 +238,17 @@ export interface BridgeFacts {
 }
 
 /**
+ * What the NoaCG output's slot on the server holds, for this production: its own output (`ours`),
+ * another production's output (`other`), or anything else, nothing included (`empty`). The one
+ * reading Prepare for Live and the production page's status both use.
+ */
+export function slotHolds(slot: SlotState | null, outputSlug: string | null): 'ours' | 'other' | 'empty' {
+  const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
+  if (outputSlug && file.indexOf(`production=${encodeURIComponent(outputSlug)}`) >= 0) return 'ours';
+  return file.indexOf('/output?production=') >= 0 ? 'other' : 'empty';
+}
+
+/**
  * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
  * through a browser source alone has nothing to check here. The output layer holding another
  * production's output is a problem; an empty one is only a note, because the output may run in
@@ -253,11 +264,9 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
     { key: 'bridge', tone: 'ok', label: `NoaCG Bridge and CasparCG answer${f.status.version ? ` (CasparCG ${f.status.version.split(' ')[0]})` : ''}` },
   ];
   if (f.slot !== undefined) {
-    const slot = f.slot;
-    const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
-    const ours = !!f.outputSlug && file.indexOf(`production=${encodeURIComponent(f.outputSlug)}`) >= 0;
-    if (ours) lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
-    else if (file.indexOf('/output?production=') >= 0) {
+    const holds = slotHolds(f.slot, f.outputSlug);
+    if (holds === 'ours') lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
+    else if (holds === 'other') {
       lines.push({
         key: 'bridge-layer',
         tone: 'bad',

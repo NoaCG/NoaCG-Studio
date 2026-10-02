@@ -1044,7 +1044,7 @@ export default function CueRundown({
             through NoaCG Bridge (docs/BRIDGE.md §5). Present only once a server is configured
             under Settings -> Playout: a dead door on the busiest surface would be worse than none. */}
         {playoutConfigured(playoutSettings) && (
-          <div className="pd-links-host">
+          <div className="pd-picker-host">
             <button
               className="pd-new-graphic"
               onClick={() => setPickerOpen((o) => !o)}

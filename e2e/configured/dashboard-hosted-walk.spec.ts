@@ -57,8 +57,8 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await expect(page.getByTestId('select-cue')).toHaveCount(2);
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', WIRE);
-  await page.getByTestId('production-links-toggle').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
+  await page.getByTestId('production-status').click();
   const slug = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     return loadShows().find((s) => s.name === name)?.hostedSlug ?? null;

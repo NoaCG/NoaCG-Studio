@@ -76,10 +76,10 @@ test('an output says who it is and how commands reach it, and both operator page
   const showName = `Live Health ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const published = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
@@ -182,10 +182,11 @@ test('an output says who it is and how commands reach it, and both operator page
     await expect(hostedLine).not.toHaveAttribute('data-tone', 'bad');
     await expect(hostedLine).toContainText('1 output');
     await expect(hostedLine).toHaveAttribute('title', /Chrome/);
-    // The production dashboard reads the same line from the same entries.
-    const deskLine = page.getByTestId('renderer-status');
+    // The production dashboard reads the same READY line from the same entries, through its one
+    // playout status (studio-day-playout AC-7), which carries READY's words.
+    const deskLine = page.getByTestId('production-status');
     await expect(deskLine).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
-    await expect(deskLine).toContainText('1 output');
+    await expect(deskLine).toHaveAttribute('data-ready-label', /1 output/);
   } else {
     await expect(hostedLine).toHaveAttribute('data-source', 'heartbeat');
     await expect(hostedLine).toContainText('when this page opened');
@@ -230,14 +231,14 @@ test('an output says who it is and how commands reach it, and both operator page
     await output.close();
     await expect(hostedLine).toContainText('not answering', { timeout: 30_000 });
     // …on the dashboard too, which had heard that output since before its reload.
-    await expect(page.getByTestId('renderer-status')).toContainText('not answering', { timeout: 30_000 });
+    await expect(page.getByTestId('production-status')).toHaveAttribute('data-ready-label', /not answering/, { timeout: 30_000 });
   }
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();

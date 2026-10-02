@@ -53,6 +53,7 @@ import {
   playoutConfigured,
   readState,
   slotAddress,
+  slotOf,
   outputSlotRefusal,
   stateReadable,
   subscribeTargetStatus,
@@ -223,7 +224,8 @@ import { useAuthUi } from '../auth/authUi';
 import ActionLog from './ActionLog';
 import CueOverflowNote, { cueOverflowKeys } from './CueOverflowNote';
 import ProductionExportDialog from './ProductionExportDialog';
-import ProductionLinks from './ProductionLinks';
+import { ProductionLinkRows, PublishActions, StartProductionButton } from './ProductionLinks';
+import { PlayoutPanelSection, PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
 import RailResizer, { useRailWidth } from './RailResizer';
 import ServerCueEditor from './ServerCueEditor';
@@ -243,21 +245,22 @@ import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
 import { IconDownload, IconTv, IconUsers } from '../icons';
-import PlayoutSettingsDialog, { PlayoutTargetButton } from '../PlayoutSettingsDialog';
+import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
-import { ReadyLine, announcedExpected, useExpectedOutputs, useLivePresence, type LivePresenceView } from '../control/OutputHealth';
+import { ReadyOutputList, announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
 import type { PayloadVersion } from '../../control/payloadVersion';
-import type { ExpectedOutput, HeldVersion, ReadyStamp } from '../../control/readiness';
-import type { PrepRequest } from '../../control/prepareLive';
+import type { HeldVersion, ReadyStamp } from '../../control/readiness';
+import { slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
+import { describePlayoutStatus } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
-import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
+import { PrepareForLive, requestId, usePrepareForLive } from '../control/PrepareForLive';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -388,7 +391,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     useTemplateStore.setState({ pendingProductionExport: null });
     setExportOpen(true);
   }, [id]);
-  const [linksOpen, setLinksOpen] = useState(false);
+  /** The Playout panel under the playout status (home/PlayoutStatusControl.tsx): opened by a press,
+   *  and by itself right after a publish, where the next step is. */
+  const [statusOpen, setStatusOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<'output' | 'control' | 'join' | 'presenter' | null>(null);
   /** The readable audience name being typed, and what the database said about the last claim. */
@@ -461,6 +466,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
+  /** What the NoaCG output's slot on the server holds (the effect beside the status poll below):
+   *  undefined until read, `unreadable` on a Bridge too old to say. */
+  const [outputSlot, setOutputSlot] = useState<ReturnType<typeof slotHolds> | 'unreadable' | undefined>(undefined);
+  /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
+  const [checkAgainRev, setCheckAgainRev] = useState(0);
+  /** Bumped by Put on air and Take off: only the slot changed, so only the slot is read again. */
+  const [slotRev, setSlotRev] = useState(0);
   /**
    * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
    *
@@ -589,6 +601,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     announce({ pub: publishedVer, exp: announcedExpected(expectedOutputs, livePresence), stamp: readyStamp, prep: prepRequest });
   }, [announce, publishedVer, expectedOutputs, livePresence, readyStamp, prepRequest]);
+  /** READY as this page reads it (components/control/OutputHealth.tsx): rolled into the one playout
+   *  status, with its output cards listed in the Playout panel. */
+  const readiness = useReadinessView({
+    presence: livePresence,
+    seenAt: outputSeenAt,
+    heartbeatLive: true,
+    known: !!show?.outputOpenedAt,
+    now,
+    published: publishedVer,
+    expected: expectedOutputs,
+    stamp: readyStamp,
+    onForget: forgetOutput,
+  });
   /** The production's row id — the command channel's key on the fast road. Read out here rather
    *  than inside the verbs so a send depends on the ID and not on the whole show record. */
   const showId = show?.id ?? null;
@@ -963,7 +988,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     setBridgeStatus(null);
     return subscribeTargetStatus(settings, setBridgeStatus);
-  }, [playoutSettingsRev]);
+  }, [playoutSettingsRev, checkAgainRev]);
+  // WHAT THE NOACG OUTPUT'S SLOT HOLDS on the server (docs/work-specs/studio-day-playout AC-7): this
+  // production's output, another production's, or nothing - the fact that says whether a Take will
+  // air on CasparCG at all, and that the studio day had to discover by looking at the programme.
+  // Read through the Bridge every 10 s while the production is started and the server answers, and
+  // at once on Check again; read-only (`/state`, an AMCP INFO). A Bridge too old to say reads as
+  // `unreadable`, never as a fault.
+  const bridgeAnswers = bridgeStatus?.state === 'ok';
+  const slotReadable = stateReadable(bridgeStatus);
+  const outputSlug = show?.outputSlug ?? null;
+  useEffect(() => {
+    const settings = loadPlayoutSettings();
+    if (!hostedSlug || !bridgeAnswers || !playoutConfigured(settings)) {
+      setOutputSlot(undefined);
+      return;
+    }
+    if (!slotReadable) {
+      setOutputSlot('unreadable');
+      return;
+    }
+    let alive = true;
+    const read = () =>
+      readState(settings, settings.channel).then(
+        (r) => {
+          if (!alive) return;
+          setOutputSlot(r.reply ? slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) : undefined);
+        },
+        () => alive && setOutputSlot(undefined),
+      );
+    void read();
+    const timer = setInterval(read, 10_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [hostedSlug, bridgeAnswers, slotReadable, outputSlug, playoutSettingsRev, checkAgainRev, slotRev]);
 
   // ── WHAT AN OLDER CLIP IS (docs/CLIP_PLAYBACK_PLAN.md §7, §18 case 5). A clip saved before its kind
   // was kept - or its length, by a record made elsewhere - learns both from the server's own list,
@@ -2091,6 +2151,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setBusy(true);
     try {
       const current = loadShows().find((s) => s.id === show.id);
+      // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
+      const wasStarted = !!current?.hostedSlug;
       const published = current ? await publishControlShow(current) : null;
       if (published) {
         setShowHostedSlug(show.id, published.slug);
@@ -2113,8 +2175,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         if (forPrepare) {
           setNote(`✓ Published as v${published.version?.n ?? '?'} for Prepare for Live. Every output now prepares it.`);
         } else {
-          setLinksOpen(true);
-          setNote('✓ Published. Load the output URL in your browser source once. It stays the same across re-publishes.');
+          // EVERY PUBLISH PREPARES (docs/work-specs/studio-day-playout AC-10; owner, 2026-10-01): the
+          // same request Prepare for Live puts in this page's Presence entry, so each open output
+          // builds what changed beside what it runs and moves onto it when nothing is on air there
+          // (src/output/prepare.ts). Only this press sends it - no timer, no polling - and it is
+          // taken out again once the outputs have had their time to answer.
+          if (published.version && wasStarted) {
+            const prep: PrepRequest = { id: requestId(), n: published.version.n, h: published.version.h };
+            setPrepRequest(prep);
+            setTimeout(() => setPrepRequest((p) => (p?.id === prep.id ? null : p)), PREPARE_WAIT_MS);
+          }
+          setStatusOpen(true);
+          setNote(
+            wasStarted
+              ? `✓ Published as v${published.version?.n ?? '?'}. Every open output prepares it and moves onto it when nothing is on air there.`
+              : '✓ Started. Put it on air from the Playout panel, or load the output URL in a browser source once: it stays the same across publishes.',
+          );
         }
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
@@ -3560,30 +3636,129 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
   };
 
+  /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst
+   *  first, from what this page already knows - published or not, changed since, the Bridge and the
+   *  server, what the output's slot holds, and READY's reading of the outputs. */
+  const brokenOutput = readiness.outputs.find((l) => l.present && l.broken);
+  const playoutStatus = describePlayoutStatus({
+    started: !!hostedSlug,
+    unpublished: unpublishedChanges,
+    version: publishedVer ? `v${publishedVer.n}` : '',
+    bridge: playoutIsConfigured
+      ? bridgeStatus
+        ? { state: bridgeStatus.state, detail: bridgeStatus.detail, version: bridgeStatus.version }
+        : { state: 'pending', detail: '' }
+      : null,
+    slot: playoutIsConfigured && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, holds: outputSlot } : undefined,
+    ready: readiness.summary.show
+      ? {
+          tone: readiness.summary.tone,
+          label: readiness.summary.label,
+          outputs: readiness.summary.outputs,
+          ready: readiness.summary.ready,
+          broken: brokenOutput ? (readiness.summary.outputs > 1 ? `${brokenOutput.name}: ${brokenOutput.state}` : brokenOutput.state) : null,
+        }
+      : null,
+  });
+
   return (
     <ProductionShell
       show={show}
       now={now}
       openedAt={openedAt}
-      hostedSlug={hostedSlug}
-      livePresence={livePresence}
-      publishedVer={publishedVer}
-      expectedOutputs={expectedOutputs}
-      onForgetOutput={forgetOutput}
-      readyStamp={readyStamp}
-      readyPanel={
-        <PrepareForLive
-          flow={prepareFlow}
-          published={publishedVer}
-          unpublishedChanges={unpublishedChanges}
-          // This desk's own, or a newer one another production page announced.
-          stamp={[readyStamp, ...livePresence.operators.map((o) => o.stamp ?? null)].reduce<ReadyStamp | null>(
-            (best, s) => (s && (!best || s.at > best.at) ? s : best),
-            null,
+      status={
+        <>
+          <PlayoutStatusControl
+            status={playoutStatus}
+            started={!!hostedSlug}
+            version={publishedVer ? `v${publishedVer.n}` : ''}
+            open={statusOpen}
+            onToggle={() => setStatusOpen((o) => !o)}
+            onClose={() => setStatusOpen(false)}
+            ready={readiness.summary.show ? readiness.summary : null}
+          >
+            {readiness.outputs.length > 0 && (
+              <PlayoutPanelSection title="Outputs" testId="playout-panel-outputs">
+                <ReadyOutputList outputs={readiness.outputs} why={readiness.summary.why} onForget={forgetOutput} />
+              </PlayoutPanelSection>
+            )}
+            <PlayoutPanelSection title="Actions" testId="playout-panel-actions">
+              {hostedSlug ? (
+                <PublishActions
+                  busy={busy}
+                  unpublishedChanges={unpublishedChanges}
+                  outputUrl={outputUrl}
+                  airNeeded={outputSlot === 'empty' || outputSlot === 'other'}
+                  onPublish={() => void publish()}
+                  onUnpublish={() => void unpublish()}
+                  onAirChanged={() => setSlotRev((n) => n + 1)}
+                />
+              ) : (
+                <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
+                  Press ▶ Start production beside the status to go live. Until then a Take plays only on this page.
+                </p>
+              )}
+              {hostedSlug && (
+                <PrepareForLive
+                  flow={prepareFlow}
+                  published={publishedVer}
+                  unpublishedChanges={unpublishedChanges}
+                  // This desk's own, or a newer one another production page announced.
+                  stamp={readiness.newestStamp}
+                />
+              )}
+              {playoutIsConfigured && (
+                <div className="row pd-panel-check">
+                  <button onClick={() => setCheckAgainRev((n) => n + 1)} data-testid="playout-check-again">
+                    Check again
+                  </button>
+                  <span className="muted">Asks NoaCG Bridge, CasparCG and the output&rsquo;s layer again.</span>
+                </div>
+              )}
+            </PlayoutPanelSection>
+            {/* SETUP, folded once it works (owner, 2026-10-01): the studio's server, channels and
+                the NoaCG output's slot, edited in the Playout settings dialog. */}
+            <PlayoutPanelSection title="Setup" testId="playout-panel-setup" folded={bridgeAnswers}>
+              <p className="pd-ready-empty" data-testid="playout-setup-summary">
+                {playoutIsConfigured
+                  ? `CasparCG ${playoutSettings.host}:${playoutSettings.amcpPort} · NoaCG output ${slotAddress(slotOf(playoutSettings))} · ${playoutSettings.channels.length} channel${playoutSettings.channels.length === 1 ? '' : 's'}`
+                  : 'No CasparCG set up. Pair NoaCG Bridge to play on CasparCG, or use the output URL in OBS or vMix.'}
+              </p>
+              <button onClick={() => setPlayoutSettingsOpen(true)} data-testid="playout-settings-open">
+                {playoutIsConfigured ? 'Server and channels…' : 'Set up CasparCG…'}
+              </button>
+            </PlayoutPanelSection>
+            {hostedSlug && (
+              <PlayoutPanelSection title="Links" testId="playout-panel-links">
+                <ProductionLinkRows
+                  busy={busy}
+                  outputUrl={outputUrl}
+                  controlUrl={controlUrl}
+                  joinUrl={joinUrl}
+                  presenterUrl={presenterUrl}
+                  nameDraft={nameDraft}
+                  nameNote={nameNote}
+                  onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
+                  onClaimName={() => void claimName()}
+                  copied={copied}
+                  onCopy={copy}
+                  embedFileName={outputEmbedFileName(show.name)}
+                  onDownloadEmbed={downloadEmbed}
+                />
+              </PlayoutPanelSection>
+            )}
+          </PlayoutStatusControl>
+          {!hostedSlug && (
+            <StartProductionButton
+              busy={busy}
+              backendConfigured={backendConfigured}
+              hasCues={cues.length > 0}
+              needsSignIn={needsSignIn}
+              onPublish={() => void publish()}
+            />
           )}
-        />
+        </>
       }
-      outputSeenAt={outputSeenAt}
       liveLayers={liveLayers}
       follow={follow}
       resolveWaiting={resolveWaiting}
@@ -3592,13 +3767,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // productions list only when this page was opened cold (a bookmark, a new tab), where there
       // is nowhere to go back to. Home, beside it, always goes to the dashboard.
       onBack={() => goBack({ view: 'home', section: 'productions' })}
-      playoutTarget={
-        <PlayoutTargetButton
-          configured={playoutIsConfigured}
-          status={bridgeStatus}
-          onClick={() => setPlayoutSettingsOpen(true)}
-        />
-      }
       onAllOut={() => void outAll()}
       // A folder's Take still being sent counts: All out is what stops it before any of it lands.
       allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0}
@@ -3607,33 +3775,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       renders={renders.current}
       sub={sub ?? null}
       onTab={() => navigate({ view: 'production', id: show.id })}
-      links={
-        <ProductionLinks
-          show={show}
-          open={linksOpen}
-          onToggle={() => setLinksOpen((o) => !o)}
-          onClose={() => setLinksOpen(false)}
-          backendConfigured={backendConfigured}
-          busy={busy}
-          outputUrl={outputUrl}
-          controlUrl={controlUrl}
-          joinUrl={joinUrl}
-          presenterUrl={presenterUrl}
-          nameDraft={nameDraft}
-          nameNote={nameNote}
-          onNameDraft={(v) => { setNameDraft(v); setNameNote(null); }}
-          onClaimName={() => void claimName()}
-          copied={copied}
-          unpublishedChanges={unpublishedChanges}
-          onCopy={copy}
-          embedFileName={outputEmbedFileName(show.name)}
-          onDownloadEmbed={downloadEmbed}
-          hasCues={cues.length > 0}
-          needsSignIn={needsSignIn}
-          onPublish={() => void publish()}
-          onUnpublish={() => void unpublish()}
-        />
-      }
     >
       {sub === 'data' && (
         <ProductionDataWorkspace
@@ -3668,6 +3809,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
         <PlayoutMonitors
+          live={!!hostedSlug}
           stage={stage}
           previewDoc={previewDoc}
           previewTemplate={previewTemplate}
@@ -4409,14 +4551,7 @@ function ProductionShell({
   show,
   now,
   openedAt,
-  hostedSlug,
-  livePresence,
-  publishedVer,
-  expectedOutputs,
-  onForgetOutput,
-  readyStamp,
-  readyPanel,
-  outputSeenAt,
+  status,
   liveLayers,
   follow,
   resolveWaiting,
@@ -4428,25 +4563,15 @@ function ProductionShell({
   allOutEnabled,
   onExport,
   onKey,
-  links,
-  playoutTarget,
   renders,
   children,
 }: {
   show: Show;
   now: number;
   openedAt: number;
-  hostedSlug: string | null;
-  /** The outputs on the production's live topic (components/control/OutputHealth.tsx). */
-  livePresence: LivePresenceView;
-  /** READY's inputs (components/control/OutputHealth.tsx ReadyLine). */
-  publishedVer: HeldVersion | null;
-  expectedOutputs: ExpectedOutput[];
-  onForgetOutput: (id: string) => void;
-  /** The last Prepare for Live stamp, and the panel's Prepare for Live section. */
-  readyStamp: ReadyStamp | null;
-  readyPanel: React.ReactNode;
-  outputSeenAt: string | null;
+  /** The one playout status and its panel (home/PlayoutStatusControl.tsx), plus ▶ Start
+   *  production while the production is offline. */
+  status: React.ReactNode;
   liveLayers: { layer: number }[];
   follow: ControlFollowStatus | null;
   /** The follow's resolve is failing and being retried - the server is not answering. */
@@ -4462,9 +4587,6 @@ function ProductionShell({
   allOutEnabled?: boolean;
   onExport: () => void;
   onKey: (key: PlayoutVerb, press?: VerbPress) => void;
-  links: React.ReactNode;
-  /** The Playout settings door with its connection dot (components/PlayoutSettingsDialog.tsx). */
-  playoutTarget: React.ReactNode;
   /** The page's render count, for the spec that proves a clip's clock does not re-render it. */
   renders?: number;
   children: React.ReactNode;
@@ -4520,15 +4642,14 @@ function ProductionShell({
             navigation. */}
         <NewGraphicButton productionId={show.id} />
         <h1 title={show.name}><IconTv /> <span className="pd-name">{show.name}</span></h1>
-        <span className={`pd-mode pd-mode-${hostedSlug ? 'show' : 'idle'}`} data-testid="production-mode">
-          {hostedSlug ? '● SHOW' : '○ NOT PUBLISHED'}
-        </span>
-        {/* OUTPUT LINKS BESIDE THE STATE THEY BELONG TO (owner, 2026-09-23: "one of the most
-            important things on the page, and it feels hidden"). Unpublished this is ▶ Start
-            production; published it is the Output links button, styled to be found, and its
-            panel opens by itself right after a publish. It used to sit in the right cluster
-            among Share and Export, where it read as one more authoring action. */}
-        {links}
+        {/* THE ONE PLAYOUT STATUS, beside the production's name where its state has always been
+            read (docs/work-specs/studio-day-playout AC-7, AC-8; owner, 2026-10-01): a colour and
+            a short text, worst first, and a press opens the Playout panel with the checks behind
+            it, the actions, the setup and the links. It replaced the SHOW / NOT PUBLISHED chip,
+            the Output links button, the READY line and the CasparCG dot, which each knew a part.
+            Its width is fixed, so a state that changes during a show never moves the tabs beside
+            it. Offline, ▶ Start production follows it: the one action an offline production has. */}
+        {status}
         {/* `pd-roomy`: shown only while the header has room (playout-dashboard.css, the laptop
             tier). The production's name outranks a session timer. */}
         <span className="pd-clock mono pd-roomy">{elapsed(now - openedAt)}</span>
@@ -4631,39 +4752,6 @@ function ProductionShell({
             <IconUsers /> <span className="pd-share-label">Share</span>
           </button>
         )}
-        {/* The renderer heartbeat — only once published, and only once there IS an output to
-            ask about (owner walk, 2026-08-29: he had no browser source set up anywhere and
-            still read "output not seen lately", which sounds like something has gone wrong).
-            Publishing mints the output slug whether or not anybody wants an output, so the slug
-            cannot answer the question; `outputOpenedAt` (the operator took the URL) and
-            `outputSeenAt` (a renderer has reported in) can, and either is enough.
-            Unpublished the mode chip already says so, and a second "not published" beside it is
-            noise, not status.
-            The words say what the state IS, and the tooltip says what to do about it — one line
-            each, because a status nobody can act on is decoration. The line itself is shared with
-            the hosted page (components/control/OutputHealth.tsx): READY from the outputs' own
-            Presence entries when the server has the live topic (docs/work-specs/playout-ready),
-            otherwise the heartbeat this page polls every 30 s. It is a button: its panel lists
-            every output. A status, never permission - nothing here waits for it. */}
-        {hostedSlug && (
-          <ReadyLine
-            presence={livePresence}
-            seenAt={outputSeenAt}
-            heartbeatLive
-            known={!!show.outputOpenedAt}
-            now={now}
-            published={publishedVer}
-            expected={expectedOutputs}
-            onForget={onForgetOutput}
-            stamp={readyStamp}
-            testId="renderer-status"
-          >
-            {readyPanel}
-          </ReadyLine>
-        )}
-        {/* WHERE THE GRAPHICS PLAY: the Playout settings door, beside the renderer heartbeat it
-            belongs with. Setup lives in its dialog, never as more controls in this header. */}
-        {playoutTarget}
         <button
           onClick={onExport}
           title="Export this production as a package"

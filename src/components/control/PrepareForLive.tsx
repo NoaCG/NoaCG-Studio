@@ -31,7 +31,7 @@ import type { LivePresenceView } from './OutputHealth';
 type Phase = 'idle' | 'publishing' | 'preparing' | 'done';
 
 /** A fresh request id: twelve lowercase alphanumerics. */
-function requestId(): string {
+export function requestId(): string {
   let id = '';
   while (id.length < 12) id += Math.random().toString(36).slice(2);
   return id.slice(0, 12);

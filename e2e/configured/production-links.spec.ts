@@ -63,7 +63,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
     }, showName);
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; Escape closes it (quiz-output.spec.ts says why there
   // is nothing to click).
   const links = page.getByTestId('production-links');
@@ -78,10 +78,10 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   expect(first.presenter).toBeTruthy();
 
   // Unpublish exactly as an operator does — the links popover's own button.
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('production-unpublish')).toBeVisible();
   await page.getByTestId('production-unpublish').click();
-  await expect(page.getByTestId('production-mode')).not.toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 30_000 });
   await expect(page.getByTestId('production-note')).toContainText('come back unchanged');
   // The published capabilities are gone from the local record; the reserved audience pair is
   // deliberately kept, which is what stops the readable join name being re-derived below.
@@ -90,7 +90,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   expect(between.output).toBeNull();
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await expect(links).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(links).toBeHidden();

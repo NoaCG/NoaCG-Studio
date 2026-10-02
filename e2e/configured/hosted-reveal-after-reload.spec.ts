@@ -71,7 +71,7 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
   await dropSvg(page, QUIZ_SVG);
   await intoProduction(page, 'Quiz board', showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', WIRE);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === name);
