@@ -98,6 +98,7 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   expect((await deck.press('take-cue', ben, cur.ver as number)).outcome).toBe('ran');
   const benUp = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
   expect(benUp.selected).toBe(anna);
+  await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
   await expect(op.getByTestId('live-cue-chip')).toContainText('Ben');
   expect((await deck.press('take-cue', ben, benUp.ver as number)).outcome).toBe('ran');
   await deck.state((s) => !(s.live as string[]).includes(ben), 'Ben off air');
