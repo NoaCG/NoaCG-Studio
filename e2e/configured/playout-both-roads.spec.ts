@@ -123,12 +123,12 @@ test('one press is one entrance on the sender, on another operator, and on air',
   await openProductionWithCurrent(page, showName);
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (never Escape — quiz-output.spec.ts
   // says why, and the Escape route was a flake of its own).
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {

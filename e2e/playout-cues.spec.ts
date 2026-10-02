@@ -290,6 +290,10 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   // Named on the PROGRAM header: it plays on the server.
   await expect(page.getByTestId('playout-on-air')).toContainText('GIORNO');
   await expect(page.getByTestId('production-note')).toContainText('✓ Take: GIORNO on 1-10');
+  // The production is not started, yet the clip IS on air: NoaCG Bridge plays it either way, so
+  // the monitor must not say NOT LIVE over it (docs/work-specs/studio-day-playout D16).
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
 
   await page.getByTestId('playout-pause').click();
   await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'pause', slot: { channel: 1, layer: 10 } });
@@ -300,6 +304,7 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   await expect(cue).not.toContainText('ON AIR');
   await expect.poll(() => lastAction(bridge)).toEqual({ verb: 'out', slot: { adapter: 'casparcg', channel: 1, layer: 10 }, item: { kind: 'media', name: 'GIORNO' } });
   await expect(page.getByTestId('playout-on-air')).toHaveCount(0);
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
 });
 
 test('a deep media library is browsed folder by folder, a long name gives way, and Add never leaves the popover', async ({ page }) => {

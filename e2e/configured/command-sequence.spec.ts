@@ -64,10 +64,10 @@ async function publishScorebug(page: Page, showName: string): Promise<{ hosted: 
   await bootstrapGraphic(page, { name: GRAPHIC });
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');

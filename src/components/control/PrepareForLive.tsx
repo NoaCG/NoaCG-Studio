@@ -1,6 +1,6 @@
 // PREPARE FOR LIVE on the production page (Phase 6 Step 3 landing b: docs/work-specs/playout-ready/
-// spec.md AC-8 to AC-11). It shows in the READY panel (OutputHealth.tsx ReadyLine), under the
-// outputs it waits for. The decisions are control/prepareLive.ts; `usePrepareForLive` runs the
+// spec.md AC-8 to AC-11). It shows in the production page's Playout panel (home/
+// PlayoutStatusControl.tsx), under the outputs it waits for. The decisions are control/prepareLive.ts; `usePrepareForLive` runs the
 // flow: publish what changed, ask the outputs to prepare, check the Bridge and CasparCG, ping the
 // command path, and stamp the result. The flow lives in the page, not the panel: the panel closes on any click outside it
 // (a Take, say), and a run goes on to its stamp while it is shut.
@@ -16,6 +16,7 @@ import {
   outputSettled,
   pingSettled,
   preparedOutputs,
+  requestId,
   stampOf,
   stampWords,
   withPing,
@@ -25,19 +26,28 @@ import {
   type PrepRequest,
 } from '../../control/prepareLive';
 import type { PingAnswer } from '../../control/hostedControl';
-import { describeReadiness, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp } from '../../control/readiness';
+import { describeReadiness, TONE_DOT, type ExpectedOutput, type HeldVersion, type OutputLine, type ReadyStamp } from '../../control/readiness';
 import type { LivePresenceView } from './OutputHealth';
 
 type Phase = 'idle' | 'publishing' | 'preparing' | 'done';
 
-/** A fresh request id: twelve lowercase alphanumerics. */
-function requestId(): string {
-  let id = '';
-  while (id.length < 12) id += Math.random().toString(36).slice(2);
-  return id.slice(0, 12);
-}
+const DOT: Record<CheckLine['tone'], string> = { ...TONE_DOT, running: '…' };
 
-const DOT: Record<CheckLine['tone'], string> = { ok: '●', warn: '▲', bad: '✕', idle: '○', running: '…' };
+/** One line of a checklist: the tone's dot, the words, and what to do while it is not fine. The
+ *  Playout panel's status checks are drawn the same way, so the two lists in it read as one. */
+export function CheckRow({ line, testId }: { line: Pick<CheckLine, 'tone' | 'label' | 'advice'>; testId?: string }) {
+  return (
+    <li className={`pd-prepare-line pd-prepare-line--${line.tone}`} data-tone={line.tone} data-testid={testId}>
+      <span className="pd-ready-dot" aria-hidden="true">
+        {DOT[line.tone]}
+      </span>
+      <span>
+        {line.label}
+        {line.advice && line.tone !== 'ok' && <span className="pd-ready-detail">{line.advice}</span>}
+      </span>
+    </li>
+  );
+}
 
 /** A run as the panel shows it. */
 export interface PrepareFlow {
@@ -74,8 +84,9 @@ export function usePrepareForLive({
   recheckChanges: () => Promise<boolean>;
   /** Publish now; the version written, or null when it did not publish (the reason is on the page). */
   publish: () => Promise<HeldVersion | null>;
-  /** Put a prepare request in this page's Presence entry, or take it out. */
-  onPrep: (prep: PrepRequest | null) => void;
+  /** Put a prepare request in this page's Presence entry, or take out the one with id `endOf`: a
+   *  publish may have put a newer request there since, and that one stays. */
+  onPrep: (prep: PrepRequest | null, endOf?: string) => void;
   onStamp: (stamp: ReadyStamp) => void;
   /** Gather what the Bridge and CasparCG say (read-only). */
   bridge: () => Promise<BridgeFacts>;
@@ -169,7 +180,7 @@ export function usePrepareForLive({
     ];
     setFinalLines(done);
     setPhase('done');
-    at.onPrep(null);
+    at.onPrep(null, at.request ?? undefined);
     at.onStamp(stampOf(done, at.target, at.now));
   }, [finished]);
 
@@ -247,15 +258,7 @@ export function PrepareForLive({
       {shown && (
         <ul className="pd-prepare-list" data-testid="prepare-checklist">
           {shown.map((line) => (
-            <li key={line.key} className={`pd-prepare-line pd-prepare-line--${line.tone}`} data-tone={line.tone}>
-              <span className="pd-ready-dot" aria-hidden="true">
-                {DOT[line.tone]}
-              </span>
-              <span>
-                {line.label}
-                {line.advice && line.tone !== 'ok' && <span className="pd-ready-detail">{line.advice}</span>}
-              </span>
-            </li>
+            <CheckRow key={line.key} line={line} />
           ))}
         </ul>
       )}

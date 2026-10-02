@@ -16,6 +16,31 @@ export const E2E_TEAMMATE_EMAIL = process.env.E2E_TEAMMATE_EMAIL ?? '';
 export const E2E_TEAMMATE_PASSWORD = process.env.E2E_TEAMMATE_PASSWORD ?? '';
 export const haveTeammateCreds = Boolean(E2E_TEAMMATE_EMAIL && E2E_TEAMMATE_PASSWORD);
 
+/** What an output page says about itself on its live topic (src/output/main.ts `__noacgLive`). */
+export type ReadyWindow = {
+  __noacgLive?: {
+    presence: () => string;
+    ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
+  };
+};
+/**
+ * An output page's own READY answer, or null before it has one. Also null while the page is
+ * RELOADING: an output moves onto a newer version by reloading itself (src/output/prepare.ts), and
+ * `expect.poll` gives up on the first thrown error, so a read inside that reload must not throw.
+ */
+export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null).catch(() => null);
+
+/**
+ * Unpublish the open production through its Playout panel, opening the panel first when it is
+ * shut. By test id, never by the button's name: the status control itself can read "Unpublished
+ * changes", and a name match then presses the status instead.
+ */
+export async function unpublishFromPanel(page: Page): Promise<void> {
+  const panel = page.getByTestId('production-status-panel');
+  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+  await panel.getByTestId('production-unpublish').click();
+}
+
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 

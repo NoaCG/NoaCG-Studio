@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, PREPARE_WAIT_MS } = await import(
+const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrepRequest, preparedOutputs, slotHolds, requestId, PREPARE_WAIT_MS } = await import(
   '../src/control/prepareLive.ts'
 );
 
@@ -108,6 +108,17 @@ test('the Bridge and CasparCG checks say what answers, what the layer holds and 
   assert.equal(empty[1].note, true, 'an empty layer is a note: the output may run in OBS or vMix');
   const unlisted = bridgeChecks({ ...base, status: ok, items: [{ kind: 'media', name: 'a' }], media: null });
   assert.equal(unlisted[1].tone, 'warn');
+});
+
+test('the output slot is ours only for this slug exactly, never for a longer one that starts with it', () => {
+  const html = (file) => ({ layer: 20, producer: 'html', file, paused: false, loop: false, generation: 1 });
+  assert.equal(slotHolds(html('http://x/output?production=ab12&name=CasparCG%201-20'), 'ab12'), 'ours');
+  assert.equal(slotHolds(html('http://x/output?production=ab12'), 'ab12'), 'ours');
+  assert.equal(slotHolds(html('http://x/output?production=ab12x9&name=CasparCG%201-20'), 'ab12'), 'other');
+  assert.equal(slotHolds(html('http://x/page.html'), 'ab12'), 'empty');
+  assert.equal(slotHolds({ ...html('http://x/output?production=ab12'), producer: 'video' }, 'ab12'), 'empty');
+  assert.equal(slotHolds(null, 'ab12'), 'empty');
+  assert.match(requestId(), /^[a-z0-9]{12}$/);
 });
 
 // ── The command path ping (landing c, R9, AC-12) ──

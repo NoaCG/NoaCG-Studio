@@ -284,7 +284,8 @@ test.describe('anonymous visitor (open editor)', () => {
     await card.locator('.gallery-close').click();
     await expect(card).toHaveCount(0);
     await expect(start).toBeVisible();
-    await expect(page.getByTestId('production-links-toggle')).toHaveCount(0);
+    await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+    await expect(page.getByTestId('production-status')).toContainText('Offline');
   });
 
   test('signed out, a control-panel link offers a sign-in that actually opens', async ({ page }) => {

@@ -1,10 +1,8 @@
 import { useRef } from 'react';
 import { PLAYOUT_SYSTEMS, DEFAULT_PLAYOUT_SYSTEM } from '../control/playoutSystems';
-import type { PlayoutResult } from '../control/playoutLink';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import PlayoutSettingsPanel from './PlayoutSettingsPanel';
 import { useModalGate } from './spaceKey';
-import { IconSliders } from './icons';
 
 /**
  * PLAYOUT SETTINGS, opened from the production page itself.
@@ -67,8 +65,8 @@ export default function PlayoutSettingsDialog({
             </ul>
             <p className="hint" data-testid="playout-browser-source-note">
               Using OBS, vMix or another browser source instead? Nothing to set up here: open{' '}
-              <strong>Output links</strong> after you start the production and add the output URL as
-              a browser source.
+              the <strong>Playout panel</strong> after you start the production and add the output
+              URL from its Links as a browser source.
             </p>
             <p className="hint">
               New to NoaCG Bridge?{' '}
@@ -88,58 +86,3 @@ export default function PlayoutSettingsDialog({
   );
 }
 
-/** What the header control says about the playout connection, and in which colour. */
-export function playoutTargetState(
-  configured: boolean,
-  status: PlayoutResult | null,
-): { label: string; tone: 'idle' | 'ok' | 'warn' | 'bad'; title: string } {
-  if (!configured) {
-    return {
-      label: `${DEFAULT_PLAYOUT_SYSTEM.name} not set up`,
-      tone: 'idle',
-      title: `Connect this page to ${DEFAULT_PLAYOUT_SYSTEM.name} through NoaCG Bridge. OBS and vMix need no setup: use the output link.`,
-    };
-  }
-  if (status === null) return { label: 'Checking…', tone: 'idle', title: 'Asking NoaCG Bridge on this computer.' };
-  if (status.state === 'ok') {
-    return {
-      label: `${DEFAULT_PLAYOUT_SYSTEM.name} connected`,
-      tone: 'ok',
-      title: `${DEFAULT_PLAYOUT_SYSTEM.name}${status.version ? ` ${status.version}` : ''} answered through NoaCG Bridge.`,
-    };
-  }
-  if (status.state === 'bridge') return { label: 'Bridge not running', tone: 'warn', title: status.detail };
-  return { label: `${DEFAULT_PLAYOUT_SYSTEM.name} needs attention`, tone: 'bad', title: status.detail };
-}
-
-/**
- * THE HEADER DOOR: "Playout" with a status dot, opening the dialog above. One compact control
- * rather than a row of connection widgets, because the header is the operator's and production
- * controls must not be crowded out by setup. The state in words ("CasparCG connected") shows on
- * a wide header and always rides the tooltip; the dot's colour says it at every width.
- */
-export function PlayoutTargetButton({
-  configured,
-  status,
-  onClick,
-}: {
-  configured: boolean;
-  status: PlayoutResult | null;
-  onClick: () => void;
-}) {
-  const state = playoutTargetState(configured, status);
-  return (
-    <button
-      className={`pd-target pd-target-${state.tone}`}
-      onClick={onClick}
-      title={`Playout settings. ${state.label}: ${state.title}`}
-      aria-label={`Playout settings (${state.label})`}
-      data-testid="playout-settings-open"
-      data-state={state.tone}
-    >
-      <IconSliders /> Playout
-      <span className="pd-target-dot" aria-hidden="true" />
-      <span className="pd-target-state">{state.label}</span>
-    </button>
-  );
-}

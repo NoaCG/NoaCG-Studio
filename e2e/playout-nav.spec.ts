@@ -95,16 +95,17 @@ test('a production opened cold goes Back to the productions list, since there is
   await expect(tab).toHaveURL(/#\/home\/productions$/);
 });
 
-test('the header opens Playout settings: the same form as Settings, saved to the same place', async ({ page, context }) => {
+test('the Playout panel opens Playout settings: the same form as Settings, saved to the same place', async ({ page, context }) => {
   const id = await seededProduction(page);
   const tab = await context.newPage();
   await tab.goto(`/app#/production/${id}`);
   await expect(tab.getByTestId('production-page')).toBeVisible();
 
-  // Nothing paired: the door says so without asking the network anything.
+  // Nothing paired: the panel's Setup says so, unfolded, without asking the network anything.
+  await tab.getByTestId('production-status').click();
+  await expect(tab.getByTestId('playout-setup-summary')).toContainText('No CasparCG set up');
   const door = tab.getByTestId('playout-settings-open');
-  await expect(door).toHaveAttribute('data-state', 'idle');
-  await expect(door).toHaveAttribute('aria-label', /CasparCG not set up/);
+  await expect(door).toHaveText('Set up CasparCG…');
   await door.click();
 
   const dialog = tab.getByTestId('playout-settings');

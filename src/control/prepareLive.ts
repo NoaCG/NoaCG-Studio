@@ -238,6 +238,34 @@ export interface BridgeFacts {
 }
 
 /**
+ * What the NoaCG output's slot on the server holds, for this production: its own output (`ours`),
+ * another production's output (`other`), or anything else, nothing included (`empty`). The one
+ * reading Prepare for Live and the production page's status both use.
+ */
+export function slotHolds(slot: SlotState | null, outputSlug: string | null): 'ours' | 'other' | 'empty' {
+  const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
+  // The slug must END where the parameter does: `production=ab12` inside `production=ab12x9` is
+  // another production.
+  const param = outputSlug ? `production=${encodeURIComponent(outputSlug)}` : '';
+  const at = param ? file.indexOf(param) : -1;
+  if (at >= 0 && /^(?:$|[&#])/.test(file.slice(at + param.length))) return 'ours';
+  return file.indexOf('/output?production=') >= 0 ? 'other' : 'empty';
+}
+
+/** "NoaCG Bridge and CasparCG answer (CasparCG 2.5.0)": the Bridge line, in Prepare for Live's
+ *  checklist and the production page's status alike. */
+export function bridgeAnswersLabel(version?: string): string {
+  return `NoaCG Bridge and CasparCG answer${version ? ` (CasparCG ${version.split(' ')[0]})` : ''}`;
+}
+
+/** A fresh prepare request id: twelve lowercase alphanumerics. */
+export function requestId(): string {
+  let id = '';
+  while (id.length < 12) id += Math.random().toString(36).slice(2);
+  return id.slice(0, 12);
+}
+
+/**
  * THE BRIDGE AND CASPARCG LINES (AC-10). Nothing configured, nothing said: a production played
  * through a browser source alone has nothing to check here. The output layer holding another
  * production's output is a problem; an empty one is only a note, because the output may run in
@@ -250,14 +278,12 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
     return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
   }
   const lines: CheckLine[] = [
-    { key: 'bridge', tone: 'ok', label: `NoaCG Bridge and CasparCG answer${f.status.version ? ` (CasparCG ${f.status.version.split(' ')[0]})` : ''}` },
+    { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
   ];
   if (f.slot !== undefined) {
-    const slot = f.slot;
-    const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
-    const ours = !!f.outputSlug && file.indexOf(`production=${encodeURIComponent(f.outputSlug)}`) >= 0;
-    if (ours) lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
-    else if (file.indexOf('/output?production=') >= 0) {
+    const holds = slotHolds(f.slot, f.outputSlug);
+    if (holds === 'ours') lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
+    else if (holds === 'other') {
       lines.push({
         key: 'bridge-layer',
         tone: 'bad',

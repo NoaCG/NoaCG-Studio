@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';
-import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics } from './_helpers';
+import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE AUDIENCE LINK, against the real backend — the half of Phase 5 the offline suite cannot own.
 //
@@ -53,7 +53,7 @@ test.describe(() => {
       `/join/${claimed}`,
     );
 
-    await page.getByRole('button', { name: 'Unpublish' }).click();
+    await unpublishFromPanel(page);
     await expect(page.getByTestId('production-publish')).toBeVisible();
     await wipeMyGraphics(page);
   });

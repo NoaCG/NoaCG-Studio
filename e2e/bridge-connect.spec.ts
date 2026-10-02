@@ -675,7 +675,7 @@ async function publishedProduction(page: Page): Promise<void> {
   await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
 }
 
 test('the CasparCG row is absent until a server is configured', async ({ page }) => {
@@ -733,10 +733,23 @@ test('a failure to air is reported on the row, and never as a success', async ({
   await expect(result).not.toContainText('On air');
 });
 
-// ── The header's Playout door ───────────────────────────────────────────────────────────────
+// ── The header's playout status and its panel (docs/work-specs/studio-day-playout AC-7, AC-8) ──
 
 /** A published production seeded through the model and opened from its own URL - no editor on
  *  the way. Publishing is backend-gated, so its capabilities are faked in, as above. */
+/**
+ * The Playout settings dialog, from the production page's Playout panel. Its Setup section folds once
+ * the Bridge answers (docs/work-specs/studio-day-playout D10), so wait for that answer and unfold it,
+ * as an operator does, rather than racing the fold.
+ */
+async function openPlayoutDialog(page: Page): Promise<void> {
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
+  const setup = page.getByTestId('playout-panel-setup');
+  if (!(await setup.evaluate((d) => (d as HTMLDetailsElement).open))) await setup.locator('summary').click();
+  await page.getByTestId('playout-settings-open').click();
+}
+
 async function seededPublishedProduction(page: Page, published = true): Promise<void> {
   await page.goto('/app');
   await awaitDurableReady(page);
@@ -760,33 +773,33 @@ async function seededPublishedProduction(page: Page, published = true): Promise<
   await expect(page.getByTestId('production-page')).toBeVisible();
 }
 
-test('the production header says whether CasparCG answers, and names the output links', async ({ page }) => {
+test('the production header says whether CasparCG answers, and its panel holds the output links', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page);
   await seededPublishedProduction(page);
   // A paired Bridge is asked on this page too, so the operator reads the connection where they
-  // work instead of opening Settings to find out (owner, 2026-09-23).
-  const door = page.getByTestId('playout-settings-open');
-  await expect(door).toHaveAttribute('data-state', 'ok');
-  await expect(door).toHaveAttribute('aria-label', /CasparCG connected/);
-  // Published, the links are named for what they hold and sit beside the mode chip.
-  await expect(page.getByTestId('production-links-toggle')).toContainText('Output links');
+  // work instead of opening Settings to find out (owner, 2026-09-23). It is one line of the panel
+  // behind the playout status now, and the links an OBS operator copies are further down it.
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
+  await expect(page.getByTestId('status-check-bridge')).toContainText('NoaCG Bridge and CasparCG answer');
+  await expect(page.getByTestId('production-links').getByTestId('copy-output-url')).toBeVisible();
 });
 
-test('a paired Bridge that is not running reads as "Bridge not running" on the header', async ({ page }) => {
+test('a paired Bridge that is not running turns the header status red, with the reason', async ({ page }) => {
   await seedSettings(page);
   await fakeBridge(page, { missing: true });
   await seededPublishedProduction(page);
-  const door = page.getByTestId('playout-settings-open');
-  await expect(door).toHaveAttribute('data-state', 'warn');
-  await expect(door).toHaveAttribute('aria-label', /Bridge not running/);
+  const status = page.getByTestId('production-status');
+  await expect(status).toHaveAttribute('data-tone', 'bad');
+  await expect(status).toContainText('Bridge not running');
 });
 
 test("the production's Playout dialog puts its output on air with one press, and says where it went", async ({ page }) => {
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await fakeBridge(page, { features: WITH_SERVERS });
   await seededPublishedProduction(page);
-  await page.getByTestId('playout-settings-open').click();
+  await openPlayoutDialog(page);
   await expect(page.getByTestId('playout-settings')).toBeVisible();
   // Opening the dialog, and the status poll behind the header, send nothing to a layer (AC-5).
   await expect(page.getByTestId('playout-put-on-air')).toBeEnabled();
@@ -806,7 +819,7 @@ test('a production that is not started cannot be put on air from its Playout dia
   await seedSettings(page);
   const bridge = await fakeBridge(page);
   await seededPublishedProduction(page, false);
-  await page.getByTestId('playout-settings-open').click();
+  await openPlayoutDialog(page);
   await expect(page.getByTestId('playout-put-on-air')).toBeDisabled();
   await expect(page.getByTestId('playout-air-unstarted')).toContainText('Start production');
   expect(bridge.actions).toEqual([]);

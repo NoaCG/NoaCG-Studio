@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE FLOOR UNDER REALTIME (docs/CLOUD_PLAYOUT.md §3): a renderer whose Realtime channel never
 // joins still catches up, and says so.
@@ -55,12 +55,12 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
   const showName = `Realtime Floor ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (never Escape — quiz-output.spec.ts
   // says why, and the Escape route was a flake of its own).
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
@@ -111,9 +111,8 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);

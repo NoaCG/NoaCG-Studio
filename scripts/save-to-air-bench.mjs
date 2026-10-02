@@ -254,7 +254,7 @@ try {
   mark('the saved graphic is in the production');
 
   await page.getByTestId('production-publish').click();
-  await page.getByTestId('production-mode').filter({ hasText: 'SHOW' }).waitFor({ timeout: 60_000 });
+  await page.locator('[data-testid="production-status"][data-started="true"]').waitFor({ timeout: 60_000 });
   const links = page.getByTestId('production-links');
   await links.waitFor({ state: 'visible', timeout: 20_000 });
   const outputUrl = (
@@ -263,8 +263,8 @@ try {
       .locator('code.prod-url')
       .textContent()
   )?.trim();
-  if (!outputUrl) throw new Error('the links popover showed no output URL');
-  await page.getByTestId('production-links-toggle').click();
+  if (!outputUrl) throw new Error('the playout panel showed no output URL');
+  await page.getByTestId('production-status').click();
   mark(`published -> ${outputUrl}`);
 
   // ── The public output URL, in a context with no session at all: the viewer's side. ──
@@ -407,9 +407,9 @@ try {
   //    run; an unwiped graphic makes the next name-addressed read ambiguous. ──
   try {
     await page.getByTestId('verb-out').click({ timeout: 5_000 }).catch(() => undefined);
-    await page.getByTestId('production-links-toggle').click({ timeout: 5_000 }).catch(() => undefined);
+    await page.getByTestId('production-status').click({ timeout: 5_000 }).catch(() => undefined);
     await page.getByTestId('production-unpublish').click({ timeout: 5_000 }).catch(() => undefined);
-    await page.getByTestId('production-mode').filter({ hasText: 'NOT PUBLISHED' }).waitFor({ timeout: 20_000 }).catch(() => undefined);
+    await page.locator('[data-testid="production-status"][data-started="false"]').waitFor({ timeout: 20_000 }).catch(() => undefined);
 
     await page.goto(`${origin}/app#/home/productions`, { waitUntil: 'domcontentloaded' });
     const row = page.locator('[data-testid^="production-row-"]', { hasText: showName });

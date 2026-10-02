@@ -65,7 +65,7 @@ test('a published production shows its data key, and that key writes the product
   await before.close();
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; Escape closes it (quiz-output.spec.ts says why there
   // is nothing to click).
   await page.keyboard.press('Escape');

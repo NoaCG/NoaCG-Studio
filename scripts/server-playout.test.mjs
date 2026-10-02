@@ -409,17 +409,22 @@ test('the poll never has two readings out, and a wake during one reads once more
 
 test('a reading the page cannot fold ends that round, never the poll', async () => {
   let readings = 0;
+  // Waits for the THIRD reading rather than counting them in a fixed window: under a loaded
+  // machine (the build beside two Playwright suites, 2026-10-02) 60 ms held only two.
+  let third;
+  const reachedThird = new Promise((resolve) => (third = resolve));
   const poll = pollServerState({
     read: async (channel) => ({ result: { state: 'ok', detail: '' }, reply: stateOf(channel) }),
     channels: () => [2],
     busy: () => true,
     onReading: () => {
       readings += 1;
+      if (readings === 3) third();
       if (readings === 1) throw new TypeError('a slot in a shape this page does not know');
     },
     busyMs: 5,
   });
-  await wait(60);
+  await Promise.race([reachedThird, wait(2_000)]);
   poll.stop();
   assert.ok(readings >= 3, `the poll stopped after the throw (${readings} readings)`);
   const after = readings;

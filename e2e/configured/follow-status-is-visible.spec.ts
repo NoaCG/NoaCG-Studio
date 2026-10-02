@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // A LIVE CONNECTION THAT NEVER JOINS HAS TO SAY SO.
 //
@@ -29,7 +29,7 @@ test('a production whose live connection never joins says so, and a healthy one 
   const showName = `Follow Status ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
 
   // ── HEALTHY: the socket is left alone, so the line must not be there. ──
   // Given time to be wrong: the status is reported on every poll tick as well as on every change,
@@ -63,8 +63,8 @@ test('a production whose live connection never joins says so, and a healthy one 
   // sibling specs only press the toggle at the end because they hid it earlier. Pressing it once
   // from a clean start HIDES the block, and Unpublish inside it is then unreachable.
   await expect(page.getByTestId('production-links')).toBeVisible();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);

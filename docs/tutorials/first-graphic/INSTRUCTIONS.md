@@ -142,11 +142,12 @@ did not register.
 ### Beat 7 - the dashboard
 **Frame:** `step-7-production.png`
 
-The production page, titled **Saturday Match**, marked NOT PUBLISHED, with Playout / Data /
-Audience tabs.
+The production page, titled **Saturday Match**, its playout status reading **Offline** in grey,
+with Playout / Data / Audience tabs.
 
 - **PREVIEW** on the left, outlined amber, showing the scoreboard.
-- **PROGRAM - ON AIR** on the right, outlined red, reading **"Nothing on air"**.
+- **PREVIEW - NOT LIVE** on the right, in grey, reading **"Nothing on air"**: the production is
+  not started, so nothing it takes reaches air.
 - The verb row underneath: **TAKE** (with SPACE on it), Re-take, Update, » Next, Out.
 - **Cue rundown** on the right with one row, "Match scorebug", badged **PVW**.
 - The cue editor below, headed "EDITING PREVIEW CUE · 1" with "changes air on ⟳ Take" beside it,

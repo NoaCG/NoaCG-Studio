@@ -189,6 +189,35 @@ export async function openProductionWithCurrent(page: Page, name: string): Promi
   return id;
 }
 
+/** Add a catalog graphic to a production through the same model call the rundown's "+ Add" makes. */
+export async function addCatalogGraphic(page: Page, showId: string, name: string): Promise<void> {
+  await page.evaluate(
+    async ([id, wanted]) => {
+      const { CATALOG } = await import('/src/templates/catalog.ts');
+      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
+      const { formatTemplate } = await import('/src/format/formatCode.ts');
+      const { addGraphicToShow } = await import('/src/model/shows.ts');
+      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const variant = Object.values(CATALOG).flat().find((v) => v.name === wanted);
+      if (!variant) throw new Error(`no catalog variant ${wanted}`);
+      const draft = mergeDraft(initialDraft(), {
+        variantId: variant.id,
+        lines: variant.suggestedLines.map((l) => ({ ...l })),
+        zone: null,
+        logoEnabled: null,
+        animation: { presetId: null, outPresetId: null },
+        paletteId: null,
+        customPalette: null,
+        fontId: null,
+      });
+      const { error } = addGraphicToShow(id, await formatTemplate(buildDraftTemplate(variant, draft)), {});
+      const failure = error ?? (await commitDurableWrites());
+      if (failure) throw new Error(failure);
+    },
+    [showId, name] as const,
+  );
+}
+
 /**
  * Open the NEW editor on the working graphic, by its route (`/app?editor=foundation#/editor-
  * foundation`), the same place Finish's "Edit this graphic" lands. Its header carries the save

@@ -43,8 +43,8 @@ between the two columns is a handle: the rundown is as wide as the operator drag
 
 ```
 ┌ header ───────────────────────────────────────────────────────────────────────┐
-│ ▤ Show name  ● SHOW  00:42:17        ● Ready for Live · 2 of 2 outputs · 14:02│
-│                                         [Publish/links]  [Export…]  [■ All out]│
+│ ▤ Show name  [● Ready · on air 1-20 ▾]  00:42:17  Playout Data Audience       │
+│                                                     [Export…]  [■ All out]    │
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
 │  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │ 1 T Strap ✎ ON AIR L1│
 │  ┌───────────────┐            ┌───────────────┐         │ 2 T Topic card PVW L2│
@@ -88,18 +88,21 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   The phone hides the handle.
 - **THE HEADER OPENS WITH NAVIGATION, and ends with the panic control** (owner walk,
   2026-08-29). Left to right: the logo (which is the Home door here), **＋ New graphic**, ← back
-  to Productions, the production's name and mode, the clock, the workspace tabs - then the
+  to Productions, the production's name, the playout status, the clock, the workspace tabs - then the
   spacer, and only after it the authoring and air controls. The wizard door was in the right-hand
   cluster and is now the first control after Home, the same order every other shell uses
   (`src/components/AGENTS.md`, NewGraphicButton). That also puts the width of the header between
   it and **■ All out**: a hand reaching for the panic control must never land on navigation.
   **The output heartbeat is shown only when there IS an output** - see `docs/CLOUD_PLAYOUT.md` §3.
-  **It is the READY line now** (Phase 6 Step 3, `docs/work-specs/playout-ready/spec.md` R10): the
-  same slot, the same mono status face coloured by state (green ready, amber degraded, red an
-  output that is gone, dim preparing), and a button whose panel lists every output with what to
-  do. Below 1600px it takes its short form ("● Ready 2/2"); on the hosted page it sits by the
-  clock and on a phone keeps the short form with the panel spanning the screen. It never blocks a
-  verb.
+  **It is the playout status now** (`docs/work-specs/studio-day-playout` AC-7, owner 2026-10-01;
+  `home/PlayoutStatusControl.tsx`, words from `control/playoutStatus.ts`). One control of fixed
+  width replaced four that each knew a part (the SHOW / NOT PUBLISHED chip, Output links, the
+  READY line and the CasparCG dot): a colour and a short text, grey offline or unknown, amber for
+  attention, green on air and ready, red when something that should work is broken. Its panel
+  says which check set the colour, then lists the outputs, the actions (publish, unpublish, Put
+  on air, Prepare for Live, Check again), the playout setup (folded once the Bridge answers) and
+  the links. Offline, ▶ Start production sits beside it. On a phone it narrows and the panel spans
+  the screen. The hosted page keeps the READY line by its clock. Neither blocks a verb.
 - **ON A LAPTOP THE NAME OUTRANKS THE EXTRAS** (classroom walk, 2026-09-25). At 1366×768 and
   1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock and
   Export's word stand down (Export keeps its icon) and the tabs tighten, and under 1366px the
@@ -133,7 +136,7 @@ between the two columns is a handle: the rundown is as wide as the operator drag
     move by 0px.
   - **The other scrollers, each because it has nowhere else to go:** the cue list inside the
     rail (a forty-cue rundown), the Data and Audience sub-pages (which take the whole body while
-    open), and the `⋯` / links popovers. The lists and sub-pages are `overscroll-behavior:
+    open), and the `⋯` menu and the Playout panel. The lists and sub-pages are `overscroll-behavior:
     contain` too, so reaching the end of one never hands the wheel on.
   - **Both popovers go through `home/LibMenu`**, the shell Home's row menus use, so which WAY
     they open is MEASURED rather than assumed and each caps its own height. It measures against

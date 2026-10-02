@@ -23,7 +23,7 @@
    The other scrollers, each because it has nowhere else to go:
      - the cue list inside the rail (a forty-cue rundown);
      - the Data and Audience sub-pages, which take the whole body while they are open;
-     - .pd-cue-menu / .pd-links popovers, which scroll themselves when tall.
+     - .pd-cue-menu / .pd-ready-panel popovers, which scroll themselves when tall.
    Each list and page scroller is `overscroll-behavior: contain`, so reaching its end never
    hands the wheel on to anything else. A horizontal scrollbar is a layout bug. */
 .playout-dashboard {
@@ -101,49 +101,42 @@
    lines ("+ New / graphic", measured at 1366 on 2026-09-23), which reads as broken; every
    control keeps its one-line width and the name above is what shrinks. */
 .pd-header > :not(h1):not(.spacer) { flex-shrink: 0; }
-.pd-header > button,
-.pd-header > .pd-links-host > button { white-space: nowrap; }
+.pd-header > button { white-space: nowrap; }
 .pd-header .spacer { flex: 1; }
-/* Back and Home: two plain, labelled navigation buttons, never primary - the header's one
-   amber control is Output links, and navigation must not compete with it. */
+/* Back and Home: two plain, labelled navigation buttons, never primary - navigation must not
+   compete with the playout status beside them. */
 .pd-back,
 .pd-home { padding: 4px 9px; white-space: nowrap; flex: none; }
 
-/* OUTPUT LINKS (ProductionLinks.tsx): once published, the most-used thing on the page, so it
-   wears the accent OUTLINE - found at a glance, yet quieter than a filled primary, which stays
-   reserved for Take and ▶ Start production. */
-.pd-links-toggle {
+/* THE ONE PLAYOUT STATUS (home/PlayoutStatusControl.tsx, docs/work-specs/studio-day-playout AC-7):
+   a colour AND a short text in the owner's four - grey offline, amber attention, green ready, red
+   broken - beside the production's name. Its WIDTH IS FIXED, so a state that changes during a show
+   ("Ready · on air 1-20" to "Behind: showing v12") never moves the tabs to its right; a longer
+   text ends in an ellipsis, and the tooltip and the panel say it whole. Red is FILLED: it is the
+   one state that has to be seen from across the room. */
+.pd-status-host { flex: none; }
+.pd-status-control {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  width: 16em;
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
   white-space: nowrap;
-  color: var(--accent);
-  border-color: var(--accent-line, var(--accent));
-  background: var(--accent-bg, transparent);
-  font-weight: 600;
+  cursor: pointer;
 }
-.pd-links-toggle:hover,
-.pd-links-toggle[aria-expanded='true'] { border-color: var(--accent); }
-
-/* THE PLAYOUT SETTINGS DOOR (PlayoutSettingsDialog.tsx): "Playout", a status dot, and - on a
-   wide header - the state in words. The dot's colour carries the state at every width. */
-.pd-target { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
-.pd-target-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  flex: none;
-}
-.pd-target-ok .pd-target-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
-.pd-target-warn .pd-target-dot { background: #f59e0b; }
-.pd-target-bad .pd-target-dot { background: #ef4444; }
-.pd-target-idle .pd-target-dot { background: transparent; border: 1px solid var(--text-dim); }
-.pd-target-state { font-size: 12px; color: var(--text-dim); }
-/* Under 1600px the words stand down to the tooltip; the header needs the width for the name. */
-@media (max-width: 1600px) {
-  .pd-target-state { display: none; }
-}
+.pd-status-dot { flex: none; font-size: 11px; }
+.pd-status-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pd-status-control--ok { color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.45); }
+.pd-status-control--warn { color: #f59e0b; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.5); }
+.pd-status-control--bad { color: #fff; background: #b91c1c; border-color: #ef4444; }
+.pd-status-control:hover,
+.pd-status-control[aria-expanded='true'] { filter: brightness(1.15); }
 /* Share keeps its people icon and gives up its word under 1440px, where a signed-in header
    (the one that has Share at all) would otherwise squeeze the production's name to nothing.
    The button's title and accessible name still say "Share". */
@@ -185,8 +178,8 @@
 .pd-clock { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .pd-status { font-family: var(--mono, monospace); font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .pd-status.ok { color: #4ade80; }
-/* THE OUTPUT HEALTH LINE (components/control/OutputHealth.tsx), on the production page and the
-   hosted page alike. The status face of .pd-status: green only for an output that is connected
+/* THE OUTPUT HEALTH LINE (components/control/OutputHealth.tsx), the hosted page's header; the
+   production page carries the same outputs in its Playout panel. The status face of .pd-status: green only for an output that is connected
    and hearing commands live, amber when one says commands may arrive late, dim otherwise. The
    short form is the phone's (see the 900px block): the header there has room for a few words
    beside ● SHOW and All out, and this is the one status an operator on a phone must still see. */
@@ -202,15 +195,6 @@
    the one READY state that means a screen may not be hearing you at all. */
 .pd-health--bad { color: #ef4444; }
 .pd-health-short { display: none; }
-/* The production dashboard's header fills up as the window narrows (the Share word gives way at
-   1440 for the same reason). READY's lines are the long ones ("Ready for Live · 2 of 2 outputs ·
-   checked 14:02"), so there every tone takes its short form ("● Ready 2/2", "▲ 1/2 ready") below
-   1600; the panel and the tooltip carry the whole sentence. The hosted page's header holds little
-   else and keeps the sentence until the phone block. */
-@media (max-width: 1600px) {
-  .playout-dashboard:not(.hosted-dashboard) .pd-health-full { display: none; }
-  .playout-dashboard:not(.hosted-dashboard) .pd-health-short { display: inline; }
-}
 
 /* THE READY LINE IS A BUTTON (components/control/OutputHealth.tsx ReadyLine, docs/work-specs/
    playout-ready R10): the header keeps the health line's face - mono, coloured by state, no
@@ -303,34 +287,24 @@ button.pd-ready[aria-expanded='true'] { border-color: var(--border); background:
   white-space: nowrap;
 }
 .pd-allout:disabled { color: var(--text-dim); border-color: var(--border); }
-.pd-links-host { position: relative; }
-.pd-links {
-  position: absolute;
-  /* Anchored at the button's LEFT edge: the button sits on the header's left, beside ● SHOW,
-     so the panel opens into the page rather than off its left side. */
-  left: 0;
-  top: calc(100% + 6px);
-  /* The shared popover layer (base.css), so one shell's surfaces cannot stack differently
-     against the rest of the page. */
-  z-index: var(--z-popover);
-  width: min(520px, 90vw);
-  padding: 12px 14px;
-  background: var(--bg-2, #14161c);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
-  /* The cap §1 already promised this popover and it never had: six link rows with their ▸
-     explanations open, then the publish pair, measures 647px — taller than a 1366×768 laptop's
-     window, and no placement saves one of those, so it scrolls inside itself instead. It is
-     also what home/LibMenu measures, so the decision and the drawing agree. */
-  max-height: min(76vh, 620px);
-  overflow-y: auto;
+/* THE PLAYOUT PANEL under the status (the READY panel's surface): anchored at the control's LEFT
+   edge, since the control sits on the header's left, and wide enough for a link row. Its
+   sections - outputs, actions, setup, links - each under a small heading, in the owner's order. */
+.pd-status-host .pd-ready-panel { right: auto; left: 0; width: min(500px, 94vw); max-height: min(80vh, 680px); }
+.pd-panel-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.pd-panel-section-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
-/* THE FLIPPED PLACEMENT, the rule every home/LibMenu surface owes the shell (which measures the
-   6px gap above rather than restating it). In practice this panel hangs off a header pinned to
-   the TOP of the page, so the measurement keeps choosing down and the cap above is what puts the
-   tail back on screen — the rule is here so the shell is never half-wired on this surface. */
-.pd-links--up { top: auto; bottom: calc(100% + 6px); }
+details.pd-panel-section > summary.pd-panel-section-title { cursor: pointer; }
+.pd-panel-section .row { gap: 8px; margin-top: 8px; }
+.pd-panel-section .pd-prepare { margin-top: 12px; }
+.pd-panel-check { align-items: center; font-size: 12px; }
+.pd-status-checks { margin-bottom: 0; }
 
 /* ── Body: the stage column + the cue rail ─────────────────────────────────── */
 /* The body is exactly the height under the header. `min-height: 0` lets it be SMALLER than its
@@ -789,6 +763,12 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-pvw .pd-frame { box-shadow: inset 0 0 0 2px rgba(246, 166, 35, 0.7); }
 .pd-pgm .pd-frame { box-shadow: inset 0 0 0 2px rgba(239, 68, 68, 0.8); }
+/* NOT LIVE (docs/work-specs/studio-day-playout AC-9): a production that is not started keeps its
+   Takes on this page, so the monitor gives up the on-air red - grey heading, hollow dot, a dashed
+   frame - and nothing about it reads as air. */
+.pd-pgm--not-live h2 { color: var(--text-dim); }
+.pd-pgm--not-live .pd-dot { background: transparent; box-shadow: inset 0 0 0 1px var(--text-dim); }
+.pd-pgm--not-live .pd-frame { box-shadow: none; outline: 2px dashed var(--border); outline-offset: -2px; }
 /* A MONITOR IS A MONITOR: nothing inside it is operable, and a click that lands in the iframe
    moves focus into a document that does not listen for the verb keys - so SPACE, N and 0 go
    dead until the operator clicks something else, with nothing on screen saying why. The
@@ -2115,8 +2095,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-clock,
   .pd-status,
   .pd-back,
-  /* Setup and sharing stand down with the other authoring actions; Home stays. */
-  .pd-header .pd-target,
+  /* Sharing stands down with the other authoring actions; Home stays. */
   .pd-header [data-testid='share-with-team'],
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],
@@ -2131,27 +2110,25 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
      control that has to be reachable at any width. */
   .pd-header > button { flex: none; padding: 6px 9px; font-size: 12.5px; white-space: nowrap; }
   .pd-mode { font-size: 9.5px; padding: 3px 7px; letter-spacing: 0.06em; flex: none; }
-  /* "NOT PUBLISHED" costs 130px to repeat what the Start-production button beside it already
-     says, and the production's NAME was paying for it (truncated to "Fri"). ● SHOW is short
-     and is the one an operator must never miss, so only that one stays. */
-  .pd-mode-idle { display: none; }
-  /* The READY line keeps its SHORT form here ("● Ready 2/2", "✕ 1/2"): it is the only way a phone
-     operator learns the screens are not hearing them or not ready. It never shrinks: the
-     production's name is the one that truncates. */
+  /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
+     not hearing them. The production's name is the one that truncates. */
+  .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
+  /* ...except offline, where "Offline" costs 110px to repeat what ▶ Start production beside it
+     already says, and the production's NAME was paying for it (0px wide at 390). The monitor
+     still reads PREVIEW · NOT LIVE. */
+  .pd-status-host--offline { display: none; }
+  /* The READY line (the hosted page's header) keeps its SHORT form here ("● Ready 2/2"). */
   .pd-health { flex: none; font-size: 11px; }
   .pd-header > .pd-ready-host { flex: none; }
   button.pd-ready { padding: 4px 6px; }
   .pd-health-full { display: none; }
   .pd-health-short { display: inline; }
-  /* Its panel spans the phone's width under the header, as the links panel does. */
+  /* Its panel, and the Playout panel, span the phone's width under the header. */
   .pd-ready-panel,
+  .pd-status-host .pd-ready-panel,
   .hosted-dashboard .pd-ready-panel { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
   /* Home STAYS at this width - it is the one way off the page on a phone, and a four-letter
      word is cheaper than the name it shares the row with. */
-  /* The links panel spans the phone's width under the header rather than hanging off its
-     button, which at this width sits close enough to the right edge to push it off screen. */
-  .pd-links { position: fixed; left: 8px; right: 8px; top: 52px; width: auto; }
-  .pd-links-toggle { padding: 6px 9px; font-size: 12.5px; }
 
   /* Monitor labels stay ONE line: at 390px "PROGRAM · ON AIR" wrapped and pushed the frame
      down, and the cue name beside it is the first thing worth dropping. */
@@ -2394,7 +2371,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* ── The playout server's library (docs/BRIDGE.md §5) ──────────────────────────────────
    The picker is a popover off the rail's foot, through the shared LibMenu shell - which
    measures which way to open, and at the bottom of the rail that is up. Same surface rules
-   as .pd-links: an offset, an --up variant, a max-height. */
+   as the other popovers: an offset, an --up variant, a max-height. */
+.pd-picker-host { position: relative; }
 .pd-picker {
   position: absolute;
   left: 0;

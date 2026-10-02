@@ -227,7 +227,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   // ── PUBLISH ─────────────────────────────────────────────────────────────────────────────────
   const publishStarted = Date.now();
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 60_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
   timings.push(`publish ${((Date.now() - publishStarted) / 1000).toFixed(1)}s`);
   await page.keyboard.press('Escape'); // publishing opens the links popover
 

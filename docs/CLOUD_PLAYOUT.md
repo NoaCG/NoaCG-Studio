@@ -538,9 +538,10 @@ send.
     eight items and Out costs two). With per-layer Out no single verb clears the frame any
     more, and "get everything off" is the one an operator reaches for under pressure.
   - **Preview** — no verb on the wire; the local iframe above.
-- **Status** — the READY line (`components/control/OutputHealth.tsx`, words from
-  `control/readiness.ts`), the SAME line on the production page and the hosted page, so on a
-  phone too: each output's own READY answer in the plan's words ("Preparing 18 of 24", "Ready for
+- **Status** — on the production page, the playout status (§4a), whose panel lists the outputs;
+  on the hosted page, the READY line (`components/control/OutputHealth.tsx`, words from
+  `control/readiness.ts`). Both read the same `useReadinessView`, so on a phone too: each output's
+  own READY answer in the plan's words ("Preparing 18 of 24", "Ready for
   playout", "Not ready: Frost Quiz (script error)", "Behind: showing v12", "Commands may arrive up
   to 30 s late"), and an output that was connected and is gone as "CasparCG 1-20 not answering
   (40 s)", red after 15 s. It is a button; its panel lists every output and what to do. The
@@ -552,7 +553,7 @@ send.
   polls it every 30 s, the signed-out hosted page shows the value it resolved with and says so).
   Every live layer with its cue + machine state + applied values (from `live` reports), publish
   freshness.
-- **Prepare for Live** — production page only, in the READY panel
+- **Prepare for Live** — production page only, in the Playout panel
   (`components/control/PrepareForLive.tsx`, decisions in `control/prepareLive.ts`). Optional and
   never a gate. Before the press it says whether unpublished changes will be included; pressed, it
   publishes them (or says "Nothing changed since v12"), asks every output to prepare that version,
@@ -566,15 +567,31 @@ send.
   (v12)", or the warnings and problems counted. The stamp is kept per production in the browser,
   announced for the hosted page and the phone, and after a later change reads "Checked 14:02 on
   v12, 1 change since". Editing goes on during and after it.
+- **Every publish also prepares** (owner, 2026-10-01; docs/work-specs/studio-day-playout AC-10).
+  ⟳ Publish changes on a started production sets the same prepare request Prepare for Live sets,
+  without its checklist, so every output loads the new version before the next take rather than
+  at it. The request is cleared after the same 60 s, and the status reads "Preparing N of M" in
+  amber until the outputs report the new version, then green.
 
 Mobile: the hosted page keeps its single-column layout; the cue strip, field editor, and the
 verb row are the priority content (the preview collapses first).
 
 ## 4a. Two states, and no Rehearse mode
 
-**A production is either published or it is not, and the header's mode strip says which:**
-`● SHOW` or `○ NOT PUBLISHED` (`ProductionPage.tsx`, `data-testid="production-mode"`). There is no
-third state and no mode to choose.
+**A production is either published or it is not, and the header's playout status says which**
+(`PlayoutStatusControl.tsx`, `data-testid="production-status"`, `data-started`). Offline it is
+grey and reads "Offline", with ▶ Start production beside it; started, its colour and short text
+come from `describePlayoutStatus` (`src/control/playoutStatus.ts`): grey while nothing can be
+checked, amber for something to attend to (unpublished changes, an output behind or preparing,
+this production still loading on its slot, no output connected), green when an output is on air
+and has reported ready, red when something that should work is broken (the Bridge or CasparCG not
+answering, the output slot empty, holding another production or unreadable, an output not
+responding, a graphic that cannot play). A press opens the Playout panel, which names the check
+behind the colour, then the outputs, the actions, the setup and the links. The monitor says the
+same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not, except
+while server media this page took is playing: NoaCG Bridge airs that either way, so the monitor is
+on air then too. There
+is no third state and no mode to choose.
 
 A REHEARSE mode was built and then removed (`docs/PLAYOUT_DASHBOARD.md` §6). It was a second way
 to do what the surface already does: **preview is local and always available, published or not.**

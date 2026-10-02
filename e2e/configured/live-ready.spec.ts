@@ -8,53 +8,16 @@
 // resolve and no topic to join.
 // covers: src/control/readiness.ts, src/control/payloadVersion.ts, src/components/control/OutputHealth.tsx, src/output/main.ts, src/output/stage.ts, src/preview/composeDocument.ts, src/model/readyMemory.ts
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow, unpublishFromPanel } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
 /** Where the screenshots go: READY_SHOTS when a person wants to look at them after the run, the
  *  test's own output folder otherwise. */
 const shot = (name: string) => (process.env.READY_SHOTS ? `${process.env.READY_SHOTS}/ready-${name}.png` : test.info().outputPath(`${name}.png`));
-
-type ReadyWindow = {
-  __noacgLive?: {
-    presence: () => string;
-    ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
-  };
-};
-const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
-
-/** Add a catalog graphic to a production through the same model call the rundown's "+ Add" makes. */
-async function addCatalogGraphic(page: Page, showId: string, name: string): Promise<void> {
-  await page.evaluate(
-    async ([id, wanted]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const variant = Object.values(CATALOG).flat().find((v) => v.name === wanted);
-      if (!variant) throw new Error(`no catalog variant ${wanted}`);
-      const draft = mergeDraft(initialDraft(), {
-        variantId: variant.id,
-        lines: variant.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      });
-      const { error } = addGraphicToShow(id, await formatTemplate(buildDraftTemplate(variant, draft)), {});
-      const failure = error ?? (await commitDurableWrites());
-      if (failure) throw new Error(failure);
-    },
-    [showId, name] as const,
-  );
-}
 
 test('READY: every output says whether it is ready, both surfaces read one line, a broken graphic is named and a dead output is red', async ({ page, browser }) => {
   test.setTimeout(360_000);
@@ -65,8 +28,8 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   const showName = `Ready ${Date.now()}`;
   const showId = await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
-  await page.getByTestId('production-links-toggle').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
@@ -107,25 +70,27 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   // ── AC-5: the production page and the hosted page show ONE line, from the output's own entry.
   //    An entry changes at most once per 10 s (the Presence budget, presenceGate.ts), so a state
   //    the output reached a moment ago can take that long to reach the pages. ──
-  const desk = page.getByTestId('renderer-status');
+  // The production page reads READY through its one playout status (studio-day-playout AC-7),
+  // which carries READY's own words and counts.
+  const desk = page.getByTestId('production-status');
   await expect(desk).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
   await expect(desk).toHaveAttribute('data-outputs', '1');
   if (fontsOk) {
     await expect(desk).toHaveAttribute('data-tone', 'ok', { timeout: 30_000 });
-    await expect(desk.locator('.pd-health-full')).toHaveText('● Ready for playout · 1 of 1 output');
+    await expect(desk).toHaveAttribute('data-ready-label', '● Ready for playout · 1 of 1 output');
   } else {
     await expect(desk).toHaveAttribute('data-tone', 'warn', { timeout: 30_000 });
-    await expect(desk.locator('.pd-health-full')).toContainText('Using a fallback font for');
+    await expect(desk).toHaveAttribute('data-ready-label', /Using a fallback font for/);
   }
   const hosted = await anon.newPage();
   await hosted.setViewportSize({ width: 1440, height: 900 });
   await hosted.goto(`/app?control=${encodeURIComponent(hostedSlug)}`);
   const phoneLine = hosted.getByTestId('hosted-output-health');
   await expect(phoneLine).toHaveAttribute('data-source', 'ready', { timeout: 60_000 });
-  await expect(phoneLine.locator('.pd-health-full')).toHaveText((await desk.locator('.pd-health-full').textContent())!, { timeout: 30_000 });
+  await expect(phoneLine.locator('.pd-health-full')).toHaveText((await desk.getAttribute('data-ready-label'))!, { timeout: 30_000 });
   // The panel names the output by the name its URL gave it.
   await desk.click();
-  const panel = page.getByTestId('renderer-status-panel');
+  const panel = page.getByTestId('production-status-panel');
   await expect(panel.getByTestId('ready-output')).toHaveCount(1);
   await expect(panel).toContainText('Desk A');
   await expect(panel).toContainText('Holds v1');
@@ -160,20 +125,22 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await expect(scorebug()).toContainText('READY TEST', { timeout: 10_000 });
   await page.waitForTimeout(1_500);
   await expect(scorebug()).toContainText('READY TEST');
-  await page.getByTestId('verb-out').click();
 
-  // ── AC-4: after a publish the open output holds the version before, and says so. ──
+  // ── AC-4: after a publish, an open output with a graphic ON AIR keeps the version before, and
+  //    says so. (With nothing on air every publish now moves it onto the new version by itself:
+  //    docs/work-specs/studio-day-playout AC-10, e2e/configured/playout-status.spec.ts.) ──
   await addCatalogGraphic(page, showId, 'Hairline');
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Publish changes/ }).click();
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('production-republish').click();
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
-  await page.getByTestId('production-links-toggle').click();
-  await expect(desk.locator('.pd-health-full')).toContainText('Behind: showing v1', { timeout: 30_000 });
+  await page.getByTestId('production-status').click();
+  await expect(desk).toHaveAttribute('data-ready-label', /Behind: showing v1/, { timeout: 30_000 });
   await expect(phoneLine.locator('.pd-health-full')).toContainText('Behind: showing v1', { timeout: 30_000 });
   await page.screenshot({ path: shot('desk-behind'), clip: { x: 0, y: 0, width: 1920, height: 120 } });
+  await page.getByTestId('verb-out').click();
   await air.reload();
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 60_000 }).toBe(2);
-  await expect(desk.locator('.pd-health-full')).not.toContainText('Behind', { timeout: 30_000 });
+  await expect(desk).not.toHaveAttribute('data-ready-label', /Behind/, { timeout: 30_000 });
 
   // ── AC-2: a graphic that throws while loading is named, and the output reads not ready. ──
   // The publish gate refuses such a graphic in the studio, so the fault is put straight into the
@@ -184,7 +151,11 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await admin.from('control_shows').update({ output }).eq('id', showId);
   await air.reload();
   await expect.poll(async () => (await readyOf(air))?.is.find((i) => i.k === 'script')?.g, { timeout: 60_000 }).toBe('Hairline');
-  await expect(desk.locator('.pd-health-full')).toHaveText('▲ Not ready: Hairline (script error)', { timeout: 30_000 });
+  await expect(desk).toHaveAttribute('data-ready-label', '▲ Not ready: Hairline (script error)', { timeout: 30_000 });
+  // READY's line reads it amber (its other graphics still air); the production page's status reads
+  // a graphic that cannot play red, by name (docs/work-specs/studio-day-playout AC-7).
+  await expect(desk).toHaveAttribute('data-tone', 'bad');
+  await expect(desk).toContainText('Not ready: Hairline');
   await expect(phoneLine.locator('.pd-health-full')).toHaveText('▲ Not ready: Hairline (script error)', { timeout: 30_000 });
   // Its other graphic still takes.
   await page.getByTestId('verb-take').click();
@@ -199,7 +170,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   // ── AC-6: the output goes away: after 15 s both surfaces read it in red, by its name. ──
   await air.close();
   await expect(desk).toHaveAttribute('data-tone', 'bad', { timeout: 40_000 });
-  await expect(desk.locator('.pd-health-full')).toContainText('Desk A not answering (');
+  await expect(desk).toHaveAttribute('data-ready-label', /Desk A not answering \(/);
   await expect(phoneLine).toHaveAttribute('data-tone', 'bad', { timeout: 40_000 });
   await hosted.getByTestId('hosted-output-health').click();
   // In the panel the line is headed by the output's name, and the state under it says the rest.
@@ -213,9 +184,8 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await page.getByTestId('ready-forget').click();
   await expect(desk).not.toHaveAttribute('data-tone', 'bad', { timeout: 10_000 });
 
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();

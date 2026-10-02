@@ -14,13 +14,12 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishFromPanel, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
 const shot = (name: string) => (process.env.READY_SHOTS ? `${process.env.READY_SHOTS}/prepare-${name}.png` : test.info().outputPath(`${name}.png`));
 
-type ReadyWindow = { __noacgLive?: { presence: () => string; ready: () => { n: number; of: number; v: { n: number } | null } } };
 
 /** Open the READY panel if it is shut. */
 async function openPanel(page: Page, testId: string): Promise<void> {
@@ -52,8 +51,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   ).toBeFalsy();
   const showId = await openProductionWithCurrent(page, `Prepare ${Date.now()}`);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
-  await page.getByTestId('production-links-toggle').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
     const { loadShows } = await import('/src/model/shows.ts');
     const s = loadShows().find((x) => x.id === id);
@@ -67,13 +66,13 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   const presence = () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence());
   await expect.poll(presence, { timeout: 30_000 }).not.toBe('joining');
   test.skip((await presence()) !== 'joined', 'this server has no live topic (migration 0068): Prepare for Live rides Presence');
-  await expect.poll(async () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().n), { timeout: 30_000 }).toBe(1);
-  const desk = page.getByTestId('renderer-status');
+  await expect.poll(async () => (await readyOf(air))?.n, { timeout: 30_000 }).toBe(1);
+  const desk = page.getByTestId('production-status');
   await expect(desk).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
 
   // ── AC-8: nothing unpublished, so it only checks, and says so before it is pressed. ──
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await openPanel(page, 'renderer-status');
+  await openPanel(page, 'production-status');
   const prepare = page.getByTestId('prepare-for-live');
   await expect(prepare).toContainText('Every output is checked on v1');
   await page.getByTestId('prepare-for-live-button').click();
@@ -86,7 +85,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   // ── AC-12: one ping through the command path, answered by the output (migration 0072). ──
   await expect(page.getByTestId('prepare-checklist')).toContainText(/Desk A: .* · (command path \d+ ms|commands reach it)/);
   await page.screenshot({ path: shot('desk-1920-stamp') });
-  if (clean) await expect(desk.locator('.pd-health-full')).toContainText('● Ready for Live · 1 of 1 output · checked', { timeout: 30_000 });
+  if (clean) await expect(desk).toHaveAttribute('data-ready-label', /● Ready for Live · 1 of 1 output · checked/, { timeout: 30_000 });
 
   // ── AC-11: the phone shows the same stamp, from the production page's Presence entry. ──
   const hosted = await anon.newPage();
@@ -98,18 +97,18 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
 
   // ── AC-8, AC-11: an edit after the stamp keeps it honest, and the next run publishes it. Editing
   //    is never frozen: the field takes the text while the stamp stands. ──
-  await page.getByTestId('renderer-status').click();
+  await page.getByTestId('production-status').click();
   const teamA = page.getByTestId('cue-field-f0');
   await teamA.fill('PREPARED');
   await teamA.blur();
-  await openPanel(page, 'renderer-status');
+  await openPanel(page, 'production-status');
   await expect(page.getByTestId('prepare-stamp')).toContainText(/Checked \d\d:\d\d on v1, 1 change since/, { timeout: 15_000 });
   await expect(prepare).toContainText('Your unpublished changes will be published and included');
   await page.getByTestId('prepare-for-live-button').click();
   // The panel shuts on any click outside it (a Take, say), here while the run is still publishing;
   // the run goes on to its stamp regardless, and the checklist is there when the panel reopens.
-  await page.getByTestId('renderer-status').click();
-  await expect(page.getByTestId('renderer-status-panel')).toHaveCount(0);
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('production-status-panel')).toHaveCount(0);
   await expect
     .poll(
       () =>
@@ -120,11 +119,11 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
       { timeout: 90_000 },
     )
     .toBe(2);
-  await openPanel(page, 'renderer-status');
+  await openPanel(page, 'production-status');
   await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2');
   await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d \(v2\)/i, { timeout: 90_000 });
   // A cue-only change moved the number, not what the output renders: it prepared nothing, and holds v1.
-  expect((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n).toBe(1);
+  expect((await readyOf(air))?.v?.n).toBe(1);
 
   // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
   //    save does, with the production record untouched. It is still an unpublished change (a
@@ -150,7 +149,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await page.getByTestId('prepare-for-live-button').click();
   await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v3', { timeout: 90_000 });
   await expect
-    .poll(async () => (await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n ?? 0, { timeout: 90_000 })
+    .poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 90_000 })
     .toBe(3);
 
   // ── AC-11: an output that has gone makes the stamp say so. ──
@@ -160,10 +159,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A: not answering');
   await page.screenshot({ path: shot('desk-1920-not-ready') });
 
-  await page.getByTestId('renderer-status').click();
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
   await anon.close();

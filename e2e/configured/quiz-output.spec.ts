@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE PUBLISHED QUIZ PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the hidden-pick
 // sequence driven from the production dashboard, rendered by the REAL /output page over the
@@ -43,7 +43,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   const showName = `Live Quiz ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover (the URLs are the point). Close it through its OWN
   // toggle: the shell has no backdrop element to click any more (a covering div ate the press
   // meant for whatever the operator clicked next — home/LibMenu), and Escape is a race here.
@@ -54,7 +54,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   // is a state flip and cannot miss.
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 
   const outputSlug = await page.evaluate(async (name) => {
@@ -123,9 +123,8 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);

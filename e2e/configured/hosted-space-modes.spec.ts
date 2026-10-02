@@ -38,10 +38,10 @@ test('the hosted page carries both SPACE modes: the cursor previews nothing, SPA
   await page.getByTestId('cue-label').blur();
 
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
   const slug = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');

@@ -247,7 +247,7 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   const panel = page.getByTestId('production-links');
   await expect(panel).toBeVisible();
 
@@ -268,7 +268,7 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
 
   // Escape closes it. Worth pinning HERE because this popover's other closing routes are only
   // reachable against a real backend (the e2e/configured specs dismiss it after a live publish),
-  // and nothing in CI runs those — so without this the shell could stop closing `pd-links` and
+  // and nothing in CI runs those — so without this the shell could stop closing the panel and
   // every gate would still be green.
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
@@ -369,8 +369,9 @@ test('the header shows a two-word production name in full on a school laptop, an
 
   await check('unpublished');
 
-  // Published, with the output URL taken, is the WIDER header: ● SHOW, Output links and the
-  // renderer's status. Before the fix it was 1360px wide at 1280, with ■ All out off the screen.
+  // Published, with the output URL taken: the playout status takes the place of the old state
+  // chip, Output links and READY line together (docs/work-specs/studio-day-playout AC-7). Before
+  // the laptop tiers that header was 1360px wide at 1280, with ■ All out off the screen.
   await page.evaluate(async (showId: string) => {
     const { setShowHostedSlug, noteShowOutputOpened } = await import('/src/model/shows.ts');
     setShowHostedSlug(showId, 'demo-slug');
@@ -378,7 +379,7 @@ test('the header shows a two-word production name in full on a school laptop, an
   }, id);
   await settleDurableWrites(page);
   await page.reload();
-  await expect(page.getByTestId('renderer-status')).toBeVisible();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
   await check('published');
 });
 
@@ -696,7 +697,7 @@ test('the program monitor is the real renderer, and every verb reaches it withou
 
   // Unpublished: the mode says so and publishing is unavailable offline — but the verbs are
   // live, because the monitor they drive is right here. There is no rehearsal toggle to find.
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
   await expect(page.getByTestId('production-publish')).toBeDisabled();
   await expect(page.getByTestId('verb-take')).toBeEnabled();
   await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
@@ -794,10 +795,11 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   skipOldEditor();
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED');
-  // Unpublished says nothing about a renderer it does not have: a second "not published" beside
-  // the mode chip was noise, not status.
-  await expect(page.getByTestId('renderer-status')).toHaveCount(0);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+  // Not started reads grey "Offline", never red, and the monitor says a Take stays here.
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'idle');
+  await expect(page.getByTestId('production-status')).toContainText('Offline');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
   await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 
   // Fake a published record (the wire itself is backend-gated and lives on the live checklist).
@@ -810,11 +812,12 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW');
-  // Published is NOT enough (owner walk, 2026-08-29): publishing mints the output slug whether
-  // or not anybody wants an output, so a header reading "output not seen lately" beside a
-  // production with no browser source anywhere sounds like a fault and is not one.
-  await expect(page.getByTestId('renderer-status')).toHaveCount(0);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  // Started with nothing to air it and no Bridge: amber, and it says what to do - never a fault
+  // claimed about a renderer nobody set up (owner walk, 2026-08-29).
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'warn');
+  await expect(page.getByTestId('production-status')).toContainText('No output connected');
 
   // Taking the output URL is what makes the heartbeat a real question. Recorded on the show
   // record, so it survives the reload the way the slug does.
@@ -825,11 +828,8 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   await settleDurableWrites(page);
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
-  const heartbeat = page.getByTestId('renderer-status');
-  await expect(heartbeat).toBeVisible();
-  // Nobody has loaded it, and the readout says exactly that rather than implying a failure.
-  await expect(heartbeat).toContainText('output not loaded yet');
-  await expect(heartbeat).toHaveAttribute('title', /Open it once in your browser source/);
+  // Nobody has loaded it, and the reading underneath says exactly that rather than a failure.
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-ready-label', /output not loaded yet/);
   await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 });
 
@@ -1063,7 +1063,7 @@ test('a published production offers the SPX template file beside its output URL'
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
 
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByTestId('download-output-embed').click(),

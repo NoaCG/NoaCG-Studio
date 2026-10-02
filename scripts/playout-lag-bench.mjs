@@ -592,9 +592,9 @@ async function publishFixture() {
   await page.goto(`${base}/app#/production/${showId}`);
   await page.waitForSelector('[data-testid="cue-editor"]');
   await page.getByTestId('production-publish').click();
-  // The header's mode chip is the page's own answer to "am I published", read off `hostedSlug`.
+  // The playout status is the page's own answer to "am I published", read off `hostedSlug`.
   await page.waitForFunction(
-    () => document.querySelector('[data-testid="production-mode"]')?.textContent?.includes('SHOW') ?? false,
+    () => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-started') === 'true',
     null,
     { timeout: 90_000 },
   );
@@ -872,10 +872,10 @@ for (let r = 0; r < ROUNDS; r++) {
 // build, one stretch of the machine's day, and the only thing that changed is which road
 // `runVerb` takes. It is also the cleanup - unpublish DELETES the `control_shows` row.
 if (fixture.hostedSlug) {
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await page.getByTestId('production-unpublish').click();
   await page.waitForFunction(
-    () => document.querySelector('[data-testid="production-mode"]')?.textContent?.includes('NOT PUBLISHED') ?? false,
+    () => document.querySelector('[data-testid="production-status"]')?.getAttribute('data-started') === 'false',
     null,
     { timeout: 60_000 },
   );

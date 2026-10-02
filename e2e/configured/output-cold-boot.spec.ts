@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE COLD BOOT (docs/CLOUD_PLAYOUT.md §3): the cue is taken BEFORE any renderer exists, and the
 // browser source is opened afterwards. That is the ordinary order in a control room — the
@@ -53,12 +53,12 @@ test('a cue taken before the renderer exists is on air when the browser source b
   const showName = `Cold Boot ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
   await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-mode')).toContainText('SHOW', { timeout: 30_000 });
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (quiz-output.spec.ts says why
   // that rather than Escape, and why not a backdrop).
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();
-  await page.getByTestId('production-links-toggle').click();
+  await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();
 
   const slugs = await page.evaluate(async (name) => {
@@ -130,9 +130,8 @@ test('a cue taken before the renderer exists is on air when the browser source b
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-links-toggle').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
-  await expect(page.getByTestId('production-mode')).toContainText('NOT PUBLISHED', { timeout: 20_000 });
+  await unpublishFromPanel(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');
     for (const s of loadShows()) deleteShow(s.id);
