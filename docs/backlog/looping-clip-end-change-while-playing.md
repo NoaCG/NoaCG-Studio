@@ -37,17 +37,21 @@ On scratch servers (2.5.0 `69e8ad5 Stable` and the 2.3.3 LTS folder's `2.3.2`, A
 A new verb, `ending`, with the Bridge feature `ending` (protocol v2, additive; an older Bridge
 refuses the verb rather than playing the clip again):
 
-- `{ verb: 'ending', slot, item, playback?: { end, fadeOut }, then?: [entries] }`. Hold sends
-  `CALL c-l LOOP 0`; Loop sends `CALL c-l LOOP 1`; both take away what this Bridge had queued
-  behind the clip (`LOADBG c-l EMPTY`). Clear sends `LOOP 0` and queues the empty layer with AUTO
-  and its fade. Play next (`then`) sends `LOOP 0`, queues the next file, and starts a sequence whose
-  first entry is the clip already on air, so the runner plays the rest as for any Play next.
-- The Bridge changes an ending only on the clip it put on air there itself (its instance on the
-  slot); otherwise it refuses, sends nothing and leaves any running sequence alone.
-- Tests: `cli/test/runner.test.mjs`, the five tests under "AN ENDING CHANGED ON AIR" (four fail
-  without the change), against the fake server, which now models `CALL … LOOP`. The real Bridge
-  code was also run against the scratch 2.5.0: a looping A3 set to play B4 then A3 with Clear went
-  on without restarting, played B4 at the end of its pass, then A3, then cleared.
+- `{ verb: 'ending', slot, item, playback?: { end, fadeOut }, then?: [entries] }`. Play next
+  (`then`) queues the next file with AUTO first, while the loop still holds it back, then sends
+  `CALL c-l LOOP 0`, and starts a sequence whose first entry is the clip already on air, so the
+  runner plays the rest as for any Play next. Clear queues the empty layer with AUTO and its fade,
+  then `LOOP 0`. Hold takes away what this Bridge had queued behind the clip (`LOADBG c-l EMPTY`),
+  then `LOOP 0`. Loop sends `CALL c-l LOOP 1`, then takes the follower away. Behind a looping clip
+  AUTO never fires (measured on 2.5.0, `frames_left` about 2^32), so no order leaves a moment the
+  clip could end into the wrong thing.
+- The Bridge changes an ending only on the clip it put on air there itself, judged from a fresh
+  reading of the channel; otherwise it refuses and sends nothing. A refused change leaves a running
+  sequence as it was.
+- Tests: `cli/test/runner.test.mjs`, the tests under "AN ENDING CHANGED ON AIR" (four of the first
+  five failed before the change), against the fake server, which now models `CALL … LOOP`. The real
+  Bridge code was also run against the scratch 2.5.0: a looping A3 set to play B4 then A3 with Clear
+  went on without restarting, played B4 at the end of its pass, then A3, then cleared.
 - The page's half of the action: `endingAction` in `src/control/serverPlayout.ts`, tested in
   `scripts/server-playout.test.mjs`.
 
