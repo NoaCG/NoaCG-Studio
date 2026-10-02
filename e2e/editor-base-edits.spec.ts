@@ -43,7 +43,7 @@ async function seed(page: Page, name = 'catalog', nested = false) {
   await expect(page.locator('.ef-selection rect')).toHaveCount(1);
 }
 async function numeric(page: Page, label: string, value: number) {
-  if (!label.startsWith('Box ')) label = 'Base ' + label;
+  label = 'Base ' + label;
   const details = page.locator('.ef-inspector details');
   await details.evaluate(el => { (el as HTMLDetailsElement).open = true; });
   await details.getByRole('textbox', { name: label, exact: true }).fill(String(value));
@@ -346,7 +346,9 @@ test('B04 tools create real text fields, shapes, selection and bars; box reflows
   await frame.evaluate(({ id }) => (window as unknown as { update(s: string): void }).update(JSON.stringify({ [id]: 'A longer operator headline that wraps onto several readable lines' })), { id: field.field });
   await expect(frame.locator('#' + field.field)).toContainText('longer operator');
   const before = await rect(page, '#' + field.field);
-  await numeric(page, 'Box width', 120);
+  // The box's Width sits beside Long text in the type section (R1.2b.2).
+  const boxWidth = page.locator('.ef-inspector').getByRole('spinbutton', { name: 'Width', exact: true });
+  await boxWidth.fill('120'); await boxWidth.press('Enter'); await ready(page);
   await expect.poll(async () => (await rect(page, '#' + field.field)).height).toBeGreaterThan(before.height);
   const glyphSize = await frame.locator('#' + field.field).evaluate(el => getComputedStyle(el).fontSize);
   expect(glyphSize).toBe('48px');
