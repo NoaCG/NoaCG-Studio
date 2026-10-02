@@ -1,0 +1,13 @@
+{
+  "cell": "b2-hockey-D",
+  "toolCalls": 66,
+  "opened": [
+    "README.md",
+    "SKILL.md",
+    "commands/graphic.md",
+    "references/contract.md",
+    "references/validator.md"
+  ],
+  "optInOpened": [],
+  "flags": []
+}

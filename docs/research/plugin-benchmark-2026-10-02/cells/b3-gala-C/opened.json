@@ -1,0 +1,15 @@
+{
+  "cell": "b3-gala-C",
+  "toolCalls": 56,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/critique.md"
+  ],
+  "optInOpened": [
+    "references/critique.md"
+  ],
+  "flags": [
+    "used mcp__Claude_Browser__computer"
+  ]
+}

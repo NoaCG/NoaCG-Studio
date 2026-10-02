@@ -1,0 +1,13 @@
+{
+  "cell": "b6-results-G",
+  "toolCalls": 66,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/design-notes.md"
+  ],
+  "optInOpened": [
+    "references/design-notes.md"
+  ],
+  "flags": []
+}

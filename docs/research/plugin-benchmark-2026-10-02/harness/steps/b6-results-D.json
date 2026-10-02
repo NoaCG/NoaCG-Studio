@@ -1,0 +1,8 @@
+[
+  {"fill": "f0", "value": "Miehet 15 km perinteinen"},
+  {"fill": "f2", "value": "Ville-Pekka Vähäkangas-Heikkilä | Pohjois-Pohjanmaan Hiihtoseura | 38:12.4\nJuho Mäkinen | Vuokatti Ski Team Kainuu | 38:40.9\nOlli Kärkkäinen | Lahden Hiihtoseura | 39:05.0\nAntti Koskinen | Kalevan Kiri | DSQ\nMikko Ylönen | Jämin Jänne | DNF"},
+  {"click": "verb-update"}, {"wait": 3000},
+  {"shot": "update-five-rows-dsq-dnf", "page": false},
+  {"click": "verb-retake"}, {"wait": 3500},
+  {"shot": "retake-five-rows", "page": false}
+]

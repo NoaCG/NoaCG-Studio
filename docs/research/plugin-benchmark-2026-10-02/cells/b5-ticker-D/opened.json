@@ -1,0 +1,11 @@
+{
+  "cell": "b5-ticker-D",
+  "toolCalls": 65,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/validator.md"
+  ],
+  "optInOpened": [],
+  "flags": []
+}

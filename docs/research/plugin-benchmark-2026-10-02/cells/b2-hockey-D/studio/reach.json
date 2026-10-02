@@ -1,0 +1,152 @@
+[
+  {
+    "id": "verb-take",
+    "label": "⟳ TAKE SPACE",
+    "onScreen": true,
+    "top": 76
+  },
+  {
+    "id": "verb-update",
+    "label": "✎ Update U",
+    "onScreen": true,
+    "top": 149
+  },
+  {
+    "id": "verb-next",
+    "label": "» Next N",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "verb-out",
+    "label": "■ Out 0",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "cue-action-clockStart",
+    "label": "⚡ Start clock",
+    "onScreen": true,
+    "top": 832
+  },
+  {
+    "id": "cue-action-clockStop",
+    "label": "⚡ Stop clock",
+    "onScreen": true,
+    "top": 832
+  },
+  {
+    "id": "cue-action-clockReset",
+    "label": "⚡ Reset clock to period start",
+    "onScreen": true,
+    "top": 832
+  },
+  {
+    "id": "cue-action-goalA",
+    "label": "⚡ Goal team A",
+    "onScreen": false,
+    "top": 890
+  },
+  {
+    "id": "cue-action-goalB",
+    "label": "⚡ Goal team B",
+    "onScreen": false,
+    "top": 890
+  },
+  {
+    "id": "cue-action-ppA",
+    "label": "⚡ Power play team A",
+    "onScreen": false,
+    "top": 948
+  },
+  {
+    "id": "cue-action-ppB",
+    "label": "⚡ Power play team B",
+    "onScreen": false,
+    "top": 948
+  },
+  {
+    "id": "cue-action-ppEnd",
+    "label": "⚡ End power play",
+    "onScreen": false,
+    "top": 948
+  },
+  {
+    "id": "cue-action-nextPeriod",
+    "label": "⚡ Next period",
+    "onScreen": false,
+    "top": 1006
+  },
+  {
+    "id": "cue-action-interval",
+    "label": "⚡ Intermission",
+    "onScreen": false,
+    "top": 1006
+  },
+  {
+    "id": "cue-action-resumePlay",
+    "label": "⚡ Back from intermission",
+    "onScreen": false,
+    "top": 1006
+  },
+  {
+    "id": "cue-action-final",
+    "label": "⚡ Final",
+    "onScreen": false,
+    "top": 1006
+  },
+  {
+    "id": "live-number-f1",
+    "label": "Score A − +",
+    "onScreen": false,
+    "top": 1107
+  },
+  {
+    "id": "live-number-f1-down",
+    "label": "−",
+    "onScreen": false,
+    "top": 1110
+  },
+  {
+    "id": "live-number-f1-up",
+    "label": "+",
+    "onScreen": false,
+    "top": 1110
+  },
+  {
+    "id": "live-number-f3",
+    "label": "Score B − +",
+    "onScreen": false,
+    "top": 1107
+  },
+  {
+    "id": "live-number-f3-down",
+    "label": "−",
+    "onScreen": false,
+    "top": 1110
+  },
+  {
+    "id": "live-number-f3-up",
+    "label": "+",
+    "onScreen": false,
+    "top": 1110
+  },
+  {
+    "id": "live-number-f4",
+    "label": "Period − +",
+    "onScreen": false,
+    "top": 1107
+  },
+  {
+    "id": "live-number-f4-down",
+    "label": "−",
+    "onScreen": false,
+    "top": 1110
+  },
+  {
+    "id": "live-number-f4-up",
+    "label": "+",
+    "onScreen": false,
+    "top": 1110
+  }
+]

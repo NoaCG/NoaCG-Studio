@@ -1,0 +1,24 @@
+C:/claude/cj-bench-2026-10-02/cells/b4-quiz-C/pub-quiz: a NoaCG graphic package
+
+Inputs (8)
+key  label            kind              default
+f0   Question         text              Which planet has the most moons?
+f1   Answer A         text              Jupiter
+f2   Answer B         text              Saturn
+f3   Answer C         text              Neptune
+f4   Answer D         text              Uranus
+f5   Correct answer   select [A|B|C|D]  B
+f6   Round            number            1
+f7   Question number  number            1
+
+Buttons (5)
+event         label          section  payload
+judge         Reveal answer  Answer   f5
+nextQuestion  Next question  Answer   f0 f1 f2 f3 f4 f5 f7+1
+timerStart    Start timer    Timer    -
+timerEnd      Time up now    Timer    -
+timerHide     Hide timer     Timer    -
+
+Steps: 2 (» Next advances)
+State groups: main [Off, Question, Answer revealed, Out]; timer [Timer hidden, Timer running, Time up]
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

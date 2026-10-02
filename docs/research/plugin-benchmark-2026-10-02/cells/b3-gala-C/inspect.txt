@@ -1,0 +1,13 @@
+C:/claude/cj-bench-2026-10-02/cells/b3-gala-C/gala-title: a NoaCG graphic package
+
+Inputs (3)
+key  label                 kind  default
+f0   Event name            text  Valon Ilta 2026
+f1   Line above the title  text  Live from Tampere Hall
+f2   Host name             text  
+
+Buttons (0)
+  (none beyond Take / Update / Next / Out)
+
+Steps: 1
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.
