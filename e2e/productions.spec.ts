@@ -392,7 +392,7 @@ test('a production taller than the window never scrolls the page out from under 
   await page.setViewportSize({ width: 1600, height: 1000 });
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await openProductionWithCurrent(page, 'Quiz Night');
-  await page.getByTestId('controls-panel').locator('summary').first().click();
+  await page.getByTestId('cue-actions-recovery').locator('summary').click();
   const area = page.getByTestId('control-area');
   // The precondition: the page's content really is taller than the window.
   expect(await area.evaluate((el) => el.getBoundingClientRect().top + el.scrollHeight)).toBeGreaterThan(1000);

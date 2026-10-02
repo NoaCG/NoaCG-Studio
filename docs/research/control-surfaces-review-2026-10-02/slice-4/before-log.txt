@@ -1,0 +1,8 @@
+hockey 1600 ready: cue-action-clockStart:on screen, cue-action-clockStop:on screen, cue-action-goalA:cut, cue-action-goalB:cut
+shot before-hockey-1600-ready.png
+shot before-hockey-1600-on-air.png
+shot before-hockey-phone.png
+quiz 1600: cue-action-select:on screen, cue-action-lock:on screen, cue-action-reveal_choice:absent, cue-action-judge:cut, cue-action-audience:cut
+shot before-quiz-1600-ready.png
+shot before-quiz-phone.png
+shot before-lower-third-1600.png

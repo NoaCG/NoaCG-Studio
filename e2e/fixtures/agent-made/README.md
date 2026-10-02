@@ -31,3 +31,10 @@ noacg pack ./votes-board ./totals-board --out ./vote-show.noacgpack.json \
 
 The production name is plain ASCII on purpose: it becomes a slug, so the fixture reads the same
 on every filesystem.
+
+## The hockey scorebug
+
+`hockey-scorebug.zip` is the 2026-10-02 plugin benchmark's `b2-hockey-C` package, unchanged: an
+agent-made scorebug with thirteen fields and twelve operator controls in four sections (clock,
+score, power play, period). `e2e/live-actions-first.spec.ts` imports it the way a user brings an
+agent's zip in and measures that its clock and goal buttons show without scrolling at 1600x900.

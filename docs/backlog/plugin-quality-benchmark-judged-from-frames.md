@@ -32,7 +32,7 @@ judged by two reviewers that built nothing (one of them blind to the arm).
 
 **The next run is due when the plugin skill's next minor version (0.8.0) is cut, or on
 2026-11-02, whichever comes first.** It also runs once the operator-page change
-(`operator-page-buries-live-actions-under-setup-fields.md`, AC-5/AC-6) lands, because that is
+(live actions first, AC-5/AC-6; built 2026-10-02 as slice 4 of `docs/research/control-surfaces-review-2026-10-02/`) lands, because that is
 the first change expected to move the operability verdict. Each run does the following:
 
 - Keeps the six briefs, so runs can be compared.

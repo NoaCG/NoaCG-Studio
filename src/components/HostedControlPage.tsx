@@ -5,7 +5,9 @@ import {
   labelCarriesDelta,
   arrangeControls,
   arrangeFor,
+  advanceLabel,
   canAdvance,
+  hasSteps,
   eventButtons,
   eventLegality,
   adjustedValue,
@@ -735,6 +737,17 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  asks (`controlModel canAdvance`), so a quiz on its Reveal greys Next here too instead of
    *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
   const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
+  /** What » Next will do, in words on the button: the in-app page's `advanceLabel`, read the same way. */
+  // Read only while a layer is live and Next would move it; this component returns early above,
+  // so it cannot memoise (rules of hooks).
+  const nextLabel =
+    selectedLayerCueId && selectedGraphic && spec
+      ? nextMoves
+        ? advanceLabel(spec.js, machineState[selectedGraphic] ?? null, arrangeControls(eventButtons(spec.js), arrangeFor(resolved?.profile, selectedGraphic)), machineStateNames(spec.js))
+        : hasSteps(spec.js)
+          ? 'last step'
+          : null
+      : null;
   /** The names of every state ✎ Update will KEEP on the live layer (`controlModel
    *  movedStateNames`), exactly as the in-app dashboard reads them — Update stays data only, so
    *  after a reveal it airs new words under the old verdict unless the surface says what stays. */
@@ -1046,6 +1059,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             liveLabels={liveLayers.map((l) => l.label)}
             selectedGraphic={selectedGraphic}
             nextMoves={nextMoves}
+            nextLabel={nextLabel}
             keptStates={keptStates}
             onKey={runVerb}
           />
@@ -1238,6 +1252,7 @@ function HostedVerbs({
   liveLabels,
   selectedGraphic,
   nextMoves,
+  nextLabel,
   keptStates,
   onKey,
 }: {
@@ -1253,6 +1268,8 @@ function HostedVerbs({
   /** Would » Next move the selected layer right now (`controlModel canAdvance`) — false on a
    *  graphic's last step, where the button greys instead of logging a press that does nothing. */
   nextMoves: boolean;
+  /** » Next's target in words (`controlModel advanceLabel`), or 'last step', or null when unknown. */
+  nextLabel: string | null;
   /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
@@ -1299,7 +1316,7 @@ function HostedVerbs({
         ✎ Update <kbd>U</kbd>
       </button>
       <button
-        className="pd-verb"
+        className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
         disabled={!layerLive || !nextMoves}
         onClick={() => onKey('next')}
         title={
@@ -1307,11 +1324,22 @@ function HostedVerbs({
             ? 'Advance the layer'
             : layerLive && !nextMoves
               ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
-              : `Advance ${selectedGraphic} to its next step`
+              : nextLabel
+                ? `Advance ${selectedGraphic} to its next step: ${nextLabel}`
+                : `Advance ${selectedGraphic} to its next step`
         }
         data-testid="hosted-next-cue"
       >
-        » Next <kbd>N</kbd>
+        {nextLabel ? (
+          <>
+            <span className="pd-verb-main">» Next <kbd>N</kbd></span>
+            <span className="pd-verb-target">{nextLabel}</span>
+          </>
+        ) : (
+          <>
+            » Next <kbd>N</kbd>
+          </>
+        )}
       </button>
       <button
         className="pd-verb"
@@ -1427,6 +1455,8 @@ function HostedCueEditor({
   const [entryId, setEntryId] = useState('');
   const [loadSide, setLoadSide] = useState<'A' | 'B'>('A');
   const [lastLoaded, setLastLoaded] = useState<string | null>(null);
+  /** The setup fields folded away under the live actions: the in-app page's fold, page memory. */
+  const [setupFolded, setSetupFolded] = useState(false);
   useEffect(() => {
     setEcho({});
     setEntryId('');
@@ -1606,6 +1636,159 @@ function HostedCueEditor({
     </button>
   );
 
+  /** LIVE ACTIONS FIRST, the in-app page's order (docs/research/control-surfaces-review-2026-10-02
+   *  slice 4): a graphic with ⚡ actions is operated through them, so they come straight after the
+   *  head and the setup fields follow; a graphic with none keeps the fields first. */
+  const liveFirst = events.length > 0;
+  const actionsBlock = events.length > 0 && (
+    /* ⚡ GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §7b), in the in-app page's shape: a header
+       saying these act ON AIR, the buttons GROUPED BY SECTION, one line of inline help, and the
+       recovery snap folded at the foot. They were a flat wall of buttons here once: the author's
+       own sections were published in `machine.controls` and thrown away by the surface with the
+       smallest screen and the least room to guess. */
+    <div className="pd-actions" data-testid="hosted-actions">
+      <div className="pd-actions-head">
+        <span className="pd-actions-kicker">
+          ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
+        </span>
+      </div>
+      <p className="hint pd-actions-help">
+        These fire the graphic’s own beats on the layer that is on air, immediately, with this
+        cue’s values as typed in its fields.
+      </p>
+      {/* PINNED, above the section headings: the in-app page's shape. */}
+      {arranged.pinned.length > 0 && (
+        <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
+          {arranged.pinned.map((c) => actionButton(c))}
+        </div>
+      )}
+      {arranged.sections.map(([section, controls]) => {
+        // ONE expression decides both whether the heading is drawn and whether the hover
+        // borrows it, so a hover can never name a word that is not on screen.
+        const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+        return (
+          <div key={section} className="pd-actions-section">
+            {heading && <h4>{heading}</h4>}
+            <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+          </div>
+        );
+      })}
+      {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
+          drives from a phone, away from the app, so a control the production tucked away is
+          still one tap from the operator who turns out to need it. */}
+      {arranged.more.length > 0 && (
+        <details className="pd-actions-more" data-testid="hosted-actions-more">
+          <summary>More ({arranged.more.length})</summary>
+          <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
+        </details>
+      )}
+      {/* RECOVERY, folded closed: the snap is not how a graphic is driven. */}
+      {stateGroups.length > 0 && (
+        <details className="pd-actions-more pd-actions-recovery" data-testid="hosted-actions-recovery">
+          <summary>Recovery</summary>
+          <p className="hint pd-actions-help">
+            Jumps the live graphic straight to a state with no animation and re-sends this cue’s
+            values. For when air and this page are out of step (a renderer restart, a missed press).
+          </p>
+          <select
+            className="pd-snap"
+            value=""
+            disabled={!layerLive}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (!v) return;
+              if (v === '::reset') onSnap(null, '');
+              else {
+                const i = v.indexOf(':');
+                onSnap(v.slice(0, i), v.slice(i + 1));
+              }
+            }}
+            title="RECOVERY. Jumps the live graphic straight to a state with no animation."
+            data-testid="hosted-snap"
+          >
+            <option value="">Snap to state…</option>
+            <option value="::reset">⟲ Back to start (visual reset)</option>
+            {stateGroups.map((g) =>
+              g.states.map((s) => (
+                <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
+                  {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
+                </option>
+              )),
+            )}
+          </select>
+        </details>
+      )}
+    </div>
+  );
+  const liveNumbers = (
+    <>
+    {/* ± LIVE NUMBERS — the production page's quick-bump, on the surface a class actually
+        operates from (the cloud-first door): one press sends a PARTIAL update carrying just
+        the bumped field, stages the same value into the shared buffer (so every open page
+        follows), and never touches the other staged edits — a bump must not publish a
+        half-typed name. Number fields an ⚡ event carries as payload are excluded: those are
+        set by their own action. */}
+    {(() => {
+      const payloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
+      const numberFields = descriptors.filter((d) => d.kind === 'number' && !payloadKeys.has(d.key));
+      if (numberFields.length === 0) return null;
+      const bump = (key: string, delta: number) => {
+        // A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3, AC-7): the figure belongs to
+        // the production, not to this cue, so the press moves the shared value and every graphic
+        // bound to it follows through the ordinary diff. Nothing is staged and nothing is
+        // echoed - a bound field is never a cue value, and the new figure arrives the way a
+        // feed's would.
+        const path = bound[key];
+        if (path) {
+          void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
+          return;
+        }
+        const next = adjustedValue(valueOf(key), delta);
+        setEcho((v) => ({ ...v, [key]: next }));
+        setEntryId('');
+        // Immediate, not the typing debounce: the value just aired, so the shared buffer
+        // must say so now (the loadEntry precedent). Typing still in the debounce goes into
+        // the buffer with it, never onto air: the update below carries the bumped field alone.
+        stageNow({ [key]: next });
+        onPreview({ ...currentValues(), [key]: next });
+        onSend([{ graphic: cue.graphic, msg: { t: 'update', data: { [key]: next } } }]);
+      };
+      return (
+        <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
+          {numberFields.map((d) => {
+            // One sentence for both halves of the pair: they act on the same field, so a
+            // hover that differed between − and + would be saying something that is not true.
+            const stepTitle = live
+              ? `Changes "${d.label}" on air immediately`
+              : 'This cue is not on air. Take it first.';
+            return (
+              <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
+                <span className="pd-live-number-label">{d.label}</span>
+                <button
+                  disabled={!live}
+                  title={stepTitle}
+                  onClick={() => bump(d.key, -1)}
+                  data-testid={`hosted-live-number-${d.key}-down`}
+                >
+                  −
+                </button>
+                <button
+                  disabled={!live}
+                  title={stepTitle}
+                  onClick={() => bump(d.key, 1)}
+                  data-testid={`hosted-live-number-${d.key}-up`}
+                >
+                  +
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      );
+    })()}
+    </>
+  );
+
   return (
     <div className={`pd-editor${live ? ' live' : ''}`} data-testid="hosted-cue-editor">
       <div className="pd-editor-head">
@@ -1650,6 +1833,35 @@ function HostedCueEditor({
         )}
       </div>
 
+      {liveFirst && actionsBlock}
+      {liveFirst && liveNumbers}
+
+      {/* THE SETUP FOLD, the in-app editor's: offered only under live actions, and folded it reads
+          back what the cue is set to. */}
+      {liveFirst && (
+        <button
+          type="button"
+          className="pd-fields-fold"
+          aria-expanded={!setupFolded}
+          onClick={() => setSetupFolded((f) => !f)}
+          title={setupFolded ? 'Show the setup fields' : 'Fold the setup fields away under the live actions'}
+          data-testid="hosted-fields-fold"
+        >
+          <span className="pd-advanced-caret" aria-hidden="true">{setupFolded ? '▸' : '▾'}</span>
+          Setup fields
+          {setupFolded && (
+            <span className="pd-fields-fold-sum">
+              {descriptors
+                .filter((d) => d.kind !== 'color' && d.kind !== 'image')
+                .map((d) => String((bound[d.key] ? boundOf(d.key) : valueOf(d.key)) ?? '').trim())
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
+        </button>
+      )}
+
+      {!(liveFirst && setupFolded) && (
       <div className="pd-fields">
         {/* LOAD A DATA ROW — the Data workspace's other half, on the surface a class operates
             from. The rows were matched at PUBLISH time (control/cueData.ts, the same matcher
@@ -1694,10 +1906,10 @@ function HostedCueEditor({
               <button
                 onClick={() => followingRow && loadDataRow(followingRow.id)}
                 disabled={!followingRow}
-                title="Load the next row"
+                title="Load the next row of the table into this cue. Nothing airs until a Take."
                 data-testid="hosted-load-next"
               >
-                ↷ Next
+                Load next row
               </button>
             </div>
           </label>
@@ -1772,150 +1984,9 @@ function HostedCueEditor({
           );
         })}
       </div>
-
-      {/* ⚡ GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §7b), in the in-app page's shape: a header
-          saying these act ON AIR, the recovery snap beside it, the buttons GROUPED BY SECTION,
-          and one line of inline help. They were a flat wall of buttons here — the author's own
-          sections were published in `machine.controls` and thrown away by the surface with the
-          smallest screen and the least room to guess. */}
-      {events.length > 0 && (
-        <div className="pd-actions" data-testid="hosted-actions">
-          <div className="pd-actions-head">
-            <span className="pd-actions-kicker">
-              ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
-            </span>
-            {stateGroups.length > 0 && (
-              <select
-                className="pd-snap"
-                value=""
-                disabled={!layerLive}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  if (v === '::reset') onSnap(null, '');
-                  else {
-                    const i = v.indexOf(':');
-                    onSnap(v.slice(0, i), v.slice(i + 1));
-                  }
-                }}
-                title={
-                  'RECOVERY. Jumps the live graphic straight to a state with no animation, ' +
-                  'and re-sends this cue’s values with it. Use it when air and this page have ' +
-                  'got out of step (a renderer restart, a missed press). It is not how a ' +
-                  'graphic is normally driven: that is the ⚡ actions and » Next.'
-                }
-                data-testid="hosted-snap"
-              >
-                <option value="">Snap to state…</option>
-                <option value="::reset">⟲ Back to start (visual reset)</option>
-                {stateGroups.map((g) =>
-                  g.states.map((s) => (
-                    <option key={`${g.id}:${s.id}`} value={`${g.id}:${s.id}`}>
-                      {stateGroups.length > 1 ? `${g.id}: ${s.name}` : s.name}
-                    </option>
-                  )),
-                )}
-              </select>
-            )}
-          </div>
-          <p className="hint pd-actions-help">
-            These fire the graphic’s own beats on the layer that is on air, immediately. They carry
-            values from this cue, so type them above first.
-            {stateGroups.length > 0 && ' “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation.'}
-          </p>
-          {/* PINNED, above the fold and above the section headings — the in-app page's shape. */}
-          {arranged.pinned.length > 0 && (
-            <div className="pd-actions-row pd-actions-pinned" data-testid="hosted-actions-pinned">
-              {arranged.pinned.map((c) => actionButton(c))}
-            </div>
-          )}
-          {arranged.sections.map(([section, controls]) => {
-            // ONE expression decides both whether the heading is drawn and whether the hover
-            // borrows it, so a hover can never name a word that is not on screen.
-            const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
-            return (
-              <div key={section} className="pd-actions-section">
-                {heading && <h4>{heading}</h4>}
-                <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
-              </div>
-            );
-          })}
-          {/* HIDDEN, behind one disclosure. It matters most HERE: this is the surface a class
-              drives from a phone, away from the app, so a control the production tucked away is
-              still one tap from the operator who turns out to need it. */}
-          {arranged.more.length > 0 && (
-            <details className="pd-actions-more" data-testid="hosted-actions-more">
-              <summary>More ({arranged.more.length})</summary>
-              <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
-            </details>
-          )}
-        </div>
       )}
 
-      {/* ± LIVE NUMBERS — the production page's quick-bump, on the surface a class actually
-          operates from (the cloud-first door): one press sends a PARTIAL update carrying just
-          the bumped field, stages the same value into the shared buffer (so every open page
-          follows), and never touches the other staged edits — a bump must not publish a
-          half-typed name. Number fields an ⚡ event carries as payload are excluded: those are
-          set by their own action. */}
-      {(() => {
-        const payloadKeys = new Set(events.flatMap((e) => e.payload ?? []));
-        const numberFields = descriptors.filter((d) => d.kind === 'number' && !payloadKeys.has(d.key));
-        if (numberFields.length === 0) return null;
-        const bump = (key: string, delta: number) => {
-          // A BOUND FIELD TAKES THE OTHER ROAD (plan §2.9's Phase 3, AC-7): the figure belongs to
-          // the production, not to this cue, so the press moves the shared value and every graphic
-          // bound to it follows through the ordinary diff. Nothing is staged and nothing is
-          // echoed - a bound field is never a cue value, and the new figure arrives the way a
-          // feed's would.
-          const path = bound[key];
-          if (path) {
-            void onPatchBound([{ path, text: adjustedValue(boundOf(key), delta), verb: 'adjust' }]);
-            return;
-          }
-          const next = adjustedValue(valueOf(key), delta);
-          setEcho((v) => ({ ...v, [key]: next }));
-          setEntryId('');
-          // Immediate, not the typing debounce: the value just aired, so the shared buffer
-          // must say so now (the loadEntry precedent). Typing still in the debounce goes into
-          // the buffer with it, never onto air: the update below carries the bumped field alone.
-          stageNow({ [key]: next });
-          onPreview({ ...currentValues(), [key]: next });
-          onSend([{ graphic: cue.graphic, msg: { t: 'update', data: { [key]: next } } }]);
-        };
-        return (
-          <div className="pd-editor-events pd-live-numbers" data-testid="hosted-live-numbers">
-            {numberFields.map((d) => {
-              // One sentence for both halves of the pair: they act on the same field, so a
-              // hover that differed between − and + would be saying something that is not true.
-              const stepTitle = live
-                ? `Changes "${d.label}" on air immediately`
-                : 'This cue is not on air. Take it first.';
-              return (
-                <span key={d.key} className="pd-live-number" data-testid={`hosted-live-number-${d.key}`}>
-                  <span className="pd-live-number-label">{d.label}</span>
-                  <button
-                    disabled={!live}
-                    title={stepTitle}
-                    onClick={() => bump(d.key, -1)}
-                    data-testid={`hosted-live-number-${d.key}-down`}
-                  >
-                    −
-                  </button>
-                  <button
-                    disabled={!live}
-                    title={stepTitle}
-                    onClick={() => bump(d.key, 1)}
-                    data-testid={`hosted-live-number-${d.key}-up`}
-                  >
-                    +
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        );
-      })()}
+      {!liveFirst && liveNumbers}
     </div>
   );
 }
