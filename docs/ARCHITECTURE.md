@@ -322,6 +322,16 @@ src/                     (* = has its own AGENTS.md; read it, this line is only 
 cli/           the `noacg` CLI + MCP server (its own package, published to npm) - an external
                coding agent's door, over the bridge page of whatever deployment NOACG_URL names;
                `login`/`save` hold a SCOPED AGENT KEY (docs/AGENT_SAVE.md, docs/AGENT_CLI.md)
+companion-module/ the Bitfocus Companion module that runs a production from Stream Deck and other
+               panels - MIT, its own yarn project outside the app's build
+               (docs/work-specs/hardware-panel-control/)
+packs/         file-based pack sources: fight-night (an e2e fixture) and community/<slug>, the
+               seeded Community packs shelf; scripts/build-production-pack.mjs builds them into
+               public/packs/ (docs/GRAPHICS_PACKS.md)
+contracts/     the rule store: rules/ compile into every AGENTS.md and .claude/rules/
+               (`npm run learn`), records/ hold the evidence (contracts/README.md)
+supabase/ *    the optional backend's migrations, policies and remote ledger
+e2e/ *         the Playwright suite (docs/VERIFICATION.md)
 public/fonts/  the 17 bundled woff2 fonts (served at /fonts, copied into exports). A picked
                GOOGLE family (model/googleFonts.ts) is fetched at design time and embedded in
                template.assets like an upload - never referenced by the emitted code
