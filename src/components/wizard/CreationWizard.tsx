@@ -1470,7 +1470,7 @@ export default function CreationWizard() {
     // A dropped template is previewed as itself: it is the graphic, already finished.
     : mode === 'file' ? step >= 1 && !!importedFile
     : mode === 'template' ? (kit ? step >= 2 && step < finishStep : step >= 1) && !!previewTemplate
-    : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep);
+    : step >= 2 && !!previewTemplate) && !(isMobile && step === finishStep) && !onShelf;
   const stepSubs = mode === 'template' && (kit || buildMode === 'kit') ? STEP_SUBS_KIT : STEP_SUBS[mode];
   // Rail position → step index (1:1 in every mode).
   const stepIndexes = stepTitles.map((_, i) => i);
@@ -1779,12 +1779,13 @@ export default function CreationWizard() {
             {/* The authored frame, read back where it stays visible for the whole walk. The
                 CONTROL itself stays in the step that owns it (the Browse step's picker, the
                 AI step's own): one control, one home; this is the reminder plus
-                the way back to it. */}
-            <div className="wz-rail-foot">
+                the way back to it. A community pack carries its own frame, so on the shelf
+                there is nothing to read back and no picker to go back to. */}
+            {!onShelf && <div className="wz-rail-foot">
               <p className="dlg-caption">Project format</p>
               <p className="wz-rail-format">{formatSummary}</p>
               <button className="wz-rail-change" onClick={revealFormatPicker}>Change ▾</button>
-            </div>
+            </div>}
           </nav>}
 
           <div className="wz-main">

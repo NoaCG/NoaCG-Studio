@@ -15,6 +15,8 @@ judges it.
 - `node scripts/build-production-pack.mjs` emits `public/packs/community/pub-quiz.noacgpack.json`
   (1 graphic, 4 cues), `pub-quiz.webp` and `index.json`; `fight-night.noacgpack.json` is
   byte-unchanged by the builder refactor.
+- A third line in the same copy, `url("fonts/missing.woff2")`, is refused as "neither in the
+  graphic's fonts/ folder nor a bundled face".
 - Refusal check: a copy of the source with `var f = (a) => a;` appended to `logic.js` and a
   `url("https://fonts.example.com/x.png")` appended to `style.css` makes the builder exit 1 naming
   both ("template JS carries an arrow function", "a url() reference outside the bundled fonts/
@@ -22,7 +24,8 @@ judges it.
 
 ## AC-1 to AC-3: the shelf and Install
 
-`npx playwright test e2e/community-packs.spec.ts --workers 1` (job j-2884): 2 passed.
+`npx playwright test e2e/community-packs.spec.ts --workers 1` (jobs j-2884 and, on the final
+code after the review fixes, j-2895): 2 passed.
 
 - Browse's control reads One graphic / A whole kit / Community packs; picking the third shows
   the shelf; no Next and no Skip to finish while it shows.
@@ -40,5 +43,8 @@ in this folder.
 
 - AC-5 to AC-9 are not built (the next slice: `docs/backlog/community-packs-share-review-and-lock.md`).
 - The rail still lists the one-graphic steps (Fields to Finish, greyed and not reachable) while
-  the shelf shows.
+  the shelf shows, and the header still counts "Step 2 / 6". The rail's format read-back and the
+  live preview pane stand down on the shelf.
+- A failure inside `installPack` after the production was saved leaves that production and lets
+  Install run again (the same behaviour as Home's Import a package).
 - The preview is a still frame, not a live render.

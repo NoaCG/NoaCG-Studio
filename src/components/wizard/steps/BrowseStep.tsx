@@ -79,6 +79,19 @@ interface Props {
  *  Templates, Kits, Community packs - docs/work-specs/community-packs/spec.md). */
 export type BuildMode = 'one' | 'kit' | 'community';
 
+/** What the one search box above the branch searches, said per answer. */
+const SEARCH_COPY: Record<BuildMode, { placeholder: string; label: string }> = {
+  one: {
+    placeholder: 'Search all templates, for example “name graphic”, “countdown”, “church verse”…',
+    label: 'Search templates',
+  },
+  kit: {
+    placeholder: 'Search kits and graphics, for example “church”, “esports”, “ticker”…',
+    label: 'Search kits and graphics',
+  },
+  community: { placeholder: 'Search community packs, for example “quiz”…', label: 'Search community packs' },
+};
+
 type SortMode = 'relevance' | 'simplest' | 'name' | 'name-desc';
 
 /**
@@ -514,18 +527,10 @@ export default function BrowseStep({
       <input
         className="wz-browse-search"
         type="search"
-        placeholder={
-          buildMode === 'kit'
-            ? 'Search kits and graphics, for example “church”, “esports”, “ticker”…'
-            : buildMode === 'community'
-            ? 'Search community packs, for example “quiz”…'
-            : 'Search all templates, for example “name graphic”, “countdown”, “church verse”…'
-        }
+        placeholder={SEARCH_COPY[buildMode].placeholder}
         value={filters.query}
         onChange={(e) => set({ query: e.target.value })}
-        aria-label={
-          buildMode === 'kit' ? 'Search kits and graphics' : buildMode === 'community' ? 'Search community packs' : 'Search templates'
-        }
+        aria-label={SEARCH_COPY[buildMode].label}
       />
 
       {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the

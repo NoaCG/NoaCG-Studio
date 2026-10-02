@@ -18,7 +18,7 @@
 // presence, the CasparCG-CEF ES5 rule, the inline-hidden-holder rule and the bundled-font
 // url() convention (the same gates as build-news-pack.mjs, adapted to file sources). It runs
 // in `npm run build`, so an emitted file can never go stale against its sources.
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -45,11 +45,12 @@ function fontAssets(dir) {
 }
 
 /** Read and check one pack source directory. Returns the pack object, or the refusals. */
-function assemble(packDir) {
+const readManifest = (packDir) => JSON.parse(readFileSync(join(packDir, 'manifest.json'), 'utf8'));
+
+function assemble(packDir, manifest = readManifest(packDir)) {
   const failures = [];
   const fail = (msg) => failures.push(msg);
 
-  const manifest = JSON.parse(readFileSync(join(packDir, 'manifest.json'), 'utf8'));
   if (!manifest.name || !Array.isArray(manifest.graphics) || manifest.graphics.length === 0) {
     return { failures: ['manifest.json needs a name and a non-empty graphics list'] };
   }
@@ -92,9 +93,14 @@ function assemble(packDir) {
     if (/id="f\d+"[^>]*style="[^"]*display:\s*none/.test(html)) {
       fail(`${where}: a field holder hides with an inline style`);
     }
-    // Bundled-font references must be the relative fonts/ path the exports collect.
+    // Font references must be the relative fonts/ path the exports collect, and must name a
+    // file that exists: the graphic's own fonts/ folder, or a face the studio bundles.
     for (const m of css.matchAll(/url\(\s*["']?([^"')]*)/g)) {
-      if (!m[1].startsWith('fonts/')) fail(`${where}: a url() reference outside the bundled fonts/ convention (${m[1]})`);
+      const ref = m[1];
+      if (!/^fonts\/[^/]+$/.test(ref)) fail(`${where}: a url() reference outside the bundled fonts/ convention (${ref})`);
+      else if (!existsSync(join(dir, ref)) && !existsSync(join(repo, 'public', ref))) {
+        fail(`${where}: ${ref} is neither in the graphic's fonts/ folder nor a bundled face`);
+      }
     }
     // Every declared field has its element (the fN contract).
     for (const m of html.matchAll(/"field":\s*"(f\d+)"/g)) {
@@ -128,13 +134,13 @@ function assemble(packDir) {
     graphics,
     ...(cues.length ? { cues } : {}),
   };
-  return { failures, pack, manifest };
+  return { failures, pack };
 }
 
 /** Build one pack into outDir; exits the process on a refusal. */
-function buildOne(packDir, outDir) {
+function buildOne(packDir, outDir, manifest) {
   const slug = basename(packDir);
-  const { failures, pack, manifest } = assemble(packDir);
+  const { failures, pack } = assemble(packDir, manifest);
   if (failures.length) {
     console.error(`build-production-pack: refusing to emit ${slug} -`);
     for (const f of failures) console.error(`  · ${f}`);
@@ -147,7 +153,7 @@ function buildOne(packDir, outDir) {
   console.log(
     `build-production-pack: wrote ${pack.graphics.length} graphics, ${cueCount} cues (${(bytes / 1024).toFixed(0)} kB) -> ${join(outDir, `${slug}.noacgpack.json`).slice(repo.length + 1).replace(/\\/g, '/')}`,
   );
-  return { slug, pack, manifest };
+  return { slug, pack };
 }
 
 /**
@@ -158,20 +164,27 @@ function buildCommunityShelf() {
   const sourceRoot = join(repo, 'packs', 'community');
   const outDir = join(repo, 'public', 'packs', 'community');
   if (!existsSync(sourceRoot)) return;
-  const entries = [];
-  for (const slug of readdirSync(sourceRoot).sort()) {
+  const slugs = readdirSync(sourceRoot).filter((slug) => existsSync(join(sourceRoot, slug, 'manifest.json'))).sort();
+  // The shelf's own rules (author, preview) are checked for every pack before anything is written.
+  const shelf = new Map();
+  for (const slug of slugs) {
     const packDir = join(sourceRoot, slug);
-    if (!existsSync(join(packDir, 'manifest.json'))) continue;
-    const { pack, manifest } = buildOne(packDir, outDir);
-    if (!manifest.author) {
-      console.error(`build-production-pack: refusing to list ${slug} - a community pack names its author`);
-      process.exit(1);
-    }
+    const manifest = readManifest(packDir);
     const preview = readdirSync(packDir).find((f) => /^preview\.(webp|png|jpg)$/.test(f));
-    if (!preview) {
-      console.error(`build-production-pack: refusing to list ${slug} - a community pack needs a preview.webp/.png/.jpg`);
+    if (!manifest.author || !preview) {
+      console.error(`build-production-pack: refusing to list ${slug} - a community pack names its author and carries a preview.webp/.png/.jpg`);
       process.exit(1);
     }
+    shelf.set(slug, { manifest, preview });
+  }
+  // The output folder is wholly generated: a pack removed or renamed at the source leaves no
+  // file behind to be served.
+  rmSync(outDir, { recursive: true, force: true });
+  const entries = [];
+  for (const slug of slugs) {
+    const packDir = join(sourceRoot, slug);
+    const { manifest, preview } = shelf.get(slug);
+    const { pack } = buildOne(packDir, outDir, manifest);
     const previewFile = `${slug}${extname(preview)}`;
     copyFileSync(join(packDir, preview), join(outDir, previewFile));
     entries.push({

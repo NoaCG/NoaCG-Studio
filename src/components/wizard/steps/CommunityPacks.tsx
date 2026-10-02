@@ -41,21 +41,33 @@ interface Props {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** The shelf index, read once per page: switching Browse's answer back and forth remounts this
+ *  component, and the list is static for the life of the deployment. A failed read is not kept,
+ *  so the next visit tries again. */
+let shelfRead: Promise<CommunityPackEntry[]> | null = null;
+function readShelf(): Promise<CommunityPackEntry[]> {
+  shelfRead ??= fetch(`${SHELF}index.json`)
+    .then((res) => (res.ok ? (res.json() as Promise<{ packs?: CommunityPackEntry[] }>) : Promise.reject(new Error())))
+    .then((index) => index.packs ?? [])
+    .catch(() => {
+      shelfRead = null;
+      throw new Error('The community shelf could not be read. Check the connection and open it again.');
+    });
+  return shelfRead;
+}
+
 export default function CommunityPacks({ query, onClearQuery, onInstalled }: Props) {
   const [packs, setPacks] = useState<CommunityPackEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Install is single-flight (every button disables while one runs), so one refusal at a time.
+  const [refusal, setRefusal] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     let live = true;
-    fetch(`${SHELF}index.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`The shelf could not be read (${res.status}).`);
-        return res.json() as Promise<{ packs?: CommunityPackEntry[] }>;
-      })
-      .then((index) => live && setPacks(index.packs ?? []))
-      .catch((error: unknown) => live && setLoadError(error instanceof Error ? error.message : String(error)));
+    readShelf()
+      .then((list) => live && setPacks(list))
+      .catch((error: Error) => live && setLoadError(error.message));
     return () => {
       live = false;
     };
@@ -72,11 +84,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
 
   const install = async (entry: CommunityPackEntry) => {
     setBusy(entry.id);
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next[entry.id];
-      return next;
-    });
+    setRefusal(null);
     try {
       const res = await fetch(`${SHELF}${entry.file}`);
       if (!res.ok) throw new Error(`The pack could not be downloaded (${res.status}).`);
@@ -86,7 +94,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       trackEvent('activation', 'community-pack');
       onInstalled(show);
     } catch (error) {
-      setErrors((prev) => ({ ...prev, [entry.id]: error instanceof Error ? error.message : String(error) }));
+      setRefusal({ id: entry.id, message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(null);
     }
@@ -100,7 +108,8 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
       </p>
       {loadError && <p className="wz-community-error" role="alert">{loadError}</p>}
       {!packs && !loadError && <p className="hint">Loading the shelf…</p>}
-      {packs && shown.length === 0 && (
+      {packs && packs.length === 0 && <p className="hint">No packs on the shelf yet.</p>}
+      {packs && packs.length > 0 && shown.length === 0 && (
         <div className="wz-browse-empty">
           <p className="hint">No pack matches “{query.trim()}”.</p>
           <button type="button" className="wz-filter" onClick={onClearQuery}>✕ Clear the search</button>
@@ -133,7 +142,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
             >
               {busy === p.id ? 'Installing…' : 'Install'}
             </button>
-            {errors[p.id] && <p className="wz-community-error" role="alert">{errors[p.id]}</p>}
+            {refusal?.id === p.id && <p className="wz-community-error" role="alert">{refusal.message}</p>}
           </li>
         ))}
       </ul>
