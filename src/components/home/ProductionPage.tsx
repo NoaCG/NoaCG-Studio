@@ -1784,9 +1784,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  production data. Only a graphic with ⚡ actions offers the fold: with none, the fields ARE
    *  the panel. */
   const [foldedFields, setFoldedFields] = useState<ReadonlySet<string>>(() => new Set());
-  /** The ⚡ block is in its ARRANGE posture (home/ActionArranger): its buttons are chips that pin,
-   *  hide and rename, and nothing fires until Done. */
-  const [arranging, setArranging] = useState(false);
+  /** The graphic whose ⚡ block is in its ARRANGE posture (home/ActionArranger): its buttons are
+   *  chips that pin, hide and rename, and nothing fires until Done. Keyed on the graphic, so
+   *  selecting another graphic's cue never lands on a block whose buttons do not fire. */
+  const [arrangingFor, setArrangingFor] = useState<string | null>(null);
   /** Bumped by a rundown row's clash badge, so the repair is brought into view once it renders. */
   const [repairAsk, setRepairAsk] = useState(0);
   const clashFix = useRef<HTMLButtonElement>(null);
@@ -3134,15 +3135,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const nextMoves =
     (!!selectedGraphic && canAdvance(poolMachines.get(selectedGraphic)?.js ?? '', machineState)) ||
     (selectedPlayoutLive && selectedPlayoutItem?.kind === 'template');
-  /** What » Next will do, in words, on the button itself: the declared control it is ("Reveal
-   *  correct") or the state it enters, and "last step" when it would do nothing. Only while the
-   *  layer is live and the graphic has reported where it is - a guess would be worse than none. */
-  const nextLabel =
-    selectedLayerLive && selectedGraphic && !selectedPlayoutLive
-      ? nextMoves
-        ? advanceLabel(poolMachines.get(selectedGraphic)?.js ?? '', machineState, events, stateNames)
-        : 'last step'
-      : null;
   /** The states ✎ Update will KEEP on the live layer, in the author's words ("Reveal", "Final").
    *  Update is data only by design, so after a reveal it airs new words under the old verdict;
    *  the surface names what stays and points at ⟳ Re-take (controlModel `movedStateNames`).
@@ -3164,22 +3156,35 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Write ONE graphic's arrangement. `withGraphicArrange` owns the key guard and the canonical
    *  form; `setShowProfile` owns the read-only refusal, and reports it rather than swallowing it
    *  (the surface that showed "Saved" over a write that never happened is the worse bug). */
+  const profileWritten = ({ shows: next, refused }: { shows: Show[]; refused: boolean }) => {
+    if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
+    else setShows(next);
+  };
   const writeArrange = (graphic: string, entries: Record<string, ArrangeEntry>) => {
     const profile = withGraphicArrange(show.profile, graphic, entries);
     // The LAST arrangement cleared removes the key rather than storing an empty profile, so "no
     // profile" stays one state: a production that never had one and one whose every arrangement
     // was cleared are byte-identical, and every surface downstream recognises a single "none".
-    const { shows: next, refused } =
-      Object.keys(profile.arrange).length === 0 ? deleteShowProfile(id) : setShowProfile(id, profile);
-    if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
-    else setShows(next);
+    profileWritten(Object.keys(profile.arrange).length === 0 ? deleteShowProfile(id) : setShowProfile(id, profile));
   };
+  /** Every graphic's arrangement at once, including one for a graphic no longer in the pool,
+   *  which no block can reach any more. The profile key goes, as it does for the last reset. */
+  const clearAllArrangements = () => profileWritten(deleteShowProfile(id));
 
   // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
   // page's ⚡ block, the exported controller's and this one can never sort the author's sections
   // or this production's arrangement differently. With no profile it is the generated panel,
   // byte for byte as it was before ARRANGE existed.
   const arranged = arrangeControls(events, arrangeFor(show.profile, selectedGraphic));
+  /** What » Next will do, in words, on the button itself: the declared control it is ("Reveal
+   *  correct") or the state it enters, and "last step" when it would do nothing. Only while the
+   *  layer is live and the graphic has reported where it is - a guess would be worse than none. */
+  const nextLabel =
+    selectedLayerLive && selectedGraphic && !selectedPlayoutLive
+      ? nextMoves
+        ? advanceLabel(poolMachines.get(selectedGraphic)?.js ?? '', machineState, arranged, stateNames)
+        : 'last step'
+      : null;
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included when it
    *  is also the one being edited. Events and snaps act on the live graphic, so their values
@@ -3506,12 +3511,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** What a folded setup bar reads back: the words and figures the cue is set to, resolved the way
    *  the boxes resolve them (a bound field from the tree). Colours and pictures say nothing as
    *  text, so they stay out of it. */
-  const setupSummary = descriptors
-    .filter((d) => d.kind !== 'color' && d.kind !== 'image')
-    .map((d) => String(headingValues[d.key] ?? '').trim())
-    .filter(Boolean)
-    .join(' · ');
+  const setupSummary = fieldsFolded
+    ? descriptors
+        .filter((d) => d.kind !== 'color' && d.kind !== 'image')
+        .map((d) => String(headingValues[d.key] ?? '').trim())
+        .filter(Boolean)
+        .join(' · ')
+    : '';
   const readOnlyProfile = profileRead.status === 'read-only';
+  const arranging = !!selectedGraphic && arrangingFor === selectedGraphic;
   const liveBlock = selectedGraphic && (
     <>
       {/* GRAPHIC ACTIONS - the machine's own verbs, rendered from the metadata that travels
@@ -3538,7 +3546,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             >
               {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
             </span>
-            <div className="spacer" />
             {/* ARRANGE, on the buttons themselves (home/ActionArranger). The separate Controls
                 panel it replaced was a second block about this one, under it. */}
             <button
@@ -3553,7 +3560,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     ? 'Back to operating: the buttons fire again'
                     : 'Pin, hide or rename these actions for this production. Nothing fires while arranging.'
               }
-              onClick={() => setArranging((a) => !a)}
+              onClick={() => setArrangingFor(arranging ? null : selectedGraphic)}
               data-testid="cue-actions-arrange"
             >
               {arranging ? 'Done' : 'Arrange'}
@@ -3568,6 +3575,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               buttons={events}
               profile={renderProfile}
               onArrange={(entries) => writeArrange(selectedGraphic, entries)}
+              onClearAll={clearAllArrangements}
             />
           ) : (
             <>

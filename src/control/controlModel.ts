@@ -738,19 +738,21 @@ export function advanceTarget(
 }
 
 /**
- * The words » Next wears for its target: the declared control's label when the arrow is one
- * (the answer board's `judge` reads "Reveal correct", the word on its ⚡ button), else the state's
- * own name. A plain `next` arrow is no control, so it names the state.
+ * The words » Next wears for its target: the control's word when the arrow is one, as the ⚡
+ * button wears it (the answer board's `judge` reads "Reveal correct", or the production's rename
+ * of it - pass the ARRANGED controls), else the state's own name. A plain `next` arrow is no
+ * control, so it names the state.
  */
 export function advanceLabel(
   js: string,
   state: { groups?: Record<string, string> } | null | undefined,
-  buttons: readonly ControlButton[],
+  controls: ArrangedControls,
   names: Record<string, Record<string, string>>,
 ): string | null {
   const target = advanceTarget(js, state);
   if (!target) return null;
-  const control = target.event && target.event !== 'next' ? buttons.find((b) => b.event === target.event) : undefined;
+  const all = [...controls.pinned, ...controls.sections.flatMap(([, c]) => c), ...controls.more];
+  const control = target.event && target.event !== 'next' ? all.find((c) => c.button.event === target.event) : undefined;
   if (control) return control.label;
   const group = machineOf(js)?.groups[0];
   return (group && names[group.id]?.[target.state]) || target.state;

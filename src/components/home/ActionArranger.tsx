@@ -36,6 +36,7 @@ export default function ActionArranger({
   buttons,
   profile,
   onArrange,
+  onClearAll,
 }: {
   /** The POOL graphic's name: the key ARRANGE, the bindings and the published panel all use. */
   graphic: string;
@@ -46,6 +47,9 @@ export default function ActionArranger({
   profile: ShowProfile | null;
   /** This graphic's whole arrangement, replaced. An empty map clears the graphic's key. */
   onArrange: (entries: Record<string, ArrangeEntry>) => void;
+  /** Remove the whole profile: every graphic's arrangement, also one for a graphic that has left
+   *  the production and so has no block to reset it from. */
+  onClearAll: () => void;
 }) {
   /** Names being TYPED, by control id. The stored name is trimmed and an empty one means "as the
    *  graphic declared it", so committing on every keystroke made the box refuse a space: the
@@ -151,6 +155,7 @@ export default function ActionArranger({
   };
 
   const hasArrangement = Object.keys(entries).length > 0;
+  const othersArranged = !!profile && Object.keys(profile.arrange).some((name) => name !== graphic);
   return (
     <div className="pd-arrange" data-testid="cue-actions-arranging">
       <p className="hint pd-actions-help">
@@ -176,11 +181,23 @@ export default function ActionArranger({
       {/* ONE action back to the generated block, for this graphic. When it was the last graphic
           with an arrangement the page removes the profile key entirely, so a production that
           never had one and one whose arrangement was cleared are the same record. */}
-      {hasArrangement && (
+      {(hasArrangement || othersArranged) && (
         <p className="pd-arrange-reset">
-          <button type="button" onClick={() => onArrange({})} data-testid="arrange-reset">
-            Back to the graphic&rsquo;s own
-          </button>
+          {hasArrangement && (
+            <button type="button" onClick={() => onArrange({})} data-testid="arrange-reset">
+              Back to the graphic&rsquo;s own
+            </button>
+          )}
+          {othersArranged && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              title="Removes this production's arrangement for every graphic, including any no longer in it"
+              data-testid="arrange-clear-all"
+            >
+              Clear for every graphic
+            </button>
+          )}
         </p>
       )}
     </div>

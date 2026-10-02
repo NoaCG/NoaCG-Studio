@@ -737,10 +737,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
   const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
   /** What » Next will do, in words on the button: the in-app page's `advanceLabel`, read the same way. */
+  // Read only while a layer is live and Next would move it; this component returns early above,
+  // so it cannot memoise (rules of hooks).
   const nextLabel =
     selectedLayerCueId && selectedGraphic && spec
       ? nextMoves
-        ? advanceLabel(spec.js, machineState[selectedGraphic] ?? null, eventButtons(spec.js), machineStateNames(spec.js))
+        ? advanceLabel(spec.js, machineState[selectedGraphic] ?? null, arrangeControls(eventButtons(spec.js), arrangeFor(resolved?.profile, selectedGraphic)), machineStateNames(spec.js))
         : 'last step'
       : null;
   /** The names of every state ✎ Update will KEEP on the live layer (`controlModel

@@ -1915,11 +1915,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* Part of a folder on air, and a folder Take that missed a cue: outlined, so the solid red of ON AIR
    stays the one mark for "all of it is up". */
 .pd-rundown .pd-tag.part { color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.8); }
-.pd-rundown .pd-tag.miss { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
-.pd-rundown .pd-tag.next { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
-/* EDITED: the on-air cue differs from air (slice 1). Amber, the colour of "not on air yet" in the
-   editor, and outlined like NOT TAKEN so it reads as a note beside ON AIR rather than a second tally. */
+/* EDITED (slice 1) wears NOT TAKEN's look: the on-air cue differs from air. Amber, the colour of
+   "not on air yet" in the editor, outlined so it reads as a note beside ON AIR, not a second tally. */
+.pd-rundown .pd-tag.miss,
 .pd-rundown .pd-tag.unsent { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+.pd-rundown .pd-tag.next { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
 /* WHERE A DRAG LANDS: a line at the row's edge, in the cursor's colour - in by a step when it lands
    inside a folder, and across the header's box when it lands in a collapsed one. Red and dashed when
    it cannot land there; the note under the list says why. */
