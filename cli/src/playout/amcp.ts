@@ -245,3 +245,17 @@ export function parseCls(lines: string[]): MediaEntry[] {
   }
   return out;
 }
+
+/**
+ * A bare `INFO`'s lines, one per channel: `1 1080i5000 PLAYING` (2.3, 2.5 and 2.0.7 alike: the
+ * number, the video mode, the state). A line that does not start that way is skipped, as in
+ * `parseCls`: a channel this cannot read must not hide the others.
+ */
+export function parseChannels(lines: string[]): { channel: number; mode: string }[] {
+  const out: { channel: number; mode: string }[] = [];
+  for (const line of lines) {
+    const m = /^(\d+)\s+(\S+)/.exec(line.trim());
+    if (m && Number(m[1]) >= 1) out.push({ channel: Number(m[1]), mode: m[2] });
+  }
+  return out;
+}

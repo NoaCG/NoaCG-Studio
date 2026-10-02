@@ -277,6 +277,17 @@
   align-items: stretch;
 }
 .playout-channel-row > button { min-width: 32px; padding-inline: 8px; }
+/* With the server's own list: its video mode beside each row, or that it has no such channel. */
+/* One fixed width for that column, so every row's name box lines up whatever its mode says. */
+.playout-channel-row--server { grid-template-columns: 64px minmax(0, 1fr) 6.5em auto; }
+.playout-channel-mode {
+  align-self: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.playout-channel-mode.status-warn { color: var(--amber); font-size: 12px; }
 
 /* THE FOOTER: one row, secondary left, primary right, never stacked. */
 .dlg-foot {

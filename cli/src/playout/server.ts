@@ -56,7 +56,7 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -554,6 +554,19 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             },
             true,
           );
+          return;
+        }
+        if (url === '/channels') {
+          // The channels the server has (a bare INFO on CasparCG), so Playout settings offers them
+          // rather than asking the studio to type them. Asked when the settings open and on Connect.
+          if (!adapter.channels) {
+            const error: AgentError = { hop: 'agent', code: 'unsupported', detail: `A ${target.adapter} target cannot report its channels.` };
+            send(200, { ok: false, v: PLAYOUT_V, error }, true);
+            return;
+          }
+          const r = await adapter.channels(target);
+          log(`${at} channels -> ${r.ok ? r.value.map((c) => `${c.channel} ${c.mode}`).join(', ') : r.error.code}`);
+          send(200, r.ok ? { ok: true, v: PLAYOUT_V, channels: r.value } : { ok: false, v: PLAYOUT_V, error: r.error }, true);
           return;
         }
         if (url === '/state') {

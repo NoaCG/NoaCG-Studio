@@ -188,8 +188,9 @@ export interface AgentError {
  *  `sequence-loop` a sequence's `loop`. `servers` is `/servers` and `/connect`: the CasparCG
  *  servers this Bridge remembers connecting to. `studio` is each remembered server's `studio` and
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
- *  `ending` is the `ending` verb: a clip's ending changed while it plays. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending';
+ *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
+ *  the channels a server reports it has. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
@@ -243,6 +244,20 @@ export interface RememberedServer {
   host: string;
   port: number;
   studio?: StudioSetup;
+}
+
+/** One channel a server reports having: its number and its video mode in the server's own words
+ *  (`1080i5000`). */
+export interface ServerChannel {
+  channel: number;
+  mode: string;
+}
+
+/** What `POST /channels` answers, given `{ target }`: the server's channels, read off a bare `INFO`
+ *  (CasparCG). Nothing is sent to a layer. */
+export interface ChannelsReply {
+  ok: true;
+  channels: ServerChannel[];
 }
 
 /** What `POST /servers` answers: the servers this Bridge connected to, most recent first. */

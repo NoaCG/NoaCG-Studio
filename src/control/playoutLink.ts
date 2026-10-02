@@ -40,6 +40,7 @@ import {
   type ListItem,
   type PlayoutAction,
   type RememberedServer,
+  type ServerChannel,
   type SlotState,
   type StudioSetup,
   type StateReply,
@@ -375,6 +376,7 @@ interface BridgeReply {
   session?: string;
   observedAt?: number;
   slots?: SlotState[];
+  channels?: ServerChannel[];
 }
 
 type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
@@ -583,6 +585,22 @@ export async function readState(settings: PlayoutSettings, channel: number): Pro
     result,
     reply: { ok: true, channel: body.channel ?? channel, session: body.session, observedAt: body.observedAt ?? 0, slots: body.slots },
   };
+}
+
+/**
+ * THE CHANNELS THE SERVER HAS (a bare INFO, through a Bridge with the `channels` feature), so
+ * Playout settings offers them instead of asking the studio to type them. Undefined whenever the
+ * server cannot say - an older Bridge, no server, a reply it could not read - and the settings then
+ * work exactly as before, from the channels the studio named. It touches no layer.
+ */
+export async function serverChannels(settings: PlayoutSettings): Promise<ServerChannel[] | undefined> {
+  if (!playoutConfigured(settings)) return undefined;
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  if (unreachable || !features.includes('channels')) return undefined;
+  const call = await callBridge(settings.agentUrl, '/channels', { target: targetOf(settings) }, STATE_TIMEOUT_MS, settings.agentToken);
+  const { result, body } = readReply(settings, call);
+  const channels = result.state === 'ok' && Array.isArray(body?.channels) ? body.channels : [];
+  return channels.length ? channels : undefined;
 }
 
 /** The Test connection button: a real AMCP VERSION, round-tripped. Remembers nothing. */

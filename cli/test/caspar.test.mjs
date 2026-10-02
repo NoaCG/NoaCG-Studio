@@ -15,6 +15,7 @@ import {
   AmcpTimeout,
   layerAddress,
   MAX_REPLY_BYTES,
+  parseChannels,
   parseCls,
   parseTls,
   parseVersion,
@@ -75,6 +76,15 @@ test('200 carries several lines and ends on a blank one', async () => {
   assert.equal(reply.code, 200);
   assert.deepEqual(reply.lines, ['1 1080i5000 PLAYING', '2 720p5000 STOPPED']);
   await caspar.close();
+});
+
+test('a bare INFO reads as the server\'s channels, and a line it cannot read is skipped', () => {
+  assert.deepEqual(parseChannels(['1 1080i5000 PLAYING', '2 720p5000 STOPPED', '', 'garbage', '3 PAL']), [
+    { channel: 1, mode: '1080i5000' },
+    { channel: 2, mode: '720p5000' },
+    { channel: 3, mode: 'PAL' },
+  ]);
+  assert.deepEqual(parseChannels([]), []);
 });
 
 test('the wire is UTF-8 both ways: a non-ASCII clip name goes out and comes back intact', async () => {

@@ -352,6 +352,7 @@ Routes, all JSON:
 | `POST /pair-link` | yes | 0.8.0: `{}` -> `{ code, expiresIn }`, one more one-time pairing code for another browser, which the page puts in a link on its own origin; a route with no target |
 | `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`), and for OGraf the `renderers` it can play on |
 | `POST /thumbnail` | yes | `{ target, name }` -> a clip's PNG, base64 (`THUMBNAIL RETRIEVE`) |
+| `POST /channels` | yes | 0.8.1: `{ target }` -> `channels`, each `{ channel, mode }` as the server reports it (a bare `INFO`); touches no layer |
 | `POST /state` | yes | `{ target, channel }` -> what each layer of the channel holds, one `SlotState` per layer (`INFO <channel>`); not logged, since it runs twice a second |
 | `POST /act` | yes | `{ target, action }` -> one action, one or more commands; the reply carries the slot's `generation`, the Bridge's `session`, for a take or a sequence its `instance`, and a `warning` when a later command of the action was refused after the first went through |
 | `POST /amcp` | yes | one raw line, the terminal's route |
@@ -435,6 +436,7 @@ server - and any local page could learn as much from how fast a refused connecti
 | pause / resume | `PAUSE c-l` / `RESUME c-l` |
 | list template / media | `TLS` / `CLS` |
 | state | `INFO c` (the whole channel), on a 2.3 or later server |
+| channels | `INFO` (bare): one line per channel, `1 1080i5000 PLAYING`, on every version |
 
 The data is JSON, which is what SPX sends and what every NoaCG export reads (its shim also takes
 CasparCG's XML). Field ids are the export's own `f0`, `f1`, ... as `FIELDS.md` documents them.
@@ -573,7 +575,7 @@ the server, and the machine that owns the file plays it. Nothing is uploaded, ev
   and the CLIP channel, where new clips go. A row starts named by its number (`Channel 2`; until
   2026-09-25 the defaults were `Graphics` and `Inserts`, which assumed a use) and a name the
   operator has not changed follows the row's number. Adding the first extra channel makes it the
-  clip default, so a stock one-channel server never has a clip aimed at a channel it lacks. Every server cue then picks its channel in its editor, beside the layer,
+  clip default, so a stock one-channel server never has a clip aimed at a channel it lacks. With a Bridge that has the `channels` feature (0.8.1) the table shows each row's video mode as the server reports it, says which row the server has no channel for, and Add channel adds the next channel the server has rather than the next number up; with an older Bridge, or a server whose reply it cannot read, the table works as before. Every server cue then picks its channel in its editor, beside the layer,
   from that list - never a typed number - and the rundown row wears the address as the server
   writes it (`2-10`). `PlayoutItem.channel` is optional and a plain number: absent means the
   graphics channel, which is where every item saved before it has always played, and a number
