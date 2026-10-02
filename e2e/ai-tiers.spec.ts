@@ -111,9 +111,10 @@ test("the user's own coding agent is the recommended route, first and above the 
   });
   expect(routeFirst).toBe(true);
   const body = page.getByTestId('ai-agent-route-body');
-  // The commands are docs/AGENT_CLI.md's Distribution table, never an invented one-liner.
-  await expect(body).toContainText('claude plugin marketplace add NoaCG/NoaCG-Studio');
-  await expect(body).toContainText('claude plugin install noacg@noacg-studio');
+  // The commands are docs/AGENT_CLI.md's Distribution table: Claude Code's documented one-command
+  // install (a session command since 2.1.275), and Codex's two terminal commands.
+  await expect(body).toContainText('/plugin install noacg --marketplace NoaCG/NoaCG-Studio');
+  await expect(body).toContainText('codex plugin marketplace add NoaCG/NoaCG-Studio');
   await expect(body).toContainText('codex plugin add noacg@noacg-studio');
   await expect(body.getByRole('link')).toHaveAttribute('href', '/docs#agent-install');
   // Honest about what it needs. Somebody with no agent is answered by the button under the card
@@ -143,7 +144,7 @@ test("the user's own coding agent is the recommended route, first and above the 
   await expect(body).toBeInViewport();
 });
 
-test('each install block copies its two lines whole, and says so', async ({ page, context }) => {
+test('each install block copies its lines whole, and says so', async ({ page, context }) => {
   // docs/backlog/install-lines-need-a-copy-control.md: select-then-copy is two motions and the
   // second has no feedback, so a partial copy looks whole until the paste fails in a terminal.
   // The button puts the WHOLE block on the clipboard and says it did.
@@ -159,7 +160,7 @@ test('each install block copies its two lines whole, and says so', async ({ page
   await expect(claude).toHaveText('Copy');
   await claude.click();
   await expect(claude).toHaveText('Copied');
-  expect(await clipboard()).toBe('claude plugin marketplace add NoaCG/NoaCG-Studio\nclaude plugin install noacg@noacg-studio');
+  expect(await clipboard()).toBe('/plugin install noacg --marketplace NoaCG/NoaCG-Studio');
   // The confirmation fades back, so the next press can say it again.
   await expect(claude).toHaveText('Copy', { timeout: 4_000 });
 

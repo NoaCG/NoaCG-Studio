@@ -30,10 +30,12 @@ import { copyLink } from '../../../home/copyLink';
 /** The docs page's "paste this to your agent" prompt, which does the whole setup. */
 const AGENT_ROUTE_DOCS_HREF = '/docs#agent-install';
 
-/** docs/AGENT_CLI.md, Distribution: the Claude Code plugin, two commands, nothing to install first. */
-const CLAUDE_CODE_INSTALL = 'claude plugin marketplace add NoaCG/NoaCG-Studio\nclaude plugin install noacg@noacg-studio';
+/** docs/AGENT_CLI.md, Distribution: the Claude Code plugin in ONE command, typed in a Claude Code
+ *  session (2.1.275 or later): it adds the marketplace, asks to confirm it, and installs. */
+const CLAUDE_CODE_INSTALL = '/plugin install noacg --marketplace NoaCG/NoaCG-Studio';
 
-/** The same table's Codex plugin: the same two steps under Codex's own verbs. */
+/** The same table's Codex plugin: two terminal commands, because Codex's `--marketplace` takes the
+ *  name of a marketplace already added, not a source (codex-cli 0.161). */
 const CODEX_INSTALL = 'codex plugin marketplace add NoaCG/NoaCG-Studio\ncodex plugin add noacg@noacg-studio';
 
 /** Copy text, falling back to a selected textarea where the Clipboard API is refused - a page on
@@ -101,10 +103,10 @@ const AgentRouteCard = forwardRef<HTMLElement>(function AgentRouteCard(_props, r
       <ol className="ai-agent-steps" data-testid="ai-agent-route-body">
         <li>Use Claude Code, Codex or another compatible coding agent.</li>
         <li>
-          Install the NoaCG CLI for your agent. Run its two lines once.
+          Install the NoaCG CLI for your agent, once.
           <div className="ai-agent-cmds">
-            <CopyableCommand label="Claude Code" text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
-            <CopyableCommand label="Codex" text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
+            <CopyableCommand label="Claude Code, in a session" text={CLAUDE_CODE_INSTALL} testId="ai-agent-cmd-claude" />
+            <CopyableCommand label="Codex, in a terminal" text={CODEX_INSTALL} testId="ai-agent-cmd-codex" />
           </div>
           <span className="hint">
             Another agent, or rather not type commands?{' '}

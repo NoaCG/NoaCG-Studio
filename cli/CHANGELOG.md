@@ -33,6 +33,18 @@ agents each log in and out. A `logout` in one folder then leaves the others sign
 `noacg doctor` shows the folder in use. Unset, the key stays where it always was, so there is
 nothing to do.
 
+**New: `noacg mcp` is in the official MCP Registry**, as `io.github.NoaCG/noacg`, so MCP server
+directories that read the registry can list it and keep it at the newest version. Every release
+from now on updates it there by itself. The package carries `mcpName` for that; nothing changes in
+how you run it.
+
+**The plugin is now called NoaCG Broadcast Graphics and Playout** in plugin lists (NoaCG Graphics
+and Playout in Codex, which allows 30 characters), with a description that names lower thirds,
+scoreboards, tickers, CasparCG, OBS and vMix, so a search for those words finds it. It installs
+under the same name, `noacg`. In a Claude Code session you can now install it in one command,
+`/plugin install noacg --marketplace NoaCG/NoaCG-Studio`, and each plugin's README says exactly
+what it runs and what it sends.
+
 ## 0.4.1 - 2026-09-23
 
 **New: `noacg bridge`.** It runs NoaCG Bridge, the local program that lets the NoaCG page in your

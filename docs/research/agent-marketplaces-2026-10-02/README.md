@@ -11,6 +11,7 @@ be called.
 |---|---|
 | [`where-users-search.md`](where-users-search.md) | Every official marketplace, directory and registry each tool searches, what each requires, how it is reviewed, and how comparable tools got listed. |
 | [`name.md`](name.md) | The recommended name, what users type, clashes with names, packages and marks, and the runner-up. |
+| [`updates.md`](updates.md) | How each directory and registry picks up a new version, what the release feeds, and what still needs a person each time. |
 | [`drafts.md`](drafts.md) | Each listing submission drafted complete for the owner to send, with the manifest fields each one changes. |
 | [`../../acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md`](../../acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md) | The owner's steps, in order, with what each costs. |
 

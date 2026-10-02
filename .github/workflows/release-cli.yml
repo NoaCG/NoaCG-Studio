@@ -26,7 +26,10 @@
 #      manifest each) and both root marketplace entries. Commit; land on main through
 #      /queue-merge.
 #   2. `git tag cli-v0.3.0 && git push origin cli-v0.3.0`
-#   3. Watch this workflow. It builds from that commit and publishes with provenance.
+#   3. Watch this workflow. It builds from that commit, publishes to npm with provenance, and
+#      then publishes cli/server.json to the official MCP Registry (GitHub OIDC, no secret).
+#      docs/research/agent-marketplaces-2026-10-02/updates.md says which other directories then
+#      follow on their own and which need a person.
 #
 # The tag is the ONE step a human takes, and it is the step this repository's own rule reserves
 # for a human: a landing can be re-landed, but a published version can never be taken back.
@@ -67,7 +70,7 @@ jobs:
     # Never on a fork, and never on a fork's tag push.
     if: ${{ github.repository == 'NoaCG/NoaCG-Studio' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       # The checkout, the ancestor check and the build are all reads, and nothing here writes
       # to the repository.
@@ -124,11 +127,20 @@ jobs:
         run: node cli/scripts/release-notes.mjs --check
 
       # A published version must be a version on main. Both triggers land here: a tag pushed from
-      # a side branch and a dispatch against an unmerged branch are refused identically.
+      # a side branch and a dispatch against an unmerged branch are refused identically. A DRY RUN
+      # of a branch is let through with a notice: it publishes nothing (every step that writes to
+      # a registry is gated on `!inputs.dry_run`), and rehearsing a release change before it lands
+      # is the only way to prove that change works before the release that depends on it.
       - name: Refuse a commit that is not on main
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           git fetch --no-tags origin main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "::notice title=Not on main::${GITHUB_SHA} is not on main yet. This dry run rehearses it; a real publish of it would be refused here."
+              exit 0
+            fi
             echo "::error title=Not on main::${GITHUB_SHA} is not an ancestor of origin/main. Land the branch first (/queue-merge), then tag the commit on main."
             exit 1
           fi
@@ -170,7 +182,16 @@ jobs:
             echo "::notice title=Version already published::@noacg/cli@$VERSION is already on the registry, so this dry run rehearses everything except the registry call itself. Bump cli/package.json to rehearse that too."
             exit 0
           fi
-          echo "::error title=Already published::@noacg/cli@$VERSION is already on the registry. Bump cli/package.json."
+          # npm holds it. If the MCP Registry does not, this is the re-drive of a release whose npm
+          # publish went through and whose registry publish did not (the registry step is last and
+          # can fail on its own): carry on, skip npm, publish only the registry record.
+          SERVER="$(node -p 'encodeURIComponent(require("./cli/server.json").name)')"
+          STATUS="$(curl -s -o /dev/null -w '%{http_code}' "https://registry.modelcontextprotocol.io/v0.1/servers/$SERVER/versions/$VERSION")"
+          if [ "$STATUS" = "404" ]; then
+            echo "::notice title=npm only::@noacg/cli@$VERSION is on npm but not in the MCP Registry, so this run publishes only the registry record."
+            exit 0
+          fi
+          echo "::error title=Already published::@noacg/cli@$VERSION is already on npm (and the MCP Registry answered $STATUS for it). Bump cli/package.json."
           exit 1
 
       # THE TRAP (cli/scripts/build-skill.mjs): a version bump must run the skill generator, which
@@ -194,6 +215,19 @@ jobs:
       - name: Test
         run: npm --prefix cli test
 
+      # THE CODEX AND CHATGPT DIRECTORY takes no feed: a new version of the listed `noacg` plugin
+      # is a ZIP a person uploads at platform.openai.com/plugins, with the plugin folder's contents
+      # at the ZIP's root. This builds that ZIP from the commit being released, so the upload is
+      # the only step left (the owner-queue item for the listing says when it is worth doing).
+      # Hidden files are included on purpose: the manifest lives in `.codex-plugin/`.
+      - name: Keep the Codex directory upload as a run artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noacg-codex-plugin-${{ steps.version.outputs.version }}
+          path: cli/plugin/
+          include-hidden-files: true
+          if-no-files-found: error
+
       # Build the exact tarball a publish would upload, and print its contents. `prepack` re-runs
       # the full build, so what is packed here is what would be packed for real - which is also why
       # a stale local dist/ can never be shipped. This step touches no registry, so it proves the
@@ -201,6 +235,36 @@ jobs:
       - name: Pack exactly as a publish would
         working-directory: cli
         run: npm pack --dry-run
+
+      # THE MCP REGISTRY (registry.modelcontextprotocol.io) lists `noacg mcp` from cli/server.json,
+      # which build-skill.mjs keeps at this version and checks against cli/package.json `mcpName`.
+      # Its publisher is a single binary, PINNED to a version and to the archive's SHA-256: this job
+      # holds an OIDC token that can publish to npm, so it runs nothing fetched as "latest".
+      # To move the pin: download the new release's mcp-publisher_linux_amd64.tar.gz, take its
+      # sha256sum, and change both lines.
+      - name: Install the MCP Registry publisher
+        env:
+          MCP_PUBLISHER_VERSION: v1.8.1
+          MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
+        run: |
+          curl -sSfL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/$MCP_PUBLISHER_VERSION/mcp-publisher_linux_amd64.tar.gz"
+          echo "$MCP_PUBLISHER_SHA256  mcp-publisher.tar.gz" | sha256sum --check
+          tar xzf mcp-publisher.tar.gz mcp-publisher
+          rm mcp-publisher.tar.gz
+          ./mcp-publisher --version
+
+      # The registry's own validation (schema and semantic rules), asked of the registry without
+      # publishing. It does not check npm ownership, which needs the version on npm; build-skill.mjs
+      # asked that question offline, by comparing the name with `mcpName`.
+      - name: Validate the MCP Registry record
+        run: ./mcp-publisher validate cli/server.json
+
+      # Prove the registry accepts this workflow's identity BEFORE npm, so a registry that would
+      # refuse us is found while nothing has been published. GitHub OIDC grants the namespace
+      # io.github.<repository owner>/*, here io.github.NoaCG/*. The token lasts five minutes, so
+      # the publish step below signs in again.
+      - name: Sign in to the MCP Registry with GitHub OIDC
+        run: ./mcp-publisher login github-oidc
 
       # The last step before the upload, and the first that talks to the registry: it resolves the
       # package, refuses a taken version, and reports the tag and access it would publish with.
@@ -245,16 +309,48 @@ jobs:
       #
       # It leaks nothing. `oidc.js` never logs the credential it obtains, and npm redacts auth
       # material from every log level except `notice` (`lib/utils/display.js`).
+      # `free` is false on a real run only for the registry-only re-drive (see "Is the version free?").
       - name: Publish
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && steps.free.outputs.free == 'true' }}
         working-directory: cli
         env:
           NPM_CONFIG_LOGLEVEL: verbose
         run: npm publish
+
+      # The MCP Registry reads the version back from npm and refuses it unless the package's
+      # `mcpName` names this server - and npm answers a publish with 202 and serves the version
+      # about two minutes later (measured on 0.3.2, scripts/release-cli.mjs). So wait until npm
+      # serves this version with its mcpName, then publish, retrying the registry's own transient
+      # answers. Every directory that reads the MCP Registry picks the version up from here; it
+      # has no review step and needs no person.
+      - name: Publish to the MCP Registry
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          WANT="$(node -p 'require("./cli/package.json").mcpName')"
+          for i in $(seq 1 60); do
+            GOT="$(npm view "@noacg/cli@$VERSION" mcpName 2>/dev/null || true)"
+            [ "$GOT" = "$WANT" ] && break
+            sleep 10
+          done
+          if [ "$GOT" != "$WANT" ]; then
+            echo "::error title=npm not ready::npm did not serve @noacg/cli@$VERSION with mcpName $WANT within 10 minutes (got '$GOT'). Re-run this workflow with dry_run unchecked; it skips npm and publishes only the registry record."
+            exit 1
+          fi
+          for i in 1 2 3 4 5; do
+            if ./mcp-publisher login github-oidc && ./mcp-publisher publish cli/server.json; then
+              echo "::notice title=MCP Registry::$WANT $VERSION is in the MCP Registry: https://registry.modelcontextprotocol.io/v0.1/servers?search=$WANT"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error title=MCP Registry refused::npm has @noacg/cli@$VERSION, the MCP Registry does not. Read the publisher's message above, fix, and re-run this workflow with dry_run unchecked; it skips npm and publishes only the registry record."
+          exit 1
 
       - name: Say what landed
         if: ${{ !inputs.dry_run }}
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          echo "::notice title=Published::@noacg/cli@$VERSION is on npm - check the provenance badge at https://www.npmjs.com/package/@noacg/cli"
+          echo "::notice title=Published::@noacg/cli@$VERSION is on npm and in the MCP Registry - check the provenance badge at https://www.npmjs.com/package/@noacg/cli"

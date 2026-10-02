@@ -1,7 +1,8 @@
 {
   "name": "noacg-mcp",
+  "displayName": "NoaCG MCP server",
   "version": "0.7.0",
-  "description": "The NoaCG CLI as an always-on MCP server: one tool, noacg, with the CLI's verbs (types, scaffold, validate with screenshots, inspect, screenshot, docs, save) and a browser kept warm between calls. Optional - the noacg plugin's skill drives the same CLI from the terminal with no server; install this one when you want the tool in every session.",
+  "description": "The NoaCG CLI as an always-on MCP server: one tool, noacg, that makes, checks and saves broadcast graphics for NoaCG Studio, ready to play out live from NoaCG Playout. It speaks the CLI's verbs (types, scaffold, validate with screenshots, inspect, screenshot, docs, save) and keeps a browser warm between calls. Optional - the noacg plugin's skill drives the same CLI from the terminal with no server; install this one when you want the tool in every session.",
   "author": {
     "name": "NoaCG Studio",
     "url": "https://noacg.studio"
@@ -11,9 +12,16 @@
   "license": "Apache-2.0",
   "keywords": [
     "broadcast-graphics",
+    "broadcast graphics",
+    "playout",
     "ograf",
     "spx",
     "casparcg",
     "mcp"
-  ]
+  ],
+  "icon": "./assets/icon.png",
+  "documentationUrl": "https://noacg.studio/docs#agent-install",
+  "supportUrl": "https://github.com/NoaCG/NoaCG-Studio/issues",
+  "privacyPolicyUrl": "https://noacg.studio/privacy",
+  "termsOfServiceUrl": "https://noacg.studio/terms"
 }
