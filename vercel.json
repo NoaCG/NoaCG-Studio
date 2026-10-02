@@ -8,7 +8,8 @@
       "maxDuration": 300,
       "includeFiles": "render-worker/{bundle/**,sandbox-job.mjs}"
     },
-    "api/render/cleanup.ts": { "maxDuration": 300 }
+    "api/render/cleanup.ts": { "maxDuration": 300 },
+    "api/status.ts": { "maxDuration": 10 }
   },
   "crons": [{ "path": "/api/render/cleanup", "schedule": "30 3 * * *" }],
   "rewrites": [{ "source": "/join/:name", "destination": "/join" }],

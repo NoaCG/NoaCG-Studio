@@ -86,6 +86,7 @@ Layers of documentation, top to bottom:
 | `FORMATTING.md` | What Prettier may and may not touch, and why. |
 | `DEV_PORTS.md` | Per-worktree dev-port reservation. |
 | `DEPLOYMENT.md` | CI + Vercel production runbook: the pipeline, the 12-function budget, deploy verification (`deploy-verify.yml`, `version.json`), opt-in previews, rolling-issue alerts, and where to look when production stops updating. |
+| `STATUS_PAGE.md` | The public status page at status.noacg.studio: the chosen outside service (Better Stack, free) with its limits from primary sources, the components and monitors, the `/api/status` health endpoint, and the maintenance and incident process. |
 | `AI_LITE_BENCHMARK.md` | The NoaCG Lite model-evaluation benchmark: the context-assembly trace, the shared compile pipeline (`src/ai/lite/pipeline.ts`), suites, calibration, regression vs model comparison, blind review, storage boundaries. |
 | `AI_LITE_PROMOTION.md` | Lite route promotion policy: eligibility gates (thresholds owner-TODO), ranking, the proposed-route output, and the manual broadcast verification checklist. |
 | `AI_LITE_PLAN.md` | ACTIVE PLAN: how Lite gets good and stays inside the ~€0.01 budget - what the 2026-08-07 switch-on and first real round measured, the route table with live prices, what the model decides vs the platform, why the judge stays off, and the build order. |
