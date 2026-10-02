@@ -5,16 +5,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { buildRoadmap, GOALS_FILE, renderRoadmapHtml, WORDING_FILE } from './roadmap.mjs';
+import { buildRoadmap, GOALS_FILE, renderNowHtml, renderRoadmapHtml, WORDING_FILE } from './roadmap.mjs';
 import {
-  areaOfPath,
   bulletProblems,
   dateOfFile,
+  escapeHtml,
   groupLanded,
   loadUpdates,
   parseUpdate,
   problemsIn,
+  renderLatestHtml,
   renderUpdatesHtml,
+  topicOfPath,
+  TOPICS,
 } from './whats-new.mjs';
 
 const GOALS = readFileSync(GOALS_FILE, 'utf8');
@@ -24,17 +27,25 @@ test('every update in the repository passes the check, and there is at least one
   const updates = loadUpdates();
   assert.ok(updates.length > 0);
   assert.deepEqual(problemsIn(updates), []);
-  assert.match(renderUpdatesHtml(updates), /<article class="wn-update" id="\d{4}-\d{2}-\d{2}">/);
+  assert.match(renderUpdatesHtml(updates), /<article class="up-row wn-update" id="\d{4}-\d{2}-\d{2}">/);
+});
+
+test('an update names only the three topics, in their order', () => {
+  assert.deepEqual(TOPICS, ['Playout and Bridge', 'Editor and templates', 'AI workflows']);
+  for (const old of ['Playout systems', 'NoaCG Bridge', 'CLI', 'MCP server']) {
+    assert.ok(parseUpdate(`## ${old}\n\n- Something a reader can now do.\n`).problems.some((p) => /is not a topic/.test(p)), old);
+  }
 });
 
 test('a plain, short update passes', () => {
-  const { areas, problems } = parseUpdate(
-    '## Playout systems\n\n- Rundowns have folders, and All out clears everything on air.\n\n' +
-      '## NoaCG Bridge\n\n- The Bridge remembers your CasparCG servers and connects to the last one\n  by itself.\n',
+  const { topics, problems } = parseUpdate(
+    '## Playout and Bridge\n\n- Rundowns have folders, and All out clears everything on air.\n' +
+      '- The Bridge remembers your CasparCG servers and connects to the last one\n  by itself.\n\n' +
+      '## AI workflows\n\n- The MCP server lists your productions.\n',
   );
   assert.deepEqual(problems, []);
-  assert.deepEqual(areas.map((a) => a.name), ['Playout systems', 'NoaCG Bridge']);
-  assert.equal(areas[1].bullets[0].text, 'The Bridge remembers your CasparCG servers and connects to the last one by itself.');
+  assert.deepEqual(topics.map((t) => t.name), ['Playout and Bridge', 'AI workflows']);
+  assert.equal(topics[0].bullets[1].text, 'The Bridge remembers your CasparCG servers and connects to the last one by itself.');
 });
 
 test('a seeded slop update is refused, for each reason it is slop', () => {
@@ -53,7 +64,7 @@ test('a seeded slop update is refused, for each reason it is slop', () => {
     '',
     '- Something',
     '',
-    '## CLI',
+    '## AI workflows',
     '',
   ].join('\n');
   const { problems } = parseUpdate(slop);
@@ -71,18 +82,19 @@ test('a seeded slop update is refused, for each reason it is slop', () => {
   said(/line 7: .*"playoutKeys" looks like a name from the code/);
   said(/line 8: it is 31 words/);
   said(/line 9: .*promises a date/);
-  said(/"Release notes" is not an area/);
-  said(/"CLI" has no bullets/);
+  said(/"Release notes" is not a topic/);
+  said(/"AI workflows" has no bullets/);
 });
 
-test('an update keeps only the biggest changes, in the fixed area order', () => {
-  const many = (area, n) => `## ${area}\n\n${Array.from({ length: n }, (_, i) => `- Change number ${i + 1} for the reader.`).join('\n')}\n`;
-  assert.ok(parseUpdate(many('CLI', 5)).problems.some((p) => /keep the 4 biggest/.test(p)));
-  const thirteen = ['Playout systems', 'Editor and templates', 'CLI', 'MCP server'].map((a, i) => many(a, i < 1 ? 4 : 3)).join('\n');
+test('an update keeps only the biggest changes, in the fixed topic order', () => {
+  const many = (topic, n) => `## ${topic}\n\n${Array.from({ length: n }, (_, i) => `- Change number ${i + 1} for the reader.`).join('\n')}\n`;
+  assert.deepEqual(parseUpdate(many('AI workflows', 6)).problems, []);
+  assert.ok(parseUpdate(many('AI workflows', 7)).problems.some((p) => /keep the 6 biggest/.test(p)));
+  const thirteen = TOPICS.map((t, i) => many(t, i < 1 ? 5 : 4)).join('\n');
   assert.ok(parseUpdate(thirteen).problems.some((p) => /13 bullets; keep the 12 biggest/.test(p)));
-  assert.ok(parseUpdate(`${many('CLI', 1)}\n${many('Playout systems', 1)}`).problems.some((p) => /out of order/.test(p)));
+  assert.ok(parseUpdate(`${many('AI workflows', 1)}\n${many('Playout and Bridge', 1)}`).problems.some((p) => /out of order/.test(p)));
   assert.ok(parseUpdate('').problems.some((p) => /empty/.test(p)));
-  assert.ok(parseUpdate('Some prose\n').problems.some((p) => /only "## <area>" headings/.test(p)));
+  assert.ok(parseUpdate('Some prose\n').problems.some((p) => /only "## <topic>" headings/.test(p)));
 });
 
 test('product names spelled with an inner capital are not mistaken for code', () => {
@@ -96,26 +108,40 @@ test('an update is named for a real day', () => {
 });
 
 test('the page refuses to render a bad update, and escapes what it renders', () => {
-  const bad = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## CLI\n\n- Fix #12\n') }];
+  const bad = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## AI workflows\n\n- Fix #12\n') }];
   assert.throws(() => renderUpdatesHtml(bad), /not fit to publish/);
-  const good = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## CLI\n\n- Names with <b> and & show as typed.\n') }];
+  assert.throws(() => renderLatestHtml(bad), /not fit to publish/);
+  const good = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## AI workflows\n\n- Names with <b> and & show as typed.\n') }];
   assert.match(renderUpdatesHtml(good), /Names with &lt;b&gt; and &amp; show as typed\./);
   assert.match(renderUpdatesHtml(good), /<time datetime="2026-10-02">2 October 2026<\/time>/);
 });
 
-test('the draft groups landed changes under the area most of their files belong to', () => {
-  assert.equal(areaOfPath('cli/src/playout/amcp.ts'), 'NoaCG Bridge');
-  assert.equal(areaOfPath('cli/src/mcp.ts'), 'MCP server');
-  assert.equal(areaOfPath('cli/src/commands/validate.ts'), 'CLI');
-  assert.equal(areaOfPath('src/components/control/Rundown.tsx'), 'Playout systems');
-  assert.equal(areaOfPath('src/editor/foo.ts'), 'Editor and templates');
-  assert.equal(areaOfPath('src/editor/foo.test.ts'), null);
-  assert.equal(areaOfPath('scripts/gates.mjs'), null);
+test('the landing shows the newest update alone, in the list the page uses', () => {
+  const update = (date, topic) => ({ file: `${date}.md`, date, ...parseUpdate(`## ${topic}\n\n- Something new on ${date}.\n`) });
+  const html = renderLatestHtml([update('2026-10-06', 'Editor and templates'), update('2026-10-02', 'AI workflows')]);
+  assert.match(html, /<time datetime="2026-10-06">6 October 2026<\/time>/);
+  assert.match(html, /<div class="up-topic">\s*<h4>Editor and templates<\/h4>\s*<ul>\s*<li>Something new on 2026-10-06\.<\/li>/);
+  assert.doesNotMatch(html, /2026-10-02/);
+});
+
+test('the draft groups landed changes under the topic most of their files belong to', () => {
+  assert.equal(topicOfPath('cli/src/playout/amcp.ts'), 'Playout and Bridge');
+  assert.equal(topicOfPath('cli/BRIDGE_CHANGELOG.md'), 'Playout and Bridge');
+  assert.equal(topicOfPath('src/bridge/main.ts'), 'Playout and Bridge');
+  assert.equal(topicOfPath('src/components/control/Rundown.tsx'), 'Playout and Bridge');
+  assert.equal(topicOfPath('cli/src/mcp.ts'), 'AI workflows');
+  assert.equal(topicOfPath('cli/src/commands/validate.ts'), 'AI workflows');
+  assert.equal(topicOfPath('cli/plugin/skills/noacg-graphic/SKILL.md'), 'AI workflows');
+  assert.equal(topicOfPath('src/ai/agent.ts'), 'AI workflows');
+  assert.equal(topicOfPath('src/editor/foo.ts'), 'Editor and templates');
+  assert.equal(topicOfPath('src/editor/foo.test.ts'), null);
+  assert.equal(topicOfPath('scripts/gates.mjs'), null);
   const groups = groupLanded([
     { title: 'Bridge loops', files: ['cli/src/playout/runner.ts', 'cli/src/playout/slots.ts', 'src/editor/x.ts'] },
     { title: 'Tidy CI', files: ['.github/workflows/ci.yml'] },
   ]);
-  assert.deepEqual(groups.get('NoaCG Bridge').map((c) => c.title), ['Bridge loops']);
+  assert.deepEqual([...groups.keys()], [...TOPICS, null]);
+  assert.deepEqual(groups.get('Playout and Bridge').map((c) => c.title), ['Bridge loops']);
   assert.deepEqual(groups.get(null).map((c) => c.title), ['Tidy CI']);
 });
 
@@ -128,7 +154,17 @@ test('the roadmap is in step with GOALS today, every outcome placed', () => {
   assert.deepEqual(roadmap.problems, []);
   const placed = new Set(['now', 'next', 'later'].flatMap((b) => roadmap.columns[b].map((i) => i.outcome)));
   assert.equal(placed.size, roadmap.outcomes);
-  assert.match(renderRoadmapHtml(roadmap), /<section class="rm-col" id="now"/);
+  assert.match(renderRoadmapHtml(roadmap), /<section class="up-row rm-col" id="now"/);
+});
+
+test('the landing shows the roadmap\'s Now items alone, each with its first bullet', () => {
+  const roadmap = buildRoadmap(GOALS, WORDING);
+  const html = renderNowHtml(roadmap);
+  const shown = [...html.matchAll(/<h4>([^<]+)<\/h4>/g)].map((m) => m[1]);
+  assert.deepEqual(shown, titlesIn(roadmap, 'now').map(escapeHtml));
+  const bullets = [...html.matchAll(/<li>([^<]+)<\/li>/g)].map((m) => m[1]);
+  assert.deepEqual(bullets, roadmap.columns.now.map((i) => escapeHtml(i.bullets[0])));
+  for (const later of [...titlesIn(roadmap, 'next'), ...titlesIn(roadmap, 'later')]) assert.ok(!html.includes(later), later);
 });
 
 test('changing a priority in GOALS moves the item on the roadmap, with nothing copied', () => {

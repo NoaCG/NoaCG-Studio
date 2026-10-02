@@ -14,6 +14,9 @@ copies anything. This file only says it in plain words for a visitor.
   that priority too, as outcome 6's "next milestone" does;
 - every bullet passes the same plain-words check as the What's new notes (`docs/whats-new/README.md`).
 
+The landing page shows each Now item with its first bullet only, so make the first bullet the one
+line that says the item best.
+
 Write features we will add or improve, as a visitor would understand them. No competitors, no
 partners, customers or shows, no people, no dates, and nothing that claims more than the
 current state in GOALS: what is already built belongs in What's new, not here.

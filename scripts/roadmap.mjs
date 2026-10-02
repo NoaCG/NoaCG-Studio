@@ -22,7 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { measured } from './measured.mjs';
-import { bulletProblems, escapeHtml } from './whats-new.mjs';
+import { bulletProblems, renderTopicsHtml } from './whats-new.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const GOALS_FILE = path.join(ROOT, 'docs', 'GOALS.md');
@@ -159,21 +159,37 @@ const COLUMN_NOTES = {
   later: 'Planned, not started.',
 };
 
-/** The roadmap's three columns as HTML. Throws when GOALS and the wording disagree, so the page
- *  cannot be built from a roadmap that is out of step. */
-export function renderRoadmapHtml(roadmap = loadRoadmap()) {
+const asTopics = (items) => items.map((item) => ({ name: item.title, bullets: item.bullets, outcome: item.outcome }));
+const outcomeAttr = (t) => ` data-outcome="${t.outcome}"`;
+
+function refuseOutOfStep(roadmap) {
   if (roadmap.problems.length > 0) {
     throw new Error(`roadmap: out of step with docs/GOALS.md:\n  - ${roadmap.problems.join('\n  - ')}`);
   }
-  return BUCKETS.map((bucket) => {
-    const items = roadmap.columns[bucket]
-      .map((item) => {
-        const bullets = item.bullets.map((b) => `            <li>${escapeHtml(b)}</li>`).join('\n');
-        return `        <article class="rm-item" data-outcome="${item.outcome}">\n          <h3>${escapeHtml(item.title)}</h3>\n          <ul>\n${bullets}\n          </ul>\n        </article>`;
-      })
-      .join('\n');
-    return `      <section class="rm-col" id="${bucket}" aria-labelledby="rm-${bucket}">\n        <h2 id="rm-${bucket}">${COLUMN_HEADINGS[bucket]}</h2>\n        <p class="rm-note">${COLUMN_NOTES[bucket]}</p>\n        <div class="rm-items">\n${items}\n        </div>\n      </section>`;
-  }).join('\n');
+}
+
+/** The roadmap's Now, Next and Later as HTML, each a plain list of its items read top to bottom,
+ *  the list What's new uses. Throws when GOALS and the wording disagree, so the page cannot be
+ *  built from a roadmap that is out of step. */
+export function renderRoadmapHtml(roadmap = loadRoadmap()) {
+  refuseOutOfStep(roadmap);
+  return BUCKETS.map((bucket) =>
+    `      <section class="up-row rm-col" id="${bucket}" aria-labelledby="rm-${bucket}">\n` +
+    `        <div class="up-label">\n          <h2 id="rm-${bucket}">${COLUMN_HEADINGS[bucket]}</h2>\n` +
+    `          <p class="up-note">${COLUMN_NOTES[bucket]}</p>\n        </div>\n` +
+    `${renderTopicsHtml(asTopics(roadmap.columns[bucket]), { attrs: outcomeAttr })}\n      </section>`,
+  ).join('\n');
+}
+
+/** The landing's roadmap: the Now items alone, in the same list, each with its FIRST bullet only.
+ *  The landing is short on purpose and links the whole roadmap beneath, so the first bullet of an
+ *  item is the one line that says it (docs/whats-new/roadmap.md). Refuses the same way. */
+export function renderNowHtml(roadmap = loadRoadmap()) {
+  refuseOutOfStep(roadmap);
+  const leads = roadmap.columns.now.map((item) => ({ ...item, bullets: item.bullets.slice(0, 1) }));
+  return `        <div class="up-label">\n          <h3>Now on the roadmap</h3>\n` +
+    `          <p class="up-note">${COLUMN_NOTES.now}</p>\n        </div>\n` +
+    renderTopicsHtml(asTopics(leads), { level: 4, attrs: outcomeAttr });
 }
 
 const isEntrypoint =

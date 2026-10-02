@@ -17,6 +17,7 @@
   <link rel="apple-touch-icon" href="/noacg-icon-256.png" />
   <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/src/landing/updates.css" />
   <meta property="og:title" content="NoaCG Studio - Broadcast graphics and playout in your browser" />
   <meta property="og:description" content="Make on-air graphics in your browser and run them from a rundown. Free and open source, no sign-up to try." />
   <meta property="og:type" content="website" />
@@ -207,6 +208,12 @@
     .sub a:hover, .feat p a:hover { color: var(--glow); }
     .sub + .sub { margin-top: 12px; }
     .note { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
+
+    /* What's new (#updates): the list itself is src/landing/updates.css, shared with
+       /whats-new and /roadmap; here only its place on this page. */
+    #updates h2 { margin-bottom: 26px; }
+    #updates .up-row:last-of-type { border-bottom: 1px solid var(--line); padding-bottom: 30px; }
+    .up-more { margin-top: 26px; }
 
     /* ═══ Product screenshots ═══
        Every picture below is a REAL capture of the running app, produced by
@@ -597,9 +604,24 @@
           service runs for you, such as publishing an output URL or running AI. We would like to
           <a href="mailto:contact.noacg@gmail.com">hear what you think</a>.
         </p>
-        <p class="sub" data-reveal>
-          See <a href="/whats-new">what changed lately</a> and
-          <a href="/roadmap">where NoaCG is going</a>.
+      </section>
+
+      <!-- What's new: the newest update and the roadmap's Now items, as the same plain list
+           /whats-new and /roadmap use. Neither list is written here: the build puts them in place
+           of the two markers (the generated-pages plugin in vite.config.ts), from docs/whats-new/
+           and docs/GOALS.md. Styles: src/landing/updates.css. -->
+      <section id="updates">
+        <p class="kicker" data-reveal>What's new</p>
+        <h2 data-reveal>What moved, and what comes next.</h2>
+        <div class="up-row" data-reveal>
+<!--whats-new:latest-->
+        </div>
+        <div class="up-row" data-reveal>
+<!--roadmap:now-->
+        </div>
+        <p class="sub up-more" data-reveal>
+          Read every update on <a href="/whats-new">What's new</a>, and the whole plan on the
+          <a href="/roadmap">roadmap</a>.
         </p>
       </section>
     </main>
