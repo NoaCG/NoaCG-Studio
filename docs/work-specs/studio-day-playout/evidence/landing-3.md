@@ -64,17 +64,30 @@ both codes.
   nothing for a server the Bridge never connected to, the Bridge's otherwise, an unconfirmed change
   over the Bridge's older copy, the screen's for a server with none unless it is the untouched
   default, and what the page sends is always a setup the Bridge accepts.
-- **Offline e2e** (`npx playwright test e2e/bridge-connect.spec.ts`): 34 passed, seven of them new:
+- **Offline e2e** (`npx playwright test e2e/bridge-connect.spec.ts`): 36 passed, nine of them new:
   a second browser opens with the setup and nothing typed; a change in Settings is kept for its
   server and two servers keep their own; a change made with the Bridge stopped is given to it when
-  it answers, not replaced; an older Bridge keeps the setup in the browser and says so, and its
-  Settings say how to pair another browser without `/pair-link`; a production page opens with the
-  Bridge's setup; pairing is one line per step with the info buttons, This computer and the servers
-  staying once connected, and no sideways scroll at 390 px; another browser pairs from a copied link
-  (the clipboard holds it), before pairing and after.
+  it answers, not replaced, both on reopening Settings and as soon as a production page's status
+  sees the Bridge again; a change typed while the Bridge is still being asked is kept; an older
+  Bridge keeps the setup in the browser and says so, and its Settings say how to pair another
+  browser without `/pair-link`; a production page opens with the Bridge's setup; pairing is one line
+  per step with the info buttons, This computer and the servers staying once connected, and no
+  sideways scroll at 390 px; another browser pairs from a copied link (the clipboard holds it),
+  before pairing and after.
   **Mutations:** with the unconfirmed change no longer winning, the offline-change test fails with
   "Inserts" where "Clean feed" was typed (the data loss it guards); with the production page's sync
-  removed, its test reads "NoaCG output 1-20 · 1 channel" instead of the Bridge's 1-30, 2 channels.
+  removed, its test reads "NoaCG output 1-20 · 1 channel" instead of the Bridge's 1-30, 2 channels;
+  with the sync's re-read before writing removed, the typed-while-asked test fails with "Graphics"
+  written over the typed "Program".
+- **Review and simplify** (`/check`). The review found that a sync pushed the setup it read when it
+  started and then cleared the pending mark, so a change typed during the round trip was never sent,
+  and that a pull could write over such a change; also that several syncs could reach the Bridge out
+  of order. Every write now re-reads the browser first and settles only what was sent, and syncs
+  run one at a time (the typed-while-asked test above). The simplify pass found that a waiting change
+  only reached the Bridge when a screen opened, though D17 says "the next time the Bridge answers":
+  a production page now sends it when its status sees the Bridge again (the spec above). It also
+  routed the Bridge's own routes through the reply reader every other route uses, so a rejected
+  token reads as one rather than "does not answer", and made the info button the wizard's ⓘ.
 - **The playout specs around it** (bridge-connect, playout-baseline, -clock, -cues, -folders, -nav,
   -sequence): 131 passed and 2 failed under four workers while another session's job ran; both
   passed alone and 8 of 8 with `--repeat-each=4 --workers=4`.

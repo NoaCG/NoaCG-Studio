@@ -1,6 +1,6 @@
 {
   "name": "noacg",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Make broadcast graphics for NoaCG Studio and play them out: lower thirds, scoreboards, tickers, bugs, countdowns and full-screen graphics, run live from NoaCG Playout to CasparCG, OBS or vMix, or exported for SPX, H2R or any OGraf renderer. Adds the noacg-graphic skill, and runs nothing until a graphic is being made.",
   "author": {
     "name": "NoaCG Studio",
