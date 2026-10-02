@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { watchVerdict } from './land-watch.mjs';
+import { watch, watchVerdict } from './land-watch.mjs';
 
 const open = (over = {}) => ({ state: 'OPEN', mergedAt: null, mergeCommit: null, headRefOid: 'abc', autoMergeRequest: { enabledAt: 'x' }, ...over });
 
@@ -32,15 +32,115 @@ test('a failed gate on the pull request is a refusal while its auto-merge reques
   const shard = { name: 'E2E 3/9 (subset)', status: 'COMPLETED', conclusion: 'FAILURE' };
   const verdict = watchVerdict(open(), [shard, shard, red, red, { name: 'Build', status: 'COMPLETED', conclusion: 'SUCCESS' }]);
   assert.equal(verdict.verdict, 'refused');
-  assert.equal(verdict.reason, 'E2E 3/9 (subset), CI gate failed on the pull request, so the queue never took it');
-  // One of the two runs still going, or green, is not a verdict: GitHub reads the newest.
+  assert.equal(verdict.reason, 'CI gate failed on the pull request (also red: E2E 3/9 (subset)), so the queue never took it');
+  // A run still going (queued, running, or re-run after it failed) is not a verdict yet.
   assert.deepEqual(watchVerdict(open(), [red, { name: 'CI gate', status: 'IN_PROGRESS', conclusion: '' }]), { verdict: 'waiting' });
-  assert.deepEqual(watchVerdict(open(), [red, { name: 'CI gate', status: 'COMPLETED', conclusion: 'SUCCESS' }]), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(open(), [red, { name: 'CI gate', status: 'QUEUED', conclusion: null }]), { verdict: 'waiting' });
+  // GitHub reads the most recently updated run of a name: a red run superseded by a green one is
+  // not a verdict, and a red run that came last is (#609, below), a tie counting as red.
+  const at = (check, startedAt, completedAt) => ({ ...check, startedAt, completedAt });
+  const green = { name: 'CI gate', status: 'COMPLETED', conclusion: 'SUCCESS' };
+  assert.deepEqual(watchVerdict(open(), [at(red, '2026-10-01T22:21:51Z', '2026-10-01T22:21:58Z'), at(green, '2026-10-01T22:21:54Z', '2026-10-01T22:21:59Z')]), { verdict: 'waiting' });
+  assert.equal(watchVerdict(open(), [at(green, '2026-10-01T22:21:51Z', '2026-10-01T22:21:58Z'), at(red, '2026-10-01T22:21:54Z', '2026-10-01T22:21:59Z')]).verdict, 'refused');
+  assert.equal(watchVerdict(open(), [at(green, 'T1', 'T2'), at(red, 'T1', 'T2')]).verdict, 'refused');
+  // Any check the landing ruleset requires, not the gate alone; a non-required red check is not one.
+  const reviewed = { name: 'Reviewed', status: 'COMPLETED', conclusion: 'FAILURE' };
+  assert.equal(watchVerdict(open(), [reviewed, green]).reason, 'Reviewed failed on the pull request, so the queue never took it');
+  assert.deepEqual(watchVerdict(open(), [reviewed, { ...green, status: 'IN_PROGRESS', conclusion: null }]), { verdict: 'waiting' }, 'one required check still running is not yet the verdict');
+  // One run's gate is red while the other run's shards still work towards a gate it has not
+  // created yet: that run is still going, so it is not a verdict. A pending check in a workflow
+  // that reports no required check does not hold the verdict back.
+  const ci = (check) => ({ ...check, workflowName: 'CI' });
+  assert.deepEqual(watchVerdict(open(), [ci(red), ci({ name: 'E2E 2/4 (subset)', status: 'IN_PROGRESS', conclusion: null })]), { verdict: 'waiting' });
+  assert.equal(watchVerdict(open(), [ci(red), { name: 'Pages', workflowName: 'Docs', status: 'IN_PROGRESS', conclusion: null }]).verdict, 'refused');
+  assert.equal(watchVerdict(open(), [{ ...red, conclusion: 'STARTUP_FAILURE' }]).verdict, 'refused', 'a run that never started blocks the check too');
+  assert.deepEqual(watchVerdict(open(), [shard, green]), { verdict: 'waiting' });
   // A red shard with no gate verdict yet is still waiting, and so is a gate nobody has reported.
   assert.deepEqual(watchVerdict(open(), [shard]), { verdict: 'waiting' });
   assert.deepEqual(watchVerdict(open(), []), { verdict: 'waiting' });
   // Inside the queue the pull request's own checks are history; the merge group decides.
   assert.deepEqual(watchVerdict(open({ mergeQueueEntry: { state: 'AWAITING_CHECKS', position: 1 } }), [red]), { verdict: 'waiting' });
+});
+
+// PR #609 as the watcher read it through the night of 2026-10-01: auto-merge on, mergeable, not in
+// the queue, head 61f4d565, and the rollup below - both runs of ci.yml on that head (push and
+// pull_request), first attempts only, from the commit's check runs (`filter=all`). The push run's
+// `E2E 3/4` failed, so its `CI gate` went red at 22:21:59, one second after the pull_request run's
+// went green. GitHub kept the pull request out of the queue until the push run was re-run at 05:38;
+// the watcher (j-2830, then j-2845) read "waiting in the merge queue" for its full hour, twice.
+const NIGHT_609 = [
+  ['E2E plan', 'SUCCESS', '22:11:50', '22:12:11'],
+  ['Factory gates', 'SUCCESS', '22:11:48', '22:13:13'],
+  ['Build', 'SUCCESS', '22:11:48', '22:15:33'],
+  ['Reviewed', 'SKIPPED', '22:11:46', '22:11:46'],
+  ['Vercel accepted the commit', 'SKIPPED', '22:11:46', '22:11:46'],
+  ['Build', 'SUCCESS', '22:11:55', '22:14:56'],
+  ['E2E plan', 'SUCCESS', '22:11:55', '22:12:06'],
+  ['Reviewed', 'SUCCESS', '22:11:55', '22:12:06'],
+  ['Factory gates', 'SUCCESS', '22:11:55', '22:12:41'],
+  ['Vercel accepted the commit', 'SKIPPED', '22:11:52', '22:11:51'],
+  ['E2E 1/4 (subset)', 'SUCCESS', '22:12:08', '22:18:01'],
+  ['E2E 3/4 (subset)', 'SUCCESS', '22:12:08', '22:19:30'],
+  ['E2E 4/4 (subset)', 'SUCCESS', '22:12:08', '22:21:49'],
+  ['Catalog calibration gate', 'SUCCESS', '22:12:08', '22:17:06'],
+  ['E2E 2/4 (subset)', 'SUCCESS', '22:12:08', '22:20:12'],
+  ['Catalog calibration gate', 'SUCCESS', '22:12:14', '22:17:01'],
+  ['E2E 2/4 (subset)', 'SUCCESS', '22:12:16', '22:20:54'],
+  ['E2E 4/4 (subset)', 'SUCCESS', '22:12:14', '22:21:51'],
+  ['E2E 1/4 (subset)', 'SUCCESS', '22:12:14', '22:17:17'],
+  ['E2E 3/4 (subset)', 'FAILURE', '22:12:13', '22:18:11'],
+  ['Re-run (failed Build or Factory job, same commit)', 'SKIPPED', '22:14:57', '22:14:56'],
+  ['Re-run (failed Build or Factory job, same commit)', 'SKIPPED', '22:15:33', '22:15:33'],
+  ['Combined E2E report', 'SUCCESS', '22:21:51', '22:22:06'],
+  ['CI gate', 'SUCCESS', '22:21:51', '22:21:58'],
+  ['E2E retry (failed specs, same commit)', 'SKIPPED', '22:21:49', '22:21:49'],
+  ['Combined E2E report', 'SUCCESS', '22:21:54', '22:22:09'],
+  ['CI gate', 'FAILURE', '22:21:54', '22:21:59'],
+  ['E2E retry (failed specs, same commit)', 'SKIPPED', '22:21:52', '22:21:51'],
+  ['After the gate', 'SKIPPED', '22:21:59', '22:21:59'],
+  ['After the gate', 'SKIPPED', '22:22:00', '22:22:00'],
+].map(([name, conclusion, startedAt, completedAt]) => ({
+  __typename: 'CheckRun', name, workflowName: 'CI', status: 'COMPLETED', conclusion,
+  startedAt: `2026-10-01T${startedAt}Z`, completedAt: `2026-10-01T${completedAt}Z`,
+})).concat([
+  { __typename: 'CheckRun', name: 'Vercel Preview Comments', workflowName: '', status: 'COMPLETED', conclusion: 'SUCCESS', startedAt: '2026-10-01T22:11:56Z', completedAt: '2026-10-01T22:11:56Z' },
+  { __typename: 'StatusContext', context: 'Vercel', state: 'SUCCESS', startedAt: '2026-10-01T22:11:54Z' },
+  { __typename: 'StatusContext', context: 'noacg/reviewed', state: 'SUCCESS', startedAt: '2026-10-01T22:11:50Z' },
+]);
+const PR_609 = { state: 'OPEN', merged: false, mergeable: 'MERGEABLE', url: 'https://github.com/NoaCG/NoaCG-Studio/pull/609', headRefOid: '61f4d56553a0bb46dfc5553a0de566478024dfa4', mergeCommit: null, autoMergeRequest: { enabledAt: '2026-10-01T22:11:58Z' }, mergeQueueEntry: null };
+
+test('#609: a required check whose newest run is red is a refusal, though an older run of it passed', () => {
+  assert.deepEqual(
+    watchVerdict(PR_609, NIGHT_609, { expectSha: PR_609.headRefOid }),
+    { verdict: 'refused', reason: 'CI gate failed on the pull request (also red: E2E 3/4 (subset)), so the queue never took it' },
+  );
+  // The same night a few seconds earlier, while the push run's gate was still running, was rightly
+  // waiting; and so is the pull request after the owner re-ran that gate at 05:38.
+  const pushGate = (over) => NIGHT_609.map((c) => (c.name === 'CI gate' && c.conclusion === 'FAILURE' ? { ...c, ...over } : c));
+  assert.deepEqual(watchVerdict(PR_609, pushGate({ status: 'IN_PROGRESS', conclusion: null, completedAt: null })), { verdict: 'waiting' });
+  assert.deepEqual(watchVerdict(PR_609, pushGate({ status: 'QUEUED', conclusion: null, startedAt: '2026-10-02T05:38:35Z', completedAt: null })), { verdict: 'waiting' });
+  // And in the queue it waits whatever the pull request's own checks say.
+  assert.deepEqual(watchVerdict({ ...PR_609, autoMergeRequest: null, mergeQueueEntry: { state: 'AWAITING_CHECKS', position: 1 } }, NIGHT_609), { verdict: 'waiting' });
+});
+
+test('#609 replayed through the watcher: refused on the first confirmed tick, within two polls', async () => {
+  let clock = 0;
+  const waits = [];
+  const errors = [];
+  const said = console.error;
+  console.error = (line) => errors.push(line);
+  let code;
+  try {
+    code = await watch(
+      { pr: '609', branch: 'claude/editor-r1-2b-anchor-typography-bf62be', expectSha: PR_609.headRefOid },
+      { view: () => PR_609, checks: () => NIGHT_609, wait: async (ms) => { waits.push(ms); clock += ms; }, now: () => clock },
+    );
+  } finally {
+    console.error = said;
+  }
+  assert.equal(code, 1, 'refused, so the landing slot is freed');
+  assert.deepEqual(waits, [10_000], 'one confirming read ten seconds after the first, and no poll interval at all');
+  assert.match(errors[0], /refused: CI gate failed on the pull request \(also red: E2E 3\/4 \(subset\)\)/);
 });
 
 test('auto-merge off without a merge is a refusal, naming the failed checks when there are any', () => {
