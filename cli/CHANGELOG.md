@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.7.2 - unreleased
+## 0.7.2 - 2026-10-02
 
 **Fixed: frames over MCP fit in the answer again.** `validate` with `screenshots: true` and a
 `background` sent every frame as a full-size PNG: five frames over the video plate came to 6.1 MB
@@ -37,7 +37,7 @@ states it found no frame for (`unshotStates` in `--json`), so a missing frame is
 
 The skill now names the MCP `events`, `at` and `background` arguments.
 
-## 0.7.1 - unreleased
+## 0.7.1 - 2026-10-02
 
 **New: see every state of a graphic, at any moment, over video.** `noacg screenshot` takes
 `--event` (repeatable) to drive the graphic the way an operator does after the Take: its own
