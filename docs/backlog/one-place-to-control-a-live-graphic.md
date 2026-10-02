@@ -3,8 +3,12 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-22
-state: parked
-note: waits until after the 2026-09-25 lecture and demo, when control-system changes are allowed again
+state: advanced
+note: >-
+  The review and plan landed in docs/research/control-surfaces-review-2026-10-02/README.md
+  (2026-10-02, with a Fable design consult). Still missing: the eight slices it orders. Slices 1-3
+  are ready for the playout session; 4 is ready and needs the owner's look; 5-8 wait on one owner
+  answer each or on the hardware-panel R1 work.
 asked: >-
   "After Friday, have Fable review and propose a plan for: unifying quiz and graphic controls,
   ensuring live data always stays synchronized, removing duplicate ways of controlling graphics,
@@ -12,11 +16,32 @@ asked: >-
   removed, keeping the playout experience extremely simple, and checking whether the playout page
   has accumulated unnecessary complexity or code. The goal is consistency and simplicity, not a
   large redesign."
+serves: NOW
 size: standard
+touches: src/components/home/ProductionPage.tsx, src/components/home/CueRundown.tsx, src/components/HostedControlPage.tsx, src/control/controlModel.ts, src/control/controlPanelHtml.ts, src/control/productionControllerHtml.ts, src/components/home/GraphicControlPage.tsx
 needs-owner: none
 ---
 
 # One place to control a live graphic: a Fable review of the control surfaces
+
+**Reviewed 2026-10-02:** [the review and plan](../research/control-surfaces-review-2026-10-02/README.md).
+It lists every control route (§1), the duplicates (§2), six ways live data drifts (§3), why the
+quiz feels different (§4), Combined and » Next (§5), the playout page's size (§6), the Fable
+judgement (§7) and eight ordered slices (§8). For the playout session:
+
+- **Ready now:** 1, the ON AIR row says when air is behind an edit, and bound fields stop showing a
+  false amber; 2, » Next names its target ("» Next: Reveal correct") and "↷ Next" becomes "Load next
+  row"; 3, one verb vocabulary on the exported panels; the first half of 5, the graphic control
+  page stops claiming ON AIR.
+- **Ready, needs the owner's look:** 4, live actions above setup fields, pin and hide on the ⚡
+  buttons, the separate Controls panel gone (also serves
+  `operator-page-buries-live-actions-under-setup-fields.md`).
+- **After the hardware-panel R1 work lands:** 7, one set of values across the dashboard and the
+  hosted page.
+- **One owner answer each:** remove the graphic control page (5), keep a Lock beat on the answer
+  boards (6), freeze or delete Combined controls (8).
+
+The rest of this file is the ask as filed.
 
 **Filed:** 2026-09-22. **Source:** the owner's real production test on 2026-09-22. **Not before:**
 Saturday 2026-09-26. The owner asked for no major control-system change before his lecture and
