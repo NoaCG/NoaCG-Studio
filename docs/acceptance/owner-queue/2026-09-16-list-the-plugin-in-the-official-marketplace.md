@@ -18,12 +18,12 @@ lead with the one command a person types in a Claude Code session (2.1.275 or la
 
 ## The name: closed
 
-Your answer, 2026-10-02: keep **`noacg`** as the plugin, CLI and MCP server name, and show it as
-**NoaCG Broadcast Graphics and Playout**. Every listing carries that name, with one exception:
-OpenAI's directory allows 30 characters for a display name ("at most 30 characters",
-developers.openai.com/plugins/deploy/submission) and the name is 36, so the Codex and ChatGPT
-listing reads **NoaCG Graphics and Playout**. It keeps "Playout" and drops "Broadcast", which its
-description and keywords still carry. If you would rather drop another word, say which.
+Your decision, 2026-10-02: keep **`noacg`** as the plugin, CLI and MCP server name, and show it
+as **NoaCG Broadcast Graphics and Playout** wherever a field allows it, keeping every field within
+its limit. OpenAI's directory allows 30 characters for a display name ("at most 30 characters",
+developers.openai.com/plugins/deploy/submission) and the name is 36, so by your ruling the Codex
+and ChatGPT display name is **NoaCG Graphics and Playout**. Every other listing field, and the MCP
+Registry title, carries the full name.
 
 ## What landed (no step for you)
 
