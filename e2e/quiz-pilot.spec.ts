@@ -44,7 +44,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   const chip = page.getByTestId('machine-state-chip');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
 
-  // ↷ Next with nothing loaded yet = the bank's FIRST question, into the draft.
+  // Load next row with nothing loaded yet = the bank's FIRST question, into the draft.
   await page.getByTestId('cue-load-next').click();
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which planet is known as the Red Planet?');
 
@@ -104,7 +104,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await page.getByTestId('cue-field-f5-opt-B').click();
   await page.getByTestId('verb-update').click();
 
-  // ── The NEXT question: ↷ Next loads row 2 into the DRAFT (air untouched), Take airs it
+  // ── The NEXT question: Load next row loads row 2 into the DRAFT (air untouched), Take airs it
   // clean — a fresh entrance is the reset, both halves at once. ──
   await page.getByTestId('cue-load-next').click();
   await expect(page.getByTestId('cue-field-f0')).toHaveValue('Which ocean is the largest?');
@@ -117,7 +117,7 @@ test('the hidden-pick quiz sequence: seal, reveal choice, verdict, audience resu
   await expectMachineState(page, 'Question');
   await expect(program.locator('.quiz-option.quiz-correct')).toHaveCount(0);
   await expect(program.locator('.quiz-aud')).toHaveCount(0);
-  // The bank is exhausted — ↷ Next says so instead of wrapping silently.
+  // The bank is exhausted — Load next row says so instead of wrapping silently.
   await expect(page.getByTestId('cue-load-next')).toBeDisabled();
 });
 

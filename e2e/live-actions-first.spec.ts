@@ -114,3 +114,18 @@ test('a graphic with no actions keeps today\'s panel: the editor first, no fold,
   const first = await page.getByTestId('control-area').evaluate((el) => (el.firstElementChild as HTMLElement | null)?.dataset.testid);
   expect(first).toBe('cue-editor');
 });
+
+test('» Next names its target: the answer board at Question reads Reveal correct, and last step once revealed', async ({ page }) => {
+  // The 2026-09-30 finding that Next on a quiz "jumps to the last step", explained rather than
+  // changed: the answer board's default path goes Question, then Reveal, by declaration (slice 2
+  // of the control-surfaces review). The button now says so before it is pressed.
+  await catalogProduction(page, 'qz02', 'House Quiz');
+  await page.getByTestId('verb-take').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Question');
+  await expect(page.getByTestId('verb-next-target')).toHaveText('Reveal correct');
+  await expect(page.getByTestId('verb-next')).toHaveAttribute('title', /next step: Reveal correct/);
+  await page.getByTestId('cue-action-judge').click();
+  await expect(page.getByTestId('machine-state-chip')).toHaveText('Reveal');
+  await expect(page.getByTestId('verb-next-target')).toHaveText('last step');
+  await expect(page.getByTestId('verb-next')).toBeDisabled();
+});

@@ -138,6 +138,7 @@ import {
   arrangeControls,
   arrangeFor,
   eventButtons,
+  advanceLabel,
   canAdvance,
   eventLegality,
   fieldDescriptors,
@@ -432,7 +433,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Which cue the editor is pointed at: the one on PREVIEW (the default — edits air on Take),
    *  or the one already ON AIR on that layer, where ✎ Update pushes edits live (§2). */
   const [editTarget, setEditTarget] = useState<'preview' | 'air'>('preview');
-  /** Per cue, the last data row loaded into it (`datasetId:rowId`) — what ↷ Next advances from. */
+  /** Per cue, the last data row loaded into it (`datasetId:rowId`) — what Load next row advances from. */
   const [lastLoaded, setLastLoaded] = useState<Record<string, string>>({});
   /** Which side of a two-team board the next data-row load fills. */
   const [loadSide, setLoadSide] = useState<'A' | 'B'>('A');
@@ -3097,7 +3098,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ]),
   );
   const loadableRows = rowsForSide(dataRows, loadSide);
-  /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so ↷ Next
+  /** Load one row into the edited cue's DRAFT (never air), remembering it per cue so Load next row
    *  walks the bank in order. */
   const loadRow = (id: string) => {
     const row = dataRows.find((r) => r.id === id);
@@ -3116,6 +3117,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const nextMoves =
     (!!selectedGraphic && canAdvance(poolMachines.get(selectedGraphic)?.js ?? '', machineState)) ||
     (selectedPlayoutLive && selectedPlayoutItem?.kind === 'template');
+  /** What » Next will do, in words, on the button itself: the declared control it is ("Reveal
+   *  correct") or the state it enters, and "last step" when it would do nothing. Only while the
+   *  layer is live and the graphic has reported where it is - a guess would be worse than none. */
+  const nextLabel =
+    selectedLayerLive && selectedGraphic && !selectedPlayoutLive
+      ? nextMoves
+        ? advanceLabel(poolMachines.get(selectedGraphic)?.js ?? '', machineState, events, stateNames)
+        : 'last step'
+      : null;
   /** The states ✎ Update will KEEP on the live layer, in the author's words ("Reveal", "Final").
    *  Update is data only by design, so after a reveal it airs new words under the old verdict;
    *  the surface names what stays and points at ⟳ Re-take (controlModel `movedStateNames`).
@@ -3943,7 +3953,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             {hasUnsent && <span className="pd-unsent-dot" aria-hidden="true" />}
           </button>
           <button
-            className="pd-verb"
+            className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
             disabled={!selectedLayerLive || !nextMoves}
             onClick={() => void nextLive()}
             title={
@@ -3951,11 +3961,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 ? 'Advance the layer'
                 : selectedLayerLive && !nextMoves
                   ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
-                  : `Advance ${selectedGraphic} to its next step`
+                  : nextLabel
+                    ? `Advance ${selectedGraphic} to its next step: ${nextLabel}`
+                    : `Advance ${selectedGraphic} to its next step`
             }
             data-testid="verb-next"
           >
-            » Next <kbd>N</kbd>
+            <span className="pd-verb-main">» Next <kbd>N</kbd></span>
+            {nextLabel && (
+              <span className="pd-verb-target" data-testid="verb-next-target">
+                {nextLabel}
+              </span>
+            )}
           </button>
           <button
             className="pd-verb"
@@ -4182,10 +4199,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         !editingCue ||
                         !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
                       }
-                      title="Load the next row"
+                      title="Load the next row of the table into this cue. Nothing airs until a Take."
                       data-testid="cue-load-next"
                     >
-                      ↷ Next
+                      Load next row
                     </button>
                   </div>
                 </label>

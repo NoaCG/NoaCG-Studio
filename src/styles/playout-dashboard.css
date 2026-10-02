@@ -800,6 +800,19 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   gap: 8px;
   white-space: nowrap;
 }
+/* » NEXT NAMES ITS TARGET (control-surfaces review slice 2): a second, small line under the verb
+   says what the press will do ("Reveal correct", "last step"). The button keeps its size: the
+   line is cut with an ellipsis rather than widening a bar the operator knows by position. */
+.pd-verb-main { display: inline-flex; align-items: center; gap: 8px; }
+.pd-verb.pd-verb-named { flex-direction: column; justify-content: center; gap: 1px; padding-top: 3px; padding-bottom: 3px; }
+.pd-verb-target {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--text-dim);
+}
 /* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
 .pd-verbs kbd {
   font-family: var(--mono, monospace);

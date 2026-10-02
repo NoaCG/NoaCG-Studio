@@ -5,6 +5,7 @@ import {
   labelCarriesDelta,
   arrangeControls,
   arrangeFor,
+  advanceLabel,
   canAdvance,
   eventButtons,
   eventLegality,
@@ -735,6 +736,13 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  asks (`controlModel canAdvance`), so a quiz on its Reveal greys Next here too instead of
    *  logging "Next step" while the board stays put (g2 handoff, "For row G" item 3). */
   const nextMoves = !!selectedGraphic && canAdvance(spec?.js ?? '', machineState[selectedGraphic] ?? null);
+  /** What » Next will do, in words on the button: the in-app page's `advanceLabel`, read the same way. */
+  const nextLabel =
+    selectedLayerCueId && selectedGraphic && spec
+      ? nextMoves
+        ? advanceLabel(spec.js, machineState[selectedGraphic] ?? null, eventButtons(spec.js), machineStateNames(spec.js))
+        : 'last step'
+      : null;
   /** The names of every state ✎ Update will KEEP on the live layer (`controlModel
    *  movedStateNames`), exactly as the in-app dashboard reads them — Update stays data only, so
    *  after a reveal it airs new words under the old verdict unless the surface says what stays. */
@@ -1046,6 +1054,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             liveLabels={liveLayers.map((l) => l.label)}
             selectedGraphic={selectedGraphic}
             nextMoves={nextMoves}
+            nextLabel={nextLabel}
             keptStates={keptStates}
             onKey={runVerb}
           />
@@ -1238,6 +1247,7 @@ function HostedVerbs({
   liveLabels,
   selectedGraphic,
   nextMoves,
+  nextLabel,
   keptStates,
   onKey,
 }: {
@@ -1253,6 +1263,8 @@ function HostedVerbs({
   /** Would » Next move the selected layer right now (`controlModel canAdvance`) — false on a
    *  graphic's last step, where the button greys instead of logging a press that does nothing. */
   nextMoves: boolean;
+  /** » Next's target in words (`controlModel advanceLabel`), or 'last step', or null when unknown. */
+  nextLabel: string | null;
   /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
@@ -1299,7 +1311,7 @@ function HostedVerbs({
         ✎ Update <kbd>U</kbd>
       </button>
       <button
-        className="pd-verb"
+        className={`pd-verb${nextLabel ? ' pd-verb-named' : ''}`}
         disabled={!layerLive || !nextMoves}
         onClick={() => onKey('next')}
         title={
@@ -1307,11 +1319,14 @@ function HostedVerbs({
             ? 'Advance the layer'
             : layerLive && !nextMoves
               ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
-              : `Advance ${selectedGraphic} to its next step`
+              : nextLabel
+                ? `Advance ${selectedGraphic} to its next step: ${nextLabel}`
+                : `Advance ${selectedGraphic} to its next step`
         }
         data-testid="hosted-next-cue"
       >
-        » Next <kbd>N</kbd>
+        <span className="pd-verb-main">» Next <kbd>N</kbd></span>
+        {nextLabel && <span className="pd-verb-target">{nextLabel}</span>}
       </button>
       <button
         className="pd-verb"
@@ -1878,10 +1893,10 @@ function HostedCueEditor({
               <button
                 onClick={() => followingRow && loadDataRow(followingRow.id)}
                 disabled={!followingRow}
-                title="Load the next row"
+                title="Load the next row of the table into this cue. Nothing airs until a Take."
                 data-testid="hosted-load-next"
               >
-                ↷ Next
+                Load next row
               </button>
             </div>
           </label>
