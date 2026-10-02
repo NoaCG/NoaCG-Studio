@@ -1,0 +1,79 @@
+// covers: src/components/wizard/steps/{CommunityPacks,BrowseStep}.tsx, {packs/community/**,public/packs/community/**,scripts/build-production-pack.mjs}
+//
+// COMMUNITY PACKS (docs/work-specs/community-packs/spec.md): the template wizard's third
+// category. Browse offers One graphic, A whole kit and Community packs; the shelf lists the
+// seeded packs with a preview; Install puts the pack in as a ready production through
+// `installPack`, with no editing step, and the production's graphic takes, reveals and goes out.
+// Everything here runs offline against the built shelf under public/packs/community/.
+
+import { test, expect, type Page } from '@playwright/test';
+
+/** Frames for a person to look at, off by default: `NOACG_SHOTS=<dir>` writes the shelf. */
+const SHOTS = process.env.NOACG_SHOTS ?? '';
+
+async function openShelf(page: Page): Promise<void> {
+  await page.goto('/app#/new');
+  await page.locator('[data-entry="template"]').click();
+  const modes = page.getByTestId('wz-buildmode');
+  await expect(modes.locator('[data-build-mode]')).toHaveText([/One graphic/, /A whole kit/, /Community packs/]);
+  await modes.locator('[data-build-mode="community"]').click();
+  await expect(page.getByTestId('community-packs')).toBeVisible();
+}
+
+test('the shelf lists the seeded pub quiz, and Install opens a production whose graphic takes, reveals and goes out', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  await openShelf(page);
+  const card = page.locator('[data-community-pack="pub-quiz"]');
+  await expect(card).toContainText('Pub Quiz');
+  await expect(card).toContainText('by NoaCG');
+  // The preview is a real picture that loaded, not a broken image.
+  await expect
+    .poll(() => card.locator('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth))
+    .toBeGreaterThan(0);
+  // The shelf's Install is the step's only action: no Next and no Skip while it shows.
+  await expect(page.locator('.wz-next')).toHaveCount(0);
+  await expect(page.getByTestId('wz-skip-to-finish')).toHaveCount(0);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/community-shelf-desktop.png` });
+
+  // The search above the branch filters the shelf.
+  await page.getByLabel('Search community packs').fill('scoreboard');
+  await expect(card).toHaveCount(0);
+  await page.getByRole('button', { name: /Clear the search/ }).click();
+  await expect(card).toBeVisible();
+
+  // Install: straight to the production page with the pack's rundown - never the editor.
+  await card.getByRole('button', { name: 'Install Pub Quiz' }).click();
+  await expect(page.getByTestId('production-page')).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/#\/production\//);
+  const rundown = page.getByTestId('select-cue');
+  await expect(rundown).toHaveCount(4);
+  await expect(rundown.first()).toContainText('Round 1 - question 1');
+
+  // Take, Continue (the reveal), Out - the graphic on the PROGRAM monitor answers each.
+  await rundown.first().click();
+  await page.getByTestId('verb-take').click();
+  const program = page.frameLocator('[data-testid="program-stage"] iframe[title="Pub Quiz"]');
+  await expect(program.locator('#f0')).toHaveText('Which planet is known as the Red Planet?');
+  await expect(page.getByTestId('live-cue-chip')).toContainText('Round 1 - question 1');
+  await page.getByTestId('verb-next').click();
+  await expect(program.locator('.quiz-option-2')).toHaveClass(/quiz-correct/);
+  await expect(program.locator('.quiz-option-1')).toHaveClass(/quiz-dim/);
+  await page.getByTestId('verb-out').first().click();
+  await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
+
+  expect(errors).toEqual([]);
+});
+
+test('the shelf reads on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await openShelf(page);
+  const card = page.locator('[data-community-pack="pub-quiz"]');
+  await expect(card).toBeVisible();
+  // The card fits the screen: nothing runs off the right edge.
+  const box = await card.boundingBox();
+  expect(box && box.x + box.width).toBeLessThanOrEqual(375);
+  await card.scrollIntoViewIfNeeded();
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/community-shelf-phone.png`, fullPage: true });
+});

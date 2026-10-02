@@ -6,12 +6,22 @@ prepared cue rundown seeded. Nothing needs the editor — import, publish (or ex
 It exists beside the wizard catalog, not inside it: a pack ships complete work, the catalog
 ships starting points, and the two share no generator code.
 
-**Decided 2026-09-24 (owner): one place for NoaCG's own graphics.** Everything NoaCG provides
-reaches users through the template wizard - its kits and catalog. The Productions import card
-lists NO shipped packs; it is only the door for packages made OUTSIDE the studio, above all by
-a coding agent (`noacg pack`), and for productions exported as packs. Uutishuone and Fight
-Night stay in the repo as pack files (and as the pack specs' fixtures) until they are rebuilt
-as ordinary wizard kits. To revert, restore `public/packs/index.json` and the list in
+**Decided 2026-10-02 (owner): Community packs, the wizard's third category.** The template
+workflow has three categories - Templates, Kits, Community packs. A community pack is a
+finished package people install and use at once and cannot modify; the community makes and
+shares them, each shared pack is reviewed (automatic checks, then a NoaCG admin) before anyone
+else sees it, and NoaCG seeds the shelf first. Browse's top control offers it as the third
+answer beside one graphic and a whole kit; Install runs `installPack`. This SUPERSEDES the
+2026-09-24 line that the studio lists no shipped packs: finished packages, NoaCG's seeds
+included, are listed - on the wizard's Community packs shelf, not on the Productions import
+card. Record, acceptance criteria and the next slice (share, review, takedown):
+`docs/work-specs/community-packs/spec.md`.
+
+**Decided 2026-09-24 (owner), still standing for the import card.** The Productions import
+card lists NO shipped packs; it is only the door for packages made OUTSIDE the studio, above
+all by a coding agent (`noacg pack`), and for productions exported as packs. Uutishuone and
+Fight Night stay in the repo as pack files (and as the pack specs' fixtures) until they are
+rebuilt as ordinary wizard kits. To revert, restore `public/packs/index.json` and the list in
 `ProductionsSection.tsx` from the commit that made this change.
 
 ## The format (v1)
@@ -74,6 +84,16 @@ productions are shared, not only how shipped packs arrive.
   No shipped pack is listed there (see the 2026-09-24 decision above). A package an agent SENT
   with `noacg pack --save` needs no file: it waits above the grid under "Waiting to install"
   with its own Install button (`docs/AGENT_SAVE.md` §7) and goes through the same installer.
+- **The Community packs shelf** — the wizard's Browse step, third option
+  (`wizard/steps/CommunityPacks.tsx`). It reads `public/packs/community/index.json` and installs
+  a listed pack through the same installer, then opens the production. The seeds are FILE
+  sources under `packs/community/<slug>/` (`manifest.json` with an `author`, a `preview.webp`,
+  one folder per graphic with `template.html`/`style.css`/`logic.js` and an optional `fonts/`
+  folder that rides along as inlined assets), assembled by `scripts/build-production-pack.mjs`
+  with the same refusals as Fight Night, in `npm run build`. A seed is converted from an agent
+  package with `noacg validate` (gate + bench) and then `noacg pack --out`, whose reader is the
+  studio's own; the pack's files are that output split back into sources. The first seed is
+  the Pub Quiz from the 2026-10-02 design-quality walk.
 - **The shipped pack(s)** — sources as readable `.mjs` modules under `scripts/packs/<pack>/`,
   assembled by `scripts/build-news-pack.mjs` into `public/packs/` (git-tracked, served at
   `/packs/…`). The build refuses on: missing definition, missing SPX entry points, ES5

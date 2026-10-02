@@ -1439,6 +1439,10 @@ export default function CreationWizard() {
   /** Kit mode's Browse step is satisfied by a picked SHOW with at least one graphic ticked,
    *  never by a `draft.variantId` — no single design has been chosen at that point. */
   const kitBrowseReady = !!kitPack && kitSelected.length > 0;
+  /** Browse showing the Community packs shelf: each card's Install is the step's only action,
+   *  so the footer's Next and brand chooser stand down (a brand cannot reach a pack whose
+   *  design is fixed), and the rail offers no forward jump. */
+  const onShelf = mode === 'template' && step === 1 && buildMode === 'community';
   const nextDisabled =
     mode === 'template'
       ? step === 1 && (buildMode === 'kit' ? !kitBrowseReady : !draft.variantId)
@@ -1544,7 +1548,7 @@ export default function CreationWizard() {
       {/* WITH NO BRANDS THERE IS NO CONTROL, not a disabled one (docs/BRAND_PLAN.md decision 1):
           an empty chooser is a promise the install cannot keep, and the door to making one is
           Home, not here. */}
-      {brandChoices.length > 0 && BRAND_MODES.includes(mode) && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
+      {brandChoices.length > 0 && BRAND_MODES.includes(mode) && !onShelf && (mode === 'import' ? step >= 2 : mode === 'ai' ? step === 1 : step >= 1) && (
         <label className="wz-match" title={brandTitle}>
           Brand
           <select
@@ -1592,7 +1596,7 @@ export default function CreationWizard() {
           Next →
         </button>
       )}
-      {mode !== 'ai' && mode !== 'video' && step > 0 && step < finishStep && (
+      {mode !== 'ai' && mode !== 'video' && step > 0 && step < finishStep && !onShelf && (
         <button className="primary wz-next" disabled={nextDisabled} onClick={() => goToStep(1)}>
           {/* A kit's buttons say where they go: the Kit step builds the set, and the last
               editing step is done with this graphic and returns to all of them. */}
@@ -1751,7 +1755,8 @@ export default function CreationWizard() {
                       // A BUILT KIT is complete, so every entry is a jump target: the editing
                       // steps edit the open graphic and the last one is the kit's hub. The
                       // Kit step stays reachable to change the contents.
-                      kit ? false
+                      onShelf && s > step ? true
+                      : kit ? false
                       : s > step
                         ? !(mode === 'template' && !!draft.variantId)
                         : s > (mode === 'template' ? 1 : 2) && !draft.variantId
@@ -2143,6 +2148,12 @@ export default function CreationWizard() {
                   setKitSelected(kit && kit.pack.id === pack.id ? kitKeys(kit) : defaultSelectionFor(pack));
                 }}
                 onKitSelected={setKitSelected}
+                // A community pack installs as a ready production with no editing step, so
+                // the wizard closes and the production opens, as a kit's first door does.
+                onPackInstalled={(show) => {
+                  closeGallery();
+                  useRouter.getState().navigate({ view: 'production', id: show.id });
+                }}
               />
             )}
             {step === 3 && mode === 'design' && draft.designArt && (
