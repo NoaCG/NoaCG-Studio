@@ -1175,7 +1175,7 @@ async function main(argv) {
     ? stagedWorkdir([...decision.appliedFiles, ...hold.apply.map((m) => m.file)])
     : ROOT;
   try {
-    const status = await push({ ref, token, dryRun, asJson, decision, apply: hold.apply, cwd });
+    const status = await push({ ref, token, dryRun, asJson, decision, apply: hold.apply, cwd, production: ref === productionRef(env) });
     return status !== 0 || !hold.held.length ? status : holdStatus();
   } finally {
     if (cwd !== ROOT) rmSync(cwd, { recursive: true, force: true });
@@ -1183,7 +1183,7 @@ async function main(argv) {
 }
 
 /** Snapshot, push `apply` from `cwd`, snapshot again, and prove the ledger took exactly `apply`. */
-async function push({ ref, token, dryRun, asJson, decision, apply, cwd }) {
+async function push({ ref, token, dryRun, asJson, decision, apply, cwd, production }) {
   console.log('\nSnapshotting before…');
   const before = await snapshot(ref, token);
 
@@ -1260,7 +1260,7 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd }) {
   }
   console.log(`\nApplied ${expected.length} migration(s): ${expected.join(', ')}.`);
   if (asJson) console.log(JSON.stringify({ ...decision, changes }));
-  if (process.env.GITHUB_ACTIONS !== 'true' && ref === productionRef(env)) askAdvisorsAfterHandApply();
+  if (process.env.GITHUB_ACTIONS !== 'true' && production) askAdvisorsAfterHandApply(asJson);
   return 0;
 }
 
@@ -1270,10 +1270,11 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd }) {
  * makes itself; without this a hand-applied migration was first seen by the next, unrelated landing,
  * which then went red for something it did not ship (0072, applied by hand: eight landings red in a
  * row). The findings never undo the apply - the migration stays applied - so this only reports.
+ * With `--json` its words go to stderr, so stdout stays the one JSON document.
  */
-function askAdvisorsAfterHandApply() {
-  console.log('\nAsking the Supabase advisors about what was just applied (scripts/supabase-advisors.mjs)…');
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts/supabase-advisors.mjs')], { stdio: 'inherit', env: process.env });
+function askAdvisorsAfterHandApply(asJson) {
+  (asJson ? console.error : console.log)('\nAsking the Supabase advisors about what was just applied (scripts/supabase-advisors.mjs)…');
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts/supabase-advisors.mjs')], { stdio: ['ignore', asJson ? 2 : 1, 2], env: process.env });
   if (r.status === 1) {
     console.error(
       '\nNEW ADVISOR FINDINGS since supabase/advisor-baseline.json (above). The next landing\'s post-land run ' +
