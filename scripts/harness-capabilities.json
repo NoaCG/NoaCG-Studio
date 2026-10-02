@@ -153,6 +153,16 @@
       "source": "docs/metrics/2026-09-09-harness-verdict.md, question 4; independently corroborated the same night by claude/ab-reap-codex-delegation-tree, which measured 30 processes and 1.4 GB from three delegations that had ended hours earlier"
     },
     {
+      "id": "codex-elevated-sandbox-refuses-commands-while-node-repl-runs",
+      "harness": "Codex",
+      "kind": "observation",
+      "measuredOn": "0.162.0-alpha.4",
+      "measuredAt": "2026-10-02",
+      "claim": "First seen on 0.161.0-alpha.3 (2026-10-02, row BR, jobs task-muqmbqqu-6s5bbp and task-muqmeoeh-j7emqr) and reproduced on 0.162.0-alpha.4 the same day, read-only and write alike: with `[windows] sandbox = \"elevated\"`, every shell command in a CLI session is refused before it runs with `Failed to create unified exec process: helper_unknown_error: setup refresh had errors`. The cause is written in ~/.codex/.sandbox/sandbox.<date>.log: the setup helper validates read/execute access on the desktop runtime's node_repl.exe (AppData/Local/OpenAI/Codex/runtimes/cua_node/<hash>/bin), opens it for an ACL update, and gets os error 32 (file in use); one failed validation fails the whole refresh. The holder is the session itself: the machine config's `node_repl` MCP server and the `unified-computer-use` plugin's `cua_repl` server each start node_repl.exe at session start. Measured with `codex exec -s read-only`: disabling only the node_repl server still fails, `--disable plugins` alone still fails, both together run the command. `-c plugins.\"unified-computer-use@openai-bundled\".enabled=false` does NOT stop cua_repl; `-c mcp_servers={}` does NOT clear the server table (it merges); `-c mcp_servers.<undeclared>.enabled=false` fails the whole config with `invalid transport`. The desktop app's own 0.158.0-alpha.2.1 setup helper does not run the validation, so the same config works there. scripts/codex-rescue.mjs (defect 5) therefore starts every delegation with `--disable plugins` and each listed config MCP server disabled; with that, a read-only probe (list a directory, count package.json lines: 59 entries, 236 lines, both checked) and a write probe (create a file in the worktree, checked on disk) both completed through /rescue on 0.162.0-alpha.4.",
+      "reprobe": "From a worktree, `codex exec -s read-only` with no overrides on a one-command task: `setup refresh had errors` in the reply and `runtime read/execute validation failed ... node_repl.exe ... os error 32` in ~/.codex/.sandbox/sandbox.<date>.log confirm it still holds; a command that runs refutes it, after which the wrapper's overrides are no longer needed for this reason (they still cut the MCP fleet).",
+      "source": "docs/HARNESS_ROUTING.md, \"Codex: every command refused with setup refresh had errors\"; row BZ (claude/bz-codex-rescue-setup)"
+    },
+    {
       "id": "claude-agent-tool-cannot-adopt-or-wake-a-row",
       "harness": "Claude Code",
       "kind": "observation",
