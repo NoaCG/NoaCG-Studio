@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
@@ -151,6 +152,8 @@ export default defineConfig(({ command, mode }) => {
       adminApiPlugin(),
       meApiPlugin(),
       dataApiPlugin(),
+      // /panel.json: where the Companion module finds this app's backend (scripts/panelBackendPlugin.mjs).
+      panelBackendPlugin(),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port.

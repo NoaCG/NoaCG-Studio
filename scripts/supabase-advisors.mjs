@@ -104,7 +104,11 @@ const ACCEPTED_CLASSES = {
     'already did plus the sequence and per-graphic summary the log implies. ' +
     'control_ping_seq (0072) is the same door again: Prepare for Live sends it from the operator ' +
     'page, and it writes ONE log row with an empty graphic under the same locks and burst cap as ' +
-    'control_send_seq, so no graphic, revision, cue or report changes - only the head sequence moves.',
+    'control_send_seq, so no graphic, revision, cue or report changes - only the head sequence moves. ' +
+    'The panel_* RPCs of 0073 (hardware panels, docs/work-specs/hardware-panel-control/) are two ' +
+    'doors of the same kind: the page ones take the control slug, and the panel ones take a panel ' +
+    'key, a capability of its own that can only ask the answering page to run a named verb. None ' +
+    'writes the command log; each is bounded (presses per key, wants per key, failed pairings).',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',
