@@ -140,6 +140,7 @@ import {
   eventButtons,
   advanceLabel,
   canAdvance,
+  hasSteps,
   eventLegality,
   fieldDescriptors,
   formatMachineState,
@@ -3183,7 +3184,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     selectedLayerLive && selectedGraphic && !selectedPlayoutLive
       ? nextMoves
         ? advanceLabel(poolMachines.get(selectedGraphic)?.js ?? '', machineState, arranged, stateNames)
-        : 'last step'
+        : hasSteps(poolMachines.get(selectedGraphic)?.js ?? '')
+          ? 'last step'
+          : null
       : null;
 
   /** The data that belongs to AIR: the cue live on the selected layer, draft included when it

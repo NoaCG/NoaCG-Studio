@@ -711,6 +711,17 @@ export function canAdvance(js: string, state: { groups?: Record<string, string> 
 }
 
 /**
+ * Whether the graphic has STEPS for » Next to walk: more than one on-air waypoint between its
+ * entrance and its exit, or an authored `next` arrow. A plain lower third has neither, and saying
+ * "last step" under its greyed Next would be noise about a graphic that never had a second one.
+ */
+export function hasSteps(js: string): boolean {
+  const main = machineOf(js)?.groups[0];
+  if (!main) return false;
+  return (main.defaultPath ?? []).length > 3 || main.transitions.some((t) => t.trigger === 'operator' && t.event === 'next');
+}
+
+/**
  * WHERE » Next would take the graphic, by the same reading as `canAdvance`: the state it enters
  * and, when the arrow is an operator press, the event that press is. Null when that is not known
  * (no report yet, no machine) or when Next would do nothing (`canAdvance` false). The surfaces

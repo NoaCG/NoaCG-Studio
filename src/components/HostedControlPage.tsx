@@ -7,6 +7,7 @@ import {
   arrangeFor,
   advanceLabel,
   canAdvance,
+  hasSteps,
   eventButtons,
   eventLegality,
   adjustedValue,
@@ -743,7 +744,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     selectedLayerCueId && selectedGraphic && spec
       ? nextMoves
         ? advanceLabel(spec.js, machineState[selectedGraphic] ?? null, arrangeControls(eventButtons(spec.js), arrangeFor(resolved?.profile, selectedGraphic)), machineStateNames(spec.js))
-        : 'last step'
+        : hasSteps(spec.js)
+          ? 'last step'
+          : null
       : null;
   /** The names of every state ✎ Update will KEEP on the live layer (`controlModel
    *  movedStateNames`), exactly as the in-app dashboard reads them — Update stays data only, so
