@@ -3,11 +3,11 @@
 // cell of every studio PROGRAM frame plus the CLI stress frame, each labelled with its file name.
 // The key (letter -> arm) goes to a separate file the quality reviewer is not given.
 // Usage: node prepare-review.mjs <outDir>
-import { chromium } from 'file:///C:/claude/NoaCG-Studio/.claude/worktrees/agent-a5568edb9b361f7f9/cli/node_modules/playwright-core/index.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+const { chromium } = await import(new URL('../../../../cli/node_modules/playwright-core/index.mjs', import.meta.url));
 const out = process.argv[2];
 const cells = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/(\w:)/, '$1')), '..', 'cells');
 const byBrief = {};
@@ -26,7 +26,10 @@ for (const [brief, list] of Object.entries(byBrief)) {
     const src = path.join(cells, cell);
     const dst = path.join(out, id);
     fs.mkdirSync(dst, { recursive: true });
-    for (const f of ['cli-onair-video.jpg', 'cli-stress-video.jpg', 'inspect.txt']) fs.copyFileSync(path.join(src, f), path.join(dst, f));
+    for (const f of ['cli-onair-video.jpg', 'cli-stress-video.jpg']) fs.copyFileSync(path.join(src, f), path.join(dst, f));
+    // inspect's first line names the package path, which carries the cell's arm.
+    const inspect = fs.readFileSync(path.join(src, 'inspect.txt'), 'utf8').split('\n').slice(1).join('\n');
+    fs.writeFileSync(path.join(dst, 'inspect.txt'), inspect);
     fs.copyFileSync(path.join(src, 'studio', '01-ready-page.jpg'), path.join(dst, 'panel-at-load.jpg'));
     fs.copyFileSync(path.join(src, 'studio', 'reach.json'), path.join(dst, 'reach.json'));
     const frames = fs.readdirSync(path.join(src, 'studio')).filter((f) => f.endsWith('-program.png'));

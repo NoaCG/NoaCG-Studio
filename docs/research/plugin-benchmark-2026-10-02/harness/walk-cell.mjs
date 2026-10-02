@@ -8,10 +8,11 @@
 // action pass and the reach measurement are generic, so one script walks any cell's package.
 // Usage: node walk-cell.mjs <zip> <outDir> [steps.json]
 // NOACG_URL picks the studio (default http://localhost:5206, this benchmark's dev server).
-import { chromium } from 'file:///C:/claude/NoaCG-Studio/.claude/worktrees/agent-a5568edb9b361f7f9/cli/node_modules/playwright-core/index.mjs';
+// Playwright comes from this checkout's cli/node_modules (run `npm ci` in cli/ first).
 import fs from 'node:fs';
 import path from 'node:path';
 
+const { chromium } = await import(new URL('../../../../cli/node_modules/playwright-core/index.mjs', import.meta.url));
 const [zip, outDir, stepsFile] = process.argv.slice(2);
 const steps = stepsFile ? JSON.parse(fs.readFileSync(stepsFile, 'utf8')) : [];
 fs.mkdirSync(outDir, { recursive: true });

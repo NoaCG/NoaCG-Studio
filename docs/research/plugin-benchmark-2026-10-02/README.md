@@ -12,7 +12,8 @@ the studio, and judged by two reviewers that built nothing.
 - **Default (D):** holds the bar part of the time. 2 of 6 would air on a paid channel as they
   stand (gala, quiz), 4 are borderline (competent but generic), none fail.
 - **Critique asked for (C):** does what it claims. Every change it claimed is visible in its
-  frames, except the motion-only ones. It produced the best variant in 4 of 6 briefs (blind
+  frames, except the motion-only ones and one state the walk never showed (the ticker's
+  TIEDOTE label). It produced the best variant in 4 of 6 briefs (blind
   rank) and 3 of 6 "yes" verdicts. It also made one regression. On the quiz it added a Next
   question button whose path clips a long question on air, and validate passed it.
 - **Guidelines on (G):** followed faithfully. The cited numbers are in the CSS, and only exit
@@ -180,7 +181,11 @@ rings, gala star, result-board head).
 
 - `harness/`: the briefs, the builder prompt, the walk (`walk-cell.mjs`), the collector
   (`collect-cell.sh`), the per-cell steps (`steps/`), the transcript scan (`opened-files.mjs`),
-  the blind-review preparation (`prepare-review.mjs`) and the rubric.
+  the blind-review preparation (`prepare-review.mjs`) and the rubric. To rerun: build `cli/`
+  (`npm ci && npm run build`), start the worktree's dev server, put a `noacg` shim for that build
+  in `$BENCH/bin`, copy `cli/plugin` to `$BENCH/plugin`, and run each cell as above with
+  `collect-cell.sh` after it (it needs ffmpeg). The C cells' `builder-before-after.jpg` were
+  copied by hand from the builder's own folder.
 - `cells/<brief>-<arm>/`: `cli-onair-video.jpg`, `cli-stress-video.jpg`, `inspect.txt`,
   `validate.txt`, `opened.json`, `builder-report.md` (condensed), `builder-before-after.jpg` for
   the C cells that made one, and `studio/`. The `studio/` folder holds the PROGRAM frame after
