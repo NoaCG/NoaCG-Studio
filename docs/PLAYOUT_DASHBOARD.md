@@ -302,6 +302,13 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown; a server clip's Pause carries `P`
   (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
+- **A timed cue counts on its row and over PROGRAM** (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, built
+  2026-10-03 for unpublished productions). The cue editor's Ends row times a graphic cue: after so
+  many seconds ON AIR, Out, Next cue (the next graphic cue in the rundown) or both. The countdown
+  starts when PROGRAM says it holds the cue, never at the press. `H` holds the countdown that fires
+  soonest and resumes it, whatever is selected; the chip over PROGRAM carries Hold and Manual, and
+  Manual has no key because it is final. An end action more than 5 s late is marked missed on its
+  row and never runs. Nothing automatic moves the selection or PREVIEW.
 - **There is no PREVIEW verb on the two React surfaces** (owner, 2026-08-22 — "you can drop
   preview"). Selection already IS the preview gesture, and their PVW monitor is a local stage
   that follows it, so the button re-selected the cue that was already on it and its key `P` did

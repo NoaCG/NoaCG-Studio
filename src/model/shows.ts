@@ -64,6 +64,22 @@ export interface ShowCue {
    *  Absent = in none, which is every cue saved before 2026-09-28. One that names no folder of the
    *  record reads as in none (./showFolders.ts). */
   folderId?: string;
+  /** ADDITIVE OPTIONAL. How this GRAPHIC cue ends by itself (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0
+   *  and §2.2). Absent = manual, which is how every cue saved before it keeps behaving. A server
+   *  cue never carries one: a clip's ending is its `playback.end`. */
+  auto?: CueAuto;
+}
+
+/** What a timed cue does when its time is up: play its layer off, take the next graphic cue in the
+ *  rundown, or both in that order (the editor says Out, Next cue, Out and next cue). */
+export type CueEnd = 'out' | 'next' | 'out-next';
+
+/** A timed cue's end (docs/RUNDOWN_AUTOMATION_PLAN.md §2.2, as §2.0 narrows it to graphics). */
+export interface CueAuto {
+  /** Seconds after the cue is ON AIR (§2.0's anchor, never the Take press): 0.5 to 86400, at most
+   *  one decimal (control/cueAuto.ts `cleanAfter`). */
+  after: number;
+  then: CueEnd;
 }
 
 /**
@@ -799,6 +815,21 @@ export function setCuePlayback(
     if (item?.loop && (show.cues ?? []).filter((c) => c.sourceId === item.id).every((c) => c.playback?.end !== undefined)) {
       delete item.loop;
     }
+    return true;
+  });
+}
+
+/**
+ * Time ONE graphic cue, or make it manual again with `null` (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0).
+ * A server cue refuses: build 1 times graphics only. The record's version stays 2, since the field
+ * is additive, and an older build carries it through untouched (updateShowCue mutates in place).
+ */
+export function setCueAuto(showId: string, cueId: string, auto: CueAuto | null): Show[] {
+  return patchShow(showId, (show) => {
+    const cue = show.cues?.find((c) => c.id === cueId);
+    if (!cue || cue.source === 'playout') return false;
+    if (auto) cue.auto = { after: auto.after, then: auto.then };
+    else delete cue.auto;
     return true;
   });
 }

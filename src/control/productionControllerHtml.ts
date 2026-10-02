@@ -55,6 +55,9 @@ export interface ControllerPayload {
   /** Each with the PLAYOUT LAYER its production assigned (docs/PLAYOUT_DASHBOARD.md §5). */
   graphics: (EmittedGraphic & { file: string; layer: number })[];
   cues: EmittedCue[];
+  /** Some cue of the production is timed: the rundown says that this controller takes every cue
+   *  by hand (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8). Absent = none is. */
+  timedCues?: boolean;
   /** The design canvas the monitors letterbox into (the first graphic's, typically 1920×1080). */
   width: number;
   height: number;
@@ -296,6 +299,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .rail-head { display:flex; align-items:center; gap:8px; padding:11px 14px 7px; flex:none; }
   .rail-head h2 { font-size:13px; margin:0; }
   .rail-head .n { font-size:11px; color:var(--dim); }
+  .timed-note { flex:none; margin:0; padding:6px 14px 10px; font-size:11.5px; color:var(--dim); }
   .cues { flex:1 1 0; min-height:0; overflow:auto; padding:0 12px 10px;
     display:flex; flex-direction:column; gap:5px; }
   .cue { display:flex; align-items:center; gap:8px; padding:8px 9px; border:1px solid var(--line);
@@ -409,6 +413,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
       <h2>Cue rundown</h2><span class="n">${payload.cues.length}</span>
     </div>
     <div class="cues" id="cues"></div>
+    ${payload.timedCues ? '<p class="timed-note">Timed cues end by hand here: their countdowns run on the production page.</p>' : ''}
   </aside>
 </main>
 <script>

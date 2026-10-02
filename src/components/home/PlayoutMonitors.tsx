@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Ref } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GraphicDoc } from '../../model/library';
 import type { PlayoutItem, Show } from '../../model/shows';
 import type { Resolution, SpxTemplate } from '../../model/types';
@@ -59,6 +59,7 @@ export default function PlayoutMonitors({
   onReady,
   onOverflow,
   live = false,
+  programChip = null,
 }: {
   /** The production's stage: both monitors' shape, never the selected cue's. */
   stage: Resolution;
@@ -95,6 +96,8 @@ export default function PlayoutMonitors({
    *  NoaCG Bridge (which plays whether or not it is). Otherwise a Take plays on this monitor only,
    *  and the monitor must not call itself on air. */
   live?: boolean;
+  /** The timed cue's countdown that fires soonest, over PROGRAM (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1). */
+  programChip?: ReactNode;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
   const previewThumb = useServerThumbnail(previewServer?.kind === 'media' ? previewServer.name : null);
@@ -265,6 +268,7 @@ export default function PlayoutMonitors({
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}
             </span>
           )}
+          {programChip}
         </h2>
         <div className="pd-screen">
           <div className="pd-frame pd-frame-pgm" style={{ aspectRatio: stageAspect }}>
