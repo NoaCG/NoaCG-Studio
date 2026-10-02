@@ -320,10 +320,6 @@ const CLAIM_NEEDS_ACCOUNT =
 const NO_FOLDERS: readonly ShowFolder[] = [];
 /** A hardware panel runs every panel verb here (docs/work-specs/hardware-panel-control/spec.md D5). */
 const PRODUCTION_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>(PANEL_VERBS);
-/** What a press of a held One-by-one folder does, in the words a panel's Take key draws: its step's
- *  tone, as `stepFace` gives the TAKE button its face. */
-const stepSpace = (step: FolderStep): SpaceAction =>
-  step.kind === 'top' ? (step.off.length ? 'take-off' : 'preview') : 'take';
 /** The clip clock as a panel counts it, read at a publish: the store's times are the page's
  *  `performance.now()`, the panel's are wall-clock milliseconds (protocol.md §7.4). */
 const panelClipNow = (store: ServerPlayoutStore, items: readonly PlayoutItem[], cues: readonly ShowCue[]) =>
@@ -1955,7 +1951,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // hears that part directly; it publishes only when a key would show a difference.
   const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
   const [panelOpen, setPanelOpen] = useState(false);
-  useEffect(() => serverPlayout.timing.subscribe(panel.changed), [serverPlayout, panel.changed]);
+  // A reading moves timing and then ownership in one fold: publish after both, never between.
+  useEffect(() => serverPlayout.timing.subscribe(() => queueMicrotask(panel.changed)), [serverPlayout, panel.changed]);
+  // What moves with time alone (a clip the page counts reaching its end, a reading gone quiet and
+  // the count turning estimated) changes no store and no render: look again once a second.
+  useEffect(() => {
+    if (!panel.on) return;
+    const t = setInterval(panel.changed, 1_000);
+    return () => clearInterval(t);
+  }, [panel.on, panel.changed]);
+  const panelRows = useMemo(() => rundownPanelRows(rundown.rows), [rundown]);
 
   if (!show) {
     return (
@@ -2816,9 +2821,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const stepButton = (folder: ShowFolder, step: FolderStep) => {
     const started = typeof folderSteps[folder.id] === 'string' || folderUp(folder.id);
     const words = stepFace(step, folderName(folder), (id) => cues.find((c) => c.id === id)?.label ?? 'a cue', started);
-    const face = { ...words, className: takeFace(words.tone === 'off' ? 'take-off' : words.tone === 'still' ? 'preview' : 'take').className };
+    const space: SpaceAction = words.tone === 'off' ? 'take-off' : words.tone === 'still' ? 'preview' : 'take';
+    const face = { ...words, className: takeFace(space).className };
     const blocked = step.kind === 'take' ? !folderCanTake || !!selectedFolderBlocked : step.kind === 'none';
-    return { face, disabled: blocked, title: step.kind === 'take' ? (selectedFolderBlocked ?? words.title) : words.title };
+    return { face, space, disabled: blocked, title: step.kind === 'take' ? (selectedFolderBlocked ?? words.title) : words.title };
   };
   /** The TAKE button, which IS the key: with a folder held its face, state and title are the
    *  folder's, from the same decision SPACE runs. */
@@ -2827,6 +2833,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ? stepButton(selectedFolder, heldStep)
       : {
           face: takeFace(folderSpace),
+          space: folderSpace,
           disabled: folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked,
           title:
             folderSpace === 'take-off'
@@ -2835,6 +2842,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
     : {
         face,
+        space: spaceNext,
         disabled: selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked),
         title: spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title,
       };
@@ -3603,7 +3611,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           void graphicsOff([cue]).then((failed) => {
             if (failed) setNote(failed);
           });
-      } else if (!(cue.source === 'playout' && bridgeDown) && !takeBlockerFor(cue)) void takeCue(cue);
+      } else if (!stepBlocker(cue)) void takeCue(cue);
       return;
     }
     // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
@@ -3686,8 +3694,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the
     // one the clip clock follows (control/serverState.ts `pauseTarget`). Read from the store at the
     // press, not from a render, since the page does not follow a clip's timing.
+    // A panel's key names the clip its clock follows (protocol.md §7.3), and that clip is the one it
+    // pauses, as the key showed it; P names none and goes by the selection.
     if (key === 'pause-toggle') {
-      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, selectedCue?.id ?? null);
+      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, press?.cue || (selectedCue?.id ?? null));
       const cue = target ? cues.find((c) => c.id === target.cueId) : undefined;
       if (target && cue) void playoutVerb(cue, target.paused ? 'resume' : 'pause', target.paused ? 'Resume' : 'Pause');
     }
@@ -3712,19 +3722,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // only while the page answers a panel, at each publish and each press.
   panel.feed(
     () => {
-      const live = cues.filter(cueOnAirNow).map((c) => c.id);
-      // A cue's own Take key is refused when its Take would not go; taking one off air never is.
-      const cueBlocked = (c: ShowCue) =>
-        c.source === 'playout' ? !playoutItemFor(c) || bridgeDown || !!takeBlockerFor(c) : !cueGraphicName(c) || !!takeBlockerFor(c);
+      const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
       return {
         title: show.name,
         // The row the verbs act on: a held folder's header, else the selected cue itself, even while
         // its folder is collapsed, since the panel's rows list a collapsed folder's cues.
         selected: selectedFolder ? cursorRow : (selectedCue?.id ?? null),
-        space: selectedFolder ? (heldStep ? stepSpace(heldStep) : folderSpace) : selectedCue ? spaceNext : null,
-        live,
+        space: selectedFolder || selectedCue ? takeButton.space : null,
+        live: [...live],
         allowed: {
-          take: !takeButton.disabled,
+          // onVerb's Take of a cue also waits for `canTake` (a server cue while the Bridge is down).
+          take: !takeButton.disabled && (!!selectedFolder || canTake),
           retake: selectedCueIsLive,
           update: editingIsLive,
           next: selectedLayerLive && nextMoves,
@@ -3736,13 +3744,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           'pause-toggle': pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, selectedCue?.id ?? null) !== null,
           'all-out': allOutEnabled,
         },
+        // A cue's own Take key is refused when its Take would not go; taking one off air never is.
         blocked: [
           ...rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),
-          ...cues.filter((c) => !live.includes(c.id) && cueBlocked(c)).map((c) => c.id),
+          ...cues.filter((c) => !live.has(c.id) && !!stepBlocker(c)).map((c) => c.id),
         ],
         clip: panelClipNow(serverPlayout, playoutItems, cues),
         bridge: !playoutIsConfigured ? 'off' : bridgeDown ? 'down' : 'ok',
-        rows: rundownPanelRows(rundown.rows),
+        rows: panelRows,
       };
     },
     (verb, target) => onVerb(verb, { repeat: false, cue: target }),
