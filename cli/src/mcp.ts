@@ -6,10 +6,11 @@
 // Why one tool and not seven. An MCP client puts every tool's schema into the model's context in
 // EVERY session where the server is configured, whether or not that session is about NoaCG. Seven
 // tools with teaching descriptions measured about 1,160 tokens of system prompt; one tool with
-// dispatch-only descriptions measures about 590 (docs/AGENT_CLI.md "What a session pays"), and a
-// new verb costs one enum entry rather than a schema. The teaching lives in the noacg-graphic skill
-// and its references (`docs`), which load only when a graphic is being made. Keep the descriptions
-// here short and about DISPATCH - which verb, which argument - never about how to design.
+// dispatch-only descriptions measured about 590, and about 750 once its verbs grew
+// (docs/AGENT_CLI.md "What a session pays"); a new verb costs one enum entry rather than a
+// schema. The teaching lives in the noacg-graphic skill and its references (`docs`), which load
+// only when a graphic is being made. Keep the descriptions here short and about DISPATCH - which
+// verb, which argument - never about how to design.
 //
 // Which verb reads which argument is ONE table, READS. It writes the argument descriptions, and it
 // refuses an argument the verb does not read - a flat schema accepts every key for every verb, and

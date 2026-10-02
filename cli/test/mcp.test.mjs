@@ -48,7 +48,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { before, test } from 'node:test';
+import { after, before, test } from 'node:test';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -248,10 +248,13 @@ async function bridgeUp() {
 }
 const live = (await bridgeUp()) ? false : `no NoaCG bridge at NOACG_URL=${liveUrl ?? '(unset)'} - start a dev server and set NOACG_URL`;
 const exec = promisify(execFile);
+/** One scratch folder for the live tests' frames and package copy, removed when they are done. */
+const scratch = live ? null : await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-'));
+after(() => scratch && fs.rm(scratch, { recursive: true, force: true }));
 
 /** The frame the terminal writes for the same request, to hold the MCP image against. */
 async function terminalFrame(...flags) {
-  const file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-')), 'frame.png');
+  const file = path.join(scratch, `${flags.join(' ').replace(/[^\w-]+/g, '_')}.png`);
   await exec(process.execPath, [cli, 'screenshot', fixture, '--out', file, ...flags], { env: { ...process.env, NOACG_URL: liveUrl } });
   return fs.readFile(file);
 }
@@ -280,7 +283,7 @@ test('screenshot paints a background behind the graphic, as the terminal does', 
 });
 
 test('validate with screenshots returns a frame per state the events reach, and the events that reach it', { skip: live }, async () => {
-  const pkg = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-')), 'pkg');
+  const pkg = path.join(scratch, 'pkg');
   await fs.cp(fixture, pkg, { recursive: true });
   const result = await withServer((client) => call(client, { command: 'validate', path: pkg, screenshots: true, background: 'video' }), liveUrl);
   const labels = result.content.map((c, i) => (c.type === 'text' && result.content[i + 1]?.type === 'image' ? c.text : null)).filter(Boolean);
