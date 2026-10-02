@@ -1,7 +1,10 @@
 # The neutral scorebug scaffold paints its colour fields as hex text and shows two clocks
 
 **Filed:** 2026-10-02. **Source:** measurement, reproduced by hand on CLI 0.7.0
-(`docs/research/plugin-graphics-quality-2026-10-02/evidence/neutral-scorebug-onair.png`). Spec:
+(`docs/research/plugin-graphics-quality-2026-10-02/evidence/neutral-scorebug-onair.png`).
+**Re-sorted:** 2026-10-02 against D1: kept unchanged. A scaffold that paints its own data wrong is
+a correctness defect around the artwork, which D1 leaves to NoaCG. **Owner:** a type-catalog row
+(`src/templates/`, the scorebug type's neutral design), with the CLI's scaffold test. Spec:
 `docs/work-specs/plugin-design-quality/spec.md` AC-2.
 
 ## Why

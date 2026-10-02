@@ -64,7 +64,8 @@ window.SPXGCTemplateDefinition = {
 - `ftype`: `textfield` (one line), `textarea` (a LIST - one item per line, for rows/credits/
   items; the runtime renders it), `number` (gets +/- steppers), `filelist` (an image path; with
   `assetfolder`/`extension`), `dropdown` (with `items: [{text, value}]`), `checkbox`, `color`,
-  `hidden` (input-only: the operator types it, nothing draws it - a duration, a word source).
+  `hidden` (input-only: set in the studio's Data panel, off the operator page, and never drawn
+  as itself - a duration, a word source the runtime copies into a visible element).
 - **Every field `fN` maps to exactly one element `id="fN"`** that `update()` writes into. An
   input-only value lives in a holder `<div id="fN" class="noacg-data-source">` hidden by a CSS
   RULE (never an inline `style="display:none"` - the editor clears inline styles).
@@ -313,14 +314,125 @@ the OGraf manifest's `stepCount` is generated from it. When you add or remove a 
 number: an under-reported count tells a dumb host there is no Continue to press, and the reveal
 never happens on that host.
 
+### 5e. Five common behaviours, worked
+
+Each of these ran in one package that validates clean (0 errors, 0 warnings, the bench walking
+every arrow) and was then driven press by press in a browser. Class names use the prefix
+`graphic`; use yours.
+
+**An optional line that collapses when its field is empty.** Data never causes a transition, so
+an empty line is a REPAINT in `update()`, not a state. Toggle a prefixed class on the line's
+mask, start the mask with it when the default is empty, and let CSS take it out of the layout:
+
+```js
+function collapseEmptyLines() {          // called at the end of update()
+  var place = document.getElementById('f1');
+  if (place && place.parentNode) place.parentNode.classList.toggle('graphic-empty', !/\S/.test(place.textContent || ''));
+}
+```
+
+```css
+.graphic-empty { display: none; }        /* the box closes up under the line above */
+```
+
+**A word a state shows, from a hidden word source.** The word is a `hidden` field in a holder
+(§2), and the runtime paints it into a visible element when the state is entered (the state's
+`call`) and again at the end of `update()`, so a renamed word shows at once. Read the state
+from `noacgMachineState()`:
+
+```html
+<div class="graphic-mask"><span class="graphic-status"></span></div>
+<div id="f4" class="noacg-data-source">FINAL</div>
+```
+
+```js
+function paintResultWord() {             // both result states' call, and update(); blank in "live"
+  var state = (typeof noacgMachineState === 'function') ? noacgMachineState().groups.result : null;
+  var word = document.getElementById('f4');
+  var shown = document.querySelector('.graphic-status');
+  if (shown) shown.textContent = (state === 'final' && word) ? word.textContent : '';
+}
+```
+
+**A second state group beside the lifecycle (a timer).** Groups after the first run in parallel
+with it: each has its own `initial`, `states` and `transitions`, and no `defaultPath` (only the
+first group has one; the lifecycle verbs walk only that). An operator event fires in EVERY group
+whose current state has an arrow for it. Three things the interpreter does that you design
+around: a state's `calls` fire on its timeline's first tick, not at the press; snapping to a
+state (the panel's recovery picker) fires that state's calls, so a call must be safe to run
+twice; and Take puts every group back to its `initial` WITHOUT playing that state's timeline or
+undoing what other timelines left. So a group's resting look is the stylesheet's, and the first
+waypoint's step carries a `call` that clears what the other groups left behind
+(`"calls": [ { "time": 0, "call": "resetOnTake" } ]`).
+
+```jsonc
+{ "id": "timer", "initial": "idle",
+  "states": [
+    { "id": "idle", "name": "Timer hidden" },
+    { "id": "running", "name": "Timer running",
+      "timeline": { "name": "Start timer", "duration": 0.3, "ease": "power3.out",
+        "calls": [ { "time": 0, "call": "startTimer" } ],
+        "layers": { ".graphic-timer": { "opacity": [ { "time": 0, "value": 0 }, { "time": 0.3, "value": 1 } ] } } } },
+    { "id": "done", "name": "Time up",
+      "timeline": { "name": "Time up", "duration": 0.3, "ease": "power2.in",
+        "calls": [ { "time": 0, "call": "stopTimer" } ],
+        "layers": { ".graphic-timer": { "opacity": [ { "time": 0, "value": 1 }, { "time": 0.3, "value": 0 } ] } } } }
+  ],
+  "transitions": [
+    { "from": "idle", "to": "running", "trigger": "operator", "event": "timerStart" },
+    { "from": "running", "to": "done", "trigger": "operator", "event": "timerEnd" },
+    { "from": "done", "to": "idle", "trigger": "timer", "after": 2 },
+    { "from": "done", "to": "running", "trigger": "operator", "event": "timerStart" }
+  ] }
+```
+
+The timer's length is set once, so it is a `hidden` holder (`f3`) that `startTimer` reads, not
+a number on the operator page that looks as if it changes the running timer. `startTimer` and
+`stopTimer` live in `template.js` after the marked region; call `stopTimer` from the Out step's
+`calls` too, so a timer never ticks off air. A recovery snap into `running` runs `startTimer`
+again and restarts the count from the full length; a timer that must survive recovery keeps its
+start time in a field and resumes from it.
+
+**A graphic that ends its own timed state.** A fixed delay is a timer arrow, as `done -> idle`
+above: it is armed when the state's timeline finishes and fires only if the group is still in
+that state. When the end depends on something only your code knows (a countdown reaching zero, a
+power play that pauses with the game clock), the code sends the operator event itself, once:
+
+```js
+if (timerLeft <= 0) {
+  stopTimer();                                            // clears the interval: sent once
+  if (typeof noacgDispatch === 'function') noacgDispatch('timerEnd');
+}
+```
+
+`noacgDispatch(event)` is the same serial queue a ⚡ press uses, under the same structural guard:
+the event is dropped unless a current state has an arrow for it, so a stray one after a re-take
+does nothing. Keep the arrow and its `controls` entry ("End timer"), so the operator can end it
+by hand and the bench walks it.
+
+**An action the operator can press in every state.** The panel greys a ⚡ button when no group's
+current state has an arrow for its event. A press that must always work (a goal, a correction)
+gets a one-state group of its own with a self-loop:
+
+```jsonc
+{ "id": "score", "initial": "idle",
+  "states": [ { "id": "idle", "name": "Scoring" } ],
+  "transitions": [ { "from": "idle", "to": "idle", "trigger": "operator", "event": "goal" } ] }
+```
+
+with `{ "event": "goal", "label": "Goal", "section": "Score", "adjust": { "f2": 1 } }` in
+`machine.controls`. The same event may ALSO have arrows in other groups (a goal that ends the
+other side's power play); one press fires them all.
+
 ## 6. Frame, safety, legibility
 
 The frame is the declared resolution (1920x1080 default) at the declared fps; the graphic is
 composited OVER VIDEO, so the canvas is transparent (`html, body { background: transparent }`).
 Keep text inside the title-safe area (the validator reports escapes), readable at broadcast
 size (the validator reports a size floor per category - 20px at 1080p, 16px for a corner bug -
-and measures contrast), and never overlapping other text. Motion: entrances 0.5-1.4 s, exits
-faster; 60 fps means transform/opacity only (no layout-thrashing properties in tweens).
+and measures contrast), and never overlapping other text. Motion has to hold the frame rate, so
+tweens move `transform`, `opacity` and `clip-path` only, never layout properties; how long and
+in what character it moves is yours.
 
 ## 7. A worked example (from scratch, typeless)
 

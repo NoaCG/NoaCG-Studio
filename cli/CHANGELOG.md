@@ -27,11 +27,42 @@ green. Validate now derives the number from the default path, writes it into the
 prints a `Steps:` line naming the old and new value. Nothing to do: change the path, not the
 number.
 
+**Changed: the skill leaves the look to your agent, and teaches the operator's side instead.**
+The `noacg-graphic` skill no longer carries any taste rule by default; even the "entrances
+0.5-1.4 s" line is gone from the contract, because it cut a slower build a gala title wanted. A
+new "Fields and behaviour" section covers what decides whether one person can run the graphic
+live: what changes during the show and what is set once, set-once words kept off the operator page
+as hidden fields, counters as numbers, and defaults that are a safe sample or empty instead of
+"Host Name". The contract reference gains five worked patterns: an optional line that collapses
+when empty, a state's word from a hidden field, a timer beside the main lifecycle, a graphic that
+ends its own timed state, and a button that works in every state. Step 5 now gives a zip
+command for Windows, macOS and Linux.
+
+**New: two opt-in design tools, both off unless you ask.** Ask your agent to "critique and
+improve my graphic" (or run `/noacg:graphic --critique ./my-graphic` in Claude Code) and it renders
+the graphic, judges it against the brief, makes the changes that matter and shows you before and
+after. Ask for NoaCG's design guidelines (or `/noacg:graphic --guidelines`, or put the line
+`NoaCG design guidelines: on` in your project's `CLAUDE.md` or `AGENTS.md`) and it follows NoaCG's
+own rules for type, colour, placement and motion. Neither costs anything in a session that does
+not use it.
+
 **New: `NOACG_CREDENTIALS_DIR`.** Names the folder where `noacg login` keeps its key, for when
 one account needs more than one login at a time, for example several project folders whose
 agents each log in and out. A `logout` in one folder then leaves the others signed in, and
 `noacg doctor` shows the folder in use. Unset, the key stays where it always was, so there is
 nothing to do.
+
+**New: `noacg mcp` is in the official MCP Registry**, as `io.github.NoaCG/noacg`, so MCP server
+directories that read the registry can list it and keep it at the newest version. Every release
+from now on updates it there by itself. The package carries `mcpName` for that; nothing changes in
+how you run it.
+
+**The plugin is now called NoaCG Broadcast Graphics and Playout** in plugin lists (NoaCG Graphics
+and Playout in Codex, which allows 30 characters), with a description that names lower thirds,
+scoreboards, tickers, CasparCG, OBS and vMix, so a search for those words finds it. It installs
+under the same name, `noacg`. In a Claude Code session you can now install it in one command,
+`/plugin install noacg --marketplace NoaCG/NoaCG-Studio`, and each plugin's README says exactly
+what it runs and what it sends.
 
 ## 0.4.1 - 2026-09-23
 

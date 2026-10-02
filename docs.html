@@ -2428,7 +2428,14 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             <strong>Claude Code.</strong> The plugin brings the <code>noacg-graphic</code> skill
             and the <code>/noacg:graphic</code> command. Nothing needs installing first. It runs
             nothing until you make a graphic, because the skill drives the CLI from the terminal.
-            A session about something else pays nothing for it.
+            A session about something else pays nothing for it. Type this in a Claude Code session
+            (version 2.1.275 or newer). It adds the NoaCG marketplace, asks you to confirm it, and
+            installs the plugin:
+          </p>
+          <pre><code>/plugin install noacg --marketplace NoaCG/NoaCG-Studio</code></pre>
+          <p>
+            From a terminal or a setup script, the same install is two commands. This is what the
+            prompt above runs, because an agent works in a terminal:
           </p>
           <pre><code>claude plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
           <pre><code>claude plugin install noacg@noacg-studio</code></pre>
@@ -2437,8 +2444,11 @@ The loop after that: scaffold or author, "npx -y @noacg/cli validate &lt;dir&gt;
             <code>noacg</code> tool in every session and keeps a browser warm between calls. It
             costs a process and some context in every session, which is why it is separate.
           </p>
-          <pre><code>claude plugin install noacg-mcp@noacg-studio</code></pre>
-          <p><strong>Codex.</strong> The same plugin, from the same repository.</p>
+          <pre><code>/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio</code></pre>
+          <p>
+            <strong>Codex.</strong> The same plugin, from the same repository. Codex has no
+            one-command form, so run these two in a terminal:
+          </p>
           <pre><code>codex plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
           <pre><code>codex plugin add noacg@noacg-studio</code></pre>
           <p>

@@ -116,9 +116,10 @@ test('each card resolves its own channel: the newest bridge-v* exe, and npm late
   await expect(bridge.getByTestId('bridge-not-needed')).toContainText('OBS, vMix');
   await expect(cli).toContainText('Claude Code');
   // The install lines are the distribution table's (docs/AGENT_CLI.md), each its own block.
+  // Claude Code's is the one-command form a session accepts since 2.1.275 (Codex has none).
   for (const command of [
-    'claude plugin marketplace add NoaCG/NoaCG-Studio',
-    'claude plugin install noacg@noacg-studio',
+    '/plugin install noacg --marketplace NoaCG/NoaCG-Studio',
+    'codex plugin marketplace add NoaCG/NoaCG-Studio',
     'codex plugin add noacg@noacg-studio',
     'npx -y @noacg/cli mcp',
     'npm i -g @noacg/cli',

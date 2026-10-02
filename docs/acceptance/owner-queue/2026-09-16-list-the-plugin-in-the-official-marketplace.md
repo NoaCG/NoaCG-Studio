@@ -6,51 +6,54 @@ serves: now
 ---
 # Get NoaCG found from inside Claude Code and Codex
 
-Rewritten 2026-10-02 from the research in `docs/research/agent-marketplaces-2026-10-02/`. The
-earlier plan, a pull request to Claude Code's official marketplace, is closed: Anthropic takes no
-submissions there, and only a partner contact can ask for a listing. Two public directories are
-open instead, one for Claude and one shared by Codex and ChatGPT. Both need your accounts.
+Rewritten 2026-10-02 from the research in `docs/research/agent-marketplaces-2026-10-02/`, and again
+the same day once the listing work landed. Anthropic's official marketplace takes no submissions,
+so two public directories are the route, one for Claude and one shared by Codex and ChatGPT. Both
+need your accounts. Everything an agent could do is done.
 
 **What this will not do.** A bare `claude plugin install noacg` on a fresh machine will still fail,
-because Claude Code searches only the official marketplace by itself. The shortest path inside
-Claude Code stays one command, `/plugin install noacg --marketplace NoaCG/NoaCG-Studio` (Claude Code
-2.1.275 or later), and an agent moves the install guides to it. A Claude directory listing reaches
-people who add it on claude.ai, and it then loads in their Claude Code too.
+because Claude Code searches only Anthropic's official marketplace by itself. The install guides now
+lead with the one command a person types in a Claude Code session (2.1.275 or later):
+`/plugin install noacg --marketplace NoaCG/NoaCG-Studio`.
 
-## 1. Decide the name (any time, costs nothing)
+## The name: closed
 
-Recommended: keep **`noacg`** for the plugin, the CLI command and the MCP server, and show it as
-**NoaCG Broadcast Graphics**, so a search for "broadcast", "lower third" or "CasparCG" finds it.
-No plugin, MCP server or npm package uses the name; marks outside the US are unchecked. Runner-up: `noacg-graphics`, which renames a published plugin.
-Reasons and clashes: `docs/research/agent-marketplaces-2026-10-02/name.md`. Answer with "keep noacg" or "noacg-graphics".
+Your decision, 2026-10-02: keep **`noacg`** as the plugin, CLI and MCP server name, and show it
+as **NoaCG Broadcast Graphics and Playout** wherever a field allows it, keeping every field within
+its limit. OpenAI's directory allows 30 characters for a display name ("at most 30 characters",
+developers.openai.com/plugins/deploy/submission) and the name is 36, so by your ruling the Codex
+and ChatGPT display name is **NoaCG Graphics and Playout**. Every other listing field, and the MCP
+Registry title, carries the full name.
 
-## 2. Before the name is decided: prepare the two accounts
+## What landed (no step for you)
 
-These do not depend on the name, and the second may take days.
+The manifests carry the name, descriptions that show playout as well as making graphics, an icon,
+and the Codex fields OpenAI requires; both plugin READMEs say what the plugin runs and sends; the
+CLI release publishes `noacg mcp` to the official MCP Registry by itself; the Codex upload ZIP is
+kept with every release run. How each directory picks up a new version, from the sources:
+`docs/research/agent-marketplaces-2026-10-02/updates.md`.
 
-| Step | Where | Cost |
+## Your steps, once
+
+In this order. Start after the 0.7.0 release (an agent row cuts it), so the first versions the
+directories scan already carry everything.
+
+| # | What | Where | Values | Cost |
+|---|---|---|---|---|
+| 1 | Use a claude.ai account on Pro or higher that should own the Claude listing for good (the first organisation to submit a folder holds it), and connect GitHub there with an account that can push to `NoaCG/NoaCG-Studio` and is an admin of it | claude.ai | | the plan you already pay; free accounts cannot submit; no fee stated |
+| 2 | Submit the `noacg` plugin: **Submit new**, **Plugin bundle**, repository `NoaCG/NoaCG-Studio`, path `cli/plugin`, branch left empty (it follows `main`), **Validate** | claude.ai/directory/manage | `drafts.md`, section 1 | about 15 minutes; review time is not fixed |
+| 3 | Answer the data-handling questions and the four compliance acknowledgements; they are your statements, not an agent's | the same submission | `drafts.md`, section 1 | |
+| 4 | On **Review and submit**: keep **GitHub push webhook**, turn on **Auto-publish passing versions**, submit, then press **Set up push updates** (needs repository admin) | the same submission | | |
+| 5 | Verify the OpenAI platform organisation that should own the Codex listing: **individual** (your name) or **business** (NoaCG Studio) | platform.openai.com, organisation settings | | no fee stated; duration not stated |
+| 6 | Download the artifact `noacg-codex-plugin-0.7.0` from the 0.7.0 run of **Release CLI to npm** (Actions tab), upload it as a new plugin, fill the listing, submit for review, and publish once approved | platform.openai.com/plugins | `drafts.md`, section 3 | about 15 minutes; feedback by email |
+| 7 | Once step 2's listing is live: submit `noacg-mcp` the same way, path `cli/plugin-mcp`. Expect a reviewer hold on its launcher | claude.ai/directory/manage | `drafts.md`, section 2 | about 10 minutes |
+| 8 | Optional, once the 0.7.0 release shows `io.github.NoaCG/noacg` in the MCP Registry: ask GitHub to include it in its MCP registry (VS Code and Copilot, not Claude Code or Codex) | an email from your address to partnerships@github.com | `drafts.md`, section 5 | 5 minutes |
+
+## Your steps, per version
+
+| Directory | When | What |
 |---|---|---|
-| a. Use a claude.ai account on Pro or higher that should own the listing for good (the first organisation to submit a folder holds it), and connect GitHub there with an account that can push to `NoaCG/NoaCG-Studio` and is an admin of it (for the update webhook) | claude.ai | the plan you already pay; free accounts cannot submit. No submission fee is stated |
-| b. Verify the OpenAI platform organisation that should own the Codex listing. Choose **individual** (listed under your name) or **business** (listed under NoaCG Studio) | platform.openai.com, organisation settings | no fee stated; how long verification takes is not stated |
-
-## 3. After the name: agents prepare everything (no account needed)
-
-One agent row makes the manifest changes in
-`docs/research/agent-marketplaces-2026-10-02/drafts.md`, section 0 (display name, descriptions,
-Codex short description, icons), adds a "What it runs and what it sends" section to both plugin
-READMEs, adds `mcpName` and `cli/server.json`, adds the MCP Registry publish step to the CLI release,
-moves the install guides to the one-command form, and then releases the CLI. It costs one row and no
-money. Submit nothing until it has landed: the directories read the live repository.
-
-## 4. Your submissions, in this order
-
-| # | What | Where | Draft | Time | Cost |
-|---|---|---|---|---|---|
-| 1 | The `noacg` plugin | claude.ai/directory/manage, **Plugin bundle**, path `cli/plugin` | `drafts.md`, section 1 | about 15 minutes; review time is not fixed | none beyond the plan |
-| 2 | The `noacg` plugin, skills only | platform.openai.com/plugins, upload the ZIP an agent builds | `drafts.md`, section 3 | about 15 minutes; review feedback arrives by email | none stated |
-| 3 | The `noacg-mcp` plugin, once 1 is live | claude.ai/directory/manage, path `cli/plugin-mcp` | `drafts.md`, section 2 | about 10 minutes; expect a reviewer hold | none beyond the plan |
-| 4 | Optional: GitHub's MCP registry, once the agent has published to the MCP Registry | an email to partnerships@github.com | `drafts.md`, section 5 | 5 minutes | none |
-
-The data-handling answers, the compliance acknowledgements and the developer identity are yours to
-confirm, not an agent's. The MCP Registry needs nothing from you if it is published from the
-release workflow, as `drafts.md`, section 4 proposes.
+| Anthropic's directory | every version that passes its checks, **for as long as** the plugin's **Auto-publish** row says "An Anthropic reviewer publishes each version" (the default; Anthropic changes it, not you) | open the plugin at claude.ai/directory/manage and press **Publish** |
+| Anthropic's directory | a version **held for a reviewer** or failing the security scan | nothing until Anthropic's reviewer acts; send the finding to an agent if it asks for a fix |
+| Codex and ChatGPT directory | when the skill or the listing text changed enough to matter (not every release: the CLI it runs always comes from npm) | download `noacg-codex-plugin-<version>` from that release's run, then **Upload plugin to make changes** on the existing plugin, resolve findings, submit, and publish once approved |
+| MCP Registry | never | the release workflow publishes every version itself |

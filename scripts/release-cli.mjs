@@ -19,12 +19,15 @@
  * Usage:
  *   npm run release:cli              preflight, tag, push, watch, verify from the registry
  *   npm run release:cli -- --check   preflight only: say what would be released, touch nothing
+ *   npm run release:cli -- --check --ref HEAD  preflight a branch before it lands (check only)
  *   npm run release:cli -- --verify-only  verify a version that is ALREADY published, tag nothing
  *   npm run release:cli -- --no-smoke  skip the post-publish `npx` install of the real package
  *   npm run release:cli -- --publisher-ok  release anyway when npm's trusted publisher looks stale
  *
  * The version comes from `cli/package.json` ON origin/main, never from the local tree: the thing
- * being released is a commit on main, and a worktree can be anywhere.
+ * being released is a commit on main, and a worktree can be anywhere. `--ref` reads another commit
+ * instead, and only with `--check`: it answers "will this branch release cleanly once it lands?",
+ * while a tag is only ever cut at origin/main.
  */
 import { execFileSync } from 'node:child_process';
 
@@ -39,6 +42,8 @@ const smoke = !args.includes('--no-smoke');
 const publisherOk = args.includes('--publisher-ok');
 // The recovery door for the race below: verify a version that is already out, without tagging.
 const verifyOnly = args.includes('--verify-only');
+const refAt = args.indexOf('--ref');
+const REF = refAt >= 0 ? args[refAt + 1] : 'origin/main';
 
 const run = (cmd, cmdArgs, opts = {}) =>
   execFileSync(cmd, cmdArgs, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...opts }).trim();
@@ -52,27 +57,29 @@ const fail = (message, fix) => {
 };
 
 /**
- * Read a file as it exists on origin/main.
+ * Read a file as it exists on origin/main (or the commit `--ref` names).
  *
  * `git show origin/main:path` is the obvious spelling and the wrong one here: on Windows the shell
  * layer rewrites an argument containing a colon and slashes as a path, and the command fails with
  * a confusing "ambiguous argument". Resolving the blob first has no such hazard on any platform.
  */
-const readFromMain = (path) => {
-  const line = git('ls-tree', 'origin/main', '--', path);
-  if (!line) fail(`${path} does not exist on origin/main`);
+const readAtRef = (path) => {
+  const line = git('ls-tree', REF, '--', path);
+  if (!line) fail(`${path} does not exist on ${REF}`);
   return git('cat-file', 'blob', line.split(/\s+/)[2]);
 };
 
-const json = (path) => JSON.parse(readFromMain(path));
+const json = (path) => JSON.parse(readAtRef(path));
 
 console.log('Fetching origin/main and the tags…');
 git('fetch', '--tags', 'origin', 'main');
+if (!REF) fail('--ref needs a commit, such as HEAD');
+if (REF !== 'origin/main' && !checkOnly) fail(`--ref ${REF} preflights a commit, so only --check may use it`, 'A release is always cut at origin/main.');
 
 // ---------------------------------------------------------------- the version, and who agrees
 
 const version = json('cli/package.json').version;
-const sha = git('rev-parse', 'origin/main');
+const sha = git('rev-parse', REF);
 
 /**
  * `cli/scripts/build-skill.mjs` stamps the version from cli/package.json onto every plugin
@@ -87,6 +94,10 @@ const stamps = [
   ['cli/plugin-mcp/.codex-plugin/plugin.json', (d) => d.version],
   ['.claude-plugin/marketplace.json', (d) => d.plugins.find((p) => p.name === 'noacg')?.version],
   ['.claude-plugin/marketplace.json', (d) => d.plugins.find((p) => p.name === 'noacg-mcp')?.version],
+  // The MCP Registry record, which the workflow publishes after npm: its own version and the npm
+  // version it points at. The registry refuses a version that npm does not hold.
+  ['cli/server.json', (d) => d.version],
+  ['cli/server.json', (d) => d.packages?.find((p) => p.identifier === PKG)?.version],
 ];
 const drifted = stamps
   .map(([path, read]) => [path, read(json(path))])
@@ -95,6 +106,17 @@ if (drifted.length) {
   fail(
     `cli/package.json says ${version} on main, but ${drifted.map(([p, v]) => `${p} says ${v}`).join('; ')}`,
     'Run `npm --prefix cli run build` on the release branch, commit, and land it before releasing.',
+  );
+}
+
+// The registry checks that the npm package it is pointed at carries the server's name, and it can
+// only ask after npm holds the version. Asked here, a mismatch costs nothing.
+const serverName = json('cli/server.json').name;
+const mcpName = json('cli/package.json').mcpName;
+if (serverName !== mcpName) {
+  fail(
+    `cli/server.json names ${serverName} but cli/package.json mcpName is ${mcpName}, so the MCP Registry would refuse the publish`,
+    'Make them the same, run `npm --prefix cli run build`, and land it before releasing.',
   );
 }
 
@@ -136,9 +158,9 @@ const known = published ? Object.keys(published.versions) : [];
  */
 const WORKFLOW = '.github/workflows/release-cli.yml';
 const WORKFLOW_FILENAME = WORKFLOW.split('/').pop();
-if (!git('ls-tree', 'origin/main', '--', WORKFLOW)) {
+if (!git('ls-tree', REF, '--', WORKFLOW)) {
   fail(
-    `${WORKFLOW} does not exist on origin/main, so this script cannot say which workflow npm must trust`,
+    `${WORKFLOW} does not exist on ${REF}, so this script cannot say which workflow npm must trust`,
     'If the release workflow was renamed, update WORKFLOW here and have the owner re-create npm\'s trusted publisher with the new filename.',
   );
 }
@@ -236,8 +258,8 @@ if (!verifyOnly) {
 }
 
 console.log(`\n${PKG}@${version}`);
-console.log(`  commit   ${sha.slice(0, 10)} — ${git('log', '-1', '--format=%s', 'origin/main')}`);
-console.log(`  stamps   all 6 agree`);
+console.log(`  commit   ${sha.slice(0, 10)} — ${git('log', '-1', '--format=%s', REF)}`);
+console.log(`  stamps   all ${stamps.length} agree; MCP Registry name ${serverName}`);
 const freedom = verifyOnly ? `${version} is the one being verified` : `${version} is free`;
 console.log(`  registry ${known.length ? `has ${known.join(', ')} — ${freedom}` : 'has no published version yet'}`);
 
@@ -276,7 +298,10 @@ if (!verifyOnly) {
   try {
     execFileSync('gh', ['run', 'watch', runId, '--exit-status'], { stdio: 'inherit' });
   } catch {
-    fail(`the release run failed — gh run view ${runId} --log-failed`, 'The version was NOT published; fix and re-tag.');
+    fail(
+      `the release run failed — gh run view ${runId} --log-failed`,
+      'If it failed before "Publish", nothing was published: fix and re-tag. If only "Publish to the MCP Registry" failed, npm has the version: re-run the workflow with dry_run unchecked, which publishes only the registry record.',
+    );
   }
 }
 

@@ -1,4 +1,4 @@
-# Plugin design quality: the plugin helps make graphics better, not only put them into NoaCG
+# Plugin design quality: NoaCG owns everything around the artwork, the look stays the agent's
 
 ## Problem and authority
 
@@ -7,71 +7,85 @@ ran the plugin and CLI built from `main` against a local studio on four briefs n
 All four graphics validated, imported, played and answered every button. Two of four looked
 ordinary, one looked like a stock composition, and only the one that started from a catalog
 design looked paid-for. The operator surface for the behaviour-heavy brief put the live buttons
-below twelve inputs. The agents could not render their own machine states or see a frame
-over anything but white, and the two behaviour-heavy briefs spent most of their time on private
-harnesses.
+below twelve inputs, three of them words set once per show. The agents could not render their
+own machine states or see a frame over anything but white, and the two behaviour-heavy briefs
+spent most of their time on private harnesses.
 
-Authority: GOALS outcome 2 (the agent door: a novel brief becomes a playable, OPERABLE package)
-and the product rule "premium broadcast graphics with minimal friction, usable by non-technical
-users". This record is a **draft**: it was written by the wave row that measured the problem, and
-decision D1 below is a taste and direction call that needs the owner before implementation.
+Authority: the owner's answer to decision D1, 2026-10-02, relayed in wave row 2026-10-02d-BL-1
+(paraphrase): users hate imposed boundaries and frontier models design well, so by default the
+agent designs freely; Codex currently overdoes things, so guard rails exist, but only on request.
+GOALS outcome 2: a novel brief becomes a playable, OPERABLE package. The walk showed operability
+and self-checking, not missing taste rules, as what NoaCG owns.
 
 ## Owner requirements
 
+- **D1 (owner, 2026-10-02).** By default the agent designs freely: no house look and no taste
+  rules in the default skill. NoaCG's job is everything around the artwork: the contract, the
+  OGraf/HTML5 package, the fields and behaviour, and how the graphic works in the control panel.
+- **Two opt-in tools.** A "critique and improve my graphic" taste check that the user or the
+  agent can ask for, and a switch that makes the agent follow NoaCG's design guidelines, for users
+  who want guard rails. Both are off by default.
 - Premium broadcast graphics with minimal friction, usable by non-technical users, compatible
   with multiple playout environments (root taste rule).
-- The agent door delivers a package from a brief nobody has seen, with valid fields and behaviour
-  (GOALS outcome 2, "done for this phase").
-- `docs/DESIGN_LANGUAGE.md`: the bar is a paid MotionArray / Envato Elements asset; sameness is a
-  defect, not a house style.
+- Installing the plugin does not noticeably cost an unrelated session context (owner,
+  2026-09-02, `docs/AGENT_CLI.md` "What a session pays").
 
 ## Derived decisions
 
-- **D1 (needs the owner): a design PROCESS in the default skill, the house LOOK still optional.**
-  `docs/AGENT_CLI.md` keeps taste rules, motion doctrine and composition guidance out of the
-  default skill, in `references/design-notes.md`, "to be tested as its own arm". The walk shows
-  the cost of having nothing: the agents' own defaults are generic. The recommended line is
-  process, not doctrine: the default skill asks the agent to state a design intent, look at
-  references, render the frame where it will air and critique it against the paid-asset bar, and
-  it names no palette, font or silhouette. `design-notes.md` stays optional, and AC-10 runs it as
-  the arm the WHY promised. An active design skill still owns the look.
 - **D2: fix the cause where it lives.** Each criterion names the layer that causes the failure:
   the skill, the CLI, the type catalog, the contract, the validator, or the control panel model.
-  A control-panel change is its own row under `src/control` and its own owner; this spec only
-  states the observable result.
+  A control-panel change is its own row under `src/control`; this spec only states the observable
+  result.
 - **D3: no new instrument where an existing one can carry it.** The taste floors already run in
   `src/ai/spike/tasteCheck.ts`; the bench already dispatches authored events; the studio already
-  separates `hidden` fields from operator inputs. The work exposes these to the agent before it
-  builds anything new.
+  separates `hidden` fields from operator inputs.
+- **D4: where the line falls.** The agent's: composition, palette, typeface, silhouette, motion
+  character and timing. NoaCG's: the contract, the package, which fields exist and how they
+  behave (live or set once, hidden word sources, counters, defaults), the operator surface, and
+  the instruments' measurements (safe area, size floor, contrast, transparency, frame rate),
+  which report and never prescribe a look.
+- **D5: the opt-in tools cost nothing until asked for.** Both live as references of the one
+  existing skill, read only when switched on. The switches are words, so they work in Claude Code
+  and in Codex alike: a request ("critique my graphic", "use NoaCG's design guidelines"), or the
+  line `NoaCG design guidelines: on` in the user's own `CLAUDE.md` or `AGENTS.md`, which both hosts
+  already load. Claude Code also takes them as `--critique <folder>` and `--guidelines` on the one
+  existing `/noacg:graphic` command. No new skill, no new command, no CLI state. A separate
+  user-only command was measured and rejected: `claude plugin details` counts its description as
+  always-on even with `disable-model-invocation`.
+- **D6: the critique judges the agent's own design, not the house look.** It asks questions
+  against the brief and the paid-asset bar, drawn from the dimensions of `docs/DESIGN_LANGUAGE.md`
+  §9 (taste, motion, auto-fit, operability), and never imports the guidelines. The guidelines are
+  `references/design-notes.md`, which states the same floors as `docs/DESIGN_LANGUAGE.md`.
 
 ## Preserved behaviour
 
 The contract gates (definition, fields, lifecycle, ES5, editability spine, bench) keep their
 meaning and severity. A graphic stays a portable OGraf + SPX package with no profile and no house
 dependency. A graphic with no `hidden` fields and no machine gets the panel it gets today. The
-plugin still spends no tokens until a graphic is being made.
+plugin still spends no tokens until a graphic is being made, and its always-on cost stays where
+0.7.0 left it.
 
 ## Non-goals
 
-No house look imposed by default. No new graphic types for these four briefs. No change to the
-OGraf manifest format. No built-in AI generator, and no route that bills an API. No automatic
-design scoring that gates a save: taste stays a judgement, reported and shown.
+No house look by default, and no design pass in the default loop. No automatic design scoring
+that gates a save: taste stays a judgement, reported and shown. No new graphic types for these
+four briefs. No change to the OGraf manifest format. No built-in AI generator, and no route that
+bills an API.
 
-### AC-1: The skill runs a design pass before building and a critique after
+### AC-1: The default skill leaves the look to the agent
 
-`cli/skill/noacg-graphic/SKILL.md` adds two steps to the loop, pinned by
-`cli/test/unit.test.mjs`: before the first edit the agent writes a short design intent for this
-brief (audience and screen, tone, two or three reference genres, palette, type pairing,
-silhouette, motion character) and shows it to the user; after a clean validate it critiques the
-rendered frames against a short checklist drawn from `docs/DESIGN_LANGUAGE.md` §9 (taste, motion,
-auto-fit, operability) and names at least one change it made because of the critique.
-Scenario: a fresh session on a new brief replies with the intent, the frames and the change.
+`cli/skill/noacg-graphic/SKILL.md` and the contract's frame section name no palette, typeface,
+size or motion duration, and the loop has no design-intent or critique step; the fixed list
+stays (safe area, the validator's size floor and contrast, transparency, frame rate). Pinned by
+`cli/test/unit.test.mjs`. Scenario: a fresh session given a brief with neither tool switched on
+opens neither opt-in reference and reports no house rule it followed.
 
-### AC-2: The agent picks its starting point by looking, and neutral scaffolds render correctly
+### AC-2: The agent can see catalog designs, and neutral scaffolds render correctly
 
-A command shows a type's catalog designs as one contact-sheet image with their ids, so the agent
-chooses a design by its frame rather than by id. Every `--design neutral` scaffold renders its
-own default data without painting a colour value as text or a second clock; the scorebug case in
+An agent that chooses to start from a catalog design picks it by its frame: a command shows a
+type's catalog designs as one contact-sheet image with their ids. Every `--design neutral`
+scaffold renders its own default data without painting a colour value as text or a second
+clock; the scorebug case in
 `docs/research/plugin-graphics-quality-2026-10-02/evidence/neutral-scorebug-onair.png` is pinned
 by a test. Scenario: `noacg scaffold --type scorebug --design neutral` then `noacg screenshot`
 shows one clock and no hex text.
@@ -91,14 +105,14 @@ the bench reached. Scenario: the hockey power-play, intermission and final frame
 reveal and timer frames, come from the CLI with no private harness. (Items 1 and 3 of the
 2026-09-20 backlog file.)
 
-### AC-5: The skill teaches operator fit, and inspect shows it
+### AC-5: The default skill teaches fields and behaviour
 
-The skill says, with one example each: what an operator presses live versus sets once; that
-set-once words and labels go in `hidden` word sources so the operator page stays live-only; that
-a counter the operator steps through is a number; that a default is either a safe sample or
-empty, never a placeholder that can air ("Host Name"). `noacg inspect` groups its output into
-LIVE (buttons and live fields) and SETUP. Scenario: re-running the hockey brief yields an operator
-page whose live block holds the clock and goal buttons and no word fields.
+`SKILL.md` says, with one example each: what an operator changes during the show versus sets
+once; that set-once words go in `hidden` word sources so the operator page stays live-only; that
+a counter the operator steps through is a number; that a default is a safe sample or empty,
+never a placeholder that can air ("Host Name"); and where the worked patterns are (AC-7). Pinned
+by `cli/test/unit.test.mjs`. Scenario: a fresh quiz brief yields round and question numbers as
+`number` fields and its set-once words as hidden sources.
 
 ### AC-6: The operator page leads with the live controls
 
@@ -110,30 +124,57 @@ scrolling. Events can carry a keyboard shortcut the panel shows. Scenario: the s
 
 ### AC-7: The contract has worked patterns for the common behaviours
 
-`references/contract.md` carries one short worked pattern each for: an optional line that
-collapses when its field is empty; a second state group beside the main lifecycle (a timer); a
-graphic that ends its own timed state; an action that stays available in every state. Each
-pattern is a fixture that validates clean and is pinned by a test.
+`references/contract.md` §5e carries one short worked pattern each for: an optional line that
+collapses when its field is empty; a state's word painted from a hidden source; a second state
+group beside the main lifecycle (a timer); a graphic that ends its own timed state; an action
+that stays available in every state. Each pattern is a fixture that validates clean and is
+pinned by a test.
 
 ### AC-8: The instruments agree with the design language
 
-The CLI validator's secondary-text guidance, the skill's motion numbers and
-`docs/DESIGN_LANGUAGE.md` state the same floors and ranges or say why they differ; a bench-stress
-error is visible in the stress frame it reports; `bench-field-unpainted` no longer fires on a type's
-own clock field.
+The opt-in guidelines (`references/design-notes.md`) state `docs/DESIGN_LANGUAGE.md`'s floors
+and say which brief kinds their motion range fits; the default contract states no motion range.
+The CLI validator's secondary-text guidance states the same floor as `docs/DESIGN_LANGUAGE.md` or
+says why it differs; a bench-stress error is visible in the stress frame it reports;
+`bench-field-unpainted` no longer fires on a type's own clock field.
 
 ### AC-9: The small frictions are gone
 
 `noacg --help` exits 0; every verb prints its own `--help`; the skill gives one copy-paste way to
-produce the importable zip on Windows, macOS and Linux (or a CLI verb does it); the "generated
-half was stale" note reads as information.
+produce the importable zip on Windows, macOS and Linux; the "generated half was stale" note reads
+as information; `scaffold --fields` accepts a `hidden` kind.
 
 ### AC-10: The benchmark, judged from frames
 
-The four briefs of 2026-10-02 plus two new ones are re-run by fresh sessions (a terminal
-`claude -p` with the plugin when this machine is logged in; otherwise the subagent method the
-research documents), twice: default skill, and with `design-notes.md` on. A reviewer who did not
-build them judges each from its frames and its studio panel against a written rubric: would it
-air on a paid channel; does the live operator reach every live action without scrolling or
-typing a label. Target: at least four of six judged premium on the default arm, and every
-operator surface passing. The receipt records frames, panel shots and the verdict per brief.
+The four briefs of 2026-10-02 plus two new ones (a ticker, a full-frame result board) are re-run
+by fresh sessions (a terminal `claude -p` with the plugin when this machine is logged in;
+otherwise the subagent method the research documents) in three arms: default, critique asked
+for, guidelines on. A reviewer who did not build them judges each from its frames and its studio
+panel against a written rubric: would it air on a paid channel; does the live operator reach
+every live action without scrolling or typing a label; did the opt-in arm change what it claims
+to. The receipt records frames, panel shots and the verdict per brief and arm.
+
+### AC-11: `noacg inspect` shows the operator's view
+
+`noacg inspect` groups its output into LIVE (buttons and the fields changed during the show) and
+SETUP, so the agent reads the operator page the way the operator meets it. Scenario: the brief-2
+package prints the clock and goal buttons under LIVE and no word fields.
+
+### AC-12: The critique is there on request, and only then
+
+`references/critique.md` renders the graphic, judges it against the brief and the paid-asset
+bar, makes the changes that matter (or says why none is needed) and shows the before and after
+frames. It is on
+when the user asks in words or passes `--critique` to `/noacg:graphic`, and the agent may offer
+it in one sentence; otherwise the loop never opens it. Works in Claude Code and in Codex; the
+plugin's always-on cost does not grow. Scenario: a fresh run asked to critique an existing
+package changes it and reports why; a fresh run not asked does not open the file.
+
+### AC-13: NoaCG's design guidelines are a switch, off by default
+
+`references/design-notes.md` is followed when the user asks for NoaCG's design guidelines, passes
+`--guidelines` to `/noacg:graphic`, or their project instructions carry
+`NoaCG design guidelines: on`; otherwise it stays closed. Works in Claude Code and in Codex; the
+plugin's always-on cost does not grow. Scenario: a fresh brief with the switch on cites the
+guidelines for its sizes and motion; the same switch read from an `AGENTS.md` turns it on in
+Codex; with no switch, neither host opens the file.

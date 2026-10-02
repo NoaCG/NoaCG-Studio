@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pub Quiz</title>
+  <script src="js/gsap.min.js"></script>
+  <link rel="stylesheet" href="css/template.css" />
+  <script src="js/template.js"></script>
+  <script id="spx-template-definition" type="text/javascript">
+window.SPXGCTemplateDefinition = {
+    "description": "Pub Quiz",
+    "playserver": "OVERLAY",
+    "playchannel": "1",
+    "playlayer": "7",
+    "webplayout": "7",
+    "out": "manual",
+    "steps": "2",
+    "dataformat": "json",
+    "uicolor": "5",
+    "DataFields": [
+        { "field": "f0", "ftype": "textfield", "title": "Question", "value": "Which planet is known as the Red Planet?" },
+        { "field": "f1", "ftype": "textfield", "title": "Answer A", "value": "Venus" },
+        { "field": "f2", "ftype": "textfield", "title": "Answer B", "value": "Mars" },
+        { "field": "f3", "ftype": "textfield", "title": "Answer C", "value": "Jupiter" },
+        { "field": "f4", "ftype": "textfield", "title": "Answer D", "value": "Saturn" },
+        { "field": "f5", "ftype": "dropdown", "title": "Correct answer", "value": "B",
+          "items": [ { "text": "A", "value": "A" }, { "text": "B", "value": "B" }, { "text": "C", "value": "C" }, { "text": "D", "value": "D" } ] },
+        { "field": "f6", "ftype": "number", "title": "Round", "value": "1" },
+        { "field": "f7", "ftype": "number", "title": "Question number", "value": "1" },
+        { "field": "f8", "ftype": "hidden", "title": "Timer seconds", "value": "30" },
+        { "field": "f9", "ftype": "hidden", "title": "Word for Round", "value": "ROUND" },
+        { "field": "f10", "ftype": "hidden", "title": "Word for Question", "value": "QUESTION" },
+        { "field": "f11", "ftype": "hidden", "title": "Word for time up", "value": "TIME'S UP" }
+    ]
+};
+</script>
+  <script src="js/flex-gap-shim.js"></script>
+  <meta name="noacg-project-format" content="width=1920;height=1080;fps=25" />
+</head>
+<body>
+  <div class="quiz">
+    <div class="quiz-box">
+      <div class="quiz-accent"><span class="quiz-accent-a"></span><span class="quiz-accent-b"></span><span class="quiz-accent-c"></span><span class="quiz-accent-d"></span></div>
+      <div class="quiz-header">
+        <div class="quiz-chip quiz-chip-round">
+          <span class="quiz-chip-word quiz-round-word">ROUND</span>
+          <div class="quiz-mask quiz-num-mask"><span id="f6" class="quiz-num">1</span></div>
+        </div>
+        <div class="quiz-chip quiz-chip-qnum">
+          <span class="quiz-chip-word quiz-qnum-word">QUESTION</span>
+          <div class="quiz-mask quiz-num-mask"><span id="f7" class="quiz-num">1</span></div>
+        </div>
+        <div class="quiz-timer"><span class="quiz-timer-num">30</span><span class="quiz-timer-word">TIME'S UP</span></div>
+      </div>
+      <div class="quiz-timebar"><div class="quiz-timebar-fill"></div></div>
+      <div class="quiz-mask quiz-question-mask"><span id="f0" class="quiz-question">Which planet is known as the Red Planet?</span></div>
+      <div class="quiz-options">
+        <div class="quiz-option quiz-option-1"><span class="quiz-letter">A</span><div class="quiz-mask quiz-answer-mask"><span id="f1" class="quiz-text">Venus</span></div></div>
+        <div class="quiz-option quiz-option-2"><span class="quiz-letter">B</span><div class="quiz-mask quiz-answer-mask"><span id="f2" class="quiz-text">Mars</span></div></div>
+        <div class="quiz-option quiz-option-3"><span class="quiz-letter">C</span><div class="quiz-mask quiz-answer-mask"><span id="f3" class="quiz-text">Jupiter</span></div></div>
+        <div class="quiz-option quiz-option-4"><span class="quiz-letter">D</span><div class="quiz-mask quiz-answer-mask"><span id="f4" class="quiz-text">Saturn</span></div></div>
+      </div>
+    </div>
+    <div id="f5" class="noacg-data-source">B</div>
+    <div id="f8" class="noacg-data-source">30</div>
+    <div id="f9" class="noacg-data-source">ROUND</div>
+    <div id="f10" class="noacg-data-source">QUESTION</div>
+    <div id="f11" class="noacg-data-source">TIME'S UP</div>
+  </div>
+<script id="spx-control-receiver">
+/* Control receiver — Pub Quiz.
+   A control panel on the same machine (controlpanel.html) posts messages here; we forward
+   them to the graphic's own update()/play()/stop()/next() — and, when this graphic carries a
+   state machine, 'event' and 'snap' to noacgDispatch()/noacgSnap() (the machine cues a
+   generated control page sends). After every handled message the receiver answers with the
+   machine state, and a lightweight watcher reports timer-driven changes too, so the panel's
+   state chip stays honest. Remove this block to opt out. */
+(function () {
+  if (typeof BroadcastChannel === 'undefined') return;
+  try {
+    var ch = new BroadcastChannel('spx-control-pub_quiz');
+    var lastSent = '';
+    function reply(force) {
+      var hasState = typeof noacgMachineState === 'function';
+      var hasOver = typeof noacgTextOverflow === 'function';
+      if (!hasState && !hasOver) return;
+      try {
+        var state = hasState ? noacgMachineState() : null;
+        // WHICH VALUES DID NOT FIT — the field ids this graphic could not size down far enough
+        // to hold (its fit ladder's last rung). The panel warns the operator with it; the copy
+        // is never cut and the artwork is never reshaped to hide it.
+        var over = hasOver ? noacgTextOverflow() : null;
+        var key = JSON.stringify([state, over]);
+        if (!force && key === lastSent) return;
+        lastSent = key;
+        ch.postMessage({ t: 'state', state: state, over: over });
+      } catch (e) { /* state unavailable — the panel just shows no chip */ }
+    }
+    ch.onmessage = function (ev) {
+      var m = ev.data || {};
+      if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
+      else if (m.t === 'play' && typeof play === 'function') play();
+      else if (m.t === 'stop' && typeof stop === 'function') stop();
+      else if (m.t === 'next' && typeof next === 'function') next();
+      else if (m.t === 'event' && typeof noacgDispatch === 'function') {
+        // WHEN this event happened. A graphic that runs a clock of its own reads it instead of
+        // Date.now(), so every renderer given the same row anchors to the same instant.
+        //
+        // It is SET AND LEFT, never cleared after the call. noacgDispatch queues the event and
+        // the state's own calls fire a frame later, so clearing it on the next line puts the
+        // instant back to null before the thing that needed it runs — which is exactly the bug
+        // the first cut of this shipped: a replayed 90-second-old switch still started the
+        // speech from five minutes. Leaving it is safe because it is rewritten by every event,
+        // to null when there is no instant, so it always reads as the MOST RECENT event's.
+        window.noacgEventAt = (typeof m.at === 'number' && m.at > 0) ? m.at : null;
+        noacgDispatch(m.event, m.payload);
+      }
+      else if (m.t === 'snap' && typeof noacgSnap === 'function') noacgSnap(m.snap || null);
+      reply(m.t === 'hello');
+      watch();
+    };
+    // Timers advance the machine with no message to answer, and a webfont arriving re-runs the
+    // text fit — a cheap watcher reports both.
+    //
+    // ARMED AGAIN ON THE FIRST MESSAGE, not only at load. In a SINGLE-FILE package (CasparCG,
+    // the OBS/vMix overlay) this block goes in at the end of the body and the composer appends
+    // the template's own JS after it, so at load neither global exists yet and the watcher used
+    // to stay disarmed for the life of the page: the panel then paired, answered every press,
+    // and silently never reported a timer-driven change. Re-checking costs a boolean per message.
+    //
+    // NOTHING IN THIS SCRIPT MAY CONTAIN THE CLOSING BODY TAG, not even inside a comment. Both
+    // injectControlReceiver and composeSelfContainedHtml find their insertion point with
+    // /<\/body>/i and replace the FIRST match, so one written here becomes the first one in the
+    // document and the template's whole JS lands inside this comment. Nine specs went red on it.
+    var watching = false;
+    function watch() {
+      if (watching) return;
+      if (typeof noacgMachineState !== 'function' && typeof noacgTextOverflow !== 'function') return;
+      watching = true;
+      setInterval(function () { reply(false); }, 1000);
+    }
+    watch();
+    // Announce the boot: a control panel that kept an event log hears this and rebuilds a
+    // refreshed graphic (latest data, then snap to the last known state) — crash recovery.
+    ch.postMessage({ t: 'graphic-online' });
+  } catch (e) { /* channel unavailable — the graphic still works, just not remotely driven */ }
+})();
+</script>
+</body>
+</html>

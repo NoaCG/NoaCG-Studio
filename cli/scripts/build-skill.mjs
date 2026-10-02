@@ -16,7 +16,11 @@
 //   3. the version stamped on the four plugin manifests (`noacg` under cli/plugin/, `noacg-mcp`
 //      under cli/plugin-mcp/, a Claude Code and a Codex manifest each) and on both marketplace
 //      entries at the repo root (.claude-plugin/marketplace.json) - cli/package.json's version,
-//      so a release bumps ONE number
+//      so a release bumps ONE number. The same version goes on cli/server.json, the MCP Registry's record of `noacg mcp` (its own `version` and its
+//      npm package's `version`, which the registry requires to name a published version). Its
+//      `name` is not stamped but CHECKED against cli/package.json `mcpName`: the registry refuses
+//      a publish whose npm package does not carry the same name, and it only says so after npm
+//      already holds the version
 //   4. cli/plugin-mcp/npm-latest.mjs - a byte-identical copy of cli/src/npmLatest.mjs, the "is
 //      this copy behind npm's latest?" check that `noacg doctor` and the MCP launcher both run.
 //      The launcher gets a copy rather than importing it from the CLI it resolves, because the
@@ -85,11 +89,14 @@ function stableJson(value) {
 }
 
 /** The npm package's version - the one number a release bumps. */
-const version = readJson(path.join(CLI, 'package.json')).version;
+const pkg = readJson(path.join(CLI, 'package.json'));
+const version = pkg.version;
 if (typeof version !== 'string' || !/^\d+\.\d+\.\d+/.test(version)) {
   console.error(`cli/package.json has no semver version (got ${JSON.stringify(version)})`);
   process.exit(2);
 }
+/** The MCP Registry's record of `noacg mcp`. */
+const SERVER_JSON = path.join(CLI, 'server.json');
 
 /** Every generated file, as the bytes it must hold. */
 const expected = new Map();
@@ -119,12 +126,58 @@ for (const plugin of PLUGINS) {
   for (const manifest of [path.join(plugin.dir, '.claude-plugin', 'plugin.json'), path.join(plugin.dir, '.codex-plugin', 'plugin.json')]) {
     expected.set(manifest, stamped(manifest, (json) => { json.version = version; }));
   }
+  listingProblems(plugin.dir, readJson(path.join(plugin.dir, '.codex-plugin', 'plugin.json')));
+}
+
+/**
+ * The OpenAI plugin directory's own limits on the Codex manifest
+ * (https://developers.openai.com/plugins/deploy/submission, read 2026-10-02). The directory refuses
+ * an upload that breaks one, and only after a person has built the ZIP and opened the dashboard,
+ * so the build refuses it first. The 30-character display name is why the Codex listing reads
+ * "NoaCG Graphics and Playout" where every other listing has the full name.
+ */
+function listingProblems(dir, json) {
+  const ui = json.interface ?? {};
+  const where = rel(path.join(dir, '.codex-plugin', 'plugin.json'));
+  const problems = [];
+  const max = (field, value, limit) => {
+    if (typeof value !== 'string' || !value) problems.push(`${field} is required`);
+    else if (value.length > limit) problems.push(`${field} is ${value.length} characters, the limit is ${limit}: "${value}"`);
+  };
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(json.name ?? '') || json.name.length > 64) problems.push(`name "${json.name}" must be lowercase letters, digits and single hyphens, at most 64`);
+  max('interface.displayName', ui.displayName, 30);
+  max('interface.shortDescription', ui.shortDescription, 30);
+  max('interface.longDescription', ui.longDescription, 4000);
+  const prompts = ui.defaultPrompt ?? [];
+  if (prompts.length > 3) problems.push(`interface.defaultPrompt has ${prompts.length} prompts, the limit is 3`);
+  for (const p of prompts) if (p.length > 128) problems.push(`interface.defaultPrompt "${p}" is over 128 characters`);
+  if (ui.brandColor !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(ui.brandColor)) problems.push(`interface.brandColor "${ui.brandColor}" is not #RRGGBB`);
+  for (const field of ['composerIcon', 'logo']) {
+    const file = ui[field];
+    if (file === undefined) continue;
+    if (!file.startsWith('./') || !existsSync(path.join(dir, file))) problems.push(`interface.${field} "${file}" must be a ./ path to a file in the plugin`);
+  }
+  if (problems.length) {
+    console.error(`${where} breaks the OpenAI plugin directory's limits:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
+    process.exit(2);
+  }
 }
 expected.set(
   MARKETPLACE,
   stamped(MARKETPLACE, (json) => {
     for (const entry of json.plugins) entry.version = version;
     if (json.metadata && typeof json.metadata === 'object') json.metadata.version = version;
+  }),
+);
+expected.set(
+  SERVER_JSON,
+  stamped(SERVER_JSON, (json) => {
+    if (json.name !== pkg.mcpName) {
+      console.error(`${rel(SERVER_JSON)} names ${JSON.stringify(json.name)} but cli/package.json mcpName is ${JSON.stringify(pkg.mcpName)} - the MCP Registry refuses a publish unless they match`);
+      process.exit(2);
+    }
+    json.version = version;
+    for (const entry of json.packages ?? []) if (entry.identifier === pkg.name) entry.version = version;
   }),
 );
 

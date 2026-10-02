@@ -220,7 +220,10 @@ Both alarms fire only when post-land runs, which is on a landing; the quiet wind
 heartbeats, not operator pages, which is why the change must stay backwards compatible anyway.
 
 **Applying it now**: `npm run db:push -- --live 0068`, at a moment you judge safe. It prints who is
-live and applies anyway. A destructive statement in it still needs `--allow 0068` as well.
+live and applies anyway. A destructive statement in it still needs `--allow 0068` as well. A hand
+run then asks the Supabase advisors, as post-land does after its own pushes: a new finding it prints
+fails the next landing until the baseline is re-recorded with the judgement written down
+(`docs/STACK_FRESHNESS.md`), so do that on a branch straight away.
 
 **Enforced in the build.** `scripts/db-push.test.mjs` fails for a live-path statement in a file
 without the header, and for a header in a file with no live-path statement (a stale marker).

@@ -262,7 +262,7 @@ process goes into the default skill, is the owner's). The backlog items, one per
 
 | Failure | Cause | Backlog item | Spec |
 |---|---|---|---|
-| 1 ordinary look | skill | `plugin-skill-has-no-design-pass.md` | AC-1, D1 |
+| 1 ordinary look | skill | closed by the owner's D1 (the look stays the agent's; critique and guidelines are opt-in) | AC-1, AC-12, AC-13, D1 |
 | 1 ordinary look | CLI, catalog | `catalog-designs-are-chosen-blind-by-id.md` | AC-2 |
 | 1 fonts | CLI | `a-first-cli-session-as-good-as-working-in-the-repo.md` item 5 (open since 2026-09-20) | AC-3 |
 | 2 cannot see states or video | CLI | the same file, items 1 and 3 | AC-4 |

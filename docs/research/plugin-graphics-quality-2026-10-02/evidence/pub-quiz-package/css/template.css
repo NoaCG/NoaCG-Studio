@@ -1,0 +1,244 @@
+/* Pub Quiz - a big, bright question board built to read on a pub TV from the back of the room. */
+
+:root {
+  --accent: #ffd23f;                       /* sunny yellow: chips, correct answer */
+  --accent-ink: #1d1240;                   /* text on yellow and on the letter tiles */
+  --text-color: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.78);
+  --panel-bg: rgba(29, 18, 64, 0.96);      /* deep grape board */
+  --plate-bg: rgba(255, 255, 255, 0.10);   /* answer plates */
+  --shadow: rgba(0, 0, 0, 0.38);           /* the chunky "sticker" drop under chips and plates */
+  --answer-a: #ff5c72;                     /* coral */
+  --answer-b: #42b6ff;                     /* sky */
+  --answer-c: #4fd67f;                     /* green */
+  --answer-d: #b98bff;                     /* violet */
+  --warn: #ff5c72;                         /* last five seconds */
+  --font-heading: "Archivo", Arial, sans-serif;
+  --font-numeric: "Archivo", Arial, sans-serif;
+  --scale: 1;
+  --type-scale: 1;
+  --panel-radius: calc(30px * var(--scale));
+}
+
+@font-face {
+  font-family: "Archivo";
+  src: url("../fonts/archivo.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-heading);
+}
+
+/* ── Root: centred on the frame, hidden until play() ── */
+.quiz {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
+/* ── The board ── */
+.quiz-box {
+  position: relative;
+  width: calc(1640px * var(--scale));
+  padding: calc(46px * var(--scale)) calc(48px * var(--scale)) calc(44px * var(--scale));
+  background: var(--panel-bg);
+  border-radius: var(--panel-radius);
+  box-shadow: 0 calc(14px * var(--scale)) 0 var(--shadow);
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+/* Four-colour strip across the top: the answer colours as the board's signature. */
+.quiz-accent {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: calc(14px * var(--scale));
+  display: flex;
+}
+.quiz-accent > span { flex: 1 1 0; }
+.quiz-accent-a { background: var(--answer-a); }
+.quiz-accent-b { background: var(--answer-b); }
+.quiz-accent-c { background: var(--answer-c); }
+.quiz-accent-d { background: var(--answer-d); }
+
+.quiz-mask { overflow: hidden; }
+.quiz-mask > span { display: inline-block; overflow-wrap: break-word; }
+
+/* ── Header: round and question chips, timer on the right ── */
+.quiz-header {
+  display: flex;
+  align-items: center;
+  gap: calc(20px * var(--scale));
+  height: calc(84px * var(--scale));
+}
+.quiz-chip {
+  display: flex;
+  align-items: baseline;
+  gap: calc(14px * var(--scale));
+  padding: calc(10px * var(--scale)) calc(26px * var(--scale));
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: calc(16px * var(--scale));
+  box-shadow: 0 calc(6px * var(--scale)) 0 var(--shadow);
+  will-change: transform, opacity;
+}
+.quiz-chip-qnum { background: var(--text-color); }
+.quiz-chip-word {
+  font-size: calc(30px * var(--scale) * var(--type-scale));
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+.quiz-num {
+  font-family: var(--font-numeric);
+  font-size: calc(48px * var(--scale) * var(--type-scale));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Timer pill: hidden until "Start timer". */
+.quiz-timer {
+  margin-left: auto;
+  min-width: calc(150px * var(--scale));
+  height: calc(84px * var(--scale));
+  padding: 0 calc(28px * var(--scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--text-color);
+  color: var(--accent-ink);
+  border-radius: calc(42px * var(--scale));
+  box-shadow: 0 calc(6px * var(--scale)) 0 var(--shadow);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.quiz-timer-num {
+  display: inline-block;
+  font-family: var(--font-numeric);
+  font-size: calc(58px * var(--scale) * var(--type-scale));
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.quiz-timer-word {
+  display: none;
+  font-size: calc(34px * var(--scale) * var(--type-scale));
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.quiz-hurry .quiz-timer { background: var(--warn); color: var(--text-color); }
+.quiz-timeup .quiz-timer { background: var(--warn); color: var(--text-color); }
+.quiz-timeup .quiz-timer-num { display: none; }
+.quiz-timeup .quiz-timer-word { display: inline-block; }
+
+/* Time bar: drains left to right over the timer's length. */
+.quiz-timebar {
+  margin-top: calc(22px * var(--scale));
+  height: calc(12px * var(--scale));
+  border-radius: calc(6px * var(--scale));
+  background: var(--plate-bg);
+  overflow: hidden;
+  opacity: 0;
+}
+.quiz-timebar-fill {
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+}
+.quiz-hurry .quiz-timebar-fill { background: var(--warn); }
+
+/* ── The question: the biggest thing on the board, sentence case for reading at distance ── */
+.quiz-question-mask { margin-top: calc(26px * var(--scale)); }
+.quiz-question {
+  font-size: calc(66px * var(--scale) * var(--type-scale));
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.005em;
+  color: var(--text-color);
+}
+
+/* ── The answers: a 2 x 2 grid of plates, each led by a coloured letter tile ── */
+.quiz-options {
+  margin-top: calc(36px * var(--scale));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.quiz-option {
+  position: relative;
+  width: calc(50% - 12px * var(--scale));
+  min-height: calc(120px * var(--scale));
+  display: flex;
+  align-items: center;
+  padding: calc(14px * var(--scale)) calc(28px * var(--scale)) calc(14px * var(--scale)) calc(14px * var(--scale));
+  will-change: transform, opacity;
+}
+.quiz-option-3, .quiz-option-4 { margin-top: calc(24px * var(--scale)); }
+
+/* The plate is a painted layer, so the reveal can dim it while the entrance tween owns the
+   row's own opacity. */
+.quiz-option::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  z-index: -1;
+  background: var(--plate-bg);
+  border-radius: calc(22px * var(--scale));
+}
+
+.quiz-letter {
+  flex-shrink: 0;
+  width: calc(92px * var(--scale));
+  height: calc(92px * var(--scale));
+  margin-right: calc(26px * var(--scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(18px * var(--scale));
+  box-shadow: 0 calc(6px * var(--scale)) 0 var(--shadow);
+  font-size: calc(58px * var(--scale) * var(--type-scale));
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent-ink);
+}
+.quiz-option-1 .quiz-letter { background: var(--answer-a); }
+.quiz-option-2 .quiz-letter { background: var(--answer-b); }
+.quiz-option-3 .quiz-letter { background: var(--answer-c); }
+.quiz-option-4 .quiz-letter { background: var(--answer-d); }
+
+.quiz-answer-mask { flex: 1 1 auto; min-width: 0; }
+.quiz-text {
+  font-size: calc(50px * var(--scale) * var(--type-scale));
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-color);
+}
+
+/* ── The reveal ── */
+.quiz-correct::before {
+  background: var(--accent);
+  box-shadow: 0 calc(8px * var(--scale)) 0 var(--shadow);
+}
+.quiz-correct .quiz-text { color: var(--accent-ink); font-weight: 900; }
+.quiz-correct .quiz-letter { background: var(--accent-ink); color: var(--accent); box-shadow: none; }
+
+.quiz-dim::before,
+.quiz-dim .quiz-letter,
+.quiz-dim .quiz-answer-mask {
+  opacity: 0.32;
+}
+
+/* Hidden data sources: written by update(), read by the runtime, never drawn. */
+.noacg-data-source { display: none; }

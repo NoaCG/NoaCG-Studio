@@ -903,6 +903,125 @@ test('the skill no longer calls an authored machine a later capability', async (
   assert.doesNotMatch(await shippedSkill(), /later capability/i, 'SKILL.md still defers authoring a machine');
 });
 
+// ---------------------------------------------------------------- the look is the agent's (D1)
+//
+// Owner decision, 2026-10-02 (docs/work-specs/plugin-design-quality/spec.md, D1): by default the
+// agent designs freely - no house look and no taste rules in the default skill. NoaCG's half is
+// everything around the artwork: the contract, the package, the fields and behaviour, and how the
+// graphic works from the control panel. Taste is two OPT-IN tools, a critique and a guidelines
+// switch, and neither may cost a session that does not ask for it anything.
+//
+// So these pin three things that would otherwise drift quietly: the operator guidance stays in
+// the default skill, house rules stay out of it, and the opt-in tools stay off and free.
+
+/** The skill's sections, split on `## ` headings (LF-normalised by shippedSkill). */
+function sectionsOf(text) {
+  const sections = new Map();
+  for (const part of text.split(/\n(?=## )/)) {
+    const title = /^## (.*)/.exec(part)?.[1];
+    if (title) sections.set(title, part);
+  }
+  return sections;
+}
+
+test('the default skill teaches fields and behaviour, with the worked patterns behind it', async () => {
+  const skill = await shippedSkill();
+  const section = [...sectionsOf(skill)].find(([title]) => /^Fields and behaviour/.test(title))?.[1];
+  assert.ok(section, 'SKILL.md lost its "Fields and behaviour" section');
+  // Each rule is pinned by the thing it tells the agent to DO, so a rewording stays free.
+  const rules = [
+    { name: 'live versus set once', pattern: /Live or set once/ },
+    { name: 'a live press is a button with an adjust', pattern: /"adjust"/ },
+    { name: 'set-once words are hidden word sources', pattern: /"ftype": "hidden"[\s\S]*noacg-data-source/ },
+    { name: 'a counter is a number field', pattern: /counter is a number[\s\S]*`number` field/i },
+    { name: 'a default is a safe sample or empty', pattern: /safe sample or empty/i },
+    { name: 'the common behaviour patterns', pattern: /§5e/ },
+  ];
+  for (const rule of rules) assert.match(section, rule.pattern, `"Fields and behaviour" no longer teaches: ${rule.name}`);
+
+  const contract = (await readDoc('contract')).replace(/\r\n/g, '\n');
+  const patterns = /### 5e\. [^\n]*\n([\s\S]*?)\n## /.exec(contract)?.[1];
+  assert.ok(patterns, 'references/contract.md has no §5e worked patterns');
+  for (const [name, token] of [
+    ['an optional line that collapses', 'collapses when its field is empty'],
+    ['a state word from a hidden source', 'hidden word source'],
+    ['a second state group', 'second state group'],
+    ['a graphic ending its own timed state', "noacgDispatch('timerEnd')"],
+    ['a timer arrow', '"trigger": "timer"'],
+    ['an action in every state', 'press in every state'],
+  ]) assert.ok(patterns.includes(token), `§5e lost its pattern for ${name} ("${token}")`);
+});
+
+test('the default skill names no house look: no palette, face, size or timing rule', async () => {
+  const skill = await shippedSkill();
+  // The opt-in section NAMES the guidelines' topics ("type, colour, placement and motion") - that
+  // is a pointer, not a rule - so everything else is the default text the agent always reads.
+  const defaults = [...sectionsOf(skill)].filter(([title]) => !/opt-in/i.test(title)).map(([, body]) => body).join('\n');
+  const houseRules = [
+    { name: 'a colour value', pattern: /#[0-9a-f]{3,8}\b/i },
+    { name: 'a pixel size', pattern: /\b\d+\s?px\b/i },
+    { name: 'a duration', pattern: /\b\d+(\.\d+)?\s?(-\s?\d+(\.\d+)?\s?)?(s|ms)\b(?!\w)/ },
+    { name: 'a typeface', pattern: /\b(Inter|Playfair|Oswald|Montserrat|Roboto|Bebas|Helvetica|Arial)\b/ },
+    { name: 'a house palette word', pattern: /\b(amber|navy|gold|volt)\b/i },
+  ];
+  for (const rule of houseRules) {
+    assert.doesNotMatch(defaults, rule.pattern, `the default SKILL.md text carries ${rule.name} - taste belongs in the opt-in guidelines`);
+  }
+  // Nor a design pass in the loop: no intent step, no critique step, no guidelines read.
+  const loop = sectionsOf(skill).get('The loop');
+  assert.ok(loop, 'SKILL.md lost "The loop"');
+  assert.doesNotMatch(loop, /critique|design-notes|design intent|guidelines/i, 'the default loop runs a design step nobody asked for');
+
+  // The contract's frame section once carried "entrances 0.5-1.4 s", which made a gala agent cut
+  // the slower build it wanted (docs/research/plugin-graphics-quality-2026-10-02). It keeps the
+  // frame-rate rule and leaves the timing to the author.
+  const frame = /## 6\. Frame, safety, legibility\n([\s\S]*?)\n## /.exec((await readDoc('contract')).replace(/\r\n/g, '\n'))?.[1];
+  assert.ok(frame, 'references/contract.md has no "6. Frame, safety, legibility" section');
+  assert.match(frame, /transform/, 'the frame section lost the frame-rate rule');
+  assert.doesNotMatch(frame, /\d(\.\d+)?\s?-\s?\d(\.\d+)?\s?s\b/, 'the contract states a motion duration range again');
+});
+
+test('the two opt-in tools exist, are off by default, and are reachable in both hosts', async () => {
+  const skill = await shippedSkill();
+  const optIn = [...sectionsOf(skill)].find(([title]) => /opt-in/i.test(title))?.[1];
+  assert.ok(optIn, 'SKILL.md lost its opt-in section');
+  assert.match(optIn, /OFF unless the user asks/, 'the opt-in section no longer says both tools are off by default');
+  assert.match(optIn, /When neither is on, do not open either file/, 'the default no longer keeps the opt-in files closed');
+
+  for (const [file, word] of [['critique.md', 'critique'], ['design-notes.md', 'guidelines']]) {
+    const text = (await fs.readFile(path.join(skillDir(), 'references', file), 'utf8')).replace(/\r\n/g, '\n');
+    assert.match(text.split('\n')[0], /OPT-IN/, `references/${file} no longer says on its first line that it is opt-in`);
+    assert.ok(optIn.includes(`references/${file}`), `the opt-in section no longer points at references/${file} (${word})`);
+  }
+  // Codex loads skills, not commands, so every switch must also work as words: a request, or a
+  // line in the user's own project instructions (which both hosts load with no plugin cost).
+  assert.match(optIn, /"critique my\s+graphic"/, 'the critique can no longer be asked for in plain words');
+  assert.match(optIn, /`NoaCG design guidelines: on`/, 'the guidelines switch lost its project-instructions line');
+  // Claude Code also gets them as flags on the one command the plugin already has.
+  const command = await fs.readFile(path.join(here, '..', 'plugin', 'commands', 'graphic.md'), 'utf8');
+  assert.match(command, /--guidelines/, '/noacg:graphic lost its --guidelines switch');
+  assert.match(command, /--critique/, '/noacg:graphic lost its --critique switch');
+});
+
+test('the plugin costs an unrelated session no more than it did before the opt-in tools', async () => {
+  // docs/AGENT_CLI.md "What a session pays": a skill's and a command's description sit in every
+  // session where the plugin is enabled. The opt-in tools ride the existing skill and command, so
+  // the plugin keeps ONE skill and ONE command, and neither description grows past what 0.7.0
+  // shipped before them (483 and 104 characters). Raising a ceiling is a deliberate decision.
+  const description = (text) => {
+    const front = /^---\n([\s\S]*?)\n---/.exec(text.replace(/\r\n/g, '\n'))?.[1] ?? '';
+    const folded = /description: >-\n((?: {2}.*\n?)+)/.exec(front)?.[1];
+    return (folded ? folded.split('\n').map((line) => line.trim()).join(' ') : /description: (.*)/.exec(front)?.[1] ?? '').trim();
+  };
+  const plugin = path.join(here, '..', 'plugin');
+  assert.deepEqual(await fs.readdir(path.join(plugin, 'skills')), ['noacg-graphic'], 'the plugin ships a second skill');
+  assert.deepEqual(await fs.readdir(path.join(plugin, 'commands')), ['graphic.md'], 'the plugin ships a second command');
+  const skill = description(await shippedSkill());
+  const command = description(await fs.readFile(path.join(plugin, 'commands', 'graphic.md'), 'utf8'));
+  assert.ok(skill.length > 100 && skill.length <= 483, `the skill description is ${skill.length} characters (ceiling 483)`);
+  assert.ok(command.length > 40 && command.length <= 104, `the command description is ${command.length} characters (ceiling 104)`);
+});
+
 // ---------------------------------------------------------------- a re-derived steps count
 // The SPX `steps` is derived from the machine's default path (`spxSteps`), and the bridge's
 // normalize re-derives it (e2e/bridge.spec.ts pins that half in a real bridge). This half is what

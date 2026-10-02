@@ -29,7 +29,7 @@ function staleSkillLines(skill: InstalledSkill, cli: string, latest: string | nu
   const source = behindNpm ? "npm's latest is" : 'this CLI ships';
   if (isBehind(skill.version, newest)) {
     return [
-      `skill        ${skill.version} in ${skill.harness}, but ${source} ${newest} - an installed plugin never updates itself`,
+      `skill        ${skill.version} in ${skill.harness}, but ${source} ${newest} - an installed plugin does not update itself unless its marketplace has auto-update on`,
       `             run: ${skill.update}`,
     ];
   }

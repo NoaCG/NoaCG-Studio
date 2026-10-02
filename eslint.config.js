@@ -48,6 +48,7 @@ export default tseslint.config(
       'dist/',
       '**/node_modules/',
       '.claude/',
+      'companion-module/', // the Companion module lints itself with Bitfocus's own config
       '.render-dev/',
       'render-worker/bundle/', // webpack output (render-worker/bundle.mjs), not source
       'render-worker/remotion/*.generated.ts', // data-URL font CSS (scripts/gen-video-font-css.mjs)

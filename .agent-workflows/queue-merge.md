@@ -40,6 +40,22 @@ request once `CI gate` and `Reviewed` pass, runs CI on the merge group and merge
 commit. Do not sit and watch: `node scripts/jobs.mjs wait <id>` is bounded if the verdict is needed
 now. A migration on the branch is applied by the landing itself (`post-land.yml`).
 
+**Auto-fix is on for every pull request an agent queues** (the owner's standing instruction). In the
+Claude desktop app, right after queueing: bind the pull request to the session if the app has not
+(`ccd_pr bind_pr`), then turn Auto-fix on (`ccd_pr set_monitor` with `auto_fix` and
+`address_comments` true). It wakes the session that owns the branch on a CI failure, a merge
+conflict or a review comment. It is not a merge permission: never turn auto-merge on through it,
+since landing stays the queue's. A tool without these (Codex, a cloud session) says in its report
+that nothing watches the pull request.
+
+**On a CI failure, repair it yourself, within the pull request's scope.** Read the failed job's
+whole log (the failing step's summary is often not where the error is), reproduce it, fix the
+cause, run the failing check locally where it can run, `/check`, and queue again. At most three
+repair attempts per failure; then stop and report what failed, what was tried and why it did not
+hold. Never disable a check, skip or weaken a test, or re-record a baseline only to make a run
+green: a re-record is for a change of look or finding that was meant. Ask the owner only when the
+fix needs a product decision or a change well outside the pull request's scope.
+
 ## 4. When a landing is refused, reconcile and queue again
 
 - **A red check on the pull request:** fix it on the branch, run `/check`, queue again.

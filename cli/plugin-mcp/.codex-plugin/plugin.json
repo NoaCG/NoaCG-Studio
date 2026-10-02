@@ -18,7 +18,7 @@
   ],
   "interface": {
     "displayName": "NoaCG MCP server",
-    "shortDescription": "The NoaCG CLI as an MCP tool, always on",
+    "shortDescription": "The NoaCG CLI as an MCP tool",
     "longDescription": "One MCP tool, noacg, speaking the NoaCG CLI's verbs with a browser kept warm between calls. Optional: the noacg plugin's skill drives the same CLI from the terminal with no server running; install this one when you want the tool present in every session.",
     "developerName": "NoaCG Studio",
     "category": "Developer Tools",
