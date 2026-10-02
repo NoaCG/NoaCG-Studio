@@ -172,8 +172,11 @@ The remaining modules hear `moved`, call `panel_hello` and follow; the revoked o
 ### 7.1 Connection
 
 Config fields: **Pairing code** (text), **Panel name** (text, default "Companion"), **Panel key**
-(secret-text, filled by pairing; an operator never types it), and under "Self-hosted NoaCG" the
-backend URL and publishable key (defaults are noacg.studio's). With a code and no key, the module
+(secret-text, filled by pairing; an operator never types it), and **NoaCG address** (default
+`https://noacg.studio`, changed only for a self-hosted NoaCG). The module finds the backend by
+fetching `<address>/panel.json`, `{v: 1, supabaseUrl, supabaseKey}`, which the app serves from its
+own build configuration (both values are already public in the app's bundle), so a rotated
+publishable key needs no module update. With a code and no key, the module
 calls `panel_pair_finish`, saves the key into the secret field and clears the code. Then
 `panel_hello`, join `pfb-<f>` as a private channel with the publishable key, and wait for `state`.
 On a dropped connection it rejoins with backoff (1, 2, 4, then every 8 s) and calls `panel_hello`
