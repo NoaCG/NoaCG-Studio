@@ -3,8 +3,10 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-10-01
-state: unstarted
-note: "owner decided 2026-10-02: automatic, expand and contract, never interrupting live playout; needs a design spec before any build (Decision below). Until production starts the week of 2026-10-05, migrations may still be pushed immediately."
+state: advanced
+note: "owner decided 2026-10-02 (Decision below); the design spec is docs/work-specs/live-safe-migrations/spec.md, with its acceptance criteria; the build is next and nothing is built yet. Until production starts the week of 2026-10-05, migrations may still be pushed immediately."
+serves: NOW
+size: large
 asked: "long term a safer migration strategy so playout can stay live during updates, or migrations in maintenance windows; a future scaling problem (paraphrase)"
 ---
 # Migrations while productions are live
@@ -43,6 +45,14 @@ guarantee: the design has to make normal updates and live playout coexist. Next:
 (how a migration declares and proves it is live-safe, how running outputs and older pages are
 known not to depend on what a cleanup removes, what verified quiet means given renderers that
 heartbeat around the clock, and the override), then a build.
+
+## Spec
+
+[`work-specs/live-safe-migrations/spec.md`](../work-specs/live-safe-migrations/spec.md) answers the four
+questions above: three declared kinds of live-path migration (add, change, cleanup), a one-second
+Take stall budget, a client registry that a cleanup's dependency proof reads, quiet defined by
+commands rather than heartbeats, held files that no longer block later ones, and a recorded
+override. Its acceptance criteria are the build's.
 
 ## Evidence
 
