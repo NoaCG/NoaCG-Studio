@@ -20,6 +20,22 @@ with the dashboard's. Combined controls are unused and should be frozen now; del
 owner's call. Three slices are ready for the playout session today; three need one owner answer
 each.
 
+## The owner's rulings, 2026-10-02
+
+He answered the three questions in §8 the same day. The playout session's next slices start from
+these, and they supersede the recommendations below where they differ:
+
+1. **Remove the graphic control page (R4, slice 5)**, after moving its saved entries into
+   production data rows. The first half of slice 5 is unchanged; the removal waits for the move.
+2. **The quiz Lock step is optional (slice 6).** One press of an answer option selects it; an
+   answer board keeps Lock as an optional beat for a format that wants a "final answer" moment.
+3. **Combined controls are removed (slice 8)**, not frozen: "if it's safe to delete so we don't
+   break the playout system". A read-only count of the production database on 2026-10-02 found
+   none: 0 of 25 published productions, 0 of 2 team productions and 0 of 142 personal production
+   records carried one (2 of those carried an ARRANGE, which is kept). The composer, the button,
+   the send path and the hosted page's half were deleted the same day; a stored `combine` list is
+   ignored on read, and a folder's All together is the one-press-many-cues route. Slice 8 is done.
+
 ## Method
 
 - Read: the backlog item and its inputs (`docs/CONTROL_PANEL_ANY_GRAPHIC.md`,
@@ -102,7 +118,7 @@ Ranked by how likely each is in a student-run show. "Says so" is whether the ope
 | # | Scenario | Air shows | Says so? | Evidence |
 |---|---|---|---|---|
 | S1 | The operator edits the ON-AIR cue, does not press ✎ Update, and clicks another row | the old value, until some later Take or Re-take of that cue airs the forgotten edit | **No.** The "not on air yet" line and the dot on Update exist only while that cue is in the editor (`ProductionPage.tsx:2311-2317`, `:3916-3932`); `selectCue` drops the draft into the record (`:1750-1757`) and the rundown row carries no mark | `02-` then `03-`: the amber line is there, then gone, and the ON AIR row and the Update button carry nothing (`shots-log.txt`: 1, then 0) |
-| S2 | Two cues of one lower third on R2, or yesterday's rehearsal typed on R2 | R2's Take airs values typed into the OTHER cue or the earlier session | No | R2 overlays `staged[cue.graphic]`, keyed by graphic, on every cue of that graphic (`src/control/hostedCombine.ts:124-134`); `control_stage` only merges into the column (`supabase/migrations/0022_entitlement_absolutes.sql:257`) and nothing resets it |
+| S2 | Two cues of one lower third on R2, or yesterday's rehearsal typed on R2 | R2's Take airs values typed into the OTHER cue or the earlier session | No | R2 overlays `staged[cue.graphic]`, keyed by graphic, on every cue of that graphic (`hostedCueValues`, then in `src/control/hostedCombine.ts:124-134`, now in `src/control/hostedControl.ts`); `control_stage` only merges into the column (`supabase/migrations/0022_entitlement_absolutes.sql:257`) and nothing resets it |
 | S3 | A second operator corrects a value on R2 and presses Update; the producer on R1 then presses Update or a ⚡ action that carries it (the quiz's Reveal) | R1 re-sends its stale value and undoes the correction | Partly: R1 shows an amber "1 change not on air yet" that invites the very Update that does the damage | R1 drops `staged` rows (`ProductionPage.tsx:887-891`); its ⚡ payload comes from its own cue (`:3196`, `:3207-3213`); filed as `docs/backlog/quiz-control-questions-the-answer-key-fix-left-open.md` |
 | S4 | A field bound to the production data tree | a permanent amber that Update cannot clear; and before the tree loads, the box reads "not set yet" while Take airs the cue's stale stored value | Wrongly | `unsentFields` compares the stored value with the aired tree value (`:2311-2316`); `withBoundValues` falls back to the stored value (`:1353-1358`) |
 | S5 | A ⚡ or combined press is refused (rate cap, stale, network) | air keeps 2 while the cue now holds 3; the next Take airs 3 | One line on the note line, replaced by the next note | the figure is mirrored into the cue before the send (`:3214-3219` before `:3227`; `:3418-3421` before `:3428`) |
@@ -144,6 +160,9 @@ Question the button's hint reads "Advance House Quiz to its next step", one pres
 chip at Reveal, and the activity line says "Next step".
 
 ## 5. Do Combined controls and » Next earn their place?
+
+*Outcome: Combined controls were removed on 2026-10-02 (owner ruling 3 at the top). The files and
+the two defects named below are gone; this section is the measurement that decided it.*
 
 **Combined controls: not yet, by every measure available.** About 1.7k lines (`src/control/combine.ts`
 365, `combineSend.ts` 286, `src/components/control/CombinedButton.tsx` 100, about 340 of the
@@ -254,16 +273,17 @@ flight there; slices 5 and 7 touch the same files as the R1 panel answer and sho
 | 2 | **» Next says what it will do.** The button and its N hint name the target state when the machine knows it ("» Next: Reveal correct"), grey with "last step" when there is none; `canAdvance` stops returning true for "no report yet" once a report is due; the cue editor's "↷ Next" becomes "Load next row" | `controlModel.ts`, `ProductionPage.tsx`, `HostedControlPage.tsx` | on a quiz at Question the button reads "» Next: Reveal correct"; `docs/backlog/quiz-next-jumps-to-last-step.md` closes as explained | **Ready** |
 | 3 | **One vocabulary.** R5's "⟳ Take" becomes "✎ Update" with the glossary's hint; R3's P key means pause as on R1/R2 (preview moves to another key); R4's "⟳ Update" becomes "✎ Update" | `controlPanelHtml.ts`, `productionControllerHtml.ts`, `GraphicControlPage.tsx` | every surface's verb row reads from the glossary in `docs/CONTROL_LAYER.md`; the copy gate passes | **Ready** |
 | 4 | **Live actions first.** When a graphic declares events, the ⚡ block sits under the monitors and setup fields fold below once set; Snap folds closed; pin and hide move onto the ⚡ buttons and the separate Controls panel goes (ARRANGE data unchanged) | `ProductionPage.tsx`, `ProductionControlsPanel.tsx`, `HostedControlPage.tsx`, css | the hockey brief's clock and goal buttons show without scrolling at 1600x900 (the AC of `operator-page-buries-live-actions-under-setup-fields.md`); a graphic with no events gets today's panel | Ready (answers a filed item); the visual result needs the owner's look |
-| 5 | **R4 stops claiming air, then goes.** Now: remove the ON AIR badge and the "airs it" copy (`GraphicControlPage.tsx:80`, `:685`, `:923-924`). Later: move controlpanel.html download to Export, migrate saved entries to production data rows, remove the route and the Home menu item | `GraphicControlPage.tsx`, `GraphicRow.tsx`, `hostedControl.ts`, export | the first half: no surface outside R1, R2, R3 says ON AIR. The second: `#/control/<id>` redirects to the graphic's production or editor | First half ready; **removal needs the owner** |
-| 6 | **One-press pick, by a generic rule.** An action whose payload is a field with a few fixed options draws those options as its buttons inside the ⚡ block, and one press sets the field and fires the event | `controlModel.ts`, the three renderers | on qz02 one press of "B" under Select answer selects B on PROGRAM; the podium spotlight works the same; `e2e/quiz-live-consistency.spec.ts` updated | Ready to build; **whether the answer boards keep Lock is the owner's taste** |
-| 7 | **One set of values across R1 and R2.** R2's staging becomes per cue and clears on Take; R1 shows R2's staged edits in its editor ("changed on another screen") and stops re-sending a value it has not seen; a press mirrors into the cue only after the send is accepted (S2, S3, S5) | `hostedControl.ts`, `hostedCombine.ts`, a migration, `ProductionPage.tsx`, `HostedControlPage.tsx` | two operator pages on one production: a correction on either reaches air from either, and the quiz key case in `quiz-control-questions-the-answer-key-fix-left-open.md` passes | Ready after the hardware-panel R1 work lands; largest slice |
-| 8 | **Freeze Combined.** Hide the composer and the Combined section unless the production already has one; keep reading stored profiles | `ProductionControlsPanel.tsx`, `ProductionPage.tsx`, `HostedControlPage.tsx` | a new production shows no Combined UI; an old one with a combined control still runs it | **Needs the owner**: freeze now and delete later, or keep |
+| 5 | **R4 stops claiming air, then goes.** Now: remove the ON AIR badge and the "airs it" copy (`GraphicControlPage.tsx:80`, `:685`, `:923-924`). Later: move controlpanel.html download to Export, migrate saved entries to production data rows, remove the route and the Home menu item | `GraphicControlPage.tsx`, `GraphicRow.tsx`, `hostedControl.ts`, export | the first half: no surface outside R1, R2, R3 says ON AIR. The second: `#/control/<id>` redirects to the graphic's production or editor | First half ready; **removal ruled yes 2026-10-02**, after the saved entries move |
+| 6 | **One-press pick, by a generic rule.** An action whose payload is a field with a few fixed options draws those options as its buttons inside the ⚡ block, and one press sets the field and fires the event | `controlModel.ts`, the three renderers | on qz02 one press of "B" under Select answer selects B on PROGRAM; the podium spotlight works the same; `e2e/quiz-live-consistency.spec.ts` updated | Ready to build; **ruled 2026-10-02: Lock is an optional step** |
+| 7 | **One set of values across R1 and R2.** R2's staging becomes per cue and clears on Take; R1 shows R2's staged edits in its editor ("changed on another screen") and stops re-sending a value it has not seen; a press mirrors into the cue only after the send is accepted (S2, S3, S5) | `hostedControl.ts` (`hostedCueValues` moved here from the deleted `hostedCombine.ts`), a migration, `ProductionPage.tsx`, `HostedControlPage.tsx` | two operator pages on one production: a correction on either reaches air from either, and the quiz key case in `quiz-control-questions-the-answer-key-fix-left-open.md` passes | Ready after the hardware-panel R1 work lands; largest slice |
+| 8 | **Remove Combined** (ruled 2026-10-02; was "Freeze Combined"). Delete the composer, the button, the send path and the hosted half; keep reading stored profiles and ignore their `combine` list | `ProductionControlsPanel.tsx`, `ProductionPage.tsx`, `HostedControlPage.tsx`, `src/control/combine*.ts`, `hostedCombine.ts` | no surface shows Combined UI; a stored profile with a combined control opens and keeps its ARRANGE | **Done 2026-10-02** |
 
 Not planned: one shared operator component for R1 and R2 (the structural fix for §2.2, a larger
 refactor this ask ruled out), R6's deletion (editor area), the S6 reload losses beyond Combined
 (page memory by design), and the fast-road ordering across devices (a stated limit).
 
-**What goes to the owner, one question each:**
+**What goes to the owner, one question each** (all three answered on 2026-10-02; see "The owner's
+rulings" at the top: yes to 1, Lock optional for 2, and for 3 removal rather than a freeze):
 1. Remove the graphic control page and fold its entries into production data rows (slice 5)?
    Recommended: yes.
 2. Do the twelve answer-board quizzes keep a Lock beat (slice 6)? Recommended: yes, as an optional
@@ -278,6 +298,8 @@ refactor this ask ruled out), R6's deletion (editor area), the S6 reload losses 
   only S1, the » Next jump and R4's ON AIR badge were reproduced in the browser.
 - R3 and R5 in a browser; their findings are from code.
 - Usage of Combined or ARRANGE in production databases: the review measured the repository only.
+  Measured afterwards, on 2026-10-02, before the removal: no stored production carried a combined
+  control (see "The owner's rulings" at the top).
 - The hardware panel on R1: in flight in another session.
 
 ## Files in this folder

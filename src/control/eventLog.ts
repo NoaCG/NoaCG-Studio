@@ -21,9 +21,8 @@ export interface LogEntry {
   at: string | null;
   graphic: string;
   /** `note` is the one kind no LOG ROW produces: it is the surface saying something the operator
-   *  asked for did not happen — a combined control's step the machine dropped, or a tail an Out
-   *  cancelled (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). Those are not commands and were never
-   *  written to the log, so the feed is the only place on the surface that can say them. */
+   *  asked for did not happen. Those are not commands and were never written to the log, so the
+   *  feed is the only place on the surface that can say them. */
   kind: 'take' | 'out' | 'update' | 'next' | 'play' | 'stop' | 'event' | 'snap' | 'note';
   text: string;
 }

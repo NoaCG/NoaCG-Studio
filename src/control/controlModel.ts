@@ -234,8 +234,7 @@ export interface PressSend {
  * say that a field is not this graphic's to carry at all: it is one shared value several graphics
  * follow (docs/PRODUCTION_DATA_PLAN.md §2.9). Three surfaces then have to agree on the same three
  * answers - what still rides, what is written back locally, what moves the tree - and they had
- * three copies of it, which is the shape `combineSend.ts`'s own header calls out as how two
- * surfaces come to disagree on air.
+ * three copies of it, which is how two surfaces come to disagree on air.
  *
  * `valueOf` stays the SURFACE's answer to "what does this field read right now", because that
  * genuinely differs: a bound field reads the tree, a moved unbound one reads the wire, one the

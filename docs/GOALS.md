@@ -129,7 +129,7 @@ control (4); 6 OGraf and EBU (6). List order is not rank.
   consistent control model that also stretches to graphic types nobody has imagined yet. Controls
   come from a few composable primitives, never a general automation or programming system. A
   downloaded graphic works on its own in a generic OGraf host; behaviour across graphics (shared
-  data, combined presses, sequencing) lives in NoaCG's playout and control layer.
+  data, sequencing, a folder's All together) lives in NoaCG's playout and control layer.
 - **Principle:** the control model stays structural. Visible states, transitions and events decide
   which controls are available, so NoaCG can generate correct, predictable controls for any
   graphic without hiding operator logic in formulas. Graphic-specific logic can live in the

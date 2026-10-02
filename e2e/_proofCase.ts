@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 // THE PROOF CASE'S PRODUCTION, installed from the pack two agents authored for it
 // (`e2e/fixtures/agent-made/README.md`): the vote-show votes board and totals board, a cue
-// each, ready to operate. Two specs drive it now — the in-app combined controls and the hosted
-// page's resolution — so the import lives here rather than in whichever one wrote it first.
+// each, ready to operate. Several specs drive it (the hosted page's resolution, the SPX export),
+// so the import lives here rather than in whichever one wrote it first.
 //
 // It is a PACK rather than a seeded record on purpose: what these cases claim is that a
 // production somebody actually built operates, and a show record written by a test proves nothing

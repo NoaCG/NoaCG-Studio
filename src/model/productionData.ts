@@ -353,8 +353,8 @@ export function suggestPath(title: string, leaves: DataLeaf[]): string | null {
 // into field strings and the graphics follow. A ± press or an event's `adjust` on a BOUND field
 // goes the other way (docs/PRODUCTION_DATA_PLAN.md §2.9, Phase 3): the operator's press moves
 // the shared value, and every graphic bound to it follows through the ordinary diff. The three
-// functions below are the whole of that direction, and they are here, pure, because two
-// surfaces and the combined-control resolver all have to agree on them.
+// functions below are the whole of that direction, and they are here, pure, because both
+// dashboards have to agree on them.
 
 /** What a press is doing, for the one case the leaf cannot answer: it is not there yet. */
 export type PressVerb = 'adjust' | 'list' | 'set';
@@ -428,8 +428,8 @@ export interface TreeWrite {
  * binding and works for every binding; refusing indexed paths at the press would be a stepper
  * that silently does nothing on a legitimate binding.
  *
- * IN ORDER matters: one press of a combined control can move the same path twice, and the
- * second write has to land on the first one's value.
+ * IN ORDER matters: one batch can move the same path twice, and the second write has to land on
+ * the first one's value.
  */
 export function withTreeWrites(tree: JsonObject, writes: TreeWrite[]): JsonObject {
   let out = tree;
@@ -442,7 +442,7 @@ export function withTreeWrites(tree: JsonObject, writes: TreeWrite[]): JsonObjec
 /**
  * Split what a press MOVED by whether this production has bound the field.
  *
- * The one rule both dashboards and the combined-control resolver read, because the question
+ * The one rule both dashboards read, because the question
  * "does this +1 write a field or the shared value" must have exactly one answer per production.
  * A bound key leaves the field road entirely - it does not ride the event's payload, it is not
  * mirrored into the cue, and it is not staged - because a bound field is never a cue value

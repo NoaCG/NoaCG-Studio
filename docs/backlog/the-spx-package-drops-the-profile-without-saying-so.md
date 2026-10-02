@@ -14,7 +14,8 @@ needs-owner: none
 
 **Filed:** 2026-09-27, from the walk in `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6h. **Served the
 same day:** the SPX production package (`buildShowZip`) now names, in its README and
-GETTING-ON-AIR.md, the combined controls, bindings and production data it leaves behind, with the
+GETTING-ON-AIR.md, the bindings and production data it leaves behind (and the combined controls,
+until they were removed on 2026-10-02), with the
 SPX operator's by-hand equivalent of each, and carries the SPX rule for a hidden field that a
 Continue writes (the votes board's Shown: finish every field before Continue; Stop, Play,
 Continue to recover). Written by `src/export/spxLeftBehind.ts`, pinned by `e2e/shows.spec.ts`

@@ -11,8 +11,8 @@
 // These are pure string functions over the declaration, which is why they are worth pinning here
 // rather than only through the three surfaces that call them: the Playwright walk proves the
 // sentence reaches the button, and this proves the cases that walk has no fixture for. The module
-// imports nothing at runtime, which is what makes one `transpileModule` call enough - the same
-// reason `combine.ts` stays dependency-free, and this file is what breaks if it stops.
+// imports nothing at runtime, which is what makes one `transpileModule` call enough, and this file
+// is what breaks if it stops.
 //
 // Run: node --test scripts/control-name.test.mjs   (picked up by the scripts/**/*.test.mjs glob)
 

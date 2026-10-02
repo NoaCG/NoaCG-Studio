@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
-// A PRODUCTION CONTROL PROFILE, DRIVEN ON THE HOSTED CONTROL PAGE (AC-6, AC-7 and AC-9's hosted
-// half of docs/work-specs/control-panel-any-graphic).
+// A PRODUCTION CONTROL PROFILE, DRIVEN ON THE HOSTED CONTROL PAGE (AC-5, AC-7 and AC-9's hosted
+// half of docs/work-specs/control-panel-any-graphic). AC-6, Combined controls, was removed with
+// the feature on 2026-10-02; this walk now proves a published profile that still carries one
+// ignores it.
 //
-// WHY THIS FILE EXISTS. The whole control-profile chain - ARRANGE, COMBINE and the bound stepper -
-// was built and reviewed without anybody ever seeing a profile on the surface the show is actually
+// WHY THIS FILE EXISTS. The control-profile chain - ARRANGE and the bound stepper - was built and reviewed without anybody ever seeing a profile on the surface the show is actually
 // run from. `e2e/hosted-control.spec.ts` says at length why it cannot get there: the hosted page
 // needs a published `control_shows` row, a real command log and a resolve, and an offline build
 // has none of them, so that file drives the page's own modules over the published bytes and stops
@@ -29,7 +30,7 @@ import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpe
 //
 // THE FIXTURE IS THE PROOF CASE. The two vote-show boards under `e2e/fixtures/agent-made/`,
 // authored through the CLI against the shipped skill rather than scaffolded from a type, so the
-// controls this profile arranges and combines are an agent's own declarations (plan §3a, §3b).
+// controls this profile arranges are an agent's own declarations (plan §3a, §3b).
 //
 // WHAT IT DOES NOT REACH. The graphics are not rendered and compared here: PROGRAM's stages are
 // sandboxed iframes and this walk's subject is the operator's surface and the wire, not paint.
@@ -42,9 +43,6 @@ const PACK = readFileSync(
 
 const VOTES = 'Votes board';
 const TOTALS = 'Totals board';
-
-/** The combined control this walk composes - the proof case's own press (plan §3d, finding 3). */
-const COMBINED_ID = 'reveal-then-points';
 
 /**
  * The production-data leaves this walk binds, and why there are TWO rather than the criterion's
@@ -131,7 +129,7 @@ async function wireAfter(op: Page, slug: string, afterId: number, count: number)
   return rows;
 }
 
-test('a published profile arranges, combines and moves the shared value on the hosted page', async ({
+test('a published profile arranges and moves the shared value on the hosted page', async ({
   page,
   browser,
 }) => {
@@ -148,7 +146,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   // ── THE PRODUCTION: the proof case, imported whole ──────────────────────────────────────────
   //
   // One import installs both graphics and the two cues over them, on layers 7 and 8 - so both
-  // boards can be on air at once, which the combined control below needs.
+  // boards can be on air at once.
   await page.goto('/app#/home/productions');
   const wizard = page.locator('.wz-modal');
   if (await wizard.isVisible().catch(() => false)) await page.keyboard.press('Escape');
@@ -177,7 +175,7 @@ test('a published profile arranges, combines and moves the shared value on the h
   // what the HOSTED page does with a PUBLISHED profile. A profile written through
   // `setShowProfile` is byte-identical to a composed one - it is the same canonical serializer.
   const refused = await page.evaluate(
-    async ({ VOTES, TOTALS, COMBINED_ID, POINTS, NAME }) => {
+    async ({ VOTES, TOTALS, POINTS, NAME }) => {
       const { loadShows, setShowProfile, setFieldBindings } = await import('/src/model/shows.ts');
       const show = loadShows().find((s) => s.graphics.some((g) => g.name === VOTES))!;
 
@@ -191,9 +189,9 @@ test('a published profile arranges, combines and moves the shared value on the h
       ]);
 
       // The RETURN is read: `setShowProfile` writes nothing and answers `refused` when the stored
-      // profile reads as a newer version's. Dropped, that failure arrives 60 lines later as a
-      // combined section that never appears, with nothing saying the profile was never stored.
-      return setShowProfile(show.id, {
+      // profile reads as a newer version's. Dropped, that failure arrives 60 lines later as an
+      // arrangement that never appears, with nothing saying the profile was never stored.
+      const written = setShowProfile(show.id, {
         v: 1,
         arrange: {
           // ARRANGE, both directions at once: one control pinned above the fold and one hidden
@@ -205,22 +203,23 @@ test('a published profile arranges, combines and moves the shared value on the h
             newGame: { hidden: true, name: 'Reset the board' },
           },
         },
-        combine: [
-          {
-            id: COMBINED_ID,
-            name: 'Reveal, then the points',
-            steps: [
-              // The proof case's own press: reveal the performer, then after a beat one +1 under
-              // each panelist who was right, each offered as a tick.
-              { kind: 'event', graphic: VOTES, control: 'reveal' },
-              { kind: 'event', graphic: TOTALS, control: 'plus2', after: 5, ask: { default: true } },
-              { kind: 'event', graphic: TOTALS, control: 'plus3', ask: { default: true } },
-            ],
-          },
-        ],
-      }).refused;
+      });
+      if (written.refused) return true;
+
+      // A COMBINED CONTROL, as a build from before 2026-10-02 left it on the record. They were
+      // removed, so it goes in past the write door (which would drop it). The publish pins the
+      // canonical profile, and the hosted page must render the arrangement and nothing of the list.
+      const { durable, commitDurableWrites } = await import('/src/model/durableStore.ts');
+      const list = JSON.parse(durable.getItem('spx-gfx-shows') ?? '[]') as { id: string; profile?: Record<string, unknown> }[];
+      const row = list.find((s) => s.id === show.id)!;
+      row.profile = {
+        ...row.profile,
+        combine: [{ id: 'reveal-then-points', name: 'Reveal, then the points', steps: [{ kind: 'event', graphic: VOTES, control: 'reveal' }] }],
+      };
+      durable.setItem('spx-gfx-shows', JSON.stringify(list));
+      return (await commitDurableWrites()) !== null;
     },
-    { VOTES, TOTALS, COMBINED_ID, POINTS, NAME },
+    { VOTES, TOTALS, POINTS, NAME },
   );
   expect(refused, 'the profile must actually be stored on the show record').toBe(false);
 
@@ -282,33 +281,10 @@ test('a published profile arranges, combines and moves the shared value on the h
   }, hosted);
   expect(cueGraphics, 'the votes board is cue 1 and the totals board cue 2').toEqual([VOTES, TOTALS]);
 
-  // ── AC-6, FIRST CLAUSE: the combined control renders here, and greys on its FIRST step ──────
-  //
-  // Nothing is on air yet, so the button must be grey and must say WHICH graphic is missing -
-  // not merely be disabled, which reads as broken on a phone.
-  const combinedSection = op.getByTestId('hosted-actions-combined');
-  await expect(combinedSection).toBeVisible();
-  const combined = op.getByTestId(`hosted-combined-press-${COMBINED_ID}`);
-  await expect(combined).toContainText('Reveal, then the points');
-  await expect(combined).toBeDisabled();
-  await expect(combined).toHaveAttribute(
-    'title',
-    `Greyed because the first step cannot go: “${VOTES}” is not on air`,
-  );
-
-  // THE TICKS. Two `ask` steps, both ticked by default, each labelled in the operator's words -
-  // the declared label behind its section, because five of this graphic's controls read "+1".
-  const asks = op.getByTestId(`hosted-combined-asks-${COMBINED_ID}`).locator('label');
-  await expect(asks).toHaveCount(2);
-  await expect(asks.nth(0)).toHaveText(`Panelist 2 +1 on ${TOTALS}`);
-  await expect(asks.nth(1)).toHaveText(`Panelist 3 +1 on ${TOTALS}`);
-  await expect(asks.nth(0).locator('input')).toBeChecked();
-  await expect(asks.nth(1).locator('input')).toBeChecked();
-
   // ── THE OPERATOR'S MINUTE (plan §3c), from here on, timed ───────────────────────────────────
   //
-  // Take the votes board, take the totals board, then the one press that reveals and adds the
-  // points. The wall clocks go into the run log, which is AC-9's hosted half: the walk, on the
+  // Take the votes board, take the totals board, then move the shared points. The wall clocks go
+  // into the run log, which is AC-9's hosted half: the walk, on the
   // surface the show is run from, with its numbers.
   const takeStarted = Date.now();
   await cues.nth(0).getByTestId('hosted-select-cue').click();
@@ -343,84 +319,10 @@ test('a published profile arranges, combines and moves the shared value on the h
   // never what the graphic accepts, so the hidden one is live rather than decorative.
   await expect(more.locator('button')).toBeEnabled();
 
-  // ── AC-6, THE CANCEL: the tail stands down under the operator's own thumb ───────────────────
-  //
-  // The half that has to work under pressure, and the one nobody had seen here: while a combined
-  // control counts down, the button IS the cancel. What follows is a claim about ABSENCE - the two
-  // +1s must never reach the wire - so it is asserted by waiting out the whole wait they would
-  // have run and reading the log afterwards, which is the one case a fixed wait is the honest
-  // instrument rather than the lazy one.
-  const countdown = combined.locator('.pd-combined-count');
-  const beforeCancel = await wireHead(op, hosted);
-  await combined.click();
-  await expect(countdown).toBeVisible();
-  await combined.click();
-  await expect(countdown).toHaveCount(0);
-  // `.first()` because the feed's newest entry is its first, and because `prod-log-note` is the
-  // class on EVERY note the surface writes - a dropped step included. Resolving it strictly would
-  // fail with "2 elements" rather than naming the text that is wrong.
-  await expect(op.locator('.prod-log-note').first()).toContainText(
-    '“Reveal, then the points” cancelled, 2 steps not sent',
-  );
-  await op.waitForTimeout(7_000); // past the whole 5 s the cancelled tail would have run
-  const cancelled = await wire(op, hosted, beforeCancel);
-  expect(
-    cancelled.map((r) => `${r.graphic}:${r.event}`),
-    'the reveal went; the tail must never arrive',
-  ).toEqual([`${VOTES}:reveal`]);
-
-  // WHAT IS DELIBERATELY NOT ASSERTED HERE, because it cannot be true on this rig.
-  //
-  // The reveal has fired, so a votes board with a renderer on it is now in `revealed` and has no
-  // arrow left - the button should grey on its first step again. It does not grey here, and that
-  // is the product working rather than a fault: this page judges an event's LEGALITY against the
-  // graphic's last REPORT, and only the receiver injected into a real renderer
-  // (`src/control/hostedReceiver.ts`) ever calls `control_report`. This walk opens no output URL,
-  // so no report ever arrives and every machine stays at the state its boot resolve gave it.
-  //
-  // So the greying's two halves split by what this rig can reach: the LIVENESS half is asserted
-  // above, before either cue was taken, because the page reads that off the wire's own cue rows;
-  // the LEGALITY half is pinned offline over the published bytes in `e2e/hosted-control.spec.ts`
-  // and in-app in `e2e/production-controls.spec.ts`. Asserting it here would pin the rig's
-  // silence, and anybody who later attaches a renderer to this walk would have to undo it.
-
-  // ── AC-6, THE PRESS: one row per step, in order, with the wait honoured ─────────────────────
-  //
-  // Panelist 3 guessed wrong, so the operator unticks that step before pressing - the real
-  // gesture on the night, and the one that proves the tick decides what goes.
-  await asks.nth(1).locator('input').uncheck();
-  await expect(asks.nth(1).locator('input')).not.toBeChecked();
-  await expect(combined).toBeEnabled();
-
-  const beforePress = await wireHead(op, hosted);
-  const pressedAt = Date.now();
-  await combined.click();
-
-  // THE COUNTDOWN, on the button itself. It is the only thing telling an operator that something
-  // is still coming, and it is the half only a rendered page can show.
-  await expect(countdown).toBeVisible();
-  await expect(countdown).toHaveText(/·\s*[1-5]s/);
-  await expect(combined).toHaveClass(/pd-combined-waiting/);
-
-  // THE WIRE. Two rows, not three: the unticked step did not send. One per step, in step order,
-  // each on the graphic its own step names.
-  const sent = await wireAfter(op, hosted, beforePress, 2);
-  timings.push(`combined press to its last row ${((Date.now() - pressedAt) / 1000).toFixed(1)}s`);
-  expect(sent.map((r) => `${r.graphic}:${r.kind}:${r.event}`)).toEqual([
-    `${VOTES}:event:reveal`,
-    `${TOTALS}:event:plus2`,
-  ]);
-
-  // THE WAIT WAS REALLY WAITED, measured on the SERVER's clock across the two rows. The step is
-  // marked `after 5 s`; under four seconds would mean the batch went out together and the
-  // countdown was decoration.
-  expect(
-    sent[1].at - sent[0].at,
-    'the delayed step must land a beat after the first, on the server clock',
-  ).toBeGreaterThanOrEqual(4_000);
-
-  // …and the countdown is gone once the tail has fired, so the button is a button again.
-  await expect(countdown).toHaveCount(0);
+  // THE PUBLISHED COMBINED CONTROL IS IGNORED. Combined controls were removed on 2026-10-02, and a
+  // profile that still carries one renders its arrangement above and nothing of the list.
+  await expect(op.getByTestId('hosted-actions')).not.toContainText('Combined');
+  await expect(op.getByText('Reveal, then the points')).toHaveCount(0);
 
   // ── AC-7: a stepper on a BOUND field moves the shared value ─────────────────────────────────
   //
@@ -443,8 +345,8 @@ test('a published profile arranges, combines and moves the shared value on the h
   timings.push(`bound +1 to its row ${((Date.now() - steppedAt) / 1000).toFixed(1)}s`);
   expect(stepped[0].graphic).toBe(TOTALS);
   expect(stepped[0].kind).toBe('update');
-  // The combined press moved f6 (Panelist 2), never f5, so this figure counts from the seeded
-  // zero: the operator's own +1 and nothing else.
+  // Nothing else moved f5, so this figure counts from the seeded zero: the operator's own +1 and
+  // nothing else.
   expect(stepped[0].data.f5).toBe('1');
   await expect(boundBox).toHaveValue('1');
 

@@ -1,5 +1,9 @@
 # A control panel for any graphic - the ten rows for the first showing
 
+**2026-10-02: COMBINE (AC-6) was removed by the owner's ruling** after a production count found no
+combined control in use. This spec and its evidence are the record of what was built; the product
+no longer carries Combined controls, and a stored `combine` list is ignored on read.
+
 ## Problem and authority
 
 A graphic should bring its own control panel whichever road made it, and a production should be

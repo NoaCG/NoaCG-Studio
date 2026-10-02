@@ -192,13 +192,11 @@ hosted receiver into each graphic at export (the saved snapshot stays clean).
 
 `Show.profile` (`model/profile.ts`, docs/CONTROL_PANEL_ANY_GRAPHIC.md §6) is the production's
 CONTROL PROFILE - how this production presents the controls its graphics already declare, additive
-optional beside `bindings`. Two primitives and no third: ARRANGE is order, section, shown name,
-hidden and pinned, per pool graphic per control id; COMBINE is a named control made of ordered
-steps, where a step is exactly one operator event on a graphic, one lifecycle verb on a cue, or one
-data patch of stated field values, carrying at most an `after` in seconds and an `ask` with a
-default. A profile may never invent an event or carry a condition, a variable, a loop, a wait or a
-clock, and that fence is a mechanism rather than a paragraph: `validateShowProfile` refuses any
-step key it does not know by name. It is pinned at publish on `control_shows.profile` (migration
+optional beside `bindings`. It is ARRANGE: order, section, shown name, hidden and pinned, per pool
+graphic per control id. Its second primitive, COMBINE (named controls made of ordered steps), was
+removed on 2026-10-02 by the owner's ruling; a stored `combine` list is read without error and
+ignored. A profile may never invent an event or change what a press does; the reader drops any
+arrangement key it does not know. It is pinned at publish on `control_shows.profile` (migration
 0058, jsonb, default `'{}'`), so a production published by an older build reads as no profile. The
 profile carries its own `v` inside itself, so adding it never bumped `Show.version`, and
 `readShowProfile` degrades a version this build does not know to READ-ONLY rather than erasing it.
@@ -296,14 +294,12 @@ stub). All local-first; cloud mirrors for signed-in users.
 
 ## Live-verify checklist (maintainer, real Supabase — a green build never counts)
 
-**Steps 8, 9 and the single-operator half of 10 are now driven on every run of the configured
-suite** (`e2e/configured/hosted-control-profile.spec.ts`, from 2026-09-16): it publishes a
-production carrying an ARRANGE, a combined control with a delayed step and two ticks, and three
+**Steps 8 and 9 are now driven on every run of the configured suite** (`e2e/configured/hosted-control-profile.spec.ts`, from 2026-09-16): it publishes a
+production carrying an ARRANGE (plus a legacy `combine` list it must ignore) and three
 bound fields, then drives the capability URL signed out and reads every claim back off the durable
 log. That does not retire them from this list - a spec asserts structure and cannot judge how the
 surface LOOKS on a phone - but it does mean a hand-walk is now confirming an eye's judgement rather
-than discovering whether the mechanism works at all. What the spec still cannot reach is named
-inside step 10: **two operators, and the batch cap.**
+than discovering whether the mechanism works at all.
 
 1. `supabase db push` applies 0008 cleanly on the project.
 2. Signed in: Shows section → publish a 2-graphic show → URL appears; `control_shows` row
@@ -340,20 +336,6 @@ inside step 10: **two operators, and the batch cap.**
    `control_show_by_slug`, which reads as "no profile" and renders the generated panel — correct,
    but indistinguishable from a production that has none, so confirm the migration before
    concluding the arrangement did not travel.
-10. COMBINE on the hosted page (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b). Compose a two-step
-   control on the production page's Controls panel - one step now, one marked `after 5 s` -
-   publish, then open `?control=<slug>` signed out. Under the ⚡ block, below the graphic's own
-   sections, a **Combined** heading carries the button; the first press sends the first step at
-   once and the button counts the rest down; pressing it again stands the tail down and the
-   activity feed says how many steps were not sent; ■ Out does the same. Then the two things only
-   a real backend can show:
-   - **Two operators.** Open the page twice. A press on one counts down on that page ALONE - the
-     wait lives in the tab that pressed - but every row it sends lands in both feeds, attributed,
-     and both PROGRAM monitors move. Bump the score on page B while page A's tail is counting
-     down: when A's step fires it must carry B's figure plus one, because the baseline is the
-     WIRE and not the cue.
-   - **The batch cap.** A control whose steps expand past eight wire items (a Take is three, an
-     Out is two) must send in several batches rather than raise `not a command batch` and lose
-     the whole press. The offline suite cannot reach this: `runVerb`'s offline path has no cap.
-   Reloading the tab mid-countdown loses the unsent tail by design (§6d) - confirm it says so on
-   the button's hover rather than retrying behind anybody's back.
+10. (Retired 2026-10-02.) COMBINE on the hosted page was removed with the feature; a published
+   profile that still carries a `combine` list must show no Combined section, which the
+   configured suite now asserts.

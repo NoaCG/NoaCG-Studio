@@ -11,10 +11,9 @@ artefacts and are no longer in the repository), and the four INTERACTIVE bluepri
 | Exported controller | `src/control/productionControllerHtml.ts` | the bundled local relay |
 
 **One deliberate difference, ruled 2026-09-15** (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6f): the
-production control profile's ARRANGE renders on all three, and its COMBINE renders on the two
-hosted pages only. The exported controller says in one line that a production's combined
-controls run from its hosted page, rather than carrying a second sequencer in vanilla JS. Shared
-production data likewise stays on the hosted pages; the exported controller carries no tree.
+production control profile's ARRANGE renders on all three. Shared production data stays on the
+hosted pages; the exported controller carries no tree. (The profile's COMBINE half, which rendered
+on the two hosted pages only, was removed on 2026-10-02; see §7d.)
 
 Before this contract they were three different products: the exported one had PREVIEW/PROGRAM
 monitors and a blue accent, the hosted one had no monitors at all and stacked one tall card per
@@ -731,7 +730,7 @@ never matched to a cue by its file name; taking a cue on that slot replaces it. 
 clip this Bridge started finds its own row again.
 
 **The list follows the air.** When a cue goes on air off-screen - a take from the keys, a
-combined control, another operator - the list scrolls it into view. It holds still while the
+folder's All together, another operator - the list scrolls it into view. It holds still while the
 operator is working in it: a row being dragged, a row's menu or the server picker open, focus in
 the rundown, or for ten seconds after a hand scrolled it. Only the list scrolls, never the page.
 
@@ -941,75 +940,16 @@ React surfaces, and "± LIVE NUMBERS on the EXPORTED controller" for the package
 the rows off the relay and asserts the PAYLOAD SHAPE, because what an exported surface puts on
 the wire is the contract, and a screen that looks right can still ship the wrong payload.
 
-## 7d. COMBINED controls — one press, several rows, some of them later
+## 7d. COMBINED controls — removed 2026-10-02
 
-The third section of the ⚡ block, and the only one a PRODUCTION makes rather than a graphic
-(`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6b; the format is `src/model/profile.ts`, the runtime
-`src/control/combine.ts`). A combined control is a name and an ordered list of STEPS, each of them
-exactly one thing this surface can already send: an operator event on a named pool graphic, a
-lifecycle verb on a cue, or a data patch. It cannot invent an event, and there is no condition, no
-comparison, no variable, no loop and no wall clock — the format refuses those by name.
-
-- **One row per step, on the one command log**, sent as a single batch and attributed to the
-  operator who pressed. A step the machine would drop is dropped ALONE: the rest proceed, and the
-  activity feed names the step, the control it belongs to, and why it did not apply.
-- **A step is resolved when it FIRES, not when the button was pressed.** A delayed `+1` therefore
-  reads the figure on the wire at that moment and counts from what the audience is looking at. The
-  moved figures are mirrored back into the target graphic's on-air cue, exactly as a single ⚡ press
-  does, so ⟳ Take and ✎ Update cannot regress them.
-- **`after N s` waits, visibly.** The button counts the wait down and wears the on-air accent while
-  it does. A step marked `after 0` (or unmarked) fires WITH the step before it, and the waits
-  ACCUMULATE — "five reveals a beat apart" is five steps each marked `after 2 s`. What it costs,
-  stated so nobody meets it live: **the wait lives in the browser tab that pressed.** Reloading that
-  tab loses whatever has not been sent, nothing is retried behind anyone's back, and the operator
-  presses it again by hand. The button's own hint says so.
-- **The countdown IS the cancel.** Pressing an armed control stands the rest of it down, and so
-  does any Out on this surface — one control shows the wait and stops it, rather than a second
-  control beside it. The feed says what was dropped and by which gesture.
-- **`ask` offers a step as a tick beside the button**, with a declared default. It is a tick and
-  never a value: the whole of what one press may vary by is which of its steps go.
-- **It greys while its FIRST step is illegal**, and the hover says which step and why. Not while
-  any step is: a walk's later steps are routinely illegal at the moment the first is pressed, which
-  is what the walk is for, and a button greyed by a step three seconds in the future would be
-  unpressable all night.
-
-**Where it renders.** The two NoaCG-hosted surfaces — the in-app production page and the hosted
-control page — under a **Combined** heading at the foot of the ⚡ block, drawn by one component
-(`src/components/control/CombinedButton.tsx`) over one resolver (`src/control/combineSend.ts`), so
-neither can grow a second opinion about what a `+1` carries. On the hosted page the rows go out
-through the batch RPC every verb there uses, attributed to whoever pressed, and a moved figure is
-mirrored into the SHARED staging buffer rather than into a stored cue — that is where an
-operator's values live on that surface, and it is what makes every open page count from the same
-figure. Its baseline is the WIRE, so a delayed step fired from one phone counts from what another
-operator's press just put up.
-
-**The EXPORTED production controller does not get it.** A sequencer with delays and ticks, inlined
-a second time in vanilla JS, is the second production runtime the owner ruled against on 2026-09-15
-(§6f of the plan). Where a production has combined controls the package shows one line where the
-Combined section would be — *“This production's combined controls run from its hosted control
-page”* — and carries nothing else of them: the zip holds one boolean, never a control's name, its
-steps or its timings. ARRANGE does render on all three, because it is presentation of the contract
-rather than behaviour above it.
-
-**Against the no-second-clock ruling (§8a, ruling 2, owner 2026-08-09).** That ruling forbids a
-per-play timer FIELD that could disagree with an arrow's authored `after` INSIDE a graphic. A
-combined control's wait is the controller pacing its own sends: it never touches a graphic's timer,
-the graphic still sees ordinary rows arriving in order, and the armed wait is visible and
-cancellable, which is the other half of the same ruling.
-
-**Authored on the production page**, in the Controls panel under this block: name it, then add
-steps by picking what each acts on, what it sends, its wait and whether it is a tick. Every box but
-the name and the seconds is a SELECT over what the production already declares, which is what makes
-"a profile can only combine what a graphic exposes" a mechanism rather than a rule. A patch step's
-values are not composed there and deliberately so — that would be a text box taking a value.
-
-Pinned by `e2e/production-controls.spec.ts`: the proof case composed, pressed with two of five
-ticks on and read off the wire; the countdown cancel and the Out cancel; a dropped step landing
-beside one that proceeded; and the exported controller's line, with the package checked for the
-absence of everything else. The hosted half is pinned by `e2e/hosted-control.spec.ts` over the
-PUBLISHED bytes — the wire baseline, the drop report and the greying — as far as an offline spec
-reaches: that page cannot be mounted without a configured backend, so its ⚡ Combined section is
-step 9 of the live-verify checklist in `docs/CONTROL_LAYER.md` with the rest of that surface.
+A combined control was a production-made button of ordered steps, with an optional wait and a
+per-press tick on each, drawn on the in-app and hosted pages. The owner ruled on 2026-10-02 to
+keep playout extremely simple and remove it if that was safe: a read-only count found no stored
+production using one, and no shipped pack, example or walk did either
+(`docs/research/control-surfaces-review-2026-10-02/README.md` §5). The composer, the button, the
+send path and the hosted page's half are gone. A stored profile that still carries a `combine`
+list opens normally and ignores it; ARRANGE (pin, rename, hide) is unchanged. One press airing
+several cues is a folder's **All together** (§2i).
 
 ## 8. Built to grow (interactive graphics)
 
