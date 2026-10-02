@@ -626,6 +626,28 @@ test('a Take of a cue that plays next is a sequence, each clip with its own sett
   assert.equal(sequenceMembers([cue('1', 'a'), cue('2', 'b')], [a, b], '1', address).members.length, 1);
 });
 
+test('an ending changed on air tells the Bridge the new ending, and for Play next the files after the clip', async () => {
+  const { endingAction } = await import('../src/control/serverPlayout.ts');
+  const a = vt('a', 10);
+  const b = vt('b', 10);
+  const at = slot(2, 10);
+  const base = { verb: 'ending', slot: at, item: { kind: 'media', name: 'A' } };
+  // Hold, Loop (the legacy item.loop too) and Clear with the fade it ends on.
+  assert.deepEqual(endingAction({ playback: { end: 'hold' } }, { ...a, loop: true }, at), base);
+  assert.deepEqual(endingAction({}, { ...a, loop: true }, at), { ...base, playback: { end: 'loop' } });
+  assert.deepEqual(endingAction({ playback: { end: 'clear', fadeOut: 'short', fadeIn: 'long' } }, a, at), { ...base, playback: { end: 'clear', fadeOut: 0.5 } });
+  // Play next: what follows the clip on air, each file as a Take of the chain would send it.
+  const cues = [withPlayback(cue('1', 'a'), { end: 'next' }), withPlayback(cue('2', 'b'), { fadeIn: 'long' })];
+  const chain = sequenceMembers(cues, [a, b], '1', address);
+  assert.deepEqual(endingAction(cues[0], a, at, chain.members), {
+    ...base,
+    then: [{ item: { kind: 'media', name: 'B' }, cueId: '2', playback: { fadeIn: 1 }, media: { kind: 'movie', seconds: 10 } }],
+  });
+  // Nothing to tell: Play next with no clip after it, and a still.
+  assert.equal(endingAction(cues[0], a, at, chain.members.slice(0, 1)), null);
+  assert.equal(endingAction({ playback: { end: 'loop' } }, { ...a, mediaKind: 'still' }, at), null);
+});
+
 test('TO STUDIO: every remaining segment, less every MIX it comes in on; unknown when a length is (§18 case 18)', () => {
   const entry = (seconds, playback) => ({ item: { kind: 'media', name: 'X' }, media: { kind: 'movie', seconds }, ...(playback ? { playback } : {}) });
   // Three 10-second clips joined by two 1-second fades end after 28 seconds, not 30.

@@ -4,9 +4,9 @@
 // honestly, and running a sequence, need facts that only the process that sent the commands can
 // hold, so it keeps them, in memory, per target and slot, and nothing else:
 //
-//   GENERATION  a counter that every Take, Out, Clear, Pause, Resume and new sequence on the slot
-//               moves BEFORE its command is sent, reported on the action's reply and on every
-//               reading - not Update or Next, which change nothing the clock shows. The page
+//   GENERATION  a counter that every Take, Out, Clear, Pause, Resume, new sequence and changed
+//               ending on the slot moves BEFORE its command is sent, reported on the action's
+//               reply and on every reading - not Update or Next, which change nothing the clock shows. The page
 //               ignores a reading older than the last action it saw accepted, so an answer that was
 //               on its way before a Take can never overrule the Take (plan §18, case 14). The
 //               sequence runner's own work carries the generation it was planned under and is
@@ -189,9 +189,10 @@ export class SlotMemoryBank {
   }
 
   /**
-   * Before a Take, Out, Clear, Pause, Resume or new sequence is sent: the generation moves first,
-   * and until `settled` the action counts as in flight. `keepsSequence` is Pause and Resume: the
-   * sequence survives them, re-stamped, while anything the runner planned before them is dropped.
+   * Before a Take, Out, Clear, Pause, Resume, new sequence or changed ending is sent: the generation
+   * moves first, and until `settled` the action counts as in flight. `keepsSequence` is Pause,
+   * Resume and a changed ending: the sequence survives them, re-stamped, while anything the runner
+   * planned before them is dropped (an accepted ending then ends or replaces it, `acted`).
    * Everything else ends it.
    */
   advance(target: Target, slot: Slot, keepsSequence = false): number {
@@ -274,9 +275,28 @@ export class SlotMemoryBank {
       // warning says so, and the reading shows no sequence.
       if (!r.value.warning) this.sequenceStarted(target, slot, action.entries, !!r.value.follower, action.loop === true);
     }
+    if (r.ok && action.verb === 'ending') {
+      // The clip on air stays the instance it was: nothing was played again. Where it was last
+      // seen is forgotten: a loop that wrapped just before its LOOP 0 is not a restart.
+      const inst = this.memory(target, slot).instance;
+      instance = inst?.id;
+      if (inst) delete inst.lastPosition;
+      // Play next from here: the clip on air is the run's first entry, and the action queued the
+      // second. Any other ending ends the sequence that ran; a refused one leaves it running.
+      if (inst && action.then && !r.value.warning) {
+        this.sequenceStarted(target, slot, [{ item: inst.item, ...(inst.cueId ? { cueId: inst.cueId } : {}) }, ...action.then], true);
+      } else this.sequenceEnded(target, slot);
+    }
     if (r.ok && r.value.follower !== undefined) this.setFollower(target, slot, r.value.follower);
     if (!r.ok && r.follower === null) this.setFollower(target, slot, null);
     return instance;
+  }
+
+  /** Whether the slot still plays the item this Bridge last started there, as far as its readings
+   *  say: an ending may be changed only on a clip this Bridge put on air. */
+  plays(target: Target, slot: Slot, item: ItemRef): boolean {
+    const inst = this.memory(target, slot).instance;
+    return !!inst && inst.item.kind === item.kind && playsItem(item, inst.item.name);
   }
 
   /** What this Bridge has queued behind the clip on the slot, as far as it knows. */

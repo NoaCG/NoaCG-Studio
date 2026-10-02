@@ -56,7 +56,7 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -316,7 +316,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   const slot = readSlot(a.slot);
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
-  if (a.playback !== undefined && a.verb !== 'take') throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
+  if (a.playback !== undefined && a.verb !== 'take' && a.verb !== 'ending') throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
   if (a.fadeOut !== undefined && a.verb !== 'out') throw new UsageError(`A ${String(a.verb)} carries no fadeOut: only Out fades a clip away.`);
   // A take's `loop` is the server's own LOOP on one file; only a sequence's plays its files again.
   if (a.loop !== undefined && a.loop !== false && a.verb !== 'take' && a.verb !== 'sequence') throw new UsageError(`A ${String(a.verb)} carries no loop.`);
@@ -358,6 +358,22 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
       if (a.loop !== undefined && typeof a.loop !== 'boolean') throw new UsageError('A sequence\'s loop is true or false.');
       const loop = a.loop === true;
       return { verb: 'sequence', slot, entries: entries.map((e, i) => readEntry(e, i, entries.length, loop)), ...(loop ? { loop: true } : {}) };
+    }
+    case 'ending': {
+      const item = readItem(a.item);
+      if (item.kind !== 'media') throw new UsageError(`Only a clip has an ending; this is a ${item.kind}.`);
+      const playback = readPlayback(a.playback);
+      if (playback && Object.keys(playback).some((k) => k !== 'end' && k !== 'fadeOut')) {
+        throw new UsageError('A changed ending carries only the end and the fade out it clears on: fades in, level and trim apply at the next Take.');
+      }
+      if (playback?.fadeOut !== undefined && playback.end !== 'clear') throw new UsageError('A fade out goes with a Clear at the end.');
+      if (a.then === undefined) return { verb: 'ending', slot, item, ...playbackField(playback) };
+      if (playback) throw new UsageError('A clip that plays the next file has no ending of its own: send the playback or the files after it, not both.');
+      const then = a.then;
+      if (!Array.isArray(then) || then.length < 1) throw new UsageError('Then plays at least one file after the clip on air.');
+      if (then.length + 1 > MAX_SEQUENCE_ENTRIES) throw new UsageError(`A sequence plays at most ${MAX_SEQUENCE_ENTRIES} files.`);
+      // Numbered as the sequence they make, the clip on air first.
+      return { verb: 'ending', slot, item, then: then.map((e, i) => readEntry(e, i + 1, then.length + 1, false)) };
     }
     default:
       throw new UsageError(`Unknown verb "${String(a.verb)}".`);
@@ -587,12 +603,36 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         if (url === '/act') {
           const action = readAction(body);
           const { slot } = action;
-          // Every action that changes what the clock shows - a Take, Out, Clear, Pause, Resume or a
-          // new sequence - moves the slot's generation BEFORE it is sent, so a reading that was
-          // already on its way reports the older number and the page can set it aside, and anything
-          // the runner planned before it is dropped unsent. Pause and Resume keep a running sequence.
+          // An ending is changed only on the clip this Bridge put on air there: on somebody else's,
+          // or after this Bridge restarted, nothing is sent and nothing it runs moves. Asked of a
+          // fresh reading before the generation moves - the server may have switched the clip, or
+          // another client taken the layer, since the last one - and again in the slot's queue,
+          // behind whatever was sent first.
+          if (action.verb === 'ending' && slot.adapter === 'casparcg' && adapter.state) {
+            const fresh = await adapter.state(target, slot.channel);
+            if (!fresh.ok) {
+              send(200, { ok: false, v: PLAYOUT_V, error: fresh.error }, true);
+              return;
+            }
+            memory.annotate(target, slot.channel, fresh.value);
+          }
+          const notOurs = (): AgentError | undefined =>
+            action.verb === 'ending' && !memory.plays(target, slot, action.item)
+              ? { hop: 'agent', code: 'refused', detail: `${action.item.name} is not the clip this NoaCG Bridge has on air there, so its ending was not changed. Take the cue again.` }
+              : undefined;
+          const early = notOurs();
+          if (early) {
+            log(`${at} ${action.verb} -> refused: not the clip this Bridge has on air`);
+            send(200, { ok: false, v: PLAYOUT_V, error: early }, true);
+            return;
+          }
+          // Every action that changes what the clock shows - a Take, Out, Clear, Pause, Resume, a
+          // new sequence or a changed ending - moves the slot's generation BEFORE it is sent, so a
+          // reading that was already on its way reports the older number and the page can set it
+          // aside, and anything the runner planned before it is dropped unsent. Pause and Resume
+          // keep a running sequence, and so does a changed ending until the server accepts it.
           const moves = action.verb !== 'update' && action.verb !== 'next';
-          if (moves) memory.advance(target, slot, action.verb === 'pause' || action.verb === 'resume');
+          if (moves) memory.advance(target, slot, action.verb === 'pause' || action.verb === 'resume' || action.verb === 'ending');
           let r: ActResult;
           let instance: string | undefined;
           try {
@@ -600,7 +640,8 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
             // the clip is read when the action's turn comes, not when it arrived, and what the
             // answer leaves on the slot is recorded before the next command's turn.
             r = await memory.serial(target, slot, async () => {
-              const done = await adapter.act(target, action, { follower: memory.follower(target, slot) });
+              const refused = notOurs();
+              const done: ActResult = refused ? { ok: false, error: refused } : await adapter.act(target, action, { follower: memory.follower(target, slot) });
               instance = memory.acted(target, slot, action, done);
               return done;
             });

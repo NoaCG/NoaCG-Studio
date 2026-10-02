@@ -305,6 +305,18 @@ export async function fakeCasparServer(options = {}) {
       case 'CLEAR':
         layers.delete(`${channel}-${layerNo}`);
         return reply.ok(cmd);
+      case 'CALL': {
+        // `CALL c-l LOOP 0|1` switches the clip's loop where it is, playing nothing again (measured
+        // on 2.5.0 and 2.3, 2026-10-02): switched off, it ends at the end of the pass it is in. The
+        // real server answers 201 with the new value. Any other call is not modelled.
+        const fg = l.foreground;
+        if (args[0]?.text.toUpperCase() !== 'LOOP' || !/^[01]$/.test(args[1]?.text ?? '')) return reply.bad(line);
+        if (!fg || (fg.producer !== 'video' && fg.producer !== 'audio')) return `404 CALL FAILED\r\n`;
+        const pos = position(fg, now);
+        fg.startedAt = (fg.pausedAt ?? now) - pos * 1000;
+        fg.loop = args[1].text === '1';
+        return `201 CALL OK\r\n${args[1].text}\r\n`;
+      }
       case 'CG': {
         const sub = args[1]?.text.toUpperCase();
         if (sub === 'ADD') {

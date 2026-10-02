@@ -134,7 +134,14 @@ export type PlayoutAction =
    *  folder): no entry then has an ending of its own, and it needs the `sequence-loop` feature too.
    *  A Bridge without that feature reads the action field by field and would drop `loop`, so the
    *  page never sends it one. */
-  | { verb: 'sequence'; slot: Slot; entries: SequenceEntry[]; loop?: boolean };
+  | { verb: 'sequence'; slot: Slot; entries: SequenceEntry[]; loop?: boolean }
+  /** Change how the clip on air ends while it plays, without playing it again: the operator lets a
+   *  clip loop until the host is ready, then moves on. `item` is the clip the page believes is on
+   *  air; the Bridge refuses the change unless it started that clip there itself. `playback` is the
+   *  new ending and the fade a Clear ends on (absent = hold its last frame); `then` instead plays
+   *  these files after it, run as a sequence whose first entry is the clip already on air. Needs the
+   *  `ending` feature: a Bridge without it refuses the verb. */
+  | { verb: 'ending'; slot: Slot; item: ItemRef; playback?: Pick<MediaPlayback, 'end' | 'fadeOut'>; then?: SequenceEntry[] };
 
 export type PlayoutVerb = PlayoutAction['verb'];
 
@@ -180,8 +187,9 @@ export interface AgentError {
  *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb, and
  *  `sequence-loop` a sequence's `loop`. `servers` is `/servers` and `/connect`: the CasparCG
  *  servers this Bridge remembers connecting to. `studio` is each remembered server's `studio` and
- *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link';
+ *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
+ *  `ending` is the `ending` verb: a clip's ending changed while it plays. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.

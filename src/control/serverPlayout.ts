@@ -311,6 +311,34 @@ export function sequenceAction(members: readonly SequenceMember[], slot: Slot, l
   return { verb: 'sequence', slot, entries, ...(loop ? { loop: true } : {}) };
 }
 
+/**
+ * THE ACTION FOR AN ENDING CHANGED WHILE THE CLIP PLAYS (docs/backlog/looping-clip-end-change-while-playing.md):
+ * the clip on air goes on, never played again, and ends the way its cue now says. `members` is the
+ * cue's chain when it now plays next (`sequenceMembers`, the cue first): the files after it go as
+ * `then`, each with the playback its own cue sets, exactly as a Take of the chain would send them.
+ * Null when there is nothing the Bridge can be told: a still, which never ends, or Play next with no
+ * clip after it. Sent only to a Bridge that lists the `ending` feature; without it the change
+ * applies at the next Take, as it always did. Never for a clip of a Play-through folder: the folder
+ * sets its ending, and its editor offers no At the end to change.
+ */
+export function endingAction(
+  cue: Pick<ShowCue, 'playback'>,
+  item: PlayoutItem,
+  slot: Slot,
+  members?: readonly SequenceMember[],
+): Extract<PlayoutAction, { verb: 'ending' }> | null {
+  if (item.kind !== 'media' || item.mediaKind === 'still') return null;
+  const base = { verb: 'ending' as const, slot, item: { kind: 'media' as const, name: item.name } };
+  const end = effectiveEnd(cue, item);
+  if (end === 'next') {
+    if (!members || members.length < 2) return null;
+    return { ...base, then: sequenceAction(members, slot).entries.slice(1) };
+  }
+  if (end === 'hold') return base;
+  const fadeOut = end === 'clear' ? outFade(cue) : undefined;
+  return { ...base, playback: { end, ...(fadeOut !== undefined ? { fadeOut } : {}) } };
+}
+
 // ── A PLAY-THROUGH FOLDER (docs/CLIP_PLAYBACK_PLAN.md §6.4 to §6.6): one Take plays its clips in order
 // on the folder's one slot, as one sequence the Bridge runs. ──
 
