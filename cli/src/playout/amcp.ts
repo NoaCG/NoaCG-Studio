@@ -17,6 +17,7 @@
 import { connect, type Socket } from 'node:net';
 import { StringDecoder } from 'node:string_decoder';
 import { UsageError } from '../output.js';
+import type { ServerChannel } from './protocol.js';
 
 export interface AmcpReply {
   /** The numeric status code: 2xx fine, 4xx the client's fault, 5xx the server's. */
@@ -251,8 +252,8 @@ export function parseCls(lines: string[]): MediaEntry[] {
  * number, the video mode, the state). A line that does not start that way is skipped, as in
  * `parseCls`: a channel this cannot read must not hide the others.
  */
-export function parseChannels(lines: string[]): { channel: number; mode: string }[] {
-  const out: { channel: number; mode: string }[] = [];
+export function parseChannels(lines: string[]): ServerChannel[] {
+  const out: ServerChannel[] = [];
   for (const line of lines) {
     const m = /^(\d+)\s+(\S+)/.exec(line.trim());
     if (m && Number(m[1]) >= 1) out.push({ channel: Number(m[1]), mode: m[2] });

@@ -99,8 +99,9 @@ interface FakeBridge {
   slowServers?: number;
   /** Servers that do not answer: a `/status` or `/connect` naming one reports the target hop. */
   downHosts?: string[];
-  /** What a Bridge with the `channels` feature reads off the server's bare INFO, per host; a host
-   *  with none answers the error a server that cannot say gives. */
+  /** What `/channels` reads off the server's bare INFO, per host; a host with none answers the
+   *  error a server that cannot say gives. Answered whatever `/health` lists, as a tripwire: a page
+   *  that asked a Bridge without the feature would show what it got. */
   reports?: Record<string, { channel: number; mode: string }[]>;
   /** Every action the page sent, in order. */
   actions: unknown[];
@@ -205,7 +206,7 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       await json(route, 200, { ok: true, v: 2, servers: state.servers });
       return;
     }
-    if (path === '/channels' && has('channels')) {
+    if (path === '/channels') {
       const channels = aimed?.host ? state.reports?.[aimed.host] : undefined;
       await json(
         route,
@@ -974,9 +975,14 @@ test('the channel table offers the channels the server reports, and says which r
   await expect(rows.nth(2).getByTestId('caspar-channel-mode')).toHaveText('720p5000');
   // The first channel added beside the graphics one takes the clips, as it always has.
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('2');
-  // Every channel the server has is listed now: there is nothing left to offer.
-  await expect(add).toBeDisabled();
+  // Every channel the server has is listed now: Add channel is the next number up again, and
+  // the row it adds is said to be one the server lacks.
   await expect(add).toHaveText('+ Add channel');
+  await add.click();
+  await expect(rows.nth(3).getByTestId('caspar-channel-number')).toHaveValue('4');
+  await expect(rows.nth(3).getByTestId('caspar-channel-mode')).toHaveText('Not on server');
+  await expect(section.getByTestId('caspar-channel-missing')).toContainText('no channel 3 or 4');
+  await rows.nth(3).getByTestId('caspar-channel-remove').click();
 
   // The stray row, removed: nothing left to warn about.
   await rows.nth(1).getByTestId('caspar-channel-remove').click();
@@ -985,7 +991,6 @@ test('the channel table offers the channels the server reports, and says which r
   // A list read from one server never speaks for another typed since; Connect reads that one's.
   await section.getByTestId('caspar-host').fill('192.168.1.40');
   await expect(section.getByTestId('caspar-channel-mode')).toHaveCount(0);
-  await expect(add).toBeEnabled();
   bridge.reports!['192.168.1.40'] = [{ channel: 1, mode: '1080p5000' }];
   await section.getByTestId('playout-connect').click();
   await expect(rows.nth(0).getByTestId('caspar-channel-mode')).toHaveText('1080p5000');
@@ -1002,16 +1007,24 @@ for (const [features, which] of [
   test(`${which} leaves the channel table as it always was`, async ({ page }) => {
     const asks = (features as readonly string[]).includes('channels');
     await seedSettings(page, { channels: [{ channel: 1, name: 'Program' }] });
-    const bridge = await fakeBridge(page, { features: [...features] });
+    // The older Bridge's fake would answer a list if the page asked it (the tripwire above).
+    const bridge = await fakeBridge(page, { features: [...features], reports: asks ? {} : { '127.0.0.1': [{ channel: 1, mode: '1080i5000' }] } });
     await openPlayoutSettings(page);
     const section = page.getByTestId('settings-playout');
-    // Asked when the panel opens, and only of a Bridge that has the route.
-    await expect.poll(() => bridge.routes.includes('/channels')).toBe(asks);
-    await expect(section.getByTestId('caspar-channels-hint')).toContainText('casparcg.config');
-    await expect(section.getByTestId('caspar-channel-mode')).toHaveCount(0);
+    if (asks) await expect.poll(() => bridge.routes.includes('/channels')).toBe(true);
     await expect(section.getByTestId('caspar-channel-add')).toHaveText('+ Add channel');
     await section.getByTestId('caspar-channel-add').click();
     await expect(section.getByTestId('caspar-channel-number').nth(1)).toHaveValue('2');
+    // Connect reads the channels again once it has answered.
+    const reads = () => bridge.routes.filter((r) => r === '/channels').length;
+    const before = reads();
+    await section.getByTestId('playout-connect').click();
+    await expect(verdict(page)).toContainText('Connected');
+    if (asks) await expect.poll(reads).toBeGreaterThan(before);
+    // Had the page asked the older Bridge, the second row would read "Not on server" by now.
+    await expect(section.getByTestId('caspar-channels-hint')).toContainText('casparcg.config');
+    await expect(section.getByTestId('caspar-channel-mode')).toHaveCount(0);
+    if (!asks) expect(bridge.routes).not.toContain('/channels');
   });
 }
 
