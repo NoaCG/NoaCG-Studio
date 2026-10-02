@@ -6,8 +6,13 @@ draft names the manifest fields it would change. The order to send them in, and 
 is in the owner-queue item
 (`docs/acceptance/owner-queue/2026-09-16-list-the-plugin-in-the-official-marketplace.md`).
 
-The drafts assume the recommended name, `noacg`. With the runner-up, `noacg-graphics` replaces
-`noacg` as the plugin name; the folders and the CLI stay as they are.
+**Landed, 2026-10-02.** The owner kept `noacg` and chose the display name **NoaCG Broadcast
+Graphics and Playout**. Sections 0 and 4 are now in the repository, and the manifests, the plugin
+READMEs and `cli/server.json` are the source of truth wherever this file differs: the texts were
+rewritten to show playout as well as making graphics, and the Codex display name is **NoaCG
+Graphics and Playout**, because OpenAI's limit is 30 characters and the full name is 36. The
+portal values in sections 1 and 3 are updated to match; sections 0 and 4 keep their first drafts
+as the record of what was proposed.
 
 ## 0. The manifest changes every listing shares
 
@@ -88,7 +93,7 @@ GitHub is connected on claude.ai with an account that can push to `NoaCG/NoaCG-S
 | Source | Plugin path | `cli/plugin` |
 | Source | Branch or tag | leave empty (follows `main`) |
 | Source | Validate | must show no **Blocking** finding; see the prediction in `where-users-search.md`, 1.4 |
-| Listing details | (read from `plugin.json` and the README) | check that the name reads **NoaCG Broadcast Graphics**, the short description is text A, and the long description (the README) opens with the same words |
+| Listing details | (read from `plugin.json` and the README) | check that the name reads **NoaCG Broadcast Graphics and Playout**, the short description is the `description` in `cli/plugin/.claude-plugin/plugin.json`, and the long description (the README) opens with the same words |
 | Data handling | Does the plugin read or store personal data? | **Yes, limited.** "The plugin stores nothing itself. The NoaCG CLI it runs keeps a scoped agent key on the user's machine after `noacg login`, and `noacg save` stores the graphic the user made, which can contain names typed into its fields, in the user's own NoaCG Studio library." |
 | Data handling | Does it send data to services other than its declared connectors? | **Yes.** "It declares no connectors. The CLI talks to noacg.studio (the user's NoaCG deployment) to check, preview and save graphics, and to registry.npmjs.org to download the CLI and read its latest version. This is described in the plugin README." |
 | Data handling | How long is data kept? | "The plugin keeps nothing. Saved graphics stay in the user's NoaCG library until the user deletes them; the agent key stays until `noacg logout` or until it is revoked in NoaCG Settings. See https://noacg.studio/privacy." |
@@ -122,11 +127,11 @@ call.
 
 | Step | Value |
 |---|---|
-| Upload | a ZIP of the whole `cli/plugin/` folder, its contents at the ZIP root: `.codex-plugin/`, `skills/`, `assets/`, `README.md`, and also `.claude-plugin/` and `commands/`, which Codex does not read. If the automated check objects to those two, drop them from the ZIP (**UNCONFIRMED** either way). An agent builds it from `main` after section 0 lands. |
+| Upload | a ZIP of the whole `cli/plugin/` folder, its contents at the ZIP root: `.codex-plugin/`, `skills/`, `assets/`, `README.md`, and also `.claude-plugin/` and `commands/`, which Codex does not read. If the automated check objects to those two, drop them from the ZIP (**UNCONFIRMED** either way). Every run of the CLI release workflow keeps this ZIP as the artifact `noacg-codex-plugin-<version>`: download it from the run's page. |
 | Plugin type | skills only: no MCP configuration, no review cases, no video |
-| Display name | NoaCG Broadcast Graphics |
-| Short description | Make live broadcast graphics |
-| Long description | text B |
+| Display name | NoaCG Graphics and Playout (OpenAI's limit is 30 characters; the full name is 36) |
+| Short description | Make and play out graphics |
+| Long description | `interface.longDescription` in `cli/plugin/.codex-plugin/plugin.json` |
 | Category | **Design** if the dashboard offers it, otherwise **Developer Tools** (the manifest's `category` must match the dashboard title; the list is **UNCONFIRMED**) |
 | Starter prompts | the three in the manifest today: "Make a football scoreboard for NoaCG", "Make a lower third for our evening news, for NoaCG", "Turn this graphic into a NoaCG graphic I can operate live" |
 | Website, privacy, terms | https://noacg.studio, https://noacg.studio/privacy, https://noacg.studio/terms |

@@ -494,17 +494,26 @@ Every channel below ships the same one artifact; what differs is which entrance 
 | Channel | What ships | Install |
 |---|---|---|
 | **npm** `@noacg/cli` (`cli/`) | the NoaCG CLI (`dist/`, which is the terminal AND the MCP server), the skill (`skill/` IS `cli/skill/noacg-graphic/`), README, LICENSE | `npx @noacg/cli <cmd>` / `npm i -g @noacg/cli` |
-| **Claude Code plugin** `noacg` (`cli/plugin/`, marketplace `noacg-studio` = root `.claude-plugin/marketplace.json`) | the skill copy and `/noacg:graphic` - NO server; the skill drives the CLI from the terminal | `claude plugin marketplace add NoaCG/NoaCG-Studio` then `claude plugin install noacg@noacg-studio`; from a clone `claude plugin marketplace add ./`, or for one session `claude --plugin-dir ./cli/plugin` |
-| **Claude Code plugin** `noacg-mcp` (`cli/plugin-mcp/`, same marketplace) - OPTIONAL | `.mcp.json` running `node mcp-server.mjs`, the launcher that resolves `@noacg/cli` and imports it in-process (npx in-process as the zero-install fallback) | `claude plugin install noacg-mcp@noacg-studio`; for one session `--plugin-dir ./cli/plugin-mcp` with `NOACG_CLI=<checkout>/cli/dist/index.js` |
+| **Claude Code plugin** `noacg` (`cli/plugin/`, marketplace `noacg-studio` = root `.claude-plugin/marketplace.json`) | the skill copy and `/noacg:graphic` - NO server; the skill drives the CLI from the terminal | in a session (2.1.275+) `/plugin install noacg --marketplace NoaCG/NoaCG-Studio`; from a shell `claude plugin marketplace add NoaCG/NoaCG-Studio` then `claude plugin install noacg@noacg-studio`; from a clone `claude plugin marketplace add ./`, or for one session `claude --plugin-dir ./cli/plugin` |
+| **Claude Code plugin** `noacg-mcp` (`cli/plugin-mcp/`, same marketplace) - OPTIONAL | `.mcp.json` running `node mcp-server.mjs`, the launcher that resolves `@noacg/cli` and imports it in-process (npx in-process as the zero-install fallback) | in a session `/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio`; from a shell `claude plugin install noacg-mcp@noacg-studio`; for one session `--plugin-dir ./cli/plugin-mcp` with `NOACG_CLI=<checkout>/cli/dist/index.js` |
 | **Codex** (`.codex-plugin/plugin.json` in each plugin directory, the same `skills/`, the same root marketplace) | the whole plugin directory: the skill copy and the command (`noacg`), or `.mcp.json` (`noacg-mcp`) | `codex plugin marketplace add NoaCG/NoaCG-Studio` then `codex plugin add noacg@noacg-studio` (and `noacg-mcp@noacg-studio` for the server) |
 | **In-repo dogfooding** | the thin adapter triple (`.agent-workflows/noacg-graphic.md`, `.claude/skills/`, `.agents/skills/`) - POINTERS at the source | already there |
 
 **Two hand-kept copies of the install lines exist outside `build-skill.mjs`'s reach** - the docs
 page's Reference (`docs.html#agent-setup`, and the paste-prompt above it) and the studio's own
 steer, `src/components/wizard/steps/ai/AgentRouteCard.tsx` (the AI step's *Recommended* block, which
-shows the Claude Code pair, the Codex pair and `/noacg:graphic`). A change to the marketplace
+shows Claude Code's one-command install, the Codex pair and `/noacg:graphic`). A change to the marketplace
 name, the plugin name or the command updates both in the same commit; nothing measures the drift
 yet, and `e2e/ai-tiers.spec.ts` pins only the studio copy's current text.
+
+**Every guide a person reads leads with the one-command install** (since 2026-10-02):
+`/plugin install noacg --marketplace NoaCG/NoaCG-Studio`, typed in a Claude Code session, adds the
+marketplace after asking, then installs (Claude Code 2.1.275 or later; the shell's `claude plugin
+install` has no such option). Two places keep the shell pair on purpose: the paste-to-agent prompt,
+because the agent runs its commands in a shell and cannot type a slash command, and the "from a
+terminal or a setup script" line beside each one-command form. Codex has no one-command form:
+`codex plugin add --marketplace` takes the name of a marketplace already added, not a source
+(codex-cli 0.161).
 
 **Codex reads the SAME root marketplace manifest** (measured 2026-08-27, `codex plugin`): a
 `codex plugin marketplace add` of either `NoaCG/NoaCG-Studio` or a local checkout resolves the
@@ -666,8 +675,9 @@ proposal is still undecided, not done. What it DOES now name is the skill - belo
 
 ### The installed skill can be older than everything else
 
-A Claude Code or Codex marketplace never updates itself, and a plugin installed once keeps the
-skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
+A Claude Code or Codex marketplace does not update itself by default (Claude Code turns
+auto-update on only for Anthropic's own marketplaces; a user can turn it on for `noacg-studio` in
+`/plugin`, **Marketplaces**), and a plugin installed once keeps the skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
 against a marketplace shipping 0.3.3, a `SKILL.md` eleven lines shorter than the repository's, and
 nothing anywhere saying so - the person most exposed being whoever installed earliest.
 `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` has the full reading.
@@ -716,8 +726,11 @@ no `--provenance` flag).
 **Releasing a version, start to finish:**
 
 1. Bump `version` in `cli/package.json`, then run `npm --prefix cli run build`. **That second step
-   is not optional**: `cli/scripts/build-skill.mjs` stamps the version onto every plugin's two manifests
-   and the root marketplace entry, and the workflow refuses a tree where they disagree.
+   is not optional**: `cli/scripts/build-skill.mjs` stamps the version onto every plugin's two manifests,
+   the root marketplace entry and `cli/server.json` (the MCP Registry record, below), and the
+   workflow refuses a tree where they disagree. The same build refuses a Codex manifest that breaks
+   the OpenAI directory's field limits, and a `server.json` whose `name` is not `cli/package.json`'s
+   `mcpName`.
    **Write the version's section in `cli/CHANGELOG.md` in the same commit**, for someone who uses
    the CLI: what was wrong or missing, what it does now, what they have to do. The changelog
    ships in the package, so that section is what the npm page shows.
@@ -729,12 +742,13 @@ no `--provenance` flag).
    ```bash
    npm run release:cli
    ```
-   It reads the version from `cli/package.json` **on `origin/main`**, refuses if any of the six
-   version stamps disagree, if the registry already has that version, or if npm's trusted publisher
-   looks stale, tags the commit, pushes, watches the run, and then verifies the PUBLISHED package
-   from the registry - version, `latest`, the provenance attestation - and installs it with `npx` to
-   ask its own version. `npm run release:cli -- --check` does the preflight and stops without
-   touching anything.
+   It reads the version from `cli/package.json` **on `origin/main`**, refuses if any of the eight
+   version stamps disagree, if `server.json` and `mcpName` name different servers, if the registry
+   already has that version, or if npm's trusted publisher looks stale, tags the commit, pushes,
+   watches the run, and then verifies the PUBLISHED package from the registry - version, `latest`,
+   the provenance attestation - and installs it with `npx` to ask its own version.
+   `npm run release:cli -- --check` does the preflight and stops without touching anything;
+   `--check --ref HEAD` asks the same of a branch before it lands.
 
    **npm accepts a publish asynchronously, and the proof has to wait for it.** The publish PUT
    comes back **202 Accepted** with "Your package is being processed and may take a few minutes to
@@ -815,7 +829,8 @@ material from every level except `notice`.
 
 | Refusal | Why |
 |---|---|
-| the commit is not an ancestor of `origin/main` | a published version must be a version on main - this is what makes that structural rather than remembered |
+| the commit is not an ancestor of `origin/main` | a published version must be a version on main - this is what makes that structural rather than remembered. A dry run downgrades it to a notice, because it publishes nothing and a release change has to be rehearsable before it lands |
+| `mcp-publisher validate` rejects `cli/server.json`, or the MCP Registry refuses this workflow's GitHub OIDC sign-in | both are asked before npm, so a registry that would refuse the record is found while nothing is published |
 | a `cli-vX.Y.Z` tag that disagrees with `cli/package.json` | a tag naming a version it does not release is always a mistake |
 | the version already exists on the registry | npm would refuse too; here the answer is readable and arrives in seconds. A dry run downgrades this to a notice, so a rehearsal is not limited to the window between a bump and its release |
 | `build-skill.mjs --check` finds drift, or the build changes a tracked file | the bump was committed without running the generator, so the plugin would advertise the previous version |
@@ -824,6 +839,29 @@ material from every level except `notice`.
 
 `prepack` re-runs the full build, so the `dist/` that is packed is always built from the checkout
 being published - a stale local build cannot reach the registry even in principle.
+
+**The MCP Registry.** After npm, the same run publishes `cli/server.json` to the official MCP
+Registry (registry.modelcontextprotocol.io) as `io.github.NoaCG/noacg`, the stdio server `noacg mcp`
+from `@noacg/cli`. It needs no secret and no person: `mcp-publisher login github-oidc` trades the
+run's GitHub OIDC token for a five-minute registry token, and the registry grants a workflow the
+namespace `io.github.<repository owner>/*`. The registry then reads the version back from npm and
+refuses it unless the package's `mcpName` names the same server, which is why `cli/package.json`
+carries `mcpName` and the build checks it against `server.json`. The order inside the run:
+
+1. Before npm, and in a dry run too: install `mcp-publisher` (pinned to a release and its
+   SHA-256), `mcp-publisher validate cli/server.json` against the registry, and sign in once, so a
+   registry that would refuse us is found while nothing has been published.
+2. After `npm publish`: wait until npm serves the version with its `mcpName` (npm answers a publish
+   with 202 and serves it about two minutes later), then sign in again and `mcp-publisher publish`,
+   five attempts.
+3. If that last step fails, npm already holds the version. Re-run the workflow with `dry_run`
+   unchecked: "Is the version free?" sees npm has it and the registry does not, skips npm, and
+   publishes only the registry record.
+
+A version can be published to the registry once, and the registry is "in preview", so its data can
+be reset before general availability. What reads it: aggregators, VS Code and GitHub's MCP registry;
+nothing documents Claude Code or Codex reading it. Which directories follow a release on their own,
+and which need a person each time, is in `docs/research/agent-marketplaces-2026-10-02/updates.md`.
 
 **The one thing only the owner can do** (`docs/acceptance/owner-queue/`), done once and needed again
 after any repository move: on npmjs.com → the package → Settings → **Trusted publishing**, a GitHub

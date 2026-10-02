@@ -282,6 +282,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
+  /* Blocks of different line counts sit side by side (Claude Code's is one line, Codex's two):
+     keep both labels on the top row instead of spreading the spare height into it. */
+  align-content: start;
   column-gap: 8px;
 }
 .ai-agent-cmd-label {

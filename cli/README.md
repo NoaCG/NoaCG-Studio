@@ -71,6 +71,14 @@ npm i -g @noacg/cli                   # or install it once
 **Claude Code**: the `noacg` plugin ships the `noacg-graphic` skill and a `/noacg:graphic`
 command, with nothing to install first; the skill runs this CLI from the terminal. The optional
 `noacg-mcp` plugin adds the always-on MCP server (`cli/plugin-mcp/README.md` says what it costs).
+In a Claude Code session (2.1.275 or later), one command adds the marketplace, asks you to
+confirm it, and installs:
+
+```
+/plugin install noacg --marketplace NoaCG/NoaCG-Studio
+```
+
+From a terminal or a setup script, the same install is two commands:
 
 ```
 claude plugin marketplace add NoaCG/NoaCG-Studio
@@ -79,10 +87,12 @@ claude plugin install noacg@noacg-studio
 
 For the MCP server on its own: `claude mcp add noacg -- npx -y @noacg/cli mcp`.
 
-**A plugin installed earlier does not update itself**, so the skill text it carries stays the
-version you installed until you say otherwise: `claude plugin marketplace update noacg-studio &&
-claude plugin update noacg@noacg-studio` brings it current, and `noacg doctor` names the installed
-version whenever it is behind the CLI you are running.
+**A plugin installed from this marketplace does not update itself until you say so.** Claude Code
+turns auto-update on only for Anthropic's own marketplaces, so the skill text stays the version
+you installed. Turn it on once in `/plugin`, **Marketplaces**, `noacg-studio`, **Enable
+auto-update**, and new versions arrive at the start of a session. Or update by hand:
+`claude plugin marketplace update noacg-studio && claude plugin update noacg@noacg-studio`.
+`noacg doctor` names the installed version whenever it is behind the CLI you are running.
 
 **Codex**: the same plugin, from the same repository. `codex plugin add` installs the skill, so
 there is nothing to copy by hand; `codex plugin add noacg-mcp@noacg-studio` adds the optional

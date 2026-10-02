@@ -1,0 +1,54 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.NoaCG/noacg",
+  "title": "NoaCG Broadcast Graphics and Playout",
+  "description": "Make broadcast graphics for NoaCG Studio and play them out live on CasparCG, OBS, vMix or OGraf.",
+  "websiteUrl": "https://noacg.studio",
+  "repository": {
+    "url": "https://github.com/NoaCG/NoaCG-Studio",
+    "source": "github",
+    "subfolder": "cli"
+  },
+  "icons": [
+    {
+      "src": "https://noacg.studio/noacg-icon-512.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    }
+  ],
+  "version": "0.7.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@noacg/cli",
+      "version": "0.7.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ],
+      "environmentVariables": [
+        {
+          "name": "NOACG_URL",
+          "description": "The NoaCG deployment to use. Defaults to https://noacg.studio.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "NOACG_AGENT_KEY",
+          "description": "A scoped agent key for saving graphics without noacg login, for CI.",
+          "isRequired": false,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

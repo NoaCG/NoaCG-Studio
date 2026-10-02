@@ -204,13 +204,14 @@
           <span data-version="cli" data-testid="cli-version">latest</span>
         </p>
         <p class="dl-meta">Needs Node.js 20 or newer, and Chrome or Edge for the check.</p>
-        <p class="dl-note">To use it, run the commands for your agent in a terminal.</p>
+        <p class="dl-note">To use it, install the NoaCG plugin for your agent once.</p>
 
         <h3>Claude Code</h3>
-        <pre><code>claude plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
-        <pre><code>claude plugin install noacg@noacg-studio</code></pre>
+        <p class="dl-note">Type this in a Claude Code session (version 2.1.275 or newer):</p>
+        <pre><code>/plugin install noacg --marketplace NoaCG/NoaCG-Studio</code></pre>
 
         <h3>Codex</h3>
+        <p class="dl-note">Run these in a terminal:</p>
         <pre><code>codex plugin marketplace add NoaCG/NoaCG-Studio</code></pre>
         <pre><code>codex plugin add noacg@noacg-studio</code></pre>
 

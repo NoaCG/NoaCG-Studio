@@ -1,4 +1,10 @@
-# The `noacg` plugin (Claude Code + Codex)
+# NoaCG Broadcast Graphics and Playout: the `noacg` plugin (Claude Code + Codex)
+
+Make broadcast graphics for NoaCG Studio and play them out: lower thirds, scoreboards, tickers,
+bugs, countdowns and full-screen graphics, run live from NoaCG Playout to CasparCG, OBS or vMix,
+or exported for SPX, H2R or any OGraf renderer. Ask your agent for a graphic "for NoaCG", or type
+`/noacg:graphic`, and it designs the graphic, checks it with NoaCG's validator and a live playout
+test, and saves it into your NoaCG library, ready to operate from NoaCG Playout.
 
 The plugin is one of three entrances to the **NoaCG CLI** (`@noacg/cli`, the command `noacg`) -
 the others being the MCP server on its own and the plain terminal. It is the easiest one: it
@@ -27,12 +33,22 @@ marketplace name `noacg-studio`), and it lists both plugins.
 
 ## Install
 
-**Claude Code** (any machine):
+**Claude Code**, in a session (2.1.275 or later). It adds the marketplace, asks you to confirm
+it, and installs:
+
+```text
+/plugin install noacg --marketplace NoaCG/NoaCG-Studio
+```
+
+From a terminal or a setup script, the same install is two commands:
 
 ```bash
 claude plugin marketplace add NoaCG/NoaCG-Studio
 claude plugin install noacg@noacg-studio
 ```
+
+To get new versions without asking, turn on auto-update for `noacg-studio` in `/plugin`,
+**Marketplaces**; Claude Code leaves it off for every marketplace that is not Anthropic's own.
 
 From a clone, `claude plugin marketplace add ./` reads the same root manifest. Either way the
 marketplace is named `noacg-studio`, which is the `name` field in
@@ -44,8 +60,8 @@ Then `/noacg:graphic a football scoreboard for our school channel`, or just ask 
 every call faster. Saving needs `noacg login` once (docs/AGENT_SAVE.md).
 
 Want the `noacg` MCP tool in every session, with a browser kept warm between calls? Add the
-optional server plugin: `claude plugin install noacg-mcp@noacg-studio` (`cli/plugin-mcp/README.md`
-says what it costs).
+optional server plugin: `/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio`
+(`cli/plugin-mcp/README.md` says what it costs).
 
 From a checkout, for one session only: `claude --plugin-dir ./cli/plugin`.
 
@@ -68,3 +84,34 @@ want the server, add it with `codex mcp add noacg -- npx -y @noacg/cli mcp`.
 
 **Any MCP client**: `npx -y @noacg/cli mcp` over stdio - one tool, `noacg`, whose `command` is the
 CLI verb; the skill's references are the server's resources (`noacg://docs/<topic>`).
+
+## What it runs and what it sends
+
+Checked against `noacg` 0.7.0 on 2026-10-02.
+
+- **The plugin itself runs nothing.** It has no hook, no server and no script. Its skill asks your
+  agent to run the NoaCG CLI in the terminal: `noacg <command>`, or `npx -y @noacg/cli <command>`
+  when it is not installed, which downloads the package from the npm registry
+  (registry.npmjs.org).
+- **Making and checking a graphic stays on your machine.** `types`, `scaffold`, `validate`,
+  `inspect`, `screenshot` and `pack` open NoaCG's `/bridge` page from https://noacg.studio, or from
+  the deployment `NOACG_URL` names, in a headless Chrome or Edge on your machine, and do their work
+  there. That browser may only load pages from that deployment, outside its `/api/`; every other
+  request and every WebSocket is blocked, so the graphic under test cannot reach anything else.
+  Nothing you make is uploaded by these commands.
+- **`noacg login`** opens NoaCG's consent page in your browser and receives the answer on a
+  `127.0.0.1` port. It keeps a key on your machine that can add graphics to your library and do
+  nothing else: it cannot read your library, touch a production or delete anything. `noacg logout`
+  revokes it, and so does NoaCG Settings. `noacg whoami` asks NoaCG whether the key still works.
+- **`noacg save`**, and `noacg pack --save`, upload the graphic or package you made to your own
+  NoaCG Studio library, with that key. A graphic can carry the names and text typed into its
+  fields.
+- **`noacg doctor`** reads the latest version number of `@noacg/cli` from the npm registry, at
+  most once a day, to tell you when your copy is behind.
+- **The playout commands**, `noacg bridge` and `noacg caspar`, which the skill does not use to make
+  a graphic, connect to the CasparCG or OGraf servers you point them at. `noacg bridge` listens on
+  `127.0.0.1` only, answers only the NoaCG pages you allow, and opens NoaCG in your browser to
+  pair unless you pass `--no-open`.
+
+The CLI contacts nothing else and sends no usage data. Privacy policy:
+https://noacg.studio/privacy.
