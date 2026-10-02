@@ -35,9 +35,9 @@ judgement (§7) and eight ordered slices (§8). For the playout session:
   false amber; 2, » Next names its target ("» Next: Reveal correct") and "↷ Next" becomes "Load next
   row"; 3, one verb vocabulary on the exported panels; the first half of 5, the graphic control
   page stops claiming ON AIR.
-- **Ready, needs the owner's look:** 4, live actions above setup fields, pin and hide on the ⚡
+- **Built 2026-10-02, waiting on the owner's look:** 4, live actions above setup fields, pin and hide on the ⚡
   buttons, the separate Controls panel gone (also serves
-  `operator-page-buries-live-actions-under-setup-fields.md`).
+  the former `operator-page-buries-live-actions-under-setup-fields.md`, now closed).
 - **After the hardware-panel R1 work lands:** 7, one set of values across the dashboard and the
   hosted page.
 - **The owner's three rulings, 2026-10-02,** which the next slices start from:
