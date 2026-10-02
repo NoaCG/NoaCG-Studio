@@ -2113,6 +2113,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
      not hearing them. The production's name is the one that truncates. */
   .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
+  /* ...except offline, where "Offline" costs 110px to repeat what ▶ Start production beside it
+     already says, and the production's NAME was paying for it (0px wide at 390). The monitor
+     still reads PREVIEW · NOT LIVE. */
+  .pd-status-host--offline { display: none; }
   /* The READY line (the hosted page's header) keeps its SHORT form here ("● Ready 2/2"). */
   .pd-health { flex: none; font-size: 11px; }
   .pd-header > .pd-ready-host { flex: none; }

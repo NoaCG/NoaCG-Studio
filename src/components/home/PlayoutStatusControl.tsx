@@ -46,7 +46,7 @@ export function PlayoutStatusControl({
     .map((c) => c.label)
     .join('\n');
   return (
-    <span className="pd-ready-host pd-status-host">
+    <span className={`pd-ready-host pd-status-host${started ? '' : ' pd-status-host--offline'}`}>
       <button
         type="button"
         className={`pd-status-control pd-status-control--${status.tone}`}

@@ -737,6 +737,19 @@ test('a failure to air is reported on the row, and never as a success', async ({
 
 /** A published production seeded through the model and opened from its own URL - no editor on
  *  the way. Publishing is backend-gated, so its capabilities are faked in, as above. */
+/**
+ * The Playout settings dialog, from the production page's Playout panel. Its Setup section folds once
+ * the Bridge answers (docs/work-specs/studio-day-playout D10), so wait for that answer and unfold it,
+ * as an operator does, rather than racing the fold.
+ */
+async function openPlayoutDialog(page: Page): Promise<void> {
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
+  const setup = page.getByTestId('playout-panel-setup');
+  if (!(await setup.evaluate((d) => (d as HTMLDetailsElement).open))) await setup.locator('summary').click();
+  await page.getByTestId('playout-settings-open').click();
+}
+
 async function seededPublishedProduction(page: Page, published = true): Promise<void> {
   await page.goto('/app');
   await awaitDurableReady(page);
@@ -786,8 +799,7 @@ test("the production's Playout dialog puts its output on air with one press, and
   await seedSettings(page, { channel: 2, layer: 30 });
   const bridge = await fakeBridge(page, { features: WITH_SERVERS });
   await seededPublishedProduction(page);
-  await page.getByTestId('production-status').click();
-  await page.getByTestId('playout-settings-open').click();
+  await openPlayoutDialog(page);
   await expect(page.getByTestId('playout-settings')).toBeVisible();
   // Opening the dialog, and the status poll behind the header, send nothing to a layer (AC-5).
   await expect(page.getByTestId('playout-put-on-air')).toBeEnabled();
@@ -807,8 +819,7 @@ test('a production that is not started cannot be put on air from its Playout dia
   await seedSettings(page);
   const bridge = await fakeBridge(page);
   await seededPublishedProduction(page, false);
-  await page.getByTestId('production-status').click();
-  await page.getByTestId('playout-settings-open').click();
+  await openPlayoutDialog(page);
   await expect(page.getByTestId('playout-put-on-air')).toBeDisabled();
   await expect(page.getByTestId('playout-air-unstarted')).toContainText('Start production');
   expect(bridge.actions).toEqual([]);

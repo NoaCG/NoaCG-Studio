@@ -157,12 +157,17 @@ test('the record survives republish-shaped edits: slugs stay, the unpublished-ch
   const links = page.getByTestId('production-links');
   await expect(links).toContainText('/output?production=test-output-slug');
   await expect(links).toContainText('?control=test-hosted-slug');
-  await expect(links).not.toContainText('changed after the last publish');
+  // The hint lives in the Playout panel's actions, and the status says the same in its words.
+  const hint = page.getByTestId('publish-freshness');
+  await expect(hint).toHaveCount(0);
+  await expect(page.getByTestId('production-status')).not.toContainText('Unpublished changes');
 
   // An edit AFTER publish: the hint must say the renderer runs an older snapshot...
   await page.getByTestId('cue-label').fill('Edited after publish');
   await page.waitForTimeout(600); // the draft flush stamps updatedAt past publishedAt
-  await expect(links).toContainText('changed after the last publish');
+  await expect(page.getByTestId('production-status')).toContainText('Unpublished changes');
+  if (!(await page.getByTestId('production-status-panel').isVisible())) await page.getByTestId('production-status').click();
+  await expect(hint).toContainText('The outputs run the published version');
 
   // ...and the slugs survive the edit (URLs are persistent by contract).
   const after = await page.evaluate(async (showId) => {
@@ -195,10 +200,15 @@ test('the audience and presenter links are offered separately, and only once the
   const id = await seedProduction(page, 'Link Shapes');
   await page.goto(`/app#/production/${id}`);
 
-  // Before publish there is no links panel at all, only the Publish button - there is no
-  // audience plane yet, and a URL that would not resolve is worse than none.
+  // Before publish there are no links at all: the status reads Offline beside the Start button,
+  // and its panel offers none - there is no audience plane yet, and a URL that would not resolve
+  // is worse than none.
   await expect(page.getByTestId('production-publish')).toBeVisible();
-  await expect(page.getByTestId('production-status')).toHaveCount(0);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('production-status-panel')).toBeVisible();
+  await expect(page.getByTestId('production-links')).toHaveCount(0);
+  await page.keyboard.press('Escape');
 
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');
