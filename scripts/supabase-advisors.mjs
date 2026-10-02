@@ -101,7 +101,10 @@ const ACCEPTED_CLASSES = {
     'control_show_resolve, control_output_resolve, control_tail_seq, control_output_tail_seq) are ' +
     'the same slug doors with the same guards: the send and the report write only the log and the ' +
     'production head (control_heads), and the reads answer only what the old resolve and tail ' +
-    'already did plus the sequence and per-graphic summary the log implies.',
+    'already did plus the sequence and per-graphic summary the log implies. ' +
+    'control_ping_seq (0072) is the same door again: Prepare for Live sends it from the operator ' +
+    'page, and it writes ONE log row with an empty graphic under the same locks and burst cap as ' +
+    'control_send_seq, so no graphic, revision, cue or report changes - only the head sequence moves.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',

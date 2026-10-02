@@ -305,7 +305,11 @@ post-land reds on `1` and `2` and only warns on `3`, so an outage must not borro
 means "somebody shipped something new", and a deleted baseline must not quietly switch the alarm
 off while every landing stays green.
 
-The baseline holds **122 findings** as of 2026-09-30. The last full breakdown was taken at 70 on
+The baseline holds **146 findings** as of 2026-10-02: the 24 since 2026-09-30 are 0072's
+`control_ping_seq` (anon and authenticated, the same slug door as 0071's, its reason in
+`ACCEPTED_CLASSES`) and 22 indexes reading as unused, a class that never fails. 0072 was applied by
+hand while held as live-path, so the first landing after it went red on findings it did not ship;
+`db:push` now asks the advisors itself after a hand-run apply to production. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.

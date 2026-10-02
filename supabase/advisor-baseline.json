@@ -1,7 +1,7 @@
 {
   "note": "Advisor findings seen and accepted. Regenerate with `node scripts/supabase-advisors.mjs --update-baseline`. Each entry is accepted because of its lint CLASS - the reasons live in ACCEPTED_CLASSES in that script. Re-recording accepts everything currently reported, so read the diff before committing one.",
-  "recordedAt": "2026-09-30",
-  "count": 122,
+  "recordedAt": "2026-10-02",
+  "count": 146,
   "entries": {
     "anon_security_definer_function_executable_public_audience_close_round_p_slug text, p_round uuid": {
       "name": "anon_security_definer_function_executable",
@@ -102,6 +102,11 @@
       "name": "anon_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "anon_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_ping_seq(p_slug text, p_id text)` can be executed by the `anon` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_ping_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "anon_security_definer_function_executable_public_control_report_p_slug text, p_graphic text, p_data jsonb, p_state jsonb": {
       "name": "anon_security_definer_function_executable",
@@ -277,6 +282,11 @@
       "name": "authenticated_security_definer_function_executable",
       "level": "WARN",
       "detail": "Function `public.control_output_tail_seq(p_output_slug text, p_after bigint, p_epoch uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_output_tail_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
+    },
+    "authenticated_security_definer_function_executable_public_control_ping_seq_p_slug text, p_id text": {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "detail": "Function `public.control_ping_seq(p_slug text, p_id text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/control_ping_seq`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional."
     },
     "authenticated_security_definer_function_executable_public_control_report_p_slug text, p_graphic text, p_data jsonb, p_state jsonb": {
       "name": "authenticated_security_definer_function_executable",
@@ -583,35 +593,145 @@
       "level": "INFO",
       "detail": "Table \\`public.user_plans\\` has a foreign key \\`user_plans_assigned_by_fkey\\` without a covering index. This can lead to suboptimal query performance."
     },
+    "unused_index_public_admin_audit_log_admin_audit_actor_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`admin_audit_actor_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
+    "unused_index_public_admin_audit_log_admin_audit_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`admin_audit_created_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
+    "unused_index_public_admin_audit_log_admin_audit_target_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`admin_audit_target_idx\\` on table \\`public.admin_audit_log\\` has not been used"
+    },
+    "unused_index_public_agent_auth_codes_agent_auth_codes_expires_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_auth_codes_expires_idx\\` on table \\`public.agent_auth_codes\\` has not been used"
+    },
+    "unused_index_public_agent_keys_agent_keys_user_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`agent_keys_user_idx\\` on table \\`public.agent_keys\\` has not been used"
+    },
+    "unused_index_public_ai_generations_ai_generations_status_expires_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`ai_generations_status_expires_idx\\` on table \\`public.ai_generations\\` has not been used"
+    },
+    "unused_index_public_audience_submissions_audience_submissions_show_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`audience_submissions_show_idx\\` on table \\`public.audience_submissions\\` has not been used"
+    },
+    "unused_index_public_audience_votes_audience_votes_tally_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`audience_votes_tally_idx\\` on table \\`public.audience_votes\\` has not been used"
+    },
+    "unused_index_public_chat_submissions_chat_show_status_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`chat_show_status_idx\\` on table \\`public.chat_submissions\\` has not been used"
+    },
+    "unused_index_public_community_reports_community_reports_template_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`community_reports_template_idx\\` on table \\`public.community_reports\\` has not been used"
+    },
+    "unused_index_public_community_templates_community_author_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`community_author_idx\\` on table \\`public.community_templates\\` has not been used"
+    },
     "unused_index_public_community_templates_community_kind_status_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`community_kind_status_idx\\` on table \\`public.community_templates\\` has not been used"
+    },
+    "unused_index_public_community_templates_community_status_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`community_status_created_idx\\` on table \\`public.community_templates\\` has not been used"
     },
     "unused_index_public_control_show_identity_control_show_identity_owner_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`control_show_identity_owner_idx\\` on table \\`public.control_show_identity\\` has not been used"
     },
+    "unused_index_public_control_shows_control_shows_team_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`control_shows_team_idx\\` on table \\`public.control_shows\\` has not been used"
+    },
+    "unused_index_public_render_jobs_render_jobs_active": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`render_jobs_active\\` on table \\`public.render_jobs\\` has not been used"
+    },
+    "unused_index_public_render_jobs_render_jobs_ip_window": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`render_jobs_ip_window\\` on table \\`public.render_jobs\\` has not been used"
+    },
+    "unused_index_public_render_jobs_render_jobs_user_window": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`render_jobs_user_window\\` on table \\`public.render_jobs\\` has not been used"
+    },
+    "unused_index_public_shows_shows_owner_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`shows_owner_idx\\` on table \\`public.shows\\` has not been used"
+    },
     "unused_index_public_team_members_team_members_user_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`team_members_user_idx\\` on table \\`public.team_members\\` has not been used"
+    },
+    "unused_index_public_team_productions_team_productions_team_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`team_productions_team_idx\\` on table \\`public.team_productions\\` has not been used"
+    },
+    "unused_index_public_teams_teams_owner_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`teams_owner_idx\\` on table \\`public.teams\\` has not been used"
     },
     "unused_index_public_template_admin_template_admin_visibility_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`template_admin_visibility_idx\\` on table \\`public.template_admin\\` has not been used"
     },
+    "unused_index_public_user_feedback_user_feedback_created_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_feedback_created_idx\\` on table \\`public.user_feedback\\` has not been used"
+    },
     "unused_index_public_user_feedback_user_feedback_status_created_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`user_feedback_status_created_idx\\` on table \\`public.user_feedback\\` has not been used"
     },
+    "unused_index_public_user_grants_user_grants_user_active_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_grants_user_active_idx\\` on table \\`public.user_grants\\` has not been used"
+    },
     "unused_index_public_user_plans_user_plans_expiry_idx": {
       "name": "unused_index",
       "level": "INFO",
       "detail": "Index \\`user_plans_expiry_idx\\` on table \\`public.user_plans\\` has not been used"
+    },
+    "unused_index_public_user_plans_user_plans_plan_idx": {
+      "name": "unused_index",
+      "level": "INFO",
+      "detail": "Index \\`user_plans_plan_idx\\` on table \\`public.user_plans\\` has not been used"
     }
   }
 }
