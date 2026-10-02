@@ -1,8 +1,9 @@
 /**
  * The pure geometry of the canvas transform tools (R1.2b.1, docs/research/editor-r1-2b-1): the rotation
- * handle's unwrapped angle, the scale handles' ratios in a layer's own axes, and the Position change
- * that keeps a scale's pivot in place. Points are composition pixels as the preview reports
- * them; a `Linear` is the 2x2 part of a matrix, [a, b, c, d] as in DOMMatrix (x' = a x + c y).
+ * handle's unwrapped angle, the scale handles' ratios in a layer's own axes, the Position change
+ * that keeps a scale's pivot in place, and a text box's resize (R1.2b.2). Points are composition
+ * pixels as the preview reports them; a `Linear` is the 2x2 part of a matrix, [a, b, c, d] as in
+ * DOMMatrix (x' = a x + c y).
  */
 export type Point = { x: number; y: number };
 export type Linear = [number, number, number, number];
@@ -74,6 +75,25 @@ export function handleRatios(local: Linear, handle: Point, pivot: Point, delta: 
 export function pivotShift(parent: Linear, local: Linear, ratios: Point, pivot: Point, anchor: Point): Point {
   const u = apply(invert(local), minus(pivot, anchor));
   return apply(invert(parent), apply(local, { x: (1 - ratios.x) * u.x, y: (1 - ratios.y) * u.y }));
+}
+/**
+ * A text box resized by one of its side handles (R1.2b.2, owner 2026-10-02): the dragged side follows
+ * the pointer's change in the box's own axes and the letters keep their size. `local` maps the box's
+ * own units to composition pixels (`localFrame`), `parent` the parent's; `size` and `origin` (its
+ * transform-origin) are in the box's own units. A declared anchor stays where it is (`fixed`); CSS's
+ * default origin is a share of the box and moves with its size. Returns the new size and the
+ * Position change, in the parent's units, that keeps the opposite side's midpoint in place.
+ */
+export function resizeBox(local: Linear, parent: Linear, size: Point, origin: Point, fixed: boolean, side: number, delta: Point, min = 1): { size: Point; shift: Point } {
+  const change = apply(invert(local), delta);
+  const next = { x: Math.max(min, side === 1 ? size.x + change.x : side === 3 ? size.x - change.x : size.x),
+    y: Math.max(min, side === 2 ? size.y + change.y : side === 0 ? size.y - change.y : size.y) };
+  // The opposite side's midpoint in the box's own units, for a box of size s.
+  const kept = (s: Point): Point => side === 1 ? { x: 0, y: s.y / 2 } : side === 3 ? { x: s.x, y: s.y / 2 } : side === 2 ? { x: s.x / 2, y: 0 } : { x: s.x / 2, y: s.y };
+  const pivot = fixed ? origin : { x: size.x ? origin.x * next.x / size.x : origin.x, y: size.y ? origin.y * next.y / size.y : origin.y };
+  // A box point p sits at parent x (position + origin) + local x (p - origin) on screen.
+  const at = (o: Point, s: Point) => { const a = apply(parent, o), b = apply(local, minus(kept(s), o)); return { x: a.x + b.x, y: a.y + b.y }; };
+  return { size: next, shift: apply(invert(parent), minus(at(origin, size), at(pivot, next))) };
 }
 /** A layer's own rotation and scale as one linear map (CSS and GSAP both rotate after scaling). */
 export function ownLinear(rotation: number, scaleX: number, scaleY: number): Linear {

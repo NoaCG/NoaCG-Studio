@@ -12,7 +12,10 @@ export interface RenderedPart {
   parent?: [number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
-  appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number;
+  appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string;
+    /** The rendered weight, line spacing as a multiple of the size (none when normal) and letter
+     *  spacing in the layer's own pixels (R1.2b.2). */
+    fontWeight?: number; lineHeight?: number; letterSpacing?: number; fill: string; opacity: number; motion?: NumericPose; initialMotion?: NumericPose; unit?: number;
     /** The border box xPercent and yPercent resolve against, in the motion's pixels (R1.2a.6). */
     size?: [number, number]; time?: number; revision?: Revision;
     /** The base target's box the corners are measured on, and its transform-origin from that box's

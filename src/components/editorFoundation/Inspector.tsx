@@ -3,7 +3,6 @@ import { ownerOf, type TimelineView } from './timelineView';
 import { animatedProps } from '../../blocks/animEval';
 import type { SpxTemplate } from '../../model/types';
 import { baseValues, type BasePatch } from '../../blocks/baseEdits';
-import { slotSize } from '../../blocks/designLayout';
 import type { EditorSession } from './session';
 import type { EditorOperation } from './operations';
 import ArtworkAppearance from './ArtworkAppearance';
@@ -46,7 +45,6 @@ function Inspector({ view, template, selection, select, session, linked, setLink
     catch (cause) { return { base: null, reason: cause instanceof Error ? cause.message : String(cause) }; }
   }, [template, part]);
   const base = capability.base;
-  const box = base?.mode === 'placed' ? slotSize(template.css, base.target.slice(1)) : null;
   const execute = (operation: EditorOperation) => {
     try { session.execute({ documentId: session.documentId, expected: session.version(), transactionId: crypto.randomUUID(), operations: [operation] }); setError(''); }
     catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
@@ -96,10 +94,6 @@ function Inspector({ view, template, selection, select, session, linked, setLink
           {base.scaleReason ? <p className="ef-muted">{base.scaleReason}</p> : <><div className="ef-number-row"><Numeric label="Base Scale X %" value={base.scaleX * 100} commit={x => scale('scaleX', x)} />
             <Numeric label="Base Scale Y %" value={base.scaleY * 100} commit={y => scale('scaleY', y)} /></div>
           </>}
-          {box && <><span className="ef-section-label">Text box · reflow</span><div className="ef-number-row">
-            <Numeric label="Box width" value={box.width} commit={width => execute({ kind: 'box.resize', selector: part.selector, width, height: box.height })} />
-            <Numeric label="Box height" value={box.height} commit={height => execute({ kind: 'box.resize', selector: part.selector, width: box.width, height })} />
-          </div></>}
           <p className="ef-muted">Base edits preserve existing motion. Position uses the parent’s coordinates.</p>
         </details>}
         {capability.reason && <p className="ef-muted">{capability.reason}</p>}

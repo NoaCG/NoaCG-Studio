@@ -174,7 +174,7 @@ export const foundationRuntime = String.raw`
       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
       return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
         height: rect.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
         corners: points, anchor: anchor(target, targetMatrix, points, origin) }];
     });
@@ -244,6 +244,9 @@ export const foundationRuntime = String.raw`
     // the first edit and an edit after scrubbing/reopening agree with exported playback.
     if (changed && step >= 0) resetPose();
     sheet.textContent = css;
+    // A design that fits placed text to a slot measures from the stylesheet, so a new slot width or
+    // spacing refits it, as the design's own update() does after every value (R1.2b.2).
+    if (typeof fitPlacedText === 'function') fitPlacedText();
     if (changed && step >= 0) seek(step, time);
   }
   function presented(request, kind, interactive) {

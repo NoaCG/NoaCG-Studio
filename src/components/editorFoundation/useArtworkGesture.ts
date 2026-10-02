@@ -7,8 +7,9 @@ import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
 import { anchorOperations, authoredTransform, displayedBase, editingPose, keysControl, requireCurrentPose, shownAnchor } from './animationAuthoring';
 import { requireScaleWritable } from '../../blocks/editorAnimation';
+import { resizableTextBox } from '../../blocks/designLayout';
 import { ownerOf, readTimeline } from './timelineView';
-import { apply, centreOf, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear, type Point } from './transformGestures';
+import { apply, centreOf, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, resizeBox, snapRotation, sweep, type Linear, type Point } from './transformGestures';
 
 /** A screen vector in a parent's coordinates (the 2x2 part of `matrix`, which may carry a translation). */
 export const inverseDelta = (matrix: number[], point: Point): Point =>
@@ -117,6 +118,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const pose = editingPose(template, originalBase.selector, part.appearance, gesture.time, part.appearance?.cue);
       const base = { ...originalBase, ...Object.fromEntries((['x', 'y', 'scaleX', 'scaleY', 'rotation'] as const).map(p => [p, displayedBase(originalBase, pose, p)])) };
       const anchor = part.anchor ?? centre(part);
+      const box = handle?.kind === 'edge' ? resizableTextBox(template, originalBase.selector) : null;
       if (handle?.kind === 'rotate') {
         // Unwrapped: each move adds the angle swept since the last one, so two turns are 720.
         const turn = gesture.turn!;
@@ -129,6 +131,15 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const moved = inverseDelta(part.parent ?? [1, 0, 0, 1], delta), from = shownAnchor(originalBase, pose);
         if (!from) throw new Error('Wait for the rendered anchor before editing it.');
         gesture.operations = anchorOperations(base.selector, { x: from.x + moved.x, y: from.y + moved.y });
+      } else if (handle?.kind === 'edge' && box) {
+        // A text box's side resizes it (owner, 2026-10-02): its letters keep their size and the
+        // opposite side stays, measured in the box's own axes and design pixels.
+        const unit = part.appearance?.unit ?? 1, origin = part.appearance?.origin ?? [box.width * unit / 2, box.height * unit / 2];
+        const { size, shift } = resizeBox(frameOf(part).map(v => v * unit) as Linear, part.parent!, { x: box.width, y: box.height },
+          { x: origin[0] / unit, y: origin[1] / unit }, !!originalBase.anchor, handle.index, delta);
+        const round = (v: number) => Math.round(v * 1000) / 1000;
+        gesture.operations = [{ kind: 'style.set', selector: originalBase.selector, values: { width: round(size.x), height: round(size.y) } }];
+        if (Math.abs(shift.x) > 1e-6 || Math.abs(shift.y) > 1e-6) gesture.operations.push({ kind: 'base.set', selector: originalBase.selector, values: { x: round(originalBase.x + shift.x), y: round(originalBase.y + shift.y) } });
       } else if (handle && part.corners) {
         // Scale in the layer's own axes about the opposite corner or side, or the anchor with Alt. A keyed
         // scale is GSAP's, the innermost part of what renders, so its axes are the rendered sides. A base

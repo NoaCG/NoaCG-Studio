@@ -139,6 +139,18 @@ export function slotSize(
   return w && h ? { width: w.value, height: h.value, scaled: w.scaled && h.scaled } : null;
 }
 
+/**
+ * A text box the canvas resizes from its sides (R1.2b.2, owner 2026-10-02): a placed text line
+ * whose wrapper has its own width and height and whose long text wraps or shrinks to fit. Point
+ * text (Run on) and a slot with only a maximum width scale from their handles instead. Sizes are
+ * design px. Null for anything else.
+ */
+export function resizableTextBox(template: SpxTemplate, selector: string): { width: number; height: number } | null {
+  const place = placedLines(template.html, template.css)[selector], id = selector.slice(1);
+  const size = place && lineFontSize(template.css, id) ? slotSize(template.css, place.wrapperId) : null;
+  return size && lineFit(template.html, template.css, id)?.mode !== 'overflow' ? { width: size.width, height: size.height } : null;
+}
+
 /** Resize one slot's box: its wrapper rule's width/height, as one deterministic CSS patch. */
 export function setSlotSize(
   template: SpxTemplate,
@@ -179,8 +191,13 @@ export interface LineTextStyle {
 }
 
 /** What the wrapper's transform means: the assembler expresses alignment as a shift of the
- *  shrink-to-fit box (text-align would do nothing on a box that hugs its content). */
+ *  shrink-to-fit box (text-align would do nothing on a box that hugs its content). A text box
+ *  with its own width and height (R1.2b.2) does not hug, so there the rows align inside it. */
 function alignOf(css: string, wrapperId: string): 'left' | 'center' | 'right' {
+  if (slotSize(css, wrapperId)) {
+    const a = readDecl(css, `#${wrapperId}`, 'text-align') ?? '';
+    return a === 'center' || a === 'right' ? a : 'left';
+  }
   const t = readDecl(css, `#${wrapperId}`, 'transform') ?? '';
   if (t.includes('-100%')) return 'right';
   if (t.includes('-50%')) return 'center';
@@ -265,7 +282,10 @@ export function setLineTextStyle(
   if (patch.letterSpacing !== undefined) {
     css = setCssDeclaration(css, sel, 'letter-spacing', placementCss(patch.letterSpacing, font.scaled));
   }
-  if (patch.align !== undefined) {
+  if (patch.align !== undefined && slotSize(css, place.wrapperId)) {
+    // A box with its own size keeps its place; its rows align inside it (the line inherits this).
+    css = setCssDeclaration(css, `#${place.wrapperId}`, 'text-align', patch.align);
+  } else if (patch.align !== undefined) {
     const shift =
       patch.align === 'center' ? 'translateX(-50%)' : patch.align === 'right' ? 'translateX(-100%)' : 'none';
     css = setCssDeclaration(css, `#${place.wrapperId}`, 'transform', shift);
