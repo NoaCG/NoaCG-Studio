@@ -43,7 +43,10 @@ export interface Backend {
 export async function discoverBackend(address: string, fetchFn: typeof fetch = fetch): Promise<Backend> {
 	const base = address.trim().replace(/\/+$/, '')
 	const url = /^https?:\/\//i.test(base) ? base : `https://${base}`
-	const res = await fetchFn(`${url}/panel.json`, { headers: { accept: 'application/json' } })
+	const res = await fetchFn(`${url}/panel.json`, {
+		headers: { accept: 'application/json' },
+		signal: AbortSignal.timeout(DISCOVER_MS),
+	})
 	if (!res.ok) throw new Error(`${url} did not answer as a NoaCG app (HTTP ${res.status})`)
 	const body = (await res.json()) as { v?: unknown; supabaseUrl?: unknown; supabaseKey?: unknown }
 	if (typeof body.supabaseUrl !== 'string' || typeof body.supabaseKey !== 'string') {
@@ -51,6 +54,12 @@ export async function discoverBackend(address: string, fetchFn: typeof fetch = f
 	}
 	return { url: body.supabaseUrl, key: body.supabaseKey }
 }
+
+/** How long finding the backend may take before the connection says it is offline. */
+const DISCOVER_MS = 10_000
+/** How long one panel call may take. A press waits 1.5 s for the page anyway, so a call still
+ *  open after this has failed for the operator, and the action must not hang Companion. */
+const RPC_MS = 5_000
 
 function asAnswer<T>(data: unknown): Answer<T> {
 	if (typeof data !== 'object' || data === null || typeof (data as { ok?: unknown }).ok !== 'boolean') {
@@ -72,7 +81,7 @@ export class SupabaseRelay implements Relay {
 	}
 
 	async #rpc<T>(name: string, args: Record<string, unknown>): Promise<Answer<T>> {
-		const { data, error } = await this.#client.rpc(name, args)
+		const { data, error } = await this.#client.rpc(name, args).abortSignal(AbortSignal.timeout(RPC_MS))
 		if (error) throw new Error(error.message)
 		return asAnswer<T>(data)
 	}
