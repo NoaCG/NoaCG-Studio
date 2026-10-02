@@ -9,6 +9,8 @@
 
 import type { ClipClock } from './serverState';
 import type { SpaceAction } from './spaceMode';
+import type { ShowCue } from '../model/shows';
+import { folderName, type RundownRow } from '../model/rundownRows.ts';
 
 export const PANEL_PROTOCOL = 1;
 
@@ -67,6 +69,31 @@ export interface PanelSnapshot {
   rows: PanelRow[];
 }
 
+/**
+ * The production page's rundown as a panel's rows: each row as it is drawn, and under a collapsed
+ * folder's header the cues it hides, so a preset key made for one of them keeps working while the
+ * folder is shut. A folder row is there to be selected; its `take-cue` is always refused.
+ */
+export function rundownPanelRows(rows: readonly RundownRow[]): PanelRow[] {
+  const cueRow = (cue: ShowCue, folder: string | null): PanelRow => ({
+    id: cue.id,
+    label: cue.label,
+    kind: 'cue',
+    source: cue.source === 'playout' ? 'server' : 'graphic',
+    ...(folder ? { folder } : {}),
+  });
+  const out: PanelRow[] = [];
+  for (const row of rows) {
+    if (row.kind === 'cue') {
+      out.push(cueRow(row.cue, row.folderId));
+      continue;
+    }
+    out.push({ id: row.id, label: folderName(row.folder), kind: 'folder', source: null });
+    if (row.folder.collapsed === true) for (const cue of row.runCues) out.push(cueRow(cue, row.folder.id));
+  }
+  return out;
+}
+
 /** At most this many rows go to a panel: they become preset keys, and nobody drags a hundred. */
 export const PANEL_ROWS_MAX = 100;
 
@@ -119,6 +146,8 @@ export function snapshotChanged(prev: PanelSnapshot | null, next: PanelSnapshot)
 }
 
 export function rowsChanged(prev: readonly PanelRow[] | null, next: readonly PanelRow[]): boolean {
+  // The production page hands the same rows until its rundown changes: no need to compare them.
+  if (prev === next) return false;
   return !prev || JSON.stringify(prev.slice(0, PANEL_ROWS_MAX)) !== JSON.stringify(next.slice(0, PANEL_ROWS_MAX));
 }
 

@@ -1,0 +1,19 @@
+C:/claude/cj-bench-2026-10-02/cells/b6-results-G/ski-results: a NoaCG graphic package
+
+Inputs (2)
+key  label                                                                                    kind   default
+f0   Race                                                                                     text   Naiset 10 km vapaa
+f1   Results, top 8 (one per line: "Name | Club | Time"; DNF, DSQ or DNS in place of a time)  lines  Aino Mäkelä | Vuokatti Ski Team Kainuu | 28:14.3
+Anna-Kaisa Vähäkangas-Heikkilä | Kiteen Urheilijat | 28:26.7
+Emilia Lehtonen | Hämeenlinnan Hiihtoseura | 28:41.0
+Sanni Korhonen | Ounasvaaran Hiihtoseura | 29:02.5
+Johanna Rantanen | Pohti Skiteam | 29:02.5
+Kaisa Nieminen | Lahden Hiihtoseura | 29:47.9
+Veera Salo | Imatran Urheilijat | 30:15.2
+Minna Heikkinen | Puijon Hiihtoseura | DNF
+
+Buttons (0)
+  (none beyond Take / Update / Next / Out)
+
+Steps: 1
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

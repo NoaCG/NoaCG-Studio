@@ -1,0 +1,11 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take F0 · Headlines (one per line) F1 · Label F2 · Urgent bulletin OPERATOR NOTE ▸ Advanced Layer 20 ⚡ GRAPHIC ACTIONS act on air not on air Snap to state… ⟲ Back to start (visual reset) main: Off main: Headlines main: Out bulletin: Headlines crawling bulletin: Urgent bulletin These fire the graphic’s own beats on the layer that is on air, immediately. They carry values from this cue, so type them above first. “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation. URGENT BULLETIN ⚡ Show urgent bulletin ⚡ Clear bulletin CONTROLS as the graphic declared them Activity
+reach: 6 of 6 live controls on screen at load
+shot 01-ready
+shot 02-take
+shot 03-crawl-4s
+shot 04-headlines-edited-on-air
+shot 05-bulletin
+shot 06-bulletin-cleared
+actions: 2 of 2 declared actions pressed
+shot 07-after-actions
+shot 08-out

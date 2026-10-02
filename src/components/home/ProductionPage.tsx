@@ -84,8 +84,8 @@ import {
   type ServerVerb,
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
-import { createServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { airClash, applyAccepted, applyReading, followedClip, pauseTarget } from '../../control/serverState';
+import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
+import { airClash, applyAccepted, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
@@ -122,30 +122,11 @@ import {
   type VerbPress,
 } from '../playoutKeys';
 import { SpaceModeToggle } from '../SpaceModeToggle';
-import { PREVIEW_EMPTY_LABEL } from '../../control/spaceMode';
+import { PREVIEW_EMPTY_LABEL, type SpaceAction } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
 import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
-import {
-  emptyProfile,
-  readPublishedProfile,
-  readShowProfile,
-  withGraphicArrange,
-  type ArrangeEntry,
-  type CombinedControl,
-} from '../../model/profile';
-import {
-  askSteps,
-  combineBlocked,
-  CombineScheduler,
-  planCombine,
-  stepWords,
-  type CombineNow,
-  type StepGroup,
-  type StepNames,
-} from '../../control/combine';
-import { commandBatches, resolveCombineSend, type CombineWorld } from '../../control/combineSend';
-import CombinedButton from '../control/CombinedButton';
-import ProductionControlsPanel, { type CombineTarget } from './ProductionControlsPanel';
+import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
+import ProductionControlsPanel from './ProductionControlsPanel';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
@@ -204,7 +185,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { createSendDebts } from '../../control/failedSends';
-import { appendLogEntries, describeLogRow, eventLogLabel, type LogEntry } from '../../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
   clockSpecFromHtml,
@@ -247,6 +228,8 @@ import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
 import { IconDownload, IconTv, IconUsers } from '../icons';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
+import { PanelButton, PanelDialog, usePanelAnswer } from '../control/PanelControl';
+import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
@@ -317,6 +300,12 @@ const CLAIM_NEEDS_ACCOUNT =
  */
 /** A production with no folders, as one stable empty list. */
 const NO_FOLDERS: readonly ShowFolder[] = [];
+/** A hardware panel runs every panel verb here (docs/work-specs/hardware-panel-control/spec.md D5). */
+const PRODUCTION_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>(PANEL_VERBS);
+/** The clip clock as a panel counts it, read at a publish: the store's times are the page's
+ *  `performance.now()`, the panel's are wall-clock milliseconds (protocol.md §7.4). */
+const panelClipNow = (store: ServerPlayoutStore, items: readonly PlayoutItem[], cues: readonly ShowCue[]) =>
+  panelClip(clipClock(store.ownership.get(), store.timing.get(), items, cues, performance.now()), Date.now());
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -669,37 +658,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   useEffect(() => {
     sendDebts.current = createSendDebts();
   }, [showId]);
-
-  // ── COMBINED CONTROLS, the surface's half (src/control/combine.ts, plan §6b) ──
-  /** Which `ask` ticks the operator has moved, by `<control id>\0<step index>`. A step the
-   *  operator has not touched reads its DECLARED default, so an absence here is not "off". */
-  const [combineTicks, setCombineTicks] = useState<ReadonlyMap<string, boolean>>(new Map());
-  /** Bumped whenever a run arms, fires or is cancelled, and by the countdown's own interval.
-   *  The scheduler holds no React, so this is how a wait repaints. */
-  const [combineTick, setCombineTick] = useState(0);
-  const schedulerRef = useRef<CombineScheduler | null>(null);
-  if (!schedulerRef.current) {
-    schedulerRef.current = new CombineScheduler({ onChange: () => setCombineTick((t) => t + 1) });
-  }
-  const scheduler = schedulerRef.current;
-  /** How a fired group reaches the wire, REASSIGNED on every render. A group can fire seconds
-   *  after the press, and a closure captured at press time would send against the production as
-   *  it was — the same staleness `airedRef` and `cuesRef` below exist for. */
-  const fireCombineRef = useRef<(control: CombinedControl, due: StepGroup[]) => void>(() => {});
-  // A tab that goes away takes its waits with it. That is §6d's accounting rather than a leak
-  // being tidied: the wait lives in the surface that pressed, and nothing is retried elsewhere.
-  useEffect(() => () => scheduler.dispose(), [scheduler]);
-  // `combineTick` is the dependency that matters: the scheduler is a mutable object, so the only
-  // thing that says "its runs changed" is the counter its own `onChange` bumps.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const anyArmed = useMemo(() => scheduler.armed().length > 0, [scheduler, combineTick]);
-  useEffect(() => {
-    if (!anyArmed) return;
-    // Four times a second, which is what makes a whole-second countdown land on the second it
-    // means rather than up to a second late.
-    const t = setInterval(() => setCombineTick((v) => v + 1), 250);
-    return () => clearInterval(t);
-  }, [anyArmed]);
 
   /**
    * THE MATCH CLOCK ON THE LOCAL PROGRAM MONITOR (docs/SPORTS_PACK.md, control/matchClockWire.ts).
@@ -1727,22 +1685,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * EVERY POOL GRAPHIC'S MACHINE, not just the selected one.
    *
    * The ⚡ block above reads one graphic — the cue in the editor — because that is what an action
-   * acts on. A COMBINED control does not: its steps name their own graphics, and the proof case's
-   * one press reveals on one board and adds points on another (plan §6c). So the whole pool is
-   * parsed here, once per resolution, and the combined half reads this rather than asking again
-   * per step. Keyed by NAME because that is the routing key the log, `staged` and `live` use, and
+   * acts on. The activity feed names whichever graphic a row is for, so the whole pool is parsed
+   * here, once per resolution. Keyed by NAME because that is the routing key the log, `staged` and `live` use, and
    * a Map because a pool graphic's name is somebody's typed text.
    */
   const poolMachines = useMemo(() => {
-    const out = new Map<
-      string,
-      { buttons: ControlButton[]; legality: Record<string, Record<string, string[]>>; js: string }
-    >();
+    const out = new Map<string, { buttons: ControlButton[]; js: string }>();
     for (const g of pool ?? []) {
       const tpl = templateForSavedGraphic(g, library);
       // `js` rides along for the Next verb, which asks the same machine whether a press would
       // move anything (`canAdvance`).
-      out.set(g.name, { buttons: eventButtons(tpl.js), legality: eventLegality(tpl.js), js: tpl.js });
+      out.set(g.name, { buttons: eventButtons(tpl.js), js: tpl.js });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1956,6 +1909,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       'Data',
     );
   }, [resolved, runVerb, dataKey]);
+
+  // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it
+  // shows. A server clip's clock moves in its store without re-rendering this page, so the answer
+  // hears that part directly; it publishes only when a key would show a difference.
+  const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
+  const [panelOpen, setPanelOpen] = useState(false);
+  // While answering, the panel also hears the timing part, after the whole fold: a reading moves
+  // timing and then ownership, and a state pairing the two halves must never go out. What moves
+  // with time alone (a counted clip reaching its end, a count turning estimated) is caught by the
+  // render the header clock causes every second.
+  useEffect(() => {
+    if (!panel.on) return;
+    return serverPlayout.timing.subscribe(() => queueMicrotask(panel.changed));
+  }, [panel.on, serverPlayout, panel.changed]);
+  const panelRows = useMemo(() => rundownPanelRows(rundown.rows), [rundown]);
 
   if (!show) {
     return (
@@ -2296,6 +2264,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  up on its item (docs/BRIDGE.md §5). */
   const selectedPlayoutItem = selectedCue ? playoutItemFor(selectedCue) : null;
   const selectedPlayoutLive = serverCueLive(serverOnAir, selectedPlayoutItem, selectedCue);
+  /** The selected cue is a clip this page has up on the server: what Pause and Resume act on. */
+  const selectedClipUp = !!selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media';
   /** What is on air on the SELECTED cue's layer — its own cue, another cue, or nothing. */
   const selectedLayerCueId = selectedGraphic ? liveCue[selectedGraphic] ?? null : null;
   const selectedLayerLive = !!selectedLayerCueId || selectedPlayoutLive;
@@ -2549,10 +2519,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     if (!selectedGraphic || !selectedLayerLive) return;
-    // OUT IS THE STOP. An operator taking a graphic off air has ended whatever was running, so
-    // any combined control still counting down loses its tail rather than firing into a screen
-    // that is now empty (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b).
-    cancelCombines('Out');
     const sent = await runVerb([clearCueItems(selectedGraphic)], 'Out');
     if (sent && !leftAlone(sent).includes(selectedGraphic)) setLiveCue((m) => withLiveCue(m, selectedGraphic, null));
   };
@@ -2564,7 +2530,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const takeOffAir = async (graphic: string) => {
     if (!liveCue[graphic]) return;
-    cancelCombines('Out');
     const sent = await runVerb([clearCueItems(graphic)], 'Out');
     if (sent && !leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, null));
   };
@@ -2618,7 +2583,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     for (const l of livePlayoutLayers) await playoutVerb(l.cue, 'out', 'All out', { cut: true });
     await outUnnamed();
     if (liveLayers.length === 0) return;
-    cancelCombines('All out');
     const cleared = liveLayers.map((l) => l.graphic);
     const sent = await sendVerb(clearAllCueBatches(cleared), 'All out', true);
     if (!sent.ok) {
@@ -2816,9 +2780,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const stepButton = (folder: ShowFolder, step: FolderStep) => {
     const started = typeof folderSteps[folder.id] === 'string' || folderUp(folder.id);
     const words = stepFace(step, folderName(folder), (id) => cues.find((c) => c.id === id)?.label ?? 'a cue', started);
-    const face = { ...words, className: takeFace(words.tone === 'off' ? 'take-off' : words.tone === 'still' ? 'preview' : 'take').className };
+    const space: SpaceAction = words.tone === 'off' ? 'take-off' : words.tone === 'still' ? 'preview' : 'take';
+    const face = { ...words, className: takeFace(space).className };
     const blocked = step.kind === 'take' ? !folderCanTake || !!selectedFolderBlocked : step.kind === 'none';
-    return { face, disabled: blocked, title: step.kind === 'take' ? (selectedFolderBlocked ?? words.title) : words.title };
+    return { face, space, disabled: blocked, title: step.kind === 'take' ? (selectedFolderBlocked ?? words.title) : words.title };
   };
   /** The TAKE button, which IS the key: with a folder held its face, state and title are the
    *  folder's, from the same decision SPACE runs. */
@@ -2827,6 +2792,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       ? stepButton(selectedFolder, heldStep)
       : {
           face: takeFace(folderSpace),
+          space: folderSpace,
           disabled: folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked,
           title:
             folderSpace === 'take-off'
@@ -2835,6 +2801,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         }
     : {
         face,
+        space: spaceNext,
         disabled: selectedCueIsLive ? !selectedLayerLive : !canTake || (spaceNext === 'take' && !!selectedTakeBlocked),
         title: spaceNext === 'take' && selectedTakeBlocked ? selectedTakeBlocked : face.title,
       };
@@ -2914,7 +2881,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const graphicsOff = async (graphicCues: readonly ShowCue[]): Promise<string | null> => {
     const graphics = [...new Set(graphicCues.map(cueGraphicName).filter((g): g is string => !!g))];
     if (!graphics.length) return null;
-    cancelCombines('Out');
     const sent = await sendVerb(clearAllCueBatches(graphics), 'Out');
     if (!sent.ok) return sent.note;
     const off = graphics.filter((g) => !leftAlone(sent).includes(g));
@@ -3172,25 +3138,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (refused) setNote('This production’s control profile was written by a newer build, so it cannot be deleted here.');
     else setShows(next);
   };
-  /** Write the production's whole list of COMBINED controls. It rebases onto the profile as
-   *  STORED rather than onto `renderProfile`, so a write never carries a half-read copy back —
-   *  and `setShowProfile` still owns the read-only refusal, exactly as ARRANGE's door does. */
-  const writeCombine = (combine: CombinedControl[]) => {
-    const read = readShowProfile(show.profile);
-    const base = read.status === 'ok' ? read.profile : emptyProfile();
-    const { shows: next, refused } = setShowProfile(id, { ...base, combine });
-    if (refused) {
-      setNote('This production’s control profile was written by a newer build, so it cannot be changed here.');
-      return;
-    }
-    setShows(next);
-    // EVERY TICK GOES BACK TO ITS DECLARED DEFAULT when the composer is used. A tick is held by
-    // its step's POSITION, so moving or deleting a step would otherwise leave the operator's
-    // answer sitting on whichever step took that place — the checkbox reading as they left it
-    // while the press awarded a different panelist. Authoring is not an operating gesture, so
-    // resetting the ticks costs nothing and makes that impossible.
-    setCombineTicks(new Map());
-  };
 
   // Grouped and ordered by the SHARED helper (controlModel `arrangeControls`), so the hosted
   // page's ⚡ block, the exported controller's and this one can never sort the author's sections
@@ -3268,242 +3215,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     );
   };
 
-  // ── COMBINED CONTROLS (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b; the runtime is control/combine.ts)
-  //
-  // One press, several rows, some of them later. Everything about WHICH and WHEN is in the
-  // resolver; everything about WHAT RIDES is the same `eventPayload` the ⚡ buttons use, computed
-  // here — a second opinion about what a "+1" carries is how two surfaces come to disagree.
-  //
-  // The list comes from `renderProfile` (the version gate applied at the READER, HE's lesson):
-  // a profile a newer build wrote renders no combined controls at all rather than a sequence this
-  // build only half understands.
-
-  /** A user-named key, read safely. A pool graphic's name is somebody's typed text, so a bare
-   *  `map[name]` answers a function for one called `constructor`. */
-  const own = <T,>(map: Record<string, T>, key: string): T | undefined =>
-    Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
-
-  const combineControls = renderProfile?.combine ?? [];
-
-  /** The production as a press finds it — every pool graphic's liveness and legality, and which
-   *  graphic each cue belongs to. Rebuilt each render; it is a handful of graphics. */
-  const combineNow: CombineNow = {
-    graphics: new Map(
-      [...poolMachines].map(([name, machine]) => [
-        name,
-        {
-          live: !!own(liveCue, name),
-          legal: new Map(
-            machine.buttons.map((b) => [b.event, isEventLegal(machine.legality, b.event, own(machineStates, name) ?? null)]),
-          ),
-        },
-      ]),
-    ),
-    cues: new Map(
-      cues
-        .map((c) => [c.id, cueGraphicName(c)] as const)
-        .filter((pair): pair is readonly [string, string] => pair[1] !== null),
-    ),
-  };
-
-  /**
-   * How a step's target is SPELLED on this surface.
-   *
-   * A control wears the production's own word for it when ARRANGE renamed it, and otherwise its
-   * declared label. The author's SECTION is prefixed only when the label alone would be
-   * AMBIGUOUS — when another control of the same graphic reads the same. That is the case the
-   * prefix exists for: the proof case's totals board labels all five of its controls "+1", so a
-   * press's five ticks would read "+1" five times with nothing to tell the panelists apart. A
-   * label that is already unique keeps its own words, because prefixing unconditionally produced
-   * "Podiums Spotlight podium" on the first graphic it met.
-   */
-  const combineNames: StepNames = {
-    control: (graphic, control) => {
-      const buttons = poolMachines.get(graphic)?.buttons ?? [];
-      const button = buttons.find((b) => b.event === control);
-      const arrangement = arrangeFor(show.profile, graphic);
-      const renamed = arrangement ? own(arrangement, control)?.name : undefined;
-      const label = renamed || button?.label || control;
-      const shared = buttons.filter((b) => b.label === button?.label).length > 1;
-      return shared && button?.section ? `${button.section} ${label}` : label;
-    },
-    cue: (cueId) => cueLabel(cueId) ?? 'a cue',
-  };
-
-  /** Everything a step can point at, for the composer: every pool graphic with the controls it
-   *  declares, then every cue. Built here because only this page knows the whole production, and
-   *  a panel that had to work it out would be a second opinion about what a production offers. */
-  const combineTargets: CombineTarget[] = [
-    ...[...poolMachines].map(([name, machine]) => ({
-      kind: 'graphic' as const,
-      id: name,
-      label: name,
-      controls: machine.buttons.map((b) => ({ id: b.event, label: combineNames.control(name, b.event) })),
-    })),
-    ...cues.map((c) => ({ kind: 'cue' as const, id: c.id, label: c.label, controls: [] })),
-  ];
-
-  /**
-   * HOW THIS SURFACE READS THE PRODUCTION when a group fires (`control/combineSend.ts`).
-   *
-   * Rebuilt every render and reached through `fireCombineRef`, never captured at press time: a
-   * group can fire seconds later, and a closure from the press would send against the production
-   * as it WAS — the wrong score, a cue that has since been taken, a graphic somebody took off.
-   *
-   * A cue's SEND values carry the production's bound values (`withBoundValues`), exactly as this
-   * page's own ⟳ TAKE does; an event step's READ values are the cue as the operator currently
-   * sees it, draft and all.
-   */
-  const combineWorld: CombineWorld = {
-    buttons: (graphic) => poolMachines.get(graphic)?.buttons ?? [],
-    cueSendValues: (cueId) => {
-      const cue = cues.find((c) => c.id === cueId);
-      if (!cue) return null;
-      const graphic = cueGraphicName(cue);
-      return graphic ? withBoundValues(graphic, cueView(cue).values) : null;
-    },
-    onAir: (graphic) => {
-      const cue = airCueOf(graphic);
-      return cue ? { cueId: cue.id, values: cueView(cue).values } : null;
-    },
-    aired: (graphic) => own(airedData, graphic),
-    bound: (graphic, field) => {
-      const path = own(bindings ?? {}, graphic)?.[field];
-      return path ? { path, current: resolvedRef.current[graphic]?.[field] } : null;
-    },
-  };
-
-  /** One line of the activity feed that is NOT a command row — a step the machine dropped, or a
-   *  tail an Out cancelled. Both are things the operator asked for that did not happen, and the
-   *  feed is the only place on this surface that says so. */
-  const feedNote = (text: string, graphic: string) => {
-    setWireLog((l) =>
-      appendLogEntries(l, [
-        { id: (localLogId.current -= 1), at: new Date().toISOString(), graphic, kind: 'note', text },
-      ]),
-    );
-  };
-
-  /** The cue on air for one graphic — where an event step's payload reads from, and where its
-   *  moved figures are mirrored back so ⟳ Take and ✎ Update cannot regress them. */
-  const airCueOf = (graphic: string): ShowCue | null => {
-    const cueId = own(liveCue, graphic);
-    return cueId ? cues.find((c) => c.id === cueId) ?? null : null;
-  };
-
-  const tickKey = (controlId: string, index: number) => `${controlId}\u0000${index}`;
-  /** Whether one `ask` step's tick is on: what the operator moved it to, else its declared
-   *  default. An absence here means "untouched", never "off". */
-  const tickOn = (controlId: string, index: number, declared: boolean) =>
-    combineTicks.get(tickKey(controlId, index)) ?? declared;
-  /** The step indices a press would actually send, ticks applied. The greying reads this too, so
-   *  a control whose first step the operator has un-ticked is judged by the step that WOULD go. */
-  const tickedSet = (control: CombinedControl) =>
-    new Set(
-      askSteps(control)
-        .filter((a) => tickOn(control.id, a.index, a.on))
-        .map((a) => a.index),
-    );
-
-  /**
-   * SEND THE STEPS THAT ARE DUE — called at the moment they fire, which is what makes a delayed
-   * `adjust` count from what the audience is looking at rather than from the press.
-   *
-   * It is assigned to a ref on every render rather than captured at press time, because a group
-   * can fire seconds later and a closure from the press would send against the production as it
-   * WAS: the wrong score, a cue that has since been taken, a graphic somebody took off air.
-   *
-   * EVERYTHING DUE IS RESOLVED IN ONE PASS. The scheduler hands over every group whose wait has
-   * run out, which on a throttled background tab can be several at once, and they share the
-   * `ahead` overlay below. Resolving them one call at a time would have each read the same
-   * unchanged surface state — React has not re-rendered between two synchronous calls — so five
-   * delayed `+1`s on one field would all send the same figure and the score would move by one.
-   *
-   * A step the machine would drop is dropped ALONE and the feed says which; the rest proceed (§6b).
-   */
-  fireCombineRef.current = (control, due) => {
-    const { steps, mirrors, liveAfter, dropped, tree } = resolveCombineSend(due, combineNow, combineWorld);
-
-    for (const drop of dropped) {
-      feedNote(
-        `“${control.name}” skipped ${stepWords(drop.step, combineNames)}, because ${drop.why}`,
-        drop.graphic,
-      );
-    }
-    // The cue keeps the figure air shows, so the next ⟳ Take or ✎ Update cannot regress it —
-    // the same write-back a single ⚡ press does, once per cue rather than once per step. The
-    // PATCH carries only the moved fields: merging a whole `{...cue.values, ...adjusted}` read
-    // from this render would put back every other field as it stood before the pass.
-    for (const { cueId, values } of mirrors) {
-      if (editingCue?.id === cueId) editDraft({ values });
-      else setShows(updateShowCue(id, cueId, { values }));
-    }
-    if (steps.length === 0) {
-      // A press whose every step moved only SHARED values still has work to do: those figures
-      // never rode the wire as fields, and their rows come out of the patch road instead.
-      void patchBoundValues(tree);
-      return;
-    }
-    void runVerb(commandBatches(steps), `“${control.name}”`).then((sent) => {
-      if (!sent) return;
-      for (const [graphic, cueId] of liveAfter) {
-        if (!leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cueId));
-      }
-      void patchBoundValues(tree);
-    });
-  };
-
-  /** Cancel every armed tail, and say so. What an operator's Out means (§6b: "any Out ... cancels
-   *  what has not been sent"). A step's OWN Out does not come through here — a combined control
-   *  that ends on Out must not cancel its own tail. */
-  const cancelCombines = (why: string) => {
-    for (const { controlId, steps } of scheduler.cancelAll()) {
-      const control = combineControls.find((c) => c.id === controlId);
-      feedNote(
-        `${why} cancelled ${steps} unsent step${steps === 1 ? '' : 's'} of “${control?.name ?? 'a combined control'}”`,
-        '',
-      );
-    }
-  };
-
-  /** Press a combined control — or, while it is counting down, cancel what it has not sent. The
-   *  countdown IS the cancel, which is what makes the armed wait visible and stoppable with one
-   *  control rather than with a second one beside it. */
-  const pressCombine = (control: CombinedControl) => {
-    if (scheduler.waiting(control.id)) {
-      const dropped = scheduler.cancel(control.id);
-      if (dropped > 0) {
-        feedNote(`“${control.name}” cancelled, ${dropped} step${dropped === 1 ? '' : 's'} not sent`, '');
-      }
-      return;
-    }
-    const ticked = tickedSet(control);
-    if (combineBlocked(control, combineNow, ticked)) return;
-    // A production that binds ANYTHING waits for its tree before a combined press, rather than
-    // this asking which of the steps would move a shared value: a step's figures are resolved when
-    // it FIRES, seconds later, so a question asked here would be about the wrong moment. A
-    // production with no bindings - which is most of them - never waits at all.
-    if (bindings && Object.keys(bindings).length > 0 && !boundPressReady()) return;
-    flushDraft();
-    scheduler.press(control.id, planCombine(control, ticked), (due) => fireCombineRef.current(control, due));
-  };
-
-  /** One combined button, with its tick list beside it and its countdown on it — the component
-   *  the hosted control page draws too, so the two surfaces cannot present one production's
-   *  combined controls two ways. */
-  const combinedButton = (control: CombinedControl) => (
-    <CombinedButton
-      key={control.id}
-      control={control}
-      now={combineNow}
-      names={combineNames}
-      wait={scheduler.waiting(control.id)}
-      tickOn={(index, declared) => tickOn(control.id, index, declared)}
-      onTick={(index, on) => setCombineTicks((m) => new Map(m).set(tickKey(control.id, index), on))}
-      onPress={() => pressCombine(control)}
-    />
-  );
-
   /** One ⚡ button. Written once because the block draws the same button in three places now —
    *  pinned above the fold, inside its section, and under the collapsed "More" — and three copies
    *  of a tooltip this careful would drift apart by the second edit. The DECLARATION decides
@@ -3574,6 +3285,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
     if (key === 'all-out') {
       if (!press?.repeat) void outAll();
+      return;
+    }
+    // A hardware panel's per-row keys (docs/work-specs/hardware-panel-control/spec.md D4), with the
+    // row in `press.cue`. Select moves the cursor there and airs nothing: a folder row holds the
+    // folder. Take airs that cue whatever the SPACE mode, or takes it off when it is the one on air,
+    // and leaves the cursor where the operator put it.
+    if (key === 'select-cue') {
+      // The drawn row: the cue's own, its collapsed folder's header, or the header pressed.
+      const shown = press?.cue ? rundown.rows.find((r) => r.id === (rundown.rowOf.get(press.cue!) ?? press.cue)) : undefined;
+      if (!shown) return;
+      if (shown.kind === 'folder' && shown.id === press!.cue) selectFolder(shown.folder.id, shown.id);
+      else selectCue(press!.cue!);
+      revealCue(rowTestId(shown));
+      return;
+    }
+    if (key === 'take-cue') {
+      const cue = press?.repeat ? undefined : cues.find((c) => c.id === press?.cue);
+      if (!cue) return;
+      if (cueOnAirNow(cue)) void stepOff([cue]);
+      else if (!stepBlocker(cue)) void takeCue(cue);
       return;
     }
     // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
@@ -3650,14 +3381,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (key === 'out' && selectedLayerLive) void outLive();
     // A server clip's transport. Only the cue this page has up on the server: nothing to pause
     // anywhere else, and a panel or a key pressing it on another cue must not reach the slot.
-    if ((key === 'pause' || key === 'resume') && selectedCue && selectedPlayoutLive && selectedPlayoutItem?.kind === 'media') {
+    if ((key === 'pause' || key === 'resume') && selectedCue && selectedClipUp) {
       void playoutVerb(selectedCue, key, key === 'pause' ? 'Pause' : 'Resume');
     }
     // P: pause the clip on air, or resume it - the selected cue's when it is the one up, else the
     // one the clip clock follows (control/serverState.ts `pauseTarget`). Read from the store at the
     // press, not from a render, since the page does not follow a clip's timing.
+    // A panel's key names the clip its clock follows (protocol.md §7.3), and that clip is the one it
+    // pauses, as the key showed it; P names none and goes by the selection.
     if (key === 'pause-toggle') {
-      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, selectedCue?.id ?? null);
+      const target = pauseTarget(serverPlayout.ownership.get(), serverPlayout.timing.get(), playoutItems, press?.cue || (selectedCue?.id ?? null));
       const cue = target ? cues.find((c) => c.id === target.cueId) : undefined;
       if (target && cue) void playoutVerb(cue, target.paused ? 'resume' : 'pause', target.paused ? 'Resume' : 'Pause');
     }
@@ -3674,6 +3407,58 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       revealCue(rowTestId(next));
     }
   };
+
+  // A folder's Take still being sent counts: All out is what stops it before any of it lands.
+  const allOutEnabled = liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0;
+
+  // What a panel's keys show (protocol.md §8), from the same values the verb bar greys with. Read
+  // only while the page answers a panel, at each publish and each press.
+  /** Which cues' own Take would be refused, worked out once per render: a timing reading publishes
+   *  between renders, and only the clock can have moved then. */
+  let takeRefused: Set<string> | null = null;
+  panel.feed(
+    () => {
+      const live = new Set(cues.filter(cueOnAirNow).map((c) => c.id));
+      takeRefused ??= new Set(cues.filter((c) => !!stepBlocker(c)).map((c) => c.id));
+      const refused = takeRefused;
+      // The clip the clock follows: what the panel counts down, and what its pause-toggle key names.
+      const clip = panelClipNow(serverPlayout, playoutItems, cues);
+      return {
+        title: show.name,
+        // The row the verbs act on: a held folder's header, else the selected cue itself, even while
+        // its folder is collapsed, since the panel's rows list a collapsed folder's cues.
+        selected: selectedFolder ? cursorRow : (selectedCue?.id ?? null),
+        space: selectedFolder || selectedCue ? takeButton.space : null,
+        live: [...live],
+        allowed: {
+          // onVerb's Take of a cue also waits for `canTake` (a server cue while the Bridge is down).
+          take: !takeButton.disabled && (!!selectedFolder || canTake),
+          retake: selectedCueIsLive,
+          update: editingIsLive,
+          next: selectedLayerLive && nextMoves,
+          out: selectedFolder ? selectedFolderUp || heldStarted : selectedLayerLive,
+          'select-prev': rundown.rows.length > 0,
+          'select-next': rundown.rows.length > 0,
+          pause: selectedClipUp,
+          resume: selectedClipUp,
+          'pause-toggle': clip !== null,
+          'all-out': allOutEnabled,
+        },
+        // A cue's own Take key is refused when its Take would not go; taking one off air never is.
+        blocked: [
+          ...rundown.rows.filter((r) => r.kind === 'folder').map((r) => r.id),
+          ...cues.filter((c) => !live.has(c.id) && refused.has(c.id)).map((c) => c.id),
+        ],
+        clip,
+        bridge: !playoutIsConfigured ? 'off' : bridgeDown ? 'down' : 'ok',
+        rows: panelRows,
+      };
+    },
+    // A key that names a row or a clip carries it as `cue`; the verbs that act on the selection never read it.
+    (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
+    // A refused press is a note in the activity feed, not a command row: nothing was sent.
+    (text) => setWireLog((l) => appendLogEntries(l, [noteEntry((localLogId.current -= 1), text)])),
+  );
 
   /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst
    *  first, from what this page already knows - published or not, changed since, the Bridge and the
@@ -3805,8 +3590,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // is nowhere to go back to. Home, beside it, always goes to the dashboard.
       onBack={() => goBack({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
-      // A folder's Take still being sent counts: All out is what stops it before any of it lands.
-      allOutEnabled={liveLayers.length > 0 || livePlayoutLayers.length > 0 || sendingFolders.size > 0 || unnamedSlots(serverOwnership).size > 0}
+      allOutEnabled={allOutEnabled}
+      panel={
+        <>
+          <PanelButton answer={panel} onClick={() => setPanelOpen(true)} />
+          {panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
+        </>
+      }
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       renders={renders.current}
@@ -4334,14 +4124,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             inside the template (docs/CONTROL_LAYER.md; the region docs/PLAYOUT_DASHBOARD.md §8
             reserves). Deliberately OUTSIDE the editor's frame: fields up there edit a CUE and
             air on ⟳ Take / ✎ Update, while these act on the LIVE graphic the moment they are
-            pressed — so they follow Update's legality and say so in their own header.
-
-            COMBINED controls sit in this block under a section of their own (plan §6e), which is
-            why the block now renders for a production that has them even when the selected cue's
-            graphic declares no controls of its own: a combined control spans graphics, so it is
-            the PRODUCTION's row rather than this graphic's, and hiding it behind whichever cue
-            happens to be selected would make it disappear at the worst moment. */}
-        {(events.length > 0 || combineControls.length > 0) && selectedGraphic && (
+            pressed — so they follow Update's legality and say so in their own header. */}
+        {events.length > 0 && selectedGraphic && (
           <div className="pd-actions" data-testid="cue-actions">
             <div className="pd-actions-head">
               <span className="pd-actions-kicker">
@@ -4435,15 +4219,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
               </details>
             )}
-            {/* COMBINED, this production's own buttons (§6b). LAST in the block on purpose: the
-                controls above are what the graphic itself declares and are the same on every
-                surface, and these are what this show made out of them. */}
-            {combineControls.length > 0 && (
-              <div className="pd-actions-section pd-combined-section" data-testid="cue-actions-combined">
-                <h4>Combined</h4>
-                <div className="pd-actions-row">{combineControls.map(combinedButton)}</div>
-              </div>
-            )}
           </div>
         )}
 
@@ -4511,9 +4286,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             buttons={events}
             profile={renderProfile}
             readOnly={profileRead.status === 'read-only'}
-            targets={combineTargets}
             onArrange={(entries) => writeArrange(selectedGraphic, entries)}
-            onCombine={writeCombine}
             onDeleteProfile={deleteProfile}
           />
         )}
@@ -4600,6 +4373,7 @@ function ProductionShell({
   onBack,
   onAllOut,
   allOutEnabled,
+  panel,
   onExport,
   onKey,
   renders,
@@ -4624,6 +4398,8 @@ function ProductionShell({
   /** Whether anything is up to clear - the graphics on the log, or a server cue through the
    *  Bridge, which `liveLayers` does not count. */
   allOutEnabled?: boolean;
+  /** The hardware panel door and its dialog (control/PanelControl.tsx). */
+  panel?: React.ReactNode;
   onExport: () => void;
   onKey: (key: PlayoutVerb, press?: VerbPress) => void;
   /** The page's render count, for the spec that proves a clip's clock does not re-render it. */
@@ -4791,6 +4567,11 @@ function ProductionShell({
             <IconUsers /> <span className="pd-share-label">Share</span>
           </button>
         )}
+        {/* THE PANEL DOOR (docs/work-specs/hardware-panel-control/), where the Playout settings door
+            stood: answer a Stream Deck through Companion from this page, pair one, revoke one. Its
+            words change width with its state, so it sits left of Export and ■ All out, which keep
+            their places. */}
+        {panel}
         <button
           onClick={onExport}
           title="Export this production as a package"

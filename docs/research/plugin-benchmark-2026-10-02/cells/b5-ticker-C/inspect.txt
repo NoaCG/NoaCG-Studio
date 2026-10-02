@@ -1,0 +1,18 @@
+C:/claude/cj-bench-2026-10-02/cells/b5-ticker-C/radio-kaiku-ticker: a NoaCG graphic package
+
+Inputs (3)
+key  label                     kind   default
+f0   Headlines (one per line)  lines  Tervetuloa Radio Kaikun lähetykseen
+Uutiset joka tasatunti
+Kuuntele myös verkossa ja mobiilissa
+f1   Label                     text   UUTISET
+f2   Urgent bulletin           text   
+
+Buttons (2)
+event          label                 section          payload
+showBulletin   Show urgent bulletin  Urgent bulletin  f2
+clearBulletin  Clear bulletin        Urgent bulletin  -
+
+Steps: 1
+State groups: main [Off, Headlines, Out]; bulletin [Headlines crawling, Urgent bulletin]
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

@@ -8,17 +8,14 @@
 // nothing at runtime, which is what makes one `transpileModule` call enough (the `csv.ts` and
 // `productionData.ts` pattern) - and is why `profile.ts` must stay dependency-free.
 //
-// WHAT THE REFUSALS ARE ACTUALLY GUARDING. The design's whole fence - no condition, no
-// comparison, no variable, no loop, no wait on a report, no wall clock - is enforced by the
-// validator refusing any step key it does not know BY NAME. So the unknown-key tests below are
-// not shape pedantry: they are the mechanism that keeps a profile from becoming a programming
-// language, and a change that makes them pass by widening the allowed list has moved the line the
-// owner drew on 2026-09-15.
-//
 // The two readers are tested separately and on purpose. `readShowProfile` DEGRADES (a show
 // mid-programme renders what it can); `validateShowProfile` REFUSES (an authoring surface must
 // not save a broken profile). A test that confused them would let one of the two quietly become
 // the other.
+//
+// COMBINED CONTROLS were removed on 2026-10-02. The format keeps v1 and a stored `combine` list
+// is read without error and ignored; the cases below pin that, so a record written before the
+// removal still opens its production.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,6 +31,7 @@ const mod = await import(`data:text/javascript,${encodeURIComponent(js)}`);
 const {
   PROFILE_VERSION,
   emptyProfile,
+  profileForPublish,
   readShowProfile,
   readPublishedProfile,
   serializeShowProfile,
@@ -41,17 +39,16 @@ const {
   withGraphicArrange,
 } = mod;
 
-/** The proof case's production (docs/CONTROL_PANEL_ANY_GRAPHIC.md §3): two boards, a cue each. */
+/** The proof case's production (docs/CONTROL_PANEL_ANY_GRAPHIC.md §3): two boards. */
 const POOL = {
   controls: {
     'Votes board': ['reveal', 'clear'],
     'Totals board': ['plus_katri', 'plus_mikko', 'new_game'],
   },
-  cues: ['cue-1', 'cue-2'],
 };
 
-/** A profile that exercises every part of the shape: both primitives, all three step kinds and
- *  both marks. Written the way an authoring surface would hand it over. */
+/** A profile that exercises every presentation key. Written the way an authoring surface would
+ *  hand it over. */
 function goodProfile() {
   return {
     v: 1,
@@ -61,6 +58,13 @@ function goodProfile() {
         new_game: { hidden: true },
       },
     },
+  };
+}
+
+/** A profile as a build from before 2026-10-02 stored it: the arrangement plus a combined control. */
+function legacyProfile() {
+  return {
+    ...goodProfile(),
     combine: [
       {
         id: 'c1',
@@ -68,8 +72,6 @@ function goodProfile() {
         steps: [
           { kind: 'event', graphic: 'Votes board', control: 'reveal' },
           { kind: 'event', graphic: 'Totals board', control: 'plus_katri', after: 3, ask: { default: true } },
-          { kind: 'verb', verb: 'take', cue: 'cue-2' },
-          { kind: 'patch', graphic: 'Votes board', values: { f1: 'Katri', f0: '7' } },
         ],
       },
     ],
@@ -80,13 +82,6 @@ function goodProfile() {
 const errorsAt = (findings) => findings.filter((f) => f.level === 'error').map((f) => f.where);
 const warningsAt = (findings) => findings.filter((f) => f.level === 'warning').map((f) => f.where);
 
-/** A good profile with one step replaced, which is how most refusals below are built. */
-function withStep(step) {
-  const profile = goodProfile();
-  profile.combine[0].steps = [step];
-  return profile;
-}
-
 // ── Reading, serializing, round trips ────────────────────────────────────────────────────────
 
 test('a v1 profile round trips through read and serialize unchanged', () => {
@@ -95,28 +90,39 @@ test('a v1 profile round trips through read and serialize unchanged', () => {
   const once = serializeShowProfile(read.profile);
   const twice = serializeShowProfile(readShowProfile(once).profile);
   assert.deepEqual(twice, once);
-  // The step ORDER is the meaning of a combined control, so it is never sorted.
-  assert.deepEqual(
-    once.combine[0].steps.map((s) => s.kind),
-    ['event', 'event', 'verb', 'patch'],
+  assert.deepEqual(Object.keys(once), ['v', 'arrange']);
+});
+
+test('a stored profile that still carries Combined controls reads, renders its arrangement and drops the list', () => {
+  const read = readShowProfile(legacyProfile());
+  assert.equal(read.status, 'ok', 'a legacy profile must not read as read-only or none');
+  assert.deepEqual(read.profile, readShowProfile(goodProfile()).profile);
+  assert.equal('combine' in read.profile, false);
+  assert.deepEqual(readPublishedProfile(legacyProfile()), readPublishedProfile(goodProfile()));
+  // The next write is canonical and carries no `combine` key, so the list leaves the record then.
+  assert.equal(
+    JSON.stringify(serializeShowProfile(legacyProfile())),
+    JSON.stringify(serializeShowProfile(goodProfile())),
   );
+  // An authoring surface is not told about a list it can neither see nor change.
+  assert.deepEqual(validateShowProfile(legacyProfile(), POOL), []);
+  // ...and arranging on top of it keeps the arrangement and drops the list.
+  const after = withGraphicArrange(legacyProfile(), 'Votes board', { reveal: { pinned: true } });
+  assert.deepEqual(Object.keys(after), ['v', 'arrange']);
+  assert.deepEqual(after.arrange['Totals board'], serializeShowProfile(goodProfile()).arrange['Totals board']);
+});
+
+test('a publish pins the canonical profile, keeps a newer build verbatim, and writes {} for none', () => {
+  // A legacy list never reaches `control_shows.profile`, whatever a sync left on the record.
+  assert.deepEqual(profileForPublish(legacyProfile()), serializeShowProfile(goodProfile()));
+  const future = { v: 2, arrange: {}, conditions: [{ when: 'score > 50' }] };
+  assert.equal(profileForPublish(future), future);
+  for (const none of [undefined, null, {}, 'garbage']) assert.deepEqual(profileForPublish(none), {});
 });
 
 test('serializing is canonical: key order and written defaults cannot change the bytes', () => {
   // The same profile, authored in a different key order and with every default spelled out.
   const spelled = {
-    combine: [
-      {
-        steps: [
-          { control: 'reveal', graphic: 'Votes board', kind: 'event', after: 0 },
-          { ask: { default: true }, control: 'plus_katri', kind: 'event', graphic: 'Totals board', after: 3 },
-          { cue: 'cue-2', kind: 'verb', verb: 'take' },
-          { values: { f0: '7', f1: 'Katri' }, kind: 'patch', graphic: 'Votes board' },
-        ],
-        name: 'Reveal, then the points',
-        id: 'c1',
-      },
-    ],
     arrange: {
       'Totals board': {
         new_game: { hidden: true, pinned: false },
@@ -132,14 +138,14 @@ test('serializing is canonical: key order and written defaults cannot change the
 });
 
 test('an empty profile is one shape, and deleting is not the same as emptying', () => {
-  assert.deepEqual(emptyProfile(), { v: PROFILE_VERSION, arrange: {}, combine: [] });
-  assert.equal(JSON.stringify(serializeShowProfile(emptyProfile())), '{"v":1,"arrange":{},"combine":[]}');
+  assert.deepEqual(emptyProfile(), { v: PROFILE_VERSION, arrange: {} });
+  assert.equal(JSON.stringify(serializeShowProfile(emptyProfile())), '{"v":1,"arrange":{}}');
 });
 
 test('a profile from a newer build reads as READ-ONLY and keeps its bytes verbatim', () => {
   // The case the version invariant exists for. Dropping it instead would mean an older build
   // opening a show once quietly erased a profile it simply did not understand.
-  const future = { v: 2, arrange: {}, combine: [], conditions: [{ when: 'score > 50' }] };
+  const future = { v: 2, arrange: {}, conditions: [{ when: 'score > 50' }] };
   const read = readShowProfile(future);
   assert.equal(read.status, 'read-only');
   assert.equal(read.version, 2);
@@ -162,20 +168,11 @@ test('reading DROPS what it cannot use rather than refusing it', () => {
       },
       'Gone board': 'not an object',
     },
-    combine: [
-      { id: 'c1', name: 'Fine', steps: [{ kind: 'event', graphic: 'Votes board', control: 'reveal', after: 0 }] },
-      { id: 'c1', name: 'A repeat of c1', steps: [{ kind: 'verb', verb: 'out', cue: 'cue-1' }] },
-      { id: 'c2', name: 'Sends nothing', steps: [] },
-      { id: 'c3', name: 'Every step unusable', steps: [{ kind: 'loop', times: 3 }] },
-    ],
+    combine: 'not even a list',
   };
   const { profile } = readShowProfile(messy);
   // A wrongly typed `order`, an empty `section` and an unknown key all go; the name survives.
-  assert.deepEqual(profile.arrange, { 'Totals board': { plus_katri: { name: '+1 Katri' } } });
-  // A zero wait is the same as no wait, so it is not stored as 0.
-  assert.deepEqual(profile.combine, [
-    { id: 'c1', name: 'Fine', steps: [{ kind: 'event', graphic: 'Votes board', control: 'reveal' }] },
-  ]);
+  assert.deepEqual(profile, { v: 1, arrange: { 'Totals board': { plus_katri: { name: '+1 Katri' } } } });
 });
 
 test('every shape the PUBLISHED column can hand back reads correctly', () => {
@@ -189,190 +186,57 @@ test('every shape the PUBLISHED column can hand back reads correctly', () => {
   assert.equal(readPublishedProfile({}), null);
   // A profile from a NEWER build degrades to the generated panel rather than to a half-rendered
   // one: a surface may render only a profile it fully understands.
-  assert.equal(readPublishedProfile({ v: 2, arrange: {}, combine: [], conditions: [] }), null);
+  assert.equal(readPublishedProfile({ v: 2, arrange: {}, conditions: [] }), null);
   // An empty profile is still a profile: it exists and changes nothing.
   assert.deepEqual(readPublishedProfile(emptyProfile()), emptyProfile());
 });
 
-// ── Validating: the clean case ───────────────────────────────────────────────────────────────
+// ── Validating ───────────────────────────────────────────────────────────────────────────────
 
 test('a profile that validated clean still validates clean after serializing', () => {
   assert.deepEqual(validateShowProfile(goodProfile(), POOL), []);
   assert.deepEqual(validateShowProfile(serializeShowProfile(readShowProfile(goodProfile()).profile), POOL), []);
 });
 
-test('a verb step is not checked against cues the caller did not name', () => {
-  const profile = withStep({ kind: 'verb', verb: 'next', cue: 'cue-nobody-declared' });
-  assert.deepEqual(validateShowProfile(profile, { controls: POOL.controls }), []);
-  assert.deepEqual(errorsAt(validateShowProfile(profile, POOL)), ['combine[0].steps[0].cue']);
-});
-
-// ── Validating: the fence ────────────────────────────────────────────────────────────────────
-
-test('a step key nobody declared is REFUSED by name - the fence the design rests on', () => {
-  // One case per capability §6c refuses by name. Each arrives as an extra key, and each must be
-  // named in the finding so an authoring surface can point at it.
-  const smuggled = [
-    { kind: 'event', graphic: 'Votes board', control: 'reveal', when: 'score > 50' },
-    { kind: 'event', graphic: 'Votes board', control: 'reveal', repeat: 9 },
-    { kind: 'event', graphic: 'Votes board', control: 'reveal', until: 'stopped' },
-    { kind: 'event', graphic: 'Votes board', control: 'reveal', at: '20:15' },
-    { kind: 'verb', verb: 'take', cue: 'cue-1', store: 'winner' },
-    { kind: 'patch', graphic: 'Votes board', values: { f0: '1' }, profile: 'another' },
-  ];
-  for (const step of smuggled) {
-    const key = Object.keys(step).at(-1);
-    const findings = validateShowProfile(withStep(step), POOL);
-    assert.deepEqual(errorsAt(findings), [`combine[0].steps[0].${key}`], `"${key}" should be refused by name`);
-    assert.match(findings[0].message, /condition, a variable, a loop, a wait or a clock/);
-  }
-});
-
-test('a step kind nobody declared is refused, and there is no fourth kind', () => {
-  const findings = validateShowProfile(withStep({ kind: 'wait', seconds: 3 }), POOL);
-  assert.deepEqual(errorsAt(findings), ['combine[0].steps[0].kind']);
-  assert.match(findings[0].message, /"wait"/);
-});
-
-test('an `ask` carries only its default - a tick, never a value', () => {
-  const step = { kind: 'event', graphic: 'Votes board', control: 'reveal', ask: { default: true, value: '7' } };
-  assert.deepEqual(errorsAt(validateShowProfile(withStep(step), POOL)), ['combine[0].steps[0].ask.value']);
-});
-
-// ── Validating: the refusals ─────────────────────────────────────────────────────────────────
-
-test('a negative `after` is refused - a step cannot be sent before the press that sends it', () => {
-  const findings = validateShowProfile(withStep({ kind: 'verb', verb: 'out', cue: 'cue-1', after: -3 }), POOL);
-  assert.deepEqual(errorsAt(findings), ['combine[0].steps[0].after']);
-  // Zero is not negative and means "with the rest", so it is legal.
-  assert.deepEqual(validateShowProfile(withStep({ kind: 'verb', verb: 'out', cue: 'cue-1', after: 0 }), POOL), []);
-  assert.deepEqual(
-    errorsAt(validateShowProfile(withStep({ kind: 'verb', verb: 'out', cue: 'cue-1', after: 'soon' }), POOL)),
-    ['combine[0].steps[0].after'],
-  );
-});
-
-test('a step naming a graphic the production does not have is an ERROR', () => {
-  // An arrange entry that matches nothing is inert; a STEP that matches nothing means the
-  // operator presses a button that silently sends nothing. Hence the asymmetry with the warning
-  // in the arrange test below.
-  for (const step of [
-    { kind: 'event', graphic: 'Scorebug', control: 'reveal' },
-    { kind: 'patch', graphic: 'Scorebug', values: { f0: '1' } },
-  ]) {
-    assert.deepEqual(errorsAt(validateShowProfile(withStep(step), POOL)), ['combine[0].steps[0].graphic']);
-  }
-});
-
-test('a step naming a control the graphic does not declare is refused - a profile invents nothing', () => {
-  const step = { kind: 'event', graphic: 'Votes board', control: 'declare_winner' };
-  const findings = validateShowProfile(withStep(step), POOL);
-  assert.deepEqual(errorsAt(findings), ['combine[0].steps[0].control']);
-  assert.match(findings[0].message, /can never invent an event/);
-});
-
-test('a combined control needs an id, a name, and steps that send something', () => {
-  const profile = goodProfile();
-  profile.combine = [
-    { id: '', name: 'No id', steps: [{ kind: 'verb', verb: 'out', cue: 'cue-1' }] },
-    { id: 'c2', name: '', steps: [{ kind: 'verb', verb: 'out', cue: 'cue-1' }] },
-    { id: 'c3', name: 'Sends nothing', steps: [] },
-    { id: 'c3', name: 'A repeat of c3', steps: [{ kind: 'verb', verb: 'out', cue: 'cue-1' }] },
-  ];
-  assert.deepEqual(errorsAt(validateShowProfile(profile, POOL)), [
-    'combine[0].id',
-    'combine[1].name',
-    'combine[2].steps',
-    'combine[3].id',
-  ]);
-});
-
-test('a patch that writes nothing, or writes something that is not text, is refused', () => {
-  assert.deepEqual(
-    errorsAt(validateShowProfile(withStep({ kind: 'patch', graphic: 'Votes board', values: {} }), POOL)),
-    ['combine[0].steps[0].values'],
-  );
-  assert.deepEqual(
-    errorsAt(validateShowProfile(withStep({ kind: 'patch', graphic: 'Votes board', values: { f0: 7 } }), POOL)),
-    ['combine[0].steps[0].values.f0'],
-  );
-});
-
 test('an unknown version validates as one error saying it is read-only, not as a pile of them', () => {
-  const findings = validateShowProfile({ v: 2, arrange: {}, combine: [{ nonsense: true }] }, POOL);
+  const findings = validateShowProfile({ v: 2, arrange: { 'Gone board': 'nonsense' } }, POOL);
   assert.deepEqual(errorsAt(findings), ['profile.v']);
   assert.match(findings[0].message, /read-only/);
 });
 
 test('something that is not a profile at all is refused once', () => {
   assert.deepEqual(errorsAt(validateShowProfile('a profile', POOL)), ['profile']);
-  assert.deepEqual(errorsAt(validateShowProfile({ arrange: {}, combine: [] }, POOL)), ['profile.v']);
+  assert.deepEqual(errorsAt(validateShowProfile({ arrange: {} }, POOL)), ['profile.v']);
 });
 
 test('a graphic named after an Object member is a name, not a member', () => {
   // Every key in this format is somebody's typed name, so a bare `map[name]` lookup answers a
-  // FUNCTION for a graphic called `constructor`. Measured before the fix: the first case THREW out
-  // of the validator instead of reporting, and the second passed clean - a button that validates
-  // green and then sends nothing on air.
+  // FUNCTION for a graphic called `constructor`. Measured before the fix: the validator THREW
+  // instead of reporting.
   const pool = { controls: { Bug: ['reveal'] } };
   for (const name of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+    const arranged = { v: 1, arrange: { [name]: { reveal: { pinned: true } } } };
     assert.deepEqual(
-      errorsAt(validateShowProfile(withStep({ kind: 'event', graphic: name, control: 'reveal' }), pool)),
-      ['combine[0].steps[0].graphic'],
-      `an event step on "${name}" must be refused, not resolved against Object.prototype`,
-    );
-    assert.deepEqual(
-      errorsAt(validateShowProfile(withStep({ kind: 'patch', graphic: name, values: { f0: '1' } }), pool)),
-      ['combine[0].steps[0].graphic'],
-      `a patch step on "${name}" must be refused`,
+      warningsAt(validateShowProfile(arranged, pool)),
+      [`arrange[${JSON.stringify(name)}]`],
+      `an arrangement for "${name}" must warn, not resolve against Object.prototype`,
     );
     // And the same name survives a round trip as an ordinary graphic when it really is one.
-    const arranged = { v: 1, arrange: { [name]: { reveal: { pinned: true } } }, combine: [] };
     assert.deepEqual(serializeShowProfile(readShowProfile(arranged).profile).arrange, {
       [name]: { reveal: { pinned: true } },
     });
   }
 });
 
-test('serializing keeps exactly what reading keeps, so the canonical form is a fixed point', () => {
-  // A duplicate id and a control with no steps are both dropped on read. Serialize used to keep
-  // them, so a surface that duplicated a combined control without minting a fresh id wrote a
-  // record whose diff looked right and whose panels showed only the first of the two.
-  const step = { kind: 'event', graphic: 'Votes board', control: 'reveal' };
-  const profile = {
-    v: 1,
-    arrange: {},
-    combine: [
-      { id: 'c1', name: 'First', steps: [step] },
-      { id: 'c1', name: 'A repeat of c1', steps: [step] },
-      { id: 'c2', name: 'Sends nothing', steps: [] },
-    ],
-  };
-  const once = serializeShowProfile(profile);
-  assert.deepEqual(
-    once.combine.map((c) => c.name),
-    ['First'],
-  );
-  assert.deepEqual(serializeShowProfile(readShowProfile(once).profile), once);
-});
-
 test('a damaged version is not blamed on a newer build', () => {
   // The cause is only knowable in one direction, and pointing an operator at a build that does not
   // exist is worse than saying the record is damaged.
-  assert.match(validateShowProfile({ v: 2, arrange: {}, combine: [] }, POOL)[0].message, /written by a newer build/);
+  assert.match(validateShowProfile({ v: 2, arrange: {} }, POOL)[0].message, /written by a newer build/);
   for (const v of [0, -1, 1.5]) {
-    const message = validateShowProfile({ v, arrange: {}, combine: [] }, POOL)[0].message;
+    const message = validateShowProfile({ v, arrange: {} }, POOL)[0].message;
     assert.match(message, /the record is damaged/, `version ${v} should read as damage, not as a newer build`);
-    assert.equal(readShowProfile({ v, arrange: {}, combine: [] }).status, 'read-only');
+    assert.equal(readShowProfile({ v, arrange: {} }).status, 'read-only');
   }
-});
-
-test('a patch step naming a field the graphic does not have is refused, when the fields are known', () => {
-  const step = { kind: 'patch', graphic: 'Votes board', values: { f0: 'Katri', f99: 'nowhere' } };
-  // Without `fields` the check is skipped, exactly as the cue check is.
-  assert.deepEqual(validateShowProfile(withStep(step), POOL), []);
-  const withFields = { ...POOL, fields: { 'Votes board': ['f0', 'f1'] } };
-  assert.deepEqual(errorsAt(validateShowProfile(withStep(step), withFields)), ['combine[0].steps[0].values.f99']);
 });
 
 // ── Validating: what only WARNS, so a renamed graphic degrades ───────────────────────────────
@@ -410,7 +274,6 @@ test('withGraphicArrange writes one graphic and leaves the others alone', () => 
   const before = serializeShowProfile({
     v: 1,
     arrange: { 'Votes board': { reveal: { pinned: true } }, 'Totals board': { new_game: { hidden: true } } },
-    combine: [],
   });
   const after = withGraphicArrange(before, 'Totals board', { plus_katri: { order: 0 } });
   assert.deepEqual(after.arrange, {
@@ -426,13 +289,6 @@ test('withGraphicArrange starts a profile for a production that has none', () =>
   const made = withGraphicArrange(undefined, 'Votes board', { reveal: { order: 0 } });
   assert.equal(made.v, PROFILE_VERSION);
   assert.deepEqual(made.arrange, { 'Votes board': { reveal: { order: 0 } } });
-  assert.deepEqual(made.combine, []);
-});
-
-test('withGraphicArrange keeps the COMBINE half untouched', () => {
-  const before = goodProfile();
-  const after = withGraphicArrange(before, 'Votes board', { reveal: { name: 'Show the picks' } });
-  assert.deepEqual(after.combine, serializeShowProfile(before).combine);
 });
 
 test('an emptied arrangement removes the graphic rather than storing an empty map', () => {
@@ -459,7 +315,7 @@ test('withGraphicArrange starts from empty on a profile this build cannot read',
   // hand back something that looks writable while dropping the half this build cannot see. The
   // refusal itself is `setShowProfile`'s, so the two never disagree about WHICH profile is being
   // written - only about whether the write lands.
-  const made = withGraphicArrange({ v: 99, arrange: {}, combine: [] }, 'Votes board', { reveal: { order: 0 } });
+  const made = withGraphicArrange({ v: 99, arrange: {} }, 'Votes board', { reveal: { order: 0 } });
   assert.equal(made.v, PROFILE_VERSION);
   assert.deepEqual(made.arrange, { 'Votes board': { reveal: { order: 0 } } });
 });

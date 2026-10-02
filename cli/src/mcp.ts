@@ -33,7 +33,7 @@ import { notLoggedIn, savePackage } from './commands/save.js';
 import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
 import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
-import { parseDuration, parseOps, resolveBackground, shoot, shootSequence, walkStates } from './screenshot.js';
+import { describeSequence, describeShotFailure, describeUnreached, mimeTypeOf, parseDuration, resolveBackground, shoot, shootEvents, shootValidateFrames, type ArgNames, type Thumbnail, type ValidateFrames } from './screenshot.js';
 import { isEmptyDir, packageEntries, readPackageInput, unzipTo } from './workspace.js';
 
 /** The verbs the tool speaks - the authoring verbs of the terminal, in the order the loop uses
@@ -111,7 +111,48 @@ async function bridge(): Promise<BridgeClient> {
 }
 
 const text = (s: string): Content => [{ type: 'text', text: s }];
-const image = (png: Uint8Array): Content[number] => ({ type: 'image', data: Buffer.from(png).toString('base64'), mimeType: 'image/png' });
+const image = (bytes: Uint8Array): Content[number] => ({ type: 'image', data: Buffer.from(bytes).toString('base64'), mimeType: mimeTypeOf(bytes) });
+
+/** The arguments as this tool names them, for an error about one (the terminal says `--event`). */
+const MCP_ARGS: ArgNames = { event: (op) => `"events" entry "${op}"`, background: '"background"' };
+
+/**
+ * What keeps a frame answer inside a client's limits. Measured 2026-10-02 on a warm bridge: the
+ * state-timer fixture's five frames over the video plate came back as 6.1 MB of PNG in 16 s, and
+ * the hockey scorebug's nine as 11 MB - past the 10 MiB one stdio message may be in the MCP SDK's
+ * own client, which drops the connection - after half of Codex's 60 s tool timeout. So:
+ *   - a frame over a background is JPEG (`compact`); a transparent frame stays PNG;
+ *   - one validate answer carries at most `stateFrames` state frames after off, onair and stress,
+ *     and at most `imageBytes` of images, whichever comes first;
+ *   - the state walk starts no render after `walkMs`, which leaves the whole call well inside 60 s;
+ *   - what is left out is said by name, with the events that reach it.
+ * The terminal's `validate --screenshots` writes files and has none of these limits.
+ */
+export const MCP_LIMITS = { stateFrames: 6, imageBytes: 4_000_000, walkMs: 20_000 };
+
+/** The frames of a validate answer, and what it left out, as the content an MCP client receives. */
+export function framesContent(shot: ValidateFrames, limits = MCP_LIMITS): Content {
+  const content: Content = [];
+  let room = limits.imageBytes;
+  for (const f of shot.frames) {
+    const label = f.state ? `${f.name}: ${f.state.shows} (screenshot events ${JSON.stringify(f.state.via)})` : `${f.name}:`;
+    if (f.image.length > room) {
+      content.push({ type: 'text', text: `${label} not returned: this answer is at its ${limits.imageBytes / 1e6} MB of images. Shoot it alone with screenshot.` });
+      continue;
+    }
+    room -= f.image.length;
+    content.push({ type: 'text', text: label }, image(f.image));
+  }
+  const left = shot.unshot.join(', ');
+  const elsewhere = 'Shoot one with screenshot "events", or every one with `noacg validate --screenshots <dir>` in a terminal.';
+  if (shot.stopped === 'frames') content.push({ type: 'text', text: `This answer carries at most ${limits.stateFrames} state frames. Not shot: ${left}. ${elsewhere}` });
+  else if (shot.stopped === 'time') content.push({ type: 'text', text: `The state walk stopped at its ${limits.walkMs / 1000} s limit for one answer. Not shot: ${left}. ${elsewhere}` });
+  else if (left && !shot.failure) content.push({ type: 'text', text: describeUnreached(shot.unshot, 'Shoot one with screenshot "events".') });
+  // The validation report comes before all of this: a walk that failed part way costs its frames, never the report.
+  if (shot.failure) content.push({ type: 'text', text: describeShotFailure(shot.failure, shot.unshot) });
+  return content;
+}
+
 const refuse = (s: string): Result => ({ content: text(s), isError: true });
 
 /** A string argument the verb cannot do without - the terminal's usage error, in the tool's words. */
@@ -153,7 +194,7 @@ async function scaffold(input: Input): Promise<Result> {
 
 async function validate(input: Input): Promise<Result> {
   const target = need(input, 'path');
-  const background = await resolveBackground(input.background);
+  const background = await resolveBackground(input.background, MCP_ARGS.background);
   if (background && !input.screenshots) throw new UsageError('noacg validate takes "background" only with "screenshots": true.');
   const b = await bridge();
   const { bytes, fileName, isDirectory } = await readPackageInput(target);
@@ -161,7 +202,7 @@ async function validate(input: Input): Promise<Result> {
   if (!pkg.imported) {
     // A third-party OGraf package: manifest conformance + a host-driven lifecycle check.
     const read = pkg.ograf!;
-    const result = await ografBench(b, read, await packageEntries(bytes), { screenshot: !!input.screenshots, background });
+    const result = await ografBench(b, read, await packageEntries(bytes), { screenshot: !!input.screenshots, background, backgroundArg: MCP_ARGS.background });
     const errors = [...read.errors.map((e) => `ograf-manifest: ${e}`), ...result.errors];
     const content: Content = text(`${errors.length ? 'FAIL' : 'OK'} - third-party OGraf Graphic ${String(read.manifest.id ?? '')}\n${errors.map((e) => `- ERROR ${e}`).join('\n')}\nHost: ${result.steps.map((s) => `${s.action} -> ${s.statusCode}`).join(', ')}\n${describeInspection({ ...read.contract, stateGroups: [] })}`);
     if (result.screenshot) content.push(image(result.screenshot));
@@ -173,39 +214,25 @@ async function validate(input: Input): Promise<Result> {
   const template = normalized.template;
   const validation = await b.validate(template, { bench: input.bench ?? true, houseContract: input.houseContract ?? true });
   const content: Content = text([describeValidation(validation), ...describeNormalize(normalized)].join('\n'));
-  let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
+  let thumbnail: Thumbnail | undefined;
+  let shotFailure: string | undefined;
   if (input.screenshots) {
-    const size = { width: template.resolution.width, height: template.resolution.height };
-    let offHtml = '';
-    for (const state of ['off', 'onair', 'stress'] as const) {
-      const html = await b.compose(template, state);
-      if (state === 'off') offHtml = html;
-      const png = await shoot(b.bench, b.origin, html, undefined, { ...size, background });
-      content.push({ type: 'text', text: `${state}:` }, image(png));
-      // The thumbnail is the graphic itself, never the ground it was judged on.
-      if (state === 'onair') thumbnail = { png: background ? await shoot(b.bench, b.origin, html, undefined, size) : png, ...size };
-    }
-    // Then every machine state the graphic's events reach, one frame each, as `validate --screenshots`.
-    const inspection = await b.inspect({ template });
-    const frames = await walkStates(b.origin, offHtml, {
-      ...size,
+    const shot = await shootValidateFrames(b, template, {
       background,
-      data: await b.stateData(template, 'onair'),
-      buttons: inspection.buttons,
-      stepCount: inspection.steps.count,
-      stateGroups: inspection.stateGroups,
+      backgroundArg: MCP_ARGS.background,
+      compact: true,
+      maxStateFrames: MCP_LIMITS.stateFrames,
+      walkUntil: Date.now() + MCP_LIMITS.walkMs,
     });
-    const nameOf = (group: string, state: string) => inspection.stateGroups.find((g) => g.id === group)?.states.find((s) => s.id === state)?.name ?? state;
-    for (const f of frames) {
-      const what = f.reached.length ? f.reached.map((r) => `${r.group}: ${nameOf(r.group, r.state)}`).join(', ') : f.name;
-      content.push({ type: 'text', text: `${f.name}: ${what} (screenshot events ${JSON.stringify(f.via)})` }, image(f.png));
-    }
+    content.push(...framesContent(shot));
+    thumbnail = shot.thumbnail;
+    shotFailure = shot.failure;
   }
   if (dir) {
     const changes = await regenerateInPlace(b, dir, template, { thumbnail, before, normalized });
     content.push({ type: 'text', text: `Regenerated the package in ${dir}.${changes.map((c) => `\n  changed: ${c}`).join('')}` });
   }
-  return { content, isError: !validation.ok };
+  return { content, isError: !validation.ok || Boolean(shotFailure) };
 }
 
 async function inspect(input: Input): Promise<Result> {
@@ -224,29 +251,23 @@ async function screenshot(input: Input): Promise<Result> {
   const sequence = events.length > 0 || input.at !== undefined;
   if (sequence && input.state === 'off') throw new UsageError('"events" and "at" start from a Take, so they go with state onair or stress (or data), not off.');
   const atMs = input.at !== undefined ? parseDuration(input.at, '"at"') : undefined;
-  const background = await resolveBackground(input.background);
+  const background = await resolveBackground(input.background, MCP_ARGS.background);
   const b = await bridge();
   const { bytes, fileName } = await readPackageInput(target);
   const pkg = await b.readPackage(bytes, fileName);
   if (!pkg.imported) throw new UsageError('Screenshots of a third-party OGraf package come from validate with screenshots: true.');
   const t = pkg.imported.template;
-  const frame = { width: t.resolution.width, height: t.resolution.height, background };
+  const frame = { background, backgroundArg: MCP_ARGS.background, compact: true };
   // Explicit values win over a state only when there are some; an empty `data` is no request.
   const data = input.data && Object.keys(input.data).length ? input.data : null;
   if (!sequence) {
-    const png = await shoot(b.bench, b.origin, await b.compose(t, data ?? input.state ?? 'onair'), undefined, frame);
-    return { content: [image(png)] };
+    const still = await shoot(b.bench, b.origin, await b.compose(t, data ?? input.state ?? 'onair'), undefined, { ...frame, width: t.resolution.width, height: t.resolution.height });
+    return { content: [image(still)] };
   }
   // A sequence: Take with the state's data (and `data` over it), then the events, as an operator.
-  const inspection = await b.inspect({ template: t });
-  const ops = parseOps(events, inspection.buttons, t.fields.map((f) => f.field));
-  const base = { ...(await b.stateData(t, input.state === 'stress' ? 'stress' : 'onair')), ...(data ?? {}) };
-  const shot = await shootSequence(b.origin, await b.compose(t, 'off'), undefined, { ...frame, data: base, ops, atMs, buttons: inspection.buttons });
-  // The machine at the shutter is said with the frame, so it is never taken for a state it does not show.
-  const lines = [`${shot.ran.join(' > ')}, then ${shot.atMs} ms.`];
-  if (shot.machine) lines.push(`Machine at the shutter: ${Object.entries(shot.machine.groups).map(([g, s]) => `${g}=${s}`).join(', ')}`);
-  for (const note of shot.notes) lines.push(`Note: ${note}`);
-  return { content: [...text(lines.join('\n')), image(shot.png)] };
+  const shot = await shootEvents(b, t, { ...frame, state: input.state === 'stress' ? 'stress' : 'onair', values: data, events, atMs, args: MCP_ARGS });
+  const lines = [`${shot.ran.join(' > ')}, then ${shot.atMs} ms.`, ...describeSequence(shot)];
+  return { content: [...text(lines.join('\n')), image(shot.image)] };
 }
 
 async function docs(input: Input): Promise<Result> {

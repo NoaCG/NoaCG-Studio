@@ -253,9 +253,9 @@ export interface Show {
   bindings?: ProductionBindings;
   /**
    * The production's CONTROL PROFILE (model/profile.ts; docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e) —
-   * how THIS production arranges and combines the controls its graphics already declare. Two
-   * primitives and no third: ARRANGE (order, section, shown name, hidden, pinned, per pool
-   * graphic per control id) and COMBINE (named controls made of ordered steps).
+   * how THIS production arranges the controls its graphics already declare: order, section,
+   * shown name, hidden, pinned, per pool graphic per control id. (Its second primitive, COMBINE,
+   * was removed on 2026-10-02; a stored `combine` list is ignored on read.)
    *
    * ADDITIVE OPTIONAL on the same precedent as `bindings` — an older build reads and rewrites the
    * record untouched, and ABSENT means no profile, which is the generated panel exactly as the

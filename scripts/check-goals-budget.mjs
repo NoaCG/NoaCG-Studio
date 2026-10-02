@@ -73,9 +73,9 @@ export function judge(cap, lines) {
   if (lines > cap) {
     return { ok: false, message:
       `\ncheck-goals-budget: docs/GOALS.md is ${lines} lines against the ${cap} it declares.\n` +
-      '      The file holds only what is NOT done, so a landed item moves VERBATIM to docs/GOALS_ARCHIVE.md,\n' +
-      "      and a parked item's argument belongs in the plan doc for its subject - the roadmap carries the\n" +
-      '      item and the link, not the case for it. Raising the cap is a deliberate edit to that sentence.\n' };
+      "      An outcome's current state says where it stands in a few lines; the detail, the evidence and the\n" +
+      "      argument belong in the plan doc it links. Condense there rather than here (docs/GOALS_ARCHIVE.md is\n" +
+      '      frozen and takes nothing new). Raising the cap is a deliberate edit to that sentence.\n' };
   }
   return { ok: true, message: `check-goals-budget: OK - docs/GOALS.md is ${lines} lines, inside the ${cap} it declares.` };
 }

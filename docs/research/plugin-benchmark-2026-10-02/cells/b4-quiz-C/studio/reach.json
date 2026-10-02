@@ -1,0 +1,92 @@
+[
+  {
+    "id": "verb-take",
+    "label": "⟳ TAKE SPACE",
+    "onScreen": true,
+    "top": 76
+  },
+  {
+    "id": "verb-update",
+    "label": "✎ Update U",
+    "onScreen": true,
+    "top": 149
+  },
+  {
+    "id": "verb-next",
+    "label": "» Next N",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "verb-out",
+    "label": "■ Out 0",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "cue-action-judge",
+    "label": "⚡ Reveal answer",
+    "onScreen": true,
+    "top": 822
+  },
+  {
+    "id": "cue-action-nextQuestion",
+    "label": "⚡ Next question",
+    "onScreen": true,
+    "top": 822
+  },
+  {
+    "id": "cue-action-timerStart",
+    "label": "⚡ Start timer",
+    "onScreen": false,
+    "top": 880
+  },
+  {
+    "id": "cue-action-timerEnd",
+    "label": "⚡ Time up now",
+    "onScreen": false,
+    "top": 880
+  },
+  {
+    "id": "cue-action-timerHide",
+    "label": "⚡ Hide timer",
+    "onScreen": false,
+    "top": 880
+  },
+  {
+    "id": "live-number-f6",
+    "label": "Round − +",
+    "onScreen": false,
+    "top": 981
+  },
+  {
+    "id": "live-number-f6-down",
+    "label": "−",
+    "onScreen": false,
+    "top": 984
+  },
+  {
+    "id": "live-number-f6-up",
+    "label": "+",
+    "onScreen": false,
+    "top": 984
+  },
+  {
+    "id": "live-number-f7",
+    "label": "Question number − +",
+    "onScreen": false,
+    "top": 981
+  },
+  {
+    "id": "live-number-f7-down",
+    "label": "−",
+    "onScreen": false,
+    "top": 984
+  },
+  {
+    "id": "live-number-f7-up",
+    "label": "+",
+    "onScreen": false,
+    "top": 984
+  }
+]

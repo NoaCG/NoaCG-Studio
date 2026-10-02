@@ -1,0 +1,31 @@
+C:/claude/cj-bench-2026-10-02/cells/b2-hockey-C/hockey-scorebug: a NoaCG graphic package
+
+Inputs (8)
+key  label          kind    default
+f0   Team A         text    HOME
+f1   Score A        number  0
+f2   Team B         text    AWAY
+f3   Score B        number  0
+f4   Period         number  1
+f5   Clock          text    20:00
+f6   Team A colour  color   #d22f3c
+f7   Team B colour  color   #2f6fe0
+
+Buttons (12)
+event       label                        section     payload
+clockStart  Start clock                  Clock       -
+clockStop   Stop clock                   Clock       -
+clockReset  Reset clock to period start  Clock       -
+goalA       Goal team A                  Score       f1+1
+goalB       Goal team B                  Score       f3+1
+ppA         Power play team A            Power play  -
+ppB         Power play team B            Power play  -
+ppEnd       End power play               Power play  -
+nextPeriod  Next period                  Period      f4+1
+interval    Intermission                 Period      -
+resumePlay  Back from intermission       Period      -
+final       Final                        Period      -
+
+Steps: 1
+State groups: main [Off, Enter, Out]; clock [At period start, Clock running, Clock stopped]; play [In play, Interval]; result [Live, Final]; powerplay [No power play, Team A power play, Team B power play]; score [Scoring]
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

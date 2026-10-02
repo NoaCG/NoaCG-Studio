@@ -1,0 +1,14 @@
+[
+  {"action": "timerStart"}, {"wait": 4000},
+  {"shot": "timer-running", "page": false},
+  {"action": "reveal"}, {"wait": 2000},
+  {"shot": "reveal", "page": false},
+  {"fill": "f2", "value": "Which Finnish city hosted the 1952 Summer Olympics, and which country won the most gold medals there?"},
+  {"fill": "f3", "value": "Helsinki, USA"},
+  {"fill": "f4", "value": "Turku, Soviet Union"},
+  {"fill": "f5", "value": "Helsinki, Soviet Union"},
+  {"fill": "f6", "value": "Tampere, Hungary"},
+  {"select": "f7", "value": "A"},
+  {"click": "verb-retake"}, {"wait": 2500},
+  {"shot": "next-question-retake"}
+]

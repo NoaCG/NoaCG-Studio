@@ -2,8 +2,7 @@ import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { setKeyframe } from '../../blocks/animEdit';
-import { createArtwork, editBase, baseValues, type BasePatch, type Creation } from '../../blocks/baseEdits';
-import { setSlotSize, setLineFit } from '../../blocks/designLayout';
+import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
 import { changeArtworkLayer, reorderArtwork } from '../../blocks/artworkLayers';
 import { applyAnimation, applyKeyEase, applyKeyMove, type AnimationOperation, type KeyEaseOperation, type KeyMoveOperation } from '../../blocks/editorAnimation';
@@ -20,7 +19,6 @@ export type EditorOperation =
   | StepOperation
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
-  | { kind: 'box.resize'; selector: string; width: number; height: number }
   | { kind: 'text.set'; selector: string; text: string }
   | { kind: 'style.set'; selector: string; values: ArtworkStyle }
   | { kind: 'layer.duplicate' | 'layer.delete'; selector: string }
@@ -83,14 +81,6 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = result.template; targets.add(result.selector);
     } else if (operation.kind === 'layer.reorder') {
       next = reorderArtwork(next, operation.selector, operation.direction); targets.add(operation.selector);
-    } else if (operation.kind === 'box.resize') {
-      const base = baseValues(next, operation.selector);
-      if (base.mode !== 'placed' || ![operation.width, operation.height].every(n => Number.isFinite(n) && n > 0)) {
-        throw new Error('Box size requires a placed text box with positive dimensions.');
-      }
-      next = setSlotSize(next, base.target.slice(1), operation.width, operation.height, base.scaled);
-      next = setLineFit(next, operation.selector.slice(1), { maxWidth: operation.width }) ?? next;
-      targets.add(operation.selector);
     } else if (operation.kind === 'key.set') {
       next = applyKeyOperations(next, [operation]).template; targets.add(operation.selector);
     } else throw new Error('Unknown editor operation.');

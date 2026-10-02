@@ -875,6 +875,16 @@ function diffSnapshots(before, after) {
  */
 let cliCommand = null;
 
+/**
+ * THE REAL PUSH IS NON-INTERACTIVE. Run by hand in a terminal, `supabase db push` asks "Do you want
+ * to push these migrations? [Y/n]", but that run is CAPTURED (stdout piped, stdin inherited), so the
+ * question vanished into the pipe while the CLI waited on the keyboard: a hand-run push hung after
+ * "Finished supabase link." with nothing on screen (2026-10-02). Post-land has no terminal, so it
+ * never asked there. This script has already shown the plan and its own refusals by then, so the
+ * CLI's second question adds nothing.
+ */
+export const PUSH_ARGS = ['db', 'push', '--linked', '--yes'];
+
 function runSupabase(args, token, { capture = false, cwd = ROOT } = {}) {
   for (const arg of args) {
     if (!/^[A-Za-z0-9._-]+$/.test(arg)) throw new Error(`refusing to run the CLI with argument "${arg}"`);
@@ -1211,7 +1221,7 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd, producti
   let pushed;
   let locked;
   for (let attempt = 0; ; attempt++) {
-    const run = runSupabase(['db', 'push', '--linked'], token, { capture: true, cwd });
+    const run = runSupabase(PUSH_ARGS, token, { capture: true, cwd });
     pushed = run.status;
     locked = pushed === 0 ? null : lockTimeoutFailure(run.output);
     if (!locked || attempt >= LOCK_RETRY_WAITS_MS.length) break;

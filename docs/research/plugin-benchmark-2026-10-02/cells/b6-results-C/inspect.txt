@@ -1,0 +1,20 @@
+C:/claude/cj-bench-2026-10-02/cells/b6-results-C/ski-result-board: a NoaCG graphic package
+
+Inputs (3)
+key  label                                                                                                                                    kind   default
+f0   Race                                                                                                                                     text   Naiset 10 km vapaa
+f1   Label (TULOKSET, EPÄVIRALLISET TULOKSET ...)                                                                                             text   TULOKSET
+f2   Results, one per line: Name | Club | Time (or DNF / DSQ in place of the time). Top 8 in finishing order; ranks and gaps are worked out.  lines  Anna-Kaisa Vähäkangas-Heikkilä | Vuokatti Ski Team Kainuu | 26:41.3
+Saara Lindqvist | Lahden Hiihtoseura | 26:53.7
+Emilia Korhonen | Kalevan Kiri | 27:05.1
+Johanna Mäkelä | Ounasvaaran Hiihtoseura | 27:19.8
+Veera Nieminen | Imatran Urheilijat | 27:44.0
+Lotta Rantanen | Puijon Hiihtoseura | 28:02.6
+Iida Heikkinen | Jämin Jänne | 28:31.2
+Noora Laaksonen | Kouvolan Hiihtoseura | DNF
+
+Buttons (0)
+  (none beyond Take / Update / Next / Out)
+
+Steps: 1
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

@@ -189,7 +189,7 @@ test('the build fails when GOALS drops a priority the wording still places an it
 test('the build fails when GOALS adds or renames an outcome the wording does not describe', () => {
   const added = `${GOALS.trimEnd()}\n\n### 9. Hardware panels (next)\n\n- **Why:** something.\n`;
   assert.ok(buildRoadmap(added, WORDING).problems.some((p) => /outcome 9 \("Hardware panels"\) has no wording/.test(p)));
-  const renamed = GOALS.replace(/^### 3\. Editor \(now\)$/m, '### 3. Editor and timeline (now)');
+  const renamed = GOALS.replace(/^### 3\. Editor \(/m, '### 3. Editor and timeline (');
   assert.notEqual(renamed, GOALS);
   assert.ok(buildRoadmap(renamed, WORDING).problems.some((p) => /outcome 3 is "Editor and timeline" in GOALS but "Editor"/.test(p)));
 });

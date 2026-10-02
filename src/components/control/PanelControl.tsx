@@ -37,6 +37,11 @@ export interface PanelAnswerState {
     /** Where the page writes a refused press, naming the panel and why: its activity feed. */
     note?: (text: string) => void,
   ) => void;
+  /**
+   * Publish now if what a key shows changed, for a change that does not re-render the page: the
+   * production page's clip clock moves in its store, not in the page's render.
+   */
+  changed: () => void;
 }
 
 /** What a page that has not fed anything yet shows: nothing to press. */
@@ -121,6 +126,7 @@ export function usePanelAnswer(opts: {
       snapshot.current = snap;
       run.current = dispatch;
     }, []),
+    changed: useCallback(() => answer.current?.changed(), []),
   };
 }
 

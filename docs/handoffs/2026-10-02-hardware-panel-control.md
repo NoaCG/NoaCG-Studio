@@ -1,4 +1,4 @@
-# Continue hardware panel control: the production page, then the docs and Bitfocus
+# Continue hardware panel control: the docs and Bitfocus, after the production page's first configured run
 
 The build of `docs/work-specs/hardware-panel-control/` (spec, wire protocol in `protocol.md`,
 evidence beside them), decided by the owner on 2026-10-01. Start from updated `origin/main` in a
@@ -13,6 +13,7 @@ new worktree.
 | 3 | NoaCG/NoaCG-Studio#626 | migration 0073 (panel keys, pairing codes, claim, press relay, the `pnp-`/`pfb-` topic policies), `/panel.json`, `e2e/configured/panel-relay.spec.ts`, the advisor baseline |
 | 4a | NoaCG/NoaCG-Studio#627 | `select-cue` and `take-cue` in `playoutKeys.ts` |
 | 4b | NoaCG/NoaCG-Studio#632 | the page side on the HOSTED control page: `src/control/panelFeedback.ts` (pure), `src/control/panelRelay.ts` (wire), `src/components/control/PanelControl.tsx` and `panel.css`, `e2e/configured/panel-page.spec.ts` |
+| 4c | NoaCG/NoaCG-Studio#650 | the page side on the PRODUCTION page: `ProductionPage.tsx`, `rundownPanelRows` in `panelFeedback.ts`, `e2e/panel-production-page.spec.ts` (offline), `e2e/configured/panel-production-page.spec.ts` (first run 2026-10-02 on a local stack, `evidence/page-on-production-page.md`) |
 
 **0073 on production was HELD** by post-land at every landing so far (productions were live at
 08:11 and 10:07 UTC); staging has it. The next landing retries it by itself, and post-land goes red
@@ -29,26 +30,39 @@ closed before its main window will close). The preview branch used for all of it
 
 ## Next, in order
 
-1. **The production page hook-up** (`src/components/home/ProductionPage.tsx`), after the playout
-   session's `claude/studio-day-status` lands (it holds that file). The shape is the hosted page's
-   (`HostedControlPage.tsx`, search `usePanelAnswer` and `panel.feed`):
-   - `usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs })`
-     before the page's `if (!show)` early return, with all 13 panel verbs in `runs`;
-   - `onVerb`: `select-cue` (a cue: `selectCue`; a folder row id: `selectFolder`) and `take-cue`
-     (on air: take that cue off, `graphicsOff([cue])` or `serverVerb(cue, 'out')`; else `takeCue`
-     when `takeBlockerFor(cue)` is null), reading the row from `press.cue`;
-   - after `onVerb`, `panel.feed(snapshot, (verb, target) => onVerb(verb, { repeat: false, cue: target }), note)`
-     where the snapshot is: `selected: cursorRow`; `space`: the folder's or the cue's; `live`: cues
-     where `cueOnAirNow`; `allowed`: take `!takeButton.disabled`, retake `selectedCueIsLive`,
-     update `editingIsLive`, next `selectedLayerLive && nextMoves`, out as the Out button,
-     pause/resume/pause-toggle from the transport and `pauseTarget`, all-out as `allOutEnabled`;
-     `blocked`: cues with a `takeBlockerFor` or a server cue while Bridge is down, plus folder
-     rows; `clip: panelClip(clipClock(...), Date.now())`; `bridge` from `bridgeStatus`; `rows`
-     from `rundown.rows` plus the cues of collapsed folders;
-   - a `PanelButton` beside the Playout door and the `PanelDialog`;
-   - the page spec for it, a copy of `panel-page.spec.ts` on the production page, plus a server
-     clip's clock if a Bridge-less way to put one up exists (otherwise the clock stays covered by
-     the module's unit tests and `panel-feedback.test.mjs`).
+1. **Done: the production page hook-up** (branch `claude/confident-bohr-vjr8eh`, evidence in
+   `evidence/page-on-production-page.md`). `ProductionPage.tsx` answers a panel as the hosted page
+   does, with all 13 verbs; the Panel door sits in the header's right cluster where the Playout
+   settings door stood, left of Export and All out. What differs from the plan above, and why:
+   - `selected` is the held folder's header, else the selected cue's own id, not `cursorRow`: the
+     rows list a collapsed folder's cues, and with one of those selected `cursorRow` is the
+     header while Take acts on the cue.
+   - `take-cue` leaves the production page's cursor where it was; the hosted page's `take-cue`
+     selects the cue first. A deck's per-cue key firing a cue mid-show should not move what SPACE
+     acts on under the operator. The two pages now differ here; the owner's choice is asked in
+     `docs/acceptance/owner-queue/2026-10-02-a-panel-cue-key-and-the-cursor.md` (spec D4 does not
+     say), and either answer is one line in each page's `onVerb` and spec.
+   - `pause-toggle` from a panel pauses the clip its key named (the clip the clock follows, its
+     target per protocol §7.3), and is allowed exactly when the state carries a clip. P on the
+     keyboard still goes by the selection first. `VerbPress.cue` says so now.
+   - Take is not offered to a panel while the selected server cue cannot be taken because the
+     Bridge is down (the button stays lit there, but `onVerb` runs nothing).
+   - The clip clock moves in the server store without re-rendering the page, so while it answers
+     the page subscribes the answer to the store's timing part (`panel.changed`, new on the hook),
+     publishing after the whole fold so new timing is never paired with old ownership. What moves
+     with time alone rides the render the header clock causes every second.
+   - The `.pd-target` door styles went with the Playout settings door in #640, which left the
+     hosted page's Panel door unstyled too; they now live in `control/panel.css`.
+   - #640 also removed the SHOW chip `panel-page.spec.ts` waited for after publishing; it now
+     waits for the status control's `data-started`. The module's side of both page specs is in
+     `e2e/configured/_panel.ts`.
+
+   **Ran since (1) was built:** the configured specs, on a local Supabase stack (0001 to 0073):
+   `panel-production-page.spec.ts`, the edited `panel-page.spec.ts` and `panel-relay.spec.ts`,
+   9 of 9 (`evidence/page-on-production-page.md`). **Still owed from (1):** the production page's
+   clip clock to a panel has no configured coverage: a Bridge-less clip needs the fake Bridge of
+   `e2e/playout-clock.spec.ts` inside a configured spec. Until then it rests on
+   `panel-feedback.test.mjs` (`panelClip`) and the module's own clock tests.
 2. **The operator docs section** (`docs.html`, after `#dashboard`, nav entry under "Run the show"),
    once (1) has landed AND the module can be installed by a reader: today it cannot (not yet in
    Bitfocus's list, no published package). Everything on that page must have been run.
@@ -57,8 +71,9 @@ closed before its main window will close). The preview branch used for all of it
    public action under NoaCG's name, so it goes to the owner queue rather than being done by a
    session. Until then a Companion 4.3+ user can import the `.tgz` from `yarn package`.
 4. **Convergence review** of the spec (`node scripts/work-spec.mjs status
-   docs/work-specs/hardware-panel-control/work.json`): every AC has evidence files now except the
-   production page's share of AC-3/AC-6/AC-7 and AC-13's full configured run.
+   docs/work-specs/hardware-panel-control/work.json`): every AC has evidence files now; the
+   production page's share of AC-3, AC-4, AC-6 and AC-7 has its configured run (1), and AC-13
+   waits on the full configured suite.
 
 ## Facts worth not relearning
 

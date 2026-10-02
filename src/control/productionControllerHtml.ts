@@ -55,17 +55,6 @@ export interface ControllerPayload {
   /** Each with the PLAYOUT LAYER its production assigned (docs/PLAYOUT_DASHBOARD.md §5). */
   graphics: (EmittedGraphic & { file: string; layer: number })[];
   cues: EmittedCue[];
-  /**
-   * Does this production have COMBINED controls (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b)?
-   *
-   * A BOOLEAN, and deliberately nothing more — not their names, not their steps. §6f draws the
-   * line here: a sequencer with delays and ticks, inlined a second time in vanilla JS, is the
-   * second production runtime the owner refused on 2026-09-15, so this package does not carry
-   * one. What it carries is the honest degradation — one line where the combined section would
-   * be, rather than the silent one a production got before, where the buttons it composed simply
-   * were not there and nothing said why.
-   */
-  combined: boolean;
   /** The design canvas the monitors letterbox into (the first graphic's, typically 1920×1080). */
   width: number;
   height: number;
@@ -293,11 +282,6 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
   .events-pinned { padding-bottom:8px; margin-bottom:2px; border-bottom:1px solid var(--line); }
   /* HIDDEN: one collapsed line, worn like the activity feed's so it reads as a drawer rather
      than as a control. */
-  /* The one line §6f gives a production with combined controls. It reads as a note rather than
-     as a disabled control, because there is nothing here to enable: the buttons run on the
-     hosted page and this package has no network. */
-  .events-combined { margin:10px 0 0; padding-top:8px; border-top:1px solid var(--line);
-    font-size:11.5px; color:var(--dim); }
   .events-more { margin-top:8px; }
   .events-more summary { cursor:pointer; font-size:11.5px; color:var(--dim); padding:3px 0; }
   .events-more .events-row { margin-top:4px; }
@@ -1121,20 +1105,6 @@ function paintEditor() {
     more.appendChild(eventRow(arranged.more));
     events.appendChild(more);
   }
-  // COMBINED CONTROLS - the line, and only the line (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6f). It
-  // sits exactly where the "Combined" section sits on the two hosted surfaces, so an operator
-  // taught on those looks in the right place and is told rather than left guessing. There is no
-  // button here on purpose: this package runs with no network, and a sequencer inlined a second
-  // time in vanilla JS is the second production runtime the owner refused.
-  if (PAYLOAD.combined) {
-    var combinedNote = document.createElement('p');
-    combinedNote.className = 'events-combined';
-    combinedNote.id = 'events-combined';
-    combinedNote.textContent =
-      'This production\\u2019s combined controls run from its hosted control page';
-    events.appendChild(combinedNote);
-  }
-
   function eventButton(e, label) {
     var btn = document.createElement('button');
     btn.textContent = '⚡ ' + label;

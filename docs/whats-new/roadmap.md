@@ -83,7 +83,7 @@ current state in GOALS: what is already built belongs in What's new, not here.
 - Graphics that take their values from data, APIs and feeds, not only typed fields.
 - Data changes values and never runs the show: taking to air stays the operator's press.
 
-## 8. Later and parked
+## 8. Later
 
 ### Rendered video
 

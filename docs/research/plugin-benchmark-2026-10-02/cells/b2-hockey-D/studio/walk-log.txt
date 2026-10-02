@@ -1,0 +1,19 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take HOME F0 · Team A F1 · Score A − + STEP F6 · Team A colour AWAY F2 · Team B F3 · Score B − + STEP F7 · Team B colour Both F4 · Period − + STEP F5 · Clock OPERATOR NOTE ▸ Advanced Layer 20 ⚡ GRAPHIC ACTIONS act on air not on air Snap to state… ⟲ Back to start (visual reset) main: Off main: Enter main: Out clock: At period start clock: Clock running clock: Clock stopped play: In play play: Interval result: Live result: Final powerplay: No power play powerplay: Team A power play powerplay: Team B power play score: Scoring These fire the graphic’s own beats on the layer that is on air, immediately. They carry values from this cue, so type them above first. “Snap to state…” is for RECOVERY: it jumps straight to a state with no animation. CLOCK ⚡ Start clock ⚡ Stop clock ⚡ Reset clock to period start SCORE ⚡ Goal team A ⚡ Goal team B POWER PLAY ⚡ Power play team A ⚡ Power play team B ⚡ End power play PERIOD ⚡ Next period ⚡ Intermission ⚡ Back from intermission ⚡ Final ± LIVE NUMBERS act on air One press changes the figure on the live graphic and keeps this cue in step, with no ✎ Update needed. Typing a value above still stages it for ✎ Update instead. Score A − + Score B − + Period − + CONTROLS as the graphic declared them Activity
+reach: 7 of 25 live controls on screen at load; below the fold: ⚡ Goal team A | ⚡ Goal team B | ⚡ Power play team A | ⚡ Power play team B | ⚡ End power play | ⚡ Next period | ⚡ Intermission | ⚡ Back from intermission | ⚡ Final | Score A − + | − | + | Score B − + | − | + | Period − + | − | +
+shot 01-ready
+shot 02-take
+shot 03-action-clockStart
+shot 04-action-clockStop
+shot 05-action-clockReset
+shot 06-action-goalA
+shot 07-action-goalB
+shot 08-action-ppA
+shot 09-action-ppEnd
+shot 10-action-nextPeriod
+shot 11-action-interval
+shot 12-action-resumePlay
+shot 13-action-final
+shot 14-action-ppB
+actions: 12 of 12 declared actions pressed
+shot 15-after-actions
+shot 16-out

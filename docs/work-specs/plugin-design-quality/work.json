@@ -5,5 +5,146 @@
     "status": "agreed",
     "source": "Owner answer to D1, 2026-10-02, relayed in wave row 2026-10-02d-BL-1: the frontier model designs freely by default, no house look or taste rules in the default skill; NoaCG owns the contract, the package, fields and behaviour and the control panel; two opt-in tools, a critique and a design-guidelines switch, off by default"
   },
-  "review": null
+  "review": {
+    "revision": "8b78df07aa133bde0f2fbebba46cb91c2efa6267",
+    "specSha256": "9d22a2f2c225549d8357b111a4a6b7f6f538604b4881f9998c2f323df9ac34df",
+    "evidence": [
+      {
+        "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+        "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-7",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-8",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-9",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-10",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-11",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-12",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      },
+      {
+        "id": "AC-13",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/plugin-design-quality/evidence/2026-10-02-ac-10-benchmark.md",
+            "sha256": "78f3f9a9ca42fc1b612259c836d5f8d8fb810be88d5d3b71e472d935699a5424"
+          }
+        ]
+      }
+    ]
+  }
 }

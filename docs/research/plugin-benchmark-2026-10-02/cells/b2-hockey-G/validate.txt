@@ -1,0 +1,8 @@
+OK - 0 error(s), 2 warning(s)
+- WARN bench-field-unpainted: Field Period (f4) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible.
+- WARN bench-field-unpainted: Field Clock (f5) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible.
+
+Readiness: Operator fields reach the graphic PASS · Plays, comes off air, and replays cleanly PASS · Nothing collides or escapes the frame PASS · Reads where it will be watched PASS · Survives text twice as long PASS · Motion is editable on the timeline PASS · Exports plug-and-play PASS
+Engines:   Renders on every supported playout engine.
+Other:     bench-field-unpainted: Field Period (f4) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible.; bench-field-unpainted: Field Clock (f5) is declared and operator-editable, but its value reaches no pixels in ANY of the graphic's states - typing into it changes nothing on air, whatever the operator presses. Either the design draws it nowhere, or a colour or size decision made it invisible.
+exit 0

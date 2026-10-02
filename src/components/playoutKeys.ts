@@ -55,7 +55,8 @@ export type PlayoutVerb =
  *  refuse for a verb that must happen once (a folder's Take fires several actions). */
 export interface VerbPress {
   repeat: boolean;
-  /** The row `select-cue` and `take-cue` act on: a cue's id. */
+  /** What a hardware panel's key named: the row `select-cue` and `take-cue` act on, or the clip
+   *  `pause-toggle` pauses (its cue's id). Absent from a key or a button. */
   cue?: string;
 }
 

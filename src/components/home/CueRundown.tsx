@@ -269,7 +269,7 @@ export default function CueRundown({
   const replacedCues = new Map(Object.values(serverOwnership.replaced).map((r) => [r.cueId, r] as const));
 
   // ── THE LIST FOLLOWS THE AIR (plan §6.2). A cue that goes on air off-screen is scrolled into
-  // view, so a take from the keys, a combined control or another operator never leaves the
+  // view, so a take from the keys, a folder's All together or another operator never leaves the
   // operator hunting for the red row. It holds still while the operator is working IN the list:
   // a row being dragged, a menu open, focus in the rundown, or ten seconds after they scrolled
   // it by hand. Only the list scrolls - never the page, which on a phone is the column the verbs
