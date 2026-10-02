@@ -2,23 +2,31 @@
 // one thing it keeps besides its token, so a browser that pairs, even one that forgets all of its
 // own storage every session, never has the server's address typed again.
 //
-// Host and port only, most recent first, at most MAX_SERVERS. Written by a Connect and by nothing
-// else - not by a test, the page's status poll or any command - and nothing here ever contacts a
-// server. A file that cannot be read or parsed reads as an empty list: forgetting the servers is a
-// nuisance, a Bridge that will not start is an outage.
+// Host and port, most recent first, at most MAX_SERVERS, and since 0.8.0 each server's STUDIO SETUP
+// (its named channels, the NoaCG output's slot, the New media channel; owner decision 2026-10-01,
+// docs/work-specs/studio-day-playout D7), so a second browser or another account opens with the same
+// setup. A Connect adds or raises a server; `/studio` replaces the setup of a server already listed.
+// Nothing else writes the file - not a test, the page's status poll or any command - and nothing here
+// ever contacts a server. A file that cannot be read or parsed reads as an empty list: forgetting the
+// servers is a nuisance, a Bridge that will not start is an outage. A field a newer Bridge wrote is
+// carried through a rewrite untouched, so from 0.8.0 on, running an older Bridge for a day loses
+// nothing. 0.7.0 itself rewrites host and port only: going back to it forgets every setup.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { configDir } from '../config.js';
-import type { RememberedServer } from './protocol.js';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_CHANNEL, MAX_STUDIO_CHANNELS, MAX_STUDIO_LAYER, type RememberedServer, type StudioSetup } from './protocol.js';
 
 /** Enough for every server one studio laptop meets; the oldest falls off. */
 export const MAX_SERVERS = 8;
 
 export interface ServerMemory {
   list(): Promise<RememberedServer[]>;
-  /** Put this server first and return the new list. */
+  /** Put this server first, keeping its setup, and return the new list. */
   remember(server: RememberedServer): Promise<RememberedServer[]>;
+  /** Replace the setup of a server in the list and return the new list, or null when the list does
+   *  not hold that server. Its place in the list stays. */
+  setStudio(server: RememberedServer, studio: StudioSetup): Promise<RememberedServer[] | null>;
 }
 
 function isServer(v: unknown): v is RememberedServer {
@@ -36,34 +44,83 @@ function isServer(v: unknown): v is RememberedServer {
   );
 }
 
+const wholeIn = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+
+/**
+ * A studio setup, or null when it is not one. Read the same way from the page and from the file, so
+ * what the Bridge hands a page is always whole. What it MEANS (a duplicate row, New media on a channel
+ * no row names) is the page's to judge; this only keeps the shape and the sizes bounded.
+ */
+export function readStudio(v: unknown): StudioSetup | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const { channels, output, newMedia } = v as Record<string, unknown>;
+  if (!Array.isArray(channels) || channels.length === 0 || channels.length > MAX_STUDIO_CHANNELS) return null;
+  const rows: StudioSetup['channels'] = [];
+  for (const row of channels) {
+    const { channel, name } = (row ?? {}) as Record<string, unknown>;
+    if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || typeof name !== 'string' || name.length > MAX_CHANNEL_NAME) return null;
+    rows.push({ channel, name });
+  }
+  const { channel, layer } = (output ?? {}) as Record<string, unknown>;
+  if (!wholeIn(channel, 1, MAX_STUDIO_CHANNEL) || !wholeIn(layer, 0, MAX_STUDIO_LAYER) || !wholeIn(newMedia, 1, MAX_STUDIO_CHANNEL)) return null;
+  return { channels: rows, output: { channel, layer }, newMedia };
+}
+
 const same = (a: RememberedServer, b: RememberedServer) => a.host.toLowerCase() === b.host.toLowerCase() && a.port === b.port;
+
+/** One row of the file as written, every field kept, so a field this Bridge does not know - even
+ *  inside a setup - survives a rewrite. */
+type Row = RememberedServer & Record<string, unknown>;
+
+/** A row as the page sees it: host, port, and the setup when this Bridge can read it. */
+function toServer(row: Row): RememberedServer {
+  const studio = readStudio(row.studio);
+  return { host: row.host, port: row.port, ...(studio ? { studio } : {}) };
+}
 
 /** The list kept in a file: `caspar-servers.json` beside the token unless a test names another. */
 export function fileServerMemory(file = path.join(configDir(), 'caspar-servers.json')): ServerMemory {
-  const list = async (): Promise<RememberedServer[]> => {
+  const read = async (): Promise<{ rows: Row[]; top: Record<string, unknown> }> => {
     try {
-      const rows = (JSON.parse(await fs.readFile(file, 'utf8')) as { servers?: unknown } | null)?.servers;
-      return Array.isArray(rows)
-        ? rows.filter(isServer).map(({ host, port }) => ({ host, port })).slice(0, MAX_SERVERS)
-        : [];
+      const top = JSON.parse(await fs.readFile(file, 'utf8')) as Record<string, unknown> | null;
+      const servers = top?.servers;
+      const rows = Array.isArray(servers) ? (servers.filter(isServer) as Row[]).slice(0, MAX_SERVERS) : [];
+      return { rows, top: top && typeof top === 'object' && !Array.isArray(top) ? top : {} };
     } catch {
-      return [];
+      return { rows: [], top: {} };
     }
+  };
+  const write = async (top: Record<string, unknown>, rows: Row[]) => {
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, `${JSON.stringify({ ...top, servers: rows }, null, 2)}\n`, 'utf8');
+    return rows.map(toServer);
   };
   // One write at a time: each is a read-modify-write of the whole file, so two Connects at once
   // (two tabs) would otherwise both read the old list and the second would drop the first server.
   let writing: Promise<unknown> = Promise.resolve();
+  const serial = <T>(work: () => Promise<T>): Promise<T> => {
+    const done = writing.then(work);
+    writing = done.catch(() => undefined);
+    return done;
+  };
   return {
-    list,
+    list: async () => (await read()).rows.map(toServer),
     remember(server) {
-      const done = writing.then(async () => {
-        const next = [server, ...(await list()).filter((s) => !same(s, server))].slice(0, MAX_SERVERS);
-        await fs.mkdir(path.dirname(file), { recursive: true });
-        await fs.writeFile(file, `${JSON.stringify({ servers: next }, null, 2)}\n`, 'utf8');
-        return next;
+      return serial(async () => {
+        const { rows, top } = await read();
+        const known = rows.find((r) => same(r, server));
+        // The address as typed this time, the setup and any other field as they were.
+        const first: Row = { ...known, host: server.host, port: server.port };
+        return write(top, [first, ...rows.filter((r) => r !== known)].slice(0, MAX_SERVERS));
       });
-      writing = done.catch(() => undefined);
-      return done;
+    },
+    setStudio(server, studio) {
+      return serial(async () => {
+        const { rows, top } = await read();
+        const known = rows.find((r) => same(r, server));
+        if (!known) return null;
+        return write(top, rows.map((r) => (r === known ? { ...r, studio } : r)));
+      });
     },
   };
 }

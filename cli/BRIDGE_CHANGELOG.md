@@ -12,6 +12,24 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.8.0 - 2026-10-02
+
+**Your studio's channels are remembered too.** NoaCG Bridge now keeps, for each CasparCG server, the
+channels with the names you gave them, where NoaCG's own output plays and which channel new media
+starts on. A second browser, another account in its own browser profile, or a browser that forgot
+everything opens with the same setup after pairing, with nothing typed again. If one laptop is used
+with two CasparCG servers, each keeps its own channels: pick the server and its setup comes with it.
+The setup you have now moves into the Bridge the first time the new Bridge sees your server.
+
+**Pairing another browser.** The pairing page now says one line per step, with the details behind
+small info buttons, and offers This computer beside the servers you used before, also once it has
+connected by itself. To pair another browser, copy a pairing link into it: the pairing page and
+Playout settings each have a button that makes one, and pressing Enter in the NoaCG Bridge window
+prints one. Each link works once, within two minutes.
+
+Download the new Bridge to have the setup kept for every browser. With an older Bridge everything
+still works, and each browser keeps its own setup, as before.
+
 ## 0.7.0 - 2026-09-30
 
 **Your CasparCG server is remembered.** Right after a browser pairs, NoaCG now connects to your

@@ -14,11 +14,12 @@
 //     attacker's own domain would reach in (DNS rebinding)
 //   - bodies are capped, `/amcp` takes one line and refuses an embedded CR or LF
 //
-// State the Bridge keeps: its token (a file), the CasparCG servers the page connected to (a file,
-// ./servers.ts), the pairing code in memory, and per slot the generation, the instance it started
-// there, what it queued behind it and the sequence it runs (./slots.ts, ./runner.ts), also in
-// memory. NoaCG owns every setting; each request names its target, and a remembered server is only
-// ever read back to the page, never contacted by the Bridge on its own.
+// State the Bridge keeps: its token (a file), the CasparCG servers the page connected to and the
+// studio's setup for each (a file, ./servers.ts), the open pairing codes in memory, and per slot
+// the generation, the instance it started there, what it queued behind it and the sequence it runs
+// (./slots.ts, ./runner.ts), also in memory. NoaCG owns what every setting means; each request
+// names its target, and a remembered server is only ever read back to the page, never contacted by
+// the Bridge on its own.
 
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import { isIP } from 'node:net';
@@ -42,9 +43,9 @@ import {
   type Target,
 } from './protocol.js';
 import { SequenceRunner } from './runner.js';
-import { fileServerMemory, type ServerMemory } from './servers.js';
+import { fileServerMemory, readStudio, type ServerMemory } from './servers.js';
 import { SlotMemoryBank } from './slots.js';
-import { secretMatches } from './token.js';
+import { PAIRING_TTL_MS, PairingCodes, secretMatches } from './token.js';
 import { noacgUrl } from '../config.js';
 import { UsageError } from '../output.js';
 
@@ -53,11 +54,9 @@ import { UsageError } from '../output.js';
 export const DEFAULT_BRIDGE_PORT = 8899;
 /** CasparCG's AMCP port since forever. */
 export const DEFAULT_AMCP_PORT = 5250;
-/** A pairing code is spent on first use or forgotten after this. */
-export const PAIRING_TTL_MS = 2 * 60_000;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -95,22 +94,18 @@ export function originAllowed(origin: string | undefined, allowed: string[]): bo
   }
 }
 
-/** The one-time code the pairing page exchanges for the token. */
-export interface Pairing {
-  code: string;
-  expiresAt: number;
-  used: boolean;
-}
-
 export interface BridgeOptions {
   token: string;
   origins: string[];
   adapters: PlayoutAdapter[];
   /** The Bridge's own version, reported by /health. */
   version: string;
-  /** The current pairing code, if one is armed: minted at start, spent by /pair, forgotten
-   *  after PAIRING_TTL_MS. A fresh one means a fresh start of the Bridge. */
-  pairing?: Pairing;
+  /** The pairing codes this Bridge honours: the one minted at start, and each one `/pair-link` or
+   *  the window mints later. The command hands in its own so Enter in the window can add one. */
+  pairings?: PairingCodes;
+  /** Somebody can press Enter in the Bridge's window for a new pairing link, so a refused code says
+   *  so. A Bridge started by another program has no keyboard behind it. */
+  keyboard?: boolean;
   /** The slots' generations and instances. A test hands in its own to fix the session id. */
   memory?: SlotMemoryBank;
   /** The sequence runner over that memory. A test hands in its own and drives its rounds; without
@@ -376,6 +371,7 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
   const byId = new Map(options.adapters.map((a) => [a.id, a]));
   const memory = options.memory ?? new SlotMemoryBank();
   const servers = options.servers ?? fileServerMemory();
+  const pairings = options.pairings ?? new PairingCodes();
   /** Remember a server the page connected to, and answer the list. A config folder that cannot be
    *  written costs the memory, never the connection. */
   const rememberServer = async (server: RememberedServer): Promise<RememberedServer[]> => {
@@ -453,17 +449,21 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         const body = await readBody(req);
 
         // PAIRING: the one route a page reaches before it holds the token. The code was minted
-        // by this process, shown in its own terminal and carried in the URL it opened, lives
-        // two minutes, and is spent on first use - so the token never travels in a URL.
+        // by this process, shown in its own window and carried in the URL it opened (or asked for
+        // by a page that is already paired, below), lives two minutes, and is spent on first use -
+        // so the token never travels in a URL.
         if (url === '/pair') {
           const code = typeof body.code === 'string' ? body.code : '';
-          const p = options.pairing;
-          if (!p || p.used || Date.now() > p.expiresAt || !code || !secretMatches(code, p.code)) {
+          if (!pairings.spend(code)) {
             log('refused a pairing code');
-            refuse(401, 'refused', 'That pairing code is not valid. Start NoaCG Bridge again to get a fresh one.', true);
+            refuse(
+              401,
+              'refused',
+              `That pairing link has been used or is more than two minutes old. ${options.keyboard ? 'Press Enter in the NoaCG Bridge window for a new one.' : "Make a new one in a paired browser's Playout settings, or start NoaCG Bridge again."}`,
+              true,
+            );
             return;
           }
-          p.used = true;
           log('paired a browser');
           send(200, { ok: true, v: PLAYOUT_V, token: options.token }, true);
           return;
@@ -475,9 +475,21 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           return;
         }
 
-        // THE SERVERS THIS BRIDGE CONNECTED TO (owner decision 2026-09-30), most recent first. Asked
-        // right after pairing, so a browser that has forgotten everything gets the studio's server
-        // back. The one route with no target: it names servers rather than talking to one.
+        // A LINK FOR ANOTHER BROWSER (0.8.0, docs/work-specs/studio-day-playout D19): a page that
+        // holds the token may have the Bridge open one more pairing code, which it puts in a link on
+        // its own origin. The code is one-time and two minutes like the first, so a paired browser
+        // can hand pairing on without the token ever leaving it.
+        if (url === '/pair-link') {
+          const p = pairings.mint();
+          log('made a pairing link for another browser');
+          send(200, { ok: true, v: PLAYOUT_V, code: p.code, expiresIn: Math.round(PAIRING_TTL_MS / 1000) }, true);
+          return;
+        }
+
+        // THE SERVERS THIS BRIDGE CONNECTED TO (owner decision 2026-09-30), most recent first, each
+        // with the studio's setup for it when a page kept one (0.8.0). Asked right after pairing, so
+        // a browser that has forgotten everything gets the studio's server and channels back. With
+        // `/pair-link`, a route with no target: it names servers rather than talking to one.
         if (url === '/servers') {
           send(200, { ok: true, v: PLAYOUT_V, servers: await servers.list() }, true);
           return;
@@ -486,6 +498,21 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
         const target = readTarget(body, options.adapters);
         const adapter = byId.get(target.adapter)!;
         const at = targetLabel(target);
+
+        // THE STUDIO'S SETUP FOR A SERVER (0.8.0, owner decision 2026-10-01: "In the Bridge, per
+        // server"): its channels, the NoaCG output's slot and the New media channel, kept on that
+        // server's entry so every browser paired with this Bridge opens with them. Only for a server
+        // a page connected to; it contacts no server.
+        if (url === '/studio') {
+          if (target.adapter !== 'casparcg') throw new UsageError('Only a CasparCG server keeps a studio setup.');
+          const studio = readStudio(body.studio);
+          if (!studio) throw new UsageError('The studio setup is not one this Bridge can keep: channels, output and newMedia, as whole numbers.');
+          const list = await servers.setStudio({ host: target.host, port: target.port }, studio);
+          if (!list) throw new UsageError(`NoaCG Bridge has not connected to ${at}. Connect to it first, then its setup is kept.`);
+          log(`${at} studio setup kept (${studio.channels.length} channel${studio.channels.length === 1 ? '' : 's'}, output ${studio.output.channel}-${studio.output.layer})`);
+          send(200, { ok: true, v: PLAYOUT_V, servers: list }, true);
+          return;
+        }
 
         // STATUS, and CONNECT: the same VERSION round trip, and on success a Connect makes the server
         // the one remembered first. Only `/connect` writes the list - a Test and the page's status

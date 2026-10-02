@@ -22,6 +22,7 @@ import { createOgrafAdapter } from '../dist/playout/adapters/ograf.js';
 import { amcpQuote } from '../dist/playout/amcp.js';
 import { PLAYOUT_V } from '../dist/playout/protocol.js';
 import { allowedOrigins, createBridgeServer, originAllowed, readAction } from '../dist/playout/server.js';
+import { PairingCodes } from '../dist/playout/token.js';
 import { fakeCaspar } from './_fakeCaspar.mjs';
 import { fakeCasparServer } from './_fakeCasparServer.mjs';
 
@@ -393,7 +394,7 @@ test('presence answers any origin without a token and says nothing about the stu
       v: PLAYOUT_V,
       version: '0.0.0-test',
       adapters: ['casparcg'],
-      features: ['state', 'playback', 'sequence', 'sequence-loop', 'servers'],
+      features: ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link'],
     });
 
     const noToken = await fetch(`${base}/status`, { method: 'POST', headers: { Origin: 'https://noacg.studio' } });
@@ -430,7 +431,12 @@ test('a forged Host header is refused, so a name resolving to 127.0.0.1 cannot r
 });
 
 test('pairing spends a one-time code for the token, once, and only while it is fresh', async () => {
-  const pairing = { code: 'fresh-code', expiresAt: Date.now() + 60_000, used: false };
+  /** A Bridge honouring just this one code. */
+  const honouring = (code, expiresAt) => {
+    const pairings = new PairingCodes();
+    pairings.add({ code, expiresAt });
+    return { pairings };
+  };
   await withBridge(async (base) => {
     const wrong = await post(base, '/pair', { code: 'guess' }, { Authorization: '' });
     assert.equal(wrong.status, 401);
@@ -439,11 +445,11 @@ test('pairing spends a one-time code for the token, once, and only while it is f
     assert.deepEqual(await first.json(), { ok: true, v: PLAYOUT_V, token: 'secret-token' });
     const again = await post(base, '/pair', { code: 'fresh-code' }, { Authorization: '' });
     assert.equal(again.status, 401);
-  }, { pairing });
+  }, honouring('fresh-code', Date.now() + 60_000));
   await withBridge(async (base) => {
     const stale = await post(base, '/pair', { code: 'old-code' }, { Authorization: '' });
     assert.equal(stale.status, 401);
-  }, { pairing: { code: 'old-code', expiresAt: Date.now() - 1, used: false } });
+  }, honouring('old-code', Date.now() - 1));
 });
 
 test('every request names its target, and an action reaches AMCP as exactly one line', async () => {

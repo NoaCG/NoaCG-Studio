@@ -10,6 +10,14 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.8.0 - unreleased
+
+**`noacg bridge` keeps your studio's setup.** The Bridge you start from the CLI is the same NoaCG
+Bridge 0.8.0. Next to the CasparCG servers it remembers, it now keeps each server's channels with
+their names, where NoaCG's own output plays and which channel new media starts on, so every browser
+paired with it opens with the same setup. Pressing Enter in its window prints a new pairing link for
+another browser. The graphics commands are unchanged; there is nothing to do.
+
 ## 0.7.2 - 2026-10-02
 
 **Fixed: frames over MCP fit in the answer again.** `validate` with `screenshots: true` and a

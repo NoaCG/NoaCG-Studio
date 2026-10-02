@@ -22,9 +22,13 @@
 // NoaCG OWNS THE CONFIGURATION: the Bridge address and token and the playout server live here,
 // device-level, and the Bridge is named its target on every call. What the Bridge keeps is its own
 // token and, since 0.7.0, the servers this page CONNECTED to (`connectServer`), which it only ever
-// reads back (`rememberedServers`): a browser that forgets its storage gets the server back.
+// reads back (`rememberedServers`): a browser that forgets its storage gets the server back. Since
+// 0.8.0 it also keeps the studio's setup for each of those servers (`syncStudio`, ./studioSetup.ts),
+// so another browser or account paired with it opens with the same channels; the copy here is what
+// every surface reads, and the only one with an older Bridge.
 
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL, PLAYOUT_CLIP_LAYER, type ShowFolder } from '../model/shows';
+import { DEFAULT_STUDIO, defaultChannelName, sameServer, sameStudio, studioFields, studioOf, studioStep } from './studioSetup';
 import {
   PLAYOUT_V,
   type AdapterId,
@@ -37,6 +41,7 @@ import {
   type PlayoutAction,
   type RememberedServer,
   type SlotState,
+  type StudioSetup,
   type StateReply,
   type TargetCapability,
 } from './playoutProtocol';
@@ -84,6 +89,10 @@ export interface PlayoutSettings {
   /** Where a NEW server video, still or audio file starts (Settings: "New media"). The output's
    *  channel until the studio names another one. */
   clipChannel: number;
+  /** The server whose setup (the four fields above) was changed here and not yet confirmed by NoaCG
+   *  Bridge: it was not running, or not yet the one with the `studio` feature. The next sync gives
+   *  the change to the Bridge rather than taking the Bridge's older copy (D17). */
+  studioPending?: { host: string; port: number };
 }
 
 /** One CasparCG channel as the studio names it. */
@@ -97,22 +106,13 @@ export const PLAYOUT_DEFAULTS: PlayoutSettings = {
   agentToken: '',
   host: '127.0.0.1',
   amcpPort: 5250,
-  channel: 1,
-  // 20 is the layer this project's own CasparCG documentation has always used as its example
-  // (docs/PLAYOUT_INTEGRATION.md §3), so a reader following that guide finds it already set.
-  layer: 20,
-  // One channel: a stock casparcg.config has exactly one, so a fresh studio never cues a clip
-  // onto a channel the server does not have. "Add channel" in Settings makes the second.
-  // Named by NUMBER, not by a use: a studio may run graphics, clips, a second language or a
-  // multiviewer on any channel, and the operator renames a row to say which.
-  channels: [{ channel: 1, name: defaultChannelName(1) }],
-  clipChannel: 1,
+  // One channel, the output on 1-20, new media on 1 (./studioSetup.ts says why each).
+  ...studioFields(DEFAULT_STUDIO),
 };
 
-/** The name a channel row starts with until the operator renames it: `Channel 2`. */
-export function defaultChannelName(channel: number): string {
-  return `Channel ${channel}`;
-}
+// `defaultChannelName` lives in ./studioSetup.ts, beside the default setup that names its channel
+// with it; it is re-exported here for the callers of this module.
+export { defaultChannelName };
 
 /** A channel number as stored, or null when it is not one. */
 function channelNumber(value: unknown): number | null {
@@ -162,9 +162,18 @@ export function loadPlayoutSettings(): PlayoutSettings {
   }
 }
 
+/** A change made here. A change to the studio setup is marked for NoaCG Bridge (`studioPending`), so
+ *  the next `syncStudio` gives it to the Bridge instead of taking the Bridge's older copy. */
 export function savePlayoutSettings(patch: Partial<PlayoutSettings>): void {
+  const was = loadPlayoutSettings();
+  const next = { ...was, ...patch };
+  const studioChanged = !sameStudio(studioOf(was), studioOf(normalized(next)));
+  writeSettings(studioChanged ? { ...next, studioPending: { host: next.host.trim(), port: next.amcpPort } } : next);
+}
+
+function writeSettings(settings: PlayoutSettings): void {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({ ...loadPlayoutSettings(), ...patch, v: STORE_V }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ ...settings, v: STORE_V }));
   } catch {
     // Same reasoning as model/prefs.ts: a preference is a convenience, and throwing from a
     // render-adjacent path costs the whole app.
@@ -346,6 +355,8 @@ export function stateReadable(status: PlayoutResult | null): boolean {
 interface BridgeReply {
   ok?: boolean;
   servers?: RememberedServer[];
+  /** A pairing code from `/pair-link`. */
+  code?: string;
   v?: number;
   agent?: string;
   version?: string;
@@ -586,21 +597,184 @@ export async function testConnection(settings: PlayoutSettings): Promise<Playout
  * exactly Test connection. Either way it sends VERSION and nothing else, which is what lets the
  * pairing page do it by itself: connecting never touches a layer.
  */
-export async function connectServer(settings: PlayoutSettings): Promise<{ result: PlayoutResult; servers?: RememberedServer[] }> {
+export async function connectServer(settings: PlayoutSettings): Promise<{ result: PlayoutResult; servers?: RememberedServer[]; studio?: StudioSync }> {
   const { result, body } = await through(settings, '/connect', {});
-  return { result, servers: result.state === 'ok' && Array.isArray(body?.servers) ? body.servers : undefined };
+  if (result.state !== 'ok') return { result };
+  // Connected: this is the studio's server now, in this browser too.
+  savePlayoutSettings({ host: settings.host.trim(), amcpPort: settings.amcpPort });
+  const servers = Array.isArray(body?.servers) ? body.servers : undefined;
+  if (!servers || !result.features?.includes('studio')) return { result, servers };
+  // And its setup: the Bridge's, or this browser's given to it (D17, D18).
+  const studio = await oneAtATime(() => syncWith(loadPlayoutSettings(), servers));
+  return { result, servers: studio.servers, studio };
 }
 
 /** The servers NoaCG Bridge remembers this page connecting to, most recent first. Empty when the
  *  Bridge remembers none, is older than 0.7.0 or does not answer: the caller then offers what this
  *  browser holds, which is all it ever had before. */
 export async function rememberedServers(settings: PlayoutSettings): Promise<RememberedServer[]> {
-  if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return [];
-  const { unreachable, features } = await probeBridge(settings.agentUrl);
-  if (unreachable || !features.includes('servers')) return [];
+  const memory = await bridgeMemory(settings);
+  return memory && 'servers' in memory ? (memory.servers ?? []) : [];
+}
+
+/**
+ * ONE OF THE BRIDGE'S OWN ROUTES, which name no server (`/servers`, `/studio`, `/pair-link`): what it
+ * answered, or why not in the words every other route uses - a rejected token, a refused site, no
+ * answer - never a bare "did not answer". `ownRoute` is the call alone, for a Bridge already probed.
+ */
+async function ownRoute(settings: PlayoutSettings, path: '/servers' | '/studio' | '/pair-link', body: Record<string, unknown>): Promise<{ body: BridgeReply } | { failed: PlayoutResult }> {
   // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
-  const call = await callBridge(settings.agentUrl, '/servers', {}, STATE_TIMEOUT_MS, settings.agentToken);
-  return 'http' in call && call.body.ok && Array.isArray(call.body.servers) ? call.body.servers : [];
+  const call = await callBridge(settings.agentUrl, path, body, STATE_TIMEOUT_MS, settings.agentToken);
+  if (!('http' in call)) {
+    return { failed: { state: 'bridge', detail: 'timedOut' in call ? `NoaCG Bridge did not answer on ${settings.agentUrl}.` : `NoaCG Bridge stopped answering: ${call.networkError}` } };
+  }
+  const reply = readReply(settings, call);
+  return reply.result.state === 'ok' && reply.body ? { body: reply.body } : { failed: reply.result };
+}
+
+/** `ownRoute`, asked only of a paired Bridge that lists `feature`; `missing` from an older one. */
+async function askBridge(
+  settings: PlayoutSettings,
+  feature: BridgeFeature,
+  path: '/servers' | '/pair-link',
+): Promise<{ body: BridgeReply; features: BridgeFeature[] } | { failed: PlayoutResult } | { missing: true }> {
+  const { unreachable, features } = await probeBridge(settings.agentUrl);
+  if (unreachable) return { failed: unreachable };
+  if (!features.includes(feature)) return { missing: true };
+  const asked = await ownRoute(settings, path, {});
+  return 'body' in asked ? { body: asked.body, features } : asked;
+}
+
+/** What a paired Bridge remembers (null when this browser is not paired): its servers (null from a
+ *  Bridge older than 0.7.0, which keeps none) and whether it keeps setups, or why it did not say. */
+async function bridgeMemory(
+  settings: PlayoutSettings,
+): Promise<{ failed: PlayoutResult } | { servers: RememberedServer[] | null; studio: boolean } | null> {
+  if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return null;
+  const asked = await askBridge(settings, 'servers', '/servers');
+  if ('missing' in asked) return { servers: null, studio: false };
+  if ('failed' in asked) return asked;
+  return { servers: Array.isArray(asked.body.servers) ? asked.body.servers : [], studio: asked.features.includes('studio') };
+}
+
+/**
+ * Where the studio setup in use is kept, after a sync - one line under it in Playout settings:
+ *   bridge       NoaCG Bridge keeps it for the server in use, for every browser paired with it
+ *   ready        the Bridge keeps none for this server yet and this is the untouched default: the
+ *                first change made here is kept there
+ *   unconnected  the Bridge keeps setups, but has not connected to this server: Connect, and it does
+ *   browser      this browser only: no Bridge paired, or one from before 0.8.0
+ *   away         the Bridge does not answer, or refuses this browser (`reason`), so this is the
+ *                browser's copy
+ *   waiting      changed here while the Bridge did not answer; it gets the change when it does
+ */
+export type StudioKeeper = 'bridge' | 'ready' | 'unconnected' | 'browser' | 'away' | 'waiting';
+
+export interface StudioSync {
+  keeper: StudioKeeper;
+  /** The browser's setup changed: it took the Bridge's. A surface showing it reads it again. */
+  changed: boolean;
+  /** The Bridge's list as it stands after the sync, when it answered. */
+  servers?: RememberedServer[];
+  /** Why the Bridge was not asked, when it did not answer or refused (`away` and `waiting`). */
+  reason?: PlayoutState;
+}
+
+/**
+ * BRING THE BROWSER'S SETUP AND NOACG BRIDGE'S TOGETHER for the server in use (D17, D18): a production
+ * page and Playout settings call it when they open, Playout settings again after each change, and a
+ * Connect does it itself. A change made here that the Bridge has not confirmed goes to the Bridge;
+ * otherwise the Bridge's copy is the setup; a server it keeps none for takes this browser's, unless
+ * that is the untouched default. With no Bridge, or one from before 0.8.0, the browser's copy stands.
+ * It never contacts a server: `/servers` and `/studio` are the Bridge's own file.
+ */
+export function syncStudio(): Promise<StudioSync> {
+  return oneAtATime(async () => {
+    const settings = loadPlayoutSettings();
+    const memory = await bridgeMemory(settings);
+    if (!memory) return { keeper: 'browser', changed: false };
+    if ('failed' in memory) return { keeper: pendingServer(settings) ? 'waiting' : 'away', changed: false, reason: memory.failed.state };
+    if (!memory.studio || !memory.servers) return { keeper: 'browser', changed: false, servers: memory.servers ?? undefined };
+    return syncWith(settings, memory.servers);
+  });
+}
+
+/** ONE SYNC AT A TIME. A production page, Playout settings' timer, its close and a Connect can each
+ *  start one, and two in flight could give the Bridge an older setup after a newer one. */
+let syncing: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const run = syncing.then(work, work);
+  syncing = run.catch(() => undefined);
+  return run;
+}
+
+/** `settings` is what the browser held when the sync started. Every write re-reads the browser first,
+ *  because the operator may have changed the setup while the Bridge was being asked: a change made in
+ *  that moment is never written over, and its mark stays until the Bridge has that change too. */
+async function syncWith(settings: PlayoutSettings, list: RememberedServer[]): Promise<StudioSync> {
+  let servers = list;
+  const inUse = { host: settings.host.trim(), port: settings.amcpPort };
+  const sent = studioOf(settings);
+  const pending = pendingServer(settings);
+  // A change made for ANOTHER server (the address was edited since) goes to that server first, or is
+  // dropped when the Bridge never connected to it: it has nowhere to keep it.
+  if (pending && !sameServer(pending, inUse)) {
+    if (servers.some((s) => sameServer(s, pending))) servers = (await keepStudio(settings, pending)) ?? servers;
+    settlePending(sent);
+  }
+  const pendingHere = !!pending && sameServer(pending, inUse);
+  const entry = servers.find((s) => sameServer(s, inUse));
+  const step = studioStep(sent, entry, pendingHere);
+  if (step.kind === 'pull') {
+    const now = loadPlayoutSettings();
+    // Changed here while the Bridge was asked: decide again from what the browser holds now.
+    if (pendingServer(now) || !sameStudio(studioOf(now), sent)) return syncWith(now, servers);
+    writeSettings({ ...now, ...studioFields(step.studio) });
+    return { keeper: 'bridge', changed: true, servers };
+  }
+  if (step.kind === 'push') {
+    const kept = await keepStudio(settings, inUse);
+    if (!kept) return { keeper: 'waiting', changed: false, servers };
+    servers = kept;
+  }
+  if (!entry) return { keeper: 'unconnected', changed: false, servers };
+  // Kept, or the same on both sides: nothing waits any more, unless a newer change came meanwhile.
+  if (pendingHere) settlePending(sent);
+  return { keeper: step.kind === 'push' || entry.studio ? 'bridge' : 'ready', changed: false, servers };
+}
+
+/** The change the Bridge was given (`sent`) has landed: drop the mark, unless the browser has changed
+ *  the setup again since, in which case that change still waits for its own turn. */
+function settlePending(sent: StudioSetup): void {
+  const now = loadPlayoutSettings();
+  if (now.studioPending && sameStudio(studioOf(now), sent)) writeSettings({ ...now, studioPending: undefined });
+}
+
+/** The server a change waits for, when one does and the record says a server. */
+function pendingServer(s: PlayoutSettings): { host: string; port: number } | null {
+  const p = s.studioPending;
+  return p && typeof p.host === 'string' && p.host.trim() && typeof p.port === 'number' ? p : null;
+}
+
+/** Give the Bridge this browser's setup for `server`. The Bridge's new list, or null when it did not
+ *  take it (it stopped answering, or refused). */
+async function keepStudio(settings: PlayoutSettings, server: { host: string; port: number }): Promise<RememberedServer[] | null> {
+  const kept = await ownRoute(settings, '/studio', { target: { adapter: 'casparcg', host: server.host, port: server.port }, studio: studioOf(settings) });
+  return 'body' in kept && Array.isArray(kept.body.servers) ? kept.body.servers : null;
+}
+
+/**
+ * A PAIRING LINK FOR ANOTHER BROWSER (D19): NoaCG Bridge opens one more one-time code, good for two
+ * minutes, and the link is this page's own, the shape `parseBridgePair` reads. Otherwise why there is
+ * none: a Bridge older than 0.8.0 cannot make one, so the page says to start it again for a fresh link.
+ */
+export async function pairingLinkForAnotherBrowser(settings: PlayoutSettings): Promise<string | { unavailable: string }> {
+  const asked = await askBridge(settings, 'pair-link', '/pair-link');
+  if ('missing' in asked) return { unavailable: 'This NoaCG Bridge cannot make another link. Start it again and copy the link it opens into the other browser.' };
+  if ('failed' in asked) return { unavailable: asked.failed.detail };
+  const port = Number(URL.canParse(settings.agentUrl) ? new URL(settings.agentUrl).port : '');
+  if (typeof asked.body.code !== 'string' || !port) return { unavailable: `NoaCG Bridge on ${settings.agentUrl} made no link.` };
+  return bridgePairLink(window.location.origin, port, asked.body.code);
 }
 
 /** A server as a person writes it: the host alone on CasparCG's own port, host:port otherwise. */
@@ -666,6 +840,12 @@ export function takeOutputOff(settings: PlayoutSettings): Promise<PlayoutResult>
 // Pairing
 // ---------------------------------------------------------------------------------------------
 
+/** The pairing link on `origin`: what NoaCG Bridge prints and opens (`pairingUrl` in its command),
+ *  what a paired page hands another browser, and what `parseBridgePair` reads. */
+export function bridgePairLink(origin: string, port: number, code: string): string {
+  return `${origin}/app?bridge=${port}&code=${encodeURIComponent(code)}`;
+}
+
 /** `/app?bridge=<port>&code=<code>` - the link NoaCG Bridge prints and opens. */
 export function isBridgePairUrl(params: URLSearchParams): boolean {
   return params.has('bridge');
@@ -696,7 +876,7 @@ export async function pairBridge(request: BridgePairRequest): Promise<PlayoutRes
   if ('networkError' in call) return { state: 'bridge', detail: `NoaCG Bridge stopped answering: ${call.networkError}` };
   if (call.http === 403) return { state: 'bridge', detail: `NoaCG Bridge refused this site. Restart NoaCG Bridge with \`--origin ${window.location.origin}\`.` };
   if (!call.body.ok || !call.body.token) {
-    return { state: 'token', detail: call.body.error?.detail ?? 'That pairing code is not valid. Start NoaCG Bridge again to get a fresh one.' };
+    return { state: 'token', detail: call.body.error?.detail ?? 'That pairing link has been used or is more than two minutes old. Get a new one: press Enter in the NoaCG Bridge window, or start NoaCG Bridge again.' };
   }
   savePlayoutSettings({ agentUrl: bridgeUrl, agentToken: call.body.token });
   return { state: 'ok', detail: `Paired with NoaCG Bridge on ${bridgeUrl}.` };

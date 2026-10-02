@@ -1,4 +1,4 @@
-// covers: src/components/{SettingsDialog,BridgePairPage}.tsx
+// covers: src/components/{SettingsDialog,BridgePairPage,RecentServers,InfoLine,CopyPairingLink}.tsx
 // covers: src/components/home/{ProductionPage,CueRundown,PlayoutMonitors,ServerCueEditor,RailResizer}.tsx
 //
 // NOACG BRIDGE (docs/BRIDGE.md). The browser half is one file, and the two surfaces it grows are
@@ -9,7 +9,7 @@
 // the per-cue slot helpers live in playoutLink.ts too, and the rundown is what reads them.
 // serverPlayout.ts (with its store and playoutSlots.ts) is what every server verb and every row
 // address goes through, and the baselines draw both.
-// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots}.ts
+// covers: src/control/{playoutLink,playoutProtocol,serverPlayout,serverPlayoutStore,playoutSlots,studioSetup}.ts
 //
 // ProductionLinks.tsx is where BridgeAirRow itself lives since the 2026-08-28 split, so it is named
 // here rather than left to the `src/components/{home,save}/**` covers line: that rule's set does
@@ -30,6 +30,7 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from './_create';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
+import type { RememberedServer, StudioSetup } from '../src/control/playoutProtocol';
 
 // NoaCG Bridge (docs/BRIDGE.md). There is no CasparCG on a test machine and there is no Bridge
 // either, so both are FAKED at the network layer: `page.route` answers the Bridge's own HTTP
@@ -68,6 +69,10 @@ async function seedSettings(page: Page, patch: Record<string, unknown> = {}): Pr
   );
 }
 
+/** A studio setup as NoaCG Bridge keeps it per server, and a server it remembers. */
+type Studio = StudioSetup;
+type Server = RememberedServer;
+
 interface FakeBridge {
   /** Nothing is listening at all - the Bridge is not running. */
   missing?: boolean;
@@ -81,11 +86,17 @@ interface FakeBridge {
   refuses?: string;
   /** The pairing code the Bridge holds; spent on first use. */
   pairCode?: string;
+  /** Codes a Bridge with `pair-link` opened for another browser, each spent on first use. */
+  openCodes: string[];
   /** What `/health` lists. None by default: the 0.4.0 this fake started as. */
   features?: string[];
   /** The servers a Bridge with the `servers` feature remembers, most recent first. `/connect`
-   *  moves the one it reached to the front, as the real Bridge's file does. */
-  servers?: { host: string; port: number }[];
+   *  moves the one it reached to the front, as the real Bridge's file does, keeping its setup. */
+  servers?: Server[];
+  /** Every setup the page gave a Bridge with the `studio` feature (`/studio`), in order. */
+  studios: { host: string; port: number; studio: Studio }[];
+  /** How long `/servers` takes to answer, ms: a Bridge slow enough for the operator to type first. */
+  slowServers?: number;
   /** Servers that do not answer: a `/status` or `/connect` naming one reports the target hop. */
   downHosts?: string[];
   /** Every action the page sent, in order. */
@@ -106,7 +117,7 @@ interface FakeBridge {
  * ever entered for the POST), so a fake that omitted them would pass a spec the browser fails.
  */
 async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promise<FakeBridge> {
-  const state: FakeBridge = { actions: [], paired: [], routes: [], ...options };
+  const state: FakeBridge = { actions: [], paired: [], routes: [], openCodes: [], studios: [], ...options };
   const cors = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -136,11 +147,17 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     const body = JSON.parse(request.postData() || '{}') as { code?: string; action?: unknown; target?: unknown };
     if (path === '/pair') {
       state.paired.push(body.code ?? '');
-      if (state.pairCode && body.code === state.pairCode) {
-        state.pairCode = undefined; // spent
+      const opened = state.openCodes.indexOf(body.code ?? '');
+      if ((state.pairCode && body.code === state.pairCode) || opened >= 0) {
+        if (opened >= 0) state.openCodes.splice(opened, 1);
+        else state.pairCode = undefined; // spent
         await json(route, 200, { ok: true, v: 2, token: TOKEN });
       } else {
-        await json(route, 401, { ok: false, v: 2, error: { hop: 'agent', code: 'refused', detail: 'That pairing code is not valid. Start NoaCG Bridge again to get a fresh one.' } });
+        await json(route, 401, {
+          ok: false,
+          v: 2,
+          error: { hop: 'agent', code: 'refused', detail: 'That pairing link has been used or is more than two minutes old. Get a new one: press Enter in the NoaCG Bridge window, or start NoaCG Bridge again.' },
+        });
       }
       return;
     }
@@ -161,10 +178,30 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     state.routes.push(path);
     if (path === '/act') state.actions.push(body.action);
     if (path === '/servers') {
+      if (state.slowServers) await new Promise((r) => setTimeout(r, state.slowServers));
       await json(route, 200, { ok: true, v: 2, servers: state.servers ?? [] });
       return;
     }
+    const has = (feature: string) => !!state.features?.includes(feature);
+    if (path === '/pair-link' && has('pair-link')) {
+      const code = `${state.openCodes.length}`.padStart(32, 'c');
+      state.openCodes.push(code);
+      await json(route, 200, { ok: true, v: 2, code, expiresIn: 120 });
+      return;
+    }
     const aimed = body.target as { host?: string; port?: number } | undefined;
+    if (path === '/studio' && has('studio')) {
+      // As the real Bridge: only a server it connected to keeps a setup, and its place stays.
+      const known = (state.servers ?? []).find((s) => s.host === aimed?.host && s.port === aimed?.port);
+      if (!known) {
+        await json(route, 400, { ok: false, v: 2, error: { hop: 'agent', code: 'usage', detail: `NoaCG Bridge has not connected to ${aimed?.host}:${aimed?.port}. Connect to it first, then its setup is kept.` } });
+        return;
+      }
+      known.studio = (body as { studio: Studio }).studio;
+      state.studios.push({ host: known.host, port: known.port, studio: known.studio });
+      await json(route, 200, { ok: true, v: 2, servers: state.servers });
+      return;
+    }
     if ((path === '/status' || path === '/connect') && aimed?.host && state.downHosts?.includes(aimed.host)) {
       await json(route, 200, {
         ok: false,
@@ -174,8 +211,9 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
       return;
     }
     if (path === '/connect' && aimed?.host && !state.serverDown) {
-      const reached = { host: aimed.host, port: aimed.port ?? 5250 };
-      state.servers = [reached, ...(state.servers ?? []).filter((s) => s.host !== reached.host || s.port !== reached.port)];
+      const at = { host: aimed.host, port: aimed.port ?? 5250 };
+      const known = (state.servers ?? []).find((s) => s.host === at.host && s.port === at.port);
+      state.servers = [known ?? at, ...(state.servers ?? []).filter((s) => s !== known)];
       await json(route, 200, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', servers: state.servers });
       return;
     }
@@ -273,7 +311,7 @@ test('a spent or wrong pairing code is refused on the page, and a malformed link
   await page.goto('/app?bridge=8899&code=ffffffffffffffffffffffffffffffff');
   await page.getByTestId('bridge-pair-connect').click();
   await expect(page.getByTestId('bridge-pair-error')).toHaveAttribute('data-state', 'token');
-  await expect(page.getByTestId('bridge-pair-error')).toContainText('not valid');
+  await expect(page.getByTestId('bridge-pair-error')).toContainText('has been used or is more than two minutes old');
 
   await page.goto('/app?bridge=80&code=nope');
   await expect(page.getByTestId('bridge-pair-invalid')).toBeVisible();
@@ -303,7 +341,10 @@ test('after pairing, the server the Bridge remembers is connected by itself, and
   await pair(page);
   const connected = page.getByTestId('bridge-connected');
   await expect(connected).toHaveText('✓ Connected to CasparCG 2.5.0 69e8ad5 Stable at 192.168.1.20.');
-  await expect(page.getByTestId('bridge-pair')).toContainText('NoaCG Bridge remembers this server');
+  // That the Bridge remembers it is said behind the step's info button, not as more lines on the page.
+  await expect(page.getByTestId('bridge-pair')).not.toContainText('remembers');
+  await page.getByTestId('bridge-connect-line-info').click();
+  await expect(page.getByTestId('bridge-connect-line-more')).toContainText('NoaCG Bridge remembers the server and its channels');
   // The studio's server is now this browser's too, so every production page names it.
   expect(await storedHost(page)).toBe('192.168.1.20:5250');
   // AC-5: pairing and connecting ask the server its VERSION and nothing else. No take, no out.
@@ -328,7 +369,7 @@ test('when the last server does not answer, pairing offers it and the others, an
   await expect(page.getByTestId('bridge-connect-host')).toHaveValue('192.168.1.20');
   await expect(page.getByTestId('bridge-connect-error')).toContainText('did not answer on 192.168.1.20:5250');
   const recent = page.getByTestId('bridge-connect-recent');
-  await expect(recent.getByRole('button')).toHaveText(['192.168.1.20', '192.168.1.30:5251']);
+  await expect(recent.getByRole('button')).toHaveText(['This computer', '192.168.1.20', '192.168.1.30:5251']);
   // One click on a server used before connects to it, port and all.
   await recent.getByRole('button', { name: '192.168.1.30:5251' }).click();
   await expect(page.getByTestId('bridge-connected')).toContainText('at 192.168.1.30:5251.');
@@ -337,22 +378,27 @@ test('when the last server does not answer, pairing offers it and the others, an
   expect(bridge.actions).toEqual([]);
 });
 
-test('a first pairing with nothing remembered asks for the server once, and Change goes back to it', async ({ page }) => {
+test('a first pairing with nothing remembered asks for the server once, and the choices stay once connected', async ({ page }) => {
   const bridge = await fakeBridge(page, { pairCode: CODE, features: WITH_SERVERS });
   await pair(page);
-  // Nobody has chosen a server yet, so none is tried and none is blamed.
+  // Nobody has chosen a server yet, so none is tried and none is blamed; "This computer" is offered.
   await expect(page.getByTestId('bridge-connect-host')).toHaveValue('');
   await expect(page.getByTestId('bridge-connect-error')).toHaveCount(0);
-  await expect(page.getByTestId('bridge-connect-recent')).toHaveCount(0);
+  await expect(page.getByTestId('bridge-connect-recent').getByRole('button')).toHaveText(['This computer']);
   await expect(page.getByTestId('bridge-connect')).toBeDisabled();
   await page.getByTestId('bridge-connect-host').fill('10.0.0.5');
   await page.getByTestId('bridge-connect').click();
   await expect(page.getByTestId('bridge-connected')).toContainText('at 10.0.0.5.');
   expect(bridge.servers).toEqual([{ host: '10.0.0.5', port: 5250 }]);
-  await page.getByTestId('bridge-connect-change').click();
+  // Connected, the address stays in its box and the server is one of the servers used before now,
+  // marked as the one in use, without a reload; another is still one press away.
   await expect(page.getByTestId('bridge-connect-host')).toHaveValue('10.0.0.5');
-  // The server just connected is one of the servers used before now, without a reload.
-  await expect(page.getByTestId('bridge-connect-recent').getByRole('button')).toHaveText(['10.0.0.5']);
+  const recent = page.getByTestId('bridge-connect-recent');
+  await expect(recent.getByRole('button')).toHaveText(['This computer', '10.0.0.5']);
+  await expect(recent.getByRole('button', { name: '10.0.0.5' })).toHaveAttribute('aria-current', 'true');
+  await recent.getByRole('button', { name: 'This computer' }).click();
+  await expect(page.getByTestId('bridge-connected')).toContainText('at 127.0.0.1.');
+  expect(await storedHost(page)).toBe('127.0.0.1:5250');
 });
 
 test('with a Bridge from before 0.7.0, pairing still connects to the server this browser used', async ({ page }) => {
@@ -377,7 +423,7 @@ test('Settings: a server used before is one press, Connect remembers one, and Te
   });
   await openPlayoutSettings(page);
   const recent = page.getByTestId('caspar-recent');
-  await expect(recent.getByRole('button')).toHaveText(['192.168.1.20', '192.168.1.30:5251']);
+  await expect(recent.getByRole('button')).toHaveText(['This computer', '192.168.1.20', '192.168.1.30:5251']);
 
   // Test connection is /status and remembers nothing; only Connect is /connect.
   await page.getByTestId('playout-test').click();
@@ -390,7 +436,7 @@ test('Settings: a server used before is one press, Connect remembers one, and Te
   await expect(page.getByTestId('caspar-host')).toHaveValue('192.168.1.30');
   await expect(page.getByTestId('caspar-amcp-port')).toHaveValue('5251');
   expect(bridge.servers?.[0]).toEqual({ host: '192.168.1.30', port: 5251 });
-  await expect(recent.getByRole('button')).toHaveText(['192.168.1.30:5251', '192.168.1.20']);
+  await expect(recent.getByRole('button')).toHaveText(['This computer', '192.168.1.30:5251', '192.168.1.20']);
 
   // A typed address connects the same way.
   await page.getByTestId('caspar-host').fill('192.168.1.40');
@@ -401,6 +447,234 @@ test('Settings: a server used before is one press, Connect remembers one, and Te
   // General Settings has no production, so there is nothing to put on air from here.
   await expect(page.getByTestId('playout-put-on-air')).toHaveCount(0);
   expect(bridge.actions).toEqual([]);
+});
+
+// ── The studio setup kept in NoaCG Bridge (docs/work-specs/studio-day-playout AC-11, D17, D18) ──
+
+/** A Bridge 0.8.0: the servers with their setups, and links for another browser. */
+const WITH_STUDIO = [...WITH_SERVERS, 'studio', 'pair-link'];
+const STUDIO: Studio = {
+  channels: [
+    { channel: 1, name: 'Graphics' },
+    { channel: 2, name: 'Inserts' },
+  ],
+  output: { channel: 1, layer: 30 },
+  newMedia: 2,
+};
+
+/** seedSettings, written only when the browser holds no settings yet, so a reload reads back what
+ *  the page itself wrote (the pending mark included) rather than the seed again. */
+async function seedOnce(page: Page, patch: Record<string, unknown>): Promise<void> {
+  await page.addInitScript(
+    ([bridge, token, extra]) => {
+      if (localStorage.getItem('spx-gfx-caspar')) return;
+      localStorage.setItem(
+        'spx-gfx-caspar',
+        JSON.stringify({ agentUrl: bridge, agentToken: token, host: '127.0.0.1', amcpPort: 5250, channel: 1, layer: 20, v: 1, ...(extra as Record<string, unknown>) }),
+      );
+    },
+    [BRIDGE, TOKEN, patch] as const,
+  );
+}
+
+test('a second browser paired with the same Bridge opens with the studio setup, and nothing is typed', async ({ page }) => {
+  // A browser with nothing in its storage: a second browser, another account's browser profile, or
+  // one that forgot. The Bridge remembers the server and, since 0.8.0, its setup.
+  const bridge = await fakeBridge(page, { pairCode: CODE, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await pair(page);
+  await expect(page.getByTestId('bridge-connected')).toHaveText('✓ Connected to CasparCG 2.5.0 69e8ad5 Stable at 192.168.1.20. 2 channels, NoaCG output on 1-30.');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}'));
+  expect(stored).toMatchObject({ host: '192.168.1.20', amcpPort: 5250, channels: STUDIO.channels, channel: 1, layer: 30, clipChannel: 2 });
+  // Taking the Bridge's setup gives it nothing back, and nothing airs.
+  expect(bridge.studios).toEqual([]);
+  expect(bridge.actions).toEqual([]);
+
+  await page.getByTestId('bridge-pair-open').click();
+  await reopenPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  await expect(section.getByTestId('caspar-channel-name')).toHaveCount(2);
+  await expect(section.getByTestId('caspar-channel-name').nth(0)).toHaveValue('Graphics');
+  await expect(section.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Inserts');
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('30');
+  await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('2');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+});
+
+test('a setup changed in Playout settings is kept in the Bridge for its server, and two servers keep their own', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, {
+    features: WITH_STUDIO,
+    servers: [
+      { host: '192.168.1.20', port: 5250 },
+      { host: '192.168.1.30', port: 5250, studio: STUDIO },
+    ],
+  });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  const keeper = section.getByTestId('playout-studio-keeper');
+  // An untouched default is nobody's choice, so opening gives the Bridge nothing (D18).
+  await expect(keeper).toHaveAttribute('data-keeper', 'ready');
+  await expect(keeper).toHaveText('Change anything here and NoaCG Bridge keeps it for 192.168.1.20, for every browser paired with it.');
+  expect(bridge.studios).toEqual([]);
+
+  await section.getByTestId('caspar-channel-add').click();
+  await section.getByTestId('caspar-channel-name').nth(1).fill('Inserts');
+  await expect
+    .poll(() => bridge.servers?.find((s) => s.host === '192.168.1.20')?.studio)
+    .toEqual({ channels: [{ channel: 1, name: 'Channel 1' }, { channel: 2, name: 'Inserts' }], output: { channel: 1, layer: 20 }, newMedia: 2 });
+  await expect(keeper).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+
+  // The other server is one press, and its own setup comes with it.
+  const recent = section.getByTestId('caspar-recent');
+  await recent.getByRole('button', { name: '192.168.1.30' }).click();
+  await expect(verdict(page)).toContainText('✓ Connected');
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('30');
+  await expect(section.getByTestId('caspar-channel-name').nth(0)).toHaveValue('Graphics');
+  // And back: the first kept its own.
+  await recent.getByRole('button', { name: '192.168.1.20' }).click();
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('20');
+  await expect(section.getByTestId('caspar-channel-name').nth(0)).toHaveValue('Channel 1');
+  await expect(section.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Inserts');
+  // Moving between servers never wrote one server's setup over the other's.
+  expect(new Set(bridge.studios.map((s) => s.host))).toEqual(new Set(['192.168.1.20']));
+  expect(bridge.servers?.find((s) => s.host === '192.168.1.30')?.studio).toEqual(STUDIO);
+  expect(bridge.actions).toEqual([]);
+});
+
+test('a change made while the Bridge is not running is given to it the next time, not replaced by its older copy', async ({ page }) => {
+  await seedOnce(page, { host: '192.168.1.20', channels: STUDIO.channels, layer: 30, clipChannel: 2 });
+  const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+
+  // The Bridge is started again, still holding the setup from before the change.
+  bridge.missing = false;
+  await page.reload();
+  await reopenPlayoutSettings(page);
+  const back = page.getByTestId('settings-playout');
+  await expect(back.getByTestId('playout-studio-keeper')).toHaveAttribute('data-keeper', 'bridge');
+  await expect(back.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Clean feed');
+  expect(bridge.servers?.[0].studio?.channels[1].name).toBe('Clean feed');
+});
+
+test('a change typed while the Bridge is still being asked is kept, not replaced by the setup it answers with', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  // Typed before the Bridge's list arrives: the sync that started first must not write over it.
+  await section.getByTestId('caspar-channel-name').first().fill('Program');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('data-keeper', 'bridge', { timeout: 10_000 });
+  await expect(section.getByTestId('caspar-channel-name').first()).toHaveValue('Program');
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[0].name, { timeout: 10_000 }).toBe('Program');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}').studioPending ?? null)).toBeNull();
+});
+
+test('with a Bridge older than 0.8.0 the setup stays in this browser, and it says so', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, { features: WITH_SERVERS, servers: [{ host: '192.168.1.20', port: 5250 }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  const keeper = section.getByTestId('playout-studio-keeper');
+  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.');
+  await section.getByTestId('caspar-channel-add').click();
+  // The change is synced as with a new Bridge (one more reading of the list) and nothing is sent.
+  const readings = () => bridge.routes.filter((r) => r === '/servers').length;
+  await expect.poll(readings).toBeGreaterThanOrEqual(2);
+  expect(bridge.routes).not.toContain('/studio');
+  await expect(section.getByTestId('caspar-channel-row')).toHaveCount(2);
+  // An older Bridge cannot make a link for another browser: the page says what to do instead.
+  await section.getByTestId('playout-pair-another-copy').click();
+  await expect(section.getByTestId('playout-pair-another-unavailable')).toHaveText(
+    'This NoaCG Bridge cannot make another link. Start it again and copy the link it opens into the other browser.',
+  );
+});
+
+test('a production page opens with the setup the Bridge keeps for its server', async ({ page }) => {
+  // This browser still holds the default; another browser has set the studio up since.
+  await seedSettings(page);
+  await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  await seededPublishedProduction(page);
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels');
+});
+
+test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {
+  // Changed here while NoaCG Bridge was closed: the browser holds the change, marked for the Bridge.
+  await seedOnce(page, { channels: [{ channel: 1, name: 'Program' }], studioPending: { host: '127.0.0.1', port: 5250 } });
+  const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  await seededPublishedProduction(page);
+  await expect(page.getByTestId('production-status')).toContainText('Bridge not running');
+  // The Bridge is started again; the page's own status poll sees it, and the change goes to it.
+  bridge.missing = false;
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[0].name, { timeout: 15_000 }).toBe('Program');
+});
+
+// ── Pairing says only what is needed (AC-12, D8, D19) ───────────────────────────────────────────
+
+test('pairing says one line per step with the rest behind info buttons, and the servers stay once connected', async ({ page }) => {
+  await fakeBridge(page, {
+    pairCode: CODE,
+    features: WITH_STUDIO,
+    servers: [
+      { host: '192.168.1.20', port: 5250, studio: STUDIO },
+      { host: '192.168.1.30', port: 5251 },
+    ],
+  });
+  await page.goto(`/app?bridge=8899&code=${CODE}`);
+  // On a local page there is no permission prompt to warn about, so the step is just the press.
+  await expect(page.getByTestId('bridge-pair-line')).toContainText('Press Pair to let this browser use NoaCG Bridge.');
+  await expect(page.getByTestId('bridge-pair-line-more')).toHaveCount(0);
+  await page.getByTestId('bridge-pair-line-info').click();
+  await expect(page.getByTestId('bridge-pair-line-info')).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('bridge-pair-line-more')).toContainText('This link works once, within two minutes.');
+
+  await page.getByTestId('bridge-pair-connect').click();
+  await expect(page.getByRole('heading', { name: 'Enter the IP address of your CasparCG server.' })).toBeVisible();
+  await expect(page.getByTestId('bridge-connected')).toContainText('at 192.168.1.20.');
+  // The details are behind the info button, not on the page.
+  await expect(page.getByTestId('bridge-pair')).not.toContainText('AMCP port');
+  await page.getByTestId('bridge-connect-line-info').click();
+  await expect(page.getByTestId('bridge-connect-line-more')).toContainText('its AMCP port (5250 unless it was changed)');
+  // Connected by itself, and still offering This computer and every server used before.
+  const recent = page.getByTestId('bridge-connect-recent');
+  await expect(recent.getByRole('button')).toHaveText(['This computer', '192.168.1.20', '192.168.1.30:5251']);
+  await expect(recent.getByRole('button', { name: '192.168.1.20' })).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByTestId('bridge-another-copy')).toBeVisible();
+
+  // The card fits a phone: no sideways scroll at 390 px.
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('another browser pairs from a copied link: this page before pairing, a fresh one from the Bridge after', async ({ page, browser }) => {
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const bridge = await fakeBridge(page, { pairCode: CODE, features: WITH_STUDIO });
+  await page.goto(`/app?bridge=8899&code=${CODE}`);
+  // Before pairing: not the browser the operator uses? This page's own link, its code not spent.
+  await page.getByTestId('bridge-pair-copy-copy').click();
+  await expect(page.getByTestId('bridge-pair-copy-link')).toHaveValue(page.url());
+  await expect(page.getByTestId('bridge-pair-copy-done')).toHaveText('Copied. Paste it into the other browser’s address bar. It works once, within two minutes.');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(page.url());
+
+  // After pairing here, the Bridge opens one more code for the next browser.
+  await page.getByTestId('bridge-pair-connect').click();
+  await expect(page.getByTestId('bridge-pair-done')).toBeVisible();
+  await page.getByTestId('bridge-another-copy').click();
+  const link = await page.getByTestId('bridge-another-link').inputValue();
+  expect(link).toBe(`${new URL(page.url()).origin}/app?bridge=8899&code=${bridge.openCodes[0]}`);
+
+  // The other browser: its own profile, the same Bridge.
+  const other = await (await browser.newContext()).newPage();
+  await fakeBridge(other, { features: WITH_STUDIO, openCodes: bridge.openCodes, servers: bridge.servers });
+  await other.goto(link);
+  await other.getByTestId('bridge-pair-connect').click();
+  await expect(other.getByTestId('bridge-pair-done')).toBeVisible();
+  // Each code works once.
+  expect(bridge.openCodes).toEqual([]);
+  await other.context().close();
 });
 
 // ── The hops, each told apart ───────────────────────────────────────────────────────────────

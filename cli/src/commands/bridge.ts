@@ -19,9 +19,9 @@ import { cliVersion, noacgUrl } from '../config.js';
 import { EXIT_OK, flagBool, flagList, flagNumber, flagString, refuseStray, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { casparcgAdapter } from '../playout/adapters/casparcg.js';
 import { ografAdapter } from '../playout/adapters/ograf.js';
-import { PAIRING_TTL_MS, allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost, type Pairing } from '../playout/server.js';
+import { allowedOrigins, createBridgeServer, DEFAULT_BRIDGE_PORT, isLoopbackHost } from '../playout/server.js';
 import { PLAYOUT_V } from '../playout/protocol.js';
-import { mintPairingCode, resolveToken } from '../playout/token.js';
+import { PairingCodes, resolveToken } from '../playout/token.js';
 
 /** The page that pairs a browser with this Bridge: a query route the studio renders instead of
  *  itself. The code is one-time and short-lived; the token never travels in a URL. */
@@ -58,9 +58,13 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;
-  const pairing: Pairing = { code: mintPairingCode(), expiresAt: Date.now() + PAIRING_TTL_MS, used: false };
+  // Enter asks for a new link only where somebody can press it: a window or a terminal, never a
+  // Bridge started by another program with no keyboard behind it.
+  const keyboard = Boolean(process.stdin.isTTY);
+  const pairings = new PairingCodes();
+  const first = pairings.mint();
   const server = createBridgeServer(
-    { token, origins, adapters: [casparcgAdapter, ografAdapter], version: cliVersion(), pairing },
+    { token, origins, adapters: [casparcgAdapter, ografAdapter], version: cliVersion(), pairings, keyboard },
     (line) => {
       if (!quiet) out.log(`[bridge] ${line}`);
     },
@@ -72,15 +76,18 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   });
 
   const address = `http://127.0.0.1:${port}`;
-  const pairUrl = pairingUrl(port, pairing.code);
+  const pairUrl = pairingUrl(port, first.code);
   out.result({ ok: true, address, token, origins, v: PLAYOUT_V, pairUrl });
+  // What the window says is what the pairing page says (docs/work-specs/studio-day-playout D8): one
+  // line per step, and how to pair another browser, which is a link copied into it.
   out.say('');
   out.say(`  NoaCG Bridge ${cliVersion()} is running. Leave this window open.`);
   out.say('');
-  out.say('  First time on this browser? Open this link within two minutes to pair it:');
-  out.say(`    ${pairUrl}`);
+  out.say('  1. Pair your browser with this link. It works once, within two minutes.');
+  out.say(`       ${pairUrl}`);
+  out.say(`     To pair another browser, copy the link into it${keyboard ? ', or press Enter here for a new one' : ''}.`);
+  out.say('  2. On that page, enter the IP address of your CasparCG server.');
   out.say('');
-  out.say('  Already paired? Just open NoaCG. Settings -> Playout shows the Bridge as connected.');
   out.say(`  Bridge address    ${address}`);
   out.say(`  Allowed origins   ${origins.join(', ')} (plus any localhost port)`);
   out.say('  Press Ctrl+C to stop.');
@@ -89,9 +96,23 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   // copy a link. `--no-open` for terminals and for a Bridge that starts with the machine.
   if (flagBool(args, 'open', true)) openInBrowser(pairUrl);
 
+  // ENTER: a new one-time link for another browser (D19). Read line by line in the terminal's own
+  // mode, never raw, so Ctrl+C still reaches the process as the signal that stops it below.
+  const onLine = () => {
+    out.say('');
+    out.say('  A new pairing link. It works once, within two minutes:');
+    out.say(`       ${pairingUrl(port, pairings.mint().code)}`);
+  };
+  if (keyboard) {
+    process.stdin.on('data', onLine);
+    // Listening must not keep a stopped Bridge alive: the server holds the process, not the keyboard.
+    process.stdin.unref();
+  }
+
   // Run until killed. The Bridge is a foreground service, like a dev server.
   await new Promise<void>((resolve) => {
     const stop = () => {
+      if (keyboard) process.stdin.off('data', onLine).pause();
       server.close(() => resolve());
     };
     process.on('SIGINT', stop);

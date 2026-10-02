@@ -99,6 +99,23 @@ The core playout path worked all day. What cost time was uncertainty and setup:
   reaches air. Never NOT LIVE over a clip that is playing. Revert: `live` in `ProductionPage`.
   The rundown's ON AIR chip and the "on air:" line under the verbs still say ON AIR for a local
   take in an offline production (docs/backlog/on-air-words-in-an-offline-production.md).
+- **D17. The Bridge's copy is the setup for its server.** A page takes it when it connects to a
+  server (pairing, Connect, a server used before) and when a production page or Playout settings
+  opens, and writes it back when the operator changes the channels, the NoaCG output or New media.
+  A change the Bridge has not confirmed (it was not running) stays marked in the browser and is
+  written the next time the Bridge answers, instead of being replaced by the Bridge's older copy.
+  Revert: `syncStudio` in `control/playoutLink.ts` stops writing to the Bridge.
+- **D18. A server the Bridge keeps no setup for takes the one on screen,** unless that is the
+  untouched default (one channel, output 1-20, new media on 1). So a browser's own setup moves into
+  the Bridge the first time a 0.8.0 Bridge sees its server, a server whose address changed keeps
+  its setup, and from then on each server keeps its own. Only a server the Bridge connected to
+  keeps one: the Bridge refuses a setup for a server not in its list. Revert: start a server the
+  Bridge has no setup for from the default.
+- **D19. Another browser pairs with a fresh one-time link.** The link the Bridge opens pairs
+  whichever browser uses it first, so it can be copied into another browser before it is used. A
+  paired page asks the Bridge for a new one (`/pair-link`), and so does Enter in the Bridge window.
+  Each code still works once, for two minutes; several may be open at once. Revert: drop the route
+  and the key.
 
 ## Behaviour
 

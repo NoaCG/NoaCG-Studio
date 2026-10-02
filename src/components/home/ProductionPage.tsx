@@ -57,6 +57,7 @@ import {
   outputSlotRefusal,
   stateReadable,
   subscribeTargetStatus,
+  syncStudio,
   type PlayoutResult,
   type PlayoutSettings,
 } from '../../control/playoutLink';
@@ -950,6 +951,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setBridgeStatus(null);
     return subscribeTargetStatus(settings, setBridgeStatus);
   }, [playoutSettingsRev, checkAgainRev]);
+  // THE STUDIO SETUP NOACG BRIDGE KEEPS for this server (docs/work-specs/studio-day-playout D17):
+  // read once as the page opens, so a channel, output slot or New media channel another browser set
+  // is the one this page plays to. A change it brings re-reads the settings like the dialog's close.
+  useEffect(() => {
+    if (!playoutConfigured(loadPlayoutSettings())) return;
+    let alive = true;
+    void syncStudio().then((done) => {
+      if (alive && done.changed) setPlayoutSettingsRev((n) => n + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   // WHAT THE NOACG OUTPUT'S SLOT HOLDS on the server (docs/work-specs/studio-day-playout AC-7): this
   // production's output, another production's, or nothing - the fact that says whether a Take will
   // air on CasparCG at all, and that the studio day had to discover by looking at the programme.
@@ -1010,6 +1024,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // filled, and a file the list does not have stays unknown, which Play next says.
   const learntFacts = useRef<string | null>(null);
   const bridgeOk = bridgeStatus?.state === 'ok';
+  // A SETUP CHANGE MADE WHILE NOACG BRIDGE WAS AWAY goes to it as soon as the status says it answers
+  // again (D17), rather than waiting for the next page or Playout settings to open.
+  useEffect(() => {
+    if (bridgeOk && loadPlayoutSettings().studioPending) void syncStudio();
+  }, [bridgeOk]);
   useEffect(() => {
     if (!bridgeOk || !show) return;
     // A still has no length to learn.
