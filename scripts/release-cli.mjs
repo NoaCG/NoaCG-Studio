@@ -57,19 +57,19 @@ const fail = (message, fix) => {
 };
 
 /**
- * Read a file as it exists on origin/main.
+ * Read a file as it exists on origin/main (or the commit `--ref` names).
  *
  * `git show origin/main:path` is the obvious spelling and the wrong one here: on Windows the shell
  * layer rewrites an argument containing a colon and slashes as a path, and the command fails with
  * a confusing "ambiguous argument". Resolving the blob first has no such hazard on any platform.
  */
-const readFromMain = (path) => {
+const readAtRef = (path) => {
   const line = git('ls-tree', REF, '--', path);
   if (!line) fail(`${path} does not exist on ${REF}`);
   return git('cat-file', 'blob', line.split(/\s+/)[2]);
 };
 
-const json = (path) => JSON.parse(readFromMain(path));
+const json = (path) => JSON.parse(readAtRef(path));
 
 console.log('Fetching origin/main and the tags…');
 git('fetch', '--tags', 'origin', 'main');

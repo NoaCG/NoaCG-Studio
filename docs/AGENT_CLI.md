@@ -653,8 +653,9 @@ proposal is still undecided, not done. What it DOES now name is the skill - belo
 
 ### The installed skill can be older than everything else
 
-A Claude Code or Codex marketplace never updates itself, and a plugin installed once keeps the
-skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
+A Claude Code or Codex marketplace does not update itself by default (Claude Code turns
+auto-update on only for Anthropic's own marketplaces; a user can turn it on for `noacg-studio` in
+`/plugin`, **Marketplaces**), and a plugin installed once keeps the skill text it shipped with. Measured on this laptop 2026-09-16: `noacg@noacg-studio` at **0.2.0**
 against a marketplace shipping 0.3.3, a `SKILL.md` eleven lines shorter than the repository's, and
 nothing anywhere saying so - the person most exposed being whoever installed earliest.
 `docs/backlog/nothing-tells-a-user-their-installed-noacg-plugin-is-stale.md` has the full reading.
