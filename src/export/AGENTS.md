@@ -245,8 +245,7 @@ export-time reflow, stretching, or cropping.
 - **spxLeftBehind.ts** - what the SPX production package (`buildShowZip`) SAYS it drops
   (docs/CONTROL_PANEL_ANY_GRAPHIC.md §6h), written into its README and GETTING-ON-AIR.md. The
   package still carries none of the production (§6f); these are words, in SPX's own actions.
-  `spxLeftBehindMd` is keyed on the PRODUCTION (bindings, data tree; Combined controls were
-  removed on 2026-10-02 and a stored list adds nothing) and is '' without them; `spxReportedFieldRulesMd` is keyed on the GRAPHIC (a hidden
+  `spxLeftBehindMd` is keyed on the PRODUCTION (bindings, data tree) and is '' without them; `spxReportedFieldRulesMd` is keyed on the GRAPHIC (a hidden
   field a control `set`s where Continue fires it - `continueEvents` in control/controlModel.ts,
   the same reading as `canAdvance` - which SPX re-sends stale on every Update) and stays with
   or without a profile. Pinned by e2e/shows.spec.ts.
