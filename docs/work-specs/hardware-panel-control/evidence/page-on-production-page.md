@@ -18,19 +18,33 @@ and running presses through its own `onVerb`.
   removing the phone rule from `panel.css` fails the phone test.
 - **`npm run build`**: green (gates, `tsc`, `tsc -p tsconfig.api.json`, `eslint . --max-warnings 0`,
   dependency rules, `vite build`, prerender, client secret scan).
+- **Configured, on a local Supabase stack** (2026-10-02, the owner's Windows laptop, after merging
+  `origin/main` at f5cae71). Never production: `supabase start` with every migration in the tree,
+  0001 to 0073, and the throwaway accounts CI uses (`e2e@noacg.local`), created through the local
+  admin API. Job j-2961, `npx playwright test --config=playwright.live.config.ts
+  panel-production-page.spec.ts panel-page.spec.ts panel-relay.spec.ts`: 9 of 9 passed, none on a
+  retry.
+  - `panel-production-page.spec.ts`, 1 of 1: pair, answer (`where: production`, `bridge: off`, no
+    clip), `select-cue`, a relayed Take (press call to the page's result in 14 ms), a duplicate id,
+    a stale Take and a stale Out, `take-cue` on and off with the cursor left on Anna, All out
+    refused with nothing up and then run, the hosted control page taking the answer over, and the
+    claim let go when it closes.
+  - `panel-page.spec.ts`, 1 of 1, with its publish wait on the status control's `data-started`:
+    the relayed Take on the hosted page took 13 ms. This is the spec that kept the configured
+    suite red on `main` (issue #636), still waiting for the SHOW chip #640 removed.
+  - `panel-relay.spec.ts`, 7 of 7.
+- **The merge with `main`** removed `feedNote` with Combined controls, which the production page's
+  panel answer used to write a refused press to the activity feed; `npm run build` caught it
+  (`TS2304`), and the note is now written in place. The stale-press step above reads that line
+  back ("Spec deck: Take refused, what Take does changed").
+- **Screenshots**: the Panel door changed the production header, so the six
+  `e2e/playout-baseline.spec.ts` pictures were re-recorded on both platforms (Linux by
+  `rerecord-screenshots.yml` run 37029696001, Windows by job j-2960). Each was compared with the
+  picture it replaced: the only change is the Panel door left of Export (at 1366 px "Panel ○"
+  without the word Off, beside Export's icon), plus single-level antialiasing noise.
 
 ## What did not run, and why
 
-- **Configured: `e2e/configured/panel-production-page.spec.ts`** (1 test; `minTests` 69 to 70).
-  This cloud session has no Supabase token or E2E credentials, so the spec only lists here. It is
-  the hosted walk on the production page: pair, answer (`where: production`, `bridge: off`, no
-  clip), `select-cue`, a relayed Take, a duplicate id, a stale Take and a stale Out, `take-cue` on
-  and off with the cursor left alone, All out refused with nothing up and then run, the hosted
-  control page taking the answer over, and the claim let go when it closes. Its first run is CI's
-  configured suite or a local session through the job queue.
-- **Configured: `e2e/configured/panel-page.spec.ts`**, edited, also not run here: its publish wait
-  read the SHOW chip that #640 replaced, and now reads the status control's `data-started`; the
-  module's side moved to `e2e/configured/_panel.ts` unchanged except a `rows()` reader.
 - **The clip clock from the production page to a panel.** No configured spec puts a server clip up
   (that needs the fake Bridge of `e2e/playout-clock.spec.ts` inside a configured spec). The clock's
   shape rests on `panelClip`'s unit test and the module's clock tests.
