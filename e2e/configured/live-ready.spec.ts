@@ -8,53 +8,16 @@
 // resolve and no topic to join.
 // covers: src/control/readiness.ts, src/control/payloadVersion.ts, src/components/control/OutputHealth.tsx, src/output/main.ts, src/output/stage.ts, src/preview/composeDocument.ts, src/model/readyMemory.ts
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
 /** Where the screenshots go: READY_SHOTS when a person wants to look at them after the run, the
  *  test's own output folder otherwise. */
 const shot = (name: string) => (process.env.READY_SHOTS ? `${process.env.READY_SHOTS}/ready-${name}.png` : test.info().outputPath(`${name}.png`));
-
-type ReadyWindow = {
-  __noacgLive?: {
-    presence: () => string;
-    ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
-  };
-};
-const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
-
-/** Add a catalog graphic to a production through the same model call the rundown's "+ Add" makes. */
-async function addCatalogGraphic(page: Page, showId: string, name: string): Promise<void> {
-  await page.evaluate(
-    async ([id, wanted]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const variant = Object.values(CATALOG).flat().find((v) => v.name === wanted);
-      if (!variant) throw new Error(`no catalog variant ${wanted}`);
-      const draft = mergeDraft(initialDraft(), {
-        variantId: variant.id,
-        lines: variant.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      });
-      const { error } = addGraphicToShow(id, await formatTemplate(buildDraftTemplate(variant, draft)), {});
-      const failure = error ?? (await commitDurableWrites());
-      if (failure) throw new Error(failure);
-    },
-    [showId, name] as const,
-  );
-}
 
 test('READY: every output says whether it is ready, both surfaces read one line, a broken graphic is named and a dead output is red', async ({ page, browser }) => {
   test.setTimeout(360_000);

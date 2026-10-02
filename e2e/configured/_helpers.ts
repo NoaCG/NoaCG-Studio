@@ -16,6 +16,16 @@ export const E2E_TEAMMATE_EMAIL = process.env.E2E_TEAMMATE_EMAIL ?? '';
 export const E2E_TEAMMATE_PASSWORD = process.env.E2E_TEAMMATE_PASSWORD ?? '';
 export const haveTeammateCreds = Boolean(E2E_TEAMMATE_EMAIL && E2E_TEAMMATE_PASSWORD);
 
+/** What an output page says about itself on its live topic (src/output/main.ts `__noacgLive`). */
+export type ReadyWindow = {
+  __noacgLive?: {
+    presence: () => string;
+    ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
+  };
+};
+/** An output page's own READY answer, or null before it has one. */
+export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
+
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 

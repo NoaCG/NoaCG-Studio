@@ -98,8 +98,16 @@ test('the operator reads the plan’s words for every state', () => {
   const broken = read({ peers: [output({ ready: { n: 4, of: 4, v: V12, is: [{ k: 'script', g: 'Frost Quiz', d: 'boom' }] } })] });
   assert.equal(broken.summary.label, '▲ Not ready: Frost Quiz (script error)');
   assert.equal(broken.summary.tone, 'warn');
-  assert.equal(broken.outputs[0].broken, true, 'marked for the production page, which reads it red');
+  // The production page's status reads these, never the label's words.
+  assert.equal(broken.outputs[0].broken, 'Not ready: Frost Quiz', 'marked for the production page, which reads it red');
+  assert.deepEqual(broken.summary.broken, { line: 'Not ready: Frost Quiz (script error)', short: 'Not ready: Frost Quiz' });
+  assert.equal(broken.summary.lead, 'Not ready: Frost Quiz (script error)');
   assert.equal(ready.outputs[0].broken, undefined);
+  assert.equal(ready.summary.broken, null);
+  assert.equal(ready.summary.lead, 'Ready for playout · 1 of 1 output');
+  const loading = read({ peers: [output({ ready: { n: 18, of: 24, v: V12, is: [] } })] });
+  assert.deepEqual([loading.summary.lead, loading.summary.preparing], ['Preparing 18 of 24', true]);
+  assert.equal(ready.summary.preparing, false);
   assert.match(broken.outputs[0].detail[0], /Frost Quiz threw an error while loading: boom/);
 
   const font = read({ peers: [output({ ready: { n: 4, of: 4, v: V12, is: [{ k: 'font', g: 'Strap', d: 'Manrope' }] } })] });
@@ -179,6 +187,8 @@ test('a newer version being prepared reads as the plan words it', () => {
   assert.equal(read({ published: { n: 14, h: 'cccc' }, peers: chg({ s: 'preparing' }) }).summary.label, '▲ Behind: showing v12');
   const failed = read({ published: V13, peers: chg({ s: 'failed', is: [{ k: 'script', g: 'Frost Quiz' }] }) });
   assert.equal(failed.summary.label, '▲ Ready · 1 change not prepared: Frost Quiz (script error)');
+  // The whole sentence is the lead: cut at its first " · " it would read just "Ready", in amber.
+  assert.equal(failed.summary.lead, 'Ready · 1 change not prepared: Frost Quiz (script error)');
   assert.match(failed.outputs[0].detail.join(' '), /keeps running v12/);
   const waiting = read({ published: V13, peers: chg({ s: 'waiting', n: 1, air: 2 }) });
   assert.equal(waiting.summary.label, '▲ Behind: showing v12');

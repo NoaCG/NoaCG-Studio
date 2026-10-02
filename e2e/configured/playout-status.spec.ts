@@ -8,94 +8,18 @@
 // version. None of it exists offline: there is nothing to start, no output to report and no
 // version to move to.
 //
-// NoaCG Bridge and CasparCG are FAKED at the network layer (as e2e/bridge-connect.spec.ts does),
-// because what the status reads from them is one `/state` answer: what the output's slot holds.
+// NoaCG Bridge and CasparCG are FAKED at the network layer (e2e/_fakeBridge.ts), because what the
+// status reads from them is one `/state` answer: what the output's slot holds.
 // The real-server walk of the same states is docs/work-specs/studio-day-playout/evidence/landing-2.md.
 // covers: src/control/playoutStatus.ts, src/components/home/PlayoutStatusControl.tsx, src/components/home/ProductionLinks.tsx, src/components/home/PlayoutMonitors.tsx
 
-import { test, expect, type Page, type Route } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
-import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { fakeBridge, seedSettings } from '../_fakeBridge';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
-
-const BRIDGE = 'http://127.0.0.1:8899';
-
-type ReadyWindow = {
-  __noacgLive?: {
-    presence: () => string;
-    ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
-  };
-};
-const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
-
-/** Add a catalog graphic to a production through the same model call the rundown's "+ Add" makes. */
-async function addCatalogGraphic(page: Page, showId: string, name: string): Promise<void> {
-  await page.evaluate(
-    async ([id, wanted]) => {
-      const { CATALOG } = await import('/src/templates/catalog.ts');
-      const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
-      const { formatTemplate } = await import('/src/format/formatCode.ts');
-      const { addGraphicToShow } = await import('/src/model/shows.ts');
-      const { commitDurableWrites } = await import('/src/model/durableStore.ts');
-      const variant = Object.values(CATALOG).flat().find((v) => v.name === wanted);
-      if (!variant) throw new Error(`no catalog variant ${wanted}`);
-      const draft = mergeDraft(initialDraft(), {
-        variantId: variant.id,
-        lines: variant.suggestedLines.map((l) => ({ ...l })),
-        zone: null,
-        logoEnabled: null,
-        animation: { presetId: null, outPresetId: null },
-        paletteId: null,
-        customPalette: null,
-        fontId: null,
-      });
-      const { error } = addGraphicToShow(id, await formatTemplate(buildDraftTemplate(variant, draft)), {});
-      const failure = error ?? (await commitDurableWrites());
-      if (failure) throw new Error(failure);
-    },
-    [showId, name] as const,
-  );
-}
-
-/**
- * A NoaCG Bridge 0.7 in front of CasparCG 2.5, as far as the status can see it: it answers, it can
- * read a channel's state, and the output's slot 1-20 holds whatever `slot` says. Put on air (a `take`
- * of a URL) and Take off (`out`) change it as the real server would.
- */
-async function fakeStudio(page: Page) {
-  const studio = {
-    slot: { producer: 'empty' } as { producer: string; file?: string },
-    /** The server refuses `INFO` for the channel, as for a channel it does not have. */
-    refuseState: false,
-    actions: [] as { verb: string }[],
-  };
-  const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
-  const json = (route: Route, body: unknown) => route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  await page.route(`${BRIDGE}/**`, async (route) => {
-    const request = route.request();
-    const path = new URL(request.url()).pathname;
-    if (path === '/health') return json(route, { ok: true, agent: 'noacg-bridge', v: 2, version: '0.7.0', adapters: ['casparcg'], features: ['state', 'playback', 'sequence', 'servers'] });
-    const body = JSON.parse(request.postData() || '{}') as { channel?: number; action?: { verb: string; item?: { name: string } } };
-    if (path === '/status') return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: ['state'] });
-    if (path === '/state') {
-      if (studio.refuseState) {
-        return json(route, { ok: false, v: 2, error: { hop: 'target', code: 'refused', detail: 'CasparCG refused the command: 401 INFO ERROR. Check the channel and layer.', raw: '401 INFO ERROR' } });
-      }
-      const slots = body.channel === 1 ? [{ layer: 20, generation: 0, paused: false, loop: false, ...studio.slot }] : [];
-      return json(route, { ok: true, v: 2, channel: body.channel ?? 1, session: 's1', observedAt: Date.now(), slots });
-    }
-    if (path === '/act' && body.action) {
-      studio.actions.push(body.action);
-      if (body.action.verb === 'take') studio.slot = { producer: 'html', file: body.action.item?.name ?? '' };
-      if (body.action.verb === 'out') studio.slot = { producer: 'empty' };
-      return json(route, { ok: true, v: 2, raw: '202 PLAY OK', generation: 1, session: 's1' });
-    }
-    return json(route, { ok: true, v: 2, items: [], servers: [] });
-  });
-  return studio;
-}
 
 test('the playout status: grey offline, amber with no output, red when the slot is wrong, green on air, and every publish prepares', async ({ page, browser }) => {
   test.setTimeout(360_000);
@@ -136,13 +60,10 @@ test('the playout status: grey offline, amber with no output, red when the slot 
 
   // ── A paired Bridge whose server shows nothing on the output's slot: red, and Put on air is the
   //    press that is due. ──
-  const studio = await fakeStudio(page);
-  await page.evaluate((bridge) => {
-    localStorage.setItem(
-      'spx-gfx-caspar',
-      JSON.stringify({ agentUrl: bridge, agentToken: 'e2e-token', host: '127.0.0.1', amcpPort: 5250, channel: 1, layer: 20, v: 1 }),
-    );
-  }, BRIDGE);
+  // NoaCG Bridge 0.7 in front of CasparCG 2.5, as far as the status can see it: it answers, it can
+  // read a channel, and Put on air (a take of a URL) and Take off change the slot as the server would.
+  const studio = await fakeBridge(page, { version: '0.7.0', features: ['state', 'playback', 'sequence', 'servers'] });
+  await seedSettings(page);
   // A reload, not a goto: the page is already on this URL, so a goto would only move the hash.
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
@@ -155,7 +76,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(panel.getByTestId('caspar-put-on-air')).toHaveClass(/primary/);
 
   // ── Another production on that slot: red, by name. ──
-  studio.slot = { producer: 'html', file: 'https://noacg.studio/output?production=someone-else&name=CasparCG%201-20' };
+  studio.showPage('1-20', 'https://noacg.studio/output?production=someone-else&name=CasparCG%201-20');
   await panel.getByTestId('playout-check-again').click();
   await expect(status).toHaveAttribute('data-tone', 'bad');
   await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
@@ -175,7 +96,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   // ── Put on air: green at once, without waiting for the next 10 s read. ──
   await panel.getByTestId('caspar-put-on-air').click();
   await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
-  expect(studio.slot.file).toContain(`production=${encodeURIComponent(outputSlug)}`);
+  expect(studio.runs['1-20']?.entries[0].file).toContain(`production=${encodeURIComponent(outputSlug)}`);
   await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 5_000 });
   await expect(status).toContainText('Ready · on air 1-20');
   await expect(panel.getByTestId('caspar-put-on-air')).not.toHaveClass(/primary/);

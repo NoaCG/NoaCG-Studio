@@ -18,9 +18,19 @@
 // so scripts/playout-status.test.mjs runs it in Node; the words are its contract.
 
 import type { PlayoutState } from './playoutLink';
-import type { ReadyTone } from './readiness';
+import { bridgeAnswersLabel } from './prepareLive.ts';
+import { TONE_DOT, type ReadySummary, type ReadyTone } from './readiness.ts';
 
-export type StatusTone = 'idle' | 'ok' | 'warn' | 'bad';
+/** READY's four, in the same colours. */
+export type StatusTone = ReadyTone;
+
+/** What the NoaCG output's own slot on the server holds, read through the Bridge: this production's
+ *  output, another's, anything else (`empty`), a Bridge too old to say (`unreadable`), or a read the
+ *  server refused (`failed`, with the Bridge's sentence in `detail`). */
+export interface SlotReading {
+  holds: 'ours' | 'other' | 'empty' | 'unreadable' | 'failed';
+  detail?: string;
+}
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
@@ -49,22 +59,21 @@ export interface StatusFacts {
   version: string;
   /** NoaCG Bridge as the page last heard it; null when no Bridge is set up in this browser. */
   bridge: { state: PlayoutState | 'pending'; detail: string; version?: string } | null;
-  /** What the NoaCG output's own slot on the server holds, read through the Bridge; undefined
-   *  until it has been read, `unreadable` when this Bridge or server cannot say (an older Bridge),
-   *  `failed` when the read was refused, with the Bridge's sentence in `detail`. `where` is `1-20`,
+  /** The output's slot (`SlotReading`), undefined until it has been read. `where` is `1-20`,
    *  `channel` its channel. */
-  slot?: { where: string; channel: number; holds: 'ours' | 'other' | 'empty' | 'unreadable' | 'failed'; detail?: string };
-  /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known.
-   *  `broken` is the headline of an output naming a graphic that cannot play ("Not ready: Hairline
-   *  (script error)"), or null. */
-  ready: { tone: ReadyTone; label: string; outputs: number; ready: number; broken?: string | null } | null;
+  slot?: SlotReading & { where: string; channel: number };
+  /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known. */
+  ready: Pick<ReadySummary, 'tone' | 'label' | 'outputs' | 'ready' | 'lead' | 'preparing' | 'broken'> | null;
 }
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
 
-/** READY's words without its leading dot, which the control draws itself. */
-function bare(label: string): string {
-  return label.replace(/^[●▲✕○]\s*/, '');
+/** READY's deciding words. Step 1's health line underneath READY has no `lead`, so its label is
+ *  read without the dot the control draws itself. */
+function leadOf(ready: NonNullable<StatusFacts['ready']>): string {
+  if (ready.lead) return ready.lead;
+  const dot = TONE_DOT[ready.tone];
+  return ready.label.startsWith(dot) ? ready.label.slice(dot.length).trim() : ready.label;
 }
 
 function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
@@ -72,12 +81,7 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
     case 'pending':
       return { key: 'bridge', tone: 'idle', label: 'Checking NoaCG Bridge…', short: 'Checking…' };
     case 'ok':
-      return {
-        key: 'bridge',
-        tone: 'ok',
-        label: `NoaCG Bridge and CasparCG answer${b.version ? ` (CasparCG ${b.version.split(' ')[0]})` : ''}`,
-        short: 'Connected',
-      };
+      return { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(b.version), short: 'Connected' };
     case 'bridge':
       return { key: 'bridge', tone: 'bad', label: 'NoaCG Bridge is not running', short: 'Bridge not running', advice: b.detail };
     case 'server':
@@ -119,7 +123,8 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   // Is something there to air it? The output's slot on CasparCG, read through the Bridge, and the
   // outputs' own reports. A slot that holds nothing is broken only when nothing else will air the
   // graphics: a studio may drive clips through the Bridge and run its graphics in OBS.
-  const readyAny = !!f.ready && f.ready.outputs > 0;
+  const ready = f.ready?.outputs ? f.ready : null;
+  const readyAny = !!ready;
   if (f.slot && bridge?.tone === 'ok') {
     const ch = `Channel ${f.slot.channel}`;
     if (f.slot.holds === 'ours') {
@@ -162,28 +167,22 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     }
   }
 
-  if (f.ready && f.ready.outputs > 0) {
+  if (ready) {
     // An output still PREPARING is attention, not health (owner: amber is "preparation
     // incomplete"): READY draws it in its idle grey because nothing is wrong yet, but a Take now
     // may find a graphic not loaded. Any other idle reading (an output too old to say) stays grey.
-    const preparing = f.ready.tone === 'idle' && /Preparing/.test(f.ready.label);
     // A graphic that cannot play is broken (owner: red when something that should work is
     // broken), although READY reads it amber because the output's other graphics still air.
-    const broken = f.ready.tone !== 'bad' && f.ready.broken ? f.ready.broken : null;
-    const tone: StatusTone =
-      f.ready.tone === 'bad' || broken ? 'bad' : f.ready.tone === 'warn' || preparing ? 'warn' : f.ready.tone === 'ok' ? 'ok' : 'idle';
-    const short = broken
-      ? broken.replace(/ \([^)]*\)/g, '')
-      : tone === 'bad'
-        ? f.ready.ready === 0
-          ? 'Output not responding'
-          : `${f.ready.ready} of ${f.ready.outputs} outputs ready`
-        : tone === 'warn'
-          ? bare(f.ready.label).split(' · ')[0]
-          : tone === 'ok'
-            ? `${f.ready.outputs} output${f.ready.outputs === 1 ? '' : 's'}`
-            : 'Connected';
-    checks.push({ key: 'outputs', tone: f.started ? tone : 'idle', label: broken ?? bare(f.ready.label), short });
+    const broken = ready.tone !== 'bad' ? ready.broken : null;
+    const tone: StatusTone = ready.tone === 'bad' || broken ? 'bad' : ready.preparing ? 'warn' : ready.tone;
+    const lead = leadOf(ready);
+    let short: string;
+    if (broken) short = broken.short;
+    else if (tone === 'bad') short = ready.ready === 0 ? 'Output not responding' : `${ready.ready} of ${ready.outputs} outputs ready`;
+    else if (tone === 'warn') short = lead;
+    else if (tone === 'ok') short = `${ready.outputs} output${ready.outputs === 1 ? '' : 's'}`;
+    else short = 'Connected';
+    checks.push({ key: 'outputs', tone: f.started ? tone : 'idle', label: broken?.line ?? lead, short });
   } else if (f.started && !f.slot && !(bridge && bridge.tone !== 'ok')) {
     checks.push({
       key: 'outputs',

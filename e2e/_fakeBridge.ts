@@ -60,6 +60,8 @@ interface Run {
   loop?: boolean;
   /** One file the server itself LOOPs (a take's `loop`). */
   serverLoop?: boolean;
+  /** A web page on the slot (a take of a URL: NoaCG's output put on air), which never ends. */
+  html?: boolean;
 }
 
 export type FakeAction = { verb: string; slot: { channel: number; layer: number }; [k: string]: unknown };
@@ -86,12 +88,16 @@ export interface Fake {
   refuse: (action: FakeAction) => string | null;
   /** Awaited before the action is answered, so a spec can hold one in flight. */
   gate: (action: FakeAction) => Promise<void> | void;
+  /** The server refuses `INFO` for the channel, as for a channel it does not have. */
+  refuseState: boolean;
+  /** Puts a web page on a slot (`1-20`) as another operator would, or clears it. */
+  showPage: (addr: string, url: string | null) => void;
   /** The Bridge restarts: a new session that remembers nothing it started, while the server plays on
    *  what it already had - the file on air, and the one queued behind it - and then holds. */
   restart: () => void;
 }
 
-export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart'>> = {}): Promise<Fake> {
+export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' | 'showPage'>> = {}): Promise<Fake> {
   let count = 0;
   const now = () => Date.now() + fake.skew;
   const fake: Fake = {
@@ -108,7 +114,11 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart'>
     lengths: {},
     refuse: () => null,
     gate: () => {},
+    refuseState: false,
     ...init,
+    showPage: (addr, url) => {
+      fake.runs[addr] = url ? { entries: [{ file: url, length: 0, fadeIn: 0, raw: null }], startedAt: now(), html: true } : undefined;
+    },
     restart: () => {
       fake.session = `${fake.session}r`;
       for (const run of Object.values(fake.runs)) {
@@ -154,12 +164,16 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart'>
     if (path === '/list') return json(route, { ok: true, v: 2, items: body.kind === 'media' ? fake.list : [] });
     if (path === '/state') {
       fake.stateCalls += 1;
+      if (fake.refuseState) {
+        return json(route, { ok: false, v: 2, error: { hop: 'target', code: 'refused', detail: 'CasparCG refused the command: 401 INFO ERROR. Check the channel and layer.', raw: '401 INFO ERROR' } });
+      }
       const channel = body.channel ?? 1;
       const slots = Object.entries(fake.runs)
         .filter(([addr]) => addr.startsWith(`${channel}-`))
         .map(([addr, run]) => {
           const common = { layer: Number(addr.split('-')[1]), generation: fake.generation[addr] ?? 0 };
           if (!run) return { ...common, producer: 'empty', paused: false, loop: false };
+          if (run.html) return { ...common, producer: 'html', file: run.entries[0].file, paused: false, loop: false };
           const t = ((run.pausedAt ?? now()) - run.startedAt) / 1000;
           const { k, position } = where(run, t);
           const on = run.entries[k];
@@ -218,6 +232,7 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart'>
           instance,
           ...(a.verb === 'sequence' && a.loop === true ? { loop: true } : {}),
           ...(a.verb === 'take' && a.loop === true ? { serverLoop: true } : {}),
+          ...(a.verb === 'take' && (a.item as { kind?: string }).kind === 'url' ? { html: true } : {}),
         };
       }
       if (a.verb === 'out') fake.runs[addr] = undefined;

@@ -252,6 +252,12 @@ export function slotHolds(slot: SlotState | null, outputSlug: string | null): 'o
   return file.indexOf('/output?production=') >= 0 ? 'other' : 'empty';
 }
 
+/** "NoaCG Bridge and CasparCG answer (CasparCG 2.5.0)": the Bridge line, in Prepare for Live's
+ *  checklist and the production page's status alike. */
+export function bridgeAnswersLabel(version?: string): string {
+  return `NoaCG Bridge and CasparCG answer${version ? ` (CasparCG ${version.split(' ')[0]})` : ''}`;
+}
+
 /** A fresh prepare request id: twelve lowercase alphanumerics. */
 export function requestId(): string {
   let id = '';
@@ -272,7 +278,7 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
     return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
   }
   const lines: CheckLine[] = [
-    { key: 'bridge', tone: 'ok', label: `NoaCG Bridge and CasparCG answer${f.status.version ? ` (CasparCG ${f.status.version.split(' ')[0]})` : ''}` },
+    { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
   ];
   if (f.slot !== undefined) {
     const holds = slotHolds(f.slot, f.outputSlug);

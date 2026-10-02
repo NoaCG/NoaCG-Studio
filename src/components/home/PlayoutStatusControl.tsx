@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import LibMenu from './LibMenu';
-import type { PlayoutStatus, StatusCheck, StatusTone } from '../../control/playoutStatus';
+import { CheckRow } from '../control/PrepareForLive';
+import { TONE_DOT, type ReadySummary } from '../../control/readiness';
+import type { PlayoutStatus } from '../../control/playoutStatus';
 
 /**
  * THE ONE PLAYOUT STATUS of the production page (docs/work-specs/studio-day-playout AC-7, AC-8;
@@ -13,9 +15,6 @@ import type { PlayoutStatus, StatusCheck, StatusTone } from '../../control/playo
  * links an OBS or vMix operator copies. The sections are the page's to build (they hold its state
  * and its verbs); this file only arranges them. A status, never permission: nothing waits for it.
  */
-
-const DOT: Record<StatusTone, string> = { ok: '●', warn: '▲', bad: '✕', idle: '○' };
-
 export function PlayoutStatusControl({
   status,
   started,
@@ -29,10 +28,10 @@ export function PlayoutStatusControl({
   status: PlayoutStatus;
   /** READY's own reading underneath (readiness.ts), carried on the control's data attributes for
    *  whoever needs its exact words or counts: the specs. The tooltip names the checks instead. */
-  ready?: { label: string; source: string; outputs: number; ready: number } | null;
+  ready?: Pick<ReadySummary, 'label' | 'source' | 'outputs' | 'ready'> | null;
   /** The production is started: the specs and the e2e read it off `data-started`. */
   started: boolean;
-  /** "published v12" beside the panel's title, or nothing. */
+  /** "v12" beside the panel's title, or nothing. */
   version: string;
   /** Held by the page, which opens the panel by itself right after a publish. */
   open: boolean;
@@ -62,7 +61,7 @@ export function PlayoutStatusControl({
         onClick={onToggle}
       >
         <span className="pd-status-dot" aria-hidden="true">
-          {DOT[status.tone]}
+          {TONE_DOT[status.tone]}
         </span>
         <span className="pd-status-text">{status.text}</span>
       </button>
@@ -73,26 +72,12 @@ export function PlayoutStatusControl({
         </div>
         <ul className="pd-prepare-list pd-status-checks" data-testid="production-status-checks">
           {status.checks.map((c) => (
-            <CheckRow key={c.key} check={c} />
+            <CheckRow key={c.key} line={c} testId={`status-check-${c.key}`} />
           ))}
         </ul>
         {children}
       </LibMenu>
     </span>
-  );
-}
-
-function CheckRow({ check }: { check: StatusCheck }) {
-  return (
-    <li className={`pd-prepare-line pd-ready-row--${check.tone}`} data-testid={`status-check-${check.key}`} data-tone={check.tone}>
-      <span className="pd-ready-dot" aria-hidden="true">
-        {DOT[check.tone]}
-      </span>
-      <span>
-        <span className="pd-ready-state">{check.label}</span>
-        {check.advice && check.tone !== 'ok' && <span className="pd-ready-detail">{check.advice}</span>}
-      </span>
-    </li>
   );
 }
 

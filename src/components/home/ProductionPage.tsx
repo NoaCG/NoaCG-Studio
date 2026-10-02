@@ -254,10 +254,10 @@ import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 import { ReadyOutputList, announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
-import type { PayloadVersion } from '../../control/payloadVersion';
+import { versionLabel, type PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
 import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
-import { describePlayoutStatus } from '../../control/playoutStatus';
+import { describePlayoutStatus, type SlotReading } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
@@ -466,12 +466,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** The Bridge's last word on the playout server, polled while this production has server
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
-  /** What the NoaCG output's slot on the server holds (the effect beside the status poll below):
-   *  undefined until read, `unreadable` on a Bridge too old to say, `failed` with the Bridge's own
-   *  sentence when the read was refused (a channel the server does not have, say). */
-  const [outputSlot, setOutputSlot] = useState<
-    { holds: ReturnType<typeof slotHolds> | 'unreadable' | 'failed'; detail?: string } | undefined
-  >(undefined);
+  /** What the NoaCG output's slot on the server holds (the effect beside the status poll below),
+   *  undefined until read (control/playoutStatus.ts `SlotReading`). */
+  const [outputSlot, setOutputSlot] = useState<SlotReading | undefined>(undefined);
   /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
   const [checkAgainRev, setCheckAgainRev] = useState(0);
   /** Bumped by Put on air and Take off: only the slot changed, so only the slot is read again. */
@@ -581,6 +578,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setReadyStamp(show?.id ? loadReadyMemory(show.id).stamp : null);
     setPrepRequest(null);
   }, [show?.id]);
+  /** Take out request `id`, and only that one: Prepare for Live and every publish each put one in,
+   *  and the newer stays when the older one's time is up. */
+  const dropPrep = useCallback((id: string) => setPrepRequest((cur) => (cur?.id === id ? null : cur)), []);
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
   const prepareFlow = usePrepareForLive({
@@ -591,8 +591,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     unpublishedChanges,
     recheckChanges: checkUnpublished,
     publish: () => preparePublishRef.current(),
-    // A run's end takes out ITS request only: a publish since (every publish prepares) keeps its own.
-    onPrep: (prep, endOf) => setPrepRequest((cur) => prep ?? (endOf && cur && cur.id !== endOf ? cur : null)),
+    onPrep: (prep, endOf) => (prep ? setPrepRequest(prep) : endOf ? dropPrep(endOf) : setPrepRequest(null)),
     onStamp: (stamp) => {
       if (!show) return;
       setReadyStamp(stamp);
@@ -997,8 +996,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // production's output, another production's, or nothing - the fact that says whether a Take will
   // air on CasparCG at all, and that the studio day had to discover by looking at the programme.
   // Read through the Bridge every 10 s while the production is started and the server answers, and
-  // at once on Check again; read-only (`/state`, an AMCP INFO). A Bridge too old to say reads as
-  // `unreadable`, never as a fault.
+  // at once after Put on air or Take off (`slotRev`); read-only (`/state`, an AMCP INFO). Check
+  // again and a settings change restart the Bridge poll, whose answer restarts this. A Bridge too
+  // old to say reads as `unreadable`, never as a fault.
   const bridgeAnswers = bridgeStatus?.state === 'ok';
   const slotReadable = stateReadable(bridgeStatus);
   const outputSlug = show?.outputSlug ?? null;
@@ -1013,26 +1013,37 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     let alive = true;
-    const read = () =>
-      readState(settings, settings.channel).then(
-        (r) => {
-          if (!alive) return;
-          // A refused read is a fault the status names, never "Checking…" for ever.
-          setOutputSlot(
-            r.reply
-              ? { holds: slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) }
-              : { holds: 'failed', detail: r.result.detail },
-          );
-        },
-        () => alive && setOutputSlot(undefined),
-      );
-    void read();
+    let reading = false;
+    // The same reading again keeps the same object, so an unchanged slot renders nothing.
+    const settle = (next: SlotReading | undefined) =>
+      setOutputSlot((prev) => (prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next));
+    const read = () => {
+      if (reading) return; // a slow Bridge: never stack reads
+      reading = true;
+      readState(settings, settings.channel)
+        .then(
+          (r) => {
+            if (!alive) return;
+            // A refused read is a fault the status names, never "Checking…" for ever.
+            settle(
+              r.reply
+                ? { holds: slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) }
+                : { holds: 'failed', detail: r.result.detail },
+            );
+          },
+          () => alive && settle(undefined),
+        )
+        .finally(() => {
+          reading = false;
+        });
+    };
+    read();
     const timer = setInterval(read, 10_000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [hostedSlug, bridgeAnswers, slotReadable, outputSlug, playoutSettingsRev, checkAgainRev, slotRev]);
+  }, [hostedSlug, bridgeAnswers, slotReadable, outputSlug, slotRev]);
 
   // ── WHAT AN OLDER CLIP IS (docs/CLIP_PLAYBACK_PLAN.md §7, §18 case 5). A clip saved before its kind
   // was kept - or its length, by a record made elsewhere - learns both from the server's own list,
@@ -2192,7 +2203,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           if (published.version && wasStarted) {
             const prep: PrepRequest = { id: requestId(), n: published.version.n, h: published.version.h };
             setPrepRequest(prep);
-            setTimeout(() => setPrepRequest((p) => (p?.id === prep.id ? null : p)), PREPARE_WAIT_MS);
+            setTimeout(() => dropPrep(prep.id), PREPARE_WAIT_MS);
           }
           setStatusOpen(true);
           setNote(
@@ -3648,26 +3659,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst
    *  first, from what this page already knows - published or not, changed since, the Bridge and the
    *  server, what the output's slot holds, and READY's reading of the outputs. */
-  const brokenOutput = readiness.outputs.find((l) => l.present && l.broken);
+  const started = !!hostedSlug;
+  const publishedLabel = versionLabel(publishedVer);
+  const readySummary = readiness.summary.show ? readiness.summary : null;
   const playoutStatus = describePlayoutStatus({
-    started: !!hostedSlug,
+    started,
     unpublished: unpublishedChanges,
-    version: publishedVer ? `v${publishedVer.n}` : '',
-    bridge: playoutIsConfigured
-      ? bridgeStatus
-        ? { state: bridgeStatus.state, detail: bridgeStatus.detail, version: bridgeStatus.version }
-        : { state: 'pending', detail: '' }
-      : null,
-    slot: playoutIsConfigured && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
-    ready: readiness.summary.show
-      ? {
-          tone: readiness.summary.tone,
-          label: readiness.summary.label,
-          outputs: readiness.summary.outputs,
-          ready: readiness.summary.ready,
-          broken: brokenOutput ? (readiness.summary.outputs > 1 ? `${brokenOutput.name}: ${brokenOutput.state}` : brokenOutput.state) : null,
-        }
-      : null,
+    version: publishedLabel,
+    bridge: playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : null,
+    slot: outputSlot && { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot },
+    ready: readySummary,
   });
 
   return (
@@ -3679,12 +3680,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         <>
           <PlayoutStatusControl
             status={playoutStatus}
-            started={!!hostedSlug}
-            version={publishedVer ? `v${publishedVer.n}` : ''}
+            started={started}
+            version={publishedLabel}
             open={statusOpen}
             onToggle={() => setStatusOpen((o) => !o)}
             onClose={() => setStatusOpen(false)}
-            ready={readiness.summary.show ? readiness.summary : null}
+            ready={readySummary}
           >
             {/* Started only: offline, outputs remembered from an earlier publish would read as
                 "not answering" under a grey Offline. */}

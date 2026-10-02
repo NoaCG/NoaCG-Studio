@@ -11,7 +11,9 @@ const { describePlayoutStatus } = await import('../src/control/playoutStatus.ts'
 
 const OK_BRIDGE = { state: 'ok', detail: '', version: '2.5.0 69e8ad5 Stable' };
 const ours = { where: '1-20', channel: 1, holds: 'ours' };
-const readyOne = { tone: 'ok', label: '● Ready for playout · 1 of 1 output', outputs: 1, ready: 1 };
+// READY's summaries in the shape describeReadiness gives them (scripts/readiness.test.mjs pins
+// `lead`, `preparing` and `broken` there).
+const readyOne = { tone: 'ok', label: '● Ready for playout · 1 of 1 output', lead: 'Ready for playout · 1 of 1 output', outputs: 1, ready: 1 };
 
 function status(over = {}) {
   return describePlayoutStatus({ started: true, unpublished: false, version: 'v3', bridge: OK_BRIDGE, slot: ours, ready: readyOne, ...over });
@@ -43,10 +45,10 @@ test('attention is amber: unpublished changes, an output behind', () => {
   const s = status({ unpublished: true });
   assert.deepEqual([s.tone, s.text], ['warn', 'Unpublished changes']);
   assert.equal(s.checks[0].label, 'Unpublished changes since v3');
-  const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2 · 1 of 1 output', outputs: 1, ready: 0 } });
+  const behind = status({ ready: { tone: 'warn', label: '▲ Behind: showing v2', lead: 'Behind: showing v2', outputs: 1, ready: 0 } });
   assert.deepEqual([behind.tone, behind.text], ['warn', 'Behind: showing v2']);
   // Preparation incomplete is amber too, even with the output already on its slot.
-  const preparing = status({ ready: { tone: 'idle', label: '○ Preparing 0 of 1', outputs: 1, ready: 0 } });
+  const preparing = status({ ready: { tone: 'idle', label: '○ Preparing 0 of 1', lead: 'Preparing 0 of 1', preparing: true, outputs: 1, ready: 0 } });
   assert.deepEqual([preparing.tone, preparing.text], ['warn', 'Preparing 0 of 1']);
 });
 
@@ -56,7 +58,10 @@ test('broken is red: the Bridge lost, the server silent, another production, not
     [{ bridge: { state: 'server', detail: 'CasparCG at 10.0.0.5:5250 does not answer.' } }, 'CasparCG not answering'],
     [{ slot: { ...ours, holds: 'other' } }, 'Another production on 1-20'],
     [{ slot: { ...ours, holds: 'empty' }, ready: null }, 'Output not on air'],
-    [{ ready: { tone: 'bad', label: '✕ CasparCG 1-20 not answering (40 s) · 0 of 1 output ready', outputs: 1, ready: 0 } }, 'Output not responding'],
+    [
+      { ready: { tone: 'bad', label: '✕ CasparCG 1-20 not answering (40 s) · 0 of 1 output ready', lead: 'CasparCG 1-20 not answering (40 s)', outputs: 1, ready: 0 } },
+      'Output not responding',
+    ],
   ];
   for (const [over, text] of cases) {
     const s = status(over);
@@ -71,7 +76,14 @@ test('broken is red: the Bridge lost, the server silent, another production, not
   assert.equal(status({ slot: { ...ours, holds: 'failed' } }).tone, 'warn');
   // A graphic that cannot play is red here, named, although READY's own line reads it amber.
   const broken = status({
-    ready: { tone: 'warn', label: '▲ Not ready: Hairline (script error)', outputs: 1, ready: 0, broken: 'Not ready: Hairline (script error)' },
+    ready: {
+      tone: 'warn',
+      label: '▲ Not ready: Hairline (script error)',
+      lead: 'Not ready: Hairline (script error)',
+      outputs: 1,
+      ready: 0,
+      broken: { line: 'Not ready: Hairline (script error)', short: 'Not ready: Hairline' },
+    },
   });
   assert.deepEqual([broken.tone, broken.text], ['bad', 'Not ready: Hairline']);
   assert.equal(broken.checks[0].label, 'Not ready: Hairline (script error)');

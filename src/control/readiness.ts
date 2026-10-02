@@ -304,6 +304,9 @@ export interface ReadyStamp {
 
 export type ReadyTone = 'ok' | 'warn' | 'bad' | 'idle';
 
+/** The glyph each tone wears beside its words, on every READY and playout status surface. */
+export const TONE_DOT: Record<ReadyTone, string> = { ok: '●', warn: '▲', bad: '✕', idle: '○' };
+
 /** One output, as the panel lists it. */
 export interface OutputLine {
   id: string;
@@ -316,10 +319,10 @@ export interface OutputLine {
   present: boolean;
   /** An absent expected output: forgetting it is offered. */
   gone: boolean;
-  /** A graphic here cannot play (its headline is "Not ready: …"). READY reads it amber, because
-   *  the output's other graphics still air; the production page's status reads it red
-   *  (control/playoutStatus.ts). */
-  broken?: boolean;
+  /** A graphic here cannot play: the headline's short form without the reason ("Not ready:
+   *  Hairline"). READY reads it amber, because the output's other graphics still air; the
+   *  production page's status reads it red (control/playoutStatus.ts). */
+  broken?: string;
 }
 
 export interface ReadySummary {
@@ -336,6 +339,13 @@ export interface ReadySummary {
   ready: number;
   /** Where it came from: READY entries, or Step 1's health line underneath. */
   source: 'ready' | OutputHealth['source'];
+  /** READY's own deciding words, without the dot or the count ("Behind: showing v12", "Preparing 3
+   *  of 8"); absent on Step 1's line. What the production page's status reads, never the label. */
+  lead?: string;
+  /** The outputs are still loading their graphics. */
+  preparing?: boolean;
+  /** The first output naming a graphic that cannot play: its headline, and the short form. */
+  broken?: { line: string; short: string } | null;
 }
 
 export interface ReadinessView {
@@ -461,9 +471,11 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   const problems: { line: string; advice: string[] }[] = [];
   // A graphic that cannot play: named, amber, never green.
   const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent');
+  let brokenShort: string | undefined;
   if (broken.length > 0) {
     const first = broken[0];
     const more = broken.length > 1 ? ` and ${plural(broken.length - 1, 'more graphic')}` : '';
+    brokenShort = `Not ready: ${first.g ?? 'a graphic'}${more}`;
     problems.push({ line: `Not ready: ${first.g ?? 'a graphic'} (${reasonOf(first)})${more}`, advice: broken.map(adviceOf) });
   }
   // A newer version did not prepare: the running one stays, and says which change failed.
@@ -510,7 +522,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     // What to do first, then what else is wrong, then who it is.
     const also = problems.length > 1 ? [`Also: ${problems.slice(1).map((p) => p.line).join('; ')}.`] : [];
     const line = warn(problems[0].line, problems[0].advice.concat(also, ...problems.slice(1).map((p) => p.advice)));
-    return broken.length > 0 ? { ...line, broken: true } : line;
+    return brokenShort ? { ...line, broken: brokenShort } : line;
   }
   if (preparingPublished && chg) {
     return { ...base, tone: 'ok', state: `Ready · ${plural(chg.of, 'change')} preparing`, detail: [`Preparing v${chg.v.n}: ${chg.n} of ${chg.of} done.`].concat(detail) };
@@ -595,29 +607,46 @@ export function describeReadiness(input: {
   // one's is prefixed with its name only when there is more than one to tell apart.
   const headline = (line: OutputLine) => (!line.present ? `${line.name} ${line.state}` : total > 1 ? `${line.name}: ${line.state}` : line.state);
   const why = lines.map((l) => `${l.name}: ${l.state}.${l.detail.length ? ` ${l.detail[0]}` : ''}`).join('\n');
-  const summary = (tone: ReadyTone, label: string, short: string): ReadinessView => ({
-    summary: { tone, label, short, why, show: true, outputs: total, ready: readyCount, source: 'ready' },
+  const firstBroken = lines.find((l) => l.present && l.broken);
+  const broken = firstBroken
+    ? { line: headline(firstBroken), short: total > 1 ? `${firstBroken.name}: ${firstBroken.broken}` : firstBroken.broken! }
+    : null;
+  /** The line is the dot, the deciding words (`lead`) and, red, the count. */
+  const summary = (tone: ReadyTone, lead: string, short: string, { suffix = '', preparing = false } = {}): ReadinessView => ({
+    summary: {
+      tone,
+      label: `${TONE_DOT[tone]} ${lead}${suffix}`,
+      short: `${TONE_DOT[tone]} ${short}`,
+      why,
+      show: true,
+      outputs: total,
+      ready: readyCount,
+      source: 'ready',
+      lead,
+      preparing,
+      broken,
+    },
     outputs: lines,
   });
 
   const bad = lines.filter((l) => l.tone === 'bad');
-  if (bad.length > 0) return summary('bad', `✕ ${headline(bad[0])} · ${of} ready`, `✕ ${readyCount}/${total} ready`);
+  if (bad.length > 0) return summary('bad', headline(bad[0]), `${readyCount}/${total} ready`, { suffix: ` · ${of} ready` });
   const warn = lines.filter((l) => l.tone === 'warn');
-  if (warn.length > 0) return summary('warn', `▲ ${headline(warn[0])}`, `▲ ${readyCount}/${total} ready`);
+  if (warn.length > 0) return summary('warn', headline(warn[0]), `${readyCount}/${total} ready`);
   const preparing = present
     .filter((o) => o.ready && o.ready.n < o.ready.of)
     .sort((a, b) => a.ready!.n / Math.max(1, a.ready!.of) - b.ready!.n / Math.max(1, b.ready!.of));
   if (preparing.length > 0) {
     const r = preparing[0].ready!;
-    return summary('idle', `○ Preparing ${r.n} of ${r.of}`, `○ ${r.n}/${r.of}`);
+    return summary('idle', `Preparing ${r.n} of ${r.of}`, `${r.n}/${r.of}`, { preparing: true });
   }
   const idle = lines.filter((l) => l.tone === 'idle');
-  if (idle.length > 0) return summary('idle', `○ ${headline(idle[0])}`, `○ ${readyCount}/${total} ready`);
+  if (idle.length > 0) return summary('idle', headline(idle[0]), `${readyCount}/${total} ready`);
   const changing = lines.find((l) => l.state.indexOf('preparing') >= 0);
-  if (changing) return summary('ok', `● ${changing.state}`, `● Ready ${readyCount}/${total}`);
+  if (changing) return summary('ok', changing.state, `Ready ${readyCount}/${total}`);
   const stamp = input.stamp;
   if (stamp && published && stamp.v.h === published.h && stamp.problems === 0 && stamp.warnings === 0) {
-    return summary('ok', `● Ready for Live · ${of} · checked ${clockWords(stamp.at)}`, `● Ready ${readyCount}/${total}`);
+    return summary('ok', `Ready for Live · ${of} · checked ${clockWords(stamp.at)}`, `Ready ${readyCount}/${total}`);
   }
-  return summary('ok', `● Ready for playout · ${of}`, `● Ready ${readyCount}/${total}`);
+  return summary('ok', `Ready for playout · ${of}`, `Ready ${readyCount}/${total}`);
 }
