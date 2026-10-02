@@ -179,48 +179,75 @@ test('the OBS capture shows whole on a desktop and closes in on a phone', async 
   await expect(page.locator('.obs-frame')).toBeVisible();
 });
 
-// The two pages are generated at build from notes in the repository, so the assertions are about
-// their shape, never their words: an update a week from now must pass this as written today.
+// The landing's What's new section and the two pages are generated at build from notes in the
+// repository, so the assertions are about their shape, never their words: an update a week from
+// now must pass this as written today. All three show the same plain list (a heading per topic,
+// its bullets beneath, no cards), and an update names only the three topics, in this order.
+const TOPICS = ['Playout and Bridge', 'Editor and templates', 'AI workflows'];
+const inTopicOrder = (names: string[]) =>
+  names.every((n) => TOPICS.includes(n)) && names.every((n, i) => i === 0 || TOPICS.indexOf(n) > TOPICS.indexOf(names[i - 1]));
+
 for (const [width, height] of [
   [1280, 900],
   [390, 844],
 ]) {
-  test(`What's new and the roadmap are linked, generated and fit the screen at ${width}px`, async ({ page }) => {
+  test(`What's new and the roadmap are on the landing, linked, generated and fit the screen at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     const fits = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 
     await page.goto('/');
     await expect(page.locator('footer a[href="/whats-new"]')).toHaveCount(1);
-    await expect(page.locator('#free a[href="/whats-new"]')).toBeVisible();
-    await expect(page.locator('#free a[href="/roadmap"]')).toBeVisible();
+    // The landing's section: the newest update under its date, then the roadmap's Now items,
+    // each a heading with its bullets, and links to both pages.
+    const section = page.locator('#updates');
+    await expect(section.locator('h2')).toHaveText("What moved, and what comes next.");
+    const rows = section.locator('.up-row');
+    await expect(rows).toHaveCount(2);
+    await expect(rows.nth(0).locator('.up-label h3')).toHaveText('Latest update');
+    await expect(rows.nth(0).locator('.up-when time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}$/);
+    const landingTopics = await rows.nth(0).locator('.up-topic h4').allTextContents();
+    expect(landingTopics.length).toBeGreaterThan(0);
+    expect(inTopicOrder(landingTopics)).toBe(true);
+    await expect(rows.nth(1).locator('.up-label h3')).toHaveText('Now on the roadmap');
+    expect(await rows.nth(1).locator('.up-topic h4').count()).toBeGreaterThan(0);
+    expect(await rows.nth(1).locator('.up-topic li').count()).toBe(await rows.nth(1).locator('.up-topic').count());
+    const content = await page.content();
+    expect(content).not.toContain('whats-new:latest');
+    expect(content).not.toContain('roadmap:now');
+    await section.locator('.up-more a[href="/roadmap"]').scrollIntoViewIfNeeded();
+    await expect(section.locator('.up-more a[href="/roadmap"]')).toBeVisible();
+    await expect(rows.nth(1).locator('.up-topic li').last()).toBeVisible();
+    expect(await fits()).toBe(true);
 
-    await page.locator('#free a[href="/whats-new"]').click();
+    await section.locator('.up-more a[href="/whats-new"]').click();
     await expect(page).toHaveURL(/\/whats-new$/);
     await expect(page.locator('h1')).toHaveText("What changed in NoaCG");
     const updates = page.locator('.wn-update');
     expect(await updates.count()).toBeGreaterThan(0);
-    // Newest first, each headed by its date, each area one of the six a note may name.
+    // Newest first, each headed by its date, its topics in the fixed order.
     const dates = await updates.locator('h2 time').evaluateAll((els) => els.map((e) => e.getAttribute('datetime') ?? ''));
     expect(dates.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
     expect([...dates].sort().reverse()).toEqual(dates);
-    const areas = await page.locator('.wn-area h3').allTextContents();
-    expect(areas.length).toBeGreaterThan(0);
-    for (const area of areas) {
-      expect(['Playout systems', 'Editor and templates', 'CLI', 'MCP server', 'AI workflows', 'NoaCG Bridge']).toContain(area);
+    for (const update of await updates.all()) {
+      const topics = await update.locator('.up-topic h3').allTextContents();
+      expect(topics.length).toBeGreaterThan(0);
+      expect(inTopicOrder(topics)).toBe(true);
     }
-    await expect(page.locator('.wn-area li').first()).toBeVisible();
+    // The newest update is the one the landing showed.
+    expect(await updates.first().locator('.up-topic h3').allTextContents()).toEqual(landingTopics);
+    await expect(page.locator('.wn-update .up-topic li').first()).toBeVisible();
     expect(await page.content()).not.toContain('whats-new:updates');
     expect(await fits()).toBe(true);
 
     await page.locator('.doc-hero a[href="/roadmap"]').click();
     await expect(page).toHaveURL(/\/roadmap$/);
     await expect(page.locator('h1')).toHaveText('Where NoaCG is going');
-    // Now, next and later, in that order, each holding at least one item from GOALS.
+    // Now, next and later, in that order, each a plain list holding at least one item from GOALS.
     await expect(page.locator('.rm-col')).toHaveCount(3);
     const columns = await page.locator('.rm-col').evaluateAll((els) => els.map((e) => e.id));
     expect(columns).toEqual(['now', 'next', 'later']);
-    for (const id of columns) expect(await page.locator(`#${id} .rm-item`).count()).toBeGreaterThan(0);
-    await expect(page.locator('#now .rm-item li').first()).toBeVisible();
+    for (const id of columns) expect(await page.locator(`#${id} .up-topic`).count()).toBeGreaterThan(0);
+    await expect(page.locator('#now .up-topic li').first()).toBeVisible();
     expect(await page.content()).not.toContain('roadmap:columns');
     await expect(page.locator('.doc-hero a[href="/whats-new"]')).toHaveCount(1);
     expect(await fits()).toBe(true);

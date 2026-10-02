@@ -8,8 +8,8 @@ import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
-import { renderUpdatesHtml } from './scripts/whats-new.mjs';
-import { renderRoadmapHtml } from './scripts/roadmap.mjs';
+import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
+import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
 
 // NoaCG Studio — dev/build config.
 // Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
@@ -84,6 +84,9 @@ function appCleanUrl(): Plugin {
 const GENERATED: Record<string, () => string> = {
   '<!--whats-new:updates-->': () => renderUpdatesHtml(),
   '<!--roadmap:columns-->': () => renderRoadmapHtml(),
+  // The landing's What's new section: the newest update and the roadmap's Now items.
+  '<!--whats-new:latest-->': () => renderLatestHtml(),
+  '<!--roadmap:now-->': () => renderNowHtml(),
 };
 
 function generatedPages(): Plugin {

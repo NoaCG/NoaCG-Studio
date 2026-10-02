@@ -9,20 +9,21 @@
 //                                                      Vite plugin, so a bad note cannot ship)
 //   node scripts/whats-new.mjs draft [--since <date>] [--ref <ref>]
 //                                                      what landed since the last update, grouped
-//                                                      by area: the input for whoever writes the
+//                                                      by topic: the input for whoever writes the
 //                                                      next one, never the note itself
 //
 // WHY THIS EXISTS. About fifty changes land on main on a busy day. A visitor deciding whether NoaCG
 // moved forward cannot read that list, and a list generated from it reads the way the CLI's first
 // generated release notes did (cli/scripts/release-notes.mjs): pull request titles, internal names,
 // nothing about what the reader gets. So an update is written by hand, about twice a week, as a few
-// short bullets per area, and this script is what keeps the writing honest and cheap: the draft
+// short bullets per topic, and this script is what keeps the writing honest and cheap: the draft
 // gathers the raw material in one command, and the check refuses the shapes generated text falls
 // into. The format is described for writers in docs/whats-new/README.md.
 //
-// AN UPDATE is `docs/whats-new/<YYYY-MM-DD>.md`: nothing but `## <area>` headings, in the order of
-// AREAS below, each followed by `- ` bullets (a bullet may wrap onto lines indented two spaces).
-// An area with nothing big is left out, not written empty.
+// AN UPDATE is `docs/whats-new/<YYYY-MM-DD>.md`: nothing but `## <topic>` headings, in the order of
+// TOPICS below, each followed by `- ` bullets (a bullet may wrap onto lines indented two spaces).
+// A topic with nothing big is left out, not written empty. The three topics are the parts of NoaCG
+// worked on all the time; a reader scans them top to bottom, on this page and on the landing.
 
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -34,11 +35,13 @@ import { measured } from './measured.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const NOTES_DIR = path.join(ROOT, 'docs', 'whats-new');
 
-/** The areas an update may name, in the order the page shows them. */
-export const AREAS = ['Playout systems', 'Editor and templates', 'CLI', 'MCP server', 'AI workflows', 'NoaCG Bridge'];
+/** The topics an update may name, in the order the pages show them: the NoaCG playout system with
+ *  NoaCG Bridge; the editor and templates; and AI workflows, which are the CLI, the MCP server and
+ *  the plugins for coding agents. */
+export const TOPICS = ['Playout and Bridge', 'Editor and templates', 'AI workflows'];
 
 /** Only the biggest changes: a longer list is a changelog, which is the thing this is not. */
-export const MAX_BULLETS_PER_AREA = 4;
+export const MAX_BULLETS_PER_TOPIC = 6;
 export const MAX_BULLETS_PER_UPDATE = 12;
 export const MAX_WORDS_PER_BULLET = 30;
 
@@ -112,11 +115,11 @@ export function bulletProblems(text) {
 }
 
 /**
- * Pure: parse one update's text into its areas, and say why it is not fit to publish.
+ * Pure: parse one update's text into its topics, and say why it is not fit to publish.
  * `problems` is empty when it is.
  */
 export function parseUpdate(text) {
-  const areas = [];
+  const topics = [];
   const problems = [];
   let current = null;
   let bullet = null;
@@ -132,20 +135,20 @@ export function parseUpdate(text) {
     if (heading) {
       const name = heading[1].trim();
       bullet = null;
-      if (!AREAS.includes(name)) {
-        problems.push(`${at}: "${name}" is not an area; use one of: ${AREAS.join(', ')}`);
+      if (!TOPICS.includes(name)) {
+        problems.push(`${at}: "${name}" is not a topic; use one of: ${TOPICS.join(', ')}`);
         current = null;
         return;
       }
-      if (areas.some((a) => a.name === name)) problems.push(`${at}: "${name}" appears twice`);
+      if (topics.some((a) => a.name === name)) problems.push(`${at}: "${name}" appears twice`);
       current = { name, bullets: [] };
-      areas.push(current);
+      topics.push(current);
       return;
     }
     const item = /^- (.+)$/.exec(line);
     if (item) {
       if (!current) {
-        problems.push(`${at}: a bullet before any area heading`);
+        problems.push(`${at}: a bullet before any topic heading`);
         bullet = null;
         return;
       }
@@ -157,25 +160,25 @@ export function parseUpdate(text) {
       bullet.text += ` ${line.trim()}`;
       return;
     }
-    problems.push(`${at}: an update holds only "## <area>" headings and "- " bullets`);
+    problems.push(`${at}: an update holds only "## <topic>" headings and "- " bullets`);
   });
 
-  if (areas.length === 0 && problems.length === 0) problems.push('the update is empty; write at least one area');
-  const order = areas.map((a) => AREAS.indexOf(a.name));
-  if (order.some((v, i) => i > 0 && v < order[i - 1])) problems.push(`the areas are out of order; keep them as ${AREAS.join(', ')}`);
+  if (topics.length === 0 && problems.length === 0) problems.push('the update is empty; write at least one topic');
+  const order = topics.map((a) => TOPICS.indexOf(a.name));
+  if (order.some((v, i) => i > 0 && v < order[i - 1])) problems.push(`the topics are out of order; keep them as ${TOPICS.join(', ')}`);
   let total = 0;
-  for (const area of areas) {
-    total += area.bullets.length;
-    if (area.bullets.length === 0) problems.push(`"${area.name}" has no bullets; leave an area out when nothing big changed in it`);
-    if (area.bullets.length > MAX_BULLETS_PER_AREA) {
-      problems.push(`"${area.name}" has ${area.bullets.length} bullets; keep the ${MAX_BULLETS_PER_AREA} biggest`);
+  for (const topic of topics) {
+    total += topic.bullets.length;
+    if (topic.bullets.length === 0) problems.push(`"${topic.name}" has no bullets; leave a topic out when nothing big changed in it`);
+    if (topic.bullets.length > MAX_BULLETS_PER_TOPIC) {
+      problems.push(`"${topic.name}" has ${topic.bullets.length} bullets; keep the ${MAX_BULLETS_PER_TOPIC} biggest`);
     }
-    for (const b of area.bullets) {
+    for (const b of topic.bullets) {
       for (const p of bulletProblems(b.text)) problems.push(`line ${b.line}: ${p}`);
     }
   }
   if (total > MAX_BULLETS_PER_UPDATE) problems.push(`the update has ${total} bullets; keep the ${MAX_BULLETS_PER_UPDATE} biggest`);
-  return { areas, problems };
+  return { topics, problems };
 }
 
 /** The date an update file is named for, or null when the name is not `YYYY-MM-DD.md` of a real day. */
@@ -193,7 +196,7 @@ export function loadUpdates(dir = NOTES_DIR) {
   for (const name of readdirSync(dir)) {
     if (!/^\d/.test(name)) continue;
     const date = dateOfFile(name);
-    const parsed = date ? parseUpdate(readFileSync(path.join(dir, name), 'utf8')) : { areas: [], problems: [] };
+    const parsed = date ? parseUpdate(readFileSync(path.join(dir, name), 'utf8')) : { topics: [], problems: [] };
     if (!date) parsed.problems.push('name an update YYYY-MM-DD.md, after a real day');
     updates.push({ file: name, date, ...parsed });
   }
@@ -218,57 +221,83 @@ export function longDate(iso) {
   return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 
+/**
+ * The list every update surface shares (What's new, the roadmap and the landing): a heading per
+ * topic and its bullets beneath, read top to bottom, never cards. `topics` is
+ * [{ name, bullets: [text] }]; `attrs` adds attributes to a topic's block (the roadmap's outcome).
+ */
+export function renderTopicsHtml(topics, { level = 3, attrs = () => '' } = {}) {
+  const blocks = topics.map((t) => {
+    const items = t.bullets.map((b) => `            <li>${escapeHtml(b)}</li>`).join('\n');
+    return `          <div class="up-topic"${attrs(t)}>\n            <h${level}>${escapeHtml(t.name)}</h${level}>\n` +
+      `            <ul>\n${items}\n            </ul>\n          </div>`;
+  });
+  return `        <div class="up-topics">\n${blocks.join('\n')}\n        </div>`;
+}
+
+const topicsOf = (update) => update.topics.map((t) => ({ name: t.name, bullets: t.bullets.map((b) => b.text) }));
+
+function refuseUnfit(updates) {
+  const problems = problemsIn(updates);
+  if (problems.length > 0) throw new Error(`whats-new: not fit to publish:\n  - ${problems.join('\n  - ')}`);
+}
+
 /** The page's list of updates as HTML, newest first. Throws when any update is not fit to publish,
  *  so the page cannot be built from one. */
 export function renderUpdatesHtml(updates = loadUpdates()) {
-  const problems = problemsIn(updates);
-  if (problems.length > 0) throw new Error(`whats-new: not fit to publish:\n  - ${problems.join('\n  - ')}`);
+  refuseUnfit(updates);
   return updates
-    .map((u) => {
-      const areas = u.areas
-        .map((a) => {
-          const items = a.bullets.map((b) => `          <li>${escapeHtml(b.text)}</li>`).join('\n');
-          return `        <section class="wn-area">\n          <h3>${escapeHtml(a.name)}</h3>\n          <ul>\n${items}\n          </ul>\n        </section>`;
-        })
-        .join('\n');
-      return `      <article class="wn-update" id="${u.date}">\n        <h2><time datetime="${u.date}">${longDate(u.date)}</time></h2>\n${areas}\n      </article>`;
-    })
+    .map((u) =>
+      `      <article class="up-row wn-update" id="${u.date}">\n` +
+      `        <h2 class="up-when"><time datetime="${u.date}">${longDate(u.date)}</time></h2>\n` +
+      `${renderTopicsHtml(topicsOf(u))}\n      </article>`)
     .join('\n');
+}
+
+/** The landing's What's new: the newest update alone, under its date. Refuses the same way. */
+export function renderLatestHtml(updates = loadUpdates()) {
+  refuseUnfit(updates);
+  const u = updates[0];
+  return `        <div class="up-label">\n          <h3>Latest update</h3>\n` +
+    `          <p class="up-when"><time datetime="${u.date}">${longDate(u.date)}</time></p>\n        </div>\n` +
+    renderTopicsHtml(topicsOf(u), { level: 4 });
 }
 
 // ── The draft ─────────────────────────────────────────────────────────────────────────────────
 
-/** Where a changed path belongs, by the areas a reader knows; null for work no user sees. */
-const AREA_PATHS = [
-  ['NoaCG Bridge', [/^cli\/src\/playout\//, /^cli\/src\/playoutEntry\.ts$/, /^cli\/src\/commands\/(bridge|caspar)\.ts$/, /^cli\/BRIDGE_/]],
-  ['MCP server', [/^cli\/src\/mcp\.ts$/, /^cli\/plugin-mcp\//]],
-  ['AI workflows', [/^src\/ai\//, /^api\/ai\//, /^api\/_lib\/ai/, /^cli\/skill\//, /^cli\/plugin\//]],
-  ['CLI', [/^cli\/src\//, /^cli\/CHANGELOG\.md$/, /^cli\/README\.md$/, /^src\/bridge\//]],
-  ['Playout systems', [
-    /^src\/(control|output|export|ograf|audience|join)\//,
+/** Where a changed path belongs, by the topics a reader knows; null for work no user sees. The
+ *  first match wins, so the Bridge's half of the CLI is claimed before the rest of the CLI. */
+const TOPIC_PATHS = [
+  ['Playout and Bridge', [
+    /^cli\/src\/playout\//, /^cli\/src\/playoutEntry\.ts$/, /^cli\/src\/commands\/(bridge|caspar)\.ts$/, /^cli\/BRIDGE_/,
+    /^src\/(bridge|control|output|export|ograf|audience|join)\//,
     /^src\/components\/(control\/|teams\/|BridgePairPage|ControlPanel|HostedControlPage|Playout|RecentServers|Export)/,
     /^output\.html$/,
+  ]],
+  ['AI workflows', [
+    /^cli\/src\//, /^cli\/CHANGELOG\.md$/, /^cli\/README\.md$/, /^cli\/(plugin|plugin-mcp|skill)\//,
+    /^src\/ai\//, /^api\/ai\//, /^api\/_lib\/ai/,
   ]],
   ['Editor and templates', [/^src\/(editor|templates|components|model|format|packs|preview|blocks|teach|validation|store|community)\//]],
 ];
 
-export function areaOfPath(file) {
+export function topicOfPath(file) {
   if (/\.test\.|\/__tests__\//.test(file)) return null;
-  for (const [area, patterns] of AREA_PATHS) if (patterns.some((re) => re.test(file))) return area;
+  for (const [topic, patterns] of TOPIC_PATHS) if (patterns.some((re) => re.test(file))) return topic;
   return null;
 }
 
-/** Pure: group landed changes ({ title, files }) under the area most of their files belong to. */
+/** Pure: group landed changes ({ title, files }) under the topic most of their files belong to. */
 export function groupLanded(changes) {
-  const groups = new Map([...AREAS, null].map((a) => [a, []]));
+  const groups = new Map([...TOPICS, null].map((a) => [a, []]));
   for (const change of changes) {
     const counts = new Map();
     for (const f of change.files) {
-      const area = areaOfPath(f);
-      if (area) counts.set(area, (counts.get(area) ?? 0) + 1);
+      const topic = topicOfPath(f);
+      if (topic) counts.set(topic, (counts.get(topic) ?? 0) + 1);
     }
     const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-    groups.get(ranked[0]?.[0] ?? null).push({ ...change, areas: ranked.map(([a, n]) => `${a} ${n}`) });
+    groups.get(ranked[0]?.[0] ?? null).push({ ...change, topics: ranked.map(([a, n]) => `${a} ${n}`) });
   }
   return groups;
 }
@@ -334,17 +363,17 @@ function draft(args) {
   out.push(`# Draft input: what landed on ${ref} since ${since} (${changes.length} changes)`);
   out.push('');
   out.push(`Write docs/whats-new/${localDay(new Date())}.md from this. It is raw material, not the note:`);
-  out.push(`- only the biggest changes a user would notice: at most ${MAX_BULLETS_PER_AREA} bullets an area and ${MAX_BULLETS_PER_UPDATE} in all;`);
-  out.push(`- areas in this order, and an area with nothing big left out: ${AREAS.join(', ')};`);
+  out.push(`- only the biggest changes a user would notice: at most ${MAX_BULLETS_PER_TOPIC} bullets a topic and ${MAX_BULLETS_PER_UPDATE} in all;`);
+  out.push(`- topics in this order, and a topic with nothing big left out: ${TOPICS.join(', ')};`);
   out.push(`- each bullet at most ${MAX_WORDS_PER_BULLET} words, saying what changed for the user, in plain words;`);
   out.push('- no pull request titles or numbers, internal names, file paths, people, customers, shows or dates;');
   out.push('- every claim has to be true today: check it against the current state in docs/GOALS.md;');
   out.push('- then run: node scripts/whats-new.mjs --check');
-  for (const [area, list] of groups) {
+  for (const [topic, list] of groups) {
     if (list.length === 0) continue;
     out.push('');
-    out.push(`## ${area ?? 'Not in any area (usually internal; leave out unless a user sees it)'} (${list.length})`);
-    for (const c of list) out.push(`- ${c.title}${c.areas.length > 1 ? `  [${c.areas.join(', ')}]` : ''}`);
+    out.push(`## ${topic ?? 'Not in any topic (usually internal; leave out unless a user sees it)'} (${list.length})`);
+    for (const c of list) out.push(`- ${c.title}${c.topics.length > 1 ? `  [${c.topics.join(', ')}]` : ''}`);
   }
   for (const file of ['cli/CHANGELOG.md', 'cli/BRIDGE_CHANGELOG.md']) {
     const added = changelogAdditions(ref, since, file);
@@ -367,7 +396,7 @@ function check() {
     for (const p of problems) console.error(`  - ${p}`);
     return 1;
   }
-  const bullets = updates.reduce((n, u) => n + u.areas.reduce((m, a) => m + a.bullets.length, 0), 0);
+  const bullets = updates.reduce((n, u) => n + u.topics.reduce((m, a) => m + a.bullets.length, 0), 0);
   console.log(`whats-new: OK - ${updates.length} update(s), ${bullets} bullets, newest ${updates[0].date}.`);
   return 0;
 }
