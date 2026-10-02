@@ -17,8 +17,8 @@ instead: `backlog/` has its own README contract, `handoffs/` is one file per ses
 Layers of documentation, top to bottom:
 
 1. **Vision & principles** — root `AGENTS.md` (identity + non-negotiables),
-   `GOALS.md` (north star, business posture, and the OPEN roadmap; shipped milestones live in
-   `GOALS_ARCHIVE.md`).
+   `GOALS.md` (the North Star and one outcome spec per area, each with its priority and current
+   state; `GOALS_ARCHIVE.md` is the frozen milestone log up to 2026-08-07).
 2. **Cross-domain architecture** — `ARCHITECTURE.md` (binding, machine-enforced).
 3. **Domain contracts** — nested `AGENTS.md` files (with thin `CLAUDE.md` imports) plus the
    binding docs below.
@@ -168,7 +168,7 @@ Layers of documentation, top to bottom:
 | Doc | What it explains |
 |---|---|
 | `GOALS_ARCHIVE.md` | Every milestone that shipped up to 2026-08-07, with its date and rationale, plus the ratified decisions behind them. The live roadmap is `GOALS.md`. |
-| `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6; 5.7 payments open. |
+| `ERA5_PLAN.md` | Why the server era is shaped as it is (Supabase, AGPL split, offline invariance). Shipped through 5.6. Its 5.7 payments step will not be built: NoaCG has no paid surface (`GOALS.md`, Posture). |
 | `TIMELINE_PLAN.md` | Archived pre-v2 timeline research; forward direction is EDITOR_PLAN.md. |
 | `WYSIWYG_PLAN.md` | Archived first-editor history and failure lessons; superseded as forward direction. |
 | `TIMELINE_V2_PLAN.md` | Archived v2 implementation history and migration evidence; forward direction is EDITOR_PLAN.md. |
@@ -221,13 +221,11 @@ Layers of documentation, top to bottom:
 
 ## Where the roadmap lives
 
-`GOALS.md` is the ONE roadmap — never duplicate it into a second file. It holds only what is
-**not done**, inside the line budget its own opening paragraph states — the one place that number
-lives, and the one `npm run check:goals-budget` reads — so it can be read in one sitting. When a
-goal lands, move its entry verbatim into `GOALS_ARCHIVE.md` (the complete shipped record, with
-dates and rationale) and delete it from `GOALS.md`. When the direction
-changes, rewrite `GOALS.md`; the archive keeps the history. Plans get their own doc only while
-they need design rationale; when they finish, they move to the historical table above.
-
-
-- [Editor review package](research/editor-review-brief-2026-09-18.md) - current unified roadmap, latest canvas/timeline mockup, retained whole-workspace and reuse evidence, and second-opinion questions. Monaco optional; implementation paused.
+`GOALS.md` is the ONE roadmap — never duplicate it into a second file. It holds one outcome spec
+per area, inside the line budget its own opening paragraph states — the one place that number
+lives, and the one `npm run check:goals-budget` reads — so it can be read in one sitting. Work that
+changes an outcome updates its current state in the same change; an outcome whose done criteria
+are met is reported to the owner, never silently advanced. When the direction changes, rewrite
+`GOALS.md`; git keeps the history. `GOALS_ARCHIVE.md` is frozen at 2026-08-07 and takes no new
+entries. Plans get their own doc only while they need design rationale; when they finish, they
+move to the historical table above.

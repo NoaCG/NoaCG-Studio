@@ -47,8 +47,8 @@ export const QUEUE_DIR = 'docs/acceptance/owner-queue';
  * earlier vocabulary goes red for a value its session never saw.
  */
 /**
- * THE THREE KINDS an item filed from `KINDS_V2_REQUIRED_FROM` carries (docs/GOALS.md, "How done
- * works"; .agent-workflows/verify.md, step 5). Everything an agent can verify, it verifies; an item
+ * THE THREE KINDS an item filed from `KINDS_V2_REQUIRED_FROM` carries (the root rule
+ * `root/verify-proportion-change-against-spec-acceptance`; .agent-workflows/verify.md, step 5). Everything an agent can verify, it verifies; an item
  * exists only where the owner's eyes, judgment or decision add value:
  *
  * - decision - something only he can decide.

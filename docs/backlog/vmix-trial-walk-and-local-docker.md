@@ -3,7 +3,8 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-09-29
-state: unstarted
+state: advanced
+note: "2026-09-30 docs/research/vmix-inside-vmix.md chose the route for running NoaCG from inside vMix (bridge-vmix-adapter.md carries its slices); 2026-10-02 a NoaCG output in a vMix 29 Web Browser input took and cleared a graphic (docs/work-specs/hardware-panel-control/evidence/players-casparcg-obs-vmix.md). The production-realistic walk (update, several layers, the vMix exports) is open."
 asked: "vMix is running on a 60-day trial; during it, try the browser source in vMix and how NoaCG works with vMix, and be compatible with vMix in every way we can. Docker is installed too, for us to use when it helps (paraphrase, dictated; 'router source' read as browser source)"
 serves: NOW
 needs-owner: none

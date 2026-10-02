@@ -25,7 +25,7 @@ idle window, exactly the two quiet hours that produced the wrong call.
   no result yet as live, whatever its age. `waitingOn()` in `scripts/blocked-sessions.mjs` already
   finds every pending call, batched calls included; export it and reuse it rather than writing a
   second parser.
-- Keep the resident-idle case in mind: `docs/backlog/blocked-sessions-cannot-tell-waiting-from-abandoned.md`
+- Keep the resident-idle case in mind: `blocked-sessions.mjs`'s transcript-mtime signal (af0b5af81)
   is the same signal read from the other side (a finished session left resident with an unanswered
   call). A pending call should hold a worktree, never authorise anything, so reading it as live
   fails safe.
