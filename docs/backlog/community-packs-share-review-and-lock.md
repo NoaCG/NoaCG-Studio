@@ -44,10 +44,12 @@ Each step is an acceptance criterion in the spec, so a row can take one or sever
    client flag.
 5. **AC-9, takedown.** Admin unlists with a reason; installs already made stay.
 
-## Open for the owner (decide when AC-6 starts, not before)
+## Licence (decided)
 
-- What a sharer grants: the licence other users get, and whether NoaCG may feature a pack. This is
-  a legal and taste call the spec deliberately leaves open.
+Owner ruling, 2026-10-02: a shared community pack is licensed CC BY 4.0. Anyone may use it in any
+show, commercial ones included, and the maker's name shows on the shelf card and in the pack. AC-6
+must carry it: the Share step states the licence, and the maker's name travels in the pack and
+shows on the shelf card. Whether NoaCG may feature a pack beyond the shelf was not ruled.
 
 ## Related
 
