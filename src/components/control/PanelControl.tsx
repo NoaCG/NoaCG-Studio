@@ -13,6 +13,7 @@ import {
   type PanelPressReport,
 } from '../../control/panelRelay';
 import { useModalGate } from '../spaceKey';
+import './panel.css';
 
 /**
  * HARDWARE PANELS on an operator page (docs/work-specs/hardware-panel-control/spec.md): the
@@ -30,7 +31,12 @@ export interface PanelAnswerState {
    * Hand the answer what the page shows and its dispatcher, in the render, once the page has
    * worked them out. A plain call, not a hook, so it can sit after a page's early returns.
    */
-  feed: (snapshot: () => PanelSnapshot, run: (verb: PanelVerb, target: string) => void) => void;
+  feed: (
+    snapshot: () => PanelSnapshot,
+    run: (verb: PanelVerb, target: string) => void,
+    /** Where the page writes a refused press, naming the panel and why: its activity feed. */
+    note?: (text: string) => void,
+  ) => void;
 }
 
 /** What a page that has not fed anything yet shows: nothing to press. */
@@ -65,6 +71,7 @@ export function usePanelAnswer(opts: {
   const [last, setLast] = useState<PanelPressReport | null>(null);
   const snapshot = useRef<() => PanelSnapshot>(() => EMPTY);
   const run = useRef<(verb: PanelVerb, target: string) => void>(() => {});
+  const note = useRef<((text: string) => void) | undefined>(undefined);
   const answer = useRef<PanelAnswer | null>(null);
   const { slug, where, label, runs } = opts;
 
@@ -82,7 +89,12 @@ export function usePanelAnswer(opts: {
         // Another page took the answer: this switch is off now, and says who has it.
         if (s.kind === 'replaced' || s.kind === 'failed') setOn(false);
       },
-      onPress: setLast,
+      onPress: (report) => {
+        setLast(report);
+        if (report.verdict.outcome !== 'ran') {
+          note.current?.(`${report.panel}: ${verbWords(report.verb)} refused, ${report.verdict.note ?? report.verdict.outcome}`);
+        }
+      },
     });
     answer.current = a;
     return () => {
@@ -104,7 +116,8 @@ export function usePanelAnswer(opts: {
       if (next) setStatus(null);
       setOn(next);
     }, []),
-    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void) => {
+    feed: useCallback((snap: () => PanelSnapshot, dispatch: (verb: PanelVerb, target: string) => void, write?: (text: string) => void) => {
+      note.current = write;
       snapshot.current = snap;
       run.current = dispatch;
     }, []),
@@ -242,13 +255,15 @@ export function PanelDialog({
           ) : (
             <>
               <section>
-                <label className="check" data-testid="panel-answer">
+                <label className="dlg-check" data-testid="panel-answer">
                   <input type="checkbox" checked={answer.on} onChange={(e) => answer.setOn(e.target.checked)} />
-                  Answer the panel on this page
+                  <span className="dlg-check-text">
+                    <span className="dlg-check-title">Answer the panel on this page</span>
+                    <span className="dlg-check-desc" data-testid="panel-status">
+                      {statusWords(answer, list)}
+                    </span>
+                  </span>
                 </label>
-                <p className="hint" data-testid="panel-status">
-                  {statusWords(answer, list)}
-                </p>
                 {answer.last && (
                   <p className="hint" data-testid="panel-last">
                     Last press: {answer.last.panel}, {verbWords(answer.last.verb)}:{' '}
@@ -259,8 +274,8 @@ export function PanelDialog({
               <section>
                 <p className="dlg-caption">Pair a panel</p>
                 {code && left > 0 ? (
-                  <p data-testid="panel-code">
-                    <strong className="panel-code">{code.code}</strong>{' '}
+                  <p className="panel-code-line" data-testid="panel-code">
+                    <strong className="panel-code">{code.code}</strong>
                     <span className="hint">
                       In Companion, add the NoaCG Studio connection and type this code. It works once, for {Math.floor(left / 60)}:
                       {String(left % 60).padStart(2, '0')} more.
@@ -278,10 +293,12 @@ export function PanelDialog({
                   <ul className="panel-list" data-testid="panel-list">
                     {list.panels.map((p) => (
                       <li key={p.id} data-testid="panel-row">
-                        <strong>{p.label}</strong>{' '}
-                        <span className="hint">
-                          paired {new Date(p.created_at).toLocaleDateString()}, {ago(p.last_used_at, now)}
-                        </span>{' '}
+                        <span className="panel-list-text">
+                          <strong>{p.label}</strong>
+                          <span className="hint">
+                            paired {new Date(p.created_at).toLocaleDateString()}, {ago(p.last_used_at, now)}
+                          </span>
+                        </span>
                         <button className="pd-verb" onClick={() => void revoke(p)} data-testid="panel-revoke">
                           Revoke
                         </button>

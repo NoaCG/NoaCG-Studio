@@ -1130,6 +1130,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       rows: cues.map((c) => ({ id: c.id, label: c.label || c.graphic, kind: 'cue', source: 'graphic' })),
     }),
     (verb, target) => runVerb(verb, { repeat: false, cue: target }),
+    (text) => feedNote(text, ''),
   );
 
   const elapsedText = (() => {

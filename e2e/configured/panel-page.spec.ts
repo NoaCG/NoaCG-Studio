@@ -47,6 +47,8 @@ async function panelModule(code: string) {
   };
   await join(paired.feedback_topic as string);
   let n = 0;
+  // Where the latest press was sent from: a state read after a press is one that arrived after it.
+  let mark = 0;
   const last = (event: string, pred: (p: Json) => boolean = () => true, from = 0) =>
     [...heard.slice(from)].reverse().find((m) => m.event === event && pred(m.payload));
   const until = async <T>(get: () => T | undefined, what: string, ms = 10_000): Promise<T> => {
@@ -61,8 +63,8 @@ async function panelModule(code: string) {
   return {
     heard,
     hello: () => call('panel_hello', { p_key: key }),
-    /** The newest state, waited for until `pred` holds. */
-    state: (pred: (s: Json) => boolean = () => true, what = 'state') => until(() => last('state', pred)?.payload, what),
+    /** The newest state since the latest press, waited for until `pred` holds. */
+    state: (pred: (s: Json) => boolean = () => true, what = 'state') => until(() => last('state', pred, mark)?.payload, what),
     /** Press as the module does, wait for the page's result. */
     press: async (verb: string, target: string, seen: number, id = `specdeck:${++n}`) => {
       // Only a result that arrives after this send answers it: a repeated id has one already.
@@ -71,9 +73,14 @@ async function panelModule(code: string) {
       const answer = await call('panel_press', { p_key: key, p_press: { verb, target, seen, id } });
       if (!answer.ok) return { outcome: `refused ${answer.refused}`, id, ms: 0 };
       const r = await until(() => last('result', (p) => p.id === id, from), `result for ${id}`);
+      // A press that ran moves what the page shows; a refused one publishes nothing new.
+      if (r.payload.outcome === 'ran') mark = from;
       return { outcome: r.payload.outcome as string, note: r.payload.note as string | undefined, id, ms: r.at - sent };
     },
-    close: () => sb.removeAllChannels(),
+    close: async () => {
+      await sb.removeAllChannels();
+      sb.realtime.disconnect();
+    },
   };
 }
 
@@ -135,6 +142,7 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   await op.getByTestId('panel-answer').locator('input').check();
   await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
   await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+  await op.getByTestId('panel-dialog').screenshot({ path: 'test-results/panel-dialog-answering.png' });
   await deck.hello();
   const first = await deck.state((s) => Array.isArray(s.live));
   expect(first).toMatchObject({ v: 1, where: 'control', label: 'Hosted control page', space: 'take', live: [], bridge: 'off', clip: null });
@@ -172,6 +180,8 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   expect(stale.outcome).toBe('stale');
   await expect(op.getByTestId('hosted-live-chip')).toContainText('Anna');
   await expect(op.getByTestId('panel-last')).toContainText('refused');
+  // The refusal is in the page's own activity feed, naming the panel and the reason (AC-4).
+  await expect(op.getByTestId('hosted-action-log')).toContainText('Spec deck: Take refused, what Take does changed');
   // And a selection that moved: Out for Ben while Anna is selected.
   expect((await deck.press('out', ben, afterTake.ver as number)).outcome).toBe('stale');
 

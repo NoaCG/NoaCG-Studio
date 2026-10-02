@@ -1,0 +1,18 @@
+/* The hardware panel dialog (PanelControl.tsx). The anatomy is the shared one in
+   wizard-and-dialogs.css; this sizes it to its content and lays out the code and the list. */
+
+.wz-modal.settings-modal.panel-modal { width: min(560px, 94vw); max-width: 560px; height: auto; max-height: 88vh; }
+.panel-modal .settings-content { flex: 1; overflow: auto; }
+
+.panel-code-line { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.panel-code {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+
+.panel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.panel-list li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.panel-list li .panel-list-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

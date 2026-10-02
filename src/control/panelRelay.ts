@@ -219,6 +219,9 @@ export function answerPanel(opts: {
       return;
     }
     claim = answer.claim;
+    // Versions start at the claim's own million, so a key drawn under an earlier page's claim can
+    // never match one of this page's states by number and be judged against the wrong one.
+    ver = claim * 1_000_000;
     const ch = sb.channel(answer.press_topic, { config: { private: true } });
     pressChannel = ch;
     ch.on('broadcast', { event: 'press' }, (m: { payload: unknown }) => onPressMessage(m.payload));
