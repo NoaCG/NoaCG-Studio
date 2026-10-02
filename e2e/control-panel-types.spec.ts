@@ -159,7 +159,7 @@ async function openControlPage(page: Page, variantId: string, name: string): Pro
 /** The chip, once the 500 ms machine-state poll has answered at least once. */
 async function expectState(page: Page, state: string): Promise<void> {
   await expect
-    .poll(async () => ((await page.getByTestId('control-state').textContent()) ?? '').replace(/^[●◇]\s*/, '').trim())
+    .poll(async () => ((await page.getByTestId('control-state').textContent()) ?? '').replace(/^[▶●◇]\s*/, '').trim())
     .toBe(state);
 }
 

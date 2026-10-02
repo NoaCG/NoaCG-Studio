@@ -115,7 +115,8 @@ stays there, because every surface owes it.
   across a fraction of a 1920×1080 frame, and at 144px the whole-canvas view was an unreadable
   smear of one. Measured after the settle, so nothing is framed mid-air.
 - **home/GraphicControlPage** - `#/control/<graphicId>`: the saved graphic's operator
-  panel, and the surface that AIRS (the editor's Rehearse tab is the preview-only twin) -
+  panel. It drives ITS OWN PREVIEW and never says ON AIR: nothing here reaches an output (the
+  control-surfaces review; its removal is ruled, after its saved entries move to production data) -
   live graphic + transport + machine event buttons (GREYED by controlModel `isEventLegal`
   against a 500ms poll of the graphic's own `noacgMachineState`, exactly as the editor's
   Rehearse panel, the event strip and the hosted page do) + a STATE CHIP naming the current

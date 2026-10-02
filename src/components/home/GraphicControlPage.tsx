@@ -77,8 +77,9 @@ const speedName = (speed: number) => MOTION_SPEEDS.find((s) => s.value === speed
  * entry's values feed Play here, the editor preview on open, and the downloadable standalone
  * controlpanel.html (entries baked in). Operating needs no account — this is local-first.
  *
- * This is the surface that AIRS a graphic, but the template it airs can still be AI-generated or
- * imported code, so its iframe carries no `allow-same-origin` like every other preview surface —
+ * IT DRIVES ITS OWN PREVIEW and nothing else: no press here reaches an output, so the page never
+ * says ON AIR (docs/research/control-surfaces-review-2026-10-02 §2.1, slice 5; airing is the
+ * production's Playout page). The template it previews can still be AI-generated or imported code, so its iframe carries no `allow-same-origin` like every other preview surface —
  * there is no reaching in via `contentWindow`/`contentDocument`. Every transport action (Play,
  * Update, Next, Stop, an event button) and the machine-state poll go through
  * preview/previewProtocol.ts's command channel instead (composeDocument's `liveControl` option);
@@ -315,7 +316,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
   const [aired, setAired] = useState(false);
   /** The figures an ⚡ `adjust` press put on air while NO entry was active (a goal's +1 on a
    *  graphic with no entries): the next press counts from here rather than from the default
-   *  again. Cleared by anything that airs a whole value set (Play, ⟳ Update). */
+   *  again. Cleared by anything that airs a whole value set (Play, ✎ Update). */
   const [adjusted, setAdjusted] = useState<Record<string, string>>({});
   /** The lifecycle group is `main` on every template (a derived machine has only it); a
    *  parallel group's own state (an alert level, a language) says nothing about being up. */
@@ -323,7 +324,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
     ('main' in machineState.groups
       ? machineState.groups.main === 'off'
       : Object.values(machineState.groups).every((s) => s === 'off'));
-  const onAir = aired && !machineOff;
+  /** The graphic is up in THIS page's preview. Never "on air": nothing here reaches an output. */
+  const playing = aired && !machineOff;
 
   if (!doc) {
     return (
@@ -679,10 +681,10 @@ export default function GraphicControlPage({ id }: { id: string }) {
               an unsettled preview is an empty black rectangle where the operator expects to see
               what they are about to air. Selecting an entry re-settles this SAME document (the
               effect above); the key is the GRAPHIC, so only opening a different one rebuilds. */}
-          <div className={`control-page-stage${onAir ? ' on-air' : ''}`} ref={stageRef} data-testid="control-stage">
-            {/* The red tally: unmissable while the graphic is up. This surface AIRS (the
-                acceptance round called the old chip-only mark "a small off becomes enter"). */}
-            {onAir && <span className="on-air-badge" data-testid="control-on-air">● ON AIR</span>}
+          {/* NO RED TALLY. Red is air (Brand §3), and this stage is a preview: a red frame and an
+              ON AIR badge here, in a studio with no output open, was the false claim the
+              2026-10-02 review found. */}
+          <div className="control-page-stage" ref={stageRef} data-testid="control-stage">
             <iframe
               key={doc.id}
               ref={iframeRef}
@@ -722,8 +724,8 @@ export default function GraphicControlPage({ id }: { id: string }) {
             <button className="primary" onClick={() => playEntry(active)} data-testid="control-play">
               ▶ Play{active ? ` “${active.label}”` : ''}
             </button>
-            <button onClick={() => sendUpdate(active?.values ?? {})} title="Update fields without replaying" data-testid="control-update">
-              ⟳ Update
+            <button onClick={() => sendUpdate(active?.values ?? {})} title="Change the values without replaying the entrance" data-testid="control-update">
+              ✎ Update
             </button>
             {/* A bare "»" is not a label an operator can read under pressure — the glyph keeps
                 the SPX vocabulary, the word says what pressing it does. */}
@@ -732,22 +734,21 @@ export default function GraphicControlPage({ id }: { id: string }) {
             </button>
             <button
               onClick={() => { postCmd({ cmd: 'stop' }); setAired(false); }}
-              title="Take the graphic off air"
+              title="Take the graphic out of the preview"
               data-testid="control-stop"
             >
               ■ Stop
             </button>
             {/* WHERE THE GRAPHIC IS — the fact the event buttons are greyed against, so the
-                surface never greys a button without saying why. This page is the ON-AIR
-                control surface (the editor's Rehearse tab is the preview-only one), so the
-                chip names the graphic's state plainly rather than hedging it as a preview. */}
+                surface never greys a button without saying why. It names the PREVIEW's state;
+                nothing on this page reaches an output. */}
             {stateLabel && (
               <span
-                className={`control-state-chip${onAir ? ' on-air' : ''}`}
-                title="Where the live graphic is now. Greyed actions are judged against this."
+                className="control-state-chip"
+                title="Where the graphic in the preview is now. Greyed actions are judged against this."
                 data-testid="control-state"
               >
-                {onAir ? '●' : '◇'} {stateLabel}
+                {playing ? '▶' : '◇'} {stateLabel}
               </span>
             )}
           </div>
@@ -916,12 +917,13 @@ export default function GraphicControlPage({ id }: { id: string }) {
               question, and the definition is the one a first visit needs first. */}
           <p className="hint" data-testid="entries-explainer">
             <strong>An entry is one saved set of field values</strong>: “Anna Andersson ·
-            Presenter”, “Michael Smith · Guest”. Select one and ▶ Play to take it on air, then
-            switch and play the next. Edits save as you type.
+            Presenter”, “Michael Smith · Guest”. Select one and ▶ Play to see it in the preview,
+            then switch and play the next. Edits save as you type.
           </p>
-          <p className="hint">
-            This is the on-air control surface. Playing an entry here airs it (the editor’s
-            Rehearse tab only drives the preview).
+          <p className="hint" data-testid="control-preview-only">
+            This page plays the graphic in its own preview only. Nothing here reaches an output:
+            to put it on air, add it to a production with + Production and take it from the
+            Playout page.
           </p>
 
           {doc.entries.length === 0 && (
