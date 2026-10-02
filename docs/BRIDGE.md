@@ -198,6 +198,17 @@ that needs no browser at all (`noacg caspar play`, §4).
    itself; putting the output on air never does. A browser that forgets its storage every session
    (Firefox set to forget on close) therefore re-pairs but never retypes the server. With a Bridge
    from before 0.7.0 the page tries the server this browser last used instead.
+   **Since 0.8.0 the setup comes with the server** (owner decision of 2026-10-01, "In the Bridge, per
+   server"; docs/work-specs/studio-day-playout AC-11, D17 to D19). Each remembered server carries the
+   studio's `studio` for it: the named channels, the NoaCG output's slot and the New media channel.
+   A browser that pairs and connects takes it, so a second browser, another account's browser
+   profile or one that forgot opens with the same setup, and a laptop used with two servers keeps
+   each server's apart. The page says one line per step with the details behind info buttons, offers
+   **This computer** (`127.0.0.1:5250`) beside every server used before, and shows how to pair
+   another browser: copy a link into it. Before pairing the link is the page's own, whose code is not
+   spent yet; after it, and in Playout settings, a paired page asks the Bridge for a fresh code
+   (`/pair-link`), and Enter in the Bridge window prints one. Each code works once, for two minutes,
+   and several may be open at once.
 2. Once, per studio: the CasparCG host and AMCP port (filled in by the connect step above, and
    under **Settings -> Playout** with **Connect** beside **Test connection**), name
    the server's channels (they start as `Channel 1`, and **Add channel** adds `Channel 2`; NoaCG
@@ -208,8 +219,16 @@ that needs no browser at all (`noacg caspar play`, §4).
    switching productions, reloading and closing the browser, because a studio has one playout
    server and not one per show. **NoaCG owns this configuration**; the Bridge is told its target
    on every call. What it stores is its own token and the list of servers the page connected to,
-   which it only ever reads back to the page: it never contacts a remembered server on its own.
-   **Test connection** remembers nothing; **Connect** is the same round trip and remembers.
+   each with the studio's setup for it (0.8.0), which it only ever reads back to the page: it never
+   contacts a remembered server on its own. **Test connection** remembers nothing; **Connect** is
+   the same round trip and remembers. The browser keeps a copy of the setup, which is what every
+   surface reads: it takes the Bridge's when it connects and when a production page or Playout
+   settings opens, and gives the Bridge its own when the operator changes it there. A change the
+   Bridge has not confirmed (it was not running) stays marked and is given to it when it answers,
+   so the Bridge's older copy never replaces it. A server the Bridge keeps no setup for takes the
+   browser's unless that is the untouched default, which is how a studio's setup moves into a
+   0.8.0 Bridge the first time it sees the server (`control/studioSetup.ts`). With an older Bridge
+   each browser keeps its own, as before.
 3. Per production, on the production page: **Links -> CasparCG -> Put on air**. That is one
    action, `take` of the output URL, which the Bridge sends as
 
@@ -241,9 +260,9 @@ packaged (§6). In code it is the playout agent (`cli/src/playout/`); to a perso
 | Token required | A stored per-machine token (`%APPDATA%\noacg\caspar-agent.json`, the file the first agent used, so nobody re-pairs for a rename), in `Authorization: Bearer`. Compared in constant time. `/health` and `/pair` are the routes without it. |
 | Origin allowlist | Only the configured NoaCG origin (`--origin`, default `https://noacg.studio` plus `localhost`/`127.0.0.1` dev ports). Any other origin gets 403 and **no** CORS headers, so a stray tab cannot read a reply even if it guessed the token. `/health` is the deliberate exception - see below. |
 | No DNS rebinding | The `Host` header must itself be loopback. A name that resolves to `127.0.0.1` from a page's own domain does not get in. |
-| One-time pairing | `/pair` spends the code the Bridge printed and carried in the link it opened: two minutes, first use only, origin-checked. |
+| One-time pairing | `/pair` spends a code the Bridge minted: the one it printed and carried in the link it opened, or one a paired page asked for with `/pair-link` or Enter in its window printed (0.8.0). Two minutes, first use only, origin-checked; at most eight open at once. |
 | No AMCP of unknown shape from the page | The page never composes AMCP text. It sends a target, an item, a slot and a verb (§3a); the adapter writes the one line. `/amcp` takes one raw line for the terminal route and refuses an embedded CR or LF; every quoted argument is escaped the way the server's tokenizer reads it, and a reply is capped at 8 MB. |
-| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the servers the page connected to (`%APPDATA%\noacg\caspar-servers.json`, 0.7.0; read back to the page, never contacted by the Bridge itself), the pairing code in memory, and, per slot and also only in memory, a counter, the id of what it last started there, what it queued behind it, and the sequence it runs there (below). The one thing it ever sends by itself is the next file of a sequence the page started. |
+| Nearly stateless | Each request names its target; a connection is opened per command. The Bridge keeps its token, the servers the page connected to (`%APPDATA%\noacg\caspar-servers.json`, 0.7.0, with the studio's setup for each since 0.8.0; read back to the page, never contacted by the Bridge itself; a field a newer Bridge wrote survives a rewrite), the open pairing codes in memory, and, per slot and also only in memory, a counter, the id of what it last started there, what it queued behind it, and the sequence it runs there (below). The one thing it ever sends by itself is the next file of a sequence the page started. |
 
 **What it remembers per slot, and why** (`cli/src/playout/slots.ts`, since 0.4.2; the runner
 since 0.5.0). Reading the server's state honestly, and playing one clip after another with the page
@@ -328,7 +347,9 @@ Routes, all JSON:
 | `POST /pair` | code | `{ code }` -> `{ token }`, once |
 | `POST /status` | yes | `{ target }` -> the server's version (`VERSION`) and what that server can do (`capabilities`); remembers nothing |
 | `POST /connect` | yes | 0.7.0: `/status`, and on success the server goes first in the remembered list; the reply adds `servers` |
-| `POST /servers` | yes | 0.7.0: `{}` -> `servers`, the CasparCG servers the page connected to, most recent first; the one route with no target |
+| `POST /servers` | yes | 0.7.0: `{}` -> `servers`, the CasparCG servers the page connected to, most recent first, each with its `studio` once one is kept (0.8.0); a route with no target |
+| `POST /studio` | yes | 0.8.0: `{ target, studio }` -> `servers`: the setup kept on that server's entry, its place in the list unchanged. Refused for a server the Bridge never connected to; contacts no server |
+| `POST /pair-link` | yes | 0.8.0: `{}` -> `{ code, expiresIn }`, one more one-time pairing code for another browser, which the page puts in a link on its own origin; a route with no target |
 | `POST /list` | yes | `{ target, kind }` -> the library of that kind (`TLS` / `CLS`), and for OGraf the `renderers` it can play on |
 | `POST /thumbnail` | yes | `{ target, name }` -> a clip's PNG, base64 (`THUMBNAIL RETRIEVE`) |
 | `POST /state` | yes | `{ target, channel }` -> what each layer of the channel holds, one `SlotState` per layer (`INFO <channel>`); not logged, since it runs twice a second |
@@ -340,8 +361,9 @@ this Bridge build understands; it names no server, so it says nothing about one.
 `/status` is what the named target can do, from its adapter and its version. 0.5.0 lists the
 features `state`, `playback` and `sequence`, 0.6.0 adds `sequence-loop` (a 0.5.0 Bridge would
 read a sequence's `loop` field by field and drop it, so the page never sends one without the word),
-and 0.7.0 adds `servers` (`/servers` and `/connect`, which an older Bridge answers with a 404, so the
-page uses them only when the word is there); a CasparCG 2.3 or later has the capabilities `state`,
+0.7.0 adds `servers` (`/servers` and `/connect`, which an older Bridge answers with a 404, so the
+page uses them only when the word is there), and 0.8.0 adds `studio` (each server's `studio` and
+`/studio`; without it the setup stays in the browser) and `pair-link`; a CasparCG 2.3 or later has the capabilities `state`,
 `end`, `fade`, `trim`, `level` and `sequence`, an older one only `end` (Clear at the end is a plain
 `LOADBG … EMPTY AUTO`), and an OGraf target none. The page offers a control only when both lists
 say yes, and a cue that already carries a setting the running Bridge or its server cannot honour
@@ -802,13 +824,21 @@ Stated plainly, because this doc's whole purpose is to not overstate.
   a follower queued 27 to 57 ms later waited for the end of the segment: unlike a `PLAY … IN`, the
   switch opens no window. A video and its own WAV taken one after another, as an All-together folder
   sends them, started within one frame on 2.5.0 and two on 2.3, the audio ahead.
+- **On the real 2.5.0 and 2.3, 2026-10-02, for 0.8.0**: this branch's Bridge with a scratch
+  `APPDATA`, two scratch servers and two browser profiles. A setup made in one browser was kept in
+  `caspar-servers.json` on the server's entry, a second profile paired from a link the first one
+  made and opened with it, and the two servers kept their own setups, one press each
+  (docs/work-specs/studio-day-playout/evidence/landing-3.md).
 - **Covered by the test suite**: `cli/test/playout.test.mjs` (every verb's exact line, quoting,
   the 501 mapping, pairing, the refusals, every playback line and its order, the conversions, no
   `MIXER`), `cli/test/runner.test.mjs` (every runner case of `CLIP_PLAYBACK_PLAN.md` §18 against a
   stateful fake server with each fault injected), `cli/test/state.test.mjs` (the `INFO` parser
   against the real captures, the segment arithmetic, generations, instances, the arriving window,
-  `/state`'s token and origin), `e2e/bridge-connect.spec.ts` (Settings, pairing, the one button,
-  each hop), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope and each
+  `/state`'s token and origin), `cli/test/servers.test.mjs` (the remembered servers and their setups,
+  `/studio`, `/pair-link`, the file a newer Bridge wrote), `cli/test/bridge-window.test.mjs` (the
+  window's words and Enter), `scripts/studio-setup.test.mjs` (which copy of a setup wins),
+  `e2e/bridge-connect.spec.ts` (Settings, pairing, the one button, each hop, a setup per server, a
+  second browser, a link for it), `e2e/playout-cues.spec.ts` (the picker, the cues, each verb's envelope and each
   setting's, the scanner-missing and Bridge-missing sentences, a cue an old Bridge cannot play),
   `e2e/playout-sequence.spec.ts` (Play next and TO STUDIO), `e2e/playout-clock.spec.ts` (the clock,
   the rows and the server's word with `/state` faked at the network layer, and `P`).

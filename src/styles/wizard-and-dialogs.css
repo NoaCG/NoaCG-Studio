@@ -262,7 +262,8 @@
 /* The servers NoaCG Bridge remembers (components/RecentServers.tsx), one button each, wrapping. In a
    form row it sits in the control column under the address it fills. */
 .recent-servers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.recent-servers .hint { margin: 0 4px 0 0; }
+/* span.hint: Settings gives every .hint a bottom margin, which lifted this label off the buttons' line. */
+.recent-servers > span.hint { margin: 0 4px 0 0; }
 .dlg-row > .recent-servers { grid-column: 2; }
 
 /* SETTINGS -> PLAYOUT's channel table: number | name | remove, one channel per line, and the

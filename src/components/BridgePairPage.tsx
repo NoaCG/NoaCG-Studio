@@ -143,7 +143,7 @@ function ConnectStep() {
   const [port, setPort] = useState(PLAYOUT_DEFAULTS.amcpPort);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<PlayoutResult | null>(null);
-  const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; setup: string | null } | null>(null);
+  const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; setup: { channels: number; slot: string } | null } | null>(null);
   // Once per pairing. StrictMode runs a mount's effect twice in development, and each run would be
   // one more VERSION on the server.
   const started = useRef(false);
@@ -164,7 +164,7 @@ function ConnectStep() {
       // With a Bridge that keeps the setup, say what came with the server, so a second browser sees
       // that its channels are already there.
       const now = loadPlayoutSettings();
-      const setup = studio?.keeper === 'bridge' ? `${now.channels.length === 1 ? '1 channel' : `${now.channels.length} channels`}, NoaCG output on ${slotAddress(slotOf(now))}.` : null;
+      const setup = studio?.keeper === 'bridge' ? { channels: now.channels.length, slot: slotAddress(slotOf(now)) } : null;
       setConnected({ server, version: result.version, setup });
     } finally {
       setBusy(false);
@@ -248,7 +248,12 @@ function ConnectStep() {
       {connected && (
         <p className="status-ok" data-testid="bridge-connected">
           ✓ Connected to CasparCG{connected.version ? ` ${connected.version}` : ''} at {serverAddress(connected.server)}.
-          {connected.setup && <span data-testid="bridge-connected-setup"> {connected.setup}</span>}
+          {connected.setup && (
+            <span data-testid="bridge-connected-setup">
+              {` ${connected.setup.channels === 1 ? '1 channel' : `${connected.setup.channels} channels`}, NoaCG output on `}
+              <span className="nowrap">{connected.setup.slot}</span>.
+            </span>
+          )}
         </p>
       )}
       {failure && (

@@ -42,6 +42,8 @@
 .agent-consent-card .status-bad { font-size: 13px; line-height: 1.45; margin: 10px 0 0; }
 .agent-consent-card .status-ok.bridge-paired-line { margin: 0 0 16px; }
 .agent-consent-card h1.bridge-step { font-size: 16px; line-height: 1.35; margin: 0; }
+/* A slot address (1-30) breaks at its hyphen on a phone; it reads as one word. */
+.agent-consent-card .nowrap { white-space: nowrap; }
 .agent-consent-card .bridge-copy { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .dlg-row > .bridge-copy { grid-column: 2; margin-top: 6px; }
 .bridge-copy .hint { margin: 0; }

@@ -1397,17 +1397,28 @@ Storm warning issued</code></pre>
               info</strong>, then <strong>Run anyway</strong>. Leave its window open while you
               work.</li>
             <li>It opens a page in your browser. One click pairs the browser with the
-              Bridge.</li>
-            <li>The same page then connects to your CasparCG server: enter its address and AMCP
-              port once and press <strong>Connect</strong>. It sends a real AMCP
-              <code>VERSION</code> and shows the version string the server answers with. NoaCG
-              Bridge remembers the servers you connect to, so the next time you pair it connects
-              to the last one by itself, and the others are one click away.</li>
-            <li>Name the server's channels and the layer graphics go on under
-              <strong>Playout</strong> in a production's header (the same form is under
-              <strong>Settings &rarr; Playout</strong>). <strong>Test connection</strong> there
-              checks the server without changing what is remembered.</li>
+              Bridge. If that is not the browser you use, copy the link into the one you use
+              instead.</li>
+            <li>The same page then asks for the IP address of your CasparCG server. Enter it, and
+              the AMCP port if it is not 5250, and press <strong>Connect</strong>. It sends a real
+              AMCP <code>VERSION</code> and shows the version string the server answers with.
+              <strong>This computer</strong> and every server used before are one click each.</li>
+            <li>Name the server's channels and say where NoaCG's output goes under
+              <strong>Playout</strong> settings (the production's Playout panel opens them, and the
+              same form is under <strong>Settings &rarr; Playout</strong>). <strong>Test
+              connection</strong> there checks the server without changing what is
+              remembered.</li>
           </ol>
+          <p>
+            NoaCG Bridge remembers each server you connect to together with its setup: the
+            channels and their names, the slot NoaCG's output plays on and the channel new media
+            starts on. Every browser paired with the same Bridge, including another account in its
+            own browser profile, connects to the last server by itself and opens with the same
+            setup. A laptop used with two servers keeps each server's setup apart. To pair another
+            browser, copy a pairing link into it: the pairing page and Playout settings each make
+            one, and so does Enter in the NoaCG Bridge window. A link works once, within two
+            minutes. With a Bridge older than 0.8.0 each browser keeps its own setup.
+          </p>
           <p>
             The production page now has a <strong>Put on air</strong> / <strong>Take off</strong>
             row beside its output URL, and <strong>Put on air</strong> sits beside

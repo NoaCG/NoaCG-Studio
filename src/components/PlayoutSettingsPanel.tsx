@@ -266,6 +266,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           {paired && (
             <RecentServers
               servers={servers}
+              current={{ host: settings.host.trim(), port: settings.amcpPort }}
               onPick={(server) => {
                 set({ host: server.host, amcpPort: server.port });
                 void run('connect');
