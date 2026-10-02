@@ -30,10 +30,10 @@ import { docTopics, readDoc } from './commands/docs.js';
 import { scaffoldRequestFrom } from './commands/scaffold.js';
 import { describePack, makePack, rundownFrom } from './commands/pack.js';
 import { notLoggedIn, savePackage } from './commands/save.js';
-import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf, type Thumbnail } from './commands/validate.js';
+import { describeNormalize, describeValidation, regenerateInPlace, sourcesOf } from './commands/validate.js';
 import { ografBench } from './ografBench.js';
 import { EXIT_OK, parseArgs, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from './output.js';
-import { describeSequence, describeUnreached, mimeTypeOf, parseDuration, resolveBackground, shoot, shootEvents, shootValidateFrames, type ArgNames, type ValidateFrames } from './screenshot.js';
+import { describeSequence, describeShotFailure, describeUnreached, mimeTypeOf, parseDuration, resolveBackground, shoot, shootEvents, shootValidateFrames, type ArgNames, type Thumbnail, type ValidateFrames } from './screenshot.js';
 import { isEmptyDir, packageEntries, readPackageInput, unzipTo } from './workspace.js';
 
 /** The verbs the tool speaks - the authoring verbs of the terminal, in the order the loop uses
@@ -149,7 +149,7 @@ export function framesContent(shot: ValidateFrames, limits = MCP_LIMITS): Conten
   else if (shot.stopped === 'time') content.push({ type: 'text', text: `The state walk stopped at its ${limits.walkMs / 1000} s limit for one answer. Not shot: ${left}. ${elsewhere}` });
   else if (left && !shot.failure) content.push({ type: 'text', text: describeUnreached(shot.unshot, 'Shoot one with screenshot "events".') });
   // The validation report comes before all of this: a walk that failed part way costs its frames, never the report.
-  if (shot.failure) content.push({ type: 'text', text: `Screenshots stopped part way: ${shot.failure}${left ? `. Not shot: ${left}` : ''}` });
+  if (shot.failure) content.push({ type: 'text', text: describeShotFailure(shot.failure, shot.unshot) });
   return content;
 }
 

@@ -17,7 +17,7 @@ import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
 import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { describeUnreached, resolveBackground, shootValidateFrames, type ValidateFrames } from '../screenshot.js';
+import { describeShotFailure, describeUnreached, resolveBackground, shootValidateFrames, type Thumbnail } from '../screenshot.js';
 import { markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
 const STATE_WORD: Record<string, string> = { pass: 'PASS', warn: 'WARN', fail: 'FAIL', untested: 'UNTESTED' };
@@ -56,7 +56,6 @@ export async function sourcesOf(dir: string, template: SpxTemplate): Promise<Rec
   return { [html]: await read(html), 'css/template.css': await read('css/template.css'), 'js/template.js': await read('js/template.js') };
 }
 
-export type Thumbnail = NonNullable<ValidateFrames['thumbnail']>;
 
 /**
  * Regenerate a package in place from its normalized sources. Shared by the terminal and the MCP
@@ -154,7 +153,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     const validation = await bridge.validate(template, { bench, houseContract });
     Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
-    let thumbnail: ValidateFrames['thumbnail'];
+    let thumbnail: Thumbnail | undefined;
     const stateLines: string[] = [];
     let shotFailure: string | undefined;
     if (shotsDir) {
@@ -194,7 +193,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     if (report.screenshots) out.say(`Screenshots: ${Object.values(report.screenshots as Record<string, string>).join(', ')}`);
     if (stateLines.length) out.say(['States the events reach, one frame each:', ...stateLines].join('\n'));
     if (report.unshotStates && !shotFailure) out.say(describeUnreached(report.unshotStates as string[], 'Shoot one with `noacg screenshot --event ...`.'));
-    if (shotFailure) out.say(`Screenshots stopped part way: ${shotFailure}${report.unshotStates ? `. Not shot: ${(report.unshotStates as string[]).join(', ')}` : ''}`);
+    if (shotFailure) out.say(describeShotFailure(shotFailure, (report.unshotStates as string[] | undefined) ?? []));
     if (isDirectory) {
       out.say(`Regenerated the package in ${path.resolve(input)}${pkg.imported.noacg?.stale ? ' (the generated half was stale - written from other sources than the ones on disk)' : ''}.`);
       for (const c of changes) out.say(`  changed: ${c}`);

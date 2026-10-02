@@ -510,6 +510,10 @@ export async function walkStates(
   const key = (group: string, state: string) => `${group}\u0000${state}`;
   const maxFrames = opts.maxFrames ?? Infinity;
   const timeLeft = () => Date.now() < (opts.until ?? Infinity);
+  // The limit the walk actually stopped on (`stillMore`: work was left when it did), never one
+  // that merely passed meanwhile; none when a failure ended it or nothing is unshot.
+  const stoppedBy = (unshot: string[], stillMore: boolean): StateWalk['stopped'] =>
+    !unshot.length || failure ? undefined : frames.length >= maxFrames ? 'frames' : stillMore ? 'time' : undefined;
   const frames: StateFrame[] = [];
   const names = new Set<string>(['off', 'onair', 'stress']);
   const nameFor = (wanted: string) => {
@@ -532,8 +536,7 @@ export async function walkStates(
       batch.forEach((ops, j) => frames.push({ name: nameFor(`step-${ops.length + 1}`), image: shots[j].image, reached: [], via: ops.map(describeOp) }));
     }
     const unshot = Array.from({ length: Math.max(0, last - frames.length - 1) }, (_, k) => `step ${frames.length + 2 + k}`);
-    const stopped = !unshot.length || failure ? undefined : frames.length >= maxFrames ? 'frames' : i < paths.length ? 'time' : undefined;
-    return { frames, unshot, stopped, failure };
+    return { frames, unshot, stopped: stoppedBy(unshot, i < paths.length), failure };
   };
   // inspect already says whether there is a machine; a render is spent only to find its start.
   if (!opts.stateGroups.length) return stepFrames();
@@ -578,9 +581,12 @@ export async function walkStates(
   const unshot = opts.stateGroups.flatMap((g) =>
     g.states.filter((st) => wanted.includes(key(g.id, st.id)) && !shown.has(key(g.id, st.id))).map((st) => `${g.id}: ${st.name ?? st.id}`),
   );
-  // The reason is the limit the loop actually stopped on, not one that merely passed meanwhile.
-  const stopped = !unshot.length || failure ? undefined : frames.length >= maxFrames ? 'frames' : more() ? 'time' : undefined;
-  return { frames, unshot, stopped, failure };
+  return { frames, unshot, stopped: stoppedBy(unshot, more()), failure };
+}
+
+/** The line that says frames stopped part way, and the declared states left without one. */
+export function describeShotFailure(failure: string, unshot: string[]): string {
+  return `Screenshots stopped part way: ${failure}${unshot.length ? `. Not shot: ${unshot.join(', ')}` : ''}`;
 }
 
 /** The line that names declared states a walk did not reach within its own bounds. */
@@ -602,10 +608,12 @@ export interface NamedFrame {
   state?: { shows: string; via: string[]; reached: Array<{ group: string; state: string }> };
 }
 
+export type Thumbnail = { png: Uint8Array; width: number; height: number };
+
 export interface ValidateFrames {
   frames: NamedFrame[];
   /** The on-air frame on no ground, for the package thumbnail: the graphic itself, never what it was judged on. */
-  thumbnail?: { png: Uint8Array; width: number; height: number };
+  thumbnail?: Thumbnail;
   /** Declared states with no frame, and the caller's limit that left them so (`walkStates`). */
   unshot: string[];
   stopped?: StateWalk['stopped'];
