@@ -19,6 +19,13 @@ CasparCG's own `CALL <channel-layer> LOOP 0` and `LOOP 1`, on 2.3 and 2.5 alike.
 starts sending these changes in a later update; until then a change to At the end applies at the
 next Take, as before. There is nothing to do.
 
+**The Bridge tells Playout settings which channels the server has.** Until now the studio typed its
+CasparCG channels by hand, and a channel the server does not have was a cue that never played. The
+Bridge now reads the server's channels with a bare `INFO`, which changes nothing on air. Playout
+settings shows each channel's video mode, warns about a channel the server does not have, and
+Add channel adds the next channel the server really has. With an older Bridge, or a server that
+cannot say, the channel list works as before. There is nothing to do.
+
 ## 0.8.0 - 2026-10-02
 
 **`noacg bridge` keeps your studio's setup.** The Bridge you start from the CLI is the same NoaCG
