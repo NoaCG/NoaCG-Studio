@@ -72,10 +72,11 @@ unattended work records for the owner, and defers, only what changes direction, 
 or unusually, moves an important external, security or privacy boundary, or is hard to reverse.
 
 ## Outcomes
+Each outcome carries its priority (now, next, later) and rank (owner, 2026-10-02; work top down):
+1 production, rundown and playout (5); 2 agent door (2); 3 editor (3); 4 create (1); 5 behaviour and
+control (4); 6 OGraf and EBU (6). List order is not rank.
 
-Each outcome carries its priority (now, next, later). List order is not priority.
-
-### 1. Create: own designs, templates and brands (now)
+### 1. Create: own designs, templates and brands (now; rank 4)
 
 - **Why:** most productions start from their own design or a template, and that look must survive.
 - **Desired state:** a design made elsewhere (SVG) or a NoaCG template or brand becomes a premium,
@@ -92,7 +93,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Evidence:** import sweeps over files outside the sample set; owner check on taste only.
 - **Plans:** `SVG_IMPORT_PLAN.md`, `TEXT_BOX_BINDING.md`, `BRAND_PLAN.md`, `DESIGN_LANGUAGE.md`.
 
-### 2. Agentic creation: the agent door (now)
+### 2. Agentic creation: the agent door (now; rank 2)
 
 - **Why:** describing the need is the lowest-friction path, and it is where NoaCG can lead.
   External frontier agents (Claude Code, Codex and others) are the strongest route today.
@@ -110,7 +111,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
   in a browser source; the recurring novel-brief benchmark passes.
 - **Plans:** `AGENT_CLI.md`, `AGENT_SAVE.md`, `backlog/cli-roadmap.md`.
 
-### 3. Editor (now)
+### 3. Editor (now; rank 3)
 
 - **Why:** productions often start from an existing package and need quick changes to colour,
   logo, text or motion; new graphics need precise construction and animation.
@@ -120,7 +121,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Principle:** a saved graphic reopens exactly as it was and can reach every supported target
   from one saved graphic. The internal format is an engineering decision, not a product principle.
 
-### 4. Behaviour and control (now)
+### 4. Behaviour and control (now; rank 5)
 
 - **Why:** a live graphic is only useful if the operator can drive what the show needs.
 - **Desired state:** any graphic exposes the states, editable data and controls its production
@@ -142,7 +143,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
 - **Plans:** `STATE_MACHINE_SCHEMA.md`, `CONTROL_LAYER.md`, `CONTROL_PANEL_ANY_GRAPHIC.md`,
   `SVG_BEHAVIOUR_PLAN.md`, `BEHAVIOUR_AUTHORING_RESEARCH.md`.
 
-### 5. Production, rundown and playout (now)
+### 5. Production, rundown and playout (now; rank 1)
 
 - **Why:** a graphic is worth something only on air, wherever the production runs, and a group
   must be able to prepare and run one production without one person being a single point of
@@ -161,18 +162,17 @@ Each outcome carries its priority (now, next, later). List order is not priority
   out; saved entries and later library edits still resolve through whoever publishes.
 - **Done for this phase:**
   - **Basic media:** clips and audio play reliably from the rundown through CasparCG, with volume,
-    loop and the other attributes a production genuinely needs. Anything beyond reliable basic
-    playback is optional.
+    loop and the other attributes a production genuinely needs; more than that is optional.
   - **Shared productions,** proved by verification before anything is rebuilt: members join the
     same team; several members add graphics to the same production; they open and use it later;
     it stays accessible when its creator is absent; its graphics and data are available to the
     team rather than trapped in one account; normal playout from it works.
   - **Targets:** vMix runs a production-realistic walk (browser input, take, update, out, several
-    layers); SPX installs and operates a graphic on a real SPX server; CasparCG and OBS stay green.
+    layers); SPX installs and operates a graphic on a real SPX server (done, `SPX_ON_A_REAL_SERVER.md`); CasparCG and OBS stay green.
 - **Needs the owner's accounts:** custom email (SMTP), the Google sign-in client, the status page.
 - **Plans:** `BRIDGE.md`, `CLOUD_PLAYOUT.md`, `CONTROL_PANEL_ROAD.md`, `TEAMS_PLAN.md`, `STATUS_PAGE.md`.
 
-### 6. Standards and interoperability: OGraf and EBU (now, with a high-priority next milestone)
+### 6. Standards and interoperability: OGraf and EBU (now, with a high-priority next milestone; rank 6)
 
 - **Why:** interoperability through a standard beats building around one vendor's assumptions.
 - **Desired state:** NoaCG stays compatible with OGraf as the EBU standard evolves. Where the
@@ -194,7 +194,7 @@ Each outcome carries its priority (now, next, later). List order is not priority
   operator presses, and the operator wins over a feed.
 - **Done for this phase:** one data model instead of the two that coexist today; a connector design.
 
-### 8. Later and parked
+### 8. Later
 
 - Video projects (Remotion, HyperFrames): not abandoned, not active; the wizard shows the Video
   door greyed, not hidden (owner, 2026-09-27).

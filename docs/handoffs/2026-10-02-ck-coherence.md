@@ -86,6 +86,9 @@ editor checks.
 
 ## 4. Drift the owner must rule on
 
+Ruled 2026-10-02: item 1 (the outcomes are ranked in GOALS), item 2 (section 8 is "Later") and item 3
+(the SPX target is done). Item 4 is still open.
+
 1. **Name the push.** Six of eight outcomes are (now) and none is ranked, so "most important
    unsatisfied first" cannot be applied by anyone but you. Recommendation: mark the one or two
    outcomes this fortnight is for, or give the (now) outcomes an order. Last week's merges went
