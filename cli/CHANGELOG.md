@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.8.0 - unreleased
+## 0.8.0 - 2026-10-02
 
 **`noacg bridge` keeps your studio's setup.** The Bridge you start from the CLI is the same NoaCG
 Bridge 0.8.0. Next to the CasparCG servers it remembers, it now keeps each server's channels with
