@@ -35,6 +35,12 @@ export type PlayoutVerb =
   // The panic control, with no key on purpose (docs/CLIP_PLAYBACK_PLAN.md §20.1): the header's ■ All
   // out as a named verb, so a hardware panel presses the same thing. The hosted page ignores it.
   | 'all-out'
+  // A hardware panel's per-cue keys, with no key on the keyboard (docs/work-specs/
+  // hardware-panel-control/spec.md D4): select a named cue, airing nothing, or take it, which airs
+  // it whatever the SPACE mode and, pressed while it is on air, takes it off. The cue rides on
+  // `VerbPress.cue`. A surface without them ignores both.
+  | 'select-cue'
+  | 'take-cue'
   // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2): copy, cut and paste the selection
   // (Ctrl or Cmd with C, X, V), Escape to drop it, Shift with Up or Down to extend it. Nothing here
   // airs. The hosted page has no rundown to edit and ignores them.
@@ -49,6 +55,8 @@ export type PlayoutVerb =
  *  refuse for a verb that must happen once (a folder's Take fires several actions). */
 export interface VerbPress {
   repeat: boolean;
+  /** The row `select-cue` and `take-cue` act on: a cue's id. */
+  cue?: string;
 }
 
 /**
