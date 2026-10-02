@@ -1,5 +1,6 @@
 # Native Codex root-to-start-directory instruction budget. Lower, never raise.
 # check-shared-instructions enforces a 4 KiB reserve on every repo chain.
-# Measured 2026-09-26: largest chain 65,716 B (wizard); 72 KiB also leaves room
-# for the 2,355 B global file and CRLF. Evidence: docs/metrics/2026-09-26-codex-instruction-loading.md.
-project_doc_max_bytes = 73728
+# Measured 2026-10-02: largest chain 56,571 B (src/ai/pro/harness); 64 KiB leaves it
+# 8,965 B, room for the 2,355 B global file and CRLF above the reserve.
+# Evidence: docs/metrics/2026-09-26-codex-instruction-loading.md (72 KiB, 2026-09-26).
+project_doc_max_bytes = 65536

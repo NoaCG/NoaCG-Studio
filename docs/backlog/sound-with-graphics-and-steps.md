@@ -36,4 +36,5 @@ and "ticking with the clock" today, on the Bridge path.
 ## Evidence
 
 `docs/backlog/rundown-cue-timing-and-automation.md` items 8 (audio cues) and 10 (linked cues);
-`src/control/combine.ts` (combined controls cannot reach server cues).
+combined controls could not reach server cues, and were removed on 2026-10-02; a folder's All
+together is the one-press-many-cues route now (`docs/PLAYOUT_DASHBOARD.md` §2i).

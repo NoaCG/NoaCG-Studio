@@ -11,6 +11,7 @@
 //   - nothing this file plans may pass through a shell, because Git Bash is $SHELL on this
 //     machine and MSYS rewrites every argument that starts with a slash.
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -549,4 +550,76 @@ test('a recorded process is described by what it is, for the report a person rea
   );
   assert.equal(labelProcess('C:\\npm\\...\\bin\\codex.exe app-server', 'codex.exe'), 'codex.exe');
   assert.equal(labelProcess('something unfamiliar', 'node.exe'), 'node.exe');
+});
+
+// ── Defect 5: a delegation starts bare, or its sandbox refuses every command ─────────────────────
+//
+// On Codex 0.161+ the elevated Windows sandbox fails its setup refresh whenever the session's own
+// MCP servers hold `node_repl.exe` open, and that failure refuses every command. Both levers were
+// measured necessary, and naming a server the config does not declare is a config error that
+// kills the delegation outright - so the shape pinned here is: plugins off, exactly the listed
+// servers off, nothing invented.
+
+test('a delegation turns plugins off and disables exactly the servers the CLI listed', async () => {
+  const { bareOverrides } = await import('./codex-rescue.mjs');
+  const { args, skipped } = bareOverrides([
+    { name: 'node_repl', enabled: true }, { name: 'playwright', enabled: true }, { name: 'openaiDeveloperDocs' },
+  ]);
+  assert.deepEqual(args, [
+    '--disable', 'plugins',
+    '-c', 'mcp_servers.node_repl.enabled=false',
+    '-c', 'mcp_servers.playwright.enabled=false',
+    '-c', 'mcp_servers.openaiDeveloperDocs.enabled=false',
+  ]);
+  assert.deepEqual(skipped, []);
+});
+
+test('with no servers listed, plugins still go off and no server name is invented', async () => {
+  const { bareOverrides } = await import('./codex-rescue.mjs');
+  assert.deepEqual(bareOverrides([]).args, ['--disable', 'plugins']);
+  assert.deepEqual(bareOverrides([{ enabled: true }, null]).args, ['--disable', 'plugins']);
+});
+
+test('a server name that is not a bare TOML key is reported, never spliced into a command line', async () => {
+  const { bareOverrides } = await import('./codex-rescue.mjs');
+  const { args, skipped } = bareOverrides([{ name: 'a b' }, { name: 'x"; rm' }, { name: 'ok-1' }]);
+  assert.deepEqual(args, ['--disable', 'plugins', '-c', 'mcp_servers.ok-1.enabled=false']);
+  assert.deepEqual(skipped, ['a b', 'x"; rm']);
+});
+
+test('the real launcher is found in PATH order, and the shim directory is never its own target', async () => {
+  const { findOnPath } = await import('./codex-rescue.mjs');
+  const files = new Set([
+    path.join('/shim', 'codex'), path.join('/npm', 'codex'), path.join('/npm', 'codex.cmd'), path.join('/later', 'codex'),
+  ]);
+  const isFile = (file) => files.has(file);
+  const options = { delimiter: ':', isFile };
+  assert.equal(findOnPath(['codex'], '/shim:/npm:/later', { ...options, exclude: '/shim' }), path.join('/npm', 'codex'));
+  assert.equal(findOnPath(['codex.exe', 'codex.cmd'], '/shim:/npm', { ...options, exclude: '/shim' }), path.join('/npm', 'codex.cmd'));
+  assert.equal(findOnPath(['codex'], '/nowhere::', options), null);
+});
+
+test('the shim adds the overrides to app-server only, after the subcommand, and passes the rest through', async () => {
+  const { shimScripts } = await import('./codex-rescue.mjs');
+  const overrides = ['--disable', 'plugins', '-c', 'mcp_servers.node_repl.enabled=false'];
+  const scripts = shimScripts({
+    sh: String.raw`C:\Users\me\npm\codex`, cmd: String.raw`C:\Users\me\npm\codex.cmd`, overrides,
+  });
+  assert.deepEqual(Object.keys(scripts).sort(), ['codex', 'codex.cmd']);
+  assert.match(scripts.codex, /^#!\/bin\/sh\n/);
+  assert.ok(scripts.codex.includes(
+    `exec 'C:/Users/me/npm/codex' app-server --disable plugins -c mcp_servers.node_repl.enabled=false "$@"`,
+  ));
+  assert.ok(scripts.codex.includes(`exec 'C:/Users/me/npm/codex' "$@"`));
+  assert.ok(scripts['codex.cmd'].includes(
+    String.raw`"C:\Users\me\npm\codex.cmd" app-server --disable plugins -c mcp_servers.node_repl.enabled=false %2`,
+  ));
+  assert.ok(scripts['codex.cmd'].includes(String.raw`"C:\Users\me\npm\codex.cmd" %*` + '\r\nexit /b %errorlevel%\r\n:app'));
+  assert.deepEqual(Object.keys(shimScripts({ sh: '/usr/bin/codex', overrides })), ['codex']);
+});
+
+test('a launcher path with a quote in it stays one word in the sh shim', async () => {
+  const { shimScripts } = await import('./codex-rescue.mjs');
+  const { codex } = shimScripts({ sh: "/home/o'neil/bin/codex", overrides: [] });
+  assert.ok(codex.includes(String.raw`exec '/home/o'\''neil/bin/codex' "$@"`));
 });

@@ -6,7 +6,7 @@
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
 import { EXIT_OK, flagList, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { parseDuration, parseOps, resolveBackground, shoot, shootSequence } from '../screenshot.js';
+import { describeSequence, parseDuration, resolveBackground, shoot, shootEvents, TERMINAL_ARGS } from '../screenshot.js';
 import { promises as fs } from 'node:fs';
 import { markFramesDir, readPackageInput } from '../workspace.js';
 
@@ -69,15 +69,10 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
       out.result(result);
       out.say(`Wrote ${file} (${label}, ${size.width}x${size.height}, ${ground}).`);
     } else {
-      const inspection = await bridge.inspect({ template });
-      const ops = parseOps(eventFlags, inspection.buttons, template.fields.map((f) => f.field));
-      const base = { ...(await bridge.stateData(template, state === 'stress' ? 'stress' : 'onair')), ...(data ?? {}) };
-      const html = await bridge.compose(template, 'off');
-      const shot = await shootSequence(bridge.origin, html, file, { ...size, background, data: base, ops, atMs, buttons: inspection.buttons });
+      const shot = await shootEvents(bridge, template, { background, state: state === 'stress' ? 'stress' : 'onair', values: data, events: eventFlags, atMs, args: TERMINAL_ARGS }, file);
       out.result({ ...result, events: shot.ran, atMs: shot.atMs, machine: shot.machine, notes: shot.notes });
       out.say(`Wrote ${file} (${label}, ${shot.ran.join(' > ')}, then ${shot.atMs} ms; ${size.width}x${size.height}, ${ground}).`);
-      if (shot.machine) out.say(`Machine at the shutter: ${Object.entries(shot.machine.groups).map(([g, s]) => `${g}=${s}`).join(', ')}`);
-      for (const note of shot.notes) out.say(`Note: ${note}`);
+      for (const line of describeSequence(shot)) out.say(line);
     }
     if (insidePackage) out.say('Note: that file is inside the package, so the next validate or save packs it as one of the graphic\'s images. Write frames to a folder of their own (shots/) or outside the package.');
     return EXIT_OK;

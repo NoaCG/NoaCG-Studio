@@ -4,6 +4,15 @@
 so this builds nothing; it says what the one approach is, proves it on paper against the
 proof case, and separates what the first showing needs from what waits.**
 
+**COMBINE WAS REMOVED on 2026-10-02** (owner ruling: keep playout extremely simple, remove it if
+that is safe). A read-only count of the production database found no stored production carrying a
+combined control, and the review in `docs/research/control-surfaces-review-2026-10-02/` found no
+shipped pack, example or walk using one. The composer, the Combined button, the send path, the
+hosted page's half and their tests are gone; ARRANGE (§6b) stays exactly as it was, and a stored
+profile that still carries a `combine` list opens and ignores it. Everything below about COMBINE,
+`after` and `ask` is the history of that decision, not a description of the product. One press
+airing several cues is a folder's All together (`docs/PLAYOUT_DASHBOARD.md` §2i).
+
 The brief: one control-panel approach that fits ANY graphic we have - catalog templates,
 imported SVGs, graphics a coding agent makes through the NoaCG CLI, and later a stranger's OGraf
 package. The proof case is a voting show: five people vote on who performs
@@ -392,7 +401,7 @@ pinned or not. Presentation over declared capability. A hidden control is still 
 machine, a renamed one still greys by the same table, and the generated panel is what remains
 when the profile is deleted.
 
-**COMBINE** - one named control the production makes out of STEPS. A step is exactly one thing a
+**COMBINE** (removed 2026-10-02; see the note at the top) - one named control the production makes out of STEPS. A step is exactly one thing a
 surface can already send: an operator EVENT of a named pool graphic, with the payload rule its
 control declares (a `payload` reads the cue's field, an `adjust` moves it, a `set` writes it - the
 same `eventPayload` every surface computes today); a lifecycle VERB on a cue (Take, Update, Next,
@@ -472,14 +481,15 @@ happen, and the operator presses it by hand. Nothing is retried behind anyone's 
   generated panel everywhere.
 - **ARRANGE renders on all three dashboard deployments** - the in-app production page, the hosted
   control page and the exported controller - because it is presentation, `docs/PLAYOUT_DASHBOARD.md`
-  says they must not diverge, and the exported one is built from the same `emitGraphic`. **COMBINE
-  renders on the two NoaCG-hosted pages**; the exported controller is the offline fallback and
+  says they must not diverge, and the exported one is built from the same `emitGraphic`. (Until
+  its removal on 2026-10-02:) **COMBINE renders on the two NoaCG-hosted pages**; the exported controller is the offline fallback and
   carries the one line §6f gives it rather than a sequencer of its own. The combined controls sit
   in the ⚡ actions block under a section of their own, pinned controls above the fold; ARRANGE is
   applied to the existing block, not a new one.
 - **Authoring is on the production page**, a "Controls" panel beside the cue editor: the generated
-  controls per graphic with drag order, hide and rename; "+ Combined control" names it and adds
-  steps by picking a graphic, then one of its controls or verbs, then the two marks. No text field
+  controls per graphic with drag order, hide and rename; "+ Combined control" (removed
+  2026-10-02) named one and added steps by picking a graphic, then one of its controls or verbs,
+  then the two marks. No text field
   takes anything but a name or a number of seconds. Not the CLI: a profile is a production's
   taste, and a library graphic stays clean of it.
 
@@ -515,9 +525,10 @@ control layer packaged for a show with no network, built from the same generator
 `docs/PLAYOUT_DASHBOARD.md` holds it to parity with the two hosted pages. Parity on the generated
 panel and on ARRANGE stands, because both are presentation of the contract. COMBINE does not cross
 into it: a sequencer with delays and ticks, inlined a second time in vanilla JS, is exactly the
-second production runtime the owner named. The exported controller therefore shows, where a
-production has combined controls, one line: *"This production's combined controls run from its
+second production runtime the owner named. The exported controller therefore showed, where a
+production had combined controls, one line: *"This production's combined controls run from its
 hosted control page"* - the same honest degradation a stranger's OGraf package gets on legality.
+That line went with COMBINE on 2026-10-02.
 The same holds for shared data: the exported controller carries no tree and no bindings today, so
 row 9's stepper change does not reach it, and its field stepper stays what it is. If an offline
 show ever needs either, that is the demand that reopens this paragraph, recorded then, not
@@ -585,8 +596,8 @@ four costs above:
    The embed cannot take a cue by design (`outputEmbed.ts:12-17`), so that room gets the starter.
 
 **What stays open.** The real-SPX run of the embed is the SPX line of
-`docs/backlog/casparcg-production-acceptance-matrix.md` and is folded into the owner's desktop walk
-`docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`. The starter
+`docs/backlog/casparcg-production-acceptance-matrix.md` (the owner's desktop walk it was folded
+into was deleted, never walked, with Combined controls on 2026-10-02). The starter
 package now says what it drops and carries the SPX rule for the Shown field
 (`src/export/spxLeftBehind.ts`); what the rule cannot fix, SPX setting Shown itself, and the
 unmeasured CasparCG flavour, are `docs/backlog/the-spx-package-drops-the-profile-without-saying-so.md`.
@@ -626,11 +637,11 @@ Made here, recorded so they can be reverted rather than adjudicated:
    ticks, and never an internal bump.
 6. The rows start now and touch nothing the earlier dates depend on (§5); the wait was lifted
    by the owner on 2026-09-15.
-7. The profile is two primitives, ARRANGE and COMBINE, and a step carries `after` and `ask` and
-   nothing else (§6b). A third primitive or a third mark needs a graphic that cannot be served
-   without it, walked and recorded.
-8. Timing in a combined control is the surface's own wait, visible and cancellable, never a row
-   the renderer holds back (§6d).
+7. The profile was two primitives, ARRANGE and COMBINE, and a step carried `after` and `ask` and
+   nothing else (§6b). COMBINE was removed on 2026-10-02, so the profile is ARRANGE alone;
+   bringing a primitive back needs a graphic that cannot be served without it, walked and recorded.
+8. Timing in a combined control was the surface's own wait, visible and cancellable, never a row
+   the renderer holds back (§6d). Removed with COMBINE.
 9. A downloaded graphic carries its contract and nothing of the production; combined controls and
    shared data live above the command log and reach any renderer as rows (§6f). The exported
    controller renders the panel and ARRANGE, and says in one line what runs from the hosted page.

@@ -27,6 +27,7 @@ import {
   LIVE_PATH_FUNCTIONS,
   LIVE_PATH_PREFIX,
   LOCK_RETRY_WAITS_MS,
+  PUSH_ARGS,
   classifyMigration,
   classifyStatement,
   holdAlarms,
@@ -671,4 +672,12 @@ test('a hold pushes from a staged copy that holds every migration except the hel
   } finally {
     rmSync(staged, { recursive: true, force: true });
   }
+});
+
+test("the real push answers the CLI's own confirmation, so a captured hand run cannot hang on a hidden prompt", () => {
+  // A hand run hung on 2026-10-02: the CLI asked "push these migrations? [Y/n]" into the captured
+  // stdout while it waited on the terminal's stdin.
+  assert.deepEqual(PUSH_ARGS.slice(0, 3), ['db', 'push', '--linked']);
+  assert.ok(PUSH_ARGS.includes('--yes'));
+  assert.ok(!PUSH_ARGS.includes('--dry-run'));
 });

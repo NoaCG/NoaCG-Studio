@@ -407,6 +407,21 @@ export function fontByStack(value: string): BundledFont | null {
   return FONTS.find((f) => f.family === family) ?? null;
 }
 
+const WEIGHT_NAMES: Record<number, string> = {
+  100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semibold', 700: 'Bold', 800: 'Extra bold', 900: 'Black',
+};
+/**
+ * The weights a typeface can really draw (R1.2b.2), for a font family or stack: a bundled face's
+ * own range in steps of 100, so a choice never falls back to a browser-synthesised bold; a face the
+ * app does not bundle, Regular to Extra bold. Named as type menus name them.
+ */
+export function fontWeights(family: string): { value: number; label: string }[] {
+  const [low, high] = fontByStack(family)?.weights ?? [400, 800];
+  const weights: { value: number; label: string }[] = [];
+  for (let w = Math.ceil(low / 100) * 100; w <= high; w += 100) weights.push({ value: w, label: WEIGHT_NAMES[w] });
+  return weights;
+}
+
 /**
  * Make sure a stylesheet carries the `@font-face` for a bundled face it now references.
  *

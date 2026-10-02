@@ -79,4 +79,11 @@ from the Take (`pp-b.png`, `result-final.png`, `timer-running.png`), each listed
 open every one. Add `--background video` (or a colour, `checker`, or your own still) to judge
 them on the ground they will air on: a transparent PNG shows on white in most viewers. For a
 state at a later moment, `noacg screenshot <dir> --event <name>... --at <time> --out <png>`
-(a clock 2 minutes on, a timer that ran out).
+(a clock 2 minutes on, a timer that ran out). A declared state the walk did not reach (it stops
+at three presses) is named after the frames; reach it with `--event`.
+
+Over MCP the same frames come back as images: `{ "command": "validate", "path": "<dir>",
+"screenshots": true, "background": "video" }`, and one state with `{ "command": "screenshot",
+"path": "<dir>", "events": ["startTimer"], "at": "4s", "background": "video" }`. A frame on a
+background is JPEG there (a transparent one stays PNG), and a validate answer carries at most six
+state frames, naming the states it left out.

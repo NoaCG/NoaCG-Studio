@@ -60,6 +60,9 @@
 //      asks the plugin's own broker, over the endpoint the plugin itself wrote down, to close
 //      the family it still holds a live handle to. The desktop app has no broker and no job
 //      store, so it cannot be reached this way even in principle.
+//   5. EVERY COMMAND WAS REFUSED BEFORE IT RAN - found 2026-10-02 on Codex 0.161. The delegation's
+//      own MCP servers held a file the elevated sandbox's setup must open, so the launch now
+//      starts Codex without plugins or MCP servers. Written out at `bareOverrides`.
 
 // So a reap now has two halves, and confusing them is the one way this file becomes dangerous:
 // the RECORD decides every kill and always will, while the broker's ENDPOINT decides the
@@ -71,7 +74,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  closeSync, existsSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
+  closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
@@ -1041,6 +1044,136 @@ async function askUnclaimedBrokers({ log = console.log, workspace = null, table 
   return { tried: sessions.length, closed: went.reduce((total, one) => total + one, 0), busy };
 }
 
+// ── A delegation runs without the owner's MCP servers and plugins ────────────────────────────────
+
+/**
+ * DEFECT 5: EVERY COMMAND WAS REFUSED BEFORE IT RAN - found 2026-10-02 on Codex 0.161.0-alpha.3,
+ * reproduced on 0.162.0-alpha.4. Two delegations from row BR stopped with
+ * `helper_unknown_error: setup refresh had errors` on their first command, read-only ones too.
+ * The cause is in `~/.codex/.sandbox/sandbox.<date>.log`: before each command the elevated Windows
+ * sandbox's setup helper validates read/execute access on the Codex desktop runtime's
+ * `node_repl.exe`, opens it for an ACL update, and fails with os error 32 because the file is in
+ * use. What has it open is the delegation itself: the `node_repl` MCP server declared in the
+ * machine config and the `unified-computer-use` plugin's `cua_repl` each start that exe when the
+ * session starts. One failed validation fails the whole refresh, and the refresh gates every
+ * command. The desktop app's own 0.158 helper does not run that validation, which is why the same
+ * config works there.
+ *
+ * So a delegation starts with plugins off and every MCP server in the config disabled. Measured
+ * with `codex exec -s read-only`: either lever alone still fails, both together run the command.
+ * It is the whole set rather than the one server because the config is the desktop app's, which
+ * rewrites it, and the next thing it adds would reach repo delegations the same way. A delegation
+ * loses the playwright and docs MCP servers and the bundled plugins; repo work runs its own
+ * tooling through the shell. The sandbox mode and approval policy are untouched.
+ *
+ * The overrides have to ride on the `codex app-server` the plugin's companion spawns by name
+ * through a shell, and it accepts no arguments for it, so the launch puts a `codex` shim first on
+ * PATH. Disabling a server the config does not declare is a config error (`invalid transport`)
+ * that would kill every delegation, so the names come from the CLI's own listing, never a guess.
+ */
+export const BARE_NAME = /^[A-Za-z0-9_-]+$/;
+
+/** The flags that start a delegation bare, from `codex --disable plugins mcp list --json`. */
+export function bareOverrides(servers = []) {
+  const names = servers.map((server) => server?.name).filter((name) => typeof name === 'string');
+  const usable = names.filter((name) => BARE_NAME.test(name));
+  return {
+    args: ['--disable', 'plugins', ...usable.flatMap((name) => ['-c', `mcp_servers.${name}.enabled=false`])],
+    skipped: names.filter((name) => !BARE_NAME.test(name)),
+  };
+}
+
+/** The first of `names` in the PATH's directories, in PATH order, skipping `exclude`. */
+export function findOnPath(names, pathValue = '', { delimiter = path.delimiter, exclude = null, isFile = fileExists } = {}) {
+  for (const dir of pathValue.split(delimiter).filter(Boolean)) {
+    if (exclude && path.resolve(dir) === path.resolve(exclude)) continue;
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+      if (isFile(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+function fileExists(file) {
+  try {
+    return statSync(file).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The shim's text. Only `app-server` gets the overrides, inserted after the subcommand so the
+ * process still reads `codex app-server` to anything matching on it; every other call passes
+ * through. The companion only ever calls `codex app-server`, `codex app-server --help` and
+ * `codex --version`. Arguments are bare TOML keys (`BARE_NAME`), so neither shell needs quoting.
+ */
+export function shimScripts({ sh = null, cmd = null, overrides = [] }) {
+  const scripts = {};
+  if (sh) {
+    const real = `'${sh.replaceAll('\\', '/').replaceAll("'", "'\\''")}'`;
+    scripts.codex = [
+      '#!/bin/sh',
+      `if [ "$1" = app-server ]; then shift; exec ${real} app-server ${overrides.join(' ')} "$@"; fi`,
+      `exec ${real} "$@"`,
+      '',
+    ].join('\n');
+  }
+  if (cmd) {
+    // A batch launcher called without `call` hands control over and never returns; an .exe does
+    // return, so the pass-through branch must end before the `:app` label.
+    scripts['codex.cmd'] = [
+      '@echo off',
+      'if /i "%~1"=="app-server" goto app',
+      `"${cmd}" %*`,
+      'exit /b %errorlevel%',
+      ':app',
+      `"${cmd}" app-server ${overrides.join(' ')} %2 %3 %4 %5 %6 %7 %8 %9`,
+      '',
+    ].join('\r\n');
+  }
+  return scripts;
+}
+
+/**
+ * Write the shim into `dir` and return the env the launch should carry, or null with the reason
+ * when there is nothing to shim - the launch then goes ahead as before, and says so.
+ */
+function bareCodexEnv(dir, env = process.env) {
+  const pathKey = Object.keys(env).find((key) => key.toUpperCase() === 'PATH') ?? 'PATH';
+  const windows = process.platform === 'win32';
+  const sh = findOnPath(windows ? ['codex', 'codex.exe'] : ['codex'], env[pathKey], { exclude: dir });
+  const cmd = windows ? findOnPath(['codex.exe', 'codex.bat', 'codex.cmd'], env[pathKey], { exclude: dir }) : null;
+  const lister = cmd ?? sh;
+  if (!lister) return { env: null, reason: 'no codex on PATH' };
+
+  // A batch launcher needs a shell to run at all; the arguments are constants, so nothing is
+  // there for one to rewrite.
+  const listArgs = ['--disable', 'plugins', 'mcp', 'list', '--json'];
+  const listed = windows
+    ? spawnSync(`"${lister}" ${listArgs.join(' ')}`, { encoding: 'utf8', shell: true, windowsHide: true, timeout: 30_000 })
+    : spawnSync(lister, listArgs, { encoding: 'utf8', timeout: 30_000 });
+  let servers = null;
+  try {
+    servers = JSON.parse(listed.stdout ?? '');
+  } catch {
+    // Reported below with whatever the CLI did say.
+  }
+  if (!Array.isArray(servers)) {
+    const said = listed.error?.message || listed.stderr || listed.stdout || '';
+    return { env: null, reason: `codex mcp list gave no server list: ${said.trim().slice(0, 200)}` };
+  }
+  const { args, skipped } = bareOverrides(servers);
+  for (const [name, text] of Object.entries(shimScripts({ sh, cmd, overrides: args }))) {
+    writeFileSync(path.join(dir, name), text, { encoding: 'utf8', mode: 0o755 });
+  }
+  return {
+    env: { ...env, [pathKey]: `${dir}${path.delimiter}${env[pathKey] ?? ''}` },
+    reason: skipped.length ? `MCP servers left on, names not bare TOML keys: ${skipped.join(', ')}` : null,
+  };
+}
+
 // ── Commands ─────────────────────────────────────────────────────────────────────────────────────
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
@@ -1130,13 +1263,25 @@ async function launch(argv, cwd) {
   const dir = await stateDir(cwd);
   await reapTrees({ log: (line) => process.stderr.write(`${line}\n`) });
 
+  // Defect 5: the shim lives as long as the scratch directory, which outlives the broker it serves.
+  const shimDir = path.join(scratch, 'bin');
+  mkdirSync(shimDir);
+  const bare = bareCodexEnv(shimDir);
+  if (bare.reason) process.stderr.write(`Codex delegation not fully bare: ${bare.reason}\n`);
+  // The plugin reuses a live broker, and that broker's app-server keeps the flags it started with.
+  const running = brokerSession(dir);
+  if (running?.pid && processAlive(running.pid)) {
+    process.stderr.write(`Codex delegation joins the broker already running here (pid ${running.pid}); if it `
+      + 'predates the bare launch, every command may still be refused. Let its job finish or cancel it, then launch again.\n');
+  }
+
   const scriptArgs = [
     'task', '--background', '--json', '--cwd', cwd, '--prompt-file', promptFile, ...flags,
   ];
   const relay = spawn(
     process.execPath,
     relayArgs({ self: fileURLToPath(import.meta.url), script: companionScript(), outFile, scriptArgs }),
-    { cwd, detached: true, stdio: 'ignore', windowsHide: true },
+    { cwd, detached: true, stdio: 'ignore', windowsHide: true, ...(bare.env ? { env: bare.env } : {}) },
   );
   relay.unref();
 

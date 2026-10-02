@@ -69,6 +69,6 @@ agent on the machine with CasparCG installed can run each of them (`BRIDGE_REAL=
   production: the Template file row's **Download** in the production's links, the file into SPX's
   `ASSETS/templates`, one rundown item, Play. It passes when SPX lists the file by its name, Play
   puts the production's output up over transparent video, a Reveal and a `+1` pressed on the hosted
-  control page show inside SPX's output, and Stop takes the frame down. It is the step-3 variant of
-  the owner's walk `docs/acceptance/owner-queue/2026-09-16-a-profile-driven-where-the-show-is-run.md`
-  on the machine that has SPX, and needs no one else where an agent has one.
+  control page show inside SPX's output, and Stop takes the frame down. It was the step-3 variant
+  of an owner walk deleted on 2026-10-02 with Combined controls, so it now stands on its own, on
+  the machine that has SPX, and needs no one else where an agent has one.

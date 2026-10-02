@@ -69,6 +69,46 @@ long to specify. **Still true after every trial so far:** verify its result by r
 receipt from scratch, not by checking that it did what it was told - a wrong site list passes that
 check.
 
+### Codex: every command refused with `setup refresh had errors`, 2026-10-02
+
+**Symptom.** On 2026-10-02 two `/rescue` launches from row BR (`task-muqmbqqu-6s5bbp`,
+`task-muqmeoeh-j7emqr`) stopped before running anything: every shell command came back
+`helper_unknown_error: setup refresh had errors`, and the job still finished `completed`, so only
+its text said nothing ran. Reproduced the same day on Codex 0.162.0-alpha.4 with a read-only
+`/rescue` and with plain `codex exec -s read-only`, so it was not the wrapper and not write mode.
+
+**Cause, from `~/.codex/.sandbox/sandbox.2026-10-02.log`.** The machine config runs the elevated
+Windows sandbox (`[windows] sandbox = "elevated"`). Since the 0.161 CLI, its setup helper validates
+read/execute access on the Codex desktop runtime's `node_repl.exe` before each command, opens the
+file for an ACL update, and gets os error 32 (file in use). One failed validation fails the whole
+refresh, and the refresh gates every command. What has the file open is the delegation's own
+session: the config's `node_repl` MCP server and the `unified-computer-use` plugin's `cua_repl`
+both start `node_repl.exe` at session start, as a process listing taken during a run showed. The
+desktop app ships its own 0.158 helper, which does not run that validation, so the same config
+works there.
+
+**Fix, in `scripts/codex-rescue.mjs` (defect 5).** A delegation starts with `--disable plugins`
+and every MCP server the config declares disabled (`-c mcp_servers.<name>.enabled=false`, names
+from `codex --disable plugins mcp list --json`). The companion spawns `codex app-server` by name and
+takes no arguments for it, so the launch puts a `codex` shim first on PATH that adds those flags to
+`app-server` only. Measured: either lever alone still fails, both together run the command. After
+the fix a read-only `/rescue` listed the worktree and counted `package.json` (59 entries, 236 lines,
+both checked) and a `--write` one created a file in the worktree, checked on disk. Sandbox mode and
+approval policy are unchanged. A delegation no longer gets the playwright or docs MCP servers or the
+bundled plugins; repo work uses the repo's own tooling through the shell. Side benefit: no MCP fleet
+is left resident after the job.
+
+**Three traps measured on the way.** `-c 'plugins."unified-computer-use@openai-bundled".enabled=false'`
+does not stop `cua_repl`. `-c mcp_servers={}` does not clear the table, because overrides merge.
+Disabling a server the config does not declare fails the whole config with `invalid transport`,
+which is why the names come from the CLI's own listing.
+
+**Not fixed here, and nobody needs to act for delegations.** The owner's own interactive `codex` CLI
+sessions on this laptop hit the same refusal for as long as the CLI build carries the validation.
+The desktop app is unaffected. A CLI build that stops failing is for the daily codex-update-check
+routine to notice, with the reprobe in `scripts/harness-capabilities.json`
+(`codex-elevated-sandbox-refuses-commands-while-node-repl-runs`).
+
 ## Antigravity (Google) - first trial, 2026-08-30
 
 **What it is:** `agy.exe`, a single Go binary, already installed and already authenticated on this

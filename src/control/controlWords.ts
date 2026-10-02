@@ -2,7 +2,7 @@
 //
 // Two pure functions, split out of `controlModel.ts` for one reason: THIS MODULE IMPORTS NOTHING.
 // That is what lets `scripts/control-name.test.mjs` load it with a single `transpileModule` call
-// and pin the cases no fixture in the Playwright suite happens to carry (the `combine.ts` and
+// and pin the cases no fixture in the Playwright suite happens to carry (the
 // `control-profile.test.mjs` pattern). Keep it dependency-free, or that test is the thing that
 // breaks.
 //

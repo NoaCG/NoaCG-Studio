@@ -419,14 +419,14 @@ test('the SPX package carries a ready SPX project: the templates as SPX imports 
 
 test('the SPX package says what it leaves behind, and the SPX rule for the votes board Shown field', async ({ page }) => {
   // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6h: the SPX starter package is the proof case's offline
-  // fallback, and it carries no combined control, no bindings and no tree (§6f, by design). What
-  // was wrong is that it said nothing about it, and that an SPX Update after Continue hands the
-  // votes board its stored Shown = votes back and clears the reveal. The package now says both,
-  // in the SPX operator's own actions. The profile and bindings are the hosted walk's
-  // (e2e/configured/hosted-control-profile.spec.ts), written through the model's own doors.
+  // fallback, and it carries no bindings and no tree (§6f, by design). What was wrong is that it
+  // said nothing about it, and that an SPX Update after Continue hands the votes board its stored
+  // Shown = votes back and clears the reveal. The package now says both, in the SPX operator's own
+  // actions. The bindings are the hosted walk's (e2e/configured/hosted-control-profile.spec.ts),
+  // written through the model's own doors.
   await importProofCase(page);
   const texts = await page.evaluate(async () => {
-    const { loadShows, setShowProfile, setFieldBindings, setShowSeedData } = await import('/src/model/shows.ts');
+    const { loadShows, setFieldBindings, setShowSeedData } = await import('/src/model/shows.ts');
     const { buildShowZip } = await import('/src/export/showExport.ts');
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const id = loadShows().find((s) => s.graphics.some((g) => g.name === 'Votes board'))!.id;
@@ -436,7 +436,9 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
       { graphic: 'Totals board', fieldId: 'f5', path: 'panel.katri.points' },
     ]);
     setShowSeedData(id, { panel: { katri: { name: 'Katri', points: 3 } } });
-    const refused = setShowProfile(id, {
+    // A profile as a build from before 2026-10-02 stored it, with a Combined control in it. The
+    // control was removed from the product, so the package must say nothing about it.
+    const legacyProfile = {
       v: 1,
       arrange: {},
       combine: [
@@ -446,12 +448,10 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
           steps: [
             { kind: 'event', graphic: 'Votes board', control: 'reveal' },
             { kind: 'event', graphic: 'Totals board', control: 'plus2', after: 5, ask: { default: true } },
-            { kind: 'event', graphic: 'Totals board', control: 'plus3', ask: { default: true } },
           ],
         },
       ],
-    }).refused;
-    if (refused) throw new Error('the profile was not stored');
+    };
     const read = async (show: Parameters<typeof buildShowZip>[0]) => {
       const zip = await buildShowZip(show);
       const file = (suffix: string) => zip.file(new RegExp(`^[^/]+/${suffix}$`))[0].async('string');
@@ -460,7 +460,7 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
     const show = loadShows().find((s) => s.id === id)!;
     const third = variantsFor('lower-third')[0].create({});
     return {
-      built: await read(show),
+      built: await read({ ...show, profile: legacyProfile as never }),
       bare: await read({ ...show, profile: undefined, bindings: undefined, data: undefined }),
       plain: await read({
         id: 'b0b0b0b0-b1b1-4c2c-8d3d-e4e4e4e4e4e4',
@@ -475,12 +475,10 @@ test('the SPX package says what it leaves behind, and the SPX rule for the votes
   const RULE = 'Update after Continue, in SPX';
   for (const text of [texts.built.readme, texts.built.guide]) {
     expect(text).toContain(LEFT);
-    // The combined control, named, with its SPX equivalent: Continue is the reveal, the two +1s
-    // are typed numbers and an Update, the 5 s wait and the ticks survive as words.
-    expect(text).toContain('The combined control "Reveal, then the points"');
-    expect(text).toContain('1. Votes board: press **Continue** (Reveal performer).');
-    expect(text).toMatch(/2\. Wait 5 s, then Totals board: raise Points 2 by 1, then \*\*Update\*\* .*on by default/);
-    expect(text).toMatch(/3\. Totals board: raise Points 3 by 1, then \*\*Update\*\*/);
+    // A stored Combined control is ignored: Combined controls were removed, so the package has
+    // nothing to say about one.
+    expect(text).not.toContain('combined control');
+    expect(text).not.toContain('Reveal, then the points');
     // The bindings, by path, where each one lands; and the tree.
     expect(text).toContain('`panel.katri.name`: Votes board › Panelist 1, Totals board › Name 1');
     expect(text).toContain('`panel.katri.points`: Totals board › Points 1');

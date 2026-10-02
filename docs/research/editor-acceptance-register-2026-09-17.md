@@ -19,7 +19,7 @@ ownership. Those planning refinements are not product passes. The R1.0 implement
 | B01 | Fresh default session: create a catalog graphic, find Edit, select title; return Home and reopen it. Repeat from SVG import and saved graphic. No undocumented Advanced-mode prerequisite | R1.0 route; R1.1a/d wizard; R1.4 gallery | R1.0 foundation and R1.1a core locally verified; owner/two-user and full gallery task remain open |
 | B02 | Find a nested layer, select overlapping artwork, multi-select, lock/unlock, rename and reorder within its parent; selection stays consistent across panels | R1.0 selection; R1.1d nested; R1.2b tools | R1.0 selection and the R1.1a follow-up marquee/multi-object movement/same-parent reorder are locally verified; full task remains open |
 | B03 | Move base X by 40 px, resize and rotate supported artwork; numeric and canvas results agree. Cancel a second drag, undo and redo; animation offsets and siblings remain intact | R1.1-R1.2 | R1.1a position/basic scale core locally verified; R1.2a.6 keys the catalog's own channels (yPercent, scale, aliased layers) and autoAlpha through the D03 adapter with numeric and canvas agreement; R1.2b.1 adds the rotation handle (unwrapped, Shift 15 degrees), edge scale handles in a layer's own axes and the static anchor (numeric, Center anchor and the Anchor tool, each moving only the pivot after the owner's 2026-10-01 answer), numeric and canvas agreeing ([receipt](editor-r1-2b-1/README.md)); the anchor's animation, SVG anchors and physical-device acceptance remain open |
-| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Creation and basic content/font/colour/opacity/structural edits locally verified in the artwork follow-up; rich typography, assets, Pen, alignment/grouping and full E05-E07 remain open |
+| B04 | File chooser/OS drop parity; Pen open/closed paths, curve handles where supported, cancel/undo/export; change title/font/colour; test a long title; replace logo; add a rectangle, ellipse, image and text; duplicate/delete, align/distribute eligible objects; reopen and verify source/bindings | R1.1a usable content/basic type/colour/shapes; R1.2b rich typography/fit and full E06-E07 | Creation and basic content/font/colour/opacity/structural edits locally verified in the artwork follow-up; R1.2b.2 adds weight, alignment, line and letter spacing and long-text fit (Shrink to fit, Wrap, Run on) on created and imported text, with a long title tested, and a text box resized from its sides ([receipt](editor-r1-2b-2/README.md)); assets, Pen, alignment/grouping and the rest of E06-E07 remain open |
 | B05 | Animate title X -80 to 0 in 1 s; opacity 0 to 1 in 0.3 s; set the starting X key to Easy Ease Out; move end to 0.8 s; scrub both ways, undo/redo, save/reopen and play export | R1.1-R1.2 | Unverified for the replacement editor |
 | B06 | Marquee/Ctrl/Cmd/Shift-select keys across rows; dropdown/right-click parity for Linear/Ease/Bounce/Overshoot/Hold, mixed selection and atomic refusal; select two X keys, retime together, nudge one frame, snap/bypass, copy/paste; occupied target refuses atomically; explicit cross-cue moves preserve source ownership. Set outgoing Hold on the first key and sample immediately before/at the following key; opacity unchanged | R1.2 | Unverified for the replacement editor |
 | B07 | Rehearse two reveals, update a score during motion and hold, run Out during entry, replay; scrub without firing score/timer/external effects | R1.1c early Out; R1.2a Next; R1.2c loop regression | Unverified for the replacement editor |
@@ -417,6 +417,17 @@ script owns the origin, and on placed text whose text animates Rotation or Scale
 scoped engineering evidence; the anchor's animation, SVG anchors, the Rotation field's
 turns-plus-degrees display and physical-device acceptance remain open. No whole row is closed and
 the default editor is unchanged.
+
+## R1.2b.2 scoped typography-and-fit receipt, 2026-10-02
+
+The [bounded spec, reproduction and verification](editor-r1-2b-2/README.md) give created and
+imported text a weight from the font's own range, alignment, line and letter spacing and a choice
+for a long value (Shrink to fit, Wrap, Run on) with its width, each one undo. On a text box the side
+handles resize the box and the corners scale (owner decisions 2026-10-02). Catalog lines keep
+alignment and fit with their design and SVG text with its import's fit ladder, with the reason shown.
+E05 and B04 gain scoped engineering evidence; italic, case, shadow, outline, canvas typing,
+physical-device and receiving-host acceptance remain open. No whole row is closed and the default
+editor is unchanged.
 
 ## Optional P-GPU evidence
 
