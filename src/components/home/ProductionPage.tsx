@@ -184,7 +184,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { createSendDebts } from '../../control/failedSends';
-import { appendLogEntries, describeLogRow, eventLogLabel, type LogEntry } from '../../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
   clockSpecFromHtml,
@@ -3435,13 +3435,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         rows: panelRows,
       };
     },
-    // Only the verbs whose key names a row or a clip read it; the rest act on the selection.
-    (verb, target) => onVerb(verb, { repeat: false, ...(verb === 'select-cue' || verb === 'take-cue' || verb === 'pause-toggle' ? { cue: target } : {}) }),
+    // A key that names a row or a clip carries it as `cue`; the verbs that act on the selection never read it.
+    (verb, target) => onVerb(verb, { repeat: false, cue: target || undefined }),
     // A refused press is a note in the activity feed, not a command row: nothing was sent.
-    (text) =>
-      setWireLog((l) =>
-        appendLogEntries(l, [{ id: (localLogId.current -= 1), at: new Date().toISOString(), graphic: '', kind: 'note', text }]),
-      ),
+    (text) => setWireLog((l) => appendLogEntries(l, [noteEntry((localLogId.current -= 1), text)])),
   );
 
   /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst

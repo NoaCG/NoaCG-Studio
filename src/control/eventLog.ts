@@ -89,6 +89,12 @@ export function eventLogLabel(buttons: ControlButton[], event: string): string |
 
 /** Newest first, capped, and idempotent on row id — a re-delivered row (the tail refill after a
  *  socket gap replays what the socket already brought) must not appear twice. */
+/** A NOTE for the activity feed: something the operator asked for that did not happen. It is no
+ *  log row, so it takes the page's own negative id. */
+export function noteEntry(id: number, text: string): LogEntry {
+  return { id, at: new Date().toISOString(), graphic: '', kind: 'note', text };
+}
+
 export function appendLogEntries(current: LogEntry[], incoming: LogEntry[]): LogEntry[] {
   if (incoming.length === 0) return current;
   const seen = new Set(current.map((e) => e.id));

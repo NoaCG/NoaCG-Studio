@@ -12,7 +12,7 @@
 
 import { test, expect } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { ANON_KEY, panelModule, publishTwoCues, type Json } from './_panel';
+import { ANON_KEY, openHosted, panelModule, publishTwoCues, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -116,8 +116,7 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   // THE LAST PAGE TO ANSWER WINS: the hosted control page takes the answer; the production page
   // switches itself off and says who answers now.
   const hosted = await context.newPage();
-  await hosted.goto(`/app?control=${encodeURIComponent(slug)}`);
-  await expect(hosted.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await openHosted(hosted, slug);
   await hosted.getByTestId('panel-open').click();
   await hosted.getByTestId('panel-answer').locator('input').check();
   await expect(hosted.getByTestId('panel-status')).toHaveText('This page answers the panel.');

@@ -55,7 +55,6 @@ export async function panelModule(code: string) {
     }
   };
   return {
-    heard,
     hello: () => call('panel_hello', { p_key: key }),
     /** The newest state since the latest press, waited for until `pred` holds. */
     state: (pred: (s: Json) => boolean = () => true, what = 'state') => until(() => last('state', pred, mark)?.payload, what),
@@ -78,6 +77,13 @@ export async function panelModule(code: string) {
       sb.realtime.disconnect();
     },
   };
+}
+
+/** The published production's hosted control page, open with its two cues. */
+export async function openHosted(page: Page, slug: string) {
+  await page.goto(`/app?control=${encodeURIComponent(slug)}`);
+  await expect(page.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
+  await expect(page.locator('.pd-cue')).toHaveCount(2);
 }
 
 /** A published production of two cues, Anna and Ben, left open on its production page; its

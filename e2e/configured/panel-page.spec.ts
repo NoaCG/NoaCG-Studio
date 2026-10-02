@@ -9,17 +9,11 @@
 // covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/components/control/PanelControl.tsx
 // covers: src/components/HostedControlPage.tsx
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { ANON_KEY, panelModule, publishTwoCues, type Json } from './_panel';
+import { ANON_KEY, openHosted, panelModule, publishTwoCues, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
-
-async function openHosted(page: Page, slug: string) {
-  await page.goto(`/app?control=${encodeURIComponent(slug)}`);
-  await expect(page.getByTestId('hosted-control-page')).toBeVisible({ timeout: 60_000 });
-  await expect(page.locator('.pd-cue')).toHaveCount(2);
-}
 
 test('a hosted page pairs a panel, answers it, runs its presses and refuses repeated and stale ones', async ({ page, context }) => {
   test.setTimeout(300_000);
@@ -54,14 +48,7 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   expect(first).toMatchObject({ v: 1, where: 'control', label: 'Hosted control page', space: 'take', live: [], bridge: 'off', clip: null });
   expect((first.allowed as Json).take).toBe(true);
   expect((first.allowed as Json).out).toBe(false);
-  const rows = (await (async () => {
-    for (let i = 0; i < 200; i++) {
-      const r = [...deck.heard].reverse().find((m) => m.event === 'rows');
-      if (r) return r.payload.rows as { id: string; label: string }[];
-      await new Promise((res) => setTimeout(res, 25));
-    }
-    throw new Error('no rows');
-  })());
+  const rows = await deck.rows();
   expect(rows.map((r) => r.label)).toEqual(['Anna', 'Ben']);
   const [anna, ben] = rows.map((r) => r.id);
   expect(first.selected).toBe(anna);
