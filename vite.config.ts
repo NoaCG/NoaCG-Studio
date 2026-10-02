@@ -8,6 +8,7 @@ import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
+import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderRoadmapHtml } from './scripts/roadmap.mjs';
 
@@ -148,6 +149,8 @@ export default defineConfig(({ command, mode }) => {
       adminApiPlugin(),
       meApiPlugin(),
       dataApiPlugin(),
+      // /panel.json: where the Companion module finds this app's backend (scripts/panelBackendPlugin.mjs).
+      panelBackendPlugin(),
     ],
     // strictPort: the port is this checkout's identity (playwright + the dev scripts derive
     // the same number), so failing loudly beats silently drifting onto a neighbour's port.

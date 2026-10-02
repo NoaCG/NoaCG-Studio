@@ -98,11 +98,14 @@ reaches the page.
 
 | Event | Payload | Sent by |
 |---|---|---|
-| `press` | `{v: 1, verb, target, seen, id, claim, panel: {id, label}}` | `panel_press` |
+| `press` | `{v: 1, verb, target, seen, press_id, claim, panel: {id, label}}` | `panel_press` |
 | `want` | `{v: 1, panel: {id, label}}` | `panel_hello`: the answering page republishes `state` and `rows` |
 | `claim` | `{v: 1, claim, page, where, label}` | `panel_claim`: every other page with the answer on switches it off |
 | `released` | `{v: 1, claim}` | `panel_release` |
 | `rotated` | `{v: 1, feedback_topic}` | `panel_revoke`: the answering page moves to the new feedback topic |
+
+Realtime adds its own message id at `id` to every payload the database broadcasts, which is why
+the press id travels as `press_id` here; readers ignore `id`.
 
 Only pages read this topic, and only while the answer is on or the panel section is open.
 
@@ -122,7 +125,7 @@ only when someone switches it on again, so two forgotten tabs can never fight.
 In this order, on each `press`:
 
 1. `claim` is not this page's: ignore. If it is higher, this page has been replaced: switch off.
-2. `id` handled in the last 10 minutes (memory of the last 256 ids): publish the remembered
+2. `press_id` handled in the last 10 minutes (memory of the last 256 ids): publish the remembered
    `result` again with `outcome: duplicate`. Runs nothing.
 3. A verb this surface does not run (the hosted control page has no server clips, folders or All
    out): `not-here`.
