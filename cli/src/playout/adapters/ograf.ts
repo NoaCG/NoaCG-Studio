@@ -338,7 +338,9 @@ export function createOgrafAdapter(options: { timeoutMs?: number } = {}): Playou
       const unhonoured =
         action.verb === 'sequence'
           ? 'a sequence'
-          : action.verb === 'take' && action.playback
+          : action.verb === 'ending'
+            ? "a change to a clip's ending"
+            : action.verb === 'take' && action.playback
             ? "a clip's playback (its ending, fades, level or trim)"
             : action.verb === 'out' && action.fadeOut !== undefined
               ? 'a fade out'

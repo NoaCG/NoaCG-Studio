@@ -202,6 +202,7 @@ function needsRate(action: PlayoutAction): boolean {
   if (action.verb === 'take') return timed(action.playback);
   if (action.verb === 'out') return action.fadeOut !== undefined;
   if (action.verb === 'sequence') return action.entries.some((e) => timed(e.playback));
+  if (action.verb === 'ending') return action.then ? timed(action.then[0].playback) : action.playback?.end === 'clear' && action.playback.fadeOut !== undefined;
   return false;
 }
 
@@ -297,6 +298,19 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
       if (!first || !second) throw new UsageError('A sequence plays at least two files.');
       const play = `PLAY ${at} ${mediaName(first.item)}${mediaParams(first.playback, false, rate)}`;
       return startsPartWay(first.playback) ? [play] : [play, queueLine(at, second, action.entries.length === 2 && !action.loop, rate)];
+    }
+    case 'ending': {
+      // The server's own switch on the clip that plays, with nothing played again: `CALL … LOOP 0`
+      // lets it end at the end of the pass it is in, and whatever is queued behind it after that
+      // plays there (measured on 2.5.0 and 2.3, 2026-10-02: a 3 s clip in its third pass switched to
+      // the file queued with AUTO at the end of that pass). LOOP goes first, so the clip never ends
+      // into the old follower in between.
+      const end = action.then ? undefined : (action.playback?.end ?? 'hold');
+      const loop = `CALL ${at} LOOP ${end === 'loop' ? 1 : 0}`;
+      if (action.then) return [loop, queueLine(at, action.then[0], action.then.length === 1, rate)];
+      if (end === 'clear') return [loop, clearLine(at, action.playback?.fadeOut, rate)];
+      // Hold or loop: what this Bridge queued behind the clip is taken away, without AUTO.
+      return context.follower ? [loop, `LOADBG ${at} EMPTY`] : [loop];
     }
     case 'update':
       return [`CG ${at} UPDATE 1 ${amcpQuote(JSON.stringify(action.data))}`];
@@ -493,7 +507,7 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       return {
         lists: ['template', 'media'],
         thumbnails: true,
-        verbs: ['take', 'update', 'next', 'out', 'pause', 'resume', 'sequence'],
+        verbs: ['take', 'update', 'next', 'out', 'pause', 'resume', 'sequence', 'ending'],
         target: casparCapabilities(version),
       };
     },
@@ -552,6 +566,10 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
       else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
       else if (action.verb === 'out') follower = null;
+      // A second line refused leaves the background as it was, whatever that is.
+      else if (action.verb === 'ending' && r.sent === lines.length) {
+        follower = action.then ? { file: action.then[0].item.name } : action.playback?.end === 'clear' ? { file: 'EMPTY' } : null;
+      }
       const held =
         (action.verb === 'take' && action.playback?.end === 'clear' && startsPartWay(action.playback)) ||
         (action.verb === 'sequence' && startsPartWay(action.entries[0].playback));

@@ -656,7 +656,7 @@ What CasparCG 2.3-2.5 does natively for a clip on a layer:
 | Play the next clip when this one ends | `LOADBG c-l "NEXT" AUTO` (optionally `MIX <frames> AUTO`) | **2026-09-28**: At the end, Play next, run by the Bridge (§3) |
 | Clear the layer when the clip ends | `LOADBG c-l EMPTY AUTO` | **2026-09-28**: At the end, Clear |
 | Level | `AF "volume=<gain>"` on the clip (`MIXER c-l VOLUME` is a layer gain that outlives the clip, and is not used) | **2026-09-28**: Level in dB, applied at the next Take |
-| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | not proposed |
+| Loop switched on or off while playing | `CALL c-l LOOP 1` / `LOOP 0` | **2026-10-02**: the Bridge's `ending` verb changes a playing clip's ending without playing it again (feature `ending`, not yet released); the page does not send it yet ([backlog](backlog/looping-clip-end-change-while-playing.md)) |
 | Start part-way / trim | `SEEK <frame>`, `IN`/`OUT`, `LENGTH` | **2026-09-28**: Start at and End at under Advanced, as `IN`/`OUT` |
 
 **Built 2026-09-28** (phase 3 of [`CLIP_PLAYBACK_PLAN.md`](CLIP_PLAYBACK_PLAN.md), NoaCG Bridge
