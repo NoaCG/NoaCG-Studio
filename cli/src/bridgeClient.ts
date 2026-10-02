@@ -233,6 +233,11 @@ export class BridgeClient {
     return this.call('inspect', input);
   }
 
+  /** The data a state airs: every field at its default, or the stress recipe. */
+  stateData(template: SpxTemplate, state: 'onair' | 'stress'): Promise<Record<string, string>> {
+    return this.call(state === 'stress' ? 'stressData' : 'defaultData', template);
+  }
+
   compose(template: SpxTemplate, state: 'off' | 'onair' | 'stress' | Record<string, string>): Promise<string> {
     return this.call('compose', template, state);
   }

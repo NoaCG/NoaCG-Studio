@@ -41,9 +41,11 @@ Usage: noacg <command> [options]   (add --json to any command for machine-readab
   types                          The graphic types NoaCG knows: fields, events, designs, neutral scaffold.
   scaffold --type <id> [--design <id>|neutral] [--name N] [--set key=value]... --out <dir>
   scaffold --fields "Label:kind[=value],..." [--name N] --out <dir>
-  validate <dir|zip> [--no-bench] [--no-house-contract] [--screenshots <dir>]
+  validate <dir|zip> [--no-bench] [--no-house-contract] [--screenshots <dir> [--background <bg>]]
   inspect <dir|zip>              The operator surface NoaCG derives from the graphic's own contract.
-  screenshot <dir|zip> --state off|onair|stress [--data k=v]... --out <png>
+  screenshot <dir|zip> [--state off|onair|stress] [--data k=v]... [--event <op>]... [--at <time>]
+             [--background transparent|checker|video|<colour>|<image>] --out <png>
+                                 One frame; --event runs operator presses after the Take.
   pack <dir|zip>... --name N [--save] [--out <file.noacgpack.json>] [--rundown <cues.json>] [--layer n]...
                                  Several graphics as one package: --save sends it to your NoaCG Home to Install.
   docs [contract|package|validator|control|design-notes]

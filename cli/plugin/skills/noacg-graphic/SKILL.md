@@ -43,7 +43,8 @@ check it, and how it reaches the user's library. It does not tell you how it sho
    (the graphic will not export/save with one); read the WARNINGs as measurements
    (`references/validator.md` says what each rule measures and how authors usually resolve it);
    open `shots/onair.png` and `shots/stress.png` and judge the frame yourself - the stress frame
-   doubles every text and widens every number, which is what a real operator will type. Repeat
+   doubles every text and widens every number, which is what a real operator will type. Each
+   machine state gets a frame too, and `noacg screenshot --event <name> --at <time> --background video` shows any state at any moment over a video-like ground. Repeat
    until clean and until you would air it. **If you authored a machine, this step carries two of
    its three gates**: read the MACHINE findings (the dead-control one is a WARNING, and it is the
    likeliest typo), and let the BENCH walk the arrows - it dispatches authored events and measures

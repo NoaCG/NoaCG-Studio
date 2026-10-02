@@ -17,7 +17,7 @@ import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
 import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { shoot } from '../screenshot.js';
+import { resolveBackground, shoot, walkStates } from '../screenshot.js';
 import { markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
 const STATE_WORD: Record<string, string> = { pass: 'PASS', warn: 'WARN', fail: 'FAIL', untested: 'UNTESTED' };
@@ -107,6 +107,8 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
   const bench = flagBool(args, 'bench', true);
   const houseContract = flagBool(args, 'house-contract', true);
   const shotsDir = flagString(args, 'screenshots');
+  const background = await resolveBackground(flagString(args, 'background'));
+  if (background && !shotsDir) throw new UsageError('--background goes with --screenshots <dir>.');
   // BEFORE the package is read: a frames folder inside the package has to be marked while the
   // folder is still being zipped, or the last run's frames go in as the graphic's assets.
   if (shotsDir && (await fs.stat(path.resolve(input)).catch(() => null))?.isDirectory()) {
@@ -152,6 +154,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
     let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
+    const stateLines: string[] = [];
     if (shotsDir) {
       const dir = path.resolve(shotsDir);
       await fs.mkdir(dir, { recursive: true });
@@ -160,11 +163,33 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
       for (const state of ['off', 'onair', 'stress'] as const) {
         const html = await bridge.compose(template, state);
         const file = path.join(dir, `${state}.png`);
-        const png = await shoot(bridge.bench, bridge.origin, html, file, size);
+        const png = await shoot(bridge.bench, bridge.origin, html, file, { ...size, background });
         shots[state] = file;
-        if (state === 'onair') thumbnail = { png, ...size };
+        // The thumbnail is the graphic itself, never the ground it was judged on.
+        if (state === 'onair') thumbnail = { png: background ? await shoot(bridge.bench, bridge.origin, html, undefined, size) : png, ...size };
+      }
+      // Then every machine state the graphic's events reach, one frame each.
+      const inspection = await bridge.inspect({ template });
+      const frames = await walkStates(bridge.origin, await bridge.compose(template, 'off'), {
+        ...size,
+        background,
+        data: await bridge.stateData(template, 'onair'),
+        buttons: inspection.buttons,
+        stepCount: inspection.steps.count,
+        stateGroups: inspection.stateGroups,
+      });
+      const stateFrames: Array<{ file: string; reached: Array<{ group: string; state: string }>; via: string[] }> = [];
+      const nameOf = (group: string, state: string) => inspection.stateGroups.find((g) => g.id === group)?.states.find((s) => s.id === state)?.name ?? state;
+      for (const f of frames) {
+        const file = path.join(dir, `${f.name}.png`);
+        await fs.writeFile(file, f.png);
+        shots[f.name] = file;
+        stateFrames.push({ file, reached: f.reached, via: f.via });
+        const what = f.reached.length ? f.reached.map((r) => `${r.group}: ${nameOf(r.group, r.state)}`).join(', ') : f.name;
+        stateLines.push(`  ${f.name}.png  ${what}  (--event ${f.via.join(' --event ')})`);
       }
       report.screenshots = shots;
+      report.stateFrames = stateFrames;
     }
 
     const changes = isDirectory
@@ -179,6 +204,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     out.say(describeValidation(validation));
     for (const line of describeNormalize(normalized)) out.say(line);
     if (report.screenshots) out.say(`Screenshots: ${Object.values(report.screenshots as Record<string, string>).join(', ')}`);
+    if (stateLines.length) out.say(['States the events reach, one frame each:', ...stateLines].join('\n'));
     if (isDirectory) {
       out.say(`Regenerated the package in ${path.resolve(input)}${pkg.imported.noacg?.stale ? ' (the generated half was stale - written from other sources than the ones on disk)' : ''}.`);
       for (const c of changes) out.say(`  changed: ${c}`);
