@@ -350,7 +350,7 @@ test('staging + event log: staged data airs only on take, and refresh recovers b
   await expect(graphic.locator('#f0')).not.toHaveText('Staged, not aired');
 
   // Explicit take airs the staged question.
-  await panel.getByRole('button', { name: '⟳ Take' }).click();
+  await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect(graphic.locator('#f0')).toHaveText('Staged, not aired');
   await expect(panel.locator('.staged-chip')).toBeHidden();
 

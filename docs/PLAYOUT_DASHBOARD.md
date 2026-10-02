@@ -307,7 +307,8 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   that follows it, so the button re-selected the cue that was already on it and its key `P` did
   the same. It was reading as the second-loudest control on a bar where everything else changes
   air. The EXPORTED controller keeps its `→ Preview`, where the word means something else
-  entirely: it puts the cue on a real second output stream.
+  entirely: it puts the cue on a real second output stream. Its key is `V` since 2026-10-02:
+  `P` is pause on the other two surfaces, and one key means one verb everywhere.
 - **THE VERB BLOCK IS TWO COLUMNS WIDE AT EVERY SIZE, with TAKE spanning the pair.** It sits
   between the cue list and the monitors, and that space is not decoration — "this is a very
   important space on the screen, so it can't just be one small column that you can miss" (owner,

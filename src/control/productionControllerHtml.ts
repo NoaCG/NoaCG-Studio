@@ -372,7 +372,7 @@ export function renderProductionControllerHtml(payload: ControllerPayload): stri
     </div>
 
     <div class="verbs">
-      <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW. Nothing airs.">→ Preview <kbd>P</kbd></button>
+      <button class="pvw" id="v-preview" title="Show the selected cue on PREVIEW. Nothing airs.">→ Preview <kbd>V</kbd></button>
       <button class="take" id="v-take" title="Air the previewed cue">⟳ TAKE <kbd>SPACE</kbd></button>
       <button id="v-retake" disabled title="Re-take: play this cue's entrance again from the start">⟳ Re-take <kbd>R</kbd></button>
       <button id="v-update" title="Push the edited values to air without re-animating">✎ Update <kbd>U</kbd></button>
@@ -680,7 +680,10 @@ document.addEventListener('keydown', function (e) {
   var typedInput = tag === 'INPUT' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'button';
   if (el && (el.isContentEditable || typedInput || tag === 'TEXTAREA' || tag === 'SELECT')) return;
   var key = String(e.key).toLowerCase();
-  var run = { p: function () { takeTo('preview'); }, ' ': toggleProgram, r: retake,
+  // V previews, not P: P is pause on the production page and the hosted page (components/
+  // playoutKeys.ts), and one key must mean one verb on every surface. This page has no clips, so
+  // P is simply unbound here.
+  var run = { v: function () { takeTo('preview'); }, ' ': toggleProgram, r: retake,
     u: updateLive, n: nextLive, '0': function () { outCue('program'); },
     arrowup: function () { stepSelection(-1); }, arrowdown: function () { stepSelection(1); } }[key];
   if (!run) return;

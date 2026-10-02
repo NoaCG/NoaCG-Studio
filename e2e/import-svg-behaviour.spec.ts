@@ -1551,10 +1551,10 @@ test('CasparCG package: the standalone panel drives the imported SCORE board, re
   await events.getByRole('button', { name: '⚡ New game' }).click();
   await expect(air.locator('#f2')).toHaveText('0', { timeout: 10_000 });
   await expect(air.locator('#f4')).toHaveText('0', { timeout: 10_000 });
-  // The panel's own boxes moved with it. Without this half a later ⟳ Take re-sends the finished
+  // The panel's own boxes moved with it. Without this half a later ✎ Update re-sends the finished
   // game and puts the old score straight back on air.
   await expect(boxTeam1).toHaveValue('0');
-  await panel.getByRole('button', { name: '⟳ Take' }).click();
+  await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect(air.locator('#f2')).toHaveText('0', { timeout: 10_000 });
 
   await panel.close();
@@ -2216,7 +2216,7 @@ test('standings, lowest first: the smallest figure takes the top slot the moment
 test('CasparCG package: the standalone panel drives the bingo caller, add and take back included', async ({ page, context }) => {
   // The exported panel ships without controlModel.ts and carries its own copy of the payload
   // rule, so `add` and `remove` had to be driven here as `set` was for the score board - and the
-  // list box has to move with the press, or a later ⟳ Take re-sends the board before the call.
+  // list box has to move with the press, or a later ✎ Update re-sends the board before the call.
   test.setTimeout(180_000);
   await openImportDoor(page, SHOW('bingo-board'));
   await switchToAdvancedMode(page);
@@ -2245,7 +2245,7 @@ test('CasparCG package: the standalone panel drives the bingo caller, add and ta
   await expect(called).toHaveValue('7');
 
   // A re-take sends the panel's own boxes, which is why the write-back matters.
-  await panel.getByRole('button', { name: '⟳ Take' }).click();
+  await panel.getByRole('button', { name: '✎ Update' }).click();
   await expect(tile(7)).toHaveClass(/imported-design-on/, { timeout: 10_000 });
   await expect(tile(12)).not.toHaveClass(/imported-design-on/);
 
