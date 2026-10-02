@@ -14,7 +14,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -160,9 +160,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A: not answering');
   await page.screenshot({ path: shot('desk-1920-not-ready') });
 
-  await page.getByTestId('production-status').click();
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

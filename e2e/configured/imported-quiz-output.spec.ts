@@ -23,7 +23,7 @@
 
 import { test, expect } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE IMPORTED QUIZ ON THE REAL HOSTED WIRE (docs/GRAPHIC_BEHAVIOUR_PLAN.md §10).
 //
@@ -166,8 +166,7 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

@@ -10,7 +10,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -236,8 +236,7 @@ test('an output says who it is and how commands reach it, and both operator page
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);

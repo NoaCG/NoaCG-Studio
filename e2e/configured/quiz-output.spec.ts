@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE PUBLISHED QUIZ PATH (docs/INTERACTIVE_PLAYOUT_PLAN.md Phase 3): the hidden-pick
 // sequence driven from the production dashboard, rendered by the REAL /output page over the
@@ -123,8 +123,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

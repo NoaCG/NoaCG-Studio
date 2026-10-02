@@ -26,6 +26,17 @@ export type ReadyWindow = {
 /** An output page's own READY answer, or null before it has one. */
 export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
 
+/**
+ * Unpublish the open production through its Playout panel, opening the panel first when it is
+ * shut. By test id, never by the button's name: the status control itself can read "Unpublished
+ * changes", and a name match then presses the status instead.
+ */
+export async function unpublishFromPanel(page: Page): Promise<void> {
+  const panel = page.getByTestId('production-status-panel');
+  if (!(await panel.isVisible())) await page.getByTestId('production-status').click();
+  await panel.getByTestId('production-unpublish').click();
+}
+
 export const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 export const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? '';
 

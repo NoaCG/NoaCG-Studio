@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
+import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
 
 // THE FLOOR UNDER REALTIME (docs/CLOUD_PLAYOUT.md §3): a renderer whose Realtime channel never
 // joins still catches up, and says so.
@@ -111,8 +111,7 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
 
   // Out, unpublish, and leave the throwaway account clean.
   await page.getByTestId('verb-out').click();
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await page.evaluate(async () => {
     const { loadShows, deleteShow } = await import('/src/model/shows.ts');

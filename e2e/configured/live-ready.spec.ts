@@ -11,7 +11,7 @@
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow } from './_helpers';
+import { SERVICE_ROLE_KEY, SUPABASE_URL, clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, type ReadyWindow, unpublishFromPanel } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
@@ -131,7 +131,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   //    docs/work-specs/studio-day-playout AC-10, e2e/configured/playout-status.spec.ts.) ──
   await addCatalogGraphic(page, showId, 'Hairline');
   await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Publish changes/ }).click();
+  await page.getByTestId('production-republish').click();
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
   await page.getByTestId('production-status').click();
   await expect(desk).toHaveAttribute('data-ready-label', /Behind: showing v1/, { timeout: 30_000 });
@@ -184,8 +184,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await page.getByTestId('ready-forget').click();
   await expect(desk).not.toHaveAttribute('data-tone', 'bad', { timeout: 10_000 });
 
-  await page.getByTestId('production-status').click();
-  await page.getByRole('button', { name: /Unpublish/ }).click();
+  await unpublishFromPanel(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false', { timeout: 20_000 });
   await clearPublishedShows(page);
   await wipeMyGraphics(page);
