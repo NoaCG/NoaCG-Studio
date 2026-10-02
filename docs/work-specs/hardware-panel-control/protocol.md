@@ -69,17 +69,20 @@ read or write them.
 |---|---|---|---|
 | `panel_pair_start(p_slug)` | page | mints a code for 5 minutes; at most 5 unused codes per production | `{ok, code, expires_at}` |
 | `panel_pair_finish(p_code, p_label)` | module | spends the code once; mints a key | `{ok, key, key_id, label, title, feedback_topic}`; refusals `unknown-code`, `used-code`, `expired-code`, `slow-down` |
-| `panel_hello(p_key)` | module, on every (re)connect | updates last use; sends `want` on `pnp-` when a page answers | `{ok, key_id, label, title, feedback_topic, answering}`; refusals `unknown-key`, `revoked` |
+| `panel_hello(p_key)` | module, on every (re)connect | updates last use; sends `want` on `pnp-` when a page answers | `{ok, key_id, label, title, feedback_topic, answering}`; refusals `unknown-key`, `revoked`, `no-page` (hosted control switched off for the account) |
 | `panel_press(p_key, p_press)` | module | validates the press, stamps the claim, sends `press` on `pnp-` | `{ok, claim}`; refusals `unknown-key`, `revoked`, `bad-press`, `not-a-panel-verb`, `no-page`, `slow-down` |
 | `panel_list(p_slug)` | page | | `{ok, press_topic, feedback_topic, claim, answering: {page, where, label, at} or null, panels: [{id, label, created_at, last_used_at}]}` |
 | `panel_revoke(p_slug, p_key_id)` | page | marks the key revoked; replaces `f`; sends `rotated` on `pnp-` | `{ok, feedback_topic}` |
 | `panel_claim(p_slug, p_page, p_where, p_label)` | page, on switching the answer on | claim + 1; records who; sends `claim` on `pnp-` | `{ok, claim, press_topic, feedback_topic}` |
 | `panel_release(p_slug, p_claim)` | page, on switching off or unloading | clears the answering page if `p_claim` is still current; sends `released` | `{ok, released}` |
 
-**Bounds.** `panel_press` takes at most 20 presses per key in 2 s (`slow-down`). A failed
-`panel_pair_finish` counts against the caller's address (the first entry of `x-forwarded-for`, or
-one shared bucket when absent): 10 failures a minute, then `slow-down` until the minute passes.
-Labels are trimmed to 60 characters. Codes and revoked keys are kept, so a used or expired code is
+**Bounds.** `panel_press` takes at most 20 presses per key in 2 s (`slow-down`). `panel_hello`
+asks the page to republish (`want`) at most 5 times per key in 10 s; past that it answers without
+asking. A failed `panel_pair_finish` counts twice: in one bucket for every caller (300 failures a
+minute) and in one for the gateway's address, the LAST entry of `x-forwarded-for` (10 a minute);
+then `slow-down` until the minute passes. The first entries are the caller's to choose, so they are
+never used. Against guessing, the bound that matters is the code space: 31^8 codes, each living
+five minutes, at most five open per production. Labels are trimmed to 60 characters. Codes and revoked keys are kept, so a used or expired code is
 answered as such; codes older than a day are deleted by the next `panel_pair_start`.
 
 **The press as sent** (`p_press`): `{verb, target, seen, id}`.
@@ -87,7 +90,7 @@ answered as such; codes older than a day are deleted by the next `panel_pair_sta
 | Field | Rule |
 |---|---|
 | `verb` | one of the panel verbs (spec D5), else `not-a-panel-verb` |
-| `target` | `^[A-Za-z0-9_.:-]{0,80}$`: the row id the key showed the verb acting on, or empty for verbs with no row |
+| `target` | up to 128 characters, no control characters: the row id the key showed the verb acting on, or empty for verbs with no row |
 | `seen` | integer from 0: the `ver` of the state the key was drawn from |
 | `id` | `^[a-z0-9]{6,24}:[0-9]{1,12}$` |
 

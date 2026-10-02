@@ -34,10 +34,16 @@ async function rpc(c: SupabaseClient, name: string, args: Json): Promise<Json> {
 }
 
 /** A published production of the test account's, as publish leaves it: a control_shows row. */
+let ownerId: string | null = null;
 async function production(): Promise<string> {
-  const { data: users } = await admin.auth.admin.listUsers({ perPage: 200 });
-  const owner = users.users.find((u) => u.email === E2E_EMAIL);
-  if (!owner) throw new Error('the test account is not on this backend');
+  // The account's id, read once, through every page of a long-lived backend's users.
+  for (let page = 1; !ownerId && page <= 100; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    ownerId = data.users.find((u) => u.email === E2E_EMAIL)?.id ?? null;
+    if (data.users.length < 200) break;
+  }
+  if (!ownerId) throw new Error('the test account is not on this backend');
+  const owner = { id: ownerId };
   const id = crypto.randomUUID();
   const { data, error } = await admin
     .from('control_shows')
@@ -115,9 +121,10 @@ test('a one-time code pairs a panel once, and the page lists it', async () => {
   const start = await rpc(page, 'panel_pair_start', { p_slug: slug });
   expect(start.ok).toBe(true);
   expect(start.code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  // Five minutes in the server's clock; the runner's may differ by a little, so a minute of slack.
   const expires = Date.parse(start.expires_at as string) - Date.now();
   expect(expires).toBeGreaterThan(4 * 60_000);
-  expect(expires).toBeLessThanOrEqual(5 * 60_000 + 5_000);
+  expect(expires).toBeLessThan(6 * 60_000);
 
   const module = client();
   // Typed as an operator would: lower case, a space instead of the dash.
@@ -180,6 +187,12 @@ test('a press reaches the answering page stamped with its claim, with nothing bu
   const want = await presses.next('want');
   expect(want.payload).toEqual({ v: 1, panel: { id: keyId, label: 'Desk deck' } });
 
+  // A module calling hello in a loop cannot make the page republish without end: five wants in ten
+  // seconds, then hello still answers but asks nothing of the page.
+  for (let i = 0; i < 7; i++) expect((await rpc(client(), 'panel_hello', { p_key: key })).ok).toBe(true);
+  await new Promise((r) => setTimeout(r, 1_500));
+  expect(presses.got.filter((m) => m.event === 'want')).toHaveLength(5);
+
   const module = client();
   const answer = await rpc(module, 'panel_press', { p_key: key, p_press: { ...press('abcdef:2'), extra: 'dropped', claim: 999 } });
   expect(answer).toEqual({ ok: true, claim: claimed.claim });
@@ -209,8 +222,10 @@ test('the relay refuses foreign verbs, malformed presses, wrong keys and bursts'
   const module = client();
   const refused = async (p: Json, k = key) => (await rpc(module, 'panel_press', { p_key: k, p_press: p })).refused;
   for (const verb of ['paste', 'copy', 'folder-new', 'select-clear', 'drop-table']) expect(await refused(press('abcdef:1', { verb }))).toBe('not-a-panel-verb');
-  expect(await refused(press('abcdef:1', { target: 'has spaces' }))).toBe('bad-press');
-  expect(await refused(press('abcdef:1', { target: 'x'.repeat(81) }))).toBe('bad-press');
+  expect(await refused(press('abcdef:1', { target: 'x'.repeat(129) }))).toBe('bad-press');
+  expect(await refused(press('abcdef:1', { target: 'bell\u0007' }))).toBe('bad-press');
+  // Any printable row id up to 128 characters is a target: an imported cue's id is not ours to shape.
+  expect(await refused(press('abcdef:1', { target: 'cue 7/b é' }))).toBeUndefined();
   expect(await refused(press('abcdef:1', { seen: '4' }))).toBe('bad-press');
   expect(await refused(press('abcdef:1', { seen: 1.5 }))).toBe('bad-press');
   expect(await refused(press('ABCDEF:1'))).toBe('bad-press');

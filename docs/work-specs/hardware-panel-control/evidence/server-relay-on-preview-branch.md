@@ -62,6 +62,27 @@ key and test account in the environment (a scratch wrapper), `--retries=0`.
   `[]`, received an 11-line message). So the test is not vacuous. The policy was dropped afterwards
   and `pg_policies` confirmed it gone.
 
+## After the review
+
+The review found ten things, all fixed before landing: the pairing throttle keyed on the first,
+caller-chosen `x-forwarded-for` entry and counted without a lock (now the gateway's last entry plus a
+global cap of 300 failures a minute, both rows locked); `panel_hello` had no bound on the `want`s it
+asks of the page (now 5 per key in 10 s); a press read the claim unlocked (now `for share`); a code
+colliding with one kept from the last day raised (now drawn again); the target rule refused row ids
+outside a narrow charset (now any 128 characters without control characters); `panel_hello` ignored
+hosted control switched off for the account (now `no-page`); and two spec fragilities.
+
+- The new columns `hello_start` and `hello_count` were added to the branch's existing table by hand
+  (the re-run's `create table if not exists` skips them; a fresh database gets them from the file),
+  and 0073 applied again with its self-check, which now also refuses a 129-character target and a
+  control character.
+- **j-2886:** 7 passed, 0 failed, no retries. New in it: seven hellos in a row make the page hear
+  exactly five `want`s; a target with a space, a slash and an accented letter relays; a 129-character
+  target and one with a bell character are `bad-press`. The relay's hop: p50 70 ms, min 65, max 168.
+- **The advisors**, `node scripts/supabase-advisors.mjs` with the branch's ref: the 20 findings 0073
+  adds (8 anon and 8 authenticated definer functions, 4 deny-all tables) were added to
+  `supabase/advisor-baseline.json`, and the gate then exits 0 on the branch.
+
 ## /panel.json
 
 `scripts/panelBackendPlugin.test.mjs`: the body names the app's own backend URL and publishable key

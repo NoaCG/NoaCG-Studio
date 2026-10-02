@@ -25,7 +25,9 @@
 --
 -- THE BOUNDARY. The panel tables have RLS on and no policy: only these SECURITY DEFINER functions
 -- touch them. A key is stored as its SHA-256; a code likewise. Bounds: 20 presses per key in 2 s,
--- 10 failed code exchanges per caller address a minute, 5 open codes per production, labels of 60.
+-- 5 republish requests (`want`) per key in 10 s, 300 failed code exchanges a minute in all and 10
+-- per gateway address, 5 open codes per production, labels of 60. Against guessing, the bound that
+-- matters is the code space: 31^8 codes, five minutes each, at most five open per production.
 --
 -- WHY IT CANNOT HURT A SHOW ON AIR. New tables nobody reads yet, new functions nobody calls yet,
 -- and three policies on topic shapes nothing uses yet. The foreign keys to control_shows take a
@@ -58,7 +60,9 @@ create table if not exists public.panel_keys (
   last_used_at  timestamptz,
   revoked_at    timestamptz,
   window_start  timestamptz not null default now(),
-  window_count  int not null default 0
+  window_count  int not null default 0,
+  hello_start   timestamptz not null default now(),
+  hello_count   int not null default 0
 );
 create index if not exists panel_keys_show_idx on public.panel_keys (show_id);
 
@@ -128,18 +132,27 @@ declare
   v_expires timestamptz := now() + interval '5 minutes';
 begin
   v_room := public.panel_room_for_slug(p_slug);
+  -- One pairing start per production at a time, so two pages pressing at once cannot both pass
+  -- the five-code cap. An advisory lock, not the room row, so presses never wait on it.
+  perform pg_advisory_xact_lock(hashtextextended('panel_pair_start:' || v_room.show_id::text, 0));
   delete from public.panel_codes c where c.created_at < now() - interval '1 day';
   if (select count(*) from public.panel_codes c
        where c.show_id = v_room.show_id and c.used_at is null and c.expires_at > now()) >= 5 then
     return jsonb_build_object('ok', false, 'refused', 'slow-down',
       'note', 'Five pairing codes are already waiting. Use one, or wait five minutes.');
   end if;
-  v_bytes := extensions.gen_random_bytes(8);
-  for i in 0..7 loop
-    v_code := v_code || substr(v_alphabet, (get_byte(v_bytes, i) % 31) + 1, 1);
+  -- A fresh code; one that matches a code kept from the last day (any production) is drawn again.
+  loop
+    v_code := '';
+    v_bytes := extensions.gen_random_bytes(8);
+    for i in 0..7 loop
+      v_code := v_code || substr(v_alphabet, (get_byte(v_bytes, i) % 31) + 1, 1);
+    end loop;
+    insert into public.panel_codes (code_hash, show_id, expires_at)
+      values (extensions.digest(v_code, 'sha256'), v_room.show_id, v_expires)
+      on conflict (code_hash) do nothing;
+    exit when found;
   end loop;
-  insert into public.panel_codes (code_hash, show_id, expires_at)
-    values (extensions.digest(v_code, 'sha256'), v_room.show_id, v_expires);
   return jsonb_build_object('ok', true, 'code', substr(v_code, 1, 4) || '-' || substr(v_code, 5, 4),
     'expires_at', v_expires);
 end $$;
@@ -149,7 +162,6 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_headers jsonb;
   v_bucket text;
-  v_fail public.panel_pair_failures;
   v_code text := upper(regexp_replace(coalesce(p_code, ''), '[\s-]', '', 'g'));
   v_row public.panel_codes;
   v_refused text;
@@ -166,9 +178,19 @@ begin
   exception when others then
     v_headers := null;
   end;
-  v_bucket := coalesce(nullif(btrim(split_part(v_headers->>'x-forwarded-for', ',', 1)), ''), 'shared');
-  select * into v_fail from public.panel_pair_failures f where f.bucket = v_bucket;
-  if v_fail.bucket is not null and v_fail.window_start > now() - interval '1 minute' and v_fail.failures >= 10 then
+  -- The LAST x-forwarded-for entry is the one the gateway appended; the entries before it are
+  -- whatever the caller chose to send, so keying on the first would let a caller pick a new bucket
+  -- per request. At worst the last is a proxy many callers share, which only makes it stricter.
+  -- The real bound is the code space (31^8, five minutes, five open codes a production) and the
+  -- global cap `*`, which no header can move.
+  v_bucket := coalesce(nullif(btrim(regexp_replace(coalesce(v_headers->>'x-forwarded-for', ''), '^.*,', '')), ''), 'shared');
+  -- Both rows locked to the end of this call, so parallel guesses are counted one after another.
+  insert into public.panel_pair_failures (bucket, window_start, failures)
+    values (v_bucket, now(), 0), ('*', now(), 0) on conflict (bucket) do nothing;
+  perform 1 from public.panel_pair_failures f where f.bucket in (v_bucket, '*') order by f.bucket for update;
+  if exists (select 1 from public.panel_pair_failures f
+              where f.window_start > now() - interval '1 minute'
+                and ((f.bucket = v_bucket and f.failures >= 10) or (f.bucket = '*' and f.failures >= 300))) then
     return jsonb_build_object('ok', false, 'refused', 'slow-down');
   end if;
 
@@ -185,12 +207,11 @@ begin
     if v_owner is null or public.feature_denied_for(v_owner, 'control.hosted') then v_refused := 'unknown-code'; end if;
   end if;
   if v_refused is not null then
-    insert into public.panel_pair_failures (bucket, window_start, failures) values (v_bucket, now(), 1)
-    on conflict (bucket) do update set
-      failures = case when public.panel_pair_failures.window_start > now() - interval '1 minute'
-                      then public.panel_pair_failures.failures + 1 else 1 end,
-      window_start = case when public.panel_pair_failures.window_start > now() - interval '1 minute'
-                          then public.panel_pair_failures.window_start else now() end;
+    -- Count it in both rows (locked above): a fresh minute starts the count again.
+    update public.panel_pair_failures f set
+        failures = case when f.window_start > now() - interval '1 minute' then f.failures + 1 else 1 end,
+        window_start = case when f.window_start > now() - interval '1 minute' then f.window_start else now() end
+      where f.bucket in (v_bucket, '*');
     return jsonb_build_object('ok', false, 'refused', v_refused);
   end if;
 
@@ -213,18 +234,29 @@ declare
   v_key public.panel_keys;
   v_room public.panel_rooms;
   v_title text;
+  v_owner uuid;
+  v_wants int;
 begin
   v_key := public.panel_key_row(p_key);
   if v_key.id is null then return jsonb_build_object('ok', false, 'refused', 'unknown-key'); end if;
   if v_key.revoked_at is not null then return jsonb_build_object('ok', false, 'refused', 'revoked'); end if;
+  select s.title, s.owner_id into v_title, v_owner from public.control_shows s where s.id = v_key.show_id;
+  -- Hosted control switched off for the account: as panel_press, no page can answer.
+  if public.feature_denied_for(v_owner, 'control.hosted') then
+    return jsonb_build_object('ok', false, 'refused', 'no-page');
+  end if;
   insert into public.panel_rooms (show_id) values (v_key.show_id) on conflict (show_id) do nothing;
   select * into v_room from public.panel_rooms r where r.show_id = v_key.show_id;
-  select s.title into v_title from public.control_shows s where s.id = v_key.show_id;
-  if v_key.last_used_at is null or v_key.last_used_at < now() - interval '1 minute' then
-    update public.panel_keys k set last_used_at = now() where k.id = v_key.id;
-  end if;
+  -- The last use, and the want cap: at most five wants per key in ten seconds, so a module calling
+  -- hello in a loop cannot make the page republish without end. A connect takes two.
+  update public.panel_keys k set
+      last_used_at = now(),
+      hello_count = case when k.hello_start > now() - interval '10 seconds' then k.hello_count + 1 else 1 end,
+      hello_start = case when k.hello_start > now() - interval '10 seconds' then k.hello_start else now() end
+    where k.id = v_key.id
+    returning k.hello_count into v_wants;
   -- The answering page republishes its state and rows for a panel that just (re)connected.
-  if v_room.answering then
+  if v_room.answering and v_wants <= 5 then
     perform realtime.send(jsonb_build_object('v', 1, 'panel', jsonb_build_object('id', v_key.id, 'label', v_key.label)),
       'want', 'pnp-' || v_room.press_token, true);
   end if;
@@ -250,7 +282,7 @@ begin
   -- Checked in steps: SQL does not promise to evaluate an OR left to right, and `seen` is cast only
   -- once it is known to be a number.
   if jsonb_typeof(p_press) is distinct from 'object' or jsonb_typeof(v_seen) is distinct from 'number'
-     or v_target is null or v_target !~ '^[A-Za-z0-9_.:-]{0,80}$'
+     or v_target is null or v_target !~ '^[^[:cntrl:]]{0,128}$'
      or coalesce(v_id, '') !~ '^[a-z0-9]{6,24}:[0-9]{1,12}$' then
     return jsonb_build_object('ok', false, 'refused', 'bad-press');
   end if;
@@ -270,7 +302,9 @@ begin
     returning k.window_count into v_count;
   if v_count > 20 then return jsonb_build_object('ok', false, 'refused', 'slow-down'); end if;
   select s.owner_id into v_owner from public.control_shows s where s.id = v_key.show_id;
-  select * into v_room from public.panel_rooms r where r.show_id = v_key.show_id;
+  -- FOR SHARE: a claim being taken right now commits first, so the press carries the claim that
+  -- answers when it is sent, never one a page is in the middle of losing.
+  select * into v_room from public.panel_rooms r where r.show_id = v_key.show_id for share;
   if v_room.show_id is null or not v_room.answering or public.feature_denied_for(v_owner, 'control.hosted') then
     return jsonb_build_object('ok', false, 'refused', 'no-page');
   end if;
@@ -487,7 +521,8 @@ begin
     raise exception '0073 self-check failed: a press with a page answered %', v_a;
   end if;
   if public.panel_press(v_key, '{"verb":"paste","target":"","seen":3,"id":"selfcheck:3"}')->>'refused' <> 'not-a-panel-verb'
-     or public.panel_press(v_key, '{"verb":"take","target":"no spaces","seen":3,"id":"selfcheck:4"}')->>'refused' <> 'bad-press'
+     or public.panel_press(v_key, jsonb_build_object('verb', 'take', 'target', repeat('x', 129), 'seen', 3, 'id', 'selfcheck:4'))->>'refused' <> 'bad-press'
+     or public.panel_press(v_key, jsonb_build_object('verb', 'take', 'target', 'a' || chr(7), 'seen', 3, 'id', 'selfcheck:8'))->>'refused' <> 'bad-press'
      or public.panel_press(v_key, '{"verb":"take","target":"","seen":-1,"id":"selfcheck:5"}')->>'refused' <> 'bad-press'
      or public.panel_press(v_key, '{"verb":"take","target":"","seen":1,"id":"NOT AN ID"}')->>'refused' <> 'bad-press' then
     raise exception '0073 self-check failed: a malformed press or a foreign verb was relayed';
@@ -519,6 +554,6 @@ begin
     raise exception '0073 self-check failed: release did not follow the claim';
   end if;
 
-  -- The two refused exchanges above counted against the shared bucket; they lapse within a minute.
+  -- The two refused exchanges above counted in their bucket and in `*`; both lapse within a minute.
   delete from public.control_shows where id = v_show;
 end $$;
