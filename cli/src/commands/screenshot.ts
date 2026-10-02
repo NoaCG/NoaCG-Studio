@@ -5,8 +5,8 @@
 
 import path from 'node:path';
 import { BridgeClient } from '../bridgeClient.js';
-import { EXIT_OK, flagList, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { describeOp, parseDuration, parseOps, resolveBackground, shoot, shootSequence, STEP_MS } from '../screenshot.js';
+import { EXIT_OK, flagList, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { parseDuration, parseOps, resolveBackground, shoot, shootSequence } from '../screenshot.js';
 import { promises as fs } from 'node:fs';
 import { markFramesDir, readPackageInput } from '../workspace.js';
 
@@ -26,6 +26,8 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
   const input = args._[1];
   const outPath = flagString(args, 'out');
   const state = (flagString(args, 'state') ?? 'onair') as 'off' | 'onair' | 'stress';
+  // A bare --event would otherwise be dropped, leaving a plain still where a state was asked for.
+  refuseBareFlags(args, ['out', 'state', 'data', 'event', 'at', 'background']);
   const eventFlags = flagList(args, 'event');
   const atFlag = flagString(args, 'at');
   if (!input) throw new UsageError('screenshot needs a package directory or .zip.');
@@ -35,7 +37,8 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
   const sequence = eventFlags.length > 0 || atFlag !== undefined;
   if (sequence && state === 'off') throw new UsageError('--event and --at start from a Take, so they go with --state onair or stress (or --data), not off.');
   const atMs = atFlag !== undefined ? parseDuration(atFlag, '--at') : undefined;
-  const background = await resolveBackground(flagString(args, 'background'));
+  const backgroundFlag = flagString(args, 'background');
+  const background = await resolveBackground(backgroundFlag);
   // A frame written into a folder of its own inside the package marks that folder, exactly as
   // `validate --screenshots` does. One written straight into the package folder, or in among
   // its sources, cannot be told from an image the graphic uses, so that is said instead.
@@ -56,13 +59,14 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
     const data = dataFromFlags(args);
     const size = { width: template.resolution.width, height: template.resolution.height };
     const file = path.resolve(outPath);
-    const ground = background ? `over ${flagString(args, 'background')}` : 'transparent';
+    const ground = background ? `over ${backgroundFlag}` : 'transparent';
     const label = data ? 'custom data' : state;
+    const result = { ok: true, file, state: data ? 'data' : state, background: backgroundFlag ?? 'transparent' };
 
     if (!sequence) {
       const html = await bridge.compose(template, data ?? state);
       await shoot(bridge.bench, bridge.origin, html, file, { ...size, background });
-      out.result({ ok: true, file, state: data ? 'data' : state, background: flagString(args, 'background') ?? 'transparent' });
+      out.result(result);
       out.say(`Wrote ${file} (${label}, ${size.width}x${size.height}, ${ground}).`);
     } else {
       const inspection = await bridge.inspect({ template });
@@ -70,20 +74,8 @@ export async function runScreenshot(args: ParsedArgs, out: Out): Promise<number>
       const base = { ...(await bridge.stateData(template, state === 'stress' ? 'stress' : 'onair')), ...(data ?? {}) };
       const html = await bridge.compose(template, 'off');
       const shot = await shootSequence(bridge.origin, html, file, { ...size, background, data: base, ops, atMs, buttons: inspection.buttons });
-      const run = ops[0]?.kind === 'take' ? ops : [{ kind: 'take' as const }, ...ops];
-      const steps = run.map(describeOp);
-      const at = atMs ?? STEP_MS;
-      out.result({
-        ok: true,
-        file,
-        state: data ? 'data' : state,
-        events: steps,
-        atMs: at,
-        background: flagString(args, 'background') ?? 'transparent',
-        machine: shot.machine,
-        notes: shot.notes,
-      });
-      out.say(`Wrote ${file} (${label}, ${steps.join(' > ')}, then ${at} ms; ${size.width}x${size.height}, ${ground}).`);
+      out.result({ ...result, events: shot.ran, atMs: shot.atMs, machine: shot.machine, notes: shot.notes });
+      out.say(`Wrote ${file} (${label}, ${shot.ran.join(' > ')}, then ${shot.atMs} ms; ${size.width}x${size.height}, ${ground}).`);
       if (shot.machine) out.say(`Machine at the shutter: ${Object.entries(shot.machine.groups).map(([g, s]) => `${g}=${s}`).join(', ')}`);
       for (const note of shot.notes) out.say(`Note: ${note}`);
     }

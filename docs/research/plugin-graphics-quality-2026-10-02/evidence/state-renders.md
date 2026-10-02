@@ -15,8 +15,11 @@ no harness of any kind.
 - `--at <time>`: the moment after the last op the frame is taken (default 1.5 s).
 - Time runs on Playwright's clock, installed paused before the document loads, in a browser
   context of its own per render (the clock belongs to a context, and pausing the bridge's would
-  stop the bridge's timers). Only the run moves it, and running CSS animations are moved by the
-  same amount. The same command gives the same frame every time, and `--at 31s` takes seconds.
+  stop the bridge's timers). Only the run moves it. CSS animations and transitions, which that
+  clock does not drive, are paused and moved by hand by the same amount; that half is reasoned,
+  not measured, since both packages and the fixture animate with GSAP. The same command gives
+  the same frame every time (the timer frame re-rendered byte for byte), and `--at 31s` takes
+  seconds.
 - `--background transparent|checker|video|<CSS colour>|<image file>`, on `screenshot` and on
   `validate --screenshots`, painted on the root behind the graphic. `video` is a CSS-only
   defocused plate with warm, cool, bright and dark areas. The package thumbnail stays
@@ -66,6 +69,10 @@ frame at that instant, and it is the same on every run.
   the clock ("cannot fast-forward to the past"), and the bench context's shared clock would have
   stopped the bridge page too. Each render now has its own context with the clock paused from
   the start.
+- The press payload rule is a port of the studio's `eventPayload` (the CLI talks to a deployed
+  bridge that does not expose it). A change to that rule in the studio has to be copied here;
+  exposing it on the bridge, or a mirror test like `cli/test/playout.test.mjs`'s, would remove
+  that risk.
 - The MCP `screenshot` verb (`cli/src/mcp.ts`) does not take `--event`, `--at` or
   `--background` yet; this change kept to the terminal commands.
 - The walk does not press Out or fields, and stops at three presses deep: a state reached only

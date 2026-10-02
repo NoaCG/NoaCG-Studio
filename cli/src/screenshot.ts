@@ -22,8 +22,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Page } from 'playwright-core';
-import { launchBrowser, newBenchContext, type BenchContext } from './browser.js';
-import type { ControlButton as InspectedButton } from './bridgeClient.js';
+import { launchBrowser, newBenchContext, withTimeout, type BenchContext } from './browser.js';
+import type { ControlButton } from './bridgeClient.js';
 import { UsageError } from './output.js';
 
 export interface ShotOptions {
@@ -73,7 +73,7 @@ export async function resolveBackground(spec: string | undefined): Promise<strin
 
 /** Paint the ground on the root, behind the graphic and outside its tree. Done as soon as the
  *  document is open, so a colour the page does not know fails before any time is spent. */
-async function paintBackground(page: Page, background: string | null | undefined): Promise<void> {
+export async function paintBackground(page: Page, background: string | null | undefined): Promise<void> {
   if (!background) return;
   if (!(await page.evaluate((value) => CSS.supports('background', value), background))) {
     throw new UsageError(`--background: "${background}" is not a CSS colour (nor transparent, checker, video or an image file).`);
@@ -94,13 +94,17 @@ async function openDocument(page: Page, appOrigin: string, html: string, opts: S
   await paintBackground(page, opts.background);
 }
 
-async function rasterSettledFrame(page: Page): Promise<void> {
+/** `settle` waits between the passes: two animation frames, or, where a paused clock drives no
+ *  frames (a sequence render), a little real time after forcing layout. */
+async function rasterSettledFrame(page: Page, settle?: () => Promise<void>): Promise<void> {
   const hintOff = await page.addStyleTag({ content: '*{will-change:auto !important}' });
-  const twoFrames = () =>
-    page.evaluate(async () => {
-      document.body.getBoundingClientRect();
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    });
+  const twoFrames =
+    settle ??
+    (() =>
+      page.evaluate(async () => {
+        document.body.getBoundingClientRect();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }));
   await twoFrames();
   await hintOff.evaluate((el) => (el as Element).remove());
   await twoFrames();
@@ -129,8 +133,6 @@ export async function shoot(bench: BenchContext, appOrigin: string, html: string
 
 // ── Operator sequences ────────────────────────────────────────────────────────
 
-/** A button as `inspect` returns it, with the whole press family `eventPayload` reads. */
-export type ControlButton = InspectedButton & { set?: Record<string, string>; add?: Record<string, string>; remove?: Record<string, string> };
 
 /** One thing an operator does to a graphic on air. */
 export type FrameOp =
@@ -146,7 +148,7 @@ export type MachineState = { groups: Record<string, string> } & Record<string, u
 
 /** Time between two ops, and from the last op to the shutter by default: long enough for an
  *  entrance or a state transition to land, which is what an operator waits for before the next press. */
-export const STEP_MS = 1500;
+const STEP_MS = 1500;
 
 /** `4s`, `1.5s`, `1500ms`, `1500`, `2m`, `1:30`. */
 export function parseDuration(text: string, flag: string): number {
@@ -181,7 +183,7 @@ export function parseOps(values: string[], buttons: ControlButton[], fieldIds: s
   });
 }
 
-export function describeOp(op: FrameOp): string {
+function describeOp(op: FrameOp): string {
   switch (op.kind) {
     case 'event':
       return op.event;
@@ -201,7 +203,7 @@ export function describeOp(op: FrameOp): string {
  * at their current value, `adjust` moved by its delta, `set` at the declared figure, `add` and
  * `remove` a line of a list field. Undefined = the event fires bare.
  */
-export function eventPayload(button: ControlButton, valueOf: (key: string) => string | undefined): Record<string, string> | undefined {
+function eventPayload(button: ControlButton, valueOf: (key: string) => string | undefined): Record<string, string> | undefined {
   const lines = (v: string | undefined) => String(v ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
   const payload: Record<string, string> = {};
   for (const key of button.payload ?? []) {
@@ -243,11 +245,19 @@ export interface SequenceOptions extends ShotOptions {
 
 export interface SequenceShot {
   png: Uint8Array;
+  /** The ops that ran, the Take included, as `describeOp` writes them. */
+  ran: string[];
+  /** The time from the last op to the shutter that was actually used. */
+  atMs: number;
   /** The machine's pointers at the shutter; null for a graphic without a machine. */
   machine: MachineState | null;
-  /** Things the agent must hear: an event that moved nothing. */
+  /** Things the agent must hear: an event that moved nothing, a call that threw. */
   notes: string[];
 }
+
+/** The longest one sequence render may take before its context is closed: a template that spins
+ *  in an event handler must not hold `screenshot` or `validate` for ever (browser.ts). */
+const SEQUENCE_DEADLINE_MS = 90_000;
 
 async function machineState(page: Page): Promise<MachineState | null> {
   return page.evaluate(() => {
@@ -262,16 +272,29 @@ async function machineState(page: Page): Promise<MachineState | null> {
 }
 
 /** Move the document's time on by `ms`: Playwright's clock for the template's timers, frames and
- *  GSAP, and the same amount for any running CSS animation or transition, which that clock does
- *  not drive, so the two halves of a graphic stay in step. */
+ *  GSAP, and the same amount for the CSS animations and transitions, which that clock does not
+ *  drive. Those are HELD (paused by us) between advances and moved by hand, so real time spent
+ *  in round trips never reaches them; one that starts during a step joins the held set at its end. */
 async function advance(page: Page, ms: number): Promise<void> {
   if (ms <= 0) return;
+  // step = 0 holds what is running now (an op may just have started it); then, after the clock
+  // has run, every held animation moves by the step and any that started during it is held.
+  const hold = (step: number) =>
+    page.evaluate((step) => {
+      const w = window as unknown as { __noacgHeld?: WeakSet<Animation> };
+      const held = (w.__noacgHeld ??= new WeakSet<Animation>());
+      const all = document.getAnimations?.() ?? [];
+      for (const a of all) if (step && held.has(a) && a.playState === 'paused' && typeof a.currentTime === 'number') a.currentTime += step;
+      for (const a of all) {
+        if (a.playState === 'running') {
+          a.pause();
+          held.add(a);
+        }
+      }
+    }, step);
+  await hold(0);
   await page.clock.runFor(ms);
-  await page.evaluate((step) => {
-    for (const a of document.getAnimations?.() ?? []) {
-      if (a.playState === 'running' && typeof a.currentTime === 'number') a.currentTime += step;
-    }
-  }, ms);
+  await hold(ms);
 }
 
 /** Drive the bare document through `ops` and shoot `atMs` after the last one. */
@@ -279,84 +302,97 @@ export async function shootSequence(appOrigin: string, html: string, outPath: st
   // A contained context of its own: Playwright's clock belongs to a CONTEXT, and pausing the
   // bench's would stop the bridge page's timers too, and every other render's.
   const own = await newBenchContext(await launchBrowser(), appOrigin);
-  const page = await own.newPage();
-  const notes: string[] = [];
   try {
-    // The clock goes in, paused, before the document, so its timers, Date and frames are the
-    // clock's and time moves only when the run moves it.
-    await page.clock.install();
-    await page.clock.pauseAt(Date.now() + 1000);
-    await openDocument(page, appOrigin, html, opts);
-    // Fonts load in real time, which the paused clock cannot cap, so the cap is real time too.
-    await Promise.race([
-      page.evaluate(() => document.fonts.ready.then(() => undefined, () => undefined)),
-      new Promise((resolve) => setTimeout(resolve, 3000)),
-    ]);
-    // A document is loaded a moment before anyone takes it: let its load-time timers run.
-    await advance(page, 500);
-
-    const data = { ...opts.data };
-    const ops: FrameOp[] = opts.ops[0]?.kind === 'take' ? opts.ops : [{ kind: 'take' }, ...opts.ops];
-    for (let i = 0; i < ops.length; i++) {
-      const op = ops[i];
-      const last = i === ops.length - 1;
-      if (op.kind === 'wait') {
-        await advance(page, op.ms + (last ? opts.atMs ?? STEP_MS : 0));
-        continue;
-      }
-      const before = op.kind === 'event' ? await machineState(page) : null;
-      let payload: Record<string, string> | undefined;
-      if (op.kind === 'set') data[op.key] = op.value;
-      if (op.kind === 'event') {
-        const button = opts.buttons.find((b) => b.event === op.event);
-        payload = button ? eventPayload(button, (key) => data[key]) : undefined;
-        // What the press moved is written back, as every control surface does, so the next
-        // press counts from it (two goals make 2).
-        Object.assign(data, payload ?? {});
-      }
-      await page.evaluate(
-        ({ op, data, payload }) => {
-          const w = window as unknown as Record<string, ((...a: unknown[]) => unknown) | unknown>;
-          const call = (fn: string, ...args: unknown[]) => {
-            const f = w[fn];
-            if (typeof f === 'function') f(...args);
-          };
-          if (op.kind === 'take') {
-            call('update', JSON.stringify(data));
-            call('play');
-          } else if (op.kind === 'set') call('update', JSON.stringify(data));
-          else if (op.kind === 'next') call('next');
-          else if (op.kind === 'out') call('stop');
-          else if (op.kind === 'event') {
-            // As the studio's renderer does: no event instant, so a clock reads the page's own time.
-            w.noacgEventAt = null;
-            call('noacgDispatch', op.event, payload);
-          }
-        },
-        { op, data, payload },
-      );
-      // At least a frame, even for --at 0: a dispatched event lands a frame later.
-      await advance(page, Math.max(last ? opts.atMs ?? STEP_MS : STEP_MS, 20));
-      if (op.kind === 'event' && !payload) {
-        const after = await machineState(page);
-        if (before && after && JSON.stringify(before.groups) === JSON.stringify(after.groups)) {
-          const where = Object.entries(after.groups).map(([g, s]) => `${g}=${s}`).join(', ');
-          notes.push(`${op.event} did not move the machine (still ${where}). If it should have, the machine does not answer ${op.event} from there.`);
-        }
-      }
-    }
-
-    // The paused clock drives no frames, so the re-raster waits on real time instead.
-    const hintOff = await page.addStyleTag({ content: '*{will-change:auto !important}' });
-    await page.waitForTimeout(50);
-    await hintOff.evaluate((el) => (el as Element).remove());
-    await page.waitForTimeout(50);
-    const machine = await machineState(page);
-    const buffer = await page.screenshot({ ...(outPath ? { path: outPath } : {}), omitBackground: true, type: 'png' });
-    return { png: new Uint8Array(buffer), machine, notes };
+    return await withTimeout(runSequence(own, appOrigin, html, outPath, opts), SEQUENCE_DEADLINE_MS, 'the state render', () => own.close());
   } finally {
     await own.close();
   }
+}
+
+async function runSequence(own: BenchContext, appOrigin: string, html: string, outPath: string | undefined, opts: SequenceOptions): Promise<SequenceShot> {
+  const page = await own.newPage();
+  const notes: string[] = [];
+  // The clock goes in, paused, before the document, so its timers, Date and frames are the
+  // clock's and time moves only when the run moves it.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 1000);
+  await openDocument(page, appOrigin, html, opts);
+  // Fonts load in real time, which the paused clock cannot cap, so the cap is real time too.
+  await Promise.race([
+    page.evaluate(() => document.fonts.ready.then(() => undefined, () => undefined)),
+    new Promise((resolve) => setTimeout(resolve, 3000)),
+  ]);
+  // A document is loaded a moment before anyone takes it: let its load-time timers run.
+  await advance(page, 500);
+
+  const data = { ...opts.data };
+  const ops: FrameOp[] = opts.ops[0]?.kind === 'take' ? opts.ops : [{ kind: 'take' }, ...opts.ops];
+  // At least a frame, even for --at 0: a dispatched event lands a frame later.
+  const atMs = Math.max(opts.atMs ?? STEP_MS, 20);
+  for (let i = 0; i < ops.length; i++) {
+    const op = ops[i];
+    const last = i === ops.length - 1;
+    if (op.kind === 'wait') {
+      await advance(page, op.ms + (last ? atMs : 0));
+      continue;
+    }
+    const before = op.kind === 'event' ? await machineState(page) : null;
+    let payload: Record<string, string> | undefined;
+    if (op.kind === 'set') data[op.key] = op.value;
+    if (op.kind === 'event') {
+      const button = opts.buttons.find((b) => b.event === op.event);
+      payload = button ? eventPayload(button, (key) => data[key]) : undefined;
+      // What the press moved is written back, as every control surface does, so the next
+      // press counts from it (two goals make 2).
+      Object.assign(data, payload ?? {});
+    }
+    // Each call is caught, as the studio's own command channel catches it (composeDocument.ts),
+    // and what it threw is said: the frame then shows what air would show after the throw.
+    const threw = await page.evaluate(
+      ({ op, data, payload }) => {
+        const w = window as unknown as Record<string, ((...a: unknown[]) => unknown) | unknown>;
+        const errors: string[] = [];
+        const call = (fn: string, ...args: unknown[]) => {
+          const f = w[fn];
+          try {
+            if (typeof f === 'function') f(...args);
+          } catch (e) {
+            errors.push(`${fn}() threw: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        };
+        if (op.kind === 'take') {
+          call('update', JSON.stringify(data));
+          call('play');
+        } else if (op.kind === 'set') call('update', JSON.stringify(data));
+        else if (op.kind === 'next') call('next');
+        else if (op.kind === 'out') call('stop');
+        else if (op.kind === 'event') {
+          // As the studio's renderer does: no event instant, so a clock reads the page's own time.
+          w.noacgEventAt = null;
+          call('noacgDispatch', op.event, payload);
+        }
+        return errors;
+      },
+      { op, data, payload },
+    );
+    for (const message of threw) notes.push(`${describeOp(op)}: ${message}`);
+    await advance(page, last ? atMs : STEP_MS);
+    if (op.kind === 'event' && !payload) {
+      const after = await machineState(page);
+      if (before && after && JSON.stringify(before.groups) === JSON.stringify(after.groups)) {
+        const where = Object.entries(after.groups).map(([g, s]) => `${g}=${s}`).join(', ');
+        notes.push(`${op.event} did not move the machine (still ${where}). If it should have, the machine does not answer ${op.event} from there.`);
+      }
+    }
+  }
+
+  await rasterSettledFrame(page, async () => {
+    await page.evaluate(() => document.body.getBoundingClientRect());
+    await page.waitForTimeout(50);
+  });
+  const machine = await machineState(page);
+  const buffer = await page.screenshot({ ...(outPath ? { path: outPath } : {}), omitBackground: true, type: 'png' });
+  return { png: new Uint8Array(buffer), ran: ops.map(describeOp), atMs, machine, notes };
 }
 
 // ── Every state a graphic's events reach ──────────────────────────────────────
@@ -396,8 +432,8 @@ export async function walkStates(
     stateGroups: Array<{ id: string; states: Array<{ id: string }> }>;
   },
 ): Promise<StateFrame[]> {
-  const base = { ...opts, ops: [] as FrameOp[] };
-  const render = (ops: FrameOp[]) => shootSequence(appOrigin, html, undefined, { ...base, ops });
+  const render = (ops: FrameOp[]) => shootSequence(appOrigin, html, undefined, { ...opts, ops });
+  const key = (group: string, state: string) => `${group}\u0000${state}`;
   const frames: StateFrame[] = [];
   const names = new Set<string>(['off', 'onair', 'stress']);
   const nameFor = (wanted: string) => {
@@ -407,15 +443,23 @@ export async function walkStates(
     return name;
   };
 
-  const start = await render([]);
-  if (!start.machine) {
-    // No machine: the steps are the states. Step 1 is the on-air frame.
-    for (let step = 2; step <= opts.stepCount; step++) {
-      const ops: FrameOp[] = Array.from({ length: step - 1 }, () => ({ kind: 'next' }));
-      frames.push({ name: nameFor(`step-${step}`), png: (await render(ops)).png, reached: [], via: ops.map(describeOp) });
+  // No machine: the steps are the states, step 1 being the on-air frame, within the same bounds.
+  const stepFrames = async (): Promise<StateFrame[]> => {
+    const paths: FrameOp[][] = [];
+    for (let step = 2; step <= Math.min(opts.stepCount, WALK_RENDERS + 1); step++) paths.push(Array.from({ length: step - 1 }, () => ({ kind: 'next' })));
+    for (let i = 0; i < paths.length; i += WALK_PARALLEL) {
+      const batch = paths.slice(i, i + WALK_PARALLEL);
+      const shots = await Promise.all(batch.map((ops) => render(ops)));
+      batch.forEach((ops, j) => frames.push({ name: nameFor(`step-${ops.length + 1}`), png: shots[j].png, reached: [], via: ops.map(describeOp) }));
     }
     return frames;
-  }
+  };
+  // inspect already says whether there is a machine; a render is spent only to find its start.
+  if (!opts.stateGroups.length) return stepFrames();
+  // Nothing to press: the on-air frame already shows the only state there is.
+  if (!opts.buttons.length && !(opts.stepCount > 1 || opts.stepCount === -1)) return frames;
+  const start = await render([]);
+  if (!start.machine) return stepFrames();
 
   const candidates: FrameOp[] = [
     ...opts.buttons.map((b): FrameOp => ({ kind: 'event', event: b.event })),
@@ -423,9 +467,9 @@ export async function walkStates(
   ];
   const signature = (m: MachineState | null) => JSON.stringify(m?.groups ?? null);
   const seen = new Set<string>([signature(start.machine)]);
-  const shown = new Set<string>(Object.entries(start.machine.groups).map(([g, s]) => `${g}\u0000${s}`));
+  const shown = new Set<string>(Object.entries(start.machine.groups).map(([g, s]) => key(g, s)));
   // Off is off.png and Out is the exit, so the lifecycle's own two are not looked for.
-  const wanted = opts.stateGroups.flatMap((g, i) => g.states.filter((st) => i > 0 || (st.id !== 'off' && st.id !== 'out')).map((st) => `${g.id}\u0000${st.id}`));
+  const wanted = opts.stateGroups.flatMap((g, i) => g.states.filter((st) => i > 0 || (st.id !== 'off' && st.id !== 'out')).map((st) => key(g.id, st.id)));
   const queue: FrameOp[][] = candidates.map((op) => [op]);
   let renders = 1;
   while (queue.length && renders < WALK_RENDERS && !wanted.every((w) => shown.has(w))) {
@@ -438,9 +482,9 @@ export async function walkStates(
       if (!machine || seen.has(sig)) return;
       seen.add(sig);
       const reached = Object.entries(machine.groups)
-        .filter(([g, s]) => !shown.has(`${g}\u0000${s}`))
+        .filter(([g, s]) => !shown.has(key(g, s)))
         .map(([group, state]) => ({ group, state }));
-      for (const r of reached) shown.add(`${r.group}\u0000${r.state}`);
+      for (const r of reached) shown.add(key(r.group, r.state));
       if (reached.length) frames.push({ name: nameFor(`${safe(reached[0].group)}-${safe(reached[0].state)}`), png, reached, via: ops.map(describeOp) });
       if (ops.length < WALK_DEPTH) for (const op of candidates) queue.push([...ops, op]);
     });

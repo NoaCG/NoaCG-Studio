@@ -16,7 +16,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
 import { resolveBackground, shoot, walkStates } from '../screenshot.js';
 import { markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
@@ -108,6 +108,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
   const houseContract = flagBool(args, 'house-contract', true);
   const shotsDir = flagString(args, 'screenshots');
   const background = await resolveBackground(flagString(args, 'background'));
+  refuseBareFlags(args, ['screenshots', 'background']);
   if (background && !shotsDir) throw new UsageError('--background goes with --screenshots <dir>.');
   // BEFORE the package is read: a frames folder inside the package has to be marked while the
   // folder is still being zipped, or the last run's frames go in as the graphic's assets.
@@ -125,7 +126,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
       const read = pkg.ograf!;
       out.log(`${input}: a third-party OGraf Graphic (${String(read.manifest.id ?? '?')}) - manifest conformance + host bench`);
       const files = await packageEntries(bytes);
-      const result = await ografBench(bridge, read, files, { screenshot: !!shotsDir });
+      const result = await ografBench(bridge, read, files, { screenshot: !!shotsDir, background });
       const errors = [...read.errors.map((e) => `ograf-manifest: ${e}`), ...result.errors];
       // A frame this branch wrote has to be NAMED, in the text and in --json alike: the NoaCG
       // branch below prints its `Screenshots:` line, and a caller that only gets one on the other
@@ -160,8 +161,10 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
       await fs.mkdir(dir, { recursive: true });
       const size = { width: template.resolution.width, height: template.resolution.height };
       const shots: Record<string, string> = {};
+      let offHtml = '';
       for (const state of ['off', 'onair', 'stress'] as const) {
         const html = await bridge.compose(template, state);
+        if (state === 'off') offHtml = html;
         const file = path.join(dir, `${state}.png`);
         const png = await shoot(bridge.bench, bridge.origin, html, file, { ...size, background });
         shots[state] = file;
@@ -170,7 +173,7 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
       }
       // Then every machine state the graphic's events reach, one frame each.
       const inspection = await bridge.inspect({ template });
-      const frames = await walkStates(bridge.origin, await bridge.compose(template, 'off'), {
+      const frames = await walkStates(bridge.origin, offHtml, {
         ...size,
         background,
         data: await bridge.stateData(template, 'onair'),

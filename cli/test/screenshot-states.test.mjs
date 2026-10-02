@@ -202,6 +202,9 @@ test('usage errors name what there is to choose from', { skip }, async () => {
   const field = await run(['screenshot', fixture, '--out', out, '--event', 'f9=1']);
   assert.equal(field.code, 2);
   assert.match(field.stderr, /Fields: f0, f1, f2/);
+  const bare = await run(['screenshot', fixture, '--event', '--out', out]);
+  assert.equal(bare.code, 2, 'a bare --event is refused, not dropped for a plain still');
+  assert.match(bare.stderr, /--event needs a value/);
   const off = await run(['screenshot', fixture, '--out', out, '--state', 'off', '--event', 'reveal']);
   assert.equal(off.code, 2);
   const duration = await run(['screenshot', fixture, '--out', out, '--at', 'soon']);
