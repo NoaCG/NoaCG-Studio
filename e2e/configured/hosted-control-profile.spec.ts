@@ -207,8 +207,8 @@ test('a published profile arranges and moves the shared value on the hosted page
       if (written.refused) return true;
 
       // A COMBINED CONTROL, as a build from before 2026-10-02 left it on the record. They were
-      // removed, so it goes in past the write door (which would drop it) and rides the publish
-      // into `control_shows.profile`; the hosted page must read the arrangement and ignore it.
+      // removed, so it goes in past the write door (which would drop it). The publish pins the
+      // canonical profile, and the hosted page must render the arrangement and nothing of the list.
       const { durable, commitDurableWrites } = await import('/src/model/durableStore.ts');
       const list = JSON.parse(durable.getItem('spx-gfx-shows') ?? '[]') as { id: string; profile?: Record<string, unknown> }[];
       const row = list.find((s) => s.id === show.id)!;

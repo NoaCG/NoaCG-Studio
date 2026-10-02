@@ -9,7 +9,8 @@
 // COMBINED CONTROLS WERE REMOVED on 2026-10-02 (owner ruling, after a production count found none
 // in use). The format's second primitive, `combine` (named presses made of ordered steps), is no
 // longer read, written or validated. A stored v1 profile that still carries a `combine` list is
-// read without error and the list is ignored: it is dropped the next time the profile is written.
+// read without error and the list is ignored: an arrangement write or a publish (both canonical)
+// drops it, while a sync or team merge that copies the record as-is may still carry it.
 // One press airing several cues is a folder's "All together" (docs/PLAYOUT_DASHBOARD.md §2i).
 //
 // WHY IT LIVES ON THE SHOW rather than on the template: a library graphic is shared by many
@@ -118,7 +119,8 @@ export type ProfileRead =
  *
  * It DROPS rather than refuses: an unknown key, a wrongly typed field, and a removed `combine`
  * list all disappear, and what is left renders. `validateShowProfile` is the half that reports
- * problems, and an authoring surface runs that one before it saves.
+ * problems (today only its unit test calls it; the Controls panel writes through
+ * `withGraphicArrange`, which cannot produce an unknown key).
  */
 export function readShowProfile(value: unknown): ProfileRead {
   if (!isObject(value)) return { status: 'none' };
@@ -209,6 +211,18 @@ export function serializeShowProfile(profile: ShowProfile): ShowProfile {
   // said was a profile and was not. An empty canonical profile is the answer that cannot lie.
   if (read.status !== 'ok') return emptyProfile();
   return { v: PROFILE_VERSION, arrange: orderArrange(read.profile.arrange) };
+}
+
+/**
+ * THE BYTES A PUBLISH PINS (`control_shows.profile`) for whatever the record holds: the canonical
+ * form when this build reads it, so a removed `combine` list never reaches the column; the raw
+ * bytes when a newer build wrote it, which this build must not rewrite; and `{}`, the column's
+ * own default, for no profile.
+ */
+export function profileForPublish(value: unknown): unknown {
+  const read = readShowProfile(value);
+  if (read.status === 'ok') return serializeShowProfile(read.profile);
+  return read.status === 'read-only' ? read.raw : {};
 }
 
 function orderArrange(arrange: ProfileArrange): ProfileArrange {

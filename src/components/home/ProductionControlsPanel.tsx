@@ -197,8 +197,8 @@ export default function ProductionControlsPanel({
                   >
                     ⣿
                   </span>
-                  {/* THE ONLY TEXT BOX IN THE PANEL, and it takes a NAME — never a value, a
-                      number of seconds or an expression (§6b: the profile has no place for one).
+                  {/* THE ONLY TEXT BOX IN THE PANEL, and it takes a NAME — never a value or
+                      an expression (§6b: the profile has no place for one).
                       Empty is a real answer: it means "as the graphic declared it". */}
                   <input
                     className="pd-controls-name"

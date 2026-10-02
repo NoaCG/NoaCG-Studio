@@ -1663,10 +1663,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * a Map because a pool graphic's name is somebody's typed text.
    */
   const poolMachines = useMemo(() => {
-    const out = new Map<
-      string,
-      { buttons: ControlButton[]; js: string }
-    >();
+    const out = new Map<string, { buttons: ControlButton[]; js: string }>();
     for (const g of pool ?? []) {
       const tpl = templateForSavedGraphic(g, library);
       // `js` rides along for the Next verb, which asks the same machine whether a press would

@@ -22,7 +22,6 @@ import type { SpxTemplate } from '../model/types';
 /** One pool graphic as the package ships it: the POOL name (the key the bindings use) beside the
  *  export-ready template. */
 export interface PackagedGraphic {
-  poolId: string;
   poolName: string;
   template: SpxTemplate;
 }

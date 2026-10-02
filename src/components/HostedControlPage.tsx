@@ -813,10 +813,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   /** One line of the activity feed that is NOT a command row: something this operator asked for
    *  that did not happen, which the feed is the only place on this surface to say. It is local
    *  to this page on purpose, because another operator's screen has its own presses. */
-  const feedNote = (text: string, graphic: string) => {
+  const feedNote = (text: string) => {
     setWireLog((l) =>
       appendLogEntries(l, [
-        { id: (localLogId.current -= 1), at: new Date().toISOString(), graphic, kind: 'note', text },
+        { id: (localLogId.current -= 1), at: new Date().toISOString(), graphic: '', kind: 'note', text },
       ]),
     );
   };
@@ -936,7 +936,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       rows: cues.map((c) => ({ id: c.id, label: c.label || c.graphic, kind: 'cue', source: 'graphic' })),
     }),
     (verb, target) => runVerb(verb, { repeat: false, cue: target }),
-    (text) => feedNote(text, ''),
+    feedNote,
   );
 
   const elapsedText = (() => {

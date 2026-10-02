@@ -143,7 +143,7 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
     const template = exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
     const name = slug(template.name);
     folderNames.push(name);
-    packaged.push({ poolId: graphic.id, poolName: graphic.name, template });
+    packaged.push({ poolName: graphic.name, template });
     fieldGraphics.push({ template, layer: spxLayers[i], file: `${name}/${name}.html` });
     projectTemplates.push({ relpath: `/${folder}/${name}/${name}.html`, settings: template.settings, fields: template.fields });
     await buildStarterInto(root.folder(name)!, template, {

@@ -12,7 +12,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
-import { readPublishedProfile, type ShowProfile } from '../model/profile';
+import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
 import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
@@ -516,8 +516,9 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). An empty object rather than null, on the 0048
     // precedent, so a production published without one reads as "no profile" instead of being
     // null-checked at every use. The profile carries its own `v` inside the jsonb, so the
-    // column never needs a version of its own.
-    profile: show.profile ?? {},
+    // column never needs a version of its own. A profile this build reads is published in its
+    // canonical form, which drops a removed `combine` list; one a newer build wrote goes verbatim.
+    profile: profileForPublish(show.profile),
     // A TEAM production's published row belongs to the team (migration 0054), which is what lets
     // any member republish or operate it and keeps its four links fixed whoever publishes. Named
     // only for a team production, so a personal publish writes exactly the columns it always did

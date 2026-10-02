@@ -195,8 +195,8 @@ CONTROL PROFILE - how this production presents the controls its graphics already
 optional beside `bindings`. It is ARRANGE: order, section, shown name, hidden and pinned, per pool
 graphic per control id. Its second primitive, COMBINE (named controls made of ordered steps), was
 removed on 2026-10-02 by the owner's ruling; a stored `combine` list is read without error and
-ignored. A profile may never invent an event or change what a press does, and
-`validateShowProfile` refuses any arrangement key it does not know by name. It is pinned at publish on `control_shows.profile` (migration
+ignored. A profile may never invent an event or change what a press does; the reader drops any
+arrangement key it does not know. It is pinned at publish on `control_shows.profile` (migration
 0058, jsonb, default `'{}'`), so a production published by an older build reads as no profile. The
 profile carries its own `v` inside itself, so adding it never bumped `Show.version`, and
 `readShowProfile` degrades a version this build does not know to READ-ONLY rather than erasing it.

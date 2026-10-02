@@ -31,6 +31,7 @@ const mod = await import(`data:text/javascript,${encodeURIComponent(js)}`);
 const {
   PROFILE_VERSION,
   emptyProfile,
+  profileForPublish,
   readShowProfile,
   readPublishedProfile,
   serializeShowProfile,
@@ -109,6 +110,14 @@ test('a stored profile that still carries Combined controls reads, renders its a
   const after = withGraphicArrange(legacyProfile(), 'Votes board', { reveal: { pinned: true } });
   assert.deepEqual(Object.keys(after), ['v', 'arrange']);
   assert.deepEqual(after.arrange['Totals board'], serializeShowProfile(goodProfile()).arrange['Totals board']);
+});
+
+test('a publish pins the canonical profile, keeps a newer build verbatim, and writes {} for none', () => {
+  // A legacy list never reaches `control_shows.profile`, whatever a sync left on the record.
+  assert.deepEqual(profileForPublish(legacyProfile()), serializeShowProfile(goodProfile()));
+  const future = { v: 2, arrange: {}, conditions: [{ when: 'score > 50' }] };
+  assert.equal(profileForPublish(future), future);
+  for (const none of [undefined, null, {}, 'garbage']) assert.deepEqual(profileForPublish(none), {});
 });
 
 test('serializing is canonical: key order and written defaults cannot change the bytes', () => {
