@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "d44d3d6f2194abed329f1ae6b901d8694da397e4042a106acfd3c38be0c07032",
+  "specSha256": "d33e72ef037db39e0893292e169eb3871def72381b5e92f792788047718fd65a",
   "authority": {
     "status": "agreed",
     "source": "the owner's studio-day feedback and his answers to the four questions of 2026-10-01 (server media gets Channel and Layer while NoaCG graphics stay on the output slot; the studio setup lives in the Bridge per server; one status control and one Playout panel with grey offline, amber attention, green healthy, red broken, no Go live yet; every publish also prepares)"

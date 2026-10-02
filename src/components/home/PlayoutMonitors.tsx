@@ -91,8 +91,9 @@ export default function PlayoutMonitors({
   onReady: () => void;
   /** The field ids PREVIEW reports as too long to fit, each time the answer changes. */
   onOverflow: (keys: string[]) => void;
-  /** The production is started, so a Take goes on the wire. Not started, a Take plays on this
-   *  monitor only, and the monitor must not call itself on air. */
+  /** Something this page sends is on air: the production is started, or server media is up through
+   *  NoaCG Bridge (which plays whether or not it is). Otherwise a Take plays on this monitor only,
+   *  and the monitor must not call itself on air. */
   live?: boolean;
 }) {
   const previewIframe = useRef<HTMLIFrameElement>(null);
@@ -234,7 +235,8 @@ export default function PlayoutMonitors({
       {/* ON AIR ONLY WHEN IT IS (docs/work-specs/studio-day-playout AC-9; owner, 2026-10-01). A
           production that is not started keeps every verb on this page, so its Takes land here and
           nowhere else; calling the monitor PROGRAM · ON AIR then is how an operator once believed
-          a show was live that was not. Not started, it reads PREVIEW · NOT LIVE in grey. */}
+          a show was live that was not. Not started, it reads PREVIEW · NOT LIVE in grey - unless
+          a server clip is up, which NoaCG Bridge airs either way, and then it is on air. */}
       <div className={`pd-monitor pd-pgm${live ? '' : ' pd-pgm--not-live'}`} data-live={live ? 'true' : 'false'} data-testid="program-monitor">
         <h2>
           <span className="pd-dot" aria-hidden="true" />

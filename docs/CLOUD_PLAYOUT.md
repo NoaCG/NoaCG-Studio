@@ -588,7 +588,9 @@ and has reported ready, red when something that should work is broken (the Bridg
 answering, the output slot empty, holding another production or unreadable, an output not
 responding, a graphic that cannot play). A press opens the Playout panel, which names the check
 behind the colour, then the outputs, the actions, the setup and the links. The monitor says the
-same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not. There
+same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not, except
+while server media this page took is playing: NoaCG Bridge airs that either way, so the monitor is
+on air then too. There
 is no third state and no mode to choose.
 
 A REHEARSE mode was built and then removed (`docs/PLAYOUT_DASHBOARD.md` §6). It was a second way

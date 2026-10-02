@@ -3827,7 +3827,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             back the height the bar was using. Below it, the bar returns underneath. */}
         <div className="pd-stagehead">
         <PlayoutMonitors
-          live={!!hostedSlug}
+          // Server media goes through NoaCG Bridge whether or not the production is started, so
+          // with a clip up the monitor is showing air even offline (studio-day-playout D16).
+          live={started || livePlayoutLayers.length > 0}
           stage={stage}
           previewDoc={previewDoc}
           previewTemplate={previewTemplate}

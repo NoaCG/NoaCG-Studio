@@ -93,6 +93,12 @@ The core playout path worked all day. What cost time was uncertainty and setup:
   not excuse an empty slot; a `/state` read the server refuses (a channel it does not have) reads
   red "Cannot read 3-20" with the Bridge's sentence. All three were measured on the real server
   (evidence/landing-2.md). Revert: `readyAny` and the `failed` reading in `control/playoutStatus.ts`.
+- **D16. The monitor is on air when anything this page sends is.** Server media plays through
+  NoaCG Bridge whether or not the production is started, so with a clip up the monitor reads
+  PROGRAM · ON AIR even offline; it reads PREVIEW · NOT LIVE only when nothing this page sends
+  reaches air. Never NOT LIVE over a clip that is playing. Revert: `live` in `ProductionPage`.
+  The rundown's ON AIR chip and the "on air:" line under the verbs still say ON AIR for a local
+  take in an offline production (docs/backlog/on-air-words-in-an-offline-production.md).
 
 ## Behaviour
 
@@ -158,7 +164,8 @@ separate header controls.
 ### AC-9: The monitor says whether it is on air
 
 The page's monitor reads PROGRAM · ON AIR when the production is live and PREVIEW · NOT LIVE when
-it is not started, so a Take that stays on the page is never mistaken for one on air.
+it is not started, so a Take that stays on the page is never mistaken for one on air. Server media
+on air through the Bridge counts as live (D16).
 
 ### AC-10: Every publish prepares the open outputs
 
