@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.7.0 - unreleased
+## 0.7.1 - unreleased
 
 **New: see every state of a graphic, at any moment, over video.** `noacg screenshot` takes
 `--event` (repeatable) to drive the graphic the way an operator does after the Take: its own
@@ -21,6 +21,14 @@ video-like plate behind the graphic; a colour, `checker` or your own image work 
 `validate --screenshots` now also writes one frame per state the graphic's events reach, such as
 `pp-b.png` or `timer-running.png`, and prints the presses that reproduce each one. Frames without
 these flags are unchanged.
+
+**New: the MCP server sees those states too.** The `noacg` tool's `screenshot` verb takes
+`events`, `at` and `background`, the same as `noacg screenshot --event/--at/--background`, and
+answers with the frame and the machine state it shows. `validate` with `screenshots: true` returns
+one frame per state the events reach, each named with the presses that reproduce it, and takes
+`background` as well.
+
+## 0.7.0 - 2026-10-02
 
 **New: `noacg bridge` remembers your CasparCG servers.** The servers NoaCG connects to through the
 Bridge are kept in `caspar-servers.json` next to the Bridge's token, so a browser that pairs gets

@@ -587,6 +587,11 @@ tokens; the one name about 13). And the Anthropic tokenizer will not give exactl
 will be within the spread of the two public tokenizers (o200k 590 / cl100k 568) rather than off
 by a factor.
 
+Since then the one tool has grown with its verbs. Measured 2026-10-02 the same way (the rendered
+`tools/list` object, in characters): 2,771 with `pack`, and 3,109 once `screenshot` took `events`,
+`at` and `background` and `validate` took `background`, about 750 tokens at the ratio measured
+above (not re-tokenized). The ceiling in `cli/test/mcp.test.mjs` moved from 2,800 to 3,400 with it.
+
 **What changed, and why the split rather than a lazy start.** The seven tools became one
 (`cli/src/mcp.ts`; every description one line about dispatch, a character ceiling on the rendered
 schema pinned by `cli/test/mcp.test.mjs`), the skill description was cut with every trigger

@@ -30,14 +30,23 @@
 //   - a verb missing its argument, or given one it does not read, is a usage error naming the
 //     argument, not a bridge attempt and never a silent drop.
 //   - the doc topics are also resources, and an unknown topic is an error rather than a hang.
+//   - `screenshot` and `validate` take the state-render arguments the terminal takes (`--event`,
+//     `--at`, `--background`), refuse a wrong one before any bridge is reached, and - against a
+//     live bridge only - render the same frame the terminal does.
 //
-// Nothing here starts a browser or reaches a deployment: NOACG_URL points at a closed port, and
-// only the verbs that need no bridge are ever CALLED.
+// Nothing above the live section starts a browser or reaches a deployment: NOACG_URL points at a
+// closed port, and only the verbs that need no bridge are ever CALLED. The live section drives
+// the state-timer fixture against NOACG_URL and skips itself when no bridge answers there, like
+// screenshot-states.test.mjs.
 //
 // Run `npm run build` first - this drives the built `dist/`.
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { before, test } from 'node:test';
 
@@ -72,24 +81,27 @@ const EXPECTED_ARGUMENTS = {
   screenshots: ['validate'],
   state: ['screenshot'],
   data: ['screenshot'],
+  events: ['screenshot'],
+  at: ['screenshot'],
+  background: ['validate', 'screenshot'],
   topic: ['docs'],
   folder: ['save'],
   rundown: ['pack'],
 };
 
 /** The schema's size ceiling, in characters of the JSON an MCP client receives. The measured
- *  shape is about 2,450 characters (~590 tokens); the ceiling leaves room for a verb, not for
- *  prose. Raise it only with a measurement in docs/AGENT_CLI.md "What a session pays". */
-const SCHEMA_CHAR_CEILING = 2800;
+ *  shape is about 3,110 characters (~750 tokens, 2026-10-02); the ceiling leaves room for a verb,
+ *  not for prose. Raise it only with a measurement in docs/AGENT_CLI.md "What a session pays". */
+const SCHEMA_CHAR_CEILING = 3400;
 
-/** Connect a real MCP client to `noacg mcp` over stdio, run `fn`, always close. */
-async function withServer(fn) {
+/** Connect a real MCP client to `noacg mcp` over stdio, run `fn`, always close. `url` is the
+ *  deployment the server may reach; by default a closed port, so any verb that tried to reach one
+ *  would fail fast rather than quietly driving the developer's own studio. */
+async function withServer(fn, url = 'http://127.0.0.1:1') {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [cli, 'mcp'],
-    // A closed port, so any verb that tried to reach a deployment would fail fast rather than
-    // quietly driving the developer's own studio.
-    env: { ...process.env, NOACG_URL: 'http://127.0.0.1:1', NOACG_AGENT_KEY: '' },
+    env: { ...process.env, NOACG_URL: url, NOACG_AGENT_KEY: '' },
     stderr: 'ignore',
   });
   const client = new Client({ name: 'noacg-cli-test', version: '0' });
@@ -201,4 +213,78 @@ test('a resource returns the same markdown the tool does', async () => {
   ]);
   assert.equal(viaResource.contents[0].mimeType, 'text/markdown');
   assert.equal(viaResource.contents[0].text, viaTool.content[0].text);
+});
+
+// ------------------------------------------------------------------ state renders, refused offline
+
+const fixture = path.join(here, 'fixtures', 'state-timer');
+
+test('the state-render arguments are checked before any bridge is reached', async () => {
+  const refusals = [
+    [{ command: 'screenshot', path: fixture, state: 'off', events: ['reveal'] }, /start from a Take/],
+    [{ command: 'screenshot', path: fixture, at: 'soon' }, /"at" expects a duration/],
+    [{ command: 'screenshot', path: fixture, background: 'red;x' }, /--background is transparent, checker, video/],
+    [{ command: 'validate', path: fixture, background: 'video' }, /"background" only with "screenshots"/],
+  ];
+  await withServer(async (client) => {
+    for (const [args, said] of refusals) {
+      const result = await call(client, args);
+      assert.equal(result.isError, true, `${JSON.stringify(args)} should refuse`);
+      assert.match(result.content[0].text, said);
+    }
+  });
+});
+
+// ------------------------------------------------------------------ state renders, live
+
+const liveUrl = process.env.NOACG_URL?.replace(/\/+$/, '');
+async function bridgeUp() {
+  if (!liveUrl) return false;
+  try {
+    return (await fetch(`${liveUrl}/bridge`, { signal: AbortSignal.timeout(5000) })).ok;
+  } catch {
+    return false;
+  }
+}
+const live = (await bridgeUp()) ? false : `no NoaCG bridge at NOACG_URL=${liveUrl ?? '(unset)'} - start a dev server and set NOACG_URL`;
+const exec = promisify(execFile);
+
+/** The frame the terminal writes for the same request, to hold the MCP image against. */
+async function terminalFrame(...flags) {
+  const file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-')), 'frame.png');
+  await exec(process.execPath, [cli, 'screenshot', fixture, '--out', file, ...flags], { env: { ...process.env, NOACG_URL: liveUrl } });
+  return fs.readFile(file);
+}
+const imageOf = (result) => Buffer.from(result.content.find((c) => c.type === 'image').data, 'base64');
+const textOf = (result) => result.content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+
+test('screenshot drives an event sequence to a moment, says the machine, and matches the terminal', { skip: live }, async () => {
+  const result = await withServer((client) => call(client, { command: 'screenshot', path: fixture, events: ['startTimer'], at: '10.5s' }), liveUrl);
+  assert.notEqual(result.isError, true, textOf(result));
+  assert.match(textOf(result), /take > startTimer, then 10500 ms/);
+  assert.match(textOf(result), /timer=running/);
+  assert.ok(imageOf(result).equals(await terminalFrame('--event', 'startTimer', '--at', '10.5s')), "the MCP frame is the terminal's frame");
+});
+
+test('screenshot paints a background behind the graphic, as the terminal does', { skip: live }, async () => {
+  const [plain, red] = await withServer(
+    async (client) => [
+      await call(client, { command: 'screenshot', path: fixture, events: ['reveal'] }),
+      await call(client, { command: 'screenshot', path: fixture, events: ['reveal'], background: '#ff0000' }),
+    ],
+    liveUrl,
+  );
+  assert.notEqual(red.isError, true, textOf(red));
+  assert.ok(!imageOf(plain).equals(imageOf(red)), 'the background changes the frame');
+  assert.ok(imageOf(red).equals(await terminalFrame('--event', 'reveal', '--background', '#ff0000')), "the MCP frame is the terminal's frame");
+});
+
+test('validate with screenshots returns a frame per state the events reach, and the events that reach it', { skip: live }, async () => {
+  const pkg = path.join(await fs.mkdtemp(path.join(os.tmpdir(), 'noacg-mcp-')), 'pkg');
+  await fs.cp(fixture, pkg, { recursive: true });
+  const result = await withServer((client) => call(client, { command: 'validate', path: pkg, screenshots: true, background: 'video' }), liveUrl);
+  const labels = result.content.map((c, i) => (c.type === 'text' && result.content[i + 1]?.type === 'image' ? c.text : null)).filter(Boolean);
+  assert.deepEqual(labels.slice(0, 3), ['off:', 'onair:', 'stress:']);
+  assert.ok(labels.some((l) => l.startsWith('timer-running:') && l.includes('["startTimer"]')), `labels: ${labels.join(' | ')}`);
+  assert.ok(labels.some((l) => l.startsWith('main-revealed:')), `labels: ${labels.join(' | ')}`);
 });
