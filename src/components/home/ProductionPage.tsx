@@ -3437,7 +3437,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     },
     // Only the verbs whose key names a row or a clip read it; the rest act on the selection.
     (verb, target) => onVerb(verb, { repeat: false, ...(verb === 'select-cue' || verb === 'take-cue' || verb === 'pause-toggle' ? { cue: target } : {}) }),
-    (text) => feedNote(text, ''),
+    // A refused press is a note in the activity feed, not a command row: nothing was sent.
+    (text) =>
+      setWireLog((l) =>
+        appendLogEntries(l, [{ id: (localLogId.current -= 1), at: new Date().toISOString(), graphic: '', kind: 'note', text }]),
+      ),
   );
 
   /** THE ONE PLAYOUT STATUS (control/playoutStatus.ts): whether this production can air, worst
