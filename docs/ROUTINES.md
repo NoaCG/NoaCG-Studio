@@ -14,8 +14,10 @@ while Claude Code is open.
 | **Weekly owner session** | **Tuesdays 09:15** | `weekly-owner-session` | **every week - this is his gate** |
 | Competitor review | 1st of the month, 10:00 | `monthly-competitor-review` | monthly |
 | Quality / refactor review | 15th of the month, 10:00 | `monthly-quality-review` | monthly |
+| What's new draft | Mondays and Thursdays 08:30 | `whats-new-twice-weekly` | a pull request to review, when something big landed |
 
-Five routines, and he attends one of them. That is the shape to keep.
+Six routines. He attends one of them, and while the What's new style settles he also reviews the
+draft it opens. That is the shape to keep.
 
 ## The two rules
 
@@ -25,12 +27,20 @@ refuses every queued landing while `git status --porcelain` is non-empty there, 
 untracked file jams the merge queue for the whole morning. The three files routines are allowed to
 write all end in `.local.md`, which `.gitignore` carries for exactly this reason.
 
-**The one exception, written here so it cannot widen quietly:** the monthly quality review files its
-findings under `docs/backlog/` on a BRANCH, through the ordinary landing flow, and only when the
-primary checkout is clean and on `main`. It is an exception because a ranked finding that exists
-only in a chat log is gone by Tuesday, and because the shelf is how `/orchestrator` picks up spare
-capacity. No other routine may write a tracked file, and this one may not write anything outside
-`docs/backlog/`.
+**The two exceptions, written here so they cannot widen quietly:**
+
+- The monthly quality review files its findings under `docs/backlog/` on a BRANCH, through the
+  ordinary landing flow, and only when the primary checkout is clean and on `main`. It is an
+  exception because a ranked finding that exists only in a chat log is gone by Tuesday, and because
+  the shelf is how `/orchestrator` picks up spare capacity. It may not write anything outside
+  `docs/backlog/`.
+- The What's new draft writes one new note under `docs/whats-new/`, in its own worktree on a
+  branch, and opens a pull request for the owner. It never queues it, never enables auto-merge and
+  never runs `/queue-merge`: he reviews and lands it (owner, 2026-10-02). It is an exception
+  because the public `/whats-new` page only stays alive if a note appears about twice a week. It
+  may not write anything outside `docs/whats-new/`.
+
+No other routine may write a tracked file.
 
 **Silence is the default on a daily.** A routine that speaks every morning is a routine that gets
 skimmed and then ignored. The morning brief says nothing on a clean night, and that is not a bug to
@@ -238,6 +248,17 @@ produce ranked findings. They keep different write permissions - the competitor 
 block for a session to append, this one files to `docs/backlog/` on a branch - and fusing two
 permission regimes into one prompt is how a routine quietly gains access it should not have.
 
+## Twice weekly - the What's new draft
+
+`whats-new-twice-weekly`, Mondays and Thursdays 08:30. `npm run whats-new:draft` gathers what
+landed since the newest note and what the CLI and Bridge changelogs say; the run writes a short
+note by `docs/whats-new/README.md`, passes `npm run check:whats-new`, and opens a pull request, or
+says "nothing big landed" and writes nothing. Review-first while the style settles: the owner reads
+every note before it lands, and lands it like any branch, with `/queue-merge` from the worktree
+the run left behind (the required `Reviewed` check waits for the status `/queue-merge` posts, so a
+merge button on GitHub does not get it into the queue). Once he says the style is settled the routine may queue its own pull
+request, and this section and the exception above change in the same commit.
+
 ## What the table used to claim
 
 Recorded because it is the failure mode this file exists to prevent, and it took a direct question
@@ -259,8 +280,8 @@ The three superseded tasks - `nightly-ci-morning-report`, `weekly-feedback-and-f
 `weekly-orchestrator-review` - are **disabled, not deleted**, and their descriptions say what
 replaced them. They are years of tuning that took real incidents to earn, and a disabled task costs
 nothing; if a merged routine turns out worse than the pair it replaced, the old prompt is still
-there. Listing the scheduler therefore shows eight tasks, five of them enabled, which is why the
-table above is the one that counts.
+there. Listing the scheduler therefore shows more tasks than the table, the three disabled ones
+among them, which is why the table above is the one that counts.
 
 ## The parked mail digest
 
