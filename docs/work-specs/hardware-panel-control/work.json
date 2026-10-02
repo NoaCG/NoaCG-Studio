@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "decb4a784beec7a2d420e86253ffe76a6b38d664b28e0ed9c78ae613a5ae2925",
+  "authority": {
+    "status": "agreed",
+    "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md) and the build prompt of 2026-10-02"
+  },
+  "review": null
+}

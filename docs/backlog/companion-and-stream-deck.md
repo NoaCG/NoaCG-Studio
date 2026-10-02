@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-28
 state: advanced
-note: "Researched and decided: docs/HARDWARE_CONTROL_RESEARCH.md landed in c029d2450, and the owner chose its suggestion on 2026-10-01 (recorded below). Still missing: the build itself, about four weeks (the research's section 10)."
+note: "Researched and decided: docs/HARDWARE_CONTROL_RESEARCH.md landed in c029d2450, and the owner chose its suggestion on 2026-10-01 (recorded below). The build spec and wire protocol landed in docs/work-specs/hardware-panel-control/; still missing: the Companion module, the server side and the page side."
 asked: "Built for Companion and Stream Deck: their integration is a later task, but nothing built now may make it harder. Every operator action a named command through the one verb dispatcher and keymap; every state a hardware button would show plain data from one place; it connects through the Bridge's local HTTP (paraphrase of the phase 2 work prompt, 2026-09-28)"
 size: standard
 touches: supabase/migrations/, src/control/serverState.ts, src/control/serverPlayoutStore.ts, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx
@@ -63,7 +63,8 @@ broadcast to the answering page:
   panel key never reaches Bridge, so a panel never holds the credential that sends raw AMCP.
 
 The design sketch, the cases (two tabs, phone page, outages) and a build estimate of about four weeks
-are in `docs/HARDWARE_CONTROL_RESEARCH.md` §10.
+are in `docs/HARDWARE_CONTROL_RESEARCH.md` §10. The build's acceptance criteria and wire protocol are
+`docs/work-specs/hardware-panel-control/spec.md` and `protocol.md`.
 
 **The actions**, each already a NAMED verb in `src/components/playoutKeys.ts` and dispatched by the
 production page's `onVerb`:
