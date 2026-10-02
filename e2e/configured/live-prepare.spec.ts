@@ -14,13 +14,12 @@
 
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
-import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
+import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishFromPanel, type ReadyWindow } from './_helpers';
 
 test.skip(!haveCreds, 'E2E_EMAIL / E2E_PASSWORD unset — configured-mode spec');
 
 const shot = (name: string) => (process.env.READY_SHOTS ? `${process.env.READY_SHOTS}/prepare-${name}.png` : test.info().outputPath(`${name}.png`));
 
-type ReadyWindow = { __noacgLive?: { presence: () => string; ready: () => { n: number; of: number; v: { n: number } | null } } };
 
 /** Open the READY panel if it is shut. */
 async function openPanel(page: Page, testId: string): Promise<void> {
@@ -67,7 +66,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   const presence = () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence());
   await expect.poll(presence, { timeout: 30_000 }).not.toBe('joining');
   test.skip((await presence()) !== 'joined', 'this server has no live topic (migration 0068): Prepare for Live rides Presence');
-  await expect.poll(async () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().n), { timeout: 30_000 }).toBe(1);
+  await expect.poll(async () => (await readyOf(air))?.n, { timeout: 30_000 }).toBe(1);
   const desk = page.getByTestId('production-status');
   await expect(desk).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
 
@@ -124,7 +123,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2');
   await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d \(v2\)/i, { timeout: 90_000 });
   // A cue-only change moved the number, not what the output renders: it prepared nothing, and holds v1.
-  expect((await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n).toBe(1);
+  expect((await readyOf(air))?.v?.n).toBe(1);
 
   // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
   //    save does, with the production record untouched. It is still an unpublished change (a
@@ -150,7 +149,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await page.getByTestId('prepare-for-live-button').click();
   await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v3', { timeout: 90_000 });
   await expect
-    .poll(async () => (await air.evaluate(() => (window as ReadyWindow).__noacgLive!.ready().v))?.n ?? 0, { timeout: 90_000 })
+    .poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 90_000 })
     .toBe(3);
 
   // ── AC-11: an output that has gone makes the stamp say so. ──

@@ -23,8 +23,12 @@ export type ReadyWindow = {
     ready: () => { n: number; of: number; v: { n: number; h: string } | null; is: { k: string; g?: string; d?: string }[] };
   };
 };
-/** An output page's own READY answer, or null before it has one. */
-export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null);
+/**
+ * An output page's own READY answer, or null before it has one. Also null while the page is
+ * RELOADING: an output moves onto a newer version by reloading itself (src/output/prepare.ts), and
+ * `expect.poll` gives up on the first thrown error, so a read inside that reload must not throw.
+ */
+export const readyOf = (air: Page) => air.evaluate(() => (window as ReadyWindow).__noacgLive?.ready() ?? null).catch(() => null);
 
 /**
  * Unpublish the open production through its Playout panel, opening the panel first when it is
