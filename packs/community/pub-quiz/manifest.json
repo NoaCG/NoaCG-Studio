@@ -1,0 +1,28 @@
+{
+  "name": "Pub Quiz",
+  "description": "A four-answer quiz board with a round and question counter, a countdown timer and an answer reveal, with a ready first round.",
+  "author": "NoaCG",
+  "graphics": [
+    { "slug": "pub-quiz", "name": "Pub Quiz", "type": "quiz", "layer": 20, "fps": 25 }
+  ],
+  "cues": [
+    {
+      "graphic": "Pub Quiz", "label": "Round 1 - question 1",
+      "values": { "f0": "Which planet is known as the Red Planet?", "f1": "Venus", "f2": "Mars", "f3": "Jupiter", "f4": "Saturn", "f5": "B", "f6": "1", "f7": "1" },
+      "note": "Take shows the question. Continue reveals the answer. Start timer runs the countdown."
+    },
+    {
+      "graphic": "Pub Quiz", "label": "Round 1 - question 2",
+      "values": { "f0": "How many strings does a standard violin have?", "f1": "Four", "f2": "Five", "f3": "Six", "f4": "Seven", "f5": "A", "f6": "1", "f7": "2" }
+    },
+    {
+      "graphic": "Pub Quiz", "label": "Round 1 - question 3",
+      "values": { "f0": "Which ocean is the largest?", "f1": "Atlantic", "f2": "Indian", "f3": "Arctic", "f4": "Pacific", "f5": "D", "f6": "1", "f7": "3" }
+    },
+    {
+      "graphic": "Pub Quiz", "label": "Round 1 - question 4",
+      "values": { "f0": "What is the chemical symbol for gold?", "f1": "Ag", "f2": "Gd", "f3": "Au", "f4": "Go", "f5": "C", "f6": "1", "f7": "4" },
+      "note": "Write your own questions into the cue fields - the design stays as it is."
+    }
+  ]
+}

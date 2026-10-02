@@ -37,6 +37,8 @@ import { browsableCategories, browsableGroups, type TemplateMeta } from '../../.
 import type { TemplatePack } from '../../../templates/packs';
 import MiniPreview from '../MiniPreview';
 import KitPicker from './KitPicker';
+import CommunityPacks from './CommunityPacks';
+import type { Show } from '../../../model/shows';
 import ProjectFormatPicker from '../../ProjectFormatPicker';
 import { useMyEntitlement } from '../../useMyEntitlement';
 import {
@@ -67,11 +69,28 @@ interface Props {
   kitSelected: string[];
   onKitPack: (pack: TemplatePack) => void;
   onKitSelected: (keys: string[]) => void;
+  /** A community pack was installed: the production exists and the wizard opens it. */
+  onPackInstalled: (show: Show) => void;
 }
 
 /** What this walk is going to produce. The step asks it first because everything below the
- *  switch answers to it: a design grid answers "which graphic", a kit picker "which show". */
-export type BuildMode = 'one' | 'kit';
+ *  switch answers to it: a design grid answers "which graphic", a kit picker "which show", and
+ *  the community shelf "which finished package" (the owner's three categories, 2026-10-02:
+ *  Templates, Kits, Community packs - docs/work-specs/community-packs/spec.md). */
+export type BuildMode = 'one' | 'kit' | 'community';
+
+/** What the one search box above the branch searches, said per answer. */
+const SEARCH_COPY: Record<BuildMode, { placeholder: string; label: string }> = {
+  one: {
+    placeholder: 'Search all templates, for example “name graphic”, “countdown”, “church verse”…',
+    label: 'Search templates',
+  },
+  kit: {
+    placeholder: 'Search kits and graphics, for example “church”, “esports”, “ticker”…',
+    label: 'Search kits and graphics',
+  },
+  community: { placeholder: 'Search community packs, for example “quiz”…', label: 'Search community packs' },
+};
 
 type SortMode = 'relevance' | 'simplest' | 'name' | 'name-desc';
 
@@ -319,6 +338,7 @@ export default function BrowseStep({
   kitSelected,
   onKitPack,
   onKitSelected,
+  onPackInstalled,
 }: Props) {
   const set = (patch: Partial<BrowseFilters>) => onFilters((prev) => ({ ...prev, ...patch }));
   // One detail panel open at a time — the grid stays readable and Escape has one target.
@@ -487,6 +507,15 @@ export default function BrowseStep({
           <strong>A whole kit</strong>
           <span className="hint">About ten graphics for one kind of show, in one Style.</span>
         </button>
+        <button
+          className={`wz-buildmode-opt ${buildMode === 'community' ? 'active' : ''}`}
+          aria-pressed={buildMode === 'community'}
+          onClick={() => onBuildMode('community')}
+          data-build-mode="community"
+        >
+          <strong>Community packs</strong>
+          <span className="hint">Finished packages, ready to run. Install and go.</span>
+        </button>
       </div>
 
       {/* ONE SEARCH BOX, BOTH SIDES OF THE SWITCH — it is above the branch, not inside the
@@ -498,14 +527,10 @@ export default function BrowseStep({
       <input
         className="wz-browse-search"
         type="search"
-        placeholder={
-          buildMode === 'kit'
-            ? 'Search kits and graphics, for example “church”, “esports”, “ticker”…'
-            : 'Search all templates, for example “name graphic”, “countdown”, “church verse”…'
-        }
+        placeholder={SEARCH_COPY[buildMode].placeholder}
         value={filters.query}
         onChange={(e) => set({ query: e.target.value })}
-        aria-label={buildMode === 'kit' ? 'Search kits and graphics' : 'Search templates'}
+        aria-label={SEARCH_COPY[buildMode].label}
       />
 
       {/* Project format - the graphic's own frame, NOT a facet: nothing here narrows the
@@ -517,14 +542,20 @@ export default function BrowseStep({
       {/* No description line: the rail's foot now carries the format read-back for the whole
           walk, so repeating "choose the authored canvas" above it is one sentence of chrome
           on the step whose job is picking a design. */}
-      <ProjectFormatPicker
-        value={draftFormatSelection(draft)}
-        onChange={(selection) => onDraft(formatDraftPatch(selection))}
-        idPrefix="browse-format"
-        className="wz-browse-format"
-      />
+      {/* A community pack carries its own frame and cannot be changed, so the format question
+          has nothing to answer on the shelf and stands down there. */}
+      {buildMode !== 'community' && (
+        <ProjectFormatPicker
+          value={draftFormatSelection(draft)}
+          onChange={(selection) => onDraft(formatDraftPatch(selection))}
+          idPrefix="browse-format"
+          className="wz-browse-format"
+        />
+      )}
 
-      {buildMode === 'kit' ? (
+      {buildMode === 'community' ? (
+        <CommunityPacks query={filters.query} onClearQuery={() => set({ query: '' })} onInstalled={onPackInstalled} />
+      ) : buildMode === 'kit' ? (
         <KitPicker
           pack={kitPack}
           selected={kitSelected}

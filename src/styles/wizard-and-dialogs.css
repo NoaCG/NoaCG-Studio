@@ -953,15 +953,15 @@
    shared value would spend the step height they are short of. */
 .wz-entry .wz-entry-head + .hint { min-height: calc(3 * 1.4em); }
 
-/* ── ONE GRAPHIC, OR A WHOLE KIT ─────────────────────────────────────────────────────────
-   The Browse step's first question, as a segmented control. Two options in one bordered
-   track: the pair reads as one control with a chosen side rather than as two buttons that
-   happen to sit together, which is the difference between "a switch" and "a decision I have
-   already made twice". Deliberately roomy - each side carries a line of what it produces,
-   because "kit" is a word the product is teaching. */
+/* ── ONE GRAPHIC, A WHOLE KIT, OR A COMMUNITY PACK ───────────────────────────────────────
+   The Browse step's first question, as a segmented control. Three options in one bordered
+   track (the owner's three categories, 2026-10-02): the set reads as one control with a chosen
+   side rather than as buttons that happen to sit together, which is the difference between "a
+   switch" and "a decision I have already made twice". Deliberately roomy - each side carries a
+   line of what it produces, because "kit" and "pack" are words the product is teaching. */
 .wz-buildmode {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--border);
@@ -1117,6 +1117,44 @@
 .wz-kit-others:not([open]) > *:not(summary) { display: none; }
 .wz-kit-others > summary { cursor: pointer; }
 .wz-kit-others[open] > summary { margin-bottom: 10px; }
+
+/* ── COMMUNITY PACKS (Browse's third half): finished packages, one Install each ──────────
+   A pack is chosen by what it LOOKS like on air, so the preview leads the card at full card
+   width, over a dark plate: the frame is transparent where the programme shows through, and a
+   white page behind it would read as a white graphic. One action per card, at its foot - a
+   pack has nothing to configure before it is installed. */
+.wz-community { display: flex; flex-direction: column; gap: 14px; }
+.wz-community-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.wz-community-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.wz-community-preview {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #1d2430 0%, #0d1117 100%);
+}
+.wz-community-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0 2px; }
+.wz-community-body strong { font-size: 14px; font-weight: 600; }
+.wz-community-body .hint { font-size: 12px; }
+.wz-community-meta { font-size: 11px; color: var(--text-dim); }
+.wz-community-install { align-self: flex-start; }
+.wz-community-error { margin: 0; font-size: 12px; color: var(--danger); }
 
 /* An "add more" card is offered, not shipped, so it reads quieter than the kit's own until
    it is ticked - and a ticked one reads exactly like a pack card, because at that point it

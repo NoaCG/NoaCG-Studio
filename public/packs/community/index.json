@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "pub-quiz",
+      "name": "Pub Quiz",
+      "description": "A four-answer quiz board with a round and question counter, a countdown timer and an answer reveal, with a ready first round.",
+      "author": "NoaCG",
+      "graphics": 1,
+      "cues": 4,
+      "file": "pub-quiz.noacgpack.json",
+      "preview": "pub-quiz.webp"
+    }
+  ]
+}
