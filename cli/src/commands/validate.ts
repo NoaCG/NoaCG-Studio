@@ -16,8 +16,8 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { BridgeClient, type BridgeValidation, type NormalizeResult, type SpxTemplate } from '../bridgeClient.js';
 import { ografBench } from '../ografBench.js';
-import { EXIT_FINDINGS, EXIT_OK, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
-import { resolveBackground, shoot, walkStates } from '../screenshot.js';
+import { EXIT_FINDINGS, EXIT_OK, EXIT_USAGE, flagBool, flagString, refuseBareFlags, refuseStrayArgs, UsageError, type Out, type ParsedArgs } from '../output.js';
+import { describeUnreached, resolveBackground, shootValidateFrames, type ValidateFrames } from '../screenshot.js';
 import { markFramesDir, packageEntries, readPackageInput, removeStaleGenerated, unzipTo } from '../workspace.js';
 
 const STATE_WORD: Record<string, string> = { pass: 'PASS', warn: 'WARN', fail: 'FAIL', untested: 'UNTESTED' };
@@ -56,7 +56,7 @@ export async function sourcesOf(dir: string, template: SpxTemplate): Promise<Rec
   return { [html]: await read(html), 'css/template.css': await read('css/template.css'), 'js/template.js': await read('js/template.js') };
 }
 
-type Thumbnail = { png: Uint8Array; width: number; height: number };
+export type Thumbnail = NonNullable<ValidateFrames['thumbnail']>;
 
 /**
  * Regenerate a package in place from its normalized sources. Shared by the terminal and the MCP
@@ -154,45 +154,30 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     const validation = await bridge.validate(template, { bench, houseContract });
     Object.assign(report, { ok: validation.ok, validation, normalize: { ...normalized, template: undefined }, stale: pkg.imported.noacg?.stale ?? false });
 
-    let thumbnail: { png: Uint8Array; width: number; height: number } | undefined;
+    let thumbnail: ValidateFrames['thumbnail'];
     const stateLines: string[] = [];
+    let shotFailure: string | undefined;
     if (shotsDir) {
       const dir = path.resolve(shotsDir);
       await fs.mkdir(dir, { recursive: true });
-      const size = { width: template.resolution.width, height: template.resolution.height };
+      // off, onair, stress, then every machine state the graphic's events reach, one frame each.
+      const shot = await shootValidateFrames(bridge, template, { background });
       const shots: Record<string, string> = {};
-      let offHtml = '';
-      for (const state of ['off', 'onair', 'stress'] as const) {
-        const html = await bridge.compose(template, state);
-        if (state === 'off') offHtml = html;
-        const file = path.join(dir, `${state}.png`);
-        const png = await shoot(bridge.bench, bridge.origin, html, file, { ...size, background });
-        shots[state] = file;
-        // The thumbnail is the graphic itself, never the ground it was judged on.
-        if (state === 'onair') thumbnail = { png: background ? await shoot(bridge.bench, bridge.origin, html, undefined, size) : png, ...size };
-      }
-      // Then every machine state the graphic's events reach, one frame each.
-      const inspection = await bridge.inspect({ template });
-      const frames = await walkStates(bridge.origin, offHtml, {
-        ...size,
-        background,
-        data: await bridge.stateData(template, 'onair'),
-        buttons: inspection.buttons,
-        stepCount: inspection.steps.count,
-        stateGroups: inspection.stateGroups,
-      });
       const stateFrames: Array<{ file: string; reached: Array<{ group: string; state: string }>; via: string[] }> = [];
-      const nameOf = (group: string, state: string) => inspection.stateGroups.find((g) => g.id === group)?.states.find((s) => s.id === state)?.name ?? state;
-      for (const f of frames) {
+      for (const f of shot.frames) {
         const file = path.join(dir, `${f.name}.png`);
-        await fs.writeFile(file, f.png);
+        await fs.writeFile(file, f.image);
         shots[f.name] = file;
-        stateFrames.push({ file, reached: f.reached, via: f.via });
-        const what = f.reached.length ? f.reached.map((r) => `${r.group}: ${nameOf(r.group, r.state)}`).join(', ') : f.name;
-        stateLines.push(`  ${f.name}.png  ${what}  (--event ${f.via.join(' --event ')})`);
+        if (!f.state) continue;
+        stateFrames.push({ file, reached: f.state.reached, via: f.state.via });
+        stateLines.push(`  ${f.name}.png  ${f.state.shows}  (--event ${f.state.via.join(' --event ')})`);
       }
+      thumbnail = shot.thumbnail;
+      shotFailure = shot.failure;
       report.screenshots = shots;
       report.stateFrames = stateFrames;
+      if (shot.unshot.length) report.unshotStates = shot.unshot;
+      if (shot.failure) report.screenshotsFailed = shot.failure;
     }
 
     const changes = isDirectory
@@ -208,11 +193,16 @@ export async function runValidate(args: ParsedArgs, out: Out): Promise<number> {
     for (const line of describeNormalize(normalized)) out.say(line);
     if (report.screenshots) out.say(`Screenshots: ${Object.values(report.screenshots as Record<string, string>).join(', ')}`);
     if (stateLines.length) out.say(['States the events reach, one frame each:', ...stateLines].join('\n'));
+    if (report.unshotStates && !shotFailure) out.say(describeUnreached(report.unshotStates as string[], 'Shoot one with `noacg screenshot --event ...`.'));
+    if (shotFailure) out.say(`Screenshots stopped part way: ${shotFailure}${report.unshotStates ? `. Not shot: ${(report.unshotStates as string[]).join(', ')}` : ''}`);
     if (isDirectory) {
       out.say(`Regenerated the package in ${path.resolve(input)}${pkg.imported.noacg?.stale ? ' (the generated half was stale - written from other sources than the ones on disk)' : ''}.`);
       for (const c of changes) out.say(`  changed: ${c}`);
     }
-    return validation.ok ? EXIT_OK : EXIT_FINDINGS;
+    // Findings come first (exit 1); frames that could not be shot are otherwise an IO failure (exit
+    // 2), said after the report it kept.
+    if (!validation.ok) return EXIT_FINDINGS;
+    return shotFailure ? EXIT_USAGE : EXIT_OK;
   } finally {
     await bridge.close();
   }

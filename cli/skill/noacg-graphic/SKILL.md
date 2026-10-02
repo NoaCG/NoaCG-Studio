@@ -109,7 +109,11 @@ call faster). As an MCP tool, when your client has one named `noacg` (the `noacg
 `noacg mcp` added as a server): call that ONE tool with `command` set to the verb and the flags as
 arguments - `{ "command": "validate", "path": "./my-graphic", "screenshots": true }` returns the
 frames as images, `{ "command": "docs", "topic": "contract" }` the reference. Same verbs, same
-arguments, same answers either way; use whichever your client gives you.
+arguments, same answers either way; use whichever your client gives you. The repeatable flags
+are lists: `--event` is `"events": ["clockStart", "goalA"]`, with `"at"` (a time) and
+`"background": "video"` beside them on `screenshot` (and `background` on `validate`). Over MCP a
+frame on a background comes back as JPEG, and one validate answer carries at most six state
+frames, naming any it left out; shoot those with `screenshot` and their `events`.
 
 ## The one content rule
 

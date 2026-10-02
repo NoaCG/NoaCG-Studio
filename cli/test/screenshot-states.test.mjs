@@ -194,10 +194,42 @@ test('validate --screenshots writes one frame per state the events reach', { ski
   assert.equal(decodePng(await fs.readFile(path.join(pkg, 'thumbnail.png'))).at(1900, 20)[3], 0);
 });
 
+test('a walk stops at its frame cap or its time, and names the states it did not shoot', { skip }, async () => {
+  const { BridgeClient } = await import('../dist/bridgeClient.js');
+  const { closeBrowser } = await import('../dist/browser.js');
+  const { mimeTypeOf, resolveBackground, shootValidateFrames } = await import('../dist/screenshot.js');
+  const { readPackageInput } = await import('../dist/workspace.js');
+  const bridge = await BridgeClient.connect();
+  try {
+    const { bytes, fileName } = await readPackageInput(fixture);
+    const template = (await bridge.readPackage(bytes, fileName)).imported.template;
+    // The fixture reaches two states; a cap of one shoots one and names the other.
+    const capped = await shootValidateFrames(bridge, template, { background: await resolveBackground('video'), compact: true, maxStateFrames: 1 });
+    assert.equal(capped.failure, undefined);
+    assert.deepEqual(capped.frames.slice(0, 3).map((f) => f.name), ['off', 'onair', 'stress']);
+    assert.equal(capped.frames.length, 4);
+    assert.equal(capped.stopped, 'frames');
+    assert.equal(capped.unshot.length, 1);
+    assert.ok(['main: Revealed', 'timer: Timer running'].includes(capped.unshot[0]), capped.unshot[0]);
+    assert.ok(capped.frames.every((f) => mimeTypeOf(f.image) === 'image/jpeg'), 'compact frames over a background are JPEG');
+    assert.equal(mimeTypeOf(capped.thumbnail.png), 'image/png', 'the thumbnail is the graphic alone, with its alpha');
+    // Out of time before the walk starts: the three frames, and both states named.
+    const timed = await shootValidateFrames(bridge, template, { compact: true, walkUntil: Date.now() });
+    assert.equal(timed.frames.length, 3);
+    assert.equal(timed.stopped, 'time');
+    assert.deepEqual([...timed.unshot].sort(), ['main: Revealed', 'timer: Timer running']);
+    assert.ok(timed.frames.every((f) => mimeTypeOf(f.image) === 'image/png'), 'a transparent frame stays PNG, compact or not');
+  } finally {
+    await bridge.close();
+    await closeBrowser();
+  }
+});
+
 test('usage errors name what there is to choose from', { skip }, async () => {
   const out = path.join(dir, 'never.png');
   const unknown = await run(['screenshot', fixture, '--out', out, '--event', 'goalA']);
   assert.equal(unknown.code, 2);
+  assert.match(unknown.stderr, /--event goalA: not an event/);
   assert.match(unknown.stderr, /reveal, startTimer, hideTimer, addPoint/);
   const field = await run(['screenshot', fixture, '--out', out, '--event', 'f9=1']);
   assert.equal(field.code, 2);

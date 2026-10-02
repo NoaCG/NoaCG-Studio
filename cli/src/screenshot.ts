@@ -23,7 +23,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Page } from 'playwright-core';
 import { launchBrowser, newBenchContext, withTimeout, type BenchContext } from './browser.js';
-import type { ControlButton } from './bridgeClient.js';
+import type { BridgeClient, ControlButton, SpxTemplate } from './bridgeClient.js';
 import { UsageError } from './output.js';
 
 export interface ShotOptions {
@@ -33,7 +33,39 @@ export interface ShotOptions {
   settleMs?: number;
   /** A CSS `background` value painted behind the graphic (`resolveBackground`); none = transparent. */
   background?: string | null;
+  /** What the caller called the background, for an error about it (`--background`, `"background"`). */
+  backgroundArg?: string;
+  /** Encode a frame over a background as JPEG. Such a frame has no alpha to keep, and over the
+   *  video plate a full-HD PNG is about 0.9 MB, which an MCP answer of several frames cannot carry.
+   *  A transparent frame stays PNG whatever this says. */
+  compact?: boolean;
 }
+
+// ── What the caller called each argument ─────────────────────────────────────
+
+/** The terminal and the MCP tool name the same inputs differently; an error names the one the
+ *  caller used, so it can be fixed without translating it first. */
+export interface ArgNames {
+  /** One operator op, as the caller wrote it. */
+  event: (op: string) => string;
+  background: string;
+}
+export const TERMINAL_ARGS: ArgNames = { event: (op) => `--event ${op}`, background: '--background' };
+
+/** JPEG quality for a compact frame: text edges stay clean at full HD (judged on the video plate). */
+const JPEG_QUALITY = 85;
+
+/** Take the shutter: PNG with transparency kept, or JPEG for a compact frame over an opaque ground. */
+async function capture(page: Page, outPath: string | undefined, opts: ShotOptions): Promise<Uint8Array> {
+  const to = outPath ? { path: outPath } : {};
+  const buffer = opts.compact && opaqueGround(opts.background)
+    ? await page.screenshot({ ...to, type: 'jpeg', quality: JPEG_QUALITY })
+    : await page.screenshot({ ...to, omitBackground: true, type: 'png' });
+  return new Uint8Array(buffer);
+}
+
+/** The image type of frame bytes, read off the bytes themselves. */
+export const mimeTypeOf = (bytes: Uint8Array): 'image/jpeg' | 'image/png' => (bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png');
 
 // ── Backgrounds ───────────────────────────────────────────────────────────────
 
@@ -53,9 +85,19 @@ const CHECKER = 'repeating-conic-gradient(#cfcfcf 0% 25%, #f2f2f2 0% 50%) 0 0 / 
 
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 
+/** A ground with no see-through part, so a frame over it has no alpha a JPEG would flatten: the
+ *  plate, the checker, a JPEG still, or a colour written without alpha. A PNG or WebP still, or a
+ *  colour that may carry alpha, is not assumed opaque. */
+function opaqueGround(background: string | null | undefined): boolean {
+  if (!background) return false;
+  if (background === VIDEO_PLATE || background === CHECKER || background.startsWith('url("data:image/jpeg')) return true;
+  if (background.startsWith('url(')) return false;
+  return !/transparent|rgba|hsla|\/|^#([0-9a-f]{4}|[0-9a-f]{8})$/i.test(background.trim());
+}
+
 /** `--background`: transparent | checker | video | a CSS colour | a local image file. Returns the
  *  CSS `background` value to paint, or null for transparent. A colour is checked by the page. */
-export async function resolveBackground(spec: string | undefined): Promise<string | null> {
+export async function resolveBackground(spec: string | undefined, arg = TERMINAL_ARGS.background): Promise<string | null> {
   const s = (spec ?? '').trim();
   if (!s || s === 'transparent' || s === 'none') return null;
   if (s === 'checker') return CHECKER;
@@ -63,20 +105,20 @@ export async function resolveBackground(spec: string | undefined): Promise<strin
   const type = IMAGE_TYPES[path.extname(s).toLowerCase()];
   if (type) {
     const bytes = await fs.readFile(path.resolve(s)).catch(() => null);
-    if (!bytes) throw new UsageError(`--background: no image at ${path.resolve(s)}.`);
+    if (!bytes) throw new UsageError(`${arg}: no image at ${path.resolve(s)}.`);
     return `url("data:${type};base64,${bytes.toString('base64')}") center / cover no-repeat`;
   }
   // Anything else is a colour; only characters a colour can hold reach the style rule.
-  if (!/^[#a-z0-9(),.%\s/-]+$/i.test(s)) throw new UsageError(`--background is transparent, checker, video, a CSS colour or a .png/.jpg/.webp file; got "${s}".`);
+  if (!/^[#a-z0-9(),.%\s/-]+$/i.test(s)) throw new UsageError(`${arg} is transparent, checker, video, a CSS colour or a .png/.jpg/.webp file; got "${s}".`);
   return s;
 }
 
 /** Paint the ground on the root, behind the graphic and outside its tree. Done as soon as the
  *  document is open, so a colour the page does not know fails before any time is spent. */
-export async function paintBackground(page: Page, background: string | null | undefined): Promise<void> {
+export async function paintBackground(page: Page, background: string | null | undefined, arg = TERMINAL_ARGS.background): Promise<void> {
   if (!background) return;
   if (!(await page.evaluate((value) => CSS.supports('background', value), background))) {
-    throw new UsageError(`--background: "${background}" is not a CSS colour (nor transparent, checker, video or an image file).`);
+    throw new UsageError(`${arg}: "${background}" is not a CSS colour (nor transparent, checker, video or an image file).`);
   }
   await page.addStyleTag({ content: `html { background: ${background} !important; }` });
 }
@@ -91,7 +133,7 @@ async function openDocument(page: Page, appOrigin: string, html: string, opts: S
   await page.setViewportSize({ width: opts.width ?? 1920, height: opts.height ?? 1080 });
   await page.goto(blank, { waitUntil: 'domcontentloaded' });
   await page.setContent(html, { waitUntil: 'load' });
-  await paintBackground(page, opts.background);
+  await paintBackground(page, opts.background, opts.backgroundArg);
 }
 
 /** `settle` waits between the passes: two animation frames, or, where a paused clock drives no
@@ -110,7 +152,7 @@ async function rasterSettledFrame(page: Page, settle?: () => Promise<void>): Pro
   await twoFrames();
 }
 
-/** Render `html` at the app origin and return the PNG bytes (also written to `outPath` when given). */
+/** Render `html` at the app origin and return the frame's bytes (also written to `outPath` when given). */
 export async function shoot(bench: BenchContext, appOrigin: string, html: string, outPath: string | undefined, opts: ShotOptions = {}): Promise<Uint8Array> {
   const page = await bench.newPage();
   try {
@@ -124,8 +166,7 @@ export async function shoot(bench: BenchContext, appOrigin: string, html: string
       await new Promise((resolve) => setTimeout(resolve, settleMs));
     }, opts.settleMs ?? 1500);
     await rasterSettledFrame(page);
-    const buffer = await page.screenshot({ ...(outPath ? { path: outPath } : {}), omitBackground: true, type: 'png' });
-    return new Uint8Array(buffer);
+    return await capture(page, outPath, opts);
   } finally {
     await page.close().catch(() => undefined);
   }
@@ -164,21 +205,22 @@ export function parseDuration(text: string, flag: string): number {
 }
 
 /** Read `--event` values into ops. Each value is ONE op: a declared event, next, out, take,
- *  field=value, wait:<duration>, or event:<name> for an event named like one of the words. */
-export function parseOps(values: string[], buttons: ControlButton[], fieldIds: string[]): FrameOp[] {
+ *  field=value, wait:<duration>, or event:<name> for an event named like one of the words.
+ *  `arg` names an op in an error the way the caller wrote it. */
+export function parseOps(values: string[], buttons: ControlButton[], fieldIds: string[], arg = TERMINAL_ARGS.event): FrameOp[] {
   const events = buttons.map((b) => b.event);
   const listEvents = () => (events.length ? `This graphic's events: ${events.join(', ')}.` : 'This graphic declares no events (no buttons).');
   return values.map((raw): FrameOp => {
     const v = raw.trim();
     const eq = /^([A-Za-z_][\w-]*)=/.exec(v);
     if (eq) {
-      if (!fieldIds.includes(eq[1])) throw new UsageError(`--event ${v}: no field "${eq[1]}". Fields: ${fieldIds.join(', ')}.`);
+      if (!fieldIds.includes(eq[1])) throw new UsageError(`${arg(v)}: no field "${eq[1]}". Fields: ${fieldIds.join(', ')}.`);
       return { kind: 'set', key: eq[1], value: v.slice(eq[0].length) };
     }
-    if (v.startsWith('wait:')) return { kind: 'wait', ms: parseDuration(v.slice(5), `--event ${v}`) };
+    if (v.startsWith('wait:')) return { kind: 'wait', ms: parseDuration(v.slice(5), arg(v)) };
     if (v === 'take' || v === 'next' || v === 'out') return { kind: v };
     const name = v.startsWith('event:') ? v.slice(6) : v;
-    if (!events.includes(name)) throw new UsageError(`--event ${v}: not an event this graphic declares, and not take, next, out, field=value or wait:<duration>. ${listEvents()}`);
+    if (!events.includes(name)) throw new UsageError(`${arg(v)}: not an event this graphic declares, and not take, next, out, field=value or wait:<duration>. ${listEvents()}`);
     return { kind: 'event', event: name };
   });
 }
@@ -241,10 +283,13 @@ export interface SequenceOptions extends ShotOptions {
   atMs?: number;
   /** The graphic's buttons, for the payload each event press carries. */
   buttons: ControlButton[];
+  /** The longest this render may take (default SEQUENCE_DEADLINE_MS). */
+  deadlineMs?: number;
 }
 
 export interface SequenceShot {
-  png: Uint8Array;
+  /** The frame: PNG, or JPEG when `compact` and over a background. */
+  image: Uint8Array;
   /** The ops that ran, the Take included, as `describeOp` writes them. */
   ran: string[];
   /** The time from the last op to the shutter that was actually used. */
@@ -303,7 +348,7 @@ export async function shootSequence(appOrigin: string, html: string, outPath: st
   // bench's would stop the bridge page's timers too, and every other render's.
   const own = await newBenchContext(await launchBrowser(), appOrigin);
   try {
-    return await withTimeout(runSequence(own, appOrigin, html, outPath, opts), SEQUENCE_DEADLINE_MS, 'the state render', () => own.close());
+    return await withTimeout(runSequence(own, appOrigin, html, outPath, opts), opts.deadlineMs ?? SEQUENCE_DEADLINE_MS, 'the state render', () => own.close());
   } finally {
     await own.close();
   }
@@ -391,8 +436,7 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
     await page.waitForTimeout(50);
   });
   const machine = await machineState(page);
-  const buffer = await page.screenshot({ ...(outPath ? { path: outPath } : {}), omitBackground: true, type: 'png' });
-  return { png: new Uint8Array(buffer), ran: ops.map(describeOp), atMs, machine, notes };
+  return { image: await capture(page, outPath, opts), ran: ops.map(describeOp), atMs, machine, notes };
 }
 
 // ── Every state a graphic's events reach ──────────────────────────────────────
@@ -400,16 +444,28 @@ async function runSequence(own: BenchContext, appOrigin: string, html: string, o
 export interface StateFrame {
   /** The file name to write (`<group>-<state>.png`, or `step-<n>.png` without a machine). */
   name: string;
-  png: Uint8Array;
+  image: Uint8Array;
   /** The (group, state) pairs this frame is the first to show. */
   reached: Array<{ group: string; state: string }>;
   /** The ops after the Take that reach it, ready for `screenshot --event`. */
   via: string[];
 }
 
+export interface StateWalk {
+  frames: StateFrame[];
+  /** Declared states (or steps) with no frame: past the walk's own bounds, or past a caller's limit. */
+  unshot: string[];
+  /** The caller's limit that stopped the walk with states still unshot: `maxFrames` or `until`. */
+  stopped?: 'frames' | 'time';
+  /** Why a render failed and ended the walk early; the frames before it are kept. */
+  failure?: string;
+}
+
 const WALK_DEPTH = 3;
 const WALK_RENDERS = 40;
 const WALK_PARALLEL = 4;
+/** How long a walk's render may run past the caller's `until`: a normal render takes 2-5 s. */
+const UNTIL_GRACE_MS = 15_000;
 
 const safe = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'state';
 
@@ -419,7 +475,9 @@ const safe = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
  * frame for every (group, state) pair the on-air frame does not already show, at the shortest
  * path that reaches it. Paths that land on a machine state already seen are not walked further.
  * A graphic without a machine gets one frame per extra step instead. Bounded: depth 3, 40 renders,
- * and done as soon as every declared state but the lifecycle's own off and out has its frame.
+ * the caller's `maxFrames` and `until`, and done as soon as every declared state but the
+ * lifecycle's own off and out has its frame. What it did not shoot is said, never left for the
+ * caller to infer.
  */
 export async function walkStates(
   appOrigin: string,
@@ -429,11 +487,29 @@ export async function walkStates(
     buttons: ControlButton[];
     stepCount: number;
     /** The declared groups (`inspect`); the first is the lifecycle. */
-    stateGroups: Array<{ id: string; states: Array<{ id: string }> }>;
+    stateGroups: Array<{ id: string; states: Array<{ id: string; name?: string }> }>;
+    /** Stop once this many frames are shot (an MCP answer's cap). */
+    maxFrames?: number;
+    /** Start no render after this time (`Date.now()`), and let none run more than UNTIL_GRACE_MS
+     *  past it, so an answer has an end a client can wait for. */
+    until?: number;
   },
-): Promise<StateFrame[]> {
-  const render = (ops: FrameOp[]) => shootSequence(appOrigin, html, undefined, { ...opts, ops });
+): Promise<StateWalk> {
+  const deadlineMs = () => (opts.until === undefined ? undefined : Math.max(0, opts.until - Date.now()) + UNTIL_GRACE_MS);
+  const render = (ops: FrameOp[]) => shootSequence(appOrigin, html, undefined, { ...opts, ops, deadlineMs: deadlineMs() });
+  // A render that fails ends the walk, keeping every frame shot before it and naming the rest.
+  let failure: string | undefined;
+  const batchOf = async (paths: FrameOp[][]) => {
+    try {
+      return await Promise.all(paths.map((ops) => render(ops)));
+    } catch (e) {
+      failure = e instanceof Error ? e.message : String(e);
+      return null;
+    }
+  };
   const key = (group: string, state: string) => `${group}\u0000${state}`;
+  const maxFrames = opts.maxFrames ?? Infinity;
+  const timeLeft = () => Date.now() < (opts.until ?? Infinity);
   const frames: StateFrame[] = [];
   const names = new Set<string>(['off', 'onair', 'stress']);
   const nameFor = (wanted: string) => {
@@ -444,21 +520,27 @@ export async function walkStates(
   };
 
   // No machine: the steps are the states, step 1 being the on-air frame, within the same bounds.
-  const stepFrames = async (): Promise<StateFrame[]> => {
+  const stepFrames = async (): Promise<StateWalk> => {
+    const last = Math.min(opts.stepCount, WALK_RENDERS + 1);
     const paths: FrameOp[][] = [];
-    for (let step = 2; step <= Math.min(opts.stepCount, WALK_RENDERS + 1); step++) paths.push(Array.from({ length: step - 1 }, () => ({ kind: 'next' })));
-    for (let i = 0; i < paths.length; i += WALK_PARALLEL) {
+    for (let step = 2; step <= Math.min(last, maxFrames + 1); step++) paths.push(Array.from({ length: step - 1 }, () => ({ kind: 'next' })));
+    let i = 0;
+    for (; i < paths.length && timeLeft() && !failure; i += WALK_PARALLEL) {
       const batch = paths.slice(i, i + WALK_PARALLEL);
-      const shots = await Promise.all(batch.map((ops) => render(ops)));
-      batch.forEach((ops, j) => frames.push({ name: nameFor(`step-${ops.length + 1}`), png: shots[j].png, reached: [], via: ops.map(describeOp) }));
+      const shots = await batchOf(batch);
+      if (!shots) break;
+      batch.forEach((ops, j) => frames.push({ name: nameFor(`step-${ops.length + 1}`), image: shots[j].image, reached: [], via: ops.map(describeOp) }));
     }
-    return frames;
+    const unshot = Array.from({ length: Math.max(0, last - frames.length - 1) }, (_, k) => `step ${frames.length + 2 + k}`);
+    const stopped = !unshot.length || failure ? undefined : frames.length >= maxFrames ? 'frames' : i < paths.length ? 'time' : undefined;
+    return { frames, unshot, stopped, failure };
   };
   // inspect already says whether there is a machine; a render is spent only to find its start.
   if (!opts.stateGroups.length) return stepFrames();
   // Nothing to press: the on-air frame already shows the only state there is.
-  if (!opts.buttons.length && !(opts.stepCount > 1 || opts.stepCount === -1)) return frames;
-  const start = await render([]);
+  if (!opts.buttons.length && !(opts.stepCount > 1 || opts.stepCount === -1)) return { frames, unshot: [] };
+  const [start] = (await batchOf([[]])) ?? [];
+  if (!start) return { frames, unshot: [], failure };
   if (!start.machine) return stepFrames();
 
   const candidates: FrameOp[] = [
@@ -472,22 +554,147 @@ export async function walkStates(
   const wanted = opts.stateGroups.flatMap((g, i) => g.states.filter((st) => i > 0 || (st.id !== 'off' && st.id !== 'out')).map((st) => key(g.id, st.id)));
   const queue: FrameOp[][] = candidates.map((op) => [op]);
   let renders = 1;
-  while (queue.length && renders < WALK_RENDERS && !wanted.every((w) => shown.has(w))) {
+  const more = () => queue.length > 0 && renders < WALK_RENDERS && !wanted.every((w) => shown.has(w));
+  while (more() && frames.length < maxFrames && timeLeft() && !failure) {
     const batch = queue.splice(0, Math.min(WALK_PARALLEL, WALK_RENDERS - renders));
     renders += batch.length;
-    const shots = await Promise.all(batch.map((ops) => render(ops)));
+    const shots = await batchOf(batch);
+    if (!shots) break;
     batch.forEach((ops, i) => {
-      const { machine, png } = shots[i];
+      const { machine, image } = shots[i];
       const sig = signature(machine);
       if (!machine || seen.has(sig)) return;
       seen.add(sig);
       const reached = Object.entries(machine.groups)
         .filter(([g, s]) => !shown.has(key(g, s)))
         .map(([group, state]) => ({ group, state }));
+      // A batch can overshoot the cap; what it found past it is left unshown, so it is said as unshot.
+      if (frames.length >= maxFrames) return;
       for (const r of reached) shown.add(key(r.group, r.state));
-      if (reached.length) frames.push({ name: nameFor(`${safe(reached[0].group)}-${safe(reached[0].state)}`), png, reached, via: ops.map(describeOp) });
+      if (reached.length) frames.push({ name: nameFor(`${safe(reached[0].group)}-${safe(reached[0].state)}`), image, reached, via: ops.map(describeOp) });
       if (ops.length < WALK_DEPTH) for (const op of candidates) queue.push([...ops, op]);
     });
   }
-  return frames;
+  const unshot = opts.stateGroups.flatMap((g) =>
+    g.states.filter((st) => wanted.includes(key(g.id, st.id)) && !shown.has(key(g.id, st.id))).map((st) => `${g.id}: ${st.name ?? st.id}`),
+  );
+  // The reason is the limit the loop actually stopped on, not one that merely passed meanwhile.
+  const stopped = !unshot.length || failure ? undefined : frames.length >= maxFrames ? 'frames' : more() ? 'time' : undefined;
+  return { frames, unshot, stopped, failure };
+}
+
+/** The line that names declared states a walk did not reach within its own bounds. */
+export function describeUnreached(unshot: string[], remedy: string): string {
+  return `Declared states the walk did not reach (it stops at ${WALK_DEPTH} presses and ${WALK_RENDERS} renders): ${unshot.join(', ')}. ${remedy}`;
+}
+
+// ── The two renders the terminal and the MCP tool share ───────────────────────
+//
+// `validate --screenshots` / `validate screenshots: true`, and `screenshot --event` /
+// `screenshot events`, are one render each, called from cli/src/commands/ and from cli/src/mcp.ts.
+// They were two copies once and had to be fixed twice; each caller now only writes or returns.
+
+export interface NamedFrame {
+  /** off, onair, stress, or a reached state's file name (`pp-b`, `step-2`). */
+  name: string;
+  image: Uint8Array;
+  /** For a reached state: what it shows (`pp: Power play B`) and the ops after the Take that reproduce it. */
+  state?: { shows: string; via: string[]; reached: Array<{ group: string; state: string }> };
+}
+
+export interface ValidateFrames {
+  frames: NamedFrame[];
+  /** The on-air frame on no ground, for the package thumbnail: the graphic itself, never what it was judged on. */
+  thumbnail?: { png: Uint8Array; width: number; height: number };
+  /** Declared states with no frame, and the caller's limit that left them so (`walkStates`). */
+  unshot: string[];
+  stopped?: StateWalk['stopped'];
+  /** Why shooting stopped part way, when it did. The frames shot before it are kept. */
+  failure?: string;
+}
+
+/**
+ * Off, on air and stress, then one frame per state the graphic's events reach. A failure part way
+ * (a template that spins in an event handler, a browser that dies) does not throw: the frames
+ * before it and the reason come back, so the caller still answers with the validation report it
+ * already paid for. A usage error - a background colour the page does not know - still throws.
+ */
+export async function shootValidateFrames(
+  bridge: BridgeClient,
+  template: SpxTemplate,
+  opts: ShotOptions & { maxStateFrames?: number; walkUntil?: number },
+): Promise<ValidateFrames> {
+  const frame: ShotOptions = { ...opts, width: template.resolution.width, height: template.resolution.height };
+  const out: ValidateFrames = { frames: [], unshot: [] };
+  try {
+    const base = ['off', 'onair', 'stress'] as const;
+    const html: string[] = [];
+    for (const state of base) html.push(await bridge.compose(template, state));
+    // The three are independent pages of one context, so they settle together rather than in turn;
+    // all of them are waited for, so one that fails neither loses the others nor outlives the call.
+    const settled = await Promise.allSettled([
+      ...html.map((h) => shoot(bridge.bench, bridge.origin, h, undefined, frame)),
+      opts.background ? shoot(bridge.bench, bridge.origin, html[1], undefined, { ...frame, background: null }) : Promise.resolve(null),
+    ]);
+    const images = settled.map((r) => (r.status === 'fulfilled' ? r.value : null));
+    base.forEach((name, i) => images[i] && out.frames.push({ name, image: images[i] }));
+    const onair = images[3] ?? images[1];
+    if (onair) out.thumbnail = { png: onair, width: template.resolution.width, height: template.resolution.height };
+    const failed = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failed) throw failed.reason;
+
+    const inspection = await bridge.inspect({ template });
+    const walk = await walkStates(bridge.origin, html[0], {
+      ...frame,
+      data: await bridge.stateData(template, 'onair'),
+      buttons: inspection.buttons,
+      stepCount: inspection.steps.count,
+      stateGroups: inspection.stateGroups,
+      maxFrames: opts.maxStateFrames,
+      until: opts.walkUntil,
+    });
+    const nameOf = (group: string, state: string) => inspection.stateGroups.find((g) => g.id === group)?.states.find((s) => s.id === state)?.name ?? state;
+    for (const f of walk.frames) {
+      const shows = f.reached.length ? f.reached.map((r) => `${r.group}: ${nameOf(r.group, r.state)}`).join(', ') : f.name;
+      out.frames.push({ name: f.name, image: f.image, state: { shows, via: f.via, reached: f.reached } });
+    }
+    out.unshot = walk.unshot;
+    out.stopped = walk.stopped;
+    out.failure = walk.failure;
+  } catch (e) {
+    if (e instanceof UsageError) throw e;
+    out.failure = e instanceof Error ? e.message : String(e);
+  }
+  return out;
+}
+
+/** The lines that say what a sequence frame shows beyond its picture: the machine at the shutter
+ *  (so a frame is never taken for a state it does not show), and every note. */
+export function describeSequence(shot: SequenceShot): string[] {
+  const lines: string[] = [];
+  if (shot.machine) lines.push(`Machine at the shutter: ${Object.entries(shot.machine.groups).map(([g, s]) => `${g}=${s}`).join(', ')}`);
+  for (const note of shot.notes) lines.push(`Note: ${note}`);
+  return lines;
+}
+
+/** A Take with the state's data (and `values` over it), then the caller's ops, shot `atMs` after
+ *  the last of them - the operator sequence `screenshot` renders. */
+export async function shootEvents(
+  bridge: BridgeClient,
+  template: SpxTemplate,
+  opts: ShotOptions & { state: 'onair' | 'stress'; values: Record<string, string> | null; events: string[]; atMs?: number; args: ArgNames },
+  outPath?: string,
+): Promise<SequenceShot> {
+  const inspection = await bridge.inspect({ template });
+  const ops = parseOps(opts.events, inspection.buttons, template.fields.map((f) => f.field), opts.args.event);
+  const data = { ...(await bridge.stateData(template, opts.state)), ...(opts.values ?? {}) };
+  return shootSequence(bridge.origin, await bridge.compose(template, 'off'), outPath, {
+    ...opts,
+    width: template.resolution.width,
+    height: template.resolution.height,
+    backgroundArg: opts.args.background,
+    data,
+    ops,
+    buttons: inspection.buttons,
+  });
 }

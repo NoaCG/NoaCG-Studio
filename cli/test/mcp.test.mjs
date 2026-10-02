@@ -31,8 +31,14 @@
 //     argument, not a bridge attempt and never a silent drop.
 //   - the doc topics are also resources, and an unknown topic is an error rather than a hang.
 //   - `screenshot` and `validate` take the state-render arguments the terminal takes (`--event`,
-//     `--at`, `--background`), refuse a wrong one before any bridge is reached, and - against a
-//     live bridge only - render the same frame the terminal does.
+//     `--at`, `--background`), refuse a wrong one before any bridge is reached, name it the way
+//     the tool does (`"background"`, never `--background`), and - against a live bridge only -
+//     render the same frame the terminal does.
+//   - a frame answer stays inside a client's limits: frames over a background are JPEG, at most
+//     MCP_LIMITS.stateFrames state frames and MCP_LIMITS.imageBytes of images, and what is left
+//     out is said. Measured before the limits: 11 MB for nine frames over the video plate, past
+//     the 10 MiB one stdio message may be in the MCP SDK's own client, which then drops the
+//     connection. A walk that fails part way keeps the frames and the report before it.
 //
 // Nothing above the live section starts a browser or reaches a deployment: NOACG_URL points at a
 // closed port, and only the verbs that need no bridge are ever CALLED. The live section drives
@@ -55,6 +61,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 import { cliVersion } from '../dist/config.js';
 import { docTopics } from '../dist/commands/docs.js';
+import { framesContent, MCP_LIMITS } from '../dist/mcp.js';
+import { UsageError } from '../dist/output.js';
+import { shootValidateFrames } from '../dist/screenshot.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.join(here, '..', 'dist', 'index.js');
@@ -223,7 +232,7 @@ test('the state-render arguments are checked before any bridge is reached', asyn
   const refusals = [
     [{ command: 'screenshot', path: fixture, state: 'off', events: ['reveal'] }, /start from a Take/],
     [{ command: 'screenshot', path: fixture, at: 'soon' }, /"at" expects a duration/],
-    [{ command: 'screenshot', path: fixture, background: 'red;x' }, /--background is transparent, checker, video/],
+    [{ command: 'screenshot', path: fixture, background: 'red;x' }, /^"background" is transparent, checker, video/],
     [{ command: 'validate', path: fixture, background: 'video' }, /"background" only with "screenshots"/],
   ];
   await withServer(async (client) => {
@@ -233,6 +242,54 @@ test('the state-render arguments are checked before any bridge is reached', asyn
       assert.match(result.content[0].text, said);
     }
   });
+});
+
+// ------------------------------------------------------------------ frame answers, offline
+
+const jpeg = (n) => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(n)]);
+const png = (n) => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(n)]);
+
+test('the limits keep the largest frame answer far inside a 10 MiB stdio message and a 60 s tool timeout', () => {
+  assert.equal(MCP_LIMITS.stateFrames, 6, 'the cap the docs and the changelog say');
+  // Base64 is 4/3 of the bytes; the labels and the report are a few kilobytes on top.
+  assert.ok((MCP_LIMITS.imageBytes * 4) / 3 + 100_000 < 0.6 * 10 * 1024 * 1024, 'the image budget leaves no margin under 10 MiB');
+  assert.ok(MCP_LIMITS.walkMs <= 20_000, 'the walk alone could take most of a 60 s timeout');
+});
+
+test('a frame answer says its type per frame, keeps to its image budget, and says what it left out and why', () => {
+  const limits = { stateFrames: 2, imageBytes: 250, walkMs: 20_000 };
+  const state = (via) => ({ shows: 'timer: Timer running', via, reached: [{ group: 'timer', state: 'running' }] });
+  const content = framesContent(
+    {
+      frames: [
+        { name: 'off', image: png(100) },
+        { name: 'onair', image: jpeg(100) },
+        { name: 'stress', image: jpeg(100) },
+        { name: 'timer-running', image: jpeg(10), state: state(['startTimer']) },
+      ],
+      unshot: ['main: Revealed'],
+      stopped: 'frames',
+    },
+    limits,
+  );
+  assert.deepEqual(content.filter((c) => c.type === 'image').map((c) => c.mimeType), ['image/png', 'image/jpeg', 'image/jpeg']);
+  const said = content.filter((c) => c.type === 'text').map((c) => c.text);
+  assert.ok(said.some((t) => /^stress: not returned: this answer is at its/.test(t)), said.join(' | '));
+  assert.ok(said.includes('timer-running: timer: Timer running (screenshot events ["startTimer"])'), said.join(' | '));
+  assert.ok(said.some((t) => t.startsWith('This answer carries at most 2 state frames. Not shot: main: Revealed.')), said.join(' | '));
+  const timed = framesContent({ frames: [], unshot: ['main: Revealed'], stopped: 'time' }, limits).map((c) => c.text).join('\n');
+  assert.match(timed, /stopped at its 20 s limit for one answer\. Not shot: main: Revealed/);
+});
+
+test('a state walk that fails part way keeps what came before it; a usage error still refuses', async () => {
+  const template = { resolution: { width: 1920, height: 1080 } };
+  const failing = (error) => ({ origin: 'http://127.0.0.1:1', compose: async () => '<!doctype html>', bench: { newPage: async () => { throw error; } } });
+  const shot = await shootValidateFrames(failing(new Error('the browser went away')), template, {});
+  assert.equal(shot.failure, 'the browser went away');
+  assert.deepEqual(shot.frames, []);
+  // The MCP verb puts the validation report first and this after it, so the report stays.
+  assert.equal(framesContent(shot).at(-1).text, 'Screenshots stopped part way: the browser went away');
+  await assert.rejects(shootValidateFrames(failing(new UsageError('"background": "x" is not a CSS colour')), template, {}), UsageError);
 });
 
 // ------------------------------------------------------------------ state renders, live
@@ -269,7 +326,17 @@ test('screenshot drives an event sequence to a moment, says the machine, and mat
   assert.ok(imageOf(result).equals(await terminalFrame('--event', 'startTimer', '--at', '10.5s')), "the MCP frame is the terminal's frame");
 });
 
-test('screenshot paints a background behind the graphic, as the terminal does', { skip: live }, async () => {
+/** The width and height a baseline or progressive JPEG declares in its start-of-frame segment. */
+function jpegSize(buf) {
+  for (let i = 2; i < buf.length - 9; ) {
+    const marker = buf[i + 1];
+    if (marker === 0xc0 || marker === 0xc2) return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+test('screenshot paints a background behind the graphic, and that frame comes back as a full-size JPEG', { skip: live }, async () => {
   const [plain, red] = await withServer(
     async (client) => [
       await call(client, { command: 'screenshot', path: fixture, events: ['reveal'] }),
@@ -278,16 +345,47 @@ test('screenshot paints a background behind the graphic, as the terminal does', 
     liveUrl,
   );
   assert.notEqual(red.isError, true, textOf(red));
-  assert.ok(!imageOf(plain).equals(imageOf(red)), 'the background changes the frame');
-  assert.ok(imageOf(red).equals(await terminalFrame('--event', 'reveal', '--background', '#ff0000')), "the MCP frame is the terminal's frame");
+  // The terminal writes the same frame as PNG (screenshot-states.test.mjs); over MCP a frame with
+  // no alpha to keep is JPEG, at the graphic's own size, and a transparent one stays PNG.
+  assert.equal(plain.content.find((c) => c.type === 'image').mimeType, 'image/png');
+  assert.equal(red.content.find((c) => c.type === 'image').mimeType, 'image/jpeg');
+  assert.deepEqual(jpegSize(imageOf(red)), { width: 1920, height: 1080 });
+  assert.ok(imageOf(red).length < 200_000, `a red frame is ${imageOf(red).length} bytes`);
 });
 
 test('validate with screenshots returns a frame per state the events reach, and the events that reach it', { skip: live }, async () => {
   const pkg = path.join(scratch, 'pkg');
   await fs.cp(fixture, pkg, { recursive: true });
-  const result = await withServer((client) => call(client, { command: 'validate', path: pkg, screenshots: true, background: 'video' }), liveUrl);
-  const labels = result.content.map((c, i) => (c.type === 'text' && result.content[i + 1]?.type === 'image' ? c.text : null)).filter(Boolean);
+  const [overVideo, transparent] = await withServer(
+    async (client) => [
+      await call(client, { command: 'validate', path: pkg, screenshots: true, background: 'video' }),
+      await call(client, { command: 'validate', path: pkg, screenshots: true }),
+    ],
+    liveUrl,
+  );
+  const labels = overVideo.content.map((c, i) => (c.type === 'text' && overVideo.content[i + 1]?.type === 'image' ? c.text : null)).filter(Boolean);
   assert.deepEqual(labels.slice(0, 3), ['off:', 'onair:', 'stress:']);
   assert.ok(labels.some((l) => l.startsWith('timer-running:') && l.includes('["startTimer"]')), `labels: ${labels.join(' | ')}`);
   assert.ok(labels.some((l) => l.startsWith('main-revealed:')), `labels: ${labels.join(' | ')}`);
+  // Over the plate every frame is JPEG and the answer is small (6.1 MB of PNG before); a frame
+  // with nothing behind it keeps its alpha as PNG.
+  const types = (r) => [...new Set(r.content.filter((c) => c.type === 'image').map((c) => c.mimeType))];
+  assert.deepEqual(types(overVideo), ['image/jpeg']);
+  assert.deepEqual(types(transparent), ['image/png']);
+  assert.ok(JSON.stringify(overVideo).length < 1_000_000, `the answer over the plate is ${JSON.stringify(overVideo).length} characters`);
+});
+
+test('a refusal names the argument the caller used, not the terminal flag', { skip: live }, async () => {
+  const [event, colour] = await withServer(
+    async (client) => [
+      await call(client, { command: 'screenshot', path: fixture, events: ['goalA'] }),
+      await call(client, { command: 'screenshot', path: fixture, background: 'notacolour' }),
+    ],
+    liveUrl,
+  );
+  assert.equal(event.isError, true);
+  assert.match(textOf(event), /^"events" entry "goalA": not an event this graphic declares/);
+  assert.equal(colour.isError, true);
+  assert.match(textOf(colour), /^"background": "notacolour" is not a CSS colour/);
+  for (const r of [event, colour]) assert.ok(!/--event|--background/.test(textOf(r)), textOf(r));
 });
