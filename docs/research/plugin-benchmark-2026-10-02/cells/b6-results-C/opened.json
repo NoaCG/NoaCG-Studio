@@ -1,0 +1,15 @@
+{
+  "cell": "b6-results-C",
+  "toolCalls": 72,
+  "opened": [
+    "SKILL.md",
+    "commands/graphic.md",
+    "references/contract.md",
+    "references/critique.md",
+    "references/validator.md"
+  ],
+  "optInOpened": [
+    "references/critique.md"
+  ],
+  "flags": []
+}

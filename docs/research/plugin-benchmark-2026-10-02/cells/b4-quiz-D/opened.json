@@ -1,0 +1,11 @@
+{
+  "cell": "b4-quiz-D",
+  "toolCalls": 64,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/validator.md"
+  ],
+  "optInOpened": [],
+  "flags": []
+}

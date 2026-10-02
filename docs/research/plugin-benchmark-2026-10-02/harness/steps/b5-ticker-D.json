@@ -1,0 +1,12 @@
+[
+  {"wait": 4000},
+  {"shot": "crawl-4s", "page": false},
+  {"fill": "f0", "value": "Oulun kaupunginvaltuusto hyväksyi ensi vuoden talousarvion äänin 41-26\nKemijoen tulvavaroitus jatkuu Rovaniemellä torstaihin asti\nPohjois-Pohjanmaan hyvinvointialue avaa uuden terveysaseman Kempeleeseen\nKärpät voitti Ässät jatkoajalla 3-2\nHuomenna pakkasta jopa 25 astetta Lapissa\nRadio Kaikun syysradiomaraton alkaa lauantaina kello 10"},
+  {"click": "verb-update"}, {"wait": 3000},
+  {"shot": "headlines-edited-on-air", "page": false},
+  {"fill": "f2", "value": "Vaaratiedote: Kemin satamassa kemikaalivuoto, pysykää sisätiloissa ja sulkekaa ilmanvaihto"},
+  {"action": "showBulletin"}, {"wait": 2000},
+  {"shot": "bulletin", "page": false},
+  {"action": "clearBulletin"}, {"wait": 2000},
+  {"shot": "bulletin-cleared", "page": false}
+]

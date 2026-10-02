@@ -1,0 +1,9 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take F0 · Name F1 · Title or role F2 · Location (optional, leave empty to hide) OPERATOR NOTE ▸ Advanced Layer 20 CONTROLS as the graphic declared them Activity
+reach: 4 of 4 live controls on screen at load
+shot 01-ready
+shot 02-take
+shot 03-update-long-title-no-location
+shot 04-update-location-on
+actions: 0 of 0 declared actions pressed
+shot 05-after-actions
+shot 06-out

@@ -1,0 +1,74 @@
+{
+  "b1-news-X": {
+    "cell": "b1-news-C",
+    "arm": "C"
+  },
+  "b1-news-Y": {
+    "cell": "b1-news-D",
+    "arm": "D"
+  },
+  "b1-news-Z": {
+    "cell": "b1-news-G",
+    "arm": "G"
+  },
+  "b2-hockey-Z": {
+    "cell": "b2-hockey-C",
+    "arm": "C"
+  },
+  "b2-hockey-Y": {
+    "cell": "b2-hockey-D",
+    "arm": "D"
+  },
+  "b2-hockey-X": {
+    "cell": "b2-hockey-G",
+    "arm": "G"
+  },
+  "b3-gala-Y": {
+    "cell": "b3-gala-C",
+    "arm": "C"
+  },
+  "b3-gala-X": {
+    "cell": "b3-gala-D",
+    "arm": "D"
+  },
+  "b3-gala-Z": {
+    "cell": "b3-gala-G",
+    "arm": "G"
+  },
+  "b4-quiz-Z": {
+    "cell": "b4-quiz-C",
+    "arm": "C"
+  },
+  "b4-quiz-Y": {
+    "cell": "b4-quiz-D",
+    "arm": "D"
+  },
+  "b4-quiz-X": {
+    "cell": "b4-quiz-G",
+    "arm": "G"
+  },
+  "b5-ticker-X": {
+    "cell": "b5-ticker-C",
+    "arm": "C"
+  },
+  "b5-ticker-Y": {
+    "cell": "b5-ticker-D",
+    "arm": "D"
+  },
+  "b5-ticker-Z": {
+    "cell": "b5-ticker-G",
+    "arm": "G"
+  },
+  "b6-results-X": {
+    "cell": "b6-results-C",
+    "arm": "C"
+  },
+  "b6-results-Y": {
+    "cell": "b6-results-D",
+    "arm": "D"
+  },
+  "b6-results-Z": {
+    "cell": "b6-results-G",
+    "arm": "G"
+  }
+}

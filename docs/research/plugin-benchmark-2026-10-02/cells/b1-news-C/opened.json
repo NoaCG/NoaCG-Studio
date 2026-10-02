@@ -1,0 +1,16 @@
+{
+  "cell": "b1-news-C",
+  "toolCalls": 67,
+  "opened": [
+    "SKILL.md",
+    "commands/graphic.md",
+    "references/contract.md",
+    "references/critique.md",
+    "references/package.md",
+    "references/validator.md"
+  ],
+  "optInOpened": [
+    "references/critique.md"
+  ],
+  "flags": []
+}

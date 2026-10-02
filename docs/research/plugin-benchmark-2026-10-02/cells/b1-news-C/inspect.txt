@@ -1,0 +1,13 @@
+C:/claude/cj-bench-2026-10-02/cells/b1-news-C/pu-lower-third: a NoaCG graphic package
+
+Inputs (3)
+key  label                                kind  default
+f0   Name                                 text  Aino Mäkelä
+f1   Title or role (leave empty to hide)  text  Kehitysjohtaja, Pohjois-Pohjanmaan liitto
+f2   Location (leave empty to hide)       text  
+
+Buttons (0)
+  (none beyond Take / Update / Next / Out)
+
+Steps: 1
+Note: Derived from the SPX DataFields (inputs) and the NOACG_ANIM machine (buttons) inside the template - the same generator every NoaCG control surface renders.

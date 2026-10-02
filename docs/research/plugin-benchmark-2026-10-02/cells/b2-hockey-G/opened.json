@@ -1,0 +1,14 @@
+{
+  "cell": "b2-hockey-G",
+  "toolCalls": 117,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/control.md",
+    "references/design-notes.md"
+  ],
+  "optInOpened": [
+    "references/design-notes.md"
+  ],
+  "flags": []
+}

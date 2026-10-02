@@ -1,0 +1,13 @@
+{
+  "cell": "b4-quiz-G",
+  "toolCalls": 55,
+  "opened": [
+    "SKILL.md",
+    "references/contract.md",
+    "references/design-notes.md"
+  ],
+  "optInOpened": [
+    "references/design-notes.md"
+  ],
+  "flags": []
+}

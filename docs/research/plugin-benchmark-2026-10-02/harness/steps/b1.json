@@ -1,0 +1,10 @@
+[
+  {"fill": "f0", "value": "Jyrki Häkkinen"},
+  {"fill": "f1", "value": "Ympäristöterveydenhuollon ylitarkastaja, Pohjois-Pohjanmaan ELY-keskus"},
+  {"fill": "f2", "value": ""},
+  {"click": "verb-update"}, {"wait": 2000},
+  {"shot": "update-long-title-no-location", "page": false},
+  {"fill": "f2", "value": "Kuusamo"},
+  {"click": "verb-update"}, {"wait": 2000},
+  {"shot": "update-location-on", "page": false}
+]

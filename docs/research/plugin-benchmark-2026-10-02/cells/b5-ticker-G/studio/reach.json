@@ -1,0 +1,38 @@
+[
+  {
+    "id": "verb-take",
+    "label": "⟳ TAKE SPACE",
+    "onScreen": true,
+    "top": 76
+  },
+  {
+    "id": "verb-update",
+    "label": "✎ Update U",
+    "onScreen": true,
+    "top": 149
+  },
+  {
+    "id": "verb-next",
+    "label": "» Next N",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "verb-out",
+    "label": "■ Out 0",
+    "onScreen": true,
+    "top": 223
+  },
+  {
+    "id": "cue-action-showBulletin",
+    "label": "⚡ Show bulletin",
+    "onScreen": true,
+    "top": 725
+  },
+  {
+    "id": "cue-action-clearBulletin",
+    "label": "⚡ Clear bulletin",
+    "onScreen": true,
+    "top": 725
+  }
+]

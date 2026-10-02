@@ -1,0 +1,8 @@
+[
+  {"fill": "f3", "value": "Jenni Vähäsarja-Kärkkäinen"},
+  {"click": "verb-update"}, {"wait": 2500},
+  {"shot": "update-host", "page": false},
+  {"fill": "f1", "value": "Suora lähetys Tampere-talon Iso sali -salista"},
+  {"click": "verb-update"}, {"wait": 2500},
+  {"shot": "update-long-line-finnish", "page": false}
+]

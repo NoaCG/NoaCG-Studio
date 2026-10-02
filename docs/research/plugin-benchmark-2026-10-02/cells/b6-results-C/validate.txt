@@ -1,0 +1,5 @@
+OK - 0 error(s), 0 warning(s)
+
+Readiness: Operator fields reach the graphic PASS · Plays, comes off air, and replays cleanly PASS · Nothing collides or escapes the frame PASS · Reads where it will be watched PASS · Survives text twice as long PASS · Motion is editable on the timeline PASS · Exports plug-and-play PASS
+Engines:   Renders on every supported playout engine.
+exit 0

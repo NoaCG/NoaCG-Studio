@@ -1,0 +1,9 @@
+panel at load: EDITING PREVIEW CUE · 1 changes air on ⟳ Take F0 · Race F1 · Label (TULOKSET, EPÄVIRALLISET TULOKSET ...) F2 · Results, one per line: Name | Club | Time (or DNF / DSQ in place of the time). Top 8 in finishing order; ranks and gaps are worked out. OPERATOR NOTE ▸ Advanced Layer 20 CONTROLS as the graphic declared them Activity
+reach: 4 of 4 live controls on screen at load
+shot 01-ready
+shot 02-take
+shot 03-update-five-rows-dsq-dnf
+shot 04-retake-five-rows
+actions: 0 of 0 declared actions pressed
+shot 05-after-actions
+shot 06-out
