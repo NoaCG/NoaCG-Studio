@@ -98,6 +98,8 @@ interface FakeBridge {
   servers?: Server[];
   /** Every setup the page gave a Bridge with the `studio` feature (`/studio`), in order. */
   studios: { host: string; port: number; studio: Studio }[];
+  /** How long `/servers` takes to answer, ms: a Bridge slow enough for the operator to type first. */
+  slowServers?: number;
   /** Servers that do not answer: a `/status` or `/connect` naming one reports the target hop. */
   downHosts?: string[];
   /** Every action the page sent, in order. */
@@ -179,6 +181,7 @@ async function fakeBridge(page: Page, options: Partial<FakeBridge> = {}): Promis
     state.routes.push(path);
     if (path === '/act') state.actions.push(body.action);
     if (path === '/servers') {
+      if (state.slowServers) await new Promise((r) => setTimeout(r, state.slowServers));
       await json(route, 200, { ok: true, v: 2, servers: state.servers ?? [] });
       return;
     }
@@ -557,6 +560,19 @@ test('a change made while the Bridge is not running is given to it the next time
   await expect(back.getByTestId('playout-studio-keeper')).toHaveAttribute('data-keeper', 'bridge');
   await expect(back.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Clean feed');
   expect(bridge.servers?.[0].studio?.channels[1].name).toBe('Clean feed');
+});
+
+test('a change typed while the Bridge is still being asked is kept, not replaced by the setup it answers with', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  // Typed before the Bridge's list arrives: the sync that started first must not write over it.
+  await section.getByTestId('caspar-channel-name').first().fill('Program');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('data-keeper', 'bridge', { timeout: 10_000 });
+  await expect(section.getByTestId('caspar-channel-name').first()).toHaveValue('Program');
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[0].name, { timeout: 10_000 }).toBe('Program');
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}').studioPending ?? null)).toBeNull();
 });
 
 test('with a Bridge older than 0.8.0 the setup stays in this browser, and it says so', async ({ page }) => {

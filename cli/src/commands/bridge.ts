@@ -58,10 +58,13 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
   const token = await resolveToken(flagString(args, 'token'), args.flags['new-token'] === true);
   const origins = allowedOrigins(flagList(args, 'origin'));
   const quiet = args.flags.quiet === true;
+  // Enter asks for a new link only where somebody can press it: a window or a terminal, never a
+  // Bridge started by another program with no keyboard behind it.
+  const keyboard = Boolean(process.stdin.isTTY);
   const pairings = new PairingCodes();
   const first = pairings.mint();
   const server = createBridgeServer(
-    { token, origins, adapters: [casparcgAdapter, ografAdapter], version: cliVersion(), pairings },
+    { token, origins, adapters: [casparcgAdapter, ografAdapter], version: cliVersion(), pairings, keyboard },
     (line) => {
       if (!quiet) out.log(`[bridge] ${line}`);
     },
@@ -74,9 +77,6 @@ export async function runBridge(args: ParsedArgs, out: Out): Promise<number> {
 
   const address = `http://127.0.0.1:${port}`;
   const pairUrl = pairingUrl(port, first.code);
-  // Enter asks for a new link only where somebody can press it: a window or a terminal, never a
-  // Bridge started by another program with no keyboard behind it.
-  const keyboard = Boolean(process.stdin.isTTY);
   out.result({ ok: true, address, token, origins, v: PLAYOUT_V, pairUrl });
   // What the window says is what the pairing page says (docs/work-specs/studio-day-playout D8): one
   // line per step, and how to pair another browser, which is a link copied into it.

@@ -41,6 +41,7 @@ import {
   type PlayoutAction,
   type RememberedServer,
   type SlotState,
+  type StudioSetup,
   type StateReply,
   type TargetCapability,
 } from './playoutProtocol';
@@ -605,7 +606,7 @@ export async function connectServer(settings: PlayoutSettings): Promise<{ result
   const servers = Array.isArray(body?.servers) ? body.servers : undefined;
   if (!servers || !result.features?.includes('studio')) return { result, servers };
   // And its setup: the Bridge's, or this browser's given to it (D17, D18).
-  const studio = await syncWith(loadPlayoutSettings(), servers);
+  const studio = await oneAtATime(() => syncWith(loadPlayoutSettings(), servers));
   return { result, servers: studio.servers ?? servers, studio };
 }
 
@@ -613,19 +614,23 @@ export async function connectServer(settings: PlayoutSettings): Promise<{ result
  *  Bridge remembers none, is older than 0.7.0 or does not answer: the caller then offers what this
  *  browser holds, which is all it ever had before. */
 export async function rememberedServers(settings: PlayoutSettings): Promise<RememberedServer[]> {
-  return (await bridgeMemory(settings))?.servers ?? [];
+  const memory = await bridgeMemory(settings);
+  return memory?.reached ? (memory.servers ?? []) : [];
 }
 
-/** What a paired Bridge remembers, and whether it keeps setups: null when it is not paired, does not
- *  answer or is older than 0.7.0. */
-async function bridgeMemory(settings: PlayoutSettings): Promise<{ servers: RememberedServer[]; studio: boolean } | null> {
+/** What a paired Bridge remembers (null when this browser is not paired): whether it answered, its
+ *  servers (null from a Bridge older than 0.7.0, which keeps none), and whether it keeps setups. */
+async function bridgeMemory(
+  settings: PlayoutSettings,
+): Promise<{ reached: false } | { reached: true; servers: RememberedServer[] | null; studio: boolean } | null> {
   if (!settings.agentUrl.trim() || !settings.agentToken.trim()) return null;
   const { unreachable, features } = await probeBridge(settings.agentUrl);
-  if (unreachable || !features.includes('servers')) return null;
+  if (unreachable) return { reached: false };
+  if (!features.includes('servers')) return { reached: true, servers: null, studio: false };
   // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
   const call = await callBridge(settings.agentUrl, '/servers', {}, STATE_TIMEOUT_MS, settings.agentToken);
-  if (!('http' in call) || !call.body.ok || !Array.isArray(call.body.servers)) return null;
-  return { servers: call.body.servers, studio: features.includes('studio') };
+  if (!('http' in call) || !call.body.ok || !Array.isArray(call.body.servers)) return { reached: false };
+  return { reached: true, servers: call.body.servers, studio: features.includes('studio') };
 }
 
 /**
@@ -635,9 +640,10 @@ async function bridgeMemory(settings: PlayoutSettings): Promise<{ servers: Remem
  *                first change made here is kept there
  *   unconnected  the Bridge keeps setups, but has not connected to this server: Connect, and it does
  *   browser      this browser only: no Bridge paired, or one from before 0.8.0
+ *   away         the Bridge does not answer, so this is the browser's copy
  *   waiting      changed here while the Bridge did not answer; it gets the change when it does
  */
-export type StudioKeeper = 'bridge' | 'ready' | 'unconnected' | 'browser' | 'waiting';
+export type StudioKeeper = 'bridge' | 'ready' | 'unconnected' | 'browser' | 'away' | 'waiting';
 
 export interface StudioSync {
   keeper: StudioKeeper;
@@ -655,28 +661,48 @@ export interface StudioSync {
  * that is the untouched default. With no Bridge, or one from before 0.8.0, the browser's copy stands.
  * It never contacts a server: `/servers` and `/studio` are the Bridge's own file.
  */
-export async function syncStudio(): Promise<StudioSync> {
-  const settings = loadPlayoutSettings();
-  const memory = await bridgeMemory(settings);
-  if (!memory?.studio) return { keeper: settings.studioPending && memory === null && playoutConfigured(settings) ? 'waiting' : 'browser', changed: false, servers: memory?.servers };
-  return syncWith(settings, memory.servers);
+export function syncStudio(): Promise<StudioSync> {
+  return oneAtATime(async () => {
+    const settings = loadPlayoutSettings();
+    const memory = await bridgeMemory(settings);
+    if (!memory) return { keeper: 'browser', changed: false };
+    if (!memory.reached) return { keeper: pendingServer(settings) ? 'waiting' : 'away', changed: false };
+    if (!memory.studio || !memory.servers) return { keeper: 'browser', changed: false, servers: memory.servers ?? undefined };
+    return syncWith(settings, memory.servers);
+  });
 }
 
+/** ONE SYNC AT A TIME. A production page, Playout settings' timer, its close and a Connect can each
+ *  start one, and two in flight could give the Bridge an older setup after a newer one. */
+let syncing: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const run = syncing.then(work, work);
+  syncing = run.catch(() => undefined);
+  return run;
+}
+
+/** `settings` is what the browser held when the sync started. Every write re-reads the browser first,
+ *  because the operator may have changed the setup while the Bridge was being asked: a change made in
+ *  that moment is never written over, and its mark stays until the Bridge has that change too. */
 async function syncWith(settings: PlayoutSettings, list: RememberedServer[]): Promise<StudioSync> {
   let servers = list;
   const inUse = { host: settings.host.trim(), port: settings.amcpPort };
+  const sent = studioOf(settings);
   const pending = pendingServer(settings);
   // A change made for ANOTHER server (the address was edited since) goes to that server first, or is
   // dropped when the Bridge never connected to it: it has nowhere to keep it.
   if (pending && !sameServer(pending, inUse)) {
     if (servers.some((s) => sameServer(s, pending))) servers = (await keepStudio(settings, pending)) ?? servers;
-    writeSettings({ ...loadPlayoutSettings(), studioPending: undefined });
+    settlePending(sent);
   }
   const pendingHere = !!pending && sameServer(pending, inUse);
   const entry = servers.find((s) => sameServer(s, inUse));
-  const step = studioStep(studioOf(settings), entry, pendingHere);
+  const step = studioStep(sent, entry, pendingHere);
   if (step.kind === 'pull') {
-    writeSettings({ ...loadPlayoutSettings(), ...studioFields(step.studio), studioPending: undefined });
+    const now = loadPlayoutSettings();
+    // Changed here while the Bridge was asked: decide again from what the browser holds now.
+    if (pendingServer(now) || !sameStudio(studioOf(now), sent)) return syncWith(now, servers);
+    writeSettings({ ...now, ...studioFields(step.studio) });
     return { keeper: 'bridge', changed: true, servers };
   }
   if (step.kind === 'push') {
@@ -685,9 +711,16 @@ async function syncWith(settings: PlayoutSettings, list: RememberedServer[]): Pr
     servers = kept;
   }
   if (!entry) return { keeper: 'unconnected', changed: false, servers };
-  // Kept, or the same on both sides: nothing waits any more.
-  if (pendingHere) writeSettings({ ...loadPlayoutSettings(), studioPending: undefined });
+  // Kept, or the same on both sides: nothing waits any more, unless a newer change came meanwhile.
+  if (pendingHere) settlePending(sent);
   return { keeper: step.kind === 'push' || entry.studio ? 'bridge' : 'ready', changed: false, servers };
+}
+
+/** The change the Bridge was given (`sent`) has landed: drop the mark, unless the browser has changed
+ *  the setup again since, in which case that change still waits for its own turn. */
+function settlePending(sent: StudioSetup): void {
+  const now = loadPlayoutSettings();
+  if (now.studioPending && sameStudio(studioOf(now), sent)) writeSettings({ ...now, studioPending: undefined });
 }
 
 /** The server a change waits for, when one does and the record says a server. */

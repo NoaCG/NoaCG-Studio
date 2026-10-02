@@ -106,6 +106,9 @@ export interface BridgeOptions {
   pairings?: PairingCodes;
   /** One more code to honour, a test's own. */
   pairing?: Pairing;
+  /** Somebody can press Enter in the Bridge's window for a new pairing link, so a refused code says
+   *  so. A Bridge started by another program has no keyboard behind it. */
+  keyboard?: boolean;
   /** The slots' generations and instances. A test hands in its own to fix the session id. */
   memory?: SlotMemoryBank;
   /** The sequence runner over that memory. A test hands in its own and drives its rounds; without
@@ -457,7 +460,12 @@ export function createBridgeServer(options: BridgeOptions, log: (line: string) =
           const code = typeof body.code === 'string' ? body.code : '';
           if (!pairings.spend(code)) {
             log('refused a pairing code');
-            refuse(401, 'refused', 'That pairing link has been used or is more than two minutes old. Get a new one: press Enter in the NoaCG Bridge window, or start NoaCG Bridge again.', true);
+            refuse(
+              401,
+              'refused',
+              `That pairing link has been used or is more than two minutes old. ${options.keyboard ? 'Press Enter in the NoaCG Bridge window for a new one.' : "Make a new one in a paired browser's Playout settings, or start NoaCG Bridge again."}`,
+              true,
+            );
             return;
           }
           log('paired a browser');

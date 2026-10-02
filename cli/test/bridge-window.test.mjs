@@ -41,7 +41,8 @@ async function startBridge({ keyboard }) {
     assert.match(text, re);
   };
   const stop = async () => {
-    child.kill();
+    // Forced, so the test never waits on the Bridge's own graceful close.
+    child.kill('SIGKILL');
     await new Promise((r) => child.once('exit', r));
     await rm(dir, { recursive: true, force: true });
   };

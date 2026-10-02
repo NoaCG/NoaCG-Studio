@@ -9,7 +9,8 @@
 // Nothing else writes the file - not a test, the page's status poll or any command - and nothing here
 // ever contacts a server. A file that cannot be read or parsed reads as an empty list: forgetting the
 // servers is a nuisance, a Bridge that will not start is an outage. A field a newer Bridge wrote is
-// carried through a rewrite untouched, so running an older Bridge for a day loses nothing.
+// carried through a rewrite untouched, so from 0.8.0 on, running an older Bridge for a day loses
+// nothing. 0.7.0 itself rewrites host and port only: going back to it forgets every setup.
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';

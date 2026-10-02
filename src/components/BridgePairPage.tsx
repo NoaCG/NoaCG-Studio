@@ -215,6 +215,7 @@ function ConnectStep() {
         <input
           value={host}
           onChange={(e) => setHost(e.target.value)}
+          disabled={servers === null}
           placeholder="IP address"
           aria-label="CasparCG server"
           spellCheck={false}
@@ -226,10 +227,11 @@ function ConnectStep() {
           max={65535}
           value={port}
           onChange={(e) => setPort(Number(e.target.value) || 0)}
+          disabled={servers === null}
           aria-label="AMCP port"
           data-testid="bridge-connect-port"
         />
-        <button className={connected ? '' : 'primary'} type="submit" disabled={busy || !host.trim() || !port} data-testid="bridge-connect">
+        <button className={connected ? '' : 'primary'} type="submit" disabled={busy || servers === null || !host.trim() || !port} data-testid="bridge-connect">
           {busy ? 'Connecting…' : 'Connect'}
         </button>
       </form>
@@ -237,7 +239,9 @@ function ConnectStep() {
         servers={servers ?? []}
         current={connected?.server}
         onPick={(server) => void connect(server)}
-        disabled={busy}
+        // Not while the Bridge is still asked for the last server: its own connect would follow a
+        // press made now and replace the operator's choice.
+        disabled={busy || servers === null}
         testId="bridge-connect-recent"
       />
       {servers === null && (

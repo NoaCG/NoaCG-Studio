@@ -38,6 +38,8 @@ function keeperLine(keeper: StudioKeeper, s: PlayoutSettings): string {
       return `Change anything here and NoaCG Bridge keeps it for ${serverAddress(targetOf(s))}, for every browser paired with it.`;
     case 'unconnected':
       return `Kept in this browser. Press Connect, and NoaCG Bridge keeps it for ${serverAddress(targetOf(s))} and every browser paired with it.`;
+    case 'away':
+      return 'NoaCG Bridge does not answer, so this is the setup this browser holds.';
     case 'waiting':
       return 'Kept in this browser. NoaCG Bridge is given it the next time it answers.';
     default:
