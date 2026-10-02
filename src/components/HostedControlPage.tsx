@@ -879,12 +879,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const runVerb = (verb: PlayoutVerb, press?: VerbPress) => {
     // The header's ■ All out, as the named verb a hardware panel presses (no key, on purpose).
     if (verb === 'all-out') outAll();
-    // A panel's per-cue key: select that cue; take it to air whatever the SPACE mode, or take it
-    // off when it is the one up on its layer (spec D4).
+    // A panel's per-cue keys (spec D4). Select moves the selection there. Take airs that cue
+    // whatever the SPACE mode, or takes it off when it is the one up on its layer, and leaves the
+    // selection where the operator put it: a deck key never changes what SPACE acts on.
     const named = press?.cue ? cues.find((c) => c.id === press.cue) : undefined;
     if (named && verb === 'select-cue') selectCue(named);
     if (named && verb === 'take-cue') {
-      selectCue(named);
       if (liveCue[named.graphic] === named.id) void sendVerb(clearCueItems(named.graphic));
       else void takeCue(named);
     }

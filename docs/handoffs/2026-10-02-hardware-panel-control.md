@@ -37,11 +37,9 @@ closed before its main window will close). The preview branch used for all of it
    - `selected` is the held folder's header, else the selected cue's own id, not `cursorRow`: the
      rows list a collapsed folder's cues, and with one of those selected `cursorRow` is the
      header while Take acts on the cue.
-   - `take-cue` leaves the production page's cursor where it was; the hosted page's `take-cue`
-     selects the cue first. A deck's per-cue key firing a cue mid-show should not move what SPACE
-     acts on under the operator. The two pages now differ here; the owner's choice is asked in
-     `docs/acceptance/owner-queue/2026-10-02-a-panel-cue-key-and-the-cursor.md` (spec D4 does not
-     say), and either answer is one line in each page's `onVerb` and spec.
+   - `take-cue` leaves the selection where the operator put it, on both pages: a deck's per-cue
+     key firing a cue mid-show must not move what SPACE acts on. The owner ruled so on 2026-10-02
+     (spec D4); the hosted page, which selected the cue first since #632, was changed to match.
    - `pause-toggle` from a panel pauses the clip its key named (the clip the clock follows, its
      target per protocol §7.3), and is allowed exactly when the state carries a clip. P on the
      keyboard still goes by the selection first. `VerbPress.cue` says so now.

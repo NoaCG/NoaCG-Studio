@@ -51,7 +51,9 @@ reopening the requirements above.
   when no page has been heard for 12 s. Broadcasts are never stored, so nothing can queue.
 - **D4. `take-cue` airs that cue whatever the SPACE mode, and takes it off when pressed while that
   cue is on air.** A per-cue key is a toggle, the H2R and SPX habit on a deck; it never only
-  previews. `select-cue` moves the selection and airs nothing.
+  previews. It leaves the page's selection where the operator put it, on both operator pages
+  (owner, 2026-10-02): a deck key never changes what the next SPACE acts on. `select-cue` moves
+  the selection and airs nothing.
 - **D5. Panels may press** `take`, `retake`, `update`, `next`, `out`, `select-prev`,
   `select-next`, `pause`, `resume`, `pause-toggle`, `all-out`, `select-cue`, `take-cue`. The rundown
   editing verbs and `folder-*` stay keyboard-only (no editing from hardware, research §10.2).

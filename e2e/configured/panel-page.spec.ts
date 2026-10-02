@@ -78,11 +78,14 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   // And a selection that moved: Out for Ben while Anna is selected.
   expect((await deck.press('out', ben, afterTake.ver as number)).outcome).toBe('stale');
 
-  // TAKE A CUE airs that cue whatever is selected, and again takes it off.
+  // TAKE A CUE airs that cue whatever is selected, and again takes it off. The selection stays on
+  // Anna, where the operator put it (spec D4).
   const cur = await deck.state();
+  expect(cur.selected).toBe(anna);
   expect((await deck.press('take-cue', ben, cur.ver as number)).outcome).toBe('ran');
   const benUp = await deck.state((s) => (s.live as string[]).includes(ben), 'Ben on air');
-  expect(benUp.selected).toBe(ben);
+  expect(benUp.selected).toBe(anna);
+  await expect(op.locator('.pd-cue.selected')).toContainText('Anna');
   expect((await deck.press('take-cue', ben, benUp.ver as number)).outcome).toBe('ran');
   await deck.state((s) => !(s.live as string[]).includes(ben), 'Ben off air');
 
