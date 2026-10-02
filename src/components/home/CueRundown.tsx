@@ -118,6 +118,7 @@ export default function CueRundown({
   library,
   playoutSettings,
   liveCue,
+  unsentOnAir,
   serverOwnership,
   serverTiming,
   selectedCueId,
@@ -165,6 +166,8 @@ export default function CueRundown({
   playoutSettings: PlayoutSettings;
   /** Which cue is on air on each graphic's layer. Read-only here. */
   liveCue: LiveCueMap;
+  /** The ON-AIR cues edited since they were sent (the editor's "not on air yet", said on the row). */
+  unsentOnAir: ReadonlySet<string>;
   /** What this page put up on the playout server, and what the server says besides. Read-only. */
   serverOwnership: ServerOwnership;
   /** Where each server clip is, for the remaining times - subscribed to by those cells alone. */
@@ -700,6 +703,19 @@ export default function CueRundown({
                   data-testid="cue-replaced"
                 >
                   replaced on the server
+                </span>
+              )}
+              {cueIsLive && unsentOnAir.has(cue.id) && (
+                // AIR IS BEHIND THIS ROW: its cue was edited after it was sent. Said here, beside
+                // ON AIR, because the editor's "not on air yet" leaves with the selection
+                // (docs/research/control-surfaces-review-2026-10-02 S1, slice 1).
+                <span
+                  className="pd-tag unsent"
+                  title="Edited since it was sent: air still shows the old values. Select it and press ✎ Update to send the edit."
+                  aria-label="Edited, not sent"
+                  data-testid="cue-unsent-mark"
+                >
+                  EDITED
                 </span>
               )}
               {cueIsLive ? (

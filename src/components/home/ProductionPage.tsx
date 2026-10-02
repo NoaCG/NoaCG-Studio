@@ -2307,13 +2307,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * air by itself - this only says so out loud. A cue that has never been taken is not
    * "unsent"; it is simply not on air, which the rundown already says.
    */
-  const unsentFields =
-    editingIsLive && selectedGraphic && editingCue
-      ? Object.entries(cueView(editingCue).values)
-          .filter(([field, value]) => (airedData[selectedGraphic]?.[field] ?? '') !== value)
-          .map(([field]) => field)
-      : [];
+  const unsentOf = (graphic: string, cue: ShowCue): string[] => {
+    // A BOUND field is not a cue value (plan §2.7): Take and ✎ Update air the tree's figure for
+    // it, so its stored value differing from air is not an edit anyone made and never "unsent"
+    // (the review's S4: a bound scoreboard wore an amber that Update could not clear).
+    const bound = boundFields(graphic);
+    return Object.entries(cueView(cue).values)
+      .filter(([field, value]) => !bound[field] && (airedData[graphic]?.[field] ?? '') !== value)
+      .map(([field]) => field);
+  };
+  const unsentFields = editingIsLive && selectedGraphic && editingCue ? unsentOf(selectedGraphic, editingCue) : [];
   const hasUnsent = unsentFields.length > 0;
+  /** The ON-AIR cues whose values differ from what air shows, by cue id - said on their rundown
+   *  row, where the operator looks, and not only in the editor that has to be showing the cue
+   *  (the review's S1: edit the on-air cue, click another row, and the only sign was gone). A
+   *  graphic this page has sent nothing for (a reload, another operator's take) is not judged:
+   *  there is no record of what air shows to compare with. */
+  const unsentOnAir = new Set(
+    Object.entries(liveCue)
+      .filter(([graphic, cueId]) => {
+        const cue = airedData[graphic] && cues.find((c) => c.id === cueId);
+        return !!cue && unsentOf(graphic, cue).length > 0;
+      })
+      .map(([, cueId]) => cueId),
+  );
 
   const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
     if (!editingCue) return;
@@ -4392,6 +4409,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         library={library}
         playoutSettings={playoutSettings}
         liveCue={liveCue}
+        unsentOnAir={unsentOnAir}
         serverOwnership={serverOwnership}
         serverTiming={serverPlayout.timing}
         selectedCueId={selectedCue?.id ?? null}
