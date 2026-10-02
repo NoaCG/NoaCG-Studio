@@ -70,3 +70,13 @@ none of these; data arrives through `update()`.
 `fields` · `lifecycle` · `layout` · `legibility` · `stress` · `editable` · `export` - each PASS /
 WARN / FAIL / UNTESTED (untested = the bench did not run). All PASS/WARN = the graphic is
 saveable and will play; a FAIL names the row to fix first.
+
+## The frames (`--screenshots <dir>`)
+
+`off.png`, `onair.png`, `stress.png`, then one frame per machine state the graphic's events reach
+from the Take (`pp-b.png`, `result-final.png`, `timer-running.png`), each listed with the
+`--event` presses that reproduce it. The rules above measure; these frames are for judging, so
+open every one. Add `--background video` (or a colour, `checker`, or your own still) to judge
+them on the ground they will air on: a transparent PNG shows on white in most viewers. For a
+state at a later moment, `noacg screenshot <dir> --event <name>... --at <time> --out <png>`
+(a clock 2 minutes on, a timer that ran out).

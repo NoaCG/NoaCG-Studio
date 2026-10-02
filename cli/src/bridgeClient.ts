@@ -74,6 +74,11 @@ export interface ControlButton {
   payload?: string[];
   /** Field ids whose current value, moved by the delta, rides the event (a goal's +1). */
   adjust?: Record<string, number>;
+  /** Field ids set to the figure the control declares (a "New game" back to 0). */
+  set?: Record<string, string>;
+  /** List field id -> source field id whose value is added as a line / taken out. */
+  add?: Record<string, string>;
+  remove?: Record<string, string>;
   destructive?: boolean;
 }
 export interface BridgeInspection {
@@ -231,6 +236,11 @@ export class BridgeClient {
 
   inspect(input: { template?: SpxTemplate; manifest?: unknown }): Promise<BridgeInspection> {
     return this.call('inspect', input);
+  }
+
+  /** The data a state airs: every field at its default, or the stress recipe. */
+  stateData(template: SpxTemplate, state: 'onair' | 'stress'): Promise<Record<string, string>> {
+    return this.call(state === 'stress' ? 'stressData' : 'defaultData', template);
   }
 
   compose(template: SpxTemplate, state: 'off' | 'onair' | 'stress' | Record<string, string>): Promise<string> {

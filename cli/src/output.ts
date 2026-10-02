@@ -61,6 +61,15 @@ export function flagList(args: ParsedArgs, key: string): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
+/** A valued flag given bare parses as `true` (a bare repeat as "true"), which the readers above
+ *  drop without a word; a command whose flags must carry a value refuses that instead. */
+export function refuseBareFlags(args: ParsedArgs, keys: string[]): void {
+  for (const key of keys) {
+    const v = args.flags[key];
+    if (v === true || (Array.isArray(v) && v.includes('true'))) throw new UsageError(`--${key} needs a value.`);
+  }
+}
+
 export function flagBool(args: ParsedArgs, key: string, fallback: boolean): boolean {
   const v = args.flags[key];
   if (v === undefined) return fallback;

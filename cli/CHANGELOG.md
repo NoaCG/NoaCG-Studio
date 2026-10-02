@@ -12,6 +12,16 @@ internal names.
 
 ## 0.7.0 - unreleased
 
+**New: see every state of a graphic, at any moment, over video.** `noacg screenshot` takes
+`--event` (repeatable) to drive the graphic the way an operator does after the Take: its own
+buttons, with the payload each press carries, plus `next`, `out`, `field=value` updates and
+`wait:4s`. `--at 4s` picks the moment after the last press, on a clock the run controls, so the
+frame is the same every time and two minutes later costs seconds. `--background video` paints a
+video-like plate behind the graphic; a colour, `checker` or your own image work too.
+`validate --screenshots` now also writes one frame per state the graphic's events reach, such as
+`pp-b.png` or `timer-running.png`, and prints the presses that reproduce each one. Frames without
+these flags are unchanged.
+
 **New: `noacg bridge` remembers your CasparCG servers.** The servers NoaCG connects to through the
 Bridge are kept in `caspar-servers.json` next to the Bridge's token, so a browser that pairs gets
 the last one back and connects to it by itself. Connecting only asks the server for its version.

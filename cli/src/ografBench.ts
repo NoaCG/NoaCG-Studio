@@ -7,7 +7,7 @@
 
 import { randomBytes } from 'node:crypto';
 import type { BridgeClient, OgrafPackageRead } from './bridgeClient.js';
-import { shoot } from './screenshot.js';
+import { paintBackground, shoot } from './screenshot.js';
 
 const CONTENT_TYPES: Record<string, string> = {
   '.mjs': 'application/javascript',
@@ -49,7 +49,7 @@ export async function ografBench(
   bridge: BridgeClient,
   read: OgrafPackageRead,
   files: Map<string, Uint8Array>,
-  opts: { screenshot?: boolean; timeoutMs?: number } = {},
+  opts: { screenshot?: boolean; timeoutMs?: number; background?: string | null } = {},
 ): Promise<OgrafBenchResult> {
   const nonce = randomBytes(6).toString('hex');
   const base = `${bridge.origin}/__noacg-package/${nonce}/`;
@@ -118,8 +118,10 @@ export async function ografBench(
     if (read.contract.steps.count > 1 || read.contract.steps.count === -1) await drive('playAction {delta:1}', 'play', { delta: 1 });
     let screenshot: Uint8Array | undefined;
     if (opts.screenshot) {
-      // Settle a moment, then shoot the host page as it stands (the graphic on air).
+      // Settle a moment, then shoot the host page as it stands (the graphic on air), over the
+      // asked-for ground if there is one.
       await page.waitForTimeout(1200);
+      await paintBackground(page, opts.background);
       screenshot = new Uint8Array(await page.screenshot({ omitBackground: true, type: 'png' }));
     }
     await drive('stopAction', 'stop', {});
