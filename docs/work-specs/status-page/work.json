@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "679d64ccc99239cc93fb969457fc5feafa378be25fc3083c05467a5f5559e633",
+  "authority": {
+    "status": "agreed",
+    "source": "the owner's ruling of 2026-10-02 (an outside hosted status service with a free tier at status.noacg.studio) and docs/GOALS.md outcome 5; the decisions the spec marks D1 to D6 are derived and open to his overrule"
+  },
+  "review": null
+}

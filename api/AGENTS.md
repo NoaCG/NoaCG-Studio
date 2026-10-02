@@ -95,4 +95,6 @@ rather than silently exceeding it.
 
 The consolidation that got here (2026-07-30, `56baae7`) moved handlers under `api/_lib/`, which is
 not routed and so costs nothing. Deliberately standalone: `render/start` (carries `includeFiles`
-for the Remotion bundle), `ai/generate` (300 s, 12 MB bodies), `render/cleanup` (cron target).
+for the Remotion bundle), `ai/generate` (300 s, 12 MB bodies), `render/cleanup` (cron target),
+`status` (public, no sign-in, its own 10 s cap; the status page's monitors call it). With `status`
+the count is 12 of 12: the next standalone function raises `FUNCTION_CAP` on purpose.
