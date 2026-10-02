@@ -58,6 +58,25 @@ and `e2e/configured/playout-status.spec.ts`:
   onto v2 by itself"; with Put on air no longer re-reading the slot, it fails waiting 5 s for the
   status to change.
 
+- **Build** on the tip after taking `main` in (`npm run build`): 2366 Node tests pass, 2
+  skipped, then `tsc`, ESLint with no warnings, the dependency check, the production build and
+  the after-build gates. An earlier build, before the merge, failed one timing test in
+  `scripts/server-playout.test.mjs` under a loaded machine; it now waits for the poll's third
+  reading instead of counting readings in 60 ms (mutation-checked: a poll that stops on a throw
+  fails it).
+- **The configured suite** on the local stack (76 tests, one worker): the first run failed 8. Six
+  pressed "the button named Unpublish" while the status itself read "Unpublished changes";
+  they now unpublish through `unpublishFromPanel` by test id. live-prepare read an output's
+  READY answer inside the reload with which the output moves onto a new version (`expect.poll`
+  stops on the first thrown error); the shared `readyOf` answers null there. anonymous.spec
+  asserted the old links button was absent before publishing; the status now reads Offline.
+- **The baselines** (`e2e/playout-baseline.spec.ts`), re-recorded for the new header, showed one
+  more thing: in an offline production with a server clip up through the Bridge, the monitor read
+  "PREVIEW · NOT LIVE" above a clip that was on air on 2-10. The monitor is now on air whenever
+  anything the page sends is (spec D16), pinned in `e2e/playout-cues.spec.ts`. The rundown chip
+  and the line under the verbs still say ON AIR for a local take in an offline production; filed
+  as `docs/backlog/on-air-words-in-an-offline-production.md`.
+
 ## Not checked here
 
 - The ATEM DSK and a real studio: the owner's queue item from Landing 1 still stands.
