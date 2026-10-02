@@ -13,7 +13,7 @@ new worktree.
 | 3 | NoaCG/NoaCG-Studio#626 | migration 0073 (panel keys, pairing codes, claim, press relay, the `pnp-`/`pfb-` topic policies), `/panel.json`, `e2e/configured/panel-relay.spec.ts`, the advisor baseline |
 | 4a | NoaCG/NoaCG-Studio#627 | `select-cue` and `take-cue` in `playoutKeys.ts` |
 | 4b | NoaCG/NoaCG-Studio#632 | the page side on the HOSTED control page: `src/control/panelFeedback.ts` (pure), `src/control/panelRelay.ts` (wire), `src/components/control/PanelControl.tsx` and `panel.css`, `e2e/configured/panel-page.spec.ts` |
-| 4c | branch `claude/confident-bohr-vjr8eh` | the page side on the PRODUCTION page: `ProductionPage.tsx`, `rundownPanelRows` in `panelFeedback.ts`, `e2e/panel-production-page.spec.ts` (offline), `e2e/configured/panel-production-page.spec.ts` (not yet run) |
+| 4c | NoaCG/NoaCG-Studio#650 | the page side on the PRODUCTION page: `ProductionPage.tsx`, `rundownPanelRows` in `panelFeedback.ts`, `e2e/panel-production-page.spec.ts` (offline), `e2e/configured/panel-production-page.spec.ts` (first run 2026-10-02 on a local stack, `evidence/page-on-production-page.md`) |
 
 **0073 on production was HELD** by post-land at every landing so far (productions were live at
 08:11 and 10:07 UTC); staging has it. The next landing retries it by itself, and post-land goes red
@@ -57,10 +57,9 @@ closed before its main window will close). The preview branch used for all of it
      waits for the status control's `data-started`. The module's side of both page specs is in
      `e2e/configured/_panel.ts`.
 
-   **Still owed from (1):** the first run of `e2e/configured/panel-production-page.spec.ts` (and of
-   the edited `panel-page.spec.ts`). The building session was a cloud session with no Supabase
-   token, so it ran only the offline spec and the unit tests; CI's configured suite runs both on
-   the next landing, or a local session runs them through the job queue. The production page's
+   **Ran since (1) was built:** the configured specs, on a local Supabase stack (0001 to 0073):
+   `panel-production-page.spec.ts`, the edited `panel-page.spec.ts` and `panel-relay.spec.ts`,
+   9 of 9 (`evidence/page-on-production-page.md`). **Still owed from (1):** the production page's
    clip clock to a panel has no configured coverage: a Bridge-less clip needs the fake Bridge of
    `e2e/playout-clock.spec.ts` inside a configured spec. Until then it rests on
    `panel-feedback.test.mjs` (`panelClip`) and the module's own clock tests.
@@ -73,8 +72,8 @@ closed before its main window will close). The preview branch used for all of it
    session. Until then a Companion 4.3+ user can import the `.tgz` from `yarn package`.
 4. **Convergence review** of the spec (`node scripts/work-spec.mjs status
    docs/work-specs/hardware-panel-control/work.json`): every AC has evidence files now; the
-   production page's share of AC-3, AC-4, AC-6 and AC-7 waits on the configured run in (1), and
-   AC-13 on the full configured suite.
+   production page's share of AC-3, AC-4, AC-6 and AC-7 has its configured run (1), and AC-13
+   waits on the full configured suite.
 
 ## Facts worth not relearning
 
