@@ -50,9 +50,10 @@ export interface StatusFacts {
   /** NoaCG Bridge as the page last heard it; null when no Bridge is set up in this browser. */
   bridge: { state: PlayoutState | 'pending'; detail: string; version?: string } | null;
   /** What the NoaCG output's own slot on the server holds, read through the Bridge; undefined
-   *  until it has been read, `unreadable` when this Bridge or server cannot say (an older Bridge).
-   *  `where` is `1-20`, `channel` its channel. */
-  slot?: { where: string; channel: number; holds: 'ours' | 'other' | 'empty' | 'unreadable' };
+   *  until it has been read, `unreadable` when this Bridge or server cannot say (an older Bridge),
+   *  `failed` when the read was refused, with the Bridge's sentence in `detail`. `where` is `1-20`,
+   *  `channel` its channel. */
+  slot?: { where: string; channel: number; holds: 'ours' | 'other' | 'empty' | 'unreadable' | 'failed'; detail?: string };
   /** READY's summary (readiness.ts `describeReadiness`), or null when no output is known.
    *  `broken` is the headline of an output naming a graphic that cannot play ("Not ready: Hairline
    *  (script error)"), or null. */
@@ -130,6 +131,17 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
         label: `This NoaCG Bridge cannot say what ${f.slot.where} shows`,
         short: 'Connected',
         advice: 'Update NoaCG Bridge to have this checked.',
+      });
+    } else if (f.slot.holds === 'failed') {
+      // The server answers but will not say what the slot shows: most often a NoaCG output set to
+      // a channel it does not have, where Put on air would fail too. Red unless an output elsewhere
+      // already airs the graphics, as for an empty slot.
+      checks.push({
+        key: 'slot',
+        tone: f.started ? (readyAny ? 'warn' : 'bad') : 'idle',
+        label: `Cannot read what ${f.slot.where} shows`,
+        short: `Cannot read ${f.slot.where}`,
+        advice: f.slot.detail || 'Check the NoaCG output channel under Setup.',
       });
     } else if (f.slot.holds === 'other') {
       checks.push({

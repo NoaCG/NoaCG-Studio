@@ -65,7 +65,12 @@ async function addCatalogGraphic(page: Page, showId: string, name: string): Prom
  * of a URL) and Take off (`out`) change it as the real server would.
  */
 async function fakeStudio(page: Page) {
-  const studio = { slot: { producer: 'empty' } as { producer: string; file?: string }, actions: [] as { verb: string }[] };
+  const studio = {
+    slot: { producer: 'empty' } as { producer: string; file?: string },
+    /** The server refuses `INFO` for the channel, as for a channel it does not have. */
+    refuseState: false,
+    actions: [] as { verb: string }[],
+  };
   const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
   const json = (route: Route, body: unknown) => route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   await page.route(`${BRIDGE}/**`, async (route) => {
@@ -75,6 +80,9 @@ async function fakeStudio(page: Page) {
     const body = JSON.parse(request.postData() || '{}') as { channel?: number; action?: { verb: string; item?: { name: string } } };
     if (path === '/status') return json(route, { ok: true, v: 2, version: '2.5.0 69e8ad5 Stable', raw: '201 VERSION OK', capabilities: ['state'] });
     if (path === '/state') {
+      if (studio.refuseState) {
+        return json(route, { ok: false, v: 2, error: { hop: 'target', code: 'refused', detail: 'CasparCG refused the command: 401 INFO ERROR. Check the channel and layer.', raw: '401 INFO ERROR' } });
+      }
       const slots = body.channel === 1 ? [{ layer: 20, generation: 0, paused: false, loop: false, ...studio.slot }] : [];
       return json(route, { ok: true, v: 2, channel: body.channel ?? 1, session: 's1', observedAt: Date.now(), slots });
     }
@@ -152,6 +160,17 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-tone', 'bad');
   await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
   await expect(panel.getByTestId('status-check-slot')).toContainText('Channel 1 shows another production on 1-20');
+
+  // ── A server that will not say what the slot shows (a channel it does not have): red, with its
+  //    own sentence, never "Checking…" for ever. ──
+  studio.refuseState = true;
+  await panel.getByTestId('playout-check-again').click();
+  await expect(status).toContainText('Cannot read 1-20', { timeout: 20_000 });
+  await expect(status).toHaveAttribute('data-tone', 'bad');
+  await expect(panel.getByTestId('status-check-slot')).toContainText('401 INFO ERROR');
+  studio.refuseState = false;
+  await panel.getByTestId('playout-check-again').click();
+  await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
 
   // ── Put on air: green at once, without waiting for the next 10 s read. ──
   await panel.getByTestId('caspar-put-on-air').click();

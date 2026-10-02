@@ -63,6 +63,12 @@ test('broken is red: the Bridge lost, the server silent, another production, not
     assert.deepEqual([s.tone, s.text], ['bad', text], JSON.stringify(over));
     assert.equal(s.checks[0].tone, 'bad', 'the deciding check comes first');
   }
+  // A slot the server will not read (a channel it does not have) is a fault, never "Checking…".
+  const refused = status({ slot: { ...ours, holds: 'failed', detail: 'CasparCG refused the command: 401 INFO ERROR.' }, ready: null });
+  assert.deepEqual([refused.tone, refused.text], ['bad', 'Cannot read 1-20']);
+  assert.equal(refused.checks[0].advice, 'CasparCG refused the command: 401 INFO ERROR.');
+  // ...and attention only, when an output elsewhere already airs the graphics.
+  assert.equal(status({ slot: { ...ours, holds: 'failed' } }).tone, 'warn');
   // A graphic that cannot play is red here, named, although READY's own line reads it amber.
   const broken = status({
     ready: { tone: 'warn', label: '▲ Not ready: Hairline (script error)', outputs: 1, ready: 0, broken: 'Not ready: Hairline (script error)' },

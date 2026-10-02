@@ -244,8 +244,19 @@ export interface BridgeFacts {
  */
 export function slotHolds(slot: SlotState | null, outputSlug: string | null): 'ours' | 'other' | 'empty' {
   const file = slot?.producer === 'html' ? (slot.file ?? '') : '';
-  if (outputSlug && file.indexOf(`production=${encodeURIComponent(outputSlug)}`) >= 0) return 'ours';
+  // The slug must END where the parameter does: `production=ab12` inside `production=ab12x9` is
+  // another production.
+  const param = outputSlug ? `production=${encodeURIComponent(outputSlug)}` : '';
+  const at = param ? file.indexOf(param) : -1;
+  if (at >= 0 && /^(?:$|[&#])/.test(file.slice(at + param.length))) return 'ours';
   return file.indexOf('/output?production=') >= 0 ? 'other' : 'empty';
+}
+
+/** A fresh prepare request id: twelve lowercase alphanumerics. */
+export function requestId(): string {
+  let id = '';
+  while (id.length < 12) id += Math.random().toString(36).slice(2);
+  return id.slice(0, 12);
 }
 
 /**

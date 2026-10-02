@@ -27,8 +27,8 @@ export function PlayoutStatusControl({
   children,
 }: {
   status: PlayoutStatus;
-  /** READY's own reading underneath (readiness.ts), carried on the control for whoever needs its
-   *  exact words or counts: the tooltip, and the specs. */
+  /** READY's own reading underneath (readiness.ts), carried on the control's data attributes for
+   *  whoever needs its exact words or counts: the specs. The tooltip names the checks instead. */
   ready?: { label: string; source: string; outputs: number; ready: number } | null;
   /** The production is started: the specs and the e2e read it off `data-started`. */
   started: boolean;

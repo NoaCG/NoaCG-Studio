@@ -256,11 +256,11 @@ import { ReadyOutputList, announcedExpected, useExpectedOutputs, useLivePresence
 import { usePublishDrift } from './usePublishDrift';
 import type { PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
-import { slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
+import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
 import { describePlayoutStatus } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
-import { PrepareForLive, requestId, usePrepareForLive } from '../control/PrepareForLive';
+import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
 
 /** The selected cue's UNSAVED edits: local echo for instant typing, flushed to the record on a
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
@@ -467,8 +467,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  cues: what the editor shows beside a server cue, and what disables its Take. */
   const [bridgeStatus, setBridgeStatus] = useState<PlayoutResult | null>(null);
   /** What the NoaCG output's slot on the server holds (the effect beside the status poll below):
-   *  undefined until read, `unreadable` on a Bridge too old to say. */
-  const [outputSlot, setOutputSlot] = useState<ReturnType<typeof slotHolds> | 'unreadable' | undefined>(undefined);
+   *  undefined until read, `unreadable` on a Bridge too old to say, `failed` with the Bridge's own
+   *  sentence when the read was refused (a channel the server does not have, say). */
+  const [outputSlot, setOutputSlot] = useState<
+    { holds: ReturnType<typeof slotHolds> | 'unreadable' | 'failed'; detail?: string } | undefined
+  >(undefined);
   /** Bumped by the Playout panel's Check again: the server and the slot are asked again at once. */
   const [checkAgainRev, setCheckAgainRev] = useState(0);
   /** Bumped by Put on air and Take off: only the slot changed, so only the slot is read again. */
@@ -588,7 +591,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     unpublishedChanges,
     recheckChanges: checkUnpublished,
     publish: () => preparePublishRef.current(),
-    onPrep: setPrepRequest,
+    // A run's end takes out ITS request only: a publish since (every publish prepares) keeps its own.
+    onPrep: (prep, endOf) => setPrepRequest((cur) => prep ?? (endOf && cur && cur.id !== endOf ? cur : null)),
     onStamp: (stamp) => {
       if (!show) return;
       setReadyStamp(stamp);
@@ -1005,7 +1009,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     if (!slotReadable) {
-      setOutputSlot('unreadable');
+      setOutputSlot({ holds: 'unreadable' });
       return;
     }
     let alive = true;
@@ -1013,7 +1017,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       readState(settings, settings.channel).then(
         (r) => {
           if (!alive) return;
-          setOutputSlot(r.reply ? slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) : undefined);
+          // A refused read is a fault the status names, never "Checking…" for ever.
+          setOutputSlot(
+            r.reply
+              ? { holds: slotHolds(r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null, outputSlug) }
+              : { holds: 'failed', detail: r.result.detail },
+          );
         },
         () => alive && setOutputSlot(undefined),
       );
@@ -3649,7 +3658,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         ? { state: bridgeStatus.state, detail: bridgeStatus.detail, version: bridgeStatus.version }
         : { state: 'pending', detail: '' }
       : null,
-    slot: playoutIsConfigured && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, holds: outputSlot } : undefined,
+    slot: playoutIsConfigured && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
     ready: readiness.summary.show
       ? {
           tone: readiness.summary.tone,
@@ -3677,7 +3686,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onClose={() => setStatusOpen(false)}
             ready={readiness.summary.show ? readiness.summary : null}
           >
-            {readiness.outputs.length > 0 && (
+            {/* Started only: offline, outputs remembered from an earlier publish would read as
+                "not answering" under a grey Offline. */}
+            {hostedSlug && readiness.outputs.length > 0 && (
               <PlayoutPanelSection title="Outputs" testId="playout-panel-outputs">
                 <ReadyOutputList outputs={readiness.outputs} why={readiness.summary.why} onForget={forgetOutput} />
               </PlayoutPanelSection>
@@ -3688,7 +3699,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   busy={busy}
                   unpublishedChanges={unpublishedChanges}
                   outputUrl={outputUrl}
-                  airNeeded={outputSlot === 'empty' || outputSlot === 'other'}
+                  airNeeded={outputSlot?.holds === 'empty' || outputSlot?.holds === 'other'}
                   onPublish={() => void publish()}
                   onUnpublish={() => void unpublish()}
                   onAirChanged={() => setSlotRev((n) => n + 1)}
@@ -3717,8 +3728,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               )}
             </PlayoutPanelSection>
             {/* SETUP, folded once it works (owner, 2026-10-01): the studio's server, channels and
-                the NoaCG output's slot, edited in the Playout settings dialog. */}
-            <PlayoutPanelSection title="Setup" testId="playout-panel-setup" folded={bridgeAnswers}>
+                the NoaCG output's slot, edited in the Playout settings dialog. Folded while a
+                configured Bridge is answering OR being asked again, so Check again does not open
+                and shut it; open when nothing is set up or the Bridge or server fails. */}
+            <PlayoutPanelSection
+              title="Setup"
+              testId="playout-panel-setup"
+              folded={playoutIsConfigured && (bridgeStatus === null || bridgeStatus.state === 'ok')}
+            >
               <p className="pd-ready-empty" data-testid="playout-setup-summary">
                 {playoutIsConfigured
                   ? `CasparCG ${playoutSettings.host}:${playoutSettings.amcpPort} · NoaCG output ${slotAddress(slotOf(playoutSettings))} · ${playoutSettings.channels.length} channel${playoutSettings.channels.length === 1 ? '' : 's'}`
