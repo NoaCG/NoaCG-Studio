@@ -42,9 +42,10 @@ metadata. Read back from the registries the same day:
   release run, and `npx @noacg/cli@0.7.0 --version` answers 0.7.0.
 - **MCP Registry**: `io.github.NoaCG/noacg` 0.7.0 is active and latest, titled NoaCG Broadcast
   Graphics and Playout, pointing at `@noacg/cli@0.7.0`. Step 8 is therefore open.
-- **The Codex upload** for step 6 is the artifact `noacg-codex-plugin-0.7.0` on the 0.7.0 run of
-  **Release CLI to npm** (tag `cli-v0.7.0`). GitHub deletes it on **2026-12-31**; after that, use
-  the artifact of a later release.
+- **The Codex upload** for step 6 is the newest one, the artifact `noacg-codex-plugin-0.7.2` on the
+  0.7.2 run of **Release CLI to npm** (tag `cli-v0.7.2`, published 2026-10-02; the skill changed
+  since 0.7.0, so use it rather than the 0.7.0 one). GitHub deletes it after 90 days; after that,
+  use the artifact of a later release.
 
 ## Your steps, once
 
@@ -57,7 +58,7 @@ In this order.
 | 3 | Answer the data-handling questions and the four compliance acknowledgements; they are your statements, not an agent's | the same submission | `drafts.md`, section 1 | |
 | 4 | On **Review and submit**: keep **GitHub push webhook**, turn on **Auto-publish passing versions**, submit, then press **Set up push updates** (needs repository admin) | the same submission | | |
 | 5 | Verify the OpenAI platform organisation that should own the Codex listing: **individual** (your name) or **business** (NoaCG Studio) | platform.openai.com, organisation settings | | no fee stated; duration not stated |
-| 6 | Download the artifact `noacg-codex-plugin-0.7.0` from the 0.7.0 run of **Release CLI to npm** (Actions tab), upload it as a new plugin, fill the listing, submit for review, and publish once approved | platform.openai.com/plugins | `drafts.md`, section 3 | about 15 minutes; feedback by email |
+| 6 | Download the artifact `noacg-codex-plugin-0.7.2` from the 0.7.2 run of **Release CLI to npm** (Actions tab), upload it as a new plugin, fill the listing, submit for review, and publish once approved | platform.openai.com/plugins | `drafts.md`, section 3 | about 15 minutes; feedback by email |
 | 7 | Once step 2's listing is live: submit `noacg-mcp` the same way, path `cli/plugin-mcp`. Expect a reviewer hold on its launcher | claude.ai/directory/manage | `drafts.md`, section 2 | about 10 minutes |
 | 8 | Optional (the MCP Registry has listed `io.github.NoaCG/noacg` since 0.7.0): ask GitHub to include it in its MCP registry (VS Code and Copilot, not Claude Code or Codex) | an email from your address to partnerships@github.com | `drafts.md`, section 5 | 5 minutes |
 
