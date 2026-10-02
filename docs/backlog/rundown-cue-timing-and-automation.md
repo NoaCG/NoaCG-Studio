@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-09-24
 state: advanced
-note: "2026-09-26 (branch claude/b-rundown-automation-plan): the plan landed as docs/RUNDOWN_AUTOMATION_PLAN.md. Build 1 there is items 1-4, specified to the migration and the specs; items 5-11 each have a recommendation. Nothing is built; the build waits on the owner's pick (owner-queue 2026-09-26-b-rundown-automation-plan)"
+note: "2026-10-02: the owner picked. Build 1 (timed graphic cues) now, as docs/RUNDOWN_AUTOMATION_PLAN.md section 0 records, with the countdown starting when the cue airs rather than at the Take; then cues from a spreadsheet and linked cues. Nothing is built yet."
 asked: "Cue duration with auto-advance options, and the other automation options we need to plan; start building after tomorrow's lecture (paraphrase, 2026-09-24)"
 size: large
 touches: src/model/shows.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx, src/components/playoutKeys.ts, src/control/, supabase/migrations/

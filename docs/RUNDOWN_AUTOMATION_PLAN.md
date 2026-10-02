@@ -18,24 +18,34 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 
 | # | What | Size | For | Recommendation |
 |---|---|---|---|---|
-| **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Build after build 2** (owner, 2026-09-27). It is the gap felt in every show. |
+| **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Decided 2026-10-02: build now, as planned**, with the countdown starting when the cue airs (picks below). It is the gap felt in every show. |
 | **Build 2** | Clip and audio playback: a clip's ending, fades, level and trim, audio on its own layer, folders, the clip clock and a resizable rundown. (§3, and `CLIP_PLAYBACK_PLAN.md`) | large, five phases | both | **Decided 2026-09-27: build first**, then build 1. **Built 2026-09-28.** |
-| 6 | Cues from a spreadsheet: one cue per row, with an optional duration column. | small | your productions | **Next after build 2.** |
-| 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Later**, through a folder's All together reaching server cues, not as a new concept (Combined controls were removed 2026-10-02). |
-| 9 | As-run log export. | small | TV station, sponsors | **Later**, as a CSV of the last seven days. |
-| 7 | A Bitfocus Companion module for a Stream Deck. | weeks | both | **Later**, once the control API is documented. |
+| 6 | Cues from a spreadsheet: one cue per row, with an optional duration column. | small | your productions | **Next after build 1** (owner, 2026-10-02). |
+| 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Next after build 1, beside 6** (owner, 2026-10-02), through a folder's All together reaching server cues, not as a new concept (Combined controls were removed 2026-10-02). |
+| 9 | As-run log export. | small | TV station, sponsors | **After 6 and 10**, as a CSV of the last seven days. |
+| 7 | A Bitfocus Companion module for a Stream Deck. | weeks | both | **Under way; continues whenever it fits** (owner, 2026-10-02), not held back for the items above. |
 | 8 | Audio cues. | - | both | **Folded into build 2** for CasparCG; browser-source audio later. |
-| 5 | Back-timing to a hard out. | small | TV station | **Not now.** A rundown of graphics is not a show's running order. |
-| 11 | Switcher automation (ATEM). | weeks | TV station | **No.** Still the wrong layer; Companion (item 7) reaches the switcher. |
+| 5 | Back-timing to a hard out. | small | TV station | **Not now** (owner, 2026-10-02). A rundown of graphics is not a show's running order. |
+| 11 | Switcher automation (ATEM). | weeks | TV station | **Out of scope** (owner, 2026-10-02). Companion (item 7) reaches the switcher. |
 
-**Your picks** (the owner-queue item asks the same):
+**Your picks** (all answered):
 
-1. Build 1 as specified in §2, or change a default first. The defaults most worth a look are the
-   5-second late limit (§2.5), the H key holding the soonest countdown (§2.8), and that an auto
-   action never moves your selection (§2.1). **Still open**; build 1 now comes after build 2.
+1. **Answered 2026-10-02: build 1 as planned.** A graphic cue gets a duration in seconds, and after
+   it the configured action runs by itself: Out, Next, or Out and next. The owner made four points
+   binding:
+   - **The countdown starts when the cue is actually on air, not when Take was pressed.** This
+     changes §2.3, which anchors the deadline to the Take's own log row: the building session
+     anchors it to the moment the cue airs (for example the first output's report that it holds
+     the cue, with the log row as the fallback when no output reports) and says which in its spec.
+   - An automatic action more than 5 seconds late is marked missed and never runs later (§2.5).
+   - An automatic action never moves the operator's selection (§2.1).
+   - Hold (H) and one click to go manual stay, so the operator can always take over (§2.5, §2.8).
 2. ~~Build 2's attribute list~~ **Answered 2026-09-27**: planned with the owner as
    `CLIP_PLAYBACK_PLAN.md` (§3 below), built first.
-3. The order of items 5 to 11 after that. **Still open.**
+3. **Answered 2026-10-02, the order after build 1, kept loose on purpose:** cues from a spreadsheet
+   (6) and linked cues (10) are both next; the Companion and Stream Deck work already under way (7)
+   continues whenever it fits; an as-run log (9) follows; back-timing (5) waits; switcher
+   automation (11) is out of scope.
 
 ---
 
@@ -86,6 +96,10 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 ---
 
 ## 2. Build 1: timed cues
+
+**Owner ruling, 2026-10-02 (§0, pick 1):** the countdown starts when the cue is on air, not at the
+Take. Wherever this section still anchors it to the Take, the on-air moment wins; §0 says how the
+building spec picks that moment and its fallback.
 
 ### 2.1 What the operator gets
 
@@ -157,6 +171,9 @@ export interface CueAuto {
 - **Packs and the exported controller** do not carry it in build 1 (§2.8, §2.9).
 
 ### 2.3 Where the deadline lives
+
+*The anchor below is superseded by §0's 2026-10-02 ruling: the deadline counts from when the cue
+airs (§0 has the fallback).*
 
 **In the cue status row, and in its mirror.** The Take's marker gains an arm:
 

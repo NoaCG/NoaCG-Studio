@@ -19,7 +19,7 @@ CasparCG's own `CALL <channel-layer> LOOP 0` and `LOOP 1`, on 2.3 and 2.5 alike.
 starts sending these changes in a later update; until then a change to At the end applies at the
 next Take, as before. There is nothing to do.
 
-## 0.8.0 - unreleased
+## 0.8.0 - 2026-10-02
 
 **`noacg bridge` keeps your studio's setup.** The Bridge you start from the CLI is the same NoaCG
 Bridge 0.8.0. Next to the CasparCG servers it remembers, it now keeps each server's channels with
