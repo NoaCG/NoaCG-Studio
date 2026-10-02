@@ -2,13 +2,13 @@ import { execSync } from 'node:child_process';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { devPort, writeLaunchConfig } from './scripts/dev-port.mjs';
+import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderApiPlugin } from './scripts/renderDevPlugin.mjs';
 import { aiApiPlugin } from './scripts/aiDevPlugin.mjs';
 import { eventsApiPlugin } from './scripts/eventsDevPlugin.mjs';
 import { adminApiPlugin } from './scripts/adminDevPlugin.mjs';
 import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
-import { panelBackendPlugin } from './scripts/panelBackendPlugin.mjs';
 import { renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderRoadmapHtml } from './scripts/roadmap.mjs';
 
