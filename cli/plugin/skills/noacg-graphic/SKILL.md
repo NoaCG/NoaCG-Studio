@@ -68,10 +68,12 @@ one of the two opt-in tools at the end of this file.
    ask the user to run `noacg login` (it opens a consent page in THEIR browser - you cannot and
    must not do that step for them), or set `NOACG_AGENT_KEY` in CI. The key can only create
    graphics in the library - save never publishes, adds to a production or airs anything. (No
-   account? Zip the package folder: `zip -r my-graphic.zip my-graphic` on macOS or Linux,
-   `tar -a -cf my-graphic.zip my-graphic` on Windows 10 or later. `noacg validate my-graphic.zip`
-   confirms it, and it imports through the studio's Import door. It is also a complete OGraf
-   package any OGraf renderer plays.)
+   account? Zip the package folder: `zip -r my-graphic.zip my-graphic` on macOS or Linux;
+   on Windows `Compress-Archive my-graphic my-graphic.zip` in PowerShell, or
+   `C:/Windows/System32/tar.exe -a -cf my-graphic.zip my-graphic` from any shell (Git Bash's own
+   `tar` writes a tar file, not a zip). `noacg validate my-graphic.zip` confirms it, and it
+   imports through the studio's Import door. It is also a complete OGraf package any OGraf
+   renderer plays.)
 
 ## A whole package: several graphics for one show
 

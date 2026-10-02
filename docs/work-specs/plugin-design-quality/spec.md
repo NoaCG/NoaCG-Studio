@@ -163,7 +163,8 @@ package prints the clock and goal buttons under LIVE and no word fields.
 ### AC-12: The critique is there on request, and only then
 
 `references/critique.md` renders the graphic, judges it against the brief and the paid-asset
-bar, makes at least one change that matters and shows the before and after frames. It is on
+bar, makes the changes that matter (or says why none is needed) and shows the before and after
+frames. It is on
 when the user asks in words or passes `--critique` to `/noacg:graphic`, and the agent may offer
 it in one sentence; otherwise the loop never opens it. Works in Claude Code and in Codex; the
 plugin's always-on cost does not grow. Scenario: a fresh run asked to critique an existing

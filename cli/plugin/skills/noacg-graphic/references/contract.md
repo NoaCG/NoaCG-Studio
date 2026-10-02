@@ -64,7 +64,8 @@ window.SPXGCTemplateDefinition = {
 - `ftype`: `textfield` (one line), `textarea` (a LIST - one item per line, for rows/credits/
   items; the runtime renders it), `number` (gets +/- steppers), `filelist` (an image path; with
   `assetfolder`/`extension`), `dropdown` (with `items: [{text, value}]`), `checkbox`, `color`,
-  `hidden` (input-only: the operator types it, nothing draws it - a duration, a word source).
+  `hidden` (input-only: set in the studio's Data panel, off the operator page, and never drawn
+  as itself - a duration, a word source the runtime copies into a visible element).
 - **Every field `fN` maps to exactly one element `id="fN"`** that `update()` writes into. An
   input-only value lives in a holder `<div id="fN" class="noacg-data-source">` hidden by a CSS
   RULE (never an inline `style="display:none"` - the editor clears inline styles).
@@ -345,7 +346,7 @@ from `noacgMachineState()`:
 ```
 
 ```js
-function paintResultWord() {             // the "final" and "live" states' call, and update()
+function paintResultWord() {             // both result states' call, and update(); blank in "live"
   var state = (typeof noacgMachineState === 'function') ? noacgMachineState().groups.result : null;
   var word = document.getElementById('f4');
   var shown = document.querySelector('.graphic-status');
@@ -386,7 +387,11 @@ waypoint's step carries a `call` that clears what the other groups left behind
 ```
 
 The timer's length is set once, so it is a `hidden` holder (`f3`) that `startTimer` reads, not
-a number on the operator page that looks as if it changes the running timer.
+a number on the operator page that looks as if it changes the running timer. `startTimer` and
+`stopTimer` live in `template.js` after the marked region; call `stopTimer` from the Out step's
+`calls` too, so a timer never ticks off air. A recovery snap into `running` runs `startTimer`
+again and restarts the count from the full length; a timer that must survive recovery keeps its
+start time in a field and resumes from it.
 
 **A graphic that ends its own timed state.** A fixed delay is a timer arrow, as `done -> idle`
 above: it is armed when the state's timeline finishes and fires only if the group is still in

@@ -13,8 +13,9 @@ inspect the operator surface, save it to the user's library and report the link.
 above is empty, ask what the graphic is before starting.
 
 The skill teaches what the graphic must expose and satisfy, not how it should look. The look is
-yours (or another design skill's, when one is active). Two switches in the request above turn on
-the skill's opt-in tools, and nothing else does here:
+yours (or another design skill's, when one is active), unless one of the skill's opt-in tools is
+switched on: by the user's words or project instructions (the skill lists them), or by one of
+these two flags in the request above:
 
 - `--guidelines`: the user wants NoaCG's design guidelines for this graphic. Read the skill's
   `references/design-notes.md` before designing and follow it.

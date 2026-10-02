@@ -29,13 +29,14 @@ catalog designs follow; nothing here is checked by the validator beyond what `va
   a container is centred in it; a mark between an accent line and text is optically balanced,
   not crowded; a package's mark is on every piece or none.
 - **Motion.** Entrances with Out-direction eases (`power2.out`, `power3.out`, `expo.out`;
-  `back.out` for a snappy pop); exits In-direction, 0.3-0.5 s, and FASTER than the entrance;
+  `back.out` for a snappy pop); exits In-direction and 30-60% faster than the entrance (0.3-0.5 s
+  for a strap);
   staggers 60-250 ms; linear only for continuous travel (tickers, rolls, timers); bounce/elastic
   only when asked for playful. Entrance length follows the brief: straps, boards and alerts
   0.5-1.4 s in total (stream overlays at the low end, 1.0-1.4 s reads as deliberate broadcast
   pacing); a ceremonial title or opener may build longer when its tone asks for it, because the
-  1.4 s ceiling was measured on straps and boards. Transform/opacity only - 60 fps is the
-  contract. Never skew/rotate the element a timeline tweens; paint it on a `::before` layer.
+  1.4 s ceiling was measured on straps and boards. Transform, opacity and clip-path only - 60 fps
+  is the contract. Never skew/rotate the element a timeline tweens; paint it on a `::before` layer.
 - **Code.** The simplest clear code: direct HTML/CSS/JS, descriptive names, short comments that
   say WHY, rich but commented CSS, no frameworks, no build steps.
 

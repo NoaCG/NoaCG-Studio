@@ -56,9 +56,9 @@ The result is an improved package and the frames that show why.
 
 ## 3. Improve
 
-Pick the changes that matter most: at least one, rarely more than three. Make them, validate
-again, render the "after" frames (`--screenshots ./critique-after`). Do not restyle for the sake
-of it; a frame that already meets the bar is reported as such, with the reason.
+Pick the changes that matter most, rarely more than three. Make them, validate again, render
+the "after" frames (`--screenshots ./critique-after`). Do not restyle for the sake of it: when
+every line in step 2 passes, change nothing and say why it already meets the bar.
 
 ## 4. Report
 
