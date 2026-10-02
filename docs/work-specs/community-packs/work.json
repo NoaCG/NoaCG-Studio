@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "ea431450a0bb0265a407eb7c68bd36b745b3c75debe1e42c6f791b68d9582252",
+  "specSha256": "44180e93ccb626aaa685dd940f653dd1b8bfb062181945a4b87bfad83ba69e49",
   "authority": {
     "status": "agreed",
     "source": "owner ruling 2026-10-02 (wave 2026-10-02d row BV): three template categories - Templates, Kits, Community packs; a community pack is finished, installed and used at once and cannot be modified; the community makes and shares them; a shared pack passes automatic checks (validate, bench, no outside network calls) and a NoaCG admin's approval before anyone else sees it; NoaCG seeds the shelf first"

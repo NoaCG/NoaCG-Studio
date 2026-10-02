@@ -22,6 +22,7 @@
 
 # Rewritten by scripts/build-production-pack.mjs on EVERY `npm run build`.
 public/packs/*.json text eol=lf
+public/packs/community/*.json text eol=lf
 
 # Rewritten by the catalog sweeps and by `npm run record:e2e-durations`.
 e2e/catalog-baseline.json text eol=lf

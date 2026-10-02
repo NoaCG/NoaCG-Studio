@@ -15,6 +15,10 @@ community rather than only with what NoaCG ships.
   it: automatic checks first (validate, bench, no outside network calls), then a NoaCG admin's
   approval.
 - NoaCG seeds the shelf first.
+- **Licence, ruled 2026-10-02:** a shared community pack is licensed CC BY 4.0. Anyone may use it
+  in any show, commercial ones included, and the maker's name shows on the shelf card and in the
+  pack. Sharing is the maker's grant of that licence, so the Share step says so before it sends
+  anything. This closes the licence question the first slice left open.
 
 This supersedes the 2026-09-24 decision in `docs/GRAPHICS_PACKS.md` that the studio lists no
 shipped packs. NoaCG's own starting points still reach users as Templates and Kits; finished
