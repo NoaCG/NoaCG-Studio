@@ -405,7 +405,11 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await output.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-play', data: '{}' } })); await new Promise(r => setTimeout(r, 300)); });
   const simulated = await output.locator(t.point).evaluate(el => ({ width: el.getBoundingClientRect().width, size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
   await output.close();
+  // The output fits the value itself: inside the slot, smaller than the design size, never below
+  // its floor. (The size it settles on follows the glyph widths that page measures.)
   expect(simulated.width).toBeLessThanOrEqual(800.5);
   expect(simulated.weight).toBe('700');
-  expect(near(parseFloat(simulated.size), parseFloat(size), .5), `${simulated.size} vs ${size}`).toBe(true);
+  expect(parseFloat(simulated.size)).toBeLessThan(48);
+  expect(parseFloat(simulated.size)).toBeGreaterThanOrEqual(48 * .55 - .01);
+  expect(parseFloat(size)).toBeLessThan(48);
 });

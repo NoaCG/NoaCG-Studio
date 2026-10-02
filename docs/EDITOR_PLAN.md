@@ -167,7 +167,7 @@ Existing E/B identities are retained; split rows close only when all portions pa
 | E02 layers, hierarchy, selection and lock | R1.0 selection; R1.1d fidelity; R1.2b tools / B02 |
 | E03 fit/zoom/pan/panels | R1.0-R1.2 / B01, B02, B11 |
 | E04 base transforms, pivot and parent coordinates | R1.1-R1.2; R1.2b.1 rotation handle, edge handles and static anchor ([receipt](research/editor-r1-2b-1/README.md)) / B03 |
-| E05 typography/content/fit | R1.1a usable content/basic type/colour; R1.2b rich typography/fit / B04 |
+| E05 typography/content/fit | R1.1a usable content/basic type/colour; R1.2b.2 weight, alignment, line and letter spacing, long-text fit and the text box's canvas resize ([receipt](research/editor-r1-2b-2/README.md)); italic, case, shadow, outline and canvas typing later / B04 |
 | E06 text/shapes/images and asset replacement | R1.1a core; R1.2b full / B04 |
 | E07 duplicate/delete/reorder/align/distribute/group movement | R1.1a follow-up: duplicate/delete/reorder and selection movement; R1.2b: align/distribute/grouping / B02, B04 |
 | E08 per-property animation, diamonds and deterministic seek | R1.1-R1.2 / B05 |
