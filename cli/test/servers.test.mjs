@@ -1,6 +1,7 @@
 // The CasparCG servers NoaCG Bridge remembers connecting to (cli/src/playout/servers.ts,
 // docs/work-specs/bridge-casparcg-connect/spec.md AC-1 and AC-5): the file, `/servers` and
-// `/connect`, against a fake AMCP listener and a Bridge on port 0 over a temporary file - never the
+// `/connect`; since 0.8.0 each server's studio setup and `/studio` (studio-day-playout AC-11), and
+// `/pair-link`. Against a fake AMCP listener and a Bridge on port 0 over a temporary file - never the
 // operator's own config. Run `npm run build` first.
 
 import assert from 'node:assert/strict';
@@ -12,6 +13,7 @@ import { casparcgAdapter } from '../dist/playout/adapters/casparcg.js';
 import { PLAYOUT_V } from '../dist/playout/protocol.js';
 import { createBridgeServer } from '../dist/playout/server.js';
 import { fileServerMemory, MAX_SERVERS } from '../dist/playout/servers.js';
+import { PairingCodes } from '../dist/playout/token.js';
 import { fakeCaspar } from './_fakeCaspar.mjs';
 
 async function withFile(fn) {
@@ -126,4 +128,149 @@ test('a Test (/status) and a server that does not answer change nothing', async 
     });
   });
   await caspar.close();
+});
+
+// ── The studio's setup per server (0.8.0, docs/work-specs/studio-day-playout AC-11, D7, D18) ──────
+
+const STUDIO_A = {
+  channels: [
+    { channel: 1, name: 'Graphics' },
+    { channel: 2, name: 'Inserts' },
+  ],
+  output: { channel: 1, layer: 20 },
+  newMedia: 2,
+};
+const STUDIO_B = { channels: [{ channel: 1, name: 'Channel 1' }], output: { channel: 1, layer: 30 }, newMedia: 1 };
+
+test('a setup is kept per server, survives a Connect and a restart, and a server never connected to is refused', async () => {
+  const a = await answersVersion();
+  const b = await answersVersion();
+  await withFile(async (file) => {
+    await withBridge(file, async (base) => {
+      // A setup for a server this Bridge never connected to: refused, and nothing is written.
+      const unknown = await post(base, '/studio', { target: target(a.port), studio: STUDIO_A });
+      assert.equal(unknown.status, 400);
+      assert.equal(unknown.body.error.code, 'usage');
+      assert.match(unknown.body.error.detail, /has not connected to 127\.0\.0\.1:\d+\. Connect to it first/);
+      assert.deepEqual((await post(base, '/servers', {})).body.servers, []);
+
+      await post(base, '/connect', { target: target(a.port) });
+      await post(base, '/connect', { target: target(b.port) });
+      const keptA = await post(base, '/studio', { target: target(a.port), studio: STUDIO_A });
+      assert.equal(keptA.status, 200);
+      // Its place in the list stays: only a Connect moves a server to the top.
+      assert.deepEqual(keptA.body.servers, [
+        { host: '127.0.0.1', port: b.port },
+        { host: '127.0.0.1', port: a.port, studio: STUDIO_A },
+      ]);
+      await post(base, '/studio', { target: target(b.port), studio: STUDIO_B });
+      // Connecting to A again raises it and keeps its setup, and B keeps its own: two servers apart.
+      const again = await post(base, '/connect', { target: target(a.port) });
+      assert.deepEqual(again.body.servers, [
+        { host: '127.0.0.1', port: a.port, studio: STUDIO_A },
+        { host: '127.0.0.1', port: b.port, studio: STUDIO_B },
+      ]);
+
+      // A malformed setup is refused, never stored half.
+      for (const studio of [
+        null,
+        {},
+        { ...STUDIO_A, channels: [] },
+        { ...STUDIO_A, output: { channel: 1, layer: 1.5 } },
+        { ...STUDIO_A, newMedia: 0 },
+        { ...STUDIO_A, channels: [{ channel: 1, name: 'x'.repeat(61) }] },
+      ]) {
+        const r = await post(base, '/studio', { target: target(a.port), studio });
+        assert.equal(r.status, 400, JSON.stringify(studio));
+      }
+      assert.deepEqual((await post(base, '/servers', {})).body.servers[0].studio, STUDIO_A);
+    });
+    // A restarted Bridge hands the same setups back.
+    await withBridge(file, async (base) => {
+      const servers = (await post(base, '/servers', {})).body.servers;
+      assert.deepEqual(servers.map((s) => s.studio), [STUDIO_A, STUDIO_B]);
+    });
+  });
+  // Keeping a setup contacts no server: each heard its Connects' VERSION and nothing else.
+  assert.deepEqual(a.seen, ['VERSION', 'VERSION']);
+  assert.deepEqual(b.seen, ['VERSION']);
+  await a.close();
+  await b.close();
+});
+
+test('the file keeps what a newer Bridge wrote, and a setup it cannot read is no setup', async () => {
+  await withFile(async (file) => {
+    await writeFile(
+      file,
+      JSON.stringify({
+        servers: [
+          { host: 'a.local', port: 5250, studio: STUDIO_A, playlists: ['kept'] },
+          { host: 'b.local', port: 5250, studio: { channels: 'nonsense' } },
+        ],
+        written: 'by 0.9.0',
+      }),
+      'utf8',
+    );
+    const memory = fileServerMemory(file);
+    assert.deepEqual(await memory.list(), [
+      { host: 'a.local', port: 5250, studio: STUDIO_A },
+      { host: 'b.local', port: 5250 },
+    ]);
+    await memory.remember({ host: 'B.local', port: 5250 });
+    await memory.setStudio({ host: 'a.local', port: 5250 }, STUDIO_B);
+    const written = JSON.parse(await readFile(file, 'utf8'));
+    assert.equal(written.written, 'by 0.9.0', 'a field of the file this Bridge does not know stays');
+    assert.deepEqual(written.servers[0], { host: 'B.local', port: 5250, studio: { channels: 'nonsense' } }, 'a setup it cannot read is left as it was');
+    assert.deepEqual(written.servers[1], { host: 'a.local', port: 5250, studio: STUDIO_B, playlists: ['kept'] });
+    // A 0.7.0 file, host and port only, reads as servers with no setup.
+    await writeFile(file, JSON.stringify({ servers: [{ host: 'c.local', port: 5250 }] }), 'utf8');
+    assert.deepEqual(await memory.list(), [{ host: 'c.local', port: 5250 }]);
+    assert.equal(await memory.setStudio({ host: 'd.local', port: 5250 }, STUDIO_A), null);
+  });
+});
+
+// ── A pairing link for another browser (0.8.0, D19) ───────────────────────────────────────────────
+
+test('/pair-link opens one more one-time code behind the token, and the first link still works', async () => {
+  await withFile(async (file) => {
+    const pairings = new PairingCodes();
+    const first = pairings.mint();
+    const server = createBridgeServer(
+      { token: 'secret-token', origins: ['https://noacg.studio'], adapters: [casparcgAdapter], version: '0.0.0-test', servers: fileServerMemory(file), pairings },
+      () => {},
+    );
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const base = `http://127.0.0.1:${server.address().port}`;
+    try {
+      const pair = (code) => post(base, '/pair', { code }, { Authorization: '' });
+      assert.equal((await post(base, '/pair-link', {}, { Authorization: '' })).status, 401, 'only a paired page asks for a link');
+      const link = await post(base, '/pair-link', {});
+      assert.equal(link.status, 200);
+      assert.match(link.body.code, /^[0-9a-f]{32}$/);
+      assert.equal(link.body.expiresIn, 120);
+      assert.notEqual(link.body.code, first.code);
+      // Making a link for one browser never spends the one another browser was about to use.
+      assert.equal((await pair(first.code)).status, 200);
+      assert.equal((await pair(link.body.code)).status, 200);
+      // Each works once.
+      const spent = await pair(link.body.code);
+      assert.equal(spent.status, 401);
+      assert.match(spent.body.error.detail, /used or is more than two minutes old/);
+      assert.equal((await pair(first.code)).status, 401);
+    } finally {
+      await new Promise((r) => server.close(r));
+    }
+  });
+});
+
+test('a pairing code lives two minutes, and the oldest open codes give way to new ones', () => {
+  let now = 1_000;
+  const codes = new PairingCodes(() => now);
+  const old = codes.mint();
+  now += 2 * 60_000 + 1;
+  assert.equal(codes.spend(old.code), false, 'two minutes and a moment: gone');
+  const many = Array.from({ length: 9 }, () => codes.mint());
+  assert.equal(codes.spend(many[0].code), false, 'the ninth open code pushed out the first');
+  assert.equal(codes.spend(many[8].code), true);
+  assert.equal(codes.spend(''), false);
 });

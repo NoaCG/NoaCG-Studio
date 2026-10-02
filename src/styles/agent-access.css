@@ -32,10 +32,47 @@
 /* The Bridge pairing page's next step, connecting to CasparCG (components/BridgePairPage.tsx): the
    server's address and port are one address, so they share a row with Connect, the way Settings ->
    Playout lays them out. The servers used before under it are RecentServers (wizard-and-dialogs.css). */
-.agent-consent-card h2.bridge-connect-title { font-size: 15px; line-height: 1.3; margin: 20px 0 6px; }
 .bridge-connect-form { display: grid; grid-template-columns: minmax(0, 1fr) 80px auto; gap: 8px; margin-top: 10px; }
 .bridge-connect-form > button { white-space: nowrap; }
 .agent-consent-card .recent-servers { margin-top: 10px; }
+/* One line per step (docs/work-specs/studio-day-playout D8): the paired line is a quiet receipt,
+   the server step's one line is the step's heading, and pairing another browser is a line with a
+   button, its link in a box under it once made. */
+.agent-consent-card .status-ok,
+.agent-consent-card .status-bad { font-size: 13px; line-height: 1.45; margin: 10px 0 0; }
+.agent-consent-card .status-ok.bridge-paired-line { margin: 0 0 16px; }
+.agent-consent-card h1.bridge-step { font-size: 16px; line-height: 1.35; margin: 0; }
+.agent-consent-card .bridge-copy { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.dlg-row > .bridge-copy { grid-column: 2; margin-top: 6px; }
+.bridge-copy .hint { margin: 0; }
+.bridge-copy-btn { padding: 3px 10px; font-size: 12px; margin-left: 2px; }
+.bridge-copy-link { margin-top: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); }
+.bridge-copy-link + .hint { margin-top: 6px; }
+
+/* ONE LINE AND AN INFO BUTTON (components/InfoLine.tsx): the button sits at the end of the line, as
+   small as the text beside it, and what it opens reads as the line's own small print. */
+.info-line > p,
+.info-line > h1 { margin: 0; }
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-dim);
+  font: italic 600 11px/1 Georgia, 'Times New Roman', serif;
+  vertical-align: 0.1em;
+}
+.info-btn:hover,
+.info-btn[aria-expanded='true'] { color: var(--text); border-color: var(--text-dim); background: var(--bg-3); }
+.info-more { margin-top: 6px; padding: 8px 10px; border-left: 2px solid var(--border-strong); font-size: 12px; line-height: 1.5; color: var(--text-dim); }
+.info-more p { margin: 0; }
+.info-more p + p { margin-top: 6px; }
 
 .agent-keys { margin-top: 18px; }
 .agent-keys-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }

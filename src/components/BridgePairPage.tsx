@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import BrandLogo from './BrandLogo';
+import CopyPairingLink from './CopyPairingLink';
+import InfoLine from './InfoLine';
 import RecentServers from './RecentServers';
 import {
   connectServer,
@@ -7,11 +9,13 @@ import {
   loadPlayoutSettings,
   localNetworkGateApplies,
   pairBridge,
+  pairingLinkForAnotherBrowser,
   parseBridgePair,
   PLAYOUT_DEFAULTS,
   rememberedServers,
-  savePlayoutSettings,
   serverAddress,
+  slotAddress,
+  slotOf,
   type PlayoutResult,
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
@@ -27,6 +31,10 @@ import type { RememberedServer } from '../control/playoutProtocol';
  * It needs no account and no backend - an offline studio pairs the same way. The click is
  * deliberate rather than automatic: on the hosted studio it is what makes the browser show its
  * local-network permission prompt, and a page that explains the prompt first is the whole point.
+ *
+ * SAYS ONLY WHAT IS NEEDED (docs/work-specs/studio-day-playout D8): one line per step with the rest
+ * behind an info button, and on both steps a plain way to pair ANOTHER browser, which is a link
+ * copied into it. Nothing here guesses which browser is the operator's.
  */
 export default function BridgePairPage({ params }: { params: URLSearchParams }) {
   const request = useMemo(() => parseBridgePair(params), [params]);
@@ -60,10 +68,8 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
   if (result?.state === 'ok') {
     return (
       <Frame>
-        <h1>Paired</h1>
-        <p className="hint" data-testid="bridge-pair-done">
-          This browser can now drive your playout server through NoaCG Bridge on{' '}
-          <code>127.0.0.1:{request.port}</code>.
+        <p className="status-ok bridge-paired-line" data-testid="bridge-pair-done">
+          ✓ Paired with NoaCG Bridge on <code>127.0.0.1:{request.port}</code>.
         </p>
         <ConnectStep />
       </Frame>
@@ -73,32 +79,41 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
   return (
     <Frame>
       <h1>Pair this browser with NoaCG Bridge</h1>
-      <p className="hint">
-        NoaCG Bridge is running on this machine at <code>127.0.0.1:{request.port}</code>. Pairing
-        lets this browser send playout commands through it - to CasparCG on your studio network,
-        never past it. The code in this link works once, for two minutes.
-      </p>
-      {gated && (
-        <p className="hint" data-testid="bridge-pair-permission-note">
-          {isFirefox() ? (
-            <>
-              Firefox will ask whether {window.location.host} may{' '}
-              <em>access other apps and services on this device</em> - that is NoaCG Bridge. Answer{' '}
-              <strong>Allow</strong>. If Firefox asks again later, on another tab or on another
-              day, it is set to forget site permissions; the{' '}
-              <a href="/downloads#browsers" target="_blank" rel="noopener">
-                browser notes
-              </a>{' '}
-              say which one setting stops that.
-            </>
-          ) : (
-            <>
-              Your browser will ask whether {window.location.host} may reach devices on your local
-              network. Answer <strong>Allow</strong>; it asks once.
-            </>
-          )}
-        </p>
-      )}
+      <InfoLine
+        label="About pairing"
+        testId="bridge-pair-line"
+        more={
+          <>
+            <p>
+              NoaCG Bridge runs on this computer at <code>127.0.0.1:{request.port}</code>. Pairing lets
+              this browser send playout commands through it, to CasparCG on your studio network and
+              never past it. This link works once, within two minutes.
+            </p>
+            {gated && isFirefox() && (
+              <p data-testid="bridge-pair-permission-note">
+                If Firefox asks again later, on another tab or another day, it is set to forget site
+                permissions. The{' '}
+                <a href="/downloads#browsers" target="_blank" rel="noopener">
+                  browser notes
+                </a>{' '}
+                name the one setting that stops that.
+              </p>
+            )}
+          </>
+        }
+      >
+        {!gated
+          ? 'Press Pair to let this browser use NoaCG Bridge.'
+          : isFirefox()
+            ? 'Press Pair, then answer Allow when Firefox asks to access other apps and services on this device.'
+            : 'Press Pair, then answer Allow when the browser asks about your local network.'}
+      </InfoLine>
+      <CopyPairingLink
+        lead="Not the browser you use?"
+        button="Copy this link"
+        link={async () => window.location.href}
+        testId="bridge-pair-copy"
+      />
       {result && (
         <p className="status-bad" data-testid="bridge-pair-error" data-state={result.state}>
           {result.detail}
@@ -115,12 +130,12 @@ export default function BridgePairPage({ params }: { params: URLSearchParams }) 
 }
 
 /**
- * THE NEXT STEP AFTER PAIRING (owner decisions 2026-09-30, docs/work-specs/bridge-casparcg-connect):
- * connect to the CasparCG server. The last server this studio connected to is tried at once -
- * NoaCG Bridge 0.7.0 remembers it on disk, so it survives a browser that forgets its storage - and
- * when it answers the page just says so. Otherwise its address is filled in and every server used
- * before is one click. Connecting is a VERSION call and nothing else: nothing goes on air from
- * here. Put on air stays in the production, where the operator sees what is on air.
+ * THE NEXT STEP AFTER PAIRING (owner decisions 2026-09-30 and 2026-10-01): the CasparCG server. The
+ * last server this studio connected to is tried at once - NoaCG Bridge remembers it on disk, and
+ * since 0.8.0 its channels too, so a browser that forgets its storage, a second browser and another
+ * account all open with the same setup. The address stays in its box and "This computer" and every
+ * server used before stay one press away, connected or not. Connecting is a VERSION call and nothing
+ * else: nothing goes on air from here. Put on air stays in the production.
  */
 function ConnectStep() {
   const [servers, setServers] = useState<RememberedServer[] | null>(null);
@@ -128,7 +143,7 @@ function ConnectStep() {
   const [port, setPort] = useState(PLAYOUT_DEFAULTS.amcpPort);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<PlayoutResult | null>(null);
-  const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; remembered: boolean } | null>(null);
+  const [connected, setConnected] = useState<{ server: RememberedServer; version?: string; setup: string | null } | null>(null);
   // Once per pairing. StrictMode runs a mount's effect twice in development, and each run would be
   // one more VERSION on the server.
   const started = useRef(false);
@@ -138,15 +153,19 @@ function ConnectStep() {
     setPort(server.port);
     setBusy(true);
     setFailure(null);
+    setConnected(null);
     try {
-      const { result, servers: remembered } = await connectServer({ ...loadPlayoutSettings(), host: server.host, amcpPort: server.port });
+      const { result, servers: remembered, studio } = await connectServer({ ...loadPlayoutSettings(), host: server.host, amcpPort: server.port });
       if (remembered) setServers(remembered);
       if (result.state !== 'ok') {
         setFailure(result);
         return;
       }
-      savePlayoutSettings({ host: server.host, amcpPort: server.port });
-      setConnected({ server, version: result.version, remembered: !!result.features?.includes('servers') });
+      // With a Bridge that keeps the setup, say what came with the server, so a second browser sees
+      // that its channels are already there.
+      const now = loadPlayoutSettings();
+      const setup = studio?.keeper === 'bridge' ? `${now.channels.length === 1 ? '1 channel' : `${now.channels.length} channels`}, NoaCG output on ${slotAddress(slotOf(now))}.` : null;
+      setConnected({ server, version: result.version, setup });
     } finally {
       setBusy(false);
     }
@@ -167,48 +186,25 @@ function ConnectStep() {
     })();
   }, []);
 
-  const open = (primary: boolean) => (
-    <button className={primary ? 'primary' : ''} onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
-      Open NoaCG
-    </button>
-  );
-
-  if (servers === null) {
-    return (
-      <p className="hint" data-testid="bridge-connect-checking">
-        Looking for your CasparCG server…
-      </p>
-    );
-  }
-
-  if (connected) {
-    return (
-      <>
-        <p className="status-ok" data-testid="bridge-connected">
-          ✓ Connected to CasparCG{connected.version ? ` ${connected.version}` : ''} at {serverAddress(connected.server)}.
-        </p>
-        <p className="hint">
-          {connected.remembered && 'NoaCG Bridge remembers this server, so it connects by itself the next time you pair. '}
-          To put a production on air, open it and press <strong>Put on air</strong> in its Playout
-          settings or its output links.
-        </p>
-        <div className="agent-consent-actions">
-          <button onClick={() => setConnected(null)} data-testid="bridge-connect-change">
-            Change server
-          </button>
-          {open(true)}
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
-      <h2 className="bridge-connect-title">Connect to your CasparCG server</h2>
-      <p className="hint">
-        The computer running CasparCG on your studio network, and its AMCP port. Connecting only checks
-        that CasparCG answers; nothing goes on air.
-      </p>
+      <InfoLine
+        as="h1"
+        className="bridge-step"
+        label="About connecting to CasparCG"
+        testId="bridge-connect-line"
+        more={
+          <p>
+            The computer running CasparCG on your studio network, and its AMCP port (5250 unless it
+            was changed). Connecting only checks that CasparCG answers: nothing goes on air. NoaCG
+            Bridge remembers the server and its channels, so the next browser you pair connects by
+            itself and opens with the same setup. To put a production on air, open it and press{' '}
+            <strong>Put on air</strong> in its Playout panel.
+          </p>
+        }
+      >
+        Enter the IP address of your CasparCG server.
+      </InfoLine>
       <form
         className="bridge-connect-form"
         onSubmit={(e) => {
@@ -233,17 +229,51 @@ function ConnectStep() {
           aria-label="AMCP port"
           data-testid="bridge-connect-port"
         />
-        <button className="primary" type="submit" disabled={busy || !host.trim() || !port} data-testid="bridge-connect">
+        <button className={connected ? '' : 'primary'} type="submit" disabled={busy || !host.trim() || !port} data-testid="bridge-connect">
           {busy ? 'Connecting…' : 'Connect'}
         </button>
       </form>
-      <RecentServers servers={servers} onPick={(server) => void connect(server)} disabled={busy} testId="bridge-connect-recent" />
+      <RecentServers
+        servers={servers ?? []}
+        current={connected?.server}
+        onPick={(server) => void connect(server)}
+        disabled={busy}
+        testId="bridge-connect-recent"
+      />
+      {servers === null && (
+        <p className="hint" data-testid="bridge-connect-checking">
+          Looking for your CasparCG server…
+        </p>
+      )}
+      {connected && (
+        <p className="status-ok" data-testid="bridge-connected">
+          ✓ Connected to CasparCG{connected.version ? ` ${connected.version}` : ''} at {serverAddress(connected.server)}.
+          {connected.setup && <span data-testid="bridge-connected-setup"> {connected.setup}</span>}
+        </p>
+      )}
       {failure && (
         <p className="status-bad" data-testid="bridge-connect-error" data-state={failure.state}>
           {failure.detail}
         </p>
       )}
-      <div className="agent-consent-actions">{open(false)}</div>
+      <CopyPairingLink
+        lead="Pairing another browser?"
+        button="Copy a link for it"
+        link={() => pairingLinkForAnotherBrowser(loadPlayoutSettings())}
+        more={
+          <p>
+            Each browser pairs once, and so does each browser profile, which is how another account
+            usually signs in on the same computer. A link works once, within two minutes. Pressing
+            Enter in the NoaCG Bridge window makes one too.
+          </p>
+        }
+        testId="bridge-another"
+      />
+      <div className="agent-consent-actions">
+        <button className={connected ? 'primary' : ''} onClick={() => window.location.assign('/app#/home')} data-testid="bridge-pair-open">
+          Open NoaCG
+        </button>
+      </div>
     </>
   );
 }

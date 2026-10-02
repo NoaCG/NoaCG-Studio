@@ -179,8 +179,9 @@ export interface AgentError {
  *  Bridge that lists none is older than all of them. It says nothing about any server.
  *  `playback` is a take's `playback` and an out's `fadeOut`; `sequence` is the `sequence` verb, and
  *  `sequence-loop` a sequence's `loop`. `servers` is `/servers` and `/connect`: the CasparCG
- *  servers this Bridge remembers connecting to. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers';
+ *  servers this Bridge remembers connecting to. `studio` is each remembered server's `studio` and
+ *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser. */
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
@@ -206,10 +207,31 @@ export interface StatusReply {
   capabilities?: TargetCapability[];
 }
 
-/** A CasparCG server a Bridge remembers connecting to. Host and port, nothing else. */
+/**
+ * How a studio uses one CasparCG server (docs/work-specs/studio-day-playout D7): its channels as the
+ * studio names them, where NoaCG's own output plays, and where new media starts. The page owns what
+ * it means; the Bridge keeps it per server so every browser paired with it opens with the same setup.
+ */
+export interface StudioSetup {
+  /** The server's channels, each with the studio's name for it (`Channel 2` until renamed). */
+  channels: { channel: number; name: string }[];
+  /** The NoaCG output's slot: the one slot no server item may take. */
+  output: { channel: number; layer: number };
+  /** The channel a new server video, still or audio file starts on. */
+  newMedia: number;
+}
+
+/** The most channel rows a studio setup holds. */
+export const MAX_STUDIO_CHANNELS = 99;
+/** The longest name a channel row keeps, in characters. */
+export const MAX_CHANNEL_NAME = 60;
+
+/** A CasparCG server a Bridge remembers connecting to: host and port, and with the `studio` feature
+ *  the studio's setup for it once a page has kept one there. */
 export interface RememberedServer {
   host: string;
   port: number;
+  studio?: StudioSetup;
 }
 
 /** What `POST /servers` answers: the servers this Bridge connected to, most recent first. */
@@ -221,6 +243,21 @@ export interface ServersReply {
 /** What `POST /connect` answers: `/status`, and the list with this server now first. */
 export interface ConnectReply extends StatusReply {
   servers: RememberedServer[];
+}
+
+/** What `POST /studio` answers, given `{ target, studio }` for a server in the list: the list, with
+ *  that server's setup replaced. It contacts no server. */
+export interface StudioReply {
+  ok: true;
+  servers: RememberedServer[];
+}
+
+/** What `POST /pair-link` answers: a fresh one-time pairing code, good for `expiresIn` seconds. The
+ *  page puts it in a link for another browser, on its own origin and this Bridge's port. */
+export interface PairLinkReply {
+  ok: true;
+  code: string;
+  expiresIn: number;
 }
 
 /**

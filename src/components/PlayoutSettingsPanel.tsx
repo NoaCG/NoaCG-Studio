@@ -5,22 +5,45 @@ import {
   connectServer,
   defaultChannelName,
   loadPlayoutSettings,
+  pairingLinkForAnotherBrowser,
   playoutConfigured,
   putOutputOnAir,
-  rememberedServers,
   savePlayoutSettings,
   serverAddress,
   slotAddress,
   slotOf,
+  syncStudio,
   targetOf,
   testConnection,
   type PlayoutChannel,
   type PlayoutResult,
   type PlayoutSettings,
+  type StudioKeeper,
 } from '../control/playoutLink';
 import type { RememberedServer } from '../control/playoutProtocol';
+import { CHANNEL_NAME_MAX, studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
+import CopyPairingLink from './CopyPairingLink';
 import RecentServers from './RecentServers';
+
+/** How long the setup waits after the last keystroke before NoaCG Bridge is given it. */
+const KEEP_AFTER_MS = 600;
+
+/** Where the setup above is kept, in one line (D17). */
+function keeperLine(keeper: StudioKeeper, s: PlayoutSettings): string {
+  switch (keeper) {
+    case 'bridge':
+      return `NoaCG Bridge keeps this setup for ${serverAddress(targetOf(s))}, for every browser paired with it.`;
+    case 'ready':
+      return `Change anything here and NoaCG Bridge keeps it for ${serverAddress(targetOf(s))}, for every browser paired with it.`;
+    case 'unconnected':
+      return `Kept in this browser. Press Connect, and NoaCG Bridge keeps it for ${serverAddress(targetOf(s))} and every browser paired with it.`;
+    case 'waiting':
+      return 'Kept in this browser. NoaCG Bridge is given it the next time it answers.';
+    default:
+      return 'Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.';
+  }
+}
 
 /** The panel's three presses. */
 type Verb = 'test' | 'connect' | 'air';
@@ -51,17 +74,43 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
   const [result, setResult] = useState<{ verb: Verb; result: PlayoutResult; ok: string } | null>(null);
   // The servers NoaCG Bridge remembers this studio connecting to, one press each.
   const [servers, setServers] = useState<RememberedServer[]>([]);
+  // Where the studio setup is kept (D17). Unknown until the first sync answers.
+  const [keeper, setKeeper] = useState<StudioKeeper | null>(null);
   const paired = Boolean(settings.agentToken.trim());
+
+  /** Bring this browser's setup and the Bridge's together, and show what came of it: the Bridge's
+   *  setup when it held a newer one, and the list it answered with. */
+  const sync = async (alive: () => boolean = () => true) => {
+    const done = await syncStudio();
+    if (!alive()) return;
+    if (done.servers) setServers(done.servers);
+    setKeeper(done.keeper);
+    if (done.changed) setSettings(loadPlayoutSettings());
+  };
   useEffect(() => {
     if (!paired) return;
     let alive = true;
-    void rememberedServers(loadPlayoutSettings()).then((list) => {
-      if (alive) setServers(list);
-    });
+    void sync(() => alive);
     return () => {
       alive = false;
     };
   }, [paired]);
+
+  // A CHANGE TO THE SETUP goes to NoaCG Bridge a moment after the last keystroke (the table saves on
+  // every one), and at once when the panel closes, so another browser opens with it. Only a change
+  // made here is marked for the Bridge (`studioPending`); the Bridge's own setup arriving is not.
+  const studioKey = JSON.stringify(studioOf(settings));
+  useEffect(() => {
+    if (!paired || !loadPlayoutSettings().studioPending) return;
+    const timer = setTimeout(() => void sync(), KEEP_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [studioKey, paired]);
+  useEffect(
+    () => () => {
+      if (loadPlayoutSettings().studioPending) void syncStudio();
+    },
+    [],
+  );
 
   const set = (patch: Partial<PlayoutSettings>) => {
     savePlayoutSettings(patch);
@@ -83,6 +132,11 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
       } else if (verb === 'connect') {
         const connected = await connectServer(now);
         if (connected.servers) setServers(connected.servers);
+        // The server's setup, from NoaCG Bridge when it keeps one: the table below shows it.
+        if (connected.studio) {
+          setKeeper(connected.studio.keeper);
+          if (connected.studio.changed) setSettings(loadPlayoutSettings());
+        }
         const r = connected.result;
         setResult({ verb, result: r, ok: `${connectedTo(r)}${r.features?.includes('servers') ? '. NoaCG Bridge remembers this server.' : ''}` });
       } else if (outputUrl) {
@@ -173,6 +227,16 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
               ? 'Paired. The token stays in this browser; the Bridge only ever listens on this machine.'
               : 'Not paired yet. Start NoaCG Bridge and open the link it prints; both boxes fill in by themselves.'}
           </p>
+          {/* ANOTHER BROWSER, or another account in its own browser profile, pairs with a link this
+              one asks the Bridge for (D19), so nobody has to find the Bridge window for it. */}
+          {paired && (
+            <CopyPairingLink
+              lead="Pairing another browser?"
+              button="Copy a link for it"
+              link={() => pairingLinkForAnotherBrowser(loadPlayoutSettings())}
+              testId="playout-pair-another"
+            />
+          )}
         </div>
 
         <div className="dlg-row">
@@ -199,15 +263,17 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           </div>
           {/* A server used before is ONE press: it fills in the address and port and connects,
               as on the pairing page. */}
-          <RecentServers
-            servers={servers}
-            onPick={(server) => {
-              set({ host: server.host, amcpPort: server.port });
-              void run('connect');
-            }}
-            disabled={busy !== null}
-            testId="caspar-recent"
-          />
+          {paired && (
+            <RecentServers
+              servers={servers}
+              onPick={(server) => {
+                set({ host: server.host, amcpPort: server.port });
+                void run('connect');
+              }}
+              disabled={busy !== null}
+              testId="caspar-recent"
+            />
+          )}
           <p className="dlg-hint">
             The machine running CasparCG on your studio network, and its AMCP port (5250 unless it
             was changed). It is reached from this machine only, never from the internet.
@@ -244,6 +310,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
                     value={row.name}
                     onChange={(e) => setRow(i, { name: e.target.value })}
                     placeholder="Name this channel"
+                    maxLength={CHANNEL_NAME_MAX}
                     aria-label={`Channel ${row.channel} name`}
                     data-testid="caspar-channel-name"
                   />
@@ -337,6 +404,13 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
           </p>
         </div>
       </div>
+      {/* WHERE THE SETUP ABOVE IS KEPT (D17): in NoaCG Bridge for this server, so every browser and
+          account paired with it opens with it, or in this browser only, and why. */}
+      {keeper && (
+        <p className="dlg-hint" data-testid="playout-studio-keeper" data-keeper={keeper}>
+          {keeperLine(keeper, settings)}
+        </p>
+      )}
 
       {/* TEST, CONNECT, PUT ON AIR (owner, 2026-09-30). Test asks whether the server answers and
           remembers nothing. Connect asks the same and has NoaCG Bridge remember the server, so the

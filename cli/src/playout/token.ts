@@ -45,3 +45,55 @@ export function secretMatches(presented: string, expected: string): boolean {
 export function mintPairingCode(): string {
   return randomBytes(16).toString('hex');
 }
+
+/** One pairing code, and whether it has been spent. */
+export interface Pairing {
+  code: string;
+  expiresAt: number;
+  used: boolean;
+}
+
+/** How long a pairing code lives unless it is spent first. */
+export const PAIRING_TTL_MS = 2 * 60_000;
+/** The most codes open at once. Each is asked for by a paired page or by Enter in the window, so a
+ *  handful covers every browser being paired at the same time; the oldest goes first. */
+const MAX_OPEN_CODES = 8;
+
+/**
+ * THE PAIRING CODES THIS BRIDGE WILL HONOUR (docs/work-specs/studio-day-playout D19): the one minted
+ * at start and carried in the link the Bridge opens, and one more each time a paired page asks for a
+ * link for another browser or Enter is pressed in the window. Every code works once and for two
+ * minutes, as the first one always has; several may be open, so making a link for one browser never
+ * spends the link another browser was about to use.
+ */
+export class PairingCodes {
+  private open: Pairing[] = [];
+
+  constructor(private readonly now: () => number = Date.now) {}
+
+  /** A fresh code, open for PAIRING_TTL_MS. */
+  mint(): Pairing {
+    return this.add({ code: mintPairingCode(), expiresAt: this.now() + PAIRING_TTL_MS, used: false });
+  }
+
+  /** Honour a code made elsewhere (a test's, with its own expiry). */
+  add(pairing: Pairing): Pairing {
+    this.open = [...this.live(), pairing].slice(-MAX_OPEN_CODES);
+    return pairing;
+  }
+
+  /** Spend a code: true once for a code that is open and fresh, false for any other. Each comparison
+   *  is constant time, so the answer says nothing about how close a guess came. */
+  spend(presented: string): boolean {
+    const hit = this.live().find((p) => (presented ? secretMatches(presented, p.code) : false));
+    if (!hit) return false;
+    hit.used = true;
+    this.open = this.live();
+    return true;
+  }
+
+  private live(): Pairing[] {
+    const now = this.now();
+    return this.open.filter((p) => !p.used && now <= p.expiresAt);
+  }
+}
