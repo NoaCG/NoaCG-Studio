@@ -1,11 +1,11 @@
-// guards: src/components/editorFoundation/transformGestures.ts, src/components/editorFoundation/animationAuthoring.ts, src/blocks/editorAnimation.ts, src/blocks/baseEdits.ts
+// guards: src/components/editorFoundation/transformGestures.ts, src/components/editorFoundation/animationAuthoring.ts, src/blocks/editorAnimation.ts, src/blocks/baseEdits.ts, src/blocks/edit.ts
 //
 // R1.2b.1 CANVAS TRANSFORM TOOLS (docs/research/editor-r1-2b-1/README.md). The rotation handle, the
 // edge scale handles and the anchor point are pure geometry over what the preview renders, and every
 // gesture writes the operations the numeric fields write. Here the geometry is checked against a
 // model of the rendered layer (screen = parent x (position + anchor + R S (p - anchor))): an unwrapped
-// rotation, scale ratios in a rotated layer's own axes, the pivot a scale keeps, the pose an anchor
-// move keeps, and the operations each writes (keys where animated, the base elsewhere). What needs a
+// rotation, scale ratios in a rotated layer's own axes, the pivot a scale keeps, where an anchor drag
+// puts the pivot, and the operations each writes (keys where animated, the base elsewhere). What needs a
 // DOM or Chromium (the anchor's CSS and its refusals, the canvas, the inspector) is
 // e2e/editor-canvas-transforms.spec.ts.
 import test from 'node:test';
@@ -22,9 +22,9 @@ async function load(entry) {
   await bundle.close();
   return import(`data:text/javascript;base64,${Buffer.from(output[0].code, 'utf8').toString('base64')}`);
 }
-const [gestures, { anchorOperations, shownAnchor, transformOperations, displayedBase }] = await Promise.all(
-  ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts'].map(load));
-const { apply, invert, multiply, localFrame, edgePoints, centreOf, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear, anchorShift } = gestures;
+const [gestures, { anchorOperations, shownAnchor, transformOperations }, { setCssDeclaration }] = await Promise.all(
+  ['src/components/editorFoundation/transformGestures.ts', 'src/components/editorFoundation/animationAuthoring.ts', 'src/blocks/edit.ts'].map(load));
+const { apply, invert, multiply, localFrame, edgePoints, centreOf, rotationKnob, sweep, snapRotation, handleRatios, pivotShift, ownLinear } = gestures;
 
 const k = (time, value) => ({ time, value });
 const one = layers => ({ version: 2, root: '.g', speed: 1, steps: [{ name: 'In', duration: 2, ease: 'none', layers }, { name: 'Out', duration: 1, ease: 'none', layers: {} }] });
@@ -59,6 +59,9 @@ test('a turn of the rotation handle is unwrapped, follows the pointer through a 
   assert.ok(close(sweep([-1, 0, 0, 1], origin, at(0), at(30)), -30));
   assert.ok(close(sweep(multiply([2, 0, 0, 2], ownLinear(40, 1, 1)), origin, at(10), at(55)), 45, 1e-9));
   assert.equal(sweep(identity, origin, origin, at(30)), 0, 'a pointer on the pivot has no angle');
+  // A layer's own rotation is CSS's: rotate(90deg) takes +x down the screen, to +y.
+  samePoint(apply(ownLinear(90, 2, 1), { x: 1, y: 0 }), { x: 0, y: 2 }, 1e-12);
+  samePoint(apply(ownLinear(90, 2, 1), { x: 0, y: 1 }), { x: -1, y: 0 }, 1e-12);
   assert.throws(() => sweep([0, 0, 0, 1], origin, at(0), at(30)), /zero scale/);
   assert.deepEqual([37, 38, -7, 722, 7.5, -22.6].map(v => snapRotation(v)), [30, 45, 0, 720, 15, -30]);
   assert.ok(Object.is(snapRotation(-3), 0), 'no negative zero');
@@ -127,62 +130,57 @@ test('the rotation handle sits outside the top side, away from the centre, howev
   assert.ok(close(Math.hypot(rotationKnob(flat, 24).at.x - 50, rotationKnob(flat, 24).at.y - 10), 24));
 });
 
-test('moving the anchor with compensation keeps every point of the pose; numerically it moves only the pivot', () => {
-  for (const [rotation, scaleX, scaleY] of [[30, 1.5, 0.8], [0, 1, 1], [-90, 2, 2], [720, 1, 1], [45, -1, 1]]) {
-    const before = layer({ rotation, scaleX, scaleY, anchor: { x: 0, y: 0 }, position: { x: 700, y: 380 } });
-    const anchor = { x: 150, y: 60 }, shift = anchorShift(ownLinear(rotation, scaleX, scaleY), { x: 150, y: 60 });
-    const after = layer({ rotation, scaleX, scaleY, anchor, position: { x: 700 + shift.x, y: 380 + shift.y } });
-    for (let i = 0; i < 4; i++) samePoint(after.corners[i], before.corners[i], 1e-9, `${rotation} corner ${i}`);
+test('moving the anchor moves only the pivot: a drag mapped through the parent keeps it under the pointer, and the layer then turns about it', () => {
+  // The owner's rule (2026-10-01): Position stays, so the pivot moves in the parent's axes, and only a
+  // pointer change mapped through the parent (as a Position drag is) keeps the crosshair under the pointer.
+  const parents = [[1, 0, 0, 1], [0.57, 0, 0, 0.57], multiply([0.5, 0, 0, 0.5], ownLinear(-15, 1, 1)), [-1, 0, 0, 1]];
+  for (const [rotation, scaleX, scaleY] of [[30, 1.5, 0.8], [0, 1, 1], [-90, 2, 2], [720, 1, 1], [45, -1, 1]]) for (const parent of parents) {
+    const what = `${rotation} ${scaleX} ${scaleY} in ${parent}`;
+    const before = layer({ rotation, scaleX, scaleY, anchor: { x: 0, y: 0 }, position: { x: 700, y: 380 }, parent });
+    const pointer = { x: 40, y: -25 }, change = apply(invert(parent), pointer), anchor = { x: change.x, y: change.y };
+    const after = layer({ rotation, scaleX, scaleY, anchor, position: before.position, parent });
+    samePoint(after.anchorAt, { x: before.anchorAt.x + pointer.x, y: before.anchorAt.y + pointer.y }, 1e-9, `${what}: the pivot under the pointer`);
+    // The artwork turns and scales about the new point, so it moves by parent x (I - M) x the change
+    // wherever it is turned or scaled, and not at all where it is not.
+    const own = ownLinear(rotation, scaleX, scaleY), kept = apply(own, change);
+    const shift = apply(parent, { x: change.x - kept.x, y: change.y - kept.y });
+    for (let i = 0; i < 4; i++) samePoint(after.corners[i], { x: before.corners[i].x + shift.x, y: before.corners[i].y + shift.y }, 1e-9, `${what} corner ${i}`);
+    // A further turn is about the new point: it stays, and every corner keeps its distance from it.
+    const turned = layer({ rotation: rotation + 40, scaleX, scaleY, anchor, position: before.position, parent });
+    samePoint(turned.anchorAt, after.anchorAt, 1e-9, `${what}: the pivot stays through a turn`);
+    for (let i = 0; i < 4; i++) {
+      const distance = p => Math.hypot(p.x - after.anchorAt.x, p.y - after.anchorAt.y);
+      assert.ok(close(distance(turned.corners[i]), distance(after.corners[i]), 1e-6), `${what} corner ${i} turns about the pivot`);
+    }
   }
-  samePoint(anchorShift(ownLinear(90, 1, 1), { x: 10, y: 0 }), { x: -10, y: 10 });
-  samePoint(anchorShift(ownLinear(720, 1, 1), { x: 10, y: 4 }), { x: 0, y: 0 });
+  // The layer's own frame is the wrong one: on a turned layer it puts the pivot off the pointer.
+  const turned = layer({ rotation: 30, scaleX: 1.5, scaleY: 0.8 }), wrong = apply(invert(turned.frame), { x: 40, y: -25 });
+  const off = layer({ rotation: 30, scaleX: 1.5, scaleY: 0.8, anchor: { x: turned.anchor.x + wrong.x, y: turned.anchor.y + wrong.y } }).anchorAt;
+  assert.ok(Math.hypot(off.x - turned.anchorAt.x - 40, off.y - turned.anchorAt.y + 25) > 5);
 });
 
-test('anchor operations: one base write unanimated, a key where Position is animated, only the pivot when typed, and never a guess', () => {
+test('an anchor edit writes the pivot alone, whatever the layer animates, and shows the rendered one until it is declared', () => {
   const base = { selector: '#a', target: '#a', mode: 'flow', scaled: true, originX: 0, originY: 0, scaleReason: null, anchorReason: null, anchor: null, x: 40, y: 100, scaleX: 1, scaleY: 1, rotation: 0 };
-  const pose = (motion, extra = {}) => ({ motion: { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1, ...motion },
+  const pose = (extra = {}) => ({ motion: { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 },
     initialMotion: { x: 0, y: 0, xPercent: 0, yPercent: 0, scaleX: 1, scaleY: 1, rotation: 0, opacity: 1 }, unit: 2, size: [300, 120], box: [300, 120], origin: [300, 120], ...extra });
-  const at = { step: 0, time: 0.4 };
   // The shown anchor: the rendered pivot in layer pixels, or the declared one.
-  assert.deepEqual(shownAnchor(base, pose({})), { x: 150, y: 60 });
-  assert.deepEqual(shownAnchor({ ...base, anchor: { x: 3, y: 4 } }, pose({})), { x: 3, y: 4 });
-  assert.equal(shownAnchor(base, pose({}, { origin: undefined })), null);
-  assert.throws(() => anchorOperations(one({}), '#a', '#a', base, pose({}, { origin: undefined }), { x: 0, y: 0 }, true, at), /Wait for the rendered anchor/);
-  // Typed: the pivot only, whatever turns about it.
-  assert.deepEqual(anchorOperations(one({}), '#a', '#a', { ...base, rotation: 30 }, pose({ rotation: 0 }), { x: 0, y: 7 }, false, at),
-    [{ kind: 'base.set', selector: '#a', values: { anchorX: 0, anchorY: 7 } }]);
-  // Nothing turns or scales: no Position change at all.
-  assert.deepEqual(anchorOperations(one({}), '#a', '#a', base, pose({}), { x: 0, y: 0 }, true, at), [{ kind: 'base.set', selector: '#a', values: { anchorX: 0, anchorY: 0 } }]);
-  // Rotated 90 on the base: (M - I) x (-150, -60) = (150 - 60, 60 + 150) layer pixels, all on the base.
-  const turned = { ...base, rotation: 90 }, shift = anchorShift(ownLinear(90, 1, 1), { x: -150, y: -60 });
-  const ops = anchorOperations(one({}), '#a', '#a', turned, pose({}), { x: 0, y: 0 }, true, at);
-  assert.equal(ops.length, 1);
-  assert.equal(ops[0].kind, 'base.set');
-  assert.ok(close(ops[0].values.x, 40 + shift.x) && close(ops[0].values.y, 100 + shift.y) && ops[0].values.anchorX === 0 && ops[0].values.anchorY === 0);
-  // Frosted Panel at 0.28 s: scale 0.95 and y animated. y keys at the playhead (in its pixels), x moves the base.
-  const panel = one({ '#a': { scale: [k(0, 0.9), k(1, 1)], y: [k(0, 24), k(1, 0)] } }), posed = pose({ scaleX: 0.95, scaleY: 0.95, y: 12 });
-  const keyed = anchorOperations(panel, '#a', '#a', base, posed, { x: 100, y: 30 }, true, at);
-  const move = anchorShift(ownLinear(0, 0.95, 0.95), { x: -50, y: -30 });
-  assert.deepEqual(keyed.map(o => o.kind), ['animation.key', 'base.set']);
-  assert.equal(keyed[0].property, 'y');
-  assert.ok(close(keyed[0].value, 12 + move.y * 2), String(keyed[0].value));
-  assert.deepEqual(Object.keys(keyed[1].values).sort(), ['anchorX', 'anchorY', 'x']);
-  assert.ok(close(keyed[1].values.x, 40 + move.x));
-  // A shown scale or rotation is the base and the motion together (displayedBase), as rendered.
-  assert.ok(close(displayedBase(base, posed, 'scaleX'), 0.95));
-  // Where rotation and scale never move (a Clean Steps row animates yPercent only), M is the same at
-  // every time: the base moves, keeping the whole path, and no Position key is added.
-  const row = one({ '#a': { yPercent: [k(0.5, 110), k(1.2, 0)] } }), turnedRow = { ...base, rotation: 90 };
-  const whole = anchorOperations(row, '#a', '#a', turnedRow, pose({ yPercent: 40 }), { x: 0, y: 0 }, true, at);
-  assert.deepEqual(whole.map(o => o.kind), ['base.set']);
-  assert.ok(close(whole[0].values.x, 40 + shift.x) && close(whole[0].values.y, 100 + shift.y));
-  // A raw transform string can turn or scale, so it is motion too: only the pose at the playhead can
-  // be kept, by a Position key, which a raw transform refuses (R1.2a.6), so the drag refuses.
-  assert.throws(() => anchorOperations(one({ '#a': { transform: [k(0, 'rotate(0deg)'), k(1, 'rotate(40deg)')], y: [k(0, 0), k(1, 10)] } }), '#a', '#a', turnedRow, pose({}), { x: 0, y: 0 }, true, at), /raw transform/);
-  // The rendered own transform wins over the shown Rotation and Scale: a CSS skew of the layer's own.
-  const skew = [1, 0, Math.tan(-8 * Math.PI / 180), 1];
-  const skewed = anchorOperations(one({}), '#a', '#a', base, pose({}, { own: skew }), { x: 150, y: 260 }, true, at);
-  assert.ok(close(skewed[0].values.x, 40 + Math.tan(-8 * Math.PI / 180) * 200) && close(skewed[0].values.y, 100), JSON.stringify(skewed));
+  assert.deepEqual(shownAnchor(base, pose()), { x: 150, y: 60 });
+  assert.deepEqual(shownAnchor({ ...base, anchor: { x: 3, y: 4 } }, pose()), { x: 3, y: 4 });
+  assert.equal(shownAnchor(base, pose({ origin: undefined })), null);
+  // Typed, centred or dragged: one base write of the pair, never Position or a key.
+  assert.deepEqual(anchorOperations('#a', { x: 0, y: 7 }), [{ kind: 'base.set', selector: '#a', values: { anchorX: 0, anchorY: 7 } }]);
+});
+
+test('a declaration added after a commented one keeps the rule clean: no stray separator after the comment', () => {
+  const added = body => setCssDeclaration('#a {' + body + '}', '#a', '--base-anchor-x', '4px');
+  // A catalog rule annotates its last declaration (Frosted Panel's will-change).
+  assert.equal(added('\n  will-change: transform; /* hint */\n'), '#a {\n  will-change: transform; /* hint */\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1; /* one */ /* two */\n'), '#a {\n  a: 1; /* one */ /* two */\n  --base-anchor-x: 4px;\n}');
+  // A declaration without its semicolon still gets one, after its comment; an earlier comment is not the last one.
+  assert.equal(added('\n  a: 1 /* one */\n'), '#a {\n  a: 1 /* one */;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1; /* one */ b: 2 /* two */\n'), '#a {\n  a: 1; /* one */ b: 2 /* two */;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added('\n  a: 1\n'), '#a {\n  a: 1;\n  --base-anchor-x: 4px;\n}');
+  assert.equal(added(' /* empty */ '), '#a { /* empty */\n  --base-anchor-x: 4px;\n}');
 });
 
 test('a handle gesture writes what typing writes: a turn keys an animated rotation unwrapped, else the base, which a raw transform leaves to the base write', () => {

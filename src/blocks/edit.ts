@@ -271,7 +271,10 @@ export function setCssDeclaration(css: string, selector: string, prop: string, v
       body = body.replace(re, `$1$2${prop}: ${value}`);
     } else {
       const trimmed = body.replace(/\s*$/, '');
-      const sep = trimmed.endsWith(';') || trimmed === '' ? '' : ';';
+      // A trailing comment annotates the declaration before it, so that declaration decides
+      // whether a separator is missing; otherwise `/* note */;` lands after every such rule.
+      const last = trimmed.replace(/(?:\s*\/\*(?:[^*]|\*(?!\/))*\*\/)+$/, '');
+      const sep = last.endsWith(';') || last === '' ? '' : ';';
       body = `${trimmed}${sep}\n  ${prop}: ${value};\n`;
     }
     return css.slice(0, rule.start) + body + css.slice(rule.end);

@@ -17,9 +17,7 @@ export interface RenderedPart {
     size?: [number, number]; time?: number; revision?: Revision;
     /** The base target's box the corners are measured on, and its transform-origin from that box's
      *  top-left (HTML only), in its own CSS pixels (R1.2b.1). */
-    box?: [number, number]; origin?: [number, number];
-    /** The base target's own linear transform (rotate, scale and its CSS transform), as [a, b, c, d]. */
-    own?: [number, number, number, number] };
+    box?: [number, number]; origin?: [number, number] };
 }
 export interface PreviewReply extends Envelope {
   drawingSpace?: [number, number, number, number, number, number] | null;

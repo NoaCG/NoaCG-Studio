@@ -3,9 +3,10 @@
 //
 // R1.2b.1 canvas transform tools (docs/research/editor-r1-2b-1): the rotation handle, edge scale
 // handles and the anchor point (numeric X/Y, Center anchor and the Anchor tool). Every gesture
-// writes what the numeric fields write, as one undo; the anchor is a static base value in CSS and
-// its compensated edits keep the pose at the playhead. scripts/canvas-transforms.test.mjs checks
-// the gesture math and the operations densely in Node.
+// writes what the numeric fields write, as one undo; the anchor is a static base value in CSS, and
+// typing, Center anchor and the Anchor tool all move only the pivot, never Position (owner,
+// 2026-10-01). scripts/canvas-transforms.test.mjs checks the gesture math and the operations
+// densely in Node.
 
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -125,6 +126,38 @@ function expectSame(a: { x: number; y: number; width?: number; height?: number }
  *  as JSON: what an edit must leave byte for byte. */
 const untouched = (d: Data, except: string[]) => JSON.stringify(d.steps.map(s => ({ ...s, layers: Object.entries(s.layers).filter(([k]) => !except.includes(k)),
   spans: Object.entries((s as Step & { spans?: Record<string, unknown> }).spans ?? {}).filter(([k]) => !except.includes(k)) })));
+/** An anchor edit writes the anchor and nothing else (owner, 2026-10-01): the script, the markup and
+ *  the stylesheet apart from the anchor's declarations stay byte for byte, and so does every Position,
+ *  Rotation and Scale value. */
+const withoutAnchor = (css: string, target: string) => css.replace(new RegExp(target.replace(/[.#]/g, '\\$&') + '\\s*\\{[^}]*\\}', 'g'),
+  rule => rule.replace(/[ \t]*(?:--base-anchor-[xy]|transform-origin)\s*:[^;}]*;?\n?/g, ''));
+async function onlyAnchor(page: Page, before: Template, selector: string, placed: Base) {
+  const after = await source(page), now = await base(page, selector);
+  expect(after.js).toBe(before.js); expect(after.html).toBe(before.html);
+  expect(after.css).not.toBe(before.css);
+  // Only the base target's own rule may lose or gain these declarations.
+  expect(withoutAnchor(after.css, placed.target)).toBe(withoutAnchor(before.css, placed.target));
+  expect([now.x, now.y, now.rotation, now.scaleX, now.scaleY]).toEqual([placed.x, placed.y, placed.rotation, placed.scaleX, placed.scaleY]);
+}
+/** Where a layer turned by `degrees` (and not scaled) moves when only its pivot moves by `by`: (I - R) by. */
+function turnShift(degrees: number, by: Point): Point {
+  const r = degrees * Math.PI / 180;
+  return { x: by.x - (Math.cos(r) * by.x - Math.sin(r) * by.y), y: by.y - (Math.sin(r) * by.x + Math.cos(r) * by.y) };
+}
+/** A Rotation typed after the anchor moved turns about the new point: the marker stays and every
+ *  corner keeps its distance from it. The turn is undone. */
+async function turnsAbout(page: Page) {
+  const pivot = await anchorPoint(page), before = await Promise.all([0, 1, 2, 3].map(i => corner(page, i)));
+  await type(page, transform, 'Rotation', Number(await (await field(page, transform, 'Rotation')).inputValue()) + 25);
+  const after = await anchorPoint(page), distance = (p: Point) => Math.hypot(p.x - pivot.x, p.y - pivot.y);
+  expect(near(after.x, pivot.x, .6) && near(after.y, pivot.y, .6), `pivot ${JSON.stringify(after)} vs ${JSON.stringify(pivot)}`).toBe(true);
+  for (let i = 0; i < 4; i++) {
+    const turned = await corner(page, i);
+    expect(near(distance(turned), distance(before[i]), .8), `corner ${i}: ${distance(turned)} vs ${distance(before[i])}`).toBe(true);
+    expect(Math.hypot(turned.x - before[i].x, turned.y - before[i].y), `corner ${i} turned`).toBeGreaterThan(1);
+  }
+  await undo(page);
+}
 const operate = (page: Page, t: Template, operations: unknown[]) => page.evaluate(async ({ t, operations }) => {
   try { return { template: (await import('/src/components/editorFoundation/operations.ts')).applyOperations(t as never, operations as never).template as never as Template }; }
   catch (error) { return { error: String((error as Error).message ?? error) }; }
@@ -368,19 +401,23 @@ test('anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated,
   expect(near((await corner(page, 0)).x, topLeft.x, .6)).toBe(true);
   expect(near((await corner(page, 0)).y, topLeft.y, .6)).toBe(true);
 
-  // Center anchor keeps the pose and reads the box centre.
-  const posed = await bounds(page, t.rect), corners = [await corner(page, 0), await corner(page, 2)];
+  // Center anchor moves only the pivot (owner, 2026-10-01): the anchor alone in one undo, every
+  // Position value as it was, so the turned, scaled rectangle now turns about its centre and moves.
+  const posed = await bounds(page, t.rect), turned = await source(page), turnedBase = await base(page, t.rect);
   steps = await history(page);
   await page.getByRole('button', { name: 'Center anchor', exact: true }).click(); await ready(page);
   expect(await history(page)).toBe(steps + 1);
-  expectSame(await bounds(page, t.rect), posed, .5, 'centred');
+  await onlyAnchor(page, turned, t.rect, turnedBase);
   expect(Number(await (await field(page, anchorSection, 'Anchor X')).inputValue())).toBeCloseTo(150, 2);
   expect(Number(await (await field(page, anchorSection, 'Anchor Y')).inputValue())).toBeCloseTo(60, 2);
-  const marker = await anchorPoint(page);
+  const shifted = await bounds(page, t.rect);
+  expect(Math.hypot(shifted.x - posed.x, shifted.y - posed.y), 'the pose moves about the new pivot').toBeGreaterThan(5);
+  const corners = [await corner(page, 0), await corner(page, 2)], marker = await anchorPoint(page);
   expect(near(marker.x, (corners[0].x + corners[1].x) / 2, .6)).toBe(true);
   expect(near(marker.y, (corners[0].y + corners[1].y) / 2, .6)).toBe(true);
+  await turnsAbout(page);
 
-  // The Anchor tool: the marker follows the pointer, the pose stays, anchor and Position in one undo.
+  // The Anchor tool: the marker follows the pointer and only the anchor changes, in one undo; Escape cancels.
   await page.getByRole('button', { name: 'anchor tool', exact: true }).click();
   const centred = await source(page), placed = await base(page, t.rect);
   steps = await history(page);
@@ -389,13 +426,15 @@ test('anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated,
   await drag(page, marker, 40, -25); await ready(page);
   expect(await history(page)).toBe(steps + 1);
   const moved = await anchorPoint(page);
-  expect(near(moved.x, marker.x + 40, .6)).toBe(true); expect(near(moved.y, marker.y - 25, .6)).toBe(true);
-  expectSame(await bounds(page, t.rect), posed, .5, 'anchor tool');
-  // The compensation is base Position (nothing here is animated); the anchor moved with it.
-  const after = await base(page, t.rect), edited = await source(page);
-  expect(Math.abs(after.x - placed.x) + Math.abs(after.y - placed.y)).toBeGreaterThan(1);
-  expect(after.anchor!.x).not.toBeCloseTo(150, 1);
-  expect(edited.js).toBe(original.js);
+  expect(near(moved.x, marker.x + 40, .6), `marker x ${moved.x} vs ${marker.x + 40}`).toBe(true);
+  expect(near(moved.y, marker.y - 25, .6), `marker y ${moved.y} vs ${marker.y - 25}`).toBe(true);
+  await onlyAnchor(page, centred, t.rect, placed);
+  expect((await base(page, t.rect)).anchor!.x).not.toBeCloseTo(150, 1);
+  const dragged = await bounds(page, t.rect);
+  expect(Math.hypot(dragged.x - shifted.x, dragged.y - shifted.y), 'the pose moves about the dragged pivot').toBeGreaterThan(1);
+  // The corner handles show on Select.
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
+  await turnsAbout(page);
   await undo(page); expect(await source(page)).toEqual(centred);
 
   // The simulator renders the same box as the editor.
@@ -427,25 +466,22 @@ test('anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated,
   expect(errors).toEqual([]);
 });
 
-test('anchor on animated and placed layers: Frosted Panel keys y at the playhead; created text anchors its box; refusals', async ({ page }) => {
-  // Frosted Panel at 0.28 s: scale and y keyed, x not. The pose there stays.
+test('anchor on animated and placed layers: Frosted Panel moves only its pivot at the playhead; created text anchors its box; refusals', async ({ page }) => {
+  // Frosted Panel at 0.28 s: scale and y keyed, x not. The Anchor tool writes the anchor alone: no key,
+  // every track and Position value byte-identical, and the marker under the pointer.
   await open(page);
   const frosted = await catalog(page, 'card03');
   await editorWith(page, frosted);
-  const frames = Math.round(.28 * frosted.fps), time = frames / frosted.fps;
-  await seekFrames(page, frames, frosted.fps);
+  await seekFrames(page, Math.round(.28 * frosted.fps), frosted.fps);
   await select(page, '.info-card-box');
   let original = await source(page), steps = await history(page);
-  const before = await dataOf(page, original.js), posed = await bounds(page, '.info-card-box');
+  const placed = await base(page, '.info-card-box'), from = await anchorPoint(page);
   await page.getByRole('button', { name: 'anchor tool', exact: true }).click();
-  await drag(page, await anchorPoint(page), -80, 30); await ready(page);
-  const after = await data(page), box = after.steps[0].layers['.info-card-box'];
-  expect(box.y.some(k => near(k.time, time * after.speed, 1e-3))).toBe(true);
-  expect(box.scale).toEqual(before.steps[0].layers['.info-card-box'].scale);
-  expect(untouched(after, ['.info-card-box'])).toBe(untouched(before, ['.info-card-box']));
-  expect((await source(page)).css).toMatch(/--base-anchor-x/); expect((await source(page)).css).toMatch(/--layout-x/);
+  await drag(page, from, -80, 30); await ready(page);
+  await onlyAnchor(page, original, '.info-card-box', placed);
   expect(await history(page)).toBe(steps + 1);
-  expectSame(await bounds(page, '.info-card-box'), posed, .5, 'Frosted Panel at the playhead');
+  const to = await anchorPoint(page);
+  expect(near(to.x, from.x - 80, .6) && near(to.y, from.y + 30, .6), `marker ${JSON.stringify(to)} vs ${JSON.stringify(from)}`).toBe(true);
   await page.getByRole('button', { name: 'select tool', exact: true }).click();
 
   // Created text: the anchor is its box's (the wrapper's), and the box turns about it.
@@ -519,7 +555,7 @@ test('anchor on animated and placed layers: Frosted Panel keys y at the playhead
   expect((await operate(page, drawn.template, [{ kind: 'base.set', selector: drawn.selector, values: { anchorX: 5, anchorY: 5 } }])).error).toBeUndefined();
 });
 
-test('a layer’s own CSS transform: a side handle scales outside it about the opposite side, and the Anchor tool keeps its pose', async ({ page }) => {
+test('a layer’s own CSS transform: a side handle scales outside it about the opposite side, and the Anchor tool moves only its pivot', async ({ page }) => {
   const t = await withRectangle(page);
   // A rotation of the rectangle's own CSS, inside the base scale the editor writes (CSS applies
   // rotate, then scale, then transform). Its base Rotation still reads 0.
@@ -535,10 +571,16 @@ test('a layer’s own CSS transform: a side handle scales outside it about the o
   expect(near(kept.x, pivot.x, .6) && near(kept.y, pivot.y, .6), `pivot ${JSON.stringify(kept)} vs ${JSON.stringify(pivot)}`).toBe(true);
   expect(await history(page)).toBe(count + 1);
   await undo(page);
-  // The Anchor tool compensates with the rendered transform, its own CSS rotation included.
+  // The Anchor tool maps the pointer through the parent, not the layer's turned frame, so the marker
+  // follows it; Position stays, and the layer's own CSS rotation now turns about the new point.
   await page.getByRole('button', { name: 'anchor tool', exact: true }).click();
-  await drag(page, await anchorPoint(page), 0, 40); await ready(page);
-  expectSame(await bounds(page, t.rect), own, .5, 'turned by its own CSS, anchor moved');
+  const unturned = await source(page), placed = await base(page, t.rect), from = await anchorPoint(page);
+  await drag(page, from, 0, 40); await ready(page);
+  const to = await anchorPoint(page);
+  expect(near(to.x, from.x, .6) && near(to.y, from.y + 40, .6), `marker ${JSON.stringify(to)} vs ${JSON.stringify(from)}`).toBe(true);
+  await onlyAnchor(page, unturned, t.rect, placed);
+  const moved = await bounds(page, t.rect), expected = turnShift(30, { x: 0, y: 40 / f });
+  expectSame({ x: moved.x - own.x, y: moved.y - own.y }, expected, .5, 'turned by its own CSS about the new pivot');
   expect(await history(page)).toBe(count + 1);
   await page.getByRole('button', { name: 'select tool', exact: true }).click();
 
@@ -563,7 +605,32 @@ test('a layer’s own CSS transform: a side handle scales outside it about the o
   expect(near(stays.x, opposite.x, .6) && near(stays.y, opposite.y, .6), `pivot ${JSON.stringify(stays)} vs ${JSON.stringify(opposite)}`).toBe(true);
 });
 
-test('Clean Steps: a turned row\'s anchor moves its base and keeps its whole reveal; on a Step flag the row\'s next cue refuses', async ({ page }) => {
+test('the Anchor tool inside a turned, scaled parent maps the pointer through it: the crosshair stays under the pointer and only the anchor changes', async ({ page }) => {
+  const t = await withRectangle(page);
+  // The rectangle moves into a wrapper turned 20 degrees and scaled 1.25 about its top-left, placed
+  // where the rectangle was. The rectangle itself is unturned, so its own frame is the parent's here.
+  const html = t.html.replace(`<div id="${t.rect.slice(1)}" data-gfx></div>`,
+    `<div id="turned-parent" style="position: absolute; left: 700px; top: -560px; transform: rotate(20deg) scale(1.25); transform-origin: 0 0"><div id="${t.rect.slice(1)}" data-gfx></div></div>`);
+  expect(html).not.toBe(t.html);
+  const placed = await operate(page, { ...t, html }, [{ kind: 'base.set', selector: t.rect, values: { x: 0, y: 0 } }]);
+  await editorWith(page, placed.template!);
+  await select(page, t.rect);
+  const original = await source(page), before = await base(page, t.rect), count = await history(page), f = await fit(page);
+  await page.getByRole('button', { name: 'anchor tool', exact: true }).click();
+  const from = await anchorPoint(page);
+  await drag(page, from, 30, 24); await ready(page);
+  const to = await anchorPoint(page);
+  expect(near(to.x, from.x + 30, .6) && near(to.y, from.y + 24, .6), `marker ${JSON.stringify(to)} vs ${JSON.stringify(from)}`).toBe(true);
+  await onlyAnchor(page, original, t.rect, before);
+  expect(await history(page)).toBe(count + 1);
+  // The anchor moved by the pointer's change in the parent's own pixels: turned back 20 degrees and
+  // divided by its 1.25 scale, from the rendered default at the box centre.
+  const anchor = (await base(page, t.rect)).anchor!, r = -20 * Math.PI / 180;
+  const local = { x: (Math.cos(r) * 30 - Math.sin(r) * 24) / f / 1.25, y: (Math.sin(r) * 30 + Math.cos(r) * 24) / f / 1.25 };
+  expect(near(anchor.x, 150 + local.x, .5) && near(anchor.y, 60 + local.y, .5), `anchor ${JSON.stringify(anchor)} vs ${JSON.stringify(local)}`).toBe(true);
+});
+
+test('Clean Steps: a turned row\'s anchor moves only its pivot, so its whole reveal turns about it; on a Step flag Center anchor writes it too', async ({ page }) => {
   await open(page);
   const steps = await catalog(page, 'card26');
   await editorWith(page, steps);
@@ -573,31 +640,38 @@ test('Clean Steps: a turned row\'s anchor moves its base and keeps its whole rev
   await type(page, transform, 'Layout offset X', 0.5); await undo(page);
   // A base rotation: nothing animates the row's rotation or scale, so its own transform never changes.
   await type(page, transform, 'Rotation', 10);
-  const turned = await source(page), count = await history(page), atReveal = await bounds(page, '#f0');
+  const turned = await source(page), placed = await base(page, '#f0'), count = await history(page), atReveal = await bounds(page, '#f0');
   await seekFrames(page, frame(1.6), steps.fps);
   const settled = await bounds(page, '#f0');
   await seekFrames(page, frame(.8), steps.fps);
   await page.getByRole('button', { name: 'anchor tool', exact: true }).click();
-  await drag(page, await anchorPoint(page), -60, 10); await ready(page);
+  const from = await anchorPoint(page), f = await fit(page);
+  await drag(page, from, -60, 10); await ready(page);
   expect(await history(page)).toBe(count + 1);
-  const moved = await source(page), after = await dataOf(page, moved.js);
-  expect(moved.js).toBe(turned.js);
-  expect(untouched(after, [])).toBe(untouched(await dataOf(page, turned.js), []));
-  expect(moved.css).toMatch(/--base-anchor-x/); expect(moved.css).toMatch(/--layout-x/);
-  expectSame(await bounds(page, '#f0'), atReveal, .5, 'at the playhead');
+  const to = await anchorPoint(page);
+  expect(near(to.x, from.x - 60, .6) && near(to.y, from.y + 10, .6), `marker ${JSON.stringify(to)} vs ${JSON.stringify(from)}`).toBe(true);
+  await onlyAnchor(page, turned, '#f0', placed);
+  // Its 10 degrees now turn about the new point, which moves the whole reveal by one vector.
+  const shift = turnShift(10, { x: -60 / f, y: 10 / f }), atPlayhead = await bounds(page, '#f0');
+  expectSame({ x: atPlayhead.x - atReveal.x, y: atPlayhead.y - atReveal.y }, shift, .5, 'at the playhead');
   await seekFrames(page, frame(1.6), steps.fps);
-  expectSame(await bounds(page, '#f0'), settled, .5, 'settled, later in the reveal');
+  const later = await bounds(page, '#f0');
+  expectSame({ x: later.x - settled.x, y: later.y - settled.y }, shift, .5, 'later in the reveal');
   await page.getByRole('button', { name: 'select tool', exact: true }).click();
 
-  // On the Step 2 flag, #f1's bar starts there, so an edit lands on Step 2's start, which the arriving
-  // preview does not show: a compensated anchor edit refuses; the source stays.
+  // On the Step 2 flag, #f1's bar starts there, so an edit lands on Step 2's start. The anchor is the
+  // same on every cue, so Center anchor writes it there too: the anchor alone, in one undo.
   const flag = Math.round(d0.steps[0].duration / d0.speed * steps.fps);
   await seekFrames(page, flag, steps.fps);
   await select(page, '#f1');
-  const before = await source(page), at = await history(page);
+  const before = await source(page), at = await history(page), row = await base(page, '#f1');
   await page.getByRole('button', { name: 'Center anchor', exact: true }).click(); await ready(page);
-  await expect(page.locator(anchorSection + ' [role=alert]')).toContainText('next cue');
-  expect(await source(page)).toEqual(before); expect(await history(page)).toBe(at);
+  await expect(page.locator(anchorSection + ' [role=alert]')).toHaveCount(0);
+  expect(await history(page)).toBe(at + 1);
+  const centred = await source(page), centredRow = await base(page, '#f1');
+  expect(centred.js).toBe(before.js); expect(centred.html).toBe(before.html);
+  expect([centredRow.x, centredRow.y, centredRow.rotation, centredRow.scaleX, centredRow.scaleY]).toEqual([row.x, row.y, row.rotation, row.scaleX, row.scaleY]);
+  expect(centredRow.anchor).not.toBeNull();
 });
 
 test('nested SVG: the rotation and edge handles write what the fields write; its anchor refuses beside the control', async ({ page }) => {

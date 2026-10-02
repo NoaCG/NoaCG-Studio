@@ -101,7 +101,7 @@ explain the differences from the current inspector. All five transform groups be
 
 | Property | Control and source contract |
 |---|---|
-| Anchor point | Layer-local X/Y in pixels, canvas anchor tool and center command. Rotation and scale use this point. Numeric edits change the anchor directly; dragging the anchor tool compensates Position to preserve the visible pose |
+| Anchor point | Layer-local X/Y in pixels, canvas anchor tool and center command. Rotation and scale use this point. Numeric edits, the center command and the anchor tool all move only the anchor, never Position, so a rotated or scaled layer then turns and scales about the new point (owner, 2026-10-01) |
 | Position | Store the values consumed by the runtime. Display parent-coordinate X/Y for placed/absolute/SVG targets; display explicitly labelled Layout offset X/Y for flow-laid catalog lines. Group new axes by default; preserve existing independent tracks unless explicitly converted losslessly |
 | Scale | X/Y percentages with linked proportions by default. Unlink permits independent axes. Preserve the ratio when relinking unequal values; handle a zero axis explicitly instead of division by zero. Negative values mirror |
 | Rotation | Signed whole revolutions plus degrees, backed by one unwrapped degree value. Never normalize 720 degrees to zero or force shortest-path interpolation |
@@ -110,15 +110,15 @@ explain the differences from the current inspector. All five transform groups be
 All five groups have animation controls, including anchor. R1.1 proves transform order and
 source ownership on nested SVG/HTML fixtures; R1.2 completes controls and animation parity.
 Model authored placement, anchor, scale/rotation and animation without flattening parent
-matrices or changing siblings. A compensated anchor gesture adjusts the affected Position
-values as one transaction. On animated layers it preserves the parked pose; it must not
-claim to preserve an entire path without a validated all-keys compensation operation.
+matrices or changing siblings. An anchor edit writes only the anchor, as one transaction: the
+owner ruled on 2026-10-01 that the anchor is only the point rotation, scale and the rest of the
+transform turn about, so no anchor gesture compensates Position.
 Singular/unsupported parent transforms get a specific capability explanation and retain source.
 R1.2b.1 delivers the rotation handle (unwrapped, Shift snaps to 15 degrees), edge scale handles in a
 layer's own axes and the anchor point ([spec](research/editor-r1-2b-1/README.md)). The anchor is a
 static base value in this phase (owner decision 2026-10-01): CSS `transform-origin` in the layer's
-base rule, set numerically, by Center anchor, or by the Anchor tool, whose compensated drag keeps
-the pose at the playhead. Its stopwatch follows in a later R1.2 phase; SVG elements refuse an
+base rule, set numerically, by Center anchor, or by the Anchor tool, each moving only the pivot
+(owner, 2026-10-01). Its stopwatch follows in a later R1.2 phase; SVG elements refuse an
 anchor, since GSAP places their origin itself.
 
 ### Position source adapter (D03)

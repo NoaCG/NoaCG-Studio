@@ -1,7 +1,7 @@
 /**
  * The pure geometry of the canvas transform tools (R1.2b.1, docs/research/editor-r1-2b-1): the rotation
- * handle's unwrapped angle, the scale handles' ratios in a layer's own axes, and the Position changes
- * that keep a pivot or the whole pose in place. Points are composition pixels as the preview reports
+ * handle's unwrapped angle, the scale handles' ratios in a layer's own axes, and the Position change
+ * that keeps a scale's pivot in place. Points are composition pixels as the preview reports
  * them; a `Linear` is the 2x2 part of a matrix, [a, b, c, d] as in DOMMatrix (x' = a x + c y).
  */
 export type Point = { x: number; y: number };
@@ -79,10 +79,4 @@ export function pivotShift(parent: Linear, local: Linear, ratios: Point, pivot: 
 export function ownLinear(rotation: number, scaleX: number, scaleY: number): Linear {
   const r = rotation * Math.PI / 180, cos = Math.cos(r), sin = Math.sin(r);
   return [cos * scaleX, sin * scaleX, -sin * scaleY, cos * scaleY];
-}
-/** The Position change that keeps the pose when the anchor moves by `delta` (layer pixels): the layer
- *  turns and scales about the new point, so Position takes up (M - I) delta, M its own linear map. */
-export function anchorShift(own: Linear, delta: Point): Point {
-  const turned = apply(own, delta);
-  return { x: turned.x - delta.x, y: turned.y - delta.y };
 }

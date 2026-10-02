@@ -5,7 +5,7 @@ import type { EditorSession, Revision } from './session';
 import { applyOperations, type EditorOperation } from './operations';
 import type { PreviewController } from './PreviewController';
 import type { PreviewReply, RenderedPart } from './protocol';
-import { authoredAnchor, authoredTransform, displayedBase, editingPose, keysControl, requireCurrentPose, shownAnchor } from './animationAuthoring';
+import { anchorOperations, authoredTransform, displayedBase, editingPose, keysControl, requireCurrentPose, shownAnchor } from './animationAuthoring';
 import { requireScaleWritable } from '../../blocks/editorAnimation';
 import { ownerOf, readTimeline } from './timelineView';
 import { apply, centreOf, edgePoints, handleRatios, invert, localFrame, multiply, ownLinear, pivotShift, snapRotation, sweep, type Linear, type Point } from './transformGestures';
@@ -64,7 +64,7 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         throw new Error('This layer has a zero scale axis. Restore it with the numeric Scale controls first.');
       }
       if (handle?.kind === 'anchor' && base?.anchorReason) throw new Error(base.anchorReason);
-      if (part && (scaling || handle?.kind === 'anchor')) invert(frameOf(part));
+      if (part && scaling) invert(frameOf(part));
       // A turn writes what typing a Rotation writes: try one degree now, so a refusal shows at the press.
       if (handle?.kind === 'rotate' && base && part) {
         const shown = displayedBase(base, editingPose(template, base.selector, part.appearance, time, part.appearance?.cue), 'rotation');
@@ -124,10 +124,11 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
         const turned = base.rotation + turn.swept;
         gesture.operations = authoredTransform(template, base.selector, originalBase, part.appearance, { rotation: modifiers.shiftKey ? snapRotation(turned) : turned }, gesture.time);
       } else if (handle?.kind === 'anchor') {
-        // The anchor follows the pointer in the layer's own pixels; Position keeps the pose.
-        const moved = apply(invert(frameOf(part)), delta), unit = part.appearance?.unit ?? 1, from = shownAnchor(originalBase, pose);
+        // Only the pivot moves (owner, 2026-10-01). With Position unchanged it moves in the parent's
+        // axes, so the pointer maps through the parent, as a Position drag does, and stays on it.
+        const moved = inverseDelta(part.parent ?? [1, 0, 0, 1], delta), from = shownAnchor(originalBase, pose);
         if (!from) throw new Error('Wait for the rendered anchor before editing it.');
-        gesture.operations = authoredAnchor(template, base.selector, originalBase, part.appearance, { x: from.x + moved.x / unit, y: from.y + moved.y / unit }, gesture.time, true);
+        gesture.operations = anchorOperations(base.selector, { x: from.x + moved.x, y: from.y + moved.y });
       } else if (handle && part.corners) {
         // Scale in the layer's own axes about the opposite corner or side, or the anchor with Alt. A keyed
         // scale is GSAP's, the innermost part of what renders, so its axes are the rendered sides. A base

@@ -1,12 +1,12 @@
 import type { SpxTemplate } from '../../model/types';
 import type { BasePatch, BaseValues, TransformPatch } from '../../blocks/baseEdits';
-import { channelValue, isArmed, poseKey, sequenceAuthoringReason, turnsOrScales, writeChannel, type Channel } from '../../blocks/editorAnimation';
+import { channelValue, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
 import { FLOAT_STEP, ownerOf, readTimeline, segmentAt } from './timelineView';
 import { sameRevision, type Revision } from './session';
-import { anchorShift, ownLinear, type Point } from './transformGestures';
+import type { Point } from './transformGestures';
 
 export function requireCurrentPose(appearance: RenderedPart['appearance'], time: number, revision?: Revision, cue?: number) {
   // An Out played from the parked playhead can leave from a pose the Out cue's keys never hold.
@@ -101,8 +101,8 @@ export function authoredTransform(template: SpxTemplate, selector: string, base:
  * raw transform's) stays motion. One scale track keys both axes, so only a change keeping their
  * ratio can write it.
  */
-export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }, extra: BasePatch = {}): EditorOperation[] {
-  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = { ...extra };
+export function transformOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], values: TransformPatch, position: { step: number; time: number }): EditorOperation[] {
+  const operations: Extract<EditorOperation, { kind: 'animation.key' }>[] = [], unarmed: BasePatch = {};
   for (const [key, value] of Object.entries(values) as [keyof TransformPatch, number][]) {
     const before = displayedBase(base, pose, key);
     if (Math.abs(value - before) < .00001) continue;
@@ -126,34 +126,11 @@ export function shownAnchor(base: BaseValues, pose: RenderedPart['appearance']):
   return origin && origin.every(Number.isFinite) ? { x: origin[0] / unit, y: origin[1] / unit } : null;
 }
 /**
- * The operations that put a layer's anchor at `anchor` (layer pixels, R1.2b.1). A numeric edit moves
- * only the pivot. A compensated one (Center anchor, the Anchor tool) keeps the pose: Position moves
- * by (M - I) x the anchor's change, M the layer's own linear transform as rendered (`own`: its
- * rotation, scale and any CSS transform of its own), else its shown Rotation and Scale. Where that
- * rotation and scale never change (`turnsOrScales`; a placed text's box never does), M is the same
- * at every time, so moving the base keeps the whole path. Where they are animated only the pose at
- * `position` can be kept: Position is keyed there where it is animated and moved on the base
- * elsewhere (`transformOperations`), and at other times the layer turns about the new point.
+ * The operation that puts a layer's anchor at `anchor` (layer pixels, R1.2b.1): the pivot alone, in
+ * the base. Typing, Center anchor and the Anchor tool all move only the point Rotation, Scale and the
+ * rest of the transform turn about, never Position (owner, 2026-10-01), so a turned or scaled layer
+ * then turns and scales about the new point. The anchor is the same on every cue, so it needs no
+ * playhead.
  */
-export function anchorOperations(data: AnimData | null, selector: string, owner: string, base: BaseValues, pose: RenderedPart['appearance'], anchor: Point, compensate: boolean, position: { step: number; time: number }): EditorOperation[] {
-  const before = shownAnchor(base, pose);
-  if (!before) throw new Error('Wait for the rendered anchor before editing it.');
-  const values = { anchorX: anchor.x, anchorY: anchor.y };
-  if (!compensate) return [{ kind: 'base.set', selector, values }];
-  const own = pose?.own ?? ownLinear(displayedBase(base, pose, 'rotation'), displayedBase(base, pose, 'scaleX'), displayedBase(base, pose, 'scaleY'));
-  const shift = anchorShift(own, { x: anchor.x - before.x, y: anchor.y - before.y });
-  if (!turnsOrScales(data, owner)) {
-    const moves = Math.abs(shift.x) >= .00001 || Math.abs(shift.y) >= .00001;
-    return [{ kind: 'base.set', selector, values: moves ? { x: base.x + shift.x, y: base.y + shift.y, ...values } : values }];
-  }
-  // One base write carries the anchor and whatever part of Position is not animated.
-  return transformOperations(data, selector, owner, base, pose, { x: displayedBase(base, pose, 'x') + shift.x, y: displayedBase(base, pose, 'y') + shift.y }, position, values);
-}
-/** `anchorOperations` at the playhead, from the pose the edit lands on (as `authoredTransform`). */
-export function authoredAnchor(template: SpxTemplate, selector: string, base: BaseValues, appearance: RenderedPart['appearance'], anchor: Point, time: number, compensate: boolean): EditorOperation[] {
-  requireCurrentPose(appearance, time, undefined, appearance?.cue);
-  const edit = editSegment(template, selector, time, appearance?.cue);
-  // The departing cue's start is a pose the arriving preview does not show, so its own transform is unknown.
-  if (compensate && edit.departing) throw new Error('On this flag the layer edits its next cue’s start, which the preview does not show. Move the playhead a frame to move its anchor there.');
-  return anchorOperations(edit.view.data, selector, ownerOf(edit.view, selector), base, poseOf(edit, selector, appearance), anchor, compensate, positionOf(edit));
-}
+export const anchorOperations = (selector: string, anchor: Point): EditorOperation[] =>
+  [{ kind: 'base.set', selector, values: { anchorX: anchor.x, anchorY: anchor.y } }];
