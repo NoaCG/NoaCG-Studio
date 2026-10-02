@@ -2038,7 +2038,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-clock,
   .pd-status,
   .pd-back,
-  /* Sharing stands down with the other authoring actions; Home stays. */
+  /* Sharing stands down with the other authoring actions; Home stays. So does the production
+     page's hardware Panel door (the hosted page, a phone's own control surface, keeps it). */
+  .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target,
   .pd-header [data-testid='share-with-team'],
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],

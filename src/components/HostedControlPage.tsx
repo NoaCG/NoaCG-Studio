@@ -47,7 +47,7 @@ import { nextRow, rowsForSide } from '../control/cueData';
 import { groupCueFields, groupHeading } from '../control/cueFieldGroups';
 import { createAppliedOnce } from '../control/commandRoads';
 import { createSendDebts } from '../control/failedSends';
-import { appendLogEntries, describeLogRow, eventLogLabel, logTime, type LogEntry } from '../control/eventLog';
+import { appendLogEntries, describeLogRow, eventLogLabel, logTime, noteEntry, type LogEntry } from '../control/eventLog';
 import {
   clearAllCueBatches,
   clearCueItems,
@@ -814,11 +814,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    *  that did not happen, which the feed is the only place on this surface to say. It is local
    *  to this page on purpose, because another operator's screen has its own presses. */
   const feedNote = (text: string) => {
-    setWireLog((l) =>
-      appendLogEntries(l, [
-        { id: (localLogId.current -= 1), at: new Date().toISOString(), graphic: '', kind: 'note', text },
-      ]),
-    );
+    setWireLog((l) => appendLogEntries(l, [noteEntry((localLogId.current -= 1), text)]));
   };
 
   const takeCue = (cue: OutputCue) =>
