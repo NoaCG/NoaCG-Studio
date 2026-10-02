@@ -186,6 +186,18 @@ test('a revoked key asking again after moved is told so', async () => {
 	assert.equal(panel.note, 'Panel key revoked. Pair again.')
 })
 
+test('hello refused no-page (hosted control switched off) shows no operator page and asks again later', async () => {
+	const { panel, relay, clock } = await answering()
+	relay.helloAnswer = { ok: false, refused: 'no-page' }
+	relay.emit('moved', { v: 1 })
+	await settle()
+	assert.equal(panel.status, 'no-page')
+	assert.equal(panel.note, 'No operator page')
+	const hellos = relay.count('hello')
+	await clock.advance(1_000)
+	assert.equal(relay.count('hello'), hellos + 1)
+})
+
 test('gone from the answering page means no operator page at once', async () => {
 	const { panel, relay } = await answering()
 	relay.emit('gone', { v: 1, page: 'page0000page0000', claim: 3 })

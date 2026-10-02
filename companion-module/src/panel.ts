@@ -210,6 +210,13 @@ export class PanelClient {
 			if (!answer.ok) {
 				this.#leaveTopic()
 				this.#state = null
+				// Hosted control switched off for the production's account: no page can answer, and
+				// one may again later, so ask again on the backoff.
+				if (answer.refused === 'no-page') {
+					this.#noPage()
+					this.#retryLater()
+					return
+				}
 				this.#set(
 					answer.refused === 'unknown-key' || answer.refused === 'revoked' ? 'revoked' : 'offline',
 					refusalSentence(answer.refused, answer.note),
