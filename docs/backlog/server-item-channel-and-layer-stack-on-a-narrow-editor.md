@@ -25,8 +25,10 @@ opened, but is not side by side. A 1366 window with the rundown dragged wide rea
 ## What it would take
 
 Under 620 px, keep the note full width on its own row and Channel and Layer on the next row as two
-columns (for example `grid-template-columns: minmax(0, 1fr) 96px` with the note spanning both). Then
-judge it rendered at 390 px and pin it in `e2e/playout-cues.spec.ts`.
+columns (for example `grid-template-columns: minmax(0, 1fr) 96px` with the note spanning both). Scope
+it to `.pd-cue-meta--slot` inside the container rule: the shared `.pd-cue-meta` also holds a graphic
+cue's lone note, which must stay full width. Then judge it rendered at 390 px and pin it in
+`e2e/playout-cues.spec.ts`.
 
 ## Evidence
 

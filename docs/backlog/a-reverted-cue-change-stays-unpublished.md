@@ -29,10 +29,16 @@ publish and a status that says something is pending when nothing is.
 
 ## What it would take
 
-Judge the record by the same version hash a publish would write (`ver.h`, R2 of `playout-ready`),
-computed from the current production and library, as D5 says, and keep the timestamp only as the
-fast path for "certainly changed". Pin it with a configured e2e step: change a cue, see amber, change
-it back, see it clear.
+`ver.h` alone cannot do it: `src/control/payloadVersion.ts` digests the stage resolution and each
+graphic's render (`g`), and its header says a cue-only publish moves `n` and leaves `h` unchanged. So
+judging the record by `h` would hide a real cue change (a note, a server clip's channel or layer)
+from the status while the published record the hosted page reads is stale. That is worse than now.
+
+What it needs is a digest of the publishable record itself (cues, items, folders, as the publish
+writes them), stored with the stamp, compared with the same digest of the current record. The
+`updatedAt > publishedAt` check cannot stay in front of it as a "certainly changed" fast path,
+because changing a cue back is itself a write and would answer before the digest is read. Pin it with
+a configured e2e step: change a cue, see amber, change it back, see it clear.
 
 ## Evidence
 

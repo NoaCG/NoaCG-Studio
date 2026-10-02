@@ -4,7 +4,7 @@ source: derived
 kind: finding
 raised: 2026-10-02
 state: unstarted
-found: "at 1280 and 1366 px with a production name of about 25 characters or more, the playout status and the Playout tab move whenever a control in the header's right cluster changes width (Saving…, Not saved, the panel door's state)"
+found: "at 1280 and 1366 px with a production name of about 25 characters or more, the playout status and the Playout tab move whenever a control in the header's right cluster changes width (Saving…, Not saved, the panel door's state); at any width the Start production button and the server-not-answering line move the tabs"
 serves: NOW
 size: small
 touches: src/components/home/ProductionPage.tsx, src/styles/playout-dashboard.css, src/styles/teams.css
@@ -40,11 +40,18 @@ an icon under 1440 px, so `e2e/configured/teams.spec.ts` (Share against the team
 1280 px viewport, name "Team share walk <timestamp>") passes; it never measures while "Saving…" or
 "Not saved" shows, nor at 1366 or 1920.
 
-Separately, the offline production's ▶ Start production button sits between the status and the tabs,
-so starting a production moves the tabs left by its width. AC-6 does not list that state.
+Two more things sit left of the tabs at ANY width, 1920 included, and come and go with state: the
+offline production's ▶ Start production button (starting a production moves the tabs left by its
+width), and the "○ server not answering, retrying" and "○ not joined, polling" spans between the
+clock and the tabs (`ProductionPage.tsx`, `resolveWaiting` and `follow`), which push the tabs right
+when the server stops answering mid-show. AC-6 lists none of these states by name, but the last one
+is exactly when an operator reaches for Playout by habit.
 
 ## What it would take
 
-Keep the spacer from reaching 0 by more than the right cluster's largest swing (a `min-width` on
-`.pd-header .spacer`, so the name gives way earlier), or give the variable right controls a fixed
-width. Then extend the teams spec to measure while saving and at 1366 and 1920, with a long name.
+Give every variable-width control a fixed slot, on both sides: the right cluster's team door, Share
+and panel door a reserved width (the status control already has one, 16em), and the Start button
+and the follow spans a place that does not sit between the status and the tabs, or a fixed-width
+slot of their own. A `min-width` on `.pd-header .spacer` does not fix it: once the spacer rests at
+its minimum, growth on the right is again taken from the name. Then extend the teams spec to measure
+while saving and at 1366 and 1920, with a long name.
