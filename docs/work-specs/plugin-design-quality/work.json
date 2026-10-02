@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "e5c589d70146263fe1e0ed4a0640576b881d9c297abeb0074c0037fadd4e328e",
+  "specSha256": "22b46ccb714b2f33a3768f417eac0119b38523543d301098e27caa44b392346a",
   "authority": {
-    "status": "draft",
-    "source": "wave row 2026-10-01n-AI-1 (plugin graphics quality); decision D1 awaits the owner"
+    "status": "agreed",
+    "source": "Owner answer to D1, 2026-10-02, relayed in wave row 2026-10-02d-BL-1: the frontier model designs freely by default, no house look or taste rules in the default skill; NoaCG owns the contract, the package, fields and behaviour and the control panel; two opt-in tools, a critique and a design-guidelines switch, off by default"
   },
   "review": null
 }
