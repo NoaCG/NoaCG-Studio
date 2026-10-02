@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-// The module imports nothing, so one transpile is the whole load (the combine-control precedent).
+// The module imports nothing, so one transpile is the whole load (the control-profile precedent).
 const source = readFileSync(fileURLToPath(new URL('../src/components/control/ownStaged.ts', import.meta.url)), 'utf8');
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },

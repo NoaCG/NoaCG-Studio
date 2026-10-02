@@ -446,6 +446,10 @@ operator; the default path as the dumb-playout contract.
   `docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6: two primitives, ARRANGE and COMBINE, a step carrying
   `after` and `ask`. §3's fences stand unchanged; this entry is the activation §3 said would come
   back to him.
+- **2026-10-02, owner: COMBINE removed.** Keep playout extremely simple; a production count found
+  no combined control in use, so the composer, the button and the send path were deleted. The
+  profile is ARRANGE alone, and a stored `combine` list is ignored on read. One press airing
+  several cues is a folder's All together (`docs/PLAYOUT_DASHBOARD.md` §2i).
 
 ## Sources (control-axis research, read 2026-08-28)
 

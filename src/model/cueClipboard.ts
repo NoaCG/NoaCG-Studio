@@ -3,8 +3,8 @@
 // clipboard, never saved, and a paste works within the production it was copied from.
 //
 // A COPY is new cues on the same graphic or server file - a new id each, their own values, note and
-// clip settings, the label as it was, nothing on air - because a cue's id is what the air, combined
-// controls and the data API point at, and a copy must never share it. A CUT is not a delete: it holds
+// clip settings, the label as it was, nothing on air - because a cue's id is what the air, folders
+// and the data API point at, and a copy must never share it. A CUT is not a delete: it holds
 // the cues' ids, and the paste MOVES them (shows.ts `pasteInRundown`), so nothing is removed until
 // the paste lands and whatever points at them keeps pointing at them.
 //

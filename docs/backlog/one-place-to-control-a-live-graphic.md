@@ -6,9 +6,11 @@ raised: 2026-09-22
 state: advanced
 note: >-
   The review and plan landed in docs/research/control-surfaces-review-2026-10-02/README.md
-  (2026-10-02, with a Fable design consult). Still missing: the eight slices it orders. Slices 1-3
-  are ready for the playout session; 4 is ready and needs the owner's look; 5-8 wait on one owner
-  answer each or on the hardware-panel R1 work.
+  (2026-10-02, with a Fable design consult). The owner answered its three questions the same day:
+  remove the graphic control page after moving its saved entries, the quiz Lock step is optional,
+  and Combined controls are removed (done 2026-10-02). Still missing: slices 1-7. Slices 1-3 are
+  ready for the playout session; 4 is ready and needs the owner's look; 5 and 6 are ready on the
+  rulings; 7 waits on the hardware-panel R1 work.
 asked: >-
   "After Friday, have Fable review and propose a plan for: unifying quiz and graphic controls,
   ensuring live data always stays synchronized, removing duplicate ways of controlling graphics,
@@ -38,8 +40,15 @@ judgement (§7) and eight ordered slices (§8). For the playout session:
   `operator-page-buries-live-actions-under-setup-fields.md`).
 - **After the hardware-panel R1 work lands:** 7, one set of values across the dashboard and the
   hosted page.
-- **One owner answer each:** remove the graphic control page (5), keep a Lock beat on the answer
-  boards (6), freeze or delete Combined controls (8).
+- **The owner's three rulings, 2026-10-02,** which the next slices start from:
+  - **Remove the graphic control page (5)**, after moving its saved entries into production data
+    rows. The first half (it stops claiming ON AIR) is ready now; the removal follows the move.
+  - **The quiz Lock step is optional (6).** The answer boards keep Lock as an optional beat the
+    design draws; one press of an answer option selects it, and a format that wants a "final
+    answer" moment adds Lock.
+  - **Combined controls are removed (8)**, not frozen. Done 2026-10-02 after a read-only
+    production count found none stored; ARRANGE (pin, rename, hide) is unchanged, and a folder's
+    All together is the one-press-many-cues route.
 
 The rest of this file is the ask as filed.
 

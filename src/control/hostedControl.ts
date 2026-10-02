@@ -13,6 +13,7 @@ import { getSupabase } from '../backend/supabase';
 import { graphicLayer, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { readPublishedProfile, type ShowProfile } from '../model/profile';
+import type { ResolvedValues } from '../model/productionData';
 import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { Resolution, SpxField, SpxTemplate } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
@@ -126,6 +127,29 @@ export interface OutputCue {
   label: string;
   values: Record<string, string>;
   note?: string;
+}
+
+/**
+ * THE VALUES THE HOSTED PAGE'S OPERATOR SEES FOR ONE CUE: the published cue with the SHARED
+ * staging buffer over them, so another operator typing is part of what a Take would send.
+ *
+ * One function because the page's ⟳ TAKE, ✎ Update, the snap's trailing write and the cue editor
+ * all have to send the same values; two readings of "the cue as it stands" is how one
+ * production's Take comes to mean two things. It lives outside the component so an offline spec
+ * can measure it (`e2e/hosted-control.spec.ts`), since the page itself needs a configured backend.
+ */
+export function hostedCueValues(
+  cue: OutputCue,
+  staged: Record<string, Record<string, string>>,
+  resolved: ResolvedValues,
+): Record<string, string> {
+  const own = (map: Record<string, Record<string, string>>, key: string) =>
+    Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
+  // BOUND VALUES SIT ON TOP OF BOTH (plan §2.7): a bound field is never a cue value, so taking a
+  // cue prepared at 1-0 while the tree says 3-2 airs 3-2, and neither the published cue nor an
+  // operator typing into the shared buffer can push it back. Without this the page's own ± press
+  // moved the shared value and the very next ⟳ Take put the old figure back on air.
+  return { ...cue.values, ...(own(staged, cue.graphic) ?? {}), ...(own(resolved, cue.graphic) ?? {}) };
 }
 
 /** One cue over the playout server's own library (docs/BRIDGE.md §5), as published. The
@@ -487,7 +511,7 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
     // the server's own column is its authority once published.
     bindings: show.bindings ?? {},
     // The control PROFILE travels at publish for the same reason the bindings do: how this
-    // production arranges and combines its controls is AUTHORED state, like the panel and the
+    // production arranges its controls is AUTHORED state, like the panel and the
     // payload, and the hosted surfaces must not have to guess it (migration 0058,
     // docs/CONTROL_PANEL_ANY_GRAPHIC.md §6e). An empty object rather than null, on the 0048
     // precedent, so a production published without one reads as "no profile" instead of being
@@ -1271,7 +1295,7 @@ function pressSender(slug: string, session: SeqSession, items: readonly ControlS
 
 /**
  * ONE PRESS THAT LEAVES AS SEVERAL BATCHES (All out over more than four layers, an Out of several
- * graphics, a combined press): every batch is numbered and based HERE, at the press, then the
+ * graphics): every batch is numbered and based HERE, at the press, then the
  * batches are sent one after another, stopping at the first that fails. Numbered as each one
  * left, a later batch took a number above a press the operator made while an earlier batch was on
  * its way, so an All out could undo that later press, and it counted as "seen" whatever another
@@ -1453,16 +1477,11 @@ export function clearCueItems(liveGraphic: string): ControlSendItem[] {
 /**
  * THE MOST ITEMS ONE `control_send_many` CALL TAKES (migration 0029: a count outside 1..8 raises
  * `not a command batch` and the WHOLE insert is refused). It is a verb, not an ingest API.
- *
- * Exported because a second caller now builds a batch whose length it cannot know in advance —
- * a production's combined control sends one row per step, and a step is not one item (a Take is
- * three, an Out is two). A surface that forgot the cap would lose an operator's whole press to a
- * database exception, which is why the number lives here rather than being remembered twice.
  */
-export const COMMAND_BATCH_MAX = 8;
+const COMMAND_BATCH_MAX = 8;
 
 /** An all-layers clear pays two items per layer, so it goes out in batches of four layers. */
-const LAYERS_PER_CLEAR_BATCH = 4;
+const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
 
 /**
  * Out EVERY live layer: the "clear the screen" verb a multi-layer production needs, since no

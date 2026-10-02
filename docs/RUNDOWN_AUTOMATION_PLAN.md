@@ -21,7 +21,7 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 | **Build 1** | A cue can end by itself: a duration, then Out, Next or Out and next. A countdown on the live row, the next cue marked armed, **H** to hold, one click to go manual. The deadline lives in the command log, so a reload, a phone and a second operator see the same second, and the end action fires exactly once. (§2) | large, three landable phases | both | **Build after build 2** (owner, 2026-09-27). It is the gap felt in every show. |
 | **Build 2** | Clip and audio playback: a clip's ending, fades, level and trim, audio on its own layer, folders, the clip clock and a resizable rundown. (§3, and `CLIP_PLAYBACK_PLAN.md`) | large, five phases | both | **Decided 2026-09-27: build first**, then build 1. **Built 2026-09-28.** |
 | 6 | Cues from a spreadsheet: one cue per row, with an optional duration column. | small | your productions | **Next after build 2.** |
-| 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Later**, by letting a combined control reach server cues, not as a new concept. |
+| 10 | Linked cues: one press takes a graphic and a clip. | small | your productions | **Later**, through a folder's All together reaching server cues, not as a new concept (Combined controls were removed 2026-10-02). |
 | 9 | As-run log export. | small | TV station, sponsors | **Later**, as a CSV of the last seven days. |
 | 7 | A Bitfocus Companion module for a Stream Deck. | weeks | both | **Later**, once the control API is documented. |
 | 8 | Audio cues. | - | both | **Folded into build 2** for CasparCG; browser-source audio later. |
@@ -79,9 +79,9 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
   H is free.
 - **"No second clock"** (owner, 2026-08-09, `docs/PLAYOUT_DASHBOARD.md:812`) forbids a per-play
   timer field that could disagree with a graphic's own authored timer, and requires an armed timer
-  to be visible. A combined control's `after` wait already lives on the controller side of that line
-  (`src/model/profile.ts:98-117`, `docs/CONTROL_PANEL_ANY_GRAPHIC.md:457`), and so does a cue
-  duration: it paces the controller's sends and never touches a graphic's own timer.
+  to be visible. A combined control's `after` wait (removed with Combined controls on 2026-10-02)
+  lived on the controller side of that line (`docs/CONTROL_PANEL_ANY_GRAPHIC.md` §6d), and so does
+  a cue duration: it paces the controller's sends and never touches a graphic's own timer.
 
 ---
 
@@ -197,8 +197,8 @@ interface CueArm {
   last cue in the rundown arms no next, and its editor says that `Next` has nothing to take.
 - **Rejected: a new row kind** (`t: 'arm'`). The database whitelists seven kinds, every consumer
   switches on them, and an arm is a fact about a cue on a layer, which is exactly what the cue row
-  already is. **Rejected: the deadline in page state**, which is the combined control's `after`
-  and loses its tail on reload (`src/model/profile.ts:103-105`). **Rejected: an absolute deadline
+  already is. **Rejected: the deadline in page state**, which was the removed combined control's
+  `after` and lost its tail on reload. **Rejected: an absolute deadline
   stamped by the client**, because two machines' clocks disagree and the match clock already
   learned that the row's server time is the one value every reader shares.
 
@@ -387,7 +387,7 @@ row needs nothing from this plan. A native clip end is an adapter capability in 
   for a graphic cue, `:3156` for a server cue, where the Loop box sits at `:3214`). Build 1 changes
   nothing in `src/App.tsx`, `HomePage.tsx`, `GraphicControlPage.tsx` or `CreationWizard.tsx`.
 - **The exported controller does not run auto actions in build 1**, and says so in one line under
-  its rundown, as it already does for combined controls (`docs/PLAYOUT_DASHBOARD.md:13-17`). Its
+  its rundown, as it did for the since-removed combined controls. Its
   wire is a bundled local relay with no durable log to anchor a deadline in, and a second timer
   engine in vanilla JS is the thing that ruling declined. The builder adds this to that paragraph.
 
@@ -551,13 +551,13 @@ station or a sponsored production, rarely a school show. **Recommendation: later
 keeping the log longer is a separate cost decision.
 
 **10. Linked cues.** *What:* one Take fires a graphic and a clip together, a sting and a lower third.
-*Who:* Pixla, Cuez, CasparCG Client groups. *Today:* combined controls already run ordered steps
-with waits (`src/model/profile.ts:140-170`), but a verb step resolves its cue to a graphic name
-(`src/control/combine.ts:73-77`), so it cannot reach a server cue, and combined controls run only
-on the two hosted-capable pages. Build 1's `Next` with a short duration also chains two cues.
-*Size:* small: let a verb step name a server cue, on the production page, the one surface with the
-Bridge. *For:* your productions. **Recommendation: later**, when a show of yours needs it, and as an
-extension of combined controls, never a second "link" concept beside them.
+*Who:* Pixla, Cuez, CasparCG Client groups. *Today:* a folder's **All together** airs several cues
+on one press (`docs/PLAYOUT_DASHBOARD.md` §2i), and build 1's `Next` with a short duration also
+chains two cues. Combined controls, which this paragraph first named as the host, were removed on
+2026-10-02 (owner ruling: keep playout simple; none was in use). *Size:* small: let a folder carry
+a server cue beside a graphic cue, on the production page, the one surface with the Bridge. *For:*
+your productions. **Recommendation: later**, when a show of yours needs it, and as an extension of
+folders, never a second "link" concept beside them.
 
 **11. Switcher automation (ATEM).** *What:* the rundown also cuts the vision mixer or fires its DSK.
 *Who:* Pixla, Cuez, Sofie, Rundown Creator Pro (`docs/LANDSCAPE.md:219`, verdict "gap-wrong").
