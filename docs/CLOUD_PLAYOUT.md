@@ -582,10 +582,11 @@ verb row are the priority content (the preview collapses first).
 (`PlayoutStatusControl.tsx`, `data-testid="production-status"`, `data-started`). Offline it is
 grey and reads "Offline", with ▶ Start production beside it; started, its colour and short text
 come from `describePlayoutStatus` (`src/control/playoutStatus.ts`): grey while nothing can be
-checked, amber for something to attend to (unpublished changes, an output behind, preparing, no
-output connected), green when an output is on air and ready, red when something that should work
-is broken (the Bridge or CasparCG not answering, the output slot empty or holding another
-production, an output not responding). A press opens the Playout panel, which names the check
+checked, amber for something to attend to (unpublished changes, an output behind or preparing,
+this production still loading on its slot, no output connected), green when an output is on air
+and has reported ready, red when something that should work is broken (the Bridge or CasparCG not
+answering, the output slot empty, holding another production or unreadable, an output not
+responding, a graphic that cannot play). A press opens the Playout panel, which names the check
 behind the colour, then the outputs, the actions, the setup and the links. The monitor says the
 same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not. There
 is no third state and no mode to choose.

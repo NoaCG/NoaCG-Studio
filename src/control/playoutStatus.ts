@@ -124,11 +124,23 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   // outputs' own reports. A slot that holds nothing is broken only when nothing else will air the
   // graphics: a studio may drive clips through the Bridge and run its graphics in OBS.
   const ready = f.ready?.outputs ? f.ready : null;
-  const readyAny = !!ready;
+  // An output is REPORTING: ready, still loading, or amber about something. One that is only
+  // remembered - gone, or not answering yet - airs nothing (measured on 2.5: Take off left the
+  // CasparCG output "not answering" for 15 s, and the status read Checking meanwhile).
+  const readyAny = !!ready && (ready.ready > 0 || ready.tone === 'warn' || !!ready.preparing);
   if (f.slot && bridge?.tone === 'ok') {
     const ch = `Channel ${f.slot.channel}`;
-    if (f.slot.holds === 'ours') {
+    if (f.slot.holds === 'ours' && readyAny) {
       checks.push({ key: 'slot', tone: 'ok', label: `On air on ${f.slot.where}`, short: `on air ${f.slot.where}` });
+    } else if (f.slot.holds === 'ours') {
+      // On the slot, but its page has not reported yet: CasparCG is still loading it (measured on
+      // 2.5: about 9 s to the first report, 28 s to ready). Preparation incomplete is amber.
+      checks.push({
+        key: 'slot',
+        tone: f.started ? 'warn' : 'idle',
+        label: `This production is on ${f.slot.where} and still loading`,
+        short: `Loading on ${f.slot.where}`,
+      });
     } else if (f.slot.holds === 'unreadable') {
       checks.push({
         key: 'slot',
@@ -146,7 +158,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
         tone: f.started ? (readyAny ? 'warn' : 'bad') : 'idle',
         label: `Cannot read what ${f.slot.where} shows`,
         short: `Cannot read ${f.slot.where}`,
-        advice: f.slot.detail || 'Check the NoaCG output channel under Setup.',
+        advice: `Check under Setup that the server has channel ${f.slot.channel}.${f.slot.detail ? ` ${f.slot.detail}` : ''}`,
       });
     } else if (f.slot.holds === 'other') {
       checks.push({

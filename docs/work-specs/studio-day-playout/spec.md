@@ -87,6 +87,12 @@ The core playout path worked all day. What cost time was uncertainty and setup:
   as Prepare for Live; Start production does not, because the outputs load the first version
   fresh. Put on air and Take off read the slot again at once. Revert: the `wasStarted` condition
   in `publishNow`.
+- **D15. The slot is green only with a report, and a refused read is a fault.** This production
+  on its slot with no output reporting yet reads amber "Loading on 1-20" (CasparCG 2.5 took about
+  9 s to the first report); an output that is only remembered (gone, or not answering yet) does
+  not excuse an empty slot; a `/state` read the server refuses (a channel it does not have) reads
+  red "Cannot read 3-20" with the Bridge's sentence. All three were measured on the real server
+  (evidence/landing-2.md). Revert: `readyAny` and the `failed` reading in `control/playoutStatus.ts`.
 
 ## Behaviour
 
@@ -133,11 +139,13 @@ production is a team production, a personal one, signed out, or saving. Judged a
 
 The header shows one control with a colour and a short text, worst state wins: grey "Offline"
 (not started) or "Checking…"; amber "Unpublished changes", "Behind: showing v2", "Preparing 3 of
-8", "No output connected"; green "Ready · on air 1-20" or "Ready · 2 outputs"; red "Bridge not
-running", "CasparCG not answering", "Output not on air", "Another production on 1-20", "Output not
-responding", "Not ready: <graphic>". With the Bridge configured and the production started, an
-output slot that holds nothing while no output reports reads red, never nothing (D11). Take is
-never blocked or delayed by it. The hosted page keeps its READY line over the same outputs (D9).
+8", "Loading on 1-20", "No output connected"; green "Ready · on air 1-20" or "Ready · 2 outputs";
+red "Bridge not running", "CasparCG not answering", "Output not on air", "Another production on
+1-20", "Cannot read 1-20", "Output not responding", "Not ready: <graphic>". With the Bridge
+configured and the production started, an output slot that holds nothing while no output reports
+reads red, never nothing (D11), and it is green only once an output on it has reported (D15).
+Take is never blocked or delayed by it. The hosted page keeps its READY line over the same outputs
+(D9).
 
 ### AC-8: One Playout panel holds status, actions, setup and links
 

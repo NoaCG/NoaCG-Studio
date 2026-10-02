@@ -36,6 +36,9 @@ test('healthy is green, says where it airs, and needs a positive answer to be gr
   // A browser-output studio: no Bridge, an output reporting ready.
   const obs = status({ bridge: null, slot: undefined, ready: { ...readyOne, outputs: 2, ready: 2 } });
   assert.deepEqual([obs.tone, obs.text], ['ok', 'Ready · 2 outputs']);
+  // On the slot but not reporting yet (CasparCG still loading the page): amber, never green.
+  const loading = status({ ready: null });
+  assert.deepEqual([loading.tone, loading.text], ['warn', 'Loading on 1-20']);
   // The Bridge answers but the slot has not been read yet: not green yet.
   const reading = status({ slot: undefined, ready: null });
   assert.deepEqual([reading.tone, reading.text], ['idle', 'Checking…']);
@@ -68,10 +71,16 @@ test('broken is red: the Bridge lost, the server silent, another production, not
     assert.deepEqual([s.tone, s.text], ['bad', text], JSON.stringify(over));
     assert.equal(s.checks[0].tone, 'bad', 'the deciding check comes first');
   }
+  // Taken off: the output it held is only remembered now, not answering yet, and airs nothing.
+  const takenOff = status({
+    slot: { ...ours, holds: 'empty' },
+    ready: { tone: 'idle', label: '○ CasparCG 1-20 not answering (2 s)', lead: 'CasparCG 1-20 not answering (2 s)', outputs: 1, ready: 0 },
+  });
+  assert.deepEqual([takenOff.tone, takenOff.text], ['bad', 'Output not on air']);
   // A slot the server will not read (a channel it does not have) is a fault, never "Checking…".
   const refused = status({ slot: { ...ours, holds: 'failed', detail: 'CasparCG refused the command: 401 INFO ERROR.' }, ready: null });
   assert.deepEqual([refused.tone, refused.text], ['bad', 'Cannot read 1-20']);
-  assert.equal(refused.checks[0].advice, 'CasparCG refused the command: 401 INFO ERROR.');
+  assert.equal(refused.checks[0].advice, 'Check under Setup that the server has channel 1. CasparCG refused the command: 401 INFO ERROR.');
   // ...and attention only, when an output elsewhere already airs the graphics.
   assert.equal(status({ slot: { ...ours, holds: 'failed' } }).tone, 'warn');
   // A graphic that cannot play is red here, named, although READY's own line reads it amber.

@@ -93,12 +93,13 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await panel.getByTestId('playout-check-again').click();
   await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
 
-  // ── Put on air: green at once, without waiting for the next 10 s read. ──
+  // ── Put on air: read again at once, without waiting for the next 10 s read. The page is on the
+  //    slot but has not reported yet (here nothing runs it), so it is loading, in amber. ──
   await panel.getByTestId('caspar-put-on-air').click();
   await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
   expect(studio.runs['1-20']?.entries[0].file).toContain(`production=${encodeURIComponent(outputSlug)}`);
-  await expect(status).toHaveAttribute('data-tone', 'ok', { timeout: 5_000 });
-  await expect(status).toContainText('Ready · on air 1-20');
+  await expect(status).toContainText('Loading on 1-20', { timeout: 5_000 });
+  await expect(status).toHaveAttribute('data-tone', 'warn');
   await expect(panel.getByTestId('caspar-put-on-air')).not.toHaveClass(/primary/);
 
   // ── Take off: red again, as quickly. ──
@@ -126,6 +127,11 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-outputs', '1', { timeout: 30_000 });
   await expect(status).toHaveAttribute('data-tone', settled, { timeout: 30_000 });
   if (fontsOk) await expect(status).toContainText('Ready · 1 output');
+  // With an output reporting, this production on its slot is green, and says where.
+  await status.click();
+  await panel.getByTestId('caspar-put-on-air').click();
+  if (fontsOk) await expect(status).toContainText('Ready · on air 1-20', { timeout: 5_000 });
+  await page.keyboard.press('Escape');
 
   // ── AC-10: a change is amber until published, and the publish moves the open output onto the
   //    new version BY ITSELF: this spec never reloads it. The output builds the new version beside
