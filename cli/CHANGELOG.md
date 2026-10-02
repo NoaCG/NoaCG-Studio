@@ -10,6 +10,33 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## 0.7.2 - unreleased
+
+**Fixed: frames over MCP fit in the answer again.** `validate` with `screenshots: true` and a
+`background` sent every frame as a full-size PNG: five frames over the video plate came to 6.1 MB
+in 16 s, and a scorebug's nine came to 11 MB in 29 s, more than the MCP SDK's own client accepts
+in one message, so the call failed. A frame over an opaque background (the video plate, the checker,
+a plain colour or a JPEG) now comes back as JPEG, which it can be because it has no transparency
+to keep; any other frame stays PNG. One answer carries at
+most six state frames after off, onair and stress and at most 4 MB of images, stops walking
+states after 20 s, and names every state it left out so you can shoot it with `screenshot`. The
+same two packages now answer in 0.37 MB and 8.7 s, and 0.68 MB and 18 s (warm bridge, one
+machine). The off, onair and stress frames are now shot together rather than one after another,
+which takes a few seconds off `validate --screenshots` in the terminal too. Terminal frames are
+still PNG files.
+
+**Fixed: a failed state walk keeps the validation.** If shooting the frames fails part way, the
+report, the frames shot before the failure and the reason all come back, over MCP and in the
+terminal (which then exits 2).
+
+**Changed: errors name the argument you used.** Over MCP, a wrong event or background is reported
+as `"events" entry "goalA"` or `"background"`, not as the terminal's `--event` and `--background`.
+
+**New: the states the walk did not reach are named.** `validate --screenshots` lists the declared
+states it found no frame for (`unshotStates` in `--json`), so a missing frame is never silent.
+
+The skill now names the MCP `events`, `at` and `background` arguments.
+
 ## 0.7.1 - unreleased
 
 **New: see every state of a graphic, at any moment, over video.** `noacg screenshot` takes

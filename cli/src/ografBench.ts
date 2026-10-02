@@ -49,7 +49,7 @@ export async function ografBench(
   bridge: BridgeClient,
   read: OgrafPackageRead,
   files: Map<string, Uint8Array>,
-  opts: { screenshot?: boolean; timeoutMs?: number; background?: string | null } = {},
+  opts: { screenshot?: boolean; timeoutMs?: number; background?: string | null; backgroundArg?: string } = {},
 ): Promise<OgrafBenchResult> {
   const nonce = randomBytes(6).toString('hex');
   const base = `${bridge.origin}/__noacg-package/${nonce}/`;
@@ -121,7 +121,7 @@ export async function ografBench(
       // Settle a moment, then shoot the host page as it stands (the graphic on air), over the
       // asked-for ground if there is one.
       await page.waitForTimeout(1200);
-      await paintBackground(page, opts.background);
+      await paintBackground(page, opts.background, opts.backgroundArg);
       screenshot = new Uint8Array(await page.screenshot({ omitBackground: true, type: 'png' }));
     }
     await drive('stopAction', 'stop', {});

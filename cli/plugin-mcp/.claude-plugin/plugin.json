@@ -1,7 +1,7 @@
 {
   "name": "noacg-mcp",
   "displayName": "NoaCG MCP server",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "The NoaCG CLI as an always-on MCP server: one tool, noacg, that makes, checks and saves broadcast graphics for NoaCG Studio, ready to play out live from NoaCG Playout. It speaks the CLI's verbs (types, scaffold, validate with screenshots, inspect, screenshot, docs, save) and keeps a browser warm between calls. Optional - the noacg plugin's skill drives the same CLI from the terminal with no server; install this one when you want the tool in every session.",
   "author": {
     "name": "NoaCG Studio",
