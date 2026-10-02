@@ -99,7 +99,7 @@ Asked one at a time, with a recommendation each time:
 | Alignment | Point text set to Center keeps its X as the centre of its rendered bounds (within 0.5 px) for a short and a long value; Right keeps its right edge there. A text box set to Center centres every row inside the box's width (row midpoints within 0.5 px of the box's). One undo each. | Catalog lines (the design's layout) and SVG text (the import's fit). |
 | Line spacing | In a wrapping box, 1.4 makes the rows' pitch 1.4 x the font size (within 0.5 px); one undo. On a catalog line it writes `line-height` on the line's rule. | SVG text. |
 | Letter spacing | 2 px widens a one-row line by about 2 px per character (within 1 px per character); one undo; written in the line's own idiom (`calc(... * var(--scale))` where its placement scales). | |
-| Long text | The 61-character value on created point text (1389 px at 48 px): Shrink to fit with width 800 stays on one row within 800 px and never below 55% of the design size (at that floor it needs 764 px, so a narrower slot overflows by design); Wrap with 800 wraps inside 800; Run on runs on. A width typed later refits at once. Each choice is one undo; Shrink adds the fit runtime to the script once and only once. | Catalog lines and SVG text. |
+| Long text | The 61-character value on created point text (1389 px at 48 px here; about 1530 px on Linux): Shrink to fit with a width of three quarters of that stays on one row inside it and never below 55% of the design size (a narrower slot than the floor allows overflows by design); Wrap at that width wraps inside it; Run on runs on. A width typed later refits at once. Each choice is one undo; Shrink adds the fit runtime to the script once and only once. | Catalog lines and SVG text. |
 | Box on the canvas | A created text box's right handle dragged 100 screen px widens it by 100 / zoom with the left side within 0.5 px, the font size and Scale unchanged and the text reflowed, one undo; Escape cancels. The left handle keeps the right side; the bottom handle changes only the height. Turned 30 degrees, the right handle still widens it along its own sides with the opposite side's midpoint within 0.5 px. Its corners scale as before. Point text's side handles still scale, and so do a width-only slot's, whose Width is typed beside Long text. | |
 | Preserved | Untouched source byte-identical; one history step per edit; saved graphics reopen exactly; SPX, CasparCG and OGraf exports render the edited line as the editor does; the editor regressions pass except the assertions named below. | |
 
@@ -166,8 +166,9 @@ on a catalog template from the template search and a created layer.
 The review read the whole diff against the acceptance above and found no defect beyond those the
 tests had already exposed. Tests and mutation testing found four, all fixed: the preview did not
 refit Shrink to fit after a typed Width (now `fitPlacedText()` after each stylesheet swap); the
-spec's 600 px slot could never hold its 61-character name at the fit's floor (now 800 px, and the
-floor is a recorded limit); the spacing checks read the field's own typing draft rather than the
+spec's 600 px slot could never hold its 61-character name at the fit's floor, and CI's Linux glyphs
+showed a fixed 800 px could not either (the slot is now three quarters of the value's measured width,
+and the floor is a recorded limit); the spacing checks read the field's own typing draft rather than the
 rendered value (now re-selected first); and the simulator check compared fitted sizes across pages
 whose glyph widths differ (now it checks the fit's guarantee). Simplification removed what earned
 nothing: the `box.resize` operation (Width and Height are style values), a whole-template preview

@@ -213,6 +213,9 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   await setText(page, LONG);
   const longLine = await rect(page, t.point);
   expect(longLine.width).toBeGreaterThan(900);
+  // Glyph widths differ by platform, so the slot is three quarters of this value's own width:
+  // above the fit's 55% floor everywhere, so Shrink to fit can always reach it.
+  const room = Math.round(longLine.width * .75);
   const longText = inspector(page).getByRole('combobox', { name: 'Long text', exact: true });
   await expect(longText).toHaveValue('overflow');
   await expect(longText.locator('option')).toHaveText(['Shrink to fit', 'Wrap', 'Run on']);
@@ -222,8 +225,8 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   let steps = await history(page);
   await choose(page, 'Long text', 'shrink');
   expect(await history(page)).toBe(steps + 1);
-  await number(page, 'Width', 800);
-  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(800.5);
+  await number(page, 'Width', room);
+  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(room + .5);
   expect((await rows(page, t.point)).length).toBe(1);
   expect(parseFloat(await computed(page, t.point, 'font-size'))).toBeGreaterThanOrEqual(48 * .55 - .01);
   const shrunk = await source(page);
@@ -240,7 +243,7 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   await choose(page, 'Long text', 'wrap');
   expect(await history(page)).toBe(steps + 1);
   await expect.poll(async () => (await rows(page, t.point)).length).toBeGreaterThan(1);
-  for (const row of await rows(page, t.point)) expect(row.width).toBeLessThanOrEqual(800.5);
+  for (const row of await rows(page, t.point)) expect(row.width).toBeLessThanOrEqual(room + .5);
   expect(await computed(page, t.point, 'font-size')).toBe('48px');
 
   await choose(page, 'Long text', 'overflow');
@@ -380,10 +383,12 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await select(page, t.point);
   await setText(page, LONG);
   await choose(page, 'Weight', '700');
+  // Three quarters of the bold value's own width, which the fit can reach on any platform.
+  const room = Math.round((await rect(page, t.point)).width * .75);
   await choose(page, 'Alignment', 'center');
   await choose(page, 'Long text', 'shrink');
-  await number(page, 'Width', 800);
-  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(800.5);
+  await number(page, 'Width', room);
+  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(room + .5);
   const edited = await source(page), size = await computed(page, t.point, 'font-size');
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Typography');
@@ -397,7 +402,7 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await expect(inspector(page).getByRole('combobox', { name: 'Weight', exact: true })).toHaveValue('700');
   await expect(inspector(page).getByRole('combobox', { name: 'Alignment', exact: true })).toHaveValue('center');
   await expect(inspector(page).getByRole('combobox', { name: 'Long text', exact: true })).toHaveValue('shrink');
-  await expect(inspector(page).getByRole('spinbutton', { name: 'Width', exact: true })).toHaveValue('800');
+  await expect(inspector(page).getByRole('spinbutton', { name: 'Width', exact: true })).toHaveValue(String(room));
 
   const html = await page.evaluate(async t => (await import('/src/preview/composeDocument.ts')).composeDocument(t as never, { simulate: true }), edited);
   const output = await page.context().newPage();
@@ -405,9 +410,9 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await output.evaluate(async () => { await document.fonts.ready; window.dispatchEvent(new MessageEvent('message', { source: window, data: { type: 'spx-preview-cmd', cmd: 'sim-play', data: '{}' } })); await new Promise(r => setTimeout(r, 300)); });
   const simulated = await output.locator(t.point).evaluate(el => ({ width: el.getBoundingClientRect().width, size: getComputedStyle(el).fontSize, weight: getComputedStyle(el).fontWeight }));
   await output.close();
-  // The output fits the value itself: inside the slot, smaller than the design size, never below
-  // its floor. (The size it settles on follows the glyph widths that page measures.)
-  expect(simulated.width).toBeLessThanOrEqual(800.5);
+  // The output fits the value as the fit promises: inside the slot or at its floor, smaller than the
+  // design size, never below the floor. (The size follows the glyph widths that page measures.)
+  expect(simulated.width <= room + .5 || near(parseFloat(simulated.size), 48 * .55, .05), `${simulated.width} at ${simulated.size}`).toBe(true);
   expect(simulated.weight).toBe('700');
   expect(parseFloat(simulated.size)).toBeLessThan(48);
   expect(parseFloat(simulated.size)).toBeGreaterThanOrEqual(48 * .55 - .01);
