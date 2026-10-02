@@ -1,0 +1,38 @@
+{
+	"name": "noacg-studio",
+	"version": "0.1.0",
+	"description": "Run a NoaCG Studio production from a Stream Deck or any Companion surface",
+	"main": "dist/main.js",
+	"type": "module",
+	"scripts": {
+		"build": "rimraf dist && tsc -p tsconfig.build.json",
+		"package": "yarn build && companion-module-build",
+		"test": "rimraf build-test && tsc -p tsconfig.test.json && node --test \"build-test/__tests__/*.test.js\"",
+		"lint": "eslint .",
+		"format": "prettier -w ."
+	},
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-noacg-studio.git"
+	},
+	"engines": {
+		"node": "^22.20",
+		"yarn": "^4"
+	},
+	"dependencies": {
+		"@companion-module/base": "2.0.4",
+		"@supabase/supabase-js": "2.117.2"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^3.1.1",
+		"@types/node": "^22.19.17",
+		"eslint": "^9.39.4",
+		"prettier": "^3.8.3",
+		"rimraf": "^6.1.3",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.59.0"
+	},
+	"prettier": "@companion-module/tools/.prettierrc.json",
+	"packageManager": "yarn@4.12.0"
+}

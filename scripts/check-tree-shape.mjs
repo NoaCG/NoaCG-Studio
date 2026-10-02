@@ -52,6 +52,11 @@ export const ALLOWED_ROOT_ENTRIES = new Set([
   // `contracts/` is the rule store the loaded contracts are compiled from (docs/WORKFLOW_ARCHITECTURE.md
   // §2): one rule per file, one record per incident, neither loaded into a session.
   'contracts', 'docs',
+  // `companion-module/` is the Bitfocus Companion module (hardware panels, docs/work-specs/
+  // hardware-panel-control/): MIT, its own package.json and yarn lockfile, outside the app's lint,
+  // typecheck and build, and copied into Bitfocus's repository when published. Its own
+  // `yarn test` and `yarn lint` cover it.
+  'companion-module',
   'docs.html', 'downloads.html', 'e2e',
   'eslint.config.js', 'index.html', 'join.html', 'ograf.html', 'output.html', 'package-lock.json',
   'package.json', 'packs', 'player-host', 'playwright.catalog.config.ts', 'playwright.config.ts',
