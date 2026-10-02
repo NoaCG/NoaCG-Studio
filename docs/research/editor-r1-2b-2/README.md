@@ -160,3 +160,53 @@ is written first and queued on the unmodified code from a snapshot worktree, the
 regressions as one job, the full affected run, build, `/check`, `/queue-merge` and the deployed
 `/version.json`. A desktop owner-queue item is filed only once the whole task works in the real UI,
 on a catalog template from the template search and a created layer.
+
+## Review and simplification
+
+The review read the whole diff against the acceptance above and found no defect beyond those the
+tests had already exposed. Tests and mutation testing found four, all fixed: the preview did not
+refit Shrink to fit after a typed Width (now `fitPlacedText()` after each stylesheet swap); the
+spec's 600 px slot could never hold its 61-character name at the fit's floor (now 800 px, and the
+floor is a recorded limit); the spacing checks read the field's own typing draft rather than the
+rendered value (now re-selected first); and the simulator check compared fitted sizes across pages
+whose glyph widths differ (now it checks the fit's guarantee). Simplification removed what earned
+nothing: the `box.resize` operation (Width and Height are style values), a whole-template preview
+for Long text (a choice commits at once), a scale-refusal exception for text boxes that no box
+can reach, a list of fields to coerce that number fields never needed, and an SVG ladder refit that
+nothing could observe (a recorded limit instead).
+
+## Verification receipt
+
+- Reproduction: the probe on unmodified `origin/main` (j-2861) recorded the table above, and
+  `e2e/editor-typography.spec.ts`, written first and queued on the unmodified code from a snapshot
+  worktree at `7d83ced0` (j-2863), failed 7 of 7 where expected: no Weight, Alignment, spacing or
+  Long text control, and a side handle that scaled the box.
+- Node: `scripts/typography.test.mjs` (2 tests) with `canvas-transforms` pass. Mutation: 17 of 17
+  guard mutations of the pure parts fail a test (the weights a font offers and their names; the
+  resize's side arithmetic, opposite side, minimum, origin share, axes and Position change), and
+  29 of 29 DOM guards in the browser spec (j-2873, j-2887): every refusal and its reason, every
+  validation the spec names, each writer, alignment's box branch read and written, the canvas
+  resize and its Position change, the inspector's hidden controls, and the preview's reported
+  weight and spacings and its refit.
+- Browser: the editor regressions (typography, canvas-transforms, transforms, cross-cue, steps,
+  out-step, key-ease, ease, out, keys, fidelity-trim, base-edits, usability, foundation,
+  alpha-entry), anim-engine and inspector as one job (j-2888): 225 passed, 20 skipped, 2 failed:
+  the simulator check above, and `editor-steps` "keeps playback on the ruler in ograf", which timed
+  out on a loaded machine; both passed in the re-run of typography and steps (j-2892, 20 of 20).
+  The base-edits "Box width" assertion changed as named above.
+- Real UI (j-2889), headless at 1920 on this worktree's dev server: Hairline from the template
+  search; its name offered Regular to Extra bold, took Extra bold and 1 px letter spacing, and
+  showed the design's reason for alignment and long text. A box drawn with the Text tool (Wrap,
+  460.8 x 194.4) took a sentence, Bold, Center and line spacing 1.3; its right side dragged 120 px
+  widened it to 715.3 with the letters at 48 px and Scale X 100, in one undo. Shrink to fit with
+  the 61-character name settled at the 26.4 px floor and ran to 797 px, the recorded limit. Undo and
+  redo, save and reopen kept weight, alignment and fit; the control page played and stopped; no page
+  errors.
+- Full affected run: a change to `src/model/fonts.ts` counts as core, so it ran the whole suite. The
+  first attempt (j-2893) hit the queue's 45-minute cap with 1312 passed and none failed; the rerun
+  with a longer cap (j-2905) finished: 1313 passed and 544 skipped, none failed; catalog gate 35 of
+  35.
+- Not checked: a physical desktop at 125% scaling, a phone, the receiving CasparCG and OGraf hosts
+  (the type is CSS and the fit script ships in the graphic, which every export carries; the
+  simulator fits the long value in its slot), and an imported raster design's placed line beyond
+  the created lines that share its writers.
