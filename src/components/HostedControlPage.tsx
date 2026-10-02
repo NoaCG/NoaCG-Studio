@@ -1330,8 +1330,16 @@ function HostedVerbs({
         }
         data-testid="hosted-next-cue"
       >
-        <span className="pd-verb-main">» Next <kbd>N</kbd></span>
-        {nextLabel && <span className="pd-verb-target">{nextLabel}</span>}
+        {nextLabel ? (
+          <>
+            <span className="pd-verb-main">» Next <kbd>N</kbd></span>
+            <span className="pd-verb-target">{nextLabel}</span>
+          </>
+        ) : (
+          <>
+            » Next <kbd>N</kbd>
+          </>
+        )}
       </button>
       <button
         className="pd-verb"

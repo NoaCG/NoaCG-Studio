@@ -3995,11 +3995,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             }
             data-testid="verb-next"
           >
-            <span className="pd-verb-main">» Next <kbd>N</kbd></span>
-            {nextLabel && (
-              <span className="pd-verb-target" data-testid="verb-next-target">
-                {nextLabel}
-              </span>
+            {/* Unnamed, the button is drawn exactly as it always was. */}
+            {nextLabel ? (
+              <>
+                <span className="pd-verb-main">» Next <kbd>N</kbd></span>
+                <span className="pd-verb-target" data-testid="verb-next-target">
+                  {nextLabel}
+                </span>
+              </>
+            ) : (
+              <>
+                » Next <kbd>N</kbd>
+              </>
             )}
           </button>
           <button
