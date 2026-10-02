@@ -108,10 +108,18 @@ import {
   type PlayoutVerb,
   type SpaceAction,
   type SpaceMode,
+  type VerbPress,
 } from './playoutKeys';
 import { SpaceModeToggle } from './SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
 import { ReadyLine, useExpectedOutputs, useLivePresence } from './control/OutputHealth';
+import { PanelButton, PanelDialog, usePanelAnswer } from './control/PanelControl';
+import type { PanelVerb } from '../control/panelFeedback';
+
+/** What a hardware panel can run on this page: no server clips here, so no Pause or Resume. */
+const HOSTED_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>([
+  'take', 'retake', 'update', 'next', 'out', 'select-prev', 'select-next', 'all-out', 'select-cue', 'take-cue',
+]);
 
 /**
  * The HOSTED control page — the operator surface at `<app-url>?control=<slug>`. No login, no
@@ -492,6 +500,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const cues: OutputCue[] = useMemo(() => resolved?.output?.cues ?? [], [resolved]);
   const payload = resolved?.output ?? null;
   const selectedCue = cues.find((c) => c.id === selectedCueId) ?? cues[0] ?? null;
+  // A hardware panel (docs/work-specs/hardware-panel-control/): fed below, once the page knows what it shows.
+  const panel = usePanelAnswer({ slug, where: 'control', label: 'Hosted control page', runs: HOSTED_PANEL_VERBS });
+  const [panelOpen, setPanelOpen] = useState(false);
   /** What PREVIEW shows: the selection in 'take' mode, the staged cue - or nothing - otherwise. */
   const previewedCue =
     spaceMode === 'take' ? selectedCue : (cues.find((c) => c.id === stagedCueId) ?? null);
@@ -1061,7 +1072,20 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * same table the in-app page reads. In 'preview-then-take' mode a cue taken off air lands on
    * PREVIEW (the mixer cut) and a cue not yet on PREVIEW goes there first, airing nothing.
    */
-  const runVerb = (verb: PlayoutVerb) => {
+  const runVerb = (verb: PlayoutVerb, press?: VerbPress) => {
+    // The header's ■ All out, as the named verb a hardware panel presses (no key, on purpose).
+    if (verb === 'all-out') outAll();
+    // A panel's per-cue key: select that cue; take it to air whatever the SPACE mode, or take it
+    // off when it is the one up on its layer (spec D4).
+    const named = press?.cue ? cues.find((c) => c.id === press.cue) : undefined;
+    if (named && verb === 'select-cue') selectCue(named);
+    if (named && verb === 'take-cue') {
+      selectCue(named);
+      if (liveCue[named.graphic] === named.id) {
+        cancelCombines('Out');
+        void sendVerb(clearCueItems(named.graphic));
+      } else void takeCue(named);
+    }
     // Staging REPLACES what was on PREVIEW; a replaced cue that is on air stays on air, because
     // PREVIEW is a check and never a tally. A cue taken off lands there in both modes: in 'take'
     // mode the staged id is simply never read.
@@ -1087,6 +1111,27 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       revealCue(`hosted-cue-${next.id}`);
     }
   };
+
+  // What a panel's keys show, from the same states the verb bar greys with.
+  panel.feed(
+    () => ({
+      title: show.title,
+      selected: selectedCue?.id ?? null,
+      space: selectedCue ? spaceNext : null,
+      live: liveLayers.map((l) => l.cueId),
+      allowed: {
+        take: !!selectedCue, retake: selectedIsLive, update: selectedIsLive, next: !!selectedLayerCueId && nextMoves,
+        out: !!selectedLayerCueId, 'select-prev': cues.length > 0, 'select-next': cues.length > 0,
+        pause: false, resume: false, 'pause-toggle': false, 'all-out': liveLayers.length > 0,
+      },
+      blocked: [],
+      clip: null,
+      bridge: 'off',
+      rows: cues.map((c) => ({ id: c.id, label: c.label || c.graphic, kind: 'cue', source: 'graphic' })),
+    }),
+    (verb, target) => runVerb(verb, { repeat: false, cue: target }),
+    (text) => feedNote(text, ''),
+  );
 
   const elapsedText = (() => {
     const total = Math.max(0, Math.floor((now - openedAt) / 1000));
@@ -1114,6 +1159,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           testId="hosted-output-health"
         />
         <div className="spacer" />
+        <PanelButton answer={panel} onClick={() => setPanelOpen(true)} />
+        {panelOpen && <PanelDialog slug={slug} answer={panel} onClose={() => setPanelOpen(false)} />}
         <button
           className="pd-allout"
           disabled={liveLayers.length === 0}

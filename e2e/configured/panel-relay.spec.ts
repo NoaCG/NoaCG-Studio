@@ -111,7 +111,12 @@ test.beforeAll(() => {
 });
 
 test.afterAll(async () => {
-  for (const c of clients) await c.removeAllChannels();
+  for (const c of clients) {
+    await c.removeAllChannels();
+    // Close the socket itself: a Realtime socket still closing as Node exits trips a libuv
+    // assertion on Windows and fails the run after every test passed.
+    c.realtime.disconnect();
+  }
   if (shows.length) await admin.from('control_shows').delete().in('id', shows);
 });
 
