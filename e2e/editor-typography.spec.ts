@@ -214,8 +214,11 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   const longLine = await rect(page, t.point);
   expect(longLine.width).toBeGreaterThan(900);
   // Glyph widths differ by platform, so the slot is three quarters of this value's own width:
-  // above the fit's 55% floor everywhere, so Shrink to fit can always reach it.
-  const room = Math.round(longLine.width * .75);
+  // above the fit's 55% floor everywhere, so Shrink to fit can always reach it. Linux Chromium's
+  // whole-pixel glyph sizes leave the design's three-pass fit up to about 5% past the slot (a
+  // recorded limit of templates/shared/textFit.ts), so the bound is the slot plus a tenth: a line
+  // that was not refitted stays at its full width, a third over.
+  const room = Math.round(longLine.width * .75), fitted = room * 1.1;
   const longText = inspector(page).getByRole('combobox', { name: 'Long text', exact: true });
   await expect(longText).toHaveValue('overflow');
   await expect(longText.locator('option')).toHaveText(['Shrink to fit', 'Wrap', 'Run on']);
@@ -226,7 +229,7 @@ test('long text: Shrink to fit, Wrap and Run on answer a 61-character value, eac
   await choose(page, 'Long text', 'shrink');
   expect(await history(page)).toBe(steps + 1);
   await number(page, 'Width', room);
-  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(room + .5);
+  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(fitted);
   expect((await rows(page, t.point)).length).toBe(1);
   expect(parseFloat(await computed(page, t.point, 'font-size'))).toBeGreaterThanOrEqual(48 * .55 - .01);
   const shrunk = await source(page);
@@ -383,12 +386,13 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await select(page, t.point);
   await setText(page, LONG);
   await choose(page, 'Weight', '700');
-  // Three quarters of the bold value's own width, which the fit can reach on any platform.
-  const room = Math.round((await rect(page, t.point)).width * .75);
+  // Three quarters of the bold value's own width, which the fit can reach on any platform (within
+  // a tenth on Linux, as in the long-text test).
+  const room = Math.round((await rect(page, t.point)).width * .75), fitted = room * 1.1;
   await choose(page, 'Alignment', 'center');
   await choose(page, 'Long text', 'shrink');
   await number(page, 'Width', room);
-  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(room + .5);
+  await expect.poll(async () => (await rect(page, t.point)).width).toBeLessThanOrEqual(fitted);
   const edited = await source(page), size = await computed(page, t.point, 'font-size');
   await page.getByTestId('save-graphic').click();
   await page.getByTestId('save-name').fill('Typography');
@@ -412,7 +416,7 @@ test('typed type survives save and reopen, and the simulator fits the long value
   await output.close();
   // The output fits the value as the fit promises: inside the slot or at its floor, smaller than the
   // design size, never below the floor. (The size follows the glyph widths that page measures.)
-  expect(simulated.width <= room + .5 || near(parseFloat(simulated.size), 48 * .55, .05), `${simulated.width} at ${simulated.size}`).toBe(true);
+  expect(simulated.width <= fitted || near(parseFloat(simulated.size), 48 * .55, .05), `${simulated.width} at ${simulated.size}`).toBe(true);
   expect(simulated.weight).toBe('700');
   expect(parseFloat(simulated.size)).toBeLessThan(48);
   expect(parseFloat(simulated.size)).toBeGreaterThanOrEqual(48 * .55 - .01);

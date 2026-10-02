@@ -114,6 +114,12 @@ Asked one at a time, with a recommendation each time:
 
 Recorded rather than changed here:
 
+- **On Linux Chromium the design's fit can stop a little past its slot.** The shared
+  `fitPlacedText()` (`templates/shared/textFit.ts`) takes three proportional passes; with Linux's
+  whole-pixel glyph sizes CI measured a shrunk line at 842 px in an 800 px slot and 1101 px in 1043
+  px (about 5% over), where Windows Chromium lands inside it. The runtime ships in every imported
+  design, so a fix (more passes, or a last step down by a pixel) belongs to its own change with a
+  catalog check; the browser spec bounds the fit at the slot plus a tenth.
 - **A value too long at the fit's floor overflows.** Shrink to fit never goes below 55% of the
   design size (`templates/shared/textFit.ts`), so a value that needs more room than that runs past
   the slot by design; the 61-character test name needs 800 px at 48 px.
