@@ -1,4 +1,4 @@
-// guards: src/control/panelFeedback.ts
+// guards: src/control/panelFeedback.ts, src/model/rundownRows.ts
 //
 // HARDWARE PANELS, THE PAGE'S CHECKS (docs/work-specs/hardware-panel-control/spec.md AC-4, AC-7;
 // protocol.md §6.2 and §8): a relayed press is judged against what the page shows now and what its
@@ -8,8 +8,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, SnapshotRing, wireState, wireRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
+const { judgePress, panelClip, snapshotChanged, rowsChanged, readPress, PressMemory, SnapshotRing, wireState, wireRows, rundownPanelRows, PANEL_ROWS_MAX, SHARED_PANEL_VERBS } =
   await import('../src/control/panelFeedback.ts');
+const { rundownView } = await import('../src/model/rundownRows.ts');
 
 const allowed = (over = {}) => Object.fromEntries(SHARED_PANEL_VERBS.map((v) => [v, over[v] ?? true]));
 const snap = (over = {}) => ({
@@ -131,4 +132,29 @@ test('the wire state and rows carry what protocol §8 names, rows capped', () =>
   const r = wireRows(many, 3);
   assert.equal(r.rows.length, PANEL_ROWS_MAX);
   assert.equal(r.more, true);
+});
+
+test("the production page's rows go to a panel as drawn, with a collapsed folder's cues under its header", () => {
+  const cues = [
+    { id: 'a', sourceId: 'g', label: 'Anna', values: {} },
+    { id: 'vt', sourceId: 'i', source: 'playout', label: 'Opening VT', values: {}, folderId: 'f' },
+    { id: 'b', sourceId: 'g', label: 'Ben', values: {}, folderId: 'f' },
+    { id: 'c', sourceId: 'g', label: 'Cleo', values: {}, folderId: 'shut' },
+  ];
+  const folders = [
+    { id: 'f', name: 'Opening', mode: 'manual' },
+    { id: 'shut', name: ' ', mode: 'manual', collapsed: true },
+  ];
+  assert.deepEqual(rundownPanelRows(rundownView({ cues, folders }).rows), [
+    { id: 'a', label: 'Anna', kind: 'cue', source: 'graphic' },
+    { id: 'folder:f', label: 'Opening', kind: 'folder', source: null },
+    { id: 'vt', label: 'Opening VT', kind: 'cue', source: 'server', folder: 'f' },
+    { id: 'b', label: 'Ben', kind: 'cue', source: 'graphic', folder: 'f' },
+    // Collapsed: the header is the drawn row, and its cue still gets a key.
+    { id: 'folder:shut', label: 'Untitled folder', kind: 'folder', source: null },
+    { id: 'c', label: 'Cleo', kind: 'cue', source: 'graphic', folder: 'shut' },
+  ]);
+  // A take-cue for a hidden cue is judged against these rows, so it is a row and not stale.
+  const rows = rundownPanelRows(rundownView({ cues, folders }).rows);
+  assert.equal(judgePress(press({ verb: 'take-cue', target: 'c' }), snap({ rows }), snap({ rows }), ALL), null);
 });

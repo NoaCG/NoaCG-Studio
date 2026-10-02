@@ -1,6 +1,24 @@
 /* The hardware panel dialog (PanelControl.tsx). The anatomy is the shared one in
    wizard-and-dialogs.css; this sizes it to its content and lays out the code and the list. */
 
+/* THE PANEL DOOR in an operator page's header: "Panel", a dot saying whether this page answers,
+   and on a wide header the state in words. The dot carries the state at every width. */
+.pd-target { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+.pd-target-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex: none; }
+.pd-target-ok .pd-target-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
+.pd-target-idle .pd-target-dot { background: #f59e0b; }
+.pd-target-off .pd-target-dot { background: transparent; border: 1px solid var(--text-dim); }
+.pd-target-state { font-size: 12px; color: var(--text-dim); }
+/* Under 1600px the words stand down to the tooltip; the header needs the width for the name. */
+@media (max-width: 1600px) {
+  .pd-target-state { display: none; }
+}
+/* On a phone the production page's header keeps identity, mode and ■ All out only: the door stands
+   down with the other setup doors there (playout-dashboard.css, the phone tier). */
+@media (max-width: 900px) {
+  .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target { display: none; }
+}
+
 .wz-modal.settings-modal.panel-modal { width: min(560px, 94vw); max-width: 560px; height: auto; max-height: 88vh; }
 .panel-modal .settings-content { flex: 1; overflow: auto; }
 
