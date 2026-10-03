@@ -312,14 +312,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
-  // A hidden window's timers are throttled: whatever came due while it slept, now.
-  useEffect(() => {
-    const onShow = () => {
-      if (document.visibilityState === 'visible') armWire.current?.wake();
-    };
-    document.addEventListener('visibilitychange', onShow);
-    return () => document.removeEventListener('visibilitychange', onShow);
-  }, []);
 
   useEffect(() => {
     if (!isBackendConfigured()) {
@@ -417,19 +409,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           rpc: CUE_ARM_RPC,
         });
         armWire.current = wire;
-        void (async () => {
-          for (let i = 0; live && i < 5; i++) {
-            const state = await wire.boot();
-            if (!live) return;
-            if (state === 'on') setArmsOn(true);
-            if (state === 'missing') {
-              wire.stop();
-              armWire.current = null;
-            }
-            if (state !== 'failed') return;
-            await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+        wire.start((state) => {
+          if (!live) return;
+          if (state === 'on') setArmsOn(true);
+          else {
+            wire.stop();
+            armWire.current = null;
           }
-        })();
+        });
       }
       const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!live) return;
@@ -907,7 +894,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    */
   fireLaneRef.current = async (graphic, arm) => {
     const batches: ControlSendItem[][] = [];
-    if (playsOut(arm.then) && liveCue[graphic] === arm.cue) batches.push(clearCueItems(graphic));
+    // The server checked the lane still holds the cue before it said ok; this page's view may trail it.
+    if (playsOut(arm.then)) batches.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next) : undefined;
     if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next) }));
     const gone = !!arm.next && !next;

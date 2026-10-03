@@ -62,6 +62,7 @@ create table if not exists public.control_cue_arms (
   held_ms    integer check (held_ms between 0 and 86400000),
   missed_at  timestamptz,
   ended      text check (ended in ('fire', 'cancel')),
+  fired_by   text,
   rev        bigint not null,
   updated_at timestamptz not null default now(),
   primary key (show_id, lane)
@@ -112,7 +113,7 @@ $$;
 revoke all on function public.control_cue_arm_wire(public.control_cue_arms) from public, anon, authenticated;
 
 -- ── 3. Every arm operation, under the head lock ───────────────────────────────────────────────
-create or replace function public.control_cue_arm(p_slug text, p_lane text, p_cue text, p_op text)
+create or replace function public.control_cue_arm(p_slug text, p_lane text, p_cue text, p_op text, p_by text default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   v_show     uuid;
@@ -136,6 +137,7 @@ declare
   v_recent   int;
   v_msg      jsonb;
   v_seq      bigint;
+  v_refire   boolean := false;
 begin
   if p_op is null or p_op not in ('arm', 'aired', 'hold', 'resume', 'cancel', 'fire') then
     raise exception 'not an arm operation' using errcode = '22023';
@@ -200,7 +202,15 @@ begin
 
   -- 4. The operation. `v_mark` names the row to write; `v_reason` refuses with nothing written.
   if v_phase = 'gone' then
-    v_reason := 'gone';
+    -- The page that won a fire and never heard its answer asks again (`p_by`, minted per page):
+    -- while the lane still holds the cue, so its end action has not gone out, it is told `ok`
+    -- again and sends it, once. Every other caller, and any caller once the action has gone out
+    -- (an Out replaces the marker), finds it gone.
+    if p_op = 'fire' and v_arm.ended = 'fire' and p_by is not null and v_arm.fired_by = p_by then
+      v_refire := true;
+    else
+      v_reason := 'gone';
+    end if;
   elsif p_op = 'aired' then
     if v_phase = 'waiting' then
       v_report := v_head.live->p_lane;
@@ -222,7 +232,13 @@ begin
   elsif p_op = 'hold' then
     if v_phase = 'running' then
       v_left := floor(extract(epoch from (v_due - v_now)) * 1000);
-      if v_left <= 0 then
+      if v_now > v_due + interval '5 seconds' then
+        -- Nothing fired it in time: missed, exactly as a late fire marks it.
+        update public.control_cue_arms a set missed_at = v_now where a.show_id = v_show and a.lane = p_lane
+          returning * into v_arm;
+        v_mark := 'late';
+        v_reason := 'late';
+      elsif v_left <= 0 then
         v_reason := 'due';
       else
         update public.control_cue_arms a set held_ms = v_left, from_at = null
@@ -261,7 +277,7 @@ begin
       v_mark := 'late';
       v_reason := 'late';
     else
-      update public.control_cue_arms a set ended = 'fire' where a.show_id = v_show and a.lane = p_lane
+      update public.control_cue_arms a set ended = 'fire', fired_by = p_by where a.show_id = v_show and a.lane = p_lane
         returning * into v_arm;
       v_mark := 'fire';
     end if;
@@ -298,13 +314,13 @@ begin
     'ok', v_reason is null,
     'reason', v_reason,
     'ms', v_wait,
-    'op', v_mark,
+    'op', coalesce(v_mark, case when v_refire then 'fire' end),
     'rev', coalesce(v_seq, v_head.seq),
     'at', round(extract(epoch from v_now) * 1000)))
     || jsonb_build_object('arm', coalesce(public.control_cue_arm_wire(v_arm), 'null'::jsonb));
 end $$;
-revoke all on function public.control_cue_arm(text, text, text, text) from public;
-grant execute on function public.control_cue_arm(text, text, text, text) to anon, authenticated;
+revoke all on function public.control_cue_arm(text, text, text, text, text) from public;
+grant execute on function public.control_cue_arm(text, text, text, text, text) to anon, authenticated;
 
 -- ── 4. The recovery read: every lane's live arm, as a reloading page needs it ─────────────────
 -- STABLE: one snapshot. An arm whose Take is no longer its lane's latest marker is left out, as is
@@ -316,8 +332,12 @@ declare
   v_show  uuid;
   v_owner uuid;
   v_head  public.control_heads%rowtype;
+  v_lane  text;
+  v_seq   bigint;
+  v_at    timestamptz;
+  v_msg   jsonb;
+  v_spec  jsonb;
   v_arm   public.control_cue_arms%rowtype;
-  v_take  bigint;
   v_arms  jsonb := '{}'::jsonb;
 begin
   select s.id, s.owner_id into v_show, v_owner from public.control_shows s where s.slug = p_slug;
@@ -326,15 +346,31 @@ begin
     raise exception 'hosted control is switched off for this page' using errcode = '42501';
   end if;
   select * into v_head from public.control_heads h where h.show_id = v_show;
-  for v_arm in select * from public.control_cue_arms a where a.show_id = v_show and a.ended is null loop
-    select e.seq into v_take
+  -- Every lane with a cue on air, by its latest Take marker: the stored arm when it is that
+  -- marker's, else the marker's own arm, still WAITING (no operation has touched it yet, so the
+  -- row does not exist: a page reloading straight after a Take must count it all the same).
+  for v_lane in select g.key from jsonb_each(case when jsonb_typeof(v_head.graphics) = 'object' then v_head.graphics else '{}'::jsonb end) g
+                 where jsonb_typeof(g.value->'cue') = 'string' loop
+    select e.seq, e.created_at, e.msg into v_seq, v_at, v_msg
       from public.control_events e
-     where e.show_id = v_show and e.seq is not null and e.graphic = v_arm.lane
+     where e.show_id = v_show and e.seq is not null and e.graphic = v_lane
        and e.msg->>'t' = 'cue' and not (e.msg ? 'arm')
      order by e.seq desc
      limit 1;
-    if v_take = v_arm.take_seq and v_head.graphics->v_arm.lane->>'cue' = v_arm.cue then
-      v_arms := v_arms || jsonb_build_object(v_arm.lane, public.control_cue_arm_wire(v_arm));
+    if v_msg->>'cue' is distinct from v_head.graphics->v_lane->>'cue' then
+      continue;
+    end if;
+    select * into v_arm from public.control_cue_arms a where a.show_id = v_show and a.lane = v_lane;
+    if found and v_arm.take_seq = v_seq then
+      if public.control_cue_arm_wire(v_arm) is not null then
+        v_arms := v_arms || jsonb_build_object(v_lane, public.control_cue_arm_wire(v_arm));
+      end if;
+      continue;
+    end if;
+    v_spec := public.control_cue_spec(v_msg->'auto');
+    if v_spec is not null then
+      v_arms := v_arms || jsonb_build_object(v_lane, v_spec || jsonb_build_object(
+        'cue', v_msg->>'cue', 'take', v_seq, 'take_at', round(extract(epoch from v_at) * 1000)));
     end if;
   end loop;
   return jsonb_build_object('arms', v_arms, 'rev', coalesce(v_head.seq, 0), 'epoch', v_head.epoch,
@@ -367,12 +403,12 @@ declare
   v_off   jsonb := '[{"graphic":"Bug","msg":{"t":"stop"}},{"graphic":"Bug","msg":{"t":"cue","cue":null}}]';
 begin
   -- (a) SHAPE, including what a client must NOT reach.
-  if to_regprocedure('public.control_cue_arm(text,text,text,text)') is null
+  if to_regprocedure('public.control_cue_arm(text,text,text,text,text)') is null
      or to_regprocedure('public.control_cue_arms_for(text)') is null then
     raise exception '0075 self-check failed: a new RPC is missing';
   end if;
-  if not has_function_privilege('anon', 'public.control_cue_arm(text,text,text,text)', 'execute')
-     or not has_function_privilege('authenticated', 'public.control_cue_arm(text,text,text,text)', 'execute')
+  if not has_function_privilege('anon', 'public.control_cue_arm(text,text,text,text,text)', 'execute')
+     or not has_function_privilege('authenticated', 'public.control_cue_arm(text,text,text,text,text)', 'execute')
      or not has_function_privilege('anon', 'public.control_cue_arms_for(text)', 'execute') then
     raise exception '0075 self-check failed: a signed-out page cannot reach an RPC it needs';
   end if;
@@ -403,6 +439,11 @@ begin
   v_ans := public.control_send_seq(v_slug, v_timed, jsonb_build_object('id', v_page, 'press', 1, 'base', '{}'::jsonb));
   if v_ans->>'ok' <> 'true' then raise exception '0075 self-check failed: the timed Take was refused (%)', v_ans; end if;
   v_epoch := (v_ans->>'epoch')::uuid;
+  -- A page reloading straight after the Take, before any operation made the arm's row, counts it.
+  if public.control_cue_arms_for(v_slug)->'arms'->'Bug'->>'take' is distinct from '3'
+     or public.control_cue_arms_for(v_slug)->'arms'->'Bug' ? 'from' then
+    raise exception '0075 self-check failed: the recovery read did not see a fresh Take (%)', public.control_cue_arms_for(v_slug);
+  end if;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'arm');
   if v_ans->>'ok' <> 'true' or v_ans->'arm'->>'then' <> 'out-next' or (v_ans->'arm'->>'ms')::int <> 4000
      or v_ans->'arm'->>'next' <> 'cue-b' or v_ans->'arm' ? 'from' or v_ans->'arm'->>'take' <> '3' or v_ans ? 'op' then
@@ -464,9 +505,14 @@ begin
   update public.control_cue_arms a set from_at = clock_timestamp() - (a.ms + 1000) * interval '1 millisecond'
    where a.show_id = v_show and a.lane = 'Bug';
   set local role anon;
-  v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'fire');
+  v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'fire', 'page-1');
   if v_ans->>'ok' <> 'true' or v_ans->>'op' <> 'fire' or v_ans->'arm' <> 'null'::jsonb then
     raise exception '0075 self-check failed: a fire in its window (%)', v_ans;
+  end if;
+  -- The winner whose answer was lost asks again and is told ok again, writing nothing more.
+  v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'fire', 'page-1');
+  if v_ans->>'ok' <> 'true' or v_ans->>'op' <> 'fire' then
+    raise exception '0075 self-check failed: the winner asking again (%)', v_ans;
   end if;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'fire');
   if v_ans->>'reason' <> 'gone' then raise exception '0075 self-check failed: a second fire (%)', v_ans; end if;
@@ -501,9 +547,21 @@ begin
   if v_ans->>'op' <> 'cancel' or v_ans->'arm' <> 'null'::jsonb or public.control_cue_arms_for(v_slug)->'arms' <> '{}'::jsonb then
     raise exception '0075 self-check failed: cancel of a missed arm (%)', v_ans;
   end if;
+  -- A hold pressed long after the deadline marks it missed too, rather than promising an end.
+  v_ans := public.control_send_seq(v_slug, v_timed, jsonb_build_object('id', v_page, 'press', 3, 'epoch', v_epoch, 'base', '{}'::jsonb));
+  perform public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'arm');
+  execute format('set local role %I', v_role);
+  update public.control_cue_arms a set from_at = clock_timestamp() - (a.ms + 6000) * interval '1 millisecond'
+   where a.show_id = v_show and a.lane = 'Bug';
+  set local role anon;
+  v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'hold');
+  if v_ans->>'reason' <> 'late' or v_ans->>'op' <> 'late' or not (v_ans->'arm' ? 'due') then
+    raise exception '0075 self-check failed: a hold long after the deadline (%)', v_ans;
+  end if;
+  perform public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'cancel');
 
   -- (h) A manual Out, then a fire due by the clock: gone, because the Out is the lane's marker now.
-  v_ans := public.control_send_seq(v_slug, v_timed, jsonb_build_object('id', v_page, 'press', 3, 'epoch', v_epoch, 'base', '{}'::jsonb));
+  v_ans := public.control_send_seq(v_slug, v_timed, jsonb_build_object('id', v_page, 'press', 4, 'epoch', v_epoch, 'base', '{}'::jsonb));
   perform public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'arm');
   if public.control_cue_arms_for(v_slug)->'arms'->'Bug'->>'cue' is distinct from 'cue-a' then
     raise exception '0075 self-check failed: the recovery read did not answer a waiting arm';
@@ -512,7 +570,7 @@ begin
   update public.control_cue_arms a set from_at = clock_timestamp() - (a.ms + 1000) * interval '1 millisecond'
    where a.show_id = v_show and a.lane = 'Bug';
   set local role anon;
-  v_ans := public.control_send_seq(v_slug, v_off, jsonb_build_object('id', v_page, 'press', 4, 'epoch', v_epoch, 'base', '{}'::jsonb));
+  v_ans := public.control_send_seq(v_slug, v_off, jsonb_build_object('id', v_page, 'press', 5, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if v_ans->>'ok' <> 'true' then raise exception '0075 self-check failed: the Out was refused (%)', v_ans; end if;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'fire');
   if v_ans->>'reason' <> 'gone' or public.control_cue_arms_for(v_slug)->'arms' <> '{}'::jsonb then
@@ -520,7 +578,7 @@ begin
   end if;
   -- A manual cue's marker arms nothing.
   v_ans := public.control_send_seq(v_slug, '[{"graphic":"Bug","msg":{"t":"play"}},{"graphic":"Bug","msg":{"t":"cue","cue":"cue-m"}}]'::jsonb,
-    jsonb_build_object('id', v_page, 'press', 5, 'epoch', v_epoch, 'base', '{}'::jsonb));
+    jsonb_build_object('id', v_page, 'press', 6, 'epoch', v_epoch, 'base', '{}'::jsonb));
   if public.control_cue_arm(v_slug, 'Bug', 'cue-m', 'hold')->>'reason' <> 'gone' then
     raise exception '0075 self-check failed: a manual cue was armed';
   end if;

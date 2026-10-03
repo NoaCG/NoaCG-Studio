@@ -38,11 +38,12 @@ export function readArmAnswer(data: unknown): ArmAnswer | null {
 }
 
 /** One arm operation (`control_cue_arm`). Null when it did not answer (a network fault, a lock
- *  wait it gave up on): the engine asks again shortly. */
-export async function controlCueArm(slug: string, lane: string, cue: string, op: ArmRequest): Promise<ArmAnswer | null> {
+ *  wait it gave up on): the engine asks again shortly. `by` is the asking page's id, so a fire
+ *  whose answer was lost can be asked again by the page that won it. */
+export async function controlCueArm(slug: string, lane: string, cue: string, op: ArmRequest, by: string): Promise<ArmAnswer | null> {
   const sb = await getSupabase();
   if (!sb) return null;
-  const { data, error } = await sb.rpc('control_cue_arm', { p_slug: slug, p_lane: lane, p_cue: cue, p_op: op });
+  const { data, error } = await sb.rpc('control_cue_arm', { p_slug: slug, p_lane: lane, p_cue: cue, p_op: op, p_by: by });
   return error ? null : readArmAnswer(data);
 }
 

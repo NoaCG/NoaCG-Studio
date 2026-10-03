@@ -1541,21 +1541,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           rpc: CUE_ARM_RPC,
         });
         armWire.current = wire;
-        void (async () => {
-          for (let i = 0; alive && i < 5; i++) {
-            const state = await wire.boot();
-            if (!alive) return;
-            if (state !== 'failed') {
-              if (state === 'missing') {
-                wire.stop();
-                armWire.current = null;
-              }
-              setArmsServer(state);
-              return;
-            }
-            await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+        wire.start((state) => {
+          if (!alive) return;
+          if (state === 'missing') {
+            wire.stop();
+            armWire.current = null;
           }
-        })();
+          setArmsServer(state);
+        });
       } else {
         setArmsServer('missing');
       }
@@ -2062,20 +2055,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // TIMED CUES (the engine is with the verbs below). Unpublished, this page runs them: one timer, to
   // whatever is next due, set again whenever a countdown changes and when the window comes back
   // from hiding (a hidden window's timers are throttled, and past 5 s late that becomes Missed
-  // rather than a late action). Published, control/cueArmWire.ts runs them with every other page,
-  // and is only told when the window comes back.
+  // rather than a late action). Published, control/cueArmWire.ts runs them with every other page.
   const timedCues = !hostedSlug || armsServer === 'on';
   const runDueRef = useRef<() => void>(() => {});
   // A timer can come due a moment before the clock says so; when nothing moved, it is set again
   // rather than left to wait for a change that will not come.
   useEffect(() => {
-    if (hostedSlug) {
-      const onShow = () => {
-        if (document.visibilityState === 'visible') armWire.current?.wake();
-      };
-      document.addEventListener('visibilitychange', onShow);
-      return () => document.removeEventListener('visibilitychange', onShow);
-    }
+    if (hostedSlug) return;
     let t: number | undefined;
     const arm = () => {
       const wake = nextWake(armsRef.current, wallClock());
@@ -2654,7 +2640,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A timed cue's end action, sent once: its Out, the armed next cue's Take, or both in that order. */
   const fireLane = async (graphic: string, arm: LaneArm) => {
     const items: ControlSendItem[][] = [];
-    const out = playsOut(arm.then) && liveCueRef.current[graphic] === arm.cue;
+    // Published, the server checked the lane still holds the cue before it said ok, which this page's
+    // own view may trail; unpublished, this page's view is the only one.
+    const out = playsOut(arm.then) && (!!hostedSlug || liveCueRef.current[graphic] === arm.cue);
     if (out) items.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
     const nextGraphic = next ? cueGraphicName(next) : null;

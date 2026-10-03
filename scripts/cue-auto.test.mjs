@@ -229,9 +229,11 @@ function fakeServer(clock) {
       const a = arms.get(graphic);
       if (a) a.reportAt = clock.now;
     },
-    async arm(_slug, graphic, cue, op) {
+    async arm(_slug, graphic, cue, op, by) {
       const a = arms.get(graphic);
       const ans = (ok, extra = {}) => ({ ok, rev: seq, at: clock.now, arm: a ? wireOf(a) : null, ...extra });
+      // The winner whose answer was lost, asking again before its end action went out.
+      if (a && a.cue === cue && a.ended === 'fire' && op === 'fire' && a.firedBy === by) return ans(true, { op: 'fire' });
       if (!a || a.cue !== cue || a.ended) return { ok: false, reason: 'gone', rev: seq, at: clock.now, arm: null };
       const mark = (name) => {
         const msg = { t: 'cue', cue, arm: name, then: a.then };
@@ -273,6 +275,7 @@ function fakeServer(clock) {
         return mark('late');
       }
       a.ended = 'fire';
+      a.firedBy = by;
       return mark('fire');
     },
     async armsFor() {
@@ -316,7 +319,7 @@ function fakeClock(start) {
 
 /** One page: its engine over the shared server, its timers on the shared clock. `offset` is how
  *  far its own clock is from the server's. */
-function page(server, clock, fired, offset = 0) {
+function page(server, clock, fired, offset = 0, rpc = { arm: server.arm, armsFor: server.armsFor }) {
   let arms = {};
   let delivered = 0;
   const engine = createCueArmWire({
@@ -327,7 +330,7 @@ function page(server, clock, fired, offset = 0) {
     },
     fire: (lane, arm) => fired.push({ lane, cue: arm.cue }),
     now: () => clock.now + offset,
-    rpc: { arm: server.arm, armsFor: server.armsFor },
+    rpc,
     setTimer: (fn, ms) => clock.timer(fn, ms),
     clearTimer: (t) => clock.cancel(t),
     random: () => 0,
@@ -447,4 +450,64 @@ test('a page whose clock is ten seconds slow still fires on time', async () => {
   assert.equal(slow.arms().A.phase, 'running');
   await clock.advance(3_000, () => slow.follow());
   assert.deepEqual(fired, [{ lane: 'A', cue: 'a' }], 'not missed, and not late');
+});
+
+test('the winner whose fire answer was lost asks again and sends the end action, once', async () => {
+  const clock = fakeClock(6_000_000);
+  const server = fakeServer(clock);
+  const fired = [];
+  let lose = true;
+  const lossy = {
+    armsFor: server.armsFor,
+    async arm(...args) {
+      const ans = await server.arm(...args);
+      if (args[3] === 'fire' && ans.op === 'fire' && lose) {
+        lose = false;
+        return null; // committed on the server, never heard here
+      }
+      return ans;
+    },
+  };
+  const desk = page(server, clock, fired, 0, lossy);
+  await desk.engine.boot();
+  server.take('A', 'a', { then: 'out', ms: 2000 });
+  server.report('A');
+  await clock.advance(10, () => desk.follow());
+  await clock.advance(2_100, () => desk.follow());
+  assert.deepEqual(fired, [], 'the answer was lost');
+  await clock.advance(1_100, () => desk.follow());
+  assert.deepEqual(fired, [{ lane: 'A', cue: 'a' }]);
+  assert.equal(server.rows.filter((r) => r.msg.arm === 'fire').length, 1);
+});
+
+test('a page reloading straight after the Take counts it, before any operation touched it', async () => {
+  const clock = fakeClock(7_000_000);
+  const server = fakeServer(clock);
+  const fired = [];
+  server.take('A', 'a', { then: 'out', ms: 5000 });
+  const fresh = page(server, clock, fired);
+  fresh.follow(); // the Take's own row is older than the read below, and is covered by it
+  await fresh.engine.boot();
+  assert.equal(fresh.arms().A.phase, 'waiting');
+  await clock.advance(5_200, () => fresh.follow());
+  assert.deepEqual(fired, [{ lane: 'A', cue: 'a' }]);
+});
+
+test('a fire refused because the lane moved on never hides the Take that moved it', async () => {
+  const clock = fakeClock(8_000_000);
+  const server = fakeServer(clock);
+  const fired = [];
+  const desk = page(server, clock, fired);
+  await desk.engine.boot();
+  server.take('A', 'a', { then: 'out', ms: 2000 });
+  server.report('A');
+  await clock.advance(10, () => desk.follow());
+  // Just before the deadline another screen takes a second timed cue on the lane, and this page
+  // has not seen its row when its fire for the first is refused.
+  await clock.advance(1_980);
+  server.take('A', 'c', { then: 'out', ms: 4000 });
+  await clock.advance(50);
+  desk.follow();
+  assert.equal(desk.arms().A?.cue, 'c', 'the new Take arms the lane');
+  assert.deepEqual(fired, []);
 });
