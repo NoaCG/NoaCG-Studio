@@ -26,7 +26,9 @@ believe a graphic went out:
 - the program monitor's name list: with a server clip up the monitor rightly reads
   PROGRAM · ON AIR, and then names the local graphic beside the clip as if it aired too;
 - the GRAPHIC ACTIONS and LIVE NUMBERS headings: "act on air" (`ProductionPage.tsx`);
-- the EDITED mark's tooltip on a row that is UP: "air still shows the old values" (`CueRundown.tsx`).
+- the EDITED mark's tooltip on a row that is UP: "air still shows the old values" (`CueRundown.tsx`);
+- the cue editor's kicker for the taken cue: "ON-AIR CUE · 1" (`e2e/production-controls.spec.ts`
+  pins the words).
 
 ## What it would take
 
