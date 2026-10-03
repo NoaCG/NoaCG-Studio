@@ -594,6 +594,21 @@ test('a change made while the Bridge is not running is given to it the next time
   expect(bridge.servers?.[0].studio?.channels[1].name).toBe('Clean feed');
 });
 
+test('Playout settings left open on Home give a waiting change to the Bridge as soon as it answers', async ({ page }) => {
+  await seedOnce(page, { host: '192.168.1.20', channels: STUDIO.channels, layer: 30, clipChannel: 2 });
+  const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
+  const keeper = section.getByTestId('playout-studio-keeper');
+  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  // The Bridge is started while the panel is still open. Home has no status poll, and the change
+  // used to wait there until the panel was closed and opened again.
+  bridge.missing = false;
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[1].name, { timeout: 10_000 }).toBe('Clean feed');
+  await expect(keeper).toHaveAttribute('data-keeper', 'bridge');
+});
+
 test('a change typed while the Bridge is still being asked is kept, not replaced by the setup it answers with', async ({ page }) => {
   await seedSettings(page, { host: '192.168.1.20' });
   const bridge = await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
