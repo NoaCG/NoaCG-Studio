@@ -64,6 +64,7 @@ type LiveWindow = {
       late: number;
       last: { road: string; rx: number; apply: number; frame: number } | null;
     };
+    entry: () => { proto: number };
   };
 };
 
@@ -106,6 +107,8 @@ test('an output says who it is and how commands reach it, and both operator page
   // unnumbered rows, so its renderer follows the numbered log.
   expect(identity.protocol).toBe(2);
   await expect(debug).toContainText('protocol: numbered log (proto 2)');
+  // The Presence entry the operator pages read says the same.
+  expect(await output.evaluate(() => (window as LiveWindow).__noacgLive!.entry().proto)).toBe(2);
   expect(identity.build.length).toBeGreaterThan(0);
   await expect(debug).toContainText(`identity: ${identity.id}`);
   expect(await output.evaluate(() => (window as LiveWindow).__noacgLive!.engine())).toMatch(/Chrome \d+/);

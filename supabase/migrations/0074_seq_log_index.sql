@@ -25,7 +25,7 @@
 -- (`supabase db push`, `migration up`, `start`; 2.111 measured) knows that statement: it commits
 -- the statements before it, runs it on its own, then runs the rest of the file and the ledger row
 -- in one transaction. So this file is three steps, not one transaction:
---   1. the timeouts and the drop of a leftover index. On a first apply there is none, and a
+--   1. the timeouts and the drop of a leftover index (500 ms lock_timeout). On a first apply there is none, and a
 --      `drop index if exists` that finds nothing takes no lock at all (measured: it returns at
 --      once while another session holds ACCESS EXCLUSIVE on control_events);
 --   2. the build. SHARE UPDATE EXCLUSIVE on control_events, which no read, insert, update or
@@ -42,22 +42,28 @@
 -- no ledger row. db-push retries a lock timeout (55P03) twice, and the next landing pushes again;
 -- step 1 drops what the failed build left, so every retry builds afresh instead of stopping on
 -- the leftover. That drop is the one strong lock this file can take: ACCESS EXCLUSIVE on
--- control_events for the instant of a catalog change, after waiting at most 2 s, and only on a
--- retry. (`drop index concurrently` would avoid even that, but CLI 2.111 runs it inside the
--- file's transaction, where Postgres refuses it.) A retry after step 3 failed rebuilds a valid
--- index once more, which costs a scan and nothing else.
-set lock_timeout = '2s';
+-- control_events for the instant of a catalog change, and only on a retry, so it waits at most
+-- 500 ms (below the 1 s deadlock_timeout, as 0071's strong lock does). (`drop index concurrently`
+-- would avoid even that, but CLI 2.111 runs it inside the file's transaction, where Postgres
+-- refuses it.) Until a retry drops it, an invalid leftover costs each insert one index entry and
+-- nothing else; nothing reads it. A retry after step 3 failed rebuilds a valid index once more,
+-- which costs a scan and nothing else.
+set lock_timeout = '500ms';
 set statement_timeout = '30s';
 
 drop index if exists public.control_events_show_seq_idx;
 
 -- The build reads the whole table twice; at the 14-day retention a feed writing a row a second
--- keeps about 1.2 million rows. Ten minutes bounds it with room; it blocks nobody while it runs.
-set statement_timeout = '10min';
+-- keeps about 1.2 million rows (600,000 built in about a second on a local stack). Five minutes
+-- bounds it with room, and leaves a retry and the staging push inside post-land's 15-minute job.
+-- It blocks nobody while it runs, so its waits get 2 s, above the 1 s deadlock_timeout.
+set lock_timeout = '2s';
+set statement_timeout = '5min';
 
 create index concurrently control_events_show_seq_idx
   on public.control_events (show_id, seq) where seq is not null;
 
+set lock_timeout = '500ms';
 set statement_timeout = '30s';
 
 -- The index must be whole before anything reads through it.

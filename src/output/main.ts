@@ -297,8 +297,10 @@ async function boot(): Promise<void> {
     },
   });
   const entry = (): LiveEntry =>
-    ({
-      ...liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), { name: outputName, ready: readiness(), ack }),
+    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
+      name: outputName,
+      ready: readiness(),
+      ack,
       proto: identity.protocol,
     });
   const presence = joinLivePresence({
@@ -409,7 +411,6 @@ async function boot(): Promise<void> {
   // (`legacy`): those carry no number, so it follows by id for this whole session, exactly as
   // before, and its reports move the baselines past them. `lastAppliedId` stays the highest id
   // applied either way: it is the baseline an older renderer or page reads from a report.
-  // `seqMode` is decided above, beside the identity that reports it.
   let followEpoch = seqMode?.epoch ?? null;
   dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
   const byId = planOutputRecovery(stage.graphics, resolved.live);

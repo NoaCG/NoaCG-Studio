@@ -533,9 +533,10 @@ export function classifyStatement(raw, created = new Set()) {
  * The exception is a statement Postgres refuses inside a transaction or a pipeline. The CLI (2.111)
  * commits what came before `create index concurrently` (also `reindex ... concurrently`, `vacuum`,
  * `alter system`, `cluster`; NOT `drop index concurrently`, which still fails inside the batch), runs
- * that statement alone, then runs the rest of the file with its ledger row in one transaction. A `set` still covers it, since a committed `set` lasts for the session, but a failure
- * after the first step leaves that step applied with no ledger row, so such a file must be safe to
- * run again from its top. 0074 is the worked example.
+ * that statement alone, then runs the rest of the file with its ledger row in one transaction, all on
+ * one session, so the file's `set`s still cover every part (measured: 0074's build timed out on the
+ * lock_timeout its first step set). A failure after the first step leaves that step applied with
+ * no ledger row, so such a file must be safe to run again from its top. 0074 is the worked example.
  *
  * Older files are exempt: they are applied everywhere already.
  */
@@ -1256,7 +1257,9 @@ async function push({ ref, token, dryRun, asJson, decision, apply, cwd, producti
   if (locked) {
     console.error(
       `\nLOCK TIMEOUT: ${locked.file} could not get a lock within its lock_timeout, ` +
-        `${LOCK_RETRY_WAITS_MS.length + 1} times. Nothing in that file was applied, and nothing after it ` +
+        `${LOCK_RETRY_WAITS_MS.length + 1} times. Nothing in that file was applied (unless it builds an ` +
+        'index concurrently: then the statements before the build were, and a failed build leaves an ' +
+        'invalid index the file drops when it runs again), and nothing after it ' +
         'was attempted; the diff above is what did land. Something held the table longer than the ' +
         'migration may wait, which is the guard working, not a broken migration. The next landing ' +
         'retries, or re-run this job.',
