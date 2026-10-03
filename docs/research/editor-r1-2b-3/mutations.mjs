@@ -4,8 +4,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const images = 'src/blocks/editorImages.ts', reader = 'src/assets/fileImport.ts', hook = 'src/components/editorFoundation/useImageImport.ts';
-const originals = new Map([images, reader, hook].map(file => [file, readFileSync(resolve(root, file), 'utf8')]));
+const images = 'src/blocks/editorImages.ts', reader = 'src/assets/fileImport.ts', hook = 'src/components/editorFoundation/useImageImport.ts', assetOps = 'src/blocks/assetOps.ts';
+const originals = new Map([images, reader, hook, assetOps].map(file => [file, readFileSync(resolve(root, file), 'utf8')]));
 const pause = () => new Promise(resolve => setTimeout(resolve, 2000));
 const run = (grep) => spawnSync(process.execPath, grep ? ['node_modules/playwright/cli.js', 'test', 'e2e/editor-images.spec.ts', '--workers=1', '--grep', grep] : ['--test', 'scripts/editor-images.test.mjs'], { cwd: root, env: { ...process.env, DEV_PORT: '5299' }, encoding: 'utf8', timeout: 120000, maxBuffer: 20 * 1024 * 1024 });
 const guard = (prefix) => (source) => {
@@ -21,6 +21,8 @@ const rows = [
   ['byte deduplication', images, replace('if (identical)', 'if (false && identical)'), null],
   ['used asset removal', images, guard('if (referenceCount'), null],
   ['missing asset removal', images, guard('if (!template.assets.some'), null],
+  ['missing rename source', images, guard('if (!template.assets.some(a => a.path === from)'), null],
+  ['renamed field defaults', assetOps, replace("fields: template.fields.map(field => typeof field.value === 'string' ? { ...field, value: rewrite(field.value) } : field),", 'fields: template.fields,'), null],
   ['finite image dimensions', images, guard('if (![natural.width'), null],
   ['finite drawing coordinates', images, guard('if (space.length'), null],
   ['uniform nonsingular parent', images, guard('if (Math.abs(determinant)'), null],

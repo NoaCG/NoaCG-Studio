@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const bundle = await rolldown({ input: path.join(root, 'src/blocks/editorImages.ts'), platform: 'neutral', plugins: [rawSuffix], logLevel: 'silent' });
 const { output } = await bundle.generate({ format: 'esm', codeSplitting: false });
 await bundle.close();
-const { importAssets, removeUnusedAsset, imagePlacement } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
+const { importAssets, removeUnusedAsset, renameGraphicAsset, imagePlacement } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 const template = () => ({ html: '', css: '', js: '', fields: [], assets: [], resolution: { width: 1920, height: 1080 } });
 const red = 'data:image/png;base64,cmVk', blue = 'data:image/png;base64,Ymx1ZQ==';
 test('asset import settles names and deduplicates bytes through a complete batch', () => {
@@ -38,6 +38,16 @@ test('referenced and missing assets cannot be removed, unused removal keeps othe
   assert.deepEqual(removeUnusedAsset(t, 'images/spare.png').assets, [t.assets[0]]);
   assert.equal(t.assets.length, 2);
 });
+test('asset rename carries references and field defaults, and refuses a missing source', () => {
+  const t = { ...template(), html: '<img src="images/logo.png">', css: 'url(images/logo.png)', js: '"images/logo.png"', fields: [{ field: 'f0', value: 'images/logo.png' }], assets: [{ path: 'images/logo.png', data: red }] };
+  assert.throws(() => renameGraphicAsset(t, 'images/missing.png', 'images/new.png'), /missing/i);
+  const renamed = renameGraphicAsset(t, 'images/logo.png', 'images/sponsor.png');
+  for (const file of ['html', 'css', 'js']) assert.ok(renamed[file].includes('images/sponsor.png'));
+  assert.equal(renamed.fields[0].value, 'images/sponsor.png');
+  assert.equal(renamed.assets[0].path, 'images/sponsor.png');
+  assert.equal(t.fields[0].value, 'images/logo.png');
+});
+
 test('placement never stretches or enlarges and maps frame center through the drawing space', () => {
   const t = template();
   const p = imagePlacement(t, { width: 4000, height: 1000 }, { x: 800, y: 400 }, [1, 0, 0, 1, 0, 900]);

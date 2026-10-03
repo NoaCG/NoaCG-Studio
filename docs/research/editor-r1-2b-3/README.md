@@ -80,6 +80,8 @@ logo have zero replacement controls. Each external file drop leaves assets
 unchanged. The corrected template-search acceptance test fails on the missing
 Image tool after reaching Hairline's new editor through the real Finish door.
 Raw output: [baseline.log](baseline.log), [written-first.log](written-first.log).
+The [written-first spec](written-first.spec.ts.txt) preserves the exact corrected
+acceptance file run against that snapshot.
 An independent snapshot holds application source at unmodified main throughout.
 
 The owner's drop decision above is implemented. The initial complete acceptance
@@ -89,9 +91,9 @@ single-file picker sends embedded bytes; SPX and OGraf folder packages use paths
 j-3081 passed 15 checks (46.4 s), adding the real template-search Hairline task,
 SVG, font and Lottie resource import and cancellation during existing-asset decode.
 
-Guard mutations j-3080 and j-3083 killed 31/31 mutants. The unmodified controls
+Guard mutations j-3080, j-3083 and j-3086 killed 33/33 mutants. The unmodified controls
 passed first. Each mutation runs alone through the queue, waits two seconds after
-each source write, and restores its source before the next. Both jobs reported
+each source write, and restores its source before the next. All three jobs reported
 all mutated sources restored byte-for-byte. Reproduce with
 `npm run queue -- "node docs/research/editor-r1-2b-3/mutations.mjs" --cost 0.5 --cap 30`.
 j-3082 matched zero cases because Windows quoting truncated its command; it is
@@ -102,5 +104,42 @@ new image's arriving visibility span. This keeps it visible at the hold while
 preserving the existing motion data and its millisecond precision. Image bindings
 carry the chosen extension and asset folder, including SVG files.
 
-Final regression, affected-suite, build and landing evidence follows below once
-those checks complete. Physical host and owner judgment are not claimed.
+## Integration verification and review
+
+- Reconciled current `origin/main` `5f55b3297` without conflicts. The integration
+  planner correctly uses the fork `70214bb06` and covers both sides.
+- j-3084: the requested editor regressions, anim-engine and inspector, plus all
+  16 image checks, in one job with E2E_WORKERS=3: 243 passed, 20 existing skips,
+  5.7 minutes. No new skip or quarantine was introduced.
+- j-3085: `set E2E_WORKERS=3&& npm run test:e2e:affected`: 49 specs, 526 passed,
+  239 existing skips (13.2 minutes); the catalog gate also passed all 35 checks
+  (4.9 minutes). The overall verdict is passed.
+- `node --test scripts/editor-images.test.mjs`: five pure-helper checks passed.
+  Catalog emit: all 528 variants match the source baseline. TypeScript and the
+  focused eslint review passed.
+- Real UI: template search to Hairline, created-image movement, portrait replacement
+  and undo passed with no page errors. Desktop and laptop captures are
+  [catalog-created-image.png](catalog-created-image.png) and
+  [laptop-assets.png](laptop-assets.png). Their placement, centered anchor, selection,
+  contrast and panel spacing were inspected. The laptop retains the existing
+  closable Project overlay.
+- Review inline: fixed stale operator-image samples on replacement/rename, the
+  imported-slot PNG extension when choosing SVG, and an ID lookup missed by the
+  code-driven-source refusal. Simplify inline: reused the existing source insertion
+  seam and slot writers, shared validated reads, and removed the retired asset-list
+  CSS. No source model or export-target format changed.
+
+- j-3089: the remaining full rendered catalog battery passed (11.7 minutes):
+  type floor (526 variants), overflow against baseline (528 variants), field
+  coverage (526 variants), numerals and factory. Reproduce through the owned-server
+  runner: `npm run queue -- "npx playwright test --config docs/research/editor-r1-2b-3/catalog.config.ts" --cost 0.5 --cap 120`.
+  j-3087 was refused before execution because the bare scripts needed a manual
+  server. j-3088 failed during setup on a relative globalSetup path; neither
+  measured the app. The corrected runner owns and tears down its dev server.
+
+Historical R1.1b/c/d captures and reports rewritten by integration checks were
+restored before build and commit. The final build, landing and deployed-version
+verdicts belong to this branch's pull request and session completion receipt.
+Physical playout hosts, phones and owner judgment are not claimed. The
+[desktop review](../../acceptance/owner-queue/2026-10-03-editor-images.md) is
+asynchronous product feedback; full B04 remains open.

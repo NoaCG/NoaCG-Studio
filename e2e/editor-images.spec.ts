@@ -224,7 +224,7 @@ test('Escape, failed reads and stale revisions discard a whole file batch', asyn
       host.readFinished = false;
       const original = FileReader.prototype.readAsDataURL, decode = HTMLImageElement.prototype.decode;
       HTMLImageElement.prototype.decode = async function () { await decode.call(this); host.readFinished = true; HTMLImageElement.prototype.decode = decode; };
-      FileReader.prototype.readAsDataURL = function (blob) { const reader = this; FileReader.prototype.readAsDataURL = original; host.releaseRead = () => original.call(reader, blob); };
+      FileReader.prototype.readAsDataURL = function (blob) { FileReader.prototype.readAsDataURL = original; host.releaseRead = original.bind(this, blob); };
     });
     await page.getByTestId('image-add-input').setInputFiles(file);
     await expect.poll(() => page.evaluate(() => typeof (window as unknown as { releaseRead?: unknown }).releaseRead)).toBe('function');
