@@ -12,6 +12,8 @@ export interface RenderedPart {
   parent?: [number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
+  /** SVG path user space to composition, including a created path's HTML frame. */
+  pathMatrix?: [number, number, number, number, number, number];
   appearance?: { cue?: number; exiting?: boolean; fontFamily: string; fontSize: number; color: string;
     /** The rendered weight, line spacing as a multiple of the size (none when normal) and letter
      *  spacing in the layer's own pixels (R1.2b.2). */

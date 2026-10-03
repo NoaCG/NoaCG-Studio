@@ -173,6 +173,37 @@ test('the same session id in both trees is counted once, richest file winning', 
   assert.deepEqual(dedupeCodexSessions([thin, full, { sessionId: 'b', snapshots: [] }]).map((s) => s.snapshots.length), [3, 0]);
 });
 
+// Native workers inherit session_id and cwd, but id identifies their own rollout. These are
+// synthetic headers with the observed native shape, never private transcript contents.
+function nativeCodexRollout(id, { worker = false, partial = false } = {}) {
+  const records = parseJsonl(CODEX_ROLLOUT).records;
+  records[0].payload = {
+    id, session_id: 'parent-rollout', cwd: 'C:/studio',
+    ...(worker ? { parent_thread_id: 'parent-rollout', source: { subagent: { thread_spawn: { parent_thread_id: 'parent-rollout', depth: 1 } } } } : { source: 'vscode' }),
+  };
+  return (partial ? records.slice(0, 3) : records).map((record) => JSON.stringify(record)).join('\n');
+}
+
+test('a native parent and two workers sharing session_id retain all cumulative usage', () => {
+  const ids = ['parent-rollout', 'worker-a-rollout', 'worker-b-rollout'];
+  const sessions = dedupeCodexSessions(ids.map((id, index) => readCodexSession(
+    nativeCodexRollout(id, { worker: index > 0 }), { file: `sessions/rollout-${id}.jsonl` },
+  )));
+  assert.deepEqual(sessions.map((session) => session.sessionId), ids);
+  assert.equal(sessions.length, 3);
+  assert.equal(sessions.reduce((sum, session) => sum + codexWindowUsage(session, WHOLE_DAY).tokens.total, 0), 9360);
+  const window = { since: at('2026-08-30T11:30:00Z'), until: WHOLE_DAY.until };
+  assert.equal(sessions.reduce((sum, session) => sum + codexWindowUsage(session, window).tokens.total, 0), 6210);
+});
+
+test('a native worker copied to the archive counts once, richest rollout winning', () => {
+  const thin = readCodexSession(nativeCodexRollout('worker-rollout', { worker: true, partial: true }), { file: 'sessions/rollout-worker.jsonl' });
+  const full = readCodexSession(nativeCodexRollout('worker-rollout', { worker: true }), { file: 'archived_sessions/rollout-worker.jsonl' });
+  const sessions = dedupeCodexSessions([thin, full]);
+  assert.deepEqual(sessions, [full]);
+  assert.equal(codexWindowUsage(sessions[0], WHOLE_DAY).tokens.total, 3120);
+});
+
 // ── Claude Code ──────────────────────────────────────────────────────────────────────────────────
 
 test('a Claude transcript yields one row per usage record, duplicates included', () => {

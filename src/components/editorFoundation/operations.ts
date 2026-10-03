@@ -11,6 +11,8 @@ import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
 import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
 import type { AssetFile } from '../../model/types';
+import { createPath, editPath, editPathPaint, type PathPaint } from '../../blocks/editorPaths';
+import type { PathGeometry } from '../../blocks/pathGeometry';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
@@ -19,6 +21,9 @@ export type EditorOperation =
   | KeyMoveOperation
   | OutOperation
   | StepOperation
+  | { kind: 'path.create'; geometry: PathGeometry; time: number }
+  | { kind: 'path.edit'; selector: string; geometry: PathGeometry }
+  | { kind: 'path.paint'; selector: string; values: PathPaint }
   | { kind: 'asset.import'; assets: AssetFile[] }
   | { kind: 'asset.move'; from: string; to: string }
   | { kind: 'asset.delete'; path: string }
@@ -65,7 +70,13 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'asset.import') {
+    if (operation.kind === 'path.create') {
+      const result = createPath(next, operation.geometry, operation.time); next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'path.edit') {
+      next = editPath(next, operation.selector, operation.geometry); targets.add(operation.selector);
+    } else if (operation.kind === 'path.paint') {
+      next = editPathPaint(next, operation.selector, operation.values); targets.add(operation.selector);
+    } else if (operation.kind === 'asset.import') {
       next = importAssets(next, operation.assets).template;
     } else if (operation.kind === 'asset.move') {
       next = renameGraphicAsset(next, operation.from, operation.to);
