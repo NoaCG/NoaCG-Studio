@@ -12,6 +12,23 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
+## 0.8.1 - 2026-10-03
+
+**Playout settings can read your server's channels.** NoaCG Bridge now asks CasparCG which
+channels it has and which video mode each uses. Playout settings shows those modes, warns if a
+saved channel is missing from the server, and Add channel offers the next channel the server
+really has. Reading the channels changes nothing on air. With an older Bridge, or a server
+that cannot report its channels, the channel list works as before.
+
+**A playing clip can change how it ends.** The Bridge can now change a looping clip to hold,
+clear, or play the next clip without starting it again. The clip finishes its current loop,
+then follows the new ending. This works with CasparCG 2.3 and 2.5. The studio page will send
+these changes in a later update; until then, changing At the end applies at the next Take,
+as before.
+
+Download the new Bridge to read your server's channels and be ready for changes to a playing
+clip's ending. Your saved servers and channels stay with you; there is nothing to set up again.
+
 ## 0.8.0 - 2026-10-02
 
 **Your studio's channels are remembered too.** NoaCG Bridge now keeps, for each CasparCG server, the

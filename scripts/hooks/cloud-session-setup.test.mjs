@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -306,7 +307,7 @@ test("this checkout's own setup is not blamed on the connection, and git output 
   assert.match(githubAccessLine('/repo', failedWith('The requested URL returned error: 403\n')), /^GITHUB CHECK FAILED/);
 });
 
-test('the real probe is quiet on a reachable origin, and a hung one is killed at the cap', () => {
+test('the real probe is quiet on a reachable origin, and a hung one is killed at the cap', async () => {
   const { base, worktree } = staleWorktree();
   const ssh = process.env.GIT_SSH_COMMAND;
   try {
@@ -320,7 +321,9 @@ test('the real probe is quiet on a reachable origin, and a hung one is killed at
   } finally {
     if (ssh === undefined) delete process.env.GIT_SSH_COMMAND;
     else process.env.GIT_SSH_COMMAND = ssh;
-    rmSync(base, { recursive: true, force: true });
+    // On Windows the timed-out git can leave its sleeping SSH child holding the directory
+    // until the sleeping transport exits. Keep the timeout assertions above intact.
+    await rm(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
 
