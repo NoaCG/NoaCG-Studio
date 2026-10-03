@@ -16,7 +16,8 @@ ZIP, unpacked equivalents and `measurements.json` with bytes, file/entry counts 
 Only the Codex main ZIP is the OpenAI public-directory upload. Local stdio MCP is not a hosted
 OpenAI integration. The repository tree has a marketplace and both plugin folders. Each package
 contains source-commit provenance and canonical-source hashes. LF normalization and fixed ZIP
-timestamps make output independent of checkout line endings and generation time on Node 24.
+timestamps make output independent of checkout line endings and generation time. Measurements
+record the Node/zlib versions; use that toolchain for byte-identical compressed output.
 
 The source remains `cli/skill/noacg-graphic`, the plugin metadata/READMEs/command and launcher.
 `cli/scripts/build-skill.mjs` keeps the skill copies, CLI pins, manifests and licences current.

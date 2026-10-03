@@ -1,0 +1,71 @@
+{
+  "artifactSourceCommit": "2036628c117d174fbbceb01b469e59427b8235b9",
+  "cli": "0.8.1",
+  "hosts": {
+    "claudeCode": "2.1.287",
+    "codexCli": "0.162.0-alpha.9"
+  },
+  "node": "24.13.0",
+  "bridge": {
+    "channel": "noacg-bridge",
+    "v": 1,
+    "app": {
+      "commit": "5b91be155a1439e4b7d36f578f43b5a69eb047f8",
+      "ref": "main"
+    },
+    "origin": "https://noacg.studio"
+  },
+  "publicCliIntegrity": "sha512-+XODKUoqyv/Z3zFksVMggOTNuyr/1UwqTH0sL/kxte9V/ryOPRAkKuhQiVnIoKqmyfkVVLcchRBAX7gYvvwOxA==",
+  "installedLockSha256": "0f6b95a2ff26f83f24570cb13d3273514b10488234ccb0567902ce5699db0f55",
+  "audit": {
+    "freshPublicInstallation": 0,
+    "sourceCliLock": {
+      "high": 1,
+      "moderate": 3
+    }
+  },
+  "commands": {
+    "doctor": 0,
+    "scaffold": 0,
+    "inspect": 0,
+    "validate": 0,
+    "screenshot": 0,
+    "offlinePack": 0,
+    "saveMissingLogin": 1,
+    "saveInvalidSyntheticKey": 1,
+    "missingBrowser": 2,
+    "unreachableDeployment": 2
+  },
+  "validation": {
+    "ok": true,
+    "staticGate": {
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    "bench": {
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        {
+          "rule": "bench-stress",
+          "message": "#f1 extends past .scoreboard-box, the nearest thing painted behind it, once every text value is doubled in length - part of the text reads straight against the video. Either let the surface follow the content (width: fit-content, padding) or keep the text inside it."
+        }
+      ]
+    }
+  },
+  "mcp": {
+    "pinnedMissingCliFallback": true,
+    "initialize": true,
+    "toolList": true
+  },
+  "notChecked": [
+    "successful account-backed save",
+    "real self-hosted deployment",
+    "missing Node machine",
+    "managed organization denial",
+    "portal validation and review",
+    "authenticated model-driven host session",
+    "publication and directory discovery"
+  ]
+}

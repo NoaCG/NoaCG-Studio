@@ -106,8 +106,9 @@ function validateManifest(files, host, expectedName, version) {
     requireThat(manifest.displayName === (expectedName === 'noacg' ? 'NoaCG Broadcast Graphics and Playout' : 'NoaCG MCP server'), 'Claude display name drift');
   } else {
     const ui = manifest.interface;
-    for (const [field, limit] of [['displayName', 30], ['shortDescription', 30], ['longDescription', 4000], ['developerName', 50]]) {
-      requireThat(typeof ui?.[field] === 'string' && ui[field].trim() && ui[field].length <= limit && !/[\x00-\x1f\u2028\u2029]/.test(ui[field]), `Codex: invalid ${field}`);
+    for (const [field, limit] of [['displayName', 30], ['shortDescription', 30], ['longDescription', 4000], ['developerName', 80]]) {
+      requireThat(typeof ui?.[field] === 'string' && ui[field].trim() && ui[field].length <= limit
+        && !/[\x00-\x09\x0b-\x1f\u2028\u2029]/.test(ui[field]) && (field === 'longDescription' || !ui[field].includes('\n')), `Codex: invalid ${field}`);
     }
     requireThat(ui.displayName === (expectedName === 'noacg' ? 'NoaCG Graphics and Playout' : 'NoaCG MCP server'), 'Codex display name drift');
     requireThat(ui.category === 'Developer Tools' && Array.isArray(ui.capabilities) && ui.capabilities.length <= 20
@@ -220,7 +221,7 @@ export function assemble(root = ROOT, commit = execFileSync('git', ['rev-parse',
   ]);
   for (const [name, files] of [['noacg', main], ['noacg-mcp', mcp]]) for (const [p, bytes] of files) repository.set(`plugins/${name}/${p}`, bytes);
   packages.repository = repository;
-  const report = { sourceCommit: commit, version: pkg.version, packages: {} };
+  const report = { sourceCommit: commit, version: pkg.version, tooling: { node: process.versions.node, zlib: process.versions.zlib }, packages: {} };
   const archives = new Map();
   for (const [name, files] of Object.entries(packages)) {
     const entries = validatePaths(files);

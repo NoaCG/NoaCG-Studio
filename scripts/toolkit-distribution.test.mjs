@@ -66,6 +66,10 @@ test('reject plugin file count and malformed Codex metadata independently', () =
   assert.throws(() => validatePackage(files, options), /file count/);
   const codex = new Map(result.packages.codex);
   const j=JSON.parse(codex.get('.codex-plugin/plugin.json'));
+  j.interface.developerName='x'.repeat(80);
+  j.interface.longDescription='First paragraph\nSecond paragraph';
+  codex.set('.codex-plugin/plugin.json', Buffer.from(JSON.stringify(j)));
+  validatePackage(codex, {...options, host:'codex'});
   j.interface.displayName='x'.repeat(31);
   codex.set('.codex-plugin/plugin.json', Buffer.from(JSON.stringify(j)));
   assert.throws(() => validatePackage(codex, {...options, host:'codex'}), /invalid displayName/);
@@ -106,7 +110,7 @@ function launcher(t, { installed, override } = {}) {
   mkdirSync(path.dirname(entry), {recursive:true});
   writeFileSync(entry, 'process.stdout.write(JSON.stringify(process.argv.slice(2)));');
   writeFileSync(path.join(dir,'node_modules/@noacg/cli/package.json'),JSON.stringify({name:'@noacg/cli',version:installed ?? '9.9.9',type:'module'}));
-  const env={...process.env,NOACG_CLI:override==='entry'?entry:override ?? '',PATH:''};
+  const env={...process.env,NOACG_CLI:override==='entry'?entry:override==='directory'?path.dirname(entry):override ?? '',PATH:''};
   return spawnSync(process.execPath,[path.join(plugin,'mcp-server.mjs'),'--help'],{env,encoding:'utf8',timeout:10000});
 }
 
@@ -131,4 +135,7 @@ test('explicit development override is disclosed; missing override cannot fall t
   assert.equal(bad.status,1);
   assert.match(bad.stderr,/Fix or unset/);
   assert.equal(bad.stdout,'');
+  const directory=launcher(t,{override:'directory'});
+  assert.equal(directory.status,1);
+  assert.match(directory.stderr,/entry file/);
 });

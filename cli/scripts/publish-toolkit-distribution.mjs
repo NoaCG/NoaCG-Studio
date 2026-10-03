@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { assemble, ROOT, writeDistribution } from './toolkit-distribution.mjs';
 
 export function prepareDistribution({ source = ROOT, out, remote, push = false }) {
-  const gitSource = (...args) => execFileSync('git', args, { cwd: source, encoding: 'utf8' }).trim();
+  const gitSource = (...args) => execFileSync('git', args, { cwd: source, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   if (gitSource('status', '--porcelain', '--untracked-files=normal')) throw new Error('distribution requires clean source');
   if (push && !/^https:\/\/github\.com\/NoaCG\/NoaCG-Studio(?:\.git)?$/.test(remote)) throw new Error('only canonical HTTPS remote may receive distribution');
   const result = assemble(source);
@@ -16,7 +16,7 @@ export function prepareDistribution({ source = ROOT, out, remote, push = false }
   // Use a dedicated temporary output so no previous artifact is mutated by git metadata.
   writeDistribution(path.join(dir, 'artifact'), result);
   const repo = path.join(dir, 'artifact/repository');
-  const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8',
+  const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, GIT_AUTHOR_NAME: 'NoaCG Studio', GIT_AUTHOR_EMAIL: 'noreply@noacg.studio',
       GIT_COMMITTER_NAME: 'NoaCG Studio', GIT_COMMITTER_EMAIL: 'noreply@noacg.studio',
       GIT_AUTHOR_DATE: gitSource('show', '-s', '--format=%cI', 'HEAD'), GIT_COMMITTER_DATE: gitSource('show', '-s', '--format=%cI', 'HEAD') } }).trim();
@@ -28,7 +28,7 @@ export function prepareDistribution({ source = ROOT, out, remote, push = false }
       git('fetch', '--no-tags', remote, 'refs/heads/agent-toolkit-dist');
       const old = JSON.parse(git('show', 'FETCH_HEAD:PROVENANCE.json'));
       // Refuse delayed old releases replacing a newer source snapshot.
-      execFileSync('git', ['merge-base', '--is-ancestor', old.sourceCommit, result.report.sourceCommit], { cwd: source });
+      execFileSync('git', ['merge-base', '--is-ancestor', old.sourceCommit, result.report.sourceCommit], { cwd: source, stdio: 'pipe' });
       if (old.sourceCommit === result.report.sourceCommit) return { sourceCommit: old.sourceCommit, commit: previous, unchanged: true, repository: repo };
     }
   }

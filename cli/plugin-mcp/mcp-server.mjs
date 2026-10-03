@@ -15,7 +15,7 @@
 // fresh user with no global install must still get a working server, and for them this stays
 // exactly as expensive as the plugin already was, never more.
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -55,7 +55,7 @@ function npxEntry() {
 function resolveCli() {
   const override = process.env.NOACG_CLI;
   if (override) {
-    if (!path.isAbsolute(override) || !existsSync(override)) {
+    if (!path.isAbsolute(override) || !existsSync(override) || !statSync(override).isFile()) {
       process.stderr.write('[noacg] NOACG_CLI must name an existing absolute development entry file. Fix or unset it.\n');
       process.exit(1);
     }
