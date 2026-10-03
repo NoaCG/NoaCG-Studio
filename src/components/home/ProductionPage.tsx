@@ -4257,9 +4257,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     </>
                   )}
                   {upHereLayers.length > 0 && (
-                    <span data-testid="live-cue-up-here">
-                      {airingLayers.length > 0 ? ' · ' : ''}up, not live:{' '}
-                      <span className="pd-up-here">○ {upHereLayers.map((l) => l.label).join(' · ')}</span>
+                    <span className="pd-up-here-part" data-testid="live-cue-up-here">
+                      up, not live: <span className="pd-up-here">○ {upHereLayers.map((l) => l.label).join(' · ')}</span>
                     </span>
                   )}
                 </>

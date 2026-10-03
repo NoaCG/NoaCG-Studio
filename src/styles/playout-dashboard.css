@@ -873,7 +873,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-space-mode input { margin: 0; accent-color: var(--amber, #f6a623); }
 .pd-onair { color: #ef4444; font-weight: 600; }
-/* Up on this page only (a production not started): the not-live monitor's grey, never the red. */
+/* Up on this page only (a production not started): the not-live monitor's grey, never the red.
+   One unit that wraps whole, set apart from the on-air names by space rather than another dot. */
+.pd-up-here-part { display: inline-block; }
+.pd-onair + .pd-up-here-part { margin-left: 10px; }
 .pd-up-here { color: var(--text); font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */

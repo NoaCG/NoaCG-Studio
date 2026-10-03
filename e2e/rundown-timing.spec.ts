@@ -61,12 +61,14 @@ async function open(page: Page, s: Seeded): Promise<void> {
 }
 
 const row = (page: Page, cue: string) => page.getByTestId(`cue-${cue}`);
+// Timed cues run unpublished, where a take plays on the page only: the row says UP, not ON AIR.
+const up = (page: Page, cue: string) => row(page, cue).locator('.pd-tag.up');
 const onAir = (page: Page, cue: string) => row(page, cue).locator('.pd-tag.air');
 
 async function takeA(page: Page, s: Seeded): Promise<void> {
   await row(page, s.a).getByTestId('select-cue').click();
   await page.getByTestId('verb-take').click();
-  await expect(onAir(page, s.a)).toBeVisible();
+  await expect(up(page, s.a)).toBeVisible();
 }
 
 test('a cue timed 4 s, Out and next cue: it counts, arms the next, and at zero hands over once, selection untouched', async ({ page }) => {
@@ -89,15 +91,15 @@ test('a cue timed 4 s, Out and next cue: it counts, arms the next, and at zero h
   await expect(row(page, s.b).getByTestId('cue-armed')).toBeVisible();
 
   await page.clock.runFor(3_500);
-  await expect(onAir(page, s.b)).toBeVisible();
-  await expect(onAir(page, s.a)).toHaveCount(0);
+  await expect(up(page, s.b)).toBeVisible();
+  await expect(up(page, s.a)).toHaveCount(0);
   await expect(page.getByTestId('action-log-row').filter({ hasText: 'Auto Out and next cue sent' })).toHaveCount(1);
   // The selection and PREVIEW stayed on the cue the operator was preparing.
   await expect(row(page, s.c).getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
   await expect(page.getByTestId('preview-what')).toHaveText('Cleo');
   // Nothing else fires later: B is a manual cue, and A's lane is gone.
   await page.clock.runFor(20_000);
-  await expect(onAir(page, s.b)).toBeVisible();
+  await expect(up(page, s.b)).toBeVisible();
   await expect(page.getByTestId('action-log-row').filter({ hasText: /^.*Auto/ })).toHaveCount(1);
   await expect(page.getByTestId('program-auto')).toHaveCount(0);
 });
@@ -113,14 +115,14 @@ test('H holds the countdown and H again resumes it from the frozen remainder', a
   await expect(row(page, s.a).getByTestId('cue-auto')).toHaveText(/Held 0:0[23]/);
   // Ten seconds held: nothing fires.
   await page.clock.runFor(10_000);
-  await expect(onAir(page, s.a)).toBeVisible();
+  await expect(up(page, s.a)).toBeVisible();
   await page.keyboard.press('h');
   await expect(page.getByTestId('program-auto')).toHaveAttribute('data-phase', 'running');
   // The page's clock also moves in real time between steps, so the remainder is "about two
   // seconds": still up as it resumes, gone once those two seconds and a margin have passed.
-  await expect(onAir(page, s.a)).toBeVisible();
+  await expect(up(page, s.a)).toBeVisible();
   await page.clock.runFor(2_500);
-  await expect(onAir(page, s.a)).toHaveCount(0);
+  await expect(up(page, s.a)).toHaveCount(0);
   await expect(page.getByTestId('action-log-row').filter({ hasText: 'Auto Out sent' })).toHaveCount(1);
   await expect(page.getByTestId('action-log-row').filter({ hasText: /Held at 0:0[23]/ })).toHaveCount(1);
 });
@@ -133,7 +135,7 @@ test('Manual drops the timed end: the cue stays on air for good', async ({ page 
   await page.getByTestId('program-auto-manual').click();
   await expect(page.getByTestId('program-auto')).toHaveCount(0);
   await page.clock.runFor(30_000);
-  await expect(onAir(page, s.a)).toBeVisible();
+  await expect(up(page, s.a)).toBeVisible();
   // The row is a timed cue again off its lane: its length, not a count.
   await expect(row(page, s.a).getByTestId('cue-auto')).toHaveText('0:04 → Out');
   await expect(page.getByTestId('action-log-row').filter({ hasText: 'Manual' })).toHaveCount(1);
@@ -149,14 +151,14 @@ test('an end action more than 5 s late is missed and never runs, until the opera
   const chip = row(page, s.a).getByTestId('cue-auto');
   await expect(chip).toHaveAttribute('data-phase', 'missed');
   await expect(chip).toContainText(/Out and next cue was due 0:\d\d ago/);
-  await expect(onAir(page, s.a)).toBeVisible();
-  await expect(onAir(page, s.b)).toHaveCount(0);
+  await expect(up(page, s.a)).toBeVisible();
+  await expect(up(page, s.b)).toHaveCount(0);
   await expect(page.getByTestId('action-log-row').filter({ hasText: 'Auto Out and next cue missed' })).toHaveCount(1);
   // The ordinary verbs are there; a press on the chip clears it.
   await chip.click();
   await expect(row(page, s.a).getByTestId('cue-auto')).toHaveText('0:04 → Out + next');
   await page.clock.runFor(30_000);
-  await expect(onAir(page, s.b)).toHaveCount(0);
+  await expect(up(page, s.b)).toHaveCount(0);
 });
 
 test('the editor sets the timing and says what Next cue will take', async ({ page }) => {
@@ -189,7 +191,7 @@ test('a duplicate keeps the timing, and making a counting cue manual stops its c
   await page.getByTestId('cue-ends-mode').selectOption('manual');
   await expect(page.getByTestId('program-auto')).toHaveCount(0);
   await page.clock.runFor(10_000);
-  await expect(onAir(page, s.a)).toBeVisible();
+  await expect(up(page, s.a)).toBeVisible();
 });
 
 test('published, a timed cue is offered disabled and airs as a manual one', async ({ page }) => {
