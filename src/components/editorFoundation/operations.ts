@@ -9,6 +9,8 @@ import { applyAnimation, applyKeyEase, applyKeyMove, type AnimationOperation, ty
 import { applyOut, type OutOperation } from '../../blocks/editorOut';
 import { applyStep, type StepOperation } from '../../blocks/editorSteps';
 import { commitSvgIdentity } from '../../blocks/svgIdentity';
+import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
+import type { AssetFile } from '../../model/types';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
@@ -17,6 +19,11 @@ export type EditorOperation =
   | KeyMoveOperation
   | OutOperation
   | StepOperation
+  | { kind: 'asset.import'; assets: AssetFile[] }
+  | { kind: 'asset.move'; from: string; to: string }
+  | { kind: 'asset.delete'; path: string }
+  | { kind: 'image.place'; assetPath: string; geometry: { x: number; y: number; width: number; height: number }; time: number }
+  | { kind: 'image.replace'; selector: string; assetPath: string; box?: { width: number; height: number } }
   | { kind: 'key.set'; selector: string; step: number; property: string; time: number; value: number }
   | { kind: 'base.set'; selector: string; values: BasePatch }
   | { kind: 'text.set'; selector: string; text: string }
@@ -28,7 +35,7 @@ export interface OperationPatch {
   template: SpxTemplate;
   changedTargets: string[];
   identities?: Record<string, string>;
-  diff: { file: 'html' | 'css' | 'js'; before: string; after: string }[];
+  diff: { file: 'html' | 'css' | 'js' | 'assets'; before: string; after: string }[];
 }
 
 // Compare JSON content irrespective of property order. Refuse fields the current writer
@@ -58,7 +65,18 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'out.set' || operation.kind === 'out.reverse') {
+    if (operation.kind === 'asset.import') {
+      next = importAssets(next, operation.assets).template;
+    } else if (operation.kind === 'asset.move') {
+      next = renameGraphicAsset(next, operation.from, operation.to);
+    } else if (operation.kind === 'asset.delete') {
+      next = removeUnusedAsset(next, operation.path);
+    } else if (operation.kind === 'image.place') {
+      const result = placeGraphicImage(next, operation.assetPath, operation.geometry, operation.time);
+      next = result.template; targets.add(result.selector);
+    } else if (operation.kind === 'image.replace') {
+      next = replaceGraphicImage(next, operation.selector, operation.assetPath, operation.box); targets.add(operation.selector);
+    } else if (operation.kind === 'out.set' || operation.kind === 'out.reverse') {
       next = applyOut(next, operation);
     } else if (operation.kind === 'step.add' || operation.kind === 'step.rename' || operation.kind === 'step.delete' || operation.kind === 'step.move') {
       next = applyStep(next, operation);
@@ -85,8 +103,12 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyKeyOperations(next, [operation]).template; targets.add(operation.selector);
     } else throw new Error('Unknown editor operation.');
   }
-  return { template: next, changedTargets: [...targets], identities, diff: (['html', 'css', 'js'] as const)
-    .filter(file => template[file] !== next[file]).map(file => ({ file, before: template[file], after: next[file] })) };
+  const diff: OperationPatch['diff'] = (['html', 'css', 'js'] as const)
+    .filter(file => template[file] !== next[file]).map(file => ({ file, before: template[file], after: next[file] }));
+  if (template.assets.length !== next.assets.length || template.assets.some((asset, i) => asset.path !== next.assets[i]?.path || asset.data !== next.assets[i]?.data)) {
+    diff.push({ file: 'assets', before: template.assets.map(a => a.path).join('\n'), after: next.assets.map(a => a.path).join('\n') });
+  }
+  return { template: next, changedTargets: [...targets], identities, diff };
 }
 
 function applyKeyOperations(template: SpxTemplate, operations: Extract<EditorOperation, { kind: 'key.set' }>[]): OperationPatch {

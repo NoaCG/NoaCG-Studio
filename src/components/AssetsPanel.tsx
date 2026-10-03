@@ -22,6 +22,15 @@ import {
 import { describeImageImport, importImageFile } from '../assets/imageImport';
 import type { AssetFile } from '../model/types';
 import { useInsertTemplateUi } from './InsertTemplateDialog';
+import { ASSET_ACCEPT } from '../assets/fileImport';
+
+export interface AssetPanelActions {
+  importFiles: (files: File[]) => Promise<string>;
+  move: (from: string, to: string) => string;
+  remove: (path: string) => void;
+  place: (asset: AssetFile) => void;
+  replace?: (asset: AssetFile) => void;
+}
 
 /** Soft per-asset size warning — big data-URL assets weigh on share/render budgets. */
 const WARN_ASSET_BYTES = 1_500_000;
@@ -102,12 +111,14 @@ function AssetInfoSection({
   asset,
   bucketFolders,
   onMove,
+  onRemove,
 }: {
   asset: AssetFile;
   /** Existing + pending folder names offered by the Move select. */
   bucketFolders: string[];
   /** Move/rename the asset to a target path (reference-safe, one undo step). */
   onMove: (fromPath: string, toPath: string) => void;
+  onRemove?: (path: string) => void;
 }) {
   const template = useTemplateStore((s) => s.template);
   const removeAsset = useTemplateStore((s) => s.removeAsset);
@@ -250,13 +261,13 @@ function AssetInfoSection({
         </div>
       </div>
       <div className="row" style={{ marginTop: 8 }}>
-        <button onClick={() => removeAsset(asset.path)} title="Remove from the template (undoable)">✕ Remove</button>
+        <button onClick={() => (onRemove ?? removeAsset)(asset.path)} title="Remove from the template (undoable)">✕ Remove</button>
       </div>
     </div>
   );
 }
 
-export default function AssetsPanel() {
+export default function AssetsPanel({ actions }: { actions?: AssetPanelActions } = {}) {
   const template = useTemplateStore((s) => s.template);
   const addAssets = useTemplateStore((s) => s.addAssets);
   const applyTemplate = useTemplateStore((s) => s.applyTemplate);
@@ -283,6 +294,11 @@ export default function AssetsPanel() {
   /** Move/rename via the reference-rewriting transform — ONE undoable apply, then patch
    *  any sample value that still holds the old path (a filelist field's live value). */
   const handleMove = (fromPath: string, toPath: string) => {
+    if (actions) {
+      try { setSelectedPath(actions.move(fromPath, toPath)); setNote(null); }
+      catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
+      return;
+    }
     const { template: next, newPath } = moveAsset(template, fromPath, toPath);
     if (newPath === fromPath) return;
     applyTemplate(next);
@@ -300,6 +316,11 @@ export default function AssetsPanel() {
     if (!files) return;
     const list = Array.from(files);
     if (list.length === 0) return;
+    if (actions) {
+      try { setNote(await actions.importFiles(list)); }
+      catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
+      return;
+    }
     const accepted: AssetFile[] = [];
     const rejected: string[] = [];
     /** Images that were larger than the frame and got shrunk — SAID OUT LOUD, because the
@@ -431,14 +452,13 @@ export default function AssetsPanel() {
       <div className="panel-section">
         <h3>Assets</h3>
         <p className="hint">
-          Images, video loops, and Lottie animations bundled with this graphic. Drop files
-          anywhere here to import them, then drag an asset onto the canvas to place it.
+          {actions ? 'Images, fonts and other files in this graphic. Import here, then place an image on the canvas.' : 'Images, video loops and Lottie animations bundled with this graphic. Drop files here to import them, then drag an asset onto the canvas to place it.'}
         </p>
         <input
           ref={fileInput}
           type="file"
           multiple
-          accept={ACCEPT}
+          accept={actions ? ASSET_ACCEPT : ACCEPT}
           style={{ display: 'none' }}
           data-testid="assets-import-input"
           onChange={(e) => {
@@ -448,18 +468,19 @@ export default function AssetsPanel() {
         />
         <div className="row" style={{ gap: 6 }}>
           <button className="primary" onClick={() => fileInput.current?.click()} data-testid="assets-import">
-            + Import assets…
+            {actions ? 'Import files…' : '+ Import assets…'}
           </button>
-          <button
+          {!actions && <button
             onClick={openInsertDialog}
             title="Insert a graphic from the template catalog into this project — it joins the canvas, timeline, and states without replacing anything"
             data-testid="assets-insert-template"
           >
             ✚ Template graphic…
-          </button>
-          <button onClick={newFolder} data-testid="assets-new-folder">🗀 New folder…</button>
+          </button>}
+          {!actions && <button onClick={newFolder} data-testid="assets-new-folder">🗀 New folder…</button>}
         </div>
-        {note && <p className={note.startsWith('✗') ? 'status-bad' : 'hint'} style={{ marginTop: 8 }}>{note}</p>}
+        {note && <p role={note.startsWith('✗') ? 'alert' : 'status'} className={note.startsWith('✗') ? 'status-bad' : 'hint'} style={{ marginTop: 8 }}>{note}</p>}
+        {actions && <p className="hint">Drop files here to import without placing. SVG files are image assets; editable SVG artwork uses Import graphic.</p>}
       </div>
 
       {sortedDirs.length > 0 && (
@@ -490,7 +511,12 @@ export default function AssetsPanel() {
         </div>
       )}
 
-      {selected && <AssetInfoSection asset={selected} bucketFolders={foldersFor(selected)} onMove={handleMove} />}
+      {selected && <><AssetInfoSection asset={selected} bucketFolders={foldersFor(selected)} onMove={handleMove} onRemove={actions ? path => {
+        try { actions.remove(path); setNote(null); } catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
+      } : undefined} />
+        {actions && isImageAsset(selected.path) && <div className="row"><button onClick={() => actions.place(selected)}>Place image</button>
+          {actions.replace && <button onClick={() => actions.replace?.(selected)}>Replace selected image</button>}</div>}
+      </>}
     </div>
   );
 }

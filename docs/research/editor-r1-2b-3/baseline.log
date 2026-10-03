@@ -1,0 +1,63 @@
+=== j-3073 set DEV_PORT=5297&& npx playwright test e2e/zz-probe-r1-2b-3.spec.ts --workers=1 && npx playwright test e2e/editor-images.spec.ts --workers=1 --timeout=12000 --grep catalog.*opened
+=== cwd C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline
+[e2e] 3 workers - 3870 MB free
+[WebServer] (node:27492) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:31312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"kind":"catalog","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[]}
+{"kind":"svg","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[{"selector":".imported-design-art","kind":"image","label":"Artwork","channel":"rise","depth":0},{"selector":"#Crest","kind":"image","label":"Crest","channel":"rise","depth":1}]}
+{"kind":"svg","imageSelector":".imported-design-art","replaceControls":0}
+{"kind":"f4","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[]}
+{"kind":"raster","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[{"selector":".imported-design-art","kind":"image","label":"Artwork","channel":"rise"}]}
+{"kind":"raster","imageSelector":".imported-design-art","replaceControls":0}
+{"kind":"created","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[]}
+{"kind":"catalog-logo","imageTool":0,"importInput":0,"assets":0,"files":[],"imageParts":[{"selector":"#f1","kind":"image","label":"Logo","channel":"rise"}]}
+{"kind":"catalog-logo","imageSelector":"#f1","replaceControls":0}
+  ok 1 [chromium] › e2e\zz-probe-r1-2b-3.spec.ts:5:1 › record existing image surfaces by graphic kind (3.6s)
+
+  1 passed (15.5s)
+[e2e] 3 workers - 3929 MB free
+[WebServer] (node:34928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:36320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation (9.7s)
+
+
+  1) [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'image tool' })
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByRole('button', { name: 'image tool' })
+
+
+      89 |   await page.getByTestId('wz-finish-edit-artwork').click();
+      90 |   await expect(page.getByTestId('editor-foundation')).toBeVisible(); await ready(page);
+    > 91 |   await expect(page.getByRole('button', { name: 'image tool' })).toBeVisible();
+         |                                                                  ^
+      92 | });
+      93 |
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:91:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-catalog-open-3c907-earch-offers-image-creation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-catalog-open-3c907-earch-offers-image-creation-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation 
