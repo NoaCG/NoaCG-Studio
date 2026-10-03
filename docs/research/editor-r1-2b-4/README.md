@@ -83,7 +83,7 @@ path vertex through its CTM. j-3097 found the historical fixture's existing
 interpreter migration on reopen. The save check now requires exact authored
 motion, HTML and CSS; each geometry edit still requires byte-identical JS.
 
-Final focused acceptance [j-3154](acceptance.log) passed all 17 cases (34.7 s). It also proves
+Final focused acceptance [j-3158](acceptance.log) passed all 17 cases (34.7 s). It also proves
 point coordinates after whole-layer rotation/nonuniform scale, safe inspection
 and refusal under a truly collapsed parent, selecting edited geometry outside
 its original frame, selecting/moving a horizontal open stroke, and visibility
@@ -111,10 +111,13 @@ relative units explicitly. Its isolated [j-3151](paint-mutations.log) killed bot
 display/refusal mutations. TypeScript and focused lint also pass.
 
 Review also reproduced duplicate source attributes when an imported path used
-uppercase `D` or `STROKE-WIDTH`. Source token matching now follows HTML attribute
-case rules, updates the existing token and refuses mixed-case duplicates. Seven
-Node fixtures cover this case; [j-3153](source-mutations.log) killed its new case
-mutation and rechecked literal-value and duplicate-attribute guards, 3/3.
+uppercase `D` or `STROKE-WIDTH`, or a quoted path value spanned multiple lines.
+Source token matching now follows HTML attribute case rules, spans lines,
+updates the existing token and refuses mixed-case duplicates. Seven Node
+fixtures cover both defects; the transformed imported browser fixture uses a
+multiline path and requires exact coordinates and source restoration on undo.
+The [j-3157 source mutation receipt](source-mutations.log) killed case, multiline,
+literal-value and duplicate-attribute checks, 4/4.
 
 j-3148's browser output reported 17 passes, but the queue reaped its process
 before recording an exit status. Its dependent mutation job never ran. The
@@ -127,7 +130,7 @@ timeline preservation, CSS/SVG/code drivers, animated CSS ownership, topology,
 paint bounds and priority, revision/playhead/cancellation, extended geometry
 hit bounds and thin-stroke selection. Each write and restoration waits two
 seconds; each browser check owns its headless server. Together with the two paint
-mutations and new attribute-case mutation, all 36 named mutations are killed.
+mutations and two attribute-matching mutations, all 37 named mutations are killed.
 The final source run repeats two existing guards without counting them twice.
 
 j-3135 also proves that clicking an anonymous imported vertex without moving
@@ -155,14 +158,14 @@ visible as gaps; no skipped test is claimed as verified by this slice.
 
 j-3137 ran the affected plan with `E2E_WORKERS=3` and a 120-minute cap: 43 specs,
 482 passed and 201 existing skips (12.6 minutes), then 35/35 catalog calibration
-checks passed (4.9 minutes). The final pixel-width display and attribute-case
+checks passed (4.9 minutes). The final pixel-width display and attribute-matching
 corrections above came after this broad run; the full 17-case Pen run, seven Node
 fixtures and their named mutations verify those contained fixes. Linux CI checks
 the final tip and merge group.
 
-/check ran inline over the branch diff: six confirmed findings fixed (singular
+/check ran inline over the branch diff: seven confirmed findings fixed (singular
 forward mapping, extended bounds, thin strokes, CSS keyframe ownership, pixel
-width display and attribute casing). Simplify removed unused paint protocol data
+width display, attribute casing and multiline values). Simplify removed unused paint protocol data
 and redundant HTML transform composition, and memoized path inspection. The
 stamp covers the committed tip. The pull request and session report record the
 queue entry, merge commit and deployed version; full B04 remains open.

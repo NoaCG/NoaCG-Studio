@@ -182,7 +182,7 @@ test('imported path point and tangent editing maps transformed parents and mints
   await open(page, 'svg');
   const selector = await page.evaluate(async () => {
     const store = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
-    const t = { ...store.template, html: store.template.html.replace('</svg>', '<g transform="translate(200 20) rotate(18) scale(1.1 .8)"><path data-pen-fixture="true" d="M 0 0 C 20 -20 70 -20 100 0 L 50 80 Z" fill="#f6a623" /></g></svg>') };
+    const t = { ...store.template, html: store.template.html.replace('</svg>', '<g transform="translate(200 20) rotate(18) scale(1.1 .8)"><path data-pen-fixture="true" d="M 0 0\n C 20 -20 70 -20 100 0\n L 50 80 Z" fill="#f6a623" /></g></svg>') };
     store.applyTemplate(t);
     const doc = new DOMParser().parseFromString(t.html, 'text/html');
     return (await import('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true).find(p => doc.querySelector(p.selector)?.hasAttribute('data-pen-fixture'))!.selector;

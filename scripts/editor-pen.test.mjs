@@ -28,6 +28,7 @@ test('source token edits preserve quote-independent unrelated attributes and gua
   assert.equal(patchPathAttribute('<path class="a" d=\'M0 0 L1 1\' fill="red" />', 'd', 'M 1 2 L 3 4'), '<path class="a" d="M 1 2 L 3 4" fill="red" />');
   assert.equal(patchPathAttribute('<path d="M0 0 L1 1" />', 'stroke', '#112233'), '<path d="M0 0 L1 1" stroke="#112233" />');
   assert.equal(patchPathAttribute('<path D="M0 0 L1 1" />', 'd', 'M 1 2 L 3 4'), '<path D="M 1 2 L 3 4" />');
+  assert.equal(patchPathAttribute('<path d="M0 0\n L1 1" fill="red" />', 'd', 'M 1 2 L 3 4'), '<path d="M 1 2 L 3 4" fill="red" />');
   assert.throws(() => patchPathAttribute('<path d="M0 0" D="M1 1" />', 'd', 'M0 0 L1 1'), /duplicate/);
   assert.throws(() => patchPathAttribute('<path d="M0 0" d="M1 1" />', 'd', 'M0 0 L1 1'), /duplicate/);
   assert.throws(() => patchPathAttribute('<path />', 'onclick', 'alert(1)'), /supported/);

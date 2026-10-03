@@ -41,7 +41,7 @@ export function inspectPath(template: SpxTemplate, selector: string) {
 /** Patch only an opening token. Source offsets are verified by artworkRange first. */
 export function patchPathAttribute(opening: string, name: string, value: string): string {
   if (!['d', 'fill', 'stroke', 'stroke-width'].includes(name) || /["<>]/.test(value)) throw new Error('Use a supported, literal path attribute.');
-  const attribute = new RegExp('(\\s' + name + '\\s*=\\s*)(["\x27])(.*?)\\2', 'gi');
+  const attribute = new RegExp('(\\s' + name + '\\s*=\\s*)(["\x27])(.*?)\\2', 'gis');
   const matches = [...opening.matchAll(attribute)];
   if (matches.length > 1) throw new Error('This path has ambiguous duplicate attributes. Its source is preserved.');
   return matches.length ? opening.replace(attribute, (_match, prefix) => prefix + '"' + value + '"') : opening.replace(/\s*\/?>$/, tail => ' ' + name + '="' + value + '"' + tail);
