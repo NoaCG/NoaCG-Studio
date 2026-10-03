@@ -3,7 +3,8 @@ v: 2
 source: derived
 kind: finding
 raised: 2026-09-30
-state: unstarted
+state: advanced
+note: "the owner ruled on 2026-10-03 that no update waits for a quiet moment; docs/work-specs/live-safe-migrations/spec.md (amended) retires the quiet read (L6) in the same build that puts its 500 ms stall rules (L3) in force; nothing is built yet, so db-push still holds on heartbeats until then"
 found: "Production always has renderers heartbeating, so a live-path migration held for a quiet window may never apply by itself."
 serves: NOW
 size: small
@@ -36,6 +37,15 @@ which reaches the owner, but the migration still waits for someone to run
   `--live`.
 - Or add a nightly `schedule:` to post-land so a quiet night-time window is tried without waiting
   for a landing (the db-push author's suggestion); this does not help while renderers stay open.
+
+## Decided (owner, 2026-10-03)
+
+None of the three options above. The quiet window goes entirely: safety comes from each update's
+own bound on how long it can delay a live action (half a second), and a removal waits only for the
+proof that nothing running depends on it. The design is
+[`work-specs/live-safe-migrations/spec.md`](../work-specs/live-safe-migrations/spec.md) L3 and L6,
+with AC-3 and AC-8; this item closes when that spec converges. 0074 was held the same way on
+2026-10-03 (post-land run 37104930020, one renderer heartbeat on production `49d26e78-...`).
 
 ## Evidence
 
