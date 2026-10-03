@@ -1,6 +1,6 @@
 # Verification: relevant playout health
 
-Product/test revision: `4e2c4e6a30238a52c5c35f8542a0267f23e79a4b`.
+Primary behavior/test revision: `4e2c4e6a30238a52c5c35f8542a0267f23e79a4b`.
 
 ## Acceptance evidence
 
@@ -21,7 +21,7 @@ Product/test revision: `4e2c4e6a30238a52c5c35f8542a0267f23e79a4b`.
 
 ## Review and simplify
 
-The initial delegated review found two confirmed races: remembering settings from an earlier render rather than the actual air command, and an in-flight slot read restoring intent after Take off. Both were fixed. An expanded 15-file delegated pass was clean. Final exact-scope review is inline after test-fixture additions; no further product defect found. The reviewer follow-up could not run because the native agent-thread limit was reached.
+The initial delegated review found two confirmed races: remembering settings from an earlier render rather than the actual air command, and an in-flight slot read restoring intent after Take off. Both were fixed. An expanded 15-file delegated pass was clean. Final exact-scope review is inline after test-fixture additions and recovery-copy alignment. CI then found the unconfigured Setup disclosure was folded; the repair preserves its original open state while folding unused paired Bridge settings. The reviewer follow-up could not run because the native agent-thread limit was reached.
 
 Simplify ran inline over the same diff: one target helper and one successful-action handler serve both existing action doors; no new mode or output protocol was introduced. Published/on-air isolation code is untouched.
 
@@ -32,4 +32,9 @@ Actual CasparCG 2.3/2.5 hardware and a real studio deployment were unavailable. 
 ## Rendered result
 
 Inspected [desktop](evidence/browser-health-desktop.png) and [390px phone](evidence/browser-health-phone.png) captures from final job j-3111. Publish/asset/version copy and the secondary readiness action are readable; buttons remain aligned and within the narrow panel. The phone assertion found no horizontal overflow. Setup starts folded for browser-only health. The existing consent banner is visible behind the panel; it is outside this change.
+
+
+## CI disclosure repair
+
+[CI run 37150639641](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37150639641) reproduced a contained regression: `playout-nav.spec.ts:109` could not click the hidden settings door on an unconfigured production. The Setup folding condition now preserves the original open state until configuration exists. Queued repair job `j-3117` runs the three existing navigation/settings tests plus the new health regression; all four passed (29.4 seconds) after this fix. TypeScript also passed. The same CI run's shard 8 passed all 61 tests and then failed at GitHub ArtifactService upload, separate from the product failure. Superseded final-tip builds `j-3113`/`j-3114` were cancelled before accepting a result; the final landing receipt names the complete final-tip build.
 

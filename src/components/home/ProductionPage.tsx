@@ -4113,7 +4113,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             <PlayoutPanelSection
               title="Setup"
               testId="playout-panel-setup"
-              folded={!playoutRelevance.bridge || (playoutIsConfigured && (bridgeStatus === null || bridgeStatus.state === 'ok'))}
+              folded={playoutIsConfigured && (!playoutRelevance.bridge || bridgeStatus === null || bridgeStatus.state === 'ok')}
             >
               <p className="pd-ready-empty" data-testid="playout-setup-summary">
                 {playoutIsConfigured
