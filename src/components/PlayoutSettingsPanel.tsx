@@ -23,7 +23,7 @@ import {
   type StudioKeeper,
   type StudioSync,
 } from '../control/playoutLink';
-import { MAX_CHANNEL_NAME, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_LAYER, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
 import { plural } from '../control/readiness';
 import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
@@ -32,6 +32,8 @@ import RecentServers from './RecentServers';
 
 /** How long the setup waits after the last keystroke before NoaCG Bridge is given it. */
 const KEEP_AFTER_MS = 600;
+/** How often an open panel asks again while a change waits for NoaCG Bridge: the status poll's pace. */
+const RETRY_WAITING_MS = 3000;
 
 /** Where the setup above is kept, in one line (D17). */
 function keeperLine(keeper: StudioKeeper, s: PlayoutSettings, reason?: PlayoutState): string {
@@ -151,6 +153,18 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
     },
     [],
   );
+  // A CHANGE WAITING FOR NOACG BRIDGE, while the panel is open: asked again every few seconds until
+  // the Bridge takes it. Opened from Home nothing else asks the Bridge, so a change typed while it
+  // was away otherwise reached it only when the panel was opened again. Closed, the change goes with
+  // the next production page's status poll or the next opening of this panel (D17).
+  const waiting = keeper?.keeper === 'waiting';
+  useEffect(() => {
+    if (!paired || !waiting) return;
+    const timer = setInterval(() => {
+      if (loadPlayoutSettings().studioPending) void sync();
+    }, RETRY_WAITING_MS);
+    return () => clearInterval(timer);
+  }, [paired, waiting, sync]);
 
   const set = (patch: Partial<PlayoutSettings>) => {
     savePlayoutSettings(patch);
@@ -445,8 +459,12 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             <input
               type="number"
               min={0}
+              max={MAX_STUDIO_LAYER}
               value={settings.layer}
-              onChange={(e) => set({ layer: Number(e.target.value) || 0 })}
+              // Held to what NoaCG Bridge keeps, a whole number from 0 to 9999, as it is typed: the
+              // Bridge's copy is clamped, and a browser left holding 12000 would play its output on
+              // a slot no other browser paired with that Bridge uses.
+              onChange={(e) => set({ layer: Math.min(MAX_STUDIO_LAYER, Math.max(0, Math.round(Number(e.target.value)) || 0)) })}
               aria-label="Layer"
               data-testid="caspar-layer"
             />

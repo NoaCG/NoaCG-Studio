@@ -321,14 +321,16 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   }
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(2);
 
-  // the state tags: PVW on the cue on preview, ON AIR on the one taken, as words beside the tint.
+  // the state tags: PVW on the cue on preview, UP on the one taken, as words beside the tint. The
+  // production is not started, so the taken graphic plays on this page only and is not ON AIR.
   await row(2).getByTestId('select-cue').click();
   await expect(row(2).locator('.pd-tag')).toHaveText('PVW');
   await parkFocusOffControls(page);
   await page.keyboard.press(' ');
-  await expect(row(2).locator('.pd-tag')).toHaveText('ON AIR');
-  await expect(row(2)).toHaveClass(/on-air/);
-  await expect(row(2).locator('.pd-cue-no')).toHaveText('●');
+  await expect(row(2).locator('.pd-tag')).toHaveText('UP');
+  await expect(row(2)).toHaveClass(/up-here/);
+  await expect(row(2)).not.toHaveClass(/on-air/);
+  await expect(row(2).locator('.pd-cue-no')).toHaveText('○');
 
   // A graphics-only rundown has no length column at all (§6.8).
   const graphicsOnly = await seed(page);
@@ -396,13 +398,13 @@ test('the list follows a cue going on air off-screen, except during a drag, with
   };
   const takeOff = async () => {
     await page.keyboard.press(' ');
-    await expect(last).not.toHaveClass(/on-air/);
+    await expect(last).not.toHaveClass(/up-here/);
   };
 
   // FOLLOWS: SPACE takes the selected (last) cue, off-screen - the list brings it into view.
   await toTop();
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).toBeInViewport();
   await takeOff();
 
@@ -410,7 +412,7 @@ test('the list follows a cue going on air off-screen, except during a drag, with
   await toTop();
   await rows.first().getByTestId('select-cue').focus();
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).not.toBeInViewport();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await takeOff();
@@ -422,7 +424,7 @@ test('the list follows a cue going on air off-screen, except during a drag, with
   await expect(page.getByTestId('cue-actions-menu')).toBeVisible();
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).not.toBeInViewport();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('cue-actions-menu')).toHaveCount(0);
@@ -432,7 +434,7 @@ test('the list follows a cue going on air off-screen, except during a drag, with
   await toTop();
   await rows.first().dispatchEvent('dragstart', { dataTransfer: await page.evaluateHandle(() => new DataTransfer()) });
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).not.toBeInViewport();
   await rows.first().dispatchEvent('dragend');
   await takeOff();
@@ -442,11 +444,11 @@ test('the list follows a cue going on air off-screen, except during a drag, with
   await list.hover();
   await page.mouse.wheel(0, -120);
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).not.toBeInViewport();
   await takeOff();
   await page.clock.fastForward(10_500);
   await page.keyboard.press(' ');
-  await expect(last).toHaveClass(/on-air/);
+  await expect(last).toHaveClass(/up-here/);
   await expect(last).toBeInViewport();
 });

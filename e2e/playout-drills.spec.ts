@@ -185,7 +185,8 @@ test('an unsent edit to the on-air cue is still said on its rundown row after an
   await expect(rows).toHaveCount(2);
   await rows.first().click();
   await page.getByTestId('verb-take').click();
-  await expect(rows.first()).toHaveClass(/on-air/);
+  // Not started, so the taken row is UP on this page rather than ON AIR.
+  await expect(rows.first()).toHaveClass(/up-here/);
   await expect(page.getByTestId('cue-unsent-mark')).toHaveCount(0);
 
   await page.getByTestId('cue-field-f0').fill('Not sent yet');

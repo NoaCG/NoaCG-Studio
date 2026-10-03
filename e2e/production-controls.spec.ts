@@ -102,17 +102,20 @@ test('the selected cue is still identifiable once it is on air, and the editor n
 
   const selected = rows.first();
   await expect(selected).toHaveClass(/selected/);
-  await expect(selected).toHaveClass(/on-air/);
+  // Not started, the taken row's tally is UP's grey dashes rather than the red; it stacks the same way.
+  await expect(selected).toHaveClass(/up-here/);
 
   const paint = await selected.evaluate((el) => {
     const s = getComputedStyle(el);
-    return { outline: s.outlineStyle, outlineWidth: s.outlineWidth, border: s.borderColor };
+    return { outline: s.outlineStyle, outlineWidth: s.outlineWidth, border: s.borderColor, borderStyle: s.borderTopStyle };
   });
   // The cursor is drawn…
   expect(paint.outline).toBe('solid');
   expect(parseFloat(paint.outlineWidth)).toBeGreaterThan(0);
-  // …and the tally is still red, which is the half a border-color fix would silently take away.
-  expect(paint.border).toContain('239, 68, 68');
+  // …and the tally is still drawn, which is the half a border-color fix would silently take away:
+  // UP's grey dashes here, since the production is not started (the red is for what airs).
+  expect(paint.borderStyle).toBe('dashed');
+  expect(paint.border).toContain('139, 152, 168');
 
   // Non-visual, for the same reason: a tally colour tells a screen reader nothing.
   await expect(selected.getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
@@ -1523,14 +1526,14 @@ test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE air
 
   // SPACE airs, and the cue STAYS on PREVIEW so the next press is the off half of the toggle.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(chip).toContainText('Anna');
   await expect(previewWhat).toHaveText('Anna');
   await expect(take).toHaveText(/■ TAKE OFF/);
 
   // SPACE takes it off and leaves it on PREVIEW.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
   await expect(chip).toContainText('nothing on air');
 
@@ -1538,16 +1541,16 @@ test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE air
   // stays up - PREVIEW is a check, not a tally); back to Anna, and SPACE takes her off AND puts
   // her on PREVIEW in Ben's place.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Space');
   await expect(rows.nth(1)).toHaveClass(/on-pvw/);
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(previewWhat).toHaveText('Ben');
   await page.keyboard.press('ArrowUp');
   await expect(take).toHaveText(/■ TAKE OFF/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
   await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
   await expect(previewWhat).toHaveText('Anna');
@@ -1578,10 +1581,10 @@ test('the default SPACE mode is unchanged: selecting previews, SPACE airs, SPACE
   // There is no PREVIEW face in this mode: the first press airs.
   await expect(take).toHaveText(/⟳ TAKE/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(take).toHaveText(/■ TAKE OFF/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
 
   // The two modes are the same table on every surface - the decision itself, pinned once.

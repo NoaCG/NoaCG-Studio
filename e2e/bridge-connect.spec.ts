@@ -556,6 +556,26 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   expect(bridge.actions).toEqual([]);
 });
 
+test('a layer past what the Bridge keeps is held to it here too, so both copies name one slot', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250 }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  // The Bridge keeps layers up to 9999. Typed past it, the browser used to keep 12000 and play there
+  // while the Bridge, and every other browser paired with it, kept 9999.
+  await section.getByTestId('caspar-layer').fill('12000');
+  await expect.poll(() => bridge.servers?.[0].studio?.output).toEqual({ channel: 1, layer: 9999 });
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('9999');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}').layer)).toBe(9999);
+  // A negative or a fraction is held the same way the Bridge holds it.
+  await section.getByTestId('caspar-layer').fill('-5');
+  await expect.poll(() => bridge.servers?.[0].studio?.output.layer).toBe(0);
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('0');
+  await section.getByTestId('caspar-layer').fill('12.6');
+  await expect.poll(() => bridge.servers?.[0].studio?.output.layer).toBe(13);
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('13');
+});
+
 test('a change made while the Bridge is not running is given to it the next time, not replaced by its older copy', async ({ page }) => {
   await seedOnce(page, { host: '192.168.1.20', channels: STUDIO.channels, layer: 30, clipChannel: 2 });
   const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
@@ -572,6 +592,21 @@ test('a change made while the Bridge is not running is given to it the next time
   await expect(back.getByTestId('playout-studio-keeper')).toHaveAttribute('data-keeper', 'bridge');
   await expect(back.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Clean feed');
   expect(bridge.servers?.[0].studio?.channels[1].name).toBe('Clean feed');
+});
+
+test('Playout settings left open on Home give a waiting change to the Bridge as soon as it answers', async ({ page }) => {
+  await seedOnce(page, { host: '192.168.1.20', channels: STUDIO.channels, layer: 30, clipChannel: 2 });
+  const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
+  const keeper = section.getByTestId('playout-studio-keeper');
+  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  // The Bridge is started while the panel is still open. Home has no status poll, and the change
+  // used to wait there until the panel was closed and opened again.
+  bridge.missing = false;
+  await expect.poll(() => bridge.servers?.[0].studio?.channels[1].name, { timeout: 10_000 }).toBe('Clean feed');
+  await expect(keeper).toHaveAttribute('data-keeper', 'bridge');
 });
 
 test('a change typed while the Bridge is still being asked is kept, not replaced by the setup it answers with', async ({ page }) => {
@@ -610,10 +645,30 @@ test('with a Bridge older than 0.8.0 the setup stays in this browser, and it say
 test('a production page opens with the setup the Bridge keeps for its server', async ({ page }) => {
   // This browser still holds the default; another browser has set the studio up since.
   await seedSettings(page);
-  await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  // The Bridge's list answers slowly, so the status has answered well before the setup arrives:
+  // what the setup then does to the status is seen on its own.
+  await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  // Every word the header's status says on the production page, in order.
+  await page.addInitScript(() => {
+    const said: string[] = [];
+    (window as unknown as { statusSaid: string[] }).statusSaid = said;
+    new MutationObserver(() => {
+      const text = document.querySelector('[data-testid="production-status"]')?.textContent ?? '';
+      if (text && said[said.length - 1] !== text) said.push(text);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
   await seededPublishedProduction(page);
+  await expect(page.getByTestId('production-status')).not.toContainText('Checking');
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels');
+  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels', { timeout: 10_000 });
+  // The setup it took names channels and a slot, never where the Bridge and the server are, so the
+  // Bridge status poll carries on. Restarting it for the setup cleared the status back to Checking
+  // and asked everything keyed on an answering Bridge again.
+  await page.waitForTimeout(500);
+  const said = await page.evaluate(() => (window as unknown as { statusSaid: string[] }).statusSaid);
+  const answered = said.findIndex((t) => !t.includes('Checking'));
+  expect(answered, said.join(' | ')).toBeGreaterThanOrEqual(0);
+  expect(said.slice(answered).filter((t) => t.includes('Checking')), said.join(' | ')).toEqual([]);
 });
 
 test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {

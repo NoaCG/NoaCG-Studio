@@ -186,7 +186,9 @@ for (const size of SIZES) {
     // A lower third on air, then the scoreboard selected: PREVIEW, PROGRAM and the long editor.
     await rows.nth(2).getByTestId('select-cue').click();
     await page.getByTestId('verb-take').click();
-    await expect(rows.nth(2)).toContainText('ON AIR');
+    // Not started, so the take plays on the page only: UP, never ON AIR, beside PREVIEW · NOT LIVE.
+    await expect(rows.nth(2).getByTestId('cue-up-here')).toHaveText('UP');
+    await expect(rows.nth(2)).not.toContainText('ON AIR');
     await rows.nth(0).getByTestId('select-cue').click();
     await expect(page.getByTestId('cue-editor')).toBeVisible();
     await expectPage(page, `graphics-only-${size.width}x${size.height}.png`);
