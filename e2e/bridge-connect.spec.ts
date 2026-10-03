@@ -645,16 +645,30 @@ test('with a Bridge older than 0.8.0 the setup stays in this browser, and it say
 test('a production page opens with the setup the Bridge keeps for its server', async ({ page }) => {
   // This browser still holds the default; another browser has set the studio up since.
   await seedSettings(page);
-  const bridge = await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  // The Bridge's list answers slowly, so the status has answered well before the setup arrives:
+  // what the setup then does to the status is seen on its own.
+  await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  // Every word the header's status says on the production page, in order.
+  await page.addInitScript(() => {
+    const said: string[] = [];
+    (window as unknown as { statusSaid: string[] }).statusSaid = said;
+    new MutationObserver(() => {
+      const text = document.querySelector('[data-testid="production-status"]')?.textContent ?? '';
+      if (text && said[said.length - 1] !== text) said.push(text);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
   await seededPublishedProduction(page);
+  await expect(page.getByTestId('production-status')).not.toContainText('Checking');
   await page.getByTestId('production-status').click();
-  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels');
+  await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels', { timeout: 10_000 });
   // The setup it took names channels and a slot, never where the Bridge and the server are, so the
-  // Bridge status poll carries on to its next turn, 3 s on. Restarting it for the setup cleared the
-  // status and asked again at once, re-running everything keyed on an answering Bridge.
+  // Bridge status poll carries on. Restarting it for the setup cleared the status back to Checking
+  // and asked everything keyed on an answering Bridge again.
   await page.waitForTimeout(500);
-  const routes = bridge.routes.slice(bridge.routes.indexOf('/servers'));
-  expect(routes, bridge.routes.join(',')).not.toContain('/status');
+  const said = await page.evaluate(() => (window as unknown as { statusSaid: string[] }).statusSaid);
+  const answered = said.findIndex((t) => !t.includes('Checking'));
+  expect(answered, said.join(' | ')).toBeGreaterThanOrEqual(0);
+  expect(said.slice(answered).filter((t) => t.includes('Checking')), said.join(' | ')).toEqual([]);
 });
 
 test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {
