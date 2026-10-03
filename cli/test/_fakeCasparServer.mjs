@@ -100,7 +100,8 @@ const num = (n) => (Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6) : '0'
  *   media     - `{ NAME: { kind: 'movie' | 'still' | 'audio', seconds?, fps? } }`. Names match
  *               case-insensitively, as the server's do. A movie or audio file needs `seconds`.
  *   templates - template names, for TLS and `CG … ADD`.
- *   channels  - `{ 1: { fps: 25 }, … }`; a command on any other channel is refused.
+ *   channels  - `{ 1: { fps: 25, mode? }, … }`; a command on any other channel is refused. A bare
+ *               INFO lists them, each with its `mode` (default `1080p` and the rate, `1080p2500`).
  *   version   - what VERSION answers.
  *   autoStarting - model the same window after an AUTO switch into a file with `IN`: the file reads
  *               at 0 for STARTING_MS and a `LOADBG … AUTO` in that time fires at once. Off by default:
@@ -237,6 +238,10 @@ export async function fakeCasparServer(options = {}) {
         return `"${m.name.toUpperCase()}"  ${m.kind.toUpperCase()}  1024 20260927120000 ${frames} ${base}\r\n`;
       });
       return `200 CLS OK\r\n${rows.join('')}\r\n`;
+    }
+    if (cmd === 'INFO' && tokens.length === 1) {
+      const rows = Object.entries(channels).map(([c, v]) => `${c} ${v.mode ?? `1080p${Math.round(fpsOf(c) * 100)}`} PLAYING\r\n`);
+      return `200 INFO OK\r\n${rows.join('')}\r\n`;
     }
     const address = tokens[1]?.text ?? '';
     const [channelText, layerText] = address.split('-');

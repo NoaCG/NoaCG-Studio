@@ -387,9 +387,32 @@ test('/health says what the Bridge understands; /status says what this server ca
   t.after(() => caspar.close());
   const { call, casparTarget } = await bridge(t, caspar);
   const health = await call('/health');
-  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending']);
+  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels']);
   const status = await call('/status', { target: casparTarget });
   assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
+});
+
+test('/channels reads the server\'s channels off a bare INFO, and touches no layer', async (t) => {
+  const caspar = await fakeCasparServer({ channels: { 1: { fps: 50, mode: '1080i5000' }, 2: { fps: 50, mode: '720p5000' } } });
+  t.after(() => caspar.close());
+  const { call, casparTarget } = await bridge(t, caspar);
+  const r = await call('/channels', { target: casparTarget });
+  assert.deepEqual(r.body.channels, [
+    { channel: 1, mode: '1080i5000' },
+    { channel: 2, mode: '720p5000' },
+  ]);
+  assert.deepEqual(caspar.seen, ['INFO']);
+});
+
+test('/channels from a server that cannot say is an error, so the page keeps the channels it has', async (t) => {
+  // A reply with no channel line in it (a build that answers INFO otherwise), then no server at all.
+  const caspar = await fakeCasparServer({ intercept: (line) => (line === 'INFO' ? '200 INFO OK\r\n\r\n' : undefined) });
+  const { call, casparTarget } = await bridge(t, caspar);
+  const odd = await call('/channels', { target: casparTarget });
+  assert.deepEqual([odd.body.ok, odd.body.error.hop, odd.body.error.code], [false, 'target', 'unsupported']);
+  await caspar.close();
+  const gone = await call('/channels', { target: casparTarget });
+  assert.deepEqual([gone.body.ok, gone.body.error.code], [false, 'unreachable']);
 });
 
 test('/state reads a channel, and every action\'s reply carries the slot\'s generation', async (t) => {

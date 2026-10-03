@@ -63,6 +63,7 @@ import {
 import type { SpxTemplate } from '../model/types';
 import type { SavedGraphic } from '../model/packets';
 import { graphicLayer, type Show } from '../model/shows';
+import { readAuto } from '../control/cueAuto';
 
 /** Kept for API compatibility with callers/specs that passed backend coordinates; the
  *  production package no longer bakes any hosted receiver (rule 1 above), so the value is
@@ -346,6 +347,9 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
       'controller.html',
       renderProductionControllerHtml({
         show: show.name,
+        // Timed cues do not run here in build 1 (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8): its wire is
+        // a local relay with no durable log to count a deadline from. The rundown says so.
+        ...((show.cues ?? []).some((c) => readAuto(c)) ? { timedCues: true } : {}),
         graphics: panelGraphics.map(({ template, entries }, i) => ({
           // The production's ARRANGE for this graphic, baked at export (§6e: ARRANGE renders on
           // all three deployments). Keyed by the POOL graphic's name, the same key the bindings

@@ -173,3 +173,32 @@ test('an edit to the cue that is on air says it has not been sent yet', async ({
   await expect(unsent).toContainText('changes push live on');
   await expect(page.getByTestId('verb-update')).not.toHaveClass(/pd-unsent/);
 });
+
+test('an unsent edit to the on-air cue is still said on its rundown row after another row is selected', async ({ page }) => {
+  // The control-surfaces review's S1 (2026-10-02): the "not on air yet" line lived only in the
+  // editor, so editing the on-air cue and clicking another row left air behind with nothing on
+  // the page saying so. The ON AIR row now carries it.
+  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
+  await productionOnAir(page, 'Unsent row');
+  const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('add-cue').click();
+  await expect(rows).toHaveCount(2);
+  await rows.first().click();
+  await page.getByTestId('verb-take').click();
+  // Not started, so the taken row is UP on this page rather than ON AIR.
+  await expect(rows.first()).toHaveClass(/up-here/);
+  await expect(page.getByTestId('cue-unsent-mark')).toHaveCount(0);
+
+  await page.getByTestId('cue-field-f0').fill('Not sent yet');
+  await expect(rows.first().getByTestId('cue-unsent-mark')).toBeVisible();
+  // Walk off the on-air cue: the editor's line goes with it, the row's mark stays.
+  await rows.nth(1).click();
+  await expect(page.getByTestId('cue-editor')).not.toContainText('not on air yet');
+  await expect(rows.first().getByTestId('cue-unsent-mark')).toBeVisible();
+
+  // Back on it, ✎ Update sends the edit and the mark comes down.
+  // By its name: the row's middle is now its EDITED tag, which is a mark, not the select button.
+  await rows.first().getByText('Hairline', { exact: true }).click();
+  await page.getByTestId('verb-update').click();
+  await expect(page.getByTestId('cue-unsent-mark')).toHaveCount(0);
+});

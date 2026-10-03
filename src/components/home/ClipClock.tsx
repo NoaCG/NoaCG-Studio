@@ -5,19 +5,23 @@ import type { ServerPlayoutStore, ServerTiming, StorePart } from '../../control/
 import { clipClock, clockedClip, clockText, remainingAt, type ClipClock as ClockData } from '../../control/serverState';
 import { lengthText } from './clipLength';
 
+const monotonic = () => performance.now();
+
 /**
  * The time now, re-read every `ms` while `on`: what a number that counts between two readings of
  * the server needs. Only the component that draws the number re-renders with it, never the page
- * (docs/CLIP_PLAYBACK_PLAN.md §18, case 15).
+ * (docs/CLIP_PLAYBACK_PLAN.md §18, case 15). `clock` is the clock the number counts in: the clip
+ * clock's monotonic one by default, the wall clock for a timed cue (home/CueTiming.tsx). Pass a
+ * stable function, since it is an effect dependency.
  */
-function useNow(on: boolean, ms = 250): number {
-  const [now, setNow] = useState(() => performance.now());
+export function useNow(on: boolean, ms = 250, clock: () => number = monotonic): number {
+  const [now, setNow] = useState(clock);
   useEffect(() => {
     if (!on) return;
-    setNow(performance.now());
-    const t = window.setInterval(() => setNow(performance.now()), ms);
+    setNow(clock());
+    const t = window.setInterval(() => setNow(clock()), ms);
     return () => window.clearInterval(t);
-  }, [on, ms]);
+  }, [on, ms, clock]);
   return now;
 }
 

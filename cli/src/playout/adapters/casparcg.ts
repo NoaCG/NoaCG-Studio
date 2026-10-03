@@ -11,6 +11,7 @@ import {
   amcpQuote,
   amcpSend,
   layerAddress,
+  parseChannels,
   parseCls,
   parseTls,
   parseVersion,
@@ -31,6 +32,7 @@ import type {
   PlayoutRenderer,
   PlayoutVerb,
   SequenceEntry,
+  ServerChannel,
   Slot,
   SlotState,
   Target,
@@ -77,6 +79,8 @@ export interface PlayoutAdapter<T extends Target = Target> {
   renderers?(target: T): Promise<AdapterResult<PlayoutRenderer[]>>;
   thumbnail(target: T, name: string): Promise<AdapterResult<{ png: string }>>;
   act(target: T, action: PlayoutAction, context?: ActContext): Promise<ActResult>;
+  /** The channels the server has, for a target that can say (`/channels`). */
+  channels?(target: T): Promise<AdapterResult<ServerChannel[]>>;
   /** What each layer of one channel holds, for a target that can say (`/state`). */
   state?(target: T, channel: number): Promise<AdapterResult<SlotReading[]>>;
   /** Queue what plays when the clip on the slot ends, for a target that runs sequences. */
@@ -541,6 +545,18 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
               changed: m.changed,
             }));
       return { ok: true, value: items, raw: r.raw };
+    },
+
+    // A bare INFO: one line per channel, on every version (docs/BRIDGE.md). A reply with no channel
+    // line in it is a shape this Bridge cannot read, so the page keeps the channels it was given.
+    async channels(target) {
+      const r = await send(target, 'INFO', false, STATE_TIMEOUT_MS);
+      if (!r.ok) return r;
+      const channels = parseChannels(r.value.lines);
+      if (!channels.length) {
+        return { ok: false, error: { hop: 'target', code: 'unsupported', detail: `${targetName(target)} answered INFO without a channel this Bridge can read.`, raw: r.raw } };
+      }
+      return { ok: true, value: channels, raw: r.raw };
     },
 
     async thumbnail(target, name) {

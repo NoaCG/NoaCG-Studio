@@ -711,6 +711,65 @@ export function canAdvance(js: string, state: { groups?: Record<string, string> 
 }
 
 /**
+ * Whether the graphic has STEPS for » Next to walk: more than one on-air waypoint between its
+ * entrance and its exit, or an authored `next` arrow. A plain lower third has neither, and saying
+ * "last step" under its greyed Next would be noise about a graphic that never had a second one.
+ */
+export function hasSteps(js: string): boolean {
+  const main = machineOf(js)?.groups[0];
+  if (!main) return false;
+  return (main.defaultPath ?? []).length > 3 || main.transitions.some((t) => t.trigger === 'operator' && t.event === 'next');
+}
+
+/**
+ * WHERE » Next would take the graphic, by the same reading as `canAdvance`: the state it enters
+ * and, when the arrow is an operator press, the event that press is. Null when that is not known
+ * (no report yet, no machine) or when Next would do nothing (`canAdvance` false). The surfaces
+ * name the target on the button, because a Next that silently jumped a quiz from its question to
+ * its reveal read as a skipped step (docs/research/control-surfaces-review-2026-10-02 §4, slice 2).
+ */
+export function advanceTarget(
+  js: string,
+  state: { groups?: Record<string, string> } | null | undefined,
+): { state: string; event?: string } | null {
+  if (!state || !state.groups) return null;
+  const main = machineOf(js)?.groups[0];
+  if (!main) return null;
+  const cur = state.groups[main.id];
+  if (cur === undefined || !canAdvance(js, state)) return null;
+  const path = main.defaultPath ?? [];
+  const at = path.indexOf(cur);
+  const arrow =
+    at < 0
+      ? main.transitions.find((t) => t.trigger === 'operator' && t.from === cur && t.event === 'next')
+      : main.transitions.find((t) => t.trigger === 'operator' && t.from === cur && t.to === path[at + 1]) ??
+        walkEntry(main, at + 1);
+  if (!arrow) return at < 0 ? null : { state: path[at + 1] };
+  return { state: arrow.to, ...(arrow.trigger === 'operator' && arrow.event ? { event: arrow.event } : {}) };
+}
+
+/**
+ * The words » Next wears for its target: the control's word when the arrow is one, as the ⚡
+ * button wears it (the answer board's `judge` reads "Reveal correct", or the production's rename
+ * of it - pass the ARRANGED controls), else the state's own name. A plain `next` arrow is no
+ * control, so it names the state.
+ */
+export function advanceLabel(
+  js: string,
+  state: { groups?: Record<string, string> } | null | undefined,
+  controls: ArrangedControls,
+  names: Record<string, Record<string, string>>,
+): string | null {
+  const target = advanceTarget(js, state);
+  if (!target) return null;
+  const all = [...controls.pinned, ...controls.sections.flatMap(([, c]) => c), ...controls.more];
+  const control = target.event && target.event !== 'next' ? all.find((c) => c.button.event === target.event) : undefined;
+  if (control) return control.label;
+  const group = machineOf(js)?.groups[0];
+  return (group && names[group.id]?.[target.state]) || target.state;
+}
+
+/**
  * The operator events a plain Next (SPX Continue, `CG … NEXT`) fires somewhere on the graphic's
  * walk, by the same reading as `canAdvance`: the authored operator arrow that reaches each
  * waypoint (`walkEntry`), plus `next` itself wherever an authored `next` arrow leaves the path.

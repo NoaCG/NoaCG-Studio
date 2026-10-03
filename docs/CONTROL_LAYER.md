@@ -325,10 +325,10 @@ than discovering whether the mechanism works at all.
    The offline suite pins the READ side of that column and the record round trip
    (`e2e/hosted-control.spec.ts`); only a real backend can show the write, because
    `publishControlShow` returns before its upsert when there is no Supabase.
-9. ARRANGE on the hosted page (migration 0059): on the production page's Controls panel pin one
+9. ARRANGE on the hosted page (migration 0059): with the production page's ⚡ Arrange toggle pin one
    control, hide and rename another, publish, then open `?control=<slug>` signed out. The pinned
    one is above the fold, the renamed one is under "More" wearing the production's word, and it
-   still greys and un-greys with the machine exactly as the visible ones do. Delete the profile,
+   still greys and un-greys with the machine exactly as the visible ones do. Clear it with "Back to the graphic's own",
    publish again → the generated panel is back. This is the ONE part of AC-5 no offline spec can
    see: mounting the hosted page needs a configured backend, so the in-app and exported
    deployments are pinned in the suite and this one is pinned here.

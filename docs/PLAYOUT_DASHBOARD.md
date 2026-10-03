@@ -33,6 +33,11 @@ the surface serves it.
 - Going straight to air is allowed (take without looking) — the gate is a courtesy, not a lock.
 - Replacing a live graphic with a new one is the same gesture, which is why a rundown row can
   read ON AIR while another reads PVW.
+- **ON AIR only when it is** (docs/work-specs/studio-day-playout D16). A production that is not
+  started keeps every verb, but a graphic's Take then plays on this page only: its row reads `UP`
+  in grey with a dashed border, the line under the verbs says "up, not live", and the program
+  monitor reads PREVIEW · NOT LIVE. A server cue plays through NoaCG Bridge either way and reads
+  ON AIR in red.
 
 ## 2. Layout — desktop
 
@@ -302,12 +307,20 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   Update `U`, Next `N`, Out `0`, and `↑`/`↓` walk the rundown; a server clip's Pause carries `P`
   (§2h), which toggles it. `■ All out` lives in the header,
   away from the others, because it is the panic control.
+- **A timed cue counts on its row and over PROGRAM** (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, built
+  2026-10-03 for unpublished productions). The cue editor's Ends row times a graphic cue: after so
+  many seconds ON AIR, Out, Next cue (the next graphic cue in the rundown) or both. The countdown
+  starts when PROGRAM says it holds the cue, never at the press. `H` holds the countdown that fires
+  soonest and resumes it, whatever is selected; the chip over PROGRAM carries Hold and Manual, and
+  Manual has no key because it is final. An end action more than 5 s late is marked missed on its
+  row and never runs. Nothing automatic moves the selection or PREVIEW.
 - **There is no PREVIEW verb on the two React surfaces** (owner, 2026-08-22 — "you can drop
   preview"). Selection already IS the preview gesture, and their PVW monitor is a local stage
   that follows it, so the button re-selected the cue that was already on it and its key `P` did
   the same. It was reading as the second-loudest control on a bar where everything else changes
   air. The EXPORTED controller keeps its `→ Preview`, where the word means something else
-  entirely: it puts the cue on a real second output stream.
+  entirely: it puts the cue on a real second output stream. Its key is `V` since 2026-10-02:
+  `P` is pause on the other two surfaces, and one key means one verb everywhere.
 - **THE VERB BLOCK IS TWO COLUMNS WIDE AT EVERY SIZE, with TAKE spanning the pair.** It sits
   between the cue list and the monitors, and that space is not decoration — "this is a very
   important space on the screen, so it can't just be one small column that you can miss" (owner,
@@ -710,7 +723,7 @@ name and tooltip say the kind and the graphic in words, "Lower third · Hairline
 `⌀` clears, nothing for Hold; `✎` a cue with an operator note, the note in its tooltip and
 accessible name), and a dim summary (a graphic's first words, "Alexandra Riva"; a server
 item's own name). Then, in the same place on every row so they read down the list: the ON AIR /
-PVW tag, the clip's length (a column only when the rundown has a server clip), the **slot**
+UP / PVW tag, the clip's length (a column only when the rundown has a server clip), the **slot**
 (`L20`, or `2-10` for a server cue) and the `⋯`. What the old second line carried is moved, never
 dropped - the kind and the graphic's name are the icon's, the note is the ✎'s, the layer is the
 slot - and `e2e/playout-rail-width.spec.ts` holds that table. The summary gives way first, and a

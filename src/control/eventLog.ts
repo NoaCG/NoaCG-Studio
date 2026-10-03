@@ -23,7 +23,7 @@ export interface LogEntry {
   /** `note` is the one kind no LOG ROW produces: it is the surface saying something the operator
    *  asked for did not happen. Those are not commands and were never written to the log, so the
    *  feed is the only place on the surface that can say them. */
-  kind: 'take' | 'out' | 'update' | 'next' | 'play' | 'stop' | 'event' | 'snap' | 'note';
+  kind: 'take' | 'out' | 'update' | 'next' | 'play' | 'stop' | 'event' | 'snap' | 'note' | 'auto';
   text: string;
 }
 
@@ -93,6 +93,12 @@ export function eventLogLabel(buttons: ControlButton[], event: string): string |
  *  log row, so it takes the page's own negative id. */
 export function noteEntry(id: number, text: string): LogEntry {
   return { id, at: new Date().toISOString(), graphic: '', kind: 'note', text };
+}
+
+/** A timed cue's own line (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1): its end action sent or missed, a
+ *  hold, a resume, Manual. Said by the surface that saw it, like a note, but it is an action. */
+export function autoEntry(id: number, graphic: string, text: string): LogEntry {
+  return { id, at: new Date().toISOString(), graphic, kind: 'auto', text };
 }
 
 export function appendLogEntries(current: LogEntry[], incoming: LogEntry[]): LogEntry[] {

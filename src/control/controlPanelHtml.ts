@@ -440,7 +440,7 @@ GRAPHICS.forEach(function (g) {
 
   function post(msg) { if (ch) ch.postMessage(msg); sendRemote(msg); if (msg.t !== 'hello') { sendRelay(g.name, msg); record(msg); } }
   // PREPARED vs PUBLISHED: with Live off, edits stay in this panel (staged — the badge
-  // says so) and go on air only on an explicit ⟳ Take / ▶ Play. Nothing airs merely
+  // says so) and go on air only on an explicit ✎ Update / ▶ Play. Nothing airs merely
   // because it was typed.
   var lastSent = {};
   for (var sk in state) lastSent[sk] = state[sk];
@@ -487,7 +487,7 @@ GRAPHICS.forEach(function (g) {
     if (event === 'clockReset') return { value: CLOCK.resetTo, when: 'after' };
     return null;
   }
-  // Bank the clock's new value: into the field state, so every later ⟳ Take re-sends it (a
+  // Bank the clock's new value: into the field state, so every later ✎ Update re-sends it (a
   // STAMPED value is idempotent — re-sending it a minute later still resolves to the right
   // second, where a raw counter snapshot pulled the clock backwards on every score bump), and
   // onto the wire, which is what puts it in the log this panel replays when a rebooted graphic
@@ -625,7 +625,7 @@ GRAPHICS.forEach(function (g) {
 
   // ── The card ──
   var chip = el('span', { class: 'state-chip', title: "The graphic's current machine state" });
-  stagedChip = el('span', { class: 'staged-chip', title: 'Edits staged in this panel. They are not on air until you Take.' }, ['● staged']);
+  stagedChip = el('span', { class: 'staged-chip', title: 'Edits staged in this panel. They are not on air until ✎ Update or ▶ Play.' }, ['● staged']);
   var card = el('div', { class: 'card' }, [el('h2', {}, [g.name, chip, stagedChip])]);
 
   // Machine event buttons, grouped by section. A button carries its payload fields' CURRENT
@@ -677,7 +677,7 @@ GRAPHICS.forEach(function (g) {
     // unless it is already one, and remove fields with the last such line taken out - an empty
     // source, or a line the list does not hold, leaves the list off the wire. The new value is
     // written into the panel's own state + box - the press aired it, so it is what the next
-    // press counts from and what every later ⟳ Take re-sends.
+    // press counts from and what every later ✎ Update re-sends.
     var payload = null;
     (e.payload || []).forEach(function (key) {
       if (state[key] !== undefined) { payload = payload || {}; payload[key] = state[key]; }
@@ -801,7 +801,7 @@ GRAPHICS.forEach(function (g) {
     }
     var entryPlay = el('button', { class: 'primary', title: 'Play the graphic with this entry' }, ['▶ Play entry']);
     entryPlay.onclick = function () { applyEntry(true); post({ t: 'play' }); };
-    var entryLoad = el('button', { title: 'Load this entry into the fields (airs on Take unless live)' }, ['Load']);
+    var entryLoad = el('button', { title: 'Load this entry into the fields (airs on ✎ Update or ▶ Play unless live)' }, ['Load']);
     entryLoad.onclick = function () { applyEntry(false); };
     entrySel.onchange = function () { applyEntry(false); };
     var entriesWrap = el('div', { class: 'events' }, [el('h3', {}, ['Entries'])]);
@@ -845,7 +845,10 @@ GRAPHICS.forEach(function (g) {
 
   var play = el('button', { class: 'primary' }, ['▶ Play']);
   var stop = el('button', {}, ['■ Stop']);
-  var upd = el('button', { title: 'Take the staged values on air' }, ['⟳ Take']);
+  // ✎ UPDATE, in the glossary's word (docs/CONTROL_LAYER.md "The operator verbs"): it pushes the
+  // staged values to the live graphic without re-animating it. It was labelled "⟳ Take", the
+  // glossary's word for values PLUS the entrance, which is ▶ Play on this panel.
+  var upd = el('button', { title: 'Push the edited values to the live graphic without re-animating it' }, ['✎ Update']);
   var next = el('button', {}, ['» Next']);
   play.onclick = function () { sendUpdate(); post({ t: 'play' }); };
   stop.onclick = function () { post({ t: 'stop' }); };

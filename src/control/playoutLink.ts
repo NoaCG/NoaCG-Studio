@@ -40,6 +40,7 @@ import {
   type ListItem,
   type PlayoutAction,
   type RememberedServer,
+  type ServerChannel,
   type SlotState,
   type StudioSetup,
   type StateReply,
@@ -375,6 +376,7 @@ interface BridgeReply {
   session?: string;
   observedAt?: number;
   slots?: SlotState[];
+  channels?: ServerChannel[];
 }
 
 type Call = { http: number; body: BridgeReply } | { timedOut: true } | { networkError: string };
@@ -585,6 +587,19 @@ export async function readState(settings: PlayoutSettings, channel: number): Pro
   };
 }
 
+/**
+ * THE CHANNELS THE SERVER HAS (a bare INFO, through a Bridge with the `channels` feature), so
+ * Playout settings offers them instead of asking the studio to type them. Undefined whenever the
+ * server cannot say - an older Bridge, no server, a reply it could not read - and the settings then
+ * work exactly as before, from the channels the studio named. It touches no layer.
+ */
+export async function serverChannels(settings: PlayoutSettings): Promise<ServerChannel[] | undefined> {
+  if (!playoutConfigured(settings)) return undefined;
+  const asked = await askBridge(settings, 'channels', '/channels', { target: targetOf(settings) });
+  const channels = 'body' in asked ? asked.body.channels : undefined;
+  return Array.isArray(channels) && channels.length ? channels : undefined;
+}
+
 /** The Test connection button: a real AMCP VERSION, round-tripped. Remembers nothing. */
 export async function testConnection(settings: PlayoutSettings): Promise<PlayoutResult> {
   return (await through(settings, '/status', {})).result;
@@ -618,11 +633,12 @@ export async function rememberedServers(settings: PlayoutSettings): Promise<Reme
 }
 
 /**
- * ONE OF THE BRIDGE'S OWN ROUTES, which name no server (`/servers`, `/studio`, `/pair-link`): what it
- * answered, or why not in the words every other route uses - a rejected token, a refused site, no
+ * ONE OF THE BRIDGE'S OWN ROUTES, which name no server (`/servers`, `/studio`, `/pair-link`), or
+ * `/channels`, a reading that touches no layer: what it answered, or why not in the words every other
+ * route uses - a rejected token, a refused site, no
  * answer - never a bare "did not answer". `ownRoute` is the call alone, for a Bridge already probed.
  */
-async function ownRoute(settings: PlayoutSettings, path: '/servers' | '/studio' | '/pair-link', body: Record<string, unknown>): Promise<{ body: BridgeReply } | { failed: PlayoutResult }> {
+async function ownRoute(settings: PlayoutSettings, path: '/servers' | '/studio' | '/pair-link' | '/channels', body: Record<string, unknown>): Promise<{ body: BridgeReply } | { failed: PlayoutResult }> {
   // Past `/health`, so no permission prompt can be holding it open: a file read, answered at once.
   const call = await callBridge(settings.agentUrl, path, body, STATE_TIMEOUT_MS, settings.agentToken);
   if (!('http' in call)) {
@@ -636,12 +652,13 @@ async function ownRoute(settings: PlayoutSettings, path: '/servers' | '/studio' 
 async function askBridge(
   settings: PlayoutSettings,
   feature: BridgeFeature,
-  path: '/servers' | '/pair-link',
+  path: '/servers' | '/pair-link' | '/channels',
+  body: Record<string, unknown> = {},
 ): Promise<{ body: BridgeReply; features: BridgeFeature[] } | { failed: PlayoutResult } | { missing: true }> {
   const { unreachable, features } = await probeBridge(settings.agentUrl);
   if (unreachable) return { failed: unreachable };
   if (!features.includes(feature)) return { missing: true };
-  const asked = await ownRoute(settings, path, {});
+  const asked = await ownRoute(settings, path, body);
   return 'body' in asked ? { body: asked.body, features } : asked;
 }
 

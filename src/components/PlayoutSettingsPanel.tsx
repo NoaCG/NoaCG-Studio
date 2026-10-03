@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_PLAYOUT_CHANNEL, MIN_PLAYOUT_CHANNEL } from '../model/shows';
 import {
   channelLabel,
@@ -10,6 +10,7 @@ import {
   putOutputOnAir,
   savePlayoutSettings,
   serverAddress,
+  serverChannels,
   slotAddress,
   slotOf,
   syncStudio,
@@ -22,7 +23,8 @@ import {
   type StudioKeeper,
   type StudioSync,
 } from '../control/playoutLink';
-import { MAX_CHANNEL_NAME, type RememberedServer } from '../control/playoutProtocol';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_LAYER, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
+import { plural } from '../control/readiness';
 import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import CopyPairingLink from './CopyPairingLink';
@@ -30,6 +32,8 @@ import RecentServers from './RecentServers';
 
 /** How long the setup waits after the last keystroke before NoaCG Bridge is given it. */
 const KEEP_AFTER_MS = 600;
+/** How often an open panel asks again while a change waits for NoaCG Bridge: the status poll's pace. */
+const RETRY_WAITING_MS = 3000;
 
 /** Where the setup above is kept, in one line (D17). */
 function keeperLine(keeper: StudioKeeper, s: PlayoutSettings, reason?: PlayoutState): string {
@@ -83,7 +87,30 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
   // Where the studio setup is kept (D17), and why the Bridge was not asked. Unknown until the first
   // sync answers.
   const [keeper, setKeeper] = useState<{ keeper: StudioKeeper; reason?: PlayoutState } | null>(null);
+  // The channels the server reports having, for the server they were read from: a list read from
+  // one address never speaks for another typed since. Null while no server has said.
+  const [reported, setReported] = useState<{ at: string; channels: ServerChannel[] } | null>(null);
+  const channelReads = useRef(0);
   const paired = Boolean(settings.agentToken.trim());
+
+  /** Ask the server which channels it has: when the panel opens, and after Test or Connect
+   *  reaches it. Only the latest read lands, so a slow one for a server left behind never
+   *  replaces it; and one that gets no answer keeps the last list, since the server's config did
+   *  not change because one reading timed out. */
+  const readChannels = useCallback(async (alive: () => boolean = () => true) => {
+    const read = ++channelReads.current;
+    const now = loadPlayoutSettings();
+    const channels = await serverChannels(now);
+    if (alive() && read === channelReads.current && channels) setReported({ at: serverAddress(targetOf(now)), channels });
+  }, []);
+  useEffect(() => {
+    if (!paired) return;
+    let alive = true;
+    void readChannels(() => alive);
+    return () => {
+      alive = false;
+    };
+  }, [paired, readChannels]);
 
   /** What a sync came to: the Bridge's setup when it held a newer one, its list, and the keeper line. */
   const show = useCallback((done: StudioSync) => {
@@ -126,6 +153,18 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
     },
     [],
   );
+  // A CHANGE WAITING FOR NOACG BRIDGE, while the panel is open: asked again every few seconds until
+  // the Bridge takes it. Opened from Home nothing else asks the Bridge, so a change typed while it
+  // was away otherwise reached it only when the panel was opened again. Closed, the change goes with
+  // the next production page's status poll or the next opening of this panel (D17).
+  const waiting = keeper?.keeper === 'waiting';
+  useEffect(() => {
+    if (!paired || !waiting) return;
+    const timer = setInterval(() => {
+      if (loadPlayoutSettings().studioPending) void sync();
+    }, RETRY_WAITING_MS);
+    return () => clearInterval(timer);
+  }, [paired, waiting, sync]);
 
   const set = (patch: Partial<PlayoutSettings>) => {
     savePlayoutSettings(patch);
@@ -144,6 +183,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
       if (verb === 'test') {
         const r = await testConnection(now);
         setResult({ verb, result: r, ok: connectedTo(r) });
+        if (r.state === 'ok') void readChannels();
       } else if (verb === 'connect') {
         const connected = await connectServer(now);
         if (connected.servers) setServers(connected.servers);
@@ -151,6 +191,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
         if (connected.studio) show(connected.studio);
         const r = connected.result;
         setResult({ verb, result: r, ok: `${connectedTo(r)}${r.features?.includes('servers') ? '. NoaCG Bridge remembers this server.' : ''}` });
+        if (r.state === 'ok') void readChannels();
       } else if (outputUrl) {
         const r = await putOutputOnAir(now, outputUrl);
         setResult({ verb, result: r, ok: `✓ On ${slotAddress(slotOf(now))} of ${serverAddress(targetOf(now))}` });
@@ -179,17 +220,27 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
       ...(moved && settings.clipChannel === was ? { clipChannel: patch.channel } : {}),
     });
   };
-  /** The next number up, named by its number like every new row. While clips still share the
-   *  graphics channel, the new row also becomes the clip default: a studio adds a second
-   *  channel to put something else on it, and a stock single-channel studio never has a clip
-   *  aimed at a channel it lacks. Both picks stay one select away below. */
+  // What the server reports, when it is the server these settings name. A row it lacks is a cue
+  // that would not play there, so it is said, never silently dropped: the server may be one
+  // started with another config for the moment.
+  const onServer = reported && reported.at === serverAddress(targetOf(settings)) ? reported.channels : null;
+  const modeOf = new Map(onServer?.map((c) => [c.channel, c.mode]));
+  const notOnServer = onServer ? [...new Set(settings.channels.map((row) => row.channel).filter((n) => !modeOf.has(n)))] : [];
+  /** The next channel the server has that no row names, else the next number up (a channel the
+   *  server lacks is then said, not refused: a studio may be preparing another config); named by
+   *  its number like every new row. While clips still share the graphics
+   *  channel, the new row also becomes the clip default: a studio adds a second channel to put
+   *  something else on it, and a stock single-channel studio never has a clip aimed at a channel
+   *  it lacks. Both picks stay one select away below. */
   const highestChannel = Math.max(...settings.channels.map((row) => row.channel));
+  const offered = onServer?.find((c) => c.channel <= MAX_PLAYOUT_CHANNEL && !settings.channels.some((row) => row.channel === c.channel))?.channel;
+  const nextChannel = offered ?? (highestChannel < MAX_PLAYOUT_CHANNEL ? highestChannel + 1 : undefined);
   const addRow = () => {
-    const next = Math.min(MAX_PLAYOUT_CHANNEL, highestChannel + 1);
+    if (nextChannel === undefined) return;
     const firstExtra = settings.clipChannel === settings.channel;
     set({
-      channels: [...settings.channels, { channel: next, name: defaultChannelName(next) }],
-      ...(firstExtra ? { clipChannel: next } : {}),
+      channels: [...settings.channels, { channel: nextChannel, name: defaultChannelName(nextChannel) }],
+      ...(firstExtra ? { clipChannel: nextChannel } : {}),
     });
   };
   const removeRow = (index: number) => set({ channels: settings.channels.filter((_, i) => i !== index) });
@@ -302,7 +353,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             {settings.channels.map((row, i) => {
               const isGraphics = row.channel === settings.channel;
               return (
-                <div className="playout-channel-row" key={i} data-testid="caspar-channel-row">
+                <div className={`playout-channel-row${onServer ? ' playout-channel-row--server' : ''}`} key={i} data-testid="caspar-channel-row">
                   <input
                     type="number"
                     min={MIN_PLAYOUT_CHANNEL}
@@ -327,6 +378,16 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
                     aria-label={`Channel ${row.channel} name`}
                     data-testid="caspar-channel-name"
                   />
+                  {onServer && (
+                    // The channel's video mode, in the server's own words, or that it has none.
+                    <span
+                      className={`playout-channel-mode${modeOf.has(row.channel) ? '' : ' status-warn'}`}
+                      title={modeOf.get(row.channel) ?? `This server has no channel ${row.channel}.`}
+                      data-testid="caspar-channel-mode"
+                    >
+                      {modeOf.get(row.channel) ?? 'Not on server'}
+                    </span>
+                  )}
                   <button
                     onClick={() => removeRow(i)}
                     disabled={isGraphics}
@@ -346,10 +407,10 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             <div>
               <button
                 onClick={addRow}
-                disabled={highestChannel >= MAX_PLAYOUT_CHANNEL}
+                disabled={nextChannel === undefined}
                 data-testid="caspar-channel-add"
               >
-                + Add channel
+                {offered !== undefined ? `+ Add channel ${offered}` : '+ Add channel'}
               </button>
             </div>
           </div>
@@ -359,9 +420,21 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
               number, so give each row its own.
             </p>
           )}
-          <p className="dlg-hint">
-            The channels in this server&rsquo;s <code>casparcg.config</code>. A name is optional.
-            Every server item in a rundown picks one of these beside its layer.
+          {notOnServer.length > 0 && (
+            <p className="dlg-hint status-warn" data-testid="caspar-channel-missing">
+              This server has no channel {notOnServer.join(' or ')}, so a cue on it would not play.
+              Change the row&rsquo;s number, or remove a row you do not use.
+            </p>
+          )}
+          <p className="dlg-hint" data-testid="caspar-channels-hint">
+            {onServer ? (
+              `The server reports ${plural(onServer.length, 'channel')}.`
+            ) : (
+              <>
+                The channels in this server&rsquo;s <code>casparcg.config</code>.
+              </>
+            )}{' '}
+            A name is optional. Every server item in a rundown picks one of these beside its layer.
           </p>
         </div>
 
@@ -386,8 +459,12 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             <input
               type="number"
               min={0}
+              max={MAX_STUDIO_LAYER}
               value={settings.layer}
-              onChange={(e) => set({ layer: Number(e.target.value) || 0 })}
+              // Held to what NoaCG Bridge keeps, a whole number from 0 to 9999, as it is typed: the
+              // Bridge's copy is clamped, and a browser left holding 12000 would play its output on
+              // a slot no other browser paired with that Bridge uses.
+              onChange={(e) => set({ layer: Math.min(MAX_STUDIO_LAYER, Math.max(0, Math.round(Number(e.target.value)) || 0)) })}
               aria-label="Layer"
               data-testid="caspar-layer"
             />

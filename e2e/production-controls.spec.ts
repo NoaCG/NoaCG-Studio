@@ -102,17 +102,20 @@ test('the selected cue is still identifiable once it is on air, and the editor n
 
   const selected = rows.first();
   await expect(selected).toHaveClass(/selected/);
-  await expect(selected).toHaveClass(/on-air/);
+  // Not started, the taken row's tally is UP's grey dashes rather than the red; it stacks the same way.
+  await expect(selected).toHaveClass(/up-here/);
 
   const paint = await selected.evaluate((el) => {
     const s = getComputedStyle(el);
-    return { outline: s.outlineStyle, outlineWidth: s.outlineWidth, border: s.borderColor };
+    return { outline: s.outlineStyle, outlineWidth: s.outlineWidth, border: s.borderColor, borderStyle: s.borderTopStyle };
   });
   // The cursor is drawn…
   expect(paint.outline).toBe('solid');
   expect(parseFloat(paint.outlineWidth)).toBeGreaterThan(0);
-  // …and the tally is still red, which is the half a border-color fix would silently take away.
-  expect(paint.border).toContain('239, 68, 68');
+  // …and the tally is still drawn, which is the half a border-color fix would silently take away:
+  // UP's grey dashes here, since the production is not started (the red is for what airs).
+  expect(paint.borderStyle).toBe('dashed');
+  expect(paint.border).toContain('139, 152, 168');
 
   // Non-visual, for the same reason: a tally colour tells a screen reader nothing.
   await expect(selected.getByTestId('select-cue')).toHaveAttribute('aria-current', 'true');
@@ -185,6 +188,8 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   await judge.click();
   await expect(chip).toHaveText('Reveal');
   await expect(program.locator('.quiz-correct')).toHaveCount(1);
+  // The snap is recovery, folded closed at the foot of the block.
+  await page.getByTestId('cue-actions-recovery').locator('summary').click();
   await page.getByTestId('machine-snap').selectOption({ label: 'Locked in' });
   await expect(chip).toHaveText('Locked in');
   await expect(program.locator('.quiz-correct')).toHaveCount(0);
@@ -1193,8 +1198,7 @@ test.describe('the cue editor groups fields by what they belong to', () => {
 // the hidden button below is asserted DISABLED and then ENABLED rather than merely present — a
 // profile that could change legality would be the behaviour the whole design refuses.
 
-test('the Controls panel arranges the ⚡ block, and deleting the profile puts the generated one back', async ({ page }) => {
-  skipOldEditor();
+test('the ⚡ block arranges in place, and clearing the arrangement puts the generated one back', async ({ page }) => {
   await bootstrapGraphic(page, { name: 'Club Scorebug' });
   await productionFor(page, 'Club Match');
 
@@ -1205,23 +1209,27 @@ test('the Controls panel arranges the ⚡ block, and deleting the profile puts t
   await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
   await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
   await expect(page.getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop clock');
+  // There is no separate Controls panel any more: pin and hide live on the buttons.
+  await expect(page.getByTestId('controls-panel')).toHaveCount(0);
 
-  // AUTHOR IT THROUGH THE PANEL, not through the model: the panel and the block it authors are
-  // one feature, and a profile written straight into the record would pass over the half an
-  // operator actually touches.
-  const panel = page.getByTestId('controls-panel');
-  await panel.locator('summary').click();
-  await expect(panel.getByTestId('controls-list')).toBeVisible();
-  await panel.getByTestId('controls-pin-clockStart').click();
+  // AUTHOR IT ON THE BLOCK, not through the model: the block and its arrangement are one
+  // feature, and a profile written straight into the record would pass over the half an
+  // operator actually touches. While arranging, the buttons are chips and nothing fires.
+  await page.getByTestId('cue-actions-arrange').click();
+  await expect(page.getByTestId('cue-actions-arranging')).toBeVisible();
+  await expect(page.getByTestId('cue-action-clockStart')).toHaveCount(0);
+  await page.getByTestId('arrange-pin-clockStart').click();
   // Rename AND hide the same control, because the two questions are one: does the word the
   // production chose follow the control into the drawer, and is it still the same control.
   // The name commits on BLUR, not per keystroke: trimming every keystroke made the box refuse a
   // space, so "Stop the clock" could not be typed at all. Pressing Enter is the same commit.
-  await panel.getByTestId('controls-name-clockStop').fill('Stop the clock');
-  await panel.getByTestId('controls-name-clockStop').press('Enter');
-  await panel.getByTestId('controls-hide-clockStop').click();
+  await page.getByTestId('arrange-name-clockStop').fill('Stop the clock');
+  await page.getByTestId('arrange-name-clockStop').press('Enter');
+  await page.getByTestId('arrange-hide-clockStop').click();
+  await page.getByTestId('cue-actions-arrange').click();
+  await expect(page.getByTestId('cue-actions-arranging')).toHaveCount(0);
 
-  // PINNED: above the fold, out of its section, still in the block.
+  // PINNED: at the top, out of its section, still in the block.
   const pinned = page.getByTestId('cue-actions-pinned');
   await expect(pinned.getByTestId('cue-action-clockStart')).toBeVisible();
   // HIDDEN: behind one collapsed drawer, wearing the production's own word.
@@ -1231,7 +1239,7 @@ test('the Controls panel arranges the ⚡ block, and deleting the profile puts t
   await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveCount(0);
 
   // STILL GUARDED BY THE SAME TABLE. Stop clock has no arrow out of "armed", so the hidden,
-  // renamed button is disabled exactly as the visible one was — and starting the clock enables
+  // renamed button is disabled exactly as the visible one was, and starting the clock enables
   // it. This is the assertion that says ARRANGE moved presentation and not behaviour.
   await page.getByTestId('verb-take').click();
   const hiddenStop = more.getByTestId('cue-action-clockStop');
@@ -1240,22 +1248,24 @@ test('the Controls panel arranges the ⚡ block, and deleting the profile puts t
   await expect(page.getByTestId('machine-state-chip')).toContainText(/running/i);
   await expect(hiddenStop).toBeEnabled();
 
-  // DELETE IS ONE ACTION and leaves the COMPLETE generated panel (docs/CONTROL_PANEL_ROAD.md §3).
-  await panel.getByTestId('controls-delete-profile').click();
+  // ONE ACTION BACK to the COMPLETE generated panel (docs/CONTROL_PANEL_ROAD.md §3).
+  await page.getByTestId('cue-actions-arrange').click();
+  await page.getByTestId('arrange-reset').click();
+  await page.getByTestId('cue-actions-arrange').click();
   await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
   await expect(page.getByTestId('cue-actions-more')).toHaveCount(0);
   await expect(actions.locator('.pd-actions-section', { hasText: 'Clock' }).getByTestId('cue-action-clockStop')).toHaveText(
     '⚡ Stop clock',
   );
   // The record goes back to having no profile at all, rather than to an empty one: a production
-  // that never had a profile and one whose profile was deleted must be byte-identical, or every
-  // surface downstream grows a second "no profile" to recognise.
+  // that never had a profile and one whose last arrangement was cleared must be byte-identical,
+  // or every surface downstream grows a second "no profile" to recognise.
   const stored = await page.evaluate(async () => {
     const { loadShows } = await import('/src/model/shows.ts');
     const show = loadShows().find((s) => s.name === 'Club Match')!;
     return { hasKey: 'profile' in show, profile: show.profile ?? null };
   });
-  expect(stored.hasKey, 'delete must remove the key, not leave an empty profile').toBe(false);
+  expect(stored.hasKey, 'clearing the last arrangement must remove the key, not leave an empty profile').toBe(false);
   expect(stored.profile).toBeNull();
 });
 
@@ -1406,12 +1416,11 @@ test('a production stored with Combined controls still opens, arranged, and carr
   // THE ARRANGEMENT RENDERS: pinned above the fold, hidden behind "More" under its own name.
   await expect(page.getByTestId('cue-actions-pinned').getByTestId('cue-action-clockStart')).toBeVisible();
   await expect(page.getByTestId('cue-actions-more').getByTestId('cue-action-clockStop')).toHaveText('⚡ Stop the clock');
-  // …and nothing of the removed list: no section, no button, nothing in the Controls panel.
+  // …and nothing of the removed list: no section, no button, nothing while arranging either.
   await expect(page.getByTestId('cue-actions')).not.toContainText('Combined');
   await expect(page.getByText('Kick off sequence')).toHaveCount(0);
-  const panel = page.getByTestId('controls-panel');
-  await panel.locator('summary').click();
-  await expect(panel).not.toContainText(/combined/i);
+  await page.getByTestId('cue-actions-arrange').click();
+  await expect(page.getByTestId('cue-actions')).not.toContainText(/combined/i);
 
   /** The stored profile, and the text of both packages this production exports right now. */
   const read = () =>
@@ -1445,7 +1454,8 @@ test('a production stored with Combined controls still opens, arranged, and carr
 
   // ARRANGE STILL WORKS ON IT: unpinning writes the profile, and the write is canonical, so the
   // old list leaves the record with it while the rest of the arrangement stays.
-  await panel.getByTestId('controls-pin-clockStart').click();
+  await page.getByTestId('arrange-pin-clockStart').click();
+  await page.getByTestId('cue-actions-arrange').click();
   await expect(page.getByTestId('cue-actions-pinned')).toHaveCount(0);
   const after = await read();
   expect(after.profile).not.toContain('combine');
@@ -1516,14 +1526,14 @@ test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE air
 
   // SPACE airs, and the cue STAYS on PREVIEW so the next press is the off half of the toggle.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(chip).toContainText('Anna');
   await expect(previewWhat).toHaveText('Anna');
   await expect(take).toHaveText(/■ TAKE OFF/);
 
   // SPACE takes it off and leaves it on PREVIEW.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
   await expect(chip).toContainText('nothing on air');
 
@@ -1531,16 +1541,16 @@ test('SPACE previews first: the cursor previews nothing, SPACE stages, SPACE air
   // stays up - PREVIEW is a check, not a tally); back to Anna, and SPACE takes her off AND puts
   // her on PREVIEW in Ben's place.
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Space');
   await expect(rows.nth(1)).toHaveClass(/on-pvw/);
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(previewWhat).toHaveText('Ben');
   await page.keyboard.press('ArrowUp');
   await expect(take).toHaveText(/■ TAKE OFF/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
   await expect(rows.nth(1)).not.toHaveClass(/on-pvw/);
   await expect(previewWhat).toHaveText('Anna');
@@ -1571,10 +1581,10 @@ test('the default SPACE mode is unchanged: selecting previews, SPACE airs, SPACE
   // There is no PREVIEW face in this mode: the first press airs.
   await expect(take).toHaveText(/⟳ TAKE/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).toHaveClass(/on-air/);
+  await expect(rows.nth(0)).toHaveClass(/up-here/);
   await expect(take).toHaveText(/■ TAKE OFF/);
   await page.keyboard.press('Space');
-  await expect(rows.nth(0)).not.toHaveClass(/on-air/);
+  await expect(rows.nth(0)).not.toHaveClass(/up-here/);
   await expect(rows.nth(0)).toHaveClass(/on-pvw/);
 
   // The two modes are the same table on every surface - the decision itself, pinned once.

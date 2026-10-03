@@ -800,6 +800,19 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   gap: 8px;
   white-space: nowrap;
 }
+/* » NEXT NAMES ITS TARGET (control-surfaces review slice 2): a second, small line under the verb
+   says what the press will do ("Reveal correct", "last step"). The button keeps its size: the
+   line is cut with an ellipsis rather than widening a bar the operator knows by position. */
+.pd-verb-main { display: inline-flex; align-items: center; gap: 8px; }
+.pd-verb.pd-verb-named { flex-direction: column; justify-content: center; gap: 1px; padding-top: 3px; padding-bottom: 3px; }
+.pd-verb-target {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: var(--text-dim);
+}
 /* One key chip for everything in the bar - the buttons and the SPACE-mode checkbox alike. */
 .pd-verbs kbd {
   font-family: var(--mono, monospace);
@@ -860,6 +873,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-space-mode input { margin: 0; accent-color: var(--amber, #f6a623); }
 .pd-onair { color: #ef4444; font-weight: 600; }
+/* Up on this page only (a production not started): the not-live monitor's grey, never the red.
+   One unit that wraps whole, set apart from the on-air names by space rather than another dot. */
+.pd-up-here-part { display: inline-block; }
+.pd-onair + .pd-up-here-part { margin-left: 10px; }
+.pd-up-here { color: var(--text); font-weight: 600; }
 
 /* ── The cue editor ────────────────────────────────────────────────────────── */
 /* CONTENT-SIZED, never a scroller: this is the pane the owner reported on 2026-08-19, and the
@@ -1073,8 +1091,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-editor-events { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .pd-editor-events button { font-size: 12.5px; padding: 6px 11px; }
 
-/* GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §8) — the machine's ⚡ buttons under the cue
-   editor. Its own panel, NOT part of the editor's frame: the editor's fields air on Take,
+/* GRAPHIC ACTIONS (docs/PLAYOUT_DASHBOARD.md §8) — the machine's ⚡ buttons, straight under the
+   monitors and above the cue editor (live actions first, 2026-10-02). Its own panel, NOT part of the editor's frame: the editor's fields air on Take,
    these act on the live graphic immediately, and the two must never read as one surface. */
 .pd-actions {
   flex: 0 0 auto;
@@ -1142,73 +1160,85 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
 
-/* THE CONTROLS PANEL — authoring, not operating (components/home/ProductionControlsPanel.tsx).
-   It wears the ⚡ block's chrome because it is about that block, and it is a `<details>` because
-   a drag-to-reorder list open under the buttons that go to air is a hazard mid-programme. */
-.pd-controls-panel > summary {
-  cursor: pointer;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  list-style: none; /* the kicker IS the affordance; a disclosure triangle beside it reads twice */
-}
-.pd-controls-panel > summary::-webkit-details-marker { display: none; }
-.pd-controls-panel > summary .muted { font-size: 11px; }
-.pd-controls-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-/* One row per control: grip, the name box that grows, then the two marks at a fixed width so the
-   column of buttons reads straight down the list rather than stepping in and out with the
-   longest name. */
-.pd-controls-row {
-  display: flex;
+/* RECOVERY - the snap picker, folded closed at the foot of the ⚡ block. It wears the drawer
+   look of "More" because it is one: not how a graphic is driven, there for the moment air and
+   the page are out of step. */
+.pd-actions-recovery .pd-actions-help { margin-top: 4px; }
+
+/* ARRANGING (components/home/ActionArranger.tsx) - the ⚡ block's own authoring posture. The
+   toggle is quiet at rest (it is not a press of the show) and amber while on, and the block's
+   frame turns dashed so a block whose buttons do not fire cannot be mistaken for one that does. */
+.pd-arrange-toggle { margin-left: auto; font-size: 11.5px; padding: 3px 10px; color: var(--text-dim, #9aa1ad); }
+.pd-arrange-toggle.on { color: var(--text); border-color: var(--amber); }
+.pd-actions.arranging { border-style: dashed; border-color: var(--amber); }
+/* One chip per control, the size of the button it stands for: pin, the name, hide. */
+.pd-arrange-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 6px;
+  gap: 2px;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--bg-panel, rgba(255, 255, 255, 0.02));
 }
-.pd-controls-row.dragging { opacity: 0.45; }
-/* A hidden control still reads, at a lower weight: it is behind "More", not gone, and a row you
-   cannot read is a row you will not un-hide. */
-.pd-controls-row.hidden .pd-controls-name { color: var(--text-dim, #9aa1ad); }
-/* The grip is the drag SOURCE now, not the whole row, so it has to read as the handle: a little
-   bigger than the row's text and it takes the padding, so the grab target is the full row height
-   rather than one 11px glyph. */
-.pd-controls-row .pd-grip {
-  cursor: grab;
+.pd-arrange-chip.pinned { border-color: var(--amber); }
+/* A hidden control still reads, at a lower weight: it is behind "More", not gone. */
+.pd-arrange-chip.hidden .pd-arrange-name { color: var(--text-dim, #9aa1ad); }
+.pd-arrange-pin,
+.pd-arrange-hide {
+  font-size: 12px;
+  padding: 3px 7px;
+  background: none;
+  border-color: transparent;
   color: var(--text-dim, #9aa1ad);
-  font-size: 13px;
-  line-height: 1;
-  padding: 6px 2px;
 }
-.pd-controls-row .pd-grip:active { cursor: grabbing; }
-/* THE NAME IS AN INLINE EDIT, not a form field. Six full-width boxes stacked under the ⚡ block's
-   compact chips made the authoring panel the heaviest thing in the column, and read as six values
-   waiting to be filled in rather than as a list of controls. The border and ground arrive on
-   hover and focus, which is where the affordance is needed and nowhere else. */
-.pd-controls-name {
-  flex: 1 1 auto;
+.pd-arrange-pin[aria-pressed='true'] { color: var(--amber); }
+.pd-arrange-pin:hover:not(:disabled),
+.pd-arrange-hide:hover { color: var(--text); border-color: var(--border); }
+/* THE NAME IS AN INLINE EDIT, not a form field: its border arrives on hover and focus. */
+.pd-arrange-name {
+  width: auto;
   min-width: 0;
   font-size: 12.5px;
-  padding: 4px 8px;
+  padding: 3px 6px;
   background: transparent;
   border-color: transparent;
 }
-.pd-controls-name:hover { border-color: var(--border); }
-.pd-controls-name:focus {
-  border-color: var(--accent);
-  background: var(--bg-panel, rgba(255, 255, 255, 0.02));
+.pd-arrange-name:hover { border-color: var(--border); }
+.pd-arrange-name:focus { border-color: var(--accent); background: var(--bg-2, #14161c); }
+.pd-arrange-reset { margin: 10px 0 0; }
+.pd-arrange-reset button { font-size: 11.5px; padding: 3px 10px; }
+
+/* THE SETUP FOLD - the cue editor's fields under live actions. Built like the Advanced toggle
+   (a quiet disclosure, not a control of the show); folded, it reads back what the cue is set to
+   on one line, cut with an ellipsis rather than wrapping the editor taller. */
+.pd-fields-fold {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 8px;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
 }
-.pd-controls-mark {
-  flex: 0 0 auto;
-  min-width: 78px;
-  font-size: 11.5px;
-  padding: 4px 8px;
-  color: var(--text-dim, #9aa1ad);
+.pd-fields-fold-sum {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-dim);
 }
-.pd-controls-mark.on { color: var(--text); border-color: var(--accent); }
-.pd-controls-delete { display: flex; align-items: center; gap: 10px; margin: 12px 0 0; flex-wrap: wrap; }
-.pd-controls-delete .hint { margin: 0; flex: 1 1 220px; }
 
 .pd-action.destructive { border-color: #7a4a2a; }
 .pd-action.destructive:hover:not(:disabled) { border-color: var(--accent); }
@@ -1610,6 +1640,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    rows can be red at once, one per layer that is up. */
 .pd-cue.on-air { border-color: rgba(239, 68, 68, 0.85); background: rgba(239, 68, 68, 0.09); }
 .pd-cue.on-pvw { border-color: rgba(246, 166, 35, 0.7); background: rgba(246, 166, 35, 0.07); }
+/* UP, NOT LIVE: a graphic taken in a production that is not started plays on this page only, so
+   its row wears the not-live monitor's grey and dashes rather than the program red. */
+.pd-cue.up-here { border-color: var(--text-dim); border-style: dashed; background: rgba(255, 255, 255, 0.04); }
 
 /* ── SELECTION IS THE OPERATOR'S CURSOR, AND IT IS NOT A TALLY (owner, 2026-09-05) ──
    It used to be `border-color: #3b4252` and nothing else, which the two rules ABOVE overwrite:
@@ -1676,6 +1709,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-tag { font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; flex: none; padding: 2px 6px; border-radius: 4px; }
 .pd-tag.air { color: #fff; background: #ef4444; }
 .pd-tag.pvw { color: #1a1205; background: var(--amber); }
+.pd-tag.up { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-dim); }
 .pd-cue-menu-host { position: relative; flex: none; }
 .pd-cue-more { opacity: 0; }
 .pd-cue:hover .pd-cue-more,
@@ -1890,8 +1924,12 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* Part of a folder on air, and a folder Take that missed a cue: outlined, so the solid red of ON AIR
    stays the one mark for "all of it is up". */
 .pd-rundown .pd-tag.part { color: #fca5a5; box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.8); }
-.pd-rundown .pd-tag.miss { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
-.pd-rundown .pd-tag.next { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
+/* EDITED (slice 1) wears NOT TAKEN's look: the on-air cue differs from air. Amber, the colour of
+   "not on air yet" in the editor, outlined so it reads as a note beside ON AIR, not a second tally. */
+.pd-rundown .pd-tag.miss,
+.pd-rundown .pd-tag.unsent { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
+.pd-rundown .pd-tag.next,
+.pd-rundown .pd-tag.armed { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
 /* WHERE A DRAG LANDS: a line at the row's edge, in the cursor's colour - in by a step when it lands
    inside a folder, and across the header's box when it lands in a collapsed one. Red and dashed when
    it cannot land there; the note under the list says why. */
@@ -2018,6 +2056,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-rail { order: 2; border-top: 1px solid var(--border); margin-top: 10px; }
   .pd-editor { order: 3; margin: 10px 12px 0; }
   .pd-actions { order: 3; margin: 10px 12px 0; }
+  /* Arranging is authoring, like Export: it stands down on the phone, where the block is operated. */
+  .pd-arrange-toggle:not(.on) { display: none; }
   .pd-activity { order: 4; padding: 8px 12px 0; }
   .pd-verbs { order: 5; }
   /* In ONE scrolling column nothing may take its height from leftover space — there is none to
@@ -2448,3 +2488,65 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-server-cues { border-top: 1px solid var(--border); padding: 8px 12px; }
 .pd-server-cues h3 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 6px; }
 .pd-cue-server { cursor: default; }
+
+/* ── TIMED CUES (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1) ───────────────────────────────────
+   A timed row wears its length and end in the same mono figures as a clip's length; on air the
+   chip counts and is a button that holds it, amber in its last five seconds, dashed while held.
+   Missed reads in the amber of the other "this did not happen" tags. The chip over PROGRAM sits at
+   the end of the monitor's one-line header, so nothing moves when a countdown starts. */
+/* Off air it gives way before the name does, down to its length (`0:08…`, the title says the rest),
+   the rule NEXT ON SERVER follows; counting, it never shrinks. */
+.pd-auto {
+  flex: 0 100 auto;
+  min-width: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  white-space: nowrap;
+  line-height: 1;
+}
+button.pd-auto {
+  flex: none;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+button.pd-auto.warn { color: var(--amber); border-color: rgba(246, 166, 35, 0.8); }
+button.pd-auto.held { border-style: dashed; color: var(--text-dim); }
+button.pd-auto.waiting { color: var(--text-dim); }
+/* Missed is a sentence, so it may give way to the name like the off-air words; its title says it whole. */
+button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgba(246, 166, 35, 0.7); font-family: inherit; }
+/* ARMED wears NEXT's look, counting in even figures. */
+.pd-rundown .pd-tag.armed { font-variant-numeric: tabular-nums; }
+.pd-auto-chip {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+.pd-auto-chip-count { font-family: var(--mono, monospace); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.pd-auto-chip.warn .pd-auto-chip-count { color: var(--amber); }
+.pd-auto-chip.held .pd-auto-chip-what { color: var(--text-dim); }
+.pd-auto-chip button { font-size: 10.5px; letter-spacing: 0.02em; padding: 1px 7px; font-weight: 600; }
+/* The ENDS pick takes the settings row's second track, beside the note, so a manual cue's settings
+   stay one line; a timed cue's length and end take a line of their own under them. */
+.pd-cue-ends {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.pd-cue-ends .pd-cue-ends-after { width: 120px; }
+.pd-cue-ends .pd-cue-ends-then { width: 170px; }
+.pd-field-ends select,
+.pd-cue-ends-then select { width: 100%; }
+.pd-cue-ends-hint { flex: 1 0 100%; margin: 0; font-size: 12px; }

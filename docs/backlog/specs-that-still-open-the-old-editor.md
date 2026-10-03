@@ -732,12 +732,11 @@ CHAT INTAKE (src/audience/chatIntake.ts): Twitch / YouTube live chat as a PRODUC
 - the throttle and the dedupe refuse visibly, and what passes is what the inbox holds
 - pause stops collecting without counting a backlog, resume collects again, remove disconnects
 
-### `e2e/production-controls.spec.ts` - 2 of 29 skipped
+### `e2e/production-controls.spec.ts` - 1 of 29 skipped
 
 The production page's GRAPHIC ACTIONS block (docs/PLAYOUT_DASHBOARD.md §8): the machine's ⚡ buttons rendered from the metadata that travels inside the template, greyed by the structural guard, with the state chip naming
 
 - ± LIVE NUMBERS bumps a figure on air without publishing other staged edits
-- the Controls panel arranges the ⚡ block, and deleting the profile puts the generated one back
 
 ### `e2e/production-data.spec.ts` - 9 of 24 skipped
 
