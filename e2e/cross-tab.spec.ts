@@ -53,6 +53,23 @@ test('a second tab’s work survives the first tab’s next write', async ({ pag
   await expect(b.locator('.pd-dataset')).toHaveCount(1);
   await settleDurableWrites(b);
 
+  // Tab A hears of that write and re-reads it - asynchronously, so a write it makes in the few
+  // milliseconds before the re-read lands still puts the old record back (durableStore.ts says
+  // so; closing that window is docs/backlog/a-tab-that-writes-before-it-adopts-loses-the-other-tabs-work.md).
+  // A spec acting at machine speed hit it on a cold CI runner (run 37118664889) - a person
+  // switching tabs does not - so wait for the adoption here. Without the invalidation this
+  // wait never ends, so it still guards what the spec is for.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const { loadShows } = await import('/src/model/shows.ts');
+          return (loadShows()[0].datasets ?? []).length;
+        }),
+      { message: 'the first tab never adopted the second tab’s table' },
+    )
+    .toBe(1);
+
   // Tab A - which was open the whole time and never showed that table - writes to the same
   // production through the ordinary model path.
   await page.evaluate(async () => {
