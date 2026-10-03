@@ -3900,6 +3900,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  first, from what this page already knows - published or not, changed since, the Bridge and the
    *  server, what the output's slot holds, and READY's reading of the outputs. */
   const started = !!hostedSlug;
+  /** What is on air, and what is up on this page only: not started, a graphic's Take reaches no
+   *  output, while a server cue airs through NoaCG Bridge either way (studio-day-playout D16). */
+  const airingLayers = started ? [...liveLayers, ...livePlayoutLayers] : livePlayoutLayers;
+  const upHereLayers = started ? [] : liveLayers;
   const publishedLabel = versionLabel(publishedVer);
   const readySummary = readiness.summary.show ? readiness.summary : null;
   const playoutStatus = describePlayoutStatus({
@@ -4239,14 +4243,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               wrapping alone to the far left. */}
           <span className="pd-verb-aside">
             {/* What is up, graphics and server cues alike: a clip on the playout server is on air
-                too, and "nothing on air" beside its running clock would be the one untrue line. */}
+                too, and "nothing on air" beside its running clock would be the one untrue line.
+                Not started, a graphic plays on this page only, so it is "up, not live" in the
+                monitor's grey while a server cue beside it still airs (studio-day-playout D16). */}
             <span className="pd-onair-line" data-testid="live-cue-chip">
               {liveLayers.length === 0 && livePlayoutLayers.length === 0 ? (
                 <span className="muted">○ nothing on air</span>
               ) : (
                 <>
-                  on air:{' '}
-                  <span className="pd-onair">● {[...liveLayers, ...livePlayoutLayers].map((l) => l.label).join(' · ')}</span>
+                  {airingLayers.length > 0 && (
+                    <>
+                      on air: <span className="pd-onair">● {airingLayers.map((l) => l.label).join(' · ')}</span>
+                    </>
+                  )}
+                  {upHereLayers.length > 0 && (
+                    <span data-testid="live-cue-up-here">
+                      {airingLayers.length > 0 ? ' · ' : ''}up, not live:{' '}
+                      <span className="pd-up-here">○ {upHereLayers.map((l) => l.label).join(' · ')}</span>
+                    </span>
+                  )}
                 </>
               )}
             </span>
@@ -4665,6 +4680,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         library={library}
         playoutSettings={playoutSettings}
         liveCue={liveCue}
+        started={started}
         unsentOnAir={unsentOnAir}
         serverOwnership={serverOwnership}
         serverTiming={serverPlayout.timing}

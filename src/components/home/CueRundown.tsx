@@ -120,6 +120,7 @@ export default function CueRundown({
   library,
   playoutSettings,
   liveCue,
+  started,
   unsentOnAir,
   serverOwnership,
   serverTiming,
@@ -171,6 +172,9 @@ export default function CueRundown({
   playoutSettings: PlayoutSettings;
   /** Which cue is on air on each graphic's layer. Read-only here. */
   liveCue: LiveCueMap;
+  /** The production is started, so a graphic's Take reaches air. Not started, a graphic that is up
+   *  plays on this page only and its row says UP, never ON AIR (the program monitor's rule). */
+  started: boolean;
   /** The ON-AIR cues edited since they were sent (the editor's "not on air yet", said on the row). */
   unsentOnAir: ReadonlySet<string>;
   /** What this page put up on the playout server, and what the server says besides. Read-only. */
@@ -565,6 +569,10 @@ export default function CueRundown({
           const poolEntry = graphicByPoolId.get(cue.sourceId);
           const playoutItem = playoutItemFor(cue);
           const cueIsLive = liveIds.has(cue.id);
+          // ON AIR ONLY WHEN IT IS, as the program monitor says it (studio-day-playout AC-9): a server
+          // cue plays through NoaCG Bridge whether or not the production is started (D16), a graphic
+          // reaches air only once it is. Not started, a graphic that is up is UP, in the monitor's grey.
+          const cueAirs = cueIsLive && (started || !!playoutItem);
           const isSelected = cue.id === (selectedCueId ?? '');
           // The amber tally is the cue ON PREVIEW - the selection in 'take' mode, and in
           // 'preview-then-take' mode the cue SPACE put there, which the cursor may have left.
@@ -640,7 +648,7 @@ export default function CueRundown({
           return (
             <div
               key={cue.id}
-              className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}${cutIds.has(cue.id) ? ' cut' : ''}`}
+              className={`pd-cue${isSelected ? ' selected' : ''}${cueAirs ? ' on-air' : cueIsLive ? ' up-here' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}${cutIds.has(cue.id) ? ' cut' : ''}`}
               data-testid={rowTestId(row)}
               data-row={row.id}
               {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
@@ -659,7 +667,7 @@ export default function CueRundown({
               {/* A folder's cues hang from a line under its header (plan §20.3). */}
               {inFolder && <span className="pd-fold-guide" aria-hidden="true" />}
               <span className="pd-grip" aria-hidden="true">⣿</span>
-              <span className="pd-cue-no">{cueIsLive ? '●' : row.no}</span>
+              <span className="pd-cue-no">{cueAirs ? '●' : cueIsLive ? '○' : row.no}</span>
               <span
                 className={`pd-cue-kind pd-cue-kind--${kind.tone}`}
                 role="img"
@@ -744,8 +752,17 @@ export default function CueRundown({
                   EDITED
                 </span>
               )}
-              {cueIsLive ? (
+              {cueAirs ? (
                 <span className="pd-tag air">ON AIR</span>
+              ) : cueIsLive ? (
+                <span
+                  className="pd-tag up"
+                  title="Up on this page only: the production is not started, so nothing goes on air."
+                  aria-label="Up, not live"
+                  data-testid="cue-up-here"
+                >
+                  UP
+                </span>
               ) : miss ? (
                 // A folder's Take did not put this cue on air: said on its own row, with why.
                 <span className="pd-tag miss" title={miss} aria-label={`Not taken: ${miss}`} data-testid="cue-take-miss">

@@ -727,13 +727,17 @@ test('the program monitor is the real renderer, and every verb reaches it withou
   await takeCue(1);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Anna Andersson');
   await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
-  // Two layers up, counted off the rundown itself — one ON AIR row per live layer.
-  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(2);
+  // Two layers up, counted off the rundown itself — one row per live layer. The production is not
+  // started, so each is UP on this page and none says ON AIR.
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.up-here')).toHaveCount(2);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(0);
+  await expect(page.getByTestId('live-cue-chip')).toContainText('up, not live:');
+  await expect(page.getByTestId('live-cue-chip')).not.toContainText('on air:');
 
   // Out takes down the SELECTED cue's layer and leaves the other one up.
   await cueRows.nth(0).getByTestId('select-cue').click();
   await page.getByTestId('verb-out').click();
-  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(1);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.up-here')).toHaveCount(1);
   await expect(page.getByTestId('live-cue-chip')).toContainText('Ticker crawl');
   await expect(page.getByTestId('live-cue-chip')).not.toContainText('Anna Andersson');
 
@@ -741,7 +745,7 @@ test('the program monitor is the real renderer, and every verb reaches it withou
   // reaching for Take must never land on it.
   await page.getByTestId('verb-out-all').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
-  await expect(page.getByTestId('cue-list').locator('.pd-cue.on-air')).toHaveCount(0);
+  await expect(page.getByTestId('cue-list').locator('.pd-cue.up-here')).toHaveCount(0);
 
   // The ACTION LOG recorded all of it, newest first, in the operator's own words — through the
   // same describeLogRow the wire rows go through, which is the only reason this is checkable
