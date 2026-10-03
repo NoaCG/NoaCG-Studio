@@ -11,7 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { ANON_KEY, openHosted, panelModule, publishTwoCues, type Json } from './_panel';
+import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -24,24 +24,15 @@ test('a hosted page pairs a panel, answers it, runs its presses and refuses repe
   // Nothing panel-related runs until the switch is on: the door says Off.
   await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off');
   await op.getByTestId('panel-open').click();
-  const dialog = op.getByTestId('panel-dialog');
-  await expect(dialog).toBeVisible();
+  await expect(op.getByTestId('panel-dialog')).toBeVisible();
   await expect(op.getByTestId('panel-status')).toContainText('No page answers the panel');
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
-  await op.getByTestId('panel-pair').click();
-  const codeText = (await op.getByTestId('panel-code').locator('.panel-code').textContent()) ?? '';
-  expect(codeText).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-  const deck = await panelModule(codeText);
-  await expect(op.getByTestId('panel-row')).toHaveCount(1, { timeout: 10_000 });
-  await expect(op.getByTestId('panel-row')).toContainText('Spec deck');
-  await expect(op.getByTestId('panel-code')).toBeHidden();
+  const deck = await pairPanel(op);
   expect((await deck.hello()).answering).toBe(false);
 
   // ANSWERING: the switch claims, and the page publishes what the keys draw from.
-  await op.getByTestId('panel-answer').locator('input').check();
-  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+  await answerPanel(op);
   await op.getByTestId('panel-dialog').screenshot({ path: 'test-results/panel-dialog-answering.png' });
   await deck.hello();
   const first = await deck.state((s) => Array.isArray(s.live));

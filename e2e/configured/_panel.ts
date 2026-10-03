@@ -82,10 +82,18 @@ export async function panelModule(code: string) {
   };
 }
 
-/** Pair a panel from an operator page's Panel dialog, as the module does with the code it shows;
- *  the dialog is left open on the listed panel. */
+/** A publish opens the production page's Playout panel by itself; shut it, so the header's doors
+ *  are in reach. */
+export async function shutStatusPanel(op: Page) {
+  const status = op.getByTestId('production-status-panel');
+  if (await status.isVisible()) await op.getByTestId('production-status').click();
+  await expect(status).toBeHidden();
+}
+
+/** Pair a panel from an operator page's Panel dialog (opened if it is not), as the module does
+ *  with the code it shows; the dialog is left open on the listed panel. */
 export async function pairPanel(op: Page) {
-  await op.getByTestId('panel-open').click();
+  if (!(await op.getByTestId('panel-dialog').isVisible())) await op.getByTestId('panel-open').click();
   await expect(op.getByTestId('panel-dialog')).toBeVisible();
   await op.getByTestId('panel-pair').click();
   const codeText = (await op.getByTestId('panel-code').locator('.panel-code').textContent()) ?? '';

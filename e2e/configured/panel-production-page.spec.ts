@@ -17,7 +17,7 @@ import { settleDurableWrites } from '../_durable';
 import { evaluateInPage } from '../_evaluate';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, type Json } from './_panel';
+import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, shutStatusPanel, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -25,16 +25,12 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   test.setTimeout(300_000);
   const slug = await publishTwoCues(page, `Panel Production ${Date.now()}`);
   const op = page;
-  // A publish opens the Playout panel by itself; shut it, so the header's doors are in reach.
-  const status = op.getByTestId('production-status-panel');
-  if (await status.isVisible()) await op.getByTestId('production-status').click();
-  await expect(status).toBeHidden();
+  await shutStatusPanel(op);
 
   // Nothing panel-related runs until the switch is on: the door says Off.
   await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off');
   await op.getByTestId('panel-open').click();
   await expect(op.getByTestId('panel-status')).toContainText('No page answers the panel');
-  await op.getByTestId('panel-close').click();
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
   const deck = await pairPanel(op);
@@ -157,9 +153,7 @@ test('the clip clock a panel counts follows the server clip the production page 
   await op.reload();
   await expect(op.getByTestId('production-page')).toBeVisible();
   await expect(op.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
-  const status = op.getByTestId('production-status-panel');
-  if (await status.isVisible()) await op.getByTestId('production-status').click();
-  await expect(status).toBeHidden();
+  await shutStatusPanel(op);
 
   const deck = await pairPanel(op);
   await answerPanel(op);
