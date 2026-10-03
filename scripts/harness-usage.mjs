@@ -245,9 +245,7 @@ export function readCodexSession(text, { file = '' } = {}) {
   for (const record of records) {
     const payload = record?.payload;
     if (record?.type === 'session_meta' && payload) {
-      // Native workers inherit the parent's session_id; id is their own rollout identity and
-      // matches the UUID in its filename. Legacy rollouts may only carry session_id.
-      session.sessionId = payload.id ?? payload.session_id ?? session.sessionId;
+      session.sessionId = payload.session_id ?? payload.id ?? session.sessionId;
       session.cwd = payload.cwd ?? session.cwd;
       session.originator = payload.originator ?? session.originator;
       session.model = payload.model ?? session.model;
@@ -304,7 +302,7 @@ export function codexWindowUsage(session, window) {
 }
 
 /**
- * One entry per rollout identity. Archiving a rollout is a MOVE, so a copy in both trees should not
+ * One entry per session id. Archiving a rollout is a MOVE, so a copy in both trees should not
  * happen - but if it ever does, the same tokens would be counted twice with nothing to say so.
  * The richer file wins, since a partial copy is the one that would be left behind.
  */
