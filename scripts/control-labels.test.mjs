@@ -18,7 +18,7 @@ const source = readFileSync(fileURLToPath(new URL('../src/blocks/controlLabels.t
 const js = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { labelFields, renameLabelFields, plainLabel, liveLabels, withLiveLabels } = await import(
+const { labelFields, plainLabel, liveLabels, withLiveLabels } = await import(
   `data:text/javascript,${encodeURIComponent(js)}`
 );
 
@@ -37,11 +37,9 @@ test('the plain reading puts each fallback in place: what exports and the author
   assert.equal(plainLabel('+1 {f0}'), '+1');
 });
 
-test('a type names a field by its logical key, and the compile rewrites it to the fN id', () => {
-  const ids = { playerA: 'f0', playerB: 'f2' };
-  assert.equal(renameLabelFields('+1 {playerA|P1}', (k) => ids[k]), '+1 {f0|P1}');
-  assert.equal(renameLabelFields('{playerB}', (k) => ids[k]), '{f2}');
-  assert.equal(renameLabelFields('+1 {nobody|P1}', (k) => ids[k]), null);
+test('braces in a name somebody typed stay text: a key starts lower-case, like a field id', () => {
+  assert.deepEqual(labelFields('Show {Logo}'), []);
+  assert.equal(plainLabel('Sponsor {A}'), 'Sponsor {A}');
 });
 
 test('on air, the button names the player the audience sees', () => {
@@ -57,6 +55,8 @@ test('nothing on air, or an empty name on air, reads the fallback', () => {
 
 test('two players with the same name stay distinguishable: "P1 ANNA" and "P2 ANNA"', () => {
   assert.deepEqual(liveLabels(duel, { f0: 'ANNA', f2: 'Anna' }).slice(0, 4), ['+1 P1 ANNA', '+1 P2 Anna', '−1 P1 ANNA', '−1 P2 Anna']);
+  // A name that reads like the other side's fallback is a clash too.
+  assert.deepEqual(liveLabels(duel, { f0: 'P2', f2: '' }).slice(0, 2), ['+1 P1 P2', '+1 P2']);
 });
 
 test('a name spread over lines or spaces reads as one line', () => {
@@ -74,4 +74,6 @@ test('withLiveLabels replaces only the labels that name a field, and keeps the o
   // No field-naming label at all: the same array back, so a memo keyed on it holds.
   const plain = [{ event: 'final', label: 'Final' }];
   assert.equal(withLiveLabels(plain, { f0: 'ANNA' }), plain);
+  // A label that would read empty (a field with no fallback, empty on air) keeps its plain one.
+  assert.equal(withLiveLabels([{ event: 'who', label: 'who', labelTemplate: '{f0}' }], {})[0].label, 'who');
 });

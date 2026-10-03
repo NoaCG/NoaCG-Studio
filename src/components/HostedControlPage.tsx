@@ -220,6 +220,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
    * clears the warning here too.
    */
   const [airedData, setAiredData] = useState<Record<string, Record<string, string>>>({});
+  // Read by the long-lived log callbacks too (a ⚡ log line names the player on air), so it is
+  // declared before the effects that close over it.
+  const airedRef = useRef(airedData);
+  airedRef.current = airedData;
   /**
    * THIS PAGE'S OWN STAGED EDITS, until the shared buffer shows them back (control/ownStaged.ts).
    * Everything that reads "what a Take of this cue sends" reads the buffer with these laid over
@@ -396,7 +400,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           const js = resolved.panel.find((g) => g.name === graphic)?.js;
           buttons.set(graphic, js ? eventButtons(js) : []);
         }
-        return eventLogLabel(buttons.get(graphic)!, event);
+        // A button naming a player ("+1 ANNA") is logged by the name on air when the row arrives.
+        return eventLogLabel(withLiveLabels(buttons.get(graphic)!, airedRef.current[graphic] ?? null), event);
       };
       // TIMED CUES: the engine follows the same rows from here on and reads what the server keeps,
       // so a page opened mid-countdown counts the same second. Only on the numbered log.
@@ -594,8 +599,6 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   // Read through refs: a stage can come up long after the render that passed this callback.
   const liveCueRef = useRef(liveCue);
   liveCueRef.current = liveCue;
-  const airedRef = useRef(airedData);
-  airedRef.current = airedData;
   const machineStateRef = useRef(machineState);
   machineStateRef.current = machineState;
   /** Sends the cue editor's typing still inside its debounce (`sendVerb` says why). */
@@ -1707,13 +1710,13 @@ function HostedCueEditor({
    *  three copies of this press would drift apart. The DECLARATION (`e`) decides what the press
    *  sends and whether it greys; the arrangement decides only the word and where it sits, and
    *  `section` is the heading over it where the block draws one. */
-  const actionButton = ({ button: e, label }: ArrangedControl, section?: string) => (
+  const actionButton = ({ button: e, label, named }: ArrangedControl, section?: string) => (
     <button
       key={e.event}
       disabled={!isEventLegal(legality, e.event, liveState)}
       // A label naming a player holds a FIXED slot (the in-app page's rule): a name sent mid-show
       // never moves the buttons under the operator's finger.
-      className={[e.destructive ? 'ctl-event-destructive' : '', e.labelTemplate && label === e.label ? 'named' : ''].filter(Boolean).join(' ') || undefined}
+      className={[e.destructive ? 'ctl-event-destructive' : '', named ? 'named' : ''].filter(Boolean).join(' ') || undefined}
       onClick={() => {
         const { payload, fields: staged, tree } = pressSend(e, bound, valueOf);
         // An `adjust` field (a goal's +1) rode moved by its delta: stage the new figure into the

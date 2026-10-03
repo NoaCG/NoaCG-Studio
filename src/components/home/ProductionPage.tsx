@@ -1434,9 +1434,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // Read through a ref for the same reason as the cue names: the log callbacks are long-lived.
   // Filled from `poolMachines` below, which parses every graphic in the production once.
   const poolButtonsRef = useRef(new Map<string, ControlButton[]>());
+  // A button naming a player ("+1 ANNA") is logged by the name on air when the row arrives.
   const eventLabel = useCallback(
     (graphic: string, event: string) =>
-      eventLogLabel(poolButtonsRef.current.get(graphic) ?? [], event),
+      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], airedRef.current[graphic] ?? null), event),
     [],
   );
 
@@ -3540,7 +3541,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `section` is the heading DRAWN over this button, and only the middle of those three places
    *  has one. It names the button in the hover (`controlName`), so five presses all labelled
    *  "+1" are told apart by the word the operator can already see above them. */
-  const actionButton = ({ button: b, label }: ArrangedControl, section?: string) => {
+  const actionButton = ({ button: b, label, named }: ArrangedControl, section?: string) => {
     const legal = isEventLegal(legality, b.event, machineState);
     const name = controlName(label, section);
     // Empty when everything the press moves is a hidden holder, which is the reported-field
@@ -3555,7 +3556,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         key={b.event}
         // A label that names a player holds a FIXED slot, so a name sent mid-show never moves the
         // buttons under the operator's finger; a long one truncates and the hover has it whole.
-        className={`pd-action${b.destructive ? ' destructive' : ''}${b.labelTemplate && label === b.label ? ' named' : ''}`}
+        className={`pd-action${b.destructive ? ' destructive' : ''}${named ? ' named' : ''}`}
         disabled={!selectedLayerLive || !legal}
         title={
           !selectedLayerLive

@@ -16,7 +16,7 @@ import {
   type AnimStep,
   type AnimTransition,
 } from './animData';
-import { CONTROL_LABEL_MAX, labelFields, plainLabel } from './controlLabels';
+import { buttonLabel, CONTROL_LABEL_MAX, labelFields, plainLabel } from './controlLabels';
 
 export { RESERVED_EVENTS };
 
@@ -350,7 +350,7 @@ export function machineControls(machine: AnimMachine): ControlButton[] {
   return events.map((event) => {
     const c = byEvent.get(event);
     const declared = c?.label ?? event;
-    const button: ControlButton = { event, label: plainLabel(declared) || event };
+    const button: ControlButton = { event, label: buttonLabel(declared, event) };
     if (labelFields(declared).length > 0) button.labelTemplate = declared;
     if (c?.section !== undefined) button.section = c.section;
     if (c?.payload !== undefined) button.payload = c.payload;

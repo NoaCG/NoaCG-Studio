@@ -1811,7 +1811,7 @@ test('survey board: reveal in any order lights the row and adds its points to th
   await lit('strike.3');
   await expect(strike).toBeDisabled();
   await expect(page.getByTestId('cue-field-f10')).toHaveValue('3');
-  await actions.getByRole('button', { name: /Take back a strike/ }).click();
+  await actions.getByRole('button', { name: /Undo strike/ }).click();
   await dark('strike.3');
   await lit('strike.2');
   await shot(page, '32-survey-strikes');
@@ -1960,7 +1960,7 @@ test('puzzle board: one press reveals the guessed letter, one takes it back, and
   await shot(page, '37-puzzle-two-pressed');
 
   // The honest inverse: the last line equal to the guess comes out, and the tiles go dark.
-  await actions.getByRole('button', { name: /Take back a letter$/ }).click();
+  await actions.getByRole('button', { name: /Undo letter$/ }).click();
   await dark('tile/1');
   await lit('tile/3');
   await expect(revealed).toHaveValue('R');

@@ -863,7 +863,7 @@ is a control that will not be used.
   suppressed callbacks, so call-painted looks need the trailing data write). Use it when air and
   the dashboard have got out of step — a renderer restart, a missed press. Normal operation is
   the ⚡ actions and » Next.
-- **Both React surfaces carry the whole block** — header, snap, section grouping, help line.
+- **Both React surfaces carry the whole block** — header (its help in the heading's hover), snap, section grouping.
   The hosted page used to render the ⚡ buttons as one flat row with no snap at all, which put
   the recovery control on every surface EXCEPT the one being operated from a phone, away from
   the machine running the renderer. Sections come from `controlModel.ts arrangeControls`, the

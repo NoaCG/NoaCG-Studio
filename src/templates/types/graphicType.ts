@@ -20,7 +20,6 @@
 import type { AnimData, AnimGroup, AnimMachine, AnimState, AnimStep, AnimTransition, AnimLayerTracks, MachineControl } from '../../blocks/animData';
 import { isAnimData, parseAnimData } from '../../blocks/animData';
 import { allOperatorEvents, deriveMachine, MAIN_GROUP_ID, spxSteps } from '../../blocks/animMachine';
-import { renameLabelFields } from '../../blocks/controlLabels';
 import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import { writeAnimData } from '../shared/animRuntime';
 import type { FieldKind, FieldOption } from '../../model/fieldModel';
@@ -543,10 +542,13 @@ function compileControls(type: GraphicType, machine: AnimMachine): MachineContro
   const out: MachineControl[] = [];
   for (const declared of type.controls) {
     if (!authored.includes(declared.event)) continue;
-    // A label naming a field (`+1 {playerA|P1}`) names it by the logical key; the template knows
-    // only the `fN` id it compiled to.
-    const label = renameLabelFields(declared.label, (key) => fieldIdFor(type.fields, key) ?? undefined);
-    if (label === null) throw new Error(`GraphicType "${type.id}": control "${declared.event}" names an unknown field in its label "${declared.label}".`);
+    // A label naming a field (`+1 {playerA|P1}`, blocks/controlLabels.ts) names it by the logical
+    // key; the template knows only the `fN` id it compiled to. A key no field has stays as typed -
+    // a recipe builds labels from names somebody typed - and the validator reports it.
+    const label = declared.label.replace(/\{([a-z][\w-]*)((?:\|[^{}]*)?)\}/g, (whole: string, key: string, rest: string) => {
+      const id = fieldIdFor(type.fields, key);
+      return id ? `{${id}${rest}}` : whole;
+    });
     const control: MachineControl = { event: declared.event, label };
     if (declared.order !== undefined) control.order = declared.order;
     if (declared.section !== undefined) control.section = declared.section;

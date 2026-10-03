@@ -25,10 +25,12 @@ You said the duel score's buttons were long and the block left space unused on t
   you press ✎ Update. A name change never moves a button: a named button has a fixed width, and a
   long name is cut short with "…" and is whole in the hover. An empty name reads **P1** or **P2**,
   two players with the same name read **P1 SAM** and **P2 SAM**, and player 1 is always left of
-  player 2. A button you renamed in Arrange keeps your name.
+  player 2. A button you renamed in Arrange keeps your name. The activity log names the press the
+  same way ("+1 SAM").
 - **The other shipped graphics** got shorter labels where they were long: the football scoreboard
   reads **Goal HOME** / **Goal AWAY** from its team names, and for example "Reset to period
-  start" is **Reset clock**, "Escalate to urgent" is **Urgent**, "Skip notification" is **Skip**.
+  start" is **Reset clock**, "Escalate to urgent" is **Urgent**, "Skip notification" is **Skip**, and an imported survey or
+  puzzle board's "Take back a strike" / "Take back a letter" are **Undo strike** / **Undo letter**.
   The quiz labels stay (Select answer, Lock it in, Reveal choice, Reveal correct), they are already
   short; "Show audience result" is now **Audience result**.
 - **For graphics an agent makes,** the skill now asks for a word or two per button and shows how

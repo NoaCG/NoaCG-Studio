@@ -495,7 +495,7 @@ total adds up the revealed points by itself.
 
 `Kysymys`, `Fråga` work as well as `Question`; `Vastaus 1`, `Svar 1` work as well as `Answer 1`; `Pts 1`, `Pisteet 1` work as well as `Points 1`; `Flip 1`, `Open 1` work as well as `Revealed 1`; `X 1` works as well as `Strike 1`; `Sum`, `Yhteensä` work as well as `Total`.
 
-Two to eight answers. The operator gets Reveal 1, Reveal 2 and so on, Strike, Take back a strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`).
+Two to eight answers. The operator gets Reveal 1, Reveal 2 and so on, Strike, Undo strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`).
 <!-- behaviour:survey:end -->
 
 ### The stepped list - one entry per Next press
@@ -538,7 +538,7 @@ Two to eight guests, in the order they come on. The operator gets Next guest, Pr
 
 The Wheel of Fortune board. Draw the tiles in a row and a letter on each as it looks revealed;
 NoaCG lays the phrase you type over the tiles and hides every letter. Type a letter into the
-Guess box and press Reveal letter, and every tile with that letter shows; Take back a letter
+Guess box and press Reveal letter, and every tile with that letter shows; Undo letter
 undoes the last one. Typing letters straight into the Revealed letters box works too. Solve shows
 the rest.
 
@@ -552,7 +552,7 @@ the rest.
 
 `Tile 1`, `Kirjain 1` work as well as `Letter 1`; `White 1` works as well as `Used 1`; `Ratkaistu` works as well as `Solved`.
 
-Four to forty tiles, numbered left to right and then down; the phrase is laid over them in that order, so put spaces where the tiles should stay blank. The operator gets Reveal letter and Take back a letter (both read the Guess box), Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box, one letter per line or all on one line.
+Four to forty tiles, numbered left to right and then down; the phrase is laid over them in that order, so put spaces where the tiles should stay blank. The operator gets Reveal letter and Undo letter (both read the Guess box), Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box, one letter per line or all on one line.
 <!-- behaviour:puzzle:end -->
 
 ### The reveal - typed text, sealed until one press

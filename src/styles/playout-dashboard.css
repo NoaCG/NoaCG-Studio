@@ -1157,12 +1157,14 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   color: var(--text-dim, #9aa1ad);
 }
 .pd-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-width: 0; }
-/* A button sizes to its words and never wraps them onto a second line. */
-.pd-actions-row > button { white-space: nowrap; }
+/* A button sizes to its words and never wraps them onto a second line. One longer than the block
+   (a long rename on a phone) is cut short with "…" rather than pushing the page sideways; its
+   hover carries the whole word. */
+.pd-actions-row > button { white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* A label that names a player ("+1 ANNA", blocks/controlLabels.ts) holds a FIXED slot: a name
    sent mid-show must not move the buttons under the operator's finger, and a long one truncates
    rather than wrapping - the hover carries it whole. */
-.pd-actions-row > button.named { width: 9.5em; overflow: hidden; text-overflow: ellipsis; }
+.pd-actions-row > button.named { width: 9.5em; }
 /* PINNED — the controls this production put above the fold (the profile's ARRANGE,
    docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). The HAIRLINE IS THE FOLD: everything under it is the
    full generated panel in its sections, so the operator's handful reads as the top of one list
@@ -1173,15 +1175,15 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* HIDDEN — one collapsed drawer, worn like the activity feed's summary so it reads as a drawer
    rather than as a control. Hiding a control is a production saying "not in my way"; it is not
    the same as deleting it, and the machine still accepts every one of these. */
-.pd-actions-more { margin-top: 10px; }
 /* A drawer stays one line where it sits: the summary, then what it holds once open, beside it.
    A browser that cannot lay a `details` out as flex opens it underneath instead, which still works. */
-.pd-actions-groups > .pd-actions-more,
-.pd-actions-recovery { display: flex; align-items: center; gap: 8px; margin-top: 0; }
-.pd-actions-groups > .pd-actions-more .pd-actions-row { margin-top: 0; }
+.pd-actions-more,
+.pd-actions-recovery { display: flex; align-items: center; gap: 8px; }
+.pd-actions-more .pd-actions-row { margin-top: 0; }
 .pd-actions-more > summary,
 .pd-actions-recovery > summary {
   cursor: pointer;
+  white-space: nowrap;
   font-size: 11.5px;
   color: var(--text-dim, #9aa1ad);
   padding: 3px 0;
@@ -1194,7 +1196,6 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-actions-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .pd-actions-tools .pd-arrange-toggle { margin-left: 0; }
 
-.pd-actions-recovery > summary { white-space: nowrap; }
 
 /* ARRANGING (components/home/ActionArranger.tsx) - the ⚡ block's own authoring posture. The
    toggle is quiet at rest (it is not a press of the show) and amber while on, and the block's
