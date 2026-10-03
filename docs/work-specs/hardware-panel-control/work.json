@@ -6,12 +6,12 @@
     "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md), the build prompt of 2026-10-02, and the owner's ruling of 2026-10-02 that take-cue leaves the selection where the operator put it on both pages (spec D4, commit e64b91d22)"
   },
   "review": {
-    "revision": "9b8e3892dcfb168306c062005e0072d8fa049ab0",
+    "revision": "8393ae1575a075e3fb8db14f9ff98a39ef17436e",
     "specSha256": "d3d162becef994cc8aff03f31265875c336bc733f9ba26434691d04a2a766ead",
     "evidence": [
       {
         "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-        "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+        "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
       }
     ],
     "criteria": [
@@ -21,7 +21,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
@@ -51,7 +51,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
@@ -59,7 +59,7 @@
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
-            "sha256": "f78219026ec816f3f3f140926574a49f60d90e2e1c7824c471a7186a6b156509"
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
@@ -73,7 +73,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
@@ -85,7 +85,7 @@
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
-            "sha256": "f78219026ec816f3f3f140926574a49f60d90e2e1c7824c471a7186a6b156509"
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
           }
         ]
       },
@@ -95,7 +95,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
@@ -117,7 +117,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
@@ -139,7 +139,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
@@ -161,7 +161,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
@@ -173,7 +173,7 @@
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
-            "sha256": "f78219026ec816f3f3f140926574a49f60d90e2e1c7824c471a7186a6b156509"
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
           }
         ]
       },
@@ -183,7 +183,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
@@ -197,7 +197,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
@@ -215,7 +215,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
@@ -229,7 +229,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
@@ -243,7 +243,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           },
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/players-casparcg-obs-vmix.md",
@@ -257,7 +257,7 @@
         "evidence": [
           {
             "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
-            "sha256": "e68c4cc54b169e309aae36cbb153e2381d35ab7ebb39356365efadd3a58e6d66"
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
           }
         ]
       }
