@@ -1,0 +1,217 @@
+=== j-3093 npx playwright test e2e/editor-pen.spec.ts --workers=3
+=== cwd C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio
+[e2e] 6 workers - 6456 MB free (the measured maximum)
+[WebServer] (node:31400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 3 workers
+
+(node:32556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+catalog { pen: 0, points: 0 }
+svg { pen: 0, points: 0 }
+f4 { pen: 0, points: 0 }
+  ok 1 [chromium] › e2e\editor-pen.spec.ts:41:1 › baseline probe: existing canvas path capabilities (3.7s)
+  x  2 [chromium] › e2e\editor-pen.spec.ts:47:49 › svg: triangle creation is one transaction with selection, centered pivot and bar (1.0m)
+  x  3 [chromium] › e2e\editor-pen.spec.ts:47:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar (1.0m)
+(node:36844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  4 [chromium] › e2e\editor-pen.spec.ts:47:49 › f4: triangle creation is one transaction with selection, centered pivot and bar (1.0m)
+(node:34636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  5 [chromium] › e2e\editor-pen.spec.ts:61:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact (1.0m)
+  x  6 [chromium] › e2e\editor-pen.spec.ts:81:1 › curved path, paint, point and handle gestures preserve motion and each undo once (1.0m)
+(node:25060) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  7 [chromium] › e2e\editor-pen.spec.ts:95:1 › stale draft cannot commit after another source edit (1.0m)
+  x  8 [chromium] › e2e\editor-pen.spec.ts:100:1 › real template search reaches a created path in Hairline drawing space (1.0m)
+
+
+  1) [chromium] › e2e\editor-pen.spec.ts:47:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      27 | }
+      28 | async function draw(page: Page, closed = true, curves = false) {
+    > 29 |   await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+         |                                                                     ^
+      30 |   await point(page, 700, 300, curves ? 90 : 0, 0);
+      31 |   await point(page, 1000, 300, 0, curves ? 90 : 0);
+      32 |   await point(page, 850, 600);
+        at draw (C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:29:69)
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-catalog-triangl-70dee-tion-centered-pivot-and-bar-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-catalog-triangl-70dee-tion-centered-pivot-and-bar-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-pen.spec.ts:47:49 › svg: triangle creation is one transaction with selection, centered pivot and bar 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      27 | }
+      28 | async function draw(page: Page, closed = true, curves = false) {
+    > 29 |   await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+         |                                                                     ^
+      30 |   await point(page, 700, 300, curves ? 90 : 0, 0);
+      31 |   await point(page, 1000, 300, 0, curves ? 90 : 0);
+      32 |   await point(page, 850, 600);
+        at draw (C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:29:69)
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-svg-triangle-cr-28aec-tion-centered-pivot-and-bar-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-svg-triangle-cr-28aec-tion-centered-pivot-and-bar-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-pen.spec.ts:47:49 › f4: triangle creation is one transaction with selection, centered pivot and bar 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      27 | }
+      28 | async function draw(page: Page, closed = true, curves = false) {
+    > 29 |   await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+         |                                                                     ^
+      30 |   await point(page, 700, 300, curves ? 90 : 0, 0);
+      31 |   await point(page, 1000, 300, 0, curves ? 90 : 0);
+      32 |   await point(page, 850, 600);
+        at draw (C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:29:69)
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-f4-triangle-cre-d3f2f-tion-centered-pivot-and-bar-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-f4-triangle-cre-d3f2f-tion-centered-pivot-and-bar-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-pen.spec.ts:61:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      62 |   await open(page); const before = await source(page);
+      63 |   for (const exit of ['Escape', 'tool', 'pointer']) {
+    > 64 |     await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await point(page, 900, 300);
+         |                                                                       ^
+      65 |     await expect(page.locator('[data-pen-point]')).toHaveCount(2);
+      66 |     expect(await source(page)).toEqual(before);
+      67 |     if (exit === 'tool') await page.getByRole('button', { name: 'select tool', exact: true }).click();
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:64:71
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-open-polyline-B-939bc-refusal-leave-source-intact-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-open-polyline-B-939bc-refusal-leave-source-intact-chromium\error-context.md
+
+  5) [chromium] › e2e\editor-pen.spec.ts:81:1 › curved path, paint, point and handle gestures preserve motion and each undo once 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      27 | }
+      28 | async function draw(page: Page, closed = true, curves = false) {
+    > 29 |   await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+         |                                                                     ^
+      30 |   await point(page, 700, 300, curves ? 90 : 0, 0);
+      31 |   await point(page, 1000, 300, 0, curves ? 90 : 0);
+      32 |   await point(page, 850, 600);
+        at draw (C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:29:69)
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:82:38
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-curved-path-pai-7b7f8-e-motion-and-each-undo-once-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-curved-path-pai-7b7f8-e-motion-and-each-undo-once-chromium\error-context.md
+
+  6) [chromium] › e2e\editor-pen.spec.ts:95:1 › stale draft cannot commit after another source edit 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      94 | });
+      95 | test('stale draft cannot commit after another source edit', async ({ page }) => {
+    > 96 |   await open(page); await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await point(page, 1000, 400);
+         |                                                                                       ^
+      97 |   await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* other edit */' }); });
+      98 |   const changed = await source(page); await ready(page); await page.keyboard.press('Enter'); expect(await source(page)).toEqual(changed);
+      99 | });
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:96:87
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-stale-draft-can-f465c-t-after-another-source-edit-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-stale-draft-can-f465c-t-after-another-source-edit-chromium\error-context.md
+
+  7) [chromium] › e2e\editor-pen.spec.ts:100:1 › real template search reaches a created path in Hairline drawing space 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'pen tool', exact: true })
+
+
+      27 | }
+      28 | async function draw(page: Page, closed = true, curves = false) {
+    > 29 |   await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+         |                                                                     ^
+      30 |   await point(page, 700, 300, curves ? 90 : 0, 0);
+      31 |   await point(page, 1000, 300, 0, curves ? 90 : 0);
+      32 |   await point(page, 850, 600);
+        at draw (C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:29:69)
+        at C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio\e2e\editor-pen.spec.ts:105:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-pen-real-template-s-78d1c-h-in-Hairline-drawing-space-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-pen-real-template-s-78d1c-h-in-Hairline-drawing-space-chromium\error-context.md
+
+  7 failed
+    [chromium] › e2e\editor-pen.spec.ts:47:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar 
+    [chromium] › e2e\editor-pen.spec.ts:47:49 › svg: triangle creation is one transaction with selection, centered pivot and bar 
+    [chromium] › e2e\editor-pen.spec.ts:47:49 › f4: triangle creation is one transaction with selection, centered pivot and bar 
+    [chromium] › e2e\editor-pen.spec.ts:61:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact 
+    [chromium] › e2e\editor-pen.spec.ts:81:1 › curved path, paint, point and handle gestures preserve motion and each undo once 
+    [chromium] › e2e\editor-pen.spec.ts:95:1 › stale draft cannot commit after another source edit ─
+    [chromium] › e2e\editor-pen.spec.ts:100:1 › real template search reaches a created path in Hairline drawing space 
+  1 passed (3.3m)

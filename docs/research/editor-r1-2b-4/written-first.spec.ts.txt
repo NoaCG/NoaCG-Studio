@@ -1,0 +1,112 @@
+// covers: src/components/editorFoundation/**, src/blocks/{editorPaths,pathGeometry,baseEdits}.ts
+// covers: src/templates/**
+import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { pickDesign } from './_browse';
+import type { SpxTemplate } from '../src/model/types';
+
+const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
+const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const selection = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts);
+async function open(page: Page, fixture = 'catalog') {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await ready(page);
+}
+async function screen(page: Page, x: number, y: number) {
+  const t = await source(page), box = (await page.locator('.ef-artboard').boundingBox())!;
+  return { x: box.x + x / t.resolution.width * box.width, y: box.y + y / t.resolution.height * box.height };
+}
+async function point(page: Page, x: number, y: number, dx = 0, dy = 0) {
+  const p = await screen(page, x, y), q = await screen(page, x + dx, y + dy);
+  await page.mouse.move(p.x, p.y); await page.mouse.down();
+  if (dx || dy) await page.mouse.move(q.x, q.y, { steps: 5 });
+  await page.mouse.up();
+}
+async function draw(page: Page, closed = true, curves = false) {
+  await page.getByRole('button', { name: 'pen tool', exact: true }).click();
+  await point(page, 700, 300, curves ? 90 : 0, 0);
+  await point(page, 1000, 300, 0, curves ? 90 : 0);
+  await point(page, 850, 600);
+  if (closed) await point(page, 700, 300); else await page.keyboard.press('Enter');
+  await expect.poll(async () => (await selection(page))[0]).toMatch(/^#pen-/);
+  await ready(page);
+  return (await selection(page))[0];
+}
+async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+async function frame(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
+
+test('baseline probe: existing canvas path capabilities', async ({ page }) => {
+  for (const fixture of ['catalog', 'svg', 'f4']) {
+    await open(page, fixture);
+    console.log(fixture, { pen: await page.getByRole('button', { name: 'pen tool', exact: true }).count(), points: await page.getByRole('button', { name: 'Edit points', exact: true }).count() });
+  }
+});
+for (const fixture of ['catalog', 'svg', 'f4']) test(`${fixture}: triangle creation is one transaction with selection, centered pivot and bar`, async ({ page }) => {
+  await open(page, fixture); const before = await source(page);
+  const id = await draw(page), t = await source(page);
+  expect(t.html).toContain('M '); expect(t.html).toContain(' Z');
+  expect(t.fields).toEqual(before.fields); expect(t.assets).toEqual(before.assets);
+  await expect(page.locator(`.ef-track[data-selector="${id}"] .ef-span`).first()).toBeVisible();
+  const f = await frame(page);
+  const geometry = await f.locator(id).evaluate(el => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return { width: r.width, height: r.height, origin: s.transformOrigin.split(' ').map(parseFloat), box: [parseFloat(s.width), parseFloat(s.height)], opacity: s.opacity }; });
+  expect(geometry.width).toBeGreaterThan(100); expect(geometry.height).toBeGreaterThan(100);
+  expect(geometry.origin[0]).toBeCloseTo(geometry.box[0] / 2, 1); expect(geometry.origin[1]).toBeCloseTo(geometry.box[1] / 2, 1);
+  expect(geometry.opacity).toBe('1');
+  await undo(page); expect(await source(page)).toEqual(before); expect(await selection(page)).toEqual([]);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(t);
+});
+test('open polyline, Backspace, cancellation and one-point refusal leave source intact', async ({ page }) => {
+  await open(page); const before = await source(page);
+  for (const exit of ['Escape', 'tool', 'pointer']) {
+    await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await point(page, 900, 300);
+    await expect(page.locator('[data-pen-point]')).toHaveCount(2);
+    expect(await source(page)).toEqual(before);
+    if (exit === 'tool') await page.getByRole('button', { name: 'select tool', exact: true }).click();
+    else if (exit === 'pointer') await page.getByTestId('foundation-canvas').dispatchEvent('pointercancel');
+    else await page.keyboard.press('Escape');
+    await expect(page.locator('[data-pen-point]')).toHaveCount(0); expect(await source(page)).toEqual(before);
+  }
+  await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await page.keyboard.press('Enter');
+  await expect(page.getByRole('alert')).toContainText('two'); expect(await source(page)).toEqual(before);
+  await point(page, 1000, 300); await point(page, 850, 600); await page.keyboard.press('Backspace');
+  await expect(page.locator('[data-pen-point]')).toHaveCount(2); await page.keyboard.press('Enter'); await ready(page);
+  const id = (await selection(page))[0], f = await frame(page);
+  expect(await f.locator(id + ' path').getAttribute('d')).not.toContain('Z');
+  expect(await f.locator(id + ' path').evaluate(el => getComputedStyle(el).fill)).toBe('none');
+  await undo(page); expect(await source(page)).toEqual(before);
+});
+test('curved path, paint, point and handle gestures preserve motion and each undo once', async ({ page }) => {
+  await open(page); const id = await draw(page, true, true), before = await source(page);
+  expect(before.html).toContain(' C ');
+  await page.getByRole('button', { name: 'Edit points', exact: true }).click();
+  const handle = page.locator('[data-pen-handle="0-out"]'); await expect(handle).toBeVisible();
+  const box = (await handle.boundingBox())!; await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + 40, box.y + 30, { steps: 8 });
+  expect(await source(page)).toEqual(before); await page.mouse.up(); await ready(page);
+  const edited = await source(page); expect(edited.html).not.toBe(before.html); expect(edited.js).toBe(before.js); expect(edited.css).toBe(before.css);
+  await undo(page); expect(await source(page)).toEqual(before);
+  await page.getByRole('button', { name: 'select tool', exact: true }).click();
+  await page.getByTestId('path-stroke-width').locator('input').fill('9'); await page.getByTestId('path-stroke-width').locator('input').press('Enter'); await ready(page);
+  expect(await (await frame(page)).locator(id + ' path').evaluate(el => getComputedStyle(el).strokeWidth)).toBe('9px');
+  await undo(page); expect(await source(page)).toEqual(before);
+});
+test('stale draft cannot commit after another source edit', async ({ page }) => {
+  await open(page); await page.getByRole('button', { name: 'pen tool', exact: true }).click(); await point(page, 700, 300); await point(page, 1000, 400);
+  await page.evaluate(async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, css: s.template.css + '\n/* other edit */' }); });
+  const changed = await source(page); await ready(page); await page.keyboard.press('Enter'); expect(await source(page)).toEqual(changed);
+});
+test('real template search reaches a created path in Hairline drawing space', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.setViewportSize({ width: 1920, height: 1080 }); await page.goto('/app#/new');
+  await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'Hairline');
+  await page.getByTestId('wz-skip-to-finish').click(); await page.getByTestId('wz-finish-edit-artwork').click(); await ready(page);
+  const id = await draw(page, true, true), f = await frame(page);
+  const box = await f.locator(id).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y }; });
+  expect(box.x).toBeCloseTo(700, 0); expect(box.y).toBeCloseTo(300, 0);
+  await page.getByRole('button', { name: 'Edit points', exact: true }).click();
+  await page.screenshot({ path: 'docs/research/editor-r1-2b-4/catalog-path.png', fullPage: true });
+  await page.setViewportSize({ width: 1366, height: 900 }); await page.screenshot({ path: 'docs/research/editor-r1-2b-4/laptop-path.png', fullPage: true });
+  expect(errors).toEqual([]);
+});

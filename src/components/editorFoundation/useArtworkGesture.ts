@@ -17,7 +17,7 @@ export const inverseDelta = (matrix: number[], point: Point): Point =>
 /** What a press on the selected layer grabbed (R1.2b.1): a corner or side scale handle (corners and
  *  sides numbered from the top-left, clockwise), the rotation handle, or the anchor (the Anchor tool). */
 export type Handle = { kind: 'corner' | 'edge'; index: number } | { kind: 'rotate' } | { kind: 'anchor' };
-type Tool = 'select' | 'anchor' | CreationKind;
+type Tool = 'select' | 'anchor' | 'pen' | CreationKind;
 interface Gesture {
   expected: Revision; start: Point; operations: EditorOperation[]; moved: boolean;
   base?: BaseValues; part?: RenderedPart; handle?: Handle; creation?: Creation;
@@ -76,10 +76,10 @@ export function useArtworkGesture(template: SpxTemplate, session: EditorSession,
       const doc = new DOMParser().parseFromString(template.html, 'text/html');
       const members = selected?.filter(item => !selected.some(other => other !== item && doc.querySelector(other.selector)?.contains(doc.querySelector(item.selector) ?? null)))
         .map(part => { const base = baseValues(template, part.selector); inverseDelta(part.parent ?? [1, 0, 0, 1], { x: 0, y: 0 }); return { base, part }; });
-      if (!base && (tool === 'select' || tool === 'anchor')) return;
+      if (!base && (tool === 'select' || tool === 'anchor' || tool === 'pen')) return;
       if (!base && !drawingSpace) throw new Error('The drawing surface is not ready.');
       const local = drawingSpace ? inverseDelta(drawingSpace, { x: point.x - drawingSpace[4], y: point.y - drawingSpace[5] }) : point;
-      const creation = !base && tool !== 'select' && tool !== 'anchor' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
+      const creation = !base && tool !== 'select' && tool !== 'anchor' && tool !== 'pen' ? { shape: tool, x: local.x, y: local.y, width: 160, height: 90 } : undefined;
       session.begin(expected);
       current.current = { expected, start: point, operations: [], moved: false, base, part, handle, creation, members, time,
         turn: handle?.kind === 'rotate' ? { last: point, swept: 0 } : undefined };

@@ -172,11 +172,17 @@ export const foundationRuntime = String.raw`
       var points = corners(target, targetMatrix, rect, box);
       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
-      return [{ selector: selector, x: rect.x, y: rect.y, width: rect.width,
-        height: rect.height, opacity: Number(style.opacity), transform: style.transform,
+      var path = element.tagName.toLowerCase() === 'path' ? element : element.hasAttribute('data-pen-path') ? element.querySelector(':scope > svg > path') : null;
+      var pathMatrix = path && path.getScreenCTM();
+      // Point edits can extend past the initial transform frame. Hit testing follows the artwork;
+      // the original corners and pivot still define its whole-layer transform.
+      var hit = path && element.hasAttribute('data-pen-path') ? path.getBoundingClientRect() : rect;
+      return [{ selector: selector, x: hit.x, y: hit.y, width: hit.width,
+        height: hit.height, opacity: Number(style.opacity), transform: style.transform,
         appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
-        corners: points, anchor: anchor(target, targetMatrix, points, origin) }];
+        corners: points, anchor: anchor(target, targetMatrix, points, origin),
+        pathMatrix: pathMatrix ? [pathMatrix.a,pathMatrix.b,pathMatrix.c,pathMatrix.d,pathMatrix.e,pathMatrix.f] : undefined }];
     });
   }
   // Translation cancels for pointer deltas. SVG supplies an exact CTM; HTML composes

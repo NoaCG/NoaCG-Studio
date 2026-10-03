@@ -1,0 +1,8 @@
+=== j-3157 node docs/research/editor-r1-2b-4/mutations.mjs HTML-attribute-case multiline-attribute-value literal-attributes duplicate-attributes
+=== cwd C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio
+KILLED: literal attributes
+KILLED: duplicate attributes
+KILLED: HTML attribute case
+KILLED: multiline attribute value
+Every source restored byte-for-byte.
+4/4 mutations killed.

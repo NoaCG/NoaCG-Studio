@@ -33,6 +33,7 @@ export default function EditorFoundation() {
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [projectOpen, setProjectOpen] = useState(false);
   const [linked, setLinked] = useState(true);
+  const [pathEditing, setPathEditing] = useState<string | null>(null);
   const [appearance, setAppearance] = useState<Record<string, RenderedPart['appearance']>>({});
   const preview = useRef<PreviewController | null>(null);
   const connectPreview = useCallback((controller: PreviewController | null) => { preview.current = controller; }, []);
@@ -98,6 +99,7 @@ export default function EditorFoundation() {
     return () => cancelAnimationFrame(frame);
   }, [playing, playbackRun, session, seek, pause]);
   const select = useCallback((selector: string | null, toggle: boolean) => {
+    setPathEditing(null);
     recordFoundationInput('selection');
     const selection = useTemplateStore.getState().selectedParts;
     const next = selector === null ? [] : toggle
@@ -149,8 +151,8 @@ export default function EditorFoundation() {
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} />
-      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
+      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />
     </div>
     <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
