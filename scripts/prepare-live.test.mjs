@@ -11,6 +11,13 @@ const { outputSettled, outputChecks, stampOf, stampWords, bridgeChecks, readPrep
   '../src/control/prepareLive.ts'
 );
 
+test('readiness checks only the relevant CasparCG connection and graphics slot', () => {
+  const base = { configured: true, status: { state: 'ok', detail: '' }, channel: 1, layer: 20, outputSlug: 'ours', items: [], slot: { producer: 'html', file: '/output?production=other' } };
+  assert.deepEqual(bridgeChecks({ ...base, configured: false }), [], 'browser-only skips an unrelated Bridge');
+  assert.deepEqual(bridgeChecks({ ...base, outputExpected: false }).map((l) => l.key), ['bridge'], 'server media with browser graphics ignores another production on the unused slot');
+  assert.equal(bridgeChecks({ ...base, configured: false, required: true, status: null })[0].tone, 'bad', 'unconfigured server cues still warn');
+});
+
 const V12 = { n: 12, h: 'aaaa' };
 const V13 = { n: 13, h: 'bbbb' };
 const entry = (ready, over = {}) => ({ kind: 'output', id: 'o1', engine: 'OBS', build: 'x', proto: 2, surface: 'output', log: true, cmd: null, at: 1, ready, ...over });

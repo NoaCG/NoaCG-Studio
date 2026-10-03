@@ -273,7 +273,7 @@ import { usePublishDrift } from './usePublishDrift';
 import { versionLabel, type PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
 import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
-import { describePlayoutStatus, type SlotReading } from '../../control/playoutStatus';
+import { casparOutputTarget, describePlayoutStatus, relevantPlayout, type SlotReading } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
@@ -529,6 +529,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [checkAgainRev, setCheckAgainRev] = useState(0);
   /** Bumped by Put on air and Take off: only the slot changed, so only the slot is read again. */
   const [slotRev, setSlotRev] = useState(0);
+  /** Invalidate an in-flight slot read synchronously when an output action finishes. */
+  const slotActionRev = useRef(0);
   /**
    * HOW MANY TIMES THE LIVE MAP HAS MOVED HERE, and the only reason it is counted.
    *
@@ -640,6 +642,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Take out request `id`, and only that one: Prepare for Live and every publish each put one in,
    *  and the newer stays when the older one's time is up. */
   const dropPrep = useCallback((id: string) => setPrepRequest((cur) => (cur?.id === id ? null : cur)), []);
+  const relevanceSettings = loadPlayoutSettings();
+  const casparTarget = casparOutputTarget(relevanceSettings);
+  const onAirChanged = (what: 'air' | 'stop', result: PlayoutResult, target: string) => {
+    slotActionRev.current += 1;
+    if (show && result.state === 'ok') {
+      saveReadyMemory(show.id, { ...loadReadyMemory(show.id), casparOutput: what === 'air' ? target : undefined });
+    }
+    setSlotRev((n) => n + 1);
+  };
+  const playoutRelevance = relevantPlayout({
+    configured: playoutConfigured(relevanceSettings),
+    serverCues: (show?.cues ?? []).some((c) => c.source === 'playout'),
+    peers: livePresence.peers,
+    expected: expectedOutputs,
+    casparActivity: !!show && loadReadyMemory(show.id).casparOutput === casparTarget,
+  });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
   const prepareFlow = usePrepareForLive({
@@ -656,7 +674,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setReadyStamp(stamp);
       saveReadyMemory(show.id, { ...loadReadyMemory(show.id), stamp });
     },
-    bridge: () => gatherBridgeFacts(loadPlayoutSettings(), show ?? {}),
+    bridge: () => {
+      if (playoutRelevance.bridge) setCheckAgainRev((n) => n + 1);
+      return gatherBridgeFacts(loadPlayoutSettings(), show ?? {}, playoutRelevance);
+    },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
   const { announce } = livePresence;
@@ -1057,16 +1078,21 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     let alive = true;
     let reading = false;
+    const actionRev = slotActionRev.current;
     // The same reading again keeps the same object, so an unchanged slot renders nothing.
-    const settle = (next: SlotReading | undefined) =>
+    const settle = (next: SlotReading | undefined) => {
+      if (next?.holds === 'ours' && showId) {
+        saveReadyMemory(showId, { ...loadReadyMemory(showId), casparOutput: casparTarget });
+      }
       setOutputSlot((prev) => (prev && next && prev.holds === next.holds && prev.detail === next.detail ? prev : next));
+    };
     const read = () => {
       if (reading) return; // a slow Bridge: never stack reads
       reading = true;
       readState(settings, settings.channel)
         .then(
           (r) => {
-            if (!alive) return;
+            if (!alive || actionRev !== slotActionRev.current) return;
             // A refused read is a fault the status names, never "Checking…" for ever.
             settle(
               r.reply
@@ -1086,7 +1112,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       alive = false;
       clearInterval(timer);
     };
-  }, [hostedSlug, bridgeAnswers, slotReadable, outputSlug, slotRev]);
+  }, [hostedSlug, bridgeAnswers, slotReadable, outputSlug, slotRev, showId, casparTarget]);
 
   // ── WHAT AN OLDER CLIP IS (docs/CLIP_PLAYBACK_PLAN.md §7, §18 case 5). A clip saved before its kind
   // was kept - or its length, by a record made elsewhere - learns both from the server's own list,
@@ -2348,7 +2374,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           (current?.graphics ?? []).map((g) => ({ key: g.name, ...templateForSavedGraphic(g, loadGraphics()) })),
         );
         if (forPrepare) {
-          setNote(`✓ Published as v${published.version?.n ?? '?'} for Prepare for Live. Every output now prepares it.`);
+          setNote('✓ Changes published. Checking output readiness now.');
         } else {
           // EVERY PUBLISH PREPARES (docs/work-specs/studio-day-playout AC-10; owner, 2026-10-01): the
           // same request Prepare for Live puts in this page's Presence entry, so each open output
@@ -2363,8 +2389,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           setStatusOpen(true);
           setNote(
             wasStarted
-              ? `✓ Published as v${published.version?.n ?? '?'}. Every open output prepares it and moves onto it when nothing is on air there.`
-              : '✓ Started. Put it on air from the Playout panel, or load the output URL in a browser source once: it stays the same across publishes.',
+              ? '✓ Changes published. Open outputs check them automatically and load them when nothing is on air there. The Playout status shows progress.'
+              : '✓ Production published. Load the output URL in your browser source, or press Put on air for CasparCG. The Playout status shows when it is ready.',
           );
         }
         return published.version ? { n: published.version.n, h: published.version.h } : null;
@@ -3998,8 +4024,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     started,
     unpublished: unpublishedChanges,
     version: publishedLabel,
-    bridge: playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : null,
-    slot: outputSlot && { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot },
+    bridge: playoutRelevance.bridge ? (playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : { state: 'config', detail: 'Set up NoaCG Bridge and CasparCG to play the server cues in this rundown.' }) : null,
+    slot: playoutRelevance.slot && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
     ready: readySummary,
   });
 
@@ -4055,11 +4081,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   airNeeded={outputSlot?.holds === 'empty' || outputSlot?.holds === 'other'}
                   onPublish={() => void publish()}
                   onUnpublish={() => void unpublish()}
-                  onAirChanged={() => setSlotRev((n) => n + 1)}
+                  onAirChanged={onAirChanged}
                 />
               ) : (
                 <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
-                  Press ▶ Start production beside the status to go live. Until then a Take plays only on this page.
+                  Press ▶ Start production beside the status to publish this production and get its output URL. Until then a Take plays only on this page.
                 </p>
               )}
               {hostedSlug && (
@@ -4071,7 +4097,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   stamp={readiness.newestStamp}
                 />
               )}
-              {playoutIsConfigured && (
+              {playoutIsConfigured && playoutRelevance.bridge && (
                 <div className="row pd-panel-check">
                   <button onClick={() => setCheckAgainRev((n) => n + 1)} data-testid="playout-check-again">
                     Check again
@@ -4087,7 +4113,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             <PlayoutPanelSection
               title="Setup"
               testId="playout-panel-setup"
-              folded={playoutIsConfigured && (bridgeStatus === null || bridgeStatus.state === 'ok')}
+              folded={playoutIsConfigured && (!playoutRelevance.bridge || bridgeStatus === null || bridgeStatus.state === 'ok')}
             >
               <p className="pd-ready-empty" data-testid="playout-setup-summary">
                 {playoutIsConfigured
@@ -4838,6 +4864,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {playoutSettingsOpen && (
         <PlayoutSettingsDialog
           outputUrl={outputUrl}
+          onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
           onClose={() => {
             setPlayoutSettingsOpen(false);
             setPlayoutSettingsRev((n) => n + 1);

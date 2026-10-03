@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { PLAYOUT_SYSTEMS, DEFAULT_PLAYOUT_SYSTEM } from '../control/playoutSystems';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import PlayoutSettingsPanel from './PlayoutSettingsPanel';
+import type { PlayoutResult } from '../control/playoutLink';
 import { useModalGate } from './spaceKey';
 
 /**
@@ -21,10 +22,12 @@ import { useModalGate } from './spaceKey';
 export default function PlayoutSettingsDialog({
   onClose,
   outputUrl,
+  onOutputOnAir,
 }: {
   onClose: () => void;
   /** The production's output URL, null until it is started: the form's Put on air airs it. */
   outputUrl: string | null;
+  onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 }) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
@@ -78,7 +81,7 @@ export default function PlayoutSettingsDialog({
           </section>
           <section>
             <p className="dlg-caption">{DEFAULT_PLAYOUT_SYSTEM.name}</p>
-            <PlayoutSettingsPanel outputUrl={outputUrl} />
+            <PlayoutSettingsPanel outputUrl={outputUrl} onOutputOnAir={onOutputOnAir} />
           </section>
         </div>
       </div>

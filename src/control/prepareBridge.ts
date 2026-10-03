@@ -7,14 +7,16 @@ import type { Show } from '../model/shows';
 import { listLibrary, playoutConfigured, readState, testConnection, type PlayoutSettings } from './playoutLink';
 import type { BridgeFacts } from './prepareLive';
 
-export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug'>): Promise<BridgeFacts> {
+export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Show, 'cues' | 'playoutItems' | 'outputSlug'>, relevance = { bridge: true, slot: true }): Promise<BridgeFacts> {
   const items = (show.cues ?? [])
     .filter((c) => c.source === 'playout')
     .map((c) => (show.playoutItems ?? []).filter((i) => i.id === c.sourceId)[0])
     .filter((i): i is NonNullable<typeof i> => !!i)
     .map((i) => ({ kind: i.kind, name: i.name }));
   const base: BridgeFacts = {
-    configured: playoutConfigured(settings),
+    configured: relevance.bridge && playoutConfigured(settings),
+    required: relevance.bridge && items.length > 0,
+    outputExpected: relevance.slot,
     status: null,
     outputSlug: show.outputSlug ?? null,
     channel: settings.channel,
@@ -37,10 +39,10 @@ export async function gatherBridgeFacts(settings: PlayoutSettings, show: Pick<Sh
         )
       : Promise.resolve(undefined);
   const [slot, media, templates] = await Promise.all([
-    readState(settings, settings.channel).then(
+    relevance.slot ? readState(settings, settings.channel).then(
       (r) => (r.reply ? (r.reply.slots.filter((s) => s.layer === settings.layer)[0] ?? null) : undefined),
       () => undefined,
-    ),
+    ) : Promise.resolve(undefined),
     names('media'),
     names('template'),
   ]);

@@ -100,7 +100,7 @@ export function withPing(checks: readonly CheckLine[], peers: readonly LiveEntry
     });
   }
   if (ping.state === 'failed') {
-    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Prepare for Live again.' });
+    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Check readiness again.' });
   }
   return checks.map((check): CheckLine => {
     if (check.key.indexOf('output-') !== 0) return check;
@@ -175,14 +175,14 @@ export function outputChecks(lines: readonly OutputLine[], settled: ReadonlySet<
         key: 'outputs-none',
         tone: 'warn',
         label: 'No output is connected to this production',
-        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Prepare for Live again.',
+        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Check readiness again.',
       },
     ];
   }
   return lines.map((line): CheckLine => {
     if (settled.has(line.id)) return { key: `output-${line.id}`, tone: line.tone, label: `${line.name}: ${line.state}`, advice: line.detail[0] };
     return timedOut
-      ? { key: `output-${line.id}`, tone: 'warn', label: `${line.name}: still preparing after ${PREPARE_WAIT_MS / 1000} s`, advice: 'It may be slow or stuck. Reload it, then press Prepare for Live again.' }
+      ? { key: `output-${line.id}`, tone: 'warn', label: `${line.name}: still preparing after ${PREPARE_WAIT_MS / 1000} s`, advice: 'It may be slow or stuck. Reload it, then press Check readiness again.' }
       : { key: `output-${line.id}`, tone: 'running', label: `${line.name}: ${line.state}` };
   });
 }
@@ -220,6 +220,10 @@ export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unp
 export interface BridgeFacts {
   /** The studio has a Bridge and a server set up (playoutLink.ts `playoutConfigured`). */
   configured: boolean;
+  /** Server cues require Bridge even if it has not been configured yet. */
+  required?: boolean;
+  /** Browser graphics with server media do not expect the NoaCG graphics slot. */
+  outputExpected?: boolean;
   /** A real VERSION round trip through the Bridge (`testConnection`). */
   status: PlayoutResult | null;
   /** The output slot as the server holds it, or undefined when it could not be read. */
@@ -272,7 +276,7 @@ export function requestId(): string {
  * OBS or vMix instead.
  */
 export function bridgeChecks(f: BridgeFacts): CheckLine[] {
-  if (!f.configured) return [];
+  if (!f.configured && !f.required) return [];
   const where = `${f.channel}-${f.layer}`;
   if (!f.status || f.status.state !== 'ok') {
     return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
@@ -280,7 +284,7 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
   const lines: CheckLine[] = [
     { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
   ];
-  if (f.slot !== undefined) {
+  if (f.outputExpected !== false && f.slot !== undefined) {
     const holds = slotHolds(f.slot, f.outputSlug);
     if (holds === 'ours') lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
     else if (holds === 'other') {

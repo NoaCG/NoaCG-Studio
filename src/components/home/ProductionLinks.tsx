@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { casparOutputTarget } from '../../control/playoutStatus';
 import {
   loadPlayoutSettings,
   playoutConfigured,
@@ -41,7 +42,7 @@ import {
  * would be a dead control on the busiest surface in the app - and the URL row directly above it
  * is the manual route that has always worked and still does.
  */
-function BridgeAirRow({ outputUrl, primary, onSent }: { outputUrl: string | null; primary?: boolean; onSent?: () => void }) {
+function BridgeAirRow({ outputUrl, primary, onSent }: { outputUrl: string | null; primary?: boolean; onSent?: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void }) {
   const [busy, setBusy] = useState<'air' | 'stop' | null>(null);
   // WHICH command produced this result, not just the result. Both buttons succeed the same way -
   // `{ state: 'ok' }` - so a message written from the result alone said "✓ On 1-20" after Take
@@ -72,9 +73,9 @@ function BridgeAirRow({ outputUrl, primary, onSent }: { outputUrl: string | null
     try {
       const result = what === 'air' ? await putOutputOnAir(now, outputUrl!) : await takeOutputOff(now);
       setOutcome({ what, address: slotAddress(slotOf(now)), result });
+      onSent?.(what, result, casparOutputTarget(now));
     } finally {
       setBusy(null);
-      onSent?.();
     }
   };
 
@@ -235,7 +236,7 @@ export function PublishActions({
   onPublish: () => void;
   onUnpublish: () => void;
   /** Put on air or Take off was sent: the slot changed, so the status reads it again now. */
-  onAirChanged: () => void;
+  onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
 }) {
   return (
     <>
@@ -245,6 +246,11 @@ export function PublishActions({
           onto them when nothing is on air there.
         </p>
       )}
+      <p className="pd-prepare-note" data-testid="publish-guarantees">
+        Publish changes saves graphics, pictures and cues for your output URL. Open outputs check
+        changed graphics and assets automatically, then load them when nothing is on air there.
+        The status above shows whether they are ready. Publishing does not put an output on air.
+      </p>
       <div className="row">
         {/* The amber primary only while there IS something to publish: otherwise the press the
             panel needs (Put on air, below) must not sit beside a louder one that does nothing. */}

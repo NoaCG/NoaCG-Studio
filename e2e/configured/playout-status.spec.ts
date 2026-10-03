@@ -11,7 +11,7 @@
 // NoaCG Bridge and CasparCG are FAKED at the network layer (e2e/_fakeBridge.ts), because what the
 // status reads from them is one `/state` answer: what the output's slot holds.
 // The real-server walk of the same states is docs/work-specs/studio-day-playout/evidence/landing-2.md.
-// covers: src/control/playoutStatus.ts, src/components/home/PlayoutStatusControl.tsx, src/components/home/ProductionLinks.tsx, src/components/home/PlayoutMonitors.tsx
+// covers: src/control/{playoutStatus,prepareBridge}.ts, src/model/readyMemory.ts, src/components/home/PlayoutStatusControl.tsx, src/components/home/ProductionLinks.tsx, src/components/home/PlayoutMonitors.tsx
 
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
@@ -127,10 +127,38 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-outputs', '1', { timeout: 30_000 });
   await expect(status).toHaveAttribute('data-tone', settled, { timeout: 30_000 });
   if (fontsOk) await expect(status).toContainText('Ready · 1 output');
+  // Browser-only output with stale paired settings: a disconnected Bridge contributes no fault.
+  studio.missing = true;
+  await status.click();
+  await expect(panel.getByTestId('playout-check-again')).toHaveCount(0);
+  await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0, { timeout: 30_000 });
+  await expect(panel.getByTestId('status-check-slot')).toHaveCount(0);
+  await expect(status).toHaveAttribute('data-tone', settled);
+  await expect(panel.getByTestId('publish-guarantees')).toContainText('check changed graphics and assets automatically');
+  await expect(panel.getByTestId('prepare-for-live-button')).toHaveText('Check readiness');
+  await panel.getByTestId('prepare-for-live-button').click();
+  await expect(panel.getByTestId('prepare-stamp')).toBeVisible({ timeout: 90_000 });
+  await expect(panel.getByTestId('prepare-checklist')).not.toContainText('NoaCG Bridge');
+  await page.screenshot({ path: test.info().outputPath('browser-health-desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: test.info().outputPath('browser-health-phone.png'), fullPage: true });
+  await page.setViewportSize({ width: 1366, height: 768 });
+  studio.missing = false;
+  await page.keyboard.press('Escape');
   // With an output reporting, this production on its slot is green, and says where.
   await status.click();
   await panel.getByTestId('caspar-put-on-air').click();
   if (fontsOk) await expect(status).toContainText('Ready · on air 1-20', { timeout: 5_000 });
+  // A successful CasparCG action proves intent, even when a browser output stays healthy.
+  studio.missing = true;
+  await panel.getByTestId('playout-check-again').click();
+  await expect(status).toContainText('Bridge not running', { timeout: 30_000 });
+  await page.reload();
+  await expect(status).toContainText('Bridge not running', { timeout: 30_000 });
+  studio.missing = false;
+  await status.click();
+  await panel.getByTestId('playout-check-again').click();
+  await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok', { timeout: 30_000 });
   await page.keyboard.press('Escape');
 
   // ── AC-10: a change is amber until published, and the publish moves the open output onto the

@@ -248,7 +248,7 @@ export function PrepareForLive({
   return (
     <section className="pd-prepare" data-testid="prepare-for-live">
       <div className="pd-ready-title">
-        <span>Prepare for Live</span>
+        <span>Readiness check</span>
       </div>
       {stamp && phase !== 'publishing' && phase !== 'preparing' && (
         <p className={`pd-prepare-stamp${stamp.problems ? ' is-bad' : stamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="prepare-stamp">
@@ -267,8 +267,13 @@ export function PrepareForLive({
           ? 'Your unpublished changes will be published and included. Every output then prepares them and is checked. Editing goes on as usual.'
           : `Every output is checked on v${published.n}. Nothing is locked.`}
       </p>
-      <button type="button" className="primary pd-prepare-button" disabled={busy} onClick={() => void run()} data-testid="prepare-for-live-button">
-        {busy ? 'Preparing…' : phase === 'done' ? 'Prepare for Live again' : 'Prepare for Live'}
+      <p className="pd-prepare-note">
+        Publishing already prepares graphics and assets. This optional check also tests command
+        delivery to each output and any CasparCG connection this production uses. It never puts
+        an output on air or replaces graphics while they are on air.
+      </p>
+      <button type="button" className="pd-prepare-button" disabled={busy} onClick={() => void run()} data-testid="prepare-for-live-button">
+        {busy ? 'Checking…' : 'Check readiness'}
       </button>
     </section>
   );

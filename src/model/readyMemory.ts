@@ -30,6 +30,8 @@ export interface RememberedStamp {
 export interface ReadyMemory {
   outputs: RememberedOutput[];
   stamp: RememberedStamp | null;
+  /** Successful Put on air, per server/slot. Take off clears it; a disconnect never does. */
+  casparOutput?: string;
 }
 
 const EMPTY: ReadyMemory = { outputs: [], stamp: null };
@@ -64,9 +66,9 @@ export function loadReadyMemory(productionId: string): ReadyMemory {
   try {
     const raw = localStorage.getItem(keyFor(productionId));
     if (!raw) return EMPTY;
-    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown } | null;
+    const parsed = JSON.parse(raw) as { v?: unknown; outputs?: unknown; stamp?: unknown; casparOutput?: unknown } | null;
     if (!parsed || parsed.v !== READY_MEMORY_VERSION) return EMPTY;
-    return { outputs: readOutputs(parsed.outputs), stamp: readStamp(parsed.stamp) };
+    return { outputs: readOutputs(parsed.outputs), stamp: readStamp(parsed.stamp), ...(typeof parsed.casparOutput === 'string' ? { casparOutput: parsed.casparOutput.slice(0, 300) } : {}) };
   } catch {
     return EMPTY;
   }
@@ -83,7 +85,7 @@ export function saveReadyMemory(productionId: string, memory: ReadyMemory): void
     localStorage.setItem(
       keyFor(productionId),
       // The newest are kept: the list grows at its end (control/readiness.ts rememberOutputs).
-      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp }),
+      JSON.stringify({ v: READY_MEMORY_VERSION, outputs: memory.outputs.slice(-MAX_OUTPUTS), stamp: memory.stamp, casparOutput: memory.casparOutput }),
     );
   } catch {
     // Nowhere to keep it: remembered for as long as the page is open.

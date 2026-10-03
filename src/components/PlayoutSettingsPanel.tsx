@@ -25,6 +25,7 @@ import {
 } from '../control/playoutLink';
 import { MAX_CHANNEL_NAME, MAX_STUDIO_LAYER, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
 import { plural } from '../control/readiness';
+import { casparOutputTarget } from '../control/playoutStatus';
 import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import CopyPairingLink from './CopyPairingLink';
@@ -75,7 +76,7 @@ type Verb = 'test' | 'connect' | 'air';
  * server did not answer" have nothing to do with each other, and most of them are the person's
  * own to fix.
  */
-export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string | null } = {}) {
+export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { outputUrl?: string | null; onOutputOnAir?: (result: PlayoutResult, target: string) => void } = {}) {
   const [settings, setSettings] = useState(loadPlayoutSettings);
   const [busy, setBusy] = useState<Verb | null>(null);
   // The verdict, with its success sentence written AT THE PRESS: it is past tense, so it must not be
@@ -195,6 +196,7 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
       } else if (outputUrl) {
         const r = await putOutputOnAir(now, outputUrl);
         setResult({ verb, result: r, ok: `✓ On ${slotAddress(slotOf(now))} of ${serverAddress(targetOf(now))}` });
+        onOutputOnAir?.(r, casparOutputTarget(now));
       }
     } finally {
       setBusy(null);
