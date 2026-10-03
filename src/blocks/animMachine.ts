@@ -16,6 +16,7 @@ import {
   type AnimStep,
   type AnimTransition,
 } from './animData';
+import { buttonLabel, CONTROL_LABEL_MAX, labelFields, plainLabel } from './controlLabels';
 
 export { RESERVED_EVENTS };
 
@@ -308,7 +309,11 @@ export function allOperatorEvents(machine: AnimMachine): string[] {
 /** One button of a control surface: the event plus its declared presentation, resolved. */
 export interface ControlButton {
   event: string;
+  /** The PLAIN label: any field the declaration names reads as its fallback ("+1 P1"). */
   label: string;
+  /** The declared label, kept only when it names a field (`+1 {f0|P1}`, blocks/controlLabels.ts),
+   *  so a surface that knows what is on air can show the name there instead ("+1 ANNA"). */
+  labelTemplate?: string;
   section?: string;
   payload?: string[];
   /** Field ids whose current value, moved by the delta, rides the event (a goal's +1). */
@@ -344,7 +349,9 @@ export function machineControls(machine: AnimMachine): ControlButton[] {
   ];
   return events.map((event) => {
     const c = byEvent.get(event);
-    const button: ControlButton = { event, label: c?.label ?? event };
+    const declared = c?.label ?? event;
+    const button: ControlButton = { event, label: buttonLabel(declared, event) };
+    if (labelFields(declared).length > 0) button.labelTemplate = declared;
     if (c?.section !== undefined) button.section = c.section;
     if (c?.payload !== undefined) button.payload = c.payload;
     if (c?.adjust !== undefined) button.adjust = c.adjust;
@@ -561,6 +568,20 @@ export function validateMachine(data: AnimData): { errors: string[]; warnings: s
     for (const c of machine.controls) {
       if (!authored.includes(c.event)) {
         warnings.push(`Machine controls: no transition fires the event "${c.event}" — its button is not rendered.`);
+      }
+      // A live button is read at a glance, mid-show: a word or two, never the explanation, which
+      // the button's hover already gives from what the press does.
+      const label = c.label ?? c.event;
+      const plain = plainLabel(label);
+      if (plain.length > CONTROL_LABEL_MAX) {
+        warnings.push(
+          `Machine controls: the "${c.event}" label "${plain}" is ${plain.length} characters - keep a live button to ${CONTROL_LABEL_MAX} or fewer ("Final", "+1 {f0|P1}"); the section and the hover carry the rest.`,
+        );
+      }
+      for (const f of labelFields(label)) {
+        if (!f.fallback) {
+          warnings.push(`Machine controls: the "${c.event}" label names {${f.key}} with no fallback - write {${f.key}|P1} so it reads sensibly while the field is empty.`);
+        }
       }
     }
   }

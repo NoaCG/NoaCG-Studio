@@ -251,8 +251,8 @@ export const mapRoundType: GraphicType = {
     },
   },
   controls: [
-    { event: 'advance', label: 'Advance map / decision', section: 'Map sequence', order: 1, payload: ['current'] },
-    { event: 'seriesFinal', label: 'Series / veto complete', section: 'Map sequence', order: 2 },
+    { event: 'advance', label: 'Advance', section: 'Map sequence', order: 1, payload: ['current'] },
+    { event: 'seriesFinal', label: 'Complete', section: 'Map sequence', order: 2 },
   ],
   capabilities: {
     maxLines: 1,

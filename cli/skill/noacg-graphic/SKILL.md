@@ -134,6 +134,11 @@ whether that person can keep up, and `noacg inspect` shows you the result.
   during the show; a thing done live with a press is a ⚡ button, never a field to retype. A goal
   is one button that adds 1 to the score (`"adjust": { "f1": 1 }` in `machine.controls`); the
   number field stays for corrections.
+- **A button label is a word or two.** "Final", "Reset 0-0", "Start clock", never the explanation
+  ("Take one back from player 1"): the section names the group and the button's hover already says
+  what the press does. A label that acts on a player names the player in braces, `"+1 {f0|P1}"`,
+  and the operator page shows the name on air ("+1 ANNA"), or the fallback after the bar while the
+  field is empty. The validator warns on a label over 16 characters.
 - **Set-once words are hidden word sources.** A word a state shows (POWER PLAY, END 1ST, FINAL,
   LIVE) is still a field, because the broadcaster names it, but when it is set once it is
   `"ftype": "hidden"` in a holder `<div id="f9" class="noacg-data-source">FINAL</div>`. The studio's

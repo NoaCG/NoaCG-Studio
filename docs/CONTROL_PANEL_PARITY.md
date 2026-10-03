@@ -82,7 +82,7 @@ the graphic only on Update or Play.
   segmented A/B/C/D pickers), `f7` audience results. **All eight reached the DOM.**
 - **Machine:** one group, eight states (`off`, `question`, `reveal`, `out`, plus the branches
   `selected`, `locked`, `sealed`, `audience`), `steps: 2`.
-- **Events:** ⚡ Select answer · Lock it in · Reveal choice · Reveal correct · Show audience result.
+- **Events:** ⚡ Select answer · Lock it in · Reveal choice · Reveal correct · Audience result.
 - **Walk, measured:**
   `question` -(select)→ `selected` -(lock)→ `locked` -(judge)→ `reveal` -(audience)→ `audience`
   -(» Next)→ off air. Replay + » Next fires the walk's own `judge` arrow into `reveal`.

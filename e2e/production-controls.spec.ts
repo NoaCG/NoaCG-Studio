@@ -136,10 +136,11 @@ test('quiz actions on the production page: greying, select/lock, live update kee
   const judge = page.getByTestId('cue-action-judge');
   const program = page.frameLocator('[data-testid="program-stage"] iframe');
 
-  // The block is there, says it acts ON AIR, and every button is dead until a Take — the
-  // graphic is not up, so firing anything would be a lie the runtime happens to swallow.
+  // The block is there, its ONE status says the graphic is not on air (no second "act on air"
+  // beside it), and every button is dead until a Take — the graphic is not up, so firing
+  // anything would be a lie the runtime happens to swallow.
   await expect(actions).toBeVisible();
-  await expect(actions).toContainText('act on air');
+  await expect(actions).not.toContainText('act on air');
   await expect(chip).toHaveText('not on air');
   await expect(select).toBeDisabled();
   await expect(select).toHaveAttribute('title', /not on air. Take the cue first/);
@@ -558,7 +559,7 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
   await ctl.waitForTimeout(400);
   expect(programUpdates().length).toBe(beforeSpot);
   // The ⚡ action is how that number reaches air, carrying the state that explains it.
-  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight podium' }).click();
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Spotlight' }).click();
   await expect(air.locator('.scoreboard-podium-1')).toHaveClass(/scoreboard-podium-spot/, { timeout: 10_000 });
 
   // ✎ Update stays the deliberate other half: the WHOLE value set, staged name included.

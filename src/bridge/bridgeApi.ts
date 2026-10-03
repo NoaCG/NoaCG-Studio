@@ -17,6 +17,7 @@
 import JSZip from 'jszip';
 import { parseAnimData } from '../blocks/animData';
 import { spxSteps } from '../blocks/animMachine';
+import { buttonLabel } from '../blocks/controlLabels';
 import { animationBreach } from '../blocks/animationRegion';
 import { publishGate } from '../community/gate';
 import { eventButtons, fieldDescriptors, machineStateGroups, type ControlButton } from '../control/controlModel';
@@ -113,7 +114,7 @@ function summarize(type: GraphicType): BridgeTypeSummary {
     const c = declared.get(event);
     return {
       event,
-      label: c?.label ?? event,
+      label: buttonLabel(c?.label, event),
       ...(c?.section ? { section: c.section } : {}),
       ...(c?.payload?.length ? { payload: c.payload } : {}),
       ...(c?.adjust && Object.keys(c.adjust).length ? { adjust: c.adjust } : {}),

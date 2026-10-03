@@ -13,7 +13,7 @@
 // REVEALING A LETTER IS ONE PRESS. "Reveal letter" carries `add` - the list twin of `adjust`
 // (docs/SVG_BEHAVIOUR_PLAN.md §13): the surface appends the Guess box to the revealed list and
 // the whole list rides the event, so the letter lands exactly when the machine accepts the press
-// and the operator's own box moves with the board. "Take back a letter" is its honest inverse.
+// and the operator's own box moves with the board. "Undo letter" is its honest inverse.
 // Both are self-transitions on a `letters` group of one state rather than arrows on the main
 // path, because re-entering the entrance state would replay the entrance; the group exists to
 // carry the press and repaint, nothing more.
@@ -51,7 +51,7 @@ function puzzleMachine(): TypeMachine {
 
 const puzzleControls = (): TypeControlEvent[] => [
   { event: REVEAL_EVENT, label: 'Reveal letter', section: 'Letters', order: 1, add: { [REVEALED]: GUESS } },
-  { event: UNREVEAL_EVENT, label: 'Take back a letter', section: 'Letters', order: 2, remove: { [REVEALED]: GUESS } },
+  { event: UNREVEAL_EVENT, label: 'Undo letter', section: 'Letters', order: 2, remove: { [REVEALED]: GUESS } },
   { event: SOLVE_EVENT, label: 'Solve', section: 'Puzzle', order: 10 },
   { event: NEW_EVENT, label: 'New puzzle', section: 'Puzzle', order: 11, destructive: true, set: { [REVEALED]: '', [GUESS]: '' } },
 ];

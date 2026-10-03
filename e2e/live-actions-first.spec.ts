@@ -12,6 +12,11 @@ import { settleDurableWrites } from './_durable';
 // and the setup fields come after them, foldable. Measured at the laptop size the backlog item
 // was filed at, 1600x900, where the hockey scorebug's clock and goal buttons used to sit below
 // twelve inputs and the answer board's Reveal row was cut by the fold under eight.
+//
+// COMPACT (owner, 2026-10-03: "use the space efficiently, so we don't get long vertical pages ...
+// the button texts should be short and to the point"). The block has no sentence under its head and
+// one on-air status, and its sections sit side by side, so its HEIGHT is pinned here: the duel
+// score and the quiz in one row of buttons, the twelve-action hockey scorebug in two.
 
 test.use({ viewport: { width: 1600, height: 900 } });
 
@@ -36,6 +41,26 @@ async function catalogProduction(page: Page, variant: string, name: string): Pro
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
+}
+
+/** How many rows the block's buttons sit in, and how tall the block is. */
+async function blockRows(page: Page): Promise<{ rows: number; height: number }> {
+  return page.getByTestId('cue-actions').evaluate((el) => {
+    const tops = new Set([...el.querySelectorAll('.pd-actions-groups button')].map((b) => Math.round(b.getBoundingClientRect().top)));
+    return { rows: tops.size, height: el.getBoundingClientRect().height };
+  });
+}
+
+/** Where each action button sits, by event. */
+async function slots(page: Page): Promise<Record<string, { x: number; y: number; width: number }>> {
+  return page.getByTestId('cue-actions').evaluate((el) =>
+    Object.fromEntries(
+      [...el.querySelectorAll<HTMLElement>('button[data-testid^="cue-action-"]')].map((b) => {
+        const r = b.getBoundingClientRect();
+        return [b.dataset.testid!, { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width) }];
+      }),
+    ),
+  );
 }
 
 /** Whether the element is wholly on screen, inside the control area's scroller too. */
@@ -71,6 +96,11 @@ test('the hockey scorebug: its clock and goal buttons show without scrolling, ab
 
   // THE AC: the buttons pressed all game, wholly on screen at 1600x900.
   for (const id of ['clockStart', 'clockStop', 'goalA', 'goalB']) await onScreen(page, `cue-action-${id}`);
+  // COMPACT: four sections side by side, twelve buttons in two rows, and no sentence in the block.
+  const hockey = await blockRows(page);
+  expect(hockey.rows, 'the twelve hockey actions sit in two rows').toBe(2);
+  expect(hockey.height).toBeLessThan(140);
+  await expect(actions.locator('p')).toHaveCount(0);
 
   // Take it, start the clock, score: the presses work from where they now sit.
   await page.getByTestId('verb-take').click();
@@ -96,6 +126,9 @@ test('the answer board quiz: every answer action shows without scrolling', async
   // row cut by the fold under eight setup fields.
   await catalogProduction(page, 'qz02', 'House Quiz');
   for (const id of ['cue-action-select', 'cue-action-lock', 'cue-action-judge']) await onScreen(page, id);
+  const quiz = await blockRows(page);
+  expect(quiz.rows, 'the five quiz actions sit in one row').toBe(1);
+  expect(quiz.height).toBeLessThan(100);
   const actionsTop = (await page.getByTestId('cue-actions').boundingBox())!.y;
   const editorTop = (await page.getByTestId('cue-editor').boundingBox())!.y;
   expect(actionsTop).toBeLessThan(editorTop);
@@ -128,4 +161,76 @@ test('» Next names its target: the answer board at Question reads Reveal correc
   await expect(page.getByTestId('machine-state-chip')).toHaveText('Reveal');
   await expect(page.getByTestId('verb-next-target')).toHaveText('last step');
   await expect(page.getByTestId('verb-next')).toBeDisabled();
+});
+
+test('the duel score: one compact row, and its point buttons name the players ON AIR', async ({ page }) => {
+  test.setTimeout(60_000);
+  // sb26, the two-player score whose long labels ("Take one back from player 1") the owner looked
+  // at on 2026-10-03.
+  await catalogProduction(page, 'sb26', 'Duel');
+  const actions = page.getByTestId('cue-actions');
+  const chip = page.getByTestId('machine-state-chip');
+  const pointA = page.getByTestId('cue-action-pointA');
+  const pointB = page.getByTestId('cue-action-pointB');
+
+  // ONE status, the chip: no "act on air" beside it and no sentence under the head.
+  await expect(chip).toHaveText('not on air');
+  await expect(actions).not.toContainText('act on air');
+  await expect(actions.locator('p')).toHaveCount(0);
+  // Nothing on air yet: the buttons read the fallbacks, never the editor's names.
+  await expect(pointA).toHaveText('⚡ +1 P1');
+  await expect(pointB).toHaveText('⚡ +1 P2');
+
+  await page.getByTestId('verb-take').click();
+  await expect(chip).toContainText('Live');
+  // Short, P1 then P2 left to right, every section in one row of the 1600-wide page.
+  await expect(actions.locator('.pd-actions-groups button')).toHaveText(['⚡ +1 ALEX', '⚡ +1 SAM', '⚡ −1 ALEX', '⚡ −1 SAM', '⚡ Final', '⚡ Reset 0-0']);
+  const duel = await blockRows(page);
+  expect(duel.rows).toBe(1);
+  expect(duel.height).toBeLessThan(100);
+  const before = await slots(page);
+  expect(before['cue-action-pointA'].x).toBeLessThan(before['cue-action-pointB'].x);
+  // The hover still says what the press does, with the name whole.
+  await expect(pointA).toHaveAttribute('title', /\+1 ALEX on the live graphic and moves Score 1 with it/);
+
+  // AN UNSENT EDIT IS NEVER READ: the audience still sees ALEX, so the button still says ALEX.
+  const name1 = page.getByTestId('cue-field-f0');
+  await name1.fill('ALEXANDRA THE GREAT');
+  await expect(page.getByTestId('cue-unsent')).toBeVisible();
+  await expect(pointA).toHaveText('⚡ +1 ALEX');
+  // Sent, it reads the new name at once, and NOTHING MOVES: the slot is fixed, the long name
+  // truncates on one line and the hover carries it whole.
+  await page.getByTestId('verb-update').click();
+  await expect(pointA).toHaveText('⚡ +1 ALEXANDRA THE GREAT');
+  await expect(pointA).toHaveAttribute('title', /ALEXANDRA THE GREAT/);
+  expect(await slots(page)).toEqual(before);
+  expect(await pointA.evaluate((b) => b.scrollWidth > b.clientWidth), 'the long name truncates in its slot').toBe(true);
+
+  // Two players with one name stay apart: P1 SAM and P2 SAM.
+  await name1.fill('SAM');
+  await page.getByTestId('verb-update').click();
+  await expect(pointA).toHaveText('⚡ +1 P1 SAM');
+  await expect(pointB).toHaveText('⚡ +1 P2 SAM');
+  await expect(page.getByTestId('cue-action-undoB')).toHaveText('⚡ −1 P2 SAM');
+  // An empty name on air reads its fallback.
+  await name1.fill('');
+  await page.getByTestId('verb-update').click();
+  await expect(pointA).toHaveText('⚡ +1 P1');
+  await expect(pointB).toHaveText('⚡ +1 SAM');
+  expect(await slots(page)).toEqual(before);
+
+  // The press still scores the player it names.
+  await pointB.click();
+  await expect(page.getByTestId('cue-field-f3')).toHaveValue('1');
+
+  // A RENAME IN ARRANGE WINS: the operator's word stays when the name on air changes.
+  await page.getByTestId('cue-actions-arrange').click();
+  await page.getByTestId('arrange-name-pointB').fill('Goal right');
+  await page.getByTestId('arrange-name-pointB').press('Enter');
+  await page.getByTestId('cue-actions-arrange').click();
+  await expect(pointB).toHaveText('⚡ Goal right');
+  await page.getByTestId('cue-field-f2').fill('BEA');
+  await page.getByTestId('verb-update').click();
+  await expect(page.getByTestId('cue-action-undoB')).toHaveText('⚡ −1 BEA');
+  await expect(pointB).toHaveText('⚡ Goal right');
 });

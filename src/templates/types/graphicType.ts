@@ -249,6 +249,9 @@ export interface TypeMachine {
  *  the label belongs to the event, not to any one arrow. */
 export interface TypeControlEvent {
   event: string;
+  /** What the button says: a word or two ("Final", "Reset 0-0"), never the explanation - the
+   *  hover says what the press does. `{key|fallback}` shows a field's on-air value, so a point
+   *  button reads "+1 ANNA" ("+1 {playerA|P1}"; blocks/controlLabels.ts). */
   label: string;
   order?: number;
   /** Groups buttons on a control surface ('Clock', 'Answer'). */
@@ -539,7 +542,14 @@ function compileControls(type: GraphicType, machine: AnimMachine): MachineContro
   const out: MachineControl[] = [];
   for (const declared of type.controls) {
     if (!authored.includes(declared.event)) continue;
-    const control: MachineControl = { event: declared.event, label: declared.label };
+    // A label naming a field (`+1 {playerA|P1}`, blocks/controlLabels.ts) names it by the logical
+    // key; the template knows only the `fN` id it compiled to. A key no field has stays as typed -
+    // a recipe builds labels from names somebody typed - and the validator reports it.
+    const label = declared.label.replace(/\{([a-z][\w-]*)((?:\|[^{}]*)?)\}/g, (whole: string, key: string, rest: string) => {
+      const id = fieldIdFor(type.fields, key);
+      return id ? `{${id}${rest}}` : whole;
+    });
+    const control: MachineControl = { event: declared.event, label };
     if (declared.order !== undefined) control.order = declared.order;
     if (declared.section !== undefined) control.section = declared.section;
     if (declared.payload !== undefined) {

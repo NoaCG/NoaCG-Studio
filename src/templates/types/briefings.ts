@@ -462,8 +462,8 @@ export const noticeCardType: GraphicType = {
     ],
   },
   controls: [
-    { event: 'escalate', label: 'Escalate to urgent', section: 'Notice level', order: 1 },
-    { event: 'standDown', label: 'Back to standard', section: 'Notice level', order: 2 },
+    { event: 'escalate', label: 'Urgent', section: 'Notice level', order: 1 },
+    { event: 'standDown', label: 'Standard', section: 'Notice level', order: 2 },
   ],
   capabilities: {
     maxLines: 5,

@@ -139,8 +139,8 @@ export const scoreboardType: GraphicType = {
   // the panel sends the event carrying the new figure, and the machine applies both together
   // or neither. The ± live-number steppers stay the correction road (a disallowed goal).
   controls: [
-    { event: 'goalA', label: 'Goal A', section: 'Goal', order: 1, adjust: { scoreA: 1 } },
-    { event: 'goalB', label: 'Goal B', section: 'Goal', order: 2, adjust: { scoreB: 1 } },
+    { event: 'goalA', label: 'Goal {teamA|A}', section: 'Goal', order: 1, adjust: { scoreA: 1 } },
+    { event: 'goalB', label: 'Goal {teamB|B}', section: 'Goal', order: 2, adjust: { scoreB: 1 } },
     { event: 'clearFlag', label: 'Clear flag', section: 'Goal', order: 3 },
     { event: 'final', label: 'Full time', section: 'Result', order: 4 },
   ],

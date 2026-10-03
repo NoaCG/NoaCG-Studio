@@ -574,7 +574,7 @@
   "survey": {
     "name": "The survey board",
     "verbs": "reveal the answers, count the strikes",
-    "buttons": "Reveal 1, Reveal 2 and so on, Strike, Take back a strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`)",
+    "buttons": "Reveal 1, Reveal 2 and so on, Strike, Undo strike, Clear strikes and Reset board, plus the Answers box (one line per answer, `Toaster | 32`)",
     "rows": {
       "role": "answer",
       "keys": "numbers",
@@ -775,7 +775,7 @@
   "puzzle": {
     "name": "The puzzle board",
     "verbs": "letters appear as they are called",
-    "buttons": "Reveal letter and Take back a letter (both read the Guess box), Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box, one letter per line or all on one line",
+    "buttons": "Reveal letter and Undo letter (both read the Guess box), Solve and New puzzle, plus the Puzzle box (the phrase) and the Revealed letters box, one letter per line or all on one line",
     "rows": {
       "role": "tile",
       "keys": "numbers",

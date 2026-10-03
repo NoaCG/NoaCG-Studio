@@ -389,13 +389,17 @@ test('a production taller than the window never scrolls the page out from under 
   // showed above the header as a black band. The fixed shell (docs/PLAYOUT_DASHBOARD.md §2) makes
   // the control area the one scroller, so the document has nothing to scroll; this pins the
   // symptom itself, whatever layout produces it next.
-  await page.setViewportSize({ width: 1600, height: 1000 });
+  // The window is made SHORTER than the content rather than trusting the content to be tall: the
+  // compact ⚡ block (2026-10-03) brought this quiz under 1000px, and a precondition that depends
+  // on how tall today's layout happens to be stops testing anything the day the page gets tidier.
+  const height = 640;
+  await page.setViewportSize({ width: 1600, height });
   await bootstrapGraphic(page, { name: 'Arena Quiz' });
   await openProductionWithCurrent(page, 'Quiz Night');
   await page.getByTestId('cue-actions-recovery').locator('summary').click();
   const area = page.getByTestId('control-area');
   // The precondition: the page's content really is taller than the window.
-  expect(await area.evaluate((el) => el.getBoundingClientRect().top + el.scrollHeight)).toBeGreaterThan(1000);
+  expect(await area.evaluate((el) => el.getBoundingClientRect().top + el.scrollHeight)).toBeGreaterThan(height);
 
   // Every way an operator moves down the page: the wheel over the control area (whichever box
   // it ends up scrolling), and the window itself, which is what a keyboard, a find-in-page or a

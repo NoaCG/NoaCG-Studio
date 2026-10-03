@@ -86,7 +86,7 @@ function surveyControls(ctx: RecipeContext): TypeControlEvent[] {
       set: { [revealedKey(key)]: 'on' },
     })),
     { event: STRIKE_EVENT, label: 'Strike', section: 'Strikes', order: 100, adjust: { [STRIKES]: 1 } },
-    { event: UNSTRIKE_EVENT, label: 'Take back a strike', section: 'Strikes', order: 101, adjust: { [STRIKES]: -1 } },
+    { event: UNSTRIKE_EVENT, label: 'Undo strike', section: 'Strikes', order: 101, adjust: { [STRIKES]: -1 } },
     { event: CLEAR_STRIKES_EVENT, label: 'Clear strikes', section: 'Strikes', order: 102, set: { [STRIKES]: '0' } },
     {
       event: RESET_EVENT,

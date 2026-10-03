@@ -80,7 +80,7 @@ export const nomineeRevealType: GraphicType = {
     },
   },
   controls: [
-    { event: 'suspense', label: 'Hold for suspense', section: 'Reveal', order: 1 },
+    { event: 'suspense', label: 'Suspense', section: 'Reveal', order: 1 },
     { event: 'reveal', label: 'Reveal winner', section: 'Reveal', order: 2, payload: ['winner'] },
   ],
   capabilities: {
@@ -426,7 +426,7 @@ export const awardRevealType: GraphicType = {
     },
   },
   controls: [
-    { event: 'open', label: 'Open the envelope', section: 'Reveal', order: 1 },
+    { event: 'open', label: 'Open envelope', section: 'Reveal', order: 1 },
     { event: 'celebrate', label: 'Applause', section: 'Reveal', order: 2 },
     { event: 'settle', label: 'Settle', section: 'Reveal', order: 3 },
   ],

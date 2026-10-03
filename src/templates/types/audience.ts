@@ -124,7 +124,7 @@ export const qaCardType: GraphicType = {
     // there are no branches, because there is nothing here an operator can do out of order.
     main: { pathEvents: ['answer'] },
   },
-  controls: [{ event: 'answer', label: 'Reveal the answer', section: 'Q&A', order: 1 }],
+  controls: [{ event: 'answer', label: 'Show answer', section: 'Q&A', order: 1 }],
   capabilities: {
     maxLines: QA_FORM.lines.length,
     logo: 'none',
@@ -256,7 +256,7 @@ export const questionQueueType: GraphicType = {
   },
   controls: [
     { event: 'advance', label: 'Next question', section: 'Queue', order: 1 },
-    { event: 'rewind', label: 'Previous question', section: 'Queue', order: 2 },
+    { event: 'rewind', label: 'Previous', section: 'Queue', order: 2 },
   ],
   capabilities: {
     maxLines: QUEUE_FORM.lines.length,

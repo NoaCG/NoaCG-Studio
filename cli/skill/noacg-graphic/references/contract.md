@@ -424,6 +424,11 @@ with `{ "event": "goal", "label": "Goal", "section": "Score", "adjust": { "f2": 
 `machine.controls`. The same event may ALSO have arrows in other groups (a goal that ends the
 other side's power play); one press fires them all.
 
+A label stays a word or two (the validator warns over 16 characters). One that acts on a player
+or a team can NAME it: `"label": "+1 {f0|P1}"` reads "+1 ANNA" on the operator page, from the
+value of `f0` that is on air, and "+1 P1" while that is empty, before the Take and in every
+export. Two fields that read the same on air get the fallback in front ("P1 ANNA", "P2 ANNA").
+
 ## 6. Frame, safety, legibility
 
 The frame is the declared resolution (1920x1080 default) at the declared fps; the graphic is

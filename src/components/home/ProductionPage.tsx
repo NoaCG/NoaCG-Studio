@@ -155,6 +155,7 @@ import {
   type ArrangedControl,
   type ControlButton,
 } from '../../control/controlModel';
+import { withLiveLabels } from '../../blocks/controlLabels';
 import {
   clearAllCueBatches,
   clearCueItems,
@@ -1433,9 +1434,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // Read through a ref for the same reason as the cue names: the log callbacks are long-lived.
   // Filled from `poolMachines` below, which parses every graphic in the production once.
   const poolButtonsRef = useRef(new Map<string, ControlButton[]>());
+  // A button naming a player ("+1 ANNA") is logged by the name on air when the row arrives.
   const eventLabel = useCallback(
     (graphic: string, event: string) =>
-      eventLogLabel(poolButtonsRef.current.get(graphic) ?? [], event),
+      eventLogLabel(withLiveLabels(poolButtonsRef.current.get(graphic) ?? [], airedRef.current[graphic] ?? null), event),
     [],
   );
 
@@ -3443,7 +3445,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // page's ⚡ block, the exported controller's and this one can never sort the author's sections
   // or this production's arrangement differently. With no profile it is the generated panel,
   // byte for byte as it was before ARRANGE existed.
-  const arranged = arrangeControls(events, arrangeFor(show.profile, selectedGraphic));
+  // A label naming a field ("+1 {f0|P1}") reads it from what the layer was last SENT, never from
+  // the editor: the press acts on air, so the button names the player the audience sees.
+  const arranged = arrangeControls(
+    withLiveLabels(events, selectedGraphic && selectedLayerLive ? (airedData[selectedGraphic] ?? null) : null),
+    arrangeFor(show.profile, selectedGraphic),
+  );
   /** What » Next will do, in words, on the button itself: the declared control it is ("Reveal
    *  correct") or the state it enters, and "last step" when it would do nothing. Only while the
    *  layer is live and the graphic has reported where it is - a guess would be worse than none. */
@@ -3534,7 +3541,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  `section` is the heading DRAWN over this button, and only the middle of those three places
    *  has one. It names the button in the hover (`controlName`), so five presses all labelled
    *  "+1" are told apart by the word the operator can already see above them. */
-  const actionButton = ({ button: b, label }: ArrangedControl, section?: string) => {
+  const actionButton = ({ button: b, label, named }: ArrangedControl, section?: string) => {
     const legal = isEventLegal(legality, b.event, machineState);
     const name = controlName(label, section);
     // Empty when everything the press moves is a hidden holder, which is the reported-field
@@ -3547,7 +3554,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return (
       <button
         key={b.event}
-        className={`pd-action${b.destructive ? ' destructive' : ''}`}
+        // A label that names a player holds a FIXED slot, so a name sent mid-show never moves the
+        // buttons under the operator's finger; a long one truncates and the hover has it whole.
+        className={`pd-action${b.destructive ? ' destructive' : ''}${named ? ' named' : ''}`}
         disabled={!selectedLayerLive || !legal}
         title={
           !selectedLayerLive
@@ -3804,9 +3813,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           legality and say so in their own header. */}
       {events.length > 0 && (
         <div className={`pd-actions${arranging ? ' arranging' : ''}`} data-testid="cue-actions">
+          {/* COMPACT (owner, 2026-10-03: "use the space efficiently ... no explanations"). One
+              line of head, the sections side by side under it; what the block is for lives in
+              the kicker's hover, and the one on-air status is the state chip. */}
           <div className="pd-actions-head">
-            <span className="pd-actions-kicker">
-              ⚡ GRAPHIC ACTIONS <b className="pd-actions-air">act on air</b>
+            <span
+              className="pd-actions-kicker"
+              title="These fire the graphic’s own beats on the layer that is on air, immediately, with the on-air cue’s values."
+            >
+              ⚡ GRAPHIC ACTIONS
             </span>
             <span
               className="pd-state-chip"
@@ -3821,83 +3836,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             >
               {!selectedLayerLive ? 'not on air' : stateLabel ?? 'no state reported yet'}
             </span>
-            {/* ARRANGE, on the buttons themselves (home/ActionArranger). The separate Controls
-                panel it replaced was a second block about this one, under it. */}
-            <button
-              type="button"
-              className={`pd-arrange-toggle${arranging ? ' on' : ''}`}
-              aria-pressed={arranging}
-              disabled={readOnlyProfile && !arranging}
-              title={
-                readOnlyProfile
-                  ? 'This production’s control profile was written by a newer build, so it is read-only here.'
-                  : arranging
-                    ? 'Back to operating: the buttons fire again'
-                    : 'Pin, hide or rename these actions for this production. Nothing fires while arranging.'
-              }
-              onClick={() => setArrangingFor(arranging ? null : selectedGraphic)}
-              data-testid="cue-actions-arrange"
-            >
-              {arranging ? 'Done' : 'Arrange'}
-            </button>
-          </div>
-          {arranging ? (
-            <ActionArranger
-              // Keyed on the graphic: a half-typed rename must not carry to another graphic's
-              // control of the same id.
-              key={selectedGraphic}
-              graphic={selectedGraphic}
-              buttons={events}
-              profile={renderProfile}
-              onArrange={(entries) => writeArrange(selectedGraphic, entries)}
-              onClearAll={clearAllArrangements}
-            />
-          ) : (
-            <>
-              {/* One line of inline help: a control the user has to leave the surface to
-                  understand is a control they will not use (acceptance pass, 2026-08-06). */}
-              <p className="hint pd-actions-help" data-testid="cue-actions-help">
-                These fire the graphic’s own beats on the layer that is on air, immediately, with
-                the on-air cue’s values.
-              </p>
-              {/* PINNED, at the top and above the section headings: the handful this show
-                  actually presses. Unsectioned on purpose. */}
-              {arranged.pinned.length > 0 && (
-                <div className="pd-actions-row pd-actions-pinned" data-testid="cue-actions-pinned">
-                  {arranged.pinned.map((c) => actionButton(c))}
-                </div>
-              )}
-              {arranged.sections.map(([section, controls]) => {
-                // ONE expression decides both whether the heading is drawn and whether the hover
-                // borrows it, so a hover can never name a word that is not on screen.
-                const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
-                return (
-                  <div key={section} className="pd-actions-section">
-                    {heading && <h4>{heading}</h4>}
-                    <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
-                  </div>
-                );
-              })}
-              {/* HIDDEN, behind one disclosure. A production hiding a control is saying "not in
-                  my way", which is not "gone": the machine still accepts it, and an operator who
-                  needs it mid-show reaches it here. */}
-              {arranged.more.length > 0 && (
-                <details className="pd-actions-more" data-testid="cue-actions-more">
-                  <summary>More ({arranged.more.length})</summary>
-                  <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
-                </details>
-              )}
-              {/* RECOVERY, folded closed at the foot of the block: the snap is not how a graphic
-                  is driven, and a list of every internal state does not belong among the presses
-                  of the show (docs/research/control-surfaces-review-2026-10-02 slice 4). */}
-              {stateGroups.length > 0 && (
-                <details className="pd-actions-more pd-actions-recovery" data-testid="cue-actions-recovery">
-                  <summary>Recovery</summary>
-                  <p className="hint pd-actions-help">
-                    Jumps the live graphic straight to a state with no animation and re-sends the
-                    on-air cue’s values. For when air and this page are out of step (a renderer
-                    restart, a missed press).
-                  </p>
+            <span className="pd-actions-tools">
+              {/* RECOVERY, folded closed in the head: the snap is not how a graphic is driven,
+                  and a list of every internal state does not belong among the presses of the
+                  show (docs/research/control-surfaces-review-2026-10-02 slice 4). */}
+              {stateGroups.length > 0 && !arranging && (
+                <details className="pd-actions-recovery" data-testid="cue-actions-recovery">
+                  <summary title="Jumps the live graphic straight to a state with no animation and re-sends the on-air cue’s values. For when air and this page are out of step (a renderer restart, a missed press).">
+                    Recovery
+                  </summary>
                   <select
                     className="pd-snap"
                     value=""
@@ -3926,6 +3873,71 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   </select>
                 </details>
               )}
+              {/* ARRANGE, on the buttons themselves (home/ActionArranger). The separate Controls
+                  panel it replaced was a second block about this one, under it. */}
+              <button
+                type="button"
+                className={`pd-arrange-toggle${arranging ? ' on' : ''}`}
+                aria-pressed={arranging}
+                disabled={readOnlyProfile && !arranging}
+                title={
+                  readOnlyProfile
+                    ? 'This production’s control profile was written by a newer build, so it is read-only here.'
+                    : arranging
+                      ? 'Back to operating: the buttons fire again'
+                      : 'Pin, hide or rename these actions for this production. Nothing fires while arranging.'
+                }
+                onClick={() => setArrangingFor(arranging ? null : selectedGraphic)}
+                data-testid="cue-actions-arrange"
+              >
+                {arranging ? 'Done' : 'Arrange'}
+              </button>
+            </span>
+          </div>
+          {arranging ? (
+            <ActionArranger
+              // Keyed on the graphic: a half-typed rename must not carry to another graphic's
+              // control of the same id.
+              key={selectedGraphic}
+              graphic={selectedGraphic}
+              buttons={events}
+              profile={renderProfile}
+              onArrange={(entries) => writeArrange(selectedGraphic, entries)}
+              onClearAll={clearAllArrangements}
+            />
+          ) : (
+            <>
+              {/* PINNED, at the top and above the sections: the handful this show actually
+                  presses. Unsectioned on purpose. */}
+              {arranged.pinned.length > 0 && (
+                <div className="pd-actions-row pd-actions-pinned" data-testid="cue-actions-pinned">
+                  {arranged.pinned.map((c) => actionButton(c))}
+                </div>
+              )}
+              {/* The SECTIONS sit side by side and wrap, each a caption and its buttons, so a
+                  scorebug's four groups take two rows at 1600 wide rather than eight. */}
+              <div className="pd-actions-groups">
+                {arranged.sections.map(([section, controls]) => {
+                  // ONE expression decides both whether the heading is drawn and whether the hover
+                  // borrows it, so a hover can never name a word that is not on screen.
+                  const heading = arranged.sections.length > 1 || section !== 'Actions' ? section : undefined;
+                  return (
+                    <div key={section} className="pd-actions-section">
+                      {heading && <h4>{heading}</h4>}
+                      <div className="pd-actions-row">{controls.map((c) => actionButton(c, heading))}</div>
+                    </div>
+                  );
+                })}
+                {/* HIDDEN, behind one disclosure. A production hiding a control is saying "not in
+                    my way", which is not "gone": the machine still accepts it, and an operator who
+                    needs it mid-show reaches it here. */}
+                {arranged.more.length > 0 && (
+                  <details className="pd-actions-more" data-testid="cue-actions-more">
+                    <summary>More ({arranged.more.length})</summary>
+                    <div className="pd-actions-row">{arranged.more.map((c) => actionButton(c))}</div>
+                  </details>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -3933,19 +3945,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
       {/* LIVE NUMBERS - one press changes a figure on the live graphic (a score, a goal total,
           a stock count): a partial update carrying just the bumped field, mirrored into the cue
-          so the two never drift. Derived from the template's own `number` fields. */}
+          so the two never drift. Derived from the template's own `number` fields. One row: the
+          caption, then the steppers; what a press does is in the caption's hover. */}
       {liveNumberFields.length > 0 && (
         <div className="pd-actions pd-live-numbers" data-testid="live-numbers">
-          <div className="pd-actions-head">
-            <span className="pd-actions-kicker">
-              ± LIVE NUMBERS <b className="pd-actions-air">act on air</b>
-            </span>
-          </div>
-          <p className="hint pd-actions-help">
-            One press changes the figure on the live graphic and keeps this cue in step, with no ✎
-            Update needed. Typing a value in the cue&rsquo;s fields still stages it for ✎ Update
-            instead.
-          </p>
+          <span
+            className="pd-actions-kicker"
+            title="One press changes the figure on the live graphic and keeps this cue in step, with no ✎ Update needed. Typing a value in the cue’s fields still stages it for ✎ Update instead."
+          >
+            ± LIVE NUMBERS
+          </span>
           <div className="pd-actions-row">
             {liveNumberFields.map((d) => {
               const disabled = !selectedLayerLive || !editingIsLive;
