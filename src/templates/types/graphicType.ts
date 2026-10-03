@@ -20,6 +20,7 @@
 import type { AnimData, AnimGroup, AnimMachine, AnimState, AnimStep, AnimTransition, AnimLayerTracks, MachineControl } from '../../blocks/animData';
 import { isAnimData, parseAnimData } from '../../blocks/animData';
 import { allOperatorEvents, deriveMachine, MAIN_GROUP_ID, spxSteps } from '../../blocks/animMachine';
+import { renameLabelFields } from '../../blocks/controlLabels';
 import { replaceDefinitionInHtml } from '../../model/spxDefinition';
 import { writeAnimData } from '../shared/animRuntime';
 import type { FieldKind, FieldOption } from '../../model/fieldModel';
@@ -249,6 +250,9 @@ export interface TypeMachine {
  *  the label belongs to the event, not to any one arrow. */
 export interface TypeControlEvent {
   event: string;
+  /** What the button says: a word or two ("Final", "Reset 0-0"), never the explanation - the
+   *  hover says what the press does. `{key|fallback}` shows a field's on-air value, so a point
+   *  button reads "+1 ANNA" ("+1 {playerA|P1}"; blocks/controlLabels.ts). */
   label: string;
   order?: number;
   /** Groups buttons on a control surface ('Clock', 'Answer'). */
@@ -539,7 +543,11 @@ function compileControls(type: GraphicType, machine: AnimMachine): MachineContro
   const out: MachineControl[] = [];
   for (const declared of type.controls) {
     if (!authored.includes(declared.event)) continue;
-    const control: MachineControl = { event: declared.event, label: declared.label };
+    // A label naming a field (`+1 {playerA|P1}`) names it by the logical key; the template knows
+    // only the `fN` id it compiled to.
+    const label = renameLabelFields(declared.label, (key) => fieldIdFor(type.fields, key) ?? undefined);
+    if (label === null) throw new Error(`GraphicType "${type.id}": control "${declared.event}" names an unknown field in its label "${declared.label}".`);
+    const control: MachineControl = { event: declared.event, label };
     if (declared.order !== undefined) control.order = declared.order;
     if (declared.section !== undefined) control.section = declared.section;
     if (declared.payload !== undefined) {

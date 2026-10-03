@@ -4,6 +4,7 @@
 import { parseDefinition } from '../model/spxDefinition';
 import { animDataFault, parseAnimData } from '../blocks/animData';
 import { allTimelines, validateMachine } from '../blocks/animMachine';
+import { labelFields } from '../blocks/controlLabels';
 import {
   dataUsesCutStyle,
   dataUsesExactEase,
@@ -382,6 +383,16 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       if (data.machine?.controls) {
         const fieldById = new Map(template.fields.map((f) => [f.field, f]));
         for (const control of data.machine.controls) {
+          // A label naming a field shows its on-air value (blocks/controlLabels.ts); one no field
+          // carries would only ever show the fallback.
+          for (const { key } of labelFields(control.label ?? '')) {
+            if (!fieldById.has(key)) {
+              warnings.push({
+                rule: 'machine',
+                message: `Machine controls: the "${control.event}" label names {${key}}, but no field has that id.`,
+              });
+            }
+          }
           for (const key of control.payload ?? []) {
             if (!fieldById.has(key)) {
               warnings.push({
