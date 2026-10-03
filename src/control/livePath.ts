@@ -411,13 +411,14 @@ export interface LiveEntry {
 }
 
 /** This page's entry as it stands now: who it is, filled in here, and what only the caller knows
- *  (`extra`: an output's name and READY answer, an operator's version, expected outputs, stamp). */
+ *  (`extra`: an output's name and READY answer, an operator's version, expected outputs, stamp, and
+ *  the protocol it negotiated where that is not LIVE_PROTOCOL). */
 export function liveEntry(
   kind: LiveEntry['kind'],
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
 ): LiveEntry {
   return {
     kind,
