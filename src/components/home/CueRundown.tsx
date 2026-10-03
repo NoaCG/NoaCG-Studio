@@ -461,7 +461,7 @@ export default function CueRundown({
             onClick={() => { setPickerOpen(false); setAddOpen((o) => !o); }}
             data-testid="rundown-add"
           >
-            ＋ Add
+            + Add
           </button>
           <LibMenu open={addOpen} onClose={() => setAddOpen(false)} testid="rundown-add-menu" className="pd-rundown-add-menu">
             <button role="menuitem" disabled={!selectedGraphicId} data-testid="add-cue" onClick={pickAdd(() => {
