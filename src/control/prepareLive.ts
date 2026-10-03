@@ -100,7 +100,7 @@ export function withPing(checks: readonly CheckLine[], peers: readonly LiveEntry
     });
   }
   if (ping.state === 'failed') {
-    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Prepare for Live again.' });
+    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Check readiness again.' });
   }
   return checks.map((check): CheckLine => {
     if (check.key.indexOf('output-') !== 0) return check;
@@ -175,14 +175,14 @@ export function outputChecks(lines: readonly OutputLine[], settled: ReadonlySet<
         key: 'outputs-none',
         tone: 'warn',
         label: 'No output is connected to this production',
-        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Prepare for Live again.',
+        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Check readiness again.',
       },
     ];
   }
   return lines.map((line): CheckLine => {
     if (settled.has(line.id)) return { key: `output-${line.id}`, tone: line.tone, label: `${line.name}: ${line.state}`, advice: line.detail[0] };
     return timedOut
-      ? { key: `output-${line.id}`, tone: 'warn', label: `${line.name}: still preparing after ${PREPARE_WAIT_MS / 1000} s`, advice: 'It may be slow or stuck. Reload it, then press Prepare for Live again.' }
+      ? { key: `output-${line.id}`, tone: 'warn', label: `${line.name}: still preparing after ${PREPARE_WAIT_MS / 1000} s`, advice: 'It may be slow or stuck. Reload it, then press Check readiness again.' }
       : { key: `output-${line.id}`, tone: 'running', label: `${line.name}: ${line.state}` };
   });
 }
