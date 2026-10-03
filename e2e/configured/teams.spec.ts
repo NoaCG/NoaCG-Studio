@@ -238,6 +238,8 @@ test.describe('teams: the share door', () => {
     await page.getByTestId('new-production-name').fill('Signed-out show');
     await page.getByTestId('new-production').click();
     await expect(page.getByTestId('production-page')).toBeVisible();
+    // The Setup menu, where the door would be, rendered: Export is there and the door is not.
+    await page.getByTestId('production-setup').click();
     await expect(page.getByTestId('export-production')).toBeVisible();
     await expect(page.getByTestId(TEAM.door)).toHaveCount(0);
 
@@ -286,8 +288,9 @@ test.describe('teams: the share door', () => {
       await page.getByTestId('new-production').click();
       await expect(page.getByTestId('production-page')).toBeVisible();
 
-      // THE POSITIVE HALF the offline pin depends on: the door is really rendered, on the
-      // production page's header, by this exact test id.
+      // THE POSITIVE HALF the offline pin depends on: the door is really rendered, in the
+      // production page's Setup menu, by this exact test id.
+      await page.getByTestId('production-setup').click();
       const door = page.getByTestId(TEAM.door);
       await expect(door).toBeVisible();
       await door.click();
@@ -451,8 +454,9 @@ test.describe('teams: the share door', () => {
         expect(showId).toMatch(/^[0-9a-f-]{36}$/);
         // The header's primary controls keep their places when the production becomes a team's:
         // Share and the team's button differ in width, and operators press these by muscle memory
-        // (docs/work-specs/studio-day-playout AC-6).
-        const fixedControls = ['production-status', 'tab-playout', 'export-production', 'verb-out-all'];
+        // (docs/work-specs/studio-day-playout AC-6). Share is in the Setup menu, and the team's
+        // chip appears left of Setup, so neither moves Setup or All out (docs/PLAYOUT_DASHBOARD.md §2).
+        const fixedControls = ['production-status', 'production-setup', 'verb-out-all'];
         // Each control must be ON SCREEN to be measured: a missing box would compare equal to itself.
         const controlXs = () =>
           Promise.all(
@@ -461,6 +465,7 @@ test.describe('teams: the share door', () => {
               return Math.round((await owner.getByTestId(id).boundingBox())!.x);
             }),
           );
+        await owner.getByTestId('production-setup').click();
         await expect(owner.getByTestId('share-with-team')).toBeVisible();
         const personalXs = await controlXs();
 
@@ -631,6 +636,7 @@ test.describe('teams: the share door', () => {
         await addFromLibrary(anna, gfx.anna, said.anna);
         await expect.poll(async () => (await heldRundown(anna, showId))?.cues[0]?.values.f0, { timeout: 10_000 }).toBe(said.anna);
 
+        await anna.getByTestId('production-setup').click();
         await anna.getByTestId(TEAM.door).click();
         await anna.getByTestId(TEAM.newTeam).click();
         await anna.getByTestId(TEAM.newTeamName).fill(teamName);

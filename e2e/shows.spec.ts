@@ -54,7 +54,8 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   await expect(cueRows.nth(1).getByTestId('cue-layer')).toHaveText('L21');
 
   // Export: the target picker (SPX is the remembered default), one folder per graphic + the
-  // aggregated show panel.
+  // aggregated show panel. Export is in the header's Setup menu.
+  await page.getByTestId('production-setup').click();
   await page.getByTestId('export-production').click();
   await expect(page.getByTestId('production-export-dialog')).toBeVisible();
   await expect(page.getByTestId('prod-target-spx')).toBeChecked();
@@ -625,6 +626,7 @@ test('a rundown export ships the LIVE graphic, not the snapshot from when it was
   const section = page.locator('.panel-section', { hasText: 'Productions' });
   await section.getByTestId('open-production-page').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
   await page.getByTestId('export-production').click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -665,6 +667,7 @@ test('Home lists productions and the production page exports the package', async
   // The production page owns everything about one production — including the offline export.
   await row.getByTestId('open-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
   await expect(page.getByTestId('export-production')).toBeVisible();
 
   // Packages are retired (docs/GOALS_ARCHIVE.md "Student release" step 3): no Packages nav on Home.

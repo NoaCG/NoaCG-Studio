@@ -363,8 +363,11 @@ test('the header shows a two-word production name in full on a school laptop, an
         expect(right, `${at}: ${what} is past the right edge`).toBeLessThanOrEqual(width);
       }
     }
-    // What gave way still works: Export keeps its icon and its name.
-    await expect(page.getByRole('button', { name: 'Export…' })).toBeVisible();
+    // The doors that moved into Setup are still one press away: Export keeps its name there.
+    await page.getByTestId('production-setup').click();
+    await expect(page.getByRole('menuitem', { name: 'Export…' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('production-setup-menu')).toHaveCount(0);
   };
 
   await check('unpublished');

@@ -1,0 +1,4 @@
+plain phone: Home [8..62] | Quiz Night [68..158] | ▶ Start production [164..293] | spacer [299..305] | ■ All out [311..382]
+data phone: Home [8..62] | Quiz Night [68..158] | ▶ Start production [164..293] | spacer [299..305] | ■ All out [311..382]
+plain 1600: NoaCGStudio [14..100] | ← Back [110..173] | Home [183..238] | + New graphic [248..357] | Quiz Night [367..457] | ○Offline [467..659] | ▶ Start production [669..808] | 00:00:00 [818..875] | PlayoutDataAudience [895..1106] | spacer [1116..1310] | PanelOff [1320..1393] | Export… [1403..1497] | ■ All out [1507..1586]
+data 1600: NoaCGStudio [14..100] | ← Back [110..173] | Home [183..238] | + New graphic [248..357] | Quiz Night [367..457] | ○Offline [467..659] | ▶ Start production [669..808] | 00:00:00 [818..875] | PlayoutDataAudience [895..1106] | spacer [1116..1310] | PanelOff [1320..1393] | Export… [1403..1497] | ■ All out [1507..1586]

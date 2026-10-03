@@ -17,7 +17,7 @@ import { settleDurableWrites } from '../_durable';
 import { evaluateInPage } from '../_evaluate';
 import { fakeBridge, seedSettings } from '../_fakeBridge';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, shutStatusPanel, type Json } from './_panel';
+import { answerPanel, ANON_KEY, openHosted, pairPanel, panelDoor, publishTwoCues, shutStatusPanel, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -27,9 +27,12 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   const op = page;
   await shutStatusPanel(op);
 
-  // Nothing panel-related runs until the switch is on: the door says Off.
-  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off');
-  await op.getByTestId('panel-open').click();
+  // Nothing panel-related runs until the switch is on: the door in Setup says Off, and the header
+  // shows no panel status.
+  await expect(op.getByTestId('panel-header-status')).toHaveCount(0);
+  const door = await panelDoor(op);
+  await expect(door).toHaveAttribute('data-state', 'off');
+  await door.click();
   await expect(op.getByTestId('panel-status')).toContainText('No page answers the panel');
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
@@ -114,8 +117,10 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   await hosted.getByTestId('panel-open').click();
   await hosted.getByTestId('panel-answer').locator('input').check();
   await expect(hosted.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off', { timeout: 2_000 });
-  await op.getByTestId('panel-open').click();
+  await expect(op.getByTestId('panel-header-status')).toHaveCount(0, { timeout: 2_000 });
+  const doorAfter = await panelDoor(op);
+  await expect(doorAfter).toHaveAttribute('data-state', 'off');
+  await doorAfter.click();
   await expect(op.getByTestId('panel-answer').locator('input')).not.toBeChecked();
   await expect(op.getByTestId('panel-status')).toHaveText('Hosted control page answers the panel now.');
   const second = await deck.state((s) => s.where === 'control', 'the hosted page answering');
@@ -232,7 +237,7 @@ test('the clip clock a panel counts follows the server clip the production page 
   console.log(`page state to the module over ${lags.length} states: p50 ${lags[Math.floor(lags.length / 2)]} ms, worst ${lags.at(-1)} ms`);
 
   // REVOKING from the page's own list (AC-2): the panel leaves the list, and its key is refused.
-  await op.getByTestId('panel-open').click();
+  await (await panelDoor(op)).click();
   await op.getByTestId('panel-revoke').click();
   await expect(op.getByTestId('panel-row')).toHaveCount(0, { timeout: 10_000 });
   expect((await deck.hello()).refused).toBe('revoked');

@@ -1,0 +1,6 @@
+
+data 1600: NoaCGStudio [14..100] | ← Back [110..173] | Home [183..238] | + New graphic [248..357] | Quiz Night [367..457] | ○Offline [467..659] | ▶ Start production [669..808] | 00:00:00 [818..875] | PlayoutData [895..1025] | spacer [1035..1412] | Setup ▾ [1422..1497] | ■ All out [1507..1586]
+plain phone: Home [8..62] | Quiz Night [68..158] | ▶ Start production [164..293] | spacer [299..305] | ■ All out [311..382]
+data phone: Home [8..62] | Quiz Night [68..158] | ▶ Start production [164..293] | spacer [299..305] | ■ All out [311..382]
+plain 1600: NoaCGStudio [14..100] | ← Back [110..173] | Home [183..238] | + New graphic [248..357] | Quiz Night [367..457] | ○Offline [467..659] | ▶ Start production [669..808] | 00:00:00 [818..875] | spacer [885..1412] | Setup ▾ [1422..1497] | ■ All out [1507..1586]
+audience tab 1600: NoaCGStudio [14..100] | ← Back [110..173] | Home [183..238] | + New graphic [248..357] | Quiz Night [367..457] | ○Offline [467..659] | ▶ Start production [669..808] | 00:00:00 [818..875] | PlayoutAudience3 [895..1075] | spacer [1085..1412] | Setup ▾ [1422..1497] | ■ All out [1507..1586]

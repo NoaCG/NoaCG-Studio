@@ -85,6 +85,7 @@ test('the export dialog shows the gate\'s verdict and keeps the download disable
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${badId}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
   await page.getByTestId('export-production').click();
   await expect(page.getByTestId('production-export-dialog')).toBeVisible();
   await expect(page.getByTestId('prod-export-blocked')).toContainText('Broken L3');
