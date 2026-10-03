@@ -18,6 +18,7 @@ the complete [pre-671 saved templates](../../../../e2e/fixtures/pre-671/README.m
 - `npx playwright test e2e/playout-baseline.spec.ts --workers=1 --update-snapshots=changed`: job `j-3174`, six passed, 29.6s. The six inspected Windows pictures change only the intended header Add button.
 - Final portable `+ Add` label: Windows job `j-3177`, six passed, 29.7s; [Linux workflow 37160074040](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37160074040), six passed. Both were captured from product revision `f6873dbd3`; all 12 pictures were inspected. The first Linux capture showed the fullwidth plus as a missing glyph, so the new header uses the plain plus.
 - Retained footer picker toggle: `--grep routing`, job `j-3180`, two passed, 20.9s. The menu recognizes the existing footer opener as a trigger so an outside press cannot close and then reopen it on the same click.
+- Final Video/Audio reopen and guard proof: `--grep routing`, job `j-3188`, two passed, 21.6s. Both shortcuts return to their media tab after Templates/Escape; footer toggle, routing and persistence still pass. Page errors are asserted absent, and both console/network diagnostic lists are empty.
 - `npm run build`: approved-host job `j-3175`, exit 0, including all unchanged gates, TypeScript, ESLint, dependency checks and bundle.
 - `npx tsc --noEmit`, focused ESLint and `git diff --check`: passed.
 
@@ -46,7 +47,26 @@ outside-press handler closed the moved picker. The exact two-case reproduction
 the intentionally failing reproduction; the corrected job depended on the last
 successful completed browser job.
 
+Independent review found one product defect: reopening the same Video/Audio
+shortcut could retain the Templates tab. The correct two-case reproduction
+`j-3183` failed at both widths. Filtered pickers now reset on each opening; the
+unfiltered picker keeps its existing state. `j-3184` passed both reopened kinds.
+The premature final build `j-3181` was cancelled for this repair; `j-3182` was
+cancelled after correcting its tab selector and supplies no regression evidence.
+
+Mixed-case diagnostics exposed the test helper seeding localStorage inside
+sandboxed graphic frames. Settings now seed only the app; the iframe sandbox is
+unchanged. `j-3185` passed with clean diagnostics. The permanent zero-pageerror
+assertion was then mutation-tested: removing this seed guard in `j-3186` fails
+at that assertion; restoring it and removing the outside-trigger guard in
+`j-3187` fails at the footer picker-hidden assertion. Both guards were restored
+before the final green `j-3188`. These two intentional failures prove the guards,
+and are separate from product or infrastructure regressions.
+
 Configured backend tests were updated for the menu entry but were not run locally.
 The bounded checks use the existing fake bridge, not a physical playout server.
-Linux baselines were captured through the existing screenshot workflow. Landing
-also waits for the actual parent merge and a fresh main reconcile.
+Linux baselines were captured through the existing screenshot workflow. Parent B
+landed as `385a26b57`; reconciliation with current main `f7db56b07` was clean and
+changed only the inherited quarantine ledger. Product and test blobs retained
+their verified contents. The final tip must pass its build and check stamp before
+entering the normal merge queue.

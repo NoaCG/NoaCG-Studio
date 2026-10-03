@@ -109,6 +109,8 @@ for (const width of [1600, 390]) {
   }
 
   test(`rundown Add reuses media routing and keeps mixed types recognizable at ${width}px`, async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
     await page.setViewportSize({ width, height: 900 });
     await seedSettings(page);
     const bridge = await fakeBridge(page);
@@ -138,10 +140,21 @@ for (const width of [1600, 390]) {
     await expect(page.getByTestId('picker-list')).not.toContainText('POSTER');
     await expect(page.getByTestId('playout-picker')).toBeInViewport({ ratio: 1 });
     await capture(page, `video-picker-${width}`);
+    await page.getByTestId('picker-templates').click();
+    await page.keyboard.press('Escape');
+    await add.click();
+    await menu.getByRole('menuitem', { name: 'Video from server…' }).click();
+    await expect(page.getByTestId('picker-media')).toHaveAttribute('aria-selected', 'true');
+    await page.getByTestId('picker-folder').click();
     await page.getByTestId('picker-list').getByTestId('picker-add').click();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
     await add.click();
     await menu.getByRole('menuitem', { name: 'Audio from server…' }).click();
+    await page.getByTestId('picker-templates').click();
+    await page.keyboard.press('Escape');
+    await add.click();
+    await menu.getByRole('menuitem', { name: 'Audio from server…' }).click();
+    await expect(page.getByTestId('picker-media')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('picker-folder').click();
     await expect(page.getByTestId('picker-list')).toContainText('THEME');
     await expect(page.getByTestId('picker-list')).not.toContainText('OPENING');
@@ -170,6 +183,8 @@ for (const width of [1600, 390]) {
     await expect(page.getByTestId('playout-picker')).toBeVisible();
     await page.getByTestId('add-from-server').click();
     await expect(page.getByTestId('playout-picker')).toBeHidden();
+    // Bridge settings seeding must stand down in the sandboxed graphic frames.
+    expect(pageErrors).toEqual([]);
   });
 
   test(`Add works with no selected graphic and explains missing server setup at ${width}px`, async ({ page }) => {

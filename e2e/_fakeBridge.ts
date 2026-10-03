@@ -20,6 +20,8 @@ export const TOKEN = 'e2e-token';
 export async function seedSettings(page: Page): Promise<void> {
   await page.addInitScript(
     ([bridge, token]) => {
+      // Init scripts also run in sandboxed graphic frames; only the app owns these settings.
+      if (window.top !== window) return;
       localStorage.setItem(
         'spx-gfx-caspar',
         JSON.stringify({

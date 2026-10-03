@@ -483,7 +483,8 @@ export default function CueRundown({
             <button role="menuitem" disabled={!folderCueIds.length} onClick={pickAdd(() => void newFolder(folderCueIds))}>Folder from selected cues</button>
           </LibMenu>
           {playoutConfigured(playoutSettings) && <PlayoutItemPicker
-            key={pickerMedia ?? 'all'}
+            // Named media shortcuts start on their own tab each time they open.
+            key={pickerMedia ? `${pickerMedia}-${pickerOpen}` : 'all'}
             open={pickerOpen}
             mediaFilter={pickerMedia}
             triggerRef={serverPick}
