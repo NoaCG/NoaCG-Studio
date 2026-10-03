@@ -1027,11 +1027,14 @@ A red `main` run is not a person's job until three mechanisms have had their tur
 1. **The second run.** When the E2E shards fail on `main` or in the merge group, the `E2E retry`
    job reads the failed spec FILES off the shards' blob reports (`scripts/e2e-retry.mjs`) and runs
    exactly those once more on the same commit. Fail-then-pass: the gate passes, with a warning
-   naming the specs. Fail-then-fail: the run is red as before. Three things make the retry refuse
-   instead, and the run stays red on each: fewer reports than shards (a shard died before
-   Playwright reported, so its files never ran), no failing spec in the reports (the failure was
-   not a test), and a failing spec the change itself edits (that flake is the change's, bounced
-   to its author, never quarantined on a second run).
+   naming the specs. Fail-then-fail: the run is red as before. A shard that died before
+   Playwright reported (killed at the cap, or failed in setup) has its assigned files run there
+   too, after the failed specs pass: that is their first run, so a failure keeps the run red but
+   is never counted as confirmed, and a pass quarantines nothing. Three things make the retry
+   refuse instead, and the run stays red on each: more than one shard without a report, nothing
+   to re-run (no failing spec and no dead shard: the failure was not a test), and a failing spec
+   the change itself edits (that flake is the change's, bounced to its author, never quarantined
+   on a second run).
 2. **The quarantine.** A fail-then-pass is the receipt a flake needs, and the `After the gate`
    job writes it: the specs go into `e2e/quarantine.json` on a branch off `origin/main`, queued
    through the merge queue like any landing (`scripts/e2e-quarantine.mjs enter --queue`). From

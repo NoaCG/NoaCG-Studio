@@ -627,10 +627,19 @@ jobs:
   # The failed FILES come from the shards' own blob reports (scripts/e2e-retry.mjs), not from
   # re-running whole shards: a shard is nine minutes of mostly-green specs, and the question is
   # only about the ones that failed. Three things make this job REFUSE instead, and the gate stays
-  # red on each (scripts/e2e-retry.mjs `retryPlan`): fewer reports than shards (a shard died before
-  # Playwright reported, so its files never ran on this commit), no failing spec in the reports (the
-  # failure was not a test), and a failing spec this change itself edits (a flake in a spec the
-  # change wrote is the change's, bounced to its author, never quarantined on a second run).
+  # red on each (scripts/e2e-retry.mjs `retryPlan`): more than one shard without a report, nothing
+  # to re-run (no failing spec and no dead shard - the failure was not a test), and a failing spec
+  # this change itself edits (a flake in a spec the change wrote is the change's, bounced to its
+  # author, never quarantined on a second run).
+  #
+  # A SHARD THAT DIED gets its files run here too. Killed at the cap, or failed before Playwright
+  # reported, it uploads no blob, and its files never ran on this commit; the plan's `shardSpecs`
+  # names them. They run in a step of their own AFTER the failed specs pass, because for them this
+  # is a FIRST run: a failure there keeps the gate red, but the `specs` output - what the revert
+  # reads as "failed twice" and the quarantine as "failed, then passed" - names only the specs that
+  # failed in a shard, and is emptied when only the dead shard's files failed. Twice on 2026-10-03
+  # (runs 37096120413, 37118148332) one shard at the cap beside one flaky spec left main red with
+  # nothing re-run at all.
   #
   # Branch pushes and pull requests get no second run: a flake there costs one push, and the
   # quarantine is main's record, not a branch's. The merge group does get one, because a flake
@@ -640,13 +649,23 @@ jobs:
     needs: [plan, e2e]
     if: ${{ !cancelled() && needs.e2e.result == 'failure' && ((github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'merge_group') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A dead shard's files are a whole shard's worth of work, and the shard that died ran out of its
+    # 20 minutes on them; the same cap here would kill the second run for the same reason. A hung
+    # test cannot use the extra room - Playwright stops each test at 60 s.
+    timeout-minutes: 45
     outputs:
-      # The spec files that were re-run, as a JSON array of repo-relative paths - what the gate
-      # quarantines when this job passes.
-      specs: ${{ steps.failed.outputs.specs }}
+      # The spec files that failed in a shard and were re-run, as a JSON array of repo-relative
+      # paths - what the gate quarantines when this job passes, and what the revert counts as
+      # failed twice when it fails. Emptied when they passed and only a dead shard's files (a
+      # first run, so no confirmation of anything) failed.
+      specs: ${{ (steps.second.outcome == 'failure' || steps.unreported.outcome != 'failure') && steps.failed.outputs.specs || '[]' }}
     steps:
+      # The whole history, because `--changed` diffs the change against its base: on a one-commit
+      # checkout that diff fails, the edited-spec refusal goes quiet, and run 37118148332 did exactly
+      # that ("Invalid symmetric difference expression").
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -664,26 +683,43 @@ jobs:
           pattern: blob-report-*
           merge-multiple: true
 
-      # `--shards` is how many reports there must be; `--changed` is what this change edits - the
-      # merge group's base, or the push's `before`. The script writes `specs` and `filters` to
-      # GITHUB_OUTPUT itself.
+      # `--shards` is how many reports there must be; `--shard-specs` is the plan's assignment, which
+      # names the files of a shard that left none; `--changed` is what this change edits - the
+      # merge group's base, or the push's `before`. The script writes `specs`, `filters`,
+      # `unreported` and `unreported_filters` to GITHUB_OUTPUT itself.
       - name: Name the failed spec files
         id: failed
         env:
           MATRIX: ${{ needs.plan.outputs.matrix }}
+          SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           CHANGED_SINCE: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
           SHARDS="$(node -e 'console.log(JSON.parse(process.env.MATRIX).shardTotal[0])')"
-          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --changed "$CHANGED_SINCE" --github-output
+          node scripts/e2e-retry.mjs --blobs all-blob-reports --shards "$SHARDS" --shard-specs "$SHARD_SPECS" --changed "$CHANGED_SINCE" --github-output
 
       # The same anchored filters the shards use (`specFilterArg`), deliberately unquoted so word
       # splitting hands Playwright one argument per file - see the shard step for why that is safe.
       - name: Run them once more
+        id: second
+        if: ${{ steps.failed.outputs.filters != '' }}
         env:
           FILTERS: ${{ steps.failed.outputs.filters }}
           NOACG_BLOB_NAME: report-retry.zip
         run: npm run test:e2e -- $FILTERS
+
+      # A dead shard's files, for their FIRST verdict on this commit. The implicit `success()` skips
+      # it once the failed specs have failed twice, because the run is red on that already. Their
+      # own blob and test-results directories, because each Playwright run empties the ones it
+      # writes to.
+      - name: Run the files of a shard that died
+        id: unreported
+        if: ${{ steps.failed.outputs.unreported_filters != '' }}
+        env:
+          FILTERS: ${{ steps.failed.outputs.unreported_filters }}
+          NOACG_BLOB_NAME: report-retry-unreported.zip
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: blob-report-unreported
+        run: npm run test:e2e -- --output=test-results-unreported $FILTERS
 
       # Named OUTSIDE the `blob-report-*` glob the combined report downloads: this job runs beside
       # the report job, and a retry's blob merged into the report would show the same spec once red
@@ -693,7 +729,9 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: retry-blob-report
-          path: blob-report/
+          path: |
+            blob-report/
+            blob-report-unreported/
           retention-days: 7
           if-no-files-found: error
 
@@ -702,7 +740,9 @@ jobs:
         if: failure()
         with:
           name: test-results-retry
-          path: test-results/
+          path: |
+            test-results/
+            test-results-unreported/
           retention-days: 7
           if-no-files-found: ignore
 
