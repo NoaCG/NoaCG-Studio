@@ -1108,7 +1108,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             <div className="pd-monitor pd-pgm">
               <h2>
                 <span className="pd-dot" aria-hidden="true" />
-                PROGRAM · ON AIR
+                {/* The label gives way with an ellipsis, as on the production page, so a countdown
+                    chip beside it never pushes the header past its monitor. */}
+                <span className="pd-monitor-name">PROGRAM · ON AIR</span>
                 {/* The names can run past the monitor's width and end in an ellipsis, so the title
                     carries them whole. The badge names EVERY live layer, in the names' order: with a
                     quiz and a score both up it used to show one layer beside two names. */}
