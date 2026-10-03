@@ -8,6 +8,7 @@ import type { EditorOperation } from './operations';
 import ArtworkAppearance from './ArtworkAppearance';
 import AnimationProperties from './AnimationProperties';
 import AnchorPoint from './AnchorPoint';
+import ImageControls from './ImageControls';
 import type { RenderedPart } from './protocol';
 import { editTarget } from './animationAuthoring';
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
   appearance?: RenderedPart['appearance'];
   previewCss: (css: string) => void;
   previewTemplate: (template: SpxTemplate) => void;
+  openAssets: () => void;
 }
 function Numeric({ label, value, commit }: { label: string; value: number; commit: (value: number) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -33,7 +35,7 @@ function Numeric({ label, value, commit }: { label: string; value: number; commi
       if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); }
     }} /></label>;
 }
-function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time }: Props) {
+function Inspector({ view, template, selection, select, session, linked, setLinked, appearance, previewCss, previewTemplate, pause, time, openAssets }: Props) {
   const [tab, setTab] = useState('properties');
   const [error, setError] = useState('');
   const part = view.parts.find(p => p.selector === selection[0]), cue = session.port.view().cue;
@@ -75,6 +77,7 @@ function Inspector({ view, template, selection, select, session, linked, setLink
         </ul>}</>}
       {part ? <>
         {selection.length === 1 && <><ArtworkAppearance key={session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} previewCss={previewCss} previewTemplate={previewTemplate} />
+          <ImageControls key={'image:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} openAssets={openAssets} />
           <AnchorPoint key={'anchor:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} />
           <AnimationProperties key={'animation:' + session.documentId + part.selector} template={template} selector={part.selector} session={session} appearance={appearance} linked={linked} />
           <label className="ef-link"><input type="checkbox" checked={linked} onChange={event => setLinked(event.target.checked)} /> Link proportions</label></>}

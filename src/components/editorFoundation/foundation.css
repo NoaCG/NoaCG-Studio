@@ -34,11 +34,14 @@
 .ef-project { padding: 14px 12px; border-right: 1px solid var(--ef-border); }
 .ef-current-graphic { padding: 10px; border: 1px solid var(--accent-line); background: var(--accent-bg); }
 .ef-section-label { display: block; color: var(--ef-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .7px; margin: 22px 0 9px; }
-.ef-assets { display: grid; gap: 6px; overflow-wrap: anywhere; }
-.ef-assets > div { padding: 9px; background: var(--bg-input); border: 1px solid var(--ef-border); }
 .ef-field { display: flex; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--ef-border); }
 .ef-field code { color: var(--ef-muted); }
 .ef-muted { color: var(--ef-muted); }
+.ef-project .assets-panel { min-height: 140px; }
+.ef-project .assets-panel .row { flex-wrap: wrap; }
+.ef-project .asset-info-facts { min-width: 0; }
+.ef-project .asset-fact-value { min-width: 0; overflow-wrap: anywhere; }
+.ef-image-controls button { margin: 0 4px 4px 0; }
 .ef-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 38px minmax(0, 1fr) 26px; }
 .ef-toolbar { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); background: var(--bg-panel); }
 .ef-toolbar select { width: auto; }

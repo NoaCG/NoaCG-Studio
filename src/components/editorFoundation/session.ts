@@ -3,7 +3,7 @@ import type { SpxTemplate } from '../../model/types';
 import { applyOperations, type EditorOperation } from './operations';
 
 export interface Revision { source: number; assets: number }
-export interface ViewState { selectedParts: string[]; time: number; cue?: number }
+export interface ViewState { selectedParts: string[]; time: number; cue?: number; sampleData?: Record<string, string> }
 export interface DocumentPort {
   read(): SpxTemplate;
   view(): ViewState;
@@ -91,7 +91,7 @@ export class EditorSession {
     try {
       this.port.apply(patch.template); this.sync();
       if (patch.identities && Object.keys(patch.identities).length) this.port.restore({ ...this.port.view(), selectedParts: this.port.view().selectedParts.map(selector => patch.identities![selector] ?? selector) });
-      if (request.operations.some(op => op.kind === 'layer.create' || op.kind === 'layer.duplicate')) {
+      if (request.operations.some(op => op.kind === 'layer.create' || op.kind === 'layer.duplicate' || op.kind === 'image.place')) {
         this.port.restore({ ...this.port.view(), selectedParts: patch.changedTargets });
       }
       if (request.operations.some(op => op.kind === 'out.set')) this.port.restore({ ...this.port.view(), time: readTimeline(this.current).out, cue: undefined });

@@ -1,0 +1,151 @@
+=== j-3067 npx playwright test e2e/editor-images.spec.ts --workers=1 --timeout=12000
+=== cwd C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline
+[e2e] 2 workers - 2742 MB free
+[WebServer] (node:31720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:33868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-images.spec.ts:26:1 › Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo (12.1s)
+(node:16712) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  2 [chromium] › e2e\editor-images.spec.ts:62:46 › catalog: file chooser creates and replaces an image, fit and undo preserve source (12.1s)
+(node:27676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  3 [chromium] › e2e\editor-images.spec.ts:62:46 › svg: file chooser creates and replaces an image, fit and undo preserve source (12.1s)
+(node:20144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  4 [chromium] › e2e\editor-images.spec.ts:62:46 › f4: file chooser creates and replaces an image, fit and undo preserve source (12.2s)
+(node:22356) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  5 [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation (12.2s)
+
+
+  1) [chromium] › e2e\editor-images.spec.ts:26:1 › Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo 
+
+    Test timeout of 12000ms exceeded.
+
+    Error: locator.click: Test timeout of 12000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'image tool' })
+
+
+      27 |   await open(page, 'catalog');
+      28 |   const original = await source(page);
+    > 29 |   await page.getByRole('button', { name: 'image tool' }).click();
+         |                                                          ^
+      30 |   await expect(page.getByTestId('assets-panel')).toBeVisible();
+      31 |   const first = await picture(page), second = await picture(page, 'logo.png', 'blue');
+      32 |   await page.getByTestId('assets-import-input').setInputFiles([first, first, second]);
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:29:58
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-Image-opens--1a2cd-e-and-safe-delete-each-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-Image-opens--1a2cd-e-and-safe-delete-each-undo-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-images.spec.ts:62:46 › catalog: file chooser creates and replaces an image, fit and undo preserve source 
+
+    Test timeout of 12000ms exceeded.
+
+    Error: locator.setInputFiles: Test timeout of 12000ms exceeded.
+    Call log:
+      - waiting for getByTestId('image-add-input')
+
+
+      63 |   await open(page, kind);
+      64 |   const original = await source(page);
+    > 65 |   await page.getByTestId('image-add-input').setInputFiles(await picture(page));
+         |   ^
+      66 |   await ready(page);
+      67 |   await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 1);
+      68 |   const selector = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:65:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-catalog-file-578a3-it-and-undo-preserve-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-catalog-file-578a3-it-and-undo-preserve-source-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-images.spec.ts:62:46 › svg: file chooser creates and replaces an image, fit and undo preserve source 
+
+    Test timeout of 12000ms exceeded.
+
+    Error: locator.setInputFiles: Test timeout of 12000ms exceeded.
+    Call log:
+      - waiting for getByTestId('image-add-input')
+
+
+      63 |   await open(page, kind);
+      64 |   const original = await source(page);
+    > 65 |   await page.getByTestId('image-add-input').setInputFiles(await picture(page));
+         |   ^
+      66 |   await ready(page);
+      67 |   await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 1);
+      68 |   const selector = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:65:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-svg-file-cho-ee105-it-and-undo-preserve-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-svg-file-cho-ee105-it-and-undo-preserve-source-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-images.spec.ts:62:46 › f4: file chooser creates and replaces an image, fit and undo preserve source 
+
+    Test timeout of 12000ms exceeded.
+
+    Error: locator.setInputFiles: Test timeout of 12000ms exceeded.
+    Call log:
+      - waiting for getByTestId('image-add-input')
+
+
+      63 |   await open(page, kind);
+      64 |   const original = await source(page);
+    > 65 |   await page.getByTestId('image-add-input').setInputFiles(await picture(page));
+         |   ^
+      66 |   await ready(page);
+      67 |   await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 1);
+      68 |   const selector = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:65:3
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-f4-file-choo-17b7b-it-and-undo-preserve-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-f4-file-choo-17b7b-it-and-undo-preserve-source-chromium\error-context.md
+
+  5) [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation 
+
+    Test timeout of 12000ms exceeded.
+
+    Error: locator.click: Test timeout of 12000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Next', exact: true })
+
+
+      86 |   await page.goto('/app');
+      87 |   await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'Hairline');
+    > 88 |   await page.getByRole('button', { name: 'Next', exact: true }).click();
+         |                                                                 ^
+      89 |   await page.getByTestId('wizard-open-new-editor').click();
+      90 |   await expect(page.getByTestId('editor-foundation')).toBeVisible(); await ready(page);
+      91 |   await expect(page.getByRole('button', { name: 'image tool' })).toBeVisible();
+        at C:\Users\ahonemi\.codex\visualizations\2026\10\03\01a10273-40b2-7f03-b90a-226f91c266c6\editor-images-baseline\e2e\editor-images.spec.ts:88:65
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-images-catalog-open-3c907-earch-offers-image-creation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-images-catalog-open-3c907-earch-offers-image-creation-chromium\error-context.md
+
+  5 failed
+    [chromium] › e2e\editor-images.spec.ts:26:1 › Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo 
+    [chromium] › e2e\editor-images.spec.ts:62:46 › catalog: file chooser creates and replaces an image, fit and undo preserve source 
+    [chromium] › e2e\editor-images.spec.ts:62:46 › svg: file chooser creates and replaces an image, fit and undo preserve source 
+    [chromium] › e2e\editor-images.spec.ts:62:46 › f4: file chooser creates and replaces an image, fit and undo preserve source 
+    [chromium] › e2e\editor-images.spec.ts:84:1 › catalog opened through template search offers image creation 

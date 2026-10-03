@@ -1,0 +1,92 @@
+// covers: src/components/editorFoundation/**, src/components/AssetsPanel.tsx
+// covers: src/blocks/{editorImages,assetOps,baseEdits,designLayout,edit}.ts, src/assets/{fileImport,imageImport,assetUtils}.ts
+// covers: src/templates/**
+import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { pickDesign } from './_browse';
+import type { SpxTemplate } from '../src/model/types';
+
+async function ready(page: Page) { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); }
+async function source(page: Page) { return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template); }
+async function open(page: Page, fixture?: string) {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  if (fixture) await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await ready(page);
+}
+async function picture(page: Page, name = 'logo.png', color = 'red', w = 240, h = 120) {
+  const data = await page.evaluate(({ color, w, h }) => { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d')!.fillStyle = color; c.getContext('2d')!.fillRect(0, 0, w, h); return c.toDataURL('image/png').split(',')[1]; }, { color, w, h });
+  return { name, mimeType: 'image/png', buffer: Buffer.from(data, 'base64') };
+}
+async function select(page: Page, selector: string) { await page.locator(`.ef-track[data-selector="${selector}"] .ef-layer`).first().click(); await ready(page); }
+async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+async function preview(page: Page) { return (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!; }
+
+test('Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo', async ({ page }) => {
+  await open(page, 'catalog');
+  const original = await source(page);
+  await page.getByRole('button', { name: 'image tool' }).click();
+  await expect(page.getByTestId('assets-panel')).toBeVisible();
+  const first = await picture(page), second = await picture(page, 'logo.png', 'blue');
+  await page.getByTestId('assets-import-input').setInputFiles([first, first, second]);
+  await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 2);
+  expect((await source(page)).html).toBe(original.html);
+  await undo(page); expect(await source(page)).toEqual(original);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  const paths = (await source(page)).assets.filter(a => !original.assets.some(b => b.path === a.path)).map(a => a.path);
+  expect(paths[0]).not.toBe(paths[1]);
+  const beforeInvalid = await source(page);
+  await page.getByTestId('assets-import-input').setInputFiles([first, { name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('broken') }]);
+  await expect(page.getByRole('alert')).toContainText(/decode|image/i);
+  expect(await source(page)).toEqual(beforeInvalid);
+  await page.locator(`[data-testid=asset-row][data-path="${paths[0]}"]`).click();
+  await page.getByRole('button', { name: 'Place image', exact: true }).click();
+  await ready(page);
+  const placed = await source(page);
+  expect(placed.html).not.toBe(beforeInvalid.html);
+  await page.getByRole('button', { name: /Remove/ }).click();
+  await expect(page.getByRole('alert')).toContainText(/used|referenced/i);
+  expect(await source(page)).toEqual(placed);
+  await page.getByRole('button', { name: /logo.png.*✎/ }).click();
+  await page.locator('.asset-rename').fill('sponsor'); await page.locator('.asset-rename').press('Enter');
+  await expect.poll(async () => (await source(page)).html.includes('images/sponsor.png')).toBe(true);
+  await undo(page); expect(await source(page)).toEqual(placed);
+  await undo(page); expect(await source(page)).toEqual(beforeInvalid);
+  await page.locator(`[data-testid=asset-row][data-path="${paths[1]}"]`).click();
+  await page.getByRole('button', { name: /Remove/ }).click();
+  await expect.poll(async () => (await source(page)).assets.some(a => a.path === paths[1])).toBe(false);
+  await undo(page); expect(await source(page)).toEqual(beforeInvalid);
+});
+
+for (const kind of ['catalog', 'svg', 'f4']) test(`${kind}: file chooser creates and replaces an image, fit and undo preserve source`, async ({ page }) => {
+  await open(page, kind);
+  const original = await source(page);
+  await page.getByTestId('image-add-input').setInputFiles(await picture(page));
+  await ready(page);
+  await expect.poll(async () => (await source(page)).assets.length).toBe(original.assets.length + 1);
+  const selector = await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+  await select(page, selector);
+  const added = await source(page);
+  const frame = await preview(page);
+  const box = await frame.locator(selector).evaluate(el => { const r = el.getBoundingClientRect(); return [r.width, r.height]; });
+  expect(box[0]).toBeGreaterThan(0); expect(box[1]).toBeGreaterThan(0);
+  await page.getByTestId('image-replace-input').setInputFiles(await picture(page, 'portrait.png', 'blue', 80, 240));
+  await expect.poll(async () => (await source(page)).assets.length).toBe(added.assets.length + 1);
+  await ready(page);
+  expect(await frame.locator(selector).evaluate(el => getComputedStyle(el).objectFit)).toBe('contain');
+  const replaced = await source(page);
+  expect(replaced.js).toBe(added.js);
+  await undo(page); expect(await source(page)).toEqual(added);
+  await undo(page); expect(await source(page)).toEqual(original);
+});
+
+test('catalog opened through template search offers image creation', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app#/new');
+  await page.locator('[data-entry="template"]').click(); await pickDesign(page, 'Hairline');
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.getByTestId('wz-finish-edit-artwork').click();
+  await expect(page.getByTestId('editor-foundation')).toBeVisible(); await ready(page);
+  await expect(page.getByRole('button', { name: 'image tool' })).toBeVisible();
+});

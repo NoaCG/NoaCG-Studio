@@ -429,6 +429,21 @@ E05 and B04 gain scoped engineering evidence; italic, case, shadow, outline, can
 physical-device and receiving-host acceptance remain open. No whole row is closed and the default
 editor is unchanged.
 
+## R1.2b.3 scoped image-and-assets receipt, 2026-10-03
+
+The [bounded spec and verification](editor-r1-2b-3/README.md) cover toolbar/file/drop
+image creation, aspect-preserving replacement of created images, catalog logos and
+imported SVG/raster image elements, and the reused Assets panel's import, rename
+and safe removal. Source, fields, live image samples and undo stay coherent;
+save/reopen and SPX, CasparCG and OGraf packages execute their image bindings.
+The owner's drop decision centers a new layer at the pointer, caps it to a quarter
+of the frame and always adds a layer. New anchors start centered.
+
+E06/B04 gain only this bounded engineering evidence. Pen, alignment/distribution,
+grouping, bins, canvas typing, owner workflow and physical receiving-host acceptance
+remain open. No whole row is closed. The desktop product-judgment item is
+[Add a sponsor image and replace a logo](../acceptance/owner-queue/2026-10-03-editor-images.md).
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

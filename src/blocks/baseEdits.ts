@@ -303,7 +303,7 @@ function elementRange(html: string, selector: string): { start: number; close: n
   }
   throw new Error('The graphic container cannot be patched without rewriting source.');
 }
-function insertChild(html: string, selector: string, snippet: string): string {
+export function insertArtworkChild(html: string, selector: string, snippet: string): string {
   const { close } = elementRange(html, selector);
   return html.slice(0, close) + snippet + '\n' + html.slice(close);
 }
@@ -331,7 +331,7 @@ export function createArtwork(template: SpxTemplate, spec: Creation): { template
     // Neither the original artwork nor its masks are serialized or reparented.
     const range = elementRange(next.html, '#' + place.wrapperId);
     const markup = next.html.slice(range.start, range.end);
-    next = { ...next, html: insertChild(next.html.slice(0, range.start) + next.html.slice(range.end), parent, markup) };
+    next = { ...next, html: insertArtworkChild(next.html.slice(0, range.start) + next.html.slice(range.end), parent, markup) };
     // Drawing coordinates are CSS pixels of the containing block. Existing artwork may
     // multiply its authored units by --scale; the new layer's placement is explicit.
     next = placeLine(next, place.wrapperId, spec.x, spec.y, false);
@@ -350,7 +350,7 @@ export function createArtwork(template: SpxTemplate, spec: Creation): { template
     const doc = new DOMParser().parseFromString(template.html, 'text/html');
     while (doc.getElementById(spec.shape + '-' + n)) n++;
     selector = '#' + spec.shape + '-' + n;
-    const html = insertChild(template.html, parent, '\n<!-- Editable ' + spec.shape + ' -->\n<div id="' + selector.slice(1) + '" data-gfx></div>');
+    const html = insertArtworkChild(template.html, parent, '\n<!-- Editable ' + spec.shape + ' -->\n<div id="' + selector.slice(1) + '" data-gfx></div>');
     next = { ...template, html, css: appendCss(template.css, 'Editable ' + spec.shape + '; base geometry in parent pixels.',
       selector + ' {\n  position: absolute;\n  left: ' + precise(spec.x) + 'px;\n  top: ' + precise(spec.y) + 'px;\n  width: ' + precise(spec.width) + 'px;\n  height: ' + precise(spec.height) + 'px;\n  background: #8bd5f6;\n  border-radius: ' + (spec.shape === 'ellipse' ? '50%' : '0') + ';\n}') };
   }

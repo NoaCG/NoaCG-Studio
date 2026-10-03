@@ -10,6 +10,9 @@ import ArtworkTextEditor from './ArtworkTextEditor';
 import { sameRevision, type Revision } from './session';
 import { editorShortcutsLive } from '../spaceKey';
 import { getTemplateParts } from '../../model/structure';
+import { ASSET_DRAG_TYPE } from '../AssetsPanel';
+import { IMAGE_ACCEPT } from '../../assets/fileImport';
+import { useImageImport } from './useImageImport';
 
 let inspectedController: PreviewController | null = null;
 /** Read-only instrumentation entry point used by the acceptance harness. */
@@ -22,17 +25,21 @@ interface Props {
   linked: boolean;
   setSelection: (selection: string[]) => void;
   onAppearance: (appearance: Record<string, RenderedPart['appearance']>) => void;
+  onDrawingSpace: (space: PreviewReply['drawingSpace']) => void;
   rootSelector?: string;
   connectPreview: (preview: PreviewController | null) => void;
   togglePlayback: () => void; pause: () => void;
+  openAssets: () => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, rootSelector, connectPreview, togglePlayback, pause }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
   const [status, setStatus] = useState({ pending: true, error: '', request: 0, generation: 0, source: 0 });
   const [parts, setParts] = useState<RenderedPart[]>([]);
   const [drawingSpace, setDrawingSpace] = useState<PreviewReply['drawingSpace']>(null);
+  const image = useImageImport(session, !status.pending && status.source === session.version().source ? drawingSpace : null);
+  const imageInput = useRef<HTMLInputElement>(null);
   const [size, setSize] = useState({ width: 800, height: 450 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -97,7 +104,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         const key = JSON.stringify(appearance);
         if (key !== lastAppearance) { lastAppearance = key; onAppearance(appearance); }
       }
-      if (reply?.drawingSpace) setDrawingSpace(reply.drawingSpace);
+      if (reply?.drawingSpace) { setDrawingSpace(reply.drawingSpace); onDrawingSpace(reply.drawingSpace); }
       setStatus({ pending, error: reply?.kind === 'error' ? reply.message ?? 'Preview failed.' : '',
         request: reply?.requestId ?? 0, generation: reply?.generation ?? 0, source: reply?.revision.source ?? 0 });
     });
@@ -105,12 +112,13 @@ export default function Canvas({ template, sampleData, session, time, selection,
     connectPreview(preview);
     inspectedController = preview;
     return () => { connectPreview(null); preview.dispose(); if (inspectedController === preview) inspectedController = null; };
-  }, [session, onAppearance, connectPreview]);
+  }, [session, onAppearance, onDrawingSpace, connectPreview]);
   useEffect(() => {
+    onDrawingSpace(null);
     void controller.current?.load(template, session.version(), sampleData, parkedTime.current, parkedCue.current).catch(error => {
       setStatus({ pending: false, error: String(error), request: 0, generation: 0, source: session.version().source });
     });
-  }, [template, sampleData, session]);
+  }, [template, sampleData, session, onDrawingSpace]);
   useEffect(() => { controller.current?.seek(time, 'scrub', cue); }, [time, cue]);
   useEffect(() => { controller.current?.seek(parkedTime.current, 'selection', parkedCue.current); }, [selection]);
 
@@ -119,6 +127,12 @@ export default function Canvas({ template, sampleData, session, time, selection,
       {(['select', 'anchor', 'text', 'rectangle', 'ellipse'] as const).map(tool => <button key={tool} aria-pressed={gesture.tool === tool}
         title={tool === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
         onClick={() => { gesture.cancel(); gesture.setTool(tool); }} aria-label={tool + ' tool'}>{tool[0].toUpperCase() + tool.slice(1)}</button>)}
+      <button aria-label="image tool" onClick={() => { gesture.cancel(); pause(); openAssets(); }}>Image</button>
+      <button onClick={() => { gesture.cancel(); pause(); imageInput.current?.click(); }} disabled={image.busy}>Add image file…</button>
+      <input hidden ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple data-testid="image-add-input" onChange={event => {
+        const files = Array.from(event.target.files ?? []); event.target.value = '';
+        void image.files(files, 'place').catch(() => {});
+      }} />
       <span className="ef-spacer" />
       <span className="ef-muted">{width} × {height}</span>
       <select aria-label="Canvas zoom" value={zoom} onChange={event => setZoom(Number(event.target.value))}>
@@ -129,6 +143,17 @@ export default function Canvas({ template, sampleData, session, time, selection,
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-tool={gesture.tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
+      onDragOver={event => {
+        if (event.dataTransfer.types.includes('Files') || event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }
+      }}
+      onDrop={event => {
+        const path = event.dataTransfer.getData(ASSET_DRAG_TYPE), files = Array.from(event.dataTransfer.files);
+        if (!path && !files.length) return;
+        event.preventDefault(); event.stopPropagation(); gesture.cancel(); pause();
+        const point = pointerPoint(event, size, pan, scale, width, height);
+        if (files.length) void image.files(files, 'place', point).catch(() => {});
+        else { const asset = template.assets.find(a => a.path === path); if (asset) void image.place(asset, point); }
+      }}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
         if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -260,6 +285,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         <button onClick={() => void controller.current?.load(template, session.version(), sampleData, time)}>Reload preview</button>
       </div>}
       {gesture.error && <div className="ef-stage-error" role="alert">{gesture.error}</div>}
+      {image.error && <div className="ef-stage-error" role="alert">{image.error}</div>}
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
       <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'

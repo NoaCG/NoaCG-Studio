@@ -4,6 +4,9 @@ import { useRouter } from '../../app/router';
 import NewGraphicButton from '../NewGraphicButton';
 import SaveControls from '../save/SaveControls';
 import BrandLogo from '../BrandLogo';
+import AssetsPanel from '../AssetsPanel';
+import { useImageImport } from './useImageImport';
+import { imageCapability } from '../../blocks/editorImages';
 import { activatableFocus, editorShortcutsLive, modalOpen } from '../spaceKey';
 import Canvas, { recordFoundationInput } from './Canvas';
 import Timeline from './Timeline';
@@ -24,6 +27,9 @@ export default function EditorFoundation() {
   const selection = useTemplateStore(state => state.selectedParts);
   const setSelection = useTemplateStore(state => state.setSelectedParts);
   const session = activeEditorSession();
+  const [drawingSpace, setDrawingSpace] = useState<import('./protocol').PreviewReply['drawingSpace']>(null);
+  const images = useImageImport(session, drawingSpace);
+  const openAssets = () => setProjectOpen(true);
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [projectOpen, setProjectOpen] = useState(false);
   const [linked, setLinked] = useState(true);
@@ -129,14 +135,22 @@ export default function EditorFoundation() {
         <div className="ef-toolbar"><h2>Project</h2><span className="ef-spacer" /><button onClick={() => setProjectOpen(false)} aria-label="Close Project">×</button></div><span className="ef-section-label">Current graphic</span>
         <p className="ef-current-graphic">{template.name}</p>
         <span className="ef-section-label">Assets · {template.assets.length}</span>
-        <div className="ef-assets">{template.assets.map(asset => <div key={asset.path} title={asset.path}>▧ {asset.path.split('/').slice(-1)[0]}</div>)}
-          {!template.assets.length && <p className="ef-muted">No local assets</p>}</div>
+        <AssetsPanel actions={{
+          importFiles: files => images.files(files, 'assets'),
+          move: (from, to) => { const result = images.execute([{ kind: 'asset.move', from, to }]); return result.template.assets[template.assets.findIndex(a => a.path === from)]?.path ?? from; },
+          remove: path => { images.execute([{ kind: 'asset.delete', path }]); },
+          place: asset => { pause(); void images.place(asset); },
+          replace: selection.length === 1 && imageCapability(template, selection[0]).supported ? asset => {
+            pause(); void images.replace(asset, { selector: selection[0], appearance: appearance[selection[0]] });
+          } : undefined,
+        }} />
+        {images.error && <p role="alert">{images.error}</p>}
         <span className="ef-section-label">Operator fields · {template.fields.length}</span>
         {template.fields.map(field => <p className="ef-field" key={field.field}>{field.title || field.field}<code>{field.field}</code></p>)}
         <p className="ef-muted">Assets and operator fields for this graphic. Select artwork in Layers below the canvas.</p>
       </aside>
-      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} />
-      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} />
+      <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} />
+      <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} />
     </div>
     <Timeline view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
