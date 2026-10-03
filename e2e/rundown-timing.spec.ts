@@ -177,12 +177,32 @@ test('the editor sets the timing and says what Next cue will take', async ({ pag
   await expect(page.getByTestId('cue-ends-hint')).toContainText('Nothing comes after this cue');
 });
 
+test('a duplicate keeps the timing, and making a counting cue manual stops its countdown', async ({ page }) => {
+  const s = await seed(page, 'out');
+  await open(page, s);
+  await row(page, s.a).getByTestId('cue-menu').click();
+  await page.getByTestId('cue-actions-menu').getByRole('menuitem', { name: 'Duplicate', exact: true }).click();
+  await expect(page.locator('[data-testid^="cue-"] [data-testid="cue-auto"]').filter({ hasText: '0:04 → Out' })).toHaveCount(2);
+  await takeA(page, s);
+  await page.clock.runFor(1_000);
+  await expect(page.getByTestId('cue-ends-hint')).toContainText('It is counting now');
+  await page.getByTestId('cue-ends-mode').selectOption('manual');
+  await expect(page.getByTestId('program-auto')).toHaveCount(0);
+  await page.clock.runFor(10_000);
+  await expect(onAir(page, s.a)).toBeVisible();
+});
+
 test('published, a timed cue is offered disabled and airs as a manual one', async ({ page }) => {
   const s = await seed(page, 'out', true);
   await open(page, s);
   await expect(row(page, s.a).getByTestId('cue-auto')).toHaveCount(0);
-  await row(page, s.a).getByTestId('select-cue').click();
+  // A manual cue cannot be timed here; a timed one keeps only the way back to Manual.
+  await row(page, s.b).getByTestId('select-cue').click();
   await expect(page.getByTestId('cue-ends-mode')).toBeDisabled();
+  await row(page, s.a).getByTestId('select-cue').click();
+  await expect(page.getByTestId('cue-ends-mode')).toBeEnabled();
+  await expect(page.getByTestId('cue-ends-mode').locator('option[value="after"]')).toHaveJSProperty('disabled', true);
+  await expect(page.getByTestId('cue-ends-after')).toBeDisabled();
   await expect(page.getByTestId('cue-ends-hint')).toHaveText(
     'Timed cues run on an unpublished production for now. On a published one they arrive with the next update.',
   );

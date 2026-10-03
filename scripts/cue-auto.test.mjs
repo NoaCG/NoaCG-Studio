@@ -139,7 +139,8 @@ test('the chip shows the running countdown that fires soonest, then one waiting,
 
 test('the armed next cue is marked by every lane that will take it', () => {
   const arms = markerEffect(markerEffect({}, 'A', 'a', spec(4, 'next', 'b'), 0), 'C', 'c', spec(4, 'out', 'd'), 0);
-  assert.deepEqual([...armedNext(arms)], [['b', 'A']]);
+  assert.deepEqual([...armedNext(arms).keys()], ['b']);
+  assert.equal(armedNext(arms).get('b'), arms.A);
 });
 
 test('counts round up to whole seconds, and lengths keep their tenth', () => {

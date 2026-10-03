@@ -282,8 +282,8 @@ export default function CueRundown({
   const toneChannels = channelsUsed.length > 1;
   const serverOnAir = serverOwnership.onAir;
   const replacedCues = new Map(Object.values(serverOwnership.replaced).map((r) => [r.cueId, r] as const));
-  /** The cues a timed cue's Next cue will take, each with the lane that will take it. */
-  const armedBy = cueArms ? armedNext(cueArms) : new Map<string, string>();
+  /** The cues a timed cue's Next cue will take, each with the countdown that will take it. */
+  const armedBy = cueArms ? armedNext(cueArms) : null;
 
   // ── THE LIST FOLLOWS THE AIR (plan §6.2). A cue that goes on air off-screen is scrolled into
   // view, so a take from the keys, a folder's All together or another operator never leaves the
@@ -626,9 +626,10 @@ export default function CueRundown({
           const miss = !cueIsLive ? takeMisses[cue.id] : undefined;
           // A TIMED CUE (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1), only where timed cues run: its length and
           // end, or its own lane's countdown while it is the cue that armed it.
-          const timedAuto = cueArms && cueGraphic ? readAuto(cue) : null;
-          const lane = cueArms && cueGraphic ? cueArms[cueGraphic] : undefined;
-          const laneArm = lane && lane.cue === cue.id ? lane : undefined;
+          const lane = cueGraphic ? cueArms?.[cueGraphic] : undefined;
+          const laneArm = lane?.cue === cue.id ? lane : undefined;
+          const timedAuto = cueArms && cueGraphic && cue.auto ? readAuto(cue) : null;
+          const armingArm = !cueIsLive ? armedBy?.get(cue.id) : undefined;
           const rowMenuId = row.id;
           const inFolder = !!row.folderId;
           const ownFolder = row.folderId ? rundown.folders.get(row.folderId) : undefined;
@@ -717,7 +718,7 @@ export default function CueRundown({
               {laneArm || timedAuto ? (
                 <RowAutoChip auto={timedAuto} arm={laneArm} onToggle={() => toggleHold(cueGraphic!)} onClear={() => manualLane(cueGraphic!)} />
               ) : null}
-              {cueArms && armedBy.has(cue.id) && !cueIsLive && <ArmedTag arm={cueArms[armedBy.get(cue.id)!]} />}
+              {armingArm && <ArmedTag arm={armingArm} />}
               {/* The row was ON AIR until something else took its slot on the server: said next
                   to where the ON AIR tag stood, so the operator sees it where they last looked -
                   and beside PVW too, since the cue may well be the one on PREVIEW again. */}
@@ -846,7 +847,7 @@ export default function CueRundown({
                       const { shows: next, cueId } = addShowCue(
                         show.id,
                         cue.sourceId,
-                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}) },
+                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}), ...(cue.auto ? { auto: cue.auto } : {}) },
                         cue.id,
                       );
                       setShows(next);

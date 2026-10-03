@@ -1881,11 +1881,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           applyProgram(batch);
           // A cue marker moves its layer's countdown: a timed cue's Take arms it, anything else on
           // the layer replaces it (control/cueAuto.ts `markerEffect`).
+          let arms = armsRef.current;
           for (const item of batch) {
             if (item.msg.t !== 'cue') continue;
             const cue = item.msg.cue;
-            setCueArms((a) => markerEffect(a, item.graphic, cue, cue ? armSpecRef.current(cue) : null, Date.now()));
+            arms = markerEffect(arms, item.graphic, cue, cue ? armSpecRef.current(cue) : null, wallClock());
           }
+          setCueArms(arms);
         }
         const at = new Date().toISOString();
         const entries = batches
@@ -1997,10 +1999,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // timers are throttled, and past 5 s late that becomes Missed rather than a late action).
   const timedCues = !hostedSlug;
   const runDueRef = useRef<() => void>(() => {});
+  // A timer can come due a moment before the clock says so; when nothing moved, it is set again
+  // rather than left to wait for a change that will not come.
   useEffect(() => {
-    const wake = nextWake(cueArms, Date.now());
-    if (wake === null) return;
-    const t = window.setTimeout(() => runDueRef.current(), wake);
+    let t: number | undefined;
+    const arm = () => {
+      const wake = nextWake(armsRef.current, wallClock());
+      if (wake !== null) t = window.setTimeout(tick, Math.max(wake, 15));
+    };
+    const tick = () => {
+      const before = armsRef.current;
+      runDueRef.current();
+      if (armsRef.current === before) arm();
+    };
+    arm();
     const onShow = () => {
       if (document.visibilityState === 'visible') runDueRef.current();
     };
@@ -2569,14 +2581,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const items: ControlSendItem[][] = [];
     const out = playsOut(arm.then) && liveCueRef.current[graphic] === arm.cue;
     if (out) items.push(clearCueItems(graphic));
-    const next = takesNext(arm.then) && arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    const next = arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
     const nextGraphic = next ? cueGraphicName(next) : null;
     if (next && nextGraphic) {
       flushDraft();
       items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: withBoundValues(nextGraphic, cueView(next).values) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
-    const gone = takesNext(arm.then) && !!arm.next && !(next && nextGraphic);
+    const gone = !!arm.next && !(next && nextGraphic);
     if (!items.length) {
       logAuto(graphic, `${words}: nothing to send`);
       if (gone) setNote('The cue armed to be taken next is gone, so nothing was taken.');
@@ -2643,10 +2655,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setCueArms(dropArm(armsRef.current, graphic));
     if (arm.phase !== 'missed') logAuto(graphic, 'Manual: the timed end is off for this airing');
   };
-  /** PROGRAM said what a graphic holds: a countdown waiting for air starts now (§2.0's anchor). */
+  /** PROGRAM said what a graphic holds: a countdown waiting for air starts now (§2.0's anchor). Any
+   *  reply counts. A graphic still loading in the monitor is never asked (the stage drops a state
+   *  ask for an unloaded document), so its first reply follows its queued Take; one already loaded
+   *  applies the Take at once, so a poll answer crossing it is a few milliseconds early at most. */
   const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
     noteMachineState(graphic, state, overflow);
-    if (armsRef.current[graphic]?.phase === 'waiting') setCueArms((a) => aired(a, graphic, wallClock()));
+    setCueArms((a) => aired(a, graphic, wallClock()));
   };
   const chipGraphic = chipLane(cueArms);
 
@@ -4098,13 +4113,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
           programChip={
-            chipGraphic && cueArms[chipGraphic] ? (
+            chipGraphic ? (
               <ProgramAutoChip
                 arm={cueArms[chipGraphic]}
-                label={(() => {
-                  const c = cues.find((x) => x.id === cueArms[chipGraphic].cue);
-                  return c ? cueView(c).label : chipGraphic;
-                })()}
+                label={cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic}
                 onToggle={() => toggleHold(chipGraphic)}
                 onManual={() => manualLane(chipGraphic)}
               />
@@ -4528,7 +4540,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 const auto = readAuto(editingCue);
                 const nextId = nextGraphicCue(cues, editingCue.id);
                 const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
-                const nextHint = !auto || !takesNext(auto.then)
+                const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
+                const nextHint = counting
+                  ? 'It is counting now: a new length or end applies from its next Take.'
+                  : !auto || !takesNext(auto.then)
                   ? null
                   : !nextCue
                     ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
@@ -4541,7 +4556,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     auto={auto}
                     refused={timedCues ? null : 'Timed cues run on an unpublished production for now. On a published one they arrive with the next update.'}
                     nextHint={nextHint}
-                    onChange={(next) => setShows(setCueAuto(show.id, editingCue.id, next))}
+                    onChange={(next) => {
+                      setShows(setCueAuto(show.id, editingCue.id, next));
+                      // Made manual while it counts: the countdown goes too, as Manual's does. A new
+                      // length or end applies from the next Take, which is when a cue is armed.
+                      if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
+                    }}
                   />
                 );
               })()}

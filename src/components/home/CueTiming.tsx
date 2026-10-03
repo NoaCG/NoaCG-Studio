@@ -4,6 +4,7 @@
 // times a second redraws its own few characters and never the page around it.
 
 import { useEffect, useState } from 'react';
+import { useNow } from './ClipClock';
 import type { CueAuto, CueEnd } from '../../model/shows';
 import {
   AFTER_MAX_S,
@@ -17,25 +18,16 @@ import {
   remaining,
   type LaneArm,
 } from '../../control/cueAuto';
+import { clockText } from '../../control/serverState';
 
-/** The time, re-read four times a second while `active`. */
-function useTicking(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) return;
-    setNow(Date.now());
-    const t = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(t);
-  }, [active]);
-  // Not counting, the figure does not depend on the time (a held or waiting count), so the last
-  // reading stands.
-  return now;
-}
+/** The clock a timed cue counts in (control/cueAuto.ts). */
+const wall = () => Date.now();
 
 /** A lane's count as text, ticking while it runs: what is left, or how long ago a missed one was due. */
 function useArmText(arm: LaneArm): { text: string; warn: boolean } {
-  const now = useTicking(arm.phase === 'running' || arm.phase === 'missed');
-  if (arm.phase === 'missed') return { text: countText(Math.max(0, now - arm.dueAt)), warn: false };
+  // A count four times a second, so it turns at the second it should; a missed one counts up, once a second.
+  const now = useNow(arm.phase === 'running' || arm.phase === 'missed', arm.phase === 'missed' ? 1000 : 250, wall);
+  if (arm.phase === 'missed') return { text: clockText(Math.max(0, now - arm.dueAt) / 1000, 'down'), warn: false };
   const left = remaining(arm, now);
   return { text: countText(left), warn: arm.phase === 'running' && left <= WARN_MS };
 }
@@ -110,7 +102,6 @@ export function ArmedTag({ arm }: { arm: LaneArm }) {
  */
 export function ProgramAutoChip({ arm, label, onToggle, onManual }: { arm: LaneArm; label: string; onToggle: () => void; onManual: () => void }) {
   const { text, warn } = useArmText(arm);
-  if (arm.phase === 'missed') return null;
   const held = arm.phase === 'held';
   return (
     <span className={`pd-auto-chip${warn ? ' warn' : ''}${held ? ' held' : ''}`} data-testid="program-auto" data-phase={arm.phase}>
@@ -145,26 +136,33 @@ export function CueEndsRow({
 }) {
   // The typed length, kept apart from the record so "0." on the way to "0.5" is not refused.
   const [typed, setTyped] = useState(auto ? String(auto.after) : '8');
+  // Follows the record when it moves under the box, and only then: the page re-renders every
+  // second, and a half-typed length must survive that. Another cue selected remounts the row (its
+  // key), which starts the box over.
+  const after = auto?.after;
   useEffect(() => {
-    if (auto) setTyped((t) => (cleanAfter(Number(t)) === auto.after ? t : String(auto.after)));
-  }, [auto]);
+    if (after !== undefined) setTyped((t) => (cleanAfter(Number(t)) === after ? t : String(after)));
+  }, [after]);
   const off = !!refused;
   const bad = !!auto && cleanAfter(Number(typed)) === null;
-  const hint = refused ?? (auto && bad ? `A length from ${AFTER_MIN_S} to ${AFTER_MAX_S} seconds.` : auto ? nextHint : null);
+  const hint = refused ?? (auto && bad ? `A length from ${AFTER_MIN_S} to ${AFTER_MAX_S} seconds.` : nextHint);
   // Grid items of the settings row (`.pd-cue-meta`): the mode takes the track beside the note, so a
   // manual cue's settings stay one line; a timed cue's length and end go on a line of their own.
   return (
     <>
       <label className="pd-field pd-field-ends" data-testid="cue-ends">
         <span>Ends</span>
+        {/* Refused, a timed cue can still be made manual: only the way back is offered. */}
         <select
           value={auto ? 'after' : 'manual'}
-          disabled={off}
+          disabled={off && !auto}
           onChange={(e) => onChange(e.target.value === 'manual' ? null : { after: cleanAfter(Number(typed)) ?? 8, then: auto?.then ?? 'out' })}
           data-testid="cue-ends-mode"
         >
           <option value="manual">Manual</option>
-          <option value="after">After a time</option>
+          <option value="after" disabled={off}>
+            After a time
+          </option>
         </select>
       </label>
       {(auto || hint) && (

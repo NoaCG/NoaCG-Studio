@@ -632,7 +632,7 @@ function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
 export function addShowCue(
   showId: string,
   sourceId: string,
-  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback },
+  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback; auto?: CueAuto },
   after?: string,
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
@@ -649,6 +649,8 @@ export function addShowCue(
       ...(seed?.note ? { note: seed.note } : {}),
       // A duplicated server cue plays its clip the same way: the copy is of the cue, settings too.
       ...(item && seed?.playback && Object.keys(seed.playback).length ? { playback: { ...seed.playback } } : {}),
+      // A duplicated timed graphic cue keeps its timing, as a copied one does (model/cueClipboard.ts).
+      ...(!item && seed?.auto ? { auto: { ...seed.auto } } : {}),
     };
     // After `after`, in its folder, so the folder's run goes on through the copy; else at the end.
     show.cues = after === undefined ? appendCue(show.cues ?? [], cue) : insertAfter(show.cues ?? [], after, cue);

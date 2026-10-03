@@ -16,6 +16,7 @@
 // own; nothing here reads one.
 
 import type { CueAuto, CueEnd, ShowCue } from '../model/shows';
+import { clockText, FINAL_S } from './serverState.ts';
 
 /** An end action more than this late is MISSED and never runs (§2.5, the owner's point 2). */
 export const LATE_LIMIT_MS = 5_000;
@@ -99,11 +100,7 @@ export interface ArmSpec {
  * touches a countdown.
  */
 export function markerEffect(arms: CueArms, graphic: string, cue: string | null, spec: ArmSpec | null, at: number): CueArms {
-  if (!cue || !spec) {
-    if (!(graphic in arms)) return arms;
-    const { [graphic]: _gone, ...rest } = arms;
-    return rest;
-  }
+  if (!cue || !spec) return dropArm(arms, graphic);
   const arm: LaneArm = {
     cue,
     then: spec.auto.then,
@@ -119,7 +116,7 @@ export function markerEffect(arms: CueArms, graphic: string, cue: string | null,
 export function aired(arms: CueArms, graphic: string, at: number): CueArms {
   const arm = arms[graphic];
   if (!arm || arm.phase !== 'waiting') return arms;
-  return { ...arms, [graphic]: { ...arm, phase: 'running', ms: arm.ms, from: at } };
+  return { ...arms, [graphic]: { ...arm, phase: 'running', from: at } };
 }
 
 /** No output said so in time: every countdown still waiting AIR_WAIT_MS after its Take starts from
@@ -129,7 +126,7 @@ export function settleWaiting(arms: CueArms, now: number): CueArms {
   for (const [graphic, arm] of Object.entries(arms)) {
     if (arm.phase !== 'waiting' || now < arm.takenAt + AIR_WAIT_MS) continue;
     out ??= { ...arms };
-    out[graphic] = { ...arm, phase: 'running', ms: arm.ms, from: arm.takenAt };
+    out[graphic] = { ...arm, phase: 'running', from: arm.takenAt };
   }
   return out ?? arms;
 }
@@ -142,9 +139,9 @@ export function deadline(arm: LaneArm): number | null {
 /** What is left to count, in ms: the full length while waiting, the frozen remainder while held,
  *  0 once due or missed. */
 export function remaining(arm: LaneArm, now: number): number {
-  if (arm.phase === 'running') return Math.max(0, arm.from + arm.ms - now);
-  if (arm.phase === 'missed') return 0;
-  return arm.ms;
+  const due = deadline(arm);
+  if (due !== null) return Math.max(0, due - now);
+  return arm.phase === 'missed' ? 0 : arm.ms;
 }
 
 /** HOLD (H, or the chip): freeze a running or waiting countdown. A running one already due
@@ -152,7 +149,7 @@ export function remaining(arm: LaneArm, now: number): number {
 export function hold(arms: CueArms, graphic: string, now: number): CueArms | 'due' | null {
   const arm = arms[graphic];
   if (!arm) return null;
-  if (arm.phase === 'waiting') return { ...arms, [graphic]: { ...arm, phase: 'held', ms: arm.ms, heldAt: now } };
+  if (arm.phase === 'waiting') return { ...arms, [graphic]: { ...arm, phase: 'held', heldAt: now } };
   if (arm.phase !== 'running') return null;
   const left = arm.from + arm.ms - now;
   if (left <= 0) return 'due';
@@ -163,7 +160,7 @@ export function hold(arms: CueArms, graphic: string, now: number): CueArms | 'du
 export function resume(arms: CueArms, graphic: string, now: number): CueArms | null {
   const arm = arms[graphic];
   if (!arm || arm.phase !== 'held') return null;
-  return { ...arms, [graphic]: { ...arm, phase: 'running', ms: arm.ms, from: now } };
+  return { ...arms, [graphic]: { ...arm, phase: 'running', from: now } };
 }
 
 /** MANUAL, or a fire that went out: the lane's countdown is gone, and its cue stays on air as an
@@ -201,7 +198,7 @@ export function markMissed(arms: CueArms, graphic: string): CueArms {
 export function nextWake(arms: CueArms, now: number): number | null {
   let soonest: number | null = null;
   for (const arm of Object.values(arms)) {
-    const at = arm.phase === 'running' ? arm.from + arm.ms : arm.phase === 'waiting' ? arm.takenAt + AIR_WAIT_MS : null;
+    const at = deadline(arm) ?? (arm.phase === 'waiting' ? arm.takenAt + AIR_WAIT_MS : null);
     if (at !== null && (soonest === null || at < soonest)) soonest = at;
   }
   return soonest === null ? null : Math.max(0, soonest - now);
@@ -217,7 +214,7 @@ export function chipLane(arms: CueArms): string | null {
   for (const [graphic, arm] of Object.entries(arms)) {
     const pick =
       arm.phase === 'running'
-        ? { rank: 0, at: arm.from + arm.ms }
+        ? { rank: 0, at: deadline(arm)! }
         : arm.phase === 'waiting'
           ? { rank: 1, at: arm.takenAt }
           : arm.phase === 'held'
@@ -229,11 +226,12 @@ export function chipLane(arms: CueArms): string | null {
   return best?.graphic ?? null;
 }
 
-/** The cues an arm will take with `Next cue`, by the cue id, each with the lane that will. */
-export function armedNext(arms: CueArms): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const [graphic, arm] of Object.entries(arms)) {
-    if (arm.next && arm.phase !== 'missed' && takesNext(arm.then)) out.set(arm.next, graphic);
+/** The cues an arm will take with `Next cue`, by the cue id, each with the arm that will. An arm
+ *  carries `next` only when its end takes one (`markerEffect`). */
+export function armedNext(arms: CueArms): Map<string, LaneArm> {
+  const out = new Map<string, LaneArm>();
+  for (const arm of Object.values(arms)) {
+    if (arm.next && arm.phase !== 'missed') out.set(arm.next, arm);
   }
   return out;
 }
@@ -249,11 +247,7 @@ export const END_SHORT: Record<CueEnd, string> = { out: 'Out', next: 'Next cue',
 /** A countdown as a row reads it: whole seconds, rounded UP, so `0:01` is the last second and zero
  *  is never shown while anything is left. */
 export function countText(ms: number): string {
-  const total = Math.max(0, Math.ceil(ms / 1000 - 1e-9));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = String(total % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+  return clockText(ms / 1000, 'up');
 }
 
 /** A configured length as the rundown wears it: `0:08`, or `0:02.5` for a half second. */
@@ -264,4 +258,4 @@ export function lengthWords(seconds: number): string {
 }
 
 /** The last seconds a count takes the warning colour in. */
-export const WARN_MS = 5_000;
+export const WARN_MS = FINAL_S * 1000;
