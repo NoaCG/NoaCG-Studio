@@ -1679,6 +1679,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-rail-head { display: flex; align-items: center; gap: 8px; padding: 11px 14px 7px; flex: none; }
 .pd-rail-head h2 { font-size: 13px; margin: 0; }
 .pd-rail-head .spacer { flex: 1; }
+/* The Add door stays beside the title; both its menu and the existing server picker
+   hang from it, so shortcuts remain visible without scrolling to the rail's foot. */
+.pd-rundown-add { flex: none; }
+.pd-rundown-add > button { font-size: 12px; padding: 5px 9px; }
+.pd-rundown-add-menu { width: min(270px, calc(100vw - 24px)); }
+.pd-rundown-add-menu button { white-space: normal; }
+.pd-rundown-add > .pd-picker { left: auto; width: min(360px, calc(100vw - 24px)); }
 .pd-icon {
   width: 28px;
   height: 28px;

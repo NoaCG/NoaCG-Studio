@@ -185,7 +185,7 @@ export default function CueRundown({
   selectedCueId: string | null;
   /** The cue on PREVIEW, which in 'preview-then-take' mode the cursor may have left. */
   previewCueId: string | null;
-  /** The selected cue's pool graphic, which ＋ adds a cue on. Null on a server cue or a folder. */
+  /** The selected cue's pool graphic, for Add's cue option. Null on a server cue or a folder. */
   selectedGraphicId: string | null;
   /** The folder header the operator holds, if any. */
   heldFolderRowId: string | null;
@@ -247,6 +247,9 @@ export default function CueRundown({
 }) {
   const navigate = useRouter((s) => s.navigate);
   const [addPick, setAddPick] = useState('');
+  const [addOpen, setAddOpen] = useState(false);
+  const libraryPick = useRef<HTMLSelectElement>(null);
+  const serverPick = useRef<HTMLButtonElement>(null);
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
   /** The open ⋯ menu, by ROW id: a cue's, or a folder header's. */
@@ -256,6 +259,7 @@ export default function CueRundown({
    *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
   const [armedRemove, setArmedRemove] = useState<'cue' | 'graphic' | 'range' | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerMedia, setPickerMedia] = useState<'movie' | 'audio' | undefined>();
 
   /** Each pool graphic's WORD fields, in the template's order: what a row's dim summary reads. */
   const wordFields = useMemo(() => {
@@ -306,7 +310,7 @@ export default function CueRundown({
   const [aim, setAim] = useState<Aim | null>(null);
   const scrolledAt = useRef(-Infinity);
   // A menu counts while its row is drawn: one left open on a row a collapse then hid holds nothing still.
-  const menuOpen = (menuRowId !== null && rundown.rows.some((r) => r.id === menuRowId)) || pickerOpen;
+  const menuOpen = (menuRowId !== null && rundown.rows.some((r) => r.id === menuRowId)) || pickerOpen || addOpen;
   const liveIds = new Set(
     cues
       .filter((cue) => {
@@ -417,6 +421,20 @@ export default function CueRundown({
   const otherFolders = (folderId: string | null) => [...rundown.folders.values()].filter((f) => f.id !== folderId);
 
   const rangeCount = range.size;
+  const selectedCue = cues.find((c) => c.id === selectedCueId);
+  const folderCueIds = rangeCount ? [...range] : selectedCue && !selectedCue.folderId ? [selectedCue.id] : [];
+  const createGraphic = () => {
+    useTemplateStore.setState({ pendingProductionId: show.id });
+    navigate({ view: 'new' });
+  };
+  const pickAdd = (run: () => void) => () => {
+    setAddOpen(false);
+    run();
+  };
+  const openMedia = (kind: 'movie' | 'audio') => {
+    setPickerMedia(kind);
+    setPickerOpen(true);
+  };
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
   const rangeInFolder = [...range].some((id) => !!rundown.rowOf.get(id) && cues.some((c) => c.id === id && !!c.folderId && rundown.folders.has(c.folderId)));
 
@@ -436,20 +454,56 @@ export default function CueRundown({
           </span>
         )}
         <div className="spacer" />
-        <button
-          className="pd-icon"
-          title="Add a cue on the selected graphic"
-          disabled={!selectedGraphicId}
-          onClick={() => {
-            if (!selectedGraphicId) return;
-            const { shows: next, cueId } = addShowCue(show.id, selectedGraphicId);
-            setShows(next);
-            if (cueId) selectCue(cueId);
-          }}
-          data-testid="add-cue"
-        >
-          ＋
-        </button>
+        <div className="lib-menu-host pd-rundown-add">
+          <button
+            title="Add to the rundown"
+            aria-haspopup="menu"
+            aria-expanded={addOpen}
+            onClick={() => { setPickerOpen(false); setAddOpen((o) => !o); }}
+            data-testid="rundown-add"
+          >
+            + Add
+          </button>
+          <LibMenu open={addOpen} onClose={() => setAddOpen(false)} testid="rundown-add-menu" className="pd-rundown-add-menu">
+            <button role="menuitem" disabled={!selectedGraphicId} data-testid="add-cue" onClick={pickAdd(() => {
+              if (!selectedGraphicId) return;
+              const { shows: next, cueId } = addShowCue(show.id, selectedGraphicId);
+              setShows(next);
+              if (cueId) selectCue(cueId);
+            })}>Cue on selected graphic</button>
+            <button role="menuitem" onClick={pickAdd(() => {
+              libraryPick.current?.scrollIntoView({ block: 'nearest' });
+              libraryPick.current?.focus();
+            })}>Graphic from library…</button>
+            <button role="menuitem" onClick={pickAdd(createGraphic)}>New graphic…</button>
+            <button role="menuitem" onClick={pickAdd(() => pictureInput.current?.click())}>Pictures…</button>
+            <button role="menuitem" disabled={!playoutConfigured(playoutSettings)} onClick={pickAdd(() => openMedia('movie'))}>Video from server…</button>
+            <button role="menuitem" disabled={!playoutConfigured(playoutSettings)} onClick={pickAdd(() => openMedia('audio'))}>Audio from server…</button>
+            {!playoutConfigured(playoutSettings) && <p className="hint">Pair a playout server in Setup to add video or audio.</p>}
+            <button role="menuitem" disabled={!folderCueIds.length} onClick={pickAdd(() => void newFolder(folderCueIds))}>Folder from selected cues</button>
+          </LibMenu>
+          {playoutConfigured(playoutSettings) && <PlayoutItemPicker
+            // Named media shortcuts start on their own tab each time they open.
+            key={pickerMedia ? `${pickerMedia}-${pickerOpen}` : 'all'}
+            open={pickerOpen}
+            mediaFilter={pickerMedia}
+            triggerRef={serverPick}
+            onClose={() => setPickerOpen(false)}
+            library={library}
+            onAdd={(item) => {
+              // Retain the server picker's kind-specific channel and safe default layer.
+              const settings = loadPlayoutSettings();
+              const channel = defaultChannelFor(settings, item.kind);
+              const { shows: next, cueId } = addPlayoutItem(
+                show.id,
+                { adapter: 'casparcg', ...item, channel },
+                { output: { channel: settings.channel, layer: settings.layer } },
+              );
+              setShows(next);
+              if (cueId) selectCue(cueId);
+            }}
+          />}
+        </div>
       </div>
 
       {cues.length === 0 && (
@@ -1056,7 +1110,7 @@ export default function CueRundown({
           lives in the row's ⋯ menu, so the rundown is the only list (§5). */}
       <div className="pd-rail-foot">
         <div className="row">
-          <select value={addPick} onChange={(e) => setAddPick(e.target.value)} data-testid="add-graphic-pick">
+          <select ref={libraryPick} value={addPick} onChange={(e) => setAddPick(e.target.value)} data-testid="add-graphic-pick">
             <option value="">Add a graphic from your library…</option>
             {library.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
@@ -1078,10 +1132,7 @@ export default function CueRundown({
         </div>
         <button
           className="pd-new-graphic"
-          onClick={() => {
-            useTemplateStore.setState({ pendingProductionId: show.id });
-            navigate({ view: 'new' });
-          }}
+          onClick={createGraphic}
           title="Create a new graphic for this production - the wizard uses its look and adds it here"
           data-testid="production-new-graphic"
         >
@@ -1106,32 +1157,13 @@ export default function CueRundown({
           <div className="pd-picker-host">
             <button
               className="pd-new-graphic"
-              onClick={() => setPickerOpen((o) => !o)}
+              onClick={() => { setAddOpen(false); setPickerMedia(undefined); setPickerOpen((o) => !o); }}
               title="Add a template or a clip that is already on the playout server"
               data-testid="add-from-server"
+              ref={serverPick}
             >
               ＋ From the playout server…
             </button>
-            <PlayoutItemPicker
-              open={pickerOpen}
-              onClose={() => setPickerOpen(false)}
-              library={library}
-              onAdd={(item) => {
-                // The studio's default channel for its kind: media to the "New media" channel, a
-                // template to the NoaCG output's channel. Stored as a number, so the item stays
-                // where it was put when the studio later moves its output; and never defaulted
-                // onto the output's own layer, which playing it would replace.
-                const settings = loadPlayoutSettings();
-                const channel = defaultChannelFor(settings, item.kind);
-                const { shows: next, cueId } = addPlayoutItem(
-                  show.id,
-                  { adapter: 'casparcg', ...item, channel },
-                  { output: { channel: settings.channel, layer: settings.layer } },
-                );
-                setShows(next);
-                if (cueId) selectCue(cueId);
-              }}
-            />
           </div>
         )}
         <input

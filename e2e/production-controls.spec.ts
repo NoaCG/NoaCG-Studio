@@ -1477,6 +1477,7 @@ async function twoCueRundown(page: Page): Promise<Locator> {
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await page.getByTestId('cue-label').fill('Anna');
   await expect(rows.first()).toContainText('Anna');
+  await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(rows).toHaveCount(2);
   await page.getByTestId('cue-label').fill('Ben');

@@ -387,6 +387,7 @@ test('Ctrl+C and Ctrl+V make new cues that stand on their own; Ctrl+X and Ctrl+V
   await page.keyboard.press(' ');
   await expect(original.getByTestId('cue-up-here')).toBeVisible();
   await page.keyboard.press('ControlOrMeta+x');
+  await expect(page.getByTestId('production-note')).toContainText('1 cue ready to move. Still in place until you paste.');
   await expect(list(page).locator(`[data-row="${originalId}"]`)).toHaveClass(/cut/);
   await rows.last().getByTestId('select-cue').click();
   await parkFocusOffControls(page);

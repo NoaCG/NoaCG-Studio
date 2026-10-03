@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import LibMenu from './LibMenu';
 import { clipLength } from './clipLength';
 import { slug } from '../../model/slug';
@@ -35,12 +35,17 @@ export default function PlayoutItemPicker({
   onClose,
   library,
   onAdd,
+  mediaFilter,
+  triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
   /** NoaCG's own library: a server template NoaCG exported is matched here, which gives the
    *  cue editor its fields without anyone typing them. */
   library: GraphicDoc[];
+  /** An Add-menu shortcut into the same server library, restricted to video or audio. */
+  mediaFilter?: 'movie' | 'audio';
+  triggerRef?: RefObject<HTMLElement | null>;
   /** `mediaKind` is the server's own word for a media file (`movie`, `still`, `audio`), which is
    *  what puts an audio file on its own layer and keeps a still out of a sequence. */
   onAdd: (item: {
@@ -52,7 +57,7 @@ export default function PlayoutItemPicker({
     fields?: PlayoutField[];
   }) => void;
 }) {
-  const [kind, setKind] = useState<'template' | 'media'>('template');
+  const [kind, setKind] = useState<'template' | 'media'>(mediaFilter ? 'media' : 'template');
   const [items, setItems] = useState<ListItem[] | null>(null);
   const [result, setResult] = useState<PlayoutResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,24 +119,24 @@ export default function PlayoutItemPicker({
   const addTyped = () => {
     const name = typed.trim();
     if (!name) return;
-    if (kind === 'media') onAdd({ kind, name });
+    if (kind === 'media') onAdd({ kind, name, ...(mediaFilter ? { mediaKind: mediaFilter } : {}) });
     else onAdd({ kind, name, fields: fieldsFor(name) ?? typedFields() });
     setTyped('');
     onClose();
   };
 
   const cannotList = result && result.state !== 'ok';
-  const view = items ? folderView(items, folder) : null;
+  const view = items ? folderView(kind === 'media' && mediaFilter ? items.filter((item) => item.kind?.toLowerCase() === mediaFilter) : items, folder) : null;
 
   return (
-    <LibMenu open={open} onClose={onClose} surface="pd-picker" role="none" testid="playout-picker">
+    <LibMenu open={open} onClose={onClose} triggerRef={triggerRef} surface="pd-picker" role="none" testid="playout-picker">
       <div className="pd-picker-head">
         <div className="pd-picker-tabs" role="tablist">
           <button role="tab" aria-selected={kind === 'template'} onClick={() => setKind('template')} data-testid="picker-templates">
             Templates
           </button>
           <button role="tab" aria-selected={kind === 'media'} onClick={() => setKind('media')} data-testid="picker-media">
-            Media
+            {mediaFilter === 'movie' ? 'Video' : mediaFilter === 'audio' ? 'Audio' : 'Media'}
           </button>
         </div>
         <div className="spacer" />

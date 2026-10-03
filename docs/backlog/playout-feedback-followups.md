@@ -25,12 +25,13 @@ the two later sections are the unstarted remainder, not extra implementations of
 | 1 | Relevant output health, without a manual playout mode | Row B, `codex/b-relevant-playout-health`; existing [output-health receipt](output-health-indicator.md). Prove browser-only, intended disconnected CasparCG and mixed targets. |
 | 2 | Understand Publish, preparation and readiness | Row B, same health/readiness work. Establish publish guarantees and automatic output checks while preserving published/live isolation; [one-press backlog](go-live-one-press.md) remains the broader ask. |
 | 3 | Graphic/audio folders, attached sounds and levels | Row D, [existing sound receipt](sound-with-graphics-and-steps.md) and [code-grounded proposal](../research/playout-audio-2026-10-03.md). Current cue levels exist; attachments remain proposed. Normalization stays later below. |
-| 4 | Rundown + becomes Add graphic/video/audio/folder | Row C, `codex/c-readable-rundown-controls`, after B lands. Reuse existing add/picker paths and preserve routing. |
+| 4 | Rundown + becomes Add graphic/video/audio/folder | Row C, `codex/c-readable-rundown-controls`: implemented and verified through existing add/picker paths, with routing preserved. Desktop and phone [evidence](../work-specs/playout-rundown-feedback/evidence/README.md); landing follows B. |
 | 5 | Multi-step Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y | Row E, `codex/e-rundown-undo`, after C lands. Editing history must leave text-input undo and on-air commands alone, and avoid overwriting concurrent edits. If not safely built, E owes a precise implementation plan. |
-| 6 | Clear pending-cut behavior | Row C. Say cues remain until paste moves them and Escape cancels the pending move; prove clipboard behavior and labels together. |
-| 7 | Distinct item types, hierarchy and output address | Row C assesses defaults with rendered evidence. Optional Setup colors remain later below; the default must already be readable. |
+| 6 | Clear pending-cut behavior | Row C: verified pending-move instructions and Escape confirmation. Cut/cancel preserve cue identity and air state; existing clipboard proof confirms paste moves the same cue. See the same evidence. |
+| 7 | Distinct item types, hierarchy and output address | Row C: existing graphic/video/audio/folder glyphs, colors, hierarchy and accessible names judged readable at desktop and phone widths. Optional Setup colors remain later below. |
 
-Rows C/E are sequenced work, not completed work. The private wave/result ledger records launches,
+Row C's implementation and rendered acceptance are verified; its landing remains sequenced after B.
+Row E retains its editing-history scope. The private wave/result ledger records launches,
 checks and landing verdicts. Update this index's outcomes when those rows finish; do not mint
 parallel Add, clipboard, undo, readiness or audio tasks from the same feedback.
 

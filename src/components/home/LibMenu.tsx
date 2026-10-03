@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 /** The breathing room kept against the viewport edge. The GAP between the button and its menu
  *  is not a constant here: it is MEASURED off the drawn menu (see below), so a surface with a
@@ -59,6 +59,7 @@ export default function LibMenu({
   surface = 'lib-menu',
   role = 'menu',
   className,
+  triggerRef,
   children,
 }: {
   open: boolean;
@@ -71,6 +72,8 @@ export default function LibMenu({
   role?: string;
   /** Extra classes for the menu itself; the placement modifier is added on top. */
   className?: string;
+  /** An additional opener outside the host owns its toggle, just like the host's button. */
+  triggerRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -113,6 +116,7 @@ export default function LibMenu({
       const host = menuRef.current?.parentElement;
       const target = e.target;
       if (!host || !(target instanceof Element) || host.contains(target)) return;
+      if (triggerRef?.current?.contains(target)) return;
       // A press inside a MODAL is not an outside press on this popover. A dialog is drawn ABOVE
       // the menu and owns that click, and the menu is the context the operator returns to when
       // it closes — dismissing a "could not save" alert must not also shut the picker that was
@@ -138,7 +142,7 @@ export default function LibMenu({
       document.removeEventListener('pointerdown', outside, true);
       document.removeEventListener('keydown', key);
     };
-  }, [open, onClose]);
+  }, [open, onClose, triggerRef]);
 
   if (!open) return null;
   return (
