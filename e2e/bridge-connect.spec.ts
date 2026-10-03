@@ -556,6 +556,26 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   expect(bridge.actions).toEqual([]);
 });
 
+test('a layer past what the Bridge keeps is held to it here too, so both copies name one slot', async ({ page }) => {
+  await seedSettings(page, { host: '192.168.1.20' });
+  const bridge = await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250 }] });
+  await openPlayoutSettings(page);
+  const section = page.getByTestId('settings-playout');
+  // The Bridge keeps layers up to 9999. Typed past it, the browser used to keep 12000 and play there
+  // while the Bridge, and every other browser paired with it, kept 9999.
+  await section.getByTestId('caspar-layer').fill('12000');
+  await expect.poll(() => bridge.servers?.[0].studio?.output).toEqual({ channel: 1, layer: 9999 });
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('9999');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('spx-gfx-caspar') ?? '{}').layer)).toBe(9999);
+  // A negative or a fraction is held the same way the Bridge holds it.
+  await section.getByTestId('caspar-layer').fill('-5');
+  await expect.poll(() => bridge.servers?.[0].studio?.output.layer).toBe(0);
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('0');
+  await section.getByTestId('caspar-layer').fill('12.6');
+  await expect.poll(() => bridge.servers?.[0].studio?.output.layer).toBe(13);
+  await expect(section.getByTestId('caspar-layer')).toHaveValue('13');
+});
+
 test('a change made while the Bridge is not running is given to it the next time, not replaced by its older copy', async ({ page }) => {
   await seedOnce(page, { host: '192.168.1.20', channels: STUDIO.channels, layer: 30, clipChannel: 2 });
   const bridge = await fakeBridge(page, { missing: true, features: WITH_STUDIO, servers: [{ host: '192.168.1.20', port: 5250, studio: STUDIO }] });

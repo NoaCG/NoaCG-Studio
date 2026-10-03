@@ -23,7 +23,7 @@ import {
   type StudioKeeper,
   type StudioSync,
 } from '../control/playoutLink';
-import { MAX_CHANNEL_NAME, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
+import { MAX_CHANNEL_NAME, MAX_STUDIO_LAYER, type RememberedServer, type ServerChannel } from '../control/playoutProtocol';
 import { plural } from '../control/readiness';
 import { studioOf } from '../control/studioSetup';
 import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
@@ -445,8 +445,12 @@ export default function PlayoutSettingsPanel({ outputUrl }: { outputUrl?: string
             <input
               type="number"
               min={0}
+              max={MAX_STUDIO_LAYER}
               value={settings.layer}
-              onChange={(e) => set({ layer: Number(e.target.value) || 0 })}
+              // Held to what NoaCG Bridge keeps, a whole number from 0 to 9999, as it is typed: the
+              // Bridge's copy is clamped, and a browser left holding 12000 would play its output on
+              // a slot no other browser paired with that Bridge uses.
+              onChange={(e) => set({ layer: Math.min(MAX_STUDIO_LAYER, Math.max(0, Math.round(Number(e.target.value)) || 0)) })}
               aria-label="Layer"
               data-testid="caspar-layer"
             />
