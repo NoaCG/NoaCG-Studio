@@ -1,84 +1,55 @@
-# The `noacg-mcp` plugin (Claude Code + Codex)
+# NoaCG MCP server
 
-The NoaCG CLI as an **always-on MCP server**, packaged as a plugin so one command installs it. It
-is optional. The `noacg` plugin next to it (`cli/plugin/`) carries the skill and the command and
-runs no server. Its skill drives the same CLI from the terminal, and a session that is not about
-NoaCG pays nothing for it. Install this one when you want the `noacg` tool present in every
-session - a browser kept warm between calls, screenshots returned as images - or when your client
-has no shell to run the CLI in.
+Optional local companion to the noacg skill plugin. It exposes the existing NoaCG CLI as one
+stdio MCP tool, noacg, with authoring, inspect, validate, screenshot, docs and save verbs.
+It starts a process in every session where enabled. Keep the main plugin for the skill and
+install this companion only when an always-on tool and warm browser are useful.
 
-What it costs, measured 2026-09-02 (`docs/AGENT_CLI.md`, "What a session pays"): one process of
-about 37 MB private bytes for the life of every session, and about 590 tokens of tool schema in
-every session's context. That is the whole reason it is a separate plugin.
+## Install and setup
 
-| Piece | What it is |
-|---|---|
-| `.mcp.json` | The `noacg` MCP server: `node mcp-server.mjs`. One tool, `noacg`, whose `command` is the CLI verb (`types`, `scaffold`, `validate`, `inspect`, `screenshot`, `docs`, `save`) and whose other arguments are the verb's flags. The skill's references are also resources at `noacg://docs/<topic>`. |
-| `mcp-server.mjs` | The launcher. It resolves `@noacg/cli` (`NOACG_CLI`, a normal resolve, then a global install found through the `noacg` shim on PATH) and `import`s it in the same process, so the server is ONE process rather than npx plus a child. With no installed copy it falls back to npx in-process and says so on stderr. |
-| `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json` | The manifests. Their `version` is stamped from `cli/package.json` by `cli/scripts/build-skill.mjs`. |
+From the generated distribution's repository directory:
 
-## Install
+~~~sh
+claude plugin marketplace add ./
+claude plugin install noacg@noacg-studio
+claude plugin install noacg-mcp@noacg-studio
+npm i -g @noacg/cli@0.9.0
+noacg doctor
+~~~
 
-In a Claude Code session (2.1.275 or later), each plugin is one command:
+Node 20 or newer, npm, system Chrome or Edge and a reachable NoaCG deployment are required.
+The launcher imports an installed CLI only when its package version exactly matches this
+plugin's manifest. Otherwise it refuses with an exact install command. With no CLI installed,
+it runs pinned npx to download @noacg/cli@0.9.0 from registry.npmjs.org. This fallback costs an
+extra process. The pin follows cli/package.json; it never resolves npm's latest implicitly.
 
-```text
-/plugin install noacg --marketplace NoaCG/NoaCG-Studio
-/plugin install noacg-mcp --marketplace NoaCG/NoaCG-Studio
-```
+Explicit NOACG_CLI may name an existing absolute development entry file. This bypasses the pin
+and prints a notice on stderr. A missing override fails. NOACG_URL selects a self-hosted deployment;
+NOACG_BROWSER selects a supported Chromium executable. These are deliberate development/setup
+choices, not extra bundled software. The main skill's references/setup.md explains diagnosis.
 
-From a terminal or a setup script:
+The Codex compatibility manifest is for local clients with stdio support. The directory upload
+is skills-only and excludes this server. Ordinary Claude Chat cannot run this local server;
+this is not a hosted MCP integration. Organization policy can prevent installation or execution.
 
-```bash
-claude plugin marketplace add NoaCG/NoaCG-Studio
-claude plugin install noacg@noacg-studio        # the skill and the command
-claude plugin install noacg-mcp@noacg-studio    # this server, if you want it
-npm i -g @noacg/cli                             # one process instead of npx plus a child
-```
+## What it runs and sends
 
-From a checkout, for one session only: `claude --plugin-dir ./cli/plugin --plugin-dir ./cli/plugin-mcp`,
-with `NOACG_CLI=<checkout>/cli/dist/index.js` to run the local build.
+The server runs node on mcp-server.mjs, then the same reviewed CLI in-process. The missing-CLI
+fallback imports npm's npx launcher, which downloads the pinned CLI and its dependencies.
+No shell, inline program or floating package version is used. Claude's review rules may still
+hold the subfolder JavaScript launcher, imports and package fallback for a reviewer. Passing
+local checks does not mean the portal has approved it.
 
-**Codex**: `codex plugin add noacg-mcp@noacg-studio` from the same marketplace. Codex copies a
-plugin directory whole, `.mcp.json` included, and on 2026-08-27 that registered the combined
-plugin's server without a line in `~/.codex/config.toml`; this split plugin, with its
-`${CLAUDE_PLUGIN_ROOT}` launcher, has not been re-verified on Codex yet (`docs/AGENT_CLI.md`,
-"What a session pays", still open).
+Authoring runs in a local headless browser loading the selected deployment's /bridge page.
+Its context blocks other origins, /api/ requests and WebSockets. These calls do not upload the
+graphic. Login opens browser consent and keeps a scoped key locally. Save and pack --save send
+graphics, including field text, to that deployment. Saving does not publish, replace a production
+or take anything on air. Revoked keys/cancelled consent need another login or an offline handoff.
+Doctor may check npm for newer versions; the launcher itself performs no latest-version fetch.
+Separate playout commands connect to servers explicitly selected by the user.
 
-**Any MCP client**, without the plugin: `noacg mcp` over stdio (`npx -y @noacg/cli mcp` with
-nothing installed). A graphics project can also declare the server in its own `.mcp.json`, which
-is the one way to have it in exactly the sessions that are about graphics and nowhere else.
+The CLI sends no usage telemetry. [Privacy](https://noacg.studio/privacy),
+[terms](https://noacg.studio/terms), [support](https://github.com/NoaCG/NoaCG-Studio/issues).
 
-## What it runs and what it sends
-
-Checked against `noacg` 0.7.0 on 2026-10-02.
-
-- **The plugin starts one process in every session where it is enabled**: `mcp-server.mjs`, which
-  runs the NoaCG CLI as an MCP server over stdio. It uses the copy of `@noacg/cli` installed on
-  your machine, or, with none installed, runs `npx -y @noacg/cli mcp`, which downloads the package
-  from the npm registry (registry.npmjs.org). When it uses an installed copy, it reads the latest
-  version number from the npm registry, at most once a day, and says on stderr when your copy is
-  behind.
-- **The `noacg` tool it serves runs the same CLI commands** as the terminal, with the same rules,
-  below.
-- **Making and checking a graphic stays on your machine.** `types`, `scaffold`, `validate`,
-  `inspect`, `screenshot` and `pack` open NoaCG's `/bridge` page from https://noacg.studio, or from
-  the deployment `NOACG_URL` names, in a headless Chrome or Edge on your machine, and do their work
-  there. That browser may only load pages from that deployment, outside its `/api/`; every other
-  request and every WebSocket is blocked, so the graphic under test cannot reach anything else.
-  Nothing you make is uploaded by these commands.
-- **`noacg login`** opens NoaCG's consent page in your browser and receives the answer on a
-  `127.0.0.1` port. It keeps a key on your machine that can add graphics to your library and do
-  nothing else: it cannot read your library, touch a production or delete anything. `noacg logout`
-  revokes it, and so does NoaCG Settings. `noacg whoami` asks NoaCG whether the key still works.
-- **`noacg save`**, and `noacg pack --save`, upload the graphic or package you made to your own
-  NoaCG Studio library, with that key. A graphic can carry the names and text typed into its
-  fields.
-- **`noacg doctor`** reads the latest version number of `@noacg/cli` from the npm registry, at
-  most once a day, to tell you when your copy is behind.
-- **The playout commands**, `noacg bridge` and `noacg caspar`, which the skill does not use to make
-  a graphic, connect to the CasparCG or OGraf servers you point them at. `noacg bridge` listens on
-  `127.0.0.1` only, answers only the NoaCG pages you allow, and opens NoaCG in your browser to
-  pair unless you pass `--no-open`.
-
-The CLI contacts nothing else and sends no usage data. Privacy policy:
-https://noacg.studio/privacy.
+Apache-2.0; see LICENSE, NOTICE and generated PROVENANCE.json. Source remains in the canonical
+NoaCG-Studio repository. No CLI dependencies, browser, fonts or graphics engine are bundled.

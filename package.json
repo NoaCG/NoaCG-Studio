@@ -185,7 +185,9 @@
     "land:ruleset": "node scripts/landing-ruleset.mjs",
     "gates": "node scripts/gates.mjs",
     "test:editor-groups:mutations": "node scripts/editor-group-mutation-bench.mjs",
-    "test:editor-organization:mutations": "node scripts/editor-organization-mutation-bench.mjs"
+    "test:editor-organization:mutations": "node scripts/editor-organization-mutation-bench.mjs",
+    "toolkit:dist": "node cli/scripts/toolkit-distribution.mjs",
+    "check:toolkit": "node scripts/check-toolkit-distribution.mjs"
   },
   "overrides": {
     "dompurify": "3.4.16",

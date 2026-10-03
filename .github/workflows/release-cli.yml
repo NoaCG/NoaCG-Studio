@@ -252,17 +252,17 @@ jobs:
       - name: Test
         run: npm --prefix cli test
 
-      # THE CODEX AND CHATGPT DIRECTORY takes no feed: a new version of the listed `noacg` plugin
-      # is a ZIP a person uploads at platform.openai.com/plugins, with the plugin folder's contents
-      # at the ZIP's root. This builds that ZIP from the commit being released, so the upload is
-      # the only step left (the owner-queue item for the listing says when it is worth doing).
-      # Hidden files are included on purpose: the manifest lives in `.codex-plugin/`.
-      - name: Keep the Codex directory upload as a run artifact
+      - name: Generate and validate independent directory packages
+        run: npm run toolkit:dist -- cli/dist/toolkit-release
+
+      # Upload the actual reproducible ZIPs, rather than relying on artifact service ZIP layout.
+      - name: Keep directory packages and measurements as a run artifact
         uses: actions/upload-artifact@v4
         with:
-          name: noacg-codex-plugin-${{ steps.version.outputs.version }}
-          path: cli/plugin/
-          include-hidden-files: true
+          name: noacg-agent-toolkit-${{ steps.version.outputs.version }}
+          path: |
+            cli/dist/toolkit-release/*.zip
+            cli/dist/toolkit-release/measurements.json
           if-no-files-found: error
 
       # Build the exact tarball a publish would upload, and print its contents. `prepack` re-runs
@@ -416,3 +416,30 @@ jobs:
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "refs/tags/$TAG"
           echo "::notice title=Tagged::$TAG at $GITHUB_SHA"
+
+  # THE CLAUDE DIRECTORY validates a GitHub repository, and this one archives at over 100 MiB
+  # against its 50 MiB limit (#842). So a published release also replaces the generated
+  # `agent-toolkit-dist` branch: the marketplace and the two plugin folders, with its own root
+  # commit and no application history, each snapshot naming its source commit in PROVENANCE.json.
+  # It writes only that branch, never main, and a dry run never reaches it.
+  distribution:
+    name: Update the generated toolkit distribution branch
+    needs: publish
+    if: ${{ github.repository == 'NoaCG/NoaCG-Studio' && needs.publish.result == 'success' && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Let git push with the workflow's token
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh auth setup-git --hostname github.com
+      - name: Replace the distribution tree from the published source commit
+        run: node cli/scripts/publish-toolkit-distribution.mjs --push
