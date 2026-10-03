@@ -408,7 +408,27 @@ const DANGER_RULES = [
       return false;
     },
   },
+  {
+    // Not a loss but an apply that fails, found here so it fails the build instead of the landing.
+    id: 'concurrently-in-batch',
+    why:
+      'the Supabase CLI runs a statement outside the file\'s transaction only when it starts with ' +
+      '`create [unique] index concurrently` or `reindex ... concurrently`; any other CONCURRENTLY ' +
+      '(`drop index concurrently`, one inside a DO block) runs inside it, where Postgres refuses it ' +
+      '(supabase/AGENTS.md, "A concurrent statement runs on its own")',
+    test: (code) => /\bconcurrently\b/.test(code) && !CONCURRENTLY_APPLIES.test(code),
+  },
 ];
+
+/**
+ * The statements that may say CONCURRENTLY. The first two are the ones the CLI runs on their own,
+ * outside the file's transaction, matched at the start of a top-level statement as its splitter
+ * reads it (read from CLI 2.111; its list also holds `vacuum`, `alter system` and `cluster`, which
+ * no migration here uses). `refresh materialized view concurrently` is not on the CLI's list and
+ * needs not be: Postgres allows that one in a transaction.
+ */
+const CONCURRENTLY_APPLIES =
+  /^\s*(?:create\s+(?:unique\s+)?index\s+concurrently\b|reindex\b.*\sconcurrently\b|refresh\s+materialized\s+view\b)/;
 
 /** Rules that judge what a statement does to the SCHEMA, as opposed to what it does to rows. Only
  *  these are applied to a function body: `create function` does not run its body, so a retention
@@ -537,6 +557,8 @@ export function classifyStatement(raw, created = new Set()) {
  * one session, so the file's `set`s still cover every part (measured: 0074's build timed out on the
  * lock_timeout its first step set). A failure after the first step leaves that step applied with
  * no ledger row, so such a file must be safe to run again from its top. 0074 is the worked example.
+ * How to write such a file so every path runs it, a local reset included: supabase/AGENTS.md, "A
+ * concurrent statement runs on its own", which the `concurrently-in-batch` rule enforces.
  *
  * Older files are exempt: they are applied everywhere already.
  */
