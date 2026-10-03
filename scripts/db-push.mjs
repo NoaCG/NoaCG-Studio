@@ -324,7 +324,7 @@ function splitObjects(list) {
 function createdObjects(statements) {
   const created = new Set();
   const patterns = [
-    /\bcreate\s+(?:or\s+replace\s+)?(?:unique\s+)?(?:materialized\s+)?(?:table|function|procedure|view|index|sequence|type|schema|publication)\s+(?:if\s+not\s+exists\s+)?([\w.]+)/g,
+    /\bcreate\s+(?:or\s+replace\s+)?(?:unique\s+)?(?:materialized\s+)?(?:table|function|procedure|view|index|sequence|type|schema|publication)\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?([\w.]+)/g,
     /\bcreate\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+([\w.]+)/g,
     /\bcreate\s+policy\s+([\w.]+)/g,
     /\badd\s+constraint\s+([\w.]+)/g,
@@ -529,6 +529,13 @@ export function classifyStatement(raw, created = new Set()) {
  * defaults are `lock_timeout = 0` and `statement_timeout = 2min` (all measured on a preview branch,
  * 2026-09-29). A `set` at the top of the file applies to exactly that file, because the CLI runs
  * each file in one transaction, and it travels with the SQL to every other route that runs it.
+ *
+ * The exception is a statement Postgres refuses inside a transaction or a pipeline. The CLI (2.111)
+ * commits what came before `create index concurrently` (also `reindex ... concurrently`, `vacuum`,
+ * `alter system`, `cluster`; NOT `drop index concurrently`, which still fails inside the batch), runs
+ * that statement alone, then runs the rest of the file with its ledger row in one transaction. A `set` still covers it, since a committed `set` lasts for the session, but a failure
+ * after the first step leaves that step applied with no ledger row, so such a file must be safe to
+ * run again from its top. 0074 is the worked example.
  *
  * Older files are exempt: they are applied everywhere already.
  */
@@ -924,6 +931,8 @@ function runSupabase(args, token, { capture = false, cwd = ROOT } = {}) {
  *
  * That failure is not a broken migration. The file runs in one transaction, so none of it applied;
  * the files before it did, with their ledger rows. Running the same push again later is the fix.
+ * A file with a concurrent index build is the exception (FIRST_TIMED_MIGRATION): what came before
+ * the build stays applied, and the file is written to run again from its top.
  */
 export function lockTimeoutFailure(output) {
   // The server's words only: the CLI also echoes the failing statement, and a migration's own text

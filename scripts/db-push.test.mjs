@@ -200,6 +200,21 @@ test('drop-and-recreate is a replacement; a bare drop is a removal', () => {
   assert.equal(classifyMigration(LEGACY, 'remove', removed).blocked, true);
 });
 
+test('a concurrent index build that first clears its own failed leftover is a replacement', () => {
+  // 0074's shape: a failed `create index concurrently` leaves an invalid index of the same name,
+  // so the file drops it before building. `concurrently` is not the index's name.
+  const rebuilt = `
+    drop index if exists public.t_seq_idx;
+    create index concurrently t_seq_idx on public.t (show_id, seq) where seq is not null;
+  `;
+  assert.equal(classifyMigration(LEGACY, 'rebuild', rebuilt).blocked, false);
+  assert.equal(classifyMigration(LEGACY, 'drop_only', 'drop index if exists public.t_seq_idx;').blocked, true);
+  assert.equal(
+    classifyMigration(LEGACY, 'other', 'drop index if exists public.u_idx; create index concurrently t_idx on public.t (c);').blocked,
+    true,
+  );
+});
+
 // ── The near-misses: shapes that read like the dangerous set and are not ──────────────────────────
 
 test('the word "delete" as a privilege, a policy command or an FK action is not a DELETE', () => {
@@ -400,6 +415,14 @@ const CLI_LOCK_TIMEOUT = [
 
 test('a lock timeout is recognised, and names the file that could not get its lock', () => {
   assert.deepEqual(lockTimeoutFailure(CLI_LOCK_TIMEOUT), { file: '0068_lock_probe.sql' });
+});
+
+test('a concurrent index build behind an open writer is a lock timeout too, so it is retried', () => {
+  // CLI 2.111's words on a local stack, the build waiting on a writer that held its transaction 8 s.
+  const output =
+    'Connecting to local database...\nApplying migration 0074_seq_log_index.sql...\n' +
+    '{"_tag":"Error","error":{"code":"LegacyMigrationApplyError","message":"ERROR: canceling statement due to lock timeout (SQLSTATE 55P03)\\nAt statement: 4\\ncreate index concurrently control_events_show_seq_idx\\n  on public.control_events (show_id, seq) where seq is not null"}}';
+  assert.deepEqual(lockTimeoutFailure(output), { file: '0074_seq_log_index.sql' });
 });
 
 test('any other failure is not a lock timeout, so it is not retried', () => {

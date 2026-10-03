@@ -166,6 +166,13 @@ open reader; every Take on air then queues behind it for as long as it waits. Wi
 lock indefinitely. Each file runs in one transaction, so a `set` at its top covers exactly that
 file, on every route that runs it (`FIRST_TIMED_MIGRATION` in `scripts/db-push.mjs` has the rest).
 
+**An index on a live table is built concurrently, and that file is not one transaction.** CLI
+2.111 commits what came before `create index concurrently`, runs it alone, then runs the rest with
+the ledger row. A failed build leaves an INVALID index and no ledger row, so the file must be safe
+to run again from its top: drop the leftover with a plain `drop index if exists` before building
+(it takes no lock when there is nothing to drop; `drop index concurrently` fails inside the CLI's
+batch), and prove the index valid before anything reads through it. `0074` is the worked example.
+
 **Enforced twice.** `scripts/db-push.test.mjs` fails the build for a migration without both
 settings before its first statement, with a `lock_timeout` of zero or above the cap, or with an
 unbounded `statement_timeout`; `db:push`
