@@ -13,8 +13,15 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const ENTRY = fileURLToPath(new URL('../dist/playoutEntry.js', import.meta.url));
+const READY = /Press Ctrl\+C to stop\./;
+const FAILED = /could not start/;
 
-/** A free loopback port: the window prints the port it listens on, so 0 will not do. */
+/**
+ * A loopback port that was free a moment ago: the window prints the port it listens on, so 0 will
+ * not do. Only a moment ago - between this close and the Bridge's own listen, another test file
+ * running beside this one can take it (`node --test` runs files in parallel), which is what
+ * `startBridge` retries on.
+ */
 const freePort = () =>
   new Promise((resolve) => {
     const s = createServer().listen(0, '127.0.0.1', () => {
@@ -23,30 +30,54 @@ const freePort = () =>
     });
   });
 
-/** Start the Bridge, with stdin a keyboard (`isTTY`) or not, and read its window as it prints. */
-async function startBridge({ keyboard }) {
+/**
+ * Start the Bridge until it is listening, on a fresh port each time the one picked was taken
+ * before it bound (run 37118148332: EADDRINUSE, and the window never said "Press Ctrl+C").
+ * Any other refusal to start fails the test with the window's own words.
+ */
+async function startBridge(opts, attempts = 5) {
+  for (let attempt = 1; ; attempt += 1) {
+    const bridge = await launchBridge(opts, await freePort());
+    const started = await bridge.settled();
+    if (started) return bridge;
+    const taken = /EADDRINUSE/.test(bridge.text());
+    await bridge.stop();
+    if (!taken || attempt >= attempts) assert.fail(`the Bridge did not start (attempt ${attempt}):\n${bridge.text()}`);
+  }
+}
+
+/** Launch the Bridge, with stdin a keyboard (`isTTY`) or not, and read its window as it prints. */
+async function launchBridge({ keyboard }, port) {
   const dir = await mkdtemp(path.join(tmpdir(), 'noacg-window-'));
-  const port = await freePort();
   // The test's stdin is a pipe; `keyboard` makes the Bridge see it as the window's keyboard.
   const args = [...(keyboard ? ['--import', 'data:text/javascript,process.stdin.isTTY=true'] : []), ENTRY, '--port', String(port), '--no-open'];
   const child = spawn(process.execPath, args, {
     env: { ...process.env, APPDATA: dir, XDG_CONFIG_HOME: dir, NOACG_URL: 'https://noacg.studio' },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
+  const exited = new Promise((r) => child.once('exit', r));
   let text = '';
   child.stdout.on('data', (b) => (text += b.toString()));
   child.stderr.on('data', (b) => (text += b.toString()));
+  const wait = async (done) => {
+    for (let i = 0; i < 200 && !done(); i += 1) await new Promise((r) => setTimeout(r, 50));
+  };
   const until = async (re) => {
-    for (let i = 0; i < 100 && !re.test(text); i += 1) await new Promise((r) => setTimeout(r, 50));
+    await wait(() => re.test(text));
     assert.match(text, re);
+  };
+  // True once the window says it is listening, false once it says it could not start.
+  const settled = async () => {
+    await wait(() => READY.test(text) || FAILED.test(text));
+    return READY.test(text);
   };
   const stop = async () => {
     // Forced, so the test never waits on the Bridge's own graceful close.
     child.kill('SIGKILL');
-    await new Promise((r) => child.once('exit', r));
+    await exited;
     await rm(dir, { recursive: true, force: true });
   };
-  return { port, child, text: () => text, until, stop };
+  return { port, child, text: () => text, until, settled, stop };
 }
 
 const pair = async (port, code) =>
