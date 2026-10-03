@@ -991,27 +991,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // editor can say "connected" or name the hop before a server cue's Take. Nothing is asked of a
   // browser that was never paired with a Bridge: that page says "not set up" without a request,
   // so nobody who only uses OBS or vMix ever meets a local-network prompt from this poll.
+  // It restarts only when WHERE it asks changes - the Bridge, its token, the server - or on Check
+  // again. A studio setup taken from the Bridge changes channels and the output slot, and restarting
+  // for it cleared the status and asked again at once, so every effect keyed on an answering Bridge
+  // ran twice as the page opened.
+  const linkSettings = loadPlayoutSettings();
+  const statusTarget = playoutConfigured(linkSettings)
+    ? [linkSettings.agentUrl, linkSettings.agentToken, linkSettings.host.trim(), linkSettings.amcpPort].join(' ')
+    : null;
   useEffect(() => {
-    const settings = loadPlayoutSettings();
-    if (!playoutConfigured(settings)) {
-      setBridgeStatus(null);
-      return;
-    }
     setBridgeStatus(null);
-    return subscribeTargetStatus(settings, setBridgeStatus);
-  }, [playoutSettingsRev, checkAgainRev]);
+    if (statusTarget === null) return;
+    return subscribeTargetStatus(loadPlayoutSettings(), setBridgeStatus);
+  }, [statusTarget, checkAgainRev]);
   // THE STUDIO SETUP NOACG BRIDGE KEEPS for this server (docs/work-specs/studio-day-playout D17):
   // read once as the page opens, so a channel, output slot or New media channel another browser set
   // is the one this page plays to. A change it brings re-reads the settings like the dialog's close.
+  // Not guarded by the mount that started it: the settings it wrote are the page's whichever mount
+  // asks, and under StrictMode's remount a guard dropped the re-read in every dev run and e2e.
   useEffect(() => {
     if (!playoutConfigured(loadPlayoutSettings())) return;
-    let alive = true;
     void syncStudio().then((done) => {
-      if (alive && done.changed) setPlayoutSettingsRev((n) => n + 1);
+      if (done.changed) setPlayoutSettingsRev((n) => n + 1);
     });
-    return () => {
-      alive = false;
-    };
   }, []);
   // WHAT THE NOACG OUTPUT'S SLOT HOLDS on the server (docs/work-specs/studio-day-playout AC-7): this
   // production's output, another production's, or nothing - the fact that says whether a Take will

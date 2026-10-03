@@ -610,10 +610,16 @@ test('with a Bridge older than 0.8.0 the setup stays in this browser, and it say
 test('a production page opens with the setup the Bridge keeps for its server', async ({ page }) => {
   // This browser still holds the default; another browser has set the studio up since.
   await seedSettings(page);
-  await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
+  const bridge = await fakeBridge(page, { features: WITH_STUDIO, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
   await seededPublishedProduction(page);
   await page.getByTestId('production-status').click();
   await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels');
+  // The setup it took names channels and a slot, never where the Bridge and the server are, so the
+  // Bridge status poll carries on to its next turn, 3 s on. Restarting it for the setup cleared the
+  // status and asked again at once, re-running everything keyed on an answering Bridge.
+  await page.waitForTimeout(500);
+  const routes = bridge.routes.slice(bridge.routes.indexOf('/servers'));
+  expect(routes, bridge.routes.join(',')).not.toContain('/status');
 });
 
 test('a change made while the Bridge was away reaches it once the production page sees it answer', async ({ page }) => {
