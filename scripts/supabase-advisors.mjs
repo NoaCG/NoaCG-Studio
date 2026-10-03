@@ -108,7 +108,10 @@ const ACCEPTED_CLASSES = {
     'The panel_* RPCs of 0073 (hardware panels, docs/work-specs/hardware-panel-control/) are two ' +
     'doors of the same kind: the page ones take the control slug, and the panel ones take a panel ' +
     'key, a capability of its own that can only ask the answering page to run a named verb. None ' +
-    'writes the command log; each is bounded (presses per key, wants per key, failed pairings).',
+    'writes the command log; each is bounded (presses per key, wants per key, failed pairings). ' +
+    'control_cue_arm and control_cue_arms_for (0075, timed cues) are the same slug door again: the ' +
+    'read answers only that production\'s countdowns, and the write moves only its arm row, its head ' +
+    'and its log, under the head lock and the burst cap of control_send_seq.',
   authenticated_security_definer_function_executable:
     'Signed-in callers reaching the same control and entitlement helpers. The definer rights ' +
     'are what let a policy read a table the caller cannot.',
