@@ -487,9 +487,9 @@ jobs:
       fail-fast: false
       # Sized by the plan job, not fixed here, and since 2026-08-19 sized from MEASURED MINUTES
       # (scripts/e2e-affected.mjs `shardsFor`, scripts/e2e-durations.json): about three minutes
-      # of test execution per runner, capped at nine. The full suite is 66.9 measured minutes, so
-      # a full plan is held at nine by the cap - the count this comment has argued for since
-      # 2026-08-08, unchanged.
+      # of test execution per runner, capped at ten. The full suite is 123.6 measured minutes;
+      # nine refreshed bins still left only 1.35 minutes of headroom on run 37149189106.
+      # Replaying its file costs on ten bins gives a 16.06-minute slowest predicted job.
       #
       # What changed is the SUBSET, which used to be capped at four runners however big it was:
       # under sprint focus and the curated map a subset is routinely 70-100 of the 128 spec
@@ -512,17 +512,13 @@ jobs:
       # and `scripts/e2e-durations.json` now RECORDS the per-job cost so the plan predicts wall
       # clock instead of assuming the good day. See docs/VERIFICATION.md.
       #
-      # Nine and not twelve, even though the arithmetic keeps improving: every shard is an
-      # independent runner doing its own checkout and install, so the chance that ONE of them
-      # hits an infrastructure hiccup grows with the count, and with retries: 0 and
-      # fail-fast: false a single hiccup reds the whole gate. Nine takes most of the win for
-      # a fraction of the added surface, and leaves room under the 20-concurrent-job ceiling
-      # for an overlapping PR run - which is a real constraint here, not a theoretical one:
-      # measured over the 60 runs to 2026-08-19, runs that started while two other branches
-      # were mid-gate waited 22 to 45 minutes in the queue before a shard began.
-      #
-      # THE NINTH SHARD IS HEADROOM, NOT SPEED. That much is unchanged; what changed on
-      # 2026-09-04 is how the work reaches those nine runners.
+      # Ten is the smallest count that restores three minutes of safety when replaying the
+      # refreshed nine-shard run's measured file costs. It adds one runner while retaining
+      # room under the account's 20-concurrent-job ceiling. More runners cost setup and can
+      # delay overlapping runs: across the 60 runs to 2026-08-19, branches starting while two
+      # others were mid-gate waited 22 to 45 minutes for a runner. Keep the timeout at 20,
+      # retries at 0 inside each shard, fail-fast false, and the existing retry job and gate.
+      # The measurements below explain the earlier move from test-count splits to nine bins.
       #
       # Until then Playwright split the plan itself with `--shard=i/n`, which divides by test
       # COUNT, and this comment argued the residual imbalance was tolerable. It stopped being
@@ -569,7 +565,7 @@ jobs:
           SHARD_SPECS: ${{ needs.plan.outputs.shardSpecs }}
           SHARD_INDEX: ${{ matrix.shardIndex }}
           # Without `--shard` Playwright would write `report.zip` on every runner, and the report
-          # job flattens all nine artifacts into one directory - see playwright.config.ts.
+          # job flattens all shard artifacts into one directory - see playwright.config.ts.
           NOACG_BLOB_NAME: report-${{ matrix.shardIndex }}.zip
         # This shard's own file list, as anchored Playwright filters. `specFilterArg` builds them
         # in tested code rather than here, because the anchoring is load-bearing: Playwright's

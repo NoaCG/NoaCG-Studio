@@ -35,7 +35,7 @@ small ci.yml and red-main-issue.mjs changes above, each landed alone as gate cha
 ## Measured repair, 2026-10-03
 
 Scope: restore duration coverage and balance against the existing 20-minute cap. Acceptance is
-a complete full CI run whose nine shard jobs each finish with at least the planner's three-minute
+a complete full CI run whose shard jobs each finish with at least the planner's three-minute
 safety margin. Preserve retries, quarantine, coverage and the CI gate. No local full browser
 battery, new shard runners or timeout increase is needed if the refreshed balance holds.
 
@@ -76,4 +76,29 @@ Replaying the old assignment against these new measurements predicts a slowest j
 minutes and a 7.62-minute spread. Refreshed packing gives 13.735-13.736 test-minutes per shard,
 predicting 14.30-minute jobs and 5.70 minutes of headroom on all nine.
 
-Full-run acceptance: pending dispatch on the repaired branch; predicted balance is not the verdict.
+First repaired full run: [37149189106](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37149189106)
+on `896424999d64058ca8830e067f5a105bb576975f` completed green: all nine full shards passed,
+and the retry job was skipped. Actual job minutes were 16.58 / 13.77 / 18.65 / 16.22 / 16.27 / 16.43 / 13.45 / 16.43 / 15.67.
+The slowest job left 1.35 minutes, so the table refresh alone did not meet the three-minute
+safety target. Its blob reports measured 138.1 test-minutes, including 7.399 for folders,
+which explains the remaining gap from the source run's 4.816-minute folders reading.
+
+Packing the same 200 specs with the committed main-run weights, then costing those bins
+with this second run's measured file costs and overhead, gives:
+
+| Runner ceiling | Slowest replayed job | Minimum headroom |
+|---|---|---|
+| 9 | 18.71 min | 1.29 min |
+| 10 | 16.06 min | 3.94 min |
+| 11 | 16.79 min | 3.21 min |
+| 12 | 13.54 min | 6.46 min |
+
+Ten is the smallest measured count that restores the safety margin. The planner ceiling
+is therefore raised from nine to ten; the timeout stays 20 and all retry, quarantine, coverage
+and gate logic is unchanged. The committed table keeps its honest main-run provenance.
+Full-run acceptance: pending a new dispatch with ten shards.
+
+Coverage is tied to the recorded run and suite, not future main. Later new specs inherit the
+current 0.23-minute median and are reported as unmeasured while remaining assigned exactly
+once. A small new relevance spec is different from a new 51-test folders file, but duration
+drift still needs remeasurement; the weekly proposal and plan warning remain in place.
