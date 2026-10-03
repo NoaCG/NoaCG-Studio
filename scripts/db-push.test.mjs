@@ -219,7 +219,7 @@ test('a concurrent statement the CLI would run inside the file\'s transaction is
   // The CLI's splitter runs a statement alone only when it STARTS with one of its forms; anything
   // else saying CONCURRENTLY goes into the batch and fails there with SQLSTATE 25001, on db push
   // and on a local `supabase db reset` alike (supabase/AGENTS.md).
-  const batched = (sql) => classifyStatement(sql).reasons.some((r) => r.id === 'concurrently-in-batch');
+  const batched = (sql) => reasons(sql).includes('concurrently-in-batch');
   assert.equal(batched('create index concurrently t_idx on public.t (c)'), false);
   assert.equal(batched('-- the build\nCREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS t_idx ON public.t (c)'), false);
   assert.equal(batched('reindex (verbose) index concurrently public.t_idx'), false);
