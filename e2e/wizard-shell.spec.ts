@@ -206,9 +206,18 @@ test('the wizard header and the Home topbar are the same bar, to the pixel', asy
   await expect(page.getByTestId('creation-wizard')).toBeVisible();
 
   /** Whichever bar this surface wears, and where it puts the brand mark and the two doors
-   *  beside it (owner, 2026-09-28: logo, Home and + New graphic in the same positions). */
+   *  beside it (owner, 2026-09-28: logo, Home and + New graphic in the same positions).
+   *  Read once the page's FONTS have landed. Every face is `font-display: swap`, so until one
+   *  loads its text is laid out in the fallback face, and the lockup and the doors are a pixel or
+   *  two narrower or wider. The faces load lazily, the first time a text needs them, so on a busy
+   *  machine one bar was read in the fallback and the other in the real face, and the spec failed
+   *  on a difference between font states rather than between bars (CI run 37058565218: Home at
+   *  127 against 126; locally, the door 105 against 107 wide). The layout read first is what
+   *  starts any load the current viewport needs, so `fonts.ready` cannot resolve ahead of it. */
   const bar = () =>
-    page.evaluate(() => {
+    page.evaluate(async () => {
+      document.body.getBoundingClientRect();
+      await document.fonts.ready;
       const el = document.querySelector('.wz-header') ?? document.querySelector('.topbar')!;
       const logo = el.querySelector('.brand-home svg')!.getBoundingClientRect();
       const box = (sel: string) => {

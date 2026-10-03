@@ -482,10 +482,27 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   await expect(debug).toContainText('realtime: following', { timeout: 60_000 });
   await expect(debug).toContainText('presence: announced on the live topic', { timeout: 30_000 });
 
+  // Every attempt the operator page makes at sending a press, so a late Take says which half was
+  // late: the send (an attempt abandoned at 1.5 s and sent again, failedSends.ts) or the road
+  // to air. Seen once locally on a stack just started: Take 1 at 2040 and 2080 ms, the
+  // abandon-and-resend signature, but never again in 23 runs with this record on.
+  const sends: string[] = [];
+  const sentAt = new Map<object, number>();
+  let markedAt = Date.now();
+  const attempt = (request: object, outcome: string) => {
+    const at = sentAt.get(request);
+    if (at !== undefined) sends.push(`+${at - markedAt}ms ${outcome} after ${Date.now() - at}ms`);
+  };
+  op.on('request', (r) => {
+    if (r.url().includes('/rpc/control_send_seq')) sentAt.set(r, Date.now());
+  });
+  op.on('requestfinished', (r) => attempt(r, 'answered'));
+  op.on('requestfailed', (r) => attempt(r, `failed (${r.failure()?.errorText})`));
   // Take and Out, 800 ms apart, five Takes; the Presence channel is closed after the first.
   const late: number[] = [];
   for (let take = 1; take <= 5; take += 1) {
-    const pressedAt = Date.now();
+    const pressedAt = (markedAt = Date.now());
+    sends.push(`Take ${take}:`);
     await op.getByTestId('hosted-take-cue').click();
     await expect.poll(() => airPlays(air), { timeout: 30_000 }).toBe(String(take));
     late.push(Date.now() - pressedAt);
@@ -494,12 +511,14 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
       await expect(debug).toContainText('presence: NOT JOINED', { timeout: 10_000 });
     }
     await op.waitForTimeout(800);
+    markedAt = Date.now();
+    sends.push('Out:');
     await op.getByTestId('hosted-out-cue').click();
     await op.waitForTimeout(800);
   }
   expect(realtime.faults.closed, 'the Presence channel was closed').toBe(1);
   // Every Take aired within 2 s of its press (a quiet Take is well under 0.5 s here).
-  expect(Math.max(...late), `press to air per Take: ${late.join(', ')} ms`).toBeLessThan(2_000);
+  expect(Math.max(...late), `press to air per Take: ${late.join(', ')} ms; sends: ${sends.join(' ')}`).toBeLessThan(2_000);
   await expect(debug).toContainText('realtime: following');
 
   await air.unrouteAll({ behavior: 'ignoreErrors' });
