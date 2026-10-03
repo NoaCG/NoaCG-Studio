@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import LibMenu from './LibMenu';
 import { clipLength } from './clipLength';
 import { slug } from '../../model/slug';
@@ -36,6 +36,7 @@ export default function PlayoutItemPicker({
   library,
   onAdd,
   mediaFilter,
+  triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
@@ -44,6 +45,7 @@ export default function PlayoutItemPicker({
   library: GraphicDoc[];
   /** An Add-menu shortcut into the same server library, restricted to video or audio. */
   mediaFilter?: 'movie' | 'audio';
+  triggerRef?: RefObject<HTMLElement | null>;
   /** `mediaKind` is the server's own word for a media file (`movie`, `still`, `audio`), which is
    *  what puts an audio file on its own layer and keeps a still out of a sequence. */
   onAdd: (item: {
@@ -127,7 +129,7 @@ export default function PlayoutItemPicker({
   const view = items ? folderView(kind === 'media' && mediaFilter ? items.filter((item) => item.kind?.toLowerCase() === mediaFilter) : items, folder) : null;
 
   return (
-    <LibMenu open={open} onClose={onClose} surface="pd-picker" role="none" testid="playout-picker">
+    <LibMenu open={open} onClose={onClose} triggerRef={triggerRef} surface="pd-picker" role="none" testid="playout-picker">
       <div className="pd-picker-head">
         <div className="pd-picker-tabs" role="tablist">
           <button role="tab" aria-selected={kind === 'template'} onClick={() => setKind('template')} data-testid="picker-templates">

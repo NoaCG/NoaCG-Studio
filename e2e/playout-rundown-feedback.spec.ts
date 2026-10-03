@@ -1,4 +1,4 @@
-// covers: src/components/home/{ProductionPage,CueRundown,PlayoutItemPicker}.tsx
+// covers: src/components/home/{ProductionPage,CueRundown,PlayoutItemPicker,LibMenu}.tsx
 // covers: src/styles/playout-dashboard.css
 // focus
 
@@ -165,6 +165,11 @@ for (const width of [1600, 390]) {
     await expect(kinds.nth(0)).toHaveAttribute('aria-label', /Arena Quiz/);
     await expect(kinds.nth(1)).toHaveAttribute('aria-label', /clip/i);
     await expect(kinds.nth(2)).toHaveAttribute('aria-label', /audio/i);
+    // The retained footer entry still toggles the picker after its surface moved.
+    await page.getByTestId('add-from-server').click();
+    await expect(page.getByTestId('playout-picker')).toBeVisible();
+    await page.getByTestId('add-from-server').click();
+    await expect(page.getByTestId('playout-picker')).toBeHidden();
   });
 
   test(`Add works with no selected graphic and explains missing server setup at ${width}px`, async ({ page }) => {

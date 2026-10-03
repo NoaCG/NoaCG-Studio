@@ -16,6 +16,8 @@ the complete [pre-671 saved templates](../../../../e2e/fixtures/pre-671/README.m
 - `set NOACG_C_CAPTURE=1&& npx playwright test e2e/playout-rundown-feedback.spec.ts --workers=1`: job `j-3172`, 14 passed, 48.6s.
 - The exact 13-case Add/clipboard/keyboard selection across `playout-folders`, `playout-cues`, `productions`, `playout-drills`, and `production-controls`: job `j-3173`, 12 passed and one existing skip, 41.9s.
 - `npx playwright test e2e/playout-baseline.spec.ts --workers=1 --update-snapshots=changed`: job `j-3174`, six passed, 29.6s. The six inspected Windows pictures change only the intended header Add button.
+- Final portable `+ Add` label: Windows job `j-3177`, six passed, 29.7s; [Linux workflow 37160074040](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37160074040), six passed. Both were captured from product revision `f6873dbd3`; all 12 pictures were inspected. The first Linux capture showed the fullwidth plus as a missing glyph, so the new header uses the plain plus.
+- Retained footer picker toggle: `--grep routing`, job `j-3180`, two passed, 20.9s. The menu recognizes the existing footer opener as a trigger so an outside press cannot close and then reopen it on the same click.
 - `npm run build`: approved-host job `j-3175`, exit 0, including all unchanged gates, TypeScript, ESLint, dependency checks and bundle.
 - `npx tsc --noEmit`, focused ESLint and `git diff --check`: passed.
 
@@ -37,7 +39,14 @@ with its owner. This was a server-lifetime failure, separate from assertions.
 Explicit `--after` dependencies serialized the corrected `j-3172` through
 `j-3176` proof; no framework, permissions or rule changes were made.
 
+Preparation review found the retained footer toggle could reopen after the
+outside-press handler closed the moved picker. The exact two-case reproduction
+`j-3178` failed at both widths. The additional trigger reference fixed it, with
+`j-3180` green. The first repair job `j-3179` never ran because its dependency was
+the intentionally failing reproduction; the corrected job depended on the last
+successful completed browser job.
+
 Configured backend tests were updated for the menu entry but were not run locally.
 The bounded checks use the existing fake bridge, not a physical playout server.
-Linux baselines are captured through the existing screenshot workflow before
-landing. Landing also waits for the actual parent merge and a fresh main reconcile.
+Linux baselines were captured through the existing screenshot workflow. Landing
+also waits for the actual parent merge and a fresh main reconcile.

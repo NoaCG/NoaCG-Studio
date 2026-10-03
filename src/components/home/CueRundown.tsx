@@ -249,6 +249,7 @@ export default function CueRundown({
   const [addPick, setAddPick] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const libraryPick = useRef<HTMLSelectElement>(null);
+  const serverPick = useRef<HTMLButtonElement>(null);
   /** The hidden file input behind "＋ Add pictures…". */
   const pictureInput = useRef<HTMLInputElement>(null);
   /** The open ⋯ menu, by ROW id: a cue's, or a folder header's. */
@@ -485,6 +486,7 @@ export default function CueRundown({
             key={pickerMedia ?? 'all'}
             open={pickerOpen}
             mediaFilter={pickerMedia}
+            triggerRef={serverPick}
             onClose={() => setPickerOpen(false)}
             library={library}
             onAdd={(item) => {
@@ -1157,6 +1159,7 @@ export default function CueRundown({
               onClick={() => { setAddOpen(false); setPickerMedia(undefined); setPickerOpen((o) => !o); }}
               title="Add a template or a clip that is already on the playout server"
               data-testid="add-from-server"
+              ref={serverPick}
             >
               ＋ From the playout server…
             </button>
