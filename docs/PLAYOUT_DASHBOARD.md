@@ -47,8 +47,8 @@ between the two columns is a handle: the rundown is as wide as the operator drag
 
 ```
 ┌ header ───────────────────────────────────────────────────────────────────────┐
-│ ▤ Show name  [● Ready · on air 1-20 ▾]  00:42:17  Playout Data Audience       │
-│                                                     [Export…]  [■ All out]    │
+│ ▤ Show name  [● Ready · on air 1-20 ▾]  00:42:17  (Playout Data Audience 3)   │
+│                                        Panel ✓  [Setup ▾]  [■ All out]        │
 ├───────────────────────────────── main ──────────────────┬─── cue rundown ─────┤
 │  ● PREVIEW  <cue name>        ● PROGRAM · ON AIR   L1   │ 1 T Strap ✎ ON AIR L1│
 │  ┌───────────────┐            ┌───────────────┐         │ 2 T Topic card PVW L2│
@@ -97,6 +97,27 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   cluster and is now the first control after Home, the same order every other shell uses
   (`src/components/AGENTS.md`, NewGraphicButton). That also puts the width of the header between
   it and **■ All out**: a hand reaching for the panic control must never land on navigation.
+  **THE RIGHT OF THE HEADER IS WHAT IS PRESSED OR WATCHED LIVE** (owner, 2026-10-03: "the
+  playout page is getting crowded, I think share, panel, export, at least could be under its
+  own settings tab"). A menu, not a tab, so the monitors stay on screen. **Setup ▾**
+  (`home/ProductionSetupMenu.tsx`), left of ■ All out, holds the doors opened before a show:
+  Share (signed in, personal production), the Stream Deck panel with its state, Playout settings,
+  Export, and **Add data source…** / **Turn on audience…** while those views are not in the
+  switcher. Each item keeps the test id and accessible name its header button had. Choosing one
+  closes the menu; Escape and an outside press close it too (home/LibMenu). What must be SEEN
+  live shows without opening Setup, left of it so its changing width never moves Setup or
+  ■ All out: a team production's chip with its save state, and **Panel ✓** (amber **Panel …**
+  while connecting) whenever this page answers a panel, which opens the panel's dialog. Setup and
+  both statuses stand down on a phone with the other authoring doors.
+  **THE SWITCHER LISTS ONLY THE VIEWS THE PRODUCTION USES.** Data and Audience are views used
+  live (fixing a value, approving a question), so they stay views, but a plain production shows
+  Playout alone with no switcher. Data is in use once the production has a table, a seed, a
+  binding or a live value; Audience once its pool holds an audience card or a vote board, its
+  live figures are on, or anything has arrived through the join page. The view you are standing
+  on is always listed, so nothing disappears under the operator, and a production that uses a
+  view never loses it. **Audience counts what waits** in its inbox ("Audience 3"): a published
+  production reads its real inbox every 12 s from the Playout tab; the rehearsal inbox lives in
+  the Audience tab, so the count shows there. Pinned by `e2e/production-views.spec.ts`.
   **The output heartbeat is shown only when there IS an output** - see `docs/CLOUD_PLAYOUT.md` §3.
   **It is the playout status now** (`docs/work-specs/studio-day-playout` AC-7, owner 2026-10-01;
   `home/PlayoutStatusControl.tsx`, words from `control/playoutStatus.ts`). One control of fixed
@@ -108,8 +129,8 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   the links. Offline, ▶ Start production sits beside it. On a phone it narrows and the panel spans
   the screen. The hosted page keeps the READY line by its clock. Neither blocks a verb.
 - **ON A LAPTOP THE NAME OUTRANKS THE EXTRAS** (classroom walk, 2026-09-25). At 1366×768 and
-  1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock and
-  Export's word stand down (Export keeps its icon) and the tabs tighten, and under 1366px the
+  1280×720 a two-word name ("Quiz Night") shows whole: at 1440px and under the clock stands
+  down and the tabs tighten, and under 1366px the
   logo drops its wordmark. The name is still what shrinks for a state nobody foresaw, never
   ■ All out, Take or Out. Pinned by `e2e/productions.spec.ts`.
 - **THE SCROLL MODEL (owner report 2026-08-19).** The surface used to be locked to the viewport,

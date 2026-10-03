@@ -12,6 +12,12 @@ import { expect, type Page } from '@playwright/test';
 // stays on the original page, which is the whole point of the change and is what
 // `expectPlayoutStillOpen` exists to state where it matters.
 
+// THE DOOR DEPENDS ON THE PRODUCTION (docs/PLAYOUT_DASHBOARD.md §2, 2026-10-03): the header's
+// switcher lists a view only once the production uses it, and until then the Setup menu offers
+// it ("Add data source…", "Turn on audience…"). Both are the same link to the same route, so a
+// spec reaches the view through whichever door its production shows; e2e/production-views.spec.ts
+// pins which door shows when.
+
 /**
  * Open a workspace in its own tab and return that tab, settled.
  *
@@ -19,10 +25,14 @@ import { expect, type Page } from '@playwright/test';
  * dispatched, so awaiting the click first can miss it.
  */
 export async function openWorkspace(page: Page, tab: 'data' | 'audience'): Promise<Page> {
-  const [workspace] = await Promise.all([
-    page.context().waitForEvent('page'),
-    page.getByTestId(`tab-${tab}`).click(),
-  ]);
+  await expect(page.getByTestId('production-setup')).toBeVisible();
+  const switcher = page.getByTestId(`tab-${tab}`);
+  let door = switcher;
+  if (!(await switcher.isVisible())) {
+    await page.getByTestId('production-setup').click();
+    door = page.getByTestId(`setup-${tab}`);
+  }
+  const [workspace] = await Promise.all([page.context().waitForEvent('page'), door.click()]);
   await workspace.waitForLoadState('domcontentloaded');
   await expect(workspace.getByTestId(`production-${tab}`)).toBeVisible();
   return workspace;

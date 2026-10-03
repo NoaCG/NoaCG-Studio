@@ -69,7 +69,7 @@ import type { SpxField } from '../../model/types';
  * without — the bars already carry the numbers, and a catalog board closes from its machine —
  * while a question with no options, or options with no question, is not a vote board at all.
  */
-function pollFieldMap(
+export function pollFieldMap(
   fields: { field: string; title?: string }[],
 ): {
   question: string;

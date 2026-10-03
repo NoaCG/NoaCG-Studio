@@ -129,7 +129,9 @@ import { groupCueFields, groupHeading } from '../../control/cueFieldGroups';
 import { readPublishedProfile, readShowProfile, withGraphicArrange, type ArrangeEntry } from '../../model/profile';
 import ActionArranger from './ActionArranger';
 import ProductionDataWorkspace from './ProductionDataWorkspace';
-import ProductionAudienceWorkspace from './ProductionAudienceWorkspace';
+import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
+import { ProductionSetupMenu } from './ProductionSetupMenu';
+import { useAudienceInbox } from './useAudienceInbox';
 import { loadGraphics, templateForSavedGraphic } from '../../model/library';
 import {
   adjustWords,
@@ -256,9 +258,9 @@ import {
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
-import { IconDownload, IconTv, IconUsers } from '../icons';
+import { IconTv, IconUsers } from '../icons';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
-import { PanelButton, PanelDialog, usePanelAnswer } from '../control/PanelControl';
+import { PanelDialog, panelTone, usePanelAnswer, type PanelAnswerState } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
 import { useTeamsUi } from '../teams/teamsUi';
 import { useTeamsAvailable } from '../teams/useTeamsAvailable';
@@ -2044,6 +2046,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // hears that part directly; it publishes only when a key would show a difference.
   const panel = usePanelAnswer({ slug: hostedSlug, where: 'production', label: 'Production page', runs: PRODUCTION_PANEL_VERBS });
   const [panelOpen, setPanelOpen] = useState(false);
+  const audienceInbox = useAudienceInbox(show);
   // While answering, the panel also hears the timing part, after the whole fold: a reading moves
   // timing and then ownership, and a state pairing the two halves must never go out. What moves
   // with time alone (a counted clip reaching its end, a count turning estimated) is caught by the
@@ -4000,6 +4003,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     ready: readySummary,
   });
 
+  // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
+  // Audience are views used live, so they stay views, but only on a production that uses them. A
+  // plain production shows Playout alone and reaches both through Setup. Data is in use once
+  // there is a table, a seed, a binding or a live value; Audience once the pool holds a graphic
+  // made for it (a message card or a vote board) or anything has arrived through the join page.
+  const views = {
+    data:
+      (show.datasets?.length ?? 0) > 0 ||
+      Object.keys(show.data ?? {}).length > 0 ||
+      Object.keys(show.bindings ?? {}).length > 0 ||
+      Object.keys(liveData).length > 0,
+    audience:
+      audienceInbox.any ||
+      show.pollLiveFigures === true ||
+      show.graphics.some(
+        (g) => g.template.type === 'audience' || g.template.type === 'poll' || pollFieldMap(g.template.fields ?? []) !== null,
+      ),
+    waiting: audienceInbox.waiting,
+  };
+
   return (
     <ProductionShell
       show={show}
@@ -4116,12 +4139,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onBack={() => goBack({ view: 'home', section: 'productions' })}
       onAllOut={() => void outAll()}
       allOutEnabled={allOutEnabled}
-      panel={
-        <>
-          <PanelButton answer={panel} onClick={() => setPanelOpen(true)} />
-          {panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
-        </>
-      }
+      panel={panel}
+      onPanel={() => setPanelOpen(true)}
+      panelDialog={panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
+      onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
+      views={views}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       renders={renders.current}
@@ -4844,6 +4866,10 @@ function ProductionShell({
   onAllOut,
   allOutEnabled,
   panel,
+  onPanel,
+  panelDialog,
+  onPlayoutSettings,
+  views,
   onExport,
   onKey,
   renders,
@@ -4868,8 +4894,14 @@ function ProductionShell({
   /** Whether anything is up to clear - the graphics on the log, or a server cue through the
    *  Bridge, which `liveLayers` does not count. */
   allOutEnabled?: boolean;
-  /** The hardware panel door and its dialog (control/PanelControl.tsx). */
-  panel?: React.ReactNode;
+  /** Whether this page answers a hardware panel (control/PanelControl.tsx), the door to its
+   *  dialog, and the dialog while it is open. */
+  panel: PanelAnswerState;
+  onPanel: () => void;
+  panelDialog?: React.ReactNode;
+  onPlayoutSettings: () => void;
+  /** Which views the production uses, and how many audience submissions are waiting. */
+  views: { data: boolean; audience: boolean; waiting: number };
   onExport: () => void;
   onKey: (key: PlayoutVerb, press?: VerbPress) => void;
   /** The page's render count, for the spec that proves a clip's clock does not re-render it. */
@@ -4898,6 +4930,9 @@ function ProductionShell({
   // both read `--pd-rail-w`, so the two can never disagree about where the divider is.
   const body = useRef<HTMLElement>(null);
   const rail = useRailWidth(body);
+  // The views the switcher lists: the ones this production uses, and always the one on screen.
+  const tabs = (['data', 'audience'] as const).filter((tab) => sub === tab || views[tab]);
+  const panelState = panelTone(panel);
 
   return (
     <div className="app playout-dashboard" data-testid="production-page" data-renders={renders}>
@@ -4976,47 +5011,65 @@ function ProductionShell({
             They are real routes with real history, so these are real links - middle-click and
             Ctrl-click start working, which they never did as buttons. The one already open is a
             plain marker rather than a link to itself, and Playout stays a button because it
-            returns IN THIS TAB, where the monitors already are. */}
-        <nav className="pd-tabs" aria-label="Production workspaces">
-          <button className={sub === null ? 'on' : undefined} onClick={onTab} data-testid="tab-playout">
-            Playout
-          </button>
-          {(['data', 'audience'] as const).map((tab) => {
-            const label = tab === 'data' ? 'Data' : 'Audience';
-            return sub === tab ? (
-              <span key={tab} className="on" aria-current="page" data-testid={`tab-${tab}`}>
-                {label}
-              </span>
-            ) : (
-              <a
-                key={tab}
-                href={routeHash({ view: 'production', id: show.id, sub: tab })}
-                target="_blank"
-                rel="noopener"
-                title={`Open ${label} in a new tab. This one keeps Playout on screen.`}
-                data-testid={`tab-${tab}`}
-              >
-                {label}
-              </a>
-            );
-          })}
-        </nav>
+            returns IN THIS TAB, where the monitors already are.
+
+            ONLY THE VIEWS THIS PRODUCTION USES (owner, 2026-10-03). A plain production has no
+            switcher at all, and Setup offers Data and Audience instead. The view you are standing
+            on is always listed, so nothing disappears under the operator. Audience carries the
+            count of submissions waiting in its inbox. */}
+        {tabs.length > 0 && (
+          <nav className="pd-tabs" aria-label="Production workspaces">
+            <button className={sub === null ? 'on' : undefined} onClick={onTab} data-testid="tab-playout">
+              Playout
+            </button>
+            {tabs.map((tab) => {
+              const label = tab === 'data' ? 'Data' : 'Audience';
+              const count =
+                tab === 'audience' && views.waiting > 0 ? (
+                  <span className="pd-tab-count" title={`${views.waiting} waiting in the inbox`} data-testid="tab-audience-count">
+                    {views.waiting > 99 ? '99+' : views.waiting}
+                  </span>
+                ) : null;
+              return sub === tab ? (
+                <span key={tab} className="on" aria-current="page" data-testid={`tab-${tab}`}>
+                  {label}
+                  {count}
+                </span>
+              ) : (
+                <a
+                  key={tab}
+                  href={routeHash({ view: 'production', id: show.id, sub: tab })}
+                  target="_blank"
+                  rel="noopener"
+                  title={`Open ${label} in a new tab. This one keeps Playout on screen.`}
+                  data-testid={`tab-${tab}`}
+                >
+                  {label}
+                  {count}
+                </a>
+              );
+            })}
+          </nav>
+        )}
         <div className="spacer" />
-        {/* THE TEAM DOOR (docs/TEAMS_PLAN.md §6) comes FIRST in the right cluster, because it is
-            the one control here whose width changes with who is signed in, whether the production
-            is a team's, and every save. The cluster is right-aligned, so whatever sits left of a
-            control never moves it: Playout, Export… and ■ All out keep their places in every one
-            of those states (owner, 2026-10-01: operators build muscle memory). It is absent
-            offline and signed out - `useTeamsAvailable` is the one gate, and this surface asks it
-            rather than testing the auth state itself. A team production's door is its team, in
-            the Share button's place: the name gives way to the people icon under 1440px exactly
-            as Share's word does, and "edited by" rides the tooltip. Saving… and Not saved are
-            never hidden - they are the two states an operator must not miss. */}
+        {/* THE LIVE STATUSES, then SETUP, then ■ All out (owner, 2026-10-03: "share, panel,
+            export, at least could be under its own settings tab"). The header keeps what is
+            pressed live, and the doors opened before a show live in the Setup menu
+            (home/ProductionSetupMenu.tsx). What must be SEEN during a show shows here without
+            opening anything: a team production's team and save state, and a panel this page
+            answers. Each status sits LEFT of Setup and ■ All out because its width changes with
+            its state and the cluster is right-aligned, so those two never move (owner,
+            2026-10-01: operators build muscle memory).
+            The team chip is the door to the team (docs/TEAMS_PLAN.md §6). It is absent offline
+            and signed out - `useTeamsAvailable` is the one gate, and this surface asks it rather
+            than testing the auth state itself. Its name gives way to the people icon under
+            1440px and "edited by" rides the tooltip. Saving… and Not saved are never hidden -
+            they are the two states an operator must not miss. */}
         {teamsAvailable && team && (
           <button
             className="pd-team"
             onClick={() => openTeam(team.id)}
-            title={`In team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
+            title={`Shared with team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
             aria-label={`Team ${team.name}`}
             data-testid="production-team"
           >
@@ -5027,29 +5080,29 @@ function ProductionShell({
             </span>
           </button>
         )}
-        {teamsAvailable && !show.teamId && (
+        {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
+            connecting. A press opens its dialog, as the Setup menu's item does. */}
+        {panelState !== 'off' && (
           <button
-            onClick={() => openShare(show.id, show.name)}
-            title="Share this production with a team, so everyone works on it from their own account"
-            aria-label="Share"
-            data-testid="share-with-team"
+            className={`pd-panel-status pd-panel-status--${panelState}`}
+            onClick={onPanel}
+            title={panelState === 'ok' ? 'This page answers the Stream Deck panel' : 'Connecting to the Stream Deck panel…'}
+            data-testid="panel-header-status"
           >
-            <IconUsers /> <span className="pd-share-label">Share</span>
+            Panel {panelState === 'ok' ? '✓' : '…'}
           </button>
         )}
-        {/* THE PANEL DOOR (docs/work-specs/hardware-panel-control/), where the Playout settings door
-            stood: answer a Stream Deck through Companion from this page, pair one, revoke one. Its
-            words change width with its state, so it sits left of Export and ■ All out, which keep
-            their places. */}
-        {panel}
-        <button
-          onClick={onExport}
-          title="Export this production as a package"
-          aria-label="Export…"
-          data-testid="export-production"
-        >
-          <IconDownload /> <span className="pd-roomy">Export…</span>
-        </button>
+        <ProductionSetupMenu
+          showId={show.id}
+          onShare={teamsAvailable && !show.teamId ? () => openShare(show.id, show.name) : undefined}
+          panel={panel}
+          onPanel={onPanel}
+          onPlayoutSettings={onPlayoutSettings}
+          onExport={onExport}
+          offerData={!tabs.includes('data')}
+          offerAudience={!tabs.includes('audience')}
+        />
+        {panelDialog}
         <button
           className="pd-allout"
           disabled={!(allOutEnabled ?? liveLayers.length > 0)}

@@ -137,18 +137,42 @@
 .pd-status-control--bad { color: #fff; background: #b91c1c; border-color: #ef4444; }
 .pd-status-control:hover,
 .pd-status-control[aria-expanded='true'] { filter: brightness(1.15); }
-/* Share keeps its people icon and gives up its word under 1440px, where a signed-in header
-   (the one that has Share at all) would otherwise squeeze the production's name to nothing.
-   The button's title and accessible name still say "Share". */
-@media (max-width: 1440px) {
-  .pd-share-label { display: none; }
+/* SETUP (home/ProductionSetupMenu.tsx, owner 2026-10-03): one button left of ■ All out for the
+   doors opened before a show - Share, the Stream Deck panel, Playout settings, Export, and the
+   Data and Audience views a production does not use yet. It is the shared popover shell
+   (home/LibMenu, `.lib-menu`), hung from the right edge under the header. */
+.pd-setup { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.pd-setup-caret { font-size: 10px; color: var(--text-dim); }
+.pd-setup-menu { min-width: 240px; }
+.pd-setup-menu a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
 }
+.pd-setup-menu a:hover { background: rgba(232, 237, 242, 0.06); }
+/* The two view links carry no icon; their words start where the items above start theirs
+   (a 16px icon and the 8px gap). */
+.pd-setup-menu a { padding-left: 34px; }
+/* The panel item's dot stands where the other items carry their icon, so the words line up. */
+.pd-setup-menu .pd-target-dot { margin: 0 4px; }
+.pd-setup-note { margin-left: auto; padding-left: 14px; font-size: 12px; color: var(--text-dim); }
+.pd-setup-sep { height: 1px; margin: 4px 6px; background: var(--border); }
+/* A panel this page answers, said without opening Setup: green answering, amber connecting. */
+.pd-panel-status { font-size: 12px; font-weight: 700; padding: 4px 9px; white-space: nowrap; }
+.pd-panel-status--ok { color: #4ade80; border-color: rgba(74, 222, 128, 0.45); }
+.pd-panel-status--idle { color: #f59e0b; border-color: rgba(245, 158, 11, 0.5); }
 /* THE LAPTOP TIERS: the production's NAME must fit a two-word name ("Quiz Night") at 1366x768
    and 1280x720, the school laptops a class runs productions on. Measured 2026-09-27 on "Quiz
    Night" before these tiers: 49 of its 67px at 1366 and 0px at 1280 offline; published with
    Share, the row was 1412px wide at both, so the name was gone AND ■ All out sat past the right
    edge of the screen. The lower-priority things give way first, in this order: the session
-   clock and Export's word (`.pd-roomy`, Export keeps its icon and its accessible name), then
+   clock (`.pd-roomy`; Share and Export have been in Setup since 2026-10-03), then
    the tabs' and the row's spare padding, then - only under 1366 - the brand's wordmark (the
    mark stays, as the link to the site root) and a little more padding. Measured after, the
    widest header (published, output taken, Share) fits 1280 with 34px to spare and the name
@@ -1319,6 +1343,21 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   cursor: pointer;
 }
 .pd-tabs > a:hover { background: var(--bg-3); }
+/* Audience's waiting submissions ("Audience 3"): a small amber count, dark on the amber of the
+   view you are on. */
+.pd-tab-count {
+  margin-left: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #14161a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+.pd-tabs > .on .pd-tab-count { background: #14161a; color: var(--accent); }
 .pd-tabs > :first-child { border-radius: 6px 0 0 6px; }
 .pd-tabs > :last-child { border-radius: 0 6px 6px 0; border-right-width: 1px; }
 /* The one you are on: amber, and NOT a control - it is a span precisely because there is nowhere
@@ -2113,13 +2152,14 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-clock,
   .pd-status,
   .pd-back,
-  /* Sharing stands down with the other authoring actions; Home stays. So does the production
-     page's hardware Panel door (the hosted page, a phone's own control surface, keeps it). */
+  /* Setup (Share, the Panel door, Playout settings, Export) stands down with the other authoring
+     actions, and so does the panel's status; Home stays. The hosted page, a phone's own control
+     surface, keeps its Panel door. */
   .playout-dashboard:not(.hosted-dashboard) .pd-header .pd-target,
-  .pd-header [data-testid='share-with-team'],
+  .pd-header .pd-setup-host,
+  .pd-header .pd-panel-status,
   .pd-header .brand-home,
   .pd-header [data-testid='new-graphic'],
-  .pd-header [data-testid='export-production'],
   /* The workspace tabs stand down with them. Data and Audience are authoring surfaces that open
      in a browser tab of their own, and Playout is where you already are. Measured 2026-09-22 at
      390x844: with the tabs in, the name shrank to nothing and ■ All out was pushed past the

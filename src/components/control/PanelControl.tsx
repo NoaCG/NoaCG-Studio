@@ -130,10 +130,20 @@ export function usePanelAnswer(opts: {
   };
 }
 
+/** Whether this page answers a panel: `ok` answering, `idle` switched on and connecting, `off`. */
+export function panelTone(answer: PanelAnswerState): 'ok' | 'idle' | 'off' {
+  return answer.on && answer.status?.kind === 'answering' ? 'ok' : answer.on ? 'idle' : 'off';
+}
+
+/** The words for a tone, the same on every door. */
+export function panelToneWords(tone: 'ok' | 'idle' | 'off'): string {
+  return tone === 'ok' ? 'Answering here' : tone === 'idle' ? 'Connecting…' : 'Off';
+}
+
 /** The header door, beside Playout: "Panel" and a dot saying whether this page answers. */
 export function PanelButton({ answer, onClick }: { answer: PanelAnswerState; onClick: () => void }) {
-  const tone = answer.on && answer.status?.kind === 'answering' ? 'ok' : answer.on ? 'idle' : 'off';
-  const words = tone === 'ok' ? 'Answering here' : tone === 'idle' ? 'Connecting…' : 'Off';
+  const tone = panelTone(answer);
+  const words = panelToneWords(tone);
   return (
     <button
       className={`pd-target pd-target-${tone}`}

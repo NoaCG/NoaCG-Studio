@@ -90,10 +90,18 @@ export async function shutStatusPanel(op: Page) {
   await expect(status).toBeHidden();
 }
 
+/** The Panel door on an operator page: the hosted page's header button, or the production page's
+ *  item in the header's Setup menu (docs/PLAYOUT_DASHBOARD.md §2), which this opens first. */
+export async function panelDoor(op: Page) {
+  const setup = op.getByTestId('production-setup');
+  if ((await setup.isVisible()) && !(await op.getByTestId('production-setup-menu').isVisible())) await setup.click();
+  return op.getByTestId('panel-open');
+}
+
 /** Pair a panel from an operator page's Panel dialog (opened if it is not), as the module does
  *  with the code it shows; the dialog is left open on the listed panel. */
 export async function pairPanel(op: Page) {
-  if (!(await op.getByTestId('panel-dialog').isVisible())) await op.getByTestId('panel-open').click();
+  if (!(await op.getByTestId('panel-dialog').isVisible())) await (await panelDoor(op)).click();
   await expect(op.getByTestId('panel-dialog')).toBeVisible();
   await op.getByTestId('panel-pair').click();
   const codeText = (await op.getByTestId('panel-code').locator('.panel-code').textContent()) ?? '';
@@ -109,7 +117,13 @@ export async function pairPanel(op: Page) {
 export async function answerPanel(op: Page) {
   await op.getByTestId('panel-answer').locator('input').check();
   await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+  // The header says so without opening anything: the hosted page's door turns green, and the
+  // production page shows "Panel ✓" beside Setup.
+  if (await op.getByTestId('production-page').count()) {
+    await expect(op.getByTestId('panel-header-status')).toHaveText('Panel ✓');
+  } else {
+    await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+  }
 }
 
 /** The published production's hosted control page, open with its two cues. */

@@ -132,9 +132,10 @@ test('offline / no-backend: a production grows no team door, on its page or on i
   await page.getByTestId('new-production-name').fill('Election night');
   await page.getByTestId('new-production').click();
 
-  // The production page: its header cluster rendered (Export is the door's neighbour), and the
-  // team door is not in it.
+  // The production page: the Setup menu the door would live in rendered (Export is the door's
+  // neighbour there), and the team door is not in it.
   await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.getByTestId('production-setup').click();
   await expect(page.getByTestId('export-production')).toBeVisible();
   await expect(page.getByTestId(TEAM.door)).toHaveCount(0);
   await expect(page.getByTestId(TEAM.chip)).toHaveCount(0);
