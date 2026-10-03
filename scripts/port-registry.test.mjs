@@ -409,7 +409,10 @@ function allocateInChild({ registry, root, startAt = 0 }) {
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => (out += chunk));
     child.stderr.on('data', (chunk) => (err += chunk));
-    child.on('exit', (code) => {
+    // 'close', not 'exit': 'exit' can fire while the child's stdout pipe still holds its one
+    // write, and on a loaded Linux runner the parent then parsed "" from a child that had
+    // succeeded (CI run 37104930027). 'close' waits for the stdio streams to end.
+    child.on('close', (code) => {
       if (code !== 0) return rejectPromise(new Error(`child allocation failed (${code}): ${err}`));
       try {
         resolvePromise(JSON.parse(out));
