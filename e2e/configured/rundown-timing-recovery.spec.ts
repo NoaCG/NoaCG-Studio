@@ -177,8 +177,10 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await expect(row(page, s.a).locator('.pd-tag.air')).toBeVisible();
 
   // ── 5. Nobody there at zero: Missed, on a page opened afterwards and after its reload. ──────────
-  await page.getByTestId('cue-ends-after').fill('3');
-  await expect(deskChip()).toHaveText(/0:03 → Out \+ next/);
+  // A re-take changes nothing the renderer reports, so this one counts from the Take itself once
+  // 3 s have passed with no covering report (the anchor's fallback, plan §2.0).
+  await page.getByTestId('cue-ends-after').fill('6');
+  await expect(deskChip()).toHaveText(/0:06 → Out \+ next/);
   await page.getByTestId('verb-retake').click();
   await expect(deskChip()).toHaveAttribute('data-phase', 'running', { timeout: 10_000 });
   await op.close();
