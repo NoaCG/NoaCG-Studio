@@ -11,8 +11,10 @@ later, the real module paired and ran a show through an isolated Companion on 20
 `docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md`). Publishing it puts
 NoaCG's name on a public repository, so it waits for you rather than a session.
 
-Best sent after the production page answers panels too (the next piece in
-`docs/handoffs/2026-10-02-hardware-panel-control.md`), so the module's help matches both pages.
+Both operator pages answer panels now (the production page since #650, with its configured run
+in `docs/work-specs/hardware-panel-control/evidence/`), so the module's help matches both. The
+operator docs page waits for this step, so a reader can install what it describes
+(`docs/backlog/hardware-panel-operator-docs.md`).
 
 1. **Ask Bitfocus for the repository.** Bitfocus creates `bitfocus/companion-module-noacg-studio`
    on request: open an issue in <https://github.com/bitfocus/companion-module-requests> or ask in

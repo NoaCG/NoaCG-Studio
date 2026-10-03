@@ -1,9 +1,266 @@
 {
   "version": 2,
-  "specSha256": "decb4a784beec7a2d420e86253ffe76a6b38d664b28e0ed9c78ae613a5ae2925",
+  "specSha256": "d3d162becef994cc8aff03f31265875c336bc733f9ba26434691d04a2a766ead",
   "authority": {
     "status": "agreed",
-    "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md) and the build prompt of 2026-10-02"
+    "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md), the build prompt of 2026-10-02, and the owner's ruling of 2026-10-02 that take-cue leaves the selection where the operator put it on both pages (spec D4, commit e64b91d22)"
   },
-  "review": null
+  "review": {
+    "revision": "8393ae1575a075e3fb8db14f9ff98a39ef17436e",
+    "specSha256": "d3d162becef994cc8aff03f31265875c336bc733f9ba26434691d04a2a766ead",
+    "evidence": [
+      {
+        "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+        "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
+            "sha256": "d95a6c146888c3a02d4ae25be54de9a22c9062aa0bba74c6c259d0b944314e40"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
+            "sha256": "8036f7897f09d47aad688f6e7f786b2e7c40ac4fd3aaccaa03df191de0c810d1"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-production-page.md",
+            "sha256": "004ad6a0e9fdc097405e85906c517d1cecfa847057297374d37436acfed3e284"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
+            "sha256": "d95a6c146888c3a02d4ae25be54de9a22c9062aa0bba74c6c259d0b944314e40"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
+            "sha256": "8036f7897f09d47aad688f6e7f786b2e7c40ac4fd3aaccaa03df191de0c810d1"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-production-page.md",
+            "sha256": "004ad6a0e9fdc097405e85906c517d1cecfa847057297374d37436acfed3e284"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
+            "sha256": "8036f7897f09d47aad688f6e7f786b2e7c40ac4fd3aaccaa03df191de0c810d1"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-production-page.md",
+            "sha256": "004ad6a0e9fdc097405e85906c517d1cecfa847057297374d37436acfed3e284"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
+            "sha256": "d95a6c146888c3a02d4ae25be54de9a22c9062aa0bba74c6c259d0b944314e40"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
+            "sha256": "d95a6c146888c3a02d4ae25be54de9a22c9062aa0bba74c6c259d0b944314e40"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-hosted-control.md",
+            "sha256": "8036f7897f09d47aad688f6e7f786b2e7c40ac4fd3aaccaa03df191de0c810d1"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/page-on-production-page.md",
+            "sha256": "004ad6a0e9fdc097405e85906c517d1cecfa847057297374d37436acfed3e284"
+          }
+        ]
+      },
+      {
+        "id": "AC-7",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/clip-clock-on-production-page.md",
+            "sha256": "23f7b711a76a2fe845daa6d758d1caf25113aa940d4326cbf548ec73d1e8790d"
+          }
+        ]
+      },
+      {
+        "id": "AC-8",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          }
+        ]
+      },
+      {
+        "id": "AC-9",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/ac-9-module-tests-and-companion-load.md",
+            "sha256": "f93dfffe9205dc254f6c311462f1456729512c85c128faa6738a7d01983ee62a"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          }
+        ]
+      },
+      {
+        "id": "AC-10",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/server-relay-on-preview-branch.md",
+            "sha256": "d95a6c146888c3a02d4ae25be54de9a22c9062aa0bba74c6c259d0b944314e40"
+          }
+        ]
+      },
+      {
+        "id": "AC-11",
+        "status": "fail",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/companion-end-to-end.md",
+            "sha256": "f134539e32dab43eb0315d3bd195d3f3825f66503d71f6f0e0e245df8d806d8b"
+          }
+        ]
+      },
+      {
+        "id": "AC-12",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          },
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/players-casparcg-obs-vmix.md",
+            "sha256": "aa2ce42e37e0640a9039910d486116c3d9b0317f89c565290a1e43868ede81f9"
+          }
+        ]
+      },
+      {
+        "id": "AC-13",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/hardware-panel-control/evidence/convergence-review-2026-10-03.md",
+            "sha256": "c8f52f3d5f815d13d5e2655b5c293d828de0f914f1566de1ea6768019979ccc8"
+          }
+        ]
+      }
+    ]
+  }
 }
