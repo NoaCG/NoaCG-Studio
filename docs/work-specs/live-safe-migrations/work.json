@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "5e38ce16508eb44d4fa6896388f0c1d49940b36a86fafe2d5cc702d38fa28252",
+  "specSha256": "3c808c66514499260e706893a37f03756b0dfbcd6e60a511a049e4e971ae8be3",
   "authority": {
     "status": "agreed",
-    "source": "the owner's decision of 2026-10-02 in docs/backlog/migrations-while-productions-are-live.md (automatic, never interrupting Playout, removals only in later cleanups once nothing depends on them, cleanups wait for verified quiet, a manual emergency override); the decisions the spec marks L1 to L9 are derived and open to his overrule"
+    "source": "the owner's decision of 2026-10-02 and his ruling of 2026-10-03 in docs/backlog/migrations-while-productions-are-live.md (automatic, never interrupting Playout, nothing waits for a quiet moment and nobody presses a button, an update delays a live action by at most half a second, removals only in later cleanups once nothing running depends on them, the same for website and database updates, a manual emergency override); the decisions the spec marks L1 to L14 are derived and open to his overrule"
   },
   "review": null
 }
