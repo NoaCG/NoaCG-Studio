@@ -13,6 +13,7 @@
 
 import type { ControlEventRow } from './hostedControl';
 import type { ControlButton } from '../blocks/animMachine';
+import { END_WORDS, countText, readWireArm } from './cueAuto';
 
 /** One readable line of the log. `at` is null when the row's time is genuinely unknown. */
 export interface LogEntry {
@@ -50,6 +51,27 @@ export function describeLogRow(
   const base = { id: row.id, at: row.created_at ?? null, graphic: row.graphic };
   switch (msg.t) {
     case 'cue':
+      // A TIMED CUE'S ARM CHANGING (migration 0075): the row keeps the lane's cue, so it must not
+      // read as a take. The on-air anchor is a fact, not an action, and stays out of the feed.
+      if (msg.arm) {
+        const ends = msg.then ? END_WORDS[msg.then] : 'end';
+        const ms = readWireArm(msg.auto)?.ms;
+        const at = ms !== undefined ? ` at ${countText(ms)}` : '';
+        switch (msg.arm) {
+          case 'hold':
+            return { ...base, kind: 'auto', text: `Held${at}` };
+          case 'resume':
+            return { ...base, kind: 'auto', text: `Resumed${at}` };
+          case 'cancel':
+            return { ...base, kind: 'auto', text: 'Manual: the timed end is off for this airing' };
+          case 'fire':
+            return { ...base, kind: 'auto', text: `Auto ${ends} sent` };
+          case 'late':
+            return { ...base, kind: 'auto', text: `Auto ${ends} missed` };
+          default:
+            return null;
+        }
+      }
       return msg.cue
         ? { ...base, kind: 'take', text: `Took “${cueLabel(msg.cue) ?? 'a cue'}”` }
         : { ...base, kind: 'out', text: 'Out' };

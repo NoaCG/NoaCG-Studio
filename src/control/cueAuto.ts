@@ -76,6 +76,9 @@ export type LaneArm = {
   next?: string;
   /** When the Take that armed it was applied: the fallback anchor. */
   takenAt: number;
+  /** Published only: the seq of the Take marker that armed it, which a renderer's report must
+   *  cover before the countdown starts (migration 0075). */
+  take?: number;
 } & (
   | { phase: 'waiting'; /** The full length. */ ms: number }
   | { phase: 'running'; /** The length still to count from `from`. */ ms: number; from: number }
@@ -190,7 +193,8 @@ export function markMissed(arms: CueArms, graphic: string): CueArms {
   const arm = arms[graphic];
   const due = arm ? deadline(arm) : null;
   if (!arm || due === null) return arms;
-  return { ...arms, [graphic]: { cue: arm.cue, then: arm.then, takenAt: arm.takenAt, ...(arm.next ? { next: arm.next } : {}), phase: 'missed', dueAt: due } };
+  const { cue, then, takenAt, next, take } = arm;
+  return { ...arms, [graphic]: { cue, then, takenAt, ...(next ? { next } : {}), ...(take !== undefined ? { take } : {}), phase: 'missed', dueAt: due } };
 }
 
 /** How long until something here needs looking at again: the next deadline or the next waiting
@@ -234,6 +238,117 @@ export function armedNext(arms: CueArms): Map<string, LaneArm> {
     if (arm.next && arm.phase !== 'missed') out.set(arm.next, arm);
   }
   return out;
+}
+
+// ── The wire: a PUBLISHED production (phase 2, migration 0075; §2.0, §2.4 to §2.6) ─────────────
+//
+// Published, the database keeps each lane's arm (`control_cue_arms`) and every change to it is a
+// cue row in the log, so every surface and every reload counts the same countdown. A Take marker
+// carries what it arms (`{t:'cue', cue, auto: MarkerAuto}`); each arm change the server makes is a
+// row `{t:'cue', cue, arm, then, auto?: WireArm}`, `auto` absent once the arm has ended. Server
+// times arrive in epoch ms of the SERVER's clock; `skew` is what this page adds to one to read it on
+// its own clock (cueArmWire.ts estimates it), so the lanes here stay on the page's clock and the
+// readouts and rules above need nothing new.
+
+/** What a Take marker arms: the countdown its lane runs once the cue is on air. */
+export interface MarkerAuto {
+  then: CueEnd;
+  /** The length in ms. */
+  ms: number;
+  /** The cue `Next cue` takes, resolved at the Take. */
+  next?: string;
+}
+
+/** An arm as the server keeps it (0075 `control_cue_arm_wire`), in server epoch ms. Waiting: no
+ *  `from`, `held` or `due`; running: `from`; held: `held` and the frozen remainder as `ms`; missed:
+ *  `due`. */
+export interface WireArm {
+  cue: string;
+  then: CueEnd;
+  ms: number;
+  next?: string;
+  /** The seq of the Take marker that armed it. */
+  take: number;
+  take_at: number;
+  from?: number;
+  held?: true;
+  due?: number;
+}
+
+/** The arm operations the server writes a row for. */
+export type ArmOp = 'aired' | 'hold' | 'resume' | 'cancel' | 'fire' | 'late';
+
+const isEnd = (v: unknown): v is CueEnd => v === 'out' || v === 'next' || v === 'out-next';
+const isMs = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** What a Take marker of this cue carries, from the arm the page resolved at the Take. */
+export function markerAuto(spec: ArmSpec): MarkerAuto {
+  return {
+    then: spec.auto.then,
+    ms: Math.round(spec.auto.after * 1000),
+    ...(takesNext(spec.auto.then) && spec.next ? { next: spec.next } : {}),
+  };
+}
+
+/** A marker's `auto` read off the wire, or null for a marker that arms nothing (or a shape this
+ *  build cannot read, which then airs as a manual cue). */
+export function readMarkerAuto(value: unknown): MarkerAuto | null {
+  if (!value || typeof value !== 'object') return null;
+  const a = value as Partial<MarkerAuto>;
+  if (!isEnd(a.then) || !isMs(a.ms) || a.ms < AFTER_MIN_S * 1000 || a.ms > AFTER_MAX_S * 1000) return null;
+  return { then: a.then, ms: a.ms, ...(typeof a.next === 'string' && takesNext(a.then) ? { next: a.next } : {}) };
+}
+
+/** A server arm read off the wire, or null. */
+export function readWireArm(value: unknown): WireArm | null {
+  if (!value || typeof value !== 'object') return null;
+  const w = value as Partial<WireArm>;
+  if (typeof w.cue !== 'string' || !isEnd(w.then) || !isMs(w.ms) || !isMs(w.take) || !isMs(w.take_at)) return null;
+  return {
+    cue: w.cue,
+    then: w.then,
+    ms: w.ms,
+    take: w.take,
+    take_at: w.take_at,
+    ...(typeof w.next === 'string' ? { next: w.next } : {}),
+    ...(isMs(w.from) ? { from: w.from } : {}),
+    ...(w.held === true ? { held: true as const } : {}),
+    ...(isMs(w.due) ? { due: w.due } : {}),
+  };
+}
+
+/** A server arm as this page's lane. `at` is when it changed on this page's clock (a held lane's
+ *  `heldAt`, which only orders the chip's choice). */
+export function laneFromWire(w: WireArm, skew: number, at: number): LaneArm {
+  const base = { cue: w.cue, then: w.then, take: w.take, takenAt: w.take_at + skew, ...(w.next ? { next: w.next } : {}) };
+  if (w.due !== undefined) return { ...base, phase: 'missed', dueAt: w.due + skew };
+  if (w.held) return { ...base, phase: 'held', ms: w.ms, heldAt: at };
+  if (w.from !== undefined) return { ...base, phase: 'running', ms: w.ms, from: w.from + skew };
+  return { ...base, phase: 'waiting', ms: w.ms };
+}
+
+/**
+ * A CUE ROW'S EFFECT on a published production's arms (the `clockRowEffect` shape). A Take marker
+ * arms its lane WAITING from the marker's own server time, or replaces what the lane had, exactly
+ * as `markerEffect`; an arm row sets the lane to the arm it carries, or drops it when it carries
+ * none (fired, or Manual). Rows are self-contained, so a page that missed one is right again at
+ * the next. `rowAt` is the row's server time; `seq` its number.
+ */
+export function armRowEffect(
+  arms: CueArms,
+  graphic: string,
+  msg: { cue: string | null; auto?: unknown; arm?: unknown },
+  row: { seq: number; rowAt: number },
+  skew: number,
+): CueArms {
+  if (msg.arm === undefined) {
+    const auto = msg.cue ? readMarkerAuto(msg.auto) : null;
+    const spec: ArmSpec | null = auto ? { auto: { after: auto.ms / 1000, then: auto.then }, next: auto.next ?? null } : null;
+    const next = markerEffect(arms, graphic, msg.cue, spec, row.rowAt + skew);
+    return next[graphic] ? { ...next, [graphic]: { ...next[graphic], take: row.seq } } : next;
+  }
+  const wire = readWireArm(msg.auto);
+  return wire ? { ...arms, [graphic]: laneFromWire(wire, skew, row.rowAt + skew) } : dropArm(arms, graphic);
 }
 
 // ── Words ────────────────────────────────────────────────────────────────────────────────────

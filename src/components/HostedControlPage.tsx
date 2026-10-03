@@ -97,6 +97,10 @@ import {
 import { SpaceModeToggle } from './SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL } from '../control/spaceMode';
 import { ReadyLine, useExpectedOutputs, useLivePresence } from './control/OutputHealth';
+import { ArmedTag, ProgramAutoChip, RowAutoChip } from './home/CueTiming';
+import { armedNext, chipLane, markerAuto, playsOut, readAuto, type CueArms, type LaneArm, type MarkerAuto } from '../control/cueAuto';
+import { createCueArmWire, type CueArmWire } from '../control/cueArmWire';
+import { CUE_ARM_RPC } from '../control/cueArmRpc';
 import { PanelButton, PanelDialog, usePanelAnswer } from './control/PanelControl';
 import type { PanelVerb } from '../control/panelFeedback';
 
@@ -158,6 +162,24 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const [serverWaiting, setServerWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveCue, setLiveCue] = useState<LiveCueMap>({});
+  /**
+   * TIMED CUES' COUNTDOWNS, one per graphic layer (control/cueAuto.ts), kept by the database and run
+   * by control/cueArmWire.ts here exactly as on the production page: this page counts the same
+   * second, can hold, resume or go manual from a phone, and fires a graphic cue's end action like
+   * any other surface (docs/RUNDOWN_AUTOMATION_PLAN.md §2.7). `armsRef` is what the engine reads.
+   */
+  const [cueArms, setCueArmsState] = useState<CueArms>({});
+  const armsRef = useRef<CueArms>({});
+  const setCueArms = useCallback((next: CueArms) => {
+    if (next === armsRef.current) return;
+    armsRef.current = next;
+    setCueArmsState(next);
+  }, []);
+  const armWire = useRef<CueArmWire | null>(null);
+  /** Whether this production's server keeps timed cues (migration 0075). */
+  const [armsOn, setArmsOn] = useState(false);
+  /** A timed cue's end action, as this render would send it (the engine calls it). */
+  const fireLaneRef = useRef<(graphic: string, arm: LaneArm) => Promise<void>>(async () => {});
   /**
    * EACH GRAPHIC'S MACHINE STATE, from whichever source spoke last: a renderer's report off the
    * log, or this page's own PROGRAM monitor, which follows the same log. The in-app dashboard
@@ -375,6 +397,27 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         }
         return eventLogLabel(buttons.get(graphic)!, event);
       };
+      // TIMED CUES: the engine follows the same rows from here on and reads what the server keeps,
+      // so a page opened mid-countdown counts the same second. Only on the numbered log.
+      if (resolved.seq) {
+        const wire = createCueArmWire({
+          slug,
+          get: () => armsRef.current,
+          set: setCueArms,
+          fire: (graphic, arm) => fireLaneRef.current(graphic, arm),
+          note: setError,
+          rpc: CUE_ARM_RPC,
+        });
+        armWire.current = wire;
+        wire.start((state) => {
+          if (!live) return;
+          if (state === 'on') setArmsOn(true);
+          else {
+            wire.stop();
+            armWire.current = null;
+          }
+        });
+      }
       const history = await hostedControlTail(slug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!live) return;
       setWireLog((l) =>
@@ -386,6 +429,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
         tail,
         // The numbered log when the server has it (migration 0071); absent, today's id road.
         seq: resolved.seq,
+        onEpochReset: () => armWire.current?.reset(),
         // THE FAST ROAD - the verbs, broadcast by the database and here before their rows are.
         onCommand: applyCommand,
         // Reported in this page's Presence entry, so an output's operator can be told apart from
@@ -401,6 +445,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
           // The SAME door the broadcast comes through, so a command applies once whichever road
           // won it. What stays here is what is a property of the ROW rather than of the verb.
           applyCommand([{ graphic: row.graphic, msg }]);
+          // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
+          armWire.current?.row(row);
           if (msg.t === 'staged') {
             setShow((s) => (s && s !== 'loading' ? { ...s, staged: { ...s.staged, [row.graphic]: msg.data } } : s));
             sharedStaged.current = { ...sharedStaged.current, [row.graphic]: msg.data };
@@ -426,11 +472,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
       live = false;
       setServerWaiting(false);
       unsubscribe?.();
+      armWire.current?.stop();
+      armWire.current = null;
+      setArmsOn(false);
     };
-    // `applyCommand` and `noteMachineState` are declared with no dependencies of their own, so
-    // listing them re-runs nothing. `applyCommand` is here because the follow now hands it BOTH
+    // `applyCommand`, `noteMachineState` and `setCueArms` are declared with no dependencies of their own,
+    // so listing them re-runs nothing. `applyCommand` is here because the follow now hands it BOTH
     // roads and a silent capture would be the easiest way for the two to drift.
-  }, [slug, applyCommand, noteMachineState]);
+  }, [slug, applyCommand, noteMachineState, setCueArms]);
 
   const resolved = show && show !== 'loading' ? show : null;
   /** The staged values this page acts on: the shared buffer, with this page's own edits that
@@ -830,8 +879,32 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     setWireLog((l) => appendLogEntries(l, [noteEntry((localLogId.current -= 1), text)]));
   };
 
+  /** What a Take of this cue arms, from the published payload (its length, end and the cue `Next
+   *  cue` takes, resolved at publish), carried on its marker so every page counts it. */
+  const markerFor = (cue: OutputCue): MarkerAuto | null => {
+    const auto = cue.auto ? readAuto({ auto: cue.auto }) : null;
+    return auto ? markerAuto({ auto, next: cue.next ?? null }) : null;
+  };
   const takeCue = (cue: OutputCue) =>
-    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue) }));
+    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto: markerFor(cue) }));
+  /**
+   * A TIMED CUE'S END ACTION, sent once: the server said `ok` to this page's fire (cueArmWire.ts).
+   * Its Out, the armed next cue's Take, or both in that order, as the presses would send them, and
+   * it never moves the selection: somebody may be editing the next cue.
+   */
+  fireLaneRef.current = async (graphic, arm) => {
+    const batches: ControlSendItem[][] = [];
+    // The server checked the lane still holds the cue before it said ok; this page's view may trail it.
+    if (playsOut(arm.then)) batches.push(clearCueItems(graphic));
+    const next = arm.next ? cues.find((c) => c.id === arm.next) : undefined;
+    if (next) batches.push(takeCueItems({ id: next.id, graphic: next.graphic, values: cueValues(next), auto: markerFor(next) }));
+    const gone = !!arm.next && !next;
+    if (batches.length && !(await sendVerbs(batches))) return;
+    if (gone) setError(batches.length ? 'The cue armed to be taken next is gone, so only Out ran.' : 'The cue armed to be taken next is gone, so nothing was taken.');
+  };
+  /** The countdown H and the PROGRAM chip act on: the one that fires soonest (cueAuto.ts `chipLane`). */
+  const chipGraphic = chipLane(cueArms);
+  const armedBy = armedNext(cueArms);
   const nextLayer = () => {
     if (selectedGraphic) void sendVerb([{ graphic: selectedGraphic, msg: { t: 'next' } }]);
   };
@@ -892,6 +965,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
   const runVerb = (verb: PlayoutVerb, press?: VerbPress) => {
     // The header's ■ All out, as the named verb a hardware panel presses (no key, on purpose).
     if (verb === 'all-out') outAll();
+    // H: hold the countdown that fires soonest, or resume the one held last - never the selected
+    // cue's, which has usually moved on to the next cue by then.
+    if (verb === 'hold' && chipGraphic) armWire.current?.toggleHold(chipGraphic);
     // A panel's per-cue keys (spec D4). Select moves the selection there. Take airs that cue
     // whatever the SPACE mode, or takes it off when it is the one up on its layer, and leaves the
     // selection where the operator put it: a deck key never changes what SPACE acts on.
@@ -1020,7 +1096,9 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             <div className="pd-monitor pd-pgm">
               <h2>
                 <span className="pd-dot" aria-hidden="true" />
-                PROGRAM · ON AIR
+                {/* The label gives way with an ellipsis, as on the production page, so a countdown
+                    chip beside it never pushes the header past its monitor. */}
+                <span className="pd-monitor-name">PROGRAM · ON AIR</span>
                 {/* The names can run past the monitor's width and end in an ellipsis, so the title
                     carries them whole. The badge names EVERY live layer, in the names' order: with a
                     quiz and a score both up it used to show one layer beside two names. */}
@@ -1029,6 +1107,14 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                 </span>
                 {liveLayers.length > 0 && (
                   <span className="pd-layer-badge">{liveLayers.map((l) => `L${l.layer}`).join(' · ')}</span>
+                )}
+                {chipGraphic && cueArms[chipGraphic] && (
+                  <ProgramAutoChip
+                    arm={cueArms[chipGraphic]}
+                    label={cues.find((c) => c.id === cueArms[chipGraphic].cue)?.label ?? chipGraphic}
+                    onToggle={() => armWire.current?.toggleHold(chipGraphic)}
+                    onManual={() => armWire.current?.manual(chipGraphic)}
+                  />
                 )}
               </h2>
               <div className="pd-screen">
@@ -1156,6 +1242,12 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               const isPreviewed = cue.id === (previewedCue?.id ?? '');
               const layer = layerOf(cue.graphic);
               const sharing = layerSharedWith(cue.graphic);
+              // A TIMED CUE (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1): its length and end, counting
+              // while it is on air; the cue Next cue will take is ARMED.
+              const lane = cueArms[cue.graphic];
+              const laneArm = lane?.cue === cue.id ? lane : undefined;
+              const timedAuto = armsOn && cue.auto ? readAuto({ auto: cue.auto }) : null;
+              const armingArm = !cueIsLive ? armedBy.get(cue.id) : undefined;
               return (
                 <div
                   key={cue.id}
@@ -1183,6 +1275,15 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                       {cue.note || cue.graphic}
                     </span>
                   </button>
+                  {laneArm || timedAuto ? (
+                    <RowAutoChip
+                      auto={timedAuto}
+                      arm={laneArm}
+                      onToggle={() => armWire.current?.toggleHold(cue.graphic)}
+                      onClear={() => armWire.current?.manual(cue.graphic)}
+                    />
+                  ) : null}
+                  {armingArm && <ArmedTag arm={armingArm} />}
                   {cueIsLive ? (
                     <span className="pd-tag air">ON AIR</span>
                   ) : isPreviewed ? (

@@ -222,6 +222,7 @@ import {
   dueLanes,
   hold,
   markMissed,
+  markerAuto,
   markerEffect,
   nextGraphicCue,
   nextWake,
@@ -235,6 +236,8 @@ import {
   type CueArms,
   type LaneArm,
 } from '../../control/cueAuto';
+import { createCueArmWire, type CueArmWire } from '../../control/cueArmWire';
+import { CUE_ARM_RPC } from '../../control/cueArmRpc';
 import RailResizer, { useRailWidth } from './RailResizer';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
@@ -485,9 +488,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     armsRef.current = value;
     setCueArmsState(value);
   }, []);
+  /**
+   * PUBLISHED (phase 2, migration 0075): the same countdowns, kept by the database so every
+   * operator page and every reload counts the same second, and run by control/cueArmWire.ts on
+   * every page that follows the log. `armsServer` says whether this production's backend keeps
+   * them: `missing` on a server without 0075, where a published production does not time its cues.
+   */
+  const armWire = useRef<CueArmWire | null>(null);
+  const [armsServerState, setArmsServer] = useState<'pending' | 'on' | 'missing'>('pending');
+  /** What a timed cue's end action sends, kept current every render (the engine calls it). */
+  const fireLaneRef = useRef<(graphic: string, arm: LaneArm) => Promise<void>>(async () => {});
   /** What a cue marker for this cue arms: its timed end and the cue `Next cue` takes, or null for a
-   *  manual cue, or for any cue while the production is published (§2.0, until phase 2). Kept current
-   *  every render, so the send path reads this rundown and never a stale one. */
+   *  manual cue, or for any cue where timed cues do not run (a published production whose server
+   *  keeps no arms). Kept current every render, so the send path reads this rundown and never a
+   *  stale one. */
   const armSpecRef = useRef<(cueId: string) => ArmSpec | null>(() => null);
   /** What this page believes is up on the PLAYOUT SERVER (control/serverPlayout.ts says what
    *  it is and why the slot is remembered), in the store's OWNERSHIP part, with what the server
@@ -590,6 +604,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [now, setNow] = useState(() => Date.now());
   const [openedAt] = useState(() => Date.now());
   const hostedSlug = show?.hostedSlug ?? null;
+  // Timed cues on a published production need a backend that keeps their arms (0075); with none
+  // at all, nothing does.
+  const armsServer = hostedSlug && !backendConfigured ? 'missing' : armsServerState;
   /** This page on the production's live topic, and the outputs it hears there (the health line). */
   const livePresence = useLivePresence(hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null, 'production', {
     log: follow ? follow.status === 'SUBSCRIBED' : null,
@@ -1511,6 +1528,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           noteMachineState(graphic, (report as { state?: { groups?: Record<string, string> } | null }).state ?? null);
         }
       }
+      // TIMED CUES, published: the engine follows the same rows from here on, and reads what the
+      // server keeps (a reload mid-countdown picks it up where it was). Only on the numbered log:
+      // the arm rows are ordered by seq.
+      if (resolved.seq) {
+        const wire = createCueArmWire({
+          slug: hostedSlug,
+          get: () => armsRef.current,
+          set: setCueArms,
+          fire: (graphic, arm) => fireLaneRef.current(graphic, arm),
+          note: setNote,
+          rpc: CUE_ARM_RPC,
+        });
+        armWire.current = wire;
+        wire.start((state) => {
+          if (!alive) return;
+          if (state === 'missing') {
+            wire.stop();
+            armWire.current = null;
+          }
+          setArmsServer(state);
+        });
+      } else {
+        setArmsServer('missing');
+      }
       const history = await hostedControlTail(hostedSlug, Math.max(0, resolved.lastEventId - LOG_HISTORY_SPAN));
       if (!alive) return;
       setWireLog((l) =>
@@ -1525,6 +1566,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         tail,
         // The numbered log when the server has it (migration 0071); absent, today's id road.
         seq: resolved.seq,
+        onEpochReset: () => armWire.current?.reset(),
         // Reported on every status change AND on every poll tick, so this stays true rather
         // than recording only the first answer.
         onStatus: (s) => {
@@ -1544,6 +1586,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // door the broadcast above comes through, and `applyCommand` drops whichever copy is
           // second - a duplicate entrance would leave no trace on screen.
           applyCommand([{ graphic: row.graphic, msg }]);
+          // A timed cue's countdown moves with its cue rows, and starts at a renderer's report.
+          armWire.current?.row(row);
           // A 'live' row is the renderer REPORTING what it applied — machine state included,
           // which is what keeps the action buttons' greying honest about air. Durable only: a
           // report is a row, not a verb, and it never travels the fast road.
@@ -1577,6 +1621,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setResolveWaiting(false);
       unsubscribe?.();
       clearInterval(seenTimer);
+      armWire.current?.stop();
+      armWire.current = null;
+      setArmsServer('pending');
     };
   }, [hostedSlug, backendConfigured, show?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1905,6 +1952,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setWireLog((l) => appendLogEntries(l, entries));
         return { ok: true, skipped: [], superseded: [] };
       }
+      // A TIMED CUE'S TAKE MARKER carries what it arms, so every page following the log arms the
+      // same countdown from the Take's own row (control/cueArmWire.ts). Every Take leaves here,
+      // whichever control pressed it, so this is the one place that adds it.
+      const marked = batches.map((batch) =>
+        batch.map((item) => {
+          if (item.msg.t !== 'cue' || !item.msg.cue || item.msg.auto) return item;
+          const spec = armSpecRef.current(item.msg.cue);
+          return spec ? { ...item, msg: { ...item.msg, auto: markerAuto(spec) } } : item;
+        }),
+      );
       try {
         // BOTH ROADS, from this one press (src/control/commandRoads.ts). `applyHere` moves this
         // page's own monitor in zero hops - it used to wait for the whole round trip, because
@@ -1915,12 +1972,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         const sent = await sendControlVerbs({
           slug: hostedSlug,
           showId,
-          batches,
+          batches: marked,
           applyHere: applyCommand,
           fastEvents: (graphic) => fastEventGraphicsRef.current.has(graphic),
           allOut,
         });
-        setNote(sendDebts.current.landed(batches.flat()));
+        setNote(sendDebts.current.landed(marked.flat()));
         return { ok: true, ...sent };
       } catch (e) {
         // A verb whose picture MOVED HERE and then failed to send is a different sentence from
@@ -1937,7 +1994,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             ? `${label} is on this monitor only. It may not have reached the screens or the log (${(e as Error).message}). Send it again.`
             : `${label} failed: ${(e as Error).message}`;
         // Owed: the batch that failed and those after it. The ones before it landed.
-        sendDebts.current.failed(batches.slice(verbsLanded(e)).flat(), note);
+        sendDebts.current.failed(marked.slice(verbsLanded(e)).flat(), note);
         return { ok: false, note };
       }
     },
@@ -1995,15 +2052,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }, [panel.on, serverPlayout, panel.changed]);
   const panelRows = useMemo(() => rundownPanelRows(rundown.rows), [rundown]);
 
-  // TIMED CUES (the engine is with the verbs below): on an unpublished production only, until the
-  // wire lands (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0). One timer, to whatever is next due, set again
-  // whenever a countdown changes and when the window comes back from hiding (a hidden window's
-  // timers are throttled, and past 5 s late that becomes Missed rather than a late action).
-  const timedCues = !hostedSlug;
+  // TIMED CUES (the engine is with the verbs below). Unpublished, this page runs them: one timer, to
+  // whatever is next due, set again whenever a countdown changes and when the window comes back
+  // from hiding (a hidden window's timers are throttled, and past 5 s late that becomes Missed
+  // rather than a late action). Published, control/cueArmWire.ts runs them with every other page.
+  const timedCues = !hostedSlug || armsServer === 'on';
   const runDueRef = useRef<() => void>(() => {});
   // A timer can come due a moment before the clock says so; when nothing moved, it is set again
   // rather than left to wait for a change that will not come.
   useEffect(() => {
+    if (hostedSlug) return;
     let t: number | undefined;
     const arm = () => {
       const wake = nextWake(armsRef.current, wallClock());
@@ -2023,8 +2081,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       window.clearTimeout(t);
       document.removeEventListener('visibilitychange', onShow);
     };
-  }, [cueArms]);
-  // Published, the countdowns are not this page's to run yet: whatever it held goes.
+  }, [cueArms, hostedSlug]);
+  // Where timed cues do not run (a published production whose server keeps no arms), whatever
+  // this page held goes.
   useEffect(() => {
     if (!timedCues) setCueArms({});
   }, [timedCues, setCueArms]);
@@ -2572,7 +2631,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // a press would send it, and NEVER moves the selection or PREVIEW: somebody may be editing the
   // next cue, and moving the cursor under their hands would edit the wrong one.
   armSpecRef.current = (cueId) => {
-    if (!timedCues) return null;
+    if (hostedSlug && armsServer === 'missing') return null;
     const cue = cues.find((c) => c.id === cueId);
     const auto = cue ? readAuto(cue) : null;
     return auto ? { auto, next: nextGraphicCue(cues, cueId) } : null;
@@ -2581,7 +2640,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** A timed cue's end action, sent once: its Out, the armed next cue's Take, or both in that order. */
   const fireLane = async (graphic: string, arm: LaneArm) => {
     const items: ControlSendItem[][] = [];
-    const out = playsOut(arm.then) && liveCueRef.current[graphic] === arm.cue;
+    // Published, the server checked the lane still holds the cue before it said ok, which this page's
+    // own view may trail; unpublished, this page's view is the only one.
+    const out = playsOut(arm.then) && (!!hostedSlug || liveCueRef.current[graphic] === arm.cue);
     if (out) items.push(clearCueItems(graphic));
     const next = arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
     const nextGraphic = next ? cueGraphicName(next) : null;
@@ -2591,8 +2652,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
     const gone = !!arm.next && !(next && nextGraphic);
+    // Published, the server's fire row says "Auto Out sent" on every page; this one only adds what
+    // went wrong here.
+    const published = !!hostedSlug;
     if (!items.length) {
-      logAuto(graphic, `${words}: nothing to send`);
+      if (!published) logAuto(graphic, `${words}: nothing to send`);
       if (gone) setNote('The cue armed to be taken next is gone, so nothing was taken.');
       return;
     }
@@ -2610,9 +2674,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       clearMisses([next.id]);
       noteStep(next);
     }
-    logAuto(graphic, `${words} sent`);
+    if (!published) logAuto(graphic, `${words} sent`);
     if (gone) setNote('The cue armed to be taken next is gone, so only Out ran.');
   };
+  fireLaneRef.current = fireLane;
   /** Everything due now: a countdown still waiting for air starts from its Take, one at zero fires,
    *  and one more than 5 s late is marked missed and never runs. */
   const runDue = () => {
@@ -2633,6 +2698,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** H, or a chip: hold a counting lane, or resume a held one. */
   const toggleHold = (graphic: string | null) => {
     if (!graphic) return;
+    if (hostedSlug) {
+      armWire.current?.toggleHold(graphic);
+      return;
+    }
     const arm = armsRef.current[graphic];
     if (!arm) return;
     const now = wallClock();
@@ -2652,6 +2721,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Manual: the timed end is dropped for this airing, and the cue stays on air as a manual one. A
    *  missed lane is cleared the same way. */
   const manualLane = (graphic: string) => {
+    if (hostedSlug) {
+      armWire.current?.manual(graphic);
+      return;
+    }
     const arm = armsRef.current[graphic];
     if (!arm) return;
     setCueArms(dropArm(armsRef.current, graphic));
@@ -2663,7 +2736,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  applies the Take at once, so a poll answer crossing it is a few milliseconds early at most. */
   const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
     noteMachineState(graphic, state, overflow);
-    setCueArms((a) => aired(a, graphic, wallClock()));
+    // Published, the anchor is a renderer's report, stamped by the server (cueArmWire.ts).
+    if (!hostedSlug) setCueArms((a) => aired(a, graphic, wallClock()));
   };
   const chipGraphic = chipLane(cueArms);
 
@@ -4570,7 +4644,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   <CueEndsRow
                     key={editingCue.id}
                     auto={auto}
-                    refused={timedCues ? null : 'Timed cues run on an unpublished production for now. On a published one they arrive with the next update.'}
+                    refused={
+                      hostedSlug && armsServer === 'missing'
+                        ? 'This production’s server does not keep timed cues yet, so here they air as manual cues.'
+                        : null
+                    }
                     nextHint={nextHint}
                     onChange={(next) => {
                       setShows(setCueAuto(show.id, editingCue.id, next));
