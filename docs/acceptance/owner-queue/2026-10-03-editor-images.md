@@ -7,9 +7,16 @@ answered: false
 ---
 # Add a sponsor image and replace a logo in the editor
 
-After `codex/editor-r1-2b-3-images` deploys, open
-[/app](https://noacg.studio/app). Choose **+ New graphic**, **Start from a template**,
+Images can be added, replaced and managed in the open graphic.
+
+## The route, under a minute
+
+[/app](https://noacg.studio/app), after `codex/editor-r1-2b-3-images` deploys.
+Choose **+ New graphic**, **Start from a template**,
 search **Hairline**, choose it, then **Skip to finish** and **Edit this graphic**.
+
+**What to look at.** Try the image task and judge whether the actions and initial
+image size feel clear and useful:
 
 1. Click **Image**, then **Import files…**. Pick a sponsor image. Select its row and
    click **Place image**. It starts centered with its anchor in the middle.
