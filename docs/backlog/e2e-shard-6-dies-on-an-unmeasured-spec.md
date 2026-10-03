@@ -96,9 +96,34 @@ with this second run's measured file costs and overhead, gives:
 Ten is the smallest measured count that restores the safety margin. The planner ceiling
 is therefore raised from nine to ten; the timeout stays 20 and all retry, quarantine, coverage
 and gate logic is unchanged. The committed table keeps its honest main-run provenance.
-Full-run acceptance: pending a new dispatch with ten shards.
+Full-run acceptance: **passed** on [37150741354](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37150741354)
+on `747ac50cf88ea9ae024cc38d5f3297df88272ffe`. All ten full shard jobs completed successfully,
+each with at least three minutes of headroom. The CI gate, build, factory and catalog also passed;
+no retry ran. This is measured completion, not just a predicted budget.
+
+| Measurement | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Elapsed min | 9.62 | 10.67 | 15.53 | 11.17 | 12.72 | 14.32 | 11.02 | 16.57 | 14.67 | 13.12 |
+| Headroom min | 10.38 | 9.33 | 4.47 | 8.83 | 7.28 | 5.68 | 8.98 | 3.43 | 5.33 | 6.88 |
+
+Observed minimum headroom improved from 0.88 minutes on the source main run, through 1.35
+after refreshing weights on nine runners, to 3.43 on ten. The late runner starts for shards
+6 and 8 are queue delay; their elapsed figures above use their actual job starts.
+
+Verification: 100 focused duration/planner/retry tests passed; workflow validation passed;
+`npm run build` on the implementation passed 2,416 tests with zero failures and three platform
+skips. Direct checks confirmed all 200 current specs assigned exactly once, valid nonnegative
+weights and zero table drift at the tested SHA. No local full browser battery was run.
 
 Coverage is tied to the recorded run and suite, not future main. Later new specs inherit the
 current 0.23-minute median and are reported as unmeasured while remaining assigned exactly
 once. A small new relevance spec is different from a new 51-test folders file, but duration
 drift still needs remeasurement; the weekly proposal and plan warning remain in place.
+
+Separately, the incoming `playout-feedback-health.spec.ts` from branch
+`codex/b-relevant-playout-health` measured 0.327 minutes in offline CI
+[37150639641](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37150639641), versus the
+0.23-minute fallback: a 5.82-second underestimate. A hypothetical 201-file integration
+replay, using that measured cost without claiming it is recorded in this table, assigns all
+201 files once and predicts a 16.19-minute slowest job (3.81-minute headroom). Any later
+suite still needs its own measured full-run verdict; the proof above remains tied to its SHA.
