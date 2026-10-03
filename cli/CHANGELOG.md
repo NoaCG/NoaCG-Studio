@@ -10,7 +10,7 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## 0.8.1 - unreleased
+## 0.8.1 - 2026-10-03
 
 **Short button labels, and labels that name the player.** The skill now tells your agent to keep a
 ⚡ button's label to a word or two, and `noacg validate` warns on one over 16 characters. A label
