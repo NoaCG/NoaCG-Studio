@@ -127,6 +127,7 @@ test('the rundown walks with the arrow keys, so a cue can be played out from the
   await productionOnAir(page, 'Arrows');
 
   // A second cue, so there is somewhere to walk to.
+  await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(page.locator('.pd-cue')).toHaveCount(2);
 
@@ -181,6 +182,7 @@ test('an unsent edit to the on-air cue is still said on its rundown row after an
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await productionOnAir(page, 'Unsent row');
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
+  await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(rows).toHaveCount(2);
   await rows.first().click();

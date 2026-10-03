@@ -70,6 +70,7 @@ test('a production page manages cues: auto-cue on add, edit, duplicate, reorder,
   await expect(preview.locator('#f0')).toHaveText('Anna Andersson');
 
   // A second cue on the SAME pool graphic — the point of the cue model (§2).
+  await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(cueRows).toHaveCount(2);
   await page.getByTestId('cue-label').fill('Ben Berg');
@@ -124,6 +125,7 @@ test('Home Productions creates a production and opens its page; removing a graph
 
   // A second cue on the same graphic, so removing the GRAPHIC is a gesture of its own: with a
   // single cue, removing that cue already takes the graphic (docs/PLAYOUT_DASHBOARD.md §5).
+  await page.getByTestId('rundown-add').click();
   await page.getByTestId('add-cue').click();
   await expect(rows).toHaveCount(2);
 
@@ -188,7 +190,10 @@ test('the LAST cue\'s ⋯ menu opens upward, inside the rundown that would other
 
   // Enough cues that the rundown scrolls and the last row sits at the bottom of its list.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
-  for (let i = 0; i < 14; i += 1) await page.getByTestId('add-cue').click();
+  for (let i = 0; i < 14; i += 1) {
+    await page.getByTestId('rundown-add').click();
+    await page.getByTestId('add-cue').click();
+  }
   await expect(rows).toHaveCount(15);
   await rows.last().scrollIntoViewIfNeeded();
 

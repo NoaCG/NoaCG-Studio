@@ -3669,7 +3669,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setClip(taken);
       const n = clipSize(taken);
       const what = `${n} cue${n === 1 ? '' : 's'}`;
-      setNote(key === 'copy' ? `✓ ${what} copied. Ctrl+V pastes after the selected row.` : `✓ ${what} cut. Ctrl+V moves them after the selected row; Esc leaves them where they are.`);
+      setNote(key === 'copy' ? `✓ ${what} copied. Ctrl+V pastes after the selected row.` : `✓ ${what} ready to move. Still in place until you paste. Select a row, then Ctrl+V to move after it, or select a folder to move into it. Esc cancels the move.`);
       return;
     }
     if (key === 'paste') {
@@ -3677,7 +3677,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     if (key === 'select-clear') {
-      if (clip?.kind === 'cut') setClip(null);
+      if (clip?.kind === 'cut') {
+        setClip(null);
+        setNote('✓ Move cancelled. The cues stayed in place.');
+      }
       setRangeIds([]);
       setRangeEnd(null);
       return;
