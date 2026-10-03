@@ -78,7 +78,7 @@ predicting 14.30-minute jobs and 5.70 minutes of headroom on all nine.
 
 First repaired full run: [37149189106](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37149189106)
 on `896424999d64058ca8830e067f5a105bb576975f` completed green: all nine full shards passed,
-and the retry job was skipped. Actual job minutes were 16.58 / 13.77 / 18.65 / 16.22 / 16.27 / 16.43 / 13.45 / 16.43 / 15.67.
+and the retry job was skipped. Actual job minutes were 16.22 / 13.45 / 16.43 / 16.58 / 13.77 / 16.27 / 16.43 / 18.65 / 15.67.
 The slowest job left 1.35 minutes, so the table refresh alone did not meet the three-minute
 safety target. Its blob reports measured 138.1 test-minutes, including 7.399 for folders,
 which explains the remaining gap from the source run's 4.816-minute folders reading.
@@ -103,8 +103,8 @@ no retry ran. This is measured completion, not just a predicted budget.
 
 | Measurement | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Elapsed min | 9.62 | 10.67 | 15.53 | 11.17 | 12.72 | 14.32 | 11.02 | 16.57 | 14.67 | 13.12 |
-| Headroom min | 10.38 | 9.33 | 4.47 | 8.83 | 7.28 | 5.68 | 8.98 | 3.43 | 5.33 | 6.88 |
+| Elapsed min | 9.62 | 14.67 | 11.17 | 14.32 | 15.53 | 13.12 | 12.72 | 16.57 | 11.02 | 10.67 |
+| Headroom min | 10.38 | 5.33 | 8.83 | 5.68 | 4.47 | 6.88 | 7.28 | 3.43 | 8.98 | 9.33 |
 
 Observed minimum headroom improved from 0.88 minutes on the source main run, through 1.35
 after refreshing weights on nine runners, to 3.43 on ten. The late runner starts for shards
