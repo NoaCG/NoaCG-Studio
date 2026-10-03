@@ -444,6 +444,24 @@ grouping, bins, canvas typing, owner workflow and physical receiving-host accept
 remain open. No whole row is closed. The desktop product-judgment item is
 [Add a sponsor image and replace a logo](../acceptance/owner-queue/2026-10-03-editor-images.md).
 
+## R1.2b.4 scoped Pen receipt, 2026-10-03
+
+The [bounded spec and verification](editor-r1-2b-4/README.md) cover corner and
+cubic open/closed path creation, transient drafts, point and tangent movement,
+fill/stroke/width, whole-layer transforms and timeline visibility. Native
+M/L/C/Z source remains readable, anonymous SVG identity is minted on first edit,
+and each completion or gesture undoes as one operation. Transformed SVG parents,
+catalog drawing space, imported raster graphics, cancellation and stale-source
+or playhead refusal are covered. Save/reopen and SPX, CasparCG and OGraf exports
+execute the authored paths. New layers start with a centered transform pivot;
+vertex edits preserve its original frame and existing motion.
+
+E06/B04 gain this bounded engineering evidence. Unsupported geometry retains
+source with a specific refusal. Alignment/distribution, grouping, bins, canvas
+typing, owner workflow and physical receiving-host acceptance remain open. No
+whole row is closed. The desktop judgment item is
+[Draw a custom badge and adjust its points](../acceptance/owner-queue/2026-10-03-editor-pen.md).
+
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

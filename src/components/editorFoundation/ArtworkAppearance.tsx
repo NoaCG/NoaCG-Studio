@@ -151,7 +151,7 @@ export default function ArtworkAppearance(props: Props) {
   const { template, selector, session, appearance } = props;
   const text = artworkText(template, selector), node = artworkNode(template, selector);
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
-  const shape = !text && ['rect', 'ellipse', 'circle', 'path', 'polygon', 'div'].includes(node.tagName.toLowerCase());
+  const shape = !text && !node.hasAttribute('data-pen-path') && ['rect', 'ellipse', 'circle', 'polygon', 'div'].includes(node.tagName.toLowerCase());
   const currentColour = (text ? appearance?.color : appearance?.fill) ?? (svg ? node.getAttribute('fill') : null) ?? '#ffffff';
   const rgb = currentColour.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
   const hex = rgb ? '#' + rgb.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('') : currentColour;

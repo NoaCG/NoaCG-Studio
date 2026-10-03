@@ -1,0 +1,37 @@
+=== j-3132 node docs/research/editor-r1-2b-4/mutations.mjs
+=== cwd C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio
+KILLED: bounded points
+KILLED: finite vertices and tangents
+KILLED: token syntax
+KILLED: coordinate pairs
+KILLED: supported commands
+KILLED: terminal closure
+KILLED: single subpath
+KILLED: initial move
+KILLED: point and handle target
+KILLED: finite matrix
+KILLED: nonsingular matrix
+KILLED: singular display
+KILLED: cubic closure
+KILLED: carried tangents
+KILLED: curve extrema
+KILLED: literal attributes
+KILLED: duplicate attributes
+KILLED: placement time
+KILLED: exact timeline
+KILLED: CSS and SVG geometry
+KILLED: animated CSS ownership
+KILLED: independent SVG transform
+KILLED: code-driven geometry
+KILLED: path topology
+KILLED: paint changes
+KILLED: solid paint
+KILLED: stroke width
+KILLED: CSS paint priority
+KILLED: draft revision
+KILLED: draft playhead
+KILLED: point gesture cancellation
+KILLED: edited path hit bounds
+KILLED: thin stroke selection
+Every source restored byte-for-byte.
+33/33 mutations killed.

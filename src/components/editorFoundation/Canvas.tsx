@@ -13,6 +13,8 @@ import { getTemplateParts } from '../../model/structure';
 import { ASSET_DRAG_TYPE } from '../AssetsPanel';
 import { IMAGE_ACCEPT } from '../../assets/fileImport';
 import { useImageImport } from './useImageImport';
+import { usePenGesture } from './usePenGesture';
+import PathOverlay from './PathOverlay';
 
 let inspectedController: PreviewController | null = null;
 /** Read-only instrumentation entry point used by the acceptance harness. */
@@ -30,8 +32,9 @@ interface Props {
   connectPreview: (preview: PreviewController | null) => void;
   togglePlayback: () => void; pause: () => void;
   openAssets: () => void;
+  pathEditing: string | null; onPathEditing: (selector: string | null) => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
@@ -79,12 +82,16 @@ export default function Canvas({ template, sampleData, session, time, selection,
     return new Set(parts.filter(part => parts.some(other => other !== part && doc.querySelector(part.selector)?.contains(doc.querySelector(other.selector) ?? null))).map(part => part.selector));
   }, [template.html, template.fields]);
   const gesture = useArtworkGesture(template, session, () => controller.current, linked, drawingSpace);
+  const pathTarget = pathEditing && selection.length === 1 && selection[0] === pathEditing ? parts.find(p => p.selector === pathEditing) ?? null : null;
+  const tool = pathTarget ? 'pen' : gesture.tool;
+  const pen = usePenGesture(template, session, drawingSpace, pathTarget, scale, () => { gesture.setTool('select'); onPathEditing(null); });
   const pending = !status.error && (status.pending || status.source !== session.version().source);
   const parkedTime = useRef(time);
   const cue = session.port.view().cue;
   const parkedCue = useRef(cue);
   parkedCue.current = cue;
   parkedTime.current = time;
+  useEffect(() => { if (pathEditing) viewport.current?.focus(); }, [pathEditing]);
 
   useEffect(() => {
     const observer = new ResizeObserver(entries => {
@@ -124,11 +131,11 @@ export default function Canvas({ template, sampleData, session, time, selection,
 
   return <section className="ef-canvas" aria-label="Graphic canvas">
     <div className="ef-toolbar">
-      {(['select', 'anchor', 'text', 'rectangle', 'ellipse'] as const).map(tool => <button key={tool} aria-pressed={gesture.tool === tool}
-        title={tool === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
-        onClick={() => { gesture.cancel(); gesture.setTool(tool); }} aria-label={tool + ' tool'}>{tool[0].toUpperCase() + tool.slice(1)}</button>)}
-      <button aria-label="image tool" onClick={() => { gesture.cancel(); pause(); openAssets(); }}>Image</button>
-      <button onClick={() => { gesture.cancel(); pause(); imageInput.current?.click(); }} disabled={image.busy}>Add image file…</button>
+      {(['select', 'anchor', 'text', 'rectangle', 'ellipse', 'pen'] as const).map(choice => <button key={choice} aria-pressed={tool === choice}
+        title={choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
+        onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); gesture.setTool(choice); }} aria-label={choice + ' tool'}>{choice[0].toUpperCase() + choice.slice(1)}</button>)}
+      <button aria-label="image tool" onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); openAssets(); }}>Image</button>
+      <button onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); imageInput.current?.click(); }} disabled={image.busy}>Add image file…</button>
       <input hidden ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple data-testid="image-add-input" onChange={event => {
         const files = Array.from(event.target.files ?? []); event.target.value = '';
         void image.files(files, 'place').catch(() => {});
@@ -141,7 +148,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
       <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>
     </div>
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
-      data-testid="foundation-canvas" data-tool={gesture.tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
+      data-testid="foundation-canvas" data-tool={tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
       onDragOver={event => {
         if (event.dataTransfer.types.includes('Files') || event.dataTransfer.types.includes(ASSET_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }
@@ -149,13 +156,14 @@ export default function Canvas({ template, sampleData, session, time, selection,
       onDrop={event => {
         const path = event.dataTransfer.getData(ASSET_DRAG_TYPE), files = Array.from(event.dataTransfer.files);
         if (!path && !files.length) return;
-        event.preventDefault(); event.stopPropagation(); gesture.cancel(); pause();
+        event.preventDefault(); event.stopPropagation(); pen.cancel(); gesture.cancel(); onPathEditing(null); pause();
         const point = pointerPoint(event, size, pan, scale, width, height);
         if (files.length) void image.files(files, 'place', point).catch(() => {});
         else { const asset = template.assets.find(a => a.path === path); if (asset) void image.place(asset, point); }
       }}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
+        if (tool === 'pen' && pen.key(event.key)) { event.preventDefault(); event.stopPropagation(); return; }
         if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault(); event.stopPropagation(); space.current = true;
           spaceTap.current = !event.repeat;
@@ -191,8 +199,13 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (event.button !== 0 || pending || status.error) return;
         const { x, y } = pointerPoint(event, size, pan, scale, width, height);
         event.currentTarget.setPointerCapture(event.pointerId);
+        if (tool === 'pen') { pen.begin({ x, y }); return; }
         if (gesture.tool !== 'select' && gesture.tool !== 'anchor') { gesture.begin({ x, y }); return; }
-        const hits = parts.filter(p => p.selector !== rootSelector && x >= p.x && x <= p.x + p.width && y >= p.y && y <= p.y + p.height)
+        const hits = parts.filter(p => {
+          // SVG geometry bounds omit stroke and can have zero height or width.
+          const tolerance = p.pathMatrix ? 4 / scale : 0;
+          return p.selector !== rootSelector && x >= p.x - tolerance && x <= p.x + p.width + tolerance && y >= p.y - tolerance && y <= p.y + p.height + tolerance;
+        })
           .sort((a, b) => Number(selection.includes(b.selector)) - Number(selection.includes(a.selector)) || a.width * a.height - b.width * b.height || parts.indexOf(b) - parts.indexOf(a));
         if (gesture.tool === 'anchor') {
           // The Anchor tool drags the selected layer's anchor from on or near it, or from inside the
@@ -240,9 +253,11 @@ export default function Canvas({ template, sampleData, session, time, selection,
         }
         if (drag.current) setPan({ x: drag.current.pan.x + event.clientX - drag.current.x,
           y: drag.current.pan.y + event.clientY - drag.current.y });
+        else if (tool === 'pen') pen.move(pointerPoint(event, size, pan, scale, width, height));
         else gesture.move(pointerPoint(event, size, pan, scale, width, height), event);
       }}
       onPointerUp={() => {
+        if (tool === 'pen') pen.end();
         const start = marqueeStart.current;
         if (start?.hit && !start.moved && sameRevision(start.revision, session.version())) select(start.hit, start.additive);
         marqueeStart.current = null; setMarquee(null); drag.current = null;
@@ -250,8 +265,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if (!moved && clickSelection.current) select(clickSelection.current, false);
         clickSelection.current = null;
       }}
-      onLostPointerCapture={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
-      onPointerCancel={() => { clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; gesture.cancel(); if (marqueeStart.current) setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }}>
+      onLostPointerCapture={() => { if (pen.pressed()) pen.cancel(); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; if (gesture.active()) gesture.cancel(); if (marqueeStart.current) { setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); } }}
+      onPointerCancel={() => { pen.cancel(); onPathEditing(null); clickSelection.current = null; if (drag.current) setPan(drag.current.pan); drag.current = null; gesture.cancel(); if (marqueeStart.current) setSelection(marqueeStart.current.selection); marqueeStart.current = null; setMarquee(null); }}>
       <div className="ef-artboard" style={{ width, height,
         transform: 'translate(' + pan.x + 'px,' + pan.y + 'px) translate(-50%,-50%) scale(' + scale + ')' }}>
         <iframe ref={iframe} title="Foundation graphic preview" sandbox="allow-scripts"
@@ -263,16 +278,17 @@ export default function Canvas({ template, sampleData, session, time, selection,
           {/* A turned layer's own outline, through its corners; its bounds stay faint behind it. */}
           {single && turned && <polygon points={single.corners!.map(p => p.x + ',' + p.y).join(' ')} fill="none" stroke="var(--accent)" strokeWidth={1.5 / scale} />}
           {/* Drawn before the corners, so the corner handles stay the last circles. */}
-          {knob && gesture.tool === 'select' && <>
+          {knob && tool === 'select' && <>
             <line x1={knob.from.x} y1={knob.from.y} x2={knob.at.x} y2={knob.at.y} stroke="var(--accent)" strokeWidth={1 / scale} />
             <circle data-rotate cx={knob.at.x} cy={knob.at.y} r={4.5 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />
             {edges.map((p, i) => <circle key={i} data-edge={i} cx={p.x} cy={p.y} r={3 / scale} fill="var(--bg)" stroke="var(--accent)" strokeWidth={1.5 / scale} />)}
           </>}
-          {single?.anchor && <g data-anchor transform={'translate(' + single.anchor.x + ' ' + single.anchor.y + ')'} stroke="var(--accent)" strokeWidth={(gesture.tool === 'anchor' ? 2 : 1.25) / scale} fill="none">
+          {single?.anchor && tool !== 'pen' && <g data-anchor transform={'translate(' + single.anchor.x + ' ' + single.anchor.y + ')'} stroke="var(--accent)" strokeWidth={(tool === 'anchor' ? 2 : 1.25) / scale} fill="none">
             <circle r={5 / scale} />
             <line x1={-9 / scale} x2={9 / scale} /><line y1={-9 / scale} y2={9 / scale} />
           </g>}
-          {single && gesture.tool !== 'anchor' && single.corners!.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
+          {single && tool === 'select' && single.corners!.map((p, i) => <circle key={i} data-handle={i} cx={p.x} cy={p.y} r={4 / scale} fill="var(--accent)" stroke="var(--bg)" strokeWidth={1 / scale} />)}
+          {tool === 'pen' && pen.overlay && <PathOverlay {...pen.overlay} scale={scale} />}
           {gesture.draft && drawingSpace && <rect x={gesture.draft.x} y={gesture.draft.y} width={gesture.draft.width} height={gesture.draft.height}
             transform={'matrix(' + drawingSpace.join(' ') + ')'} fill="color-mix(in srgb, var(--accent) 20%, transparent)" stroke="var(--accent)" strokeWidth={1 / scale} />}
         </svg>
@@ -286,10 +302,12 @@ export default function Canvas({ template, sampleData, session, time, selection,
       </div>}
       {gesture.error && <div className="ef-stage-error" role="alert">{gesture.error}</div>}
       {image.error && <div className="ef-stage-error" role="alert">{image.error}</div>}
+      {pen.error && <div className="ef-stage-error" role="alert">{pen.error}</div>}
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
-      <span>{gesture.tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'
-        : gesture.tool === 'anchor' ? 'Drag the anchor: the point the layer turns and scales about · Escape: cancel'
+      <span>{tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'
+        : tool === 'pen' ? pathTarget ? 'Drag points or tangents · Select: whole layer · Escape: finish editing' : 'Click: corner · Drag: curve · First point: close · Enter: finish · Backspace: remove · Escape: cancel'
+        : tool === 'anchor' ? 'Drag the anchor: the point the layer turns and scales about · Escape: cancel'
         : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
   </section>;
 }

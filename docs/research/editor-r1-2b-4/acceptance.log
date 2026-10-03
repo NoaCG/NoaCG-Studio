@@ -1,0 +1,36 @@
+=== j-3154 set E2E_WORKERS=3&& node node_modules/playwright/cli.js test e2e/editor-pen.spec.ts --workers=3
+=== cwd C:\Users\ahonemi\.codex\worktrees\4c70\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:39620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 17 tests using 3 workers
+
+(node:26276) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+catalog { pen: 1, points: 0 }
+svg { pen: 1, points: 0 }
+f4 { pen: 1, points: 0 }
+  ok  1 [chromium] › e2e\editor-pen.spec.ts:42:1 › baseline probe: existing canvas path capabilities (3.1s)
+  ok  3 [chromium] › e2e\editor-pen.spec.ts:48:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar (3.6s)
+  ok  2 [chromium] › e2e\editor-pen.spec.ts:48:49 › svg: triangle creation is one transaction with selection, centered pivot and bar (4.0s)
+  ok  4 [chromium] › e2e\editor-pen.spec.ts:48:49 › f4: triangle creation is one transaction with selection, centered pivot and bar (3.7s)
+  ok  5 [chromium] › e2e\editor-pen.spec.ts:62:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact (3.7s)
+  ok  6 [chromium] › e2e\editor-pen.spec.ts:82:1 › curved path, paint, point and handle gestures preserve motion and each undo once (4.4s)
+  ok  7 [chromium] › e2e\editor-pen.spec.ts:96:1 › stale draft cannot commit after another source edit (2.1s)
+  ok  9 [chromium] › e2e\editor-pen.spec.ts:116:1 › draft playhead change refuses completion without source or history (2.1s)
+  ok 10 [chromium] › e2e\editor-pen.spec.ts:125:1 › zero-scale point inspection is safe and editing refuses a singular parent (2.9s)
+  ok  8 [chromium] › e2e\editor-pen.spec.ts:102:1 › real template search reaches a created path in Hairline drawing space (5.0s)
+  ok 12 [chromium] › e2e\editor-pen.spec.ts:161:1 › a horizontal open path can be selected and moved by its visible stroke (3.2s)
+  ok 11 [chromium] › e2e\editor-pen.spec.ts:137:1 › raster graphic draws a path, supports layer scale/rotation, None paint and canceled edits (4.5s)
+  ok 13 [chromium] › e2e\editor-pen.spec.ts:172:1 › edited path remains selectable outside its initial transform frame (3.2s)
+  ok 15 [chromium] › e2e\editor-pen.spec.ts:218:1 › SVG stroke width reads pixels and refuses relative units without source changes (3.4s)
+  ok 16 [chromium] › e2e\editor-pen.spec.ts:232:1 › guards refuse unsupported geometry, driven source, CSS paint, changed topology and lossy motion (3.0s)
+  ok 14 [chromium] › e2e\editor-pen.spec.ts:181:1 › imported path point and tangent editing maps transformed parents and mints identity once (4.3s)
+  ok 17 [chromium] › e2e\editor-pen.spec.ts:266:1 › path paint, movement, playhead visibility and save/reopen execute on all export targets (5.4s)
+
+  17 passed (34.7s)
