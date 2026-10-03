@@ -3,13 +3,14 @@ v: 2
 source: owner
 kind: ask
 raised: 2026-10-01
-state: unstarted
-note: "the simple version exists: an All together folder starts a graphic and a server audio cue (with its own ending, loop included) on one Take. Sound on an animation step is research before any build."
+state: advanced
+note: "2026-10-03: code-grounded attachment proposal in docs/research/playout-audio-2026-10-03.md. All together and per-cue audio/video levels confirmed; next-Take gain is not a live fader or normalization. Research delivered, implementation and real-host attachment proof remain."
 asked: "a good way to trigger sound together with graphics (swoosh, clock tick, correct and wrong answer); maybe attachable to individual animation steps, but research how before building (paraphrase)"
 ---
 # Sound with graphics, and possibly with animation steps
 
-**Filed:** 2026-10-01. **Source:** the owner's studio-day feedback, point 2.
+**Filed:** 2026-10-01. **Source:** the owner's studio-day feedback, point 2; expanded by playout
+feedback point 3 on 2026-10-03.
 
 ## Why
 
@@ -23,15 +24,26 @@ An **All together** folder takes every cue in it with one press, server cues and
 cue in it keeps its own level and ending, loop included. That covers "swoosh with the lower third"
 and "ticking with the clock" today, on the Bridge path.
 
-## What needs research before building
+## Research delivered; implementation remains
 
-- Sound tied to a step of a graphic (Quiz, Reveal correct, correct-answer sound): where the binding
-  lives (the graphic's state machine, the control layer, or the rundown), how it travels on the
-  command path, and how it reaches each player (CasparCG server audio through the Bridge, the
-  browser output's own audio in OBS and vMix, and CasparCG's HTML producer, whose audio support
-  differs by version). `docs/STATE_MACHINE_SCHEMA.md` and `docs/CONTROL_LAYER.md` have no audio.
-- Whether an OGraf graphic may carry its own sound, and what the standard says.
-- Timing: a step's sound must start with the step's animation, not with the press.
+[Graphic audio research, 2026-10-03](../research/playout-audio-2026-10-03.md) confirms the code
+and existing server measurements, proposes optional sound attachments at actual step/transition
+execution, and records packaging, migration, level, timing, output and recovery requirements.
+This serves the research part of the ask; attached sound is not built or host-proven.
+
+Audio/video Level is -60 to +6 dB per cue, applied on Take through the file's audio filter.
+All together sends server cues sequentially, then graphics concurrently; it does not guarantee
+graphic/sound synchronization. Keep current folders and server audio cues unchanged.
+
+[Feedback followups](playout-feedback-followups.md) owns later normalization and Setup colors
+and maps all seven new feedback points to their existing night-wave rows without duplicate tasks.
+
+## Questions the implementation must prove
+
+- Prove attachment execution and level in real supported hosts, including output audio routing;
+  existing server-file evidence does not prove CasparCG HTML-producer audio.
+- Prove timing at the actual animation start, interruption and cleanup, and silent historical
+  one-shots during recovery. Keep offline audio limitations explicit.
 
 ## Evidence
 
