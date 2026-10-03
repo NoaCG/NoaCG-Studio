@@ -1,4 +1,4 @@
-// guards: src/control/playoutStatus.ts
+// guards: src/control/playoutStatus.ts, src/model/readyMemory.ts
 //
 // ONE STATUS BEFORE TAKE (docs/work-specs/studio-day-playout AC-7). Every state the header control
 // can show, the colour the owner gave it (grey offline, amber attention, green healthy, red broken),
@@ -7,13 +7,52 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { describePlayoutStatus } = await import('../src/control/playoutStatus.ts');
+const { casparOutputTarget, describePlayoutStatus, relevantPlayout } = await import('../src/control/playoutStatus.ts');
+
+test('CasparCG activity survives readiness-memory writes and only applies to its exact server and slot', async () => {
+  const { loadReadyMemory, saveReadyMemory } = await import('../src/model/readyMemory.ts');
+  const stored = new Map();
+  const previous = globalThis.localStorage;
+  globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, v) };
+  try {
+    const settings = { host: ' 10.0.0.8 ', amcpPort: 5250, channel: 1, layer: 20 };
+    const target = casparOutputTarget(settings);
+    assert.notEqual(target, casparOutputTarget({ ...settings, layer: 30 }));
+    assert.notEqual(target, casparOutputTarget({ ...settings, host: '10.0.0.9' }));
+    saveReadyMemory('a', { outputs: [], stamp: null, casparOutput: target });
+    saveReadyMemory('a', { ...loadReadyMemory('a'), outputs: [{ id: 'obs', name: 'OBS', seen: 1 }] });
+    assert.equal(loadReadyMemory('a').casparOutput, target);
+    assert.equal(loadReadyMemory('b').casparOutput, undefined);
+    saveReadyMemory('a', { ...loadReadyMemory('a'), casparOutput: undefined });
+    assert.equal(loadReadyMemory('a').casparOutput, undefined);
+    stored.set('noacg-ready-v1-a', JSON.stringify({ v: 2, casparOutput: target }));
+    saveReadyMemory('a', { outputs: [], stamp: null });
+    assert.equal(JSON.parse(stored.get('noacg-ready-v1-a')).v, 2, 'future memory remains read-only');
+  } finally {
+    if (previous === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = previous;
+  }
+});
 
 const OK_BRIDGE = { state: 'ok', detail: '', version: '2.5.0 69e8ad5 Stable' };
 const ours = { where: '1-20', channel: 1, holds: 'ours' };
 // READY's summaries in the shape describeReadiness gives them (scripts/readiness.test.mjs pins
 // `lead`, `preparing` and `broken` there).
 const readyOne = { tone: 'ok', label: '● Ready for playout · 1 of 1 output', lead: 'Ready for playout · 1 of 1 output', outputs: 1, ready: 1 };
+
+test('Bridge and output-slot relevance follows actual outputs, server cues and intended CasparCG', () => {
+  const browser = { kind: 'output', engine: 'OBS · Chromium 127', name: 'Main output' };
+  const facts = { configured: true, serverCues: false, peers: [browser], expected: [], casparActivity: false };
+  assert.deepEqual(relevantPlayout(facts), { bridge: false, slot: false }, 'stale paired Bridge is irrelevant to OBS');
+  assert.deepEqual(relevantPlayout({ ...facts, peers: [], expected: [{ name: 'Main output' }] }), { bridge: false, slot: false }, 'a missing browser output keeps its own warning, not a Bridge warning');
+  assert.deepEqual(relevantPlayout({ ...facts, serverCues: true }), { bridge: true, slot: false }, 'OBS graphics with server media does not need a graphics slot');
+  assert.deepEqual(relevantPlayout({ ...facts, casparActivity: true }), { bridge: true, slot: true }, 'disconnection must not erase intended CasparCG');
+  assert.deepEqual(relevantPlayout({ ...facts, peers: [] }), { bridge: true, slot: true }, 'configured studio without browser evidence still warns');
+  assert.deepEqual(relevantPlayout({ ...facts, peers: [browser, { ...browser, engine: 'CasparCG · Chromium 71', name: 'Studio' }] }), { bridge: true, slot: true }, 'mixed hosts use the engine even with custom names');
+  assert.deepEqual(relevantPlayout({ ...facts, expected: [{ name: 'CasparCG 1-20' }] }), { bridge: true, slot: true });
+  assert.deepEqual(relevantPlayout({ ...facts, configured: false }), { bridge: false, slot: false }, 'manual browser outputs require no Bridge setup');
+  assert.deepEqual(relevantPlayout({ ...facts, configured: false, serverCues: true }), { bridge: true, slot: false }, 'server cues require a Bridge even before pairing');
+});
 
 function status(over = {}) {
   return describePlayoutStatus({ started: true, unpublished: false, version: 'v3', bridge: OK_BRIDGE, slot: ours, ready: readyOne, ...over });

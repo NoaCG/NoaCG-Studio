@@ -67,6 +67,8 @@ interface Run {
 export type FakeAction = { verb: string; slot: { channel: number; layer: number }; [k: string]: unknown };
 
 export interface Fake {
+  /** No Bridge is listening, while its configured settings stay in the browser. */
+  missing: boolean;
   session: string;
   generation: Record<string, number>;
   runs: Record<string, Run | undefined>;
@@ -75,6 +77,8 @@ export interface Fake {
   actions: FakeAction[];
   /** How many times the page has read `/state`. */
   stateCalls: number;
+  /** Hold a captured state reply in flight to reproduce an output action overtaking it. */
+  stateGate: () => Promise<void> | void;
   /** What the server's list (`CLS`) answers. */
   list: { name: string; kind: string; frames?: number; fps?: number }[];
   /** What `/health` lists. 0.5.0's by default; 0.6.0 adds `sequence-loop`. */
@@ -101,12 +105,14 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' 
   let count = 0;
   const now = () => Date.now() + fake.skew;
   const fake: Fake = {
+    missing: false,
     session: 'b5',
     generation: {},
     runs: {},
     skew: 0,
     actions: [],
     stateCalls: 0,
+    stateGate: () => {},
     list: [],
     features: ['state', 'playback', 'sequence'],
     version: '0.5.0',
@@ -152,6 +158,10 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' 
     return { k, position: Math.min(run.entries[k].length, t - start) };
   }
   await page.route(`${BRIDGE}/**`, async (route) => {
+    if (fake.missing) {
+      await route.abort('connectionrefused');
+      return;
+    }
     const req = route.request();
     const path = new URL(req.url()).pathname;
     if (path === '/health') {
@@ -193,6 +203,7 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' 
             ...(run.instance && rest.length ? { sequence: { next: rest.map((e) => e.raw), ...(run.loop ? { loop: true } : {}) } } : {}),
           };
         });
+      await fake.stateGate();
       return json(route, { ok: true, v: 2, channel, session: fake.session, observedAt: Date.now(), slots });
     }
     if (path === '/act') {

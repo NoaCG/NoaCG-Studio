@@ -17,7 +17,8 @@
 // It is a status and never permission: nothing here blocks or delays a verb. Pure and DOM-free,
 // so scripts/playout-status.test.mjs runs it in Node; the words are its contract.
 
-import type { PlayoutState } from './playoutLink';
+import type { PlayoutSettings, PlayoutState } from './playoutLink';
+import type { LiveEntry } from './livePath';
 import { bridgeAnswersLabel } from './prepareLive.ts';
 import { TONE_DOT, type ReadySummary, type ReadyTone } from './readiness.ts';
 
@@ -68,6 +69,28 @@ export interface StatusFacts {
 
 const RANK: Record<StatusTone, number> = { bad: 3, warn: 2, ok: 1, idle: 0 };
 
+/** The exact server and slot an output action addressed, with no Bridge credential. */
+export function casparOutputTarget(settings: Pick<PlayoutSettings, 'host' | 'amcpPort' | 'channel' | 'layer'>): string {
+  return JSON.stringify([settings.host.trim(), settings.amcpPort, settings.channel, settings.layer]);
+}
+
+/** Relevance follows the production's outputs and activity, never an operator mode. A configured
+ * studio with no browser evidence still expects CasparCG, even when it cannot connect. */
+export function relevantPlayout(input: {
+  configured: boolean;
+  serverCues: boolean;
+  peers: readonly Pick<LiveEntry, 'kind' | 'engine' | 'name'>[];
+  expected: readonly { name: string }[];
+  casparActivity: boolean;
+}): { bridge: boolean; slot: boolean } {
+  const outputs = input.peers.filter((p) => p.kind === 'output');
+  const caspar = (name: string) => /^CasparCG\b/i.test(name);
+  const casparOutput = outputs.some((p) => caspar(p.engine) || caspar(p.name ?? '')) || input.expected.some((p) => caspar(p.name));
+  const browserKnown = outputs.some((p) => !caspar(p.engine) && !caspar(p.name ?? '')) || input.expected.some((p) => !caspar(p.name));
+  const slot = input.configured && (input.casparActivity || casparOutput || !browserKnown);
+  return { bridge: input.serverCues || slot, slot };
+}
+
 /** READY's deciding words. Step 1's health line underneath READY has no `lead`, so its label is
  *  read without the dot the control draws itself. */
 function leadOf(ready: NonNullable<StatusFacts['ready']>): string {
@@ -114,7 +137,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       advice: 'The outputs run the published version until you publish the changes.',
     });
   } else {
-    checks.push({ key: 'production', tone: 'ok', label: `Started${f.version ? `, ${f.version} published` : ''}`, short: 'Started' });
+    checks.push({ key: 'production', tone: 'ok', label: 'Published changes are available to outputs', short: 'Published' });
   }
 
   const bridge = f.bridge ? bridgeCheck(f.bridge) : null;

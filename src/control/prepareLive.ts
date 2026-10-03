@@ -220,6 +220,10 @@ export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unp
 export interface BridgeFacts {
   /** The studio has a Bridge and a server set up (playoutLink.ts `playoutConfigured`). */
   configured: boolean;
+  /** Server cues require Bridge even if it has not been configured yet. */
+  required?: boolean;
+  /** Browser graphics with server media do not expect the NoaCG graphics slot. */
+  outputExpected?: boolean;
   /** A real VERSION round trip through the Bridge (`testConnection`). */
   status: PlayoutResult | null;
   /** The output slot as the server holds it, or undefined when it could not be read. */
@@ -272,7 +276,7 @@ export function requestId(): string {
  * OBS or vMix instead.
  */
 export function bridgeChecks(f: BridgeFacts): CheckLine[] {
-  if (!f.configured) return [];
+  if (!f.configured && !f.required) return [];
   const where = `${f.channel}-${f.layer}`;
   if (!f.status || f.status.state !== 'ok') {
     return [{ key: 'bridge', tone: 'bad', label: 'NoaCG Bridge or CasparCG is not answering', advice: f.status?.detail ?? 'Start NoaCG Bridge on this computer.' }];
@@ -280,7 +284,7 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
   const lines: CheckLine[] = [
     { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
   ];
-  if (f.slot !== undefined) {
+  if (f.outputExpected !== false && f.slot !== undefined) {
     const holds = slotHolds(f.slot, f.outputSlug);
     if (holds === 'ours') lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
     else if (holds === 'other') {
