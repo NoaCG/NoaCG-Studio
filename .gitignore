@@ -215,6 +215,9 @@ render-worker/remotion/*.generated.ts
 # that need the production ref derive it from VITE_SUPABASE_URL instead (scripts/migration-drift.mjs,
 # scripts/supabase-advisors.mjs).
 supabase/.temp/
+# The CLI's local branch marker (`_current_branch`), written by every `start` and `db reset` from
+# 2.112 on. Per-checkout state like the above.
+supabase/.branches/
 
 # The compiled API runtime the node test runners and bench:preflight build. Cleaned up in a
 # finally, but a killed run leaks one, and a leaked directory reads as an unmapped source

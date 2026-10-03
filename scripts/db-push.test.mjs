@@ -215,6 +215,21 @@ test('a concurrent index build that first clears its own failed leftover is a re
   );
 });
 
+test('a concurrent statement the CLI would run inside the file\'s transaction is refused in the build', () => {
+  // The CLI's splitter runs a statement alone only when it STARTS with one of its forms; anything
+  // else saying CONCURRENTLY goes into the batch and fails there with SQLSTATE 25001, on db push
+  // and on a local `supabase db reset` alike (supabase/AGENTS.md).
+  const batched = (sql) => classifyStatement(sql).reasons.some((r) => r.id === 'concurrently-in-batch');
+  assert.equal(batched('create index concurrently t_idx on public.t (c)'), false);
+  assert.equal(batched('-- the build\nCREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS t_idx ON public.t (c)'), false);
+  assert.equal(batched('reindex (verbose) index concurrently public.t_idx'), false);
+  assert.equal(batched('refresh materialized view concurrently public.mv'), false);
+  assert.equal(batched("comment on index public.t_idx is 'built concurrently'"), false);
+  assert.equal(batched('drop index concurrently if exists public.t_idx'), true);
+  assert.equal(batched('alter table public.p detach partition public.p1 concurrently'), true);
+  assert.equal(batched('do $$ begin create index concurrently t_idx on public.t (c); end $$'), true);
+});
+
 // ── The near-misses: shapes that read like the dangerous set and are not ──────────────────────────
 
 test('the word "delete" as a privilege, a policy command or an FK action is not a DELETE', () => {
@@ -458,6 +473,18 @@ test('every shipped migration parses into statements this guard can judge', asyn
       'scripts/db-push.mjs (with a reason it cannot lose anything) or give it a danger rule:\n  ' +
       unrecognised.join('\n  '),
   );
+});
+
+test('every shipped concurrent statement is one the CLI runs on its own', async () => {
+  const batched = [];
+  for (const file of files) {
+    const [, version, name] = /^([0-9]+)_(.*)\.sql$/.exec(file);
+    const result = classifyMigration(version, name, await readFile(new URL(file, dir), 'utf8'));
+    for (const finding of result.findings) {
+      if (finding.reasons.some((r) => r.id === 'concurrently-in-batch')) batched.push(`${file}:${finding.line} ${finding.excerpt}`);
+    }
+  }
+  assert.deepEqual(batched, [], `these would fail inside the CLI's batch with SQLSTATE 25001:\n  ${batched.join('\n  ')}`);
 });
 
 // THE PRE-MERGE HALF of the timeout rule. db-push runs after the landing, so a migration that

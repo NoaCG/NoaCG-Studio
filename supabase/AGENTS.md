@@ -166,12 +166,8 @@ open reader; every Take on air then queues behind it for as long as it waits. Wi
 lock indefinitely. Each file runs in one transaction, so a `set` at its top covers exactly that
 file, on every route that runs it (`FIRST_TIMED_MIGRATION` in `scripts/db-push.mjs` has the rest).
 
-**An index on a live table is built concurrently, and that file is not one transaction.** CLI
-2.111 commits what came before `create index concurrently`, runs it alone, then runs the rest with
-the ledger row. A failed build leaves an INVALID index and no ledger row, so the file must be safe
-to run again from its top: drop the leftover with a plain `drop index if exists` before building
-(it takes no lock when there is nothing to drop; `drop index concurrently` fails inside the CLI's
-batch), and prove the index valid before anything reads through it. `0074` is the worked example.
+**An index on a live table is built concurrently, and that file is not one transaction.** "A
+concurrent statement runs on its own" below says how to write it.
 
 **Enforced twice.** `scripts/db-push.test.mjs` fails the build for a migration without both
 settings before its first statement, with a `lock_timeout` of zero or above the cap, or with an
@@ -187,6 +183,29 @@ and retries twice, and if the table is still held it says `LOCK TIMEOUT`: nothin
 applied, the files before it did (each with its ledger row), and the next landing, or a re-run of
 the post-land job, pushes it again. Post-land still goes red, because the app that landed may need
 the migration.
+
+## A concurrent statement runs on its own
+
+Postgres refuses `create index concurrently` inside a transaction or a pipeline. The CLI runs a
+file's statements in one transaction, except that it commits what came before such a statement,
+runs it alone, then runs the rest of the file with the ledger row, all on one session, so the
+file's `set`s still cover every part. Its splitter recognises only a top-level statement that
+STARTS with `create [unique] index concurrently` or `reindex ... concurrently`. So:
+
+- **Write the concurrent statement on its own, at the top level.** `drop index concurrently`, a
+  `concurrently` inside a DO block or `detach partition ... concurrently` all run inside the batch
+  and fail with SQLSTATE `25001`. The build refuses them (`concurrently-in-batch` in
+  `scripts/db-push.mjs`).
+- **Make the file safe to run again from its top.** A failed build leaves an INVALID index and no
+  ledger row while the steps before it stay applied. Drop the leftover with a plain `drop index if
+  exists` before building (it takes no lock when there is nothing to drop), and prove the index
+  valid before anything reads through it. `0074` is the worked example.
+- **Reset a local database with CLI 2.112.0 or later.** `db push`, `migration up` and `start`
+  split the file on 2.111.0 already, but 2.111.0's local `supabase db reset` hands every file to its
+  older Go applier as one pipeline, so from 0074 on it stops with `CREATE INDEX CONCURRENTLY cannot
+  be executed within a pipeline (SQLSTATE 25001)`. 2.112.0, 2.113.0 and 2.119.0 reset 0001 to 0075
+  cleanly. On an older CLI, upgrade it or run `npx -y supabase@2.112.0 db
+  reset`. No file can fix this: a concurrent build cannot run in a pipeline in any form.
 
 ## Live-path migrations wait for a quiet window
 
