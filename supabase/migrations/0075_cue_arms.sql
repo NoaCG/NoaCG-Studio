@@ -426,12 +426,14 @@ begin
     raise exception '0075 self-check failed: aired did not stamp the covering report (%)', v_ans;
   end if;
   v_seq := (v_ans->>'rev')::bigint;
+  execute format('set local role %I', v_role);
   if (select e.msg->>'arm' from public.control_events e where e.show_id = v_show and e.seq = v_seq) is distinct from 'aired'
      or (select e.msg->'auto'->>'from' from public.control_events e where e.show_id = v_show and e.seq = v_seq) is distinct from v_ans->'arm'->>'from'
      or (select h.seq from public.control_heads h where h.show_id = v_show) <> v_seq
      or (select h.graphics->'Bug'->>'cue' from public.control_heads h where h.show_id = v_show) <> 'cue-a' then
     raise exception '0075 self-check failed: the aired row was not numbered, or moved the head''s cue';
   end if;
+  set local role anon;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'aired');
   if v_ans->>'ok' <> 'true' or v_ans ? 'op' or (v_ans->>'rev')::bigint <> v_seq then
     raise exception '0075 self-check failed: a second aired wrote again (%)', v_ans;
@@ -442,7 +444,7 @@ begin
   if v_ans->>'reason' <> 'early' or (v_ans->>'ms')::int not between 1 and 4000 then
     raise exception '0075 self-check failed: an early fire (%)', v_ans;
   end if;
-  select a.take_at into v_take_at from public.control_cue_arms a where a.show_id = v_show and a.lane = 'Bug';
+  v_take_at := to_timestamp((v_ans->'arm'->>'take_at')::numeric / 1000);
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'hold');
   if v_ans->>'op' <> 'hold' or v_ans->'arm'->>'held' <> 'true' or (v_ans->'arm'->>'ms')::int not between 1 and 4000
      or v_ans->'arm' ? 'from' then
@@ -453,7 +455,7 @@ begin
   if v_ans->>'reason' <> 'held' then raise exception '0075 self-check failed: a held arm fired (%)', v_ans; end if;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'resume');
   if v_ans->>'op' <> 'resume' or (v_ans->'arm'->>'ms')::int <> v_n or not (v_ans->'arm' ? 'from')
-     or (select a.take_at from public.control_cue_arms a where a.show_id = v_show and a.lane = 'Bug') <> v_take_at then
+     or to_timestamp((v_ans->'arm'->>'take_at')::numeric / 1000) <> v_take_at then
     raise exception '0075 self-check failed: resume did not carry the remainder, or moved the Take (%)', v_ans;
   end if;
 
@@ -470,9 +472,11 @@ begin
   if v_ans->>'reason' <> 'gone' then raise exception '0075 self-check failed: a second fire (%)', v_ans; end if;
   v_ans := public.control_cue_arm(v_slug, 'Bug', 'cue-a', 'arm');
   if v_ans->>'reason' <> 'gone' then raise exception '0075 self-check failed: a fired arm came back (%)', v_ans; end if;
+  execute format('set local role %I', v_role);
   if (select count(*) from public.control_events e where e.show_id = v_show and e.msg->>'arm' = 'fire') <> 1 then
     raise exception '0075 self-check failed: not exactly one fire row';
   end if;
+  set local role anon;
 
   -- (g) Late: a re-take arms afresh; more than 5 s past its deadline it is marked missed, once,
   -- and Manual clears it.
