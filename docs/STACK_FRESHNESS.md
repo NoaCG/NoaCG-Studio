@@ -309,7 +309,15 @@ The baseline holds **146 findings** as of 2026-10-02: the 24 since 2026-09-30 ar
 `control_ping_seq` (anon and authenticated, the same slug door as 0071's, its reason in
 `ACCEPTED_CLASSES`) and 22 indexes reading as unused, a class that never fails. 0072 was applied by
 hand while held as live-path, so the first landing after it went red on findings it did not ship;
-`db:push` now asks the advisors itself after a hand-run apply to production. The last full breakdown was taken at 70 on
+`db:push` now asks the advisors itself after a hand-run apply to production. It holds **171** as of
+2026-10-03: the 5 new ones are all migration 0075's (`0075_cue_arms.sql`, timed cues), which
+post-land run 37116813836 reported once 0075 had applied. `control_cue_arms` has RLS on and no
+policy, and `anon` and `authenticated` hold no privilege on it (0075's own self-check asserts that
+absence and ran on the apply), so it is deny-all like `control_heads`. `control_cue_arm` and
+`control_cue_arms_for`, each reported for `anon` and for `authenticated`, are the same slug doors
+as 0071's, with the same `feature_denied_for` guard; the one that writes touches only that
+production's arm row, its head and its log, under the head lock and the burst cap. The anon
+reason in `ACCEPTED_CLASSES` names them. The last full breakdown was taken at 70 on
 2026-08-03 — 49 security (19 authenticated and 13 anon `SECURITY DEFINER` functions, 16 deny-all
 tables, leaked-password protection) and 21 performance (11 unindexed foreign keys, 8 unused
 indexes, 2 overlapping policies) — and the growth since is the same two classes.
