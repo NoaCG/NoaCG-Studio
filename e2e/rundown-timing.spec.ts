@@ -194,7 +194,7 @@ test('a duplicate keeps the timing, and making a counting cue manual stops its c
   await expect(up(page, s.a)).toBeVisible();
 });
 
-test('published, a timed cue is offered disabled and airs as a manual one', async ({ page }) => {
+test('published on a server that keeps no timed cues, a timed cue is offered disabled and airs as a manual one', async ({ page }) => {
   const s = await seed(page, 'out', true);
   await open(page, s);
   await expect(row(page, s.a).getByTestId('cue-auto')).toHaveCount(0);
@@ -206,7 +206,7 @@ test('published, a timed cue is offered disabled and airs as a manual one', asyn
   await expect(page.getByTestId('cue-ends-mode').locator('option[value="after"]')).toHaveJSProperty('disabled', true);
   await expect(page.getByTestId('cue-ends-after')).toBeDisabled();
   await expect(page.getByTestId('cue-ends-hint')).toHaveText(
-    'Timed cues run on an unpublished production for now. On a published one they arrive with the next update.',
+    'This production’s server does not keep timed cues yet, so here they air as manual cues.',
   );
   // Taken, it is an ordinary manual cue: no countdown, and nothing ends it.
   await page.getByTestId('verb-take').click();

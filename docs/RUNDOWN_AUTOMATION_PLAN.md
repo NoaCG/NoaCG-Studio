@@ -1,6 +1,6 @@
 # Rundown automation and basic media - the plan
 
-**Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4). Build 1's phase 1 is built (2026-10-03, unpublished productions, §2.0); its phase 2, the wire, is not.** It answers two owner asks at once:
+**Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4). Build 1's phases 1 and 2 are built (2026-10-03): timed graphic cues on unpublished and published productions (§2.0). Phase 3, server cue markers, is a separate later item.** It answers two owner asks at once:
 [`backlog/rundown-cue-timing-and-automation.md`](backlog/rundown-cue-timing-and-automation.md)
 (cue durations, auto-advance and the rest of rundown automation, planned before anything is built)
 and the unplanned half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md)
@@ -167,11 +167,30 @@ Take's own row, and the arm RPC checks any page's claim about a lane against the
 lock rather than trusting it. No existing function is replaced, so no renderer and no older page
 meets a changed RPC.
 
-**Landing phase 1 alone** (the owner's "land each"): a published production does not offer a timed
-cue. Its Ends row is disabled with the sentence "Timed cues run on an unpublished production for
-now. On a published one they arrive with the next update.", a timed cue there airs as a manual
-one, and its rundown wears no timing words, so nothing on a published production promises an end
-that will not come.
+**Landing phase 1 alone** (the owner's "land each"): a published production did not offer a timed
+cue until phase 2. Phase 2 lifted that refusal; it now stands only on a server without 0075 (the
+landed app must work before a live-path migration applies), with the sentence "This production's
+server does not keep timed cues yet, so here they air as manual cues.", and nothing there promises
+an end that will not come.
+
+**Phase 2 as built, 2026-10-03** (migration `0075_cue_arms.sql`, `src/control/cueArmWire.ts`):
+
+- The arm lives in `control_cue_arms`, one row per production and lane, and `control_live_cue_set`
+  and the `live_cue` mirror are untouched (§2.3's mirror plan is not used: an *add* may not change
+  them). `control_cue_arms_for` is the recovery read; `readLiveArms` is not needed.
+- The arm is never taken from the caller. `control_cue_arm` reads it off the lane's latest Take
+  marker in the log (`{t:'cue', cue, auto:{then, ms, next}}`), so an arm whose Take has been
+  replaced (a re-take, a manual Take, an Out) is history, and an operation on it answers `gone`.
+  `fire` carries no items: the winner sends the end action through `control_send_seq` afterwards.
+- Every arm change is a cue row `{t:'cue', cue, arm, then, auto?}` numbered under the head lock, so
+  it reaches every follower on `seq-` in order; `auto` is the arm as it now stands, absent once it
+  has ended. An answer carries the head's seq it stands at, and a page applies it only when no
+  newer row has moved that lane. The `aired` row is not worded in the activity log.
+- Both pages run one engine, `cueArmWire.ts`, over the same rows, with the clock offset of §2.4.
+  The hosted page reads a cue's end and its next cue off the payload (`OutputCue.auto`, `next`),
+  so a change to a cue's Ends reaches it with Publish changes, as every authored change does.
+- Server cues are not timed (above), so no lane is a server cue and the playout map of §2.3 and
+  §2.7 is not built. The hardware panel has no Hold verb yet.
 
 ### 2.1 What the operator gets
 

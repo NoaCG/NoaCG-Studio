@@ -10,7 +10,7 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
-import { graphicLayer, type Show } from '../model/shows';
+import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
@@ -45,6 +45,7 @@ import {
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
+import { nextGraphicCue, readAuto, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
 export function controlPageUrl(slug: string): string {
@@ -127,6 +128,12 @@ export interface OutputCue {
   label: string;
   values: Record<string, string>;
   note?: string;
+  /** ADDITIVE OPTIONAL (timed cues, docs/RUNDOWN_AUTOMATION_PLAN.md §2.2): how the cue ends by
+   *  itself, and `next`, the graphic cue `Next cue` takes, resolved at publish from the rundown's
+   *  own order, which this split list no longer has. Absent: a manual cue, or a payload published
+   *  before timed cues, and the hosted page then takes it as one. */
+  auto?: CueAuto;
+  next?: string;
 }
 
 /**
@@ -282,6 +289,14 @@ export interface ResolvedOutputShow {
 export interface CueStatusMsg {
   t: 'cue';
   cue: string | null;
+  /** ADDITIVE (timed cues, migration 0075): on a Take marker, what it arms; on an arm row, the arm
+   *  as it now stands, absent once it has ended (control/cueAuto.ts `armRowEffect`). */
+  auto?: MarkerAuto | WireArm;
+  /** ADDITIVE: present on the rows `control_cue_arm` writes, so a follower and the log tell an arm
+   *  change from a Take. Such a row keeps the lane's cue, so a reader of `cue` alone is unmoved. */
+  arm?: ArmOp;
+  /** On an arm row: the end action, so the log can word a fire or a Manual. */
+  then?: CueEnd;
 }
 
 /** A log row as delivered by Realtime / the tail RPC. */
@@ -400,13 +415,19 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
   );
   const cues: OutputCue[] = (show.cues ?? [])
     .filter((c) => byId.has(c.sourceId))
-    .map((c) => ({
-      id: c.id,
-      graphic: byId.get(c.sourceId)!.name,
-      label: c.label,
-      values: c.values,
-      ...(c.note ? { note: c.note } : {}),
-    }));
+    .map((c) => {
+      const auto = readAuto(c);
+      const next = auto && auto.then !== 'out' ? nextGraphicCue(show.cues ?? [], c.id) : null;
+      return {
+        id: c.id,
+        graphic: byId.get(c.sourceId)!.name,
+        label: c.label,
+        values: c.values,
+        ...(c.note ? { note: c.note } : {}),
+        ...(auto ? { auto } : {}),
+        ...(next ? { next } : {}),
+      };
+    });
   const itemById = new Map((show.playoutItems ?? []).map((i) => [i.id, i] as const));
   const playout = loadPlayoutSettings();
   const playoutCues: OutputPlayoutCue[] = (show.cues ?? [])
@@ -1459,11 +1480,18 @@ export async function sendHostedControlBatch(slug: string, items: WireItem[], si
  * never a side effect of taking this one — an implicit stop is exactly what made a production
  * single-layer.
  */
-export function takeCueItems(cue: { id: string; graphic: string; values: Record<string, string> }): ControlSendItem[] {
+export function takeCueItems(cue: {
+  id: string;
+  graphic: string;
+  values: Record<string, string>;
+  /** A timed cue's arm (control/cueAuto.ts `markerAuto`), carried on its marker so every follower
+   *  learns the countdown from the Take's own row. */
+  auto?: MarkerAuto | null;
+}): ControlSendItem[] {
   return [
     { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
     { graphic: cue.graphic, msg: { t: 'play' } },
-    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id } },
+    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.auto ? { auto: cue.auto } : {}) } },
   ];
 }
 
@@ -1593,6 +1621,9 @@ export async function followControlLog(opts: {
    * keeps the page's revisions current for its next press.
    */
   seq?: SeqPlan;
+  /** Protocol 2: the production was published again, so every seq this page holds is from a log
+   *  that is gone (a timed cue's arm rows are ordered by them, control/cueArmWire.ts). */
+  onEpochReset?: () => void;
 }): Promise<() => void> {
   if (opts.seq) {
     const plan = opts.seq;
@@ -1604,7 +1635,10 @@ export async function followControlLog(opts: {
       tail: plan.tail,
       onRows: (rows) => rows.forEach((row) => opts.onRow(row)),
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
-      onEpoch: (epoch) => learnHead(plan.session, epoch, {}),
+      onEpoch: (epoch, reset) => {
+        learnHead(plan.session, epoch, {});
+        if (reset) opts.onEpochReset?.();
+      },
       // WHILE THE FOLLOWER HOLDS ROWS OR READS THE TAIL this page's own presses take the durable
       // road (see `recovering` above): applied to its monitor now, they would land ahead of older
       // rows still on their way, and their echo, dropped by the oid claim, could not put it right.
