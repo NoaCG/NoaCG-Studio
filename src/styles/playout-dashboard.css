@@ -1919,7 +1919,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    "not on air yet" in the editor, outlined so it reads as a note beside ON AIR, not a second tally. */
 .pd-rundown .pd-tag.miss,
 .pd-rundown .pd-tag.unsent { color: var(--amber); box-shadow: inset 0 0 0 1px rgba(246, 166, 35, 0.7); }
-.pd-rundown .pd-tag.next { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
+.pd-rundown .pd-tag.next,
+.pd-rundown .pd-tag.armed { color: #cfd8e6; box-shadow: inset 0 0 0 1px rgba(207, 216, 230, 0.55); }
 /* WHERE A DRAG LANDS: a line at the row's edge, in the cursor's colour - in by a step when it lands
    inside a folder, and across the header's box when it lands in a collapsed one. Red and dashed when
    it cannot land there; the note under the list says why. */
@@ -2478,3 +2479,65 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-server-cues { border-top: 1px solid var(--border); padding: 8px 12px; }
 .pd-server-cues h3 { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin: 0 0 6px; }
 .pd-cue-server { cursor: default; }
+
+/* ── TIMED CUES (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1) ───────────────────────────────────
+   A timed row wears its length and end in the same mono figures as a clip's length; on air the
+   chip counts and is a button that holds it, amber in its last five seconds, dashed while held.
+   Missed reads in the amber of the other "this did not happen" tags. The chip over PROGRAM sits at
+   the end of the monitor's one-line header, so nothing moves when a countdown starts. */
+/* Off air it gives way before the name does, down to its length (`0:08…`, the title says the rest),
+   the rule NEXT ON SERVER follows; counting, it never shrinks. */
+.pd-auto {
+  flex: 0 100 auto;
+  min-width: 36px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  white-space: nowrap;
+  line-height: 1;
+}
+button.pd-auto {
+  flex: none;
+  padding: 3px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+button.pd-auto.warn { color: var(--amber); border-color: rgba(246, 166, 35, 0.8); }
+button.pd-auto.held { border-style: dashed; color: var(--text-dim); }
+button.pd-auto.waiting { color: var(--text-dim); }
+/* Missed is a sentence, so it may give way to the name like the off-air words; its title says it whole. */
+button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgba(246, 166, 35, 0.7); font-family: inherit; }
+/* ARMED wears NEXT's look, counting in even figures. */
+.pd-rundown .pd-tag.armed { font-variant-numeric: tabular-nums; }
+.pd-auto-chip {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+.pd-auto-chip-count { font-family: var(--mono, monospace); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+.pd-auto-chip.warn .pd-auto-chip-count { color: var(--amber); }
+.pd-auto-chip.held .pd-auto-chip-what { color: var(--text-dim); }
+.pd-auto-chip button { font-size: 10.5px; letter-spacing: 0.02em; padding: 1px 7px; font-weight: 600; }
+/* The ENDS pick takes the settings row's second track, beside the note, so a manual cue's settings
+   stay one line; a timed cue's length and end take a line of their own under them. */
+.pd-cue-ends {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+.pd-cue-ends .pd-cue-ends-after { width: 120px; }
+.pd-cue-ends .pd-cue-ends-then { width: 170px; }
+.pd-field-ends select,
+.pd-cue-ends-then select { width: 100%; }
+.pd-cue-ends-hint { flex: 1 0 100%; margin: 0; font-size: 12px; }

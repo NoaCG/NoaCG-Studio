@@ -4,11 +4,11 @@ source: owner
 kind: ask
 raised: 2026-09-24
 state: advanced
-note: "2026-10-02: the owner picked. Build 1 (timed graphic cues) now, as docs/RUNDOWN_AUTOMATION_PLAN.md section 0 records, with the countdown starting when the cue airs rather than at the Take; then cues from a spreadsheet and linked cues. Nothing is built yet."
+note: "2026-10-03: build 1 phase 1 is built: timed graphic cues on an UNPUBLISHED production (the editor's Ends row, the row and PROGRAM countdowns, H, Manual, Missed), counting from when PROGRAM holds the cue (docs/RUNDOWN_AUTOMATION_PLAN.md section 2.0). A published production offers it disabled until phase 2 (the wire, migration 0075) lands. Then cues from a spreadsheet and linked cues."
 asked: "Cue duration with auto-advance options, and the other automation options we need to plan; start building after tomorrow's lecture (paraphrase, 2026-09-24)"
 size: large
 touches: src/model/shows.ts, src/components/home/ProductionPage.tsx, src/components/HostedControlPage.tsx, src/components/playoutKeys.ts, src/control/, supabase/migrations/
-covered-by: e2e/playout-cues.spec.ts
+covered-by: e2e/rundown-timing.spec.ts
 needs-owner: none
 ---
 

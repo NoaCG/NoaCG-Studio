@@ -40,6 +40,8 @@ import { SlotRemaining } from './ClipClock';
 import FolderRow from './FolderRow';
 import { lengthText } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
+import { ArmedTag, RowAutoChip } from './CueTiming';
+import { armedNext, readAuto, type CueArms } from '../../control/cueAuto';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -130,6 +132,9 @@ export default function CueRundown({
   cutIds,
   folderAir,
   takeMisses,
+  cueArms,
+  toggleHold,
+  manualLane,
   stepNext,
   rundownNote,
   clashes,
@@ -190,6 +195,13 @@ export default function CueRundown({
   folderAir: Readonly<Record<string, FolderAir>>;
   /** Why each cue of the last folder Take did not go on air, by cue id. */
   takeMisses: Readonly<Record<string, string>>;
+  /** Each graphic layer's timed-cue countdown (control/cueAuto.ts), or null where timed cues do not
+   *  run (a published production, until the wire lands), and then no row wears timing words. */
+  cueArms: CueArms | null;
+  /** A live row's chip: hold its countdown, or resume it. */
+  toggleHold: (graphic: string) => void;
+  /** A missed row's chip: clear it. */
+  manualLane: (graphic: string) => void;
   /** The cue each started One-by-one folder takes at its next press (control/folderStep.ts). */
   stepNext: ReadonlySet<string>;
   /** What the rundown's authoring last said: a refused drop, a write that did not land. */
@@ -270,6 +282,8 @@ export default function CueRundown({
   const toneChannels = channelsUsed.length > 1;
   const serverOnAir = serverOwnership.onAir;
   const replacedCues = new Map(Object.values(serverOwnership.replaced).map((r) => [r.cueId, r] as const));
+  /** The cues a timed cue's Next cue will take, each with the countdown that will take it. */
+  const armedBy = cueArms ? armedNext(cueArms) : null;
 
   // ── THE LIST FOLLOWS THE AIR (plan §6.2). A cue that goes on air off-screen is scrolled into
   // view, so a take from the keys, a folder's All together or another operator never leaves the
@@ -610,6 +624,12 @@ export default function CueRundown({
             : !!next && !!playoutItem && namesItem(playoutItem.name, next.file);
           const replaced = replacedCues.get(cue.id);
           const miss = !cueIsLive ? takeMisses[cue.id] : undefined;
+          // A TIMED CUE (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1), only where timed cues run: its length and
+          // end, or its own lane's countdown while it is the cue that armed it.
+          const lane = cueGraphic ? cueArms?.[cueGraphic] : undefined;
+          const laneArm = lane?.cue === cue.id ? lane : undefined;
+          const timedAuto = cueArms && cueGraphic && cue.auto ? readAuto(cue) : null;
+          const armingArm = !cueIsLive ? armedBy?.get(cue.id) : undefined;
           const rowMenuId = row.id;
           const inFolder = !!row.folderId;
           const ownFolder = row.folderId ? rundown.folders.get(row.folderId) : undefined;
@@ -693,6 +713,12 @@ export default function CueRundown({
                 )}
                 {summary && summary !== view.label && <span className="pd-cue-sum">{summary}</span>}
               </button>
+              {/* A TIMED CUE (docs/RUNDOWN_AUTOMATION_PLAN.md §2.1): its length and end, counting
+                  while it is on air, and a press holds it. The cue Next cue will take is ARMED. */}
+              {laneArm || timedAuto ? (
+                <RowAutoChip auto={timedAuto} arm={laneArm} onToggle={() => toggleHold(cueGraphic!)} onClear={() => manualLane(cueGraphic!)} />
+              ) : null}
+              {armingArm && <ArmedTag arm={armingArm} />}
               {/* The row was ON AIR until something else took its slot on the server: said next
                   to where the ON AIR tag stood, so the operator sees it where they last looked -
                   and beside PVW too, since the cue may well be the one on PREVIEW again. */}
@@ -821,7 +847,7 @@ export default function CueRundown({
                       const { shows: next, cueId } = addShowCue(
                         show.id,
                         cue.sourceId,
-                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}) },
+                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}), ...(cue.auto ? { auto: cue.auto } : {}) },
                         cue.id,
                       );
                       setShows(next);

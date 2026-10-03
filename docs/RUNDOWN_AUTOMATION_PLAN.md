@@ -1,6 +1,6 @@
 # Rundown automation and basic media - the plan
 
-**Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4); build 1 is not.** It answers two owner asks at once:
+**Plan, 2026-09-26. Build 2 is built (2026-09-28, `CLIP_PLAYBACK_PLAN.md` phases 0 to 4). Build 1's phase 1 is built (2026-10-03, unpublished productions, §2.0); its phase 2, the wire, is not.** It answers two owner asks at once:
 [`backlog/rundown-cue-timing-and-automation.md`](backlog/rundown-cue-timing-and-automation.md)
 (cue durations, auto-advance and the rest of rundown automation, planned before anything is built)
 and the unplanned half of [`backlog/video-through-playout-wrapper.md`](backlog/video-through-playout-wrapper.md)
@@ -98,8 +98,80 @@ Every claim about the code cites `file:line`, checked at `19518e21`.
 ## 2. Build 1: timed cues
 
 **Owner ruling, 2026-10-02 (§0, pick 1):** the countdown starts when the cue is on air, not at the
-Take. Wherever this section still anchors it to the Take, the on-air moment wins; §0 says how the
-building spec picks that moment and its fallback.
+Take. Wherever this section still anchors it to the Take, the on-air moment wins; §2.0 says how the
+build picks that moment and its fallback.
+
+### 2.0 The spec delta, 2026-10-03 (what the build follows where §2.1 to §2.11 differ)
+
+Written by the building session before the first edit, against `c1df51aaa`. Where a later
+paragraph of §2 disagrees with this one, this one wins.
+
+**Scope: timed GRAPHIC cues.** §3 already dropped `At clip end` (a clip's ending belongs to the clip
+and its folder since build 2), so `CueAuto.after` is a number of seconds only, the editor offers
+**Ends** `Manual` / `After [ 8 ] s` on a graphic cue and nothing on a server cue, and nothing in
+build 1 reads `PlayoutItem.frames` or `mediaKind`. With no server cue ever timed, phase 3 (server
+cue markers in the log, §2.7) no longer carries anything build 1 needs: it stays a separate,
+later item for what it fixes on its own (a reload knowing which server cues are up, the hosted page
+showing them on air).
+
+**Next takes the next graphic cue.** `Next` arms the first GRAPHIC cue after the timed cue in the
+rundown's order (`Show.cues`), looking past server cues the way a clip's Play next looks past
+graphics (`CLIP_PLAYBACK_PLAN.md` §6.6), so every end action is log rows that both pages can
+send. A cue in a folder is taken on its own, as a press on its own row would take it. No graphic
+cue after it: nothing is armed, and the editor says that `Next cue` has nothing to take.
+
+**The words.** In this product **» Next** (N) is a graphic's own step, so the end actions read
+**Out**, **Next cue** and **Out and next cue** in the editor, the rundown (`0:08 → Out`,
+`0:08 → Next cue`, `0:08 → Out + next`) and the log. The stored values stay `out`, `next` and
+`out-next`.
+
+**The on-air anchor** (the owner's point 1). The countdown starts when an OUTPUT has applied the
+Take, never when Take was pressed. Until then the cue is armed but waiting: its row reads its full
+length, dimmed, its title says it is waiting for air, and nothing counts. A Take that fails, is refused or is
+superseded never arms.
+
+- **Unpublished (phase 1).** The production page's PROGRAM monitor is the only output there is
+  (nothing leaves the machine). The anchor is the monitor's first state reply for the cue's graphic
+  after it applied the Take: the stage posts one after every command it applies, and a graphic
+  still loading in the monitor applies its queued Take only once it has loaded, so the reply is the
+  output saying it holds the cue. Fallback: no reply within 3 s (a graphic that never loads), and
+  the moment the Take was applied is the anchor. Page memory, as everything unpublished is; a
+  reload forgets it with what was on air.
+- **Published (phase 2).** The anchor is the server time of the first renderer report of the cue's
+  graphic whose baseline covers the Take, that is, a `{t:'live'}` report written after the
+  renderer applied the Take's rows (0071 keeps each report's `seq` baseline in
+  `control_heads.live`). A renderer reports a change about 800 ms after applying it, which is
+  about when a typical entrance has settled. The stamp is taken by the database, not by a page, so
+  every surface and every reload reads the same instant: the first surface that sees such a report
+  asks the arm RPC to stamp it, and the RPC checks the baseline under the head lock and refuses a
+  report that does not cover the Take. Fallback: no covering report within 3 s of the Take's
+  marker row (no output open, an output older than 0071, or a re-take that changed nothing the
+  renderer reports), and the Take's own marker row is the anchor, stamped the same way. Once
+  stamped, the anchor never moves.
+- **Every surface derives the deadline the same way**: anchor + length, the match clock's rule.
+  Nothing about the anchor depends on the clock of the page that pressed Take.
+
+**What 0071 and the live-safe rules change for phase 2.** §2.3 and §2.4 were written against
+`control_send_many` (0057). Pages now send through `control_send_seq` (0071), which already locks
+the production's head row before it inserts, so the plan's lock-first step is true already, and
+its stale-press refusal is what stops a fire from landing over an Out another screen pressed. 0075
+is to be an *add* (`docs/work-specs/live-safe-migrations/spec.md` L2): new names only. So the arm
+lives in a new table beside the head, keyed by production and lane, and a new
+`control_cue_arm(p_slug, p_lane, p_cue, p_op, ...)` does every arm operation under the head lock
+(`aired`, `hold`, `resume`, `cancel`, `fire`). `fire` is the compare-and-set: it answers `ok` to
+exactly one caller in the window from the deadline to 5 s after it, writes the arm's marker row,
+and the winner then sends the end action through `control_send_seq` like a press, carrying the
+revisions it saw, so a stale fire is refused rather than aired. The take marker carries `auto`
+(`{t:'cue', cue, auto}`, additive in the row's message), so every follower learns the arm from the
+Take's own row, and the arm RPC checks any page's claim about a lane against the head under the
+lock rather than trusting it. No existing function is replaced, so no renderer and no older page
+meets a changed RPC.
+
+**Landing phase 1 alone** (the owner's "land each"): a published production does not offer a timed
+cue. Its Ends row is disabled with the sentence "Timed cues run on an unpublished production for
+now. On a published one they arrive with the next update.", a timed cue there airs as a manual
+one, and its rundown wears no timing words, so nothing on a published production promises an end
+that will not come.
 
 ### 2.1 What the operator gets
 

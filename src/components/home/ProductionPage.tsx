@@ -34,6 +34,7 @@ import {
   setFolderCollapsed,
   setFolderMode,
   setFolderPlayback,
+  setCueAuto,
   type PlayoutItem,
   type PlayoutMediaKind,
   type Show,
@@ -187,7 +188,7 @@ import {
 } from '../../control/hostedControl';
 import { createAppliedOnce } from '../../control/commandRoads';
 import { createSendDebts } from '../../control/failedSends';
-import { appendLogEntries, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
+import { appendLogEntries, autoEntry, describeLogRow, eventLogLabel, noteEntry, type LogEntry } from '../../control/eventLog';
 import {
   clockRowEffect,
   clockSpecFromHtml,
@@ -211,6 +212,29 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { ProductionLinkRows, PublishActions, StartProductionButton } from './ProductionLinks';
 import { PlayoutPanelSection, PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
+import { CueEndsRow, ProgramAutoChip } from './CueTiming';
+import {
+  END_WORDS,
+  aired,
+  chipLane,
+  countText,
+  dropArm,
+  dueLanes,
+  hold,
+  markMissed,
+  markerEffect,
+  nextGraphicCue,
+  nextWake,
+  playsOut,
+  readAuto,
+  remaining,
+  resume,
+  settleWaiting,
+  takesNext,
+  type ArmSpec,
+  type CueArms,
+  type LaneArm,
+} from '../../control/cueAuto';
 import RailResizer, { useRailWidth } from './RailResizer';
 import ServerCueEditor from './ServerCueEditor';
 import FolderEditor from './FolderEditor';
@@ -308,6 +332,10 @@ const PRODUCTION_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>(PANEL_
  *  `performance.now()`, the panel's are wall-clock milliseconds (protocol.md §7.4). */
 const panelClipNow = (store: ServerPlayoutStore, items: readonly PlayoutItem[], cues: readonly ShowCue[]) =>
   panelClip(clipClock(store.ownership.get(), store.timing.get(), items, cues, performance.now()), Date.now());
+
+/** The time the unpublished timed-cue engine counts in: this machine's own (docs/RUNDOWN_AUTOMATION_PLAN.md
+ *  §2.0). Read in handlers and timers only, never to draw. */
+const wallClock = () => Date.now();
 
 export default function ProductionPage({ id, sub }: { id: string; sub?: ProductionSub | null }) {
   const navigate = useRouter((s) => s.navigate);
@@ -442,6 +470,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── Live status: the renderer heartbeat + which cue is on air ON EACH LAYER. Several
   // graphics are up at once by design, so this is a map keyed by graphic name. ──
   const [liveCue, setLiveCueState] = useState<LiveCueMap>({});
+  /**
+   * TIMED CUES' COUNTDOWNS, one per graphic layer (control/cueAuto.ts; docs/RUNDOWN_AUTOMATION_PLAN.md
+   * §2.0). Phase 1 runs them on an UNPUBLISHED production only, where this page is the one surface
+   * and its PROGRAM monitor the one output: they move with the cue markers this page sends, start
+   * when PROGRAM says it holds the cue, and fire through `sendVerb` like a press. Page memory, as
+   * everything unpublished is. `armsRef` is what the timer and the send path read, never a render.
+   */
+  const [cueArms, setCueArmsState] = useState<CueArms>({});
+  const armsRef = useRef<CueArms>({});
+  const setCueArms = useCallback((next: CueArms | ((a: CueArms) => CueArms)) => {
+    const value = typeof next === 'function' ? next(armsRef.current) : next;
+    if (value === armsRef.current) return;
+    armsRef.current = value;
+    setCueArmsState(value);
+  }, []);
+  /** What a cue marker for this cue arms: its timed end and the cue `Next cue` takes, or null for a
+   *  manual cue, or for any cue while the production is published (§2.0, until phase 2). Kept current
+   *  every render, so the send path reads this rundown and never a stale one. */
+  const armSpecRef = useRef<(cueId: string) => ArmSpec | null>(() => null);
   /** What this page believes is up on the PLAYOUT SERVER (control/serverPlayout.ts says what
    *  it is and why the slot is remembered), in the store's OWNERSHIP part, with what the server
    *  itself reports (control/serverState.ts). One store per page, so it lives exactly as long as
@@ -1832,6 +1879,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         for (const batch of batches) {
           rememberAired(batch);
           applyProgram(batch);
+          // A cue marker moves its layer's countdown: a timed cue's Take arms it, anything else on
+          // the layer replaces it (control/cueAuto.ts `markerEffect`).
+          let arms = armsRef.current;
+          for (const item of batch) {
+            if (item.msg.t !== 'cue') continue;
+            const cue = item.msg.cue;
+            arms = markerEffect(arms, item.graphic, cue, cue ? armSpecRef.current(cue) : null, wallClock());
+          }
+          setCueArms(arms);
         }
         const at = new Date().toISOString();
         const entries = batches
@@ -1883,7 +1939,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         return { ok: false, note };
       }
     },
-    [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand],
+    [hostedSlug, showId, cueLabel, eventLabel, rememberAired, applyProgram, applyCommand, setCueArms],
   );
   /** Send, and say so if it failed. What it came to when it landed, or null when it did not. */
   const runVerb = useCallback(
@@ -1936,6 +1992,40 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return serverPlayout.timing.subscribe(() => queueMicrotask(panel.changed));
   }, [panel.on, serverPlayout, panel.changed]);
   const panelRows = useMemo(() => rundownPanelRows(rundown.rows), [rundown]);
+
+  // TIMED CUES (the engine is with the verbs below): on an unpublished production only, until the
+  // wire lands (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0). One timer, to whatever is next due, set again
+  // whenever a countdown changes and when the window comes back from hiding (a hidden window's
+  // timers are throttled, and past 5 s late that becomes Missed rather than a late action).
+  const timedCues = !hostedSlug;
+  const runDueRef = useRef<() => void>(() => {});
+  // A timer can come due a moment before the clock says so; when nothing moved, it is set again
+  // rather than left to wait for a change that will not come.
+  useEffect(() => {
+    let t: number | undefined;
+    const arm = () => {
+      const wake = nextWake(armsRef.current, wallClock());
+      if (wake !== null) t = window.setTimeout(tick, Math.max(wake, 15));
+    };
+    const tick = () => {
+      const before = armsRef.current;
+      runDueRef.current();
+      if (armsRef.current === before) arm();
+    };
+    arm();
+    const onShow = () => {
+      if (document.visibilityState === 'visible') runDueRef.current();
+    };
+    document.addEventListener('visibilitychange', onShow);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('visibilitychange', onShow);
+    };
+  }, [cueArms]);
+  // Published, the countdowns are not this page's to run yet: whatever it held goes.
+  useEffect(() => {
+    if (!timedCues) setCueArms({});
+  }, [timedCues, setCueArms]);
 
   if (!show) {
     return (
@@ -2473,6 +2563,107 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const folder = cue.folderId ? rundown.folders.get(cue.folderId) : undefined;
     if (folder && folderMode(folder) === 'manual') setFolderSteps((m) => (m[folder.id] === cue.id ? m : { ...m, [folder.id]: cue.id }));
   };
+
+  // ── TIMED CUES, the unpublished engine (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, phase 1) ──────────
+  // A cue marker arms or replaces its layer's countdown (in `sendVerb`); PROGRAM's state reply
+  // starts it (`noteProgramState`); the timer below fires what is due through `sendVerb`, exactly as
+  // a press would send it, and NEVER moves the selection or PREVIEW: somebody may be editing the
+  // next cue, and moving the cursor under their hands would edit the wrong one.
+  armSpecRef.current = (cueId) => {
+    if (!timedCues) return null;
+    const cue = cues.find((c) => c.id === cueId);
+    const auto = cue ? readAuto(cue) : null;
+    return auto ? { auto, next: nextGraphicCue(cues, cueId) } : null;
+  };
+  const logAuto = (graphic: string, text: string) => setWireLog((l) => appendLogEntries(l, [autoEntry((localLogId.current -= 1), graphic, text)]));
+  /** A timed cue's end action, sent once: its Out, the armed next cue's Take, or both in that order. */
+  const fireLane = async (graphic: string, arm: LaneArm) => {
+    const items: ControlSendItem[][] = [];
+    const out = playsOut(arm.then) && liveCueRef.current[graphic] === arm.cue;
+    if (out) items.push(clearCueItems(graphic));
+    const next = arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
+    const nextGraphic = next ? cueGraphicName(next) : null;
+    if (next && nextGraphic) {
+      flushDraft();
+      items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: withBoundValues(nextGraphic, cueView(next).values) }));
+    }
+    const words = `Auto ${END_WORDS[arm.then]}`;
+    const gone = !!arm.next && !(next && nextGraphic);
+    if (!items.length) {
+      logAuto(graphic, `${words}: nothing to send`);
+      if (gone) setNote('The cue armed to be taken next is gone, so nothing was taken.');
+      return;
+    }
+    const sent = await sendVerb(items, words);
+    if (!sent.ok) {
+      setNote(sent.note);
+      return;
+    }
+    setLiveCue((m) => {
+      let lc = out ? withLiveCue(m, graphic, null) : m;
+      if (next && nextGraphic) lc = withLiveCue(lc, nextGraphic, next.id);
+      return lc;
+    });
+    if (next) {
+      clearMisses([next.id]);
+      noteStep(next);
+    }
+    logAuto(graphic, `${words} sent`);
+    if (gone) setNote('The cue armed to be taken next is gone, so only Out ran.');
+  };
+  /** Everything due now: a countdown still waiting for air starts from its Take, one at zero fires,
+   *  and one more than 5 s late is marked missed and never runs. */
+  const runDue = () => {
+    const now = wallClock();
+    let arms = settleWaiting(armsRef.current, now);
+    const { fire, missed } = dueLanes(arms, now);
+    const firing: [string, LaneArm][] = fire.map((g) => [g, arms[g]]);
+    for (const g of fire) arms = dropArm(arms, g);
+    for (const g of missed) {
+      logAuto(g, `Auto ${END_WORDS[arms[g].then]} missed`);
+      arms = markMissed(arms, g);
+    }
+    setCueArms(arms);
+    for (const [g, arm] of firing) void fireLane(g, arm);
+  };
+
+  runDueRef.current = runDue;
+  /** H, or a chip: hold a counting lane, or resume a held one. */
+  const toggleHold = (graphic: string | null) => {
+    if (!graphic) return;
+    const arm = armsRef.current[graphic];
+    if (!arm) return;
+    const now = wallClock();
+    if (arm.phase === 'held') {
+      const next = resume(armsRef.current, graphic, now);
+      if (next) {
+        setCueArms(next);
+        logAuto(graphic, `Resumed at ${countText(arm.ms)}`);
+      }
+      return;
+    }
+    const next = hold(armsRef.current, graphic, now);
+    if (next === 'due' || !next) return;
+    setCueArms(next);
+    logAuto(graphic, `Held at ${countText(remaining(next[graphic], now))}`);
+  };
+  /** Manual: the timed end is dropped for this airing, and the cue stays on air as a manual one. A
+   *  missed lane is cleared the same way. */
+  const manualLane = (graphic: string) => {
+    const arm = armsRef.current[graphic];
+    if (!arm) return;
+    setCueArms(dropArm(armsRef.current, graphic));
+    if (arm.phase !== 'missed') logAuto(graphic, 'Manual: the timed end is off for this airing');
+  };
+  /** PROGRAM said what a graphic holds: a countdown waiting for air starts now (§2.0's anchor). Any
+   *  reply counts. A graphic still loading in the monitor is never asked (the stage drops a state
+   *  ask for an unloaded document), so its first reply follows its queued Take; one already loaded
+   *  applies the Take at once, so a poll answer crossing it is a few milliseconds early at most. */
+  const noteProgramState = (graphic: string, state: { groups?: Record<string, string> } | null, overflow?: string[]) => {
+    noteMachineState(graphic, state, overflow);
+    setCueArms((a) => aired(a, graphic, wallClock()));
+  };
+  const chipGraphic = chipLane(cueArms);
 
   const takeCue = async (cue: ShowCue) => {
     if (cue.source === 'playout') {
@@ -3327,6 +3518,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
+    // H holds or resumes the chip's countdown, whatever is selected (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8).
+    if (key === 'hold') {
+      if (!press?.repeat) toggleHold(chipGraphic);
+      return;
+    }
     if (key === 'all-out') {
       if (!press?.repeat) void outAll();
       return;
@@ -3913,9 +4109,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           show={show}
           library={library}
           programRef={programRef}
-          onState={noteMachineState}
+          onState={noteProgramState}
           onReady={restoreProgram}
           onOverflow={notePreviewOverflow}
+          programChip={
+            chipGraphic ? (
+              <ProgramAutoChip
+                arm={cueArms[chipGraphic]}
+                label={cueLabel(cueArms[chipGraphic].cue) ?? chipGraphic}
+                onToggle={() => toggleHold(chipGraphic)}
+                onManual={() => manualLane(chipGraphic)}
+              />
+            ) : null
+          }
         />
 
         {/* THE VERB COLUMN: the verbs, and under them the clip clock while a server clip is on
@@ -4328,7 +4534,39 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   data-testid="cue-note"
                 />
               </label>
+              {/* HOW THE CUE ENDS (docs/RUNDOWN_AUTOMATION_PLAN.md §2.0, §2.1): by hand, or after so many
+                  seconds on air, then Out, the next cue, or both. Phase 1 runs it unpublished only. */}
+              {(() => {
+                const auto = readAuto(editingCue);
+                const nextId = nextGraphicCue(cues, editingCue.id);
+                const nextCue = nextId ? cues.find((c) => c.id === nextId) : undefined;
+                const counting = !!selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id;
+                const nextHint = counting
+                  ? 'It is counting now: a new length or end applies from its next Take.'
+                  : !auto || !takesNext(auto.then)
+                  ? null
+                  : !nextCue
+                    ? 'Nothing comes after this cue in the rundown, so Next cue has nothing to take.'
+                    : auto.then === 'out-next' && cueGraphicName(nextCue) === selectedGraphic
+                      ? `Next cue takes “${cueView(nextCue).label}”, on this same layer: its entrance cuts the Out short, and Next cue alone already replaces this one.`
+                      : `Next cue takes “${cueView(nextCue).label}”.`;
+                return (
+                  <CueEndsRow
+                    key={editingCue.id}
+                    auto={auto}
+                    refused={timedCues ? null : 'Timed cues run on an unpublished production for now. On a published one they arrive with the next update.'}
+                    nextHint={nextHint}
+                    onChange={(next) => {
+                      setShows(setCueAuto(show.id, editingCue.id, next));
+                      // Made manual while it counts: the countdown goes too, as Manual's does. A new
+                      // length or end applies from the next Take, which is when a cue is armed.
+                      if (!next && selectedGraphic && cueArms[selectedGraphic]?.cue === editingCue.id) manualLane(selectedGraphic);
+                    }}
+                  />
+                );
+              })()}
             </div>
+
 
             {/* ADVANCED: the graphic's PLAYOUT LAYER (docs/CLIP_PLAYBACK_PLAN.md §6.5). Closed by
                 default with the number in its summary, because most productions never change it
@@ -4439,6 +4677,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         cutIds={cutIds}
         folderAir={folderStates}
         takeMisses={takeMisses}
+        cueArms={timedCues ? cueArms : null}
+        toggleHold={toggleHold}
+        manualLane={manualLane}
         stepNext={stepNext}
         rundownNote={rundownNote}
         clashes={clashes}

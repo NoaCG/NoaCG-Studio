@@ -27,6 +27,10 @@ export type PlayoutVerb =
   | 'resume'
   // `P`: pause the server clip on air, or resume it (docs/CLIP_PLAYBACK_PLAN.md §16, phase 3).
   | 'pause-toggle'
+  // `H`: hold the timed cue's countdown that fires soonest, or resume the one held last
+  // (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8). It acts on the countdown, never on the selected cue's
+  // layer. A surface with no countdowns ignores it.
+  | 'hold'
   // A rundown's folders (docs/CLIP_PLAYBACK_PLAN.md §16, phase 4), with no key yet: make a folder of
   // the selected cues, and collapse or open the folder the cursor is on. A folder's Take and Out are
   // `take` and `out` with a folder row selected. The hosted page has no folders and ignores both.
@@ -102,6 +106,8 @@ const KEY_MAP: Record<string, PlayoutVerb> = {
   // A TOGGLE, so a held key must not repeat it: an auto-repeating P would pause and resume the clip
   // on air ten times a second (see NO_REPEAT).
   p: 'pause-toggle',
+  // A TOGGLE too: a held H would hold and resume the countdown over and over.
+  h: 'hold',
   // Walking the rundown from the keyboard is what makes the whole surface operable without a
   // mouse - and, since a Stream Deck is a keyboard emulator, what makes these verbs reachable
   // from one. Form controls keep their own arrows (`typingInto` covers input, textarea, select
@@ -121,7 +127,7 @@ function textSelected(): boolean {
 }
 
 /** Verbs a held key fires once, not once per auto-repeat: each press means the opposite of the last. */
-const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle']);
+const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle', 'hold']);
 
 /**
  * Bind the verb keys while the playout surface is the one ON SCREEN. Never while typing - the
