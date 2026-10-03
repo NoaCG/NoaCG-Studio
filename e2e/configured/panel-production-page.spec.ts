@@ -236,5 +236,12 @@ test('the clip clock a panel counts follows the server clip the production page 
   // AC-7's figure: a page state reaching the module, measured on whatever backend this run has.
   const lags = deck.stateLags().sort((a, b) => a - b);
   console.log(`page state to the module over ${lags.length} states: p50 ${lags[Math.floor(lags.length / 2)]} ms, worst ${lags.at(-1)} ms`);
+
+  // REVOKING from the page's own list (AC-2): the panel leaves the list, and its key is refused.
+  await op.getByTestId('panel-open').click();
+  await op.getByTestId('panel-revoke').click();
+  await expect(op.getByTestId('panel-row')).toHaveCount(0, { timeout: 10_000 });
+  expect((await deck.hello()).refused).toBe('revoked');
+  expect((await deck.press('select-next', '', off.ver as number)).outcome).toBe('refused revoked');
   await deck.close();
 });
