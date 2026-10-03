@@ -150,7 +150,7 @@ export const ANSWER_BOARD_CONTROLS: TypeControlEvent[] = [
   // Update (owner, 2026-09-22: a key changed live "does not always update the live graphic").
   // It stays a setup value in the wizard, because `judge` is on the default path (setupFields).
   { event: 'judge', label: 'Reveal correct', section: 'Reveal', order: 4, payload: ['correctAnswer'] },
-  { event: 'audience', label: 'Show audience result', section: 'Reveal', order: 5, payload: ['audienceResults'] },
+  { event: 'audience', label: 'Audience result', section: 'Reveal', order: 5, payload: ['audienceResults'] },
 ];
 
 /** Every answer board promises the same three parts, whatever its row count. */

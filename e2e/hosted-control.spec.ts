@@ -583,7 +583,7 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
   // Pinned and hidden are LIFTED out of their section rather than drawn twice, and the sections
   // that were not touched arrive exactly as the author declared them.
   expect(arranged.sections).toEqual([
-    ['Clock', ['clockReset:Reset to period start']],
+    ['Clock', ['clockReset:Reset clock']],
     ['Match', ['interval:Interval', 'resumePlay:Resume play', 'final:Full time']],
   ]);
   expect(arranged.hiddenIsStillDeclared).toBe(true);
@@ -592,7 +592,7 @@ test('the hosted page arranges from the PUBLISHED bytes, by the one rule the in-
   // on this surface too.
   expect(arranged.generatedExtras).toBe(0);
   expect(arranged.generatedSections).toEqual([
-    ['Clock', ['clockStart:Start clock', 'clockStop:Stop clock', 'clockReset:Reset to period start']],
+    ['Clock', ['clockStart:Start clock', 'clockStop:Stop clock', 'clockReset:Reset clock']],
     ['Match', ['interval:Interval', 'resumePlay:Resume play', 'final:Full time']],
   ]);
 

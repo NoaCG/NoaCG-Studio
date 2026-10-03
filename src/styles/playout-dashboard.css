@@ -1132,15 +1132,37 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   white-space: nowrap;
 }
 .pd-snap { font-size: 12px; max-width: 220px; }
+/* COMPACT (owner, 2026-10-03: "use more horizontal space ... all graphics should try to be
+   compact"). The sections sit SIDE BY SIDE and wrap, each a caption on the left of its buttons, so
+   a scorebug's four groups take two rows of a 1600-wide page rather than eight stacked ones. A
+   section never splits from its caption: its buttons wrap inside it only when it alone is wider
+   than the block (a phone). */
+.pd-actions-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; margin-top: 6px; }
+.pd-actions-section { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.pd-actions-section .pd-actions-row { margin-top: 0; }
+/* Narrow (a phone, a slim column) the caption goes over its buttons instead: beside a row that
+   wraps, it floated in the middle of a ragged block and no longer read as the row's name. Judged
+   on the block's own width, since the hosted page and the in-app page give it different room. */
+.pd-actions { container-type: inline-size; }
+@container (max-width: 620px) {
+  .pd-actions-section { flex-direction: column; align-items: flex-start; gap: 3px; }
+}
 .pd-actions-section h4 {
-  margin: 8px 0 4px;
+  margin: 0;
+  flex: none;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-dim, #9aa1ad);
 }
-.pd-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pd-actions-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; min-width: 0; }
+/* A button sizes to its words and never wraps them onto a second line. */
+.pd-actions-row > button { white-space: nowrap; }
+/* A label that names a player ("+1 ANNA", blocks/controlLabels.ts) holds a FIXED slot: a name
+   sent mid-show must not move the buttons under the operator's finger, and a long one truncates
+   rather than wrapping - the hover carries it whole. */
+.pd-actions-row > button.named { width: 9.5em; overflow: hidden; text-overflow: ellipsis; }
 /* PINNED — the controls this production put above the fold (the profile's ARRANGE,
    docs/CONTROL_PANEL_ANY_GRAPHIC.md §6b). The HAIRLINE IS THE FOLD: everything under it is the
    full generated panel in its sections, so the operator's handful reads as the top of one list
@@ -1152,7 +1174,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    rather than as a control. Hiding a control is a production saying "not in my way"; it is not
    the same as deleting it, and the machine still accepts every one of these. */
 .pd-actions-more { margin-top: 10px; }
-.pd-actions-more > summary {
+/* A drawer stays one line where it sits: the summary, then what it holds once open, beside it.
+   A browser that cannot lay a `details` out as flex opens it underneath instead, which still works. */
+.pd-actions-groups > .pd-actions-more,
+.pd-actions-recovery { display: flex; align-items: center; gap: 8px; margin-top: 0; }
+.pd-actions-groups > .pd-actions-more .pd-actions-row { margin-top: 0; }
+.pd-actions-more > summary,
+.pd-actions-recovery > summary {
   cursor: pointer;
   font-size: 11.5px;
   color: var(--text-dim, #9aa1ad);
@@ -1160,10 +1188,13 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-action { font-size: 12.5px; padding: 6px 11px; }
 
-/* RECOVERY - the snap picker, folded closed at the foot of the ⚡ block. It wears the drawer
-   look of "More" because it is one: not how a graphic is driven, there for the moment air and
-   the page are out of step. */
-.pd-actions-recovery .pd-actions-help { margin-top: 4px; }
+/* RECOVERY - the snap picker, folded closed in the ⚡ block's head beside Arrange: the summary
+   alone at rest, the picker inline once open. It wears the drawer look of "More" because it is
+   one: not how a graphic is driven, there for the moment air and the page are out of step. */
+.pd-actions-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pd-actions-tools .pd-arrange-toggle { margin-left: 0; }
+
+.pd-actions-recovery > summary { white-space: nowrap; }
 
 /* ARRANGING (components/home/ActionArranger.tsx) - the ⚡ block's own authoring posture. The
    toggle is quiet at rest (it is not a press of the show) and amber while on, and the block's
@@ -1245,6 +1276,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 /* ± LIVE NUMBERS — one label + a −/+ pair per number field, reading as one control. The pair
    shares the ⚡ actions' chrome (same block, same disabled logic) so "acts on air" reads the
    same in both sections. */
+/* One row: the caption, then the steppers. */
+.pd-actions.pd-live-numbers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 6px 13px; }
+.pd-actions.pd-live-numbers .pd-actions-row { margin-top: 0; }
 .pd-live-number {
   display: inline-flex;
   align-items: center;

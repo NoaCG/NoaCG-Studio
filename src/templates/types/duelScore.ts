@@ -113,13 +113,15 @@ export const duelScoreType: GraphicType = {
       },
     ],
   },
+  // Short labels that name the player ON AIR (blocks/controlLabels.ts): "+1 ALEX", never "Point
+  // to player 1". The hover says the rest - which score moves, and to what.
   controls: [
-    { event: 'pointA', label: 'Point to player 1', section: 'Points', order: 1, adjust: { scoreA: 1 } },
-    { event: 'pointB', label: 'Point to player 2', section: 'Points', order: 2, adjust: { scoreB: 1 } },
-    { event: 'undoA', label: 'Take one back from player 1', section: 'Corrections', order: 3, adjust: { scoreA: -1 } },
-    { event: 'undoB', label: 'Take one back from player 2', section: 'Corrections', order: 4, adjust: { scoreB: -1 } },
-    { event: 'final', label: 'Final score', section: 'Game', order: 5 },
-    { event: 'newGame', label: 'New game (both to 0)', section: 'Game', order: 6, destructive: true, set: { scoreA: '0', scoreB: '0' } },
+    { event: 'pointA', label: '+1 {playerA|P1}', section: 'Points', order: 1, adjust: { scoreA: 1 } },
+    { event: 'pointB', label: '+1 {playerB|P2}', section: 'Points', order: 2, adjust: { scoreB: 1 } },
+    { event: 'undoA', label: '−1 {playerA|P1}', section: 'Undo', order: 3, adjust: { scoreA: -1 } },
+    { event: 'undoB', label: '−1 {playerB|P2}', section: 'Undo', order: 4, adjust: { scoreB: -1 } },
+    { event: 'final', label: 'Final', section: 'Game', order: 5 },
+    { event: 'newGame', label: 'Reset 0-0', section: 'Game', order: 6, destructive: true, set: { scoreA: '0', scoreB: '0' } },
   ],
   capabilities: {
     maxLines: 4,

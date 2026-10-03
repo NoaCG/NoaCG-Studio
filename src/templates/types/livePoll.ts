@@ -107,7 +107,7 @@ export const LIVE_POLL_MACHINE: TypeMachine = {
 export const LIVE_POLL_CONTROLS: TypeControlEvent[] = [
   { event: 'close', label: 'Close voting', section: 'Vote', order: 1 },
   { event: 'result', label: 'Show result', section: 'Vote', order: 2 },
-  { event: 'call', label: 'Call the winner', section: 'Vote', order: 3 },
+  { event: 'call', label: 'Call winner', section: 'Vote', order: 3 },
 ];
 
 export const livePollType: GraphicType = {

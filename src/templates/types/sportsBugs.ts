@@ -176,7 +176,7 @@ function resultGroup(): TypeGroup {
 const MATCH_CONTROLS: TypeControlEvent[] = [
   { event: 'clockStart', label: 'Start clock', section: 'Clock', order: 1 },
   { event: 'clockStop', label: 'Stop clock', section: 'Clock', order: 2 },
-  { event: 'clockReset', label: 'Reset to period start', section: 'Clock', order: 3 },
+  { event: 'clockReset', label: 'Reset clock', section: 'Clock', order: 3 },
   { event: 'interval', label: 'Interval', section: 'Match', order: 4 },
   { event: 'resumePlay', label: 'Resume play', section: 'Match', order: 5 },
   { event: 'final', label: 'Full time', section: 'Match', order: 6, destructive: true },

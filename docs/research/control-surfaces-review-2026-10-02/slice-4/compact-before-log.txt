@@ -1,0 +1,6 @@
+duel 1600: actions block 267px tall, live numbers 91px; buttons: ⚡ Point to player 1 | ⚡ Point to player 2 | ⚡ Take one back from player 1 | ⚡ Take one back from player 2 | ⚡ Final score | ⚡ New game (both to 0)
+duel phone: actions block 340px tall, live numbers 124px; buttons: ⚡ Point to player 1 | ⚡ Point to player 2 | ⚡ Take one back from player 1 | ⚡ Take one back from player 2 | ⚡ Final score | ⚡ New game (both to 0)
+hockey 1600: actions block 325px tall, live numbers 91px; buttons: ⚡ Start clock | ⚡ Stop clock | ⚡ Reset clock to period start | ⚡ Goal team A | ⚡ Goal team B | ⚡ Power play team A | ⚡ Power play team B | ⚡ End power play | ⚡ Next period | ⚡ Intermission | ⚡ Back from intermission | ⚡ Final
+hockey phone: actions block 470px tall, live numbers 160px; buttons: ⚡ Start clock | ⚡ Stop clock | ⚡ Reset clock to period start | ⚡ Goal team A | ⚡ Goal team B | ⚡ Power play team A | ⚡ Power play team B | ⚡ End power play | ⚡ Next period | ⚡ Intermission | ⚡ Back from intermission | ⚡ Final
+quiz 1600: actions block 209px tall; buttons: ⚡ Select answer | ⚡ Lock it in | ⚡ Reveal choice | ⚡ Reveal correct | ⚡ Show audience result
+quiz phone: actions block 257px tall; buttons: ⚡ Select answer | ⚡ Lock it in | ⚡ Reveal choice | ⚡ Reveal correct | ⚡ Show audience result

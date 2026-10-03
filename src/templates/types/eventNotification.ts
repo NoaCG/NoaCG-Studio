@@ -72,9 +72,9 @@ export const eventNotificationType: GraphicType = {
   },
   controls: [
     { event: 'hold', label: 'Hold on air', section: 'Notification', order: 1 },
-    { event: 'resume', label: 'Resume timed hold', section: 'Notification', order: 2 },
-    { event: 'replay', label: 'Replay entrance', section: 'Notification', order: 3 },
-    { event: 'skip', label: 'Skip notification', section: 'Notification', order: 4 },
+    { event: 'resume', label: 'Resume timer', section: 'Notification', order: 2 },
+    { event: 'replay', label: 'Replay', section: 'Notification', order: 3 },
+    { event: 'skip', label: 'Skip', section: 'Notification', order: 4 },
   ],
   capabilities: {
     maxLines: 4,

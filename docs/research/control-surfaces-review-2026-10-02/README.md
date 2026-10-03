@@ -315,4 +315,7 @@ rulings" at the top: yes to 1, Lock optional for 2, and for 3 removal rather tha
 - `slice-4/`: slice 4 before and after, at 1600x900 and at phone width (390x844), with
   `before-log.txt` and `after-log.txt` saying which live buttons were wholly on screen. The hockey
   scorebug is the benchmark's `b2-hockey-C` package (12 actions), the quiz is the catalog answer
-  board qz02.
+  board qz02. The `compact-before-*` and `compact-after-*` pictures are the follow-up of
+  2026-10-03 (short labels, sections side by side, no sentence in the block), on air at 1600x900
+  and 390x844, with the duel score sb26 added; `compact-*-log.txt` gives each block's height and
+  its button labels.

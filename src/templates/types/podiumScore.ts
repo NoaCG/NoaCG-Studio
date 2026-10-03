@@ -121,7 +121,7 @@ export const podiumScoreType: GraphicType = {
     ],
   },
   controls: [
-    { event: 'spotlight', label: 'Spotlight podium', section: 'Podiums', order: 1, payload: ['spotlight'] },
+    { event: 'spotlight', label: 'Spotlight', section: 'Podiums', order: 1, payload: ['spotlight'] },
     { event: 'clear', label: 'All level', section: 'Podiums', order: 2 },
     { event: 'final', label: 'Final scores', section: 'Result', order: 3 },
   ],

@@ -97,7 +97,7 @@ main:  [entrance] --advance--> advanced ⟳ advance
 
 `advance` carries the map number (`current`); `applyMapCursor` moves the cursor and pops the
 row. `markSeriesFinal` dims the maps that were never needed.
-Controls: **Advance map / decision** (payload `current`) · **Series / veto complete**.
+Controls: **Advance** (payload `current`) · **Complete**.
 
 ### Match-up (`matchup`) — neutral matchup → selected winner
 
@@ -198,7 +198,7 @@ branch:   [nominees] --suspense--> suspense --reveal--> [winner]
 `reveal` is the walk's own arrow AND the way out of the suspense hold, so the control page has
 one "Reveal winner" button whichever route the operator took. The winner is the `winner` field
 (1-based), applied by `revealWinner`; SPX's `steps` is `'2'` — DERIVED from In + Reveal + Out.
-Controls: **Hold for suspense** · **Reveal winner** (payload `winner`).
+Controls: **Suspense** · **Reveal winner** (payload `winner`).
 
 ### Verdict (`verdict-card`) — correct / incorrect
 
@@ -223,7 +223,7 @@ award:    [category] --open----> [subject] --celebrate--> celebrating --settle--
 Both hold their payload back until the press: the score line and the beaten side (`revealResult`),
 or the sealed subject (`openEnvelope`). The celebration is its own state, so the operator decides
 when the room gets there.
-Controls: **Reveal result** / **Open the envelope** · **Celebrate / Applause** · **Settle**.
+Controls: **Reveal result** / **Open envelope** · **Celebrate / Applause** · **Settle**.
 
 ---
 

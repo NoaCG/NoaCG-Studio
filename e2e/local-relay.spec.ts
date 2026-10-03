@@ -648,7 +648,7 @@ test('a scorebug over the relay: the stepper bumps the score on air, and the clo
 
   // Reset returns to the design's own period start, which is what makes a second half one
   // press - and it is 0:00 here because this design counts up from there.
-  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Reset to period start' }).click();
+  await ctl.locator('#editor-events').getByRole('button', { name: '⚡ Reset clock' }).click();
   await expect.poll(async () => clockNow(), { timeout: 10_000 }).toBe('0:00');
   // The score is DATA and no clock verb touches it: it survived all three.
   await expect(air.locator('#f1')).toHaveText('2');

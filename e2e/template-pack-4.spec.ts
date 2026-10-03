@@ -292,8 +292,8 @@ test('the notice’s level events reach the generated control page', async ({ pa
   // The Rehearse panel and the timeline's simulator both offer the event, which is the point:
   // one button comes from the machine's `controls` metadata, the other from the graph itself.
   const panel = page.getByTestId('dock-body-right');
-  await expect(panel.getByRole('button', { name: /Escalate to urgent/ })).toBeVisible();
-  await expect(panel.getByRole('button', { name: /Back to standard/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /Urgent/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /Standard/ })).toBeVisible();
 });
 
 test('a pack graphic survives save, reload and reopen unchanged', async ({ page }) => {

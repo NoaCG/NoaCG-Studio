@@ -88,7 +88,7 @@ const QUIZ_SHOW_CONTROLS: TypeControlEvent[] = [
   { event: 'clearPick', label: 'Clear pick', section: PICK_SECTION, order: 5, set: { selectedAnswer: '' } },
   // The reveal carries the answer key, exactly as on the classic boards (answerBoard.ts): the key
   // in the cue is the one that lights, even when it was corrected on air without an Update.
-  { event: 'judge', label: 'Reveal correct answer', section: 'Reveal', order: 6, payload: ['correctAnswer'] },
+  { event: 'judge', label: 'Reveal correct', section: 'Reveal', order: 6, payload: ['correctAnswer'] },
 ];
 
 const letterOptions = LETTERS.map((letter) => ({ label: letter, value: letter }));
