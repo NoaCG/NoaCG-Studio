@@ -41,6 +41,12 @@ jobs:
           node-version: 24
           cache: npm
       - uses: ./.github/actions/node-modules
+      # The CLI version the configured suite applies every migration with, so production is pushed
+      # by the CLI the migrations were proven on. Unpinned, db-push fell back to `npx supabase`,
+      # whatever npm served that day; 0074 relies on how 2.111 runs `create index concurrently`.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
       # A live-path migration (supabase/AGENTS.md) that finds a production live is HELD: db-push
       # applies the files before it, leaves a warning, and exits 0, because the class requires the
       # app that landed to work without it. The next landing retries. A hold older than a day, or

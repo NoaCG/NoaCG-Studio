@@ -237,7 +237,8 @@ means today's 0071.
   stays dark until it is reloaded, and a reload meets the same tail unless the resolve itself
   times out and falls back (D-u) (review 3 client:F3). No automatic reload: reloading a browser
   source drops every graphic from air. The planned remedy is the `(show_id, seq)` index, built concurrently in
-  a later ordinary step, gated on exactly this case.
+  a later ordinary step, gated on exactly this case. DONE in 0074 (2026-10-03): the index, and a tail
+  that reads each page from it (about 5 ms at 300,000 rows behind, where it was 243 ms).
 - **K5 (superseded by D-s). Step 1 and Step 2 both joined `live-<show>`.** They were one join for a
   while (the merge of #563); the frames now have their own topic.
 - **K6. On protocol 2, `seq-<show>` is the renderer's log road.** A refused or closed `seq-` join
@@ -257,6 +258,8 @@ means today's 0071.
   that Step 2 would raise it; what a page speaks is now decided per server at load (D-g), so a
   constant cannot state it, and nothing reads the field yet. Left for Step 3, whose READY is the
   first reader: decide then whether it states the build's ability (2) or the road negotiated.
+  The output renderer now reports the road it negotiated (2 on the numbered log, else 1) in its
+  identity line and Presence entry (2026-10-03); operator pages still report the constant.
 - **K9. A duplicate answer carries the current head and no `skipped`** (review 2 ordering:F4). A
   resend of an applied press can teach the page revisions its follower has not applied yet, and a
   resent All out whose first answer was lost reports no skipped graphics, so the production page

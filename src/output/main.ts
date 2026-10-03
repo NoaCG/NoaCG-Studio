@@ -279,8 +279,10 @@ async function boot(): Promise<void> {
   // ── THE LIVE PATH, SEEN (control/livePath.ts): who this renderer is, how commands reach it, and
   // the Presence entry the operator pages build their health line from. Report-only: nothing
   // here changes what airs, and a server without the live topic (migration 0068) refuses only
-  // the Presence join. ──
-  const identity = { id: liveInstanceId(), build: LIVE_BUILD, protocol: LIVE_PROTOCOL };
+  // the Presence join. The protocol is the one this renderer follows on, which the resolve decided
+  // (seqMode, below): 2 on the numbered log, LIVE_PROTOCOL (1, by row id) otherwise. ──
+  const seqMode = resolved.seq && !resolved.seq.legacy ? resolved.seq : null;
+  const identity = { id: liveInstanceId(), build: LIVE_BUILD, protocol: seqMode ? 2 : LIVE_PROTOCOL };
   dbg('engine', hostEngine());
   dbg('identity', `${identity.id} · build ${identity.build} · protocol ${identity.protocol}`);
   let logJoined: boolean | null = null;
@@ -295,7 +297,12 @@ async function boot(): Promise<void> {
     },
   });
   const entry = (): LiveEntry =>
-    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), { name: outputName, ready: readiness(), ack });
+    liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
+      name: outputName,
+      ready: readiness(),
+      ack,
+      proto: identity.protocol,
+    });
   const presence = joinLivePresence({
     showId: resolved.id,
     entry,
@@ -404,7 +411,6 @@ async function boot(): Promise<void> {
   // (`legacy`): those carry no number, so it follows by id for this whole session, exactly as
   // before, and its reports move the baselines past them. `lastAppliedId` stays the highest id
   // applied either way: it is the baseline an older renderer or page reads from a report.
-  const seqMode = resolved.seq && !resolved.seq.legacy ? resolved.seq : null;
   let followEpoch = seqMode?.epoch ?? null;
   dbg('protocol', seqMode ? 'numbered log (proto 2)' : resolved.seq ? 'row id (proto 1: older rows need it)' : 'row id (proto 1)');
   const byId = planOutputRecovery(stage.graphics, resolved.live);
