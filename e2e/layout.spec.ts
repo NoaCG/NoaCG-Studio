@@ -193,7 +193,10 @@ test('mobile: Home leads with Productions and a dashboard is two taps from open'
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
   });
   await settleDurableWrites(page);
+  // Boot Home from the returning device's committed library. A hash-only navigation keeps
+  // Home mounted and can leave its initial empty read when the off-UI seed misses its listener.
   await page.goto('/app#/home');
+  await page.reload();
   await expect(page.getByTestId('home-page')).toBeVisible();
 
   // Tap 1 is opening the app; the dashboard door is the FIRST actionable block on Home —

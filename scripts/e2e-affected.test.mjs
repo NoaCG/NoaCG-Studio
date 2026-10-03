@@ -469,7 +469,7 @@ const FAKE_TABLE = { minutes: { 'a.spec.ts': 8, 'b.spec.ts': 4, 'c.spec.ts': 2, 
 // needs a fake suite beside it - the third argument the real callers fill from `specFilesOnDisk`.
 const FAKE_SUITE = ['a.spec.ts', 'b.spec.ts', 'c.spec.ts', 'd.spec.ts'];
 
-test('shard count follows measured minutes, and a full plan still lands on nine', () => {
+test('shard count follows measured minutes, and the full plan uses ten runners', () => {
   // 15 measured minutes over the whole fake suite -> ceil(15 / 3) = 5.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, FAKE_SUITE), 5);
   // A spec on disk the table has never measured counts as the MEDIAN (4 here), not as zero -
@@ -477,9 +477,9 @@ test('shard count follows measured minutes, and a full plan still lands on nine'
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, [...FAKE_SUITE, 'new.spec.ts']), 7);
   // ...and an entry left behind by a deleted spec is not counted for work nobody will do.
   assert.equal(shardsFor({ mode: 'full', specs: [] }, FAKE_TABLE, ['a.spec.ts', 'b.spec.ts']), 4);
-  // The real table is what CI uses, and it must reproduce the nine shards ci.yml has run since
-  // 2026-08-08 - this change is about how a SUBSET is sized, not about resizing the full run.
-  assert.equal(shardsFor({ mode: 'full', specs: [] }), 9);
+  // The real suite reaches the measured ceiling: nine refreshed bins still left only 1.35
+  // minutes of headroom on run 37149189106, so the full plan now gets one additional runner.
+  assert.equal(shardsFor({ mode: 'full', specs: [] }), 10);
 
   // A subset is sized by ITS OWN minutes, so a heavy plan gets more runners than a light one.
   assert.equal(shardsFor({ mode: 'subset', specs: ['a.spec.ts', 'b.spec.ts'] }, FAKE_TABLE), 4);
@@ -521,7 +521,7 @@ test('the shard count answers the job cap too, not only the throughput target', 
   // minute of tests, so the cap - not the target - decides, and it asks for more runners.
   const expensive = { ...FAKE_TABLE, overhead: { jobMinutes: 16, testFactor: 1 } };
   assert.equal(budgetMinutes(expensive), 1);
-  assert.equal(shardsFor({ mode: 'full', specs: [] }, expensive, FAKE_SUITE), 9); // 15 bins wanted, 9 given
+  assert.equal(shardsFor({ mode: 'full', specs: [] }, expensive, FAKE_SUITE), MAX_SHARDS); // 15 bins wanted, capped
 
   // And the ceiling still holds however bad the reading gets: this function decides a runner
   // count, never which tests run, so it must not be able to ask for an unbounded matrix.

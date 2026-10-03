@@ -399,11 +399,11 @@ export function planFor(changed, { sprintFocus = false, specsOnDisk = null, cove
  * the 52 s of per-shard setup costs more than it saves" was understating its own case. Making a
  * shard cheap is what makes sharding finely correct.
  *
- * The FULL plan is 99.7 measured minutes (2026-09-04, run 33825716179), so this target would ask
- * for 34 shards and the cap below is what holds it at the nine ci.yml has run since 2026-08-08.
- * Nine is not tight: 99.7 minutes over nine runners is 11.1 each against a 20-minute job cap, so
- * the suite uses a little over half its budget. What made runs die at that cap was never the
- * total, it was the SPLIT - see `packShards`.
+ * The full plan is now 123.6 measured minutes (2026-10-03, run 37143991356), so this target
+ * asks for 42 shards and the ceiling holds it at ten. Refreshing the stale weights alone left
+ * one of nine jobs at 18.65 minutes on full run 37149189106. Replaying that run's measured
+ * file costs gives ten bins a slowest predicted job of 16.06 minutes, restoring the three-minute
+ * safety margin without raising the timeout. See the shard-headroom backlog evidence.
  */
 export const SHARD_TARGET_MINUTES = 3;
 
@@ -413,7 +413,7 @@ export const SHARD_TARGET_MINUTES = 3;
  * account's 20-concurrent-job limit is a real constraint here - runs starting while two other
  * branches were mid-gate waited 22 to 45 minutes for a runner over the 60 runs to 2026-08-19.
  */
-export const MAX_SHARDS = 9;
+export const MAX_SHARDS = 10;
 
 /**
  * HOW MANY RUNNERS THIS PLAN IS WORTH, from measured minutes rather than from a file count.
