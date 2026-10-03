@@ -4249,7 +4249,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 Not started, a graphic plays on this page only, so it is "up, not live" in the
                 monitor's grey while a server cue beside it still airs (studio-day-playout D16). */}
             <span className="pd-onair-line" data-testid="live-cue-chip">
-              {liveLayers.length === 0 && livePlayoutLayers.length === 0 ? (
+              {airingLayers.length === 0 && upHereLayers.length === 0 ? (
                 <span className="muted">○ nothing on air</span>
               ) : (
                 <>

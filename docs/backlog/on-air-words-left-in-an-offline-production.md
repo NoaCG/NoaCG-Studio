@@ -17,7 +17,7 @@ covered-by: e2e/playout-folders.spec.ts, e2e/playout-baseline.spec.ts
 ## Why
 
 A production that is not started plays a graphic's Take on its own page only. The rundown row now
-reads UP in grey and the line under the verbs "up, not live" (studio-day-playout D16), but four
+reads UP in grey and the line under the verbs "up, not live" (studio-day-playout D16), but other
 places on the same screen still call that take on air, so an operator reading any of them can still
 believe a graphic went out:
 
@@ -25,7 +25,8 @@ believe a graphic went out:
   (`FolderRow.tsx` over `control/folderAir.ts`), above rows that each say UP;
 - the program monitor's name list: with a server clip up the monitor rightly reads
   PROGRAM · ON AIR, and then names the local graphic beside the clip as if it aired too;
-- the GRAPHIC ACTIONS and LIVE NUMBERS headings: "act on air" (`ProductionPage.tsx`).
+- the GRAPHIC ACTIONS and LIVE NUMBERS headings: "act on air" (`ProductionPage.tsx`);
+- the EDITED mark's tooltip on a row that is UP: "air still shows the old values" (`CueRundown.tsx`).
 
 ## What it would take
 
