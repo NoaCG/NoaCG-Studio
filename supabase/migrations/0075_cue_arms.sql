@@ -39,10 +39,10 @@
 -- renderer meets a changed RPC. The self-check works on its own throwaway production. The one
 -- lock on an existing table is the foreign key's SHARE ROW EXCLUSIVE on control_shows, taken by
 -- the LAST statement, so it is held only for the commit (a send's KEY SHARE passes it; an old
--- writer's UPDATE of the row waits for that instant); lock_timeout makes it give up rather than
--- queue in front of a Take. Revert: drop the two RPCs, the two helpers and the table; nothing else
+-- writer's UPDATE of the row waits for that instant, at most 200 ms); its 100 ms lock_timeout
+-- makes it give up rather than queue in front of a Take. Revert: drop the two RPCs, the two helpers and the table; nothing else
 -- depends on them.
-set lock_timeout = '500ms';
+set lock_timeout = '100ms';
 set statement_timeout = '1s';
 
 -- ── 1. The arms ───────────────────────────────────────────────────────────────────────────────
@@ -600,6 +600,14 @@ end $$;
 -- ── 6. LAST: an unpublished production takes its arms with it ────────────────────────────────
 -- Last because the key takes SHARE ROW EXCLUSIVE on control_shows, held to the commit, and after
 -- such a lock nothing but the commit may follow (live-safe-migrations L3). It validates against
--- an empty table.
+-- an empty table. Its own timeouts, set right here: the self-check's calls leave their own
+-- lock_timeout in force until the commit, so the top of the file does not govern this. A conflicting
+-- write (an update of a control_shows row) then waits at most 200 ms, wait and hold together, and a
+-- lock this cannot get in 100 ms is a lock timeout db-push retries (live-safe-migrations L3: the
+-- live functions give up on a lock after 250 ms, so a longer wait here could fail a Take). The
+-- last setting bounds the CLI's ledger insert after it.
+set lock_timeout = '100ms';
+set statement_timeout = '150ms';
 alter table public.control_cue_arms
   add constraint control_cue_arms_show_fk foreign key (show_id) references public.control_shows (id) on delete cascade;
+set statement_timeout = '50ms';
