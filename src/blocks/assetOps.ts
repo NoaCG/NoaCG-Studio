@@ -172,6 +172,7 @@ export function moveAsset(
       html: rewrite(template.html),
       css: rewrite(template.css),
       js: rewrite(template.js),
+      fields: template.fields.map(field => typeof field.value === 'string' ? { ...field, value: rewrite(field.value) } : field),
       assets: template.assets.map((a) => (a.path === fromPath ? { ...a, path: newPath } : a)),
     },
     newPath,
