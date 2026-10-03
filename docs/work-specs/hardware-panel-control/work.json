@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "specSha256": "decb4a784beec7a2d420e86253ffe76a6b38d664b28e0ed9c78ae613a5ae2925",
+  "specSha256": "d3d162becef994cc8aff03f31265875c336bc733f9ba26434691d04a2a766ead",
   "authority": {
     "status": "agreed",
-    "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md) and the build prompt of 2026-10-02"
+    "source": "the owner's answers of 2026-10-01 to docs/HARDWARE_CONTROL_RESEARCH.md section 11 (recorded in docs/backlog/companion-and-stream-deck.md), the build prompt of 2026-10-02, and the owner's ruling of 2026-10-02 that take-cue leaves the selection where the operator put it on both pages (spec D4, commit e64b91d22)"
   },
   "review": null
 }

@@ -72,11 +72,36 @@ export async function panelModule(code: string) {
       if (r.payload.outcome === 'ran') mark = from;
       return { outcome: r.payload.outcome as string, note: r.payload.note as string | undefined, id, ms: r.at - sent };
     },
+    /** Milliseconds from the page sending each state to this client hearing it: the page stamps
+     *  `at` as it sends, and both clocks are this machine's. */
+    stateLags: () => heard.filter((m) => m.event === 'state' && typeof m.payload.at === 'number').map((m) => m.at - (m.payload.at as number)),
     close: async () => {
       await sb.removeAllChannels();
       sb.realtime.disconnect();
     },
   };
+}
+
+/** Pair a panel from an operator page's Panel dialog, as the module does with the code it shows;
+ *  the dialog is left open on the listed panel. */
+export async function pairPanel(op: Page) {
+  await op.getByTestId('panel-open').click();
+  await expect(op.getByTestId('panel-dialog')).toBeVisible();
+  await op.getByTestId('panel-pair').click();
+  const codeText = (await op.getByTestId('panel-code').locator('.panel-code').textContent()) ?? '';
+  expect(codeText).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  const deck = await panelModule(codeText);
+  await expect(op.getByTestId('panel-row')).toHaveCount(1, { timeout: 10_000 });
+  await expect(op.getByTestId('panel-row')).toContainText('Spec deck');
+  await expect(op.getByTestId('panel-code')).toBeHidden();
+  return deck;
+}
+
+/** Switch "Answer the panel on this page" on in the open Panel dialog. */
+export async function answerPanel(op: Page) {
+  await op.getByTestId('panel-answer').locator('input').check();
+  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
+  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
 }
 
 /** The published production's hosted control page, open with its two cues. */

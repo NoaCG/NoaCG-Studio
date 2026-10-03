@@ -6,13 +6,18 @@
 // presses through its own onVerb, refuses a repeated or stale press, publishes what the keys draw
 // from, and hands the answer over to the hosted control page when that one is switched on last.
 // The same walk as panel-page.spec.ts, on the other operator page. The "module" is an anonymous
-// Supabase client holding only the panel key, as the Companion module is (./_panel.ts).
+// Supabase client holding only the panel key, as the Companion module is (./_panel.ts). The second
+// test follows the clip clock a panel counts down while a server clip plays, with NoaCG Bridge and
+// CasparCG faked at the network layer (e2e/_fakeBridge.ts) and only the relay real.
 // covers: src/components/home/ProductionPage.tsx, src/components/control/PanelControl.tsx
-// covers: src/control/panelRelay.ts, src/control/panelFeedback.ts
+// covers: src/control/panelRelay.ts, src/control/panelFeedback.ts, src/control/serverPlayoutStore.ts
 
 import { test, expect } from '@playwright/test';
+import { settleDurableWrites } from '../_durable';
+import { evaluateInPage } from '../_evaluate';
+import { fakeBridge, seedSettings } from '../_fakeBridge';
 import { haveCreds, SUPABASE_URL } from './_helpers';
-import { ANON_KEY, openHosted, panelModule, publishTwoCues, type Json } from './_panel';
+import { answerPanel, ANON_KEY, openHosted, pairPanel, publishTwoCues, type Json } from './_panel';
 
 test.skip(!haveCreds || !SUPABASE_URL || !ANON_KEY, 'E2E_EMAIL / E2E_PASSWORD and the Supabase pair unset - configured-mode spec');
 
@@ -28,23 +33,15 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   // Nothing panel-related runs until the switch is on: the door says Off.
   await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'off');
   await op.getByTestId('panel-open').click();
-  await expect(op.getByTestId('panel-dialog')).toBeVisible();
   await expect(op.getByTestId('panel-status')).toContainText('No page answers the panel');
+  await op.getByTestId('panel-close').click();
 
   // PAIRING: a code, typed into the "module", and the panel appears in the list.
-  await op.getByTestId('panel-pair').click();
-  const codeText = (await op.getByTestId('panel-code').locator('.panel-code').textContent()) ?? '';
-  expect(codeText).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/);
-  const deck = await panelModule(codeText);
-  await expect(op.getByTestId('panel-row')).toHaveCount(1, { timeout: 10_000 });
-  await expect(op.getByTestId('panel-row')).toContainText('Spec deck');
-  await expect(op.getByTestId('panel-code')).toBeHidden();
+  const deck = await pairPanel(op);
   expect((await deck.hello()).answering).toBe(false);
 
   // ANSWERING: the switch claims, and the page publishes what the keys draw from.
-  await op.getByTestId('panel-answer').locator('input').check();
-  await expect(op.getByTestId('panel-status')).toHaveText('This page answers the panel.');
-  await expect(op.getByTestId('panel-open')).toHaveAttribute('data-state', 'ok');
+  await answerPanel(op);
   await op.getByTestId('panel-dialog').screenshot({ path: 'test-results/panel-production-dialog-answering.png' });
   await op.getByTestId('panel-close').click();
   await deck.hello();
@@ -132,5 +129,112 @@ test('the production page pairs a panel, answers it, runs its presses and refuse
   // CLOSING the answering page lets go: hello then says no page answers.
   await hosted.close();
   await expect.poll(async () => (await deck.hello()).answering, { timeout: 10_000 }).toBe(false);
+  await deck.close();
+});
+
+test('the clip clock a panel counts follows the server clip the production page plays', async ({ page }) => {
+  // AC-7, protocol §7.4 and §8: with a server clip on air the state names it and its end in the
+  // page's clock; the server moving the clip moves that end; a pause from the panel freezes it; an
+  // ended clip holds; the cue key again takes it off and the clip leaves the state.
+  test.setTimeout(300_000);
+  const name = `Panel Clip ${Date.now()}`;
+  await publishTwoCues(page, name);
+  const op = page;
+  const studio = await fakeBridge(op, { version: '0.7.0', features: ['state', 'playback', 'sequence', 'servers'], lengths: { OPENER: 15 } });
+  await seedSettings(op);
+  // evaluateInPage: the function ends in a store mutation, the window e2e/_evaluate.ts closes.
+  await evaluateInPage(
+    op,
+    async (show) => {
+      const { loadShows, addPlayoutItem } = await import('/src/model/shows.ts');
+      const id = loadShows().find((s) => s.name === show)!.id;
+      addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', name: 'OPENER', frames: 375, fps: 25, channel: 2 });
+    },
+    name,
+  );
+  await settleDurableWrites(op);
+  // A reload, not a goto: the page is already on this URL, so a goto would only move the hash.
+  await op.reload();
+  await expect(op.getByTestId('production-page')).toBeVisible();
+  await expect(op.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
+  const status = op.getByTestId('production-status-panel');
+  if (await status.isVisible()) await op.getByTestId('production-status').click();
+  await expect(status).toBeHidden();
+
+  const deck = await pairPanel(op);
+  await answerPanel(op);
+  await op.getByTestId('panel-close').click();
+  await deck.hello();
+  const ready = await deck.state((s) => s.bridge === 'ok', 'the Bridge answering');
+  expect(ready.clip).toBeNull();
+  expect((ready.allowed as Json)['pause-toggle']).toBe(false);
+  const opener = (await deck.rows()).find((r) => r.label === 'OPENER');
+  expect(opener, 'the server clip is one of the rows').toBeTruthy();
+  const cue = opener!.id;
+  type Clip = { cue: string; label: string; phase: string; end: number | null; remaining: number | null; estimated: boolean };
+  const clip = (s: Json) => s.clip as Clip | null;
+  /** Seconds left as the module counts them from one state: `end` against the state's own `at`. */
+  const left = (s: Json) => (clip(s)!.end! - (s.at as number)) / 1000;
+  const lastVerb = () => studio.actions.at(-1)?.verb;
+
+  // A TAKE from the panel airs the clip on the server, and the state names the clip the clock
+  // follows, with its 15 s end in the page's clock.
+  expect((await deck.press('take-cue', cue, ready.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('take');
+  const counting = await deck.state((s) => clip(s)?.phase === 'counting' && clip(s)?.end != null, 'the clip counting');
+  expect(clip(counting)).toMatchObject({ cue, label: 'OPENER', estimated: false });
+  expect(counting.live).toContain(cue);
+  expect((counting.allowed as Json)['pause-toggle']).toBe(true);
+  expect(left(counting)).toBeGreaterThan(11);
+  expect(left(counting)).toBeLessThanOrEqual(15.5);
+
+  // THE SERVER MOVES ON (the fake's clock jumps 9 s): the end the panel counts to moves with it,
+  // into the warning, without a press.
+  studio.skew += 9_000;
+  const moved = await deck.state((s) => clip(s)?.phase === 'counting' && clip(s)?.end != null && left(s) < 7, 'the end moved with the server');
+  expect(left(moved)).toBeGreaterThan(2);
+  const shift = (clip(counting)!.end! - clip(moved)!.end!) / 1000;
+  expect(shift).toBeGreaterThan(6);
+  console.log(`the server 9 s on: the end the panel counts to moved ${shift.toFixed(2)} s`);
+
+  // PAUSE from the panel pauses that clip on the server, and the state freezes its time.
+  expect((await deck.press('pause-toggle', cue, moved.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('pause');
+  const paused = await deck.state((s) => clip(s)?.phase === 'paused', 'the clip paused');
+  expect(clip(paused)!.end).toBeNull();
+  expect(clip(paused)!.remaining).toBeGreaterThan(1);
+  expect(clip(paused)!.remaining).toBeLessThan(7);
+  await expect(op.getByTestId('clip-clock')).toHaveAttribute('data-phase', 'paused');
+  // And again resumes it.
+  expect((await deck.press('pause-toggle', cue, paused.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('resume');
+  const resumed = await deck.state((s) => clip(s)?.phase === 'counting', 'the clip counting again');
+  // Pause and Resume, the keys P would be, act on the selected cue's clip: select it, then press.
+  expect((await deck.press('select-cue', cue, resumed.ver as number)).outcome).toBe('ran');
+  const chosen = await deck.state((s) => s.selected === cue, 'the clip selected');
+  expect((chosen.allowed as Json).pause).toBe(true);
+  expect((await deck.press('pause', cue, chosen.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('pause');
+  const held = await deck.state((s) => clip(s)?.phase === 'paused', 'the clip paused by Pause');
+  expect((held.allowed as Json).resume).toBe(true);
+  expect((await deck.press('resume', cue, held.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('resume');
+  await deck.state((s) => clip(s)?.phase === 'counting', 'the clip counting after Resume');
+
+  // THE CLIP ENDS on the server and holds its last frame: the state says so, its end passed.
+  studio.skew += 20_000;
+  const holding = await deck.state((s) => clip(s)?.phase === 'holding', 'the clip holding');
+  expect(left(holding)).toBeLessThanOrEqual(0);
+  expect(holding.live).toContain(cue);
+
+  // The cue key again takes it off: no clip, and nothing for the panel to pause.
+  expect((await deck.press('take-cue', cue, holding.ver as number)).outcome).toBe('ran');
+  await expect.poll(lastVerb).toBe('out');
+  const off = await deck.state((s) => clip(s) === null, 'no clip');
+  expect(off.live).not.toContain(cue);
+  expect((off.allowed as Json)['pause-toggle']).toBe(false);
+  // AC-7's figure: a page state reaching the module, measured on whatever backend this run has.
+  const lags = deck.stateLags().sort((a, b) => a - b);
+  console.log(`page state to the module over ${lags.length} states: p50 ${lags[Math.floor(lags.length / 2)]} ms, worst ${lags.at(-1)} ms`);
   await deck.close();
 });
