@@ -485,7 +485,7 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   // Every attempt the operator page makes at sending a press, so a late Take says which half was
   // late: the send (an attempt abandoned at 1.5 s and sent again, failedSends.ts) or the road
   // to air. Seen once locally on a stack just started: Take 1 at 2040 and 2080 ms, the
-  // abandon-and-resend signature, but never again in 38 runs with this record on.
+  // abandon-and-resend signature, but never again in 23 runs with this record on.
   const sends: string[] = [];
   const sentAt = new Map<object, number>();
   let markedAt = Date.now();

@@ -24,8 +24,8 @@ the bound is measuring the database rather than the road.
   the Presence close.
 - Locally, against a freshly started stack (all migrations applied just before), the first run of
   `--repeat-each 12 --workers 2` failed 2 of 12, both on Take 1, BEFORE the close:
-  `2080, 248, 284, 140, 154` and `2040, 252, 298, 277, 154`. Both were the first test of a worker.
-- Then 38 further runs with the operator page's `control_send_seq` attempts recorded passed: on a
+  `2080, 248, 284, 140, 154` and `2040, 252, 298, 277, 154`. Both were in the first two repeats of the run.
+- Then 23 further runs with the operator page's `control_send_seq` attempts recorded passed: on a
   warm stack, after restarting the database and PostgREST, and after a stop and start of the
   stack. Every send answered in 16 to 216 ms; press to air 64 to 278 ms.
 
