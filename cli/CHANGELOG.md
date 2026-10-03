@@ -12,6 +12,12 @@ internal names.
 
 ## 0.8.1 - unreleased
 
+**Short button labels, and labels that name the player.** The skill now tells your agent to keep a
+⚡ button's label to a word or two, and `noacg validate` warns on one over 16 characters. A label
+can name a field in braces, `"+1 {f0|P1}"`: the operator page shows the name that is on air
+("+1 ANNA"), and the fallback after the bar while the field is empty. There is nothing to do; a
+graphic made before keeps its labels.
+
 **The Bridge can change how a playing clip ends.** A clip playing on loop through `noacg bridge`
 can now be told to stop looping, clear, or play the next clip while it plays. The clip is not
 started again: it plays to the end of the round it is in, then does what it was set to. This uses
