@@ -45,7 +45,7 @@ import {
 import { fieldDescriptors, type ControlMessage } from './controlModel';
 import { createLogFollower } from './logFollow';
 import { cueDataRows, type CueDataRow } from './cueData';
-import { nextGraphicCue, readAuto, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
+import { nextGraphicCue, readAuto, takesNext, type ArmOp, type MarkerAuto, type WireArm } from './cueAuto';
 
 /** The operator page's URL for a control slug — the one shape every surface mints. */
 export function controlPageUrl(slug: string): string {
@@ -417,7 +417,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
     .filter((c) => byId.has(c.sourceId))
     .map((c) => {
       const auto = readAuto(c);
-      const next = auto && auto.then !== 'out' ? nextGraphicCue(show.cues ?? [], c.id) : null;
+      const next = auto && takesNext(auto.then) ? nextGraphicCue(show.cues ?? [], c.id) : null;
       return {
         id: c.id,
         graphic: byId.get(c.sourceId)!.name,

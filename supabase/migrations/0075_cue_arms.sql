@@ -138,6 +138,7 @@ declare
   v_msg      jsonb;
   v_seq      bigint;
   v_refire   boolean := false;
+  v_wire     jsonb;
 begin
   if p_op is null or p_op not in ('arm', 'aired', 'hold', 'resume', 'cancel', 'fire') then
     raise exception 'not an arm operation' using errcode = '22023';
@@ -298,8 +299,9 @@ begin
     v_seq := v_head.seq + 1;
     -- `then` on every arm row, so the log can word a fire or a Manual, whose arm has ended.
     v_msg := jsonb_build_object('t', 'cue', 'cue', p_cue, 'arm', v_mark, 'then', v_arm.action);
-    if public.control_cue_arm_wire(v_arm) is not null then
-      v_msg := v_msg || jsonb_build_object('auto', public.control_cue_arm_wire(v_arm));
+    v_wire := public.control_cue_arm_wire(v_arm);
+    if v_wire is not null then
+      v_msg := v_msg || jsonb_build_object('auto', v_wire);
     end if;
     update public.control_heads h
        set seq = v_seq, graphics = public.control_head_effect(h.graphics, p_lane, v_msg, 'arm', 0), updated_at = now()
@@ -317,7 +319,8 @@ begin
     'op', coalesce(v_mark, case when v_refire then 'fire' end),
     'rev', coalesce(v_seq, v_head.seq),
     'at', round(extract(epoch from v_now) * 1000)))
-    || jsonb_build_object('arm', coalesce(public.control_cue_arm_wire(v_arm), 'null'::jsonb));
+    -- `rev` is not part of the arm, so the one the row carries is the one answered.
+    || jsonb_build_object('arm', coalesce(case when v_mark is not null then v_wire else public.control_cue_arm_wire(v_arm) end, 'null'::jsonb));
 end $$;
 revoke all on function public.control_cue_arm(text, text, text, text, text) from public;
 grant execute on function public.control_cue_arm(text, text, text, text, text) to anon, authenticated;
@@ -362,9 +365,8 @@ begin
     end if;
     select * into v_arm from public.control_cue_arms a where a.show_id = v_show and a.lane = v_lane;
     if found and v_arm.take_seq = v_seq then
-      if public.control_cue_arm_wire(v_arm) is not null then
-        v_arms := v_arms || jsonb_build_object(v_lane, public.control_cue_arm_wire(v_arm));
-      end if;
+      -- Ended (fired or Manual): nothing to count. jsonb_strip_nulls drops the lane then.
+      v_arms := jsonb_strip_nulls(v_arms || jsonb_build_object(v_lane, public.control_cue_arm_wire(v_arm)));
       continue;
     end if;
     v_spec := public.control_cue_spec(v_msg->'auto');

@@ -37,6 +37,7 @@ import {
   type LaneArm,
 } from './cueAuto.ts';
 import type { ControlEventRow } from './hostedControl';
+import { uuid } from '../model/id.ts';
 import type { ArmAnswer, ArmRequest, ArmsRead } from './cueArmRpc';
 
 /** How long a page waits after a renderer's report before asking `aired`, at most: every page sees
@@ -93,7 +94,7 @@ export interface CueArmWire {
 export function createCueArmWire(o: CueArmWireOptions): CueArmWire {
   const now = o.now ?? Date.now;
   const { rpc } = o;
-  const by = o.by ?? (globalThis.crypto?.randomUUID?.() ?? `page-${Math.random()}`);
+  const by = o.by ?? uuid();
   const setTimer = o.setTimer ?? ((fn: () => void, ms: number) => setTimeout(fn, ms));
   const clearTimer = o.clearTimer ?? ((t: unknown) => clearTimeout(t as ReturnType<typeof setTimeout>));
   const random = o.random ?? Math.random;
