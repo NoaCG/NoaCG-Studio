@@ -489,7 +489,7 @@ test('a Presence channel closed by the server mid-burst costs the renderer no Ta
   const sends: string[] = [];
   const sentAt = new Map<object, number>();
   let markedAt = Date.now();
-  const attempt = (request: { url(): string }, outcome: string) => {
+  const attempt = (request: object, outcome: string) => {
     const at = sentAt.get(request);
     if (at !== undefined) sends.push(`+${at - markedAt}ms ${outcome} after ${Date.now() - at}ms`);
   };
