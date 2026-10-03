@@ -97,8 +97,10 @@ The core playout path worked all day. What cost time was uncertainty and setup:
   NoaCG Bridge whether or not the production is started, so with a clip up the monitor reads
   PROGRAM · ON AIR even offline; it reads PREVIEW · NOT LIVE only when nothing this page sends
   reaches air. Never NOT LIVE over a clip that is playing. Revert: `live` in `ProductionPage`.
-  The rundown's ON AIR chip and the "on air:" line under the verbs still say ON AIR for a local
-  take in an offline production (docs/backlog/on-air-words-in-an-offline-production.md).
+  The rundown row and the line under the verbs follow the same rule: a graphic taken in a
+  production that is not started reads UP and "up, not live" in the monitor's grey, and a server
+  cue reads ON AIR either way (`started` in `CueRundown`). The folder header and the panels that
+  still say on air are docs/backlog/on-air-words-left-in-an-offline-production.md.
 - **D17. The Bridge's copy is the setup for its server.** A page takes it when it connects to a
   server (pairing, Connect, a server used before) and when a production page or Playout settings
   opens, and writes it back when the operator changes the channels, the NoaCG output or New media.
