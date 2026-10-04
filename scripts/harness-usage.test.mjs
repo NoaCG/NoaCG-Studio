@@ -204,6 +204,37 @@ test('a native worker copied to the archive counts once, richest rollout winning
   assert.equal(codexWindowUsage(sessions[0], WHOLE_DAY).tokens.total, 3120);
 });
 
+test('forked reviewers retain their header identity through inherited parent metadata and archive copies', () => {
+  const fork = (id, parentId, { partial = false } = {}) => {
+    const records = parseJsonl(nativeCodexRollout(id, { worker: true, partial })).records;
+    records.splice(1, 0, { type: 'session_meta', payload: { id: parentId, session_id: 'parent-rollout' } });
+    return records.map((record) => JSON.stringify(record)).join('\n');
+  };
+  const parent = readCodexSession(nativeCodexRollout('parent-rollout'));
+  const worker = readCodexSession(nativeCodexRollout('worker-rollout', { worker: true }));
+  const reviewer = readCodexSession(fork('reviewer-rollout', 'worker-rollout'), { file: 'sessions/reviewer.jsonl' });
+  const otherReviewer = readCodexSession(fork('other-reviewer-rollout', 'parent-rollout'));
+  const archive = readCodexSession(fork('reviewer-rollout', 'worker-rollout', { partial: true }), { file: 'archived_sessions/reviewer.jsonl' });
+  const sessions = dedupeCodexSessions([parent, worker, archive, reviewer, otherReviewer]);
+  assert.deepEqual(sessions.map((session) => session.sessionId), [
+    'parent-rollout', 'worker-rollout', 'reviewer-rollout', 'other-reviewer-rollout',
+  ]);
+  assert.equal(sessions[2], reviewer, 'the richer copy of the reviewer wins');
+  assert.equal(sessions.reduce((sum, session) => sum + codexWindowUsage(session, WHOLE_DAY).tokens.total, 0), 12480);
+  const window = { since: at('2026-08-30T11:30:00Z'), until: WHOLE_DAY.until };
+  assert.equal(sessions.reduce((sum, session) => sum + codexWindowUsage(session, window).tokens.total, 0), 8280);
+});
+
+test('the first legacy header and missing-header filename fallback keep their identities', () => {
+  const legacy = [
+    { type: 'session_meta', payload: { session_id: 'legacy-rollout' } },
+    { type: 'session_meta', payload: { id: 'inherited-parent' } },
+  ].map((record) => JSON.stringify(record)).join('\n');
+  assert.equal(readCodexSession(legacy, { file: 'legacy.jsonl' }).sessionId, 'legacy-rollout');
+  assert.equal(readCodexSession('', { file: 'filename-rollout.jsonl' }).sessionId, 'filename-rollout');
+  assert.equal(readCodexSession('').sessionId, 'unknown');
+});
+
 // ── Claude Code ──────────────────────────────────────────────────────────────────────────────────
 
 test('a Claude transcript yields one row per usage record, duplicates included', () => {
