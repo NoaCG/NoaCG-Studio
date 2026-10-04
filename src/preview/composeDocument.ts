@@ -19,6 +19,7 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
+  PREVIEW_ERROR_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -44,6 +45,8 @@ export function stripLocalAssetTags(html: string): string {
 
 /** Options for the live preview composition. */
 export interface ComposeOptions {
+  /** Only output documents opt in. Authoring and monitor compositions are silent. */
+  sound?: 'program';
   /**
    * Authoring/pasteboard mode — the EDITOR PREVIEW ONLY. Render the canvas inset by this pad
    * (canvas px) inside a larger viewport so content positioned OUTSIDE the canvas (an
@@ -185,7 +188,7 @@ body { position: relative; overflow: visible !important; margin: ${options.autho
   // The bundled Lottie player rides along ONLY when the template uses it (unlike GSAP,
   // which every template animates with) — see src/assets/lottieSupport.ts.
   const lottieTag = templateUsesLottie(template) ? `\n<script id="spx-lottie">\n${lottieSource}\n</script>` : '';
-  const jsTag = `<script id="spx-template-js">\n${template.js}\n</script>`;
+  const jsTag = `<script id="spx-template-js">\nwindow.noacgSoundMode = ${JSON.stringify(options.sound === 'program' ? 'program' : 'silent')};\n${inlineAssetRefs(template.js, template.assets)}\n</script>`;
 
   // Preview-only: uploaded assets exist as in-memory data URLs, so an image path the
   // template sets at RUNTIME (update() writing an <img> src, a rebuild injecting
@@ -318,6 +321,7 @@ window.addEventListener('unhandledrejection', function (ev) {
       if (document.fonts.ready) waits.push(document.fonts.ready.then(null, function () {}));
     }
     var imgs = document.images ? Array.prototype.slice.call(document.images) : [];
+    if (window.noacgSoundPrepare) waits.push(window.noacgSoundPrepare().catch(function (e) { warmError = String(e.message || e); }));
     imgs.forEach(function (img) {
       if (!img.getAttribute('src') || !img.decode) return;
       try { waits.push(img.decode().then(null, function () {})); } catch (e) {}
@@ -326,6 +330,7 @@ window.addEventListener('unhandledrejection', function (ev) {
     function answer() {
       if (sent) return;
       sent = true;
+      if (!warmError && window.noacgSoundStatus) warmError = window.noacgSoundStatus();
       var failed = [];
       var loading = [];
       if (document.fonts && document.fonts.forEach) {
@@ -360,7 +365,19 @@ window.addEventListener('unhandledrejection', function (ev) {
      behind it. */
   var waiting = false;
   var backlog = [];
+  var soundPrepared = !window.noacgSoundPrepare;
   function drain() {
+    if (!waiting && !soundPrepared && window.noacgSoundPrepare) {
+      waiting = true;
+      window.noacgSoundPrepare().then(function () {
+        soundPrepared = true; waiting = false; drain();
+      }, function (e) {
+        soundPrepared = true; waiting = false;
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_ERROR_TYPE)}, message: String(e.message || e) }, '*');
+        drain();
+      });
+      return;
+    }
     while (!waiting && backlog.length > 0) run(backlog.shift());
   }
   function afterFonts(cb) {
@@ -397,7 +414,10 @@ window.addEventListener('unhandledrejection', function (ev) {
         report(window);
       });
     } else if (msg.cmd === 'stop') {
+      var priorQuiet = window.noacgSoundQuiet === true;
+      if (msg.sound === false && window.noacgSoundSetQuiet) window.noacgSoundSetQuiet(true);
       try { window.stop && window.stop(); } catch (e) {}
+      if (msg.sound === false && window.noacgSoundSetQuiet) window.noacgSoundSetQuiet(priorQuiet);
     } else if (msg.cmd === 'next') {
       try { window.next && window.next(); } catch (e) {}
     } else if (msg.cmd === 'dispatch') {
@@ -418,7 +438,10 @@ window.addEventListener('unhandledrejection', function (ev) {
         try { window.update && window.update(msg.data); } catch (e) { warmError = String((e && e.message) || e); }
       }
       checkReady(warmError);
+    } else if (msg.cmd === 'sound-quiet') {
+      if (window.noacgSoundSetQuiet) window.noacgSoundSetQuiet(msg.on);
     } else if (msg.cmd === 'offair') {
+      if (window.noacgSoundSetQuiet) window.noacgSoundSetQuiet(msg.on);
       /* OFF AIR, FROM THE INSIDE (previewProtocol.ts's 'offair'): the root paints transparent
          and everything under it keeps running at the frame rate it would have on air. Set as
          important so a template's own root rule cannot win, and REMOVED to come back, which

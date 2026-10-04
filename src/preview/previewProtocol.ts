@@ -70,8 +70,9 @@ export interface PreviewReadyMessage {
 }
 
 export type PreviewCmd =
+  | { cmd: 'sound-quiet'; on: boolean }
   | { cmd: 'play'; data?: string }
-  | { cmd: 'stop' }
+  | { cmd: 'stop'; sound?: false }
   | { cmd: 'next' }
   | { cmd: 'update'; data: string }
   | { cmd: 'settle'; data: string }

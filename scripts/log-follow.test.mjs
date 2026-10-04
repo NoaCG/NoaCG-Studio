@@ -216,3 +216,15 @@ test('the socket reconnect keeps the library steps on average and spreads each o
     assert.ok(realtimeReconnectAfterMs(i + 1, () => 0.999_999) < step * 1.5);
   });
 });
+
+test('only an unseen tail row enters replay, and the walk restores once even on failure', async () => {
+  const events=[];let rows=[];
+  const follower=createLogFollower({from:0,tail:async()=>rows,onRow:r=>events.push(r.id),onReplay:on=>events.push(on)});
+  await follower.refill('behind');assert.deepEqual(events,[]);
+  follower.offer({id:1});await follower.refill('behind');assert.deepEqual(events,[1]);
+  rows=[{id:1},{id:2}];await follower.refill('behind');assert.deepEqual(events,[1,true,2,false]);
+  await follower.refill('behind');assert.deepEqual(events,[1,true,2,false]);
+  const failed=[];
+  const broken=createLogFollower({from:0,tail:async after=>{if(after)throw Error('lost page');return Array.from({length:CONTROL_TAIL_PAGE},(_,id)=>({id:id+1}));},onRow:()=>{},onReplay:on=>failed.push(on)});
+  await assert.rejects(broken.refill('ahead'),/lost page/);assert.deepEqual(failed,[true,false]);
+});

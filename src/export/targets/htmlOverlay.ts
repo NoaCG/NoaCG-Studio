@@ -130,9 +130,13 @@ function autoplayScript(baked: Record<string, string>, outMs: number | null): st
     // OBS source in a cue-driven show), so it loads at rest and waits for commands instead
     // of popping on air by itself. The plain file keeps the classic single-overlay autoplay.
     if (/[?&]stream=/.test(location.search)) return;
-    if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
-    if (window.obsstudio) followProgram();
-    else start();
+    function ready() {
+      if (typeof window.update === 'function') window.update(JSON.stringify(startData()));
+      if (window.obsstudio) followProgram();
+      else start();
+    }
+    if (typeof noacgSoundPrepare === 'function') noacgSoundPrepare().then(ready);
+    else ready();
   });
 })();`;
 }

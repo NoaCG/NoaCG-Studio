@@ -11,7 +11,8 @@ import { flexGapShimSource } from '../../assets/flexGapSupport';
 import lottieSource from '../../assets/lottie.min.js?raw';
 import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/assetUtils';
 import { templateUsesLottie } from '../../assets/lottieSupport';
-import { ANIM_CALL_NAME_RE, parseAnimData, type AnimStep } from '../../blocks/animData';
+import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, type AnimStep } from '../../blocks/animData';
+import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { eventButtons, kindForField, type ControlButton } from '../../control/controlModel';
 import { stripLiveData } from '../../control/liveData';
 import { stripRealtimeControl } from '../../control/realtimeControl';
@@ -334,6 +335,8 @@ export function buildOgrafManifest(
   const stepCount = Math.max(1, Number(template.settings.steps) || 1);
   const actions = customActions(template);
   const durations = actionDurations(template, stepCount, actions.map((a) => a.id as string));
+  const data = parseAnimData(template.js);
+  const hasSounds = data && animSounds(data).some(s => s.enabled);
   return {
     $schema: OGRAF_SCHEMA_URL,
     id: ografGraphicId(template.name),
@@ -350,6 +353,7 @@ export function buildOgrafManifest(
     renderRequirements: renderRequirements(template),
     ...(opts.thumbnails?.length ? { thumbnails: opts.thumbnails } : {}),
     ...(opts.noacg ? { v_noacg: opts.noacg } : {}),
+    ...(hasSounds ? { v_noacg_audio: { version: 1, requires: 'web-audio', receivingHostRehearsal: true } } : {}),
     v_spx: spxManifestHint(template),
   };
 }
@@ -378,10 +382,12 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
   if (/<(?:video|audio)\b/i.test(template.html)) {
     errors.push('Media playback is not seekable in OGraf non-real-time mode.');
   }
+  const soundData = parseAnimData(template.js);
+  if (soundData && animSounds(soundData).some(s => s.enabled)) errors.push('Enabled sound attachments require real-time audio. Disable sounds for a silent post-production export.');
   if (/(?:^|[;{])\s*animation(?:-name)?\s*:/im.test(template.css)) {
     errors.push('CSS animations are wall-clock driven; move this motion into the NoaCG timeline.');
   }
-  if (/\b(?:fetch|WebSocket|EventSource)\s*\(/.test(stripRealtimeControl(stripLiveData(template.js)))) {
+  if (/\b(?:fetch|WebSocket|EventSource)\s*\(/.test(stripRealtimeControl(stripLiveData(template.js.replace(SOUND_RUNTIME_JS, ''))))) {
     errors.push('Live-only network code remains after removing NoaCG live-control blocks.');
   }
   if (/\belement\.animate\s*\(|\.animate\s*\(\s*\[/.test(template.js)) {
@@ -1130,6 +1136,7 @@ function scopedGsap(root) {
 // \`document\`, \`window\` and \`gsap\` parameters shadow the global ones so its lookups stay
 // inside this Graphic.
 function initTemplate(document, window, gsap) {
+  window.noacgResolveSound = packageUrl;
 ${template.js.replace(/^/gm, '  ')}
 
   // THE TIMELINE'S OWN VOCABULARY, handed to the scoped window above. Every name here is one
@@ -1159,7 +1166,11 @@ ${
     dispatch: (typeof noacgDispatch === 'function') ? noacgDispatch : null,
     // How a skipAnimation action lands instantly: noacgSnap() composes a state's settled pose
     // with GSAP callbacks suppressed. Absent on a template with no state machine.
-    snap: (typeof noacgSnap === 'function') ? noacgSnap : null
+    snap: (typeof noacgSnap === 'function') ? noacgSnap : null,
+    soundPrepare: (typeof noacgSoundPrepare === 'function') ? noacgSoundPrepare : null,
+    soundStatus: (typeof noacgSoundStatus === 'function') ? noacgSoundStatus : null,
+    soundQuiet: (typeof noacgSoundSetQuiet === 'function') ? noacgSoundSetQuiet : null,
+    soundDispose: (typeof noacgSoundDispose === 'function') ? noacgSoundDispose : null
   };
 }
 
@@ -1221,12 +1232,21 @@ class Graphic extends HTMLElement {
   // from the signature instead of having to follow _serial. Behaviour is unchanged.
   async load(params) { return this._serial(() => this._load(params || {})); }
   async dispose() { return this._serial(() => this._dispose()); }
-  async playAction(params) { return this._serial(() => this._playAction(params || {})); }
-  async stopAction(params) { return this._serial(() => this._stopAction(params || {})); }
+  async playAction(params) { return this._soundAction(params, () => this._playAction(params || {})); }
+  async stopAction(params) { return this._soundAction(params, () => this._stopAction(params || {})); }
   async updateAction(params) { return this._serial(() => this._updateAction(params || {})); }
-  async customAction(params) { return this._serial(() => this._customAction(params || {})); }
+  async customAction(params) { return this._soundAction(params, () => this._customAction(params || {})); }
   async goToTime(params) { return this._serial(() => this._goToTime(params || {})); }
   async setActionsSchedule(params) { return this._serial(() => this._setActionsSchedule(params || {})); }
+
+  _soundAction(params, action) {
+    return this._serial(async () => {
+      const sound = this._runtime && this._runtime.soundQuiet;
+      if (sound && params && params.skipAnimation) sound(true);
+      try { return await action(); }
+      finally { if (sound && params && params.skipAnimation) sound(false); }
+    });
+  }
 
   // The element becomes the canvas: the attribute every scoped rule keys on, and ONE stylesheet
   // holding the box the design lays out against followed by whatever the caller injects. Both
@@ -1239,6 +1259,7 @@ class Graphic extends HTMLElement {
   }
 
   async _load(params) {
+    if (this._runtime || this._frame) await this._dispose();
     this._disposed = false;
     this._renderType = params.renderType || 'realtime';
     this._initialData = Object.assign({}, params.data || {});
@@ -1258,12 +1279,21 @@ class Graphic extends HTMLElement {
     this.appendChild(holder);
 
     this._runtime = initTemplate(scopedDocument(this), scopedWindow(TIMELINE_FUNCTIONS), scopedGsap(this));
+    try {
+      if (this._runtime.soundPrepare) await this._runtime.soundPrepare();
+      const audioError = this._runtime.soundStatus && this._runtime.soundStatus();
+      if (audioError) throw new Error(audioError);
+    } catch (e) {
+      await this._dispose();
+      return { statusCode: 500, statusMessage: String(e.message || e) };
+    }
     this._step = -1; // not on air yet
     if (params && params.data) this._runtime.update(JSON.stringify(withPackagePaths(params.data)));
     return { statusCode: 200 };
   }
 
   async _dispose() {
+    if (this._runtime && this._runtime.soundDispose) this._runtime.soundDispose();
     // Only this Graphic's own elements: '*' is document-wide, and a renderer mounts every
     // layer in one document, so clearing layer 1 froze the graphic still on air on layer 0.
     if (window.gsap) window.gsap.killTweensOf(this.querySelectorAll('*'));

@@ -119,7 +119,12 @@ export function realtimeControlBlock(cfg: RemoteControlConfig): string {
   function dispatch(m) {
     if (!m) return;
     if (m.t === 'play' && typeof play === 'function') play();
-    else if (m.t === 'stop' && typeof stop === 'function') stop();
+    else if (m.t === 'stop' && typeof stop === 'function') {
+      var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
+      stop();
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
+    }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);

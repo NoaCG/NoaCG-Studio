@@ -14,6 +14,7 @@ export function controlReceiverScript(templateName: string, channelName: string)
    machine state, and a lightweight watcher reports timer-driven changes too, so the panel's
    state chip stays honest. Remove this block to opt out. */
 (function () {
+  if (/[?&]stream=preview(?:&|$)/.test(location.search)) window.noacgSoundMode = 'silent';
   if (typeof BroadcastChannel === 'undefined') return;
   try {
     var ch = new BroadcastChannel('${channelName}');
@@ -38,7 +39,12 @@ export function controlReceiverScript(templateName: string, channelName: string)
       var m = ev.data || {};
       if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
       else if (m.t === 'play' && typeof play === 'function') play();
-      else if (m.t === 'stop' && typeof stop === 'function') stop();
+      else if (m.t === 'stop' && typeof stop === 'function') {
+        var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
+        if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
+        stop();
+        if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
+      }
       else if (m.t === 'next' && typeof next === 'function') next();
       else if (m.t === 'event' && typeof noacgDispatch === 'function') {
         // WHEN this event happened. A graphic that runs a clock of its own reads it instead of

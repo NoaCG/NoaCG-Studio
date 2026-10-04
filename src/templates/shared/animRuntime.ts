@@ -7,7 +7,8 @@
 // and write raw GSAP (the timeline UI then steps aside).
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
-import { locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
+import { animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
+import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
 import { contentHash } from '../../model/contentHash';
@@ -21,6 +22,7 @@ export const ANIM_INTERPRETER_JS = `// ---- The interpreter (the same in every t
 // When the data carries a "machine", the same cues drive its default path, and the state
 // engine below adds operator events (noacgDispatch), timers, and instant snap (noacgSnap).
 ${NOACG_EASE_JS}
+${SOUND_RUNTIME_JS}
 
 // A dynamics builder takes the step's ease as a string (its API). It gets the shared curve only
 // when GSAP cannot read a string the shared grammar recognizes, so nothing it builds defaults.
@@ -341,6 +343,7 @@ function noacgExitTimeline(interrupted, silent) {
   // after the motion Out carries, which Out pressed at an earlier step skips; motion carried
   // on such a layer is not the exit animating it.
   var root = document.querySelector(NOACG_ANIM.root), carried = step.carried || 0;
+  tl.__noacgOutSoundAt = (early ? 0 : carried) / (NOACG_ANIM.speed || 1);
   var exits = function (selector) {
     var tracks = step.layers[selector] || {};
     return Object.keys(tracks).some(function (prop) { return tracks[prop].some(function (key) { return key.time > carried; }); });
@@ -361,6 +364,8 @@ function noacgExitTimeline(interrupted, silent) {
 // buildInTimeline(): the entrance. Called by play(). With a machine, play() is the built-in
 // reset-and-enter event; without one, the classic linear walk (byte-for-byte).
 function buildInTimeline() {
+  if (!noacgSoundCanExecute()) return null;
+  noacgSoundStopAll();
   if (noacgOutTimeline) noacgOutTimeline.kill();
   noacgOutTimeline = null;
   noacgLiveTimeline = null;
@@ -368,6 +373,7 @@ function buildInTimeline() {
   noacgStepsPlayed = 1;
   var tl = noacgEntranceTimeline();
   noacgTrackPath(); // pointer bookkeeping only — playback is untouched
+  noacgSoundStart(NOACG_ANIM.steps[0].sound, noacgMachine.groups[0].id);
   return tl;
 }
 
@@ -376,10 +382,14 @@ function buildInTimeline() {
 function revealNextStep() {
   if (NOACG_ANIM.machine) return noacgMachineNext();
   if (noacgOutTimeline || noacgStepsPlayed >= NOACG_ANIM.steps.length - 1) return null;
+  if (!noacgSoundCanExecute()) return null;
   // Paint the step's opening values on the press, not a frame after it: next() is pressed on a
   // graphic the viewer is already watching, so a frame of the previous step's end pose is the
   // most visible case of all (noacgPaintFirstFrame above).
+  noacgSoundLeave(noacgMachine.groups[0].id);
+  var step = NOACG_ANIM.steps[noacgStepsPlayed];
   var tl = noacgPaintFirstFrame(buildStepTimeline(noacgStepsPlayed++));
+  noacgSoundStart(step.sound, noacgMachine.groups[0].id);
   noacgLiveTimeline = tl;
   noacgTrackPath();
   return tl;
@@ -390,7 +400,9 @@ function revealNextStep() {
 function buildOutTimeline() {
   if (noacgOutTimeline) return noacgOutTimeline;
   if (NOACG_ANIM.machine) return noacgMachineStop();
+  noacgSoundStopAll();
   var tl = noacgExitTimeline();
+  noacgSoundExecute(NOACG_ANIM.steps[NOACG_ANIM.steps.length - 1].sound, noacgMachine.groups[0].id, tl);
   noacgResetPointers();
   return tl;
 }
@@ -694,6 +706,10 @@ function noacgStyleTimeline(group, edge) {
 // suppressed callbacks (nothing double-fires), the target state's timeline plays, and the
 // target's entry timer arms. Entering the exit state takes the graphic off air.
 function noacgFire(group, edge) {
+  if (!noacgSoundCanExecute()) return null;
+  var isOut = group === noacgMachine.groups[0] && edge.to === (group.defaultPath || []).slice(-1)[0];
+  if (isOut) noacgSoundStopAll();
+  else noacgSoundLeave(group.id);
   noacgCancelTimer(group.id);
   var prev = noacgGroupTl[group.id];
   if (prev) {
@@ -709,6 +725,8 @@ function noacgFire(group, edge) {
     if (idx >= 0) noacgStepsPlayed = idx + 1;
   }
   var tl = noacgStyleTimeline(group, edge) || noacgEnterTimeline(group, edge.to);
+  var soundStep = noacgStepFor(group, edge.to);
+  noacgSoundExecute(edge.sound || (soundStep && soundStep.sound), group.id, tl, !!edge.sound);
   if (tl) noacgGroupTl[group.id] = tl;
   var path = main.defaultPath || [];
   if (group === main && edge.to === path[path.length - 1]) {
@@ -777,6 +795,7 @@ function noacgProcessOne(e) {
     if (edge) firing.push({ group: group, edge: edge });
   }
   if (firing.length === 0) return null;
+  if (!noacgSoundCanExecute()) return null;
   if (e.payload) noacgApplyPayload(e.payload);
   var last = null;
   for (var f = 0; f < firing.length; f++) {
@@ -819,6 +838,7 @@ function noacgMachinePlay() {
   noacgCurrent[main.id] = (main.defaultPath || [])[0];
   var edge = noacgLifecycleEdge('play');
   var tl = (edge && edge.style !== undefined ? noacgStyleTimeline(main, edge) : null) || noacgEntranceTimeline();
+  noacgSoundStart((edge && edge.sound) || NOACG_ANIM.steps[0].sound, main.id);
   noacgGroupTl[main.id] = tl;
   noacgArmTimer(main, noacgCurrent[main.id], tl);
   return tl;
@@ -835,11 +855,13 @@ function noacgMachineNext() {
 // step's lifecycle calls still run once at the swap (a clock's stopClock must not be skipped
 // just because the exit was styled).
 function noacgMachineStop() {
+  noacgSoundStopAll();
   noacgCancelAllTimers();
   noacgQueue.length = 0;
   var edge = noacgLifecycleEdge('stop');
   var styled = edge && edge.style !== undefined ? noacgStyleTimeline(noacgMachine.groups[0], edge) : null;
   var tl = styled || noacgExitTimeline();
+  noacgSoundExecute((edge && edge.sound) || NOACG_ANIM.steps[NOACG_ANIM.steps.length - 1].sound, noacgMachine.groups[0].id, tl, !!(edge && edge.sound));
   noacgGroupTl = {};
   noacgResetPointers();
   return tl;
@@ -937,6 +959,10 @@ function noacgSnap(assignments, opts) {
     if (!noacgStateOf(group, target)) target = group.initial;
     want[group.id] = target;
   }
+  Object.keys(noacgSoundPlaying).forEach(function (key) {
+    var p = noacgSoundPlaying[key];
+    if (p.sound.mode !== 'loop' || opts.timers === false || noacgCurrent[p.group] !== want[p.group]) noacgSoundStop(key);
+  });
   noacgCancelAllTimers();
   noacgQueue.length = 0;
   gsap.killTweensOf('*');
@@ -961,6 +987,7 @@ function noacgSnap(assignments, opts) {
     noacgFireCalls(noacgStepFor(group, want[group.id])); // the target state's own effects
     if (opts.timers !== false) noacgArmTimer(group, want[group.id], null);
   }
+  if (opts.timers !== false) noacgSoundRestore();
   return noacgMachineState();
 }
 
@@ -972,7 +999,10 @@ function noacgMachineState() {
     out.groups[id] = noacgCurrent[id];
   }
   return out;
-}`;
+}
+// Decode ahead of readiness; errors are retained for warm/load and never cause a cue-time fetch.
+noacgSoundPrepare().catch(function (e) { console.error(String(e.message || e)); });
+`;
 
 /** The data block's header comment — emitted above the literal (JSON carries no comments,
  *  so the explanation lives here, where hand edits preserve it). */
@@ -1082,6 +1112,7 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
+  if (animSounds(data).length && !js.includes('// Capability: graphic-sound-v1')) return writeOutData(js, data);
   if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
     return writeOutData(js, data);
   }
@@ -1106,7 +1137,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')
     .replace(/^ +if \(step(?:s\[0\])?\.spans[^\n]+\n/gm, '');
   if (![ANIM_INTERPRETER_PRE_OUT_JS, beforeSpans].some(known => body === known.replace(/\r\n/g, '\n').trim()) &&
-      ![ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH].includes(contentHash(body))) return null;
+      !['f4463f758f4e2', ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_CARRIED_HASH].includes(contentHash(body))) return null;
   return replaceRegionWithAnimData(js, data);
 }
 

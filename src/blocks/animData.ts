@@ -68,7 +68,18 @@ export interface AnimLoop {
 
 /** One step — the timeline's "clip". steps[0] plays on ▶ Play, the middle steps each on
  *  one » Next press, the last on ■ Stop (the Out step). */
+export interface AnimSound {
+  /** Stable attachment identity, carried with its step or edge through edits. */
+  id: string;
+  /** Packaged relative audio asset; preview resolves it to embedded bytes. */
+  asset: string;
+  enabled: boolean;
+  levelDb: number;
+  mode: 'one-shot' | 'loop';
+}
+
 export interface AnimStep {
+  sound?: AnimSound;
   /** Explicit visibility sets in stored seconds. Missing selectors retain legacy visibility. */
   spans?: Record<string, { start: number; end: number }[]>;
   name: string;
@@ -138,6 +149,8 @@ export const TRANSITION_STYLES = [
  *  arrow carries a `style` — then the styled change (fade/push/wipe between the two poses)
  *  plays instead. */
 export interface AnimTransition {
+  /** One-shot only. Running loops belong to the destination state's timeline. */
+  sound?: AnimSound;
   from: string;
   /** May equal `from` — a self-transition replays the state (a ticker's cycle beat). */
   to: string;
@@ -402,7 +415,7 @@ export function ensureLifecycleEdges(machine: AnimMachine): void {
  *  deliberately tolerates — but a block that declares a MACHINE and gets it wrong would ship
  *  and then run UNCHECKED on air (the interpreter reads `NOACG_ANIM.machine` verbatim), so
  *  that one case is an error rather than advice. */
-export type AnimDataFault = 'not-json' | 'off-shape' | 'off-shape-machine';
+export type AnimDataFault = 'not-json' | 'off-shape' | 'off-shape-machine' | 'off-shape-sound';
 
 /** Diagnose a block that failed to parse; null when it parses fine (or is absent). */
 export function animDataFault(js: string): AnimDataFault | null {
@@ -422,6 +435,8 @@ export function animDataFault(js: string): AnimDataFault | null {
   // build could not export a project a newer one saved. Only a block speaking a version we DO
   // understand can be judged as a broken machine.
   const known = version === 1 || version === 2;
+  const carriesSound = (value: unknown): boolean => !!value && typeof value === 'object' && Object.entries(value).some(([key, item]) => key === 'sound' || carriesSound(item));
+  if (known && carriesSound(raw)) return 'off-shape-sound';
   return known && (raw as { machine?: unknown })?.machine !== undefined ? 'off-shape-machine' : 'off-shape';
 }
 
@@ -453,11 +468,31 @@ export function isAnimData(raw: unknown): raw is AnimData {
 
 /** One step's structural check. `revealsAllowed` is false for a state's INLINE timeline —
  *  reveals/hides are the ordered walk's pre-hide mechanics and must not appear off it. */
+function isAnimSound(sound: AnimSound): boolean {
+  return !!sound && typeof sound === 'object' &&
+    typeof sound.id === 'string' && /^[A-Za-z0-9_-]+$/.test(sound.id) &&
+    typeof sound.asset === 'string' && /^(?:[A-Za-z0-9_-]+\/)+[A-Za-z0-9_.-]+\.(?:wav|mp3|ogg|m4a)$/i.test(sound.asset) &&
+    typeof sound.enabled === 'boolean' && Number.isFinite(sound.levelDb) &&
+    sound.levelDb >= -60 && sound.levelDb <= 6 &&
+    (sound.mode === 'one-shot' || sound.mode === 'loop');
+}
+
+export function animSounds(data: AnimData): AnimSound[] {
+  return [
+    ...data.steps.flatMap(s => s.sound ? [s.sound] : []),
+    ...(data.machine?.groups.flatMap(g => [
+      ...g.states.flatMap(s => s.timeline?.sound ? [s.timeline.sound] : []),
+      ...g.transitions.flatMap(t => t.sound ? [t.sound] : []),
+    ]) ?? []),
+  ];
+}
+
 function isAnimStepShape(step: AnimStep, revealsAllowed: boolean): boolean {
   if (!step || typeof step !== 'object') return false;
   if (typeof step.name !== 'string') return false;
   if (typeof step.duration !== 'number' || !Number.isFinite(step.duration) || step.duration < 0) return false;
   if (typeof step.ease !== 'string') return false;
+  if (step.sound !== undefined && !isAnimSound(step.sound)) return false;
   if (step.carried !== undefined && (typeof step.carried !== 'number' || !Number.isFinite(step.carried) || step.carried < 0)) return false;
   if (!revealsAllowed && (step.reveals !== undefined || step.hides !== undefined)) return false;
   if (step.reveals !== undefined && !Array.isArray(step.reveals)) return false;
@@ -570,6 +605,9 @@ function isMachineShape(raw: unknown, stepCount: number): raw is AnimMachine {
       if (!t || typeof t !== 'object') return false;
       if (typeof t.from !== 'string' || !stateIds.has(t.from)) return false;
       if (typeof t.to !== 'string' || !stateIds.has(t.to)) return false;
+      if (t.sound !== undefined) {
+        if (!isAnimSound(t.sound) || t.sound.mode !== 'one-shot') return false;
+      }
       if (t.trigger !== 'operator' && t.trigger !== 'timer' && t.trigger !== 'lifecycle' && t.trigger !== 'data-condition') return false;
       if (t.trigger === 'operator') {
         // The event is a bare identifier and never a reserved built-in; one (from, event)
@@ -673,6 +711,10 @@ function serializeKeyframe(kf: AnimKeyframe): string {
 /** Serialize one step (a path step or a state's inline timeline) at `indent`. `label`
  *  prefixes the opening brace (`"timeline": ` for an inline state timeline); the CALLER
  *  appends any trailing comma to the last line. */
+function serializeSound(sound: AnimSound): string {
+  return JSON.stringify({ id: sound.id, asset: sound.asset, enabled: sound.enabled, levelDb: sound.levelDb, mode: sound.mode });
+}
+
 function serializeStep(step: AnimStep, indent: string, label = ''): string[] {
   const i1 = indent + '  ';
   const i2 = indent + '    ';
@@ -683,6 +725,7 @@ function serializeStep(step: AnimStep, indent: string, label = ''): string[] {
   lines.push(`${i1}"name": ${JSON.stringify(step.name)},`);
   lines.push(`${i1}"duration": ${round(step.duration)},`);
   lines.push(`${i1}"ease": ${JSON.stringify(step.ease)},`);
+  if (step.sound) lines.push(`${i1}"sound": ${serializeSound(step.sound)},`);
   if (step.carried !== undefined) lines.push(`${i1}"carried": ${round(step.carried)},`);
   if (step.spans) {
     lines.push(`${i1}"spans": {`);
@@ -807,6 +850,7 @@ function serializeGroup(group: AnimGroup, indent: string): string[] {
       if (t.style !== undefined) parts.push(`"style": ${JSON.stringify(t.style)}`);
       if (t.duration !== undefined) parts.push(`"duration": ${round(t.duration)}`);
       if (t.ease !== undefined) parts.push(`"ease": ${JSON.stringify(t.ease)}`);
+      if (t.sound) parts.push(`"sound": ${serializeSound(t.sound)}`);
       lines.push(`${i2}{ ${parts.join(', ')} }${ti < trans.length - 1 ? ',' : ''}`);
     });
     lines.push(`${i1}]`);

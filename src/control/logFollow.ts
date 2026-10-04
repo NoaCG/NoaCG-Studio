@@ -97,6 +97,8 @@ export function createLogFollower<R extends { id: number }>(opts: {
   onRow: (row: R) => void;
   /** A walk started (true) or the last one in flight ended (false). */
   onWalk?: (walking: boolean) => void;
+  /** Only a walk that actually applies new historical rows enters replay. */
+  onReplay?: (replaying: boolean) => void;
   /** A gap outlived the reorder window and sent the follow to the tail (counted by the output). */
   onHole?: () => void;
   now?: () => number;
@@ -132,7 +134,8 @@ export function createLogFollower<R extends { id: number }>(opts: {
     if (now() - tip.at < MARK_EVERY_MS) tip.id = id;
     else marks.push({ at: now(), id });
   };
-  const apply = (row: R) => {
+  let replaying = false;
+  const apply = (row: R, replayed = false) => {
     if (row.id <= last) {
       // At or below the cursor: a duplicate, a row older than the window, or a row that committed
       // late and has never been applied. Only the last is applied.
@@ -141,6 +144,7 @@ export function createLogFollower<R extends { id: number }>(opts: {
       advance(row.id);
     }
     remember(row.id);
+    if (replayed && !replaying) { replaying = true; opts.onReplay?.(true); }
     opts.onRow(row);
   };
 
@@ -158,14 +162,17 @@ export function createLogFollower<R extends { id: number }>(opts: {
       let after = from === 'behind' ? floor() : last;
       for (let page = 0; page < MAX_TAIL_PAGES; page += 1) {
         const rows = await opts.tail(after);
-        rows.forEach(apply);
+        rows.forEach((row) => apply(row, true));
         if (rows.length < CONTROL_TAIL_PAGE) return;
         after = rows[rows.length - 1].id;
       }
     } finally {
       if (walks > 0) {
         walks -= 1;
-        if (walks === 0) opts.onWalk?.(false);
+        if (walks === 0) {
+          if (replaying) { replaying = false; opts.onReplay?.(false); }
+          opts.onWalk?.(false);
+        }
       }
     }
   };

@@ -1520,7 +1520,8 @@ const LAYERS_PER_CLEAR_BATCH = COMMAND_BATCH_MAX / 2;
 export function clearAllCueBatches(liveGraphics: string[]): ControlSendItem[][] {
   const batches: ControlSendItem[][] = [];
   for (let i = 0; i < liveGraphics.length; i += LAYERS_PER_CLEAR_BATCH) {
-    batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(clearCueItems));
+    batches.push(liveGraphics.slice(i, i + LAYERS_PER_CLEAR_BATCH).flatMap(g => clearCueItems(g).map(item =>
+      item.msg.t === 'stop' ? { ...item, msg: { ...item.msg, sound: false as const } } : item)));
   }
   return batches;
 }
@@ -1588,6 +1589,7 @@ export async function followControlLog(opts: {
   from: number;
   tail: (afterId: number) => Promise<ControlEventRow[]>;
   onRow: (row: ControlEventRow) => void;
+  onReplay?: (replaying: boolean) => void;
   /**
    * THE FAST ROAD's tap: the same commands, broadcast on this channel and arriving hundreds of
    * milliseconds before their durable rows do (src/control/commandRoads.ts).
@@ -1633,7 +1635,11 @@ export async function followControlLog(opts: {
       from: plan.from,
       epoch: plan.epoch,
       tail: plan.tail,
-      onRows: (rows) => rows.forEach((row) => opts.onRow(row)),
+      onRows: (rows, replayed) => {
+        if (replayed && rows.length) opts.onReplay?.(true);
+        rows.forEach((row) => opts.onRow(row));
+        if (replayed && rows.length) opts.onReplay?.(false);
+      },
       onHead: (head, epoch) => learnHead(plan.session, epoch, head.graphics),
       onEpoch: (epoch, reset) => {
         learnHead(plan.session, epoch, {});
@@ -1658,6 +1664,7 @@ export async function followControlLog(opts: {
     from: opts.from,
     tail: opts.tail,
     onRow: opts.onRow,
+    onReplay: opts.onReplay,
     onWalk: (walking) => (walking ? recovering.add(opts.showId) : recovering.delete(opts.showId)),
     onHole: opts.onHole,
   });

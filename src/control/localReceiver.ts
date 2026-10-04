@@ -31,11 +31,17 @@ export function localReceiverJs(graphicName: string): string {
     var q = new URLSearchParams(location.search).get('stream');
     if (q) STREAM = q;
   } catch (e) { /* very old engine — program feed */ }
+  if (STREAM === 'preview') window.noacgSoundMode = 'silent';
 
   function apply(m) {
     if (!m) return;
     if (m.t === 'play' && typeof play === 'function') play();
-    else if (m.t === 'stop' && typeof stop === 'function') stop();
+    else if (m.t === 'stop' && typeof stop === 'function') {
+      var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
+      stop();
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
+    }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
@@ -238,6 +244,7 @@ export function localReceiverJs(graphicName: string): string {
       var root = document.documentElement;
       var prior = root.style.opacity;
       root.style.opacity = '0';
+      if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
       if (typeof update === 'function') update(JSON.stringify(merged));
       for (k = 0; k < mine.length; k++) { if (mine[k].id >= airFrom) apply(mine[k].msg); }
       // …and the data again, because a "snap" in the replay resets the graphic first and clears
@@ -250,7 +257,10 @@ export function localReceiverJs(graphicName: string): string {
       cursor = all.length > 0 ? all[all.length - 1].id : head;
       saveBaseline();
       setInterval(poll, 400);
-      setTimeout(function () { root.style.opacity = prior; }, SETTLE_MS);
+      setTimeout(function () {
+        root.style.opacity = prior;
+        if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(false);
+      }, SETTLE_MS);
     });
   }
 
@@ -269,7 +279,8 @@ export function localReceiverJs(graphicName: string): string {
       })
       .catch(function () { setTimeout(function () { probe(tries + 1); }, backoff(tries)); });
   }
-  probe(0);
+  if (typeof noacgSoundPrepare === 'function') noacgSoundPrepare().then(function () { probe(0); });
+  else probe(0);
 })();
 ${CLOSE}`;
 }

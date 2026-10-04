@@ -106,7 +106,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   function apply(m) {
     if (!m) return;
     if (m.t === 'play' && typeof play === 'function') play();
-    else if (m.t === 'stop' && typeof stop === 'function') stop();
+    else if (m.t === 'stop' && typeof stop === 'function') {
+      var priorQuiet = typeof noacgSoundQuiet !== 'undefined' && noacgSoundQuiet;
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
+      stop();
+      if (m.sound === false && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(priorQuiet);
+    }
     else if (m.t === 'next' && typeof next === 'function') next();
     else if (m.t === 'update' && typeof update === 'function') update(JSON.stringify(m.data || {}));
     else if (m.t === 'event' && typeof noacgDispatch === 'function') noacgDispatch(m.event, m.payload);
@@ -153,7 +158,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   var MAX_TAIL_PAGES = 40;    // runaway guard, the same ceiling the renderer's catch-up uses
   var POLL_MS = ${CONTROL_POLL_MS};  // the floor under realtime — see startPolling() below
   var tailing = false, tailAgain = false;
-  function fillTail() {
+  function fillTail(booting) {
     // A second walk while one is in flight is REMEMBERED, not dropped. Dropping it re-creates the
     // bug the hole path exists to prevent, one level up: a row that arrives while the boot walk
     // is still reading is skipped here (its own handler returned without applying it, to keep the
@@ -161,18 +166,27 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     // row would appear at - so nothing would fetch it until the poll came round.
     if (tailing) { tailAgain = true; return; }
     tailing = true;
+    var quieted = booting === true;
     var pages = 0;
     var step = function () {
       // Five failures and we stop rather than spin: the socket is up by now, and the next row
       // that arrives with a hole in front of it starts this walk again - as does the poll below.
       rpcRetry('control_tail', { p_slug: SLUG, p_graphic: GRAPHIC, p_after: lastId }, 5, function (ok, rows) {
-        if (!ok || !rows) { tailing = false; tailAgain = false; return; }
+        if (!ok || !rows) {
+          tailing = false; tailAgain = false;
+          if (quieted && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(false);
+          return;
+        }
         for (var i = 0; i < rows.length; i++) {
-          if (rows[i].id > lastId) { lastId = rows[i].id; apply(rows[i].msg); }
+          if (rows[i].id > lastId) {
+            if (!quieted && typeof noacgSoundSetQuiet === 'function') { quieted = true; noacgSoundSetQuiet(true); }
+            lastId = rows[i].id; apply(rows[i].msg);
+          }
         }
         pages += 1;
         if (rows.length >= TAIL_PAGE && pages < MAX_TAIL_PAGES) { step(); return; }
         tailing = false;
+        if (quieted && typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(false);
         if (tailAgain) { tailAgain = false; fillTail(); }
       });
     };
@@ -261,7 +275,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
   // So a failure is retried for good (rpcRetry with no limit), and only an ANSWER decides.
   // An answer with no row does mean the capability is gone - unpublished or rotated - and that
   // one is honoured by staying quiet, which is this block's contract for a slug it may not use.
-  rpcRetry('control_show_by_slug', { p_slug: SLUG }, 0, function (ok, rows) {
+  function boot() { rpcRetry('control_show_by_slug', { p_slug: SLUG }, 0, function (ok, rows) {
     var row = ok && rows && rows[0];
     if (!row) return;
     showId = row.id;
@@ -273,6 +287,7 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     // until somebody happened to send another command. control/outputRecovery.ts owns the rule
     // and the one case where this plane still differs from the app's renderer.
     lastId = followFrom(GRAPHIC, row.live, row.last_event_id);
+    if (typeof noacgSoundSetQuiet === 'function') noacgSoundSetQuiet(true);
     var mine = (row.live || {})[GRAPHIC];
     if (mine) {
       // Reset is two operations, and recovery is both: the data half, then the visual half
@@ -289,10 +304,12 @@ export function hostedReceiverBlock(cfg: HostedReceiverConfig): string {
     // that baseline, in log order. It used to happen only inside ws.onopen, so a graphic whose
     // socket was slow, blocked or dead showed the report and nothing else — and on the cold-boot
     // path above there is no report either, which is a blank layer over a full log.
-    fillTail();
+    fillTail(true);
     startPolling();
     connect();
-  });
+  }); }
+  if (typeof noacgSoundPrepare === 'function') noacgSoundPrepare().then(boot);
+  else boot();
 })();
 ${CLOSE}
 `;
