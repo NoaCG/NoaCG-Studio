@@ -49,11 +49,12 @@ export function setProductionSound(template: SpxTemplate, config: ProductionSoun
   if (sound && asset) sound = { ...sound, asset: soundPath(next.assets.find(a=>a.hash === asset.hash)!) };
   if (sound && !next.assets.some(a => sound.asset === soundPath(a))) throw new Error('Choose a prepared sound asset.');
   const previous = next.visuals[visual];
-  if (previous && previous.topology !== soundTopology(template) && sound) throw new Error('Sound triggers changed. Remove the affected bindings and attach them again.');
+  const previouslyBound = !!previous && Object.keys(previous.bindings).length > 0;
+  if (previouslyBound && previous.topology !== soundTopology(template) && sound) throw new Error('Sound triggers changed. Remove the affected bindings and attach them again.');
   const bindings = { ...previous?.bindings };
   if (sound) bindings[trigger] = { ...sound }; else delete bindings[trigger];
-  if (Object.keys(bindings).length) next.visuals[visual] = { topology: previous?.topology ?? soundTopology(template), bindings, ...(quizSoundMetadata(template) ? { quiz: quizSoundMetadata(template) } : {}) };
-  else delete next.visuals[visual];
+  // An empty production override suppresses inherited library sounds too.
+  next.visuals[visual] = { topology: previouslyBound && Object.keys(bindings).length ? previous.topology : soundTopology(template), bindings, ...(quizSoundMetadata(template) ? { quiz: quizSoundMetadata(template) } : {}) };
   return next;
 }
 

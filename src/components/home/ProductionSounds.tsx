@@ -32,7 +32,7 @@ export default function ProductionSounds({ template, config, assets: shared, vis
   const sourceError = productionSoundSourceError(template);
   const bindings = (invalid ? {} : config?.visuals?.[visual]?.bindings) ?? Object.fromEntries(targets.filter(t=>t.sound).map(t=>[t.key,t.sound!]));
   const attached = Object.entries(bindings), unused = targets.filter(t=>!bindings[t.key]);
-  const changed = invalid || !!sourceError || (!!config?.visuals?.[visual] && config.visuals[visual].topology !== soundTopology(template));
+  const changed = invalid || !!sourceError || (!!config?.visuals?.[visual] && attached.length > 0 && config.visuals[visual].topology !== soundTopology(template));
   const [open,setOpen] = useState(false), [editing,setEditing] = useState(''), [adding,setAdding] = useState(false);
   const [trigger,setTrigger] = useState(''), [assetHash,setAssetHash] = useState(''), [mode,setMode] = useState<GraphicSoundBinding['mode']>('one-shot');
   const [level,setLevel] = useState(0), [enabled,setEnabled] = useState(true);

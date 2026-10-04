@@ -87,7 +87,7 @@ function productionOverlay(template: SpxTemplate, config?: ProductionSounds): Sp
   const ownRuntime = js.includes('// Capability: graphic-sound-v2');
   const data = animation(js), location = locateAnimData(js);
   const visual = config.visuals.graphic;
-  const changed = config.v !== 1 || Object.values(config.visuals).some(v => v.topology !== soundTopology(template));
+  const changed = config.v !== 1 || Object.values(config.visuals).some(v => Object.keys(v.bindings).length > 0 && v.topology !== soundTopology(template));
   if (data && location && visual && !changed) {
     data.steps.forEach(s => { delete s.sound; });
     for (const g of data.machine?.groups ?? []) {

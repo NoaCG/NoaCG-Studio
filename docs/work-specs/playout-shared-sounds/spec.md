@@ -14,6 +14,7 @@ Attach effects once to a production visual, share them across its cues, and exec
 - Private immutable reusable assets, decoded before Ready. Live effects require no fetch. Hosted command delivery retains its current backend transport.
 - Sounds follows all existing graphic controls, collapsed by default to one row. Expanded lists attached bindings only. Add sound chooses an unused trigger.
 - New attachments enabled at 0 dB, play once. Gain -60 to +6 dB; loop only during an eligible active state. Normal previews and monitors silent; explicit local audition.
+- Removing the last production attachment keeps an empty override, so an older graphic's library sound does not return. Reusable assets and library source remain intact.
 - Fade visual-owned sounds on ordinary Out; let its Out tail finish. Re-take, All Out/clear and disposal clean up safely.
 - Initial limits: 20 MiB encoded/64 MiB decoded per file; warn at 128 MiB decoded per output, refuse above 512 MiB. Existing cloud quotas remain.
 - Server media workflows, normalization, mixer, cue colors and full offline hosted command transport are outside scope.

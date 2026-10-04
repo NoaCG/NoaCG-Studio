@@ -110,6 +110,27 @@ test('countdown loops follow actual pause, resume, reset, finish, interruption a
   await page.evaluate('clockProof.destroy()'); expect(page.frames()).toHaveLength(1);
 });
 
+test('removing the last shared binding suppresses inherited sounds and permits rebinding after edits',async({page})=>{
+  await page.goto('/app');await awaitDurableReady(page);
+  const proof=await page.evaluate(`(async(b64)=>{ ${HARNESS}
+    const t=linear(),d={version:2,root:'#box',speed:1,steps:[step('In'),step('Reveal'),step('Out')]};
+    d.steps[0].sound={id:'legacy',asset:'sounds/legacy.wav',enabled:true,mode:'one-shot',levelDb:0};
+    t.js=runtimeJs(t.name,emitAnimRegion(d));t.assets=[{path:'sounds/legacy.wav',data:'data:audio/wav;base64,'+b64}];
+    const original=t.js,binding={id:'shared',asset:'assets/sound-'+ref.hash+'.wav',enabled:true,mode:'one-shot',levelDb:0};
+    let c=setProductionSound(t,{v:1,assets:[],visuals:{}},'graphic','in',binding,ref);
+    c=setProductionSound(t,c,'graphic','in');
+    d.steps[1].name='Renamed';const edited={...t,js:runtimeJs(t.name,emitAnimRegion(d))};
+    const rebound=setProductionSound(edited,c,'graphic','in',binding,ref);
+    window.removedProof=stage(withProductionSounds(edited,c));await removedProof.whenLoaded();
+    const answer=await removedProof.warm(edited.name,{});
+    return {empty:Object.keys(c.visuals.graphic.bindings).length,pool:c.assets.length,sourceUnchanged:t.js===original,rebound:!!rebound.visuals.graphic.bindings.in,error:answer.error,sounds:answer.sounds.n};
+  })(${JSON.stringify(wave())})`);
+  expect(proof).toEqual({empty:0,pool:1,sourceUnchanged:true,rebound:true,error:null,sounds:0});
+  const f=page.frames().find(f=>f.parentFrame()===page.mainFrame())!;
+  const executed=await f.evaluate(`(()=>{let starts=0;const start=AudioBufferSourceNode.prototype.start;AudioBufferSourceNode.prototype.start=function(){starts++;return start.apply(this,arguments);};play();return {starts,steps:noacgStepsPlayed,status:noacgSoundStatus()};})()`);
+  expect(executed).toEqual({starts:0,steps:1,status:null});await page.evaluate('removedProof.destroy()');
+});
+
 test('PNG single-file packaging preserves independent image selectors and invalid WAV bytes cannot report Ready',async({page})=>{
   await page.goto('/app');await awaitDurableReady(page);
   const html=await page.evaluate(`(async(b64)=>{ ${HARNESS}
@@ -201,6 +222,14 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   await expect(sounds.locator('.sound-attachment').first()).toBeVisible();
   await sounds.scrollIntoViewIfNeeded();
   await page.screenshot({path:'docs/work-specs/playout-shared-sounds/built/quiz-narrow.png',fullPage:true});
+  for(const label of ['Correct','In']) {
+    await sounds.locator('.sound-attachment').filter({hasText:label}).click();await sounds.getByRole('button',{name:'Remove attachment'}).click();
+  }
+  await expect(sounds.locator('summary')).toHaveText('Sounds · None');
+  await sounds.getByRole('button',{name:'Add sound',exact:true}).click();
+  await expect(sounds.getByLabel('Choose sound').locator('option')).toHaveText(['Choose an existing sound…','intro.wav','correct.wav']);
+  await sounds.getByRole('button',{name:'Close settings'}).click();
+  await page.evaluate(async({sid,config})=>{const {loadShows,setGraphicSounds}=await import('/src/model/shows.ts');const s=loadShows().find(s=>s.id===sid)!;const result=setGraphicSounds(sid,s.graphics[0].id,config,JSON.stringify(s.graphics[0].soundConfig));if(result.error)throw Error(result.error);await (await import('/src/model/durableStore.ts')).commitDurableWrites();},{sid:id,config});
   expect(errors).toEqual([]);expect(failures).toEqual([]);
   const packaged=await page.evaluate(async sid=>{
     const {loadShows,setShowCues,setGraphicSounds}=await import('/src/model/shows.ts'); const {loadGraphics}=await import('/src/model/library.ts');
