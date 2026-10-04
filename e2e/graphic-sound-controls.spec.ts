@@ -8,13 +8,14 @@ import { awaitDurableReady, settleDurableWrites } from './_durable';
 // Program-route proof assumes receiving-host permission, as the playback suite does.
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } });
 
-function wave() {
-  const data = Buffer.alloc(44 + 48000);
+function wave(bits = 16, channels = 1, seconds = .5) {
+  const frames = Math.round(48000 * seconds), sampleBytes = bits / 8, blockBytes = channels * sampleBytes;
+  const data = Buffer.alloc(44 + frames * blockBytes);
   data.write('RIFF'); data.writeUInt32LE(data.length - 8, 4); data.write('WAVE', 8); data.write('fmt ', 12);
-  data.writeUInt32LE(16, 16); data.writeUInt16LE(1, 20); data.writeUInt16LE(1, 22);
-  data.writeUInt32LE(48000, 24); data.writeUInt32LE(96000, 28); data.writeUInt16LE(2, 32); data.writeUInt16LE(16, 34);
-  data.write('data', 36); data.writeUInt32LE(48000, 40);
-  for (let i = 0; i < 24000; i++) data.writeInt16LE(Math.round(Math.sin(i * 2 * Math.PI * 1000 / 48000) * 8000), 44 + i * 2);
+  data.writeUInt32LE(16, 16); data.writeUInt16LE(1, 20); data.writeUInt16LE(channels, 22);
+  data.writeUInt32LE(48000, 24); data.writeUInt32LE(48000 * blockBytes, 28); data.writeUInt16LE(blockBytes, 32); data.writeUInt16LE(bits, 34);
+  data.write('data', 36); data.writeUInt32LE(data.length - 44, 40);
+  for (let i = 0; i < frames; i++) for (let channel = 0; channel < channels; channel++) data.writeIntLE(Math.round(Math.sin(i * 2 * Math.PI * 1000 / 48000) * 8000 * (bits === 24 ? 256 : 1)), 44 + i * blockBytes + channel * sampleBytes, sampleBytes);
   return data;
 }
 async function seed(page: Page, editor = false) {
@@ -152,8 +153,25 @@ test('bad or oversized audio never changes the saved graphic', async ({ page }) 
   const id = await seed(page), before = await saved(page, id), controls = page.getByTestId('sound-controls');
   await controls.getByLabel('Upload sound file').setInputFiles({ name: 'broken.wav', mimeType: 'audio/wav', buffer: Buffer.from('invalid') });
   await expect(controls.getByRole('alert')).toContainText('could not decode'); expect(await saved(page, id)).toEqual(before);
-  await controls.getByLabel('Upload sound file').setInputFiles({ name: 'large.wav', mimeType: 'audio/wav', buffer: Buffer.alloc(3 * 1024 * 1024 + 1) });
-  await expect(controls.getByRole('alert')).toContainText('at most 3 MB'); expect(await saved(page, id)).toEqual(before);
+  await controls.getByLabel('Upload sound file').setInputFiles({ name: 'large.wav', mimeType: 'audio/wav', buffer: Buffer.alloc(20 * 1024 * 1024 + 1) });
+  await expect(controls.getByRole('alert')).toContainText('20 MiB'); expect(await saved(page, id)).toEqual(before);
+});
+
+test('professional 24-bit stereo WAV above the former size limit decodes and attaches intact', async ({ page }) => {
+  const id = await seed(page), controls = page.getByTestId('sound-controls'), bytes = wave(24, 2, 12);
+  expect(bytes.length).toBeGreaterThan(3 * 1024 * 1024);
+  await controls.getByLabel('Upload sound file').setInputFiles({ name: 'studio.wav', mimeType: 'audio/wav', buffer: bytes });
+  await expect(controls.getByLabel('Enabled', { exact: true })).toBeVisible();
+  await expect(controls.getByRole('alert')).toHaveCount(0);
+  const decoded = await page.evaluate(async id => {
+    const { graphicById } = await import('/src/model/library.ts'), { parseAnimData } = await import('/src/blocks/animData.ts');
+    const template = graphicById(id)!.template, sound = parseAnimData(template.js)!.steps[0].sound!;
+    const asset = template.assets.find(a => a.path === sound.asset)!;
+    const context = new AudioContext({ sampleRate: 48000 });
+    try { const buffer = await context.decodeAudioData(await (await fetch(asset.data as string)).arrayBuffer()); return { channels: buffer.numberOfChannels, rate: buffer.sampleRate, frames: buffer.length }; }
+    finally { await context.close(); }
+  }, id);
+  expect(decoded).toEqual({ channels: 2, rate: 48000, frames: 576000 });
 });
 test('audition cancellation during decode and leaving the controls close audio without a late start', async ({ page }) => {
   await page.addInitScript(() => {

@@ -203,7 +203,7 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
   await page.screenshot({path:'docs/work-specs/playout-shared-sounds/built/quiz-narrow.png',fullPage:true});
   expect(errors).toEqual([]);expect(failures).toEqual([]);
   const packaged=await page.evaluate(async sid=>{
-    const {loadShows,setShowCues}=await import('/src/model/shows.ts'); const {loadGraphics}=await import('/src/model/library.ts');
+    const {loadShows,setShowCues,setGraphicSounds}=await import('/src/model/shows.ts'); const {loadGraphics}=await import('/src/model/library.ts');
     const {commitDurableWrites}=await import('/src/model/durableStore.ts');
     const {buildPack,parsePack,installPack}=await import('/src/packs/graphicsPack.ts');
     const {buildOutputPayload}=await import('/src/control/hostedControl.ts');
@@ -214,15 +214,20 @@ test('compact shared Sounds preserves substantial quiz fields and actions, swaps
     s=loadShows().find(s=>s.id===sid)!;
     const wire=await buildPack(s),parsed=parsePack(JSON.stringify(wire));if(parsed.error)throw Error(parsed.error);
     const copy=await installPack(parsed.pack!);
+    const copied=JSON.parse(JSON.stringify(copy.graphics[0].soundConfig!));copied.visuals.graphic.bindings.correct.levelDb=-12;
+    const changed=setGraphicSounds(copy.id,copy.graphics[0].id,copied,JSON.stringify(copy.graphics[0].soundConfig));if(changed.error)throw Error(changed.error);
+    await commitDurableWrites();
+    const copyIndependent=loadShows().find(s=>s.id===sid)!.graphics[0].soundConfig!.visuals.graphic.bindings.correct.levelDb===-6 && loadShows().find(s=>s.id===copy.id)!.graphics[0].soundConfig!.visuals.graphic.bindings.correct.levelDb===-12;
     const payload=await buildOutputPayload(s,loadGraphics()), uploaded: string[]=[];
     const baseline=await buildOutputPayload({...s,graphics:s.graphics.map(g=>({...g,soundConfig:undefined}))},loadGraphics());
     const cloud=await externalizeAssets(s,'publisher',async(key)=>{uploaded.push(key);});
     const zip=await buildShowZipFor(s,'casparcg');
     const htmlFile=Object.values(zip.files).find(f=>f.name.endsWith('.html') && !/controlpanel/.test(f.name))!;
     const html=await htmlFile.async('string');
-    return {assets:wire.soundAssets!.length,copy:copy.graphics[0].soundConfig,payloadDelta:JSON.stringify(payload).length-JSON.stringify(baseline).length,cuesIdentical:JSON.stringify(payload.cues)===JSON.stringify(baseline.cues),cuesHaveSounds:s.cues.some(c=>'soundConfig' in c || 'assets' in c),cloudHasAudioBytes:JSON.stringify(cloud).includes('data:audio/wav'),uploaded,html};
+    return {assets:wire.soundAssets!.length,copy:copy.graphics[0].soundConfig,copyIndependent,payloadDelta:JSON.stringify(payload).length-JSON.stringify(baseline).length,cuesIdentical:JSON.stringify(payload.cues)===JSON.stringify(baseline.cues),cuesHaveSounds:s.cues.some(c=>'soundConfig' in c || 'assets' in c),cloudHasAudioBytes:JSON.stringify(cloud).includes('data:audio/wav'),uploaded,html};
   },id);
   expect(packaged.assets).toBe(2);expect(packaged.copy.assets).toHaveLength(2);
+  expect(packaged.copyIndependent).toBe(true);
   expect(packaged.cuesHaveSounds).toBe(false);expect(packaged.cuesIdentical).toBe(true);expect(packaged.payloadDelta).toBeLessThan(20000);
   expect(packaged.uploaded).toHaveLength(2);expect(packaged.cloudHasAudioBytes).toBe(false);
   expect(packaged.html).not.toContain('noacg-audio:');expect(packaged.html.match(/data:audio\/wav;base64,/g)).toHaveLength(2);
