@@ -682,6 +682,11 @@ test('nested SVG: the rotation and edge handles write what the fields write; its
   expect(svg.html).toMatch(/<text\b[^>]*id="f0" transform="translate\(-20 -40\)"/);
   await editorWith(page, svg);
   await select(page, '#f0');
+  // Fault injection held the undo's Archivo reload while the next drag loaded it normally:
+  // the old whole-stylesheet replacement failed the opposite-corner assertion below by 16px.
+  // Transform edits must keep the loaded face, so fallback metrics cannot replace its bounds.
+  const archivo = await (await preview(page)).evaluateHandle(() => Array.from(document.fonts).find(face => face.family === 'Archivo'));
+  expect(await archivo.evaluate(face => face?.status)).toBe('loaded');
   const original = await source(page), steps = await history(page);
   await turn(page, 25); await ready(page);
   const turned = await source(page), rotation = (await base(page, '#f0')).rotation;
@@ -718,6 +723,8 @@ test('nested SVG: the rotation and edge handles write what the fields write; its
   await expect(page.locator('.ef-stage-error')).toContainText('SVG');
   await page.mouse.move(marker.x + 20, marker.y + 20, { steps: 4 }); await page.mouse.up(); await ready(page);
   expect(await source(page)).toEqual(original); expect(await history(page)).toBe(steps);
+  expect(await archivo.evaluate(face => !!face && document.fonts.has(face) && face.status === 'loaded'), 'transform edits retain the loaded Archivo face').toBe(true);
+  await archivo.dispose();
 });
 
 // ---- Catalog ----
