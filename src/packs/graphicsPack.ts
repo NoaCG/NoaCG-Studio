@@ -26,9 +26,15 @@ import {
   setShowCues,
   setShowGraphicLayer,
   updateShowCue,
+  setGraphicSounds,
   type Show,
 } from '../model/shows';
-import { loadGraphics, templateForSavedGraphic } from '../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../model/library';
+import { isProductionSounds } from '../assets/productionSounds';
+import { rememberSound, soundBlob, materializeSoundAssets, isSoundAssetRef } from '../assets/soundAssets';
+import { fileToDataUrl as blobToDataUrl, dataUrlToBlob } from '../assets/assetUtils';
+import { readSound } from '../assets/graphicSound';
+import type { ProductionSounds, SoundAssetRef } from '../model/types';
 import { saveTemplateSetToProduction, type ProductionDest } from '../model/templateSet';
 import {
   DEFAULT_SETTINGS,
@@ -48,6 +54,7 @@ export interface PackCue {
 
 /** One graphic of a pack, normalized: the full template plus its playout intent. */
 export interface PackGraphic {
+  sounds?: ProductionSounds;
   template: SpxTemplate;
   /** The playout layer the graphic installs on (1–100; back = low). */
   layer?: number;
@@ -62,6 +69,7 @@ export interface PackGraphic {
  * save API accepts exactly one of these (docs/AGENT_CLI.md) - one wire shape, not a second one.
  */
 export interface PackGraphicFile {
+  sounds?: ProductionSounds;
   name: string;
   type: TemplateType;
   /** Playout layer 1-100 (back = low). Optional: a library graphic has no layer yet. */
@@ -83,6 +91,7 @@ export interface RundownCue extends PackCue {
 
 /** A parsed, normalized pack — what `installPack` consumes. */
 export interface GraphicsPack {
+  soundAssets?: { ref: SoundAssetRef; data: string }[];
   name: string;
   description: string;
   graphics: PackGraphic[];
@@ -150,7 +159,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
   if (!isRecord(raw) || raw.format !== PACK_FORMAT) {
     return { pack: null, error: 'That file is not a NoaCG graphics pack.' };
   }
-  if (raw.version !== 1) {
+  if (raw.version !== 1 && raw.version !== 2) {
     return {
       pack: null,
       error: 'This pack was made with a newer version of NoaCG Studio — update to import it.',
@@ -163,10 +172,20 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
   }
 
   const graphics: PackGraphic[] = [];
+  const soundAssets: NonNullable<GraphicsPack['soundAssets']> = [];
+  if (raw.soundAssets !== undefined) {
+    if (!Array.isArray(raw.soundAssets)) return {pack:null,error:'Unreadable pack sound assets.'};
+    for (const a of raw.soundAssets) {
+      if (!isRecord(a) || !isSoundAssetRef(a.ref) || typeof a.data !== 'string' || !/^data:[^,]*;base64,/.test(a.data)) return {pack:null,error:'Invalid pack sound asset.'};
+      const { storageKey: _cloud, ...ref } = a.ref;
+      soundAssets.push({ref,data:a.data});
+    }
+  }
   const seenNames = new Set<string>();
   for (const [i, entry] of raw.graphics.entries()) {
     const label = `Graphic ${i + 1}`;
     if (!isRecord(entry)) return { pack: null, error: `${label} is not an object.` };
+    if (entry.sounds !== undefined && (!isProductionSounds(entry.sounds) || entry.sounds.assets.some(a=>!soundAssets.some(s=>s.ref.hash === a.hash && s.ref.bytes === a.bytes)))) return {pack:null,error:`${label} has invalid or missing sound assets.`};
     const graphicName = asString(entry.name).trim();
     if (!graphicName) return { pack: null, error: `${label} has no name.` };
     // The production pool replaces by NAME, so duplicate names would silently collapse two
@@ -232,6 +251,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
 
     graphics.push({
       template,
+      ...(entry.sounds ? { sounds: { ...entry.sounds as ProductionSounds, assets: (entry.sounds as ProductionSounds).assets.map(a=>{ const {storageKey:_cloud,...ref}=a; return ref; }) } } : {}),
       ...(Number.isFinite(layerNum) && layerNum >= 1 && layerNum <= 100
         ? { layer: Math.round(layerNum) }
         : {}),
@@ -274,6 +294,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
       name,
       description: asString(raw.description).trim(),
       graphics,
+      ...(soundAssets.length ? {soundAssets} : {}),
       ...(rundown.length ? { rundown } : {}),
     },
     error: null,
@@ -306,6 +327,12 @@ export function validatePack(pack: GraphicsPack): string | null {
 export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Promise<Show> {
   const failure = validatePack(pack);
   if (failure) throw new Error(failure);
+  for (const a of pack.soundAssets ?? []) {
+    const blob = dataUrlToBlob(a.data);
+    const asset = await readSound(new File([blob],a.ref.name,{type:a.ref.mime}));
+    const ref = await rememberSound(asset);
+    if (ref.hash !== a.ref.hash || ref.bytes !== a.ref.bytes) throw new Error(`Pack sound changed: ${a.ref.name}`);
+  }
 
   const templates = pack.graphics.map((g) => g.template);
   const show = await saveTemplateSetToProduction(
@@ -342,6 +369,7 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
   for (const g of pack.graphics) {
     const pooled = installed.graphics.find((p) => p.name === g.template.name);
     if (!pooled) continue;
+    if (g.sounds) { const result = setGraphicSounds(show.id,pooled.id,g.sounds,JSON.stringify(pooled.soundConfig ?? null)); if(result.error) throw new Error(result.error); }
     if (g.layer !== undefined) setShowGraphicLayer(show.id, pooled.id, g.layer);
     if (g.cues.length) {
       // Every new pool graphic arrives with one auto-seeded cue (docs/CLOUD_PLAYOUT.md §2).
@@ -397,6 +425,7 @@ export async function packGraphicEntry(
   template: SpxTemplate,
   opts: { name?: string; layer?: number; cues?: PackCue[] } = {},
 ): Promise<PackGraphicFile> {
+  template = await materializeSoundAssets(template);
   return {
     name: opts.name ?? template.name,
     type: template.type,
@@ -421,9 +450,16 @@ export async function packGraphicEntry(
 export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   const library = loadGraphics();
   const graphics: PackGraphicFile[] = [];
+  const soundAssets: NonNullable<GraphicsPack['soundAssets']> = [];
   for (const g of show.graphics) {
-    const template = templateForSavedGraphic(g, library);
-    graphics.push(await packGraphicEntry(template, { name: g.name, layer: graphicLayer(g) }));
+    const template = g.soundConfig ? resolveSavedGraphicDoc(g,library)?.template ?? g.template : templateForSavedGraphic(g, library);
+    const entry = await packGraphicEntry(template, { name: g.name, layer: graphicLayer(g) });
+    if (g.soundConfig) {
+      if (!isProductionSounds(g.soundConfig)) throw new Error(`Unreadable sounds: ${g.name}`);
+      entry.sounds = g.soundConfig;
+      for (const ref of g.soundConfig.assets) if (!soundAssets.some(a=>a.ref.hash === ref.hash)) soundAssets.push({ref,data:await blobToDataUrl(await soundBlob(ref))});
+    }
+    graphics.push(entry);
   }
   const byId = new Map(show.graphics.map((g) => [g.id, g.name]));
   const cues = (show.cues ?? []).flatMap((cue) => {
@@ -440,10 +476,11 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
   });
   return {
     format: PACK_FORMAT,
-    version: 1,
+    version: soundAssets.length ? 2 : 1,
     name: show.name,
     description: '',
     graphics,
+    ...(soundAssets.length ? {soundAssets} : {}),
     ...(cues.length ? { cues } : {}),
   };
 }

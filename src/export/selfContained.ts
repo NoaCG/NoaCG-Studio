@@ -17,6 +17,7 @@ import type { SpxTemplate } from '../model/types';
 import { flexGapShimTag } from '../assets/flexGapSupport';
 import { appendToBody, injectProjectFormatMeta } from './common';
 import { expandInset, expandInsetInMarkup } from '../assets/cssCompat';
+import { inlineSounds } from './inlineSounds';
 
 /**
  * Build the single-file HTML: strip external refs, inline everything. `extraBodyScripts` are
@@ -65,9 +66,7 @@ export async function composeSelfContainedHtml(
   // data: URL that inlineAssetRefs just put in the markup. The logo painted on the first frame
   // and then vanished, with nothing in the console: a broken <img alt=""> over transparent video
   // is indistinguishable from an empty slot.
-  const scripts = [template.js, ...extraBodyScripts]
-    .map((script) => inlineAssetRefs(script, template.assets))
-    .join('\n\n');
+  const scripts = [await inlineSounds(template), ...extraBodyScripts.map(script=>inlineAssetRefs(script,template.assets.filter(a=>!a.audio)))].join('\n\n');
   // At the END of the body, so it lands after a receiver an earlier pass already appended - and
   // after anything that receiver's own text happens to contain (export/common.ts appendToBody
   // carries the incident).

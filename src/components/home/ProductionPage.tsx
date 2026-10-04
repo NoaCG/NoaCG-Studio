@@ -132,7 +132,10 @@ import ProductionDataWorkspace from './ProductionDataWorkspace';
 import ProductionAudienceWorkspace, { pollFieldMap } from './ProductionAudienceWorkspace';
 import { ProductionSetupMenu } from './ProductionSetupMenu';
 import { useAudienceInbox } from './useAudienceInbox';
-import { loadGraphics, templateForSavedGraphic } from '../../model/library';
+import { loadGraphics, templateForSavedGraphic, resolveSavedGraphicDoc } from '../../model/library';
+import { setGraphicSounds } from '../../model/shows';
+import ProductionSounds from './ProductionSounds';
+import { soundTopology } from '../../assets/productionSounds';
 import {
   adjustWords,
   controlName,
@@ -4777,6 +4780,22 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             </div>
             </div>
             )}
+            <ProductionSounds
+              key={`${show.id}:${poolGraphic.id}:${poolGraphic.type === 'picture' ? String(editingView.values.f0 ?? '') : 'graphic'}`}
+              template={resolveSavedGraphicDoc(poolGraphic,library)?.template ?? poolGraphic.template}
+              config={poolGraphic.soundConfig}
+              assets={show.graphics.flatMap(g=>g.soundConfig?.assets ?? [])}
+              visual={poolGraphic.type === 'picture' ? `picture:${String(editingView.values.f0 ?? '')}` : 'graphic'}
+              onSave={async (config,expected,source)=>{
+                const current = loadShows().find(s=>s.id === show.id)?.graphics.find(g=>g.id === poolGraphic.id);
+                const template = current && (resolveSavedGraphicDoc(current,loadGraphics())?.template ?? current.template);
+                if (!current || !template || template.js !== source.js || soundTopology(template) !== source.topology) throw new Error('The visual changed while the sound was preparing. Choose the trigger again.');
+                const result = setGraphicSounds(show.id,poolGraphic.id,config,expected);
+                setShows(result.shows);
+                const failure = result.error ?? await commitDurableWrites();
+                if (failure) throw new Error(failure);
+              }}
+            />
           </div>
         )}
 

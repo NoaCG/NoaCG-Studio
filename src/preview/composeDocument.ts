@@ -9,6 +9,7 @@ import { prepareOutRuntime } from '../blocks/animMigration';
 import gsapSource from '../assets/gsap.min.js?raw';
 import lottieSource from '../assets/lottie.min.js?raw';
 import { flexGapShimTag } from '../assets/flexGapSupport';
+import { soundBridgeJs } from '../assets/soundBridge';
 import { inlineAssetRefs, isDataUrl } from '../assets/assetUtils';
 import { templateUsesLottie } from '../assets/lottieSupport';
 import { settleGraphic, reportGraphicBox } from './settleGraphic';
@@ -19,7 +20,6 @@ import {
   PREVIEW_CMD_ERROR_TYPE,
   PREVIEW_HELD_TYPE,
   PREVIEW_READY_TYPE,
-  PREVIEW_ERROR_TYPE,
   FRAME_HOLD_CAP_MS,
 } from './previewProtocol';
 import { killAllTimelines, resetGraphicInline, runSimCommand } from './simulatorRuntime';
@@ -47,6 +47,7 @@ export function stripLocalAssetTags(html: string): string {
 export interface ComposeOptions {
   /** Only output documents opt in. Authoring and monitor compositions are silent. */
   sound?: 'program';
+  soundQuiet?: boolean;
   /**
    * Authoring/pasteboard mode — the EDITOR PREVIEW ONLY. Render the canvas inset by this pad
    * (canvas px) inside a larger viewport so content positioned OUTSIDE the canvas (an
@@ -188,7 +189,7 @@ body { position: relative; overflow: visible !important; margin: ${options.autho
   // The bundled Lottie player rides along ONLY when the template uses it (unlike GSAP,
   // which every template animates with) — see src/assets/lottieSupport.ts.
   const lottieTag = templateUsesLottie(template) ? `\n<script id="spx-lottie">\n${lottieSource}\n</script>` : '';
-  const jsTag = `<script id="spx-template-js">\nwindow.noacgSoundMode = ${JSON.stringify(options.sound === 'program' ? 'program' : 'silent')};\n${inlineAssetRefs(template.js, template.assets)}\n</script>`;
+  const jsTag = `<script id="spx-template-js">\nwindow.noacgSoundMode = ${JSON.stringify(options.sound === 'program' ? 'program' : 'silent')};\nwindow.noacgSoundInitialQuiet = ${options.soundQuiet === true};\n${options.sound === 'program' ? soundBridgeJs(template.assets) : ''}\n${inlineAssetRefs(template.js, template.assets.filter(a => !a.audio))}\n</script>`;
 
   // Preview-only: uploaded assets exist as in-memory data URLs, so an image path the
   // template sets at RUNTIME (update() writing an <img> src, a rebuild injecting
@@ -312,6 +313,7 @@ window.addEventListener('unhandledrejection', function (ev) {
      ${FRAME_HOLD_CAP_MS} ms so a font host that never answers cannot hold the answer back. It runs
      OUTSIDE the command queue: a Take arriving behind the warm pass must not wait for fonts. */
   function checkReady(warmError) {
+    var audioError = null;
     var waits = [];
     if (document.fonts && document.fonts.forEach) {
       document.fonts.forEach(function (face) {
@@ -321,7 +323,7 @@ window.addEventListener('unhandledrejection', function (ev) {
       if (document.fonts.ready) waits.push(document.fonts.ready.then(null, function () {}));
     }
     var imgs = document.images ? Array.prototype.slice.call(document.images) : [];
-    if (window.noacgSoundPrepare) waits.push(window.noacgSoundPrepare().catch(function (e) { warmError = String(e.message || e); }));
+    if (window.noacgSoundPrepare) waits.push(window.noacgSoundPrepare().catch(function (e) { audioError = String(e.message || e); }));
     imgs.forEach(function (img) {
       if (!img.getAttribute('src') || !img.decode) return;
       try { waits.push(img.decode().then(null, function () {})); } catch (e) {}
@@ -330,7 +332,8 @@ window.addEventListener('unhandledrejection', function (ev) {
     function answer() {
       if (sent) return;
       sent = true;
-      if (!warmError && window.noacgSoundStatus) warmError = window.noacgSoundStatus();
+      if (window.noacgSoundStatus) audioError = window.noacgSoundStatus();
+      var sounds = window.noacgSoundMode === 'program' && window.noacgSoundStats ? window.noacgSoundStats() : undefined;
       var failed = [];
       var loading = [];
       if (document.fonts && document.fonts.forEach) {
@@ -349,7 +352,7 @@ window.addEventListener('unhandledrejection', function (ev) {
         else if (!img.naturalWidth) broken.push(src.indexOf('data:') === 0 ? 'an embedded image' : String(src.split('/').pop()).slice(0, 60));
       });
       try {
-        parent.postMessage({ type: ${JSON.stringify(PREVIEW_READY_TYPE)}, error: warmError, fonts: { failed: failed, loading: loading }, images: { broken: broken, pending: pending } }, '*');
+        parent.postMessage({ type: ${JSON.stringify(PREVIEW_READY_TYPE)}, error: warmError || audioError, scriptError: warmError, fonts: { failed: failed, loading: loading }, images: { broken: broken, pending: pending }, sounds: sounds }, '*');
       } catch (e) {}
     }
     Promise.all(waits).then(answer, answer);
@@ -365,19 +368,7 @@ window.addEventListener('unhandledrejection', function (ev) {
      behind it. */
   var waiting = false;
   var backlog = [];
-  var soundPrepared = !window.noacgSoundPrepare;
   function drain() {
-    if (!waiting && !soundPrepared && window.noacgSoundPrepare) {
-      waiting = true;
-      window.noacgSoundPrepare().then(function () {
-        soundPrepared = true; waiting = false; drain();
-      }, function (e) {
-        soundPrepared = true; waiting = false;
-        parent.postMessage({ type: ${JSON.stringify(PREVIEW_ERROR_TYPE)}, message: String(e.message || e) }, '*');
-        drain();
-      });
-      return;
-    }
     while (!waiting && backlog.length > 0) run(backlog.shift());
   }
   function afterFonts(cb) {

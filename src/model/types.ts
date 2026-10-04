@@ -203,6 +203,36 @@ export interface SpxSettings {
 export interface AssetFile {
   path: string; // relative path inside the package, e.g. "assets/logo.png"
   data: Blob | string; // bytes, or a data URL / text
+  /** Audio bytes live in the account asset store, never in a production row. */
+  audio?: SoundAssetRef;
+}
+
+export interface SoundAssetRef {
+  hash: string;
+  name: string;
+  bytes: number;
+  mime: string;
+  /** Private user-assets object, assigned by cloud sync/publication. */
+  storageKey?: string;
+}
+
+export interface GraphicSoundBinding {
+  id: string;
+  asset: string;
+  enabled: boolean;
+  mode: 'one-shot' | 'loop';
+  levelDb: number;
+}
+
+export interface ProductionSounds {
+  v: 1;
+  assets: SoundAssetRef[];
+  /** graphic, or picture:<logical asset path>. Cues contain neither this map nor bytes. */
+  visuals: Record<string, {
+    topology: string;
+    bindings: Record<string, GraphicSoundBinding>;
+    quiz?: { selected: string; correct: string; selectionState: string; revealState: string };
+  }>;
 }
 
 // ── Main template type ───────────────────────────────────────────────────────

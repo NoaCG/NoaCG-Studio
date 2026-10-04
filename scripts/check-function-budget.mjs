@@ -28,9 +28,9 @@ import { measured } from './measured.mjs';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const apiDir = path.join(repoRoot, 'api');
 
-// Hobby. Raising this is a plan change, not a code change - if the number here ever needs to move,
-// the paid tier is the thing that moved it.
-export const FUNCTION_CAP = 12;
+// The account uses Pro. Keep an explicit function budget as deployment discipline (api/AGENTS.md).
+// Sound preparation has its own output capability, separate from data-ingress credentials.
+export const FUNCTION_CAP = 13; // Dedicated output-capability asset preparation, separate from ingress.
 
 const RUNTIME_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx']);
 

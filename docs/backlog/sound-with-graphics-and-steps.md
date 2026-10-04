@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-10-01
 state: advanced
-note: "2026-10-04: codex/graphic-sound-playback and codex/graphic-sound-controls implement packaged execution-bound sounds and shared attach, enable, level and audition controls. Runtime and browser verification is recorded in the implementation spec. Physical receiving-host rehearsal remains in the owner queue."
+note: "2026-10-04: graphic playback/editor controls landed; codex/playout-shared-sounds adds production-shared PNG, quiz and state bindings, prepared private assets and compact Playout controls. Browser and package proofs are recorded in its verification. Hosted migration/deployment and physical receiving-host rehearsal remain to be confirmed."
 asked: "a good way to trigger sound together with graphics (swoosh, clock tick, correct and wrong answer); maybe attachable to individual animation steps, but research how before building (paraphrase)"
 ---
 # Sound with graphics, and possibly with animation steps
@@ -36,6 +36,12 @@ enable it, set -60 to +6 dB, and audition it in the saved graphic or editor. New
 start disabled; previews and the operator monitor stay silent.
 The [receiving-host checklist](../acceptance/owner-queue/graphic-sound-host-rehearsal.md) records
 the audio-route and recorded-skew rehearsal still required on the venue's hosts.
+
+The [production-shared implementation](../work-specs/playout-shared-sounds/spec.md) adds Sounds
+below the visual's existing Playout fields and actions, collapsed by default. New production
+attachments start enabled at 0 dB. Bindings apply to every cue of that visual in the production;
+the [verification](../work-specs/playout-shared-sounds/verification.md) records PNG, quiz,
+countdown, preparation/recovery and package proofs with remaining host limits.
 
 Audio/video Level is -60 to +6 dB per cue, applied on Take through the file's audio filter.
 All together sends server cues sequentially, then graphics concurrently; it does not guarantee

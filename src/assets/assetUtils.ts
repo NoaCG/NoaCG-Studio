@@ -15,13 +15,24 @@
 import type { AssetFile } from '../model/types';
 
 /** Read a File (from an <input type="file">) into a base64 data URL. */
-export function fileToDataUrl(file: File): Promise<string> {
+export function fileToDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+/** Decode an embedded base64 asset for storage or package import. */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  const comma = dataUrl.indexOf(',');
+  const head = dataUrl.slice(0, comma);
+  const bin = atob(dataUrl.slice(comma + 1));
+  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 /** True if a string looks like a base64 data URL ("data:...;base64,...."). */

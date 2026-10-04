@@ -13,6 +13,7 @@ import { inlineAssetRefs, isLottieAsset, parseDataUrl } from '../../assets/asset
 import { templateUsesLottie } from '../../assets/lottieSupport';
 import { ANIM_CALL_NAME_RE, animSounds, parseAnimData, type AnimStep } from '../../blocks/animData';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
+import { hasProductionSound } from '../../assets/productionSounds';
 import { eventButtons, kindForField, type ControlButton } from '../../control/controlModel';
 import { stripLiveData } from '../../control/liveData';
 import { stripRealtimeControl } from '../../control/realtimeControl';
@@ -336,7 +337,7 @@ export function buildOgrafManifest(
   const actions = customActions(template);
   const durations = actionDurations(template, stepCount, actions.map((a) => a.id as string));
   const data = parseAnimData(template.js);
-  const hasSounds = data && animSounds(data).some(s => s.enabled);
+  const hasSounds = hasProductionSound(template.js) || (data && animSounds(data).some(s => s.enabled));
   return {
     $schema: OGRAF_SCHEMA_URL,
     id: ografGraphicId(template.name),
@@ -383,7 +384,7 @@ export function validateOgrafOfflineCompatibility(template: SpxTemplate): OgrafO
     errors.push('Media playback is not seekable in OGraf non-real-time mode.');
   }
   const soundData = parseAnimData(template.js);
-  if (soundData && animSounds(soundData).some(s => s.enabled)) errors.push('Enabled sound attachments require real-time audio. Disable sounds for a silent post-production export.');
+  if (hasProductionSound(template.js) || (soundData && animSounds(soundData).some(s => s.enabled))) errors.push('Enabled sound attachments require real-time audio. Disable sounds for a silent post-production export.');
   if (/(?:^|[;{])\s*animation(?:-name)?\s*:/im.test(template.css)) {
     errors.push('CSS animations are wall-clock driven; move this motion into the NoaCG timeline.');
   }

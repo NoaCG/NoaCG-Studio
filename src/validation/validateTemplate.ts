@@ -265,7 +265,7 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       // dangling-selector / call / builder guards.
       const allSteps = allTimelines(data);
       const sounds = animSounds(data);
-      if (sounds.length && !template.js.includes('// Capability: graphic-sound-v1')) {
+      if (sounds.length && !/\/\/ Capability: graphic-sound-v[12]/.test(template.js)) {
         errors.push({ rule: 'sound', message: 'Sound attachments require the graphic sound runtime. Save with the current editor before publishing.' });
       }
       for (const sound of sounds) {

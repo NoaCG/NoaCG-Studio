@@ -5,7 +5,7 @@
 // (localStorage, updatedAt for LWW sync, soft-delete tombstones) so the cloud sync engine
 // can adopt the kind without a second pattern.
 
-import type { SpxTemplate } from './types';
+import type { SpxTemplate, ProductionSounds } from './types';
 import { firstIndexById, type SavedGraphic } from './packets';
 import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
@@ -520,6 +520,7 @@ export function addGraphicToShow(
     type: template.type,
     savedAt: nowIso(),
     template,
+    ...(existing >= 0 && show.graphics[existing].soundConfig ? { soundConfig: show.graphics[existing].soundConfig } : {}),
     // Which LIBRARY record this copy came from, when the document was a saved graphic - the
     // link the hosted control page follows to publish that graphic's entries.
     ...(opts?.graphicId ? { graphicId: opts.graphicId } : {}),
@@ -587,6 +588,17 @@ function pruneShowFolders(show: Show): void {
  */
 function patchShow(showId: string, mutate: (show: Show, at: string) => boolean): Show[] {
   return patchShowChecked(showId, mutate).shows;
+}
+
+/** Fresh whole-record write; an async upload cannot overwrite another tab's sound changes. */
+export function setGraphicSounds(showId: string, graphicId: string, sounds: ProductionSounds, expected: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, show => {
+    const graphic = show.graphics.find(g => g.id === graphicId);
+    if (!graphic) throw new Error('This visual was removed.');
+    if (JSON.stringify(graphic.soundConfig ?? null) !== expected) throw new Error('Sounds changed elsewhere. Choose the trigger again.');
+    graphic.soundConfig = sounds;
+    return true;
+  });
 }
 
 /** `patchShow`, answering too whether the write was refused on the spot (a full store): what a

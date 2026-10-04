@@ -9,6 +9,8 @@
 
 import { isAllowedExternal } from './validateTemplate';
 import { SOUND_RUNTIME_JS } from '../assets/graphicSoundRuntime';
+import { SOUND_RUNTIME_V1_JS } from '../assets/graphicSoundRuntimeV1';
+import { isSoundAssetRef, AUDIO_REF_PREFIX } from '../assets/soundAssets';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
 
@@ -84,13 +86,13 @@ function bytesOf(s: string): number {
 export function unsafeJsConstructs(js: string): { rule: string; note: string }[] {
   // Only the exact shipped decoder is exempt: its URLs come from validated packaged sounds.
   // Modified helpers and any authored network code still meet the ordinary safety screen.
-  js = js.replace(/\r\n/g, '\n').replace(SOUND_RUNTIME_JS, '');
+  js = js.replace(/\r\n/g, '\n').replace(SOUND_RUNTIME_JS, '').replace(SOUND_RUNTIME_V1_JS, '');
   return UNSAFE_JS.filter(({ re }) => re.test(js)).map(({ rule, note }) => ({ rule, note }));
 }
 
 /** Structural + safety checks beyond the SPX contract. Returns errors (block sharing) and warnings
  *  (informational; a human reviewer decides). */
-export function runBench(template: SpxTemplate): ValidationResult {
+export function runBench(template: SpxTemplate, production = false): ValidationResult {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
 
@@ -98,6 +100,10 @@ export function runBench(template: SpxTemplate): ValidationResult {
   //    through JSON, losing the font/image — so it can never be published.
   let assetBytes = 0;
   for (const asset of template.assets) {
+    if (asset.audio) {
+      if (!production || !isSoundAssetRef(asset.audio) || asset.data !== AUDIO_REF_PREFIX + asset.audio.hash) errors.push({ rule: 'sound-asset-reference', message: 'Private production sound references cannot be shared as community media. Export the production pack to carry its sounds.' });
+      continue;
+    }
     if (typeof asset.data !== 'string') {
       errors.push({
         rule: 'asset-not-serializable',
@@ -123,7 +129,7 @@ export function runBench(template: SpxTemplate): ValidationResult {
       message: `The template code is ${Math.round(codeBytes / 1024)} KB, over the ${Math.round(MAX_CODE_BYTES / 1024)} KB share limit.`,
     });
   }
-  if (template.assets.length > MAX_ASSET_COUNT) {
+  if (template.assets.filter(a=>!a.audio).length > MAX_ASSET_COUNT) {
     errors.push({
       rule: 'too-many-assets',
       message: `The template has ${template.assets.length} assets, over the limit of ${MAX_ASSET_COUNT}.`,

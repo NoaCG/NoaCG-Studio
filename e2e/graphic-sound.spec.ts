@@ -293,16 +293,19 @@ test('exported hosted recovery suppresses history, restores one loop and leaves 
   expect(r).toEqual({recovered:1,afterEmpty:1,repeatedSnap:1,closed:'closed'});
 });
 
-test('undecodable sound refuses ready and Take instead of airing a silent graphic', async ({ page }) => {
+test('undecodable sound refuses readiness while visual Take stays immediate and retry stays silent', async ({ page }) => {
   await page.goto('/app');
   const r=await page.evaluate(`(async()=>{ ${HARNESS}
     const t=tpl(linear());t.assets[0].data='data:audio/wav;base64,AAAA';
     const f=document.createElement('iframe');document.body.append(f);
     await new Promise(resolve=>{f.onload=resolve;f.srcdoc=composeDocument(t,{liveControl:true,sound:'program'});});
     const w=f.contentWindow;let failed=false;try{await w.noacgSoundPrepare();}catch{failed=true;}
-    w.play();const result={failed,status:w.noacgSoundStatus(),steps:w.noacgStepsPlayed};f.remove();return result;
+    let starts=0;const start=w.AudioBufferSourceNode.prototype.start;
+    w.AudioBufferSourceNode.prototype.start=function(){starts++;return start.apply(this,arguments);};
+    w.play();try{await w.noacgSoundPrepare();}catch{}
+    const result={failed,status:w.noacgSoundStatus(),steps:w.noacgStepsPlayed,starts};w.noacgSoundDispose();f.remove();return result;
   })()`);
-  expect(r.failed).toBe(true);expect(r.status).toContain('decode');expect(r.steps).toBe(0);
+  expect(r.failed).toBe(true);expect(r.status).toContain('decode');expect(r.steps).toBe(1);expect(r.starts).toBe(0);
 });
 
 test('audio interruption drops one-shots and prepare restores the current loop once', async ({ page }) => {

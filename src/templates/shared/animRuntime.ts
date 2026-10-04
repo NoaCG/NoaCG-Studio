@@ -8,6 +8,7 @@
 
 import { ANIMATION_MARK_CLOSE, ANIMATION_MARK_OPEN } from '../lowerThirds/animPresets';
 import { animSounds, locateAnimData, serializeAnimData, spliceAnimData, type AnimData } from '../../blocks/animData';
+import { SOUND_RUNTIME_V1_JS } from '../../assets/graphicSoundRuntimeV1';
 import { SOUND_RUNTIME_JS } from '../../assets/graphicSoundRuntime';
 import { ANIM_INTERPRETER_BEFORE_CARRIED_HASH, ANIM_INTERPRETER_BEFORE_HOLD_HASH, ANIM_INTERPRETER_BEFORE_ONE_KEY_HOLD_HASH, ANIM_INTERPRETER_BEFORE_SHARED_EASE_HASH, ANIM_INTERPRETER_BEFORE_STEP_OUT_HASH, ANIM_INTERPRETER_BEFORE_WHOLE_EASE_HASH, ANIM_INTERPRETER_PRE_OUT_JS } from './animRuntimeLegacy';
 import { NOACG_EASE_JS, needsEaseRuntime, needsHoldRuntime } from './easeRuntime';
@@ -1112,7 +1113,7 @@ export const dataUsesHoldEase = (data: AnimData) => dataUses(data, needsHoldRunt
  * identically when the data grows a transition STYLE the frozen interpreter cannot play.
  */
 export function writeAnimData(js: string, data: AnimData): string | null {
-  if (animSounds(data).length && !js.includes('// Capability: graphic-sound-v1')) return writeOutData(js, data);
+  if (animSounds(data).length && !/\/\/ Capability: graphic-sound-v[12]/.test(js)) return writeOutData(js, data);
   if ((data.steps.some(step => step.spans || step.carried) || dataUsesExactEase(data)) &&!js.replace(/\r\n/g, '\n').includes(ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n'))) {
     return writeOutData(js, data);
   }
@@ -1132,6 +1133,7 @@ export function writeOutData(js: string, data: AnimData): string | null {
   if (prefix !== `${ANIMATION_MARK_OPEN}\n${DATA_HEADER}\nvar NOACG_ANIM =`.replace(/\r\n/g, '\n')) return null;
   const body = text.slice(location.end, end).replace(/^;\s*/, '').trim();
   if (body === ANIM_INTERPRETER_JS.replace(/\r\n/g, '\n').trim()) return spliceAnimData(js, data);
+  if (body === ANIM_INTERPRETER_JS.replace(SOUND_RUNTIME_JS, SOUND_RUNTIME_V1_JS).replace(/\r\n/g, '\n').trim()) return replaceRegionWithAnimData(js, data);
   const beforeSpans = ANIM_INTERPRETER_PRE_OUT_JS
     .replace(/\/\/ Visibility is independent of opacity\.[\s\S]*?\n}\n\n/, '')
     .replace(/ {2}Object\.keys\(step\.spans \|\| \{\}\)\.forEach[\s\S]*?\n {2}}\);\n/, '')

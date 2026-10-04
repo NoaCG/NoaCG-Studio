@@ -291,32 +291,8 @@ export interface AnimData {
   machine?: AnimMachine;
 }
 
-const DECL = 'var NOACG_ANIM = ';
-
-/** Locate the `var NOACG_ANIM = {...};` literal in the JS: returns the index range of the
- *  object text (the braces, inclusive), or null. Brace matching respects JSON strings, so
- *  a hand-edited block doesn't need to match the canonical layout to be found. */
-export function locateAnimData(js: string): { start: number; end: number } | null {
-  const at = js.indexOf(DECL);
-  if (at === -1) return null;
-  const start = js.indexOf('{', at + DECL.length);
-  if (start === -1) return null;
-  let depth = 0;
-  let inString = false;
-  for (let i = start; i < js.length; i++) {
-    const c = js[i];
-    if (inString) {
-      if (c === '\\') i++; // skip the escaped character
-      else if (c === '"') inString = false;
-    } else if (c === '"') inString = true;
-    else if (c === '{') depth++;
-    else if (c === '}') {
-      depth--;
-      if (depth === 0) return { start, end: i + 1 };
-    }
-  }
-  return null;
-}
+import { locateAnimData } from '../assets/animationLiteral';
+export { locateAnimData } from '../assets/animationLiteral';
 
 /** Parse the animation data out of template.js. Returns null when the block is absent or
  *  not valid strict JSON / not a recognizable shape — the timeline then treats the
