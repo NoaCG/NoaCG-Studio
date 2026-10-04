@@ -28,3 +28,9 @@ The first broad browser run overlapped a build/source edits and produced HMR-rel
 Actual OBS/vMix/SPX receiving applications and CasparCG hardware were not rehearsed overnight. Before on-air use, rehearse a duplicate: Channel 1 graphics, Channel 2 stills/videos, transparent video on Channel 1, sound gain/loops, folders, All out, clear and reconnect. Do not use the original upcoming production as a test fixture.
 
 Configured tests needing an admin key and the full historical configured suite were not run locally. The real-backend subset used only the configured throwaway account and public Auth seam. No SQL migration or Bridge update is part of this release.
+
+## Verified feature and visual phases
+
+- Feature commit c6cd6a6c4792f50e6c721a25310f19caebb5d7cf: npm run build exited 0. Unit gates: 2446 tests, 2443 passed, three existing skips; TypeScript, ESLint, dependency checks, Vite/prerender, client-secret and line-ending gates passed.
+- Linux [screenshot run 37242702827](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37242702827) passed on that exact feature commit. All six images were opened and compared with the approved look before copying the Linux baseline set. Both operating systems keep the compact route/type/state layout.
+- Final full affected browser run: j-3349, running on the stable feature implementation. Its result and final exact-tip build/check are recorded in the landing phase below when complete.
