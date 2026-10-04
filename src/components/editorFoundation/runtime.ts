@@ -21,6 +21,7 @@ export const foundationRuntime = String.raw`
   var waiting = 0;
   var initialized = false;
   var failed = false;
+  var currentCss = null;
   window.addEventListener('error', function (event) {
     failed = true;
     send('error', lastRequest, { message: event.message || 'Template runtime failed.' });
@@ -243,13 +244,30 @@ export const foundationRuntime = String.raw`
   function setCss(css) {
     var sheet = document.getElementById('spx-inline-css');
     var baseTransforms = /--base-(?:scale-[xy]|[xy]|rotation)\s*:[^;}]+/g;
-    var changed = String(sheet.textContent.match(baseTransforms)) !== String(css.match(baseTransforms));
+    var changed = String((currentCss === null ? sheet.textContent : currentCss).match(baseTransforms)) !== String(css.match(baseTransforms));
     var step = activeStep, time = timeline ? timeline.time() : 0;
     // GSAP folds independent CSS transforms into its cached matrix and writes inline
     // scale: none. Rebuild that transient pose when base transforms change so both
     // the first edit and an edit after scrubbing/reopening agree with exported playback.
     if (changed && step >= 0) resetPose();
-    sheet.textContent = css;
+    // Replacing textContent recreates even unchanged @font-face rules. A font-display: swap
+    // face then briefly renders fallback text, changing SVG bounds under an active handle.
+    // Parse without applying the draft and retain unchanged rules in place in the live sheet.
+    var parsed = document.createElement('style');
+    parsed.media = 'not all';
+    parsed.textContent = css;
+    document.head.appendChild(parsed);
+    try {
+      var rules = Array.from(parsed.sheet.cssRules).map(function (rule) { return rule.cssText; });
+      var live = sheet.sheet;
+      rules.forEach(function (rule, index) {
+        if (live.cssRules[index] && live.cssRules[index].cssText === rule) return;
+        if (live.cssRules[index]) live.deleteRule(index);
+        live.insertRule(rule, index);
+      });
+      while (live.cssRules.length > rules.length) live.deleteRule(live.cssRules.length - 1);
+      currentCss = css;
+    } finally { parsed.remove(); }
     // A design that fits placed text to a slot measures from the stylesheet, so a new slot width or
     // spacing refits it, as the design's own update() does after every value (R1.2b.2).
     if (typeof fitPlacedText === 'function') fitPlacedText();
