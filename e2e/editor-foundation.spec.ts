@@ -3,6 +3,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { evaluateInPage } from './_evaluate';
 
 const evidence = process.env.NOACG_FOUNDATION_EVIDENCE;
 if (evidence) mkdirSync(evidence, { recursive: true });
@@ -12,7 +13,9 @@ async function open(page: Page) {
 }
 async function seed(page: Page, stress = false) {
   await open(page);
-  await page.evaluate(async stress => {
+  // Keep the seed's evaluation promise reachable while its mutations queue canvas work.
+  // CI hid the protocol error as a navigation; the controlled GC proof is in the audit note.
+  await evaluateInPage(page, async stress => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { initialDraft, mergeDraft, buildDraftTemplate } = await import('/src/components/wizard/draft.ts');
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
