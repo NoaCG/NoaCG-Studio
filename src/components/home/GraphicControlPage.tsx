@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SoundsControls from '../SoundsControls';
+import { applySound } from '../../blocks/soundEdit';
 import { saveAs } from 'file-saver';
 import { useRouter } from '../../app/router';
 import { graphicById, newEntry, updateGraphic, type ControlEntry, type GraphicDoc } from '../../model/library';
@@ -387,6 +389,7 @@ export default function GraphicControlPage({ id }: { id: string }) {
     // for it. Entries are typed-in operator data with no undo behind them - a rename or a new
     // row that silently did not persist is exactly what this surface must not do.
     else void commitDurableWrites().then((failure) => failure && setNote(failure));
+    return { doc: next, error };
   };
 
   /** The values a push sends: the graphic's own defaults underlie the entry, exactly as
@@ -904,6 +907,14 @@ export default function GraphicControlPage({ id }: { id: string }) {
               </div>
             </details>
           )}
+          <SoundsControls key={doc.id} template={doc.template} onEdit={async (operation, expectedJs) => {
+            const result = patch(cur => {
+              if (cur.template.js !== expectedJs) throw new Error('This graphic changed while the sound was loading. Choose it again.');
+              return { template: applySound(cur.template, operation) };
+            });
+            if (!result?.doc || result.error) throw new Error(result?.error ?? 'This graphic is no longer available.');
+            const failure = await commitDurableWrites(); if (failure) throw new Error(failure);
+          }} />
         </section>
 
         <aside className="control-page-side">

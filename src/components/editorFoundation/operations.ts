@@ -1,6 +1,7 @@
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
 import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
+import { applySound, type SoundOperation } from '../../blocks/soundEdit';
 import { setKeyframe } from '../../blocks/animEdit';
 import { createArtwork, editBase, type BasePatch, type Creation } from '../../blocks/baseEdits';
 import { editArtworkText, editArtworkStyle, type ArtworkStyle } from '../../blocks/artworkEdits';
@@ -16,6 +17,7 @@ import type { PathGeometry } from '../../blocks/pathGeometry';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | SoundOperation
   | AnimationOperation
   | KeyEaseOperation
   | KeyMoveOperation
@@ -76,6 +78,8 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = editPath(next, operation.selector, operation.geometry); targets.add(operation.selector);
     } else if (operation.kind === 'path.paint') {
       next = editPathPaint(next, operation.selector, operation.values); targets.add(operation.selector);
+    } else if (operation.kind === 'sound.set') {
+      next = applySound(next, operation);
     } else if (operation.kind === 'asset.import') {
       next = importAssets(next, operation.assets).template;
     } else if (operation.kind === 'asset.move') {

@@ -138,6 +138,10 @@ export default function EditorFoundation() {
         <p className="ef-current-graphic">{template.name}</p>
         <span className="ef-section-label">Assets · {template.assets.length}</span>
         <AssetsPanel actions={{
+          sound: (operation, expectedJs) => {
+            if (session.port.read().js !== expectedJs) throw new Error('This graphic changed while the sound was loading. Choose it again.');
+            pause(); images.execute([operation]);
+          },
           importFiles: files => images.files(files, 'assets'),
           move: (from, to) => { const result = images.execute([{ kind: 'asset.move', from, to }]); return result.template.assets[template.assets.findIndex(a => a.path === from)]?.path ?? from; },
           remove: path => { images.execute([{ kind: 'asset.delete', path }]); },

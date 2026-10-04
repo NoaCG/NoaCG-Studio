@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-10-01
 state: advanced
-note: "2026-10-04: phase 1 in codex/graphic-sound-playback implements and browser-verifies packaged step/transition sounds, gain, recovery and cleanup. Shared controls follow in phase 2. Physical receiving-host rehearsal remains in the owner queue."
+note: "2026-10-04: codex/graphic-sound-playback and codex/graphic-sound-controls implement packaged execution-bound sounds and shared attach, enable, level and audition controls. Runtime and browser verification is recorded in the implementation spec. Physical receiving-host rehearsal remains in the owner queue."
 asked: "a good way to trigger sound together with graphics (swoosh, clock tick, correct and wrong answer); maybe attachable to individual animation steps, but research how before building (paraphrase)"
 ---
 # Sound with graphics, and possibly with animation steps
@@ -24,14 +24,16 @@ An **All together** folder takes every cue in it with one press, server cues and
 cue in it keeps its own level and ending, loop included. That covers "swoosh with the lower third"
 and "ticking with the clock" today, on the Bridge path.
 
-## Playback implemented; controls and receiving-host rehearsal follow
+## Attachments implemented; receiving-host rehearsal remains
 
 [Graphic audio research, 2026-10-03](../research/playout-audio-2026-10-03.md) confirms the code
 and existing server measurements, proposes optional sound attachments at actual step/transition
 execution, and records packaging, migration, level, timing, output and recovery requirements.
 The [implementation spec](../work-specs/graphic-sound/spec.md) records the two verified phases.
 Playback is implemented and measured in Chromium with actual decoded buffers, including a
-linear graphic, branched quiz and countdown. Shared authoring controls follow in phase 2.
+linear graphic, branched quiz and countdown. Shared Sounds controls attach or remove a sound,
+enable it, set -60 to +6 dB, and audition it in the saved graphic or editor. New attachments
+start disabled; previews and the operator monitor stay silent.
 The [receiving-host checklist](../acceptance/owner-queue/graphic-sound-host-rehearsal.md) records
 the audio-route and recorded-skew rehearsal still required on the venue's hosts.
 

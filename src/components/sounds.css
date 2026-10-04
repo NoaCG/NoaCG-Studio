@@ -1,0 +1,21 @@
+.sound-controls { margin-top: 12px; border-top: 1px solid var(--border, #333); padding-top: 10px; min-width: 0; }
+.sound-controls summary { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.sound-controls summary::before { content: '▸'; }
+.sound-controls[open] summary::before { content: '▾'; }
+.sound-controls-body { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; }
+.sound-controls-body > label:not(.sound-enabled) { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 8px; }
+.sound-controls select { width: 100%; min-width: 0; }
+.sound-controls .sound-enabled, .sound-buttons, .sound-level { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sound-controls .sound-enabled input { margin: 0; }
+.sound-level input { width: 76px; min-width: 0; }
+.sound-level label { width: 64px; }
+.sound-controls p { margin: 0; }
+.sound-controls .hint { font-size: 12px; color: var(--muted, #aaa); line-height: 1.5; }
+
+/* Expanded authoring sections must stay in flow above Entries on a phone. */
+@media (max-width: 900px) {
+  .control-page .control-page-body { display: flex; flex-direction: column; overflow: auto; }
+  .control-page .control-page-preview { flex: none; }
+  .control-page .control-page-stage { min-height: 240px; }
+  .control-page .control-page-side { overflow: visible; }
+}
