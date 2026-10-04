@@ -5,5 +5,76 @@
     "status": "agreed",
     "source": "Owner message 2026-10-04: implement graphic sound attachments from the research and backlog in verified phases, playback first then shared controls; preserve server audio and silent previews; physical receiving-host limits explicit."
   },
-  "review": null
+  "review": {
+    "revision": "ddd2b3f4855fb3042c3250eecc46e659d90cb9ed",
+    "specSha256": "64ea27a9e682d1511d0fc3cbe16cd4c31fa7b22dd5d61ad03f4d0da39bb5968e",
+    "evidence": [
+      {
+        "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+        "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+      }
+    ],
+    "criteria": [
+      {
+        "id": "AC-1",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      },
+      {
+        "id": "AC-2",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      },
+      {
+        "id": "AC-3",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      },
+      {
+        "id": "AC-4",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      },
+      {
+        "id": "AC-5",
+        "status": "unverified",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      },
+      {
+        "id": "AC-6",
+        "status": "pass",
+        "evidence": [
+          {
+            "path": "docs/work-specs/graphic-sound/evidence/phase1.md",
+            "sha256": "330f43443f15e2e1cde7512864b354c770919558a4ca8ddc3564a9c7eef93f1c"
+          }
+        ]
+      }
+    ]
+  }
 }
