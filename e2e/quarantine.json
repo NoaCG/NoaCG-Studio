@@ -6,6 +6,11 @@
       "since": "2026-10-03",
       "count": 1,
       "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37158179131"
+    },
+    "e2e/playout-feedback-health.spec.ts": {
+      "since": "2026-10-04",
+      "count": 1,
+      "run": "https://github.com/NoaCG/NoaCG-Studio/actions/runs/37163639314"
     }
   },
   "released": {
