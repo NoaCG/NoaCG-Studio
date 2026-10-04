@@ -37,7 +37,7 @@ export interface ReadyIssue {
    * `image`: an image did not load (`d` is its file).
    * `sync`: the output is still reading commands it missed.
    */
-  k: 'script' | 'silent' | 'font' | 'image' | 'sync';
+  k: 'script' | 'silent' | 'font' | 'image' | 'sync' | 'audio';
   /** The graphic, when the issue is one graphic's. */
   g?: string;
   d?: string;
@@ -70,6 +70,7 @@ export interface ChangePrep {
 
 /** What an output says about itself: its Presence entry's `ready`. */
 export interface OutputReady {
+  sounds?: { n: number; of: number; bytes: number };
   /** Graphics prepared (their check finished, whatever it found), of how many in its version. */
   n: number;
   of: number;
@@ -85,6 +86,7 @@ export const MAX_ISSUES = 6;
 
 /** One graphic's check, as the output keeps it. */
 export interface GraphicCheck {
+  audio?: { n: number; of: number; bytes: number; error: string | null };
   /** Its check has finished (answered, or given up on). */
   done: boolean;
   /** What it threw while loading or warming, or null. */
@@ -111,6 +113,7 @@ export function outputReadiness(input: {
   chg?: ChangePrep;
 }): OutputReady {
   const scripts: ReadyIssue[] = [];
+  const audio: ReadyIssue[] = [], sounds = { n: 0, of: 0, bytes: 0 };
   const quiet: ReadyIssue[] = [];
   const fonts: ReadyIssue[] = [];
   const images: ReadyIssue[] = [];
@@ -125,6 +128,10 @@ export function outputReadiness(input: {
     const check = input.checks.get(graphic);
     if (!check || !check.done) continue;
     done += 1;
+    if (check.audio) {
+      sounds.n += check.audio.n; sounds.of += check.audio.of; sounds.bytes += check.audio.bytes;
+      if (check.audio.error) audio.push({ k: 'audio', g: graphic, d: check.audio.error.slice(0,120) });
+    }
     if (check.error !== null) scripts.push({ k: 'script', g: graphic, d: check.error.slice(0, 120) });
     else if (check.silent) quiet.push({ k: 'silent', g: graphic });
     for (const typeface of check.fontsFailed.concat(check.fontsLoading)) addFont(graphic, typeface);
@@ -138,8 +145,8 @@ export function outputReadiness(input: {
     });
   }
   const sync: ReadyIssue[] = input.catchingUp ? [{ k: 'sync' }] : [];
-  const is = scripts.concat(quiet, fonts, images, sync).slice(0, MAX_ISSUES);
-  return { n: done, of: input.graphics.length, v: input.version, is, ...(input.chg ? { chg: input.chg } : {}) };
+  const is = scripts.concat(audio, quiet, fonts, images, sync).slice(0, MAX_ISSUES);
+  return { n: done, of: input.graphics.length, v: input.version, is, ...(sounds.of ? { sounds } : {}), ...(input.chg ? { chg: input.chg } : {}) };
 }
 
 /** An entry's `ready`, read off the wire like any other input (anyone holding the show id can
@@ -154,6 +161,7 @@ export function readOutputReady(value: unknown): OutputReady | undefined {
     of: Math.max(0, r.of),
     v: version,
     is: readIssues(r.is),
+    ...(r.sounds && [r.sounds.n,r.sounds.of,r.sounds.bytes].every(n=>Number.isInteger(n) && n >= 0) && r.sounds.n <= r.sounds.of ? { sounds: r.sounds } : {}),
     ...(chg ? { chg } : {}),
   };
 }
@@ -166,7 +174,7 @@ export function readHeld(value: unknown): HeldVersion | null {
 
 function readIssues(value: unknown): ReadyIssue[] {
   if (!Array.isArray(value)) return [];
-  const kinds = ['script', 'silent', 'font', 'image', 'sync'];
+  const kinds = ['script', 'silent', 'font', 'image', 'sync', 'audio'];
   const out: ReadyIssue[] = [];
   for (const item of value.slice(0, MAX_ISSUES)) {
     const i = item as Partial<ReadyIssue> | null;
@@ -212,6 +220,7 @@ export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' :
 
 /** "(script error)", the reason a graphic did not prepare, as the plan words it. */
 function reasonOf(issue: ReadyIssue): string {
+  if (issue.k === 'audio') return 'sound not prepared';
   if (issue.k === 'script') return 'script error';
   if (issue.k === 'silent') return 'did not answer';
   if (issue.k === 'image') return 'image not loaded';
@@ -226,6 +235,7 @@ function listWords(items: readonly string[]): string {
 
 /** What to do about a graphic that did not prepare, for the panel. */
 function adviceOf(issue: ReadyIssue): string {
+  if (issue.k === 'audio') return `${issue.g ?? 'A graphic'}: ${issue.d ?? 'Sound is not prepared'}. Check Sounds and the receiving browser audio, then Prepare again. Visual commands remain available.`;
   if (issue.k === 'script') {
     return `${issue.g ?? 'A graphic'} threw an error while loading${issue.d ? `: ${issue.d}` : ''}. It will not play on this output. Fix it in the editor and publish again.`;
   }
@@ -266,7 +276,7 @@ function degradedLines(issues: readonly ReadyIssue[]): { line: string; advice: s
 export function outputStateWords(ready: OutputReady): string {
   const version = ready.v ? ` (v${ready.v.n})` : '';
   if (ready.n < ready.of) return `Preparing ${ready.n} of ${ready.of}${version}`;
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent');
+  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
   if (broken.length > 0) return `Not ready: ${broken.map((i) => `${i.g ?? 'a graphic'} (${reasonOf(i)})`).join(', ')}${version}`;
   const degraded = degradedLines(ready.is).map((d) => d.line);
   return `${degraded.length > 0 ? degraded.join('; ') : 'Ready for playout'}${version}`;
@@ -460,6 +470,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
     };
   }
   detail.push(`${ready.v ? `Holds v${ready.v.n} · ` : ''}${engine}.`);
+  if (ready.sounds) detail.push(`Sounds prepared: ${ready.sounds.n} of ${ready.sounds.of} · ${(ready.sounds.bytes / 1048576).toFixed(1)} MiB decoded.${ready.sounds.bytes > 134217728 ? ' Large audio load. Reduce sound lengths or the number of assets before rehearsal.' : ''}`);
   const warn = (state: string, extra: string[] = []): OutputLine => ({ ...base, tone: 'warn', state, detail: extra.concat(detail) });
 
   // Still loading: nothing else can be judged yet.
@@ -470,7 +481,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
   // the others follow it in the panel ("Also: ..."), each with what to do.
   const problems: { line: string; advice: string[] }[] = [];
   // A graphic that cannot play: named, amber, never green.
-  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent');
+  const broken = ready.is.filter((i) => i.k === 'script' || i.k === 'silent' || i.k === 'audio');
   let brokenShort: string | undefined;
   if (broken.length > 0) {
     const first = broken[0];

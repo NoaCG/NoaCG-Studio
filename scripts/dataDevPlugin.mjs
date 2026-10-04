@@ -14,11 +14,12 @@ export function dataApiPlugin() {
       server.middlewares.use('/api/data', (req, res) => {
         void handle(server, req, res);
       });
+      server.middlewares.use('/api/output/assets', (req,res) => { void handle(server,req,res,true); });
     },
   };
 }
 
-async function handle(server, req, res) {
+async function handle(server, req, res, audio = false) {
   try {
     const [pathPart, query] = (req.url ?? '/').split('?');
     const route = pathPart.replace(/^\/+|\/+$/g, '');
@@ -38,7 +39,7 @@ async function handle(server, req, res) {
       body: ['GET', 'HEAD'].includes(req.method ?? 'GET') ? undefined : body,
     });
 
-    const mod = await server.ssrLoadModule('/api/data/[...path].ts');
+    const mod = await server.ssrLoadModule(audio ? '/api/output/assets.ts' : '/api/data/[...path].ts');
     const response = await mod.default.fetch(request);
     res.statusCode = response.status;
     response.headers.forEach((value, key) => res.setHeader(key, value));

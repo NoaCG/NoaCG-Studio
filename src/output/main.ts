@@ -57,6 +57,8 @@ import { airWhenSettled } from './catchUp';
 import { pingDelay, type PingAck } from '../control/prepareLive';
 import { createPreparer } from './prepare';
 import { createOutputStage, heldLine } from './stage';
+import { createSoundBudget } from '../assets/soundBudget';
+import { publishedSoundLoader } from '../backend/productionAudio';
 
 /** Runaway guard on the boot catch-up walk (the same ceiling followControlLog's refill uses). */
 const MAX_CATCH_UP_PAGES = 40;
@@ -203,7 +205,9 @@ async function boot(): Promise<void> {
     return;
   }
 
-  const stage = createOutputStage(document.body, resolved.output, { sound: 'program' });
+  const soundBudget = createSoundBudget();
+  const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
+  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', ...audio(resolved.output) });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -236,6 +240,12 @@ async function boot(): Promise<void> {
     dbg('ready', outputStateWords(readiness()));
     presence.touch();
   };
+  stage.onSound(graphic => {
+    const previous = checks.get(graphic);
+    if (!previous) return;
+    checks.set(graphic,{ ...previous, audio: stage.sounds.get(graphic) });
+    readyChanged();
+  });
   /** Graphics whose document has loaded (or been released on a fallback face). */
   const released = new Set<string>();
   stage.onLoaded((graphic) => {
@@ -245,7 +255,8 @@ async function boot(): Promise<void> {
       const answer = await stage.warm(graphic, data);
       checks.set(graphic, {
         done: true,
-        error: stage.errors.get(graphic) ?? answer?.error ?? null,
+        error: stage.errors.get(graphic) ?? answer?.scriptError ?? (answer?.error === answer?.sounds?.error ? null : answer?.error) ?? null,
+        audio: answer?.sounds,
         silent: answer === null,
         fontsFailed: answer?.fonts.failed ?? [],
         fontsLoading: answer?.fonts.loading ?? [],
@@ -350,6 +361,7 @@ async function boot(): Promise<void> {
     for (const graphic of Object.keys(graphics)) headOn.set(graphic, graphics[graphic].on === true);
   };
   const preparer = createPreparer({
+    audio,
     held: payload.ver ?? null,
     resolve: async () => {
       await recovered;
@@ -365,7 +377,7 @@ async function boot(): Promise<void> {
         const held = checks.get(graphic);
         if (!held || !released.has(graphic)) continue;
         const answer = await stage.warm(graphic, null);
-        if (answer) checks.set(graphic, { ...held, fontsFailed: answer.fonts.failed, fontsLoading: answer.fonts.loading, imagesBroken: answer.images.broken });
+        if (answer) checks.set(graphic, { ...held, error: stage.errors.get(graphic) ?? answer.scriptError ?? (answer.error === answer.sounds?.error ? null : answer.error), audio: answer.sounds, fontsFailed: answer.fonts.failed, fontsLoading: answer.fonts.loading, imagesBroken: answer.images.broken });
       }
       readyChanged();
     },

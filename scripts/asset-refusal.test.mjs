@@ -10,20 +10,15 @@
 // the app silently goes back to showing "new row violates row-level security policy" to a user.
 // A pinned shape turns that into a failed build.
 //
-// The module is TypeScript and imports nothing, so the test transpiles the REAL FILE and imports
-// the result - the same technique as scripts/join-name.test.mjs, for the same reason.
+// Bundle the real module and its shared asset helpers, the same way the client resolves them.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import { rolldown } from 'rolldown';
 
-const source = readFileSync(fileURLToPath(new URL('../src/backend/assets.ts', import.meta.url)), 'utf8');
-const js = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-}).outputText;
-const { classifyAssetRefusal } = await import(`data:text/javascript,${encodeURIComponent(js)}`);
+const bundle = await rolldown({input:'src/backend/assets.ts',platform:'neutral',logLevel:'silent'});
+const {output} = await bundle.generate({format:'esm',codeSplitting:false}); await bundle.close();
+const { classifyAssetRefusal } = await import(`data:text/javascript;base64,${Buffer.from(output[0].code).toString('base64')}`);
 
 /** Exactly what @supabase/storage-js hands back, fields and all. */
 const TOO_LARGE = {

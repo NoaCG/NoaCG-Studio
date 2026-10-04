@@ -1,22 +1,26 @@
-import type { AssetFile } from '../model/types';
+import type { AssetFile, SoundAssetRef } from '../model/types';
 import { fileToDataUrl, isAudioAsset, uniqueAssetPath } from './assetUtils';
+import { MAX_SOUND_BYTES, MAX_DECODED_SOUND_BYTES, soundBlob } from './soundAssets';
+export { MAX_SOUND_BYTES } from './soundAssets';
 
 export const SOUND_ACCEPT = '.wav,.mp3,.ogg,.m4a';
-export const MAX_SOUND_BYTES = 3 * 1024 * 1024;
 
 /** Decode before saving; loading never starts playback. */
 export async function readSound(file: File): Promise<AssetFile> {
   if (!isAudioAsset(file.name)) throw new Error('Choose a WAV, MP3, OGG or M4A sound.');
-  if (file.size > MAX_SOUND_BYTES) throw new Error('Sound files must be at most 3 MB.');
+  if (!file.size || file.size > MAX_SOUND_BYTES) throw new Error('Sound files must be between 1 byte and 20 MiB.');
   const context = new AudioContext();
-  try { await context.decodeAudioData(await file.arrayBuffer()); }
-  catch { throw new Error('This browser could not decode the sound. Try a WAV file.'); }
+  try {
+    const buffer = await context.decodeAudioData(await file.arrayBuffer());
+    if (buffer.length * buffer.numberOfChannels * 4 > MAX_DECODED_SOUND_BYTES) throw new Error('Decoded sound exceeds 64 MiB. Choose a shorter sound.');
+  }
+  catch (error) { throw Object.assign(new Error(error instanceof Error && error.message.includes('64 MiB') ? error.message : 'This browser could not decode the sound. Try a WAV file.'), { cause: error }); }
   finally { await context.close(); }
   return { path: uniqueAssetPath(file.name, []), data: await fileToDataUrl(file) };
 }
 
 /** Started only by an audition gesture. Stop also cancels an in-flight decode. */
-export function auditionSound(asset: AssetFile, levelDb: number, loop: boolean): { ready: Promise<void>; finished: Promise<void>; stop: () => void } {
+export function auditionSound(asset: AssetFile, levelDb: number, loop: boolean, download?: (ref: SoundAssetRef) => Promise<Blob>): { ready: Promise<void>; finished: Promise<void>; stop: () => void } {
   const context = new AudioContext();
   let stopped = false, source: AudioBufferSourceNode | null = null, gain: GainNode | null = null;
   let finish = () => {};
@@ -32,7 +36,7 @@ export function auditionSound(asset: AssetFile, levelDb: number, loop: boolean):
   void resumed.catch(() => {});
   const ready = (async () => {
     try {
-      const bytes = typeof asset.data === 'string' ? await (await fetch(asset.data)).arrayBuffer() : await asset.data.arrayBuffer();
+      const bytes = asset.audio ? await (await soundBlob(asset.audio,download ? ()=>download(asset.audio!) : undefined)).arrayBuffer() : typeof asset.data === 'string' ? await (await fetch(asset.data)).arrayBuffer() : await asset.data.arrayBuffer();
       const buffer = await context.decodeAudioData(bytes);
       await resumed;
       if (stopped) return;

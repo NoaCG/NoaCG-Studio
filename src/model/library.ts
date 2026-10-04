@@ -12,6 +12,7 @@
 // image-carrying graphics used to exhaust the ~5 MB origin quota and block every save.
 
 import type { SpxTemplate } from './types';
+import { withProductionSounds } from '../assets/productionSounds';
 import type { GenerationSpec } from './generationSpec';
 import type { AiThread } from './aiThread';
 import type { ProjectLegibility } from './designRules';
@@ -427,5 +428,5 @@ export function entriesForSavedGraphic(graphic: SavedGraphic, library: GraphicDo
  * wherever the graphic runs - the entries seam, now for the template too.
  */
 export function templateForSavedGraphic(graphic: SavedGraphic, library: GraphicDoc[]): SpxTemplate {
-  return resolveSavedGraphicDoc(graphic, library)?.template ?? graphic.template;
+  return withProductionSounds(resolveSavedGraphicDoc(graphic, library)?.template ?? graphic.template, graphic.soundConfig);
 }

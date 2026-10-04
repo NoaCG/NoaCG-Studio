@@ -30,7 +30,7 @@ export function productionGateFailures(
 ): ProductionGateFailure[] {
   const failures: ProductionGateFailure[] = [];
   for (const g of graphics) {
-    const result = publishGate(templateForSavedGraphic(g, library));
+    const result = publishGate(templateForSavedGraphic(g, library),true);
     if (!result.ok) failures.push({ name: g.name, errors: result.errors });
   }
   return failures;

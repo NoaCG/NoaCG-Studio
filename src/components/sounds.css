@@ -11,6 +11,18 @@
 .sound-level label { width: 64px; }
 .sound-controls p { margin: 0; }
 .sound-controls .hint { font-size: 12px; color: var(--muted, #aaa); line-height: 1.5; }
+.production-sounds { margin: 8px 12px 12px; padding-top: 8px; }
+.production-sounds summary { min-height: 24px; font-size: 13px; }
+.sound-attachments { display: grid; gap: 4px; }
+.sound-attachment { display: grid; grid-template-columns: minmax(70px, 1fr) 12px minmax(80px, 1.4fr) auto; gap: 8px; text-align: left; align-items: center; padding: 8px; width: 100%; }
+.sound-attachment.selected { border-color: var(--accent); }
+.sound-filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sound-attachment .hint { grid-column: 3; }
+.sound-add { align-self: flex-start; }
+.sound-binding-editor { display: flex; flex-direction: column; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border, #333); }
+.sound-binding-editor > label:not(.sound-enabled) { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 8px; align-items: center; }
+.production-sounds .sound-level input[type=range] { flex: 1; width: auto; min-width: 80px; }
+.production-sounds .sound-level label { width: auto; }
 
 /* Expanded authoring sections must stay in flow above Entries on a phone. */
 @media (max-width: 900px) {

@@ -31,6 +31,7 @@
 //    higher to 5, which put the operator's 20, 21, 22 all on layer 5.
 
 import JSZip from 'jszip';
+import { materializeSoundAssets } from '../assets/soundAssets';
 import { saveAs } from 'file-saver';
 import { slug } from '../model/slug';
 import { buildStarterInto, spxLayerListMd, spxLayersInOrder, withPlayoutLayer } from './targets/spxStarter';
@@ -95,12 +96,12 @@ export function spxShowLayers(graphics: Pick<SavedGraphic, 'layer'>[]): number[]
  *  the fallback), NO hosted receiver (rule 1), its own playout layer (rule 2), and — on a slug
  *  collision inside the package — a suffixed NAME, so every per-target packager that derives
  *  paths from slug(template.name) lands each graphic in its own folder/file. */
-function exportTemplateFor(
+async function exportTemplateFor(
   graphic: SavedGraphic,
   library: GraphicDoc[],
   usedSlugs: Set<string>,
   layer = showGraphicLayer(graphic),
-): SpxTemplate {
+): Promise<SpxTemplate> {
   let template = templateForSavedGraphic(graphic, library);
   let name = graphic.name;
   let n = 2;
@@ -108,7 +109,7 @@ function exportTemplateFor(
   usedSlugs.add(slug(name));
   if (name !== template.name) template = { ...template, name };
   template = { ...template, js: stripHostedReceiver(template.js) };
-  return withPlayoutLayer(template, layer);
+  return materializeSoundAssets(withPlayoutLayer(template, layer));
 }
 
 /** The values a serverless flavor bakes as on-load data: the operator's ACTIVE entry on the
@@ -141,7 +142,7 @@ export async function buildShowZip(show: Show, _opts?: ShowExportOptions): Promi
   const packaged: PackagedGraphic[] = [];
   const spxLayers = spxShowLayers(show.graphics);
   for (const [i, graphic] of show.graphics.entries()) {
-    const template = exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
+    const template = await exportTemplateFor(graphic, library, usedSlugs, spxLayers[i]);
     const name = slug(template.name);
     folderNames.push(name);
     packaged.push({ poolName: graphic.name, template });
@@ -304,7 +305,7 @@ export async function buildShowZipFor(show: Show, targetId: string): Promise<JSZ
   const panelGraphics: { template: SpxTemplate; entries: ReturnType<typeof entriesForSavedGraphic> }[] = [];
   let subPanel = '';
   for (const graphic of show.graphics) {
-    const template = exportTemplateFor(graphic, library, usedSlugs);
+    const template = await exportTemplateFor(graphic, library, usedSlugs);
     const entries = entriesForSavedGraphic(graphic, library);
     const sub = await target.build(template, {
       entries,

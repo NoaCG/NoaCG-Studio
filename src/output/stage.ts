@@ -32,8 +32,13 @@ import {
 import type { ControlEventRow, OutputGraphicSpec, OutputPayload } from '../control/hostedControl';
 import type { ControlMessage } from '../control/controlModel';
 import { mountForeignOgraf, type ForeignOgrafLayer, type ForeignOgrafSpec, type OgrafReturn } from './foreignOgraf';
-import type { SpxTemplate } from '../model/types';
+import type { SpxTemplate, SoundAssetRef } from '../model/types';
+import { soundBlob, soundBytes } from '../assets/soundAssets';
 import { DEFAULT_SETTINGS } from '../model/types';
+import { createSoundBudget } from '../assets/soundBudget';
+
+export interface SoundStatus { n: number; of: number; bytes: number; error: string | null }
+let soundStageId = 0;
 
 /** Rebuild a renderable SpxTemplate from the published snapshot. Fields/settings/layers are
  *  parsed views the composer never reads — the html/css/js carry the truth, as always. */
@@ -48,12 +53,14 @@ function templateFromSpec(spec: OutputGraphicSpec): SpxTemplate {
     js: spec.js,
     fields: [],
     settings: DEFAULT_SETTINGS,
-    assets: spec.assets.map((a) => ({ path: a.path, data: a.data })),
+    assets: spec.assets.map((a) => ({ ...a })),
     layers: [],
   };
 }
 
 export interface OutputStage {
+  sounds: ReadonlyMap<string, SoundStatus>;
+  onSound(cb: (graphic: string) => void): void;
   /** Mute catch-up execution without changing the picture; restore current loops once. */
   setSoundQuiet(quiet: boolean): void;
   /** Route one command to its graphic's document. Unknown graphics and the log's status rows
@@ -129,6 +136,9 @@ export interface OutputStage {
 
 export interface OutputStageOptions {
   sound?: 'program';
+  soundQuiet?: boolean;
+  soundBudget?: ReturnType<typeof createSoundBudget>;
+  loadSound?: (asset: SoundAssetRef) => Promise<Blob>;
   /** The box the stage scales itself into. Defaults to the VIEWPORT, which is what the /output
    *  page wants — its root fills the window and a browser source is the window. The production
    *  page's rehearsal embed passes its own panel's size instead, so one stage implementation
@@ -284,7 +294,7 @@ export function createOutputStage(
         for (const cb of heldCbs) cb();
       }
     });
-    iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true, sound: options.sound });
+    iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true, sound: options.sound, soundQuiet: options.soundQuiet });
     stage.appendChild(iframe);
     frames.set(spec.key, iframe);
     states.set(spec.key, null);
@@ -314,9 +324,56 @@ export function createOutputStage(
     return null;
   };
 
+  const encoded = new Map<string, Promise<Blob>>();
+  const soundDeadlines = new Set<ReturnType<typeof setTimeout>>();
+  const sounds = new Map<string, SoundStatus>(), soundCbs: ((graphic: string) => void)[] = [];
+  const budget = options.soundBudget ?? createSoundBudget(), budgetKeys = new Set<string>(), budgetId = ++soundStageId;
+  let destroyed = false;
+
   // State replies carry no graphic name — the SOURCE window identifies the sender.
   const onMessage = (ev: MessageEvent) => {
     const type = (ev.data as { type?: unknown } | undefined)?.type;
+    if (type === 'noacg-sound-status' && options.sound === 'program') {
+      const key = senderOf(ev), s = ev.data.status;
+      if (key === null || !s || !Number.isInteger(s.n) || !Number.isInteger(s.of) || !Number.isInteger(s.bytes) || s.n < 0 || s.n > s.of || s.bytes < 0) return;
+      sounds.set(key,{ n: s.n, of: s.of, bytes: s.bytes, error: typeof s.error === 'string' ? s.error : null });
+      for (const cb of soundCbs) cb(key);
+      return;
+    }
+    if (type === 'noacg-sound-retain' && options.sound === 'program') {
+      const key = senderOf(ev);
+      if (key === null || !payload.graphics.find(g=>g.key === key)?.assets.some(a=>a.path === ev.data.path && a.audio)) return;
+      const allocation = `${budgetId}:${key}:${ev.data.path}`;
+      let error: string | undefined;
+      try { budget.retain(allocation,ev.data.bytes); budgetKeys.add(allocation); }
+      catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }
+      frames.get(key)?.contentWindow?.postMessage({ type: 'noacg-sound-bytes', id: ev.data.id, error },'*');
+      return;
+    }
+    if (type === 'noacg-sound-load' && options.sound === 'program') {
+      const key = senderOf(ev);
+      const asset = payload.graphics.find(g => g.key === key)?.assets.find(a => a.path === ev.data.path)?.audio;
+      if (!asset || key === null) return;
+      let prepared = encoded.get(asset.hash);
+      if (!prepared) {
+        // Reject before the frame bridge's 15 s deadline, so retry gets a fresh request.
+        let timeout: ReturnType<typeof setTimeout>;
+        prepared = new Promise<Blob>((resolve,reject)=>{
+          timeout = setTimeout(()=>reject(new Error('Sound preparation timed out. Retry Prepare.')),14_000);
+          soundDeadlines.add(timeout);
+          void soundBlob(asset, options.loadSound ? () => options.loadSound!(asset) : undefined).then(resolve,reject);
+        }).finally(()=>{ clearTimeout(timeout); soundDeadlines.delete(timeout); });
+        encoded.set(asset.hash, prepared);
+        const pending = prepared;
+        void prepared.catch(() => { if (encoded.get(asset.hash) === pending) encoded.delete(asset.hash); });
+      }
+      void prepared.then(soundBytes).then(bytes => {
+        if (!destroyed) frames.get(key)?.contentWindow?.postMessage({ type: 'noacg-sound-bytes', id: ev.data.id, bytes }, '*', [bytes]);
+      }, error => {
+        if (!destroyed) frames.get(key)?.contentWindow?.postMessage({ type: 'noacg-sound-bytes', id: ev.data.id, error: String(error.message ?? error) }, '*');
+      });
+      return;
+    }
     if (type === PREVIEW_ERROR_TYPE) {
       const key = senderOf(ev);
       if (key === null || errors.has(key)) return;
@@ -406,6 +463,8 @@ export function createOutputStage(
   };
 
   return {
+    sounds,
+    onSound: cb=>soundCbs.push(cb),
     setSoundQuiet: (quiet) => {
       for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on: quiet });
     },
@@ -465,6 +524,7 @@ export function createOutputStage(
       foreign.size ? Promise.all([allLoaded, ...[...foreign.values()].map((l) => l.loaded)]).then(() => undefined) : allLoaded,
     rescale,
     destroy: () => {
+      destroyed = true; encoded.clear(); soundDeadlines.forEach(clearTimeout); soundDeadlines.clear(); budgetKeys.forEach(key=>budget.release(key));
       window.removeEventListener('message', onMessage);
       window.removeEventListener('resize', rescale);
       for (const layer of foreign.values()) layer.destroy();

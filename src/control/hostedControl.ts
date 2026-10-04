@@ -10,12 +10,13 @@
 
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabase } from '../backend/supabase';
+import { publishAudio } from '../backend/productionAudio';
 import { graphicLayer, type CueAuto, type CueEnd, type Show } from '../model/shows';
 import { channelName, channelOf, loadPlayoutSettings } from './playoutLink';
 import { profileForPublish, readPublishedProfile, type ShowProfile } from '../model/profile';
 import type { ResolvedValues } from '../model/productionData';
 import { loadGraphics, entriesForSavedGraphic, resolveSavedGraphicDoc, templateForSavedGraphic, type GraphicDoc } from '../model/library';
-import type { Resolution, SpxField, SpxTemplate } from '../model/types';
+import type { Resolution, SpxField, SpxTemplate, SoundAssetRef } from '../model/types';
 import { DEFAULT_GRAPHICS_RESOLUTION } from '../model/projectFormat';
 import { fileToDataUrl, isImageAsset } from '../assets/assetUtils';
 // The audience plane owns the shape of its own brand (docs/ARCHITECTURE.md §3, control ->
@@ -111,7 +112,7 @@ export interface OutputGraphicSpec {
   css: string;
   js: string;
   /** Serialized assets — Blob data converted to data URLs at publish so the payload is JSON. */
-  assets: { path: string; data: string }[];
+  assets: { path: string; data: string; audio?: SoundAssetRef }[];
   resolution: Resolution;
   fps: number;
   /** The PLAYOUT LAYER the operator gave this graphic (docs/PLAYOUT_DASHBOARD.md §5) — the
@@ -178,7 +179,8 @@ export interface OutputPlayoutCue {
 }
 
 export interface OutputPayload {
-  v: 1;
+  v: 1 | 2;
+  soundAssets?: SoundAssetRef[];
   /** The production canvas — the stage the output page scales to the viewport. */
   resolution: Resolution;
   graphics: OutputGraphicSpec[];
@@ -359,10 +361,11 @@ function readPanel(panel: unknown): PanelGraphicSpec[] {
 export function readOutputPayload(output: unknown): OutputPayload | null {
   if (!output || typeof output !== 'object') return null;
   const o = output as OutputPayload;
-  if (o.v !== 1 || !Array.isArray(o.graphics)) return null;
+  if ((o.v !== 1 && o.v !== 2) || !Array.isArray(o.graphics)) return null;
   const ver = readPayloadVersion(o.ver);
   return {
-    v: 1,
+    v: o.v,
+    ...(Array.isArray(o.soundAssets) ? { soundAssets: o.soundAssets } : {}),
     resolution: o.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
     graphics: o.graphics.map((g) => ({ ...g, assets: Array.isArray(g.assets) ? g.assets : [] })),
     cues: Array.isArray(o.cues) ? o.cues : [],
@@ -375,11 +378,12 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
 }
 
 /** Serialize one template's assets for the JSON payload (Blob bytes become data URLs). */
-async function serializeAssets(template: SpxTemplate): Promise<{ path: string; data: string }[]> {
+async function serializeAssets(template: SpxTemplate): Promise<OutputGraphicSpec['assets']> {
   return Promise.all(
     template.assets.map(async (a) => ({
       path: a.path,
       data: typeof a.data === 'string' ? a.data : await fileToDataUrl(a.data as File),
+      ...(a.audio ? { audio: (({storageKey: _transport,...ref})=>ref)(a.audio) } : {}),
     })),
   );
 }
@@ -447,7 +451,8 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         ...(c.note ? { note: c.note } : {}),
       };
     });
-  return { v: 1, resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
+  const soundAssets = [...new Map(graphics.flatMap(g => g.assets.flatMap(a => a.audio ? [a.audio] : [])).map(a => [a.hash,a])).values()];
+  return { v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
 }
 
 /** Every capability a publish hands back. The audience pair is nullable on purpose: a server
@@ -482,10 +487,10 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
   for (const g of show.graphics) {
     const doc = resolveSavedGraphicDoc(g, library);
     if (!doc) continue;
-    const memoKey = `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}`;
+    const memoKey = `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`;
     let digest = libraryDigestMemo.get(memoKey);
     if (digest === undefined) {
-      digest = await graphicDigest(await graphicSpec(g, doc.template));
+      digest = await graphicDigest(await graphicSpec(g, templateForSavedGraphic(g, library)));
       if (libraryDigestMemo.size > 200) libraryDigestMemo.clear();
       libraryDigestMemo.set(memoKey, digest);
     }
@@ -508,7 +513,8 @@ export async function publishControlShow(show: Show): Promise<PublishedCapabilit
   assertProductionGate(show.graphics, library);
   const sb = await getSupabase();
   if (!sb) return null;
-  const built = await buildOutputPayload(show, library);
+  const raw = await buildOutputPayload(show, library);
+  const built = raw.soundAssets?.length ? await publishAudio(raw) : raw;
   // THE VERSION STAMP (payloadVersion.ts): the previous stamp's number, read as ONE field so the
   // multi-megabyte payload is not downloaded to learn it. A production published for the first
   // time, or last published before stamps existed, starts at 1. A read that fails decides nothing

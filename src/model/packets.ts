@@ -37,6 +37,7 @@ import { uuid } from './id';
 // ── Packets (graphics collections) ───────────────────────────────────────────
 
 export interface SavedGraphic {
+  soundConfig?: import('./types').ProductionSounds;
   id: string;
   name: string;
   type: TemplateType;

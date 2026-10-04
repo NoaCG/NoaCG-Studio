@@ -10,7 +10,17 @@
 // the offline preview/export path is completely unchanged.
 
 /** asset.data === `${SENTINEL}${storageKey}` means "the bytes live in Storage under storageKey". */
+import { isSoundAssetRef, soundBlob } from '../assets/soundAssets';
+import type { SoundAssetRef } from '../model/types';
+import { dataUrlToBlob, fileToDataUrl as blobToDataUrl } from '../assets/assetUtils';
+export { dataUrlToBlob, blobToDataUrl };
 export const STORAGE_SENTINEL = 'spx-storage:';
+
+function soundRefs(value: unknown, out: SoundAssetRef[]): void {
+  if (!value || typeof value !== 'object') return;
+  if (isSoundAssetRef(value)) { out.push(value); return; }
+  for (const child of Object.values(value)) soundRefs(child,out);
+}
 
 /** Fast, dependency-free content hash (FNV-1a, 32-bit). Not cryptographic — just a stable dedupe
  *  key for a user's own assets, and it works in non-secure contexts (crypto.subtle doesn't). */
@@ -45,11 +55,19 @@ export type Downloader = (key: string) => Promise<string | null>;
 
 /** Return a deep copy of `body` with every base64 data-URL asset uploaded and replaced by a
  *  Storage reference. Non-base64 data-URLs (e.g. inline SVG) are left inline. */
-export async function externalizeAssets(body: unknown, uid: string, upload: Uploader): Promise<unknown> {
+export async function externalizeAssets(body: unknown, uid: string, upload: Uploader, soundsOnly = false): Promise<unknown> {
   const clone = JSON.parse(JSON.stringify(body ?? null));
   const nodes: AssetNode[] = [];
   collectAssetNodes(clone, nodes);
+  const sounds: SoundAssetRef[] = []; soundRefs(clone,sounds);
+  const uploaded = new Set<string>();
+  for (const sound of sounds) {
+    const key = `${uid}/audio-${sound.hash}`;
+    if (sound.storageKey !== key && !uploaded.has(key)) { await upload(key,await blobToDataUrl(await soundBlob(sound))); uploaded.add(key); }
+    sound.storageKey = key;
+  }
   for (const node of nodes) {
+    if (soundsOnly) continue;
     const data = node.data;
     if (typeof data !== 'string' || !data.startsWith('data:') || !data.includes(';base64,')) continue;
     const key = `${uid}/${contentHash(data)}`;
@@ -75,7 +93,8 @@ export async function externalizeAssets(body: unknown, uid: string, upload: Uplo
 export function hasStorageSentinel(body: unknown): boolean {
   if (body === null || body === undefined) return false;
   try {
-    return JSON.stringify(body).includes(STORAGE_SENTINEL);
+    const serialized = JSON.stringify(body);
+    return serialized.includes(STORAGE_SENTINEL) || serialized.includes('"storageKey"');
   } catch {
     // Unserializable (a cycle, a BigInt): assume it needs the full fetch rather than risk
     // dropping an asset. Failing towards the slow-but-correct path is the whole point.
@@ -89,6 +108,11 @@ export async function rehydrateAssets(body: unknown, download: Downloader): Prom
   const clone = JSON.parse(JSON.stringify(body ?? null));
   const nodes: AssetNode[] = [];
   collectAssetNodes(clone, nodes);
+  const sounds: SoundAssetRef[] = []; soundRefs(clone,sounds);
+  const prepared = await Promise.allSettled([...new Map(sounds.map(s=>[s.hash,s])).values()].map(sound => soundBlob(sound,sound.storageKey ? async()=>{
+    const data = await download(sound.storageKey!); if (!data) throw new Error(`Sound unavailable: ${sound.name}`); return dataUrlToBlob(data);
+  } : undefined)));
+  for (const result of prepared) if (result.status === 'rejected') console.warn('Production sound is unavailable; its visual and reference are retained for repair.',String(result.reason?.message ?? result.reason));
   for (const node of nodes) {
     const data = node.data;
     if (typeof data !== 'string' || !data.startsWith(STORAGE_SENTINEL)) continue;
@@ -99,26 +123,6 @@ export async function rehydrateAssets(body: unknown, download: Downloader): Prom
 }
 
 // ── data-URL ⇄ Blob (for the Supabase Storage transport) ─────────────────────────────────────────
-
-export function dataUrlToBlob(dataUrl: string): Blob {
-  const comma = dataUrl.indexOf(',');
-  const head = dataUrl.slice(0, comma);
-  const b64 = dataUrl.slice(comma + 1);
-  const mime = (head.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
-
-export function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-}
 
 // ── refusals (the capacity ceilings from migration 0039) ─────────────────────────────────────────
 // Storage can now say no for two reasons that no amount of retrying will fix: the file is over the

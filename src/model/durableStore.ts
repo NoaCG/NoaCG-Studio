@@ -190,6 +190,31 @@ export async function commitDurableWrites(): Promise<string | null> {
   return failure?.message ?? null;
 }
 
+/** Reusable binary assets use the same account-scoped database, outside document JSON. */
+export async function readAudioBlob(hash: string): Promise<Blob | null> {
+  await hydrateDurableStore();
+  if (!db || !usingIndexedDb) return null;
+  return new Promise((resolve, reject) => {
+    const tx = db!.transaction(STORE, 'readonly');
+    const request = tx.objectStore(STORE).get(physical(`__audio:${hash}`));
+    tx.oncomplete = () => resolve(request.result instanceof Blob ? request.result : null);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+export async function writeAudioBlob(hash: string, blob: Blob): Promise<void> {
+  await hydrateDurableStore();
+  if (!db || !usingIndexedDb) throw new Error('Saving shared sounds needs browser storage. Enable IndexedDB and reopen.');
+  await new Promise<void>((resolve, reject) => {
+    const tx = db!.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(blob, physical(`__audio:${hash}`));
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
 // ── The localStorage fallback (also the pre-hydration path) ──────────────────
 
 function localStorageKeys(): string[] {
@@ -263,7 +288,7 @@ function idbReadKey(target: IDBDatabase, key: string): Promise<string | null> {
 
 /** One transaction applying a batch of puts/deletes. Rejects with the transaction's error, so
  *  a quota failure keeps its `QuotaExceededError` name for the caller to recognise. */
-function idbWrite(target: IDBDatabase, entries: [string, string | null][]): Promise<void> {
+function idbWrite(target: IDBDatabase, entries: [string, string | null][], audioMove?: { from: string | null; to: string | null }): Promise<void> {
   return new Promise((resolve, reject) => {
     let tx: IDBTransaction;
     try {
@@ -277,6 +302,18 @@ function idbWrite(target: IDBDatabase, entries: [string, string | null][]): Prom
       for (const [key, value] of entries) {
         if (value === null) store.delete(key);
         else store.put(value, key);
+      }
+      if (audioMove) {
+        const request = store.openCursor();
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) return;
+          const key = String(cursor.key), plain = unscopedKey(key);
+          if (/^__audio:[a-f0-9]{64}$/.test(plain) && key === accountKey(plain,audioMove.from) && cursor.value instanceof Blob) {
+            store.put(cursor.value, accountKey(plain,audioMove.to)); cursor.delete();
+          }
+          cursor.continue();
+        };
       }
     } catch (e) {
       // A synchronous throw from put() (a quota refusal can surface this way) aborts the
@@ -688,7 +725,7 @@ export async function adoptSignedOutLibrary(account: string): Promise<boolean> {
       [accountKey(key, from), null],
     ]);
   namespace = account;
-  const move = idbWrite(target, rename(null, account));
+  const move = idbWrite(target, rename(null, account), { from: null, to: account });
   pending.add(move);
   try {
     await move;
@@ -698,6 +735,8 @@ export async function adoptSignedOutLibrary(account: string): Promise<boolean> {
     // again, because any write made while it was in flight went to the account's names.
     namespace = null;
     try {
+      // The failed transaction already rolled back its binary moves. Never copy unrelated
+      // account audio into the signed-out namespace during document-write recovery.
       await idbWrite(target, rename(account, null));
     } catch {
       // Both copies are still on this device; the next healthy boot finds the signed-out one.

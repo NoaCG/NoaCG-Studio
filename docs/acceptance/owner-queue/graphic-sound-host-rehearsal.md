@@ -25,6 +25,14 @@ host used at the venue. Route that source's audio to the recording bus before ta
 4. Reload or reconnect mid-countdown, republish, replace/remove the source, and change scenes.
    Recovery must play no old stings and restore at most one active loop. Removal/disposal must
    leave no audio. OBS program/preview switching and CasparCG route behavior need this check.
+5. After Ready, temporarily block asset Storage access and repeat In, quiz and countdown
+   actions. Prepared effects must still play. Restore access before preparing changed assets;
+   hosted commands still use their existing backend connection.
+
+For production-shared attachments, select the visual in Playout and expand Sounds below its
+normal fields/actions. Check an image and a quiz, reuse the same file on several triggers,
+then save/reopen and publish. [Implementation evidence](../../work-specs/playout-shared-sounds/verification.md)
+distinguishes the browser/package proofs from this physical rehearsal.
 
 Loops restart from the clip's beginning on resume/recovery; phase continuity is not promised.
 Sounds fetched by recovery are suppressed, so an outage does not produce a burst of old stings.

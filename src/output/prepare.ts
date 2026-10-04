@@ -25,6 +25,7 @@ import { changedGraphics, type PayloadVersion } from '../control/payloadVersion'
 import type { PrepRequest } from '../control/prepareLive';
 import type { ChangePrep, ReadyIssue } from '../control/readiness';
 import { createOutputStage } from './stage';
+import type { OutputStageOptions } from './stage';
 
 /** A preparation starts at most this often; a request in between waits for its turn. */
 export const PREPARE_EVERY_MS = 15_000;
@@ -57,14 +58,14 @@ export interface Preparer {
 }
 
 /** What one hidden frame found. */
-async function testGraphic(payload: OutputPayload, key: string, values: Record<string, string> | null): Promise<ReadyIssue | null> {
+async function testGraphic(payload: OutputPayload, key: string, values: Record<string, string> | null, options: OutputStageOptions): Promise<ReadyIssue | null> {
   const spec = payload.graphics.filter((g) => g.key === key)[0];
   if (!spec) return null;
   const box = document.createElement('div');
   // Out of sight and out of the way: nothing here may reach air or take a click.
   box.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';
   document.body.appendChild(box);
-  const stage = createOutputStage(box, { ...payload, graphics: [spec] }, { fit: () => ({ width: 2, height: 2 }) });
+  const stage = createOutputStage(box, { ...payload, graphics: [spec] }, { ...options, sound: 'program', soundQuiet: true, fit: () => ({ width: 2, height: 2 }) });
   try {
     const loaded = await new Promise<boolean>((resolve) => {
       const timer = setTimeout(() => resolve(false), TEST_LOAD_MS);
@@ -76,6 +77,7 @@ async function testGraphic(payload: OutputPayload, key: string, values: Record<s
     if (!loaded) return { k: 'silent', g: key };
     const answer = await stage.warm(key, values);
     const error = stage.errors.get(key) ?? (answer ? answer.error : null);
+    if (answer?.sounds?.error && !answer.scriptError && error === answer.sounds.error) return { k: 'audio', g: key, d: error.slice(0,120) };
     if (error !== null && error !== undefined) return { k: 'script', g: key, d: error.slice(0, 120) };
     return answer ? null : { k: 'silent', g: key };
   } finally {
@@ -85,6 +87,7 @@ async function testGraphic(payload: OutputPayload, key: string, values: Record<s
 }
 
 export function createPreparer(opts: {
+  audio?: (payload: OutputPayload) => OutputStageOptions;
   /** The version this page booted with. */
   held: PayloadVersion | null;
   /** The published payload as the server holds it now, or null when it did not answer. */
@@ -130,7 +133,7 @@ export function createPreparer(opts: {
       const failed: ReadyIssue[] = [];
       // One at a time: a playout box's main thread is the one that must not miss frames.
       for (const key of changed) {
-        const issue = await testGraphic(payload, key, firstCue(key)).catch(
+        const issue = await testGraphic(payload, key, firstCue(key),opts.audio?.(payload) ?? {}).catch(
           (e: unknown): ReadyIssue => ({ k: 'script', g: key, d: String((e as Error)?.message ?? e).slice(0, 120) }),
         );
         if (issue) failed.push(issue);

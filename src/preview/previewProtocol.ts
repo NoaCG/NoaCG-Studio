@@ -59,6 +59,8 @@ export interface PreviewErrorMessage {
  */
 export const PREVIEW_READY_TYPE = 'spx-preview-ready';
 export interface PreviewReadyMessage {
+  scriptError?: string | null;
+  sounds?: { n: number; of: number; bytes: number; error: string | null };
   type: typeof PREVIEW_READY_TYPE;
   /** What the warm `update` threw, or null (also null when there was nothing to update). */
   error: string | null;
