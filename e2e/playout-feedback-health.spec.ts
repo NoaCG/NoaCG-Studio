@@ -39,16 +39,22 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   }));
   await seedSettings(page);
   const bridge = await fakeBridge(page, { missing: true });
-  await page.goto('/app');
+  // Seed after the shell boot has settled, so its first-visit wizard cannot rewrite a later hash navigation.
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
   await awaitDurableReady(page);
   const id = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, loadShows, upsertShow } = await import('/src/model/shows.ts');
     const { saveReadyMemory } = await import('/src/model/readyMemory.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap' });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
+    // This fixture predates output setup and deliberately tests recorded legacy activity.
+    const legacy = loadShows().find(s => s.id === show.id)!;
+    delete legacy.outputSetup;
+    upsertShow(legacy);
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
     setShowHostedSlug(show.id, 'demo-slug');
     setShowOutputSlug(show.id, 'demo-output');
@@ -57,6 +63,7 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   });
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await page.reload();
   const status = page.getByTestId('production-status');
   await expect(page.getByTestId('production-page')).toBeVisible();
@@ -69,7 +76,8 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   await expect(panel.getByTestId('publish-guarantees')).toContainText('check changed graphics and assets automatically');
   await expect(panel.getByTestId('prepare-for-live-button')).toHaveText('Check readiness');
   await expect(panel.getByTestId('prepare-for-live')).toContainText('tests command delivery');
-  await expect(panel.getByTestId('playout-panel-setup')).not.toHaveAttribute('open');
+  await expect(panel.getByTestId('playout-panel-setup')).toHaveAttribute('open');
+  await expect(panel.getByTestId('production-output-setup')).toContainText('Existing setup (unconfirmed)');
   await page.screenshot({ path: test.info().outputPath('browser-health-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -104,7 +112,7 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   expect(await page.evaluate(async (showId) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Take off').toBeUndefined();
   await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0);
   // The settings dialog's existing action proves the same intent, without waiting for /state.
-  await panel.getByTestId('playout-panel-setup').locator('summary').click();
+  if (!(await panel.getByTestId('playout-panel-setup').evaluate(d => (d as HTMLDetailsElement).open))) await panel.getByTestId('playout-panel-setup').locator('summary.pd-panel-section-title').click();
   await panel.getByTestId('playout-settings-open').click();
   await page.getByTestId('playout-put-on-air').click();
   await expect(page.getByTestId('playout-result')).toHaveAttribute('data-state', 'ok');

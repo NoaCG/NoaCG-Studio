@@ -19,6 +19,7 @@
 
 import type { PlayoutSettings, PlayoutState } from './playoutLink';
 import type { LiveEntry } from './livePath';
+import { hasCasparOutput, readOutputSetup, outputProfileLabel, type ProductionOutputSetup } from '../model/outputSetup.ts';
 import { bridgeAnswersLabel } from './prepareLive.ts';
 import { TONE_DOT, type ReadySummary, type ReadyTone } from './readiness.ts';
 
@@ -35,7 +36,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -52,6 +53,9 @@ export interface PlayoutStatus {
 }
 
 export interface StatusFacts {
+  managedOutput?: boolean;
+  destinationCheck?: StatusCheck | null;
+  fileCheck?: StatusCheck | null;
   /** The production is started (published): verbs go on the wire. */
   started: boolean;
   /** A publish now would change what the outputs get (the record, or what they render). */
@@ -74,21 +78,34 @@ export function casparOutputTarget(settings: Pick<PlayoutSettings, 'host' | 'amc
   return JSON.stringify([settings.host.trim(), settings.amcpPort, settings.channel, settings.layer]);
 }
 
-/** Relevance follows the production's outputs and activity, never an operator mode. A configured
- * studio with no browser evidence still expects CasparCG, even when it cannot connect. */
+/** Setup is intent; native server cues and recorded managed activity are evidence. Host names
+ * and a globally configured studio never establish a legacy production's intent. */
 export function relevantPlayout(input: {
   configured: boolean;
   serverCues: boolean;
   peers: readonly Pick<LiveEntry, 'kind' | 'engine' | 'name'>[];
   expected: readonly { name: string }[];
   casparActivity: boolean;
+  outputSetup?: ProductionOutputSetup;
 }): { bridge: boolean; slot: boolean } {
-  const outputs = input.peers.filter((p) => p.kind === 'output');
-  const caspar = (name: string) => /^CasparCG\b/i.test(name);
-  const casparOutput = outputs.some((p) => caspar(p.engine) || caspar(p.name ?? '')) || input.expected.some((p) => caspar(p.name));
-  const browserKnown = outputs.some((p) => !caspar(p.engine) && !caspar(p.name ?? '')) || input.expected.some((p) => !caspar(p.name));
-  const slot = input.configured && (input.casparActivity || casparOutput || !browserKnown);
-  return { bridge: input.serverCues || slot, slot };
+  const managed = input.outputSetup ? hasCasparOutput(input.outputSetup) : input.casparActivity;
+  return { bridge: input.serverCues || managed, slot: input.configured && managed };
+}
+
+/** Diagnostics only. Untagged output instances continue playing, but cannot prove which of two
+ * selected destinations is connected. One tagged instance never satisfies both destinations. */
+export function destinationCheck(setup: ProductionOutputSetup | undefined, peers: readonly Pick<LiveEntry, 'kind' | 'destinationId'>[]): StatusCheck | null {
+  if (!setup) return null;
+  const destinations = readOutputSetup(setup)?.destinations ?? [];
+  if (!destinations.length) return { key: 'destinations', tone: 'warn', label: 'Choose a production output under Setup', short: 'Choose output' };
+  const outputs = peers.filter(p => p.kind === 'output');
+  const missing = destinations.filter(d => !outputs.some(p => p.destinationId === d.id));
+  if (!missing.length) return null;
+  const uncertain = outputs.some(p => !p.destinationId);
+  return { key: 'destinations', tone: 'warn',
+    label: `${uncertain ? 'Output reporting; destination not confirmed' : 'Waiting for output'}: ${missing.map(d => outputProfileLabel(d.profile)).join(' + ')}`,
+    short: uncertain ? 'Confirm output destinations' : 'Output missing',
+    advice: 'Use the destination link in Setup. Existing untagged links still play; this check does not block Take.' };
 }
 
 /** READY's deciding words. Step 1's health line underneath READY has no `lead`, so its label is
@@ -167,7 +184,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     } else if (f.slot.holds === 'unreadable') {
       checks.push({
         key: 'slot',
-        tone: 'idle',
+        tone: f.started && f.managedOutput ? 'warn' : 'idle',
         label: `This NoaCG Bridge cannot say what ${f.slot.where} shows`,
         short: 'Connected',
         advice: 'Update NoaCG Bridge to have this checked.',
@@ -178,7 +195,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       // already airs the graphics, as for an empty slot.
       checks.push({
         key: 'slot',
-        tone: f.started ? (readyAny ? 'warn' : 'bad') : 'idle',
+        tone: f.started ? (readyAny && !f.managedOutput ? 'warn' : 'bad') : 'idle',
         label: `Cannot read what ${f.slot.where} shows`,
         short: `Cannot read ${f.slot.where}`,
         advice: `Check under Setup that the server has channel ${f.slot.channel}.${f.slot.detail ? ` ${f.slot.detail}` : ''}`,
@@ -194,7 +211,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     } else {
       checks.push({
         key: 'slot',
-        tone: f.started && !readyAny ? 'bad' : 'idle',
+        tone: f.started && (!readyAny || f.managedOutput) ? 'bad' : 'idle',
         label: `Nothing on ${f.slot.where}`,
         short: 'Output not on air',
         advice: f.started ? 'Press Put on air to load this production on CasparCG.' : 'Start the production, then put it on air.',
@@ -202,6 +219,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     }
   }
 
+  if (f.started && f.managedOutput && bridge?.tone === 'ok' && !f.slot) checks.push({ key: 'slot', tone: 'warn', label: 'Checking managed CasparCG output on its configured server and slot', short: 'Checking CasparCG output' });
   if (ready) {
     // An output still PREPARING is attention, not health (owner: amber is "preparation
     // incomplete"): READY draws it in its idle grey because nothing is wrong yet, but a Take now
@@ -228,6 +246,8 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     });
   }
 
+  if (f.fileCheck) checks.push(f.fileCheck);
+  if (f.started && f.destinationCheck) checks.push(f.destinationCheck);
   const sorted = [...checks].sort((a, b) => RANK[b.tone] - RANK[a.tone]);
   if (!f.started) return { tone: 'idle', text: 'Offline', checks: sorted };
   const worst = sorted[0];

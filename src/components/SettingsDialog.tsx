@@ -10,6 +10,7 @@ import { useAuthUi } from './auth/authUi';
 import { ACCOUNT_IS_FOR, NO_ACCOUNT_NEEDED } from './auth/accountCopy';
 import AiProviderSettings from './AiProviderSettings';
 import PlayoutSettingsPanel from './PlayoutSettingsPanel';
+import DefaultOutputPreference from './DefaultOutputPreference';
 import {
   ANALYTICS_CONSENT_EVENT,
   analyticsBlockedByBrowser,
@@ -273,7 +274,7 @@ export default function SettingsDialog({ onClose }: Props) {
       <div className="wz-modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings" data-testid="settings">
         <div className="wz-header">
           <h2>Settings</h2>
-          <p className="hint wz-header-sub">Preferences stay in this browser. Provider keys stay server-side.</p>
+          <p className="hint wz-header-sub">Device preferences stay in this browser. Your output default follows your account. Provider keys stay server-side.</p>
           <button className="gallery-close" onClick={onClose} title="Close">✕</button>
         </div>
 
@@ -348,6 +349,7 @@ export default function SettingsDialog({ onClose }: Props) {
 
             <section data-section="workflow">
               <p className="dlg-caption">Workflow defaults</p>
+              <DefaultOutputPreference />
               {/* There is no Advanced mode switch here any more (owner, 2026-09-24). It was a
                   browser-local setting that reopened the old code editor, so on a shared
                   classroom computer one tick sent every later student there. */}

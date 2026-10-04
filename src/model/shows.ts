@@ -13,6 +13,7 @@ import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
 import { durable } from './durableStore';
 import { uuid } from './id';
+import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
 import {
   appendCue,
@@ -41,6 +42,8 @@ import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
  * at cue 7 without a second copy of the template (docs/CLOUD_PLAYOUT.md §2).
  */
 export interface ShowCue {
+  /** Optional visual highlight only; never a route or tally color. */
+  accentColor?: string;
   id: string;
   /** The pool entry this cue drives (SavedGraphic.id) - or, when `source` is `playout`, the
    *  PlayoutItem (Show.playoutItems) it drives. */
@@ -212,6 +215,9 @@ export interface ShowDataset {
 }
 
 export interface Show {
+  /** Absent is legacy; an empty destination list is a new, unchosen output. */
+  outputSetup?: ProductionOutputSetup;
+  rundownColors?: RundownColors;
   id: string;
   name: string;
   /** Format stamp. Absent = a pre-stamp record, normalized to 2 on read and written on every
@@ -466,11 +472,34 @@ export function createShowNamedChecked(name: string): { show: Show; error: strin
     name: resolveShowName(name),
     version: 2,
     graphics: [],
+    outputSetup: { v: 1, destinations: [] },
     updatedAt: nowIso(),
   };
   const all = loadAllShows();
   all.push(show);
   return { show, error: saveAll(all) };
+}
+
+/** Personal rehearsal copy. Internal identifiers are production-scoped, so retaining them
+ * keeps every folder, source and profile reference intact, as existing conflict copies do. */
+export function duplicateShowChecked(sourceId: string): { show: Show | null; error: string | null } {
+  const source = loadShows().find(s => s.id === sourceId);
+  if (!source) return { show: null, error: 'That production no longer exists.' };
+  const copy = structuredClone(source);
+  copy.id = uuid();
+  copy.name = `${source.name} copy`;
+  copy.updatedAt = nowIso();
+  delete copy.teamId;
+  delete copy.hostedSlug;
+  delete copy.outputSlug;
+  delete copy.joinSlug;
+  delete copy.presenterSlug;
+  delete copy.publishedAt;
+  delete copy.outputOpenedAt;
+  delete copy.deleted;
+  const all = loadAllShows();
+  all.push(copy);
+  return { show: copy, error: saveAll(all) };
 }
 
 export function createShowNamed(name: string): Show {
@@ -644,7 +673,7 @@ function seedPlayoutValues(item: PlayoutItem): Record<string, string> {
 export function addShowCue(
   showId: string,
   sourceId: string,
-  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback; auto?: CueAuto },
+  seed?: { label?: string; values?: Record<string, string>; note?: string; playback?: CuePlayback; auto?: CueAuto; accentColor?: string },
   after?: string,
 ): { shows: Show[]; cueId: string | null } {
   let cueId: string | null = null;
@@ -659,6 +688,7 @@ export function addShowCue(
       label: seed?.label?.trim() || (source ? source.name : item!.name),
       values: { ...(source ? seedValues(source.template.fields) : seedPlayoutValues(item!)), ...(seed?.values ?? {}) },
       ...(seed?.note ? { note: seed.note } : {}),
+      ...(accentColor(seed?.accentColor) ? { accentColor: accentColor(seed?.accentColor) } : {}),
       // A duplicated server cue plays its clip the same way: the copy is of the cue, settings too.
       ...(item && seed?.playback && Object.keys(seed.playback).length ? { playback: { ...seed.playback } } : {}),
       // A duplicated timed graphic cue keeps its timing, as a copied one does (model/cueClipboard.ts).
@@ -911,7 +941,7 @@ export function updateShowCue(
  */
 export function setShowCues(
   showId: string,
-  cues: Array<{ sourceId: string; label: string; values?: Record<string, string>; note?: string }>,
+  cues: Array<{ sourceId: string; label: string; values?: Record<string, string>; note?: string; accentColor?: string }>,
 ): { shows: Show[]; error: string | null } {
   let error: string | null = null;
   const shows = patchShow(showId, (show) => {
@@ -929,6 +959,7 @@ export function setShowCues(
         label: c.label.trim() || source.name,
         values: { ...seedValues(source.template.fields), ...(c.values ?? {}) },
         ...(c.note ? { note: c.note } : {}),
+        ...(accentColor(c.accentColor) ? { accentColor: accentColor(c.accentColor) } : {}),
       };
     });
     // A pack carries no folders, so the new rundown is in none, and a folder left naming no cue goes.
@@ -1735,4 +1766,35 @@ export function purgeOldShowTombstones(beforeIso: string): void {
   const all = loadAllShows();
   const kept = all.filter((s) => !s.deleted || s.updatedAt >= beforeIso);
   if (kept.length !== all.length) saveAll(kept);
+}
+
+/** Display metadata only. Callers reporting success await commitDurableWrites. */
+export function setShowOutputSetup(showId: string, setup: ProductionOutputSetup): { shows: Show[]; error: string | null } {
+  const valid = readOutputSetup(setup);
+  if (!valid) return { shows: loadShows(), error: 'Invalid output setup.' };
+  return patchShowChecked(showId, show => {
+    show.outputSetup = valid;
+    return true;
+  });
+}
+export function setCueAccentColor(showId: string, cueId: string, color: string | null): Show[] {
+  return patchShow(showId, show => {
+    const cue = show.cues?.find(c => c.id === cueId);
+    if (!cue) return false;
+    const value = accentColor(color);
+    if (value) cue.accentColor = value;
+    else delete cue.accentColor;
+    return true;
+  });
+}
+export function setRundownColor(showId: string, key: string, color: string | null): Show[] {
+  return patchShow(showId, show => {
+    const colors = { ...show.rundownColors };
+    const value = accentColor(color);
+    if (value) colors[key] = value;
+    else delete colors[key];
+    if (Object.keys(colors).length) show.rundownColors = colors;
+    else delete show.rundownColors;
+    return true;
+  });
 }

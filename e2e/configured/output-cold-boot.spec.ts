@@ -9,6 +9,7 @@
 // change here that the offline plan reports as "covered" is covered by nothing.
 // covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -52,7 +53,7 @@ test('a cue taken before the renderer exists is on air when the browser source b
 
   const showName = `Cold Boot ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (quiz-output.spec.ts says why
   // that rather than Escape, and why not a backdrop).

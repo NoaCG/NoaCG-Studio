@@ -184,3 +184,9 @@ test('a delay is only given when the two clocks allow it, and an answer off the 
   assert.deepEqual(readPingAck({ id: 'p1', ms: -3 }), { id: 'p1', ms: null });
   assert.equal(readPingAck({ ms: 3 }), undefined);
 });
+
+
+test('a native cue without a shared file definition cannot report ready', () => {
+  const lines = bridgeChecks({ configured: true, required: true, outputExpected: false, missingItems: true, status: { state: 'ok', detail: 'ok' }, outputSlug: 'x', channel: 1, layer: 20, items: [] });
+  assert.equal(lines.find(l => l.key === 'bridge-files')?.tone, 'bad');
+});

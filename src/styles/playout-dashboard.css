@@ -2632,3 +2632,32 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 .pd-field-ends select,
 .pd-cue-ends-then select { width: 100%; }
 .pd-cue-ends-hint { flex: 1 0 100%; margin: 0; font-size: 12px; }
+
+/* Route accents stay quiet. Tally, selection and error borders remain stronger than custom color.
+   Badges use a separate variable: a cue highlight never communicates a routing change. */
+.pd-rundown .pd-cue:not(.selected):not(.on-air):not(.on-pvw):not(.up-here),
+.pd-cue-presented:not(.selected):not(.on-air):not(.on-pvw) { border-left: 3px solid var(--pd-cue-accent, var(--border)); }
+.pd-cue-type { flex: 0 100 auto; max-width: 96px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 10px; }
+.pd-cue-layer[data-ch]:not(.clash) { border-left: 2px solid var(--pd-ch); padding-left: 4px; }
+.pd-cue-kind:not(.pd-cue-kind--missing) { color: var(--text-dim); background: var(--surface); }
+.pd-cue-highlight-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 0; }
+.pd-cue-highlight-control label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.pd-cue-highlight-control input[type=color] { width: 34px; height: 26px; padding: 2px; cursor: pointer; }
+.pd-cue-highlight-control button { font-size: 11px; padding: 4px 7px; }
+.pd-cue-menu-host .pd-cue-highlight-control { padding: 5px 9px; }
+.pd-rundown-colors, .pd-shared-route { margin-top: 10px; font-size: 12px; }
+.pd-rundown-colors summary, .pd-shared-route summary { cursor: pointer; }
+.pd-output-dialog { max-width: 540px; }
+.pd-output-dialog .dlg-foot { display: flex; justify-content: space-between; padding: 16px; border-top: 1px solid var(--border); }
+.pd-output-setup { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.pd-output-setup .hint { flex-basis: 100%; margin: 0; }
+.pd-output-choice { font-size: 11px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pd-upload-help { font-size: 10px; margin: 0; }
+
+/* The phone flattens the control area into an ordered column. Keep this control with its editor. */
+.pd-control-area > .pd-cue-highlight-control { order: 3; margin: 0 12px; }
+
+/* Keep the cue name and type legible without increasing the 34px rundown row.
+   The small type line uses the existing label height instead of competing with its name. */
+.pd-rundown .pd-cue-label { position: relative; padding-bottom: 11px; }
+.pd-rundown .pd-cue-type { position: absolute; left: 0; right: 0; bottom: 1px; max-width: none; line-height: 10px; }

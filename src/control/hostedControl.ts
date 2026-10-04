@@ -1,3 +1,4 @@
+import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from '../model/outputSetup';
 // Hosted control (Phase 5): the client side of migration 0008. A local SHOW publishes as a
 // control_shows row (id = the local Show.id); operating it is capability-addressed — the
 // unguessable slug opens the hosted page at ?control=<slug>, no account needed. Commands
@@ -124,6 +125,8 @@ export interface OutputGraphicSpec {
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
 export interface OutputCue {
+  cueKind?: 'graphic' | 'image';
+  accentColor?: string;
   id: string;
   graphic: string;
   label: string;
@@ -164,6 +167,8 @@ export function hostedCueValues(
  *  renderer ignores these - nothing here renders in a browser - and the hosted control page
  *  lists them so the two dashboards read the same rundown. ADDITIVE OPTIONAL. */
 export interface OutputPlayoutCue {
+  mediaKind?: 'still' | 'movie' | 'audio';
+  accentColor?: string;
   id: string;
   label: string;
   kind: 'template' | 'media';
@@ -179,6 +184,8 @@ export interface OutputPlayoutCue {
 }
 
 export interface OutputPayload {
+  outputSetup?: ProductionOutputSetup;
+  rundownColors?: RundownColors;
   v: 1 | 2;
   soundAssets?: SoundAssetRef[];
   /** The production canvas — the stage the output page scales to the viewport. */
@@ -365,6 +372,8 @@ export function readOutputPayload(output: unknown): OutputPayload | null {
   const ver = readPayloadVersion(o.ver);
   return {
     v: o.v,
+    ...(readOutputSetup(o.outputSetup) ? { outputSetup: readOutputSetup(o.outputSetup)! } : {}),
+    ...(o.rundownColors && typeof o.rundownColors === 'object' ? { rundownColors: o.rundownColors } : {}),
     ...(Array.isArray(o.soundAssets) ? { soundAssets: o.soundAssets } : {}),
     resolution: o.resolution ?? DEFAULT_GRAPHICS_RESOLUTION,
     graphics: o.graphics.map((g) => ({ ...g, assets: Array.isArray(g.assets) ? g.assets : [] })),
@@ -425,6 +434,8 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
       return {
         id: c.id,
         graphic: byId.get(c.sourceId)!.name,
+        cueKind: byId.get(c.sourceId)!.type === 'picture' ? 'image' : 'graphic',
+        ...(accentColor(c.accentColor) ? { accentColor: accentColor(c.accentColor) } : {}),
         label: c.label,
         values: c.values,
         ...(c.note ? { note: c.note } : {}),
@@ -444,6 +455,8 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         id: c.id,
         label: c.label,
         kind: item.kind,
+        ...(item.mediaKind ? { mediaKind: item.mediaKind } : {}),
+        ...(accentColor(c.accentColor) ? { accentColor: accentColor(c.accentColor) } : {}),
         name: item.name,
         layer: item.layer,
         channel,
@@ -452,7 +465,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
       };
     });
   const soundAssets = [...new Map(graphics.flatMap(g => g.assets.flatMap(a => a.audio ? [a.audio] : [])).map(a => [a.hash,a])).values()];
-  return { v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
+  return { ...(show.outputSetup ? { outputSetup: show.outputSetup } : {}), ...(show.rundownColors ? { rundownColors: show.rundownColors } : {}), v: soundAssets.length ? 2 : 1, ...(soundAssets.length ? { soundAssets } : {}), resolution, graphics, cues, ...(playoutCues.length ? { playoutCues } : {}) };
 }
 
 /** Every capability a publish hands back. The audience pair is nullable on purpose: a server

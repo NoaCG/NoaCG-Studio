@@ -13,6 +13,7 @@
 // The real-server walk of the same states is docs/work-specs/studio-day-playout/evidence/landing-2.md.
 // covers: src/control/{playoutStatus,prepareBridge}.ts, src/model/readyMemory.ts, src/components/home/PlayoutStatusControl.tsx, src/components/home/ProductionLinks.tsx, src/components/home/PlayoutMonitors.tsx
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -29,6 +30,8 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await wipeMyGraphics(page);
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showId = await openProductionWithCurrent(page, `Status ${Date.now()}`);
+  // This walk deliberately exercises an existing production without new output metadata.
+  await page.evaluate(async id => { const S=await import('/src/model/shows.ts');const show=S.loadShows().find(s=>s.id===id)!;delete show.outputSetup;S.upsertShow(show);await (await import('/src/model/durableStore.ts')).commitDurableWrites(); }, showId);
   const status = page.getByTestId('production-status');
   const monitor = page.getByTestId('program-monitor');
 
@@ -41,7 +44,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
 
   // ── Started with nothing to air it: amber "No output connected", and the panel says why. ──
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(status).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
   await expect(monitor).toHaveAttribute('data-live', 'true');
@@ -64,6 +67,8 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   // read a channel, and Put on air (a take of a URL) and Take off change the slot as the server would.
   const studio = await fakeBridge(page, { version: '0.7.0', features: ['state', 'playback', 'sequence', 'servers'] });
   await seedSettings(page);
+  // Recorded managed activity establishes legacy relevance on this exact studio target.
+  await page.evaluate(async id => { const M=await import('/src/model/readyMemory.ts');const P=await import('/src/control/playoutLink.ts');const {casparOutputTarget}=await import('/src/control/playoutStatus.ts');M.saveReadyMemory(id,{...M.loadReadyMemory(id),casparOutput:casparOutputTarget(P.loadPlayoutSettings())}); }, showId);
   // A reload, not a goto: the page is already on this URL, so a goto would only move the hash.
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
@@ -102,10 +107,10 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-tone', 'warn');
   await expect(panel.getByTestId('caspar-put-on-air')).not.toHaveClass(/primary/);
 
-  // ── Take off: red again, as quickly. ──
+  // Take off clears recorded managed activity. Unconfirmed legacy setup becomes quiet.
   await panel.getByTestId('caspar-take-off-air').click();
-  await expect(status).toHaveAttribute('data-tone', 'bad', { timeout: 5_000 });
-  await expect(status).toContainText('Output not on air');
+  await expect(status).toHaveAttribute('data-tone', 'warn', { timeout: 5_000 });
+  await expect(status).toContainText('No output connected');
   await page.keyboard.press('Escape');
   expect(studio.actions.map((a) => a.verb)).toEqual(['take', 'out']);
 

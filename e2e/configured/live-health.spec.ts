@@ -8,6 +8,7 @@
 // no production to resolve and no socket to join.
 // covers: src/control/livePath.ts, src/components/control/OutputHealth.tsx, src/output/main.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -76,7 +77,7 @@ test('an output says who it is and how commands reach it, and both operator page
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Live Health ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

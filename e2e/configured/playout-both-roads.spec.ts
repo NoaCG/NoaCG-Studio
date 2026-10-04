@@ -29,6 +29,7 @@
 // offline plan would be covered by nothing.
 // covers: supabase/migrations/**
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -122,7 +123,7 @@ test('one press is one entrance on the sender, on another operator, and on air',
   const showName = `Both Roads ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (never Escape — quiz-output.spec.ts
   // says why, and the Escape route was a flake of its own).

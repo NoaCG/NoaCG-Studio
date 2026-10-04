@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   adjustWords,
   controlName,
@@ -28,6 +28,7 @@ import {
 } from '../control/controlModel';
 import { withLiveLabels } from '../blocks/controlLabels';
 import { fetchProductionDataBySlug, patchProductionDataBySlug } from '../control/productionDataApi';
+import { accentColor, routeColor, outputSetupLabel } from '../model/outputSetup';
 import { slotAddress } from '../control/playoutLink';
 import {
   replacementPatch,
@@ -1255,23 +1256,27 @@ export default function HostedControlPage({ slug }: { slug: string }) {
               return (
                 <div
                   key={cue.id}
-                  className={`pd-cue${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}`}
+                  style={{ '--pd-cue-accent': accentColor(cue.accentColor) ?? routeColor(payload?.rundownColors) } as CSSProperties}
+                  className={`pd-cue pd-cue-presented${isSelected ? ' selected' : ''}${cueIsLive ? ' on-air' : isPreviewed ? ' on-pvw' : ''}`}
                   data-testid={`hosted-cue-${cue.id}`}
                 >
                   <span className="pd-cue-no">{cueIsLive ? '●' : i + 1}</span>
                   <button className="pd-cue-label" onClick={() => selectCue(cue)} data-testid="hosted-select-cue">
                     <strong>{cue.label}</strong>
+                    <span className="pd-cue-type">{cue.cueKind === 'image' ? '▧ NoaCG image' : 'T Graphic'}</span>
                     <span className="muted">
                       {layer !== null && (
                         <span
                           className={`pd-cue-layer${sharing.length ? ' clash' : ''}`}
+                          data-ch="output"
+                          style={{ '--pd-ch': routeColor(payload?.rundownColors) } as CSSProperties}
                           title={
                             sharing.length
                               ? `Shares layer ${layer} with ${sharing.join(', ')}. On air they replace each other.`
                               : `${cue.graphic} airs on layer ${layer}`
                           }
                         >
-                          L{layer}
+                          {payload?.outputSetup ? outputSetupLabel(payload.outputSetup) : 'NoaCG'} · G{layer}
                         </span>
                       )}
                       {layer !== null ? ' · ' : ''}
@@ -1301,7 +1306,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             <div className="pd-server-cues" data-testid="hosted-playout-cues">
               <h3>On the playout server</h3>
               {playoutCues.map((cue) => (
-                <div key={cue.id} className="pd-cue pd-cue-server" data-testid={`hosted-playout-cue-${cue.id}`}>
+                <div key={cue.id} style={{ '--pd-cue-accent': accentColor(cue.accentColor) ?? routeColor(payload?.rundownColors, cue.channel) } as CSSProperties} className="pd-cue pd-cue-presented pd-cue-server" data-testid={`hosted-playout-cue-${cue.id}`}>
                   <span className="pd-cue-no">·</span>
                   <span className="pd-cue-label">
                     <strong>{cue.label}</strong>
@@ -1310,6 +1315,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                           so both dashboards say which channel a cue airs on. */}
                       <span
                         className="pd-cue-layer"
+                        data-ch={cue.channel ?? 'unknown'}
+                        style={{ '--pd-ch': routeColor(payload?.rundownColors, cue.channel) } as CSSProperties}
                         title={
                           cue.channel
                             ? `Channel ${cue.channel}${cue.channelName ? ` (${cue.channelName})` : ''}, layer ${cue.layer}`
@@ -1319,7 +1326,7 @@ export default function HostedControlPage({ slug }: { slug: string }) {
                       >
                         {cue.channel ? slotAddress({ channel: cue.channel, layer: cue.layer }) : `L${cue.layer}`}
                       </span>{' '}
-                      · {cue.kind === 'media' ? 'Server clip' : 'Server template'} ·{' '}
+                      · {cue.kind === 'template' ? 'T Server template' : cue.mediaKind === 'still' ? '▧ Server image' : cue.mediaKind === 'movie' ? '▶ Video' : cue.mediaKind === 'audio' ? '♪ Audio' : '? Server media (unspecified)'} ·{' '}
                       {cue.note || cue.name}
                     </span>
                   </span>

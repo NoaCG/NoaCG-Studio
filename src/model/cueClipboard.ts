@@ -14,7 +14,7 @@ import type { PlayoutItem, ShowCue, ShowFolder } from './shows';
 import { folderIdOf, joinRefusal, joins, landBlock, liveFolderIds, settleFolders, wholeFolders, type Place } from './showFolders.ts';
 
 /** One copied cue: what it is made of, and the copied folder it came in, when it came in one whole. */
-export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto'> & { folderKey?: string };
+export type ClipCue = Pick<ShowCue, 'sourceId' | 'source' | 'label' | 'values' | 'note' | 'playback' | 'auto' | 'accentColor'> & { folderKey?: string };
 /** One folder every cue of which was copied: it pastes as a new folder with its mode and settings. */
 export type ClipFolder = Pick<ShowFolder, 'name' | 'mode' | 'end' | 'slot'> & { key: string };
 
@@ -56,6 +56,7 @@ export function copyClip(
         label: relabel(c.label),
         values: { ...c.values },
         ...(c.note ? { note: c.note } : {}),
+        ...(c.accentColor ? { accentColor: c.accentColor } : {}),
         ...(c.playback ? { playback: { ...c.playback } } : {}),
         ...(c.auto ? { auto: { ...c.auto } } : {}),
         ...(folder && whole.has(folder) ? { folderKey: folder } : {}),
@@ -104,6 +105,7 @@ export function pasteCopies(
       label: c.label,
       values: { ...c.values },
       ...(c.note ? { note: c.note } : {}),
+      ...(c.accentColor ? { accentColor: c.accentColor } : {}),
       ...(c.playback ? { playback: { ...c.playback } } : {}),
       ...(c.auto ? { auto: { ...c.auto } } : {}),
       ...(folderId ? { folderId } : {}),

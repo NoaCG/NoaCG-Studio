@@ -1,3 +1,4 @@
+import { outputProfileLabel, type OutputProfile } from '../../model/outputSetup';
 import { useState } from 'react';
 import { casparOutputTarget } from '../../control/playoutStatus';
 import {
@@ -208,7 +209,7 @@ export function StartProductionButton({
       }
       data-testid="production-publish"
     >
-      ▶ Start production
+      Publish
     </button>
   );
 }
@@ -224,6 +225,7 @@ export function PublishActions({
   unpublishedChanges,
   outputUrl,
   airNeeded,
+  managedOutput,
   onPublish,
   onUnpublish,
   onAirChanged,
@@ -233,6 +235,7 @@ export function PublishActions({
   outputUrl: string | null;
   /** The NoaCG output's slot does not hold this production: Put on air is the press that is due. */
   airNeeded: boolean;
+  managedOutput?: boolean;
   onPublish: () => void;
   onUnpublish: () => void;
   /** Put on air or Take off was sent: the slot changed, so the status reads it again now. */
@@ -262,7 +265,7 @@ export function PublishActions({
         </button>
       </div>
       {/* The output URL, loaded for you onto the NoaCG output's slot (docs/BRIDGE.md §2). */}
-      <BridgeAirRow outputUrl={outputUrl} primary={airNeeded} onSent={onAirChanged} />
+      {managedOutput !== false && <BridgeAirRow outputUrl={outputUrl} primary={airNeeded} onSent={onAirChanged} />}
     </>
   );
 }
@@ -273,6 +276,7 @@ export function PublishActions({
  * Bridge needs none of them to go on air (owner, 2026-10-01), which is why they are not first.
  */
 export function ProductionLinkRows({
+  outputProfile,
   busy,
   outputUrl,
   controlUrl,
@@ -287,6 +291,7 @@ export function ProductionLinkRows({
   embedFileName,
   onDownloadEmbed,
 }: {
+  outputProfile?: OutputProfile;
   busy: boolean;
   outputUrl: string | null;
   controlUrl: string | null;
@@ -304,7 +309,7 @@ export function ProductionLinkRows({
   return (
     <div data-testid="production-links">
       <LinkRow
-        label="Output URL"
+        label={outputProfile ? `${outputProfileLabel(outputProfile)} URL` : 'Output URL'}
         testId="output-url"
         help={
           <>
@@ -326,7 +331,8 @@ export function ProductionLinkRows({
       <LinkRow
         label="Template file"
         testId="spx-template"
-        quiet
+        quiet={outputProfile !== 'spx'}
+        openByDefault={outputProfile === 'spx'}
         help={
           <>
             For playout that loads template <em>files</em> instead of URLs - SPX, or a CasparCG
@@ -340,7 +346,7 @@ export function ProductionLinkRows({
             FACE comes from the rule below. */}
         <span className="prod-link-file">{embedFileName}</span>
         <button className="prod-link-quiet-action" onClick={onDownloadEmbed} data-testid="download-output-embed">
-          Download
+          {outputProfile === 'spx' ? 'Download SPX template' : 'Download'}
         </button>
       </LinkRow>
       <LinkRow

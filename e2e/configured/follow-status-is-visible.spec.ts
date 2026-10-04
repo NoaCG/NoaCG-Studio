@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -28,7 +29,7 @@ test('a production whose live connection never joins says so, and a healthy one 
 
   const showName = `Follow Status ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
 
   // ── HEALTHY: the socket is left alone, so the line must not be there. ──

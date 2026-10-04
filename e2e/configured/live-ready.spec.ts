@@ -8,6 +8,7 @@
 // resolve and no topic to join.
 // covers: src/control/readiness.ts, src/control/payloadVersion.ts, src/components/control/OutputHealth.tsx, src/output/main.ts, src/output/stage.ts, src/preview/composeDocument.ts, src/model/readyMemory.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { addCatalogGraphic, bootstrapGraphic, openProductionWithCurrent } from '../_create';
@@ -27,7 +28,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Ready ${Date.now()}`;
   const showId = await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
@@ -51,7 +52,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   const anon = await browser.newContext();
   const air = await anon.newPage();
   air.on('pageerror', (e) => console.log('[output pageerror]', e.message));
-  await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent('Desk A')}&debug=1`);
+  await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&destination=browser&name=${encodeURIComponent('Desk A')}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
   const presence = () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence());
   await expect.poll(presence, { timeout: 30_000 }).not.toBe('joining');

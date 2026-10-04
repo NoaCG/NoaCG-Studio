@@ -9,6 +9,7 @@
 // change here that the offline plan reports as "covered" is covered by nothing.
 // covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -54,7 +55,7 @@ test('a renderer whose realtime channel never joins still airs a take, and says 
 
   const showName = `Realtime Floor ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (never Escape — quiz-output.spec.ts
   // says why, and the Escape route was a flake of its own).

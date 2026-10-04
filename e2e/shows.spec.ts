@@ -49,9 +49,9 @@ test('a show collects graphics in rundown order and exports one aggregated panel
   const cueRows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(cueRows).toHaveCount(2);
   await expect(cueRows.nth(0)).toContainText('Hairline');
-  await expect(cueRows.nth(0).getByTestId('cue-layer')).toHaveText('L20');
+  await expect(cueRows.nth(0).getByTestId('cue-layer')).toHaveText('NoaCG · G20');
   await expect(cueRows.nth(1)).toContainText('Arena Quiz');
-  await expect(cueRows.nth(1).getByTestId('cue-layer')).toHaveText('L21');
+  await expect(cueRows.nth(1).getByTestId('cue-layer')).toHaveText('NoaCG · G21');
 
   // Export: the target picker (SPX is the remembered default), one folder per graphic + the
   // aggregated show panel. Export is in the header's Setup menu.
@@ -568,14 +568,14 @@ test('the layer stack reorders and removes; deleting the show keeps nothing behi
   // there is no layer list any more.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   const rowFor = (name: string) => rows.filter({ hasText: name }).first();
-  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('L21');
-  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('L20');
+  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('NoaCG · G21');
+  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('NoaCG · G20');
   await rowFor('Hairline').getByTestId('select-cue').click();
   // The layer lives under the editor's Advanced, closed until asked for (plan §6.5).
   await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('graphic-layer').fill('30');
-  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('L30');
-  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('L21');
+  await expect(rowFor('Hairline').getByTestId('cue-layer')).toHaveText('NoaCG · G30');
+  await expect(rowFor('Arena Quiz').getByTestId('cue-layer')).toHaveText('NoaCG · G21');
 
   // Removal is the row's ⋯. Each graphic has one cue, so removing that cue takes the graphic with
   // it — and the menu item says so before it is pressed.

@@ -236,11 +236,17 @@ async function pickerFile(page: Page, name: string) {
   return page.locator(`[data-testid="picker-row"][data-name="${name}"]`);
 }
 
-test('the door is absent until a Bridge is paired, and lists the server\'s templates and media once it is', async ({ page }) => {
+test('the CasparCG file action explains unavailable setup in both add surfaces', async ({ page }) => {
   await fakeBridge(page);
   await productionPage(page);
-  // No server configured: no door. A dead control on the busiest surface would be worse than none.
-  await expect(page.getByTestId('add-from-server')).toHaveCount(0);
+  // The shared action stays discoverable, with the same help and disabled state in both surfaces.
+  const footer = page.getByTestId('add-from-server');
+  await expect(footer).toBeDisabled();
+  await expect(footer).toContainText('CasparCG files');
+  await page.getByTestId('rundown-add').click();
+  const menu = page.getByTestId('menu-add-from-server');
+  await expect(menu).toBeDisabled();
+  await expect(menu).toHaveAttribute('title', (await footer.getAttribute('title'))!);
 });
 
 test('a clip from the server becomes a cue on the clip layer, and Take, Pause, Resume and Out are one command each', async ({ page }) => {
@@ -269,10 +275,10 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   await expect(cue).toHaveCount(1);
   // The kind is the row's icon now (one-line rows, docs/CLIP_PLAYBACK_PLAN.md §6.2), said in words
   // by its accessible name.
-  await expect(cue.getByRole('img', { name: 'Server clip · 1-10' })).toBeVisible();
+  await expect(cue.getByRole('img', { name: 'Video · 1-10' })).toBeVisible();
   await expect(cue.getByTestId('cue-layer')).toHaveText('1-10');
   await expect(page.getByTestId('playout-cue-editor')).toBeVisible();
-  await expect(page.getByTestId('playout-cue-editor')).toContainText('SERVER CLIP');
+  await expect(page.getByTestId('playout-cue-editor')).toContainText('VIDEO');
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
   await expect(page.getByTestId('playout-cue-status')).toContainText('2.5.0');
 
@@ -529,9 +535,9 @@ test('an audio file plays on its own layer, 5, below the clips, and a still offe
   await productionPage(page);
   await addClip(page, 'STING');
   const sting = page.locator('.pd-cue', { hasText: 'STING' });
-  await expect(sting.getByRole('img', { name: 'Server audio · 1-5' })).toBeVisible();
+  await expect(sting.getByRole('img', { name: 'Audio · 1-5' })).toBeVisible();
   await expect(sting.getByTestId('cue-layer')).toHaveText('1-5');
-  await expect(page.getByTestId('playout-cue-editor')).toContainText('SERVER AUDIO');
+  await expect(page.getByTestId('playout-cue-editor')).toContainText('AUDIO');
   await addClip(page, 'GIORNO');
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('1-10');
   await addClip(page, 'LOGO');

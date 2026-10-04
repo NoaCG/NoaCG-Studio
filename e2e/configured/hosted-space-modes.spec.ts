@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn } from './_helpers';
@@ -38,7 +39,7 @@ test('the hosted page carries both SPACE modes: the cursor previews nothing, SPA
   await expect(rows.nth(1)).toContainText('Ben');
   await page.getByTestId('cue-label').blur();
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

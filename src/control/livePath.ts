@@ -395,6 +395,8 @@ export interface LiveEntry {
   stats?: LiveSummary | SenderCounters;
   /** An output's name, from `&name=` on its URL (control/readiness.ts `outputName`). */
   name?: string;
+  /** Optional destination identity, diagnostics only; never a command target. */
+  destinationId?: string;
   /** An output's READY answer (control/readiness.ts). Absent from an output built before it. */
   ready?: OutputReady;
   /** An operator page's newest known published version (readiness.ts `newestVersion`). */
@@ -418,7 +420,7 @@ export function liveEntry(
   surface: string,
   roads: { log: boolean | null; cmd: boolean | null },
   stats?: LiveEntry['stats'],
-  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
+  extra?: Partial<Pick<LiveEntry, 'proto'>> & Pick<LiveEntry, 'destinationId' | 'name' | 'ready' | 'pub' | 'exp' | 'stamp' | 'prep' | 'ack'>,
 ): LiveEntry {
   return {
     kind,
@@ -473,6 +475,7 @@ export function readLiveEntry(meta: unknown): LiveEntry | null {
     at: typeof m.at === 'number' ? m.at : 0,
     stats: m.stats && typeof m.stats === 'object' ? m.stats : undefined,
     ...(typeof m.name === 'string' && m.name ? { name: m.name.slice(0, 40) } : {}),
+    ...(typeof m.destinationId === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(m.destinationId) ? { destinationId: m.destinationId } : {}),
     ...(ready ? { ready } : {}),
     ...(pub ? { pub } : {}),
     ...(exp ? { exp } : {}),

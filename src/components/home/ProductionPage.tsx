@@ -19,6 +19,7 @@ import {
   setShowAudienceSlugs,
   setShowHostedSlug,
   setShowOutputSlug,
+  setShowOutputSetup,
   setShowProfile,
   updateShowCue,
   playoutItemOf,
@@ -45,6 +46,10 @@ import { folderMode, type Movable, type Place } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
 import { clipSize, copyClip, cutClip, type CueClip } from '../../model/cueClipboard';
 import { commitDurableWrites } from '../../model/durableStore';
+import { destinationUrl, outputSetupLabel, readOutputSetup, routeColor, hasCasparOutput, type ProductionOutputSetup } from '../../model/outputSetup';
+import { readDefaultOutput, saveDefaultOutput } from '../../backend/auth';
+import OutputSetupDialog from './OutputSetupDialog';
+import RundownColors, { CueAccentControl } from './RundownColors';
 import {
   act,
   folderSlot,
@@ -276,7 +281,7 @@ import { usePublishDrift } from './usePublishDrift';
 import { versionLabel, type PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
 import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
-import { casparOutputTarget, describePlayoutStatus, relevantPlayout, type SlotReading } from '../../control/playoutStatus';
+import { casparOutputTarget, describePlayoutStatus, destinationCheck, relevantPlayout, type SlotReading, type StatusCheck } from '../../control/playoutStatus';
 import { gatherBridgeFacts } from '../../control/prepareBridge';
 import { loadReadyMemory, saveReadyMemory } from '../../model/readyMemory';
 import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
@@ -377,6 +382,25 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const backendConfigured = isBackendConfigured();
   const { needsSignIn, status: authStatus, user } = useAuthState();
+  const publishOwner = useRef({ id, userId: user?.id });
+  publishOwner.current = { id, userId: user?.id };
+  const [outputDialog, setOutputDialog] = useState<{ id: string; publishing: boolean; forPrepare: boolean } | null>(null);
+  const rememberOutput = useRef<{ userId: string; setup: ProductionOutputSetup } | null>(null);
+  const [serverFiles, setServerFiles] = useState<{ key: string; check: StatusCheck | null } | null>(null);
+  const [defaultFailure, setDefaultFailure] = useState<string | null>(null);
+  const retryDefault = async () => {
+    const pending = rememberOutput.current;
+    if (!pending) return;
+    const saved = await saveDefaultOutput(pending.userId, pending.setup);
+    if (publishOwner.current.userId !== pending.userId || rememberOutput.current !== pending) return;
+    setDefaultFailure(saved.error);
+    if (!saved.error && rememberOutput.current === pending) rememberOutput.current = null;
+  };
+  useEffect(() => {
+    rememberOutput.current = null;
+    setDefaultFailure(null);
+    setOutputDialog(null);
+  }, [id, user?.id]);
   const teamState = useTeamState();
   const teamsOn = useTeamsAvailable();
   const openSignIn = useAuthUi((s) => s.openSignIn);
@@ -660,6 +684,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     peers: livePresence.peers,
     expected: expectedOutputs,
     casparActivity: !!show && loadReadyMemory(show.id).casparOutput === casparTarget,
+    outputSetup: show?.outputSetup,
   });
   /** Prepare for Live's own publish, set once `publishNow` exists below. */
   const preparePublishRef = useRef<() => Promise<HeldVersion | null>>(async () => null);
@@ -680,6 +705,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridge: () => {
       if (playoutRelevance.bridge) setCheckAgainRev((n) => n + 1);
       return gatherBridgeFacts(loadPlayoutSettings(), show ?? {}, playoutRelevance);
+    },
+    extraChecks: () => {
+      const check = destinationCheck(show?.outputSetup, livePresence.peers);
+      return check ? [{ key: check.key, tone: check.tone, label: check.label, advice: check.advice }] : [];
     },
     ping: (id) => (hostedSlug ? controlPingSeq(hostedSlug, id) : Promise.resolve({ ok: false, unavailable: true, detail: 'not published' })),
   });
@@ -1124,6 +1153,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // filled, and a file the list does not have stays unknown, which Play next says.
   const learntFacts = useRef<string | null>(null);
   const bridgeOk = bridgeStatus?.state === 'ok';
+  const serverFileItems = playoutItems.filter(i => cues.some(c => c.source === 'playout' && c.sourceId === i.id));
+  const serverFileKey = JSON.stringify({ show: show?.id, target: statusTarget, items: serverFileItems.map(i => ({ id: i.id, kind: i.kind, name: i.name })), refs: cues.filter(c => c.source === 'playout').map(c => c.sourceId) });
+  const needsServerFiles = cues.some(c => c.source === 'playout');
+  useEffect(() => {
+    if (!bridgeOk || !needsServerFiles) return;
+    let alive = true;
+    setServerFiles(null);
+    void (async () => {
+      const settings = loadPlayoutSettings();
+      const requirements = JSON.parse(serverFileKey) as { items: Pick<PlayoutItem, 'id' | 'kind' | 'name'>[]; refs: string[] };
+      const kinds = [...new Set(requirements.items.map(i => i.kind))];
+      const lists = await Promise.all(kinds.map(async kind => ({ kind, ...await listLibrary(settings, kind) })));
+      if (!alive) return;
+      const unavailable = lists.find(l => !l.items);
+      const missing = requirements.items.filter(i => !lists.find(l => l.kind === i.kind)?.items?.some(f => f.name.toLowerCase() === i.name.toLowerCase()));
+      const orphan = requirements.refs.some(id => !requirements.items.some(i => i.id === id));
+      const check: StatusCheck | null = unavailable ? { key: 'files', tone: 'warn', short: 'Server files unavailable', label: 'CasparCG file list unavailable', advice: unavailable.result.detail }
+        : missing.length || orphan ? { key: 'files', tone: 'bad', short: 'Server files missing', label: `Unavailable CasparCG files: ${missing.map(i => i.name).join(', ')}${orphan ? ' (cue has no file definition)' : ''}`, advice: 'Copy the required pictures and videos to the server manually, then Check Readiness again.' } : null;
+      setServerFiles({ key: serverFileKey, check });
+    })();
+    return () => { alive = false; };
+    // The key covers the captured production, target and referenced files, without re-reading
+    // on cue highlights or field edits. Read-only listing never sends a playback action.
+  }, [bridgeOk, needsServerFiles, serverFileKey, checkAgainRev]);
   // A SETUP CHANGE MADE WHILE NOACG BRIDGE WAS AWAY goes to it as soon as the status says it answers
   // again (D17), rather than waiting for the next page or Playout settings to open.
   useEffect(() => {
@@ -2156,6 +2209,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   }
 
   const outputUrl = show.outputSlug ? outputPageUrl(show.outputSlug) : null;
+  const chosenOutput = readOutputSetup(show.outputSetup);
+  const browserDestination = chosenOutput?.destinations.find(d => d.profile !== 'casparcg');
+  const browserOutputUrl = destinationUrl(outputUrl, browserDestination?.id ?? chosenOutput?.destinations[0]?.id);
+  const managedOutputUrl = destinationUrl(outputUrl, chosenOutput?.destinations.find(d => d.profile === 'casparcg')?.id);
   /** The PUBLIC audience URL. Only a production published against a server carrying migration
    *  0035 has one, so it stays absent rather than showing a link that would not resolve. */
   const joinUrl = show.joinSlug ? joinPageUrl(show.joinSlug) : null;
@@ -2228,7 +2285,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const res = templateForSavedGraphic(g, library).resolution;
       return { width: Math.max(r.width, res.width), height: Math.max(r.height, res.height), label: r.label };
     }, DEFAULT_GRAPHICS_RESOLUTION);
-    const html = outputEmbedHtml({ production: show.name, outputUrl, resolution });
+    const html = outputEmbedHtml({ production: show.name, outputUrl: browserOutputUrl ?? outputUrl, resolution });
     saveAs(new Blob([html], { type: 'text/html' }), outputEmbedFileName(show.name));
     // The file IS the output URL, so downloading it sets an output up exactly as copying the
     // link does - and the header's heartbeat starts answering for both.
@@ -2354,7 +2411,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     flushDraft();
     setBusy(true);
     try {
-      const current = loadShows().find((s) => s.id === show.id);
+      let current = loadShows().find((s) => s.id === show.id);
+      // Absence is deliberately legacy. Only explicitly pending new/imported records ask.
+      if (current?.outputSetup && !readOutputSetup(current.outputSetup)?.destinations.length) {
+        const owner = { id: show.id, userId: user?.id };
+        const preference = owner.userId ? await readDefaultOutput(owner.userId) : { setup: null, error: null };
+        if (publishOwner.current.id !== owner.id || publishOwner.current.userId !== owner.userId) return null;
+        if (!preference.setup) {
+          if (preference.error) setNote(`Account default unavailable: ${preference.error} You can choose this production's output.`);
+          setOutputDialog({ id: show.id, publishing: true, forPrepare });
+          return null;
+        }
+        const result = setShowOutputSetup(show.id, preference.setup);
+        setShows(result.shows);
+        const failure = result.error ?? await commitDurableWrites();
+        if (failure) throw new Error(failure);
+        if (publishOwner.current.id !== owner.id || publishOwner.current.userId !== owner.userId) return null;
+        current = loadShows().find(s => s.id === show.id);
+      }
       // Started before this press: then this is a re-publish, and open outputs are asked to prepare.
       const wasStarted = !!current?.hostedSlug;
       const published = current ? await publishControlShow(current) : null;
@@ -2396,6 +2470,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               : '✓ Production published. Load the output URL in your browser source, or press Put on air for CasparCG. The Playout status shows when it is ready.',
           );
         }
+        if (rememberOutput.current) await retryDefault();
         return published.version ? { n: published.version.n, h: published.version.h } : null;
       }
       setNote('Publishing needs the cloud backend, and this build runs offline.');
@@ -4033,6 +4108,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     bridge: playoutRelevance.bridge ? (playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : { state: 'config', detail: 'Set up NoaCG Bridge and CasparCG to play the server cues in this rundown.' }) : null,
     slot: playoutRelevance.slot && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
     ready: readySummary,
+    managedOutput: hasCasparOutput(show.outputSetup),
+    destinationCheck: destinationCheck(show.outputSetup, livePresence.peers),
+    fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
   });
 
   // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
@@ -4083,7 +4161,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <PublishActions
                   busy={busy}
                   unpublishedChanges={unpublishedChanges}
-                  outputUrl={outputUrl}
+                  outputUrl={managedOutputUrl}
+                  managedOutput={show.outputSetup ? hasCasparOutput(show.outputSetup) : undefined}
                   airNeeded={outputSlot?.holds === 'empty' || outputSlot?.holds === 'other'}
                   onPublish={() => void publish()}
                   onUnpublish={() => void unpublish()}
@@ -4091,9 +4170,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 />
               ) : (
                 <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
-                  Press ▶ Start production beside the status to publish this production and get its output URL. Until then a Take plays only on this page.
+                  Press Publish beside the status to publish this production and get its output URL. Until then a Take plays only on this page.
                 </p>
               )}
+              {defaultFailure && <p className="status-warn" role="alert" data-testid="output-default-failure">Published successfully, but your account default was not saved: {defaultFailure} <button onClick={() => void retryDefault()}>Retry saving default</button></p>}
               {hostedSlug && (
                 <PrepareForLive
                   flow={prepareFlow}
@@ -4119,22 +4199,29 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             <PlayoutPanelSection
               title="Setup"
               testId="playout-panel-setup"
-              folded={playoutIsConfigured && (!playoutRelevance.bridge || bridgeStatus === null || bridgeStatus.state === 'ok')}
+              folded={!!chosenOutput?.destinations.length && (!playoutRelevance.bridge || bridgeStatus?.state === 'ok')}
             >
+              <div className="pd-output-setup" data-testid="production-output-setup">
+                <span>Output: {show.outputSetup ? outputSetupLabel(show.outputSetup) : 'Existing setup (unconfirmed)'}</span>
+                <button disabled={busy} onClick={() => setOutputDialog({ id: show.id, publishing: false, forPrepare: false })}>Change output…</button>
+                {!show.outputSetup && <p className="hint">Existing links and routes are unchanged. Select an output here to tailor setup and readiness.</p>}
+              </div>
               <p className="pd-ready-empty" data-testid="playout-setup-summary">
                 {playoutIsConfigured
                   ? `CasparCG ${playoutSettings.host}:${playoutSettings.amcpPort} · NoaCG output ${slotAddress(slotOf(playoutSettings))} · ${playoutSettings.channels.length} channel${playoutSettings.channels.length === 1 ? '' : 's'}`
-                  : 'No CasparCG set up. Pair NoaCG Bridge to play on CasparCG, or use the output URL in OBS or vMix.'}
+                  : playoutRelevance.bridge ? 'Pair NoaCG Bridge to use CasparCG.' : 'CasparCG is optional. Browser outputs do not require NoaCG Bridge.'}
               </p>
               <button onClick={() => setPlayoutSettingsOpen(true)} data-testid="playout-settings-open">
                 {playoutIsConfigured ? 'Server and channels…' : 'Set up CasparCG…'}
               </button>
+              <RundownColors show={show} settings={playoutSettings} setShows={setShows} />
             </PlayoutPanelSection>
             {hostedSlug && (
               <PlayoutPanelSection title="Links" testId="playout-panel-links">
                 <ProductionLinkRows
                   busy={busy}
-                  outputUrl={outputUrl}
+                  outputUrl={browserOutputUrl}
+                  outputProfile={browserDestination?.profile}
                   controlUrl={controlUrl}
                   joinUrl={joinUrl}
                   presenterUrl={presenterUrl}
@@ -4150,6 +4237,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               </PlayoutPanelSection>
             )}
           </PlayoutStatusControl>
+          {show.outputSetup && <span className="muted pd-output-choice" data-testid="publish-output-choice">{outputSetupLabel(show.outputSetup)}</span>}
           {!hostedSlug && (
             <StartProductionButton
               busy={busy}
@@ -4661,7 +4749,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             images={cueImages}
                             imageHint={
                               poolGraphic.type === 'picture'
-                                ? 'Pictures come from this production. Add more with ＋ Add pictures.'
+                                ? 'Pictures come from this production. Add more with Upload image…; uploads are not copied to CasparCG.'
                                 : "Pictures come from the graphic itself. Add one in the editor's Assets tab."
                             }
                           />
@@ -4824,6 +4912,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
 
+        {editingCue && <CueAccentControl show={show} cue={editingCue} setShows={setShows} fallback={routeColor(show.rundownColors, selectedPlayoutItem ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : itemSlot(playoutSettings, selectedPlayoutItem).channel : undefined)} />}
         {!liveFirst && liveBlock}
 
         <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
@@ -4882,10 +4971,23 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setShows={setShows}
       />
       </>)}
+      {outputDialog?.id === show.id && <OutputSetupDialog initial={show.outputSetup} publishing={outputDialog.publishing} canRemember={!!user?.id} onClose={() => setOutputDialog(null)} onConfirm={async (setup, remember) => {
+        const owner = { ...publishOwner.current };
+        const result = setShowOutputSetup(show.id, setup);
+        setShows(result.shows);
+        const failure = result.error ?? await commitDurableWrites();
+        if (failure) return failure;
+        if (publishOwner.current.id !== owner.id || publishOwner.current.userId !== owner.userId) return 'The production or account changed. Please try again.';
+        rememberOutput.current = outputDialog.publishing && remember && owner.userId ? { userId: owner.userId, setup } : null;
+        setDefaultFailure(null);
+        setOutputDialog(null);
+        if (outputDialog.publishing) await publishNow(outputDialog.forPrepare);
+        return null;
+      }} />}
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {playoutSettingsOpen && (
         <PlayoutSettingsDialog
-          outputUrl={outputUrl}
+          outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
           onClose={() => {
             setPlayoutSettingsOpen(false);

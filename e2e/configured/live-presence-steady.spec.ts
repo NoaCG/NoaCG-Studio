@@ -9,6 +9,7 @@
 // Against a server without migration 0068 there is no Presence to watch, and the test says so.
 // covers: src/control/presenceGate.ts, src/control/livePath.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -23,7 +24,7 @@ test('an output stays listed on the hosted health line through 90 s of a busy sh
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Presence Steady ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (name) => {

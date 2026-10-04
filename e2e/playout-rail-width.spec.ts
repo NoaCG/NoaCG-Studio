@@ -59,7 +59,7 @@ async function seed(
       S.addGraphicToShow(show.id, variantsFor(category as never)[Number(index)].create({}));
     }
     if (o.server) {
-      S.addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'LOOPS/STUDIO_BG', frames: 1500, fps: 25, channel: 2, loop: true });
+      S.addPlayoutItem(show.id, { adapter: 'casparcg', kind: 'media', name: 'LOOPS/STUDIO_BG', frames: 1500, fps: 25, channel: 2, mediaKind: 'movie', loop: true });
     }
     let cur = S.loadShows().find((s) => s.id === show.id)!;
     for (let i = 0; i < (o.extraCues ?? 0); i++) {
@@ -299,13 +299,13 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   await expect(row(0).getByRole('img', { name: `Lower third · ${names[0].name}` })).toBeVisible();
   await expect(row(1).getByRole('img', { name: `Lower third · ${names[1].name}` })).toBeVisible();
   await expect(row(2).getByRole('img', { name: `Quiz · ${names[2].name}` })).toBeVisible();
-  await expect(row(3).getByRole('img', { name: 'Server clip · 2-10' })).toBeVisible();
+  await expect(row(3).getByRole('img', { name: 'Video · 2-10' })).toBeVisible();
   await expect(row(0).getByTestId('cue-kind')).toHaveAttribute('title', `Lower third · ${names[0].name}`);
   // the note, as a mark whose name and tooltip ARE the note - and only where there is one.
   await expect(row(0).getByRole('img', { name: 'Note: after the intro' })).toHaveAttribute('title', 'after the intro');
   await expect(rows.getByTestId('cue-note-mark')).toHaveCount(1);
   // the slot: the layer on a graphic, the server address on a server cue.
-  await expect(row(2).getByTestId('cue-layer')).toHaveText('L22');
+  await expect(row(2).getByTestId('cue-layer')).toHaveText('NoaCG · G22');
   await expect(row(3).getByTestId('cue-layer')).toHaveText('2-10');
   // the clip's own facts: its length, and that it loops. No length column on a graphic's row
   // beyond the empty cell that keeps the column straight.
@@ -316,7 +316,7 @@ test('a one-line row keeps its number, its kind in words, its note, its slot, th
   for (const i of [0, 1]) {
     const badge = row(i).getByTestId('cue-layer');
     await expect(badge).toHaveClass(/clash/);
-    await expect(badge).toHaveText('L20');
+    await expect(badge).toHaveText('NoaCG · G20');
     await expect(badge).toHaveAttribute('title', new RegExp(`Shares layer 20 with ${i === 0 ? names[1].name : names[0].name}\\. On air they replace each other`));
   }
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(2);

@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect, type FrameLocator, type Page, type Route } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -70,7 +71,7 @@ test('a hosted tab reloaded mid-quiz reveals on air exactly the verdict it shows
   await page.goto('/app');
   await dropSvg(page, QUIZ_SVG);
   await intoProduction(page, 'Quiz board', showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
   const slugs = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');

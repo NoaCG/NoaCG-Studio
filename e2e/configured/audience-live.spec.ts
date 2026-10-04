@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { openProductionWithCurrent } from '../_create';
 import { createGraphicInEditor, haveCreds, settleSync, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -29,7 +30,7 @@ test.describe(() => {
     const productionName = `Friday Night Live ${Date.now()}`;
     await openProductionWithCurrent(page, productionName);
 
-    await page.getByTestId('production-publish').click();
+    await publishProduction(page);
     await expect(page.getByTestId('production-links')).toBeVisible({ timeout: 30_000 });
 
     // The audience URL is READABLE and derived — not the base64 the column defaults to.

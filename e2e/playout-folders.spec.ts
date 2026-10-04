@@ -431,16 +431,18 @@ test('rows say their channel when the rundown plays on two, and a folder hangs i
   await fakeBridge(page);
   await production(page, CLIPS, { folders: [{ labels: ['ALPHA', 'BRAVO'], name: 'Block A' }] });
   await expect(page.getByTestId('channel-legend')).toContainText('Inserts');
-  await expect(cue(page, 'Hairline').getByTestId('cue-layer')).toHaveAttribute('data-ch', '1');
+  await expect(cue(page, 'Hairline').getByTestId('cue-layer')).toHaveAttribute('data-ch', 'output');
   await expect(cue(page, 'CHARLIE').getByTestId('cue-layer')).toHaveAttribute('data-ch', '2');
   await expect(cue(page, 'ALPHA').locator('.pd-fold-guide')).toHaveCount(1);
   await expect(cue(page, 'CHARLIE').locator('.pd-fold-guide')).toHaveCount(0);
 });
 
-test('a rundown on one channel, or with no playout server, wears no channel tones', async ({ page }) => {
+test('single-route cues retain restrained route accents without a redundant channel legend', async ({ page }) => {
   await production(page, CLIPS);
   await expect(page.getByTestId('channel-legend')).toHaveCount(0);
-  await expect(list(page).locator('[data-ch]')).toHaveCount(0);
+  await expect(cue(page, 'Hairline').getByTestId('cue-layer')).toHaveAttribute('data-ch', 'output');
+  await expect(cue(page, 'ALPHA').getByTestId('cue-layer')).toHaveAttribute('data-ch', '2');
+  expect(await cue(page, 'ALPHA').evaluate(el => el.style.getPropertyValue('--pd-cue-accent'))).toMatch(/^#[0-9a-f]{6}$/);
 });
 
 test('a drop that cannot land is said while it hovers and after, and nothing moves', async ({ page }) => {

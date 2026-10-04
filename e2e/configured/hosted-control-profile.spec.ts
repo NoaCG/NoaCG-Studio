@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -225,7 +226,7 @@ test('a published profile arranges and moves the shared value on the hosted page
 
   // ── PUBLISH ─────────────────────────────────────────────────────────────────────────────────
   const publishStarted = Date.now();
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 60_000 });
   timings.push(`publish ${((Date.now() - publishStarted) / 1000).toFixed(1)}s`);
   await page.keyboard.press('Escape'); // publishing opens the links popover

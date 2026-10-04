@@ -12,6 +12,7 @@
 // A graphic edited in the library counts as an unpublished change (docs/work-specs/studio-day-playout AC-5).
 // covers: src/components/home/usePublishDrift.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, readyOf, signIn, wipeMyGraphics, unpublishFromPanel, type ReadyWindow } from './_helpers';
@@ -50,7 +51,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
     }),
   ).toBeFalsy();
   const showId = await openProductionWithCurrent(page, `Prepare ${Date.now()}`);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.getByTestId('production-status').click();
   const { outputSlug, hostedSlug } = (await page.evaluate(async (id) => {
@@ -61,7 +62,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
 
   const anon = await browser.newContext();
   const air = await anon.newPage();
-  await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&name=${encodeURIComponent('Desk A')}&debug=1`);
+  await air.goto(`/output?production=${encodeURIComponent(outputSlug)}&destination=browser&name=${encodeURIComponent('Desk A')}&debug=1`);
   await expect(air.locator('pre')).toContainText('realtime: following', { timeout: 60_000 });
   const presence = () => air.evaluate(() => (window as ReadyWindow).__noacgLive!.presence());
   await expect.poll(presence, { timeout: 30_000 }).not.toBe('joining');
