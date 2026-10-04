@@ -9,19 +9,22 @@ import { test, expect } from '@playwright/test';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { fakeBridge, seedSettings } from './_fakeBridge';
 
-test('browser output history ignores an unused Bridge, while CasparCG activity survives a disconnect and reload', async ({ page }) => {
+test('browser output history ignores an unused Bridge, while CasparCG activity survives a disconnect and reload', async ({ page, request }) => {
   // Fault-inject the window before React cleans up the old slot effect, and mark when the old
   // reply reaches the guard. Assert its observable memory effect, not timing or repeat counts.
-  await page.route('**/src/components/home/ProductionPage.tsx*', async (route) => {
-    const response = await route.fetch();
-    let body = await response.text();
-    const guard = 'if (!alive || actionRev !== slotActionRev.current)';
-    expect(body).toContain(guard);
-    expect(body).toContain('setSlotRev((n) => n + 1);');
-    body = body.replace('setSlotRev((n) => n + 1);', 'setTimeout(() => setSlotRev((n) => n + 1), 1000);');
-    body = body.replace(guard, `window.__healthSlotReplies = (window.__healthSlotReplies || 0) + 1; ${process.env.HEALTH_MUTATE_STALE_SLOT ? 'if (!alive)' : guard}`);
-    await route.fulfill({ response, body });
-  });
+  // Prepare Vite's transformed module once, before navigation, and fulfill from memory on every
+  // reload. Re-fetching it inside the route exposed the health assertions to a pooled Node
+  // connection resetting (CI run 37163639314). The setup fetch still fails on any error.
+  const response = await request.get('/src/components/home/ProductionPage.tsx', { headers: { Connection: 'close' } });
+  await expect(response).toBeOK();
+  let body = await response.text();
+  await response.dispose();
+  const guard = 'if (!alive || actionRev !== slotActionRev.current)';
+  expect(body).toContain(guard);
+  expect(body).toContain('setSlotRev((n) => n + 1);');
+  body = body.replace('setSlotRev((n) => n + 1);', 'setTimeout(() => setSlotRev((n) => n + 1), 1000);');
+  body = body.replace(guard, `window.__healthSlotReplies = (window.__healthSlotReplies || 0) + 1; ${process.env.HEALTH_MUTATE_STALE_SLOT ? 'if (!alive)' : guard}`);
+  await page.route('**/src/components/home/ProductionPage.tsx*', (route) => route.fulfill({ contentType: 'text/javascript', body }));
   // READY memory is enabled only for a configured production. Stand in the backend on the
   // network like output-ready.spec.ts; no remote project or authenticated data is involved.
   const backend = 'https://health.supabase.test';
