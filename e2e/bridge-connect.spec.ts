@@ -658,7 +658,7 @@ test('a production page opens with the setup the Bridge keeps for its server', a
     }).observe(document, { subtree: true, childList: true, characterData: true });
   });
   await seededPublishedProduction(page);
-    await page.getByTestId('production-status').click();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels', { timeout: 10_000 });
   // The setup it took names channels and a slot, never where the Bridge and the server are, so the
@@ -1186,7 +1186,8 @@ async function openPlayoutDialog(page: Page): Promise<void> {
 }
 
 async function seededPublishedProduction(page: Page, published = true): Promise<void> {
-  await page.goto('/app');
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
   await awaitDurableReady(page);
   const id = await page.evaluate(async (started) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
@@ -1205,6 +1206,7 @@ async function seededPublishedProduction(page: Page, published = true): Promise<
   }, published);
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
 }
