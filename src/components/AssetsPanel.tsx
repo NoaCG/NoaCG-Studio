@@ -9,6 +9,7 @@ import { moveAsset } from '../blocks/assetOps';
 import { probeAsset, referenceCount, assetBytes, type AssetInfo } from '../assets/assetInfo';
 import {
   MAX_VIDEO_ASSET_BYTES,
+  isAudioAsset,
   fileToDataUrl,
   isImageAsset,
   isLottieAsset,
@@ -23,8 +24,11 @@ import { describeImageImport, importImageFile } from '../assets/imageImport';
 import type { AssetFile } from '../model/types';
 import { useInsertTemplateUi } from './InsertTemplateDialog';
 import { ASSET_ACCEPT } from '../assets/fileImport';
+import SoundsControls from './SoundsControls';
+import type { SoundOperation } from '../blocks/soundEdit';
 
 export interface AssetPanelActions {
+  sound?: (operation: SoundOperation, expectedJs: string) => void | Promise<void>;
   importFiles: (files: File[]) => Promise<string>;
   move: (from: string, to: string) => string;
   remove: (path: string) => void;
@@ -48,6 +52,7 @@ function fmtBytes(n: number): string {
 }
 
 function badgeFor(path: string): string {
+  if (isAudioAsset(path)) return 'SOUND';
   if (isImageAsset(path)) return 'IMG';
   if (isLottieAsset(path)) return 'LOTTIE';
   if (isFontAsset(path)) return 'FONT';
@@ -70,14 +75,14 @@ function AssetRow({ asset, refs, selected, onSelect }: { asset: AssetFile; refs:
       data-testid="asset-row"
       data-path={asset.path}
       onClick={onSelect}
-      draggable
+      draggable={!isAudioAsset(asset.path)}
       onDragStart={(e) => {
         e.dataTransfer.setData(ASSET_DRAG_TYPE, asset.path);
         e.dataTransfer.setData('text/plain', asset.path);
         e.dataTransfer.effectAllowed = 'copy';
       }}
       title={
-        refs > 0
+        isAudioAsset(asset.path) ? `${asset.path}: attach this sound in Sounds below.` : refs > 0
           ? `${asset.path} — used ${refs}× in this graphic. Drag onto the canvas to place another copy (each placement is its own element; the file is stored once).`
           : `${asset.path} — not placed yet. Drag onto the canvas to place it, or onto a folder to move it.`
       }
@@ -378,7 +383,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
 
   // Group rows by directory; the buckets keep a stable, meaningful order. Pending
   // (still-empty) folders appear as empty groups under images/ until something lands.
-  const order = ['images', 'videos', 'lottie', 'fonts', 'assets'];
+  const order = ['images', 'sounds', 'videos', 'lottie', 'fonts', 'assets'];
   const groups = new Map<string, AssetFile[]>();
   for (const a of assets) {
     const dir = dirOf(a.path);
@@ -511,6 +516,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
         </div>
       )}
 
+      {actions?.sound && <SoundsControls template={template} onEdit={actions.sound} />}
       {selected && <><AssetInfoSection asset={selected} bucketFolders={foldersFor(selected)} onMove={handleMove} onRemove={actions ? path => {
         try { actions.remove(path); setNote(null); } catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
       } : undefined} />

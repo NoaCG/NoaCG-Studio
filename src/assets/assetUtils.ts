@@ -39,6 +39,9 @@ export function parseDataUrl(dataUrl: string): { mime: string; base64: string } 
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'];
 const FONT_EXT = ['woff', 'woff2', 'ttf', 'otf'];
 const VIDEO_EXT = ['webm', 'mp4'];
+const AUDIO_EXT = ['wav', 'mp3', 'ogg', 'm4a'];
+
+export function isAudioAsset(path: string): boolean { return AUDIO_EXT.includes(extOf(path)); }
 
 /** Hard per-video size cap: video assets ride the template JSON as data URLs, so a large
  *  file would bloat every save/sync/share of the whole graphic. Matches the video editor's
@@ -112,7 +115,9 @@ export function uniqueAssetPath(name: string, existing: AssetFile[], folder?: st
       ? 'fonts'
       : VIDEO_EXT.includes(ext)
         ? 'videos'
-        : ext === 'json'
+        : AUDIO_EXT.includes(ext)
+          ? 'sounds'
+          : ext === 'json'
           ? 'lottie'
           : 'assets';
   const sub = folder ? sanitizeFolderName(folder) : '';

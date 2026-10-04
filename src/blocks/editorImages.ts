@@ -9,7 +9,7 @@ import { moveAsset } from './assetOps';
 import { losslessAnimData, spliceAnimData } from './animData';
 
 export function requireAssetPath(path: string) {
-  if (typeof path !== 'string' || !/^(images|fonts|videos|lottie|assets)\/(?:[\w-]+\/)*[\w.-]+$/.test(path) || path.split('/').some(p => p === '.' || p === '..')) throw new Error('Use a safe relative asset path.');
+  if (typeof path !== 'string' || !/^(images|fonts|videos|sounds|lottie|assets)\/(?:[\w-]+\/)*[\w.-]+$/.test(path) || path.split('/').some(p => p === '.' || p === '..')) throw new Error('Use a safe relative asset path.');
 }
 export function importAssets(template: SpxTemplate, incoming: readonly AssetFile[]): { template: SpxTemplate; paths: string[] } {
   if (!incoming.length || incoming.length > 100) throw new Error('Provide a bounded asset batch.');
