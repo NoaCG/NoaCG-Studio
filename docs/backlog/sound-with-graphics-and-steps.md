@@ -4,7 +4,7 @@ source: owner
 kind: ask
 raised: 2026-10-01
 state: advanced
-note: "2026-10-03: code-grounded attachment proposal in docs/research/playout-audio-2026-10-03.md. All together and per-cue audio/video levels confirmed; next-Take gain is not a live fader or normalization. Research delivered, implementation and real-host attachment proof remain."
+note: "2026-10-04: phase 1 in codex/graphic-sound-playback implements and browser-verifies packaged step/transition sounds, gain, recovery and cleanup. Shared controls follow in phase 2. Physical receiving-host rehearsal remains in the owner queue."
 asked: "a good way to trigger sound together with graphics (swoosh, clock tick, correct and wrong answer); maybe attachable to individual animation steps, but research how before building (paraphrase)"
 ---
 # Sound with graphics, and possibly with animation steps
@@ -24,12 +24,16 @@ An **All together** folder takes every cue in it with one press, server cues and
 cue in it keeps its own level and ending, loop included. That covers "swoosh with the lower third"
 and "ticking with the clock" today, on the Bridge path.
 
-## Research delivered; implementation remains
+## Playback implemented; controls and receiving-host rehearsal follow
 
 [Graphic audio research, 2026-10-03](../research/playout-audio-2026-10-03.md) confirms the code
 and existing server measurements, proposes optional sound attachments at actual step/transition
 execution, and records packaging, migration, level, timing, output and recovery requirements.
-This serves the research part of the ask; attached sound is not built or host-proven.
+The [implementation spec](../work-specs/graphic-sound/spec.md) records the two verified phases.
+Playback is implemented and measured in Chromium with actual decoded buffers, including a
+linear graphic, branched quiz and countdown. Shared authoring controls follow in phase 2.
+The [receiving-host checklist](../acceptance/owner-queue/graphic-sound-host-rehearsal.md) records
+the audio-route and recorded-skew rehearsal still required on the venue's hosts.
 
 Audio/video Level is -60 to +6 dB per cue, applied on Take through the file's audio filter.
 All together sends server cues sequentially, then graphics concurrently; it does not guarantee

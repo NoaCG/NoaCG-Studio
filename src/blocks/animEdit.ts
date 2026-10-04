@@ -4,7 +4,7 @@
 // the edit real, undoable code. Times are on the step's SPEED-RELATIVE clock (the stored
 // numbers), rounded to the same 3 decimals the serializer writes.
 
-import type { AnimData, AnimKeyframe, AnimLayerTracks, AnimStep } from './animData';
+import { animSounds, type AnimData, type AnimKeyframe, type AnimLayerTracks, type AnimStep } from './animData';
 import { BOUNDED_RANGES, resolveValue } from './animEval';
 import {
   arrivingPoint,
@@ -948,7 +948,7 @@ export function setLayerActivation(
   // drop it. Only the source step: a deliberately added empty step (the + button) stays.
   if (fromPress > -1) {
     const s = next.steps[fromIdx];
-    if (s && (s.reveals ?? []).length === 0 && (s.hides ?? []).length === 0 && Object.keys(s.layers).length === 0) {
+    if (s && !s.sound && (s.reveals ?? []).length === 0 && (s.hides ?? []).length === 0 && Object.keys(s.layers).length === 0) {
       removeStepAt(next, fromIdx);
     }
   }
@@ -1276,6 +1276,13 @@ export function duplicateStep(data: AnimData, stepIndex: number): AnimData | nul
   if (!src) return null;
   const next = clone(data);
   const copy = JSON.parse(JSON.stringify(src)) as AnimStep;
+  if (copy.sound) {
+    const used = new Set(animSounds(next).map(s => s.id));
+    const base = copy.sound.id + '-copy';
+    let id = base, n = 2;
+    while (used.has(id)) id = base + '-' + n++;
+    copy.sound.id = id;
+  }
   delete copy.reveals;
   delete copy.hides; // a layer leaves once — a duplicated hide would re-hide an absent layer
   copy.name = /^Step \d+$/.test(src.name) ? src.name : `${src.name} copy`;

@@ -8,6 +8,7 @@
 // with validateTemplate and decides which warnings become publish-blocking errors.
 
 import { isAllowedExternal } from './validateTemplate';
+import { SOUND_RUNTIME_JS } from '../assets/graphicSoundRuntime';
 import type { SpxTemplate } from '../model/types';
 import type { ValidationIssue, ValidationResult } from './validateTemplate';
 
@@ -81,6 +82,9 @@ function bytesOf(s: string): number {
  * ("delete that block before publishing" vs "the AI wrote this, don't apply it").
  */
 export function unsafeJsConstructs(js: string): { rule: string; note: string }[] {
+  // Only the exact shipped decoder is exempt: its URLs come from validated packaged sounds.
+  // Modified helpers and any authored network code still meet the ordinary safety screen.
+  js = js.replace(/\r\n/g, '\n').replace(SOUND_RUNTIME_JS, '');
   return UNSAFE_JS.filter(({ re }) => re.test(js)).map(({ rule, note }) => ({ rule, note }));
 }
 

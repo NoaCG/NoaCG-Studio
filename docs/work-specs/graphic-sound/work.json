@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "specSha256": "64ea27a9e682d1511d0fc3cbe16cd4c31fa7b22dd5d61ad03f4d0da39bb5968e",
+  "authority": {
+    "status": "agreed",
+    "source": "Owner message 2026-10-04: implement graphic sound attachments from the research and backlog in verified phases, playback first then shared controls; preserve server audio and silent previews; physical receiving-host limits explicit."
+  },
+  "review": null
+}

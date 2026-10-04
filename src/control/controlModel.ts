@@ -802,7 +802,7 @@ export function continueEvents(js: string): Set<string> {
 export type ControlMessage =
   | { t: 'update'; data: Record<string, string> }
   | { t: 'play' }
-  | { t: 'stop' }
+  | { t: 'stop'; sound?: false }
   | { t: 'next' }
   // `at` is WHEN this event happened, in epoch ms — the log row's own server time, which every
   // renderer of a production sees identically. A graphic that runs a clock of its own anchors it

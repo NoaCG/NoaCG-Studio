@@ -2,7 +2,7 @@
 // owns SPX compatibility. Returns errors (block export) and warnings (allow but flag).
 
 import { parseDefinition } from '../model/spxDefinition';
-import { animDataFault, parseAnimData } from '../blocks/animData';
+import { animDataFault, animSounds, parseAnimData } from '../blocks/animData';
 import { allTimelines, validateMachine } from '../blocks/animMachine';
 import { labelFields } from '../blocks/controlLabels';
 import {
@@ -245,7 +245,9 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       // platform deliberately tolerates. A block that DECLARES a machine and gets its shape
       // wrong is different in kind: the interpreter reads `NOACG_ANIM.machine` verbatim, so it
       // would ship and run unchecked on air. That one blocks export.
-      if (animDataFault(template.js) === 'off-shape-machine') {
+      if (animDataFault(template.js) === 'off-shape-sound') {
+        errors.push({ rule: 'sound', message: 'The sound attachment data is invalid. Use a packaged audio file, a stable id, enabled, a level from -60 to +6 dB and a supported playback mode.' });
+      } else if (animDataFault(template.js) === 'off-shape-machine') {
         errors.push({
           rule: 'machine',
           message:
@@ -262,6 +264,22 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
       // A machine state's INLINE timeline plays exactly like a step, so it gets the same
       // dangling-selector / call / builder guards.
       const allSteps = allTimelines(data);
+      const sounds = animSounds(data);
+      if (sounds.length && !template.js.includes('// Capability: graphic-sound-v1')) {
+        errors.push({ rule: 'sound', message: 'Sound attachments require the graphic sound runtime. Save with the current editor before publishing.' });
+      }
+      for (const sound of sounds) {
+        const asset = template.assets.find(a => a.path === sound.asset);
+        if (!asset) errors.push({ rule: 'sound', message: `Sound ${sound.id} is missing its packaged asset: ${sound.asset}.` });
+      }
+      if (data.steps[data.steps.length - 1]?.sound?.mode === 'loop') errors.push({ rule: 'sound', message: 'Out sound must be a one-shot.' });
+      for (const group of data.machine?.groups ?? []) {
+        for (const edge of group.transitions) {
+          const index = group === data.machine?.groups[0] ? group.defaultPath?.indexOf(edge.to) ?? -1 : -1;
+          const target = index >= 0 ? data.steps[index] : group.states.find(s => s.id === edge.to)?.timeline;
+          if (edge.sound && target?.sound?.mode === 'loop') errors.push({ rule: 'sound', message: 'A transition sound cannot override a running-state loop. Attach the loop to the state timeline.' });
+        }
+      }
       const selectors = new Set<string>();
       for (const step of allSteps) {
         Object.keys(step.layers).forEach((s) => selectors.add(s));

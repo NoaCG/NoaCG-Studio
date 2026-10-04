@@ -25,6 +25,10 @@ import {
 } from './projectFormat';
 
 const ASSET_MIME: Record<string, string> = {
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+  m4a: 'audio/mp4',
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
   webp: 'image/webp', svg: 'image/svg+xml', avif: 'image/avif',
   woff: 'font/woff', woff2: 'font/woff2', ttf: 'font/ttf', otf: 'font/otf',

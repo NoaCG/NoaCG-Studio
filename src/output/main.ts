@@ -203,7 +203,7 @@ async function boot(): Promise<void> {
     return;
   }
 
-  const stage = createOutputStage(document.body, resolved.output);
+  const stage = createOutputStage(document.body, resolved.output, { sound: 'program' });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -872,7 +872,9 @@ async function boot(): Promise<void> {
         // A tail read hands over only rows that were new here, so each one that does is a refill.
         if (replayed) live.refilled();
         const quiet = replayed ? supersededAnimations(rows) : null;
+        if (replayed && rows.length) stage.setSoundQuiet(true);
         for (const row of rows) apply(row, replayed ? 'tail' : 'log', !quiet?.has(row.seq));
+        if (replayed && rows.length) stage.setSoundQuiet(false);
       },
       onHole: () => live.hole(),
       // What is on air, as the log says, for Prepare for Live's "nothing on air here" (./prepare.ts).
@@ -920,6 +922,7 @@ async function boot(): Promise<void> {
   } else {
     await followControlLog({
       showId: resolved.id,
+      onReplay: (replaying) => stage.setSoundQuiet(replaying),
       // Everything up to here is applied — including the catch-up rows replayed above, which is
       // why this is the applied cursor and not the baseline the catch-up started from.
       from: lastAppliedId,

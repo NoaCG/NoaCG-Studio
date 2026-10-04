@@ -612,7 +612,7 @@ function outCue(stream) {
 function allOut() {
   var items = [];
   for (var g in pgmLive) {
-    items.push({ graphic: g, stream: 'program', msg: { t: 'stop' } });
+    items.push({ graphic: g, stream: 'program', msg: { t: 'stop', sound: false } });
     items.push({ graphic: g, stream: 'program', msg: { t: 'cue', cue: null } });
   }
   if (items.length) send(items);

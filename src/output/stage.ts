@@ -54,6 +54,8 @@ function templateFromSpec(spec: OutputGraphicSpec): SpxTemplate {
 }
 
 export interface OutputStage {
+  /** Mute catch-up execution without changing the picture; restore current loops once. */
+  setSoundQuiet(quiet: boolean): void;
   /** Route one command to its graphic's document. Unknown graphics and the log's status rows
    *  ('cue'/'staged'/'live') are ignored, so a caller can feed rows straight through. */
   apply(graphic: string, msg: ControlEventRow['msg']): void;
@@ -126,6 +128,7 @@ export interface OutputStage {
 }
 
 export interface OutputStageOptions {
+  sound?: 'program';
   /** The box the stage scales itself into. Defaults to the VIEWPORT, which is what the /output
    *  page wants — its root fills the window and a browser source is the window. The production
    *  page's rehearsal embed passes its own panel's size instead, so one stage implementation
@@ -281,7 +284,7 @@ export function createOutputStage(
         for (const cb of heldCbs) cb();
       }
     });
-    iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true });
+    iframe.srcdoc = composeDocument(templateFromSpec(spec), { liveControl: true, sound: options.sound });
     stage.appendChild(iframe);
     frames.set(spec.key, iframe);
     states.set(spec.key, null);
@@ -381,7 +384,7 @@ export function createOutputStage(
         post(graphic, { cmd: 'play' });
         break;
       case 'stop':
-        post(graphic, { cmd: 'stop' });
+        post(graphic, { cmd: 'stop', sound: msg.sound });
         break;
       case 'next':
         post(graphic, { cmd: 'next' });
@@ -403,6 +406,9 @@ export function createOutputStage(
   };
 
   return {
+    setSoundQuiet: (quiet) => {
+      for (const key of frames.keys()) post(key, { cmd: 'sound-quiet', on: quiet });
+    },
     apply,
     requestState: (graphic) => {
       // Polls are droppable pre-load — queueing them would just replay stale asks.

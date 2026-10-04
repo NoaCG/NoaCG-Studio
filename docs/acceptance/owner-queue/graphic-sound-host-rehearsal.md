@@ -1,0 +1,33 @@
+---
+kind: desktop
+date: 2026-10-04
+serves: now
+---
+# Graphic sound on the receiving host
+
+Browser proofs cover the Web Audio graph, packaged OGraf component, levels, recovery and
+cleanup. They do not prove the venue's audio route or recorded picture/sound skew.
+Rehearse each host used for the production: OBS Browser Source, vMix browser input,
+CasparCG HTML producer, or the external OGraf renderer. Record host/version and routing.
+
+## The route, under a minute
+
+Open the production in Playout, prepare its output, and open the program URL in the receiving
+host used at the venue. Route that source's audio to the recording bus before taking a graphic.
+
+1. Prepare the production output until Ready. Route its audio to the actual recording/program
+   bus. Keep the operator monitor and previews silent; audition a clip deliberately.
+2. Record In, Next, early Out, accepted correct/wrong answers and a refused answer. Check one
+   sound at each accepted move, none at the refused move, and the recorded picture/sound skew.
+   Compare the same clip at 0 and -12 dB; confirm adequate headroom when layers overlap.
+3. Run countdown, pause, resume, reset, repeated Take, normal Out and All out. Pause/reset/All
+   out must stop ticking; resume must start one loop. Normal Out may finish its own sound tail.
+4. Reload or reconnect mid-countdown, republish, replace/remove the source, and change scenes.
+   Recovery must play no old stings and restore at most one active loop. Removal/disposal must
+   leave no audio. OBS program/preview switching and CasparCG route behavior need this check.
+
+Loops restart from the clip's beginning on resume/recovery; phase continuity is not promised.
+Sounds fetched by recovery are suppressed, so an outage does not produce a burst of old stings.
+Browser permission or an unsupported codec blocks readiness. Enabled attachments require
+real-time audio; disable them for silent OGraf post-production export. Use a short WAV for the
+first rehearsal. The independent server audio workflow remains available.
