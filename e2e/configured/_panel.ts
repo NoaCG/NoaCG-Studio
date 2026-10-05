@@ -7,6 +7,7 @@
 import { expect, type Page } from '@playwright/test';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
+import { publishProduction } from '../_publish';
 import { clearPublishedShows, signIn, SUPABASE_URL } from './_helpers';
 
 export const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY ?? '';
@@ -150,8 +151,7 @@ export async function publishTwoCues(page: Page, showName: string): Promise<stri
   await page.getByTestId('cue-label').fill('Ben');
   await expect(rows.nth(1)).toContainText('Ben');
   await page.getByTestId('cue-label').blur();
-  await page.getByTestId('production-publish').click();
-  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
+  await publishProduction(page);
   const slug = await page.evaluate(async (name) => {
     const { loadShows } = await import('/src/model/shows.ts');
     return loadShows().find((x) => x.name === name)?.hostedSlug ?? null;

@@ -160,7 +160,7 @@ export default function ProductionsSection({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   // The team doors (docs/TEAMS_PLAN.md §6): the card menu's Share and the Join a team card.
   // `useTeamsAvailable` is false offline AND signed out, so this section grows neither in those
-  // builds - no overflow menu, no card, no word "team".
+  // builds - no Share action, Join card or word "team". The generic menu still offers Duplicate.
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
   const openTeam = useTeamsUi((s) => s.openTeam);

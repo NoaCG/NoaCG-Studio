@@ -17,7 +17,7 @@ export const TEAM = {
   dialog: 'share-with-team-dialog',
   joinDialog: 'join-team-dialog',
   chip: 'team-chip',
-  /** The production card's overflow menu, which exists ONLY when the door is in it. */
+  /** The production card's generic menu. Open it to inspect the optional team door. */
   cardMenu: 'row-menu',
   newTeam: 'new-team',
   newTeamName: 'new-team-name',

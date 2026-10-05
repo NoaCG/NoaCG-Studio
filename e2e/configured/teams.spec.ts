@@ -247,7 +247,12 @@ test.describe('teams: the share door', () => {
     await page.goto('/app#/home/productions');
     const card = page.locator('[data-testid^="production-row-"]').first();
     await expect(card.getByTestId('open-production-name')).toBeVisible();
-    await expect(card.getByTestId(TEAM.cardMenu)).toHaveCount(0);
+    // The menu also offers local duplication. Open it before checking the account-only actions.
+    await card.getByTestId(TEAM.cardMenu).click();
+    await expect(card.getByTestId('duplicate-production')).toBeVisible();
+    await expect(page.getByTestId(TEAM.door)).toHaveCount(0);
+    await expect(page.getByTestId('open-team')).toHaveCount(0);
+    await expect(page.locator('.prod-grid')).not.toContainText(/team/i);
     // Signed out with a backend, the Join a team card is absent as well: it is for accounts.
     await expect(page.getByTestId(TEAM.joinCard)).toHaveCount(0);
   });
@@ -376,8 +381,8 @@ test.describe('teams: the share door', () => {
       await page.getByTestId(TEAM.join).click();
       await expect(page.getByTestId('join-team-error')).toContainText(/join code/i);
 
-      // The card menu is the door's OTHER mount point, and the offline spec asserts it is absent
-      // there too, so it gets walked as well.
+      // The card menu is the door's OTHER mount point. The signed-out/offline specs assert
+      // the team action is absent there, so its signed-in presence gets walked as well.
       await page.goto('/app#/home/productions');
       const card = page.locator('[data-testid^="production-row-"]', { hasText: showName });
       await card.getByTestId(TEAM.cardMenu).click();
