@@ -1,0 +1,70 @@
+// covers: src/components/editorFoundation/**, src/blocks/{baseEdits,editorAnimation}.ts
+import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import type { SpxTemplate } from '../src/model/types';
+import { holdKeyRepeats } from './_keys';
+
+const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
+const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+async function open(page: Page, fixture = 'catalog') {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await ready(page);
+}
+async function create(page: Page) {
+  const ids = await page.evaluate(async () => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const result = s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [
+      { kind: 'layer.create', geometry: { shape: 'rectangle', x: 100, y: -400, width: 80, height: 50 } },
+      { kind: 'layer.create', geometry: { shape: 'ellipse', x: 330, y: -320, width: 120, height: 70 } },
+      { kind: 'layer.create', geometry: { shape: 'rectangle', x: 680, y: -200, width: 160, height: 100 } },
+    ] }); return result.changedTargets;
+  }); await ready(page); return ids;
+}
+async function select(page: Page, ids: string[]) {
+  await page.evaluate(async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
+}
+async function rects(page: Page, ids: string[]) {
+  const f = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
+  return Promise.all(ids.map(id => f.locator(id).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })));
+}
+async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+
+test('baseline probe: current alignment and canvas arrow capability', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, [ids[0]]);
+  const before = await source(page); await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('ArrowRight'); await ready(page);
+  console.log({ align: await page.getByRole('button', { name: 'Align left', exact: true }).count(), distribute: await page.getByRole('button', { name: 'Distribute horizontally', exact: true }).count(), arrowChangesSource: JSON.stringify(await source(page)) !== JSON.stringify(before) });
+});
+
+test('selection alignment uses rendered bounds, one undo and unchanged motion', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, ids); const before = await source(page);
+  await page.getByRole('button', { name: 'Align left', exact: true }).click(); await ready(page);
+  const r = await rects(page, ids); expect(Math.max(...r.map(r => r.x)) - Math.min(...r.map(r => r.x))).toBeLessThan(.1);
+  expect((await source(page)).js).toBe(before.js); await undo(page); expect(await source(page)).toEqual(before);
+});
+
+test('distribution leaves endpoints fixed and equalizes gaps of unequal items', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, ids); const before = await source(page), initial = await rects(page, ids);
+  await page.getByRole('button', { name: 'Distribute horizontally', exact: true }).click(); await ready(page);
+  const r = await rects(page, ids); expect(r[0]).toEqual(initial[0]); expect(r[2]).toEqual(initial[2]);
+  expect(r[1].x - r[0].x - r[0].width).toBeCloseTo(r[2].x - r[1].x - r[1].width, 1);
+  await undo(page); expect(await source(page)).toEqual(before);
+});
+
+test('held canvas arrows preview then commit and undo as one gesture', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, [ids[0]]); const before = await source(page), initial = (await rects(page, [ids[0]]))[0];
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowRight'); await holdKeyRepeats(page, 4, 'ArrowRight', 'ArrowRight');
+  expect(await source(page)).toEqual(before); expect((await rects(page, [ids[0]]))[0].x).toBeCloseTo(initial.x + 5, 1);
+  await page.keyboard.up('ArrowRight'); await ready(page); expect((await rects(page, [ids[0]]))[0].x).toBeCloseTo(initial.x + 5, 1);
+  await undo(page); expect(await source(page)).toEqual(before);
+});
+
+test('keyboard resize changes local width about the pivot and cancels exactly', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, [ids[0]]); const before = await source(page), initial = (await rects(page, [ids[0]]))[0];
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Control+ArrowRight'); await ready(page);
+  const r = (await rects(page, [ids[0]]))[0]; expect(r.width).toBeCloseTo(initial.width + 1, 1); expect(r.x + r.width / 2).toBeCloseTo(initial.x + initial.width / 2, 1);
+  await undo(page); expect(await source(page)).toEqual(before);
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowDown'); await page.keyboard.press('Escape'); await page.keyboard.up('ArrowDown'); await ready(page); expect(await source(page)).toEqual(before);
+});

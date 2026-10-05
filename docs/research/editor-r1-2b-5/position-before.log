@@ -1,0 +1,36 @@
+=== j-3396 node node_modules/@playwright/test/cli.js test e2e/editor-arrangement.spec.ts --workers=1 --grep normalized.SVG.coordinates
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+[e2e] 6 workers - 7780 MB free (the measured maximum)
+[WebServer] (node:34560) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:40268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-arrangement.spec.ts:356:1 › one composition pixel remains exact with normalized SVG coordinates (1.9s)
+
+
+  1) [chromium] › e2e\editor-arrangement.spec.ts:356:1 › one composition pixel remains exact with normalized SVG coordinates 
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 0.01
+    Received:   1
+
+      357 |   await open(page,'svg');await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g transform="translate(400 150) scale(2000)"><rect id="normalized-art" x=".001" y=".001" width=".04" height=".04" fill="orange"/></g></svg>')});});await ready(page);await select(page,['#normalized-art']);const before=await source(page),initial=(await rects(page,['#normalized-art']))[0];
+      358 |   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('ArrowRight');await ready(page);
+    > 359 |   const moved=(await rects(page,['#normalized-art']))[0];expect(Math.abs(moved.x-initial.x-1)).toBeLessThan(.01);expect(Math.abs(moved.y-initial.y)).toBeLessThan(.01);await undo(page);expect(await source(page)).toEqual(before);
+          |                                                                                                ^
+      360 | });
+      361 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:359:96
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-one-com-d42f9--normalized-SVG-coordinates-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-one-com-d42f9--normalized-SVG-coordinates-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-arrangement.spec.ts:356:1 › one composition pixel remains exact with normalized SVG coordinates 
