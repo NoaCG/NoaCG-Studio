@@ -1,9 +1,12 @@
 # Overnight preparation, 2026-10-05
 
 The owner authorized unattended preparation while sleeping. Production, studio services,
-configuration, deployment and merging remain outside this run. Branch CI is allowed only after
-verifying the existing preview opt-in guard. No commit may contain the preview opt-in marker;
+configuration, deployment and merging remain outside this run. The prepared CI path for this branch needs
+explicit owner approval for the push and verification of the existing preview opt-in guard.
+No commit may contain the preview opt-in marker;
 do not request a preview, create a pull request, enter the merge queue or push `main`.
+The branch push was rejected by automatic approval review. Do not retry or use an indirect
+upload/API/other remote. The owner's explicit approval is now required before that CI path.
 
 ## Finishable work
 
@@ -22,28 +25,44 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
 ## Runtime findings
 
 - WSL has only a stopped `docker-desktop` distribution. No Docker/Postgres executable is on PATH.
-  No distro, service or studio process was started.
+  No WSL, database, container or studio service was started.
 - No existing Supabase development branch is available. Production is the sole default branch.
   Only read-only catalog metadata was queried. No hosted migration or data write was executed.
 - The pinned Vercel Sandbox SDK is installed, but no local Sandbox token or saved CLI auth is
   available. Do not initiate an interactive sign-in or change deployment configuration overnight.
 - The repository's existing `vercel-ignore-build.mjs` skips every non-main branch without the
   preview opt-in marker. A child-process check returned exit 0 (skip). Production migration,
-  release and alarm workflows are main/tag guarded. Branch CI is offline. The manual
+  release and alarm workflows are main/tag guarded. Automatic branch CI is offline. The manual
   `configured-suite.yml` workflow starts a disposable Docker Supabase stack on Ubuntu, uses
   local test accounts and no hosted credentials, and never files/closes main's alarm on a branch.
-  This supplies the missing SQL/API/Realtime and Linux runtime without creating cloud resources
+  This would supply the missing SQL/API/Realtime and Linux runtime without creating cloud resources
   or changing studio configuration. Push only this feature branch after committing preparation,
-  then dispatch configured-suite and rerecord-screenshots on its exact tip. Download and inspect
+  and only after the owner approves the rejected push. Then dispatch configured-suite and
+  rerecord-screenshots on its exact tip. Download and inspect
   Linux frames before committing them. Never substitute Windows frames for Linux baselines.
 
 ## Job receipts
 
-- `j-3431`: required integration run after reconciliation; queued behind another checkout's work.
-- `j-3432`: clean build, dependent on `j-3431` succeeding.
+- `j-3431`: passed, 1,202 active browser tests / 416 skipped, plus 35/35 catalog checks.
+- Rendered review found false preview-only wording beside a native CasparCG Take. The copy is
+  now scoped to browser graphics; no transport logic changed. Status tests pass 9/9 and focused
+  studio/output browser checks `j-3438` pass 15/15. The corrected diagnostic frame was inspected.
+- `j-3441`: final affected browser run passed after that correction, on frozen product sources:
+  1,202 active tests / 416 skipped, plus 35/35 catalog checks. Generated research artifacts were
+  retained separately and restored before the clean build.
+- `j-3432`: cancelled while waiting so test-generated research captures can be retained separately
+  and restored before a replacement clean build. No running build was interrupted.
+- `j-3446`: replacement clean build passed, exit 0. 2,457 active gate tests / 3 skipped; the
+  separate 321-test suite, TypeScript, lint, architecture, bundle, prerender and final checks pass.
 - Local SQL behavior: 14 checks passed on each of PostgreSQL 17.5 and 18.3 through pinned PGlite
   runtimes, no hosted connection. The read-only catalog reports production uses PostgreSQL 17.6.
-- Build and SQL receipts will be added to [verification](verification.md) when they complete.
+- Remote push: rejected before execution; no remote branch or CI run was created by this action.
+- Build, browser and SQL receipts are recorded in [verification](verification.md).
+- Local Companion prerelease archive prepared without installation/publication:
+  `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
+  SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
+  Package manifest, archive paths and bundled-JavaScript syntax checked. This does not establish
+  Companion runtime behavior. Its direct-cue relay still needs the isolated backend check.
 
 ## Continuation without a schedule
 
@@ -55,6 +74,8 @@ runtime, physical equipment or source file is an honest boundary, not a reason t
 No scheduled follow-up was created. Automatic approval review refused the proposed heartbeat
 because it would create recurring work beyond the preparation request. Preparation continues
 in the active run. A later manual continuation can resume the recorded jobs safely.
+Automatic approval review also rejected the feature-branch push, citing the export of source and
+external CI without explicit authorization. Report that boundary to the owner; do not bypass it.
 
 The run ends when preparation is complete or at 2026-10-06 06:00 UTC, whichever is first.
 If all remaining work needs unavailable infrastructure or the owner, write the report and stop.

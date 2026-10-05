@@ -4220,7 +4220,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 />
               ) : (
                 <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
-                  Press Publish &amp; check readiness beside the status to prepare this production and get its output URL. Until then a Take plays only on this page.
+                  Press Publish &amp; check readiness beside the status to prepare browser graphics and get their output URL. CasparCG server cues play directly on their assigned output, even before publishing.
                 </p>
               )}
               {defaultFailure && <p className="status-warn" role="alert" data-testid="output-default-failure">Published successfully, but your account default was not saved: {defaultFailure} <button onClick={() => void retryDefault()}>Retry saving default</button></p>}

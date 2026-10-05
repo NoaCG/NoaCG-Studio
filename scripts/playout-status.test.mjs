@@ -66,7 +66,7 @@ test('not started is grey "Offline", whatever else is true, and never red', () =
   }
   // The panel still says what it found, and why it is grey.
   const s = status({ started: false, slot: { ...ours, holds: 'other' } });
-  assert.equal(s.checks.find((c) => c.key === 'production').label, 'Not started');
+  assert.equal(s.checks.find((c) => c.key === 'production').label, 'Browser graphics not started');
   assert.equal(s.checks.find((c) => c.key === 'slot').tone, 'idle');
 });
 

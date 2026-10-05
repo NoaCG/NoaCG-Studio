@@ -28,6 +28,10 @@ offline writers still need conflict review; the team save path retains its serve
 
 ## Readiness during playout
 
+Native CasparCG server cues send directly through the Bridge to their assigned output, including
+before publishing. Browser graphics preview locally until the production is started. The browser
+output's Offline state does not mean a server video or sound stays on the laptop.
+
 Read the words with the color. A healthy prepared output with changed graphics means continue
 using its prepared content, and prepare before relying on the changed assets. Failed or missing
 output/Bridge feedback means readiness is unconfirmed; check the actual program monitor before

@@ -8,6 +8,9 @@ application and studio configuration available for rollback.
 Bring the problematic original video and the two working originals, or their accessible file
 paths. Record the Bridge and CasparCG versions. The agent compares the files and interprets
 Bridge/INFO evidence; the operator does not need to run analysis or database commands.
+For the known quiz import fix, also bring its original/corrected delivery SVG if available.
+Export the intended artboard with Illustrator editing data disabled and the question/answers
+inside the canvas. The agent checks the cleaned import's appearance and early eligibility.
 
 Record pass/fail beside each step. An unexpected interruption ends that test; return to the
 working production path and retain the recording or screenshot for investigation.

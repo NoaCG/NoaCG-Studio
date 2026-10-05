@@ -56,7 +56,8 @@ export interface StatusFacts {
   managedOutput?: boolean;
   destinationCheck?: StatusCheck | null;
   fileCheck?: StatusCheck | null;
-  /** The production is started (published): verbs go on the wire. */
+  /** The production is published: browser graphics use the hosted output. Native server cues
+   *  send through the Bridge independently, including before publishing. */
   started: boolean;
   /** A publish now would change what the outputs get (the record, or what they render). */
   unpublished: boolean;
@@ -142,9 +143,9 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
     checks.push({
       key: 'production',
       tone: 'idle',
-      label: 'Not started',
+      label: 'Browser graphics not started',
       short: 'Offline',
-      advice: 'Takes play only on this page until you start the production.',
+      advice: 'Browser graphics preview here until you start the production. CasparCG server cues play directly on their assigned output, even before publishing.',
     });
   } else if (f.unpublished) {
     checks.push({
