@@ -7,6 +7,10 @@ serves: now
 
 Overnight automated checks cover the setup flow, legacy compatibility, routing commands and sound regression cases. Actual receiving software, physical channel routing and audio buses still need a studio check before on-air use. The owner authorized the overnight merge with that limitation.
 
+## The route, under a minute
+
+/app, then Home, then the upcoming production card menu.
+
 Use **Duplicate production** from the upcoming production's Home card menu. Keep the original ready production unchanged. A legacy duplicate inherits its existing cues/routes and does not ask for new output setup.
 
 1. Open the duplicate and verify its normal output URL and existing routes. If testing the new setup, use **Playout status → Setup → Change output…**, then select CasparCG or the required browser software plus CasparCG. Changing this choice must not stop or reload the active output.

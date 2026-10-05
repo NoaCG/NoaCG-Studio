@@ -73,6 +73,7 @@ const SCANNED = [
  * SPX card in the export dialog). Anything else is the product's own vocabulary.
  */
 const ALLOWED = [
+  { file: 'src/components/home/OutputSetupDialog.tsx', line: "<p className=\"hint\">{primary === 'spx' ? 'Download the existing SPX template after publishing. SPX shows or hides the frame; NoaCG operates its cues.' : primary === 'casparcg' ? 'Use NoaCG Bridge to put this production on the configured CasparCG output. Choose browser software above to add a browser mirror.' : 'Use the same NoaCG output URL in your browser source. You can prepare and publish before connecting in the studio.'}</p>", why: 'Instructions conditional on the selected SPX destination, explaining its wrapper and frame controls; other profiles retain their own help' },
   { file: 'src/components/home/ProductionLinks.tsx', line: "{outputProfile === 'spx' ? 'Download SPX template' : 'Download'}", why: 'SPX destination-specific wrapper download; other destination profiles retain neutral Download' },
   // ── Target lists: the client named beside its peers, which IS the anything-goes promise. ──
   { file: 'app.html', line: 'content="The NoaCG Studio app: create on-air lower thirds, tickers, scoreboards and more without code, run them live from your browser, and export to OGraf, CasparCG, SPX Graphics, H2R Graphics, LiveOS, OBS and vMix."', why: 'target list in the page description' },
