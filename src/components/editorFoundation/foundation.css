@@ -42,7 +42,7 @@
 .ef-project .asset-info-facts { min-width: 0; }
 .ef-project .asset-fact-value { min-width: 0; overflow-wrap: anywhere; }
 .ef-image-controls button { margin: 0 4px 4px 0; }
-.ef-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 38px minmax(0, 1fr) 26px; }
+.ef-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 38px auto minmax(0, 1fr) 26px; }
 .ef-toolbar { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); background: var(--bg-panel); }
 .ef-toolbar select { width: auto; }
 .ef-tool { border: 1px solid var(--accent-line); background: var(--accent-bg); padding: 4px 10px; border-radius: 3px; color: var(--accent); }
@@ -128,7 +128,7 @@
   .ef-document-tab { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
   .ef-document-strip > .ef-muted { display: none; }
   .ef-workspace { display: flex; flex-direction: column; }
-  .ef-canvas { flex: none; height: 340px; grid-template-rows: 38px minmax(0, 1fr) 38px; }
+  .ef-canvas { flex: none; min-height: 340px; grid-template-rows: 38px auto minmax(250px, 1fr) 38px; }
   .ef-canvas > .ef-toolbar > .ef-muted { display: none; }
   .ef-canvas > .ef-toolbar { overflow-x: auto; gap: 4px; padding-inline: 4px; }
   .ef-canvas > .ef-toolbar button { flex-shrink: 0; padding-inline: 5px; }
@@ -202,3 +202,12 @@
 .ef-step-error { position: absolute; left: 0; top: calc(100% + 4px); width: max-content; max-width: 420px; padding: 8px; background: var(--bg-panel); color: var(--warn); border: 1px solid var(--border-strong); z-index: 5; }
 .ef-segment-targets { margin: 0 0 10px; padding-left: 18px; color: var(--ef-muted); font-size: 12px; }
 @media (max-width: 1150px) { .ef-transport > .ef-muted { display: none; } }
+
+.ef-arrangement { background: var(--bg-panel); border-bottom: 1px solid var(--ef-border); padding: 4px 10px; }
+.ef-arrangement-row, .ef-arrangement-row label, .ef-arrangement-row [role=group] { display: flex; align-items: center; gap: 4px; }
+.ef-arrangement-row label { white-space: nowrap; }
+.ef-arrangement-row { flex-wrap: wrap; gap: 8px 14px; }
+.ef-arrangement-row label, .ef-arrangement-row [role=group] > span { color: var(--text-dim); font-size: 10px; }
+.ef-arrangement-row button, .ef-arrangement-row select { padding: 3px 6px; min-height: 26px; font-size: 10px; }
+.ef-arrangement-error { color: var(--warn); padding: 4px 0 2px; overflow-wrap: anywhere; }
+.ef-canvas > .ef-caption { flex-wrap: wrap; gap: 0 10px; overflow: hidden; }

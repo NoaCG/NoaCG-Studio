@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SpxTemplate } from '../../model/types';
 import type { EditorSession } from './session';
 import { PreviewController } from './PreviewController';
@@ -15,6 +15,10 @@ import { IMAGE_ACCEPT } from '../../assets/fileImport';
 import { useImageImport } from './useImageImport';
 import { usePenGesture } from './usePenGesture';
 import PathOverlay from './PathOverlay';
+import ArrangementControls from './ArrangementControls';
+import { arrangementDeltas, type Arrangement } from '../../blocks/arrangementGeometry';
+import { arrangementTargets, translateArtwork } from './animationAuthoring';
+import { useArtworkKeyboard } from './useArtworkKeyboard';
 
 let inspectedController: PreviewController | null = null;
 /** Read-only instrumentation entry point used by the acceptance harness. */
@@ -85,6 +89,25 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const pathTarget = pathEditing && selection.length === 1 && selection[0] === pathEditing ? parts.find(p => p.selector === pathEditing) ?? null : null;
   const tool = pathTarget ? 'pen' : gesture.tool;
   const pen = usePenGesture(template, session, drawingSpace, pathTarget, scale, () => { gesture.setTool('select'); onPathEditing(null); });
+  const getPreview = useCallback(() => controller.current, []);
+  const keyboard = useArtworkKeyboard(template, session, parts, selection, time, getPreview, pause);
+  const [alignReference, setAlignReference] = useState<{ selection: string; value: 'selection' | 'canvas' } | null>(null);
+  const selectionKey = JSON.stringify(selection);
+  const reference = alignReference?.selection === selectionKey ? alignReference.value : selection.length === 1 ? 'canvas' : 'selection';
+  const [arrangementError, setArrangementError] = useState('');
+  const arrange = (command: Arrangement) => {
+    keyboard.cancel(); keyboard.clearError(); pen.cancel(); gesture.cancel(); pause(); setArrangementError('');
+    try {
+      const expected = session.version(), view = session.port.view();
+      const targets = arrangementTargets(template, parts, selection, time, expected, view.cue);
+      const deltas = arrangementDeltas(targets, command, reference === 'canvas' && command.kind === 'align' ? template.resolution : undefined);
+      const operations = translateArtwork(template, targets, deltas, time);
+      if (operations.length) {
+        controller.current?.noteInput('commit');
+        session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations });
+      }
+    } catch (cause) { setArrangementError(cause instanceof Error ? cause.message : String(cause)); }
+  };
   const pending = !status.error && (status.pending || status.source !== session.version().source);
   const parkedTime = useRef(time);
   const cue = session.port.view().cue;
@@ -147,6 +170,9 @@ export default function Canvas({ template, sampleData, session, time, selection,
       </select>
       <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>
     </div>
+    <ArrangementControls count={selection.length} reference={reference}
+      setReference={value => setAlignReference({ selection: selectionKey, value })} run={arrange}
+      disabled={pending || !!status.error || tool !== 'select'} error={arrangementError || keyboard.error} />
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-tool={tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
@@ -163,6 +189,10 @@ export default function Canvas({ template, sampleData, session, time, selection,
       }}
       onKeyDown={event => {
         if (!editorShortcutsLive(event.target)) return;
+        if (event.target === event.currentTarget && event.key.startsWith('Arrow')) setArrangementError('');
+        if (event.target === event.currentTarget && tool === 'select' && !gesture.active() && !marqueeStart.current && !drag.current && keyboard.down(event)) {
+          event.preventDefault(); event.stopPropagation(); return;
+        }
         if (tool === 'pen' && pen.key(event.key)) { event.preventDefault(); event.stopPropagation(); return; }
         if (event.code === 'Space' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault(); event.stopPropagation(); space.current = true;
@@ -177,15 +207,16 @@ export default function Canvas({ template, sampleData, session, time, selection,
         }
       }}
       onKeyUp={event => {
+        if (keyboard.up(event)) { event.preventDefault(); event.stopPropagation(); return; }
         if (event.code !== 'Space') return;
         const tapped = spaceTap.current;
         space.current = false; spaceTap.current = false;
         if (tapped && editorShortcutsLive(event.target)) { event.preventDefault(); event.stopPropagation(); togglePlayback(); }
       }}
-      onBlur={() => { space.current = false; spaceTap.current = false; }}
+      onBlur={() => { keyboard.cancel(); space.current = false; spaceTap.current = false; }}
       onPointerDown={event => {
         if ((event.target as HTMLElement).closest('.ef-inline-text, .ef-stage-error')) return;
-        event.preventDefault(); pause();
+        keyboard.cancel(); event.preventDefault(); pause();
         setEditing(null);
         clickSelection.current = null;
         event.currentTarget.focus();
@@ -305,7 +336,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
       {pen.error && <div className="ef-stage-error" role="alert">{pen.error}</div>}
     </div>
     <div className="ef-caption"><span>{selection.length ? selection.length + ' selected' : 'Select artwork or a timeline layer'}</span>
-      <span>{tool === 'select' ? 'Space: play/pause · Space-drag: pan · Shift: constrain, or 15° turns'
+      <span>{tool === 'select' ? 'Arrows: move · Ctrl/Cmd+Arrows: resize · Shift: 10 px · Escape: cancel · Space: play/pause or drag to pan'
         : tool === 'pen' ? pathTarget ? 'Drag points or tangents · Select: whole layer · Escape: finish editing' : 'Click: corner · Drag: curve · First point: close · Enter: finish · Backspace: remove · Escape: cancel'
         : tool === 'anchor' ? 'Drag the anchor: the point the layer turns and scales about · Escape: cancel'
         : 'Click or drag to draw · Shift: square/circle · Escape: cancel'}</span></div>
