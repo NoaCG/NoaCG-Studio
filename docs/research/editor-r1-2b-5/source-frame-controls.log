@@ -1,0 +1,14 @@
+=== j-3389 node node_modules/@playwright/test/cli.js test e2e/editor-arrangement.spec.ts --workers=1 --grep own.CSS.transform
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+[e2e] 6 workers - 7886 MB free (the measured maximum)
+[WebServer] (node:17104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:43640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\editor-arrangement.spec.ts:344:66 › own CSS transform resizes in local axes or specifically refuses without changing source: rotate(25deg) (1.8s)
+  ok 2 [chromium] › e2e\editor-arrangement.spec.ts:344:66 › own CSS transform resizes in local axes or specifically refuses without changing source: translate(20px,10px) (1.6s)
+
+  2 passed (15.9s)

@@ -14,6 +14,8 @@ export interface BaseValues {
   x: number; y: number; originX: number; originY: number; scaled: boolean;
   scaleX: number; scaleY: number; rotation: number;
   scaleReason: string | null;
+  /** Why an anisotropic base resize cannot preserve the layer's own axes. */
+  axisResizeReason: string | null;
   /** Why a base rotation would compete with motion on the base target, or null. */
   rotationReason: string | null;
   /** The declared anchor (R1.2b.1), in layer pixels from the top-left of the base target's box, or null
@@ -24,6 +26,8 @@ export interface BaseValues {
 }
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const precise = (n: number) => Math.round(n * 1000) / 1000;
+// Parent scaling can turn tiny local offsets into whole composition pixels.
+const transformPrecision = (n: number) => Math.round(n * 1e9) / 1e9;
 function declaration(css: string, selector: string, property: string): string | null {
   const rule = css.match(new RegExp(esc(selector) + '\\s*\\{([^}]*)\\}'));
   return rule?.[1].match(new RegExp('(?:^|[;}]|\\*/)[\\s]*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
@@ -123,6 +127,13 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const owned = new Set(tracksOn(motion?.steps ?? [], targetNode).flatMap(tracks => Object.keys(tracks)));
   const scaleReason = ['scale', 'scaleX', 'scaleY', 'transform'].some(key => owned.has(key))
     ? 'Scale is animated on this layer. Use its existing animation controls; base scaling would compete with that motion.' : null;
+  const svgMatrix = svg ? parseTransform(node.getAttribute('transform')) : null;
+  const rawTransforms = [...styles.map(style => style.transform), (targetNode as HTMLElement).style.transform].filter(raw => raw && raw !== 'none');
+  const mixed = svgMatrix && (Math.abs(svgMatrix.b) > 1e-8 || Math.abs(svgMatrix.c) > 1e-8) || rawTransforms.some(raw => {
+    try { const matrix = new DOMMatrix(raw); return !matrix.is2D || Math.abs(matrix.b) > 1e-8 || Math.abs(matrix.c) > 1e-8 || Math.abs(matrix.e) > 1e-8 || Math.abs(matrix.f) > 1e-8; }
+    catch { return true; }
+  });
+  const axisResizeReason = mixed ? selector + ': its own transform cannot resize along the local axes about the existing pivot exactly. Its source is preserved.' : null;
   const rotationReason = owned.has('rotation') ? 'Rotation is animated on this layer. Use its animation controls to preserve motion.'
     : owned.has('transform') ? `${selector} animates a raw transform string, which would replace a base rotation. Its source is preserved.` : null;
   if (svg && ['xPercent', 'yPercent', 'transform'].some(key => owned.has(key))) throw new Error('This SVG uses an unsupported position channel. Its source is preserved.');
@@ -179,7 +190,7 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
     : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
     : null;
-  return { selector, target, mode, scaleReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
+  return { selector, target, mode, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
     originX, originY, anchor, anchorReason,
     x: placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
     y: placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
@@ -204,7 +215,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
   if (anchored && base.anchorReason) throw new Error(base.anchorReason);
   const unchanged = (key: string, value: number | undefined) => key === 'anchorX' ? base.anchor?.x === value : key === 'anchorY' ? base.anchor?.y === value : value === base[key as keyof BaseValues];
   if (Object.entries(patch).every(([key, value]) => unchanged(key, value))) return template;
-  const x = precise(patch.x ?? base.x), y = precise(patch.y ?? base.y);
+  const x = transformPrecision(patch.x ?? base.x), y = transformPrecision(patch.y ?? base.y);
   let html = template.html;
   const svgMotion = base.mode === 'svg' && parseAnimData(template.js)?.steps.some(step => step.layers[selector]?.x?.length || step.layers[selector]?.y?.length);
   if (svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
@@ -224,7 +235,7 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     const opening = html.slice(range.start, range.content);
     let changed = opening;
     axes.forEach((axis, index) => {
-      const value = String(precise(Number(values[index]) + local[index]));
+      const value = String(transformPrecision(Number(values[index]) + local[index]));
       const attr = new RegExp('(\\s' + axis + '\\s*=\\s*)(["\'])(.*?)\\2');
       if (node.hasAttribute(axis) && !attr.test(changed)) throw new Error('This SVG uses an unsupported coordinate attribute. Its source is preserved.');
       changed = attr.test(changed) ? changed.replace(attr, '$1"' + value + '"') : changed.replace(/\s*\/?>$/, match => ' ' + axis + '="' + value + '"' + match);
@@ -241,8 +252,8 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
       css = setCssDeclaration(css, base.target, 'top', placementCss(y, base.scaled));
     } else {
       if (base.mode === 'svg') {
-        css = setCssDeclaration(css, base.target, '--base-x', precise(x - base.originX) + 'px');
-        css = setCssDeclaration(css, base.target, '--base-y', precise(y - base.originY) + 'px');
+        css = setCssDeclaration(css, base.target, '--base-x', transformPrecision(x - base.originX) + 'px');
+        css = setCssDeclaration(css, base.target, '--base-y', transformPrecision(y - base.originY) + 'px');
         css = setCssDeclaration(css, base.target, 'translate', 'var(--base-x) var(--base-y)');
       } else {
         css = setCssDeclaration(css, base.target, '--layout-x', x + 'px');
@@ -254,8 +265,9 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     }
   }
   if (changeScale) {
-    css = setCssDeclaration(css, base.target, '--base-scale-x', String(precise(patch.scaleX ?? base.scaleX)));
-    css = setCssDeclaration(css, base.target, '--base-scale-y', String(precise(patch.scaleY ?? base.scaleY)));
+    // A one-pixel resize of wide artwork also needs fine transform precision.
+    css = setCssDeclaration(css, base.target, '--base-scale-x', String(transformPrecision(patch.scaleX ?? base.scaleX)));
+    css = setCssDeclaration(css, base.target, '--base-scale-y', String(transformPrecision(patch.scaleY ?? base.scaleY)));
     css = setCssDeclaration(css, base.target, 'scale', 'var(--base-scale-x) var(--base-scale-y)');
   }
   if (patch.rotation !== undefined) {

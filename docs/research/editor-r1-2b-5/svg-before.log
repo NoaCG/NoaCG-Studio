@@ -1,0 +1,37 @@
+=== j-3384 node node_modules/@playwright/test/cli.js test e2e/editor-arrangement.spec.ts --workers=1 --grep own.SVG.transform
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+[e2e] 6 workers - 6420 MB free (the measured maximum)
+[WebServer] (node:21676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:37240) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-arrangement.spec.ts:329:1 › own SVG transform resizes in local axes or specifically refuses without changing source (2.1s)
+
+
+  1) [chromium] › e2e\editor-arrangement.spec.ts:329:1 › own SVG transform resizes in local axes or specifically refuses without changing source 
+
+    Error: expect(received).toBeLessThan(expected)
+
+    Expected: < 0.05
+    Received:   0.17839777086274466
+
+      335 |     await expect(page.locator('.ef-arrangement-error')).toContainText('local axes');expect(await source(page)).toEqual(before);
+      336 |   }else{
+    > 337 |     const changed=await sides();expect(Math.abs(changed.width-initial.width-1)).toBeLessThan(.05);expect(Math.abs(changed.height-initial.height)).toBeLessThan(.05);await undo(page);expect(await source(page)).toEqual(before);
+          |                                                                                 ^
+      338 |   }
+      339 |   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('ArrowRight');await ready(page);expect((await source(page)).html).toBe(before.html);await undo(page);expect(await source(page)).toEqual(before);
+      340 | });
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:337:81
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-own-SVG-40141-ses-without-changing-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-own-SVG-40141-ses-without-changing-source-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-arrangement.spec.ts:329:1 › own SVG transform resizes in local axes or specifically refuses without changing source 

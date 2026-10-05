@@ -1,0 +1,19 @@
+=== j-3381 node docs/research/editor-r1-2b-5/mutations.mjs
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+KILLED: distribution count
+KILLED: finite bounds and identities
+KILLED: equal gaps
+KILLED: rendered outer endpoints
+KILLED: scale precision
+KILLED: parent inverse
+KILLED: one source write on release
+KILLED: gesture cancellation
+KILLED: stale source and view
+KILLED: canceled repeats stay quiet
+KILLED: text-input ownership
+KILLED: Pen ownership
+KILLED: text-box pivot
+KILLED: resize collapse
+KILLED: parent-child refusal
+Every source restored byte-for-byte.
+15/15 mutations killed.

@@ -1,0 +1,130 @@
+=== j-3370 node node_modules/@playwright/test/cli.js test e2e/editor-arrangement.spec.ts --workers=3
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+[e2e] 3 workers - 4088 MB free
+[WebServer] (node:34132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 3 workers
+
+(node:4860) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ align: 0, distribute: 0, arrowChangesSource: false }
+  ok 2 [chromium] › e2e\editor-arrangement.spec.ts:35:1 › baseline probe: current alignment and canvas arrow capability (3.4s)
+  x  4 [chromium] › e2e\editor-arrangement.spec.ts:56:1 › held canvas arrows preview then commit and undo as one gesture (2.5s)
+(node:21108) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  5 [chromium] › e2e\editor-arrangement.spec.ts:64:1 › keyboard resize changes local width about the pivot and cancels exactly (2.3s)
+  x  3 [chromium] › e2e\editor-arrangement.spec.ts:48:1 › distribution leaves endpoints fixed and equalizes gaps of unequal items (1.0m)
+  x  1 [chromium] › e2e\editor-arrangement.spec.ts:41:1 › selection alignment uses rendered bounds, one undo and unchanged motion (1.0m)
+
+
+  1) [chromium] › e2e\editor-arrangement.spec.ts:41:1 › selection alignment uses rendered bounds, one undo and unchanged motion 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Align left', exact: true })
+
+
+      41 | test('selection alignment uses rendered bounds, one undo and unchanged motion', async ({ page }) => {
+      42 |   await open(page); const ids = await create(page); await select(page, ids); const before = await source(page);
+    > 43 |   await page.getByRole('button', { name: 'Align left', exact: true }).click(); await ready(page);
+         |                                                                       ^
+      44 |   const r = await rects(page, ids); expect(Math.max(...r.map(r => r.x)) - Math.min(...r.map(r => r.x))).toBeLessThan(.1);
+      45 |   expect((await source(page)).js).toBe(before.js); await undo(page); expect(await source(page)).toEqual(before);
+      46 | });
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:43:71
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-selecti-cd60b-e-undo-and-unchanged-motion-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-selecti-cd60b-e-undo-and-unchanged-motion-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-arrangement.spec.ts:48:1 › distribution leaves endpoints fixed and equalizes gaps of unequal items 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Distribute horizontally', exact: true })
+
+
+      48 | test('distribution leaves endpoints fixed and equalizes gaps of unequal items', async ({ page }) => {
+      49 |   await open(page); const ids = await create(page); await select(page, ids); const before = await source(page), initial = await rects(page, ids);
+    > 50 |   await page.getByRole('button', { name: 'Distribute horizontally', exact: true }).click(); await ready(page);
+         |                                                                                    ^
+      51 |   const r = await rects(page, ids); expect(r[0]).toEqual(initial[0]); expect(r[2]).toEqual(initial[2]);
+      52 |   expect(r[1].x - r[0].x - r[0].width).toBeCloseTo(r[2].x - r[1].x - r[1].width, 1);
+      53 |   await undo(page); expect(await source(page)).toEqual(before);
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:50:84
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-distrib-a5564-lizes-gaps-of-unequal-items-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-distrib-a5564-lizes-gaps-of-unequal-items-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-arrangement.spec.ts:56:1 › held canvas arrows preview then commit and undo as one gesture 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 225
+    Received: 220
+
+    Expected precision:    1
+    Expected difference: < 0.05
+    Received difference:   5
+
+      57 |   await open(page); const ids = await create(page); await select(page, [ids[0]]); const before = await source(page), initial = (await rects(page, [ids[0]]))[0];
+      58 |   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowRight'); await holdKeyRepeats(page, 4, 'ArrowRight', 'ArrowRight');
+    > 59 |   expect(await source(page)).toEqual(before); expect((await rects(page, [ids[0]]))[0].x).toBeCloseTo(initial.x + 5, 1);
+         |                                                                                          ^
+      60 |   await page.keyboard.up('ArrowRight'); await ready(page); expect((await rects(page, [ids[0]]))[0].x).toBeCloseTo(initial.x + 5, 1);
+      61 |   await undo(page); expect(await source(page)).toEqual(before);
+      62 | });
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:59:90
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-held-ca-7515b-mit-and-undo-as-one-gesture-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-held-ca-7515b-mit-and-undo-as-one-gesture-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-arrangement.spec.ts:64:1 › keyboard resize changes local width about the pivot and cancels exactly 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 81
+    Received: 80
+
+    Expected precision:    1
+    Expected difference: < 0.05
+    Received difference:   1
+
+      65 |   await open(page); const ids = await create(page); await select(page, [ids[0]]); const before = await source(page), initial = (await rects(page, [ids[0]]))[0];
+      66 |   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Control+ArrowRight'); await ready(page);
+    > 67 |   const r = (await rects(page, [ids[0]]))[0]; expect(r.width).toBeCloseTo(initial.width + 1, 1); expect(r.x + r.width / 2).toBeCloseTo(initial.x + initial.width / 2, 1);
+         |                                                               ^
+      68 |   await undo(page); expect(await source(page)).toEqual(before);
+      69 |   await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowDown'); await page.keyboard.press('Escape'); await page.keyboard.up('ArrowDown'); await ready(page); expect(await source(page)).toEqual(before);
+      70 | });
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio\e2e\editor-arrangement.spec.ts:67:63
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-arrangement-keyboar-669cd-e-pivot-and-cancels-exactly-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-arrangement-keyboar-669cd-e-pivot-and-cancels-exactly-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\editor-arrangement.spec.ts:41:1 › selection alignment uses rendered bounds, one undo and unchanged motion 
+    [chromium] › e2e\editor-arrangement.spec.ts:48:1 › distribution leaves endpoints fixed and equalizes gaps of unequal items 
+    [chromium] › e2e\editor-arrangement.spec.ts:56:1 › held canvas arrows preview then commit and undo as one gesture 
+    [chromium] › e2e\editor-arrangement.spec.ts:64:1 › keyboard resize changes local width about the pivot and cancels exactly 
+  1 passed (1.2m)
