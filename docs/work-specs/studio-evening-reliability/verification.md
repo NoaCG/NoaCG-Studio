@@ -107,7 +107,45 @@ stable rendering library separately from fresh picker choices. The 512 KB limit 
   the unexecuted SQL file were adjusted afterwards; executable code was unchanged.
 
 SQL migration 0077 was statically reviewed and checked by repository migration-tool tests.
-It has not been executed against any database. Browser mocks do not prove SQL runtime behavior.
+The overnight preparation also executed the exact file in an in-memory PostgreSQL engine;
+see the limited evidence below. It has not been executed against a hosted database. Browser
+mocks and the local dependency fixtures do not prove the real Supabase relay.
+
+## Overnight preparation, 2026-10-05
+
+- Fetched current `origin/main` (`7878a4ef4`) and merged it locally without conflicts at
+  `20715d255`. The new editor work shares no changed product file with this reliability patch.
+  Required combined-state browser checks are queued as `j-3431`; the clean build follows as
+  `j-3432`. Pending jobs are not passing verdicts.
+- [Local relay runner](evidence/panel-relay-local.mjs): 14 behavior checks passed on each of
+  PGlite 0.3.15 / PostgreSQL 17.5 and PGlite 0.5.8 / PostgreSQL 18.3. The unchanged 0073 and exact
+  0077 files ran with their call self-checks. Logs: [Postgres 17](evidence/panel-relay-local-pg17.log),
+  [Postgres 18](evidence/panel-relay-local.log).
+  Before 0077, the direct-cue verb was refused; afterwards, anon can relay it, legacy take-cue
+  still works, private helper/table privileges stay closed, only permitted fields are forwarded,
+  invalid/foreign presses are refused without sends, unknown/revoked keys and unavailable pages
+  are refused, and the burst cap/re-execution checks pass. No hosted connection or ledger write.
+  The first run stopped on a 15-character page-ID fixture; correcting it to the required length
+  made the runner pass. No product SQL was changed.
+- This SQL evidence uses a minimal prerequisite schema, controlled feature/crypto dependencies
+  and captured `realtime.send` calls. It does not establish full deployed-schema compatibility,
+  PostgREST authorization, real Realtime delivery, production Postgres-version compatibility or
+  concurrent lock behavior. The real isolated Supabase backend requirement remains open.
+- [Read-only deployed-schema metadata](evidence/backend-schema-readonly.json) confirms PostgreSQL
+  17.6, the expected relay prerequisites, the existing definer/search-path/grant boundary and
+  that the deployed relay does not yet accept trigger-cue. No application rows were read or
+  written. Migration SHA-256: `E2EC1AFF70D572FDCD931BEA51AF88ED126C443FE8A0F1FAFB011F11D7476C6B`.
+- Local infrastructure inventory: only a stopped Docker Desktop WSL distro, no usable Linux or
+  native Postgres runtime, no saved local Vercel Sandbox credentials, and no existing Supabase
+  preview branch. No local services were started. Subsequent inspection found the repository's
+  opt-in preview guard and disposable local Supabase workflow provide a CI-only test path.
+  The guard returned skip for this non-main branch without its preview opt-in marker. The
+  production migration/release/issue side effects are main/tag guarded. Configured relay coverage
+  now tests actual delivery of both trigger-cue and legacy take-cue. CI/stack/Linux checks are
+  still pending until their receipts are recorded. The original three media files remain missing.
+- Prepared [tomorrow's rehearsal checklist](rehearsal-checklist.md), with database, expiry,
+  malformed/stale-command and Linux work assigned to the agent. User steps require the supplied
+  isolated test build, original files, two devices and the off-air studio/ATEM route.
 
 ## Rollout hold
 

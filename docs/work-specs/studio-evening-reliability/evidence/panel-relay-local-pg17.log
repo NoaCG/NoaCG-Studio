@@ -1,0 +1,40 @@
+PostgreSQL 17.5 on aarch64-unknown-linux-gnu, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
+PASS unchanged 0073 executes including its call self-checks
+PASS before 0077 the new verb is refused
+PASS exact 0077 executes including its call self-checks
+PASS replacement retains grants and private helpers
+PASS anon direct cue forwards only the permitted fields
+PASS legacy take-cue remains accepted
+PASS foreign editing verb is refused without a send
+PASS malformed payloads are refused without a send
+PASS unknown key is refused
+PASS no answering page is refused
+PASS disabled hosted control is refused
+PASS press burst cap refuses the twenty-first call
+PASS revoked key is refused
+PASS 0077 can execute twice without changing relay privileges
+{
+  "passed": 14,
+  "checks": [
+    "unchanged 0073 executes including its call self-checks",
+    "before 0077 the new verb is refused",
+    "exact 0077 executes including its call self-checks",
+    "replacement retains grants and private helpers",
+    "anon direct cue forwards only the permitted fields",
+    "legacy take-cue remains accepted",
+    "foreign editing verb is refused without a send",
+    "malformed payloads are refused without a send",
+    "unknown key is refused",
+    "no answering page is refused",
+    "disabled hosted control is refused",
+    "press burst cap refuses the twenty-first call",
+    "revoked key is refused",
+    "0077 can execute twice without changing relay privileges"
+  ],
+  "limits": [
+    "fixture dependencies",
+    "captured sends",
+    "single connection",
+    "not a hosted backend rehearsal"
+  ]
+}
