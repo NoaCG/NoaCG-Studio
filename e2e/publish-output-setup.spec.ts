@@ -57,8 +57,10 @@ async function seed(page:Page,legacy=false) {
     const show=S.createShowNamed('Output proof'); S.addGraphicToShow(show.id,variantsFor('lower-third')[0].create({}));
     if(old){const copy=S.loadShows().find(s=>s.id===show.id)!;delete copy.outputSetup;S.upsertShow(copy);}
     await (await import('/src/model/durableStore.ts')).commitDurableWrites();
-    (await import('/src/app/router.ts')).useRouter.getState().navigate({view:'production',id:show.id}); return show.id;
+    return show.id;
   },legacy);
+  // Finish persistence and return the ID before mounting the production's renderers.
+  await page.goto('/app#/production/'+id);
   await expect(page.getByTestId('production-page')).toBeVisible();return id;
 }
 async function record(page:Page,id:string){ return page.evaluate(async key=>(await import('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
