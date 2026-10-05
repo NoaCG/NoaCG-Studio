@@ -1,12 +1,13 @@
 # Overnight preparation, 2026-10-05
 
 The owner authorized unattended preparation while sleeping. Production, studio services,
-configuration, deployment and merging remain outside this run. The prepared CI path for this branch needs
-explicit owner approval for the push and verification of the existing preview opt-in guard.
+configuration, deployment and merging remain outside this run. On 2026-10-06 the owner explicitly
+approved the feature-branch push and existing test workflows. The existing preview opt-in guard
+returned exit 0 (skip) for the published commit `cc2d27fb1`.
 No commit may contain the preview opt-in marker;
 do not request a preview, create a pull request, enter the merge queue or push `main`.
-The branch push was rejected by automatic approval review. Do not retry or use an indirect
-upload/API/other remote. The owner's explicit approval is now required before that CI path.
+The earlier automatic approval rejection was resolved by that explicit authorization. The branch
+was pushed directly to the existing origin; no indirect upload or alternate remote was used.
 
 ## Finishable work
 
@@ -36,9 +37,8 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   `configured-suite.yml` workflow starts a disposable Docker Supabase stack on Ubuntu, uses
   local test accounts and no hosted credentials, and never files/closes main's alarm on a branch.
   This would supply the missing SQL/API/Realtime and Linux runtime without creating cloud resources
-  or changing studio configuration. Push only this feature branch after committing preparation,
-  and only after the owner approves the rejected push. Then dispatch configured-suite and
-  rerecord-screenshots on its exact tip. Download and inspect
+  or changing studio configuration. Push only this feature branch after committing preparation.
+  Configured-suite and rerecord-screenshots were dispatched on its exact published tip. Download and inspect
   Linux frames before committing them. Never substitute Windows frames for Linux baselines.
 
 ## Job receipts
@@ -56,7 +56,17 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   separate 321-test suite, TypeScript, lint, architecture, bundle, prerender and final checks pass.
 - Local SQL behavior: 14 checks passed on each of PostgreSQL 17.5 and 18.3 through pinned PGlite
   runtimes, no hosted connection. The read-only catalog reports production uses PostgreSQL 17.6.
-- Remote push: rejected before execution; no remote branch or CI run was created by this action.
+- Remote push: the first attempt was rejected before execution. After explicit owner approval,
+  `cc2d27fb1` was pushed successfully. CI run `37387066039`, configured backend run `37387084551`
+  and Linux screenshot run `37387085907` are the initial verification receipts.
+- Linux screenshots: `37387085907` passed all 6 captures. Every Ubuntu-generated frame was
+  downloaded into the ignored evidence folder, visually inspected and copied to its exact Linux
+  baseline path. No product source or Windows baseline changed during this recording.
+- Initial branch CI: 1,196 active browser checks passed, 416 skipped, 6 failed solely on the
+  old Linux baselines. Build, 317 factory candidates and 35 catalog checks passed. Publish the
+  inspected replacements and verify the resulting CI gate. Configured backend run `37387084551`
+  remains pending until its guarded report is recorded. Vercel confirmed the preview was cancelled
+  by its existing ignored-build step.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
@@ -74,8 +84,9 @@ runtime, physical equipment or source file is an honest boundary, not a reason t
 No scheduled follow-up was created. Automatic approval review refused the proposed heartbeat
 because it would create recurring work beyond the preparation request. Preparation continues
 in the active run. A later manual continuation can resume the recorded jobs safely.
-Automatic approval review also rejected the feature-branch push, citing the export of source and
-external CI without explicit authorization. Report that boundary to the owner; do not bypass it.
+Automatic approval review also initially rejected the feature-branch push, citing the export of
+source and external CI without explicit authorization. The owner subsequently authorized that
+exact branch and test path; the approved direct push succeeded. Merge and deployment remain held.
 
 The run ends when preparation is complete or at 2026-10-06 06:00 UTC, whichever is first.
 If all remaining work needs unavailable infrastructure or the owner, write the report and stop.

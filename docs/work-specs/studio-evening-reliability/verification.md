@@ -1,7 +1,9 @@
 # Studio evening reliability verification
 
 Development branch: `codex/studio-evening-reliability`, based on
-`5b34aefb477c246b50180ad2357877dd5b040c42`. This branch has not been pushed or deployed.
+`5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
+The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
+Commit `cc2d27fb1` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data
 and an in-memory SQL engine with the limitations recorded below.
@@ -54,7 +56,7 @@ stable rendering library separately from fresh picker choices. The 512 KB limit 
 | SVG and eligibility | Browser rehearsal preserves painted definitions, strips oversized non-rendering metadata, flags off-canvas text, and refuses an oversized rundown draft. Existing import/export tests exercise the shared gate. | Actual corrected Illustrator delivery artwork review. Known quiz cause is not reopened. |
 | Unified readiness | Readiness tests and browser flow cover publishing/checking, cue-only adoption and deferred asset preparation while on air. | Actual receiving output and controlled studio rehearsal. |
 | Direct cue shortcuts | V/F restart independent effects with the next question selected; typing, duplicates, reserved keys, removed bindings and held-key repeats stay quiet. Companion module tests cover the same fixed cue-ID verb. | Companion relay migration executed only in an isolated test database before rollout; actual panel rehearsal. |
-| Stronger cue colors | Windows desktop baselines at 1920×1080 and 1366×768 were rendered and inspected; rehearsal screenshots show full-row colors, route badges and V/F bindings. | Linux baseline recording on an isolated runner before landing. |
+| Stronger cue colors | Windows and Linux desktop baselines at 1920×1080 and 1366×768 were rendered and inspected; rehearsal screenshots show full-row colors, route badges and V/F bindings. | Operator judgment on the actual studio display. |
 
 ## Checks
 
@@ -161,10 +163,11 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   The guard returned skip for this non-main branch without its preview opt-in marker. The
   production migration/release/issue side effects are main/tag guarded. Configured relay coverage
   now tests actual delivery of both trigger-cue and legacy take-cue. CI/stack/Linux checks are
-  still pending until their receipts are recorded. Automatic approval review rejected the
-  feature-branch push before execution, citing source export/external CI without explicit
-  authorization. No remote branch or CI run was created, and no indirect upload was attempted.
-  The original three media files remain missing.
+  pending until their receipts are recorded below. Automatic approval review rejected the
+  first feature-branch push before execution, citing source export/external CI without explicit
+  authorization. After the owner explicitly approved this branch and its test workflows, the
+  direct origin push succeeded and the workflows were dispatched on `cc2d27fb1`. No indirect
+  upload was attempted. The original three media files remain missing.
 - Static migration privilege/collision checks: 15 passed after the SQL fixture/default grants
   were aligned with the read-only deployed catalog. Focused ESLint and Node syntax checks pass.
 - Local Companion prerelease package: tools 3.1.1 bundled the already verified compiled module
@@ -176,13 +179,28 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
 - Prepared [tomorrow's rehearsal checklist](rehearsal-checklist.md), with database, expiry,
   malformed/stale-command and Linux work assigned to the agent. User steps require the supplied
   isolated test build, original files, two devices and the off-air studio/ATEM route.
+- Linux screenshot workflow [37387085907](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37387085907)
+  passed all 6 captures (32.8 seconds) on `cc2d27fb1`, using the same Ubuntu/Chromium setup as CI.
+  All six downloaded frames were inspected before replacing the Linux baselines: graphics-only,
+  mixed and folders at 1366×768 and 1920×1080. Whole-row colors, route/state badges, selected
+  folders, transport controls and editor layout remain legible at both sizes. The pink blocks
+  deliberately mask moving monitor content and clocks. No Windows frame was relabelled as Linux.
+- Initial branch CI [37387066039](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37387066039)
+  completed on `cc2d27fb1`: 1,196 browser tests passed, 416 skipped, and exactly 6 failed on the
+  old Linux playout baselines. All other browser checks passed, including the nine studio
+  regressions. Build passed with 2,452 active gate tests / 8 platform skips and 231 active CLI
+  tests / 18 skips;
+  factory passed 317/317 and catalog calibration passed 35/35. The six inspected replacement
+  baselines are recorded in the next verification phase; check that phase's CI gate before landing.
+  Vercel's actual commit status says "Canceled by Ignored Build Step". No preview was deployed.
 
 ## Rollout hold
 
 Do not queue-merge: landing runs production migrations/deployment automatically. Complete the
 receiving-host and copied-production rehearsals in the existing owner queue, run the relay checks
-against a real isolated Supabase stack, record Linux baselines, and compare the three originals
-first. Retain the currently working application, Bridge and studio configuration for rollback.
+against a real isolated Supabase stack, confirm CI with the recorded Linux baselines, and compare
+the three originals first. Retain the currently working application, Bridge and studio
+configuration for rollback.
 
 Release verification remains incomplete. Record a failing check stamp until the real isolated
 Supabase API/Realtime checks, Linux baselines and actual-media/receiving-host/cross-device gates pass.
