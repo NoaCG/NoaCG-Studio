@@ -1,0 +1,91 @@
+// covers: src/components/editorFoundation/**, src/blocks/{editorGroups,baseEdits,editorAnimation,artworkLayers}.ts, src/model/structure.ts
+import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import type { SpxTemplate } from '../src/model/types';
+
+const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
+const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+async function open(page: Page, fixture = 'catalog') {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/app?editor=foundation#/editor-foundation');
+  await expect(page.getByTestId('editor-foundation')).toBeVisible();
+  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await ready(page);
+}
+async function create(page: Page) {
+  const ids = await page.evaluate(async () => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    return s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [
+      { kind: 'layer.create', geometry: { shape: 'rectangle', x: 220, y: -390, width: 100, height: 80 } },
+      { kind: 'layer.create', geometry: { shape: 'ellipse', x: 370, y: -340, width: 130, height: 60 } },
+      { kind: 'layer.create', geometry: { shape: 'rectangle', x: 600, y: -240, width: 70, height: 100 } },
+    ] }).changedTargets;
+  }); await ready(page); return ids;
+}
+async function select(page: Page, ids: string[]) {
+  await page.evaluate(async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
+}
+async function rects(page: Page, ids: string[]) {
+  const f = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
+  return Promise.all(ids.map(id => f.locator(id).evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })));
+}
+async function group(page: Page, ids: string[]) {
+  await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
+  return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+}
+async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+
+test('baseline probe: imported hierarchy and missing group controls', async ({ page }) => {
+  await open(page, 'svg');
+  const before = await source(page);
+  const parts = await page.evaluate(async t => (await import('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true), before);
+  expect(parts.length).toBeGreaterThan(4);
+  await select(page, [parts[parts.length - 1].selector]);
+  console.log({ nestedParts: parts.length, group: await page.getByRole('button', { name: 'Group selection', exact: true }).count(), breadcrumbs: await page.getByRole('navigation', { name: 'Group breadcrumbs' }).count() });
+  expect(await source(page)).toEqual(before);
+});
+
+test('group and ungroup preserve child pose, identities, fields and one undo', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, ids.slice(0, 2));
+  const before = await source(page), initial = await rects(page, ids);
+  const id = await group(page, ids.slice(0, 2));
+  expect(id).not.toBe(ids[0]); expect(await rects(page, ids)).toEqual(initial);
+  const grouped = await source(page); expect(grouped.fields).toEqual(before.fields); expect(grouped.assets).toEqual(before.assets); expect(grouped.js).toBe(before.js);
+  await undo(page); expect(await source(page)).toEqual(before);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(grouped);
+  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click(); await ready(page);
+  expect(await rects(page, ids)).toEqual(initial);
+  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids.slice(0, 2));
+  await undo(page); expect(await source(page)).toEqual(grouped);
+});
+
+test('a selected group moves every member by composition pixels and cancels as one gesture', async ({ page }) => {
+  await open(page); const ids = await create(page); const id = await group(page, ids.slice(0, 2));
+  const before = await source(page), initial = await rects(page, ids);
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.press('Shift+ArrowRight'); await ready(page);
+  const moved = await rects(page, ids); expect(moved[0].x - initial[0].x).toBeCloseTo(10, 2); expect(moved[1].x - initial[1].x).toBeCloseTo(10, 2); expect(moved[2]).toEqual(initial[2]);
+  await undo(page); expect(await source(page)).toEqual(before);
+  await page.getByTestId('foundation-canvas').focus(); await page.keyboard.down('ArrowDown'); await page.keyboard.press('Escape'); await page.keyboard.up('ArrowDown'); await ready(page);
+  expect(await source(page)).toEqual(before); await select(page, [id]);
+});
+
+test('group editing exposes parent bar, local ruler and breadcrumb without hiding canvas', async ({ page }) => {
+  await open(page); const ids = await create(page); const id = await group(page, ids.slice(0, 2));
+  const before = await source(page);
+  await page.getByRole('button', { name: 'Enter group', exact: true }).click();
+  await expect(page.getByRole('navigation', { name: 'Group breadcrumbs' })).toBeVisible();
+  await expect(page.getByTestId('foundation-local-ruler')).toBeVisible();
+  await expect(page.getByTestId('foundation-parent-bar')).toHaveAttribute('data-selector', id);
+  await expect(page.getByTestId('foundation-canvas')).toBeVisible();
+  await expect(page.locator(`.ef-track[data-selector="${ids[2]}"]`)).toHaveCount(0);
+  await expect(page.locator(`.ef-track[data-selector="${ids[0]}"]`)).toBeVisible();
+  await page.getByRole('button', { name: 'Composition', exact: true }).click();
+  await expect(page.getByTestId('foundation-local-ruler')).toHaveCount(0); expect(await source(page)).toEqual(before);
+});
+
+test('noncontiguous selection refuses with source and history unchanged', async ({ page }) => {
+  await open(page); const ids = await create(page); await select(page, [ids[0], ids[2]]);
+  const before = await source(page);
+  await page.getByRole('button', { name: 'Group selection', exact: true }).click();
+  await expect(page.locator('.ef-group-error')).toContainText('contiguous'); expect(await source(page)).toEqual(before);
+});

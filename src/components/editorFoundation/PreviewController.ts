@@ -6,6 +6,8 @@ import { foundationRuntime } from './runtime';
 import { acceptsReply, EDITOR_MESSAGE, type Envelope, type PreviewReply } from './protocol';
 import type { Revision } from './session';
 import { readTimeline, segmentAt } from './timelineView';
+import { artworkLayerNode } from '../../blocks/artworkLayers';
+import { svgInspectionSelector } from '../../model/structure';
 import { baseValues, creationParent } from '../../blocks/baseEdits';
 
 export interface LatencySample { kind: string; inputAt: number; presentedAt: number; ms: number; revision: Revision; requestId: number }
@@ -171,7 +173,15 @@ export class PreviewController {
       ++this.generation;
       this.expected = this.envelope(revision);
       const adapters = Object.fromEntries(view.parts.flatMap(p => {
-        try { return [[p.selector, baseValues(template, p.selector)]]; } catch { return []; }
+        try {
+          const adapter = baseValues(template, p.selector);
+          let groupParent: string | null = null;
+          try {
+            const parent = artworkLayerNode(template, p.selector).parentElement;
+            if (parent) groupParent = svgInspectionSelector(parent);
+          } catch { /* Containers keep their existing adapter. */ }
+          return [[p.selector, { ...adapter, groupParent }]];
+        } catch { return []; }
       }));
       let parent = '';
       try { parent = creationParent(template); } catch { /* Source without drawing support. */ }

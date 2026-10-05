@@ -1,0 +1,131 @@
+=== j-3416 npx playwright test e2e/editor-groups.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 6 workers - 5792 MB free (the measured maximum)
+[WebServer] (node:25708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 5 workers
+
+(node:41256) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6668) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ nestedParts: 14, group: 0, breadcrumbs: 0 }
+  ok 1 [chromium] › e2e\editor-groups.spec.ts:38:1 › baseline probe: imported hierarchy and missing group controls (5.2s)
+  x  3 [chromium] › e2e\editor-groups.spec.ts:62:1 › a selected group moves every member by composition pixels and cancels as one gesture (1.0m)
+  x  2 [chromium] › e2e\editor-groups.spec.ts:48:1 › group and ungroup preserve child pose, identities, fields and one undo (1.0m)
+  x  4 [chromium] › e2e\editor-groups.spec.ts:86:1 › noncontiguous selection refuses with source and history unchanged (1.0m)
+  x  5 [chromium] › e2e\editor-groups.spec.ts:72:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas (1.0m)
+
+
+  1) [chromium] › e2e\editor-groups.spec.ts:48:1 › group and ungroup preserve child pose, identities, fields and one undo 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Group selection', exact: true })
+
+
+      31 | }
+      32 | async function group(page: Page, ids: string[]) {
+    > 33 |   await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
+         |                                                                                                     ^
+      34 |   return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+      35 | }
+      36 | async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+        at group (C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:33:101)
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:51:14
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-group-and-un-f4f26-ntities-fields-and-one-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-group-and-un-f4f26-ntities-fields-and-one-undo-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-groups.spec.ts:62:1 › a selected group moves every member by composition pixels and cancels as one gesture 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Group selection', exact: true })
+
+
+      31 | }
+      32 | async function group(page: Page, ids: string[]) {
+    > 33 |   await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
+         |                                                                                                     ^
+      34 |   return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+      35 | }
+      36 | async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+        at group (C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:33:101)
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:63:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-a-selected-g-2c8c1--and-cancels-as-one-gesture-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-a-selected-g-2c8c1--and-cancels-as-one-gesture-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-groups.spec.ts:72:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Group selection', exact: true })
+
+
+      31 | }
+      32 | async function group(page: Page, ids: string[]) {
+    > 33 |   await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
+         |                                                                                                     ^
+      34 |   return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+      35 | }
+      36 | async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
+        at group (C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:33:101)
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:73:64
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-group-editin-ba660-crumb-without-hiding-canvas-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-group-editin-ba660-crumb-without-hiding-canvas-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-groups.spec.ts:86:1 › noncontiguous selection refuses with source and history unchanged 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Group selection', exact: true })
+
+
+      87 |   await open(page); const ids = await create(page); await select(page, [ids[0], ids[2]]);
+      88 |   const before = await source(page);
+    > 89 |   await page.getByRole('button', { name: 'Group selection', exact: true }).click();
+         |                                                                            ^
+      90 |   await expect(page.locator('.ef-group-error')).toContainText('contiguous'); expect(await source(page)).toEqual(before);
+      91 | });
+      92 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:89:76
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-noncontiguou-59e79-ource-and-history-unchanged-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-noncontiguou-59e79-ource-and-history-unchanged-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\editor-groups.spec.ts:48:1 › group and ungroup preserve child pose, identities, fields and one undo 
+    [chromium] › e2e\editor-groups.spec.ts:62:1 › a selected group moves every member by composition pixels and cancels as one gesture 
+    [chromium] › e2e\editor-groups.spec.ts:72:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas 
+    [chromium] › e2e\editor-groups.spec.ts:86:1 › noncontiguous selection refuses with source and history unchanged 
+  1 passed (1.2m)

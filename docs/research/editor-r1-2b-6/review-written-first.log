@@ -1,0 +1,96 @@
+=== j-3436 set E2E_WORKERS=3&& npx playwright test e2e/editor-groups.spec.ts --grep "new wrapper|member blending"
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:7460) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 3 workers
+
+(node:4788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18056) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  3 [chromium] › e2e\editor-groups.spec.ts:439:1 › new wrapper dynamic selector refuses without changing source (3.3s)
+  x  1 [chromium] › e2e\editor-groups.spec.ts:426:1 › new wrapper inheritance refuses without changing member paint (3.9s)
+  x  2 [chromium] › e2e\editor-groups.spec.ts:453:1 › member blending refuses transformed HTML ungroup without losing source (10.8s)
+
+
+  1) [chromium] › e2e\editor-groups.spec.ts:426:1 › new wrapper inheritance refuses without changing member paint 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rgb(255, 255, 255)"
+    Received: "rgb(255, 0, 0)"
+
+      431 |   const color=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
+      432 |   await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
+    > 433 |   expect(await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill)).toBe(color);
+          |                                                                               ^
+      434 |   await expect(page.locator('.ef-group-error')).toContainText('would style the new group');expect(await source(page)).toEqual(before);
+      435 |   expect(await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill)).toBe(color);
+      436 | });
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:433:79
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-new-wrapper--81598-thout-changing-member-paint-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-new-wrapper--81598-thout-changing-member-paint-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-groups.spec.ts:439:1 › new wrapper dynamic selector refuses without changing source 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "source animation selector"
+    Received string:    ""
+
+      447 |     return{error,unchanged:JSON.stringify(input)===original};
+      448 |   },{before,ids});
+    > 449 |   expect(result.error).toContain('source animation selector');expect(result.unchanged).toBe(true);expect(await source(page)).toEqual(before);
+          |                        ^
+      450 | });
+      451 |
+      452 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:449:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-new-wrapper--02bff-ses-without-changing-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-new-wrapper--02bff-ses-without-changing-source-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-groups.spec.ts:453:1 › member blending refuses transformed HTML ungroup without losing source 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.ef-group-error')
+    Expected substring: "member blending"
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for locator('.ef-group-error')
+
+
+      455 |   await page.evaluate(async({id,ids})=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{setCssDeclaration}=await import('/src/blocks/edit.ts'),{editBase}=await import('/src/blocks/baseEdits.ts');store.applyTemplate(editBase({...store.template,css:setCssDeclaration(store.template.css,ids[0],'mix-blend-mode','multiply')},id,{rotation:25}));},{id,ids});await ready(page);
+      456 |   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);
+    > 457 |   await expect(page.locator('.ef-group-error')).toContainText('member blending');expect(await source(page)).toEqual(before);
+          |                                                 ^
+      458 |   expect(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
+      459 | });
+      460 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:457:49
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-member-blend-6ea11-group-without-losing-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-member-blend-6ea11-group-without-losing-source-chromium\error-context.md
+
+  3 failed
+    [chromium] › e2e\editor-groups.spec.ts:426:1 › new wrapper inheritance refuses without changing member paint 
+    [chromium] › e2e\editor-groups.spec.ts:439:1 › new wrapper dynamic selector refuses without changing source 
+    [chromium] › e2e\editor-groups.spec.ts:453:1 › member blending refuses transformed HTML ungroup without losing source 

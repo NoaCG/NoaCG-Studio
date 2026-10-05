@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } fr
 import type { EditorSession, Revision } from './session';
 import type { LayerBar as Bar } from './timelineView';
 
-export default function LayerBar({ bar, label, extent, speed, fps, session, select, pause }: {
+export default function LayerBar({ bar, label, extent, speed, fps, session, select, pause, group = false }: {
   bar: Bar; label: string; extent: number; speed: number; fps: number; session: EditorSession;
-  select: () => void; pause: () => void;
+  select: () => void; pause: () => void; group?: boolean;
 }) {
   type Edge = 'start' | 'end' | null;
   const active = useRef<{ x: number; width: number; expected: Revision; delta: number; edge: Edge } | null>(null);
@@ -15,8 +15,8 @@ export default function LayerBar({ bar, label, extent, speed, fps, session, sele
   const commit = (delta: number, edge: Edge, expected = session.version()) => {
     try {
       if (delta) session.execute({ documentId: session.documentId, expected, transactionId: crypto.randomUUID(), operations: [
-        edge ? { kind: 'layer.trim', selector: bar.selector, step: bar.step, interval: bar.interval, edge, time: (bar[edge] - bar.cueStart + delta) * speed }
-          : { kind: 'layer.move', selector: bar.selector, step: bar.step, delta: delta * speed },
+        edge ? { kind: group ? 'group.trim' : 'layer.trim', selector: bar.selector, step: bar.step, interval: bar.interval, edge, time: (bar[edge] - bar.cueStart + delta) * speed }
+          : { kind: group ? 'group.move' : 'layer.move', selector: bar.selector, step: bar.step, delta: delta * speed },
       ] });
       else session.cancel();
       setError('');

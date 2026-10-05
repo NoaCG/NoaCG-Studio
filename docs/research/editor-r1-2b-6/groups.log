@@ -1,0 +1,49 @@
+=== j-3448 set E2E_WORKERS=3&& npx playwright test e2e/editor-groups.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:27904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 32 tests using 3 workers
+
+(node:24900) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:45208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ nestedParts: 14, group: 1, breadcrumbs: 1 }
+  ok  1 [chromium] › e2e\editor-groups.spec.ts:41:1 › baseline probe: imported hierarchy and missing group controls (3.2s)
+  ok  2 [chromium] › e2e\editor-groups.spec.ts:65:1 › a selected group moves every member by composition pixels and cancels as one gesture (4.2s)
+  ok  3 [chromium] › e2e\editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo (5.0s)
+  ok  4 [chromium] › e2e\editor-groups.spec.ts:75:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas (2.8s)
+  ok  5 [chromium] › e2e\editor-groups.spec.ts:89:1 › noncontiguous selection refuses with source and history unchanged (2.6s)
+  ok  6 [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance (4.2s)
+  ok  8 [chromium] › e2e\editor-groups.spec.ts:147:1 › nested group navigation and transformed-parent nudge preserve fine world geometry (4.2s)
+  ok  7 [chromium] › e2e\editor-groups.spec.ts:132:1 › independent child and group motion survive ungroup and repeated cue seeks (5.7s)
+  ok  9 [chromium] › e2e\editor-groups.spec.ts:161:1 › SVG members under a rotated scaled parent group and ungroup without jumps (4.4s)
+  ok 10 [chromium] › e2e\editor-groups.spec.ts:171:1 › group parent bar moves child keys atomically and local time follows its visibility start (3.1s)
+  ok 11 [chromium] › e2e\editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged (2.9s)
+  ok 12 [chromium] › e2e\editor-groups.spec.ts:198:1 › structural selectors refuse grouping and mixed parents have no partial source write (2.9s)
+  ok 13 [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo (4.2s)
+  ok 15 [chromium] › e2e\editor-groups.spec.ts:243:1 › mixed parents and parent/member selection refuse the complete operation batch (2.7s)
+  ok 14 [chromium] › e2e\editor-groups.spec.ts:225:1 › group arrow gestures cancel on focus, source and assets; local ruler owns its arrows (7.3s)
+  ok 17 [chromium] › e2e\editor-groups.spec.ts:327:1 › SVG group rotation and scale motion ungroup exactly at different poses (5.0s)
+  ok 18 [chromium] › e2e\editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft (3.4s)
+  ok 19 [chromium] › e2e\editor-groups.spec.ts:351:1 › painted pseudo-element selectors refuse without wrapping new artwork (2.5s)
+  ok 20 [chromium] › e2e\editor-groups.spec.ts:357:1 › ungroup refuses a group-owned outline without losing source or selection (2.9s)
+  ok 22 [chromium] › e2e\editor-groups.spec.ts:381:1 › local parent trim keeps child motion and navigation cancels timeline drafts (3.3s)
+  ok 21 [chromium] › e2e\editor-groups.spec.ts:364:1 › SVG group pivot is centered and remains static during child and group motion (5.5s)
+  ok 23 [chromium] › e2e\editor-groups.spec.ts:403:1 › grouping existing SVG member motion refuses exactly beside its control (2.3s)
+  ok 16 [chromium] › e2e\editor-groups.spec.ts:251:1 › template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes (16.4s)
+  ok 24 [chromium] › e2e\editor-groups.spec.ts:412:1 › SVG parent movement retains only owned static pivots and anchor refuses unknown data (3.3s)
+  ok 25 [chromium] › e2e\editor-groups.spec.ts:426:1 › new wrapper inheritance refuses without changing member paint (2.7s)
+  ok 26 [chromium] › e2e\editor-groups.spec.ts:439:1 › new wrapper dynamic selector refuses without changing source (2.8s)
+  ok 27 [chromium] › e2e\editor-groups.spec.ts:453:1 › member blending refuses transformed HTML ungroup without losing source (3.3s)
+  ok 28 [chromium] › e2e\editor-groups.spec.ts:462:1 › Project placement respects local group scope and remains available in Composition (4.2s)
+  ok 29 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse group marker (3.5s)
+  ok 30 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse carrier marker (3.2s)
+  ok 32 [chromium] › e2e\editor-groups.spec.ts:493:1 › serialized group frame refuses zero after rounding (2.6s)
+  ok 31 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse frame attributes (2.9s)
+
+  32 passed (56.6s)

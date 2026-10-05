@@ -10,6 +10,8 @@ export interface RenderedPart {
   opacity: number; transform: string;
   /** Parent vectors in composition pixels, including authored document scaling. */
   parent?: [number, number, number, number];
+  /** The source layer parent space, for structural grouping (unscaled CSS or SVG units). */
+  parentSpace?: [number, number, number, number, number, number];
   corners?: { x: number; y: number }[];
   anchor?: { x: number; y: number };
   /** SVG path user space to composition, including a created path's HTML frame. */

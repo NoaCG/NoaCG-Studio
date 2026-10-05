@@ -1,0 +1,262 @@
+=== j-3424 set E2E_WORKERS=3&& npx playwright test e2e/editor-groups.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:28420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 20 tests using 3 workers
+
+(node:28928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29180) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ nestedParts: 14, group: 1, breadcrumbs: 1 }
+  ok  2 [chromium] › e2e\editor-groups.spec.ts:41:1 › baseline probe: imported hierarchy and missing group controls (3.3s)
+  ok  3 [chromium] › e2e\editor-groups.spec.ts:65:1 › a selected group moves every member by composition pixels and cancels as one gesture (4.2s)
+  x   1 [chromium] › e2e\editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo (4.5s)
+(node:32892) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  4 [chromium] › e2e\editor-groups.spec.ts:75:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas (2.8s)
+  ok  5 [chromium] › e2e\editor-groups.spec.ts:89:1 › noncontiguous selection refuses with source and history unchanged (2.5s)
+  x   6 [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance (3.7s)
+  ok  8 [chromium] › e2e\editor-groups.spec.ts:147:1 › nested group navigation and transformed-parent nudge preserve fine world geometry (3.6s)
+(node:35304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  7 [chromium] › e2e\editor-groups.spec.ts:132:1 › independent child and group motion survive ungroup and repeated cue seeks (5.0s)
+  ok 10 [chromium] › e2e\editor-groups.spec.ts:171:1 › group parent bar moves child keys atomically and local time follows its visibility start (3.3s)
+  ok  9 [chromium] › e2e\editor-groups.spec.ts:161:1 › SVG members under a rotated scaled parent group and ungroup without jumps (4.3s)
+  ok 12 [chromium] › e2e\editor-groups.spec.ts:198:1 › structural selectors refuse grouping and mixed parents have no partial source write (2.1s)
+  x  13 [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo (3.2s)
+(node:18868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 15 [chromium] › e2e\editor-groups.spec.ts:243:1 › mixed parents and parent/member selection refuse the complete operation batch (2.4s)
+  x  11 [chromium] › e2e\editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged (9.5s)
+(node:16396) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 14 [chromium] › e2e\editor-groups.spec.ts:225:1 › group arrow gestures cancel on focus, source and assets; local ruler owns its arrows (6.3s)
+  ok 18 [chromium] › e2e\editor-groups.spec.ts:336:1 › group canvas transform is one undo and Escape or navigation cancels its draft (3.4s)
+  ok 17 [chromium] › e2e\editor-groups.spec.ts:323:1 › SVG group rotation and scale motion ungroup exactly at different poses (4.9s)
+  ok 19 [chromium] › e2e\editor-groups.spec.ts:347:1 › painted pseudo-element selectors refuse without wrapping new artwork (2.5s)
+  x  20 [chromium] › e2e\editor-groups.spec.ts:353:1 › ungroup refuses a group-owned outline without losing source or selection (9.5s)
+  ok 16 [chromium] › e2e\editor-groups.spec.ts:251:1 › template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes (15.6s)
+
+
+  1) [chromium] › e2e\editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 1
+
+      Array [
+    -   "#rectangle-1",
+    -   "#ellipse-1",
+    +   "#group-1",
+      ]
+
+      59 |   await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click(); await ready(page);
+      60 |   expect(await rects(page, ids)).toEqual(initial);
+    > 61 |   expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids.slice(0, 2));
+         |                                                                                                                                    ^
+      62 |   await undo(page); expect(await source(page)).toEqual(grouped);
+      63 | });
+      64 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:61:132
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-group-and-un-f4f26-ntities-fields-and-one-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-group-and-un-f4f26-ntities-fields-and-one-undo-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "data-noacg-carrier"
+    Received string:    "<!DOCTYPE html>
+    <html lang=\"en\">
+    <head>
+      <meta charset=\"UTF-8\" />
+      <title>Hairline</title>·
+      <!-- GSAP animation library (bundled locally — no internet needed at playout). -->
+      <script src=\"js/gsap.min.js\"></script>·
+      <!-- Template styles and logic. -->
+      <link rel=\"stylesheet\" href=\"css/template.css\" />
+      <script src=\"js/template.js\"></script>·
+      <!-- SPX template definition: the data fields shown to the operator. -->
+      <script id=\"spx-template-definition\" type=\"text/javascript\">
+    window.SPXGCTemplateDefinition = {
+        \"description\": \"Hairline\",
+        \"playserver\": \"OVERLAY\",
+        \"playchannel\": \"1\",
+        \"playlayer\": \"7\",
+        \"webplayout\": \"7\",
+        \"out\": \"manual\",
+        \"steps\": \"1\",
+        \"dataformat\": \"json\",
+        \"uicolor\": \"1\",
+        \"DataFields\": [
+            {
+                \"field\": \"f0\",
+                \"ftype\": \"textfield\",
+                \"title\": \"Name\",
+                \"value\": \"Alexandra Riva\"
+            },
+            {
+                \"field\": \"f1\",
+                \"ftype\": \"textfield\",
+                \"title\": \"Title\",
+                \"value\": \"Chief Correspondent\"
+            }
+        ]
+    };
+    </script>
+    </head>
+    <body>
+      <!-- Lower third. Hidden until play(); positioned by the .lower-third rule in the CSS. -->
+      <div class=\"lower-third\">
+        <!-- Hairline structure: [vertical accent line] | [transparent text block]. -->
+        <div class=\"lower-third-accent\"></div>
+        <div class=\"lower-third-box\">
+          <!-- Name (f0) — SPX writes this field's value straight into the element. -->
+          <div class=\"lower-third-mask\"><span id=\"f0\" class=\"lower-third-name\">Alexandra Riva</span></div>
+          <!-- Title (f1) — SPX writes this field's value straight into the element. -->
+          <div class=\"lower-third-mask\"><span id=\"f1\" class=\"lower-third-title\">Chief Correspondent</span></div>
+        </div>···
+    <!-- Editable rectangle -->
+    <div id=\"group-1\" data-gfx data-noacg-group data-group-x=\"220\" data-group-y=\"-390\" data-group-width=\"280\" data-group-height=\"110\"><div id=\"rectangle-1\" data-gfx></div>·
+    <!-- Editable ellipse -->
+    <div id=\"ellipse-1\" data-gfx></div></div>·
+    <!-- Editable rectangle -->
+    <div id=\"rectangle-2\" data-gfx></div>
+    </div>
+    </body>
+    </html>
+    "
+
+      124 |   expect(next.x).toBe(base.x);expect(next.y).toBe(base.y);await undo(page);expect(await source(page)).toEqual(transformed);
+      125 |   await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);nearRects(await rects(page,ids),pose);
+    > 126 |   const ungrouped=await source(page);expect(ungrouped.html).toContain('data-noacg-carrier');
+          |                                                             ^
+      127 |   expect(ungrouped.fields).toEqual(before.fields);expect(ungrouped.assets).toEqual(before.assets);
+      128 |   await select(page,[ids[0]]);await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
+      129 |   const moved=await rects(page,ids);expect(moved[0].x-pose[0].x).toBeCloseTo(10,2);nearRects(moved.slice(1),pose.slice(1));
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:126:61
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-group-transf-6ee42-ts-and-ungrouped-appearance-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-group-transf-6ee42-ts-and-ungrouped-appearance-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.ef-group-error')
+    Expected substring: "composites opacity"
+    Received string:    "This group owns unsupported CSS (border-image-source). Ungroup cannot remove or split that appearance exactly. Its source is preserved."
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for locator('.ef-group-error')
+        18 × locator resolved to <p role="alert" class="ef-group-error">This group owns unsupported CSS (border-image-sou…</p>
+           - unexpected value "This group owns unsupported CSS (border-image-source). Ungroup cannot remove or split that appearance exactly. Its source is preserved."
+
+
+      192 |   const id=await group(page,ids.slice(0,2));
+      193 |   await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'style.set',selector:id,values:{opacity:.5}}]});},id);await ready(page);
+    > 194 |   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('composites opacity');expect(await source(page)).toEqual(before);
+          |                                                                                                                                                              ^
+      195 |   await undo(page);expect((await source(page)).css).not.toBe(before.css);
+      196 | });
+      197 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:194:158
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-stale-group--74061-ction-and-history-unchanged-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-stale-group--74061-ction-and-history-unchanged-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 5
+    + Received  + 0
+
+    @@ -130,15 +130,10 @@
+
+      /* Group transform; member coordinates and animation remain intact. */
+      #group-1 { position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; box-sizing: border-box;
+        --base-anchor-x: 380px; --base-anchor-y: -330px;
+        transform-origin: var(--base-anchor-x) var(--base-anchor-y);
+    -   --base-scale-x: 1.4;
+    -   --base-scale-y: 1;
+    -   scale: var(--base-scale-x) var(--base-scale-y);
+    -   --base-rotation: 23;
+    -   rotate: calc(var(--base-rotation) * 1deg);
+      }
+      ",
+        "fields": Array [
+          Object {
+            "field": "f0",
+
+      220 |   const f=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
+      221 |   expect(await f.locator(ids[1]).evaluate(el=>el.parentElement?.className)).toContain('mask');
+    > 222 |   await undo(page);expect(await source(page)).toEqual(transformed);
+          |                                               ^
+      223 | });
+      224 |
+      225 | test('group arrow gestures cancel on focus, source and assets; local ruler owns its arrows',async({page})=>{
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:222:47
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-text-mask-fi-69cd7-ansformed-grouping-and-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-text-mask-fi-69cd7-ansformed-grouping-and-undo-chromium\error-context.md
+
+  5) [chromium] › e2e\editor-groups.spec.ts:353:1 › ungroup refuses a group-owned outline without losing source or selection 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.ef-group-error')
+    Expected substring: "outline"
+    Received string:    "This group owns unsupported CSS (border-image-source). Ungroup cannot remove or split that appearance exactly. Its source is preserved."
+    Timeout: 7000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for locator('.ef-group-error')
+        18 × locator resolved to <p role="alert" class="ef-group-error">This group owns unsupported CSS (border-image-sou…</p>
+           - unexpected value "This group owns unsupported CSS (border-image-source). Ungroup cannot remove or split that appearance exactly. Its source is preserved."
+
+
+      354 |   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
+      355 |   await page.evaluate(async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();const {setCssDeclaration}=await import('/src/blocks/edit.ts');s.applyTemplate({...s.template,css:setCssDeclaration(s.template.css,id,'outline','5px solid red')});},id);await ready(page);
+    > 356 |   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('outline');expect(await source(page)).toEqual(before);
+          |                                                                                                                                                              ^
+      357 |   expect(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
+      358 | });
+      359 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:356:158
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-ungroup-refu-c5204--losing-source-or-selection-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-ungroup-refu-c5204--losing-source-or-selection-chromium\error-context.md
+
+  5 failed
+    [chromium] › e2e\editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo 
+    [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance 
+    [chromium] › e2e\editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged 
+    [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo 
+    [chromium] › e2e\editor-groups.spec.ts:353:1 › ungroup refuses a group-owned outline without losing source or selection 
+  15 passed (48.6s)

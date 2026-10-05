@@ -180,7 +180,7 @@ before broadening the editor. R1.5 repeats fuller SVG and collection-to-rundown 
 | G05 ruler consistency | R1.0 onward | At 25 fps the same position reads 1.0 s or frame 25, and frame 30 at 30 fps. Ticks, cursor, input and flags agree; a one-frame nudge is 1/FPS effective seconds at speed 0.5/1/2. Toggling units changes no stored key time. Mockup mixed-unit labels are not the contract. |
 | G06 registry-only parallel path | R1.4 start from R1.1c | Gallery/brand/install operations use the tested registry revision and run without AI or unfinished R1.2 tools. Integration fixture applies brand, undoes, installs a subset, reloads/retries and rehearses against actual shared source/runtime. Parallel work does not waive B08-B10/B19 or per-document ownership tests. |
 | G07 GSAP and reuse rights | R1.5 | Identify exact GSAP version/plugins/licence text/date, builder use, redistribution in exports/CLI and notices; review rights/provenance and inspect clean bundles. Unresolved restrictions block release. Third-party AGPL helpers/runtime absent from CLI/shared dependency closure/emitted graphics. No assumption of permissive rights from zero price. |
-| G08 group versus instances | Scope approved 2026-09-19; product evidence at R1.2b and P-COMP exits | Owner approved: R1.2b group has transform, parent bar and local ruler; test nested pose/keys/fields/history/export. Named P-COMP after R1.5 tests shared definition/instance overrides, IDs, cycles/detach, save/reopen and exports. This replaces the old R1.2 reusable-precomp obligation; full completion still requires it. Implementation evidence remains unverified. |
+| G08 group versus instances | Scope approved 2026-09-19; product evidence at R1.2b and P-COMP exits | Owner approved: R1.2b group has transform, parent bar and local ruler; test nested pose/keys/fields/history/export. Named P-COMP after R1.5 tests shared definition/instance overrides, IDs, cycles/detach, save/reopen and exports. This replaces the old R1.2 reusable-precomp obligation; full completion still requires it. R1.2b.6 adds bounded group engineering evidence ([receipt](editor-r1-2b-6/README.md)); bins, full B02/B04, owner judgment and P-COMP remain open. |
 
 The reuse policy preserves sole-holder dual-licensing freedom: third-party AGPL code cannot
 be relicensed merely because our application is also AGPL. Its addition would need additional
@@ -487,3 +487,19 @@ B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core
 ## Optional P-WEBMCP evidence
 
 B21 belongs to P-WEBMCP.0/1 after R1.3b and does not gate core editor adoption. The [semantic command assessment](editor-webmcp-commands-2026-09-19.md) gives the source inventory and closing fixtures. All adapter evidence is unverified: shared handler/source/history/pixel equivalence; stale document/selection/session, retries/cancel and human interleaving; native registration/execution/lifecycle on a named browser; graceful absence/policy refusal; no exposure in generated graphics; preserved export/publish authorization. R1.3 B17/B18 still own the required shared commands and AI quality; R3.2 still owns paired external MCP. Research does not imply that these actions are implemented.
+
+## R1.2b.6 scoped groups receipt, 2026-10-05
+
+The [bounded spec and verification](editor-r1-2b-6/README.md) cover source groups,
+group movement/scale/rotation/static pivot, member editing and exact ungroup,
+including nested transformed parents and child/group motion. The parent bar
+moves descendant keys atomically; trimming changes parent visibility alone.
+A local child ruler and breadcrumbs keep the canvas visible. Root Step/Out
+alone own holds. Stable identities, text masks, fields, assets, source history,
+cancel/stale refusal, save/reopen and executed SPX/CasparCG/OGraf output have
+scoped evidence. Unsupported commands explain an exact refusal.
+
+This advances E07 and G08's group portion only. Full B02/B04, folders/bins,
+reusable P-COMP instances, owner judgment and physical receiving-host acceptance
+remain open. [Group a badge and edit its members](../acceptance/owner-queue/2026-10-05-editor-groups.md)
+asks for asynchronous desktop product judgment after the complete task worked.

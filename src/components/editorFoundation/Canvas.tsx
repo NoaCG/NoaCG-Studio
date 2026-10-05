@@ -15,6 +15,8 @@ import { IMAGE_ACCEPT } from '../../assets/fileImport';
 import { useImageImport } from './useImageImport';
 import { usePenGesture } from './usePenGesture';
 import PathOverlay from './PathOverlay';
+import GroupControls from './GroupControls';
+import { groupHierarchy } from '../../blocks/editorGroups';
 import ArrangementControls from './ArrangementControls';
 import { arrangementDeltas, type Arrangement } from '../../blocks/arrangementGeometry';
 import { arrangementTargets, translateArtwork } from './animationAuthoring';
@@ -29,6 +31,7 @@ interface Props {
   template: SpxTemplate; sampleData: Record<string, string>; session: EditorSession;
   time: number; selection: string[]; select: (selector: string | null, toggle: boolean) => void;
   linked: boolean;
+  groupScope: string | null; enterGroup: (selector: string) => void;
   setSelection: (selection: string[]) => void;
   onAppearance: (appearance: Record<string, RenderedPart['appearance']>) => void;
   onDrawingSpace: (space: PreviewReply['drawingSpace']) => void;
@@ -38,7 +41,7 @@ interface Props {
   openAssets: () => void;
   pathEditing: string | null; onPathEditing: (selector: string | null) => void;
 }
-export default function Canvas({ template, sampleData, session, time, selection, select, linked, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
+export default function Canvas({ template, sampleData, session, time, selection, select, linked, groupScope, enterGroup, setSelection, onAppearance, onDrawingSpace, rootSelector, connectPreview, togglePlayback, pause, openAssets, pathEditing, onPathEditing }: Props) {
   const iframe = useRef<HTMLIFrameElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const controller = useRef<PreviewController | null>(null);
@@ -60,6 +63,8 @@ export default function Canvas({ template, sampleData, session, time, selection,
   const { width, height } = template.resolution;
   const fit = Math.max(0.01, Math.min((size.width - 80) / width, (size.height - 64) / height));
   const scale = fit * zoom;
+  const hierarchy = useMemo(() => groupHierarchy(template), [template]);
+  const visibleParts = parts.filter(part => (hierarchy.parent[part.selector] ?? null) === groupScope);
   const selected = parts.filter(part => selection.includes(part.selector));
   // One selected layer's transform handles (R1.2b.1): sides, the rotation knob outside the top side,
   // and its anchor. Composition pixels; screen sizes divide by the view scale.
@@ -152,17 +157,27 @@ export default function Canvas({ template, sampleData, session, time, selection,
   useEffect(() => { controller.current?.seek(time, 'scrub', cue); }, [time, cue]);
   useEffect(() => { controller.current?.seek(parkedTime.current, 'selection', parkedCue.current); }, [selection]);
 
-  return <section className="ef-canvas" aria-label="Graphic canvas">
+  const previousScope = useRef(groupScope);
+  useEffect(() => {
+    if (previousScope.current === groupScope) return;
+    previousScope.current = groupScope;
+    keyboard.cancel(); pen.cancel(); gesture.cancel();
+    marqueeStart.current = null; setMarquee(null); drag.current = null;
+    space.current = false; spaceTap.current = false; setEditing(null);
+  }, [groupScope, keyboard, pen, gesture]);
+
+  return <section className="ef-canvas" data-group-scope={groupScope ?? undefined} aria-label="Graphic canvas">
     <div className="ef-toolbar">
-      {(['select', 'anchor', 'text', 'rectangle', 'ellipse', 'pen'] as const).map(choice => <button key={choice} aria-pressed={tool === choice}
+      {(['select', 'anchor', 'text', 'rectangle', 'ellipse', 'pen'] as const).map(choice => <button key={choice} aria-pressed={tool === choice} disabled={!!groupScope && choice !== 'select' && choice !== 'anchor'}
         title={choice === 'anchor' ? 'Drag a layer’s anchor: the point it turns and scales about' : undefined}
         onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); gesture.setTool(choice); }} aria-label={choice + ' tool'}>{choice[0].toUpperCase() + choice.slice(1)}</button>)}
-      <button aria-label="image tool" onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); openAssets(); }}>Image</button>
-      <button onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); imageInput.current?.click(); }} disabled={image.busy}>Add image file…</button>
+      <button aria-label="image tool" disabled={!!groupScope} onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); openAssets(); }}>Image</button>
+      <button onClick={() => { pen.cancel(); gesture.cancel(); onPathEditing(null); pause(); imageInput.current?.click(); }} disabled={image.busy || !!groupScope}>Add image file…</button>
       <input hidden ref={imageInput} type="file" accept={IMAGE_ACCEPT} multiple data-testid="image-add-input" onChange={event => {
         const files = Array.from(event.target.files ?? []); event.target.value = '';
         void image.files(files, 'place').catch(() => {});
       }} />
+      {groupScope && <span className="ef-muted">Add artwork in Composition</span>}
       <span className="ef-spacer" />
       <span className="ef-muted">{width} × {height}</span>
       <select aria-label="Canvas zoom" value={zoom} onChange={event => setZoom(Number(event.target.value))}>
@@ -172,7 +187,11 @@ export default function Canvas({ template, sampleData, session, time, selection,
     </div>
     <ArrangementControls count={selection.length} reference={reference}
       setReference={value => setAlignReference({ selection: selectionKey, value })} run={arrange}
-      disabled={pending || !!status.error || tool !== 'select'} error={arrangementError || keyboard.error} />
+      disabled={pending || !!status.error || tool !== 'select'} error={arrangementError || keyboard.error}>
+      <GroupControls template={template} groups={hierarchy.groups} parts={parts} selection={selection} time={time} session={session}
+        disabled={pending || !!status.error || tool !== 'select'} enter={enterGroup}
+        cancel={() => { keyboard.cancel(); pen.cancel(); gesture.cancel(); pause(); onPathEditing(null); }} />
+    </ArrangementControls>
     <div className="ef-viewport" ref={viewport} tabIndex={0} aria-label="Canvas selection and pan"
       data-testid="foundation-canvas" data-tool={tool} data-pending={pending} data-request={status.request} data-generation={status.generation}
       data-pose-time={parts[0]?.appearance?.time} data-pose-cue={parts[0]?.appearance?.cue ?? 'arriving'}
@@ -182,7 +201,9 @@ export default function Canvas({ template, sampleData, session, time, selection,
       onDrop={event => {
         const path = event.dataTransfer.getData(ASSET_DRAG_TYPE), files = Array.from(event.dataTransfer.files);
         if (!path && !files.length) return;
-        event.preventDefault(); event.stopPropagation(); pen.cancel(); gesture.cancel(); onPathEditing(null); pause();
+        event.preventDefault(); event.stopPropagation();
+        if (groupScope) { setArrangementError('Add artwork in Composition, then group the selected layers.'); return; }
+        pen.cancel(); gesture.cancel(); onPathEditing(null); pause();
         const point = pointerPoint(event, size, pan, scale, width, height);
         if (files.length) void image.files(files, 'place', point).catch(() => {});
         else { const asset = template.assets.find(a => a.path === path); if (asset) void image.place(asset, point); }
@@ -232,7 +253,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
         event.currentTarget.setPointerCapture(event.pointerId);
         if (tool === 'pen') { pen.begin({ x, y }); return; }
         if (gesture.tool !== 'select' && gesture.tool !== 'anchor') { gesture.begin({ x, y }); return; }
-        const hits = parts.filter(p => {
+        const hits = visibleParts.filter(p => {
           // SVG geometry bounds omit stroke and can have zero height or width.
           const tolerance = p.pathMatrix ? 4 / scale : 0;
           return p.selector !== rootSelector && x >= p.x - tolerance && x <= p.x + p.width + tolerance && y >= p.y - tolerance && y <= p.y + p.height + tolerance;
@@ -263,7 +284,9 @@ export default function Canvas({ template, sampleData, session, time, selection,
         if ((event.target as HTMLElement).closest('.ef-inline-text')) return;
         if (pending || gesture.tool !== 'select') return;
         const point = pointerPoint(event, size, pan, scale, width, height);
-        const hits = parts.filter(p => point.x >= p.x && point.x <= p.x + p.width && point.y >= p.y && point.y <= p.y + p.height).sort((a, b) => a.width * a.height - b.width * b.height);
+        const hits = visibleParts.filter(p => point.x >= p.x && point.x <= p.x + p.width && point.y >= p.y && point.y <= p.y + p.height).sort((a, b) => a.width * a.height - b.width * b.height);
+        const group = hits.find(hit => hierarchy.groups.has(hit.selector));
+        if (group) { gesture.cancel(); enterGroup(group.selector); return; }
         for (const hit of hits) {
           const text = artworkText(template, hit.selector);
           if (text) { gesture.cancel(); select(hit.selector, false); setEditing({ selector: hit.selector, text: text.text, revision: session.version() }); break; }
@@ -278,7 +301,7 @@ export default function Canvas({ template, sampleData, session, time, selection,
           start.moved = true;
           const rect = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), width: Math.abs(p.x - start.x), height: Math.abs(p.y - start.y) };
           setMarquee(rect);
-          const hits = parts.filter(part => part.selector !== rootSelector && part.x >= rect.x && part.y >= rect.y && part.x + part.width <= rect.x + rect.width && part.y + part.height <= rect.y + rect.height).map(p => p.selector);
+          const hits = visibleParts.filter(part => part.selector !== rootSelector && part.x >= rect.x && part.y >= rect.y && part.x + part.width <= rect.x + rect.width && part.y + part.height <= rect.y + rect.height).map(p => p.selector);
           setSelection([...new Set([...(start.additive ? start.selection : []), ...hits])]);
           return;
         }

@@ -171,18 +171,36 @@ export const foundationRuntime = String.raw`
       var svg = target instanceof SVGGraphicsElement, bbox = svg && target.getBBox();
       var box = svg ? [bbox.width, bbox.height] : percentBox(target, targetStyle);
       var points = corners(target, targetMatrix, rect, box);
+      var frame = adapter && adapter.groupFrame;
+      if (frame) {
+        var frameMatrix = svg ? target.getScreenCTM() : targetMatrix;
+        var zero = svg ? {x:frameMatrix.e,y:frameMatrix.f} : points[0];
+        points = [[frame.x,frame.y],[frame.x+frame.width,frame.y],[frame.x+frame.width,frame.y+frame.height],[frame.x,frame.y+frame.height]].map(function(p) { return {x:zero.x+frameMatrix.a*p[0]+frameMatrix.c*p[1],y:zero.y+frameMatrix.b*p[0]+frameMatrix.d*p[1]}; });
+        box = [frame.width, frame.height];
+        rect = {x:Math.min.apply(null,points.map(function(p){return p.x;})),y:Math.min.apply(null,points.map(function(p){return p.y;})),width:0,height:0};
+        rect.width = Math.max.apply(null,points.map(function(p){return p.x;}))-rect.x;
+        rect.height = Math.max.apply(null,points.map(function(p){return p.y;}))-rect.y;
+      }
       // The pivot rotation and scale use, from the top-left of the box the corners are measured on.
       var origin = targetStyle.transformOrigin.split(' ').slice(0, 2).map(parseFloat);
+      var groupOrigin = frame && [parseFloat(targetStyle.getPropertyValue('--base-anchor-x')),parseFloat(targetStyle.getPropertyValue('--base-anchor-y'))];
+      if (frame) { if (svg) { var svgOrigin = (target.getAttribute('data-svg-origin') || '').split(' ').map(Number); if (svgOrigin.length === 2 && svgOrigin.every(Number.isFinite)) groupOrigin = svgOrigin; else { var groupBounds = target.getBBox(); groupOrigin[0] += groupBounds.x; groupOrigin[1] += groupBounds.y; } } origin = [(svg ? groupOrigin[0] : origin[0])-frame.x,(svg ? groupOrigin[1] : origin[1])-frame.y]; }
+      var groupPivot = frame && svg ? {x:frameMatrix.a*groupOrigin[0]+frameMatrix.c*groupOrigin[1]+frameMatrix.e,y:frameMatrix.b*groupOrigin[0]+frameMatrix.d*groupOrigin[1]+frameMatrix.f} : null;
       var path = element.tagName.toLowerCase() === 'path' ? element : element.hasAttribute('data-pen-path') ? element.querySelector(':scope > svg > path') : null;
       var pathMatrix = path && path.getScreenCTM();
       // Point edits can extend past the initial transform frame. Hit testing follows the artwork;
       // the original corners and pivot still define its whole-layer transform.
       var hit = path && element.hasAttribute('data-pen-path') ? path.getBoundingClientRect() : rect;
+      if (frame) {
+        var members = config.selectors.map(function(selector) { var member = document.querySelector(selector); if (!member || member === element || !element.contains(member) || member.hasAttribute('data-noacg-group')) return null; var adapter = config.adapters[selector], target = adapter ? document.querySelector(adapter.target) : member; var path = member.hasAttribute('data-pen-path') && member.querySelector(':scope > svg > path'); return (path || target).getBoundingClientRect(); }).filter(Boolean);
+        if (members.length) { var left = Math.min.apply(null,members.map(function(r){return r.x;})), top = Math.min.apply(null,members.map(function(r){return r.y;})); hit = {x:left,y:top,width:Math.max.apply(null,members.map(function(r){return r.right;}))-left,height:Math.max.apply(null,members.map(function(r){return r.bottom;}))-top}; }
+      }
       return [{ selector: selector, x: hit.x, y: hit.y, width: hit.width,
         height: hit.height, opacity: Number(style.opacity), transform: style.transform,
-        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
+        appearance: { time: poseTime, cue: inspected ? activeStep : undefined, exiting: exiting || undefined, revision: current, motion: motion, initialMotion: initialMotion[selector], unit: unit, size: frame ? percentBox(element, style) : target !== element ? percentBox(element, style) : svg ? undefined : box, box: box, origin: svg && !frame ? undefined : origin, fontFamily: style.fontFamily, fontSize: parseFloat(style.fontSize) / (element instanceof SVGElement ? 1 : unit), fontWeight: Number(style.fontWeight), lineHeight: style.lineHeight === 'normal' ? undefined : parseFloat(style.lineHeight) / parseFloat(style.fontSize), letterSpacing: style.letterSpacing === 'normal' ? 0 : parseFloat(style.letterSpacing) / (element instanceof SVGElement ? 1 : unit), color: element instanceof SVGElement ? style.fill : style.color, fill: element instanceof SVGElement ? style.fill : style.backgroundColor, opacity: Number(style.opacity) },
         parent: [matrix.a * unit, matrix.b * unit, matrix.c * unit, matrix.d * unit],
-        corners: points, anchor: anchor(target, targetMatrix, points, origin),
+        parentSpace: adapter && adapter.groupParent ? coordinateSpace(document.querySelector(adapter.groupParent)) : undefined,
+        corners: points, anchor: groupPivot || anchor(target, targetMatrix, points, origin),
         pathMatrix: pathMatrix ? [pathMatrix.a,pathMatrix.b,pathMatrix.c,pathMatrix.d,pathMatrix.e,pathMatrix.f] : undefined }];
     });
   }
@@ -220,8 +238,8 @@ export const foundationRuntime = String.raw`
     var top = Math.min.apply(null, points.map(function (p) { return p.y; }));
     return points.map(function (p) { return { x:p.x-left+rect.x, y:p.y-top+rect.y }; });
   }
-  function drawingSpace() {
-    var element = config.creationParent && document.querySelector(config.creationParent);
+  function coordinateSpace(element) {
+    if (element instanceof SVGGraphicsElement) { var svgMatrix = element.getScreenCTM(); return svgMatrix && [svgMatrix.a,svgMatrix.b,svgMatrix.c,svgMatrix.d,svgMatrix.e,svgMatrix.f]; }
     if (!element) return null;
     // A zero-sized absolute probe gives the parent's padding-box origin without touching layout.
     var probe = document.createElement('i');
@@ -231,6 +249,7 @@ export const foundationRuntime = String.raw`
     probe.remove();
     return [m.a,m.b,m.c,m.d,rect.x,rect.y];
   }
+  function drawingSpace() { return coordinateSpace(config.creationParent && document.querySelector(config.creationParent)); }
   function anchor(element, matrix, points, origin) {
     if (element instanceof SVGGraphicsElement) {
       // CSS rotate and scale turn about the origin in the parent's user space, outside the element's
