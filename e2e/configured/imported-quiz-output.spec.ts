@@ -21,6 +21,7 @@
 // covers: src/templates/behaviours/**, src/templates/importedDesign/{behaviour,behaviourRuntime}.ts
 // covers: src/blocks/behaviourData.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { dropSvg, intoProduction, QUIZ_SVG } from '../_svg-import';
 import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -76,7 +77,7 @@ test('an imported quiz board publishes, runs on the real output renderer, and re
   await intoProduction(page, 'Olympics quiz', showName);
 
   // Publish for real.
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; its own toggle closes it (quiz-output.spec.ts says why
   // that rather than Escape, and why not a backdrop).

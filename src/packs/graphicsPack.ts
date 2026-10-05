@@ -1,3 +1,4 @@
+import { accentColor } from '../model/outputSetup';
 // A downloadable GRAPHICS PACK — several finished templates that install as one production.
 //
 // The file format (`<name>.noacgpack.json`) is the look file's pattern scaled up
@@ -47,6 +48,7 @@ import { validateTemplate } from '../validation/validateTemplate';
 
 /** A prepared cue shipped with a pack graphic — label + field values, ready to Take. */
 export interface PackCue {
+  accentColor?: string;
   label: string;
   values: Record<string, string>;
   note?: string;
@@ -246,6 +248,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
         label: cueLabel,
         values: stringValues(cue.values),
         ...(asString(cue.note) ? { note: asString(cue.note) } : {}),
+        ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
       });
     }
 
@@ -285,6 +288,7 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
         label: cueLabel,
         values: stringValues(entry.values),
         ...(asString(entry.note) ? { note: asString(entry.note) } : {}),
+        ...(accentColor(entry.accentColor) ? { accentColor: accentColor(entry.accentColor) } : {}),
       });
     }
   }
@@ -357,6 +361,7 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
       label: cue.label,
       values: cue.values,
       ...(cue.note ? { note: cue.note } : {}),
+      ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
     }));
     const covered = new Set(pack.rundown.map((c) => c.graphic));
     for (const p of installed.graphics) {
@@ -384,6 +389,7 @@ export async function installPack(pack: GraphicsPack, dest?: ProductionDest): Pr
           label: first.label,
           values: first.values,
           ...(first.note ? { note: first.note } : {}),
+          ...(accentColor(first.accentColor) ? { accentColor: accentColor(first.accentColor) } : {}),
         });
       } else {
         addShowCue(show.id, pooled.id, first);
@@ -471,6 +477,7 @@ export async function buildPack(show: Show): Promise<Record<string, unknown>> {
         label: cue.label,
         values: { ...cue.values },
         ...(cue.note ? { note: cue.note } : {}),
+        ...(accentColor(cue.accentColor) ? { accentColor: accentColor(cue.accentColor) } : {}),
       },
     ];
   });

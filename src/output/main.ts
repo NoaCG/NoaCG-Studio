@@ -1,3 +1,4 @@
+import { readDestinationId } from '../model/outputSetup';
 // The browser-output renderer's entry (docs/CLOUD_PLAYOUT.md §3). Boot: resolve the
 // production by its OUTPUT capability, build the stage (every graphic preloaded), rebuild each
 // graphic from its last report (the data half, then the visual half — recovery is both), then
@@ -310,6 +311,7 @@ async function boot(): Promise<void> {
   const entry = (): LiveEntry =>
     liveEntry('output', 'output', { log: logJoined, cmd: cmdJoined }, live.summary(), {
       name: outputName,
+      destinationId: readDestinationId(window.location.search),
       ready: readiness(),
       ack,
       proto: identity.protocol,

@@ -68,6 +68,7 @@ for (const width of [1600, 390]) {
       const { id, js } = await savedProduction(page, 'qz01', legacy);
       const chip = page.getByTestId('machine-state-chip');
       await page.getByTestId('cue-field-f6-opt-B').click();
+      await expect(page.getByTestId('cue-field-f6-opt-B')).toHaveAttribute('aria-pressed', 'true');
       await page.getByTestId('verb-take').click();
       await expect(chip).toHaveText('Question');
       await page.getByTestId('cue-actions').scrollIntoViewIfNeeded();
@@ -80,9 +81,13 @@ for (const width of [1600, 390]) {
       await page.getByTestId('cue-action-revealChoice').click();
       await expect(chip).toHaveText('Locked in');
       const air = page.frameLocator('[data-testid="program-stage"] iframe');
+      // Chromium suspends animation frames in completely offscreen iframes. On the phone,
+      // return to the monitor to inspect its rendered result, as an operator would.
+      await page.getByTestId('program-stage').scrollIntoViewIfNeeded();
       await expect(air.locator('.quiz-option').nth(1)).toHaveClass(/quiz-sel/);
       await page.getByTestId('cue-action-judge').click();
       await expect(chip).toHaveText('Reveal');
+      await page.getByTestId('program-stage').scrollIntoViewIfNeeded();
       await expect(air.locator('.quiz-correct')).toHaveCount(1);
       expect(await page.evaluate(async (id) => (await import('/src/model/shows.ts')).loadShows().find((s) => s.id === id)!.graphics[0].template.js, id)).toBe(js);
     });
@@ -124,41 +129,29 @@ for (const width of [1600, 390]) {
     await add.click();
     const menu = page.getByTestId('rundown-add-menu');
     await expect(menu.getByRole('menuitem')).toHaveText([
-      'Cue on selected graphic', 'Graphic from library…', 'New graphic…', 'Pictures…',
-      'Video from server…', 'Audio from server…', 'Folder from selected cues',
+      'Cue on selected graphic', 'Graphic from library…', 'New graphic…', 'Upload image…',
+      'CasparCG files…', 'Folder from selected cues',
     ]);
     await capture(page, `add-menu-${width}`);
     await expect(menu).toBeInViewport({ ratio: 1 });
     await page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
     await add.click();
-    await menu.getByRole('menuitem', { name: 'Video from server…' }).click();
-    await expect(page.getByTestId('picker-media')).toHaveAttribute('aria-selected', 'true');
+    await menu.getByRole('menuitem', { name: 'CasparCG files…' }).click();
+    await page.getByTestId('picker-media').click();
     await page.getByTestId('picker-folder').click();
     await expect(page.getByTestId('picker-list')).toContainText('OPENING');
-    await expect(page.getByTestId('picker-list')).not.toContainText('THEME');
-    await expect(page.getByTestId('picker-list')).not.toContainText('POSTER');
+    await expect(page.getByTestId('picker-list')).toContainText('THEME');
+    await expect(page.getByTestId('picker-list')).toContainText('POSTER');
     await expect(page.getByTestId('playout-picker')).toBeInViewport({ ratio: 1 });
-    await capture(page, `video-picker-${width}`);
-    await page.getByTestId('picker-templates').click();
-    await page.keyboard.press('Escape');
-    await add.click();
-    await menu.getByRole('menuitem', { name: 'Video from server…' }).click();
-    await expect(page.getByTestId('picker-media')).toHaveAttribute('aria-selected', 'true');
-    await page.getByTestId('picker-folder').click();
-    await page.getByTestId('picker-list').getByTestId('picker-add').click();
+    await capture(page, `server-picker-${width}`);
+    await page.locator('.pd-picker-row', { hasText: 'OPENING' }).getByTestId('picker-add').click();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
     await add.click();
-    await menu.getByRole('menuitem', { name: 'Audio from server…' }).click();
-    await page.getByTestId('picker-templates').click();
-    await page.keyboard.press('Escape');
-    await add.click();
-    await menu.getByRole('menuitem', { name: 'Audio from server…' }).click();
-    await expect(page.getByTestId('picker-media')).toHaveAttribute('aria-selected', 'true');
+    await menu.getByRole('menuitem', { name: 'CasparCG files…' }).click();
+    await page.getByTestId('picker-media').click();
     await page.getByTestId('picker-folder').click();
-    await expect(page.getByTestId('picker-list')).toContainText('THEME');
-    await expect(page.getByTestId('picker-list')).not.toContainText('OPENING');
-    await page.getByTestId('picker-list').getByTestId('picker-add').click();
+    await page.locator('.pd-picker-row', { hasText: 'THEME' }).getByTestId('picker-add').click();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
     // The Add folder path groups the selected audio cue through the same folder writer.
     await add.click();
@@ -176,7 +169,7 @@ for (const width of [1600, 390]) {
     ]);
     const kinds = page.getByTestId('cue-list').getByTestId('cue-kind');
     await expect(kinds.nth(0)).toHaveAttribute('aria-label', /Arena Quiz/);
-    await expect(kinds.nth(1)).toHaveAttribute('aria-label', /clip/i);
+    await expect(kinds.nth(1)).toHaveAttribute('aria-label', /Video/i);
     await expect(kinds.nth(2)).toHaveAttribute('aria-label', /audio/i);
     // The retained footer entry still toggles the picker after its surface moved.
     await page.getByTestId('add-from-server').click();
@@ -200,8 +193,8 @@ for (const width of [1600, 390]) {
     await page.getByTestId('rundown-add').click();
     const menu = page.getByTestId('rundown-add-menu');
     await expect(menu.getByRole('menuitem', { name: 'Cue on selected graphic' })).toBeDisabled();
-    await expect(menu.getByRole('menuitem', { name: 'Video from server…' })).toBeDisabled();
-    await expect(menu).toContainText('Pair a playout server in Setup');
+    await expect(menu.getByRole('menuitem', { name: 'CasparCG files…' })).toBeDisabled();
+    await expect(menu).toContainText('Set up NoaCG Bridge and CasparCG under Setup');
     await capture(page, `add-without-server-${width}`);
     await menu.getByRole('menuitem', { name: 'Graphic from library…' }).click();
     await expect(page.getByTestId('add-graphic-pick')).toBeFocused();
@@ -210,7 +203,7 @@ for (const width of [1600, 390]) {
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(1);
     await page.getByTestId('rundown-add').click();
     const chosen = page.waitForEvent('filechooser');
-    await menu.getByRole('menuitem', { name: 'Pictures…' }).click();
+    await menu.getByRole('menuitem', { name: 'Upload image…' }).click();
     const input = await chosen;
     expect(input.isMultiple()).toBe(true);
     await input.setFiles({

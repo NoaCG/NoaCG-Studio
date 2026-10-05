@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  loadShows,
   MAX_PLAYOUT_LAYER,
   MIN_PLAYOUT_LAYER,
   setCuePlayback,
@@ -34,6 +35,8 @@ import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, typ
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';
 import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
+import { useModalGate } from '../spaceKey';
+import { useDeferredEdits } from './useDeferredEdits';
 
 /** A clip in a Play-through folder: the folder's name, the slot it plays on, and the clip's place. */
 export interface ThroughPlace {
@@ -106,12 +109,24 @@ export default function ServerCueEditor({
   /** The channel it is set to play on, for the pick. */
   const channel = channelOf(playoutSettings, item);
   const media = item.kind === 'media';
+  const references = () => loadShows().find(s => s.id === showId)?.cues?.filter(c => c.source === 'playout' && c.sourceId === item.id) ?? [];
+  const [routeChange, setRouteChange] = useState<{ field: 'channel' | 'layer'; value: number; cues: ShowCue[] } | null>(null);
+  const applyRoute = (field: 'channel' | 'layer', value: number) => setShows(field === 'channel' ? setPlayoutItemChannel(showId, item.id, value) : setPlayoutItemLayer(showId, item.id, value));
+  const changeRoute = (field: 'channel' | 'layer', value: number) => {
+    if (!Number.isInteger(value) || value < 1 || (field === 'layer' && value > MAX_PLAYOUT_LAYER) || value === (field === 'layer' ? item.layer : channel)) return;
+    const affected = references();
+    if (affected.length > 1) setRouteChange({ field, value, cues: affected });
+    else applyRoute(field, value);
+  };
+  const layerKey = `${showId}:${item.id}:layer`;
+  const layerEdit = useDeferredEdits((key, text) => { if (key === layerKey) changeRoute('layer', Number(text)); });
+  const sharedCues = references();
   const channelPick = (
     <label className="pd-field pd-field-channel">
       <span>Channel</span>
       <select
         value={channel}
-        onChange={(e) => setShows(setPlayoutItemChannel(showId, item.id, Number(e.target.value)))}
+        onChange={(e) => changeRoute('channel', Number(e.target.value))}
         data-testid="playout-channel"
       >
         {playoutSettings.channels.map((row) => (
@@ -134,8 +149,11 @@ export default function ServerCueEditor({
         type="number"
         min={MIN_PLAYOUT_LAYER}
         max={MAX_PLAYOUT_LAYER}
-        value={item.layer}
-        onChange={(e) => setShows(setPlayoutItemLayer(showId, item.id, Number(e.target.value)))}
+        value={layerEdit.text(layerKey, String(item.layer))}
+        data-dirty={layerEdit.dirty(layerKey) || undefined}
+        onChange={e => layerEdit.type(layerKey, e.target.value)}
+        onBlur={layerEdit.flush}
+        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); layerEdit.flush(); } }}
         data-testid="playout-layer"
       />
     </label>
@@ -144,7 +162,7 @@ export default function ServerCueEditor({
     <div className={`pd-editor${live ? ' live' : ''}`} data-testid="playout-cue-editor">
       <div className="pd-editor-head">
         <span className="pd-editor-kicker">
-          {media ? (item.mediaKind === 'audio' ? 'SERVER AUDIO' : 'SERVER CLIP') : 'SERVER TEMPLATE'}
+          {media ? (item.mediaKind === 'audio' ? 'AUDIO' : item.mediaKind === 'still' ? 'SERVER IMAGE' : item.mediaKind === 'movie' ? 'VIDEO' : 'SERVER MEDIA (UNSPECIFIED)') : 'SERVER TEMPLATE'}
           {live ? ' · ON AIR' : ''}
           {cueNo > 0 ? ` · ${cueNo}` : ''}
         </span>
@@ -255,6 +273,17 @@ export default function ServerCueEditor({
         {channelPick}
         {layerBox}
       </div>
+      <details className="pd-shared-route" data-testid="shared-file-route">
+        <summary>Shared file route: {sharedCues.length} {sharedCues.length === 1 ? 'cue' : 'cues'}</summary>
+        <ul>{sharedCues.map(c => <li key={c.id}>{c.label}{c.folderId ? ' (folder may override route)' : ''}</li>)}</ul>
+        <p className="hint">Channel and layer belong to this file. All its cues share them. Play-through folders retain their own route.</p>
+      </details>
+      {routeChange && <SharedRouteConfirm change={routeChange} onCancel={() => setRouteChange(null)} onConfirm={() => {
+        const latest = references();
+        if (latest.map(c => c.id).sort().join(',') !== routeChange.cues.map(c => c.id).sort().join(',')) { setRouteChange({ ...routeChange, cues: latest }); return; }
+        applyRoute(routeChange.field, routeChange.value);
+        setRouteChange(null);
+      }} />}
       {through && (
         <p className="muted pd-clip-trim-note" data-testid="clip-folder-slot">
           In {through.folderName} it plays on {through.slot}. Its own slot is for a Take outside the folder.
@@ -271,6 +300,17 @@ export default function ServerCueEditor({
       )}
     </div>
   );
+}
+
+function SharedRouteConfirm({ change, onCancel, onConfirm }: { change: { field: 'channel' | 'layer'; value: number; cues: ShowCue[] }; onCancel: () => void; onConfirm: () => void }) {
+  useModalGate();
+  return <div className="gallery-backdrop" onClick={onCancel}>
+    <div className="wz-modal save-dialog pd-output-dialog" role="dialog" aria-modal="true" aria-label="Change shared file route" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onCancel(); } }} onClick={e => e.stopPropagation()} data-testid="shared-route-confirm">
+      <div className="wz-header"><h2>Change route for all {change.cues.length} cues?</h2><button className="gallery-close" onClick={onCancel} title="Close">✕</button></div>
+      <div className="prod-export-body"><p>Set {change.field} to {change.value}. Play-through folder overrides remain unchanged.</p><details><summary>Affected cues</summary><ul>{change.cues.map(c => <li key={c.id}>{c.label}</li>)}</ul></details></div>
+      <div className="dlg-foot"><button autoFocus onClick={onCancel}>Cancel</button><button className="primary" onClick={onConfirm}>Change all</button></div>
+    </div>
+  </div>;
 }
 
 const END_WORDS: Record<ClipEnd, string> = { hold: 'Hold last frame', clear: 'Clear', loop: 'Loop', next: 'Play next' };

@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn } from './_helpers';
@@ -62,7 +63,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
       };
     }, showName);
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; Escape closes it (quiz-output.spec.ts says why there
   // is nothing to click).
@@ -89,7 +90,7 @@ test('unpublishing and publishing again keeps every capability URL', async ({ pa
   expect(between.control).toBeNull();
   expect(between.output).toBeNull();
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await expect(links).toBeVisible();
   await page.keyboard.press('Escape');

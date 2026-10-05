@@ -13,6 +13,7 @@
 // output's entrance count reads 1.
 // covers: src/control/failedSends.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, lastAppliedRow, signIn, wipeMyGraphics } from './_helpers';
@@ -34,7 +35,7 @@ test('a held Take is abandoned inside the window and never reaches air, even beh
   await bootstrapGraphic(page, { name: 'House Scorebug' });
   const showName = `Late Take ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

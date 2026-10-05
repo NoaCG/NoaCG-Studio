@@ -47,9 +47,9 @@ test('Bridge and output-slot relevance follows actual outputs, server cues and i
   assert.deepEqual(relevantPlayout({ ...facts, peers: [], expected: [{ name: 'Main output' }] }), { bridge: false, slot: false }, 'a missing browser output keeps its own warning, not a Bridge warning');
   assert.deepEqual(relevantPlayout({ ...facts, serverCues: true }), { bridge: true, slot: false }, 'OBS graphics with server media does not need a graphics slot');
   assert.deepEqual(relevantPlayout({ ...facts, casparActivity: true }), { bridge: true, slot: true }, 'disconnection must not erase intended CasparCG');
-  assert.deepEqual(relevantPlayout({ ...facts, peers: [] }), { bridge: true, slot: true }, 'configured studio without browser evidence still warns');
-  assert.deepEqual(relevantPlayout({ ...facts, peers: [browser, { ...browser, engine: 'CasparCG · Chromium 71', name: 'Studio' }] }), { bridge: true, slot: true }, 'mixed hosts use the engine even with custom names');
-  assert.deepEqual(relevantPlayout({ ...facts, expected: [{ name: 'CasparCG 1-20' }] }), { bridge: true, slot: true });
+  assert.deepEqual(relevantPlayout({ ...facts, peers: [] }), { bridge: false, slot: false }, 'global setup alone is not production intent');
+  assert.deepEqual(relevantPlayout({ ...facts, peers: [browser, { ...browser, engine: 'CasparCG · Chromium 71', name: 'Studio' }] }), { bridge: false, slot: false }, 'renderer names do not establish managed output intent');
+  assert.deepEqual(relevantPlayout({ ...facts, expected: [{ name: 'CasparCG 1-20' }] }), { bridge: false, slot: false });
   assert.deepEqual(relevantPlayout({ ...facts, configured: false }), { bridge: false, slot: false }, 'manual browser outputs require no Bridge setup');
   assert.deepEqual(relevantPlayout({ ...facts, configured: false, serverCues: true }), { bridge: true, slot: false }, 'server cues require a Bridge even before pairing');
 });

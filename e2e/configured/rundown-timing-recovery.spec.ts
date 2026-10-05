@@ -8,6 +8,7 @@
 // covers: src/control/cueArmWire.ts, src/control/cueArmRpc.ts
 // covers: supabase/migrations/0075_cue_arms.sql
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { haveCreds, signIn, wipeMyGraphics } from './_helpers';
 
@@ -80,7 +81,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
 
   const name = `Timed Wire ${Date.now()}`;
   const s = await seed(page, name);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

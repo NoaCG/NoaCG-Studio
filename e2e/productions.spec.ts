@@ -632,8 +632,8 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   // the layer chips are gone (§5).
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
   await expect(rowLayers).toHaveCount(2);
-  await expect(rowLayers.nth(0)).toHaveText('L20');
-  await expect(rowLayers.nth(1)).toHaveText('L21');
+  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
+  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G21');
 
   // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic,
   // whose layer sits under Advanced, closed with the number in its summary (plan §6.5).
@@ -643,7 +643,7 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('graphic-layer').fill('30');
   await expect.poll(() => layerOf('Bug')).toBe(30);
-  await expect(rowLayers.nth(0)).toHaveText('L30');
+  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G30');
   // No clash, so no warning colour anywhere in the rundown.
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
@@ -1109,14 +1109,13 @@ const pictureFile = (name: string) => ({ name, mimeType: 'image/png', buffer: PN
 test('pictures upload straight into the rundown: one cue each, one layer, and they survive a reload', async ({
   page,
 }) => {
-  skipOldEditor();
-  await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
-  await page.getByTestId('open-home').click();
-  await page.getByTestId('home-nav-productions').click();
+  await page.goto('/app#/home/productions');
   await page.getByTestId('new-production-name').fill('Picture Show');
   await page.getByTestId('new-production').click();
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('no-cues')).toBeVisible();
+  await expect(page.getByTestId('add-pictures')).toContainText('Upload image');
+  await expect(page.getByTestId('add-pictures')).toHaveAttribute('title', /does not copy files to the CasparCG server/);
 
   // Two pictures at once — the input takes multiple, because a rundown of stills is how this
   // gets used and adding them one at a time would be the wrong shape of work.
@@ -1128,6 +1127,7 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   // One cue per picture, each named after its own file — the name an operator scans for.
   const rows = page.getByTestId('cue-list').locator('.pd-cue');
   await expect(rows).toHaveCount(2);
+  await expect(rows.first().getByTestId('cue-type-text')).toHaveText('NoaCG image');
   await expect(rows.nth(0)).toContainText('Opening slide');
   await expect(rows.nth(1)).toContainText('Sponsor board');
 
@@ -1140,8 +1140,8 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
     });
   expect(await poolCount()).toBe(1);
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
-  await expect(rowLayers.nth(0)).toHaveText('L20');
-  await expect(rowLayers.nth(1)).toHaveText('L20');
+  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
+  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G20');
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
   // A third upload joins the SAME graphic rather than minting a second picture layer.

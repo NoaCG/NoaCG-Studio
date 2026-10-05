@@ -14,6 +14,8 @@ import {
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
 import { graphicKindLabel } from '../../model/types';
+import { accentColor, routeColor, outputProfileLabel, hasCasparOutput, readOutputSetup } from '../../model/outputSetup';
+import { CueAccentControl } from './RundownColors';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
 import { fieldDescriptors } from '../../control/controlModel';
@@ -70,9 +72,9 @@ const END_MARKS: Partial<Record<ClipEnd, { glyph: string; says: string; testid: 
  * red, amber and green, which already mean on air, preview and published. Keyed by the channel's
  * number, so a channel keeps its tone whatever else the rundown holds.
  */
-const CHANNEL_TONES = ['#7dd3fc', '#c4b5fd', '#5eead4', '#a5b4fc'];
+
 export function channelTone(channel: number): string {
-  return CHANNEL_TONES[(Math.max(1, channel) - 1) % CHANNEL_TONES.length];
+  return routeColor(undefined, channel);
 }
 
 /** Where a drag is aimed, and what it would do there. */
@@ -431,10 +433,28 @@ export default function CueRundown({
     setAddOpen(false);
     run();
   };
-  const openMedia = (kind: 'movie' | 'audio') => {
+  const openMedia = (kind?: 'movie' | 'audio') => {
     setPickerMedia(kind);
-    setPickerOpen(true);
+    setPickerOpen(o => !o);
   };
+  // One definition owns both entry points: terminology, help, availability and action.
+  const addActions = [
+    { id: 'add-cue', label: 'Cue on selected graphic', help: 'Add another cue using the selected graphic.', disabled: !selectedGraphicId, footer: false, run: () => {
+      if (!selectedGraphicId) return;
+      const result = addShowCue(show.id, selectedGraphicId);
+      setShows(result.shows);
+      if (result.cueId) selectCue(result.cueId);
+    } },
+    { id: 'add-graphic', label: 'Graphic from library…', help: 'Choose an existing graphic from your library.', disabled: false, footer: false, run: () => {
+      const doc = library.find(g => g.id === addPick);
+      if (doc) { setShows(addGraphicToShow(show.id, doc.template, { graphicId: doc.id }).shows); setAddPick(''); }
+      else { libraryPick.current?.scrollIntoView({ block: 'nearest' }); libraryPick.current?.focus(); }
+    } },
+    { id: 'production-new-graphic', label: 'New graphic…', help: 'Create a graphic using this production’s look.', disabled: false, footer: true, run: createGraphic },
+    { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics hosted by NoaCG, up to ${MAX_PICTURES}. Uploading does not copy files to the CasparCG server.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
+    { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add images, videos, audio or templates already on the CasparCG server.' : 'Set up NoaCG Bridge and CasparCG under Setup to browse server files.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
+    { id: 'add-folder', label: 'Folder from selected cues', help: 'Group the selected rundown cues.', disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
+  ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
   const rangeInFolder = [...range].some((id) => !!rundown.rowOf.get(id) && cues.some((c) => c.id === id && !!c.folderId && rundown.folders.has(c.folderId)));
 
@@ -447,7 +467,7 @@ export default function CueRundown({
         {toneChannels && (
           <span className="pd-ch-legend" data-testid="channel-legend">
             {channelsUsed.map((ch) => (
-              <span key={ch} style={{ '--pd-ch': channelTone(ch) } as CSSProperties} title={channelTitle(playoutSettings, ch)}>
+              <span key={ch} style={{ '--pd-ch': routeColor(show.rundownColors, ch) } as CSSProperties} title={channelTitle(playoutSettings, ch)}>
                 {channelLabel(playoutSettings, ch)}
               </span>
             ))}
@@ -465,22 +485,8 @@ export default function CueRundown({
             + Add
           </button>
           <LibMenu open={addOpen} onClose={() => setAddOpen(false)} testid="rundown-add-menu" className="pd-rundown-add-menu">
-            <button role="menuitem" disabled={!selectedGraphicId} data-testid="add-cue" onClick={pickAdd(() => {
-              if (!selectedGraphicId) return;
-              const { shows: next, cueId } = addShowCue(show.id, selectedGraphicId);
-              setShows(next);
-              if (cueId) selectCue(cueId);
-            })}>Cue on selected graphic</button>
-            <button role="menuitem" onClick={pickAdd(() => {
-              libraryPick.current?.scrollIntoView({ block: 'nearest' });
-              libraryPick.current?.focus();
-            })}>Graphic from library…</button>
-            <button role="menuitem" onClick={pickAdd(createGraphic)}>New graphic…</button>
-            <button role="menuitem" onClick={pickAdd(() => pictureInput.current?.click())}>Pictures…</button>
-            <button role="menuitem" disabled={!playoutConfigured(playoutSettings)} onClick={pickAdd(() => openMedia('movie'))}>Video from server…</button>
-            <button role="menuitem" disabled={!playoutConfigured(playoutSettings)} onClick={pickAdd(() => openMedia('audio'))}>Audio from server…</button>
-            {!playoutConfigured(playoutSettings) && <p className="hint">Pair a playout server in Setup to add video or audio.</p>}
-            <button role="menuitem" disabled={!folderCueIds.length} onClick={pickAdd(() => void newFolder(folderCueIds))}>Folder from selected cues</button>
+            {addActions.map(action => <button key={action.id} role="menuitem" disabled={action.disabled} title={action.help} data-testid={action.id === 'add-cue' ? action.id : `menu-${action.id}`} onClick={pickAdd(action.run)}>{action.label}</button>)}
+            <p className="hint">Uploaded images stay in NoaCG. CasparCG files must already be on the server.{!playoutConfigured(playoutSettings) && ' Set up NoaCG Bridge and CasparCG under Setup to browse server files.'}</p>
           </LibMenu>
           {playoutConfigured(playoutSettings) && <PlayoutItemPicker
             // Named media shortcuts start on their own tab each time they open.
@@ -586,7 +592,7 @@ export default function CueRundown({
                 inRange={members.every((c) => range.has(c.id))}
                 timed={timed}
                 slot={folderMode(folder) === 'through' ? folderSlotOf(folder) : null}
-                slotTone={toneChannels && folderMode(folder) === 'through' ? channelTone(Number(folderSlotOf(folder).split('-')[0])) : null}
+                slotTone={folderMode(folder) === 'through' ? routeColor(show.rundownColors, Number(folderSlotOf(folder).split('-')[0])) : null}
                 clash={
                   hiddenClash
                     ? {
@@ -643,17 +649,22 @@ export default function CueRundown({
           // everything that says where it plays names the folder's.
           const through = playoutItem?.kind === 'media' ? throughRoleOf(cue) : null;
           const address = through ? folderSlotOf(through.folder) : playoutItem ? slotAddress(itemSlot(playoutSettings, playoutItem)) : '';
-          // THE KIND, in words for whoever cannot see the glyph: the icon's accessible name and
-          // its tooltip carry what the old second line printed ("Lower third · Hairline").
           const kind = poolEntry
-            ? { glyph: 'T', tone: 'graphic', name: `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` }
+            ? poolEntry.type === 'picture' ? { glyph: '▧', tone: 'image', name: 'NoaCG image' } : { glyph: 'T', tone: 'graphic', name: 'Graphic' }
             : playoutItem?.kind === 'media'
-              ? playoutItem.mediaKind === 'audio'
-                ? { glyph: '♪', tone: 'audio', name: `Server audio · ${address}` }
-                : { glyph: '▶', tone: 'clip', name: `Server clip · ${address}` }
-              : playoutItem
-                ? { glyph: 'T', tone: 'server', name: `Server template · ${address}` }
+              ? playoutItem.mediaKind === 'audio' ? { glyph: '♪', tone: 'audio', name: 'Audio' }
+                : playoutItem.mediaKind === 'still' ? { glyph: '▧', tone: 'image', name: 'Server image' }
+                : playoutItem.mediaKind === 'movie' ? { glyph: '▶', tone: 'clip', name: 'Video' }
+                : { glyph: '?', tone: 'server', name: 'Server media (unspecified)' }
+              : playoutItem ? { glyph: 'T', tone: 'server', name: 'Server template' }
                 : { glyph: '?', tone: 'missing', name: 'Missing graphic' };
+          const destinations = readOutputSetup(show.outputSetup)?.destinations;
+          const browser = destinations?.find(d => d.profile !== 'casparcg');
+          const managed = hasCasparOutput(show.outputSetup);
+          const carrier = `${playoutSettings.channel}-${playoutSettings.layer}`;
+          const graphicBadge = `${browser ? outputProfileLabel(browser.profile) : managed ? 'CG' : 'NoaCG'}${managed ? `${browser ? '+' : ' '}${carrier}` : ''} · G${layer}`;
+          const graphicRouteHelp = `NoaCG graphic layer ${layer}${browser ? `; ${outputProfileLabel(browser.profile)}` : ''}${managed ? `; CasparCG carrier ${carrier} (whole output)` : ''}`;
+          const routeTone = routeColor(show.rundownColors, playoutItem ? channelOfCue(cue) : undefined);
           // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
           // no words (a logo, a picture) falls back to its name, as the old second line did.
@@ -698,13 +709,14 @@ export default function CueRundown({
           const takesRange = range.has(cue.id) && rangeCount > 1;
           const drop = markFor(row.id);
           /** The channel's tone on the slot, when the rundown has two or more channels. */
-          const ch = toneChannels ? { 'data-ch': channelOfCue(cue), style: { '--pd-ch': channelTone(channelOfCue(cue)) } as CSSProperties } : {};
+          const ch = { 'data-ch': playoutItem ? channelOfCue(cue) : 'output', style: { '--pd-ch': routeTone } as CSSProperties };
           return (
             <div
               key={cue.id}
               className={`pd-cue${isSelected ? ' selected' : ''}${cueAirs ? ' on-air' : cueIsLive ? ' up-here' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}${cutIds.has(cue.id) ? ' cut' : ''}`}
               data-testid={rowTestId(row)}
               data-row={row.id}
+              style={{ '--pd-cue-accent': accentColor(cue.accentColor) ?? routeTone } as CSSProperties}
               {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
               {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
               {...(litFolder && row.folderId === litFolder ? { 'data-drop-target': '' } : {})}
@@ -725,8 +737,8 @@ export default function CueRundown({
               <span
                 className={`pd-cue-kind pd-cue-kind--${kind.tone}`}
                 role="img"
-                aria-label={kind.name}
-                title={kind.name}
+                aria-label={poolEntry && poolEntry.type !== 'picture' ? `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` : `${kind.name}${address ? ` · ${address}` : ''}`}
+                title={poolEntry && poolEntry.type !== 'picture' ? `${graphicKindLabel(poolEntry.type)} · ${poolEntry.name}` : `${kind.name}${address ? ` · ${address}` : ''}`}
                 data-testid="cue-kind"
               >
                 {kind.glyph}
@@ -747,6 +759,7 @@ export default function CueRundown({
                 aria-current={isSelected ? 'true' : undefined}
               >
                 <strong>{view.label}</strong>
+                <span className="pd-cue-type" data-testid="cue-type-text">{kind.name}</span>
                 {/* What the clip does at its end, after its name: a loop is stopped by Out alone, a
                     clip that plays the next one hands over by itself, and a clear leaves the layer
                     empty. */}
@@ -849,16 +862,16 @@ export default function CueRundown({
                     title={`Shares layer ${layer} with ${nameList(clashWith.map((g) => g.name))}. On air they replace each other. Click to repair.`}
                     data-testid="cue-layer"
                   >
-                    L{layer}
+                    {graphicBadge}
                   </button>
                 ) : (
                   <span
                     className="pd-cue-layer"
                     {...ch}
-                    title={`${poolEntry.name} airs on layer ${layer}${toneChannels ? `, ${channelTitle(playoutSettings, playoutSettings.channel)}` : ''}`}
+                    title={graphicRouteHelp}
                     data-testid="cue-layer"
                   >
-                    L{layer}
+                    {graphicBadge}
                   </span>
                 ))}
               {/* A server item wears its CasparCG address, channel and layer, the way the
@@ -902,6 +915,7 @@ export default function CueRundown({
                   }}
                   testid="cue-actions-menu"
                 >
+                  <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} />
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -918,7 +932,7 @@ export default function CueRundown({
                       const { shows: next, cueId } = addShowCue(
                         show.id,
                         cue.sourceId,
-                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.playback ? { playback: cue.playback } : {}), ...(cue.auto ? { auto: cue.auto } : {}) },
+                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.accentColor ? { accentColor: cue.accentColor } : {}), ...(cue.playback ? { playback: cue.playback } : {}), ...(cue.auto ? { auto: cue.auto } : {}) },
                         cue.id,
                       );
                       setShows(next);
@@ -1118,54 +1132,16 @@ export default function CueRundown({
           </select>
           <button
             disabled={!addPick}
-            onClick={() => {
-              const doc = library.find((g) => g.id === addPick);
-              if (!doc) return;
-              const { shows: next } = addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
-              setShows(next);
-              setAddPick('');
-            }}
+            onClick={addActions.find(a => a.id === 'add-graphic')!.run}
             data-testid="add-graphic"
           >
             ＋ Add
           </button>
         </div>
-        <button
-          className="pd-new-graphic"
-          onClick={createGraphic}
-          title="Create a new graphic for this production - the wizard uses its look and adds it here"
-          data-testid="production-new-graphic"
-        >
-          ＋ New graphic for this production…
-        </button>
-        {/* Pictures, straight into the rundown — one still per cue, on the production's own
-            picture layer. The editor is never opened for this, which is the whole point.
-            A real <button> driving a hidden input, so it is the same control as its sibling
-            rather than a label wearing a button's clothes. */}
-        <button
-          className="pd-new-graphic"
-          onClick={() => pictureInput.current?.click()}
-          title={`Add pictures to this production. Each one becomes a cue (up to ${MAX_PICTURES}).`}
-          data-testid="add-pictures"
-        >
-          ＋ Add pictures…
-        </button>
-        {/* The playout server's own library - templates and clips already on the CasparCG box,
-            through NoaCG Bridge (docs/BRIDGE.md §5). Present only once a server is configured
-            under Settings -> Playout: a dead door on the busiest surface would be worse than none. */}
-        {playoutConfigured(playoutSettings) && (
-          <div className="pd-picker-host">
-            <button
-              className="pd-new-graphic"
-              onClick={() => { setAddOpen(false); setPickerMedia(undefined); setPickerOpen((o) => !o); }}
-              title="Add a template or a clip that is already on the playout server"
-              data-testid="add-from-server"
-              ref={serverPick}
-            >
-              ＋ From the playout server…
-            </button>
-          </div>
-        )}
+        {addActions.filter(action => action.footer).map(action => <button key={action.id}
+          className="pd-new-graphic" disabled={action.disabled} title={action.help} data-testid={action.id}
+          ref={action.id === 'add-from-server' ? serverPick : undefined} onClick={pickAdd(action.run)}>＋ {action.label}</button>)}
+        <p className="hint pd-upload-help">Uploads stay in NoaCG; they are not copied to CasparCG.</p>
         <input
           ref={pictureInput}
           type="file"

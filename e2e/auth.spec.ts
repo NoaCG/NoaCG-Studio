@@ -141,13 +141,13 @@ test('offline / no-backend: a production grows no team door, on its page or on i
   await expect(page.getByTestId(TEAM.chip)).toHaveCount(0);
   await expect(page.getByTestId(TEAM.dialog)).toHaveCount(0);
 
-  // The card on Home: the card and its head rendered, and it has no overflow menu at all -
-  // offline the menu has nothing to hold, so it is not drawn.
+  // The offline card offers a local duplicate, but no account or team actions.
   await page.goto('/app#/home/productions');
   const card = page.locator('[data-testid^="production-row-"]').first();
   await expect(card).toBeVisible();
   await expect(card.getByTestId('open-production-name')).toBeVisible();
-  await expect(card.getByTestId(TEAM.cardMenu)).toHaveCount(0);
+  await card.getByTestId(TEAM.cardMenu).click();
+  await expect(card.getByTestId('duplicate-production')).toBeVisible();
   await expect(page.getByTestId(TEAM.door)).toHaveCount(0);
   // The word itself, on the surface the plan singles out. Scoped to the productions grid so the
   // Data workspace's "Teams" table preset (a different sense of the word) cannot answer for it.

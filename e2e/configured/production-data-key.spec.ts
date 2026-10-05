@@ -9,6 +9,7 @@
 // covers: src/control/productionDataApi.ts, src/components/home/ProductionDataPanel.tsx
 // covers: api/data/**, scripts/dataDevPlugin.mjs
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { openWorkspace } from '../_workspace';
@@ -64,7 +65,7 @@ test('a published production shows its data key, and that key writes the product
   await expect(before.getByTestId('data-key-toggle')).toHaveCount(0);
   await before.close();
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover; Escape closes it (quiz-output.spec.ts says why there
   // is nothing to click).

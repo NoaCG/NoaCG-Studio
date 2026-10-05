@@ -15,6 +15,7 @@
 // way to the database, with the Out pressed 1.5 s behind it, aired AFTER the Out, and air ended
 // with the graphic up while the operator's page said nothing was on air.
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -63,7 +64,7 @@ async function head(page: Page, slug: string): Promise<{ seq: number; on: boolea
 async function publishScorebug(page: Page, showName: string): Promise<{ hosted: string; output: string }> {
   await bootstrapGraphic(page, { name: GRAPHIC });
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

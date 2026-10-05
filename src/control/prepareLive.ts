@@ -224,6 +224,10 @@ export interface BridgeFacts {
   required?: boolean;
   /** Browser graphics with server media do not expect the NoaCG graphics slot. */
   outputExpected?: boolean;
+  /** Explicit managed destination: a browser mirror cannot substitute for its server slot. */
+  outputRequired?: boolean;
+  /** Native cues whose shared file definition is missing cannot be verified. */
+  missingItems?: boolean;
   /** A real VERSION round trip through the Bridge (`testConnection`). */
   status: PlayoutResult | null;
   /** The output slot as the server holds it, or undefined when it could not be read. */
@@ -284,6 +288,7 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
   const lines: CheckLine[] = [
     { key: 'bridge', tone: 'ok', label: bridgeAnswersLabel(f.status.version) },
   ];
+  if (f.missingItems) lines.push({ key: 'bridge-files', tone: 'bad', label: 'A server cue has no file definition', advice: 'Repair or remove that cue before using the rundown.' });
   if (f.outputExpected !== false && f.slot !== undefined) {
     const holds = slotHolds(f.slot, f.outputSlug);
     if (holds === 'ours') lines.push({ key: 'bridge-layer', tone: 'ok', label: `Layer ${where} holds this production's output` });
@@ -297,13 +302,14 @@ export function bridgeChecks(f: BridgeFacts): CheckLine[] {
     } else {
       lines.push({
         key: 'bridge-layer',
-        tone: 'idle',
-        note: true,
+        tone: f.outputRequired ? 'warn' : 'idle',
+        note: f.outputRequired ? undefined : true,
         label: `Layer ${where} does not show this production's output`,
-        advice: 'If the output should run on CasparCG, press Put on air in Playout settings. If it runs in OBS or vMix, there is nothing to do.',
+        advice: f.outputRequired ? 'Press Put on air in Playout settings to load the managed CasparCG destination.' : 'If the output should run on CasparCG, press Put on air in Playout settings. If it runs in OBS or vMix, there is nothing to do.',
       });
     }
   }
+  if (f.outputRequired && f.slot === undefined) lines.push({ key: 'bridge-layer', tone: 'warn', label: `Cannot confirm managed CasparCG output on ${where}`, advice: 'Check the configured server and channel under Setup.' });
   for (const kind of ['media', 'template'] as const) {
     const cued = f.items.filter((i) => i.kind === kind);
     if (cued.length === 0) continue;

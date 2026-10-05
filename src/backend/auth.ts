@@ -6,7 +6,9 @@
 
 import type { Session, User } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
+import { loadBackendConfig } from './config';
 import { releaseLibrary } from './accountLibrary';
+import { OUTPUT_DEFAULT_KEY, readOutputSetup, type ProductionOutputSetup } from '../model/outputSetup';
 
 export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 
@@ -183,4 +185,44 @@ export function subscribeAuth(cb: (state: AuthState) => void): () => void {
     cancelled = true;
     unsub();
   };
+}
+
+/** Account preference, never authorization. Read fresh metadata for cross-device defaults. */
+export async function readDefaultOutput(userId: string): Promise<{ setup: ProductionOutputSetup | null; error: string | null }> {
+  const sb = await getSupabase();
+  if (!sb) return { setup: null, error: null };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const session = await readSessionBounded(sb);
+    if (session?.user.id !== userId) return { setup: null, error: 'The signed-in account changed.' };
+    const answer = await Promise.race([
+      sb.auth.getUser(session.access_token),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), SESSION_READ_TIMEOUT_MS); }),
+    ]);
+    if (!answer || answer.error) return { setup: null, error: answer?.error?.message ?? 'Account default could not be checked.' };
+    if (answer.data.user?.id !== userId || (await readSessionBounded(sb))?.user.id !== userId) return { setup: null, error: 'The signed-in account changed.' };
+    const setup = readOutputSetup(answer.data.user.user_metadata[OUTPUT_DEFAULT_KEY]);
+    return { setup: setup?.destinations.length ? setup : null, error: null };
+  } catch (e) { return { setup: null, error: (e as Error).message }; }
+  finally { clearTimeout(timer); }
+}
+export async function saveDefaultOutput(userId: string, setup: ProductionOutputSetup | null): Promise<{ error: string | null }> {
+  const sb = await getSupabase();
+  if (!sb) return { error: 'Sign in to save this default.' };
+  const session = await readSessionBounded(sb);
+  if (session?.user.id !== userId) return { error: 'Sign in to the same account to save this default.' };
+  if (setup && !readOutputSetup(setup)?.destinations.length) return { error: 'Choose an output first.' };
+  // Same Auth metadata endpoint as updateUser, bound to the captured owner's bearer. The SDK's
+  // updateUser reads its session later under a lock, which could now belong to another account.
+  const cfg = loadBackendConfig();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), SESSION_READ_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${cfg.url}/auth/v1/user`, { method: 'PUT', headers: { apikey: cfg.anonKey, Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ data: { [OUTPUT_DEFAULT_KEY]: setup } }), signal: abort.signal });
+    const answer = await response.json() as { id?: string; msg?: string; message?: string };
+    if (!response.ok) return { error: answer.msg ?? answer.message ?? 'Account default could not be saved.' };
+    if (answer.id !== userId || (await readSessionBounded(sb))?.user.id !== userId) return { error: 'The signed-in account changed. Check the default on that account.' };
+    return { error: null };
+  } catch (e) { return { error: (e as Error).name === 'AbortError' ? 'Saving the account default timed out. Try again.' : (e as Error).message }; }
+  finally { clearTimeout(timer); }
 }

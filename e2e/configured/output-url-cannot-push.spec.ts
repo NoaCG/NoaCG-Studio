@@ -10,6 +10,7 @@
 // offline plan would be covered by nothing.
 // covers: supabase/migrations/**
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import {
@@ -78,7 +79,7 @@ test('an output URL can render the show and cannot push a command onto it', asyn
   const showName = `Read Only ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

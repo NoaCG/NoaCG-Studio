@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { createShowNamedChecked, deleteShow, type Show } from '../../../model/shows';
+import { createShowNamedChecked, deleteShow, duplicateShowChecked, type Show } from '../../../model/shows';
+import { destinationUrl } from '../../../model/outputSetup';
+import { commitDurableWrites } from '../../../model/durableStore';
 import { outputPageUrl, unpublishControlShow } from '../../../control/hostedControl';
 import { installPack, parsePack } from '../../../packs/graphicsPack';
 import { trackEvent } from '../../../backend/events';
@@ -193,6 +195,7 @@ export default function ProductionsSection({
   // Open the record this call MADE, never "the last one in the list": team productions are listed
   // after your own, so the last one is somebody's team production the moment you are in a team.
   // A write that did not land opens nothing (the app-level storage alert says why).
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
   const create = () => {
     const { show, error } = createShowNamedChecked(newName);
     onChanged();
@@ -364,11 +367,17 @@ export default function ProductionsSection({
         {/* The overflow menu exists only when it has something in it. Delete stays a
             visible button: it is this card's oldest action and moving it would relocate a
             control people already know for the sake of tidiness. */}
-        {teamsAvailable && (
           <RowMenu
             label={`More actions for ${r.name}`}
             items={[
-              team
+              { label: 'Duplicate production', testid: 'duplicate-production', onClick: () => { void (async () => {
+                const result = duplicateShowChecked(r.id);
+                const failure = result.error ?? await commitDurableWrites();
+                if (failure || !result.show) { setDuplicateError(failure ?? 'Duplication failed.'); return; }
+                onChanged();
+                onOpen(result.show);
+              })(); } },
+              ...(teamsAvailable ? [team
                 ? {
                     label: 'Team members & join code…',
                     icon: <IconUsers />,
@@ -380,10 +389,9 @@ export default function ProductionsSection({
                     icon: <IconUsers />,
                     onClick: () => openShare(r.id, r.name),
                     testid: 'share-with-team',
-                  },
+                  }] : []),
             ]}
           />
-        )}
       </div>
 
       {/* WHOSE IT IS AND WHO TOUCHED IT LAST (TEAMS_PLAN §6): the team's chip and "edited
@@ -422,7 +430,7 @@ export default function ProductionsSection({
         {r.outputSlug && (
           <button
             onClick={() => {
-              void copyLink(outputPageUrl(r.outputSlug!)).then((ok) => {
+              void copyLink(destinationUrl(outputPageUrl(r.outputSlug!), r.outputSetup?.destinations.find(d => d.profile !== 'casparcg')?.id ?? r.outputSetup?.destinations[0]?.id)!).then((ok) => {
                 if (!ok) return;
                 setCopiedLink(r.id);
                 setTimeout(() => setCopiedLink((c) => (c === r.id ? null : c)), 2000);
@@ -450,6 +458,7 @@ export default function ProductionsSection({
 
   return (
     <>
+      {duplicateError && <p className="status-bad" role="alert">{duplicateError}</p>}
       {heading && (
         <>
           <h2><IconTv size={18} /> Productions</h2>

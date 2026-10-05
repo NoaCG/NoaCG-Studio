@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -119,7 +120,7 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await dropSvg(page, SCOREBUG_SVG);
   await intoExistingProduction(page, 'Team score', showName);
   await expect(page.getByTestId('select-cue')).toHaveCount(2);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page, 'casparcg');
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
 
   // ── ONE command puts the production on the channel: the output URL, through the Bridge. ──
@@ -208,8 +209,8 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await expect(still).toBeVisible();
   await still.getByTestId('picker-add').click();
   const stillCue = page.locator('.pd-cue', { hasText: 'JÄÄKIEKKO' });
-  await expect(stillCue).toContainText('Server clip');
-  await expect(stillCue.getByTestId('cue-layer')).toHaveText('L10');
+  await expect(stillCue).toContainText('Server image');
+  await expect(stillCue.getByTestId('cue-layer')).toHaveText('1-10');
   await page.getByTestId('verb-take').click();
   await expect(stillCue).toContainText('ON AIR', WIRE);
   await expect(page.getByTestId('production-note')).toContainText('✓ Take: JÄÄKIEKKO on 1-10', WIRE);

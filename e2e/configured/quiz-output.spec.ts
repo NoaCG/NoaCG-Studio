@@ -9,6 +9,7 @@
 // the road.
 // covers: src/control/matchClockWire.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn, wipeMyGraphics, unpublishFromPanel } from './_helpers';
@@ -42,7 +43,7 @@ test('a published quiz runs the sealed sequence on the real output renderer, and
   // A throwaway production, published for real.
   const showName = `Live Quiz ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   // Publishing opens the links popover (the URLs are the point). Close it through its OWN
   // toggle: the shell has no backdrop element to click any more (a covering div ate the press

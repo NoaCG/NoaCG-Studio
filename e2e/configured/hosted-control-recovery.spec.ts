@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { haveCreds, signIn } from './_helpers';
@@ -80,7 +81,7 @@ test('a fresh operator page boots, takes its first cue, and holds it on air', as
   const showName = `Recovery Walk ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
 

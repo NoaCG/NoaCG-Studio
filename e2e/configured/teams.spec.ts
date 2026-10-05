@@ -16,6 +16,7 @@
 // covers: src/components/home/ProductionPage.tsx
 // covers: src/components/home/sections/ProductionsSection.tsx
 
+import { publishProduction } from '../_publish';
 import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import {
   dismissWizard,
@@ -652,7 +653,7 @@ test.describe('teams: the share door', () => {
         await expect(anna.getByTestId(TEAM.productionTeam)).toContainText(teamName);
 
         // Published FROM the team: the row is team-stamped, and the slugs travel in the team's doc.
-        await anna.getByTestId('production-publish').click();
+        await publishProduction(anna);
         await expect(anna.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
         await expect(anna.getByTestId('production-links')).toBeVisible();
         await anna.getByTestId('production-status').click();

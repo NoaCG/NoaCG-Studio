@@ -103,7 +103,7 @@ test('the Playout panel opens Playout settings: the same form as Settings, saved
 
   // Nothing paired: the panel's Setup says so, unfolded, without asking the network anything.
   await tab.getByTestId('production-status').click();
-  await expect(tab.getByTestId('playout-setup-summary')).toContainText('No CasparCG set up');
+  await expect(tab.getByTestId('playout-setup-summary')).toContainText('Browser outputs do not require NoaCG Bridge');
   const door = tab.getByTestId('playout-settings-open');
   await expect(door).toHaveText('Set up CasparCG…');
   await door.click();

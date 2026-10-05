@@ -1,6 +1,7 @@
 // covers: src/components/HostedControlPage.tsx, src/components/home/ProductionPage.tsx
 // covers: src/control/hostedControl.ts
 
+import { publishProduction } from '../_publish';
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -57,7 +58,7 @@ test('an operator page waits out a database outage instead of calling the produc
 
   const showName = `Outage Walk ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   await page.keyboard.press('Escape');
   const slug = await page.evaluate(async (name) => {

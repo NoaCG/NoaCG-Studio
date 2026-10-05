@@ -648,18 +648,18 @@ test('a production page opens with the setup the Bridge keeps for its server', a
   // The Bridge's list answers slowly, so the status has answered well before the setup arrives:
   // what the setup then does to the status is seen on its own.
   await fakeBridge(page, { features: WITH_STUDIO, slowServers: 1000, servers: [{ host: '127.0.0.1', port: 5250, studio: STUDIO }] });
-  // Every word the header's status says on the production page, in order.
+  // Follow the Bridge check itself. Managed-output verification is a separate diagnostic.
   await page.addInitScript(() => {
     const said: string[] = [];
     (window as unknown as { statusSaid: string[] }).statusSaid = said;
     new MutationObserver(() => {
-      const text = document.querySelector('[data-testid="production-status"]')?.textContent ?? '';
+      const text = document.querySelector('[data-testid="status-check-bridge"]')?.textContent ?? '';
       if (text && said[said.length - 1] !== text) said.push(text);
     }).observe(document, { subtree: true, childList: true, characterData: true });
   });
   await seededPublishedProduction(page);
-  await expect(page.getByTestId('production-status')).not.toContainText('Checking');
   await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('playout-setup-summary')).toHaveText('CasparCG 127.0.0.1:5250 · NoaCG output 1-30 · 2 channels', { timeout: 10_000 });
   // The setup it took names channels and a slot, never where the Bridge and the server are, so the
   // Bridge status poll carries on. Restarting it for the setup cleared the status back to Checking
@@ -1101,8 +1101,9 @@ async function publishedProduction(page: Page): Promise<void> {
   await bootstrapGraphic(page, { category: 'Lower thirds', name: 'Hairline' });
   await openProductionWithCurrent(page, 'Evening News');
   await page.evaluate(async () => {
-    const { loadShows, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { loadShows, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await import('/src/model/shows.ts');
     const id = loadShows()[0].id;
+    setShowOutputSetup(id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     setShowHostedSlug(id, 'demo-slug');
     setShowOutputSlug(id, 'demo-output');
   });
@@ -1146,7 +1147,7 @@ test('one button puts the production on the configured channel, and one takes it
   expect(bridge.actions).toHaveLength(1);
   expect(bridge.actions[0]).toMatchObject({
     verb: 'take',
-    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&name=CasparCG%202-30$/) },
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&destination=casparcg&name=CasparCG%202-30$/) },
     slot: { adapter: 'casparcg', channel: 2, layer: 30 },
   });
 
@@ -1180,20 +1181,22 @@ async function openPlayoutDialog(page: Page): Promise<void> {
   await page.getByTestId('production-status').click();
   await expect(page.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok');
   const setup = page.getByTestId('playout-panel-setup');
-  if (!(await setup.evaluate((d) => (d as HTMLDetailsElement).open))) await setup.locator('summary').click();
+  if (!(await setup.evaluate((d) => (d as HTMLDetailsElement).open))) await setup.locator('summary.pd-panel-section-title').click();
   await page.getByTestId('playout-settings-open').click();
 }
 
 async function seededPublishedProduction(page: Page, published = true): Promise<void> {
-  await page.goto('/app');
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
   await awaitDurableReady(page);
   const id = await page.evaluate(async (started) => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
-    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug } = await import('/src/model/shows.ts');
+    const { createShowNamed, addGraphicToShow, setShowHostedSlug, setShowOutputSlug, setShowOutputSetup } = await import('/src/model/shows.ts');
     const { doc, error } = createGraphic(variantsFor('lower-third')[0].create({}), { name: 'Guest Strap', packageId: null });
     if (error || !doc) throw new Error(error ?? 'seed failed');
     const show = createShowNamed('Evening News');
+    setShowOutputSetup(show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     addGraphicToShow(show.id, doc.template, { graphicId: doc.id });
     if (started) {
       setShowHostedSlug(show.id, 'demo-slug');
@@ -1203,6 +1206,7 @@ async function seededPublishedProduction(page: Page, published = true): Promise<
   }, published);
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${id}`);
+  await expect(page.getByTestId('production-page')).toBeVisible();
   await page.reload();
   await expect(page.getByTestId('production-page')).toBeVisible();
 }
@@ -1244,7 +1248,7 @@ test("the production's Playout dialog puts its output on air with one press, and
   expect(bridge.actions).toHaveLength(1);
   expect(bridge.actions[0]).toMatchObject({
     verb: 'take',
-    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&name=CasparCG%202-30$/) },
+    item: { kind: 'url', name: expect.stringMatching(/^https?:\/\/[^"]+\/output\?production=demo-output&destination=casparcg&name=CasparCG%202-30$/) },
     slot: { adapter: 'casparcg', channel: 2, layer: 30 },
   });
 });

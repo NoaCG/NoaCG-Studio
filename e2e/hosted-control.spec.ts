@@ -857,7 +857,8 @@ test('the hosted page lists server cues by their address, apart from the graphic
     const payload = readOutputPayload(JSON.parse(written));
     return {
       // The cue lists as written, not the graphics' own code, which may say anything.
-      carriesPlayback: /playback|levelDb|trimIn|mediaKind/.test(JSON.stringify([JSON.parse(written).cues, JSON.parse(written).playoutCues])),
+      carriesPlayback: /playback|levelDb|trimIn/.test(JSON.stringify([JSON.parse(written).cues, JSON.parse(written).playoutCues])),
+      mediaKinds: (payload?.playoutCues ?? []).map(c => c.mediaKind),
       graphicCues: (payload?.cues ?? []).map((c) => c.label),
       playoutCues: (payload?.playoutCues ?? []).map(({ label, kind, name, channel, channelName, layer }) => ({
         label,
@@ -879,6 +880,7 @@ test('the hosted page lists server cues by their address, apart from the graphic
   ]);
   // The published payload is what it always was: a clip's settings stay on the production page.
   expect(published.carriesPlayback).toBe(false);
+  expect(published.mediaKinds).toEqual(['movie', undefined, 'audio']);
 
   // How the page draws them: under their own heading, the address through the shared
   // `slotAddress`, and not one button in a row - nothing there selects, previews or takes.

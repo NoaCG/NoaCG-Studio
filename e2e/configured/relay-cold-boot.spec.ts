@@ -9,6 +9,7 @@
 // change here that the offline plan reports as "covered" is covered by nothing.
 // covers: src/control/{hostedControl,hostedReceiver,outputRecovery,logFollow}.ts, src/output/**
 
+import { publishProduction } from '../_publish';
 import { test, expect } from '@playwright/test';
 import { bootstrapGraphic, openProductionWithCurrent } from '../_create';
 import { appliedIn, receiverHost } from '../_receiverHost';
@@ -57,7 +58,7 @@ test('an exported graphic loaded after the take airs it, from the real log', asy
 
   const showName = `Relay Cold Boot ${Date.now()}`;
   await openProductionWithCurrent(page, showName);
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', { timeout: 30_000 });
   const links = page.getByTestId('production-links');
   await expect(links).toBeVisible();

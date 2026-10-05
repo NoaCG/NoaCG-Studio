@@ -1,3 +1,4 @@
+import { publishProduction } from '../_publish';
 import { test, expect, type Page } from '@playwright/test';
 import { dropSvg, intoExistingProduction, intoProduction, QUIZ_SVG, SCOREBUG_SVG } from '../_svg-import';
 import { clearPublishedShows, haveCreds, signIn, wipeMyGraphics } from './_helpers';
@@ -56,7 +57,7 @@ test('a published quiz and scoreboard run across the dashboard and two hosted ta
   await intoExistingProduction(page, 'Team score', showName);
   await expect(page.getByTestId('select-cue')).toHaveCount(2);
 
-  await page.getByTestId('production-publish').click();
+  await publishProduction(page);
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'true', WIRE);
   await page.getByTestId('production-status').click();
   const slug = await page.evaluate(async (name) => {
