@@ -16,6 +16,12 @@ import { templateForSavedGraphic, type GraphicDoc } from '../model/library';
 import type { SavedGraphic } from '../model/packets';
 import { publishGate } from './publishGate';
 import type { ValidationIssue } from './validateTemplate';
+import type { SpxTemplate } from '../model/types';
+
+/** Early rundown admission and publication use the same production eligibility. */
+export function validateProductionTemplate(template: SpxTemplate) {
+  return publishGate(template, true);
+}
 
 export interface ProductionGateFailure {
   /** The pool graphic's name (the operator-facing label). */
@@ -30,7 +36,7 @@ export function productionGateFailures(
 ): ProductionGateFailure[] {
   const failures: ProductionGateFailure[] = [];
   for (const g of graphics) {
-    const result = publishGate(templateForSavedGraphic(g, library),true);
+    const result = validateProductionTemplate(templateForSavedGraphic(g, library));
     if (!result.ok) failures.push({ name: g.name, errors: result.errors });
   }
   return failures;

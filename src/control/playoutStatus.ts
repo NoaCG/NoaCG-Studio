@@ -137,6 +137,7 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
 
 export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   const checks: StatusCheck[] = [];
+  const ready = f.ready?.outputs ? f.ready : null;
   if (!f.started) {
     checks.push({
       key: 'production',
@@ -151,7 +152,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       tone: 'warn',
       label: `Unpublished changes${f.version ? ` since ${f.version}` : ''}`,
       short: 'Unpublished changes',
-      advice: 'The outputs run the published version until you publish the changes.',
+      advice: ready?.tone === 'ok' && !ready.broken ? 'Current prepared graphics are responding and ready. Continue those cues while their output and connection checks stay green. Publish and check before using new or changed assets.' : 'Current output safety is not confirmed. Check the output and connection details; avoid taking unprepared assets.',
     });
   } else {
     checks.push({ key: 'production', tone: 'ok', label: 'Published changes are available to outputs', short: 'Published' });
@@ -163,7 +164,6 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   // Is something there to air it? The output's slot on CasparCG, read through the Bridge, and the
   // outputs' own reports. A slot that holds nothing is broken only when nothing else will air the
   // graphics: a studio may drive clips through the Bridge and run its graphics in OBS.
-  const ready = f.ready?.outputs ? f.ready : null;
   // An output is REPORTING: ready, still loading, or amber about something. One that is only
   // remembered - gone, or not answering yet - airs nothing (measured on 2.5: Take off left the
   // CasparCG output "not answering" for 15 s, and the status read Checking meanwhile).

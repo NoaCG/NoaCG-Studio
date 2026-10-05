@@ -35,6 +35,8 @@ if (!diagMode) trackPageVisit();
 // failure must end as a readable screen, never a white page.
 async function boot(): Promise<void> {
   await hydrateDurableStore();
+  const { startAutoSync } = await import('./backend/syncController');
+  startAutoSync();
   const { default: App } = await import('./App');
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

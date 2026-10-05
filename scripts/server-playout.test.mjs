@@ -206,6 +206,7 @@ test('a reading that only moves the clip hands back the SAME ownership - the pag
     position: 5,
     paused: false,
     loop: false,
+    progressedAt: 1500,
     at: 1500,
     source: 'server',
   });

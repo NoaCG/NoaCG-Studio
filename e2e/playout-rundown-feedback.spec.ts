@@ -130,7 +130,7 @@ for (const width of [1600, 390]) {
     const menu = page.getByTestId('rundown-add-menu');
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Cue on selected graphic', 'Graphic from library…', 'New graphic…', 'Upload image…',
-      'CasparCG files…', 'Folder from selected cues',
+      'CasparCG files…', 'Audio / effect…', 'Folder from selected cues',
     ]);
     await capture(page, `add-menu-${width}`);
     await expect(menu).toBeInViewport({ ratio: 1 });

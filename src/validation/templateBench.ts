@@ -7,7 +7,7 @@
 // Split of responsibility with gate.ts: this module reports raw errors/warnings; gate.ts merges them
 // with validateTemplate and decides which warnings become publish-blocking errors.
 
-import { isAllowedExternal } from './validateTemplate';
+import { inlineScripts, isAllowedExternal } from './validateTemplate';
 import { SOUND_RUNTIME_JS } from '../assets/graphicSoundRuntime';
 import { SOUND_RUNTIME_V1_JS } from '../assets/graphicSoundRuntimeV1';
 import { isSoundAssetRef, AUDIO_REF_PREFIX } from '../assets/soundAssets';
@@ -72,7 +72,7 @@ const UNSAFE_JS: { re: RegExp; rule: string; note: string }[] = [
 const JS_URL = /\bhttps?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s'"`)]*/gi;
 
 function bytesOf(s: string): number {
-  return typeof s === 'string' ? s.length : 0;
+  return typeof s === 'string' ? new TextEncoder().encode(s).byteLength : 0;
 }
 
 /**
@@ -143,7 +143,8 @@ export function runBench(template: SpxTemplate, production = false): ValidationR
   }
 
   // 3. Unsafe JS — blocks sharing. See UNSAFE_JS for why these are errors and not warnings.
-  for (const { rule, note } of unsafeJsConstructs(template.js)) {
+  const js = [...inlineScripts(template.html).map(script => script.code), template.js].join('\n');
+  for (const { rule, note } of unsafeJsConstructs(js)) {
     errors.push({
       rule,
       message:
@@ -156,7 +157,7 @@ export function runBench(template: SpxTemplate, production = false): ValidationR
 
   // 4. Absolute URLs in the JS. Reported under the SAME rule as the HTML/CSS scan so the author
   //    reads one rule about one thing; gate.ts promotes it for sharing.
-  for (const url of template.js.match(JS_URL) ?? []) {
+  for (const url of js.match(JS_URL) ?? []) {
     if (isAllowedExternal(url)) continue;
     warnings.push({
       rule: 'external-dependency',

@@ -125,6 +125,7 @@ export interface OutputGraphicSpec {
 
 /** One cue as published — ShowCue re-keyed by graphic name (the wire key). */
 export interface OutputCue {
+  hotkey?: string;
   cueKind?: 'graphic' | 'image';
   accentColor?: string;
   id: string;
@@ -167,6 +168,7 @@ export function hostedCueValues(
  *  renderer ignores these - nothing here renders in a browser - and the hosted control page
  *  lists them so the two dashboards read the same rundown. ADDITIVE OPTIONAL. */
 export interface OutputPlayoutCue {
+  hotkey?: string;
   mediaKind?: 'still' | 'movie' | 'audio';
   accentColor?: string;
   id: string;
@@ -296,6 +298,8 @@ export interface ResolvedOutputShow {
 /** The cue STATUS row (docs/CLOUD_PLAYOUT.md §4): written on Take/Out so every open surface
  *  agrees on which cue is live. Receivers ignore it — pages render it. `cue: null` = off air. */
 export interface CueStatusMsg {
+  /** A direct secondary take must not acquire the rundown's Next automation. */
+  direct?: boolean;
   t: 'cue';
   cue: string | null;
   /** ADDITIVE (timed cues, migration 0075): on a Take marker, what it arms; on an arm row, the arm
@@ -435,6 +439,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         id: c.id,
         graphic: byId.get(c.sourceId)!.name,
         cueKind: byId.get(c.sourceId)!.type === 'picture' ? 'image' : 'graphic',
+        ...(c.hotkey ? { hotkey: c.hotkey } : {}),
         ...(accentColor(c.accentColor) ? { accentColor: accentColor(c.accentColor) } : {}),
         label: c.label,
         values: c.values,
@@ -455,6 +460,7 @@ export async function buildOutputPayload(show: Show, library: GraphicDoc[] = loa
         id: c.id,
         label: c.label,
         kind: item.kind,
+        ...(c.hotkey ? { hotkey: c.hotkey } : {}),
         ...(item.mediaKind ? { mediaKind: item.mediaKind } : {}),
         ...(accentColor(c.accentColor) ? { accentColor: accentColor(c.accentColor) } : {}),
         name: item.name,
@@ -499,8 +505,10 @@ export async function libraryGraphicDigests(show: Show, library: GraphicDoc[] = 
   const digests: Record<string, string> = {};
   for (const g of show.graphics) {
     const doc = resolveSavedGraphicDoc(g, library);
-    if (!doc) continue;
-    const memoKey = `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`;
+    if (!doc && g.graphicId) continue;
+    const memoKey = doc
+      ? `${doc.id}|${doc.updatedAt}|${graphicLayer(g)}|${g.name}|${JSON.stringify(g.soundConfig)}`
+      : JSON.stringify(g);
     let digest = libraryDigestMemo.get(memoKey);
     if (digest === undefined) {
       digest = await graphicDigest(await graphicSpec(g, templateForSavedGraphic(g, library)));
@@ -1500,6 +1508,7 @@ export async function sendHostedControlBatch(slug: string, items: WireItem[], si
  * single-layer.
  */
 export function takeCueItems(cue: {
+  direct?: boolean;
   id: string;
   graphic: string;
   values: Record<string, string>;
@@ -1510,7 +1519,7 @@ export function takeCueItems(cue: {
   return [
     { graphic: cue.graphic, msg: { t: 'update', data: cue.values } },
     { graphic: cue.graphic, msg: { t: 'play' } },
-    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.auto ? { auto: cue.auto } : {}) } },
+    { graphic: cue.graphic, msg: { t: 'cue', cue: cue.id, ...(cue.direct ? { direct: true } : {}), ...(cue.auto ? { auto: cue.auto } : {}) } },
   ];
 }
 

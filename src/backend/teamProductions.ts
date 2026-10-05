@@ -3,9 +3,9 @@
 // the team owner delete one.
 //
 // WHAT LIVES WHERE. The server row (`team_productions`, migration 0054) is the authority. This tab
-// holds a copy in model/teamShows.ts, in memory only, so the ordinary production page can edit it
-// through the same mutators a personal production uses; a local edit there is announced to the
-// save pump below, which writes it with `team_production_save`. Nothing here ever touches the LWW
+// holds a copy in model/teamShows.ts, so the ordinary production page can edit it through the same
+// mutators a personal production uses. A local edit is retained in the account-scoped durable
+// outbox before the save pump writes it with `team_production_save`. Nothing here touches the LWW
 // sync engine - a team record is not one of `SYNC_KINDS`, and `loadAllShows` never returns one.
 //
 // "APPEARS IMMEDIATELY" IS A PROMISE ABOUT A PERSON WHO WAS JUST INVITED. Somebody who joins a
@@ -31,6 +31,8 @@ import {
   setTeamShowsStatus,
 } from '../model/teamShows';
 import { mergeTeamShow } from '../model/teamShowMerge';
+import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
+import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
 
 /** A row of `team_productions` without its document - what the poll asks for. */
 export interface TeamProductionHead {
@@ -199,9 +201,11 @@ export function teamMemberName(teamId: string, userId: string | null): string {
  * stops the old one first so nothing of theirs is shown or saved under the new session.
  */
 export function startTeamSync(userId: string): void {
+  if (userId !== libraryInUse()) return;
   if (running?.userId === userId) return;
   stopTeamSync();
   setTeamShowsStatus('loading');
+  setState({ loaded: false, loadError: 'Checking team membership and the cloud revision.' });
   const unsubscribeEdits = onTeamShowEdit(scheduleSave);
   const onVisible = () => {
     if (document.visibilityState === 'visible') void refreshTeams();
@@ -225,6 +229,7 @@ export function startTeamSync(userId: string): void {
 
 export function stopTeamSync(): void {
   if (!running) return;
+  const preserve = running.userId === libraryInUse() && !canAuthorAccount();
   running.stop();
   running = null;
   for (const timer of timers.values()) clearTimeout(timer);
@@ -232,8 +237,8 @@ export function stopTeamSync(): void {
   server.clear();
   dirty.clear();
   inflight.clear();
-  clearTeamShows();
-  state = EMPTY;
+  if (!preserve) clearTeamShows();
+  state = preserve ? { ...state, loadError: 'Session unavailable. Account editing is paused; pending work is preserved.' } : EMPTY;
   for (const listener of listeners) listener();
 }
 
@@ -277,6 +282,25 @@ async function refreshOnce(): Promise<void> {
     return;
   }
   const heads = headsAnswer.heads;
+  // Restore only after fresh RLS-filtered membership and heads. Revoked/deleted drafts are
+  // retained for recovery, never uploaded into a different team.
+  try {
+    for (const [id, edit] of Object.entries(pendingTeamEdits(owner.userId))) {
+      if (dirty.has(id) || inflight.has(id)) continue;
+      if (!heads.some(h => h.id === id && h.teamId === edit.teamId)) {
+        setSaving(id, 'failed');
+        setState({ notes: { ...state.notes, [id]: 'Pending work is preserved on this device. This production is no longer accessible; recover it before deleting browser data.' } });
+        continue;
+      }
+      server.set(id, { token: edit.token, doc: edit.base, teamId: edit.teamId, updatedBy: edit.updatedBy });
+      applyServerTeamShow(edit.local);
+      dirty.add(id);
+      setSaving(id, 'pending');
+    }
+  } catch (error) {
+    setState({ loadError: error instanceof Error ? error.message : String(error) });
+    return;
+  }
   // A record with an edit on its way up keeps its BASE as well as its local copy. Its save carries
   // the old token and is refused if a teammate saved meanwhile, and that refusal is what merges the
   // two correctly. Adopting their document as the base here instead would make the old token look
@@ -329,6 +353,16 @@ function setSaving(id: string, value: 'pending' | 'failed' | null): void {
 function scheduleSave(id: string): void {
   dirty.add(id);
   setSaving(id, 'pending');
+  const known = server.get(id);
+  const local = loadTeamShows().find(s => s.id === id);
+  try {
+    if (!running || !known || !local) throw new Error('No verified team revision is available. The edit has not been saved to cloud.');
+    retainTeamEdit(running.userId, id, { token: known.token, base: known.doc, local, teamId: known.teamId, updatedBy: known.updatedBy });
+  } catch (error) {
+    setSaving(id, 'failed');
+    setState({ notes: { ...state.notes, [id]: error instanceof Error ? error.message : String(error) } });
+    return;
+  }
   const existing = timers.get(id);
   if (existing) clearTimeout(existing);
   timers.set(
@@ -346,14 +380,18 @@ function scheduleSave(id: string): void {
  * could not keep is said out loud in `notes`, naming whose save stood.
  */
 async function pushSave(id: string): Promise<void> {
+  const owner = running;
+  if (!owner || !canAuthorAccount() || owner.userId !== libraryInUse()) return;
   if (inflight.has(id)) return; // The in-flight save re-schedules itself when it sees `dirty`.
   const known = server.get(id);
   let sent = loadTeamShows().find((s) => s.id === id);
   if (!known || !sent) {
-    dirty.delete(id);
-    setSaving(id, null);
+    setSaving(id, 'failed');
     return;
   }
+  const storageError = await commitDurableWrites();
+  if (running !== owner || inflight.has(id)) return;
+  if (storageError) { setSaving(id, 'failed'); setState({ notes: { ...state.notes, [id]: storageError } }); return; }
   inflight.add(id);
   dirty.delete(id);
   let base = known.doc;
@@ -363,12 +401,14 @@ async function pushSave(id: string): Promise<void> {
   try {
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
       const { answer, error } = await saveTeamProduction(id, token, doc);
+      if (running !== owner || owner.userId !== libraryInUse()) return;
       if (!answer) {
         failure = error ?? 'The save failed.';
         dirty.add(id);
         break;
       }
       if (answer.saved) {
+        acknowledgeTeamEdit(owner.userId, id, sent);
         server.set(id, { token: answer.updatedAt, doc, updatedBy: answer.updatedBy, teamId: known.teamId });
         setState({
           heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } },
@@ -407,14 +447,20 @@ async function pushSave(id: string): Promise<void> {
       base = theirs;
       token = answer.updatedAt;
       doc = teamDoc(next);
+      retainTeamEdit(owner.userId, id, { token, base, local: sent, updatedBy: answer.updatedBy, teamId: known.teamId });
       if (attempt === MAX_SAVE_ATTEMPTS - 1) {
         failure = 'Teammates keep saving this production - your edit is on screen but not saved yet.';
         dirty.add(id);
       }
     }
+  } catch (error) {
+    if (running !== owner) return;
+    failure = error instanceof Error ? error.message : String(error);
+    dirty.add(id);
   } finally {
-    inflight.delete(id);
+    if (running === owner) inflight.delete(id);
   }
+  if (running !== owner) return;
   setSaving(id, failure ? 'failed' : dirty.has(id) ? 'pending' : null);
   if (failure) setState({ notes: { ...state.notes, [id]: failure } });
   else if (dirty.has(id)) scheduleSave(id);

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEven
 import { useRouter } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
-  addGraphicToShow,
   addPlayoutItem,
   addShowCue,
   graphicLayer,
@@ -44,6 +43,10 @@ import { lengthText } from './clipLength';
 import PlayoutItemPicker from './PlayoutItemPicker';
 import { ArmedTag, RowAutoChip } from './CueTiming';
 import { armedNext, readAuto, type CueArms } from '../../control/cueAuto';
+import CueShortcutDialog from './CueShortcutDialog';
+import { cueShortcutLabel } from '../../model/cueShortcuts';
+import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
+import { useAccountAuthoring } from '../AccountAuthoringGate';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -104,7 +107,7 @@ interface Aim {
  * THE SERVER'S WORD (plan §6.2 and §6.7, phase 2): a clip that is up counts its remaining time in
  * the length column, a clip waiting on the server behind another wears NEXT ON SERVER, a cue whose
  * slot something else took over says it was replaced on the server, and whatever stands on a
- * rundown slot that no cue here put there is listed above the rows as an unidentified item. The
+ * rundown slot that no cue here put there is listed in the status panel as an unidentified item. The
  * rows read the store's OWNERSHIP part as a prop; each remaining time subscribes to the TIMING
  * part itself, so the list around it never redraws with the clock.
  *
@@ -256,6 +259,7 @@ export default function CueRundown({
   const pictureInput = useRef<HTMLInputElement>(null);
   /** The open ⋯ menu, by ROW id: a cue's, or a folder header's. */
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  const [shortcutCue, setShortcutCue] = useState<string | null>(null);
   /** Which removal in the open row menu is ARMED (`cue` / `graphic`). A cue holds values somebody
    *  typed and there is no undo behind the rundown, so a removal that also takes uploaded
    *  pictures or a whole graphic's rows asks twice — the same two-step Home's delete uses. */
@@ -278,6 +282,7 @@ export default function CueRundown({
   }, [graphicByPoolId]);
   /** The length column is there only when the rundown holds a server clip (plan §6.8). */
   const timed = cues.some((c) => playoutItemFor(c)?.kind === 'media');
+  const authoring = useAccountAuthoring();
   /** The channel a cue plays on: a graphic the output's (the graphics channel), a server item its
    *  own, a clip of a Play-through folder the folder's. */
   const channelOfCue = (cue: ShowCue): number => {
@@ -311,6 +316,11 @@ export default function CueRundown({
   const dragWhat = useRef<Movable | null>(null);
   const [aim, setAim] = useState<Aim | null>(null);
   const scrolledAt = useRef(-Infinity);
+  useEffect(() => {
+    const holdPosition = () => { scrolledAt.current = Date.now(); };
+    window.addEventListener('noacg-direct-cue', holdPosition);
+    return () => window.removeEventListener('noacg-direct-cue', holdPosition);
+  }, []);
   // A menu counts while its row is drawn: one left open on a row a collapse then hid holds nothing still.
   const menuOpen = (menuRowId !== null && rundown.rows.some((r) => r.id === menuRowId)) || pickerOpen || addOpen;
   const liveIds = new Set(
@@ -351,6 +361,7 @@ export default function CueRundown({
   // where it will land, and one write at the drop. A pointer in the gap between two rows keeps the
   // aim it had, so the line never flickers to the end of the list and back. ──
   const startDrag = (row: RundownRow, e: DragEvent<HTMLDivElement>) => {
+    if (!authoring) { e.preventDefault(); return; }
     // No state is set here: re-rendering the drag source inside dragstart can cancel the drag.
     draggingRow.current = row.id;
     // A row in the selection carries the whole selection, in its order (docs/CLIP_PLAYBACK_PLAN.md
@@ -391,6 +402,7 @@ export default function CueRundown({
   };
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (!authoring) { endDrag(); return; }
     const types = e.dataTransfer.types;
     const cueId = types.includes('text/noacg-cue') ? e.dataTransfer.getData('text/noacg-cue') : '';
     const folderId = types.includes('text/noacg-folder') ? e.dataTransfer.getData('text/noacg-folder') : '';
@@ -447,12 +459,13 @@ export default function CueRundown({
     } },
     { id: 'add-graphic', label: 'Graphic from library…', help: 'Choose an existing graphic from your library.', disabled: false, footer: false, run: () => {
       const doc = library.find(g => g.id === addPick);
-      if (doc) { setShows(addGraphicToShow(show.id, doc.template, { graphicId: doc.id }).shows); setAddPick(''); }
+      if (doc) { const result = addGraphicToShow(show.id, doc.template, { graphicId: doc.id }); setShows(result.shows); setRundownNote(result.error); if (!result.error) setAddPick(''); }
       else { libraryPick.current?.scrollIntoView({ block: 'nearest' }); libraryPick.current?.focus(); }
     } },
     { id: 'production-new-graphic', label: 'New graphic…', help: 'Create a graphic using this production’s look.', disabled: false, footer: true, run: createGraphic },
     { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics hosted by NoaCG, up to ${MAX_PICTURES}. Uploading does not copy files to the CasparCG server.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
     { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add images, videos, audio or templates already on the CasparCG server.' : 'Set up NoaCG Bridge and CasparCG under Setup to browse server files.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
+    { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer. Does not replace a video on the normal video layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
     { id: 'add-folder', label: 'Folder from selected cues', help: 'Group the selected rundown cues.', disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
   ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
@@ -477,6 +490,7 @@ export default function CueRundown({
         <div className="lib-menu-host pd-rundown-add">
           <button
             title="Add to the rundown"
+            disabled={!authoring}
             aria-haspopup="menu"
             aria-expanded={addOpen}
             onClick={() => { setPickerOpen(false); setAddOpen((o) => !o); }}
@@ -518,38 +532,6 @@ export default function CueRundown({
         </p>
       )}
 
-      {/* UNIDENTIFIED ITEMS (plan §6.7): something plays on a slot this rundown uses, and nothing
-          says which cue put it there - another client's take, or this page's own from before a
-          Bridge restart. Named by its slot and file, never matched to a cue by its name. */}
-      {serverOwnership.unidentified.length > 0 && (
-        <div className="pd-unidentified" data-testid="server-unidentified">
-          {serverOwnership.unidentified.map((u) => {
-            // A Bridge restart stopped a run: named by the folder its cue played in, when it did.
-            const stoppedIn = u.sequenceStopped && u.cueId ? cues.find((c) => c.id === u.cueId) : undefined;
-            const stoppedFolder = stoppedIn ? throughRoleOf(stoppedIn)?.folder : undefined;
-            return (
-              <div
-                key={slotAddress(u.slot)}
-                className="pd-unidentified-row"
-                title={`${slotAddress(u.slot)} plays ${u.file ?? 'something'} on the playout server, and this page cannot say which cue put it there. Take a cue on that slot to replace it.`}
-              >
-                <span className="pd-unidentified-what">Unidentified item on {slotAddress(u.slot)}</span>
-                {u.file && <span className="pd-cue-sum">{u.file}</span>}
-                {/* The Bridge restarted during a run: what the server had queued still plays, and
-                    nothing after it (plan §6.10, rule 7). */}
-                {u.sequenceStopped && (
-                  <span className="pd-cue-sum" data-testid="server-sequence-stopped">
-                    {stoppedFolder ? `${folderName(stoppedFolder)} stopped` : 'Play next stopped'}: NoaCG Bridge restarted
-                  </span>
-                )}
-                <span className="pd-cue-len">
-                  <SlotRemaining timing={serverTiming} slot={slotAddress(u.slot)} fallback="" />
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       <div
         ref={list}
@@ -612,7 +594,7 @@ export default function CueRundown({
                   clickRow(row, shift, toggle);
                 }}
                 onToggle={() => toggleFolder(folder.id)}
-                onMenu={() => setMenuRowId((m) => (m === row.id ? null : row.id))}
+                onMenu={() => { if (authoring) setMenuRowId((m) => (m === row.id ? null : row.id)); }}
                 onCloseMenu={() => setMenuRowId(null)}
                 onRemove={() => {
                   setMenuRowId(null);
@@ -720,7 +702,7 @@ export default function CueRundown({
               {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
               {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
               {...(litFolder && row.folderId === litFolder ? { 'data-drop-target': '' } : {})}
-              draggable
+              draggable={authoring}
               onDragStart={(e) => startDrag(row, e)}
               onDragEnd={endDrag}
               // A right-click opens the row's own ⋯ menu (docs/CLIP_PLAYBACK_PLAN.md §20.2).
@@ -759,6 +741,7 @@ export default function CueRundown({
                 aria-current={isSelected ? 'true' : undefined}
               >
                 <strong>{view.label}</strong>
+                {cue.hotkey && <kbd className="pd-cue-hotkey" title="Direct trigger; keeps the selection">{cueShortcutLabel(cue.hotkey)}</kbd>}
                 <span className="pd-cue-type" data-testid="cue-type-text">{kind.name}</span>
                 {/* What the clip does at its end, after its name: a loop is stopped by Out alone, a
                     clip that plays the next one hands over by itself, and a clear leaves the layer
@@ -891,7 +874,7 @@ export default function CueRundown({
                   {address}
                 </span>
               )}
-              <div className="pd-cue-menu-host">
+              <div className="pd-cue-menu-host" inert={!authoring}>
                 <button
                   className="pd-icon pd-cue-more"
                   onClick={() => {
@@ -916,6 +899,7 @@ export default function CueRundown({
                   testid="cue-actions-menu"
                 >
                   <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} />
+                  <button role="menuitem" data-testid="cue-shortcut" onClick={() => { setMenuRowId(null); setShortcutCue(cue.id); }}>Keyboard shortcut…</button>
                   <button
                     role="menuitem"
                     onClick={() => {
@@ -1122,7 +1106,7 @@ export default function CueRundown({
           list of the same graphics, in a corner the rundown wanted for itself. The layer is
           typed beside the graphic's content, every rundown row wears its number, and removal
           lives in the row's ⋯ menu, so the rundown is the only list (§5). */}
-      <div className="pd-rail-foot">
+      <div className="pd-rail-foot" inert={!authoring}>
         <div className="row">
           <select ref={libraryPick} value={addPick} onChange={(e) => setAddPick(e.target.value)} data-testid="add-graphic-pick">
             <option value="">Add a graphic from your library…</option>
@@ -1159,6 +1143,7 @@ export default function CueRundown({
           data-testid="add-pictures-input"
         />
       </div>
+      {shortcutCue && cues.find(c => c.id === shortcutCue) && <CueShortcutDialog key={shortcutCue} show={show} cue={cues.find(c => c.id === shortcutCue)!} setShows={setShows} onClose={() => setShortcutCue(null)} />}
     </aside>
   );
 }

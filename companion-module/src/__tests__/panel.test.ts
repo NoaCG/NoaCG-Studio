@@ -105,6 +105,15 @@ test('a press carries the verb, the selected row as target, the state version an
 	assert.deepEqual(relay.presses()[2], { verb: 'select-next', target: '', seen: 5, id: 'testinst:3' })
 })
 
+test('direct triggering targets its fixed cue and preserves the page selection', async () => {
+	const { panel, relay } = await answering()
+	assert.equal((await panel.press('trigger-cue', 'cue_b')).ok, true)
+	assert.deepEqual(relay.presses()[0], { verb: 'trigger-cue', target: 'cue_b', seen: 5, id: 'testinst:1' })
+	assert.equal(panel.state?.selected, 'cue_a')
+	assert.equal((await panel.press('trigger-cue')).ok, false)
+	assert.equal(relay.count('press'), 1)
+})
+
 test('pause-toggle targets the clip the clock follows', async () => {
 	const { panel, relay } = await answering()
 	relay.emit(

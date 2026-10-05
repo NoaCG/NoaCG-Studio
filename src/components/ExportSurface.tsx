@@ -11,7 +11,8 @@ import { graphicById } from '../model/library';
 import { trackEvent } from '../backend/events';
 import type { SpxTemplate } from '../model/types';
 import type { ProjectLegibility } from '../model/designRules';
-import { validateTemplate, type ValidationIssue, type ValidationResult } from '../validation/validateTemplate';
+import { type ValidationIssue, type ValidationResult } from '../validation/validateTemplate';
+import { publishGate } from '../validation/publishGate';
 import { checkTemplateLegibility } from '../validation/designRulesWarnings';
 
 interface Props {
@@ -105,7 +106,7 @@ export default function ExportSurface({
   // Live validation: re-runs when the template (or a preview runtime error) changes. The
   // legibility warnings merge in as WARNINGS — they can never gate the download.
   const validation = useMemo(() => {
-    const base = validateTemplate(template, { runtimeError });
+    const base = publishGate(template, true, runtimeError);
     return ruleWarnings.length ? { ...base, warnings: [...base.warnings, ...ruleWarnings] } : base;
   }, [template, runtimeError, ruleWarnings]);
   // Block body on purpose: an arrow returning the callback's result would hand React whatever

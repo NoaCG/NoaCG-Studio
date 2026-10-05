@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 // the new editor has taken over what is worth keeping, but no route renders it, so nothing here
 // may pull it (and Monaco behind it) into the bundle every visitor downloads.
 import EditorFoundation from './components/editorFoundation/EditorFoundation';
+import AccountAuthoringGate from './components/AccountAuthoringGate';
 import VideoAppShell from './components/video/VideoAppShell';
 import SendIn from './showchat/SendIn';
 import HostedControlPage from './components/HostedControlPage';
@@ -20,7 +21,6 @@ import SaveDialogs from './components/save/SaveDialogs';
 import ShareWithTeamDialog from './components/teams/ShareWithTeamDialog';
 import JoinTeamDialog from './components/teams/JoinTeamDialog';
 import TeamSync from './components/teams/TeamSync';
-import { useAuthUi } from './components/auth/authUi';
 import { isBackendConfigured } from './backend/config';
 import { isAgentRequestUrl } from './backend/agentAccess';
 import { isBridgePairUrl } from './control/playoutLink';
@@ -31,6 +31,7 @@ import { parseRoute, useRouter, type Route } from './app/router';
 import { raiseStorageAlert } from './store/storageAlert';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
 import StorageHealthNotice from './components/StorageHealthNotice';
+import AccountSaveNotice from './components/AccountSaveNotice';
 
 /** The page's own query string. Read once: only a document load can change it (the router writes
  *  the HASH, and carries the search along unchanged), so re-parsing it per render was the same
@@ -301,20 +302,8 @@ export default function App() {
     if (route.view !== 'new') bootedOnWizard.current = false;
   }, [route]);
 
-  // A session that DIED (refresh token expired/revoked — syncController's transition, never a
-  // deliberate Sign out) surfaces as the ordinary sign-in prompt with a reason: sync stops
-  // silently otherwise, and local work was never at risk, so the prompt says both. Never a
-  // wall — dismissing it keeps the whole studio working offline-style (step 9).
-  useEffect(() => {
-    if (!isBackendConfigured()) return;
-    const onExpired = () =>
-      useAuthUi.getState().openSignIn(
-        'Your session expired — sign in again to keep syncing. Everything you made is safe on this device.',
-        'resume',
-      );
-    window.addEventListener('spx-session-expired', onExpired);
-    return () => window.removeEventListener('spx-session-expired', onExpired);
-  }, []);
+  // AccountSaveNotice reports expiry persistently. Opening a sign-in modal automatically
+  // would steal the live operator's transport keys; the operator chooses when to sign in.
 
   // A DURABLE WRITE that failed after the fact (model/durableStore.ts). Persisting to IndexedDB
   // is confirmed a moment after the call returns, so a refusal cannot come back as that call's
@@ -400,7 +389,7 @@ export default function App() {
   // path has a Home worth preserving (see `bootedOnWizard` above).
   const home = <HomePage key="home" route={{ view: 'home', section: null }} />;
   const surface =
-    route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <EditorFoundation /> : home)
+    route.view === 'editor-foundation' ? (new URLSearchParams(window.location.search).get('editor') === 'foundation' ? <AccountAuthoringGate><EditorFoundation /></AccountAuthoringGate> : home)
     : route.view === 'home' ? <HomePage key="home" route={route} />
     : route.view === 'control' || route.view === 'graphic' ? <GraphicControlPage id={route.id} />
     : route.view === 'production' ? <ProductionPage id={route.id} sub={route.sub ?? null} />
@@ -408,7 +397,7 @@ export default function App() {
     // dialogs, so an offline build (where it renders nothing) simply lands the visitor on Home
     // rather than on a blank surface.
     : route.view === 'join-team' ? <HomePage key="home" route={{ view: 'home', section: 'productions' }} />
-    : route.view === 'video' ? <VideoAppShell />
+    : route.view === 'video' ? <AccountAuthoringGate><VideoAppShell /></AccountAuthoringGate>
     : route.view === 'new' ? (bootedOnWizard.current ? null : home)
     : home;
 
@@ -419,7 +408,7 @@ export default function App() {
   return (
     <>
       {surface}
-      <CreationWizard />
+      <AccountAuthoringGate><CreationWizard /></AccountAuthoringGate>
       {/* The save dialogs mount ONCE, here, and AFTER the wizard on purpose. They used to be
           per-shell, which left every shell without one (the control page, the production
           dashboard, the video shell, a cold boot on `#/new`) with a guard that could be
@@ -461,6 +450,7 @@ export default function App() {
           honestly - model/durableStore.ts durableStoreHealth. Renders null on the healthy
           path, which is every ordinary browser. */}
       <StorageHealthNotice />
+      <AccountSaveNotice />
     </>
   );
 }

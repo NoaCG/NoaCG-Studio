@@ -208,8 +208,10 @@ export function StartProductionButton({
               : 'Publish: one persistent output URL for CasparCG/OBS/vMix and one control page for operating')
       }
       data-testid="production-publish"
+      aria-label="Publish & check readiness"
     >
-      Publish
+      <span className="pd-publish-full">Publish &amp; check readiness</span>
+      <span className="pd-publish-short" aria-hidden="true">Prepare</span>
     </button>
   );
 }
@@ -217,8 +219,8 @@ export function StartProductionButton({
 /**
  * THE PANEL'S ACTIONS for a started production (docs/work-specs/studio-day-playout AC-8): publish
  * what changed - which also asks every open output to prepare it (AC-10) - or unpublish, and put the
- * output on CasparCG or take it off. Publishing, putting on air and preparing stay separate presses
- * (owner, 2026-10-01: each fails differently, so no one button does all three yet).
+ * output on CasparCG or take it off. Publish and preparation share the readiness action;
+ * putting the output on air stays a separate operator command.
  */
 export function PublishActions({
   busy,
@@ -226,7 +228,6 @@ export function PublishActions({
   outputUrl,
   airNeeded,
   managedOutput,
-  onPublish,
   onUnpublish,
   onAirChanged,
 }: {
@@ -236,7 +237,6 @@ export function PublishActions({
   /** The NoaCG output's slot does not hold this production: Put on air is the press that is due. */
   airNeeded: boolean;
   managedOutput?: boolean;
-  onPublish: () => void;
   onUnpublish: () => void;
   /** Put on air or Take off was sent: the slot changed, so the status reads it again now. */
   onAirChanged: (what: 'air' | 'stop', result: PlayoutResult, target: string) => void;
@@ -245,21 +245,16 @@ export function PublishActions({
     <>
       {unpublishedChanges && (
         <p className="status-warn" data-testid="publish-freshness">
-          The outputs run the published version. Publish changes sends them yours, and each output moves
-          onto them when nothing is on air there.
+          The outputs run the published version. Publish & check readiness sends your changes.
+          Metadata updates preserve on-air graphics; changed assets wait until their output is clear.
         </p>
       )}
       <p className="pd-prepare-note" data-testid="publish-guarantees">
-        Publish changes saves graphics, pictures and cues for your output URL. Open outputs check
+        Publish & check readiness saves graphics, pictures and cues for your output URL. Open outputs check
         changed graphics and assets automatically, then load them when nothing is on air there.
         The status above shows whether they are ready. Publishing does not put an output on air.
       </p>
       <div className="row">
-        {/* The amber primary only while there IS something to publish: otherwise the press the
-            panel needs (Put on air, below) must not sit beside a louder one that does nothing. */}
-        <button className={unpublishedChanges ? 'primary' : undefined} onClick={onPublish} disabled={busy} data-testid="production-republish">
-          ⟳ Publish changes
-        </button>
         <button onClick={onUnpublish} disabled={busy} data-testid="production-unpublish">
           Unpublish
         </button>

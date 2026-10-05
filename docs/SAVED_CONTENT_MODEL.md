@@ -111,6 +111,20 @@ lists an empty cloud is a new account after all and gets the first-run hint as b
 pass has completed, Home behaves exactly as it did. Pinned by `e2e/configured/library-arrival.spec.ts`
 (there is no sync offline, so no offline spec can reach it).
 
+**Account work has an explicit cloud-confirmation state** (studio evening reliability, 2026-10-05).
+Every account page reconciles a fresh cloud revision before claiming its cache is current.
+Pending keystrokes, offline changes, debounce and failed writes show **Not saved to cloud**;
+only a pass covering the current revision can clear it. Authentication expiry flushes pending
+authoring work, preserves the account library and pauses account editing. Playout transport
+remains available, with a persistent sign-in notice instead of a modal taking its keyboard.
+Anonymous work stays in its own local namespace; sign-in opens the account library without
+silently adopting anonymous documents. Transfer intended local work by explicit export/import.
+Team pending edits use an account-scoped durable outbox and the existing server compare-and-swap
+merge path, with recovery export if membership is revoked or saving fails. The named graphic's
+Save action remains separate from working-document autosave and from publishing an output.
+See [the operator guide](work-specs/studio-evening-reliability/operator-guide.md) for the rehearsal
+and the existing restriction on simultaneous offline authoring tabs.
+
 **Card thumbnails are a LIVE render, never a stored picture** (`components/home/GraphicThumb.tsx`).
 Every Home graphic card renders the real template through `preview/composeDocument`, in a small
 iframe scaled from the template's own resolution and parked at its settled on-air state (the

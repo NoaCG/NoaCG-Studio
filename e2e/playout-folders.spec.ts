@@ -690,10 +690,12 @@ test('All out stops what plays on the rundown\'s slots after a Bridge restart, w
   await page.getByTestId('verb-take').click();
   await expect(cue(page, 'ALPHA')).toContainText('ON AIR');
   fake.restart();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-unidentified')).toContainText('Unidentified item on 2-10', { timeout: 10_000 });
   await expect(cue(page, 'ALPHA')).not.toContainText('ON AIR');
   await expect(page.getByTestId('verb-out-all')).toBeEnabled();
   await page.getByTestId('verb-out-all').click();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-unidentified')).toHaveCount(0, { timeout: 10_000 });
   expect(sent(fake)).toEqual(['take 2-10 ALPHA', 'out 2-10']);
   await expect(page.getByTestId('verb-out-all')).toBeDisabled();
@@ -1181,6 +1183,7 @@ test('a Bridge restart mid-loop says the folder stopped, by its name', async ({ 
   await page.keyboard.press(' ');
   await expect(cue(page, 'ALPHA')).toContainText('ON AIR');
   fake.restart();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-sequence-stopped')).toHaveText('Block A stopped: NoaCG Bridge restarted', { timeout: 10_000 });
 });
 

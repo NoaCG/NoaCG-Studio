@@ -6,7 +6,8 @@ import {
   setGraphicsFolder,
   type GraphicDoc,
 } from '../../../model/library';
-import { addGraphicToShow, createShowNamedChecked, productionsContaining, type Show } from '../../../model/shows';
+import { createShowNamedChecked, productionsContaining, type Show } from '../../../model/shows';
+import { addReadyGraphicToShow as addGraphicToShow } from '../../../control/productionAdmission';
 import { raiseStorageAlert } from '../../../store/storageAlert';
 import { loadPrefs, savePrefs } from '../../../model/prefs';
 import { commitDurableWrites } from '../../../model/durableStore';

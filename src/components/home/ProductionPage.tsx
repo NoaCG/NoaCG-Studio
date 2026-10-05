@@ -3,7 +3,6 @@ import { saveAs } from 'file-saver';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
-  addGraphicToShow,
   addShowCue,
   deleteShowProfile,
   duplicateLayers,
@@ -45,7 +44,7 @@ import {
 import { folderMode, type Movable, type Place } from '../../model/showFolders';
 import { cursorRowId, folderName, rangeCueIds, rowCueIds, rowTestId, rundownView, type RundownRow } from '../../model/rundownRows';
 import { clipSize, copyClip, cutClip, type CueClip } from '../../model/cueClipboard';
-import { commitDurableWrites } from '../../model/durableStore';
+import { canAuthorAccount, commitDurableWrites } from '../../model/durableStore';
 import { destinationUrl, outputSetupLabel, readOutputSetup, routeColor, hasCasparOutput, type ProductionOutputSetup } from '../../model/outputSetup';
 import { readDefaultOutput, saveDefaultOutput } from '../../backend/auth';
 import OutputSetupDialog from './OutputSetupDialog';
@@ -91,7 +90,7 @@ import {
   type ServerVerbOutcome,
 } from '../../control/serverPlayout';
 import { createServerPlayoutStore, type ServerPlayoutStore } from '../../control/serverPlayoutStore';
-import { airClash, applyAccepted, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
+import { airClash, applyAccepted, applyClearedSlot, applyReading, clipClock, followedClip, pauseTarget } from '../../control/serverState';
 import { effectiveEnd, mediaKindOf, segmentSeconds } from '../../control/cuePlayback';
 import { cueOnAir, folderAir } from '../../control/folderAir';
 import { folderStep, stepFace, type FolderStep, type StepMember } from '../../control/folderStep';
@@ -223,6 +222,8 @@ import ProductionExportDialog from './ProductionExportDialog';
 import { ProductionLinkRows, PublishActions, StartProductionButton } from './ProductionLinks';
 import { PlayoutPanelSection, PlayoutStatusControl } from './PlayoutStatusControl';
 import CueRundown, { nameList } from './CueRundown';
+import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
+import ServerDiagnostics from './ServerDiagnostics';
 import { CueEndsRow, ProgramAutoChip } from './CueTiming';
 import {
   END_WORDS,
@@ -278,6 +279,10 @@ import { teamShowsStatus } from '../../model/teamShows';
 import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
 import { ReadyOutputList, announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
+import { directCue } from '../../model/cueShortcuts';
+import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
+import { readMarkerAuto } from '../../control/cueAuto';
+import { useCueShortcutSet } from '../playoutKeys';
 import { versionLabel, type PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
 import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
@@ -378,6 +383,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return () => window.removeEventListener('spx-data-changed', onDataChanged);
   }, []);
   const library = useMemo(() => loadGraphics(), []);
+  // Fresh picker choices must not replace the library identity held by running monitor frames.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- data-change events refresh shows and the library together
+  const pickerLibrary = useMemo(() => loadGraphics(), [shows]);
   const show: Show | null = shows.find((s) => s.id === id) ?? null;
 
   const backendConfigured = isBackendConfigured();
@@ -652,7 +660,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const publishedVer = useMemo<HeldVersion | null>(() => (publishedStamp ? { n: publishedStamp.n, h: publishedStamp.h } : null), [publishedStamp]);
   /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
    *  edited in the library, which never touches the record) - usePublishDrift. */
-  const { unpublished: unpublishedChanges, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
+  const authoringAllowed = useAccountAuthoring();
+  const { unpublished: unpublishedChanges, requiresPreparation, check: checkUnpublished } = usePublishDrift(show, publishedStamp?.g ?? null);
   const { expected: expectedOutputs, forget: forgetOutput } = useExpectedOutputs(
     hostedSlug && isBackendConfigured() ? (show?.id ?? null) : null,
     livePresence,
@@ -1263,10 +1272,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       flushTimer.current = null;
     }
     const d = draftRef.current;
-    if (!d) return;
+    if (!d || !canAuthorAccount()) return;
     setShows(updateShowCue(id, d.cueId, { label: d.label, note: d.note || null, values: d.values }));
   }, [id]);
-  useEffect(() => () => flushDraft(), [flushDraft]);
+  useEffect(() => {
+    window.addEventListener('noacg-account-authoring-pausing', flushDraft);
+    window.addEventListener('noacg-account-authoring-flush', flushDraft);
+    return () => {
+      window.removeEventListener('noacg-account-authoring-pausing', flushDraft);
+      window.removeEventListener('noacg-account-authoring-flush', flushDraft);
+      flushDraft();
+    };
+  }, [flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
   // Held on THIS page rather than in the Data workspace, because the one sender lives here and
@@ -2020,7 +2037,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           for (const item of batch) {
             if (item.msg.t !== 'cue') continue;
             const cue = item.msg.cue;
-            arms = markerEffect(arms, item.graphic, cue, cue ? armSpecRef.current(cue) : null, wallClock());
+            const directAuto = readMarkerAuto(item.msg.auto);
+            const spec = item.msg.direct ? (directAuto ? { auto: { after: directAuto.ms / 1000, then: directAuto.then }, next: null } : null) : cue ? armSpecRef.current(cue) : null;
+            arms = markerEffect(arms, item.graphic, cue, spec, wallClock());
           }
           setCueArms(arms);
         }
@@ -2043,7 +2062,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       // whichever control pressed it, so this is the one place that adds it.
       const marked = batches.map((batch) =>
         batch.map((item) => {
-          if (item.msg.t !== 'cue' || !item.msg.cue || item.msg.auto) return item;
+          if (item.msg.t !== 'cue' || !item.msg.cue || item.msg.auto || item.msg.direct) return item;
           const spec = armSpecRef.current(item.msg.cue);
           return spec ? { ...item, msg: { ...item.msg, auto: markerAuto(spec) } } : item;
         }),
@@ -2401,11 +2420,11 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
 
   /** Publish; the version it wrote, or null when it did not (the note says why). `forPrepare`:
-   *  Prepare for Live's own publish, which leaves the links panel shut and says what it did. */
+   *  The readiness flow owns preparation and reports the result in the status panel. */
   const publishNow = async (forPrepare = false): Promise<HeldVersion | null> => {
     if (accountBlocks(PUBLISH_NEEDS_ACCOUNT)) {
       // Only a real sign-in prompt is worth finishing; the "still checking" answer is not one.
-      if (needsSignIn && !forPrepare) publishAfterSignIn.current = true;
+      if (needsSignIn) publishAfterSignIn.current = true;
       return null;
     }
     flushDraft();
@@ -2482,9 +2501,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setBusy(false);
     }
   };
-  const publish = async () => {
-    await publishNow();
-  };
+  const publish = async () => { setStatusOpen(true); await prepareFlow.run(); };
   preparePublishRef.current = () => publishNow(true);
 
   publishRef.current = publish;
@@ -2595,7 +2612,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   );
 
   const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
-    if (!editingCue) return;
+    if (!editingCue || !canAuthorAccount()) return;
+    window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
     setDraft((d) => {
       const base: CueDraft =
         d && d.cueId === editingCue.id
@@ -2620,7 +2638,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     cue: ShowCue,
     verb: ServerVerb,
     label: string,
-    options: { cut?: boolean; takenAt?: number } = {},
+    options: { cut?: boolean; takenAt?: number; direct?: boolean } = {},
   ): Promise<ServerVerbOutcome | null> => {
     const item = playoutItemFor(cue);
     if (!item) return null;
@@ -2628,19 +2646,19 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // the button and Re-take all come through here, so the check is made once, where it cannot be
     // stepped round; taking a cue OFF and staging it on PREVIEW are never held up by it.
     if (verb === 'take') {
-      const blocked = takeBlockerFor(cue);
+      const blocked = options.direct ? directBlocker(cue) : takeBlockerFor(cue);
       if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
     }
     flushDraft();
     const settings = loadPlayoutSettings();
-    const through = verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
+    const through = !options.direct && verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
     const run = through ? folderRun(through, cues, playoutItems, cue.id) : null;
     if (run && !run.ok) return { ok: false, note: `${label} was not sent: ${run.reason}`, accepted: [] };
     const first: SequenceMember = run?.ok ? run.run.members[0] : { cue, item };
     // Play next: the clips a Take plays one after another, found in the rundown as it stands NOW
     // (docs/CLIP_PLAYBACK_PLAN.md §6.6). The Take is off with the reason when they cannot be found.
     const chain =
-      !run && verb === 'take' && item.kind === 'media' && effectiveEnd(cue, item) === 'next'
+      !options.direct && !run && verb === 'take' && item.kind === 'media' && effectiveEnd(cue, item) === 'next'
         ? sequenceMembers(cues, playoutItems, cue.id, (i) => slotAddress(itemSlot(settings, i)), folders)
         : null;
     const members = run?.ok ? (run.run.members.length > 1 ? run.run.members : undefined) : chain?.ok && chain.members.length > 1 ? chain.members : undefined;
@@ -2712,14 +2730,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   /** A graphic cue's Take, reporting nothing: its sentence comes back, for one cue or a folder's
    *  whole Take to say. Null when its graphic is gone. */
-  const takeGraphicCue = async (cue: ShowCue, label: string): Promise<MemberTake | null> => {
+  const takeGraphicCue = async (cue: ShowCue, label: string, direct = false): Promise<MemberTake | null> => {
     const graphic = cueGraphicName(cue);
     if (!graphic) return null;
     flushDraft();
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
     // (plan §2.7) — otherwise taking an old cue would re-air a stale score.
     const values = withBoundValues(graphic, cueView(cue).values);
-    const sent = await sendVerb([takeCueItems({ id: cue.id, graphic, values })], label);
+    const sent = await sendVerb([takeCueItems({ id: cue.id, graphic, values, ...(direct ? { direct: true, auto: cue.auto ? markerAuto({ auto: cue.auto, next: null }) : null } : {}) })], label);
     if (!sent.ok) return { ok: false, note: sent.note };
     // Superseded: this page's later press on the graphic stands, and its own handler set the chip.
     if (!leftAlone(sent).includes(graphic)) setLiveCue((m) => withLiveCue(m, graphic, cue.id));
@@ -3033,6 +3051,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     statePoll.current?.wake();
     if (failed.length) setNote(`All out: ${failed.join(' ')}`);
   };
+  const clearSlot = async (slot: Slot) => {
+    const result = await act(loadPlayoutSettings(), { verb: 'clear', slot });
+    if (result.state === 'ok') serverPlayout.apply(parts => applyClearedSlot(parts, { slot, generation: result.generation, session: result.session }));
+    setNote(result.state === 'ok' ? `✓ Stop/Clear ${slotAddress(slot)} accepted. Check program to confirm it is clear.` : `Stop/Clear ${slotAddress(slot)} failed: ${result.detail}`);
+    statePoll.current?.wake();
+  };
 
   const descriptors = editorTemplate ? fieldDescriptors(editorTemplate.fields) : [];
   /** The edited graphic's layer, and who else is on it when two graphics share it. */
@@ -3135,6 +3159,14 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     return null;
   };
   const selectedTakeBlocked = takeBlockerFor(selectedCue);
+  /** Direct cues use their own route and end action, independently of their folder or neighbours. */
+  const directBlocker = (cue: ShowCue): string | null => {
+    if (cue.source !== 'playout') return !cueGraphicName(cue) ? `${cue.label} has no graphic.` : null;
+    const item = playoutItemFor(cue);
+    if (!item) return `${cue.label} has no media file.`;
+    const settings = loadPlayoutSettings();
+    return outputSlotRefusal(slotAddress(itemSlot(settings, item)), settings) ?? takeBlocker(cue, [cue], playoutItems, addressOfItem, playbackAbility, [], graphicOfCue);
+  };
   /** A server cue cannot be taken while the Bridge says the server is not there: the editor
    *  names the hop, and the key stays quiet rather than sending a command that will fail. A setting
    *  this Bridge or server cannot honour holds up only the take itself (`playoutVerb`), never taking
@@ -3447,6 +3479,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const moveRundown = (what: Movable, place: Place) => writeRundown(() => moveInRundown(show.id, what, place), 'The move was not saved');
   /** Collapse or open a folder: a background write that reports nothing. */
   const toggleFolder = (folderId: string) => {
+    if (!canAuthorAccount()) return;
     const folder = rundown.folders.get(folderId);
     if (folder) setShows(setFolderCollapsed(show.id, folderId, folder.collapsed !== true));
   };
@@ -3602,7 +3635,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           ? (airedData[selectedGraphic]?.[key] ?? values[key] ?? (button.adjust && key in button.adjust ? '0' : ''))
           : values[key],
     );
-    if (Object.keys(adjusted).length > 0 && airCue) {
+    if (Object.keys(adjusted).length > 0 && airCue && canAuthorAccount()) {
       // Into the draft when the on-air cue is the one being edited (its box repaints at once),
       // straight into the record otherwise - either way the cue holds the figure air shows.
       if (editingIsLive) editDraft({ values: adjusted });
@@ -3710,6 +3743,18 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    * not yet on PREVIEW goes there first, airing nothing.
    */
   const onVerb = (key: PlayoutVerb, press?: VerbPress) => {
+    if (key === 'trigger-cue') {
+      if (press?.repeat) return;
+      const original = cues.find(c => c.id === press?.cue);
+      if (!original) return;
+      window.dispatchEvent(new CustomEvent('noacg-direct-cue'));
+      const cue = directCue(original);
+      const blocked = directBlocker(cue) ?? (cue.source === 'playout' && bridgeDown ? 'NoaCG Bridge is not connected.' : null);
+      if (blocked) { setNote(`Trigger ${cue.label} was not sent: ${blocked}`); return; }
+      if (cue.source === 'playout') void serverVerb(cue, 'take', `Trigger ${cue.label}`, { direct: true }).then(r => r && setNote(r.note));
+      else void takeGraphicCue(cue, `Trigger ${cue.label}`, true).then(r => r && setNote(r.note));
+      return;
+    }
     // H holds or resumes the chip's countdown, whatever is selected (docs/RUNDOWN_AUTOMATION_PLAN.md §2.8).
     if (key === 'hold') {
       if (!press?.repeat) toggleHold(chipGraphic);
@@ -3740,6 +3785,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2). Nothing here airs.
+    if (!canAuthorAccount() && ['copy', 'cut', 'paste', 'folder-new', 'folder-toggle'].includes(key)) {
+      setNote('Account editing is paused. Sign in again; playout remains available.');
+      return;
+    }
     if (key === 'copy' || key === 'cut') {
       const ids = editIds();
       const taken = key === 'copy' ? copyClip(freshShow(), ids) : ids.length ? cutClip(show.id, ids) : null;
@@ -4103,7 +4152,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const readySummary = readiness.summary.show ? readiness.summary : null;
   const playoutStatus = describePlayoutStatus({
     started,
-    unpublished: unpublishedChanges,
+    unpublished: requiresPreparation,
     version: publishedLabel,
     bridge: playoutRelevance.bridge ? (playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : { state: 'config', detail: 'Set up NoaCG Bridge and CasparCG to play the server cues in this rundown.' }) : null,
     slot: playoutRelevance.slot && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
@@ -4148,6 +4197,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             onToggle={() => setStatusOpen((o) => !o)}
             onClose={() => setStatusOpen(false)}
             ready={readySummary}
+            diagnostics={serverOwnership.unidentified.length}
           >
             {/* Started only: offline, outputs remembered from an earlier publish would read as
                 "not answering" under a grey Offline. */}
@@ -4157,6 +4207,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               </PlayoutPanelSection>
             )}
             <PlayoutPanelSection title="Actions" testId="playout-panel-actions">
+              {serverOwnership.unidentified.length > 0 && <ServerDiagnostics ownership={serverOwnership} timing={serverPlayout.timing} cues={cues} folders={folders} clear={slot => void clearSlot(slot)} />}
               {hostedSlug ? (
                 <PublishActions
                   busy={busy}
@@ -4164,13 +4215,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   outputUrl={managedOutputUrl}
                   managedOutput={show.outputSetup ? hasCasparOutput(show.outputSetup) : undefined}
                   airNeeded={outputSlot?.holds === 'empty' || outputSlot?.holds === 'other'}
-                  onPublish={() => void publish()}
                   onUnpublish={() => void unpublish()}
                   onAirChanged={onAirChanged}
                 />
               ) : (
                 <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
-                  Press Publish beside the status to publish this production and get its output URL. Until then a Take plays only on this page.
+                  Press Publish &amp; check readiness beside the status to prepare this production and get its output URL. Until then a Take plays only on this page.
                 </p>
               )}
               {defaultFailure && <p className="status-warn" role="alert" data-testid="output-default-failure">Published successfully, but your account default was not saved: {defaultFailure} <button onClick={() => void retryDefault()}>Retry saving default</button></p>}
@@ -4179,17 +4229,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   flow={prepareFlow}
                   published={publishedVer}
                   unpublishedChanges={unpublishedChanges}
+                  requiresPreparation={requiresPreparation}
                   // This desk's own, or a newer one another production page announced.
                   stamp={readiness.newestStamp}
                 />
-              )}
-              {playoutIsConfigured && playoutRelevance.bridge && (
-                <div className="row pd-panel-check">
-                  <button onClick={() => setCheckAgainRev((n) => n + 1)} data-testid="playout-check-again">
-                    Check again
-                  </button>
-                  <span className="muted">Asks NoaCG Bridge, CasparCG and the output&rsquo;s layer again.</span>
-                </div>
               )}
             </PlayoutPanelSection>
             {/* SETUP, folded once it works (owner, 2026-10-01): the studio's server, channels and
@@ -4203,7 +4246,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             >
               <div className="pd-output-setup" data-testid="production-output-setup">
                 <span>Output: {show.outputSetup ? outputSetupLabel(show.outputSetup) : 'Existing setup (unconfirmed)'}</span>
-                <button disabled={busy} onClick={() => setOutputDialog({ id: show.id, publishing: false, forPrepare: false })}>Change output…</button>
+                <button disabled={busy || !authoringAllowed} onClick={() => setOutputDialog({ id: show.id, publishing: false, forPrepare: false })}>Change output…</button>
                 {!show.outputSetup && <p className="hint">Existing links and routes are unchanged. Select an output here to tailor setup and readiness.</p>}
               </div>
               <p className="pd-ready-empty" data-testid="playout-setup-summary">
@@ -4214,7 +4257,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               <button onClick={() => setPlayoutSettingsOpen(true)} data-testid="playout-settings-open">
                 {playoutIsConfigured ? 'Server and channels…' : 'Set up CasparCG…'}
               </button>
-              <RundownColors show={show} settings={playoutSettings} setShows={setShows} />
+              <AccountAuthoringGate><RundownColors show={show} settings={playoutSettings} setShows={setShows} /></AccountAuthoringGate>
             </PlayoutPanelSection>
             {hostedSlug && (
               <PlayoutPanelSection title="Links" testId="playout-panel-links">
@@ -4271,6 +4314,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onTab={() => navigate({ view: 'production', id: show.id })}
     >
       {sub === 'data' && (
+        <AccountAuthoringGate>
         <ProductionDataWorkspace
           show={show}
           setShows={setShows}
@@ -4279,8 +4323,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           resolved={resolved}
           dataKey={dataKey ?? null}
         />
+        </AccountAuthoringGate>
       )}
-      {sub === 'audience' && <ProductionAudienceWorkspace show={show} setShows={setShows} />}
+      {sub === 'audience' && <AccountAuthoringGate><ProductionAudienceWorkspace show={show} setShows={setShows} /></AccountAuthoringGate>}
       {/* THE PLAYOUT SURFACE STAYS MOUNTED behind a sub-page, hidden rather than unmounted.
           Unmounting it destroyed the PROGRAM monitor's iframes, so a trip to Data or Audience
           RELOADED every live graphic: a running match clock came back at its seed, and anything
@@ -4463,6 +4508,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 selected LAYER, which is not always the selected cue's. */}
             ■ Out <kbd>0</kbd>
           </button>
+          {selectedPlayoutItem && <button className="pd-verb pd-verb-secondary" data-testid="verb-clear-slot" onClick={() => void clearSlot(serverOnAir[selectedPlayoutItem.id]?.slot ?? itemSlot(playoutSettings, selectedPlayoutItem))} title="Immediately clear this CasparCG slot, including queued media. Other slots keep playing.">Stop/Clear slot</button>}
           {/* The bar's small print, as ONE block: the on-air chip and, under it, THE OPERATOR'S
               CHOICE of what SPACE does (owner, 2026-09-10: "a checkbox for this so the operator
               can choose for themselves") - here beside the key, not on a settings screen. One
@@ -4511,7 +4557,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             const slot = folderSlot(playoutSettings, selectedFolder);
             const id = selectedFolder.id;
             return (
-              <FolderEditor
+              <AccountAuthoringGate><FolderEditor
                 key={id}
                 folder={selectedFolder}
                 members={heldMembers}
@@ -4537,7 +4583,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 }}
                 onEnd={(end) => setShows(setFolderPlayback(show.id, id, { end }))}
                 onSlot={(patch) => setShows(setFolderPlayback(show.id, id, patch))}
-              />
+              /></AccountAuthoringGate>
             );
           })()}
 
@@ -4546,7 +4592,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
         {editingCue && editingView && poolGraphic && (
-          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="cue-editor">
+          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="cue-editor" inert={!authoringAllowed}>
             <div className="pd-editor-head">
               {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
                   same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
@@ -4924,7 +4970,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         cues={cues}
         rundown={rundown}
         graphicByPoolId={graphicByPoolId}
-        library={library}
+        library={pickerLibrary}
         playoutSettings={playoutSettings}
         liveCue={liveCue}
         started={started}
@@ -4981,7 +5027,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         rememberOutput.current = outputDialog.publishing && remember && owner.userId ? { userId: owner.userId, setup } : null;
         setDefaultFailure(null);
         setOutputDialog(null);
-        if (outputDialog.publishing) await publishNow(outputDialog.forPrepare);
+        if (outputDialog.publishing) await prepareFlow.run();
         return null;
       }} />}
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
@@ -5065,7 +5111,8 @@ function ProductionShell({
   // ONLY WHILE PLAYOUT IS THE SURFACE ON SCREEN. This shell renders on Data and Audience too,
   // with the playout column hidden behind them, so bound-while-mounted meant SPACE ran Take
   // from a screen showing neither monitor. The hosted page has no workspaces and passes nothing.
-  usePlayoutVerbKeys(onKey, sub === null);
+  const shortcuts = useCueShortcutSet(show.cues ?? [], show.id);
+  usePlayoutVerbKeys(onKey, sub === null, shortcuts.bindings);
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
   const openTeam = useTeamsUi((s) => s.openTeam);
@@ -5121,6 +5168,8 @@ function ProductionShell({
             Its width is fixed, so a state that changes during a show never moves the tabs beside
             it. Offline, ▶ Start production follows it: the one action an offline production has. */}
         {status}
+        {shortcuts.changed && <button onClick={shortcuts.apply} data-testid="apply-cue-shortcuts">Apply cue shortcuts</button>}
+        {shortcuts.conflicts.length > 0 && <span role="status">Conflicting cue shortcuts disabled: {shortcuts.conflicts.join(', ')}</span>}
         {/* `pd-roomy`: shown only while the header has room (playout-dashboard.css, the laptop
             tier). The production's name outranks a session timer. */}
         <span className="pd-clock mono pd-roomy">{elapsed(now - openedAt)}</span>

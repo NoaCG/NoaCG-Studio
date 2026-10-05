@@ -105,7 +105,11 @@ export function usePrepareForLive({
   const [now, setNow] = useState(() => Date.now());
   const [finalLines, setFinalLines] = useState<CheckLine[] | null>(null);
   const [pingSent, setPingSent] = useState<PingSent | null>(null);
+  const busyRun = useRef(false);
+  const currentShow = useRef(showId);
+  currentShow.current = showId;
   useEffect(() => {
+    busyRun.current = false;
     setPhase('idle');
     setFinalLines(null);
     setTarget(null);
@@ -184,40 +188,62 @@ export function usePrepareForLive({
     ];
     setFinalLines(done);
     setPhase('done');
+    busyRun.current = false;
     at.onPrep(null, at.request ?? undefined);
     at.onStamp(stampOf(done, at.target, at.now));
   }, [finished]);
 
   const run = async () => {
+    if (busyRun.current) return;
+    busyRun.current = true;
+    const stillCurrent = () => currentShow.current === showId;
+    setPhase('publishing');
     setFinalLines(null);
     setBridgeLines(null);
     setPublishLine(null);
     setPingSent(null);
+    const factsPending = bridge().catch(() => null);
     let version = published;
-    const changed = unpublishedChanges || (await recheckChanges());
-    if (changed || !published) {
-      setPhase('publishing');
-      const written = await publish();
-      if (!written) {
-        setPublishLine({ key: 'publish', tone: 'bad', label: 'The production did not publish', advice: 'The note under the monitors says why. Nothing was sent to the outputs.' });
-        setPhase('done');
-        return;
+    try {
+      const changed = unpublishedChanges || (await recheckChanges());
+      if (!stillCurrent()) return;
+      if (changed || !published) {
+        const written = await publish();
+        if (!stillCurrent()) return;
+        if (!written) {
+          const failed: CheckLine = { key: 'publish', tone: 'bad', label: 'The production did not publish', advice: 'The note under the monitors says why. Nothing was sent to the outputs.' };
+          const facts = await factsPending;
+          if (!stillCurrent()) return;
+          setPublishLine(failed);
+          setFinalLines([failed, ...(facts ? bridgeChecks(facts) : [])]);
+          setPhase('done');
+          busyRun.current = false;
+          return;
+        }
+        version = written;
+        setPublishLine({ key: 'publish', tone: 'ok', label: `Published your changes as v${written.n}` });
+      } else {
+        setPublishLine({ key: 'publish', tone: 'ok', label: `Nothing changed since v${published.n}` });
       }
-      version = written;
-      setPublishLine({ key: 'publish', tone: 'ok', label: `Published your changes as v${written.n}` });
-    } else {
-      setPublishLine({ key: 'publish', tone: 'ok', label: `Nothing changed since v${published.n}` });
+      if (!version) { busyRun.current = false; setPhase('idle'); return; }
+      setTarget(version);
+      setStartedAt(Date.now());
+      setNow(Date.now());
+      const prep = { id: requestId(), n: version.n, h: version.h };
+      setRequest(prep.id);
+      onPrep(prep);
+      setPhase('preparing');
+      const facts = await factsPending;
+      if (!stillCurrent()) return;
+      setBridgeLines(facts ? bridgeChecks(facts) : []);
+    } catch (e) {
+      if (!stillCurrent()) return;
+      busyRun.current = false;
+      const failed: CheckLine = { key: 'publish', tone: 'bad', label: 'Readiness check failed', advice: e instanceof Error ? e.message : String(e) };
+      setPublishLine(failed);
+      setFinalLines([failed]);
+      setPhase('done');
     }
-    if (!version) return;
-    setTarget(version);
-    setStartedAt(Date.now());
-    setNow(Date.now());
-    const prep = { id: requestId(), n: version.n, h: version.h };
-    setRequest(prep.id);
-    onPrep(prep);
-    setPhase('preparing');
-    const facts = await bridge().catch(() => null);
-    setBridgeLines(facts ? bridgeChecks(facts) : []);
   };
 
   const shown: CheckLine[] | null =
@@ -242,11 +268,13 @@ export function PrepareForLive({
   stamp,
   published,
   unpublishedChanges,
+  requiresPreparation = unpublishedChanges,
 }: {
   flow: PrepareFlow;
   stamp: ReadyStamp | null;
   published: HeldVersion | null;
   unpublishedChanges: boolean;
+  requiresPreparation?: boolean;
 }) {
   const { phase, shown, run } = flow;
   const busy = phase === 'publishing' || phase === 'preparing';
@@ -257,7 +285,7 @@ export function PrepareForLive({
       </div>
       {stamp && phase !== 'publishing' && phase !== 'preparing' && (
         <p className={`pd-prepare-stamp${stamp.problems ? ' is-bad' : stamp.warnings ? ' is-warn' : ' is-ok'}`} data-testid="prepare-stamp">
-          {stampWords(stamp, published, unpublishedChanges)}
+          {stampWords(stamp, published, requiresPreparation)}
         </p>
       )}
       {shown && (
@@ -273,12 +301,12 @@ export function PrepareForLive({
           : `Every output is checked on v${published.n}. Nothing is locked.`}
       </p>
       <p className="pd-prepare-note">
-        Publishing already prepares graphics and assets. This optional check also tests command
-        delivery to each output and any CasparCG connection this production uses. It never puts
+        This action prepares graphics and assets and tests command delivery to each output and
+        any CasparCG connection this production uses. It never puts
         an output on air or replaces graphics while they are on air.
       </p>
       <button type="button" className="pd-prepare-button" disabled={busy} onClick={() => void run()} data-testid="prepare-for-live-button">
-        {busy ? 'Checking…' : 'Check readiness'}
+        {busy ? 'Checking…' : unpublishedChanges || !published ? 'Publish & check readiness' : 'Check readiness'}
       </button>
     </section>
   );

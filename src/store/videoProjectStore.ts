@@ -11,7 +11,7 @@ import type { ReferencePurpose } from '../model/imagePurpose';
 import type { VideoChatMessage, VideoInput, VideoProject } from '../model/videoTypes';
 import { createDefaultVideoProject, withVideoSource } from '../model/videoTypes';
 import { loadCurrentVideoProject, saveCurrentVideoProject } from '../model/videoProject';
-import { commitDurableWrites } from '../model/durableStore';
+import { canAuthorAccount, commitDurableWrites } from '../model/durableStore';
 
 export type VideoPanelTab = 'chat' | 'content' | 'settings' | 'assets' | 'export';
 
@@ -83,7 +83,12 @@ interface VideoProjectState {
 
 const initialProject = loadCurrentVideoProject() ?? createDefaultVideoProject();
 
-export const useVideoProjectStore = create<VideoProjectState>((set) => ({
+export const useVideoProjectStore = create<VideoProjectState>((rawSet) => {
+  const set = (patch: Partial<VideoProjectState> | ((state: VideoProjectState) => Partial<VideoProjectState>)) => rawSet(state => {
+    const next = typeof patch === 'function' ? patch(state) : patch;
+    return !canAuthorAccount() && 'project' in next ? {} : next;
+  });
+  return {
   project: initialProject,
   history: [],
   future: [],
@@ -251,7 +256,8 @@ export const useVideoProjectStore = create<VideoProjectState>((set) => ({
 
   requestAi: (request) => set({ pendingRequest: request, activePanel: 'chat' }),
   clearPendingRequest: () => set({ pendingRequest: null }),
-}));
+  };
+});
 
 // Autosave the working video project (debounced) whenever the document changes, mirroring
 // templateStore's autosaver. A failed save (video assets are big) raises a visible flag
@@ -263,10 +269,22 @@ export const useVideoProjectStore = create<VideoProjectState>((set) => ({
 // which is also what keeps the shell's own warning the thing the user sees, rather than the
 // app-level "Could not save" dialog talking over it about a background autosave.
 let videoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function flushPendingVideo() {
+  if (!videoSaveTimer) return;
+  clearTimeout(videoSaveTimer);
+  videoSaveTimer = null;
+  saveCurrentVideoProject(useVideoProjectStore.getState().project);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('noacg-account-authoring-pausing', flushPendingVideo);
+  window.addEventListener('noacg-account-authoring-flush', flushPendingVideo);
+}
 useVideoProjectStore.subscribe((state, prev) => {
   if (state.project === prev.project) return;
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
   if (videoSaveTimer) clearTimeout(videoSaveTimer);
   videoSaveTimer = setTimeout(() => {
+    videoSaveTimer = null;
     const accepted = saveCurrentVideoProject(useVideoProjectStore.getState().project);
     void (accepted ? commitDurableWrites() : Promise.resolve('refused')).then((failure) => {
       const failedNow = !!failure;

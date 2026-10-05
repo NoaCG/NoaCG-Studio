@@ -356,7 +356,7 @@ export class PanelClient {
 	/** What a key acts on: the row it showed (spec, protocol §7.3). */
 	targetOf(verb: PanelVerb, row = ''): string {
 		const s = this.#state
-		if (verb === 'select-cue' || verb === 'take-cue') return row
+		if (verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') return row
 		if (verb === 'pause-toggle') return s?.clip?.cue ?? ''
 		if (SELECTED_ROW_VERBS.includes(verb)) return s?.selected ?? ''
 		return ''
@@ -371,7 +371,8 @@ export class PanelClient {
 			return { ok: false, sentence, ...(result ? { result } : {}) }
 		}
 		if (this.#status !== 'ok' || !this.#state) return refused(this.#note)
-		if ((verb === 'select-cue' || verb === 'take-cue') && !row) return refused('Choose a cue for this key')
+		if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !row)
+			return refused('Choose a cue for this key')
 		const press: Press = {
 			verb,
 			target: this.targetOf(verb, row),

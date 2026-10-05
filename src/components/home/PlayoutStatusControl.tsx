@@ -23,12 +23,14 @@ export function PlayoutStatusControl({
   onToggle,
   onClose,
   ready,
+  diagnostics = 0,
   children,
 }: {
   status: PlayoutStatus;
   /** READY's own reading underneath (readiness.ts), carried on the control's data attributes for
    *  whoever needs its exact words or counts: the specs. The tooltip names the checks instead. */
   ready?: Pick<ReadySummary, 'label' | 'source' | 'outputs' | 'ready'> | null;
+  diagnostics?: number;
   /** The production is started: the specs and the e2e read it off `data-started`. */
   started: boolean;
   /** "v12" beside the panel's title, or nothing. */
@@ -57,13 +59,14 @@ export function PlayoutStatusControl({
         data-outputs={ready?.outputs}
         data-ready={ready?.ready}
         aria-expanded={open}
-        title={why || status.text}
+        title={`${why || status.text}${diagnostics ? `\n${diagnostics} unidentified server item(s). Open for diagnostics and Stop/Clear.` : ''}`}
         onClick={onToggle}
       >
         <span className="pd-status-dot" aria-hidden="true">
           {TONE_DOT[status.tone]}
         </span>
         <span className="pd-status-text">{status.text}</span>
+        {diagnostics > 0 && <span className="pd-status-diagnostic" aria-label={`${diagnostics} server diagnostics`}>! {diagnostics}</span>}
       </button>
       <LibMenu open={open} onClose={onClose} surface="pd-ready-panel" role="none" testid="production-status-panel">
         <div className="pd-ready-title">

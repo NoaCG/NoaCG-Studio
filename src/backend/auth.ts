@@ -15,6 +15,7 @@ export type AuthStatus = 'loading' | 'signed-out' | 'signed-in';
 export interface AuthState {
   status: AuthStatus;
   user: User | null;
+  expiresAt?: number;
 }
 
 /**
@@ -155,7 +156,7 @@ export async function getSignedInUserId(): Promise<string | null> {
   const sb = await getSupabase();
   if (!sb) return null;
   const session = await readSessionBounded(sb);
-  return session?.user.id ?? null;
+  return session && (!session.expires_at || session.expires_at * 1000 > Date.now()) ? session.user.id : null;
 }
 
 /**
@@ -173,13 +174,16 @@ export function subscribeAuth(cb: (state: AuthState) => void): () => void {
       cb({ status: 'signed-in', user: null });
       return;
     }
-    const session = await readSessionBounded(sb);
-    if (cancelled) return;
-    cb(session ? { status: 'signed-in', user: session.user } : { status: 'signed-out', user: null });
+    let changed = false;
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-      cb(session ? { status: 'signed-in', user: session.user } : { status: 'signed-out', user: null });
+      if (cancelled) return;
+      changed = true;
+      cb(session ? { status: 'signed-in', user: session.user, expiresAt: session.expires_at ? session.expires_at * 1000 : undefined } : { status: 'signed-out', user: null });
     });
     unsub = () => sub.subscription.unsubscribe();
+    const session = await readSessionBounded(sb);
+    if (cancelled || changed) return;
+    cb(session ? { status: 'signed-in', user: session.user, expiresAt: session.expires_at ? session.expires_at * 1000 : undefined } : { status: 'signed-out', user: null });
   })();
   return () => {
     cancelled = true;

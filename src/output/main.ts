@@ -207,8 +207,9 @@ async function boot(): Promise<void> {
   }
 
   const soundBudget = createSoundBudget();
+  let programAudioVersion = resolved.output.ver?.h ?? '';
   const audio = (payload: typeof resolved.output) => ({ soundBudget, loadSound: publishedSoundLoader(outputSlug,payload.ver?.h ?? '') });
-  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', ...audio(resolved.output) });
+  const stage = createOutputStage(document.body, resolved.output, { sound: 'program', soundBudget, loadSound: asset => publishedSoundLoader(outputSlug, programAudioVersion)(asset) });
   dbg('graphics', stage.graphics.join(', '));
 
   // ── READY (control/readiness.ts; docs/work-specs/playout-ready/spec.md R1, R6, R7): this output
@@ -219,7 +220,7 @@ async function boot(): Promise<void> {
   // or rebuilt from its report, already holds its own values and must keep them. Registered before
   // any await, so no document can load unobserved. ──
   const payload = resolved.output;
-  const heldVersion: HeldVersion | null = payload.ver ? { n: payload.ver.n, h: payload.ver.h } : null;
+  let heldVersion: HeldVersion | null = payload.ver ? { n: payload.ver.n, h: payload.ver.h } : null;
   const checks = new Map<string, GraphicCheck>();
   /** Graphics a command or the recovery has reached since boot: never warmed. */
   const touched = new Set<string>();
@@ -365,6 +366,13 @@ async function boot(): Promise<void> {
   const preparer = createPreparer({
     audio,
     held: payload.ver ?? null,
+    adopt: next => {
+      if (!next.ver || JSON.stringify(next.resolution) !== JSON.stringify(payload.resolution)) return false;
+      programAudioVersion = next.ver.h;
+      heldVersion = { n: next.ver.n, h: next.ver.h };
+      presence.touch();
+      return true;
+    },
     resolve: async () => {
       await recovered;
       const answer = await untilAnswered(() => controlOutputResolve(outputSlug), { limit: 3 });
@@ -387,7 +395,13 @@ async function boot(): Promise<void> {
       chg = next;
       readyChanged();
     },
-    reload: reloadIfServed,
+    reload: async () => {
+      const page = await fetch(window.location.href, { cache: 'no-store' });
+      // A Take can land during the HTTP check. Recheck air at the last synchronous boundary.
+      if (!page.ok || (seqMode && headHeard ? Array.from(headOn.values()).some(Boolean) : liveGraphics.size > 0)) return false;
+      window.location.reload();
+      return true;
+    },
   });
   /** Rows a tail read returned, each with its read: the follow hands them to `onRow` like any other,
    *  and this is how that callback tells them from rows the log topic delivered. A read counts as a
@@ -515,7 +529,7 @@ async function boot(): Promise<void> {
   // graphic's machine cannot move without a command, and the renderer's main thread is the
   // one that must not miss frames. ──
   const liveGraphics = new Set<string>();
-  setInterval(() => liveGraphics.forEach((g) => stage.requestState(g)), 1000);
+  setInterval(() => { liveGraphics.forEach((g) => stage.requestState(g)); preparer.tick(); }, 1000);
 
   // ── THE MATCH CLOCK'S TIME ORIGIN (control/matchClockWire.ts). A clock is the one value that
   // keeps moving with nobody commanding it, so a snapshot of the commands cannot rebuild it: a

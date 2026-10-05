@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { isBackendConfigured } from '../backend/config';
 import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } from '../backend/syncController';
+import { libraryInUse } from '../model/durableStore';
+import { useAuthUi } from './auth/authUi';
 
 /**
  * Topbar cloud-sync indicator (Era 5.2). Renders nothing in offline mode. When a backend is
@@ -15,27 +17,27 @@ export default function SyncStatus() {
     return onSyncState(setState);
   }, []);
 
-  // Offline mode, or configured-but-not-signed-in: show nothing (the offline UI is unchanged).
-  if (!isBackendConfigured() || state.phase === 'offline') return null;
+  // Unconfigured builds stay offline. Configured anonymous work is explicitly local.
+  if (!isBackendConfigured()) return null;
 
   const label =
     state.phase === 'syncing'
-      ? 'Syncing…'
-      : state.phase === 'error'
-        ? 'Sync error'
-        : 'Synced';
+      ? state.firstPass ? 'Checking cloud revision…' : 'Not saved to cloud · saving…'
+      : state.phase === 'synced'
+        ? 'Personal library saved to cloud'
+        : libraryInUse() ? 'Not saved to cloud' : 'Local workspace';
   const title =
     state.phase === 'error'
-      ? state.detail ?? 'Sync failed'
+      ? state.detail ?? 'Cloud save failed. Pending changes remain on this device.'
       : state.phase === 'synced' && state.last
-        ? `Synced — ${state.last.pushed} up, ${state.last.pulled} down${state.last.conflicts ? `, ${state.last.conflicts} conflicts kept` : ''}`
-        : 'Click to sync now';
+        ? `Personal library confirmed at ${state.verifiedAt ?? ''}. Team productions have their own save status.${state.last.conflicts ? ` ${state.last.conflicts} conflicts preserved as copies.` : ''}`
+        : state.detail ?? 'The current revision has not been confirmed in the cloud. Click to retry.';
 
   return (
     <button
       className={`sync-status sync-${state.phase}`}
       title={title}
-      onClick={() => void syncNow()}
+      onClick={() => state.phase === 'offline' && libraryInUse() ? useAuthUi.getState().openSignIn('Sign in to resume account editing. Pending work is preserved.', 'resume') : void syncNow()}
       disabled={state.phase === 'syncing'}
     >
       <span className="sync-dot" />

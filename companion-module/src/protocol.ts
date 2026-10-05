@@ -16,13 +16,16 @@ export const PANEL_VERBS = [
 	'all-out',
 	'select-cue',
 	'take-cue',
+	'trigger-cue',
 ] as const
 export type PanelVerb = (typeof PANEL_VERBS)[number]
 
 /** The verbs whose enabled state the page publishes in `allowed`. The two per-row verbs are answered
  *  by `rows` and `blocked` instead. */
-export type SharedVerb = Exclude<PanelVerb, 'select-cue' | 'take-cue'>
-export const SHARED_VERBS = PANEL_VERBS.filter((v): v is SharedVerb => v !== 'select-cue' && v !== 'take-cue')
+export type SharedVerb = Exclude<PanelVerb, 'select-cue' | 'take-cue' | 'trigger-cue'>
+export const SHARED_VERBS = PANEL_VERBS.filter(
+	(v): v is SharedVerb => v !== 'select-cue' && v !== 'take-cue' && v !== 'trigger-cue',
+)
 
 /** Verbs that act on the selected row, so the key's target is what was selected when it was drawn. */
 export const SELECTED_ROW_VERBS: readonly PanelVerb[] = ['take', 'retake', 'update', 'next', 'out', 'pause', 'resume']
@@ -41,6 +44,7 @@ export const VERB_NAMES: Record<PanelVerb, string> = {
 	'all-out': 'All out',
 	'select-cue': 'Select a cue',
 	'take-cue': 'Take a cue',
+	'trigger-cue': 'Trigger a cue',
 }
 
 /** The press as the module sends it. */

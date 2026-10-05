@@ -258,6 +258,9 @@ export function createOutputStage(
     // The same sandbox posture as every preview surface: published template code must never
     // reach the app origin (no allow-same-origin, ever — see preview/previewProtocol.ts).
     iframe.setAttribute('sandbox', 'allow-scripts');
+    // Program sounds are played by this output's audio context. Delegate autoplay to its
+    // sandboxed children; monitor/preparation stages still remain silent by construction.
+    iframe.setAttribute('allow', 'autoplay');
     iframe.setAttribute('title', spec.key);
     // The layer number the production authored, stated rather than implied. An explicit
     // z-index makes the stack a property of the LAYER instead of a property of the append

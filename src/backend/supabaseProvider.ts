@@ -123,23 +123,27 @@ export class SupabaseProvider implements StorageProvider {
 
     const srcName = (record.body as { name?: unknown }).name;
     // Singletons (brand, project) use a per-user deterministic id so there is exactly one row per
-    // user per kind; packets/looks keep their own uuid. user_id is omitted: it defaults to
-    // auth.uid() on insert, and RLS blocks updating another user's row. onConflict:'id' upserts.
+    // user per kind; packets/looks keep their own uuid. Pin user_id before awaiting uploads so
+    // RLS rejects a session switch during this write. onConflict:'id' upserts.
     const rowId = isSingleton(record.kind) ? deterministicUuid(`${uid}:${record.kind}`) : record.id;
     const row = {
       id: rowId,
+      user_id: uid,
       kind: record.kind,
       name: typeof srcName === 'string' ? srcName : '',
       body,
       deleted: Boolean(record.deleted),
     };
-    const { error } = await sb.from(TABLE).upsert(row, { onConflict: 'id' });
+    const { data: confirmed, error } = await sb.from(TABLE).upsert(row, { onConflict: 'id' }).select('body').single();
     if (error) {
       const err = new Error(`Cloud put(${record.kind}) failed: ${error.message}`);
       // 42501 = insufficient_privilege: RLS rejected the write — the row id is owned by another
       // account. Marked so the sync engine resolves it permanently instead of retrying forever.
       if (error.code === '42501' || /row-level security/i.test(error.message)) markPutDenied(err);
       throw err;
+    }
+    if (!confirmed || toStoredRecord(record.kind, record.id, confirmed.body).updatedAt !== record.updatedAt) {
+      throw new Error(`Cloud put(${record.kind}) did not confirm this revision. It remains pending on this device.`);
     }
   }
 

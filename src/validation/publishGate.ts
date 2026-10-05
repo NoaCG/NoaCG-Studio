@@ -28,8 +28,8 @@ import type { SpxTemplate } from '../model/types';
 const PROMOTE_TO_ERROR = new Set(['external-dependency', 'missing-asset']);
 
 /** Run the full automated gate over a template. `ok` is true only when nothing blocks. */
-export function publishGate(template: SpxTemplate, production = false): ValidationResult {
-  const base = validateTemplate(template);
+export function publishGate(template: SpxTemplate, production = false, runtimeError?: string | null): ValidationResult {
+  const base = validateTemplate(template, { runtimeError });
   const bench = runBench(template,production);
 
   const errors: ValidationIssue[] = [...base.errors, ...bench.errors];

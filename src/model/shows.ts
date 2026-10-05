@@ -11,7 +11,7 @@ import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { durable } from './durableStore';
+import { canAuthorAccount, durable } from './durableStore';
 import { uuid } from './id';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -34,6 +34,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
+import { normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -42,6 +43,8 @@ import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
  * at cue 7 without a second copy of the template (docs/CLOUD_PLAYOUT.md §2).
  */
 export interface ShowCue {
+  /** Optional production-owned direct trigger, e.g. v or shift+f. */
+  hotkey?: string;
   /** Optional visual highlight only; never a route or tally color. */
   accentColor?: string;
   id: string;
@@ -365,6 +368,7 @@ function notifyDataChanged(): void {
  * this account's other devices.
  */
 function saveAll(list: Show[]): string | null {
+  if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
     if (show.teamId) writeTeamShow(show);
@@ -538,6 +542,7 @@ export function addGraphicToShow(
   opts?: { graphicId?: string | null },
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
+  if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
   const existing = show.graphics.findIndex((g) => g.name === template.name);
@@ -634,6 +639,7 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
  *  folder write that tells the operator anything reports, with `commitDurableWrites` after it. */
 function patchShowChecked(showId: string, mutate: (show: Show, at: string) => boolean): { shows: Show[]; error: string | null } {
   const all = readEditable();
+  if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   let error: string | null = null;
   if (show) {
@@ -927,6 +933,18 @@ export function updateShowCue(
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
+    return true;
+  });
+}
+
+export function setCueShortcut(showId: string, cueId: string, value: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, show => {
+    const cue = show.cues?.find(c => c.id === cueId);
+    if (!cue) throw new Error('This cue was removed.');
+    const key = value === null ? null : normalizeCueShortcut(value);
+    if (value !== null && !key) throw new Error('Choose a letter or digit, optionally with Shift.');
+    if (key && show.cues?.some(c => c.id !== cueId && normalizeCueShortcut(c.hotkey) === key)) throw new Error('That key is already assigned. Remove its other assignment first.');
+    if (key) cue.hotkey = key; else delete cue.hotkey;
     return true;
   });
 }

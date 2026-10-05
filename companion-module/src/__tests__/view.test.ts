@@ -66,6 +66,17 @@ test('on air, selected and allowed read the state as the page drew it', () => {
 	assert.equal(isAllowed(s, r, 'take-cue', 'cue_vt'), false)
 	assert.equal(isAllowed(s, r, 'select-cue', 'cue_vt'), true)
 	assert.equal(isAllowed(s, r, 'take-cue', 'gone'), false)
+	assert.equal(isAllowed(s, r, 'trigger-cue', 'cue_a'), true)
+	assert.equal(isAllowed(s, r, 'trigger-cue', 'cue_vt'), false)
+	assert.equal(
+		isAllowed(
+			s,
+			{ ...r, rows: [{ id: 'folder', kind: 'folder', label: 'Sequence', source: null }] },
+			'trigger-cue',
+			'folder',
+		),
+		false,
+	)
 	assert.equal(isAllowed(null, r, 'take'), false)
 })
 

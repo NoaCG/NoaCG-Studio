@@ -2,6 +2,7 @@
 // re-parses the SPXGCTemplateDefinition so fields stay in sync with the visible code.
 
 import { create } from 'zustand';
+import { canAuthorAccount } from '../model/durableStore';
 import { createDefaultTemplate } from '../templates/defaultTemplate';
 import { parseDefinition } from '../model/spxDefinition';
 import type { AssetFile, SpxTemplate } from '../model/types';
@@ -335,7 +336,13 @@ const initialTemplate = initialProject?.template ?? createDefaultTemplate();
 // template (so Reset on a pre-baseline project at least returns to how it opened).
 const initialBaseline = initialProject?.baseline ?? initialTemplate;
 
-export const useTemplateStore = create<TemplateState>((set, get) => ({
+export const useTemplateStore = create<TemplateState>((rawSet, get) => {
+  const set = (patch: Partial<TemplateState> | ((state: TemplateState) => Partial<TemplateState>)) => rawSet(state => {
+    const next = typeof patch === 'function' ? patch(state) : patch;
+    if (!canAuthorAccount() && ['template', 'sampleData', 'aiSpec', 'aiThread', 'legibility'].some(key => key in next)) return {};
+    return next;
+  });
+  return {
   template: initialTemplate,
   baseline: initialBaseline,
   activeTab: 'html',
@@ -583,7 +590,8 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
 
   openGallery: (designId) => set({ galleryOpen: true, pendingDesignId: designId ?? null }),
   closeGallery: () => set({ galleryOpen: false }),
-}));
+  };
+});
 
 // Autosave the working project (debounced) whenever the template actually changes, so a reload
 // restores it instead of a blank default. Covers every mutation that touches the template — panels,
@@ -594,18 +602,32 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
 // document has drifted from its library record. saveActions' open/save paths set the link
 // AFTER their applyTemplate returns, so their state wins over this generic marking.
 let projectSaveTimer: ReturnType<typeof setTimeout> | null = null;
+function flushPendingProject() {
+  if (!projectSaveTimer) return;
+  clearTimeout(projectSaveTimer);
+  projectSaveTimer = null;
+  const s = useTemplateStore.getState();
+  saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('noacg-account-authoring-pausing', flushPendingProject);
+  window.addEventListener('noacg-account-authoring-flush', flushPendingProject);
+}
 useTemplateStore.subscribe((state, prev) => {
   // The legibility settings are part of the SAVED document (GraphicDoc.legibility), not a
   // view preference, so a change to them drifts the working document exactly as a template
   // edit does. Without this the editor's Viewing control looked like it worked and lost the
   // choice on reload — the wizard's copy only ever persisted because creating a project
   // changes the template in the same breath.
-  if (state.template === prev.template && state.legibility === prev.legibility) return;
+  // Rehearsal samples are view state, not part of the saved working document.
+  if (state.template === prev.template && state.legibility === prev.legibility && state.aiSpec === prev.aiSpec && state.aiThread === prev.aiThread) return;
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
   if (!state.saved.dirty) {
     useTemplateStore.setState((s) => ({ saved: { ...s.saved, dirty: true } }));
   }
   if (projectSaveTimer) clearTimeout(projectSaveTimer);
   projectSaveTimer = setTimeout(() => {
+    projectSaveTimer = null;
     const s = useTemplateStore.getState();
     saveProject(s.template, s.baseline, { graphicId: s.saved.graphicId, dirty: s.saved.dirty }, s.aiSpec, s.aiThread, s.legibility);
   }, 800);

@@ -9,7 +9,7 @@
 //
 // The second is read graphic by graphic: what a publish would write for the graphics this browser
 // reads from its own library (`libraryGraphicDigests`) against the published stamp's digests. It is
-// read only when the first has not already answered, since the library has to be parsed for it.
+// computed independently of record changes, so a cue reorder cannot hide changed output assets.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { libraryGraphicDigests } from '../../control/hostedControl';
@@ -35,7 +35,7 @@ function recordChanged(show: Show | null): boolean {
  * `check()` answers the same question NOW, without the settle delay, for a press that must not act
  * on a reading a moment old (Prepare for Live deciding whether to publish).
  */
-export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; check: () => Promise<boolean> } {
+export function usePublishDrift(show: Show | null, published: Record<string, string> | null): { unpublished: boolean; requiresPreparation: boolean; check: () => Promise<boolean> } {
   const [drift, setDrift] = useState(false);
   const latest = useRef({ show, published });
   latest.current = { show, published };
@@ -50,19 +50,23 @@ export function usePublishDrift(show: Show | null, published: Record<string, str
     }
   }, []);
   const changed = recordChanged(show);
+  const poolChanged = !!published && !!show && (show.graphics.length !== Object.keys(published).length || show.graphics.some(g => !(g.name in published)));
   useEffect(() => {
-    if (changed || !show?.publishedAt || !published) {
+    if (!show?.publishedAt || !published) {
       setDrift(false);
       return;
     }
     let alive = true;
     const timer = setTimeout(() => {
-      void check().then((d) => alive && setDrift(d));
+      void libraryGraphicDigests(show, loadGraphics()).then(
+        digests => { if (alive) setDrift(rendersDiffer(digests, published)); },
+        () => { if (alive) setDrift(true); },
+      );
     }, SETTLE_MS);
     return () => {
       alive = false;
       clearTimeout(timer);
     };
   }, [show, published, changed, check]);
-  return { unpublished: changed || drift, check };
+  return { unpublished: changed || drift || poolChanged, requiresPreparation: drift || poolChanged || (changed && !published), check };
 }

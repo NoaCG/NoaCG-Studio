@@ -85,6 +85,7 @@ test('first Publish has no selection, cancellation is inert, remembered choice s
   b.failPublish=false;b.failDefault=true;await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true');
   await expect(page.getByTestId('output-default-failure')).toContainText('Published successfully');
+  await page.screenshot({path:test.info().outputPath('studio-readiness-result.png')});
   expect((await record(page,id)).outputSetup).toEqual(choice('spx'));
   b.failDefault=false;await page.getByRole('button',{name:'Retry saving default'}).click();await expect(page.getByTestId('output-default-failure')).toBeHidden();
   expect(b.defaults[A]).toEqual(choice('spx'));expect(b.preferences).toEqual([A]);
@@ -114,7 +115,10 @@ test('legacy open, save, duplicate and republish preserve routes, cues, capabili
   const b=backend();b.defaults[A]=choice('spx');await account(page,b);const id=await seed(page,true);
   const before=await record(page,id);await page.getByTestId('production-publish').click();await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true');await expect(page.getByTestId('output-setup-dialog')).toHaveCount(0);
   const published=await record(page,id);expect(published.outputSetup).toBeUndefined();expect(published.cues).toEqual(before.cues);expect(published.graphics).toEqual(before.graphics);
-  await page.getByTestId('production-republish').click();await expect(page.getByTestId('production-note')).toContainText('Changes published');
+  await settleDurableWrites(page);await page.reload();await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const current=S.loadShows().find(s=>s.id===key)!;S.upsertShow({...current,name:'Output proof republished',updatedAt:new Date(Date.now()+1).toISOString()});},id);
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('prepare-for-live-button').click();await expect(page.getByTestId('production-note')).toContainText('Changes published');
   const again=await record(page,id);expect(again.outputSlug).toBe(published.outputSlug);expect(again.hostedSlug).toBe(published.hostedSlug);expect(again.outputSetup).toBeUndefined();
   const copy=await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const copy=S.duplicateShowChecked(key).show!;await (await import('/src/model/durableStore.ts')).commitDurableWrites();return copy;},id);
   expect(copy.outputSetup).toBeUndefined();expect(copy.outputSlug).toBeUndefined();expect(copy.cues).toEqual(published.cues);
