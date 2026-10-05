@@ -1,0 +1,245 @@
+=== j-3425 set E2E_WORKERS=3&& npx playwright test e2e/editor-groups.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:34020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 21 tests using 3 workers
+
+(node:29772) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:45076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18724) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ nestedParts: 14, group: 1, breadcrumbs: 1 }
+  ok  2 [chromium] › e2e\editor-groups.spec.ts:41:1 › baseline probe: imported hierarchy and missing group controls (3.4s)
+  ok  1 [chromium] › e2e\editor-groups.spec.ts:65:1 › a selected group moves every member by composition pixels and cancels as one gesture (4.6s)
+  ok  3 [chromium] › e2e\editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo (5.2s)
+  ok  4 [chromium] › e2e\editor-groups.spec.ts:75:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas (3.8s)
+  ok  5 [chromium] › e2e\editor-groups.spec.ts:89:1 › noncontiguous selection refuses with source and history unchanged (3.3s)
+  x   6 [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance (5.3s)
+(node:21416) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  8 [chromium] › e2e\editor-groups.spec.ts:147:1 › nested group navigation and transformed-parent nudge preserve fine world geometry (4.4s)
+  ok  7 [chromium] › e2e\editor-groups.spec.ts:132:1 › independent child and group motion survive ungroup and repeated cue seeks (6.0s)
+  ok 10 [chromium] › e2e\editor-groups.spec.ts:171:1 › group parent bar moves child keys atomically and local time follows its visibility start (3.4s)
+  ok 11 [chromium] › e2e\editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged (2.8s)
+  ok  9 [chromium] › e2e\editor-groups.spec.ts:161:1 › SVG members under a rotated scaled parent group and ungroup without jumps (4.7s)
+  ok 12 [chromium] › e2e\editor-groups.spec.ts:198:1 › structural selectors refuse grouping and mixed parents have no partial source write (3.4s)
+  x  13 [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo (4.6s)
+(node:21136) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 15 [chromium] › e2e\editor-groups.spec.ts:243:1 › mixed parents and parent/member selection refuse the complete operation batch (2.7s)
+  ok 14 [chromium] › e2e\editor-groups.spec.ts:225:1 › group arrow gestures cancel on focus, source and assets; local ruler owns its arrows (7.8s)
+  ok 17 [chromium] › e2e\editor-groups.spec.ts:323:1 › SVG group rotation and scale motion ungroup exactly at different poses (6.0s)
+  ok 18 [chromium] › e2e\editor-groups.spec.ts:336:1 › group canvas transform is one undo and Escape or navigation cancels its draft (4.5s)
+  ok 19 [chromium] › e2e\editor-groups.spec.ts:347:1 › painted pseudo-element selectors refuse without wrapping new artwork (3.5s)
+  ok 20 [chromium] › e2e\editor-groups.spec.ts:353:1 › ungroup refuses a group-owned outline without losing source or selection (3.5s)
+  ok 21 [chromium] › e2e\editor-groups.spec.ts:360:1 › SVG group pivot is centered and remains static during child and group motion (5.1s)
+  ok 16 [chromium] › e2e\editor-groups.spec.ts:251:1 › template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes (18.4s)
+
+
+  1) [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 10
+    Received: 9.99267578125
+
+    Expected precision:    2
+    Expected difference: < 0.005
+    Received difference:   0.00732421875
+
+      127 |   expect(ungrouped.fields).toEqual(before.fields);expect(ungrouped.assets).toEqual(before.assets);
+      128 |   await select(page,[ids[0]]);await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
+    > 129 |   const moved=await rects(page,ids);expect(moved[0].x-pose[0].x).toBeCloseTo(10,2);nearRects(moved.slice(1),pose.slice(1));
+          |                                                                  ^
+      130 | });
+      131 |
+      132 | test('independent child and group motion survive ungroup and repeated cue seeks',async({page})=>{
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:129:66
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-group-transf-6ee42-ts-and-ungrouped-appearance-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-group-transf-6ee42-ts-and-ungrouped-appearance-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    - Expected  - 20
+    + Received  + 80
+
+    @@ -76,34 +76,64 @@
+            "duration": 1.34,
+            "ease": "expo.out",
+            "layers": {
+              ".lower-third-accent": {
+                "scaleX": [
+    -             { "time": 0, "value": 0 },
+    -             { "time": 0.6, "value": 1 }
+    +             {
+    +               "time": 0,
+    +               "value": 0
+    +             },
+    +             {
+    +               "time": 0.6,
+    +               "value": 1
+    +             }
+                ]
+              },
+              ".lower-third-box": {
+                "clipPath": [
+    -             { "time": 0.25, "value": "inset(0 100% 0 0)" },
+    -             { "time": 0.9, "value": "inset(0 0% 0 0)" }
+    +             {
+    +               "time": 0.25,
+    +               "value": "inset(0 100% 0 0)"
+    +             },
+    +             {
+    +               "time": 0.9,
+    +               "value": "inset(0 0% 0 0)"
+    +             }
+                ],
+                "opacity": [
+    -             { "time": 0.25, "value": 0 },
+    -             { "time": 0.9, "value": 1 }
+    +             {
+    +               "time": 0.25,
+    +               "value": 0
+    +             },
+    +             {
+    +               "time": 0.9,
+    +               "value": 1
+    +             }
+                ]
+              },
+              "#f0": {
+                "yPercent": [
+    -             { "time": 0.5, "value": 110 },
+    -             { "time": 1.2, "value": 0 }
+    +             {
+    +               "time": 0.5,
+    +               "value": 110
+    +             },
+    +             {
+    +               "time": 1.2,
+    +               "value": 0
+    +             }
+                ]
+              },
+              "#f1": {
+                "yPercent": [
+    -             { "time": 0.64, "value": 110 },
+    -             { "time": 1.34, "value": 0 }
+    +             {
+    +               "time": 0.64,
+    +               "value": 110
+    +             },
+    +             {
+    +               "time": 1.34,
+    +               "value": 0
+    +             }
+                ]
+              }
+            }
+          },
+          {
+    @@ -111,34 +141,64 @@
+            "duration": 0.75,
+            "ease": "power3.in",
+            "layers": {
+              "#f0": {
+                "yPercent": [
+    -             { "time": 0, "value": 0 },
+    -             { "time": 0.35, "value": 110 }
+    +             {
+    +               "time": 0,
+    +               "value": 0
+    +             },
+    +             {
+    +               "time": 0.35,
+    +               "value": 110
+    +             }
+                ]
+              },
+              "#f1": {
+                "yPercent": [
+    -             { "time": 0.05, "value": 0 },
+    -             { "time": 0.4, "value": 110 }
+    +             {
+    +               "time": 0.05,
+    +               "value": 0
+    +             },
+    +             {
+    +               "time": 0.4,
+    +               "value": 110
+    +             }
+                ]
+              },
+              ".lower-third-accent": {
+                "scaleX": [
+    -             { "time": 0.3, "value": 1 },
+    -             { "time": 0.6, "value": 0 }
+    +             {
+    +               "time": 0.3,
+    +               "value": 1
+    +             },
+    +             {
+    +               "time": 0.6,
+    +               "value": 0
+    +             }
+                ]
+              },
+              ".lower-third-box": {
+                "clipPath": [
+    -             { "time": 0.45, "value": "inset(0 0% 0 0%)" },
+    -             { "time": 0.75, "value": "inset(0 0% 0 100%)" }
+    +             {
+    +               "time": 0.45,
+    +               "value": "inset(0 0% 0 0%)"
+    +             },
+    +             {
+    +               "time": 0.75,
+    +               "value": "inset(0 0% 0 100%)"
+    +             }
+                ],
+                "opacity": [
+    -             { "time": 0.45, "value": 1 },
+    -             { "time": 0.75, "value": 0 }
+    +             {
+    +               "time": 0.45,
+    +               "value": 1
+    +             },
+    +             {
+    +               "time": 0.75,
+    +               "value": 0
+    +             }
+                ]
+              }
+            }
+          }
+        ]
+
+      217 |   const transformed=await source(page),moved=await rects(page,ids);
+      218 |   await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);nearRects(await rects(page,ids),moved);
+    > 219 |   const next=await source(page);expect(next.fields).toEqual(before.fields);expect(next.assets).toEqual(before.assets);expect(next.js).toBe(before.js);
+          |                                                                                                                                       ^
+      220 |   const f=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
+      221 |   expect(await f.locator(ids[1]).evaluate(el=>el.parentElement?.className)).toContain('mask');
+      222 |   await undo(page);expect(await source(page)).toEqual(transformed);
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:219:135
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-text-mask-fi-69cd7-ansformed-grouping-and-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-text-mask-fi-69cd7-ansformed-grouping-and-undo-chromium\error-context.md
+
+  2 failed
+    [chromium] › e2e\editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance 
+    [chromium] › e2e\editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo 
+  19 passed (54.0s)

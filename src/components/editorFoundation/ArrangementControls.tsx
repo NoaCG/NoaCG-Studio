@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Arrangement } from '../../blocks/arrangementGeometry';
 
 const commands: { label: string; short: string; command: Arrangement }[] = [
@@ -10,9 +11,9 @@ const commands: { label: string; short: string; command: Arrangement }[] = [
   { label: 'Distribute horizontally', short: 'Horizontal', command: { kind: 'distribute', axis: 'x' } },
   { label: 'Distribute vertically', short: 'Vertical', command: { kind: 'distribute', axis: 'y' } },
 ];
-export default function ArrangementControls({ count, reference, setReference, run, disabled, error }: {
+export default function ArrangementControls({ count, reference, setReference, run, disabled, error, children }: {
   count: number; reference: 'selection' | 'canvas'; setReference: (value: 'selection' | 'canvas') => void;
-  run: (command: Arrangement) => void; disabled: boolean; error: string;
+  run: (command: Arrangement) => void; disabled: boolean; error: string; children?: ReactNode;
 }) {
   return <div className="ef-arrangement" aria-label="Arrange artwork">
     <div className="ef-arrangement-row">
@@ -23,6 +24,7 @@ export default function ArrangementControls({ count, reference, setReference, ru
         <button key={label} aria-label={label} title={label} disabled={disabled || count < (reference === 'canvas' ? 1 : 2)} onClick={() => run(command)}>{short}</button>)}</div>
       <div role="group" aria-label="Distribute"><span>Gaps</span>{commands.slice(6).map(({ label, short, command }) =>
         <button key={label} aria-label={label} title={label + ': equal gaps, outer items fixed'} disabled={disabled || count < 3} onClick={() => run(command)}>{short}</button>)}</div>
+      {children}
     </div>
     {error && <div className="ef-arrangement-error" role="alert">{error}</div>}
   </div>;

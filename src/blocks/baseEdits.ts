@@ -2,7 +2,8 @@
 import type { SpxTemplate } from '../model/types';
 import { getTemplateParts, detectPrefix } from '../model/structure';
 import { parseTransform } from '../assets/svgGeometry';
-import { locateAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
+import { locateAnimData, losslessAnimData, parseAnimData, type AnimData, type AnimLayerTracks, type AnimStep } from './animData';
+import { writeAnimData } from '../templates/shared/animRuntime';
 import { allTimelines } from './animMachine';
 import { addCatalogLine, appendCss, findRuleBody, setCssDeclaration } from './edit';
 import { addPlacedLine, placedLines, placeLine, placementCss, setLineFit } from './designLayout';
@@ -13,6 +14,10 @@ export interface BaseValues {
   selector: string; target: string; mode: 'placed' | 'svg' | 'flow' | 'absolute';
   x: number; y: number; originX: number; originY: number; scaled: boolean;
   scaleX: number; scaleY: number; rotation: number;
+  /** Independent placement avoids layout rounding inside transformed groups. */
+  offsetPosition?: boolean;
+  /** An authored group's stable source frame, in parent-local coordinates. */
+  groupFrame?: { x: number; y: number; width: number; height: number };
   scaleReason: string | null;
   /** Why an anisotropic base resize cannot preserve the layer's own axes. */
   axisResizeReason: string | null;
@@ -112,6 +117,8 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   const nodes = doc.querySelectorAll(selector);
   if (!part || nodes.length !== 1) throw new Error('Select one uniquely addressable artwork layer.');
   const node = nodes[0];
+  const groupFrame = node.hasAttribute('data-noacg-group') ? { x: Number(node.getAttribute('data-group-x')), y: Number(node.getAttribute('data-group-y')), width: Number(node.getAttribute('data-group-width')), height: Number(node.getAttribute('data-group-height')) } : undefined;
+  if (groupFrame && (Object.values(groupFrame).some(value => !Number.isFinite(value)) || groupFrame.width <= 0 || groupFrame.height <= 0)) throw new Error('This group has no valid transform frame. Its source is preserved.');
   const placed = placedLines(template.html, template.css)[selector];
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg' && node.tagName.toLowerCase() !== 'svg';
   const target = placed ? '#' + placed.wrapperId : selector;
@@ -166,7 +173,9 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   if (doc.querySelector(target)?.getAttribute('style')?.match(/(?:^|;)\s*(?:translate|scale|rotate|left|top|right|bottom)\s*:/)) {
     throw new Error('Inline placement needs a source edit; no competing rule was written.');
   }
+  const offsetPosition = !!groupFrame || !svg && (mode === 'absolute' || mode === 'placed') && (!!targetNode.parentElement?.closest('[data-noacg-group], [data-noacg-carrier]') || styles.some(style => style.translate.includes('--base-x')));
   let originX = 0, originY = 0;
+  if (offsetPosition && !svg) { originX = left?.value ?? 0; originY = top?.value ?? 0; }
   if (svg) {
     const m = parseTransform(node.getAttribute('transform'));
     const x = parseFloat(node.getAttribute('x') ?? node.getAttribute('cx') ?? '0');
@@ -177,23 +186,28 @@ function inspectBaseValues(template: SpxTemplate, selector: string): BaseValues 
   // from the rule the writer writes (the first top-level rule with exactly the target's selector).
   const own = findRuleBody(template.css, target)?.body ?? '';
   const ownValue = (property: string) => own.match(new RegExp('(?:^|[;{]|\\*/)\\s*' + esc(property) + '\\s*:\\s*([^;]+)'))?.[1].trim() ?? null;
-  const anchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
+  const rawAnchor = ownValue('transform-origin')?.includes('--base-anchor-') ? { x: parseFloat(ownValue('--base-anchor-x') ?? '') || 0, y: parseFloat(ownValue('--base-anchor-y') ?? '') || 0 } : null;
+  const anchor = rawAnchor && groupFrame && !svg ? { x: rawAnchor.x - groupFrame.x, y: rawAnchor.y - groupFrame.y } : rawAnchor;
   // A second declaration (or its -webkit- alias) later in the rule would win over the one written.
   const repeated = (own.match(/(?:^|[;{\s]|\*\/)(?:-webkit-)?transform-origin\s*:/g) ?? []).length > 1;
   // A placed text animates inside its box (keys name the text, base edits its wrapper), about its own centre.
   const textMotion = mode === 'placed' && tracksOn(motion?.steps ?? [], node).some(tracks => ['rotation', 'scale', 'scaleX', 'scaleY', 'transform'].some(channel => tracks[channel]?.length));
   const rival = svg ? null : originOwner(rules, target);
-  const anchorReason = svg ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
-    : originSetFor(template.js, motion, targetNode) ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
+  const ownedSvgPivot = svg && !!groupFrame && !!rawAnchor && !!motion && allTimelines(motion).every(step => {
+    const keys = step.layers[selector]?.transformOrigin;
+    return keys?.length === 1 && keys[0].time === 0 && keys[0].value === rawAnchor.x+'px '+rawAnchor.y+'px';
+  });
+  const anchorReason = svg && !groupFrame ? 'An SVG element turns about an origin GSAP places from its own box, so an anchor written in CSS would not hold once it moves. Its source is preserved.'
+    : originSetFor(template.js, motion, targetNode) && !ownedSvgPivot ? 'This graphic\'s script or animation data sets this layer\'s transformOrigin itself, which would replace an anchor written in CSS. Its source is preserved.'
     : rival ? `This layer's transform-origin is set by another rule, or measured from another box by transform-box (${rival}), so an anchor written here would not hold. Its source is preserved.`
     : repeated ? 'This layer\'s own rule declares transform-origin more than once, so an anchor written there would lose to the later one. Its source is preserved.'
     : /(?:^|;)\s*transform-(?:origin|box)\s*:/.test(targetNode.getAttribute('style') ?? '') ? 'This layer\'s inline style sets its transform-origin, which another rule cannot override. Its source is preserved.'
     : textMotion ? `${selector} animates Rotation or Scale on its text inside its placed box, which turns about the text's own centre, so no anchor on the box can be its pivot. Its source is preserved.`
     : null;
-  return { selector, target, mode, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
+  return { selector, target, mode, groupFrame, offsetPosition, scaleReason, axisResizeReason, rotationReason, scaled: placed?.scaled ?? left?.scaled ?? false,
     originX, originY, anchor, anchorReason,
-    x: placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
-    y: placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
+    x: offsetPosition ? originX + number(template.css, target, '--base-x') : placed?.x ?? left?.value ?? originX + number(template.css, target, svg ? '--base-x' : '--layout-x'),
+    y: offsetPosition ? originY + number(template.css, target, '--base-y') : placed?.y ?? top?.value ?? originY + number(template.css, target, svg ? '--base-y' : '--layout-y'),
     scaleX: Number(declaration(template.css, target, '--base-scale-x') ?? 1),
     scaleY: Number(declaration(template.css, target, '--base-scale-y') ?? 1),
     rotation: Number(declaration(template.css, target, '--base-rotation') ?? 0) };
@@ -247,7 +261,12 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     css = appendCss(css, 'Base artwork placement; animation keeps ownership of transform.', base.target + ' {}');
   }
   if (!svgMotion && (patch.x !== undefined || patch.y !== undefined)) {
-    if (base.mode === 'placed' || base.mode === 'absolute') {
+    if (base.offsetPosition) {
+      css = setCssDeclaration(css, base.target, '--base-x', transformPrecision(x - base.originX) + 'px');
+      css = setCssDeclaration(css, base.target, '--base-y', transformPrecision(y - base.originY) + 'px');
+      const offset = (axis: string) => base.scaled ? `calc(var(--base-${axis}) * var(--scale, 1))` : `var(--base-${axis})`;
+      css = setCssDeclaration(css, base.target, 'translate', offset('x') + ' ' + offset('y'));
+    } else if (base.mode === 'placed' || base.mode === 'absolute') {
       css = setCssDeclaration(css, base.target, 'left', placementCss(x, base.scaled));
       css = setCssDeclaration(css, base.target, 'top', placementCss(y, base.scaled));
     } else {
@@ -278,11 +297,18 @@ export function editBase(template: SpxTemplate, selector: string, patch: BasePat
     // Rotation and scale, base and animated alike, turn about transform-origin. A layer whose placement
     // scales with the design measures its anchor in the same units, as its Layout offset does.
     const unit = (axis: string) => base.mode === 'flow' || base.scaled ? `calc(var(--base-anchor-${axis}) * var(--scale, 1))` : `var(--base-anchor-${axis})`;
-    css = setCssDeclaration(css, base.target, '--base-anchor-x', precise(patch.anchorX!) + 'px');
-    css = setCssDeclaration(css, base.target, '--base-anchor-y', precise(patch.anchorY!) + 'px');
+    css = setCssDeclaration(css, base.target, '--base-anchor-x', transformPrecision(patch.anchorX! + (base.mode === 'svg' ? 0 : base.groupFrame?.x ?? 0)) + 'px');
+    css = setCssDeclaration(css, base.target, '--base-anchor-y', transformPrecision(patch.anchorY! + (base.mode === 'svg' ? 0 : base.groupFrame?.y ?? 0)) + 'px');
     css = setCssDeclaration(css, base.target, 'transform-origin', unit('x') + ' ' + unit('y'));
   }
-  return { ...template, html, css };
+  let js = template.js;
+  if (anchored && base.groupFrame && base.mode === 'svg') {
+    const data = losslessAnimData(js);
+    if (!data) throw new Error('This SVG group has no supported pivot initializer. Its source is preserved.');
+    for (const step of allTimelines(data)) if (step.layers[selector]?.transformOrigin) step.layers[selector].transformOrigin = [{time:0,value:transformPrecision(patch.anchorX!)+'px '+transformPrecision(patch.anchorY!)+'px'}];
+    const changed = writeAnimData(js, data); if (!changed) throw new Error('The group pivot initializer cannot be written.'); js = changed;
+  }
+  return { ...template, html, css, js };
 }
 
 export type CreationKind = 'text' | 'rectangle' | 'ellipse';

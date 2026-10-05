@@ -1,0 +1,59 @@
+=== j-3452 set E2E_WORKERS=3&& npx playwright test e2e/editor-images.spec.ts e2e/assets.spec.ts e2e/asset-workflow.spec.ts e2e/images.spec.ts e2e/image-purpose.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:14612) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 42 tests using 3 workers
+
+  -   1 [chromium] › e2e\asset-workflow.spec.ts:103:1 › an image kept visible from the beginning stays out of every reveal list, and its row exists
+  -   3 [chromium] › e2e\asset-workflow.spec.ts:117:1 › drop into an EXISTING step, then retarget participation afterwards from the Inspector
+  -   2 [chromium] › e2e\asset-workflow.spec.ts:58:1 › drop a logo, make it the NEXT STEP from the canvas chip — connected everywhere, fully undoable
+  -   4 [chromium] › e2e\asset-workflow.spec.ts:154:1 › the Inspector names the preset targets and writes an early exit (Disappears)
+  -   5 [chromium] › e2e\asset-workflow.spec.ts:178:1 › a preset Delay shifts the written keyframes and grows the step — no keyframe editing needed
+  -   6 [chromium] › e2e\asset-workflow.spec.ts:213:1 › video assets: capped import, VIDEO badge, and a muted looping <video> on drop
+  -   9 [chromium] › e2e\assets.spec.ts:44:1 › import via the Assets tab: rows appear grouped, and a multi-file import is ONE undo step
+  -   7 [chromium] › e2e\asset-workflow.spec.ts:246:1 › the Assets panel marks which assets the graphic actually uses, per row
+  -   8 [chromium] › e2e\assets.spec.ts:61:1 › the info section derives name, format, dimensions, size, alpha, and usage
+  -  10 [chromium] › e2e\assets.spec.ts:78:1 › remove is undoable; a Lottie file imports with its badge; junk JSON is rejected
+  -  11 [chromium] › e2e\assets.spec.ts:125:1 › dragging an asset onto the canvas inserts a positioned <img> as one undo step
+  -  12 [chromium] › e2e\assets.spec.ts:105:1 › moving an asset into a new folder nests its path; undo restores it
+  -  15 [chromium] › e2e\assets.spec.ts:249:1 › mobile: the Assets tab is in the side-panel strip
+  -  14 [chromium] › e2e\assets.spec.ts:223:1 › a saved v2 layout gains the Assets tab once (v2 -> v3 migration)
+  -  13 [chromium] › e2e\assets.spec.ts:182:1 › dropping a Lottie asset on the canvas inserts a playing animation element
+(node:40148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28340) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 18 [chromium] › e2e\editor-images.spec.ts:65:46 › catalog: file chooser creates and replaces an image, fit and undo preserve source (4.0s)
+  ok 17 [chromium] › e2e\editor-images.spec.ts:65:46 › svg: file chooser creates and replaces an image, fit and undo preserve source (4.4s)
+  ok 16 [chromium] › e2e\editor-images.spec.ts:27:1 › Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo (5.3s)
+  ok 19 [chromium] › e2e\editor-images.spec.ts:65:46 › f4: file chooser creates and replaces an image, fit and undo preserve source (4.5s)
+  ok 20 [chromium] › e2e\editor-images.spec.ts:95:1 › catalog opened through template search offers image creation (6.1s)
+  ok 21 [chromium] › e2e\editor-images.spec.ts:127:1 › OS drop and chooser produce the same source; asset drag and a drop over an image always add layers (5.6s)
+  ok 22 [chromium] › e2e\editor-images.spec.ts:163:55 › catalog-logo: replace existing artwork with aspect-preserving fit (2.8s)
+  ok 25 [chromium] › e2e\editor-images.spec.ts:186:1 › guards refuse unsupported sources, invalid geometry, missing assets and preserve unknown motion (2.0s)
+  ok 23 [chromium] › e2e\editor-images.spec.ts:163:55 › svg: replace existing artwork with aspect-preserving fit (3.3s)
+  ok 24 [chromium] › e2e\editor-images.spec.ts:163:55 › raster: replace existing artwork with aspect-preserving fit (3.4s)
+  ok 26 [chromium] › e2e\editor-images.spec.ts:217:1 › Escape, failed reads and stale revisions discard a whole file batch (2.6s)
+  ok 27 [chromium] › e2e\editor-images.spec.ts:250:1 › file validation guards refuse invalid resource batches and failed reads (2.4s)
+  ok 28 [chromium] › e2e\editor-images.spec.ts:280:1 › SVG, font and Lottie resource import stays separate from placement and binds SVG extension (3.7s)
+  ok 30 [chromium] › e2e\editor-images.spec.ts:331:1 › a canvas drop waits for pending drawing-space measurement instead of discarding the gesture (2.8s)
+  -  32 [chromium] › e2e\image-purpose.spec.ts:172:1 › the preselect reads the picture, and only ever guesses mark-or-not
+  -  33 [chromium] › e2e\image-purpose.spec.ts:195:1 › the fixed/swappable choice belongs to "use it as it is" alone
+  ok 29 [chromium] › e2e\editor-images.spec.ts:301:1 › Escape also cancels existing-asset placement and replacement after decode begins (3.2s)
+  -  34 [chromium] › e2e\image-purpose.spec.ts:212:1 › each purpose reaches the model as its own instruction
+  -  35 [chromium] › e2e\image-purpose.spec.ts:262:1 › a reference is never bundled into the created template
+  -  36 [chromium] › e2e\image-purpose.spec.ts:288:1 › a design that "improves" an as-is picture is held back
+  -  38 [chromium] › e2e\images.spec.ts:59:1 › data panel: the add-field types are the broadcast set, and an unanswerable add is refused
+  -  39 [chromium] › e2e\images.spec.ts:79:1 › end credits: uploading a logo through the Logo field puts it in the end block
+  -  40 [chromium] › e2e\images.spec.ts:94:1 › an oversized logo is shrunk to the frame at the door, and a small one is left alone
+  -  41 [chromium] › e2e\images.spec.ts:167:1 › corner bug: the logo field replaces the placeholder mark
+  -  42 [chromium] › e2e\images.spec.ts:180:1 › export: the zip is [project]/[project].html with images under [project]/images/
+  ok 37 [chromium] › e2e\image-purpose.spec.ts:320:1 › video: a reference-tagged upload is not composition material (2.9s)
+  ok 31 [chromium] › e2e\editor-images.spec.ts:357:1 › saved image and its binding reopen and execute in SPX, CasparCG and OGraf (5.4s)
+
+  25 skipped
+  17 passed (36.5s)

@@ -151,7 +151,8 @@ export default function ArtworkAppearance(props: Props) {
   const { template, selector, session, appearance } = props;
   const text = artworkText(template, selector), node = artworkNode(template, selector);
   const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
-  const shape = !text && !node.hasAttribute('data-pen-path') && ['rect', 'ellipse', 'circle', 'polygon', 'div'].includes(node.tagName.toLowerCase());
+  const group = node.hasAttribute('data-noacg-group');
+  const shape = !text && !group && !node.hasAttribute('data-pen-path') && ['rect', 'ellipse', 'circle', 'polygon', 'div'].includes(node.tagName.toLowerCase());
   const currentColour = (text ? appearance?.color : appearance?.fill) ?? (svg ? node.getAttribute('fill') : null) ?? '#ffffff';
   const rgb = currentColour.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
   const hex = rgb ? '#' + rgb.slice(1).map(n => Number(n).toString(16).padStart(2, '0')).join('') : currentColour;
@@ -171,7 +172,7 @@ export default function ArtworkAppearance(props: Props) {
     {(text || shape) && <>
       <AppearanceField {...props} property={text ? 'color' : 'fill'} descriptor={{ key: 'appearance-color', label: text ? 'Text colour' : 'Solid fill', kind: 'color', defaultValue: '#ffffff' }} value={hex} testId="artwork-colour" />
     </>}
-    {(text || shape || svg) && <>
+    {(text || shape || svg || group) && <>
       <AppearanceField {...props} property="opacity" descriptor={{ key: 'appearance-opacity', label: 'Opacity %', kind: 'number', defaultValue: 100, min: 0, max: 100, step: 1 }} value={Math.round(opacity * 100)} testId="artwork-opacity" />
       <AnimationButtons {...props} property="opacity" label="Opacity" />
       <p className="ef-muted">Changes preview immediately. Enter or leave the field to finish; Escape cancels.</p>

@@ -1,0 +1,114 @@
+=== j-3447 set E2E_WORKERS=3&& npx playwright test e2e/editor-groups.spec.ts --grep "source wrapper rules|serialized group frame"
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:36084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 3 workers
+
+(node:41184) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33336) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  3 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse frame attributes (3.9s)
+  x  2 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse carrier marker (4.3s)
+  x  1 [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse group marker (4.3s)
+(node:41548) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  4 [chromium] › e2e\editor-groups.spec.ts:493:1 › serialized group frame refuses zero after rounding (2.1s)
+
+
+  1) [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse group marker ──────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rgb(255, 0, 0)"
+    Received: "rgb(255, 255, 255)"
+
+      487 |   const paint=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
+      488 |   await page.getByRole('button',{name:kind==='frame attributes'?'Group selection':'Ungroup selection',exact:true}).click();await ready(page);
+    > 489 |   expect(await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill)).toBe(paint);
+          |                                                                               ^
+      490 |   expect(await source(page)).toEqual(before);await expect(page.locator('.ef-group-error')).toContainText(/source (appearance|rule)/i);
+      491 | });
+      492 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:489:79
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-source-wrapper-rules-refuse-group-marker-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-source-wrapper-rules-refuse-group-marker-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse carrier marker ────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rgb(255, 255, 255)"
+    Received: "rgb(255, 0, 0)"
+
+      487 |   const paint=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
+      488 |   await page.getByRole('button',{name:kind==='frame attributes'?'Group selection':'Ungroup selection',exact:true}).click();await ready(page);
+    > 489 |   expect(await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill)).toBe(paint);
+          |                                                                               ^
+      490 |   expect(await source(page)).toEqual(before);await expect(page.locator('.ef-group-error')).toContainText(/source (appearance|rule)/i);
+      491 | });
+      492 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:489:79
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-source-wrapper-rules-refuse-carrier-marker-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-source-wrapper-rules-refuse-carrier-marker-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse frame attributes ──
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "rgb(255, 255, 255)"
+    Received: "rgb(255, 0, 0)"
+
+      487 |   const paint=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
+      488 |   await page.getByRole('button',{name:kind==='frame attributes'?'Group selection':'Ungroup selection',exact:true}).click();await ready(page);
+    > 489 |   expect(await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill)).toBe(paint);
+          |                                                                               ^
+      490 |   expect(await source(page)).toEqual(before);await expect(page.locator('.ef-group-error')).toContainText(/source (appearance|rule)/i);
+      491 | });
+      492 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:489:79
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-source-wrapper-rules-refuse-frame-attributes-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-source-wrapper-rules-refuse-frame-attributes-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-groups.spec.ts:493:1 › serialized group frame refuses zero after rounding 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "group transform frame"
+    Received string:    ""
+
+      494 |   await open(page);const ids=await create(page),before=await source(page);
+      495 |   const error=await page.evaluate(async ids=>{const session=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();try{session.execute({documentId:session.documentId,expected:session.version(),transactionId:crypto.randomUUID(),operations:[{kind:'group.create',selectors:ids.slice(0,2),box:{x:0,y:0,width:4e-10,height:10}}]});return '';}catch(e){return String(e);}},ids);
+    > 496 |   expect(error).toContain('group transform frame');expect(await source(page)).toEqual(before);
+          |                 ^
+      497 | });
+      498 |
+        at C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-6\NoaCG-Studio\e2e\editor-groups.spec.ts:496:17
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-groups-serialized-g-25804-refuses-zero-after-rounding-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-groups-serialized-g-25804-refuses-zero-after-rounding-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse group marker ───────
+    [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse carrier marker ─────
+    [chromium] › e2e\editor-groups.spec.ts:477:72 › source wrapper rules refuse frame attributes ───
+    [chromium] › e2e\editor-groups.spec.ts:493:1 › serialized group frame refuses zero after rounding 
