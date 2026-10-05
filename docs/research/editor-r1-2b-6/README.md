@@ -76,7 +76,7 @@ The asynchronous [desktop item](../../acceptance/owner-queue/2026-10-05-editor-g
   unchanged 7878a4ef4 source: one nested-selection probe passed and four cases
   failed on missing group controls. [Baseline log](written-first.log) and
   [original test source](written-first.spec.ts.txt) retain that result.
-- **Acceptance 2-5, pass:** j-3448, `E2E_WORKERS=3 npx playwright test
+- **Acceptance 2-5, pass:** j-3455, `E2E_WORKERS=3 npx playwright test
   e2e/editor-groups.spec.ts`, passed all 32 cases. [Group log](groups.log).
   These include HTML and SVG geometry, masks/fields/assets, nested transformed
   parents, repeated child/group motion, centered/static SVG pivots, fine member
@@ -93,7 +93,7 @@ The asynchronous [desktop item](../../acceptance/owner-queue/2026-10-05-editor-g
   Agent judgment: clear group breadcrumb and highlighted parent row; the stage
   remains visible and child rows scroll. Compact group creation controls
   explain the Composition boundary. Owner comfort remains unaccepted.
-- **Acceptance 5 mutation evidence, pass:** j-3451 ran alone. Its unmodified
+- **Acceptance 5 mutation evidence, pass:** j-3456 ran alone. Its unmodified
   control passed; all thirteen mutations were killed: sibling contiguity, structural
   selector meaning, group compositing effects, parent-coordinate inverse,
   descendant key movement, exact transform carriers, wrapper inheritance,
@@ -126,9 +126,29 @@ The asynchronous [desktop item](../../acceptance/owner-queue/2026-10-05-editor-g
   on the committed tip, stamped check, actual merge-queue entry, merge revision
   and deployed version.
 
+## CI fixture repair
+
+PR #709's first push shard (run 37386988484, job 112022624829) failed at the
+initial fixture mutation, before the canvas transform case began. Its other
+163 active cases passed. [Whole job log](ci-fixture-failure.log). The inspected
+trace contains one app navigation/request and the full-stop error emitted by
+Playwright's protocol-error rewrite. This matches the repository's documented
+[promise-collection mechanism](../context-destroyed-flake.md); the raw Chrome
+error was discarded by Playwright, so that mechanism is inferred from the
+matching trace and existing investigation.
+
+The new group spec now uses the existing evaluateInPage helper for its JSON
+page calls. It holds each promise until Chrome reports the result and retains
+page exceptions. No assertion or guard was weakened. Auto-merge and the local
+landing watcher were withdrawn before the change. j-3455 passed all 32 cases
+and 20 repetitions of the failed canvas-transform case. j-3456 reran all
+thirteen mutations alone with byte-exact source restoration. Production code
+is unchanged by this repair; the full affected and image regression receipts
+above still cover that source. The PR records the rebuilt and restamped tip.
+
 ## Review and boundaries
 
-The inline review fixed precise member placement inside transform carriers,
+The inline review fixed the new spec's fixture promise handling, precise member placement inside transform carriers,
 unnecessary JS reformatting on static ungroup, timeline drafts/selection leaking
 across group navigation, lossy anchor edits on unknown animation data, parent
 movement incorrectly treating child pivot keys as static group initializers,
@@ -137,7 +157,7 @@ new wrappers targeted by measured-motion selectors, split member blending,
 local Project placement, removed group-marker paint, added carrier-marker
 paint, frame-attribute selector changes and frames rounding to zero. Together
 with mutation runner ownership/cleanup and rejection of infrastructure failures
-as mutation proof, review fixed 16 findings. Simplification reused one neutral
+as mutation proof, review fixed 17 findings. Simplification reused one neutral
 wrapper style guard and the memoized hierarchy for group controls, expanded the
 parent adapter into readable steps and reused the existing source/runtime
 helpers.
@@ -148,8 +168,8 @@ it uses an absolute CLI path and the recognized
 the browser slot through writes and restores. Its cleanup reports restoration
 without masking the original failure. An overlapping attempt was canceled
 and its interrupted inheritance mutation restored before the final isolated run.
-j-3449 restored every source, but its carrier case failed on a browser context
-reload before the behavior assertion and the job lost its terminal verdict.
+j-3449 restored every source, but its carrier case failed on a rewritten browser evaluate error
+before the behavior assertion and the job lost its terminal verdict.
 That attempt is excluded as proof. The bench now requires a behavior assertion,
 retries an inconclusive case once and rejects unresolved infrastructure errors.
 Run the bench through the queue with `npm run test:editor-groups:mutations`.

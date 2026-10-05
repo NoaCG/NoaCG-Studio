@@ -1,0 +1,588 @@
+﻿2026-10-05T23:11:08.3036400Z Current runner version: '2.337.0'
+2026-10-05T23:11:08.3058554Z ##[group]Runner Image Provisioner
+2026-10-05T23:11:08.3059255Z Hosted Compute Agent
+2026-10-05T23:11:08.3059681Z Version: 20260901.588
+2026-10-05T23:11:08.3060113Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-05T23:11:08.3060955Z Build Date: 2026-09-01T19:56:44Z
+2026-10-05T23:11:08.3061441Z Worker ID: {4e2a650e-e45a-4f76-b714-959bc7599aae}
+2026-10-05T23:11:08.3061856Z Azure Region: centralus
+2026-10-05T23:11:08.3062255Z ##[endgroup]
+2026-10-05T23:11:08.3063308Z ##[group]Operating System
+2026-10-05T23:11:08.3063882Z Ubuntu
+2026-10-05T23:11:08.3064537Z 24.04.5
+2026-10-05T23:11:08.3064988Z LTS
+2026-10-05T23:11:08.3065479Z ##[endgroup]
+2026-10-05T23:11:08.3065955Z ##[group]Runner Image
+2026-10-05T23:11:08.3066577Z Image: ubuntu-24.04
+2026-10-05T23:11:08.3067087Z Version: 20260927.320.1
+2026-10-05T23:11:08.3068018Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-05T23:11:08.3068901Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+2026-10-05T23:11:08.3069554Z ##[endgroup]
+2026-10-05T23:11:08.3070221Z ##[group]GITHUB_TOKEN Permissions
+2026-10-05T23:11:08.3071546Z Contents: read
+2026-10-05T23:11:08.3071909Z Metadata: read
+2026-10-05T23:11:08.3072250Z ##[endgroup]
+2026-10-05T23:11:08.3073687Z Secret source: Actions
+2026-10-05T23:11:08.3074272Z Cache mode: write
+2026-10-05T23:11:08.3074933Z Prepare workflow directory
+2026-10-05T23:11:08.3363624Z Prepare all required actions
+2026-10-05T23:11:08.3396487Z Getting action download info
+2026-10-05T23:11:08.6234927Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+2026-10-05T23:11:08.9854916Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+2026-10-05T23:11:09.3337161Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-05T23:11:09.7953897Z Complete job name: E2E 1/10 (subset)
+2026-10-05T23:11:09.8523015Z ##[group]Run actions/checkout@v5
+2026-10-05T23:11:09.8524191Z with:
+2026-10-05T23:11:09.8525048Z   repository: NoaCG/NoaCG-Studio
+2026-10-05T23:11:09.8531359Z   token: ***
+2026-10-05T23:11:09.8531836Z   ssh-strict: true
+2026-10-05T23:11:09.8532329Z   ssh-user: git
+2026-10-05T23:11:09.8532829Z   persist-credentials: true
+2026-10-05T23:11:09.8533386Z   clean: true
+2026-10-05T23:11:09.8533894Z   sparse-checkout-cone-mode: true
+2026-10-05T23:11:09.8534636Z   fetch-depth: 1
+2026-10-05T23:11:09.8535118Z   fetch-tags: false
+2026-10-05T23:11:09.8535621Z   show-progress: true
+2026-10-05T23:11:09.8536137Z   lfs: false
+2026-10-05T23:11:09.8536605Z   submodules: false
+2026-10-05T23:11:09.8537115Z   set-safe-directory: true
+2026-10-05T23:11:09.8537702Z   allow-unsafe-pr-checkout: false
+2026-10-05T23:11:09.8538424Z ##[endgroup]
+2026-10-05T23:11:09.9258951Z Syncing repository: NoaCG/NoaCG-Studio
+2026-10-05T23:11:09.9262602Z ##[group]Getting Git version info
+2026-10-05T23:11:09.9264169Z Working directory is '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-10-05T23:11:09.9266105Z [command]/usr/bin/git version
+2026-10-05T23:11:09.9475240Z git version 2.55.0
+2026-10-05T23:11:09.9490094Z ##[endgroup]
+2026-10-05T23:11:09.9503240Z Temporarily overriding HOME='/home/runner/work/_temp/9b4337d0-5644-4206-babf-da52d6226d1c' before making global git config changes
+2026-10-05T23:11:09.9506060Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-05T23:11:09.9508419Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-05T23:11:09.9844244Z Deleting the contents of '/home/runner/work/NoaCG-Studio/NoaCG-Studio'
+2026-10-05T23:11:09.9850150Z ##[group]Initializing the repository
+2026-10-05T23:11:09.9853170Z [command]/usr/bin/git init /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-05T23:11:10.1054736Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-05T23:11:10.1056329Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-05T23:11:10.1057430Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-05T23:11:10.1058281Z hint: call:
+2026-10-05T23:11:10.1058725Z hint:
+2026-10-05T23:11:10.1059337Z hint: 	git config --global init.defaultBranch <name>
+2026-10-05T23:11:10.1060059Z hint:
+2026-10-05T23:11:10.1060890Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-05T23:11:10.1062213Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-05T23:11:10.1063270Z hint:
+2026-10-05T23:11:10.1063964Z hint: 	git branch -m <name>
+2026-10-05T23:11:10.1064886Z hint:
+2026-10-05T23:11:10.1066005Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-05T23:11:10.1067898Z Initialized empty Git repository in /home/runner/work/NoaCG-Studio/NoaCG-Studio/.git/
+2026-10-05T23:11:10.1073086Z [command]/usr/bin/git remote add origin https://github.com/NoaCG/NoaCG-Studio
+2026-10-05T23:11:10.1556929Z ##[endgroup]
+2026-10-05T23:11:10.1558566Z ##[group]Disabling automatic garbage collection
+2026-10-05T23:11:10.1566490Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-05T23:11:10.1653003Z ##[endgroup]
+2026-10-05T23:11:10.1653935Z ##[group]Setting up auth
+2026-10-05T23:11:10.1658263Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-05T23:11:10.1690170Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-05T23:11:10.2002240Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-05T23:11:10.2034528Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-05T23:11:10.2224013Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-05T23:11:10.2258111Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-05T23:11:10.2434905Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-05T23:11:10.3453201Z ##[endgroup]
+2026-10-05T23:11:10.3466488Z ##[group]Fetching the repository
+2026-10-05T23:11:10.3469934Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a16d0da40b7a2e5fd1fdc69b8f389d86c6033e7e:refs/remotes/origin/codex/editor-r1-2b-6
+2026-10-05T23:11:14.7796755Z From https://github.com/NoaCG/NoaCG-Studio
+2026-10-05T23:11:14.7797985Z  * [new ref]         a16d0da40b7a2e5fd1fdc69b8f389d86c6033e7e -> origin/codex/editor-r1-2b-6
+2026-10-05T23:11:14.7805093Z ##[endgroup]
+2026-10-05T23:11:14.7805400Z ##[group]Determining the checkout info
+2026-10-05T23:11:14.7805689Z ##[endgroup]
+2026-10-05T23:11:14.7807771Z [command]/usr/bin/git sparse-checkout disable
+2026-10-05T23:11:14.7908591Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-05T23:11:14.7934818Z ##[group]Checking out the ref
+2026-10-05T23:11:14.7937960Z [command]/usr/bin/git checkout --progress --force -B codex/editor-r1-2b-6 refs/remotes/origin/codex/editor-r1-2b-6
+2026-10-05T23:11:15.4521161Z Switched to a new branch 'codex/editor-r1-2b-6'
+2026-10-05T23:11:15.4523140Z branch 'codex/editor-r1-2b-6' set up to track 'origin/codex/editor-r1-2b-6'.
+2026-10-05T23:11:15.4553275Z ##[endgroup]
+2026-10-05T23:11:15.4594975Z [command]/usr/bin/git log -1 --format=%H
+2026-10-05T23:11:15.4622211Z a16d0da40b7a2e5fd1fdc69b8f389d86c6033e7e
+2026-10-05T23:11:15.4879157Z ##[group]Run actions/setup-node@v5
+2026-10-05T23:11:15.4879347Z with:
+2026-10-05T23:11:15.4879461Z   node-version: 24
+2026-10-05T23:11:15.4879574Z   cache: npm
+2026-10-05T23:11:15.4879807Z   always-auth: false
+2026-10-05T23:11:15.4879933Z   check-latest: false
+2026-10-05T23:11:15.4881276Z   token: ***
+2026-10-05T23:11:15.4881399Z   package-manager-cache: true
+2026-10-05T23:11:15.4881540Z ##[endgroup]
+2026-10-05T23:11:15.5854448Z Found in cache @ /opt/hostedtoolcache/node/24.21.0/x64
+2026-10-05T23:11:15.5858196Z (node:2080) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-05T23:11:15.5860277Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-05T23:11:15.5860979Z ##[group]Environment details
+2026-10-05T23:11:15.8888363Z node: v24.21.0
+2026-10-05T23:11:15.8888653Z npm: 11.19.0
+2026-10-05T23:11:15.8888882Z yarn: 1.22.22
+2026-10-05T23:11:15.8889523Z ##[endgroup]
+2026-10-05T23:11:15.8905168Z [command]/opt/hostedtoolcache/node/24.21.0/x64/bin/npm config get cache
+2026-10-05T23:11:15.9718816Z /home/runner/.npm
+2026-10-05T23:11:16.1277085Z Cache hit for: node-cache-Linux-x64-npm-debecdb8b089d92cfa1d73db46dc2737787ecd8257437364b0fdb103470bddc2
+2026-10-05T23:11:16.1340082Z (node:2080) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-05T23:11:17.2663660Z Received 94239679 of 94239679 (100.0%), 91.2 MBs/sec
+2026-10-05T23:11:17.2664071Z Cache Size: ~90 MB (94239679 B)
+2026-10-05T23:11:17.2686291Z [command]/usr/bin/tar -xf /home/runner/work/_temp/1da24b51-85bc-4820-9373-90d17d94f33b/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-10-05T23:11:17.3960996Z Cache restored successfully
+2026-10-05T23:11:17.4004889Z Cache restored from key: node-cache-Linux-x64-npm-debecdb8b089d92cfa1d73db46dc2737787ecd8257437364b0fdb103470bddc2
+2026-10-05T23:11:17.4226866Z Prepare all required actions
+2026-10-05T23:11:17.4227234Z Getting action download info
+2026-10-05T23:11:17.5539927Z Download action repository 'actions/cache@v4' (SHA:0057852bfaa89a56745cba8c7296529d2fc39830)
+2026-10-05T23:11:17.6791293Z ##[group]Run ./.github/actions/node-modules
+2026-10-05T23:11:17.6791473Z ##[endgroup]
+2026-10-05T23:11:17.6828500Z ##[start-action display=Resolve Node version;id=__self.node]
+2026-10-05T23:11:17.6851525Z ##[group]Run echo "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"
+2026-10-05T23:11:17.6851946Z [36;1mecho "major=$(node -p 'process.versions.node.split(".")[0]')" >> "$GITHUB_OUTPUT"[0m
+2026-10-05T23:11:17.7089892Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-05T23:11:17.7090123Z ##[endgroup]
+2026-10-05T23:11:17.7426401Z ##[end-action id=__self.node;outcome=success;conclusion=success;duration_ms=59]
+2026-10-05T23:11:17.7429458Z ##[start-action display=Cache node_modules;id=__self.cache]
+2026-10-05T23:11:17.7890431Z ##[group]Run actions/cache@v4
+2026-10-05T23:11:17.7890672Z with:
+2026-10-05T23:11:17.7890871Z   path: node_modules
+player-host/node_modules
+
+2026-10-05T23:11:17.7891329Z   key: node-modules-Linux-X64-node24-31a6b43dd77dbabcc6daa4248975adcc27bde28cadd8345331f5610c20e80160
+2026-10-05T23:11:17.7891762Z   enableCrossOsArchive: false
+2026-10-05T23:11:17.7891972Z   fail-on-cache-miss: false
+2026-10-05T23:11:17.7892184Z   lookup-only: false
+2026-10-05T23:11:17.7892377Z   save-always: false
+2026-10-05T23:11:17.7892559Z ##[endgroup]
+2026-10-05T23:11:17.8615016Z (node:2149) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-05T23:11:17.8615868Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-05T23:11:17.9805945Z Cache not found for input keys: node-modules-Linux-X64-node24-31a6b43dd77dbabcc6daa4248975adcc27bde28cadd8345331f5610c20e80160
+2026-10-05T23:11:17.9859385Z ##[end-action id=__self.cache;outcome=success;conclusion=success;duration_ms=242]
+2026-10-05T23:11:17.9861201Z ##[start-action display=npm ci;id=__self.__run]
+2026-10-05T23:11:17.9887846Z ##[group]Run npm ci --prefer-offline --no-audit --no-fund
+2026-10-05T23:11:17.9888106Z [36;1mnpm ci --prefer-offline --no-audit --no-fund[0m
+2026-10-05T23:11:17.9940328Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-05T23:11:17.9940530Z ##[endgroup]
+2026-10-05T23:11:19.7984849Z npm warn deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+2026-10-05T23:11:21.6331253Z
+2026-10-05T23:11:21.6332012Z > noacg-studio@0.1.0 postinstall
+2026-10-05T23:11:21.6332685Z > node scripts/dev-port.mjs && node scripts/gen-video-font-css.mjs && node scripts/build-player-host.mjs
+2026-10-05T23:11:21.6333059Z
+2026-10-05T23:11:21.6717944Z 5174
+2026-10-05T23:11:21.7313276Z [video-fonts] wrote 263669 chars of @font-face CSS -> render-worker/remotion/videoFontFaces.generated.ts
+2026-10-05T23:11:21.7898743Z [player-host] npm ci
+2026-10-05T23:11:22.4579314Z
+2026-10-05T23:11:22.4580122Z added 27 packages, and audited 28 packages in 626ms
+2026-10-05T23:11:22.4580489Z
+2026-10-05T23:11:22.4580664Z 9 packages are looking for funding
+2026-10-05T23:11:22.4580957Z   run `npm fund` for details
+2026-10-05T23:11:22.4586755Z
+2026-10-05T23:11:22.4587049Z found 0 vulnerabilities
+2026-10-05T23:11:22.4945384Z [player-host] npm run build
+2026-10-05T23:11:22.5616023Z
+2026-10-05T23:11:22.5616469Z > noacg-player-host@0.1.0 build
+2026-10-05T23:11:22.5616770Z > vite build
+2026-10-05T23:11:22.5616888Z
+2026-10-05T23:11:22.7164597Z [36mvite v8.1.4 [32mbuilding client environment for production...[36m[39m
+2026-10-05T23:11:22.7237952Z [2K
+2026-10-05T23:11:22.7675016Z transforming...✓ 21 modules transformed.
+2026-10-05T23:11:22.7846232Z rendering chunks...
+2026-10-05T23:11:22.8182940Z computing gzip size...
+2026-10-05T23:11:22.8234762Z ../public/player-host/index.html                  0.79 kB │ gzip:   0.45 kB
+2026-10-05T23:11:22.8235593Z ../public/player-host/assets/index-CUQtVJHC.js  461.17 kB │ gzip: 145.37 kB
+2026-10-05T23:11:22.8235816Z
+2026-10-05T23:11:22.8237124Z [32m✓ built in 106ms[39m
+2026-10-05T23:11:22.8516536Z [player-host] built into public/player-host/ (single self-contained page)
+2026-10-05T23:11:22.8730086Z
+2026-10-05T23:11:22.8730552Z added 314 packages in 5s
+2026-10-05T23:11:23.9438351Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=5957]
+2026-10-05T23:11:23.9440531Z ##[start-action display=Regenerate install-time artifacts;id=__self.__run_2]
+2026-10-05T23:11:23.9465575Z ##[end-action id=__self.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-05T23:11:23.9497558Z Prepare all required actions
+2026-10-05T23:11:23.9497850Z Getting action download info
+2026-10-05T23:11:24.0813231Z ##[group]Run ./.github/actions/playwright-chromium
+2026-10-05T23:11:24.0813427Z ##[endgroup]
+2026-10-05T23:11:24.0816461Z ##[start-action display=Resolve Playwright version;id=__self_2.version]
+2026-10-05T23:11:24.0826744Z ##[group]Run echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+2026-10-05T23:11:24.0827154Z [36;1mecho "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"[0m
+2026-10-05T23:11:24.0879400Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-05T23:11:24.0879590Z ##[endgroup]
+2026-10-05T23:11:24.1194622Z ##[end-action id=__self_2.version;outcome=success;conclusion=success;duration_ms=37]
+2026-10-05T23:11:24.1196464Z ##[start-action display=Cache Playwright browser;id=__self_2.cache]
+2026-10-05T23:11:24.1221329Z ##[group]Run actions/cache@v4
+2026-10-05T23:11:24.1221516Z with:
+2026-10-05T23:11:24.1221637Z   path: ~/.cache/ms-playwright
+2026-10-05T23:11:24.1221786Z   key: playwright-Linux-1.61.1
+2026-10-05T23:11:24.1221931Z   enableCrossOsArchive: false
+2026-10-05T23:11:24.1222075Z   fail-on-cache-miss: false
+2026-10-05T23:11:24.1222209Z   lookup-only: false
+2026-10-05T23:11:24.1222328Z   save-always: false
+2026-10-05T23:11:24.1222448Z ##[endgroup]
+2026-10-05T23:11:24.1884435Z (node:2256) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-05T23:11:24.1885555Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-05T23:11:24.3300893Z Cache hit for: playwright-Linux-1.61.1
+2026-10-05T23:11:24.3369844Z (node:2256) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-05T23:11:25.5066758Z Received 104857600 of 274154549 (38.2%), 100.0 MBs/sec
+2026-10-05T23:11:26.4985015Z Received 274154549 of 274154549 (100.0%), 131.3 MBs/sec
+2026-10-05T23:11:26.4986107Z Cache Size: ~261 MB (274154549 B)
+2026-10-05T23:11:26.5076882Z [command]/usr/bin/tar -xf /home/runner/work/_temp/06af52bd-237c-48c8-b4de-b0ebb25dde07/cache.tzst -P -C /home/runner/work/NoaCG-Studio/NoaCG-Studio --use-compress-program unzstd
+2026-10-05T23:11:27.1603428Z Cache restored successfully
+2026-10-05T23:11:27.1763947Z Cache restored from key: playwright-Linux-1.61.1
+2026-10-05T23:11:27.1846741Z ##[end-action id=__self_2.cache;outcome=success;conclusion=success;duration_ms=3064]
+2026-10-05T23:11:27.1849066Z ##[start-action display=Install Playwright browser;id=__self_2.__run]
+2026-10-05T23:11:27.1853931Z ##[end-action id=__self_2.__run;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-05T23:11:27.1855818Z ##[start-action display=Install Playwright system dependencies (bounded);id=__self_2.__run_2]
+2026-10-05T23:11:27.1858696Z ##[end-action id=__self_2.__run_2;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-05T23:11:27.1888208Z ##[group]Run SPECS="$(node -e '
+2026-10-05T23:11:27.1888411Z [36;1mSPECS="$(node -e '[0m
+2026-10-05T23:11:27.1888607Z [36;1m  const bins = JSON.parse(process.env.SHARD_SPECS ?? "[]");[0m
+2026-10-05T23:11:27.1888851Z [36;1m  const mine = bins[Number(process.env.SHARD_INDEX) - 1];[0m
+2026-10-05T23:11:27.1889077Z [36;1m  if (!Array.isArray(mine) || mine.length === 0) {[0m
+2026-10-05T23:11:27.1889358Z [36;1m    console.error(`shard ${process.env.SHARD_INDEX} has no spec files in the plan`);[0m
+2026-10-05T23:11:27.1889607Z [36;1m    process.exit(1);[0m
+2026-10-05T23:11:27.1889745Z [36;1m  }[0m
+2026-10-05T23:11:27.1889986Z [36;1m  import("./scripts/e2e-affected.mjs").then((m) => console.log(mine.map(m.specFilterArg).join(" ")));[0m
+2026-10-05T23:11:27.1890246Z [36;1m')"[0m
+2026-10-05T23:11:27.1890445Z [36;1mecho "::notice title=E2E shard ${SHARD_INDEX}::$(echo "$SPECS" | wc -w) spec file(s)"[0m
+2026-10-05T23:11:27.1890693Z [36;1mnpm run test:e2e -- $SPECS[0m
+2026-10-05T23:11:27.1943787Z shell: /usr/bin/bash -e {0}
+2026-10-05T23:11:27.1943937Z env:
+2026-10-05T23:11:27.1949095Z   SHARD_SPECS: [["assets.spec.ts","bench.spec.ts","canvas-keyframe.spec.ts","editor-ease.spec.ts","editor-groups.spec.ts","editor-pen.spec.ts","import-name-collision.spec.ts","production-audience.spec.ts","production-gate.spec.ts","production-pack.spec.ts","productions.spec.ts","snap-recovery.spec.ts","wizard-brand.spec.ts"],["asset-workflow.spec.ts","auth.spec.ts","editor-base-edits.spec.ts","flows.spec.ts","graphic-sound.spec.ts","images.spec.ts","network-resilience.spec.ts","playout-rail-width.spec.ts","quiz-pilot.spec.ts","wizard-filters.spec.ts","wizard-kit.spec.ts","wizard-preview.spec.ts"],["design-rules-product.spec.ts","docs.spec.ts","editor-foundation.spec.ts","feedback.spec.ts","import-graphic.spec.ts","library-bulk.spec.ts","multi-select.spec.ts","playout-fixed-panes.spec.ts","production-data.spec.ts","quiz-live-consistency.spec.ts","route-transition-flash.spec.ts","spx-operator.spec.ts","timeline-v2.spec.ts"],["agent-made-graphics.spec.ts","cross-tab.spec.ts","editor-transforms.spec.ts","import-stretch.spec.ts","machine-graph.spec.ts","package.spec.ts","playout-folders.spec.ts","project-format.spec.ts","template-insert.spec.ts","wizard-shell.spec.ts"],["account-library.spec.ts","agent-access.spec.ts","bridge-connect.spec.ts","bridge-ograf.spec.ts","editor-alpha-entry.spec.ts","editor-canvas-transforms.spec.ts","exports.spec.ts","library.spec.ts","no-old-editor.spec.ts","pasteboard.spec.ts","shows.spec.ts","state-machine.spec.ts"],["analytics.spec.ts","editor-cross-cue.spec.ts","editor-fidelity-trim.spec.ts","format.spec.ts","import-svg.spec.ts","legacy-timeline.spec.ts","playout-feedback-health.spec.ts","playout-sequence.spec.ts","production-sounds.spec.ts","storage-full.spec.ts"],["editor-arrangement.spec.ts","editor-keys.spec.ts","inspector.spec.ts","live-actions-first.spec.ts","ograf-conformance.spec.ts","ograf-starters.spec.ts","playout-cues.spec.ts","playout-drills.spec.ts","production-persistence.spec.ts","quiz-show.spec.ts","wizard-finish.spec.ts"],["editor-typography.spec.ts","graphic-sound-controls.spec.ts","hosted-control.spec.ts","import-svg-corpus.spec.ts","layout.spec.ts","library-productions.spec.ts","playout-baseline.spec.ts","sync.spec.ts","ux.spec.ts"],["anim-engine.spec.ts","control.spec.ts","editor-steps.spec.ts","motion-presets.spec.ts","overlay-layers.spec.ts","playout-clock.spec.ts","playout-rundown-feedback.spec.ts","production-chat-intake.spec.ts","production-controls.spec.ts","template-deep-link.spec.ts","wizard-entry-fit.spec.ts"],["data-api.spec.ts","editor-images.spec.ts","editor-key-ease.spec.ts","editor-out-step.spec.ts","editor-out.spec.ts","editor-usability.spec.ts","import-prepare.spec.ts","landing.spec.ts","local-relay.spec.ts","offline.spec.ts","project.spec.ts","student-rehearsal.spec.ts","wizard-logo.spec.ts"]]
+2026-10-05T23:11:27.1954241Z   SHARD_INDEX: 1
+2026-10-05T23:11:27.1954563Z   NOACG_BLOB_NAME: report-1.zip
+2026-10-05T23:11:27.1954844Z ##[endgroup]
+2026-10-05T23:11:27.2710204Z ##[notice]13 spec file(s)
+2026-10-05T23:11:27.3329615Z
+2026-10-05T23:11:27.3329958Z > noacg-studio@0.1.0 test:e2e
+2026-10-05T23:11:27.3331176Z > playwright test [\\/]assets\.spec\.ts$ [\\/]bench\.spec\.ts$ [\\/]canvas-keyframe\.spec\.ts$ [\\/]editor-ease\.spec\.ts$ [\\/]editor-groups\.spec\.ts$ [\\/]editor-pen\.spec\.ts$ [\\/]import-name-collision\.spec\.ts$ [\\/]production-audience\.spec\.ts$ [\\/]production-gate\.spec\.ts$ [\\/]production-pack\.spec\.ts$ [\\/]productions\.spec\.ts$ [\\/]snap-recovery\.spec\.ts$ [\\/]wizard-brand\.spec\.ts$
+2026-10-05T23:11:27.3331959Z
+2026-10-05T23:11:31.9293027Z
+2026-10-05T23:11:31.9293667Z Running 189 tests using 1 worker
+2026-10-05T23:11:31.9315142Z
+2026-10-05T23:11:32.1955805Z [1/189] [chromium] › e2e/assets.spec.ts:44:1 › import via the Assets tab: rows appear grouped, and a multi-file import is ONE undo step
+2026-10-05T23:11:32.5798807Z [2/189] [chromium] › e2e/assets.spec.ts:61:1 › the info section derives name, format, dimensions, size, alpha, and usage
+2026-10-05T23:11:32.6903446Z [3/189] [chromium] › e2e/assets.spec.ts:78:1 › remove is undoable; a Lottie file imports with its badge; junk JSON is rejected
+2026-10-05T23:11:32.7742120Z [4/189] [chromium] › e2e/assets.spec.ts:105:1 › moving an asset into a new folder nests its path; undo restores it
+2026-10-05T23:11:32.8631505Z [5/189] [chromium] › e2e/assets.spec.ts:125:1 › dragging an asset onto the canvas inserts a positioned <img> as one undo step
+2026-10-05T23:11:32.9392971Z [6/189] [chromium] › e2e/assets.spec.ts:182:1 › dropping a Lottie asset on the canvas inserts a playing animation element
+2026-10-05T23:11:33.0216317Z [7/189] [chromium] › e2e/assets.spec.ts:223:1 › a saved v2 layout gains the Assets tab once (v2 -> v3 migration)
+2026-10-05T23:11:33.1063260Z [8/189] [chromium] › e2e/assets.spec.ts:249:1 › mobile: the Assets tab is in the side-panel strip
+2026-10-05T23:11:33.1982264Z [9/189] [chromium] › e2e/bench.spec.ts:16:3 › runtime bench detection fixtures › two overlapping text elements trip bench-overlap
+2026-10-05T23:11:36.0714007Z [10/189] [chromium] › e2e/bench.spec.ts:32:3 › runtime bench detection fixtures › a coincident same-text layer (karaoke wipe) is allowed; a misaligned one is not
+2026-10-05T23:11:39.7836626Z [11/189] [chromium] › e2e/bench.spec.ts:71:3 › runtime bench detection fixtures › an opaque panel painted over text trips bench-occluded
+2026-10-05T23:11:42.5875954Z [12/189] [chromium] › e2e/bench.spec.ts:83:3 › runtime bench detection fixtures › a tint and a gradient scrim over text do NOT trip bench-occluded
+2026-10-05T23:11:46.0382642Z [13/189] [chromium] › e2e/bench.spec.ts:97:3 › runtime bench detection fixtures › text escaping the canvas trips bench-overflow
+2026-10-05T23:11:48.8077720Z [14/189] [chromium] › e2e/bench.spec.ts:111:3 › runtime bench detection fixtures › a fixed box that clips doubled text trips bench-stress (and passes with defaults)
+2026-10-05T23:11:51.9148862Z [15/189] [chromium] › e2e/bench.spec.ts:147:3 › runtime bench detection fixtures › a clip-path that cuts text mid-line trips bench-overflow
+2026-10-05T23:11:54.8505048Z [16/189] [chromium] › e2e/bench.spec.ts:170:3 › runtime bench detection fixtures › text spilling past its own painted panel warns, without being clipped or off-canvas
+2026-10-05T23:11:57.6492199Z [17/189] [chromium] › e2e/bench.spec.ts:180:3 › runtime bench detection fixtures › the same panel sized to its content does not warn - the twin that keeps the check honest
+2026-10-05T23:12:00.4488922Z [18/189] [chromium] › e2e/bench.spec.ts:187:3 › runtime bench detection fixtures › a scrim painted by a pseudo-element counts as the surface
+2026-10-05T23:12:03.3292694Z [19/189] [chromium] › e2e/bench.spec.ts:207:3 › runtime bench detection fixtures › text over bare video is silent here - that is the legibility floor's question, not this one
+2026-10-05T23:12:06.1319230Z [20/189] [chromium] › e2e/bench.spec.ts:214:3 › runtime bench detection fixtures › a clip-path the text fits inside does not trip bench-overflow
+2026-10-05T23:12:08.9304940Z [21/189] [chromium] › e2e/bench.spec.ts:221:3 › runtime bench detection fixtures › text inside a sheared bar's bbox but outside the shear trips bench-overflow
+2026-10-05T23:12:11.6807806Z [22/189] [chromium] › e2e/bench.spec.ts:232:3 › runtime bench detection fixtures › an angled polygon clip that cuts text trips bench-overflow
+2026-10-05T23:12:14.4956067Z [23/189] [chromium] › e2e/bench.spec.ts:242:3 › runtime bench detection fixtures › a graphic that never hides on stop trips bench-hidden
+2026-10-05T23:12:19.2467466Z [24/189] [chromium] › e2e/bench.spec.ts:255:3 › runtime bench detection fixtures › update() that ignores a field trips bench-binding
+2026-10-05T23:12:22.0643495Z [25/189] [chromium] › e2e/bench.spec.ts:268:3 › runtime bench detection fixtures › the house editability contract is enforced by default and waivable for imports
+2026-10-05T23:12:25.4472556Z [26/189] [chromium] › e2e/bench.spec.ts:290:3 › design adjustments › an aggressively adjusted grounded assembly still passes the bench
+2026-10-05T23:12:28.4230014Z [27/189] [chromium] › e2e/canvas-keyframe.spec.ts:65:1 › dragging a selected layer keys x/y at the playhead — the drag itself arms
+2026-10-05T23:12:28.5042701Z [28/189] [chromium] › e2e/canvas-keyframe.spec.ts:108:1 › a multi-selection drags together — every layer keys its own pair, one apply
+2026-10-05T23:12:28.5886844Z [29/189] [chromium] › e2e/canvas-keyframe.spec.ts:130:1 › arrow keys nudge a selected layer — x/y keyframes at the playhead, one apply per burst
+2026-10-05T23:12:28.6690752Z [30/189] [chromium] › e2e/canvas-keyframe.spec.ts:183:1 › a real arrow key press reaches the nudge handler
+2026-10-05T23:12:28.7370869Z [31/189] [chromium] › e2e/canvas-keyframe.spec.ts:197:1 › with nothing selected, the drag still re-anchors the root (zone patch)
+2026-10-05T23:12:28.8202447Z [32/189] [chromium] › e2e/canvas-keyframe.spec.ts:220:1 › Escape cancels a layer drag — nothing written, the layers spring back
+2026-10-05T23:12:28.8950583Z [33/189] [chromium] › e2e/editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in simulator
+2026-10-05T23:12:31.2329908Z [34/189] [chromium] › e2e/editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in spx
+2026-10-05T23:12:33.9542715Z [35/189] [chromium] › e2e/editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in casparcg
+2026-10-05T23:12:36.7053281Z [36/189] [chromium] › e2e/editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in ograf
+2026-10-05T23:12:39.1999962Z [37/189] [chromium] › e2e/editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in single-file
+2026-10-05T23:12:41.5546548Z [38/189] [chromium] › e2e/editor-ease.spec.ts:141:1 › a stepped entrance never reverses into a wrong mirror
+2026-10-05T23:12:43.8539826Z [39/189] [chromium] › e2e/editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in simulator
+2026-10-05T23:12:46.4975980Z [40/189] [chromium] › e2e/editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in spx
+2026-10-05T23:12:49.0504878Z [41/189] [chromium] › e2e/editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in casparcg
+2026-10-05T23:12:51.9345538Z [42/189] [chromium] › e2e/editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in ograf
+2026-10-05T23:12:54.4829549Z [43/189] [chromium] › e2e/editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in single-file
+2026-10-05T23:12:56.9498604Z [44/189] [chromium] › e2e/editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in simulator
+2026-10-05T23:12:59.7163340Z [45/189] [chromium] › e2e/editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in spx
+2026-10-05T23:13:02.4317412Z [46/189] [chromium] › e2e/editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in casparcg
+2026-10-05T23:13:04.9088602Z [47/189] [chromium] › e2e/editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in ograf
+2026-10-05T23:13:07.4106593Z [48/189] [chromium] › e2e/editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in single-file
+2026-10-05T23:13:10.1164455Z [49/189] [chromium] › e2e/editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in simulator
+2026-10-05T23:13:13.0481842Z [50/189] [chromium] › e2e/editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in spx
+2026-10-05T23:13:15.6163274Z [51/189] [chromium] › e2e/editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in casparcg
+2026-10-05T23:13:18.2476460Z [52/189] [chromium] › e2e/editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in ograf
+2026-10-05T23:13:20.8499314Z [53/189] [chromium] › e2e/editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in single-file
+2026-10-05T23:13:23.6495984Z [54/189] [chromium] › e2e/editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in simulator
+2026-10-05T23:13:26.3186971Z [55/189] [chromium] › e2e/editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in spx
+2026-10-05T23:13:28.7487358Z [56/189] [chromium] › e2e/editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in casparcg
+2026-10-05T23:13:31.2544491Z [57/189] [chromium] › e2e/editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in ograf
+2026-10-05T23:13:34.0633622Z [58/189] [chromium] › e2e/editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in single-file
+2026-10-05T23:13:36.4789045Z [59/189] [chromium] › e2e/editor-ease.spec.ts:275:1 › reversal and split refuse atomically where no exact form exists
+2026-10-05T23:13:39.0637236Z [60/189] [chromium] › e2e/editor-ease.spec.ts:314:1 › a saved pre-G01 interpreter upgrades to play exact eases; a custom one blocks export
+2026-10-05T23:13:41.8987045Z [61/189] [chromium] › e2e/editor-ease.spec.ts:350:1 › Set Out reverse in the editor writes mirrored destination eases as one undo
+2026-10-05T23:13:45.0355606Z [62/189] [chromium] › e2e/editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in simulator
+2026-10-05T23:13:48.2391733Z [63/189] [chromium] › e2e/editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in spx
+2026-10-05T23:13:51.3486509Z [64/189] [chromium] › e2e/editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in casparcg
+2026-10-05T23:13:54.9148999Z [65/189] [chromium] › e2e/editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in ograf
+2026-10-05T23:13:58.1614649Z [66/189] [chromium] › e2e/editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in single-file
+2026-10-05T23:14:01.3290019Z [67/189] [chromium] › e2e/editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in simulator
+2026-10-05T23:14:04.0290307Z [68/189] [chromium] › e2e/editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in spx
+2026-10-05T23:14:06.8300310Z [69/189] [chromium] › e2e/editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in casparcg
+2026-10-05T23:14:09.4129118Z [70/189] [chromium] › e2e/editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in ograf
+2026-10-05T23:14:12.1638240Z [71/189] [chromium] › e2e/editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in single-file
+2026-10-05T23:14:14.6439165Z [72/189] [chromium] › e2e/editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in simulator
+2026-10-05T23:14:17.8291934Z [73/189] [chromium] › e2e/editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in spx
+2026-10-05T23:14:20.9613493Z [74/189] [chromium] › e2e/editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in casparcg
+2026-10-05T23:14:24.2071627Z [75/189] [chromium] › e2e/editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in ograf
+2026-10-05T23:14:27.3447126Z [76/189] [chromium] › e2e/editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in single-file
+2026-10-05T23:14:30.5954056Z [77/189] [chromium] › e2e/editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in simulator
+2026-10-05T23:14:33.0138228Z [78/189] [chromium] › e2e/editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in spx
+2026-10-05T23:14:35.8977574Z [79/189] [chromium] › e2e/editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in casparcg
+2026-10-05T23:14:38.5116060Z [80/189] [chromium] › e2e/editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in ograf
+2026-10-05T23:14:41.2655589Z [81/189] [chromium] › e2e/editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in single-file
+2026-10-05T23:14:43.7304438Z [82/189] [chromium] › e2e/editor-ease.spec.ts:497:1 › a graphic saved with the R1.2a.1 interpreter upgrades once and then plays a Hold
+2026-10-05T23:14:46.4978586Z [83/189] [chromium] › e2e/editor-groups.spec.ts:41:1 › baseline probe: imported hierarchy and missing group controls
+2026-10-05T23:14:49.0865135Z [chromium] › e2e/editor-groups.spec.ts:41:1 › baseline probe: imported hierarchy and missing group controls
+2026-10-05T23:14:49.0866042Z { nestedParts: 14, group: 1, breadcrumbs: 1 }
+2026-10-05T23:14:49.0866388Z
+2026-10-05T23:14:49.2367981Z [84/189] [chromium] › e2e/editor-groups.spec.ts:51:1 › group and ungroup preserve child pose, identities, fields and one undo
+2026-10-05T23:14:53.3690697Z [85/189] [chromium] › e2e/editor-groups.spec.ts:65:1 › a selected group moves every member by composition pixels and cancels as one gesture
+2026-10-05T23:14:57.0756305Z [86/189] [chromium] › e2e/editor-groups.spec.ts:75:1 › group editing exposes parent bar, local ruler and breadcrumb without hiding canvas
+2026-10-05T23:15:00.1192250Z [87/189] [chromium] › e2e/editor-groups.spec.ts:89:1 › noncontiguous selection refuses with source and history unchanged
+2026-10-05T23:15:03.2014727Z [88/189] [chromium] › e2e/editor-groups.spec.ts:111:1 › group transform and centered pivot preserve child offsets and ungrouped appearance
+2026-10-05T23:15:07.3696685Z [89/189] [chromium] › e2e/editor-groups.spec.ts:132:1 › independent child and group motion survive ungroup and repeated cue seeks
+2026-10-05T23:15:12.5279651Z [90/189] [chromium] › e2e/editor-groups.spec.ts:147:1 › nested group navigation and transformed-parent nudge preserve fine world geometry
+2026-10-05T23:15:16.7342849Z [91/189] [chromium] › e2e/editor-groups.spec.ts:161:1 › SVG members under a rotated scaled parent group and ungroup without jumps
+2026-10-05T23:15:21.4987316Z [92/189] [chromium] › e2e/editor-groups.spec.ts:171:1 › group parent bar moves child keys atomically and local time follows its visibility start
+2026-10-05T23:15:25.5468259Z [93/189] [chromium] › e2e/editor-groups.spec.ts:183:1 › stale group requests and unsupported batches leave source, selection and history unchanged
+2026-10-05T23:15:28.6927104Z [94/189] [chromium] › e2e/editor-groups.spec.ts:198:1 › structural selectors refuse grouping and mixed parents have no partial source write
+2026-10-05T23:15:31.5787149Z [95/189] [chromium] › e2e/editor-groups.spec.ts:205:1 › text mask, field bindings and asset bytes survive transformed grouping and undo
+2026-10-05T23:15:35.3499919Z [96/189] [chromium] › e2e/editor-groups.spec.ts:225:1 › group arrow gestures cancel on focus, source and assets; local ruler owns its arrows
+2026-10-05T23:15:42.0483695Z [97/189] [chromium] › e2e/editor-groups.spec.ts:243:1 › mixed parents and parent/member selection refuse the complete operation batch
+2026-10-05T23:15:45.5633126Z [98/189] [chromium] › e2e/editor-groups.spec.ts:251:1 › template search, UI-created shapes and Pen, group and member motion, save/reopen and executed exports at desktop and laptop sizes
+2026-10-05T23:15:55.6673887Z [99/189] [chromium] › e2e/editor-groups.spec.ts:327:1 › SVG group rotation and scale motion ungroup exactly at different poses
+2026-10-05T23:16:00.7119098Z [100/189] [chromium] › e2e/editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft
+2026-10-05T23:16:03.3042012Z ##[error]  1) [chromium] › e2e/editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft
+    Error: page.evaluate: Execution context was destroyed, most likely because of a navigation.
+
+      13 |   await page.goto('/app?editor=foundation#/editor-foundation');
+      14 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+    > 15 |   await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+         |              ^
+      16 |   await ready(page);
+      17 | }
+      18 | async function create(page: Page) {
+        at open (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-groups.spec.ts:15:14)
+        at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-groups.spec.ts:341:3
+2026-10-05T23:16:03.3045195Z   1) [chromium] › e2e/editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft
+2026-10-05T23:16:03.3045666Z
+2026-10-05T23:16:03.3045984Z     Error: page.evaluate: Execution context was destroyed, most likely because of a navigation.
+2026-10-05T23:16:03.3046404Z
+2026-10-05T23:16:03.3046637Z       13 |   await page.goto('/app?editor=foundation#/editor-foundation');
+2026-10-05T23:16:03.3047142Z       14 |   await expect(page.getByTestId('editor-foundation')).toBeVisible();
+2026-10-05T23:16:03.3048397Z     > 15 |   await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+2026-10-05T23:16:03.3049659Z          |              ^
+2026-10-05T23:16:03.3049829Z       16 |   await ready(page);
+2026-10-05T23:16:03.3049980Z       17 | }
+2026-10-05T23:16:03.3050139Z       18 | async function create(page: Page) {
+2026-10-05T23:16:03.3050440Z         at open (/home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-groups.spec.ts:15:14)
+2026-10-05T23:16:03.3050852Z         at /home/runner/work/NoaCG-Studio/NoaCG-Studio/e2e/editor-groups.spec.ts:341:3
+2026-10-05T23:16:03.3051043Z
+2026-10-05T23:16:03.3051352Z     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+2026-10-05T23:16:03.3051853Z     test-results/editor-groups-group-canvas-b987d-avigation-cancels-its-draft-chromium/test-failed-1.png
+2026-10-05T23:16:03.3052421Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-05T23:16:03.3052589Z
+2026-10-05T23:16:03.3052864Z     Error Context: test-results/editor-groups-group-canvas-b987d-avigation-cancels-its-draft-chromium/error-context.md
+2026-10-05T23:16:03.3053143Z
+2026-10-05T23:16:03.3053369Z     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+2026-10-05T23:16:03.3053769Z     test-results/editor-groups-group-canvas-b987d-avigation-cancels-its-draft-chromium/trace.zip
+2026-10-05T23:16:03.3054143Z     Usage:
+2026-10-05T23:16:03.3054215Z
+2026-10-05T23:16:03.3054794Z         npx playwright show-trace test-results/editor-groups-group-canvas-b987d-avigation-cancels-its-draft-chromium/trace.zip
+2026-10-05T23:16:03.3055099Z
+2026-10-05T23:16:03.3055307Z     ────────────────────────────────────────────────────────────────────────────────────────────────
+2026-10-05T23:16:03.3055476Z
+2026-10-05T23:16:03.3055479Z
+2026-10-05T23:16:03.7005703Z [101/189] [chromium] › e2e/editor-groups.spec.ts:351:1 › painted pseudo-element selectors refuse without wrapping new artwork
+2026-10-05T23:16:06.6997371Z [102/189] [chromium] › e2e/editor-groups.spec.ts:357:1 › ungroup refuses a group-owned outline without losing source or selection
+2026-10-05T23:16:09.6991415Z [103/189] [chromium] › e2e/editor-groups.spec.ts:364:1 › SVG group pivot is centered and remains static during child and group motion
+2026-10-05T23:16:15.1759030Z [104/189] [chromium] › e2e/editor-groups.spec.ts:381:1 › local parent trim keeps child motion and navigation cancels timeline drafts
+2026-10-05T23:16:19.3843095Z [105/189] [chromium] › e2e/editor-groups.spec.ts:403:1 › grouping existing SVG member motion refuses exactly beside its control
+2026-10-05T23:16:22.3810799Z [106/189] [chromium] › e2e/editor-groups.spec.ts:412:1 › SVG parent movement retains only owned static pivots and anchor refuses unknown data
+2026-10-05T23:16:26.2025222Z [107/189] [chromium] › e2e/editor-groups.spec.ts:426:1 › new wrapper inheritance refuses without changing member paint
+2026-10-05T23:16:29.1287220Z [108/189] [chromium] › e2e/editor-groups.spec.ts:439:1 › new wrapper dynamic selector refuses without changing source
+2026-10-05T23:16:32.1191510Z [109/189] [chromium] › e2e/editor-groups.spec.ts:453:1 › member blending refuses transformed HTML ungroup without losing source
+2026-10-05T23:16:35.1003664Z [110/189] [chromium] › e2e/editor-groups.spec.ts:462:1 › Project placement respects local group scope and remains available in Composition
+2026-10-05T23:16:38.9156974Z [111/189] [chromium] › e2e/editor-groups.spec.ts:477:72 › source wrapper rules refuse group marker
+2026-10-05T23:16:42.1316760Z [112/189] [chromium] › e2e/editor-groups.spec.ts:477:72 › source wrapper rules refuse carrier marker
+2026-10-05T23:16:45.3518658Z [113/189] [chromium] › e2e/editor-groups.spec.ts:477:72 › source wrapper rules refuse frame attributes
+2026-10-05T23:16:48.3360867Z [114/189] [chromium] › e2e/editor-groups.spec.ts:493:1 › serialized group frame refuses zero after rounding
+2026-10-05T23:16:51.2566397Z [115/189] [chromium] › e2e/editor-pen.spec.ts:42:1 › baseline probe: existing canvas path capabilities
+2026-10-05T23:16:53.5628615Z [chromium] › e2e/editor-pen.spec.ts:42:1 › baseline probe: existing canvas path capabilities
+2026-10-05T23:16:53.5629446Z catalog { pen: 1, points: 0 }
+2026-10-05T23:16:53.5631947Z
+2026-10-05T23:16:53.8271894Z svg { pen: 1, points: 0 }
+2026-10-05T23:16:53.8272094Z
+2026-10-05T23:16:54.1256078Z f4 { pen: 1, points: 0 }
+2026-10-05T23:16:54.1256344Z
+2026-10-05T23:16:54.1914028Z [116/189] [chromium] › e2e/editor-pen.spec.ts:48:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar
+2026-10-05T23:16:57.5776916Z [117/189] [chromium] › e2e/editor-pen.spec.ts:48:49 › svg: triangle creation is one transaction with selection, centered pivot and bar
+2026-10-05T23:17:01.5750178Z [118/189] [chromium] › e2e/editor-pen.spec.ts:48:49 › f4: triangle creation is one transaction with selection, centered pivot and bar
+2026-10-05T23:17:05.4300020Z [119/189] [chromium] › e2e/editor-pen.spec.ts:62:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact
+2026-10-05T23:17:09.6416177Z [120/189] [chromium] › e2e/editor-pen.spec.ts:82:1 › curved path, paint, point and handle gestures preserve motion and each undo once
+2026-10-05T23:17:13.9933277Z [121/189] [chromium] › e2e/editor-pen.spec.ts:96:1 › stale draft cannot commit after another source edit
+2026-10-05T23:17:17.0686425Z [122/189] [chromium] › e2e/editor-pen.spec.ts:102:1 › real template search reaches a created path in Hairline drawing space
+2026-10-05T23:17:22.1641752Z [123/189] [chromium] › e2e/editor-pen.spec.ts:116:1 › draft playhead change refuses completion without source or history
+2026-10-05T23:17:25.0805629Z [124/189] [chromium] › e2e/editor-pen.spec.ts:125:1 › zero-scale point inspection is safe and editing refuses a singular parent
+2026-10-05T23:17:28.1756810Z [125/189] [chromium] › e2e/editor-pen.spec.ts:137:1 › raster graphic draws a path, supports layer scale/rotation, None paint and canceled edits
+2026-10-05T23:17:32.5756490Z [126/189] [chromium] › e2e/editor-pen.spec.ts:161:1 › a horizontal open path can be selected and moved by its visible stroke
+2026-10-05T23:17:36.4243989Z [127/189] [chromium] › e2e/editor-pen.spec.ts:172:1 › edited path remains selectable outside its initial transform frame
+2026-10-05T23:17:40.1925656Z [128/189] [chromium] › e2e/editor-pen.spec.ts:181:1 › imported path point and tangent editing maps transformed parents and mints identity once
+2026-10-05T23:17:44.6070843Z [129/189] [chromium] › e2e/editor-pen.spec.ts:218:1 › SVG stroke width reads pixels and refuses relative units without source changes
+2026-10-05T23:17:48.4297075Z [130/189] [chromium] › e2e/editor-pen.spec.ts:232:1 › guards refuse unsupported geometry, driven source, CSS paint, changed topology and lossy motion
+2026-10-05T23:17:51.4126576Z [131/189] [chromium] › e2e/editor-pen.spec.ts:266:1 › path paint, movement, playhead visibility and save/reopen execute on all export targets
+2026-10-05T23:17:59.0306227Z [132/189] [chromium] › e2e/import-name-collision.spec.ts:156:1 › a second .html import under one name saves OVER the graphic, and the cue keeps its graphic
+2026-10-05T23:18:04.9018997Z [133/189] [chromium] › e2e/import-name-collision.spec.ts:193:1 › the Finish step says the name is taken on the field every door shares
+2026-10-05T23:18:10.2756502Z [134/189] [chromium] › e2e/import-name-collision.spec.ts:213:1 › the same collision through an SPX-style .zip
+2026-10-05T23:18:16.0704599Z [135/189] [chromium] › e2e/import-name-collision.spec.ts:230:1 › the identical file imported twice leaves one graphic, not a twin
+2026-10-05T23:18:21.9159972Z [136/189] [chromium] › e2e/import-name-collision.spec.ts:247:1 › a re-import into a DIFFERENT production still says it saves over the library record
+2026-10-05T23:18:27.3460961Z [137/189] [chromium] › e2e/import-name-collision.spec.ts:308:1 › a rename mid-walk never writes over a graphic this walk did not make
+2026-10-05T23:18:33.1882744Z [138/189] [chromium] › e2e/import-name-collision.spec.ts:351:1 › a name taken while Finish is open is still disclosed before the door writes
+2026-10-05T23:18:36.0636809Z [139/189] [chromium] › e2e/production-audience.spec.ts:39:1 › the audience workflow: arrive, edit a broadcast version, approve, send to the rundown, air it
+2026-10-05T23:18:36.1733758Z [140/189] [chromium] › e2e/production-audience.spec.ts:96:1 › the audience workspace survives a workspace round trip and a reload
+2026-10-05T23:18:43.4369097Z [141/189] [chromium] › e2e/production-audience.spec.ts:122:1 › the viewer preview is the join page itself, and it follows the operator
+2026-10-05T23:18:48.7253787Z [142/189] [chromium] › e2e/production-audience.spec.ts:148:1 › the public join page answers honestly on an offline build
+2026-10-05T23:18:48.8902019Z [143/189] [chromium] › e2e/production-audience.spec.ts:163:1 › an unknown production workspace degrades to Playout rather than a dead surface
+2026-10-05T23:18:51.8016612Z [144/189] [chromium] › e2e/production-audience.spec.ts:172:1 › the vote reaches air the same way a question does: open, count, stage a cue, take it
+2026-10-05T23:18:51.8905299Z [145/189] [chromium] › e2e/production-audience.spec.ts:237:1 › a vote with nowhere to go says so instead of writing a cue nobody can read
+2026-10-05T23:18:57.0683449Z [146/189] [chromium] › e2e/production-audience.spec.ts:269:1 › a message sent to the rundown that does not save says so, stays unused, and sends again
+2026-10-05T23:19:02.2266361Z [147/189] [chromium] › e2e/production-audience.spec.ts:295:1 › a vote staged while the rundown cannot save says so, and staging again adds the cue once
+2026-10-05T23:19:09.9871970Z [148/189] [chromium] › e2e/production-audience.spec.ts:324:1 › the presenter pointers: queue what is read now and next, without airing anything
+2026-10-05T23:19:15.7446814Z [149/189] [chromium] › e2e/production-gate.spec.ts:40:1 › publishControlShow and the production builders refuse an invalid graphic, and pass a valid one
+2026-10-05T23:19:18.6457819Z [150/189] [chromium] › e2e/production-gate.spec.ts:82:1 › the export dialog shows the gate's verdict and keeps the download disabled
+2026-10-05T23:19:21.7455073Z [151/189] [chromium] › e2e/production-pack.spec.ts:28:1 › a production exports as a graphics pack and imports back with its rundown intact
+2026-10-05T23:19:27.1008020Z [152/189] [chromium] › e2e/production-pack.spec.ts:120:1 › the Fight Night pack installs whole: 12 graphics, the 19-cue rundown in show order
+2026-10-05T23:19:30.0277331Z [153/189] [chromium] › e2e/production-pack.spec.ts:158:1 › a broken or too-new pack is refused with a readable message
+2026-10-05T23:19:32.3917837Z [154/189] [chromium] › e2e/productions.spec.ts:40:1 › a production page manages cues: auto-cue on add, edit, duplicate, reorder, preview
+2026-10-05T23:19:32.4695175Z [155/189] [chromium] › e2e/productions.spec.ts:102:1 › Home Productions creates a production and opens its page; removing a graphic removes its cues
+2026-10-05T23:19:36.8111264Z [156/189] [chromium] › e2e/productions.spec.ts:142:1 › the rundown is the only list: the last cue takes its graphic with it
+2026-10-05T23:19:41.5107559Z [157/189] [chromium] › e2e/productions.spec.ts:181:1 › the LAST cue's ⋯ menu opens upward, inside the rundown that would otherwise clip it
+2026-10-05T23:19:46.2566127Z [158/189] [chromium] › e2e/productions.spec.ts:229:1 › the links panel stays whole on a short screen — it caps and scrolls itself
+2026-10-05T23:19:51.5884871Z [159/189] [chromium] › e2e/productions.spec.ts:282:1 › the production page fits one 1080p screen, and the preview takes only the room left over
+2026-10-05T23:19:54.5315435Z [160/189] [chromium] › e2e/productions.spec.ts:330:1 › the header shows a two-word production name in full on a school laptop, and never loses ■ All out
+2026-10-05T23:19:59.6648412Z [161/189] [chromium] › e2e/productions.spec.ts:394:1 › a production taller than the window never scrolls the page out from under its background
+2026-10-05T23:20:02.2832370Z [162/189] [chromium] › e2e/productions.spec.ts:440:1 › the /output page answers honestly offline and builds a stage from a payload
+2026-10-05T23:20:04.6474193Z [163/189] [chromium] › e2e/productions.spec.ts:505:1 › a dropped recovery RPC is retried, and only an answer is ever concluded from
+2026-10-05T23:20:06.8119855Z [164/189] [chromium] › e2e/productions.spec.ts:587:1 › every graphic gets its own playout layer, typed, and it is what the output stacks
+2026-10-05T23:20:14.5617593Z [165/189] [chromium] › e2e/productions.spec.ts:680:1 › the program monitor is the real renderer, and every verb reaches it without a wire
+2026-10-05T23:20:23.1812150Z [166/189] [chromium] › e2e/productions.spec.ts:783:1 › the verbs answer their keyboard shortcuts, and never while a field has focus
+2026-10-05T23:20:26.5956514Z [167/189] [chromium] › e2e/productions.spec.ts:810:1 › a published production reads SHOW; an unpublished one says so and offers no rehearsal
+2026-10-05T23:20:26.6657619Z [168/189] [chromium] › e2e/productions.spec.ts:852:1 › the action log reads commands as operator language, and drops the bookkeeping
+2026-10-05T23:20:28.7608539Z [169/189] [chromium] › e2e/productions.spec.ts:896:1 › a cue is live per LAYER, not per production
+2026-10-05T23:20:30.8427194Z [170/189] [chromium] › e2e/productions.spec.ts:933:1 › the output embed is a legal SPX template whose frame IS the production output
+2026-10-05T23:20:31.3367214Z [171/189] [chromium] › e2e/productions.spec.ts:1024:1 › the output embed stays transparent inside a host page that declares no colour scheme
+2026-10-05T23:20:31.5192340Z [172/189] [chromium] › e2e/productions.spec.ts:1066:1 › a published production offers the SPX template file beside its output URL
+2026-10-05T23:20:36.1127837Z [173/189] [chromium] › e2e/productions.spec.ts:1109:1 › pictures upload straight into the rundown: one cue each, one layer, and they survive a reload
+2026-10-05T23:20:41.5735856Z [174/189] [chromium] › e2e/productions.spec.ts:1185:1 › pictures that do not save are said as not added, never with a tick, and adding them again works
+2026-10-05T23:20:44.5626711Z [175/189] [chromium] › e2e/productions.spec.ts:1208:1 › an empty production reads as a start: its empty line sits like a row, and Start production waits for a cue
+2026-10-05T23:20:47.2933485Z [176/189] [chromium] › e2e/productions.spec.ts:1253:1 › a match clock survives a renderer reboot: the wire carries the instant the value was true
+2026-10-05T23:20:48.9974947Z [177/189] [chromium] › e2e/productions.spec.ts:1309:1 › a resend of the cue’s own clock value keeps the origin, so half time banks the running time
+2026-10-05T23:20:50.8462200Z [178/189] [chromium] › e2e/productions.spec.ts:1375:1 › the clock walks a whole match through the log: start, bump, stop, restart, reset
+2026-10-05T23:20:52.7213002Z [179/189] [chromium] › e2e/productions.spec.ts:1458:1 › a debate’s two clocks survive a renderer reboot: the stamp says which one is running
+2026-10-05T23:20:54.9162656Z [180/189] [chromium] › e2e/productions.spec.ts:1592:1 › the debate board itself reads a stamped clock: it opens mid-speech and keeps counting
+2026-10-05T23:20:59.8247430Z [181/189] [chromium] › e2e/productions.spec.ts:1660:1 › a renderer that has never reported boots from the START of the log, not its head
+2026-10-05T23:21:01.7578291Z [182/189] [chromium] › e2e/snap-recovery.spec.ts:98:1 › snapping into a live state never changes what the data fields decided to show
+2026-10-05T23:21:16.1644613Z [183/189] [chromium] › e2e/wizard-brand.spec.ts:94:1 › with no brands saved the wizard offers no chooser
+2026-10-05T23:21:16.2331665Z [184/189] [chromium] › e2e/wizard-brand.spec.ts:102:1 › a chosen brand puts its accent, typeface and logo into the created graphic
+2026-10-05T23:21:16.3156632Z [185/189] [chromium] › e2e/wizard-brand.spec.ts:135:1 › None takes back exactly what the brand put there
+2026-10-05T23:21:16.3823234Z [186/189] [chromium] › e2e/wizard-brand.spec.ts:158:1 › creating a graphic writes no brand record
+2026-10-05T23:21:16.4473917Z [187/189] [chromium] › e2e/wizard-brand.spec.ts:186:1 › applying a brand fills an existing logo slot and leaves a slotless graphic untouched
+2026-10-05T23:21:16.5141902Z [188/189] [chromium] › e2e/wizard-brand.spec.ts:267:1 › a design that cannot show the mark never bundles it
+2026-10-05T23:21:16.5820067Z [189/189] [chromium] › e2e/wizard-brand.spec.ts:312:1 › the footer stays one line beside the preview when the chooser is offered
+2026-10-05T23:21:17.1151830Z ##[warning][chromium] › e2e/editor-ease.spec.ts took 2.3m
+2026-10-05T23:21:17.1153319Z ##[warning][chromium] › e2e/productions.spec.ts took 1.5m
+2026-10-05T23:21:17.1154614Z ##[warning][chromium] › e2e/editor-pen.spec.ts took 1.1m
+2026-10-05T23:21:17.1155350Z ##[warning][chromium] › e2e/bench.spec.ts took 55.0s
+2026-10-05T23:21:17.1156627Z ##[notice]  1 failed
+    [chromium] › e2e/editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft
+  25 skipped
+  163 passed (9.8m)
+2026-10-05T23:21:17.1157470Z   Slow test file: [chromium] › e2e/editor-ease.spec.ts (2.3m)
+2026-10-05T23:21:17.1157777Z   Slow test file: [chromium] › e2e/productions.spec.ts (1.5m)
+2026-10-05T23:21:17.1158048Z   Slow test file: [chromium] › e2e/editor-pen.spec.ts (1.1m)
+2026-10-05T23:21:17.1158315Z   Slow test file: [chromium] › e2e/bench.spec.ts (55.0s)
+2026-10-05T23:21:17.1158659Z   Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+2026-10-05T23:21:17.1158940Z   1 failed
+2026-10-05T23:21:17.1159306Z     [chromium] › e2e/editor-groups.spec.ts:340:1 › group canvas transform is one undo and Escape or navigation cancels its draft
+2026-10-05T23:21:17.1159610Z   25 skipped
+2026-10-05T23:21:17.1159734Z   163 passed (9.8m)
+2026-10-05T23:21:17.5148257Z ##[error]Process completed with exit code 1.
+2026-10-05T23:21:17.5194172Z ##[group]Run actions/upload-artifact@v4
+2026-10-05T23:21:17.5194529Z with:
+2026-10-05T23:21:17.5194671Z   name: blob-report-1
+2026-10-05T23:21:17.5194801Z   path: blob-report/
+2026-10-05T23:21:17.5194926Z   retention-days: 7
+2026-10-05T23:21:17.5195070Z   if-no-files-found: error
+2026-10-05T23:21:17.5195208Z   compression-level: 6
+2026-10-05T23:21:17.5195331Z   overwrite: false
+2026-10-05T23:21:17.5195455Z   include-hidden-files: false
+2026-10-05T23:21:17.5195601Z ##[endgroup]
+2026-10-05T23:21:17.6273487Z (node:7093) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-05T23:21:17.6274004Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-05T23:21:17.6332402Z With the provided path, there will be 1 file uploaded
+2026-10-05T23:21:17.6334143Z Artifact name is valid!
+2026-10-05T23:21:17.6334516Z Root directory input is valid!
+2026-10-05T23:21:17.8862043Z Beginning upload of artifact content to blob storage
+2026-10-05T23:21:17.9238175Z (node:7093) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-05T23:21:18.3318649Z Uploaded bytes 1220301
+2026-10-05T23:21:18.3760617Z Finished uploading artifact content to blob storage!
+2026-10-05T23:21:18.3761048Z SHA256 digest of uploaded artifact zip is 152ebb3c82f608e4adb443ed754d847325b989d161a5e5290faa1f3d5d198366
+2026-10-05T23:21:18.3762217Z Finalizing artifact upload
+2026-10-05T23:21:18.6117811Z Artifact blob-report-1.zip successfully finalized. Artifact ID 11379283543
+2026-10-05T23:21:18.6118451Z Artifact blob-report-1 has been successfully uploaded! Final size is 1220301 bytes. Artifact ID is 11379283543
+2026-10-05T23:21:18.6122948Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/37386988484/artifacts/11379283543
+2026-10-05T23:21:18.6260655Z ##[group]Run actions/upload-artifact@v4
+2026-10-05T23:21:18.6260824Z with:
+2026-10-05T23:21:18.6260947Z   name: test-results-1
+2026-10-05T23:21:18.6261080Z   path: test-results/
+2026-10-05T23:21:18.6261210Z   retention-days: 7
+2026-10-05T23:21:18.6261339Z   if-no-files-found: ignore
+2026-10-05T23:21:18.6261496Z   compression-level: 6
+2026-10-05T23:21:18.6261624Z   overwrite: false
+2026-10-05T23:21:18.6261756Z   include-hidden-files: false
+2026-10-05T23:21:18.6261902Z ##[endgroup]
+2026-10-05T23:21:18.7294263Z (node:7107) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-10-05T23:21:18.7294917Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-10-05T23:21:18.7337554Z With the provided path, there will be 3 files uploaded
+2026-10-05T23:21:18.7338076Z Artifact name is valid!
+2026-10-05T23:21:18.7338699Z Root directory input is valid!
+2026-10-05T23:21:18.9883559Z Beginning upload of artifact content to blob storage
+2026-10-05T23:21:19.0214525Z (node:7107) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-10-05T23:21:19.3527647Z Uploaded bytes 904028
+2026-10-05T23:21:19.3924711Z Finished uploading artifact content to blob storage!
+2026-10-05T23:21:19.3925388Z SHA256 digest of uploaded artifact zip is 90a33f6015bb153f4a9dec1db9837cb181316e622d12939779826a45f06fa63a
+2026-10-05T23:21:19.3926674Z Finalizing artifact upload
+2026-10-05T23:21:19.6296470Z Artifact test-results-1.zip successfully finalized. Artifact ID 11379892965
+2026-10-05T23:21:19.6297161Z Artifact test-results-1 has been successfully uploaded! Final size is 904028 bytes. Artifact ID is 11379892965
+2026-10-05T23:21:19.6300944Z Artifact download URL: https://github.com/NoaCG/NoaCG-Studio/actions/runs/37386988484/artifacts/11379892965
+2026-10-05T23:21:19.6439316Z Post job cleanup.
+2026-10-05T23:21:19.6441573Z ##[start-action display=Cache Playwright browser;id=__df30d132-80a6-4201-82b7-3a163ae649dd.cache]
+2026-10-05T23:21:19.6442934Z ##[end-action id=__df30d132-80a6-4201-82b7-3a163ae649dd.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-05T23:21:19.6471305Z Post job cleanup.
+2026-10-05T23:21:19.6472893Z ##[start-action display=Cache node_modules;id=__d91fe9e5-5d4f-406a-b0fc-8a48d774cceb.cache]
+2026-10-05T23:21:19.6474129Z ##[end-action id=__d91fe9e5-5d4f-406a-b0fc-8a48d774cceb.cache;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-10-05T23:21:19.6512429Z Post job cleanup.
+2026-10-05T23:21:19.7060813Z [command]/usr/bin/git version
+2026-10-05T23:21:19.7093006Z git version 2.55.0
+2026-10-05T23:21:19.7117183Z Temporarily overriding HOME='/home/runner/work/_temp/4ee54179-dc11-4885-9066-b93170c05b81' before making global git config changes
+2026-10-05T23:21:19.7118138Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-05T23:21:19.7120339Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/NoaCG-Studio/NoaCG-Studio
+2026-10-05T23:21:19.7149831Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-05T23:21:19.7176839Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-05T23:21:19.7380666Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-05T23:21:19.7424074Z http.https://github.com/.extraheader
+2026-10-05T23:21:19.7425110Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-05T23:21:19.7452603Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-05T23:21:19.7654486Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-05T23:21:19.7686261Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-05T23:21:19.8022956Z Cleaning up orphan processes
+2026-10-05T23:21:19.8249964Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

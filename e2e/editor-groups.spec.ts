@@ -3,20 +3,21 @@ import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { SpxTemplate } from '../src/model/types';
 import {holdKeyRepeats} from './_keys';
+import {evaluateInPage} from './_evaluate';
 import {pickDesign} from './_browse';
 import {settleDurableWrites} from './_durable';
 
 const ready = async (page: Page) => { await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false'); };
-const source = (page: Page) => page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
+const source = (page: Page) => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
 async function open(page: Page, fixture = 'catalog') {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto('/app?editor=foundation#/editor-foundation');
   await expect(page.getByTestId('editor-foundation')).toBeVisible();
-  await page.evaluate(async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
+  await evaluateInPage(page, async t => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().applyTemplate(t, { resetSampleData: true }), JSON.parse(readFileSync(`docs/research/editor-r1-foundation/fixture-${fixture}.json`, 'utf8')) as SpxTemplate);
   await ready(page);
 }
 async function create(page: Page) {
-  const ids = await page.evaluate(async () => {
+  const ids = await evaluateInPage(page, async () => {
     const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     return s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [
       { kind: 'layer.create', geometry: { shape: 'rectangle', x: 220, y: -390, width: 100, height: 80 } },
@@ -26,7 +27,7 @@ async function create(page: Page) {
   }); await ready(page); return ids;
 }
 async function select(page: Page, ids: string[]) {
-  await page.evaluate(async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
+  await evaluateInPage(page, async ids => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().setSelectedParts(ids), ids); await ready(page);
 }
 async function rects(page: Page, ids: string[]) {
   const f = (await (await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
@@ -34,14 +35,14 @@ async function rects(page: Page, ids: string[]) {
 }
 async function group(page: Page, ids: string[]) {
   await select(page, ids); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
-  return page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
+  return evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts[0]);
 }
 async function undo(page: Page) { await page.getByRole('button', { name: 'Undo', exact: true }).click(); await ready(page); }
 
 test('baseline probe: imported hierarchy and missing group controls', async ({ page }) => {
   await open(page, 'svg');
   const before = await source(page);
-  const parts = await page.evaluate(async t => (await import('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true), before);
+  const parts = await evaluateInPage(page, async t => (await import('/src/model/structure.ts')).getTemplateParts(t.html, t.fields, true), before);
   expect(parts.length).toBeGreaterThan(4);
   await select(page, [parts[parts.length - 1].selector]);
   console.log({ nestedParts: parts.length, group: await page.getByRole('button', { name: 'Group selection', exact: true }).count(), breadcrumbs: await page.getByRole('navigation', { name: 'Group breadcrumbs' }).count() });
@@ -58,7 +59,7 @@ test('group and ungroup preserve child pose, identities, fields and one undo', a
   await page.getByRole('button', { name: 'Redo', exact: true }).click(); await ready(page); expect(await source(page)).toEqual(grouped);
   await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click(); await ready(page);
   expect(await rects(page, ids)).toEqual(initial);
-  expect(await page.evaluate(async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids.slice(0, 2));
+  expect(await evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids.slice(0, 2));
   await undo(page); expect(await source(page)).toEqual(grouped);
 });
 
@@ -99,7 +100,7 @@ async function seek(page: Page, time: number) {
   const r = (await ruler.boundingBox())!; await page.mouse.click(r.x + time / extent * r.width, r.y + 10); await ready(page);
 }
 async function key(page: Page, selector: string, property: 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY', time: number, value: number) {
-  await page.evaluate(async ({selector,property,time,value}) => {
+  await evaluateInPage(page, async ({selector,property,time,value}) => {
     const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'animation.key',selector,property,step:0,time,value,action:'set'}]});
   },{selector,property,time,value}); await ready(page);
@@ -117,10 +118,10 @@ test('group transform and centered pivot preserve child offsets and ungrouped ap
   }
   const transformed=await source(page), pose=await rects(page,ids);
   expect(transformed.html).toBe(before.html);expect(transformed.js).toBe(before.js);
-  const base=await page.evaluate(async({t,id}) => (await import('/src/blocks/baseEdits.ts')).baseValues(t,id),{t:transformed,id});
+  const base=await evaluateInPage(page, async({t,id}) => (await import('/src/blocks/baseEdits.ts')).baseValues(t,id),{t:transformed,id});
   expect(base.groupFrame!.x).toBeCloseTo(220,5);expect(base.groupFrame!.y).toBeCloseTo(-390,5);
   await anchor.fill('100');await anchor.press('Enter');await ready(page);
-  const next=await page.evaluate(async({t,id}) => (await import('/src/blocks/baseEdits.ts')).baseValues(t,id),{t:await source(page),id});
+  const next=await evaluateInPage(page, async({t,id}) => (await import('/src/blocks/baseEdits.ts')).baseValues(t,id),{t:await source(page),id});
   expect(next.x).toBe(base.x);expect(next.y).toBe(base.y);await undo(page);expect(await source(page)).toEqual(transformed);
   await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);nearRects(await rects(page,ids),pose);
   const ungrouped=await source(page);expect(ungrouped.html).toContain('data-noacg-carrier');
@@ -139,15 +140,15 @@ test('independent child and group motion survive ungroup and repeated cue seeks'
   for(const time of times){await seek(page,time);poses.push(await rects(page,ids));}
   await select(page,[id]);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);
   for(let i=0;i<times.length;i++){await seek(page,times[i]);nearRects(await rects(page,ids),poses[i]);}
-  const motion=await page.evaluate(async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),await source(page));
-  const original=await page.evaluate(async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),prior);
+  const motion=await evaluateInPage(page, async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),await source(page));
+  const original=await evaluateInPage(page, async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),prior);
   expect(motion!.steps[0].layers[ids[0]]).toEqual(original!.steps[0].layers[ids[0]]);expect(motion!.steps[0].layers[ids[1]]).toEqual(original!.steps[0].layers[ids[1]]);
 });
 
 test('nested group navigation and transformed-parent nudge preserve fine world geometry',async({page})=>{
   await open(page);const ids=await create(page),inner=await group(page,ids.slice(0,2));
   const outer=await group(page,[inner,ids[2]]);
-  await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{rotation:31,scaleX:2.718281828,scaleY:.713957371}}]});},outer);await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{rotation:31,scaleX:2.718281828,scaleY:.713957371}}]});},outer);await ready(page);
   await page.getByRole('button',{name:'Enter group',exact:true}).click();await select(page,[inner]);
   const before=await source(page),pose=await rects(page,ids);await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
   const moved=await rects(page,ids);for(const i of[0,1]){expect(Math.abs(moved[i].x-pose[i].x-10)).toBeLessThan(.01);expect(Math.abs(moved[i].y-pose[i].y)).toBeLessThan(.01);}nearRects(moved.slice(2),pose.slice(2));
@@ -160,7 +161,7 @@ test('nested group navigation and transformed-parent nudge preserve fine world g
 
 test('SVG members under a rotated scaled parent group and ungroup without jumps',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g id="source-parent" transform="translate(210 90) rotate(25) scale(1.4 .7)"><rect id="group-a" x="0" y="0" width="90" height="60" fill="orange"/><path id="group-b" d="M180 80 L260 80 L240 140 Z" fill="red"/></g></svg>')});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<g id="source-parent" transform="translate(210 90) rotate(25) scale(1.4 .7)"><rect id="group-a" x="0" y="0" width="90" height="60" fill="orange"/><path id="group-b" d="M180 80 L260 80 L240 140 Z" fill="red"/></g></svg>')});});await ready(page);
   const ids=['#group-a','#group-b'],before=await source(page),pose=await rects(page,ids),id=await group(page,ids);nearRects(await rects(page,ids),pose);
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
   const moved=await rects(page,ids);moved.forEach((r,i)=>{expect(Math.abs(r.x-pose[i].x-10)).toBeLessThan(.01);expect(Math.abs(r.y-pose[i].y)).toBeLessThan(.01);});
@@ -170,10 +171,10 @@ test('SVG members under a rotated scaled parent group and ungroup without jumps'
 
 test('group parent bar moves child keys atomically and local time follows its visibility start',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));await key(page,ids[0],'x',.1,0);await key(page,ids[0],'x',.3,40);
-  await page.evaluate(async({id,ids})=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();const operations=[id,...ids.slice(0,2)].flatMap(selector=>[{kind:'layer.trim' as const,selector,step:0,interval:0,edge:'start' as const,time:.1},{kind:'layer.trim' as const,selector,step:0,interval:0,edge:'end' as const,time:.4}]);s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations});},{id,ids});await ready(page);
+  await evaluateInPage(page, async({id,ids})=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();const operations=[id,...ids.slice(0,2)].flatMap(selector=>[{kind:'layer.trim' as const,selector,step:0,interval:0,edge:'start' as const,time:.1},{kind:'layer.trim' as const,selector,step:0,interval:0,edge:'end' as const,time:.4}]);s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations});},{id,ids});await ready(page);
   await select(page,[id]);await page.getByRole('button',{name:'Enter group',exact:true}).click();const before=await source(page);
   const bar=page.getByTestId('foundation-parent-bar').getByRole('button',{name:'Move Group 1 span',exact:true}).first();await bar.focus();await bar.press('ArrowRight');await ready(page);
-  const data=await page.evaluate(async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),await source(page));
+  const data=await evaluateInPage(page, async t=>(await import('/src/blocks/animData.ts')).parseAnimData(t.js),await source(page));
   expect(data!.steps[0].layers[ids[0]].x[0].time).toBeCloseTo(.1+1/(await source(page)).fps,3);expect(data!.steps[0].layers[ids[0]].x[1].time-data!.steps[0].layers[ids[0]].x[0].time).toBeCloseTo(.2,3);
   const ruler=page.getByTestId('foundation-ruler');await ruler.press('Home');await ready(page);expect(Number(await ruler.getAttribute('aria-valuenow'))).toBeCloseTo(0,5);
   expect(await source(page)).not.toEqual(before);await undo(page);expect(await source(page)).toEqual(before);
@@ -182,7 +183,7 @@ test('group parent bar moves child keys atomically and local time follows its vi
 
 test('stale group requests and unsupported batches leave source, selection and history unchanged',async({page})=>{
   await open(page);const ids=await create(page);await select(page,ids.slice(0,2));
-  const result=await page.evaluate(async ids=>{
+  const result=await evaluateInPage(page, async ids=>{
     const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(),expected=s.version();
     s.execute({documentId:s.documentId,expected,transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:ids[2],values:{x:630}}]});
     const before=s.port.read(),selection=s.port.view().selectedParts,history=s.canUndo();let message='';
@@ -190,30 +191,30 @@ test('stale group requests and unsupported batches leave source, selection and h
     return{message,same:s.port.read()===before,selectionSame:JSON.stringify(s.port.view().selectedParts)===JSON.stringify(selection),historySame:s.canUndo()===history};
   },ids);expect(result.message).toContain('document changed');expect(result.same).toBe(true);expect(result.selectionSame).toBe(true);expect(result.historySame).toBe(true);
   const id=await group(page,ids.slice(0,2));
-  await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'style.set',selector:id,values:{opacity:.5}}]});},id);await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'style.set',selector:id,values:{opacity:.5}}]});},id);await ready(page);
   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('composites opacity');expect(await source(page)).toEqual(before);
   await undo(page);expect((await source(page)).css).not.toBe(before.css);
 });
 
 test('structural selectors refuse grouping and mixed parents have no partial source write',async({page})=>{
   await open(page);const ids=await create(page);
-  await page.evaluate(async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n.lower-third > '+id+' { outline: 1px solid red; }'});},ids[0]);await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n.lower-third > '+id+' { outline: 1px solid red; }'});},ids[0]);await ready(page);
   await select(page,ids.slice(0,2));const before=await source(page);await page.getByRole('button',{name:'Group selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('structural selector');expect(await source(page)).toEqual(before);
 });
 
 
 test('text mask, field bindings and asset bytes survive transformed grouping and undo',async({page})=>{
   await open(page);
-  const ids=await page.evaluate(async()=>{
+  const ids=await evaluateInPage(page, async()=>{
     const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
     return s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[
       {kind:'layer.create',geometry:{shape:'rectangle',x:180,y:-390,width:90,height:70}},
       {kind:'layer.create',geometry:{shape:'text',x:330,y:-340,width:250,height:70,box:true}},
     ]}).changedTargets;
   });await ready(page);
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,assets:[...s.template.assets,{path:'logo.svg',data:'data:image/svg+xml;base64,PHN2Zy8+'}]});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,assets:[...s.template.assets,{path:'logo.svg',data:'data:image/svg+xml;base64,PHN2Zy8+'}]});});await ready(page);
   const before=await source(page),pose=await rects(page,ids),id=await group(page,ids);nearRects(await rects(page,ids),pose);
-  await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{rotation:23,scaleX:1.4}}]});},id);await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{rotation:23,scaleX:1.4}}]});},id);await ready(page);
   const transformed=await source(page),moved=await rects(page,ids);
   await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);nearRects(await rects(page,ids),moved);
   const next=await source(page);expect(next.fields).toEqual(before.fields);expect(next.assets).toEqual(before.assets);expect(next.js).toBe(before.js);
@@ -230,7 +231,7 @@ test('group arrow gestures cancel on focus, source and assets; local ruler owns 
     if(exit==='Escape')await page.keyboard.press('Escape');
     else if(exit==='blur')await page.getByRole('button',{name:'Align left',exact:true}).focus();
     else if(exit==='selection')await select(page,[ids[2]]);
-    else await page.evaluate(async exit=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate(exit==='source'?{...s.template,css:s.template.css+'\n/* changed while held */'}:{...s.template,assets:[...s.template.assets,{path:'notes.txt',data:'data:text/plain;base64,YQ=='}]});},exit);
+    else await evaluateInPage(page, async exit=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate(exit==='source'?{...s.template,css:s.template.css+'\n/* changed while held */'}:{...s.template,assets:[...s.template.assets,{path:'notes.txt',data:'data:text/plain;base64,YQ=='}]});},exit);
     const changed=await source(page);await page.getByTestId('foundation-canvas').focus();await holdKeyRepeats(page,2,'ArrowRight','ArrowRight');await page.keyboard.up('ArrowRight');await ready(page);expect(await source(page)).toEqual(changed);
     if(!['source','asset'].includes(exit))expect(changed).toEqual(before);
   }
@@ -259,14 +260,14 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
   for(const [x,y,w,h] of [[320,280,100,70],[650,400,150,90]]){
     await page.getByRole('button',{name:'rectangle tool',exact:true}).click();
     const a=await screen(x,y),b=await screen(x+w,y+h);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:4});await page.mouse.up();await ready(page);
-    ids.push((await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+    ids.push((await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
   }
   await page.getByRole('button',{name:'pen tool',exact:true}).click();await point(950,550);await point(1070,550);await point(1010,630);await point(950,550);await page.keyboard.press('Enter');await ready(page);
-  ids.push((await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
+  ids.push((await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0]);
   for(const [i,id] of ids.entries())await page.locator('.ef-track[data-selector="'+id+'"] .ef-layer').click(i?{modifiers:['Control']}:{});
 
   await page.getByRole('button',{name:'Group selection',exact:true}).click();await ready(page);
-  const groupId=(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0];
+  const groupId=(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts))[0];
   await page.getByTestId('foundation-canvas').focus();await page.keyboard.press('Shift+ArrowRight');await ready(page);
   await page.getByRole('button',{name:'Enter group',exact:true}).click();
   await page.locator('.ef-track[data-selector="'+ids[0]+'"] .ef-layer').click();
@@ -298,10 +299,10 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
   await page.getByTestId('save-graphic').click();await page.getByTestId('save-name').fill('Grouped Hairline');await page.getByTestId('save-confirm').click();
   await expect(page.getByTestId('save-status')).toHaveText('Saved');await settleDurableWrites(page);await page.reload();await ready(page);
   const reopened=await source(page);expect(reopened.html).toBe(beforeSave.html);expect(reopened.css).toBe(beforeSave.css);
-  const motions=await page.evaluate(async js=>{const {parseAnimData}=await import('/src/blocks/animData.ts');return js.map(parseAnimData);},[beforeSave.js,reopened.js]);expect(motions[1]).toEqual(motions[0]);
+  const motions=await evaluateInPage(page, async js=>{const {parseAnimData}=await import('/src/blocks/animData.ts');return js.map(parseAnimData);},[beforeSave.js,reopened.js]);expect(motions[1]).toEqual(motions[0]);
   const authored=await rects(page,ids);
   for(const target of ['spx','casparcg','ograf']){
-    const files=await page.evaluate(async target=>{
+    const files=await evaluateInPage(page, async target=>{
       const t=(await import('/src/store/templateStore.ts')).useTemplateStore.getState().template;
       const zip=await (await import('/src/export/registry.ts')).EXPORT_TARGETS.find(t=>t.id===target)!.build(t);
       return Object.fromEntries(await Promise.all(Object.keys(zip.files).filter(n=>!zip.files[n].dir).map(async n=>[n.slice(n.indexOf('/')+1),await zip.file(n)!.async('base64')])));
@@ -326,14 +327,14 @@ test('template search, UI-created shapes and Pen, group and member motion, save/
 
 test('SVG group rotation and scale motion ungroup exactly at different poses',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="moving-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="moving-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="moving-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="moving-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
   const ids=['#moving-a','#moving-b'],id=await group(page,ids);
   for(const [property,end]of [['rotation',35],['scaleX',1.4],['x',80]] as const){await key(page,id,property,0,property==='scaleX'?1:0);await key(page,id,property,.4,end);}
   const times=[0,.2,.4,0],poses=[];
   for(const time of times){await seek(page,time);poses.push(await rects(page,ids));}
   await select(page,[id]);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);
   for(let i=0;i<times.length;i++){await seek(page,times[i]);nearRects(await rects(page,ids),poses[i]);}
-  const parts=await page.evaluate(async t=>(await import('/src/model/structure.ts')).getTemplateParts(t.html,t.fields,true),await source(page));
+  const parts=await evaluateInPage(page, async t=>(await import('/src/model/structure.ts')).getTemplateParts(t.html,t.fields,true),await source(page));
   expect(parts.some(part=>part.selector.startsWith('#group-carrier-'))).toBe(false);
 });
 
@@ -350,20 +351,20 @@ test('group canvas transform is one undo and Escape or navigation cancels its dr
 
 test('painted pseudo-element selectors refuse without wrapping new artwork',async({page})=>{
   await open(page);const ids=await create(page);
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n.lower-third > div::before {content:"";position:absolute;width:20px;height:20px;background:red;}'});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,css:s.template.css+'\n.lower-third > div::before {content:"";position:absolute;width:20px;height:20px;background:red;}'});});await ready(page);
   await select(page,ids.slice(0,2));const before=await source(page);await page.getByRole('button',{name:'Group selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('structural selector');expect(await source(page)).toEqual(before);
 });
 
 test('ungroup refuses a group-owned outline without losing source or selection',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
-  await page.evaluate(async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();const {setCssDeclaration}=await import('/src/blocks/edit.ts');s.applyTemplate({...s.template,css:setCssDeclaration(s.template.css,id,'outline','5px solid red')});},id);await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();const {setCssDeclaration}=await import('/src/blocks/edit.ts');s.applyTemplate({...s.template,css:setCssDeclaration(s.template.css,id,'outline','5px solid red')});},id);await ready(page);
   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await expect(page.locator('.ef-group-error')).toContainText('outline');expect(await source(page)).toEqual(before);
-  expect(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
+  expect(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
 });
 
 test('SVG group pivot is centered and remains static during child and group motion',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="pivot-a" x="180" y="90" width="90" height="60" fill="orange"/><path id="pivot-b" d="M370 170 L450 170 L420 230 Z" fill="red"/></svg>')});});await ready(page);
   const ids=['#pivot-a','#pivot-b'],id=await group(page,ids),f=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   expect((await f.locator(id).getAttribute('data-svg-origin'))!.split(' ').map(Number)).toEqual([315,160]);
   const before=await source(page),pose=await rects(page,ids);
@@ -381,7 +382,7 @@ test('SVG group pivot is centered and remains static during child and group moti
 test('local parent trim keeps child motion and navigation cancels timeline drafts',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
   await key(page,ids[0],'x',0,0);await key(page,ids[0],'x',.4,44);
-  const prior=await source(page),parse=async(t:Awaited<ReturnType<typeof source>>)=>page.evaluate(async js=>(await import('/src/blocks/animData.ts')).parseAnimData(js),t.js);
+  const prior=await source(page),parse=async(t:Awaited<ReturnType<typeof source>>)=>evaluateInPage(page, async js=>(await import('/src/blocks/animData.ts')).parseAnimData(js),t.js);
   await page.getByRole('button',{name:'Enter group',exact:true}).click();
   const trim=page.getByTestId('foundation-parent-bar').getByRole('button',{name:'Trim start Group 1 span',exact:true}).first();
   await trim.focus();await trim.press('ArrowRight');await ready(page);
@@ -402,30 +403,30 @@ test('local parent trim keeps child motion and navigation cancels timeline draft
 
 test('grouping existing SVG member motion refuses exactly beside its control',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="guard-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="guard-b" x="370" y="170" width="80" height="60" fill="red"/></svg>')});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="guard-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="guard-b" x="370" y="170" width="80" height="60" fill="red"/></svg>')});});await ready(page);
   const ids=['#guard-a','#guard-b'];await key(page,ids[0],'x',0,0);await key(page,ids[0],'x',.4,44);await select(page,ids);
   const before=await source(page);await page.getByRole('button',{name:'Group selection',exact:true}).click();
   await expect(page.locator('.ef-group-error')).toContainText('before authoring their motion');expect(await source(page)).toEqual(before);
-  expect(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids);
+  expect(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual(ids);
 });
 
 test('SVG parent movement retains only owned static pivots and anchor refuses unknown data',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="time-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="time-b" x="370" y="170" width="80" height="60" fill="red"/></svg>')});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="time-a" x="180" y="90" width="90" height="60" fill="orange"/><rect id="time-b" x="370" y="170" width="80" height="60" fill="red"/></svg>')});});await ready(page);
   const id=await group(page,['#time-a','#time-b']);
-  await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{parseAnimData,locateAnimData}=await import('/src/blocks/animData.ts');const data=parseAnimData(store.template.js)!;for(const step of data.steps)step.layers['#time-a']={transformOrigin:[{time:0,value:'10px 10px'}]};const at=locateAnimData(store.template.js)!;store.applyTemplate({...store.template,js:store.template.js.slice(0,at.start)+JSON.stringify(data)+store.template.js.slice(at.end)});});await ready(page);
-  await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'group.move',selector:id,step:0,delta:.4}]});},id);await ready(page);
-  const moved=await page.evaluate(async js=>(await import('/src/blocks/animData.ts')).parseAnimData(js),(await source(page)).js);
+  await evaluateInPage(page, async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{parseAnimData,locateAnimData}=await import('/src/blocks/animData.ts');const data=parseAnimData(store.template.js)!;for(const step of data.steps)step.layers['#time-a']={transformOrigin:[{time:0,value:'10px 10px'}]};const at=locateAnimData(store.template.js)!;store.applyTemplate({...store.template,js:store.template.js.slice(0,at.start)+JSON.stringify(data)+store.template.js.slice(at.end)});});await ready(page);
+  await evaluateInPage(page, async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'group.move',selector:id,step:0,delta:.4}]});},id);await ready(page);
+  const moved=await evaluateInPage(page, async js=>(await import('/src/blocks/animData.ts')).parseAnimData(js),(await source(page)).js);
   expect(moved!.steps[0].layers[id].transformOrigin[0].time).toBe(0);expect(moved!.steps[0].layers['#time-a'].transformOrigin[0].time).toBe(.4);
-  await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{locateAnimData}=await import('/src/blocks/animData.ts');const at=locateAnimData(store.template.js)!,data=JSON.parse(store.template.js.slice(at.start,at.end));data.futureGroupMetadata={keep:'exact'};store.applyTemplate({...store.template,js:store.template.js.slice(0,at.start)+JSON.stringify(data)+store.template.js.slice(at.end)});});await ready(page);
+  await evaluateInPage(page, async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{locateAnimData}=await import('/src/blocks/animData.ts');const at=locateAnimData(store.template.js)!,data=JSON.parse(store.template.js.slice(at.start,at.end));data.futureGroupMetadata={keep:'exact'};store.applyTemplate({...store.template,js:store.template.js.slice(0,at.start)+JSON.stringify(data)+store.template.js.slice(at.end)});});await ready(page);
   const before=await source(page);
-  const error=await page.evaluate(async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();try{s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{anchorX:100,anchorY:40}}]});return '';}catch(e){return String(e);}},id);
+  const error=await evaluateInPage(page, async id=>{const s=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();try{s.execute({documentId:s.documentId,expected:s.version(),transactionId:crypto.randomUUID(),operations:[{kind:'base.set',selector:id,values:{anchorX:100,anchorY:40}}]});return '';}catch(e){return String(e);}},id);
   expect(error).toContain('pivot initializer');expect(await source(page)).toEqual(before);
 });
 
 test('new wrapper inheritance refuses without changing member paint',async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="inherit-a" x="180" y="90" width="90" height="60" fill="currentColor"/><rect id="inherit-b" x="370" y="170" width="80" height="60" fill="currentColor"/></svg>'),css:s.template.css+'\ng {color:#ff0000;}'});});await ready(page);
+  await evaluateInPage(page, async()=>{const s=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();s.applyTemplate({...s.template,html:s.template.html.replace('</svg>','<rect id="inherit-a" x="180" y="90" width="90" height="60" fill="currentColor"/><rect id="inherit-b" x="370" y="170" width="80" height="60" fill="currentColor"/></svg>'),css:s.template.css+'\ng {color:#ff0000;}'});});await ready(page);
   const ids=['#inherit-a','#inherit-b'];await select(page,ids);const before=await source(page);
   const frame=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   const color=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
@@ -438,7 +439,7 @@ test('new wrapper inheritance refuses without changing member paint',async({page
 
 test('new wrapper dynamic selector refuses without changing source',async({page})=>{
   await open(page);const ids=await create(page),before=await source(page);
-  const result=await page.evaluate(async({before,ids})=>{
+  const result=await evaluateInPage(page, async({before,ids})=>{
     const {locateAnimData}=await import('/src/blocks/animData.ts'),{applyOperations}=await import('/src/components/editorFoundation/operations.ts');
     const at=locateAnimData(before.js)!,data=JSON.parse(before.js.slice(at.start,at.end));
     data.steps[0].dynamics=[{time:0,build:'groupProbe',target:'div'}];
@@ -452,16 +453,16 @@ test('new wrapper dynamic selector refuses without changing source',async({page}
 
 test('member blending refuses transformed HTML ungroup without losing source',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
-  await page.evaluate(async({id,ids})=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{setCssDeclaration}=await import('/src/blocks/edit.ts'),{editBase}=await import('/src/blocks/baseEdits.ts');store.applyTemplate(editBase({...store.template,css:setCssDeclaration(store.template.css,ids[0],'mix-blend-mode','multiply')},id,{rotation:25}));},{id,ids});await ready(page);
+  await evaluateInPage(page, async({id,ids})=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState(),{setCssDeclaration}=await import('/src/blocks/edit.ts'),{editBase}=await import('/src/blocks/baseEdits.ts');store.applyTemplate(editBase({...store.template,css:setCssDeclaration(store.template.css,ids[0],'mix-blend-mode','multiply')},id,{rotation:25}));},{id,ids});await ready(page);
   const before=await source(page);await page.getByRole('button',{name:'Ungroup selection',exact:true}).click();await ready(page);
   await expect(page.locator('.ef-group-error')).toContainText('member blending');expect(await source(page)).toEqual(before);
-  expect(await page.evaluate(async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
+  expect(await evaluateInPage(page, async()=>(await import('/src/store/templateStore.ts')).useTemplateStore.getState().selectedParts)).toEqual([id]);
 });
 
 
 test('Project placement respects local group scope and remains available in Composition',async({page})=>{
   await open(page);const ids=await create(page),id=await group(page,ids.slice(0,2));
-  await page.evaluate(async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,assets:[...store.template.assets,{path:'scope.svg',data:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>')}]});});await ready(page);
+  await evaluateInPage(page, async()=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,assets:[...store.template.assets,{path:'scope.svg',data:'data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>')}]});});await ready(page);
   await select(page,[id]);await page.getByRole('button',{name:'pen tool',exact:true}).click();
   await page.locator('.ef-enter-group').first().click();await ready(page);await expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-tool','select');
   await page.getByRole('button',{name:/^Project/}).click();await page.locator('[data-testid="asset-row"][data-path="scope.svg"]').click();
@@ -476,12 +477,12 @@ test('Project placement respects local group scope and remains available in Comp
 
 for(const kind of ['group marker','carrier marker','frame attributes'])test('source wrapper rules refuse '+kind,async({page})=>{
   await open(page,'svg');
-  await page.evaluate(async kind=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,html:store.template.html.replace('</svg>','<rect id="style-a" x="180" y="90" width="90" height="60" fill="currentColor"/><rect id="style-b" x="370" y="170" width="80" height="60" fill="currentColor"/></svg>'),css:store.template.css+(kind==='frame attributes'?'\n[data-group-width]{color:red}':'')});},kind);await ready(page);
+  await evaluateInPage(page, async kind=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,html:store.template.html.replace('</svg>','<rect id="style-a" x="180" y="90" width="90" height="60" fill="currentColor"/><rect id="style-b" x="370" y="170" width="80" height="60" fill="currentColor"/></svg>'),css:store.template.css+(kind==='frame attributes'?'\n[data-group-width]{color:red}':'')});},kind);await ready(page);
   const ids=['#style-a','#style-b'];
   if(kind==='frame attributes')await select(page,ids);
   else{
     const id=await group(page,ids);
-    await page.evaluate(async kind=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,css:store.template.css+'\n'+(kind==='group marker'?'[data-noacg-group]':'[data-noacg-carrier]')+'{color:red}'});},kind);await ready(page);await select(page,[id]);
+    await evaluateInPage(page, async kind=>{const store=(await import('/src/store/templateStore.ts')).useTemplateStore.getState();store.applyTemplate({...store.template,css:store.template.css+'\n'+(kind==='group marker'?'[data-noacg-group]':'[data-noacg-carrier]')+'{color:red}'});},kind);await ready(page);await select(page,[id]);
   }
   const before=await source(page),frame=(await(await page.locator('iframe[title="Foundation graphic preview"]').elementHandle())!.contentFrame())!;
   const paint=await frame.locator(ids[0]).evaluate(el=>getComputedStyle(el).fill);
@@ -492,6 +493,6 @@ for(const kind of ['group marker','carrier marker','frame attributes'])test('sou
 
 test('serialized group frame refuses zero after rounding',async({page})=>{
   await open(page);const ids=await create(page),before=await source(page);
-  const error=await page.evaluate(async ids=>{const session=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();try{session.execute({documentId:session.documentId,expected:session.version(),transactionId:crypto.randomUUID(),operations:[{kind:'group.create',selectors:ids.slice(0,2),box:{x:0,y:0,width:4e-10,height:10}}]});return '';}catch(e){return String(e);}},ids);
+  const error=await evaluateInPage(page, async ids=>{const session=(await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();try{session.execute({documentId:session.documentId,expected:session.version(),transactionId:crypto.randomUUID(),operations:[{kind:'group.create',selectors:ids.slice(0,2),box:{x:0,y:0,width:4e-10,height:10}}]});return '';}catch(e){return String(e);}},ids);
   expect(error).toContain('group transform frame');expect(await source(page)).toEqual(before);
 });
