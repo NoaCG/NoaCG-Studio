@@ -2648,6 +2648,7 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
 .pd-rundown-colors, .pd-shared-route { margin-top: 10px; font-size: 12px; }
 .pd-rundown-colors summary, .pd-shared-route summary { cursor: pointer; }
 .pd-output-dialog { max-width: 540px; }
+.pd-output-dialog .dlg-check .hint { display: block; margin-top: 3px; }
 .pd-output-dialog .dlg-foot { display: flex; justify-content: space-between; padding: 16px; border-top: 1px solid var(--border); }
 .pd-output-setup { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .pd-output-setup .hint { flex-basis: 100%; margin: 0; }

@@ -18,7 +18,7 @@ async function account(page:Page,state:Backend) {
   // Network-owned fake Auth/PostgREST. Uses the real auth seam and real publish serializer;
   // no production backend, account or stored upcoming production is touched.
   await page.route('**/src/backend/config.ts', r=>r.fulfill({contentType:'application/javascript',body:`export const loadBackendConfig=()=>({url:'https://noacg-test.supabase.co',anonKey:'fixture-public-key'}); export const isBackendConfigured=()=>true;`}));
-  await page.addInitScript(({id,access})=>{ if(window.top!==window)return; localStorage.setItem('sb-noacg-test-auth-token',JSON.stringify({access_token:access,refresh_token:'fixture-refresh',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:'fixture@example.test',user_metadata:{}}})); },{id:A,access:token(A)});
+  await page.addInitScript(({id,access})=>{ if(window.top!==window || localStorage.getItem('sb-noacg-test-auth-token'))return; localStorage.setItem('sb-noacg-test-auth-token',JSON.stringify({access_token:access,refresh_token:'fixture-refresh',expires_at:Math.floor(Date.now()/1000)+3600,expires_in:3600,token_type:'bearer',user:{id,aud:'authenticated',role:'authenticated',email:'fixture@example.test',user_metadata:{}}})); },{id:A,access:token(A)});
   await page.route('https://noacg-test.supabase.co/**',async r=>{
     const req=r.request(),url=new URL(req.url()),method=req.method();
     const bearer=req.headers().authorization?.split(' ')[1];
@@ -49,7 +49,9 @@ async function account(page:Page,state:Backend) {
   });
 }
 async function seed(page:Page,legacy=false) {
-  await page.goto('/app#/home'); await awaitDurableReady(page);
+  await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible(); await awaitDurableReady(page);
+  const owner=await page.evaluate(async()=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();return sb ? (await sb.auth.getSession()).data.session?.user.id : null;});
+  if(owner) await expect.poll(()=>page.evaluate(async()=> (await import('/src/model/durableStore.ts')).libraryInUse())).toBe(owner);
   const id=await page.evaluate(async old=>{
     const S=await import('/src/model/shows.ts'); const {variantsFor}=await import('/src/templates/catalog.ts');
     const show=S.createShowNamed('Output proof'); S.addGraphicToShow(show.id,variantsFor('lower-third')[0].create({}));
@@ -68,9 +70,14 @@ test('first Publish has no selection, cancellation is inert, remembered choice s
   await expect(page.getByTestId('output-profile')).toHaveValue('');
   await expect(page.getByTestId('remember-output')).not.toBeChecked();
   await expect(page.getByTestId('confirm-output')).toBeDisabled();
+  await page.screenshot({path:test.info().outputPath('publish-empty.png')});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:test.info().outputPath('publish-empty-phone.png')});
+  await page.setViewportSize({width:1280,height:720});
   await page.getByRole('button',{name:'Cancel',exact:true}).click();
   expect(b.writes).toBe(0);expect((await record(page,id)).hostedSlug).toBeUndefined();
   await page.getByTestId('production-publish').click();await page.getByTestId('output-profile').selectOption('spx');await page.getByTestId('remember-output').check();
+  await page.screenshot({path:test.info().outputPath('publish-spx-remember.png')});
   b.failPublish=true;await page.getByTestId('confirm-output').click();await expect(page.getByTestId('production-note')).toContainText('Publish failed');
   expect(b.preferences).toEqual([]);expect((await record(page,id)).hostedSlug).toBeUndefined();
   b.failPublish=false;b.failDefault=true;await page.getByTestId('production-publish').click();
@@ -89,9 +96,15 @@ test('first Publish has no selection, cancellation is inert, remembered choice s
 test('production override emits no playback commands and leaves default unchanged; account changes never reuse defaults',async({page})=>{
   const b=backend();b.defaults[A]=choice('obs');b.defaults[B]=choice('vmix');await account(page,b);const id=await seed(page);
   await publishProduction(page);
-  const setup=await openSetup(page);const writes=b.writes;await setup.getByRole('button',{name:'Change output…'}).click();await page.getByTestId('output-profile').selectOption('browser');await page.getByTestId('confirm-output').click();
-  expect(b.writes).toBe(writes);expect(b.defaults[A]).toEqual(choice('obs'));expect((await record(page,id)).outputSetup).toEqual(choice('browser'));
-  const result=await page.evaluate(async({a,b,access})=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();const switched=await sb!.auth.setSession({access_token:access,refresh_token:'other-refresh'});if(switched.error)throw Error(switched.error.message);const auth=await import('/src/backend/auth.ts');return {wrong:await auth.readDefaultOutput(a),right:await auth.readDefaultOutput(b),write:await auth.saveDefaultOutput(a,{v:1,destinations:[{id:'browser',profile:'obs'}]})};},{a:A,b:B,access:token(B)});
+  const setup=await openSetup(page);const writes=b.writes;await setup.getByRole('button',{name:'Change output…'}).click();await page.getByTestId('output-profile').selectOption('browser');await page.getByTestId('output-also-caspar').check();
+  await page.screenshot({path:test.info().outputPath('combined-output.png')});
+  await page.getByTestId('confirm-output').click();
+  expect(b.writes).toBe(writes);expect(b.defaults[A]).toEqual(choice('obs'));expect((await record(page,id)).outputSetup).toEqual(choice('browser',true));
+  // Account isolation reloads onto B's library. Do not span that boundary with a read.
+  const navigation=page.waitForEvent('domcontentloaded');
+  await page.evaluate(async access=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();void sb!.auth.setSession({access_token:access,refresh_token:'other-refresh'});},token(B));
+  await navigation;await awaitDurableReady(page);
+  const result=await page.evaluate(async({a,b})=>{const auth=await import('/src/backend/auth.ts');return {wrong:await auth.readDefaultOutput(a),right:await auth.readDefaultOutput(b),write:await auth.saveDefaultOutput(a,{v:1,destinations:[{id:'browser',profile:'obs'}]})};},{a:A,b:B});
   expect(result.wrong.setup).toBeNull();expect(result.write.error).toBeTruthy();expect(result.right.setup).toEqual(choice('vmix'));expect(b.preferences).toEqual([]);
 });
 
