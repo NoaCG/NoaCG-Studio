@@ -308,7 +308,7 @@ test('edge handles scale one axis about the opposite side, Shift both, Alt about
   expect(await history(page)).toBe(steps + 1);
   await undo(page);
   await page.getByRole('checkbox', { name: 'Link proportions' }).uncheck();
-  await type(page, transform, 'Scale X %', Math.round(b.scaleX * 100000) / 1000);
+  await type(page, transform, 'Scale X %', b.scaleX * 100);
   expect((await source(page)).css).toBe(alt.css);
   await undo(page); await page.getByRole('checkbox', { name: 'Link proportions' }).check();
 
@@ -703,7 +703,7 @@ test('nested SVG: the rotation and edge handles write what the fields write; its
   const scaled = await source(page), sx = (await base(page, '#f0')).scaleX;
   expect(sx).not.toBe(1); expect((await base(page, '#f0')).scaleY).toBe(1);
   await undo(page);
-  await type(page, transform, 'Scale X %', Math.round(sx * 100000) / 1000);
+  await type(page, transform, 'Scale X %', sx * 100);
   expect((await source(page)).css).toBe(scaled.css);
   await undo(page); expect(await source(page)).toEqual(original);
   // Without Alt the opposite (right) side stays where it is: the pivot and the axes are the parent's.

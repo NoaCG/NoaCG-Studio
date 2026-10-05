@@ -1,12 +1,14 @@
 import type { SpxTemplate } from '../../model/types';
-import type { BasePatch, BaseValues, TransformPatch } from '../../blocks/baseEdits';
+import { baseValues, type BasePatch, type BaseValues, type TransformPatch } from '../../blocks/baseEdits';
 import { channelValue, isArmed, poseKey, sequenceAuthoringReason, writeChannel, type Channel } from '../../blocks/editorAnimation';
 import type { AnimData } from '../../blocks/animData';
 import type { RenderedPart } from './protocol';
 import type { EditorOperation } from './operations';
 import { FLOAT_STEP, ownerOf, readTimeline, segmentAt } from './timelineView';
 import { sameRevision, type Revision } from './session';
-import type { Point } from './transformGestures';
+import { apply, invert, type Point } from './transformGestures';
+import type { ArtworkDelta } from '../../blocks/arrangementGeometry';
+import { resizableTextBox } from '../../blocks/designLayout';
 
 export function requireCurrentPose(appearance: RenderedPart['appearance'], time: number, revision?: Revision, cue?: number) {
   // An Out played from the parked playhead can leave from a pose the Out cue's keys never hold.
@@ -134,3 +136,75 @@ export function shownAnchor(base: BaseValues, pose: RenderedPart['appearance']):
  */
 export const anchorOperations = (selector: string, anchor: Point): EditorOperation[] =>
   [{ kind: 'base.set', selector, values: { anchorX: anchor.x, anchorY: anchor.y } }];
+
+/** Independent artwork targets measured at the exact revision and playhead being edited. */
+export function arrangementTargets(template: SpxTemplate, parts: RenderedPart[], selection: string[], time: number, revision: Revision, cue?: number): RenderedPart[] {
+  if (!selection.length) throw new Error('Select artwork to arrange or move.');
+  const doc = new DOMParser().parseFromString(template.html, 'text/html');
+  const targets = selection.map(selector => {
+    const matches = doc.querySelectorAll(selector), part = parts.find(p => p.selector === selector);
+    if (matches.length !== 1 || !part) throw new Error(selector + ' has no uniquely measured artwork. Inspect it again.');
+    requireCurrentPose(part.appearance, time, revision, cue);
+    // Validate every target, including a distribution endpoint which will stay still.
+    try { baseValues(template, selector); invert(part.parent ?? [1, 0, 0, 1], 'This parent transform is singular. Restore a nonzero parent scale first.'); }
+    catch (cause) { throw Object.assign(new Error(selector + ': ' + (cause instanceof Error ? cause.message : String(cause))), { cause }); }
+    return part;
+  });
+  if (targets.some(a => targets.some(b => a !== b && doc.querySelector(a.selector)!.contains(doc.querySelector(b.selector))))) throw new Error('A selected parent contains another selected layer. Select independent artwork to arrange it exactly.');
+  return targets;
+}
+
+/** A composition-space translation resolves separately through each parent's inverse and source channel. */
+export function translateArtwork(template: SpxTemplate, parts: RenderedPart[], deltas: ArtworkDelta[], time: number): EditorOperation[] {
+  return parts.flatMap(part => {
+    const delta = deltas.find(d => d.selector === part.selector);
+    if (!delta || ![delta.x, delta.y].every(Number.isFinite)) throw new Error('The artwork translation is invalid.');
+    const change = apply(invert(part.parent ?? [1, 0, 0, 1]), delta);
+    const base = baseValues(template, part.selector), pose = editingPose(template, part.selector, part.appearance, time, part.appearance?.cue);
+    return authoredTransform(template, part.selector, base, part.appearance,
+      { x: displayedBase(base, pose, 'x') + change.x, y: displayedBase(base, pose, 'y') + change.y }, time);
+  });
+}
+
+/** Keyboard width/height edits: text boxes reflow, other artwork scales in its own axes about the pivot. */
+export function resizeArtwork(template: SpxTemplate, parts: RenderedPart[], delta: Point, time: number): EditorOperation[] {
+  if (![delta.x, delta.y].every(Number.isFinite)) throw new Error('Enter finite resize distances.');
+  return parts.flatMap(part => {
+    const base = baseValues(template, part.selector), box = resizableTextBox(template, part.selector);
+    if (box) {
+      const width = box.width + delta.x, height = box.height + delta.y;
+      if (width < 1 || height < 1) throw new Error(part.selector + ': resizing would collapse the text box. Keep width and height at least one pixel.');
+      if (!delta.x && !delta.y) return [];
+      const operations: EditorOperation[] = [];
+      // Freeze the existing percentage pivot at the same local point before changing the box.
+      if (!base.anchor) {
+        if (base.anchorReason) throw new Error(base.anchorReason);
+        const anchor = shownAnchor(base, part.appearance);
+        if (!anchor) throw new Error('Wait for the rendered text box pivot before resizing.');
+        operations.push(...anchorOperations(part.selector, anchor));
+      }
+      operations.push({ kind: 'style.set', selector: part.selector, values: { width, height } });
+      return operations;
+    }
+    // Base scale precedes the source's own transform; animated scale uses its existing writer.
+    const view = readTimeline(template), owner = ownerOf(view, part.selector);
+    const unarmed = delta.x && !keysControl(view.data, owner, 'scaleX') || delta.y && !keysControl(view.data, owner, 'scaleY');
+    if (base.axisResizeReason && unarmed) throw new Error(base.axisResizeReason);
+    const pose = editingPose(template, part.selector, part.appearance, time, part.appearance?.cue);
+    const corners = part.corners;
+    if (!corners || corners.length !== 4) throw new Error(part.selector + ' has no exact local resize frame.');
+    const inverse = invert(part.parent ?? [1, 0, 0, 1]);
+    const side = (to: number) => {
+      const v = apply(inverse, { x: corners[to].x - corners[0].x, y: corners[to].y - corners[0].y });
+      return Math.hypot(v.x, v.y);
+    };
+    const values: TransformPatch = {};
+    for (const [axis, distance, size] of [['scaleX', delta.x, side(1)], ['scaleY', delta.y, side(3)]] as const) {
+      if (!distance) continue;
+      const scale = displayedBase(base, pose, axis);
+      if (Math.abs(scale) < 1e-8 || size < 1e-8 || size + distance < 1) throw new Error(part.selector + ': resizing would collapse this artwork axis. Restore a nonzero size or scale first.');
+      values[axis] = scale * (size + distance) / size;
+    }
+    return authoredTransform(template, part.selector, base, part.appearance, values, time);
+  });
+}

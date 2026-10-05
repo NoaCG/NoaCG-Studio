@@ -462,6 +462,24 @@ typing, owner workflow and physical receiving-host acceptance remain open. No
 whole row is closed. The desktop judgment item is
 [Draw a custom badge and adjust its points](../acceptance/owner-queue/2026-10-03-editor-pen.md).
 
+## R1.2b.5 scoped arrangement and keyboard receipt, 2026-10-05
+
+The [bounded spec and verification](editor-r1-2b-5/README.md) cover Selection
+and Canvas alignment on six rendered edges, horizontal/vertical equal gaps
+with outermost bounds fixed, composition-pixel keyboard nudge and local-axis
+resize. Text boxes reflow while other artwork scales about its existing pivot.
+Held keys preview without source writes, release commits one atomic action,
+and undo restores exact source. Inputs, timeline arrows and Pen drafts retain
+keyboard ownership. Nested transformed parents, rotated/scaled items, imported
+SVG/images, anonymous identity, armed/base mixed selections, cancellation,
+stale views and whole-batch refusal have scoped evidence. The template-search
+task creates two rectangles and a Pen badge, arranges them, saves/reopens and
+executes SPX, CasparCG and OGraf exports.
+
+E07/E17 and the specified portions of B02-B04 gain engineering evidence. Groups,
+bins, canvas typing, owner judgment and physical receiving-host acceptance
+remain open; no whole row is closed. The desktop judgment item is
+[Arrange a badge and two accents](../acceptance/owner-queue/2026-10-05-editor-arrangement.md).
 ## Optional P-GPU evidence
 
 B20 belongs only to P-GPU.0/1 after working R1/R2.2/R3.1; it does not block core editor adoption. See the [WebGPU/vgpu assessment](editor-webgpu-vgpu-2026-09-19.md) for exact fixtures, sources and host matrix. All product evidence is unverified: pinned licence/bundle proof; actual browser/OBS/CasparCG alpha and output; deterministic time/seed/data replay and GPU completion; unavailable/device-loss fallbacks; frame pacing/memory/concurrent-output soak. Research is complete by classification, not a GPU compatibility pass. vgpu is a candidate, not an installed dependency.

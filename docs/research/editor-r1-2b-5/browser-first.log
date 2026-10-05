@@ -1,0 +1,38 @@
+=== j-3378 node node_modules/@playwright/test/cli.js test e2e/editor-arrangement.spec.ts --workers=3
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+[e2e] 6 workers - 6770 MB free (the measured maximum)
+[WebServer] (node:37884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 21 tests using 3 workers
+
+(node:40928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19412) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34324) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{ align: 1, distribute: 1, arrowChangesSource: true }
+  ok  1 [chromium] › e2e\editor-arrangement.spec.ts:37:1 › baseline probe: current alignment and canvas arrow capability (3.0s)
+  ok  2 [chromium] › e2e\editor-arrangement.spec.ts:43:1 › selection alignment uses rendered bounds, one undo and unchanged motion (3.2s)
+  ok  3 [chromium] › e2e\editor-arrangement.spec.ts:50:1 › distribution leaves endpoints fixed and equalizes gaps of unequal items (3.2s)
+  ok  5 [chromium] › e2e\editor-arrangement.spec.ts:66:1 › keyboard resize changes local width about the pivot and cancels exactly (3.0s)
+  ok  4 [chromium] › e2e\editor-arrangement.spec.ts:58:1 › held canvas arrows preview then commit and undo as one gesture (3.4s)
+  ok  6 [chromium] › e2e\editor-arrangement.spec.ts:74:50 › six alignment edges against selection (5.5s)
+  ok  8 [chromium] › e2e\editor-arrangement.spec.ts:89:1 › vertical gaps, nested parent mapping and rotated artwork retain source and pose on undo (3.4s)
+  ok  7 [chromium] › e2e\editor-arrangement.spec.ts:74:50 › six alignment edges against canvas (4.6s)
+  ok  9 [chromium] › e2e\editor-arrangement.spec.ts:114:1 › imported SVG and Pen geometry align as artwork, with identity and sibling preservation (2.8s)
+  ok 10 [chromium] › e2e\editor-arrangement.spec.ts:126:1 › mixed animated and base movement keys only its armed channel at the playhead (2.9s)
+  ok 11 [chromium] › e2e\editor-arrangement.spec.ts:145:1 › keyboard text-box resizing reflows without scaling type or moving the pivot (2.8s)
+  ok 12 [chromium] › e2e\editor-arrangement.spec.ts:163:1 › focus guards preserve input editing, timeline arrows and Pen drafting (2.4s)
+  ok 14 [chromium] › e2e\editor-arrangement.spec.ts:196:1 › mixed unsupported selection and collapsed parent refuse without partial source changes (2.3s)
+  ok 16 [chromium] › e2e\editor-arrangement.spec.ts:265:1 › animated resize preserves its earlier scale key and refuses shared-axis conflicts (2.7s)
+  ok 13 [chromium] › e2e\editor-arrangement.spec.ts:176:1 › Escape, blur and stale source cancel a held key and later repeats stay quiet (7.6s)
+  ok 17 [chromium] › e2e\editor-arrangement.spec.ts:279:1 › parent-child selection refuses and no-op alignment adds no history (2.9s)
+  ok 15 [chromium] › e2e\editor-arrangement.spec.ts:211:1 › template search, UI-created artwork, save/reopen and executed exports at desktop and laptop sizes (8.0s)
+  ok 18 [chromium] › e2e\editor-arrangement.spec.ts:288:1 › keyboard resize refuses collapsing any member of a mixed selection (3.1s)
+  ok 19 [chromium] › e2e\editor-arrangement.spec.ts:295:1 › one-pixel keyboard resize remains precise on a wide layer (2.4s)
+  ok 20 [chromium] › e2e\editor-arrangement.spec.ts:302:1 › an anonymous imported path gains identity only on committed alignment (2.9s)
+  ok 21 [chromium] › e2e\editor-arrangement.spec.ts:312:1 › imported image keyboard transforms preserve its asset and siblings (2.6s)
+
+  21 passed (37.6s)

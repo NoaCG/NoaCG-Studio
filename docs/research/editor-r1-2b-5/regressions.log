@@ -1,0 +1,597 @@
+=== j-3399 set "E2E_WORKERS=3"&& npm run test:e2e:affected
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+
+> noacg-studio@0.1.0 test:e2e:affected
+> node scripts/e2e-affected.mjs
+
+[measured] 208 e2e spec files on disk
+e2e-affected: 15 changed files -> 33 spec files:
+  - anim-engine.spec.ts
+  - asset-workflow.spec.ts
+  - bench.spec.ts
+  - canvas-keyframe.spec.ts
+  - editor-alpha-entry.spec.ts
+  - editor-arrangement.spec.ts
+  - editor-base-edits.spec.ts
+  - editor-canvas-transforms.spec.ts
+  - editor-cross-cue.spec.ts
+  - editor-ease.spec.ts
+  - editor-fidelity-trim.spec.ts
+  - editor-foundation.spec.ts
+  - editor-images.spec.ts
+  - editor-key-ease.spec.ts
+  - editor-keys.spec.ts
+  - editor-out-step.spec.ts
+  - editor-out.spec.ts
+  - editor-pen.spec.ts
+  - editor-steps.spec.ts
+  - editor-transforms.spec.ts
+  - editor-typography.spec.ts
+  - editor-usability.spec.ts
+  - import-graphic.spec.ts
+  - inspector.spec.ts
+  - legacy-timeline.spec.ts
+  - machine-graph.spec.ts
+  - motion-presets.spec.ts
+  - multi-select.spec.ts
+  - pasteboard.spec.ts
+  - state-machine.spec.ts
+  - template-insert.spec.ts
+  - timeline-v2.spec.ts
+  - ux.spec.ts
+e2e-affected: catalog/bench-affecting change detected - will also run npm run test:e2e:catalog.
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:37700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 462 tests using 3 workers
+
+  -    1 [chromium] › e2e\anim-engine.spec.ts:150:1 › parity: the press chain — pre-hidden reveals, per-press timelines, exhaustion
+  -    3 [chromium] › e2e\anim-engine.spec.ts:124:1 › slide family: each direction produces its own axis and sign of travel
+  -    2 [chromium] › e2e\anim-engine.spec.ts:84:1 › parity: created data templates match each preset's legacy emit
+  -    4 [chromium] › e2e\anim-engine.spec.ts:191:1 › parity: clock templates carry startClock/stopClock through the step-call model
+  -    5 [chromium] › e2e\anim-engine.spec.ts:252:1 › parity: starting-soon flips to a data block and its ambient loop matches the legacy emit
+  -    6 [chromium] › e2e\anim-engine.spec.ts:321:1 › resolver: agrees with the real interpreter at keyframe times
+  -    7 [chromium] › e2e\anim-engine.spec.ts:360:1 › 3D transforms: rotationX/Y/z + perspective author and play through the real interpreter
+  -    8 [chromium] › e2e\anim-engine.spec.ts:410:1 › serializer: canonical fixed point, lossless splice, hand-edit round-trip
+  -    9 [chromium] › e2e\anim-engine.spec.ts:487:1 › parity: measured motion matches the legacy emit across content lengths
+  -   10 [chromium] › e2e\anim-engine.spec.ts:552:1 › measured motion actually tracks the content — and the timeline shows it read-only
+  -   11 [chromium] › e2e\anim-engine.spec.ts:626:1 › a hand-written DOM-measured region is refused, not guessed at
+  -   12 [chromium] › e2e\anim-engine.spec.ts:693:1 › parity: infographic measured motion matches the legacy emit, and lands on the data
+  -   14 [chromium] › e2e\asset-workflow.spec.ts:58:1 › drop a logo, make it the NEXT STEP from the canvas chip — connected everywhere, fully undoable
+  -   15 [chromium] › e2e\asset-workflow.spec.ts:103:1 › an image kept visible from the beginning stays out of every reveal list, and its row exists
+  -   16 [chromium] › e2e\asset-workflow.spec.ts:117:1 › drop into an EXISTING step, then retarget participation afterwards from the Inspector
+  -   17 [chromium] › e2e\asset-workflow.spec.ts:154:1 › the Inspector names the preset targets and writes an early exit (Disappears)
+(node:25812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  -   18 [chromium] › e2e\asset-workflow.spec.ts:178:1 › a preset Delay shifts the written keyframes and grows the step — no keyframe editing needed
+  -   19 [chromium] › e2e\asset-workflow.spec.ts:213:1 › video assets: capped import, VIDEO badge, and a muted looping <video> on drop
+  -   20 [chromium] › e2e\asset-workflow.spec.ts:246:1 › the Assets panel marks which assets the graphic actually uses, per row
+  ok  13 [chromium] › e2e\anim-engine.spec.ts:786:1 › the preset registry lists every family exactly once (754ms)
+  ok  21 [chromium] › e2e\bench.spec.ts:16:3 › runtime bench detection fixtures › two overlapping text elements trip bench-overlap (1.7s)
+  ok  23 [chromium] › e2e\bench.spec.ts:71:3 › runtime bench detection fixtures › an opaque panel painted over text trips bench-occluded (1.8s)
+  ok  22 [chromium] › e2e\bench.spec.ts:32:3 › runtime bench detection fixtures › a coincident same-text layer (karaoke wipe) is allowed; a misaligned one is not (2.4s)
+  ok  24 [chromium] › e2e\bench.spec.ts:83:3 › runtime bench detection fixtures › a tint and a gradient scrim over text do NOT trip bench-occluded (2.4s)
+  ok  25 [chromium] › e2e\bench.spec.ts:97:3 › runtime bench detection fixtures › text escaping the canvas trips bench-overflow (2.0s)
+  ok  26 [chromium] › e2e\bench.spec.ts:111:3 › runtime bench detection fixtures › a fixed box that clips doubled text trips bench-stress (and passes with defaults) (1.8s)
+  ok  27 [chromium] › e2e\bench.spec.ts:147:3 › runtime bench detection fixtures › a clip-path that cuts text mid-line trips bench-overflow (1.7s)
+  ok  28 [chromium] › e2e\bench.spec.ts:170:3 › runtime bench detection fixtures › text spilling past its own painted panel warns, without being clipped or off-canvas (1.7s)
+  ok  29 [chromium] › e2e\bench.spec.ts:180:3 › runtime bench detection fixtures › the same panel sized to its content does not warn - the twin that keeps the check honest (1.8s)
+  ok  31 [chromium] › e2e\bench.spec.ts:207:3 › runtime bench detection fixtures › text over bare video is silent here - that is the legibility floor's question, not this one (1.8s)
+  ok  30 [chromium] › e2e\bench.spec.ts:187:3 › runtime bench detection fixtures › a scrim painted by a pseudo-element counts as the surface (1.9s)
+  ok  32 [chromium] › e2e\bench.spec.ts:214:3 › runtime bench detection fixtures › a clip-path the text fits inside does not trip bench-overflow (2.6s)
+  ok  33 [chromium] › e2e\bench.spec.ts:221:3 › runtime bench detection fixtures › text inside a sheared bar's bbox but outside the shear trips bench-overflow (2.0s)
+  ok  34 [chromium] › e2e\bench.spec.ts:232:3 › runtime bench detection fixtures › an angled polygon clip that cuts text trips bench-overflow (1.9s)
+  ok  36 [chromium] › e2e\bench.spec.ts:255:3 › runtime bench detection fixtures › update() that ignores a field trips bench-binding (2.0s)
+  ok  37 [chromium] › e2e\bench.spec.ts:268:3 › runtime bench detection fixtures › the house editability contract is enforced by default and waivable for imports (2.6s)
+  -   39 [chromium] › e2e\canvas-keyframe.spec.ts:65:1 › dragging a selected layer keys x/y at the playhead — the drag itself arms
+  -   40 [chromium] › e2e\canvas-keyframe.spec.ts:108:1 › a multi-selection drags together — every layer keys its own pair, one apply
+  -   41 [chromium] › e2e\canvas-keyframe.spec.ts:130:1 › arrow keys nudge a selected layer — x/y keyframes at the playhead, one apply per burst
+  -   42 [chromium] › e2e\canvas-keyframe.spec.ts:183:1 › a real arrow key press reaches the nudge handler
+  ok  35 [chromium] › e2e\bench.spec.ts:242:3 › runtime bench detection fixtures › a graphic that never hides on stop trips bench-hidden (4.0s)
+  -   43 [chromium] › e2e\canvas-keyframe.spec.ts:197:1 › with nothing selected, the drag still re-anchors the root (zone patch)
+  -   44 [chromium] › e2e\canvas-keyframe.spec.ts:220:1 › Escape cancels a layer drag — nothing written, the layers spring back
+  ok  38 [chromium] › e2e\bench.spec.ts:290:3 › design adjustments › an aggressively adjusted grounded assembly still passes the bench (2.1s)
+  ok  45 [chromium] › e2e\editor-alpha-entry.spec.ts:6:1 › phone-preview keeps a useful canvas width (1.7s)
+  ok  46 [chromium] › e2e\editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on desktop (3.3s)
+  ok  47 [chromium] › e2e\editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on phone (3.7s)
+  ok  48 [chromium] › e2e\editor-alpha-entry.spec.ts:16:3 › wizard alpha shortcut and return work on landscape (3.7s)
+{ align: 1, distribute: 1, arrowChangesSource: true }
+  ok  49 [chromium] › e2e\editor-arrangement.spec.ts:37:1 › baseline probe: current alignment and canvas arrow capability (2.4s)
+  ok  50 [chromium] › e2e\editor-arrangement.spec.ts:43:1 › selection alignment uses rendered bounds, one undo and unchanged motion (2.7s)
+  ok  51 [chromium] › e2e\editor-arrangement.spec.ts:50:1 › distribution leaves endpoints fixed and equalizes gaps of unequal items (2.6s)
+  ok  52 [chromium] › e2e\editor-arrangement.spec.ts:58:1 › held canvas arrows preview then commit and undo as one gesture (3.0s)
+  ok  53 [chromium] › e2e\editor-arrangement.spec.ts:66:1 › keyboard resize changes local width about the pivot and cancels exactly (2.9s)
+  ok  54 [chromium] › e2e\editor-arrangement.spec.ts:76:50 › six alignment edges against selection (4.5s)
+  ok  55 [chromium] › e2e\editor-arrangement.spec.ts:76:50 › six alignment edges against canvas (4.8s)
+  ok  56 [chromium] › e2e\editor-arrangement.spec.ts:91:1 › vertical gaps, nested parent mapping and rotated artwork retain source and pose on undo (3.5s)
+  ok  57 [chromium] › e2e\editor-arrangement.spec.ts:116:1 › imported SVG and Pen geometry align as artwork, with identity and sibling preservation (2.8s)
+  ok  58 [chromium] › e2e\editor-arrangement.spec.ts:128:1 › mixed animated and base movement keys only its armed channel at the playhead (2.8s)
+  ok  59 [chromium] › e2e\editor-arrangement.spec.ts:147:1 › keyboard text-box resizing reflows without scaling type or moving the pivot (2.8s)
+  ok  60 [chromium] › e2e\editor-arrangement.spec.ts:165:1 › focus guards preserve input editing, timeline arrows and Pen drafting (2.9s)
+  ok  62 [chromium] › e2e\editor-arrangement.spec.ts:207:1 › mixed unsupported selection and collapsed parent refuse without partial source changes (2.5s)
+  ok  64 [chromium] › e2e\editor-arrangement.spec.ts:276:1 › animated resize preserves its earlier scale key and refuses shared-axis conflicts (2.9s)
+  ok  61 [chromium] › e2e\editor-arrangement.spec.ts:187:1 › Escape, blur and stale source cancel a held key and later repeats stay quiet (7.8s)
+  ok  65 [chromium] › e2e\editor-arrangement.spec.ts:290:1 › parent-child selection refuses and no-op alignment adds no history (2.7s)
+  ok  63 [chromium] › e2e\editor-arrangement.spec.ts:222:1 › template search, UI-created artwork, save/reopen and executed exports at desktop and laptop sizes (8.5s)
+  ok  67 [chromium] › e2e\editor-arrangement.spec.ts:306:1 › one-pixel keyboard resize remains precise on a wide layer (2.5s)
+  ok  66 [chromium] › e2e\editor-arrangement.spec.ts:299:1 › keyboard resize refuses collapsing any member of a mixed selection (2.9s)
+  ok  68 [chromium] › e2e\editor-arrangement.spec.ts:313:1 › an anonymous imported path gains identity only on committed alignment (3.3s)
+  ok  70 [chromium] › e2e\editor-arrangement.spec.ts:331:1 › own SVG transform resizes in local axes or specifically refuses without changing source (3.1s)
+  ok  69 [chromium] › e2e\editor-arrangement.spec.ts:323:1 › imported image keyboard transforms preserve its asset and siblings (3.4s)
+  ok  71 [chromium] › e2e\editor-arrangement.spec.ts:344:66 › own CSS transform resizes in local axes or specifically refuses without changing source: rotate(25deg) (2.8s)
+  ok  72 [chromium] › e2e\editor-arrangement.spec.ts:344:66 › own CSS transform resizes in local axes or specifically refuses without changing source: translate(20px,10px) (2.8s)
+  ok  73 [chromium] › e2e\editor-arrangement.spec.ts:356:1 › one composition pixel remains exact with normalized SVG coordinates (3.4s)
+  ok  74 [chromium] › e2e\editor-base-edits.spec.ts:59:1 › B04 basic artwork text and appearance controls are available (2.2s)
+  ok  75 [chromium] › e2e\editor-base-edits.spec.ts:66:1 › B04 basic opacity preserves motion and survives history and reopening (4.7s)
+  ok  76 [chromium] › e2e\editor-base-edits.spec.ts:91:40 › B04 artwork content, appearance and structure on catalog (4.6s)
+  ok  77 [chromium] › e2e\editor-base-edits.spec.ts:91:40 › B04 artwork content, appearance and structure on svg (5.4s)
+  ok  79 [chromium] › e2e\editor-base-edits.spec.ts:171:1 › B04 solid fill and reference-sensitive refusal preserve source atomically (2.8s)
+  ok  78 [chromium] › e2e\editor-base-edits.spec.ts:138:1 › B02 multi-object drag, marquee and cancel share one undo transaction (4.0s)
+  ok  80 [chromium] › e2e\editor-base-edits.spec.ts:190:1 › B04 duplicate retains CSS cascade and delete removes rules before an ID can be reused (2.1s)
+  ok  81 [chromium] › e2e\editor-base-edits.spec.ts:212:1 › B03 multi-object SVG drag maps the same screen delta through different parents (3.2s)
+  ok  83 [chromium] › e2e\editor-base-edits.spec.ts:255:1 › D03 SVG parent inverse mapping and numeric/canvas agreement (3.8s)
+  ok  82 [chromium] › e2e\editor-base-edits.spec.ts:230:1 › D03 flow offset preserves siblings, exact motion, cancellation, atomic history and saved source (4.9s)
+  ok  84 [chromium] › e2e\editor-base-edits.spec.ts:279:1 › D03 base layout and an existing animation channel remain independent (4.3s)
+  ok  85 [chromium] › e2e\editor-base-edits.spec.ts:306:1 › B04 tools create real text fields, shapes, selection and bars; box reflows; undo removes the whole addition (4.9s)
+  ok  86 [chromium] › e2e\editor-base-edits.spec.ts:363:3 › B01 identical final document through both Finish routes: Hairline (7.1s)
+  ok  87 [chromium] › e2e\editor-base-edits.spec.ts:363:3 › B01 identical final document through both Finish routes: House Quiz (7.6s)
+  ok  88 [chromium] › e2e\editor-base-edits.spec.ts:363:3 › B01 identical final document through both Finish routes: House Countdown (7.6s)
+  ok  89 [chromium] › e2e\editor-base-edits.spec.ts:363:3 › B01 identical final document through both Finish routes: Illustrator (5.5s)
+  ok  90 [chromium] › e2e\editor-base-edits.spec.ts:363:3 › B01 identical final document through both Finish routes: Stretch (6.6s)
+  ok  91 [chromium] › e2e\editor-base-edits.spec.ts:404:1 › B03 linked/unlinked, negative and zero scale, Shift/Alt pivot and singular refusal (4.4s)
+  ok  94 [chromium] › e2e\editor-base-edits.spec.ts:536:1 › B04 point text and canceled creation; base scale agrees with handles at zoom (3.3s)
+  ok  93 [chromium] › e2e\editor-base-edits.spec.ts:435:40 › B04 edited svg survives save/reopen and SPX/CasparCG/OGraf export (6.6s)
+  ok  95 [chromium] › e2e\editor-base-edits.spec.ts:560:1 › B01 optional Finish Edit consumes final catalog result and creates no production (3.1s)
+  ok  92 [chromium] › e2e\editor-base-edits.spec.ts:435:40 › B04 edited catalog survives save/reopen and SPX/CasparCG/OGraf export (12.2s)
+  ok  96 [chromium] › e2e\editor-base-edits.spec.ts:572:1 › B01 direct production remains primary (3.3s)
+  ok  98 [chromium] › e2e\editor-base-edits.spec.ts:594:1 › D03 refuses competing flow constraints and independent transforms without rewriting source (2.1s)
+  ok  97 [chromium] › e2e\editor-base-edits.spec.ts:581:1 › B03 base scaling preserves an animated catalog line through reload (4.6s)
+  ok  99 [chromium] › e2e\editor-base-edits.spec.ts:608:1 › B03 refuses conflicting animated scale ownership without changing motion (2.2s)
+  ok 101 [chromium] › e2e\editor-canvas-transforms.spec.ts:229:1 › rotation handle keys an animated Rotation at the playhead; a raw transform track refuses it (3.0s)
+  ok 102 [chromium] › e2e\editor-canvas-transforms.spec.ts:270:1 › edge handles scale one axis about the opposite side, Shift both, Alt about the anchor; a rotated layer scales along its own sides (6.0s)
+  ok 103 [chromium] › e2e\editor-canvas-transforms.spec.ts:339:1 › catalog edges: the accent keys scaleX from its side and refuses its top; Frosted Panel keys scale with Shift and refuses one axis (4.9s)
+  ok 100 [chromium] › e2e\editor-canvas-transforms.spec.ts:168:1 › rotation handle: a created rectangle turns about its anchor, agrees with the field, snaps with Shift and keeps 720 (9.7s)
+  ok 105 [chromium] › e2e\editor-canvas-transforms.spec.ts:469:1 › anchor on animated and placed layers: Frosted Panel moves only its pivot at the playhead; created text anchors its box; refusals (4.3s)
+  ok 106 [chromium] › e2e\editor-canvas-transforms.spec.ts:558:1 › a layer’s own CSS transform: a side handle scales outside it about the opposite side, and the Anchor tool moves only its pivot (4.1s)
+  ok 104 [chromium] › e2e\editor-canvas-transforms.spec.ts:375:1 › anchor point: numeric X/Y, Center anchor and the Anchor tool on a rotated, scaled rectangle (7.2s)
+  ok 107 [chromium] › e2e\editor-canvas-transforms.spec.ts:608:1 › the Anchor tool inside a turned, scaled parent maps the pointer through it: the crosshair stays under the pointer and only the anchor changes (2.7s)
+  ok 108 [chromium] › e2e\editor-canvas-transforms.spec.ts:633:1 › Clean Steps: a turned row's anchor moves only its pivot, so its whole reveal turns about it; on a Step flag Center anchor writes it too (5.5s)
+  ok 109 [chromium] › e2e\editor-canvas-transforms.spec.ts:677:1 › nested SVG: the rotation and edge handles write what the fields write; its anchor refuses beside the control (5.5s)
+{
+ "layers": 1878,
+ "anchor": 1872,
+ "rotation": 1878,
+ "refused": {
+  "anchor: This graphic's script or animation data sets this layer's transformOrigin itself, which wo": 5,
+  "anchor: An SVG element turns about an origin GSAP places from its own box, so an anchor written in": 1
+ },
+ "wrong": []
+}
+  ok 110 [chromium] › e2e\editor-canvas-transforms.spec.ts:732:1 › catalog: on every layer with base placement an anchor and a 15 degree Rotation apply or refuse with a kept reason (5.0s)
+  ok 111 [chromium] › e2e\editor-cross-cue.spec.ts:152:31 › the exit belongs to the Out flag in simulator (2.7s)
+  ok 112 [chromium] › e2e\editor-cross-cue.spec.ts:152:31 › the exit belongs to the Out flag in spx (2.8s)
+  ok 113 [chromium] › e2e\editor-cross-cue.spec.ts:152:31 › the exit belongs to the Out flag in casparcg (2.8s)
+  ok 114 [chromium] › e2e\editor-cross-cue.spec.ts:152:31 › the exit belongs to the Out flag in ograf (3.0s)
+  ok 116 [chromium] › e2e\editor-cross-cue.spec.ts:185:31 › keys moved across a Step flag and the Out flag play the curve the ruler shows in simulator (2.0s)
+  ok 115 [chromium] › e2e\editor-cross-cue.spec.ts:152:31 › the exit belongs to the Out flag in single-file (2.8s)
+  ok 117 [chromium] › e2e\editor-cross-cue.spec.ts:185:31 › keys moved across a Step flag and the Out flag play the curve the ruler shows in spx (2.4s)
+  ok 118 [chromium] › e2e\editor-cross-cue.spec.ts:185:31 › keys moved across a Step flag and the Out flag play the curve the ruler shows in casparcg (2.4s)
+  ok 119 [chromium] › e2e\editor-cross-cue.spec.ts:185:31 › keys moved across a Step flag and the Out flag play the curve the ruler shows in ograf (2.5s)
+  ok 120 [chromium] › e2e\editor-cross-cue.spec.ts:185:31 › keys moved across a Step flag and the Out flag play the curve the ruler shows in single-file (2.3s)
+  ok 121 [chromium] › e2e\editor-cross-cue.spec.ts:223:1 › a graphic saved with the R1.2a.4 interpreter upgrades once and then skips carried motion from an earlier step (2.3s)
+  ok 123 [chromium] › e2e\editor-cross-cue.spec.ts:302:1 › a nudge lands a key stored between frames on the neighbouring frame and keeps the keyboard (1.9s)
+  ok 124 [chromium] › e2e\editor-cross-cue.spec.ts:311:1 › a key drag the runtime cannot play shows its reason while held and changes nothing, and Escape cancels (2.5s)
+  ok 122 [chromium] › e2e\editor-cross-cue.spec.ts:276:1 › a key dragged across a Step flag is one undo, stays selected, nudges a frame and survives save and reopen (5.2s)
+  ok 125 [chromium] › e2e\editor-cross-cue.spec.ts:326:1 › a bar body dragged across a Step flag moves its visibility and keys at their absolute times as one undo (2.5s)
+  ok 127 [chromium] › e2e\editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in simulator (1.8s)
+  ok 126 [chromium] › e2e\editor-cross-cue.spec.ts:348:1 › Set Out inside a Next cue carries its motion into Out as one undo, and the Out flag moves later with its exit (2.9s)
+  ok 128 [chromium] › e2e\editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in spx (1.9s)
+  ok 129 [chromium] › e2e\editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in casparcg (2.3s)
+  ok 130 [chromium] › e2e\editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in ograf (2.4s)
+  ok 131 [chromium] › e2e\editor-ease.spec.ts:127:31 › editor sampling equals the executed runtime in single-file (2.1s)
+  ok 132 [chromium] › e2e\editor-ease.spec.ts:141:1 › a stepped entrance never reverses into a wrong mirror (2.1s)
+  ok 134 [chromium] › e2e\editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in spx (2.1s)
+  ok 133 [chromium] › e2e\editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in simulator (2.6s)
+  ok 135 [chromium] › e2e\editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in casparcg (2.5s)
+  ok 136 [chromium] › e2e\editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in ograf (2.3s)
+  ok 137 [chromium] › e2e\editor-ease.spec.ts:156:31 › split at 40 percent keeps samples, endpoints and boundary velocity in single-file (2.2s)
+  ok 138 [chromium] › e2e\editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in simulator (2.3s)
+  ok 139 [chromium] › e2e\editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in spx (2.3s)
+  ok 140 [chromium] › e2e\editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in casparcg (2.5s)
+  ok 141 [chromium] › e2e\editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in ograf (2.3s)
+  ok 142 [chromium] › e2e\editor-ease.spec.ts:186:31 › exact reversal plays the entrance backwards in single-file (2.3s)
+  ok 143 [chromium] › e2e\editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in simulator (2.2s)
+  ok 144 [chromium] › e2e\editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in spx (2.4s)
+  ok 145 [chromium] › e2e\editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in casparcg (2.1s)
+  ok 146 [chromium] › e2e\editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in ograf (2.1s)
+  ok 147 [chromium] › e2e\editor-ease.spec.ts:227:31 › Set Out before the last In key plays In then Out as the original in single-file (2.3s)
+  ok 148 [chromium] › e2e\editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in simulator (2.3s)
+  ok 149 [chromium] › e2e\editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in spx (2.4s)
+  ok 150 [chromium] › e2e\editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in casparcg (2.3s)
+  ok 151 [chromium] › e2e\editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in ograf (2.3s)
+  ok 152 [chromium] › e2e\editor-ease.spec.ts:250:31 › Out interrupting an In shortened across its keys plays each track to its end on the whole curve in single-file (2.4s)
+  ok 153 [chromium] › e2e\editor-ease.spec.ts:275:1 › reversal and split refuse atomically where no exact form exists (2.1s)
+  ok 154 [chromium] › e2e\editor-ease.spec.ts:314:1 › a saved pre-G01 interpreter upgrades to play exact eases; a custom one blocks export (2.4s)
+  ok 155 [chromium] › e2e\editor-ease.spec.ts:350:1 › Set Out reverse in the editor writes mirrored destination eases as one undo (2.9s)
+  ok 156 [chromium] › e2e\editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in simulator (2.7s)
+  ok 157 [chromium] › e2e\editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in spx (2.8s)
+  ok 158 [chromium] › e2e\editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in casparcg (2.9s)
+  ok 159 [chromium] › e2e\editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in ograf (3.0s)
+  ok 160 [chromium] › e2e\editor-ease.spec.ts:410:31 › every key-side preset plays as the editor samples it in single-file (2.9s)
+  ok 161 [chromium] › e2e\editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in simulator (2.0s)
+  ok 162 [chromium] › e2e\editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in spx (2.4s)
+  ok 163 [chromium] › e2e\editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in casparcg (2.4s)
+  ok 164 [chromium] › e2e\editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in ograf (2.6s)
+  ok 165 [chromium] › e2e\editor-ease.spec.ts:427:31 › an outgoing Hold on the first X key holds until the next key in single-file (2.3s)
+  ok 166 [chromium] › e2e\editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in simulator (2.9s)
+  ok 167 [chromium] › e2e\editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in spx (2.6s)
+  ok 168 [chromium] › e2e\editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in casparcg (2.6s)
+  ok 169 [chromium] › e2e\editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in ograf (2.6s)
+  ok 170 [chromium] › e2e\editor-ease.spec.ts:449:31 › a Hold splits, crosses Set Out and reverses exactly in single-file (2.4s)
+  ok 171 [chromium] › e2e\editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in simulator (1.9s)
+  ok 172 [chromium] › e2e\editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in spx (2.4s)
+  ok 173 [chromium] › e2e\editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in casparcg (2.4s)
+  ok 174 [chromium] › e2e\editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in ograf (2.0s)
+  ok 175 [chromium] › e2e\editor-ease.spec.ts:480:31 › an interrupted Out ending on a reversed Hold keeps the live value until that jump in single-file (2.2s)
+  ok 176 [chromium] › e2e\editor-ease.spec.ts:497:1 › a graphic saved with the R1.2a.1 interpreter upgrades once and then plays a Hold (2.6s)
+  ok 177 [chromium] › e2e\editor-fidelity-trim.spec.ts:47:1 › actual wizard exposes nested artwork and independent trim handles (3.6s)
+  ok 179 [chromium] › e2e\editor-fidelity-trim.spec.ts:170:41 › wizard nested identity, trim and history 1920 (6.9s)
+  ok 180 [chromium] › e2e\editor-fidelity-trim.spec.ts:170:41 › wizard nested identity, trim and history 1366 (7.0s)
+  ok 178 [chromium] › e2e\editor-fidelity-trim.spec.ts:91:1 › wizard group transforms compose with child keys and preserve source and executable packages (11.3s)
+  ok 182 [chromium] › e2e\editor-fidelity-trim.spec.ts:208:1 › trim retains disjoint keys and inherited motion at effective FPS, with atomic refusals (2.8s)
+  ok 181 [chromium] › e2e\editor-fidelity-trim.spec.ts:170:41 › wizard nested identity, trim and history 1093 (6.8s)
+  ok 183 [chromium] › e2e\editor-fidelity-trim.spec.ts:235:1 › unnamed and duplicate identities are minted atomically and never during drafts (3.0s)
+  ok 184 [chromium] › e2e\editor-fidelity-trim.spec.ts:269:1 › scrolled trim handles cannot intercept the sticky ruler (3.3s)
+  ok 185 [chromium] › e2e\editor-fidelity-trim.spec.ts:281:1 › rotation-only edits refresh an already sampled SVG pose (4.0s)
+  ok 186 [chromium] › e2e\editor-fidelity-trim.spec.ts:294:1 › completed pointer trims keep clipped keys while the body moves them in one transaction (5.3s)
+  ok 188 [chromium] › e2e\editor-foundation.spec.ts:88:1 › flag off preserves default route; flag on opens without Advanced mode (1.9s)
+  ok 187 [chromium] › e2e\editor-fidelity-trim.spec.ts:328:1 › nominated logo edits preserve image bytes and nested group canvas movement agrees with numbers (6.7s)
+  ok 189 [chromium] › e2e\editor-foundation.spec.ts:99:1 › catalog opens visibly; canvas, timeline and Outline share selection; reverse seek preserves source (2.8s)
+  ok 190 [chromium] › e2e\editor-foundation.spec.ts:132:1 › actual imported SVG wizard output loads with fields and artwork preserved (3.1s)
+  ok 191 [chromium] › e2e\editor-foundation.spec.ts:162:1 › registry batch is atomic, undo/redo exact, cancellation and stale input preserve source (2.4s)
+  ok 192 [chromium] › e2e\editor-foundation.spec.ts:198:1 › same-path asset bytes rebuild; key-only edits keep frame; old protocol identities refuse (3.1s)
+  ok 193 [chromium] › e2e\editor-foundation.spec.ts:247:1 › ruler units, frame nudge and cancellation use effective time without source edits (3.3s)
+  ok 195 [chromium] › e2e\editor-foundation.spec.ts:284:1 › zero-time key apply and undo paint the canonical values without rebuilding (2.6s)
+  ok 197 [chromium] › e2e\editor-foundation.spec.ts:334:1 › confirmed save and reopen retain source, fields and assets after registry edits (3.8s)
+  ok 198 [chromium] › e2e\editor-foundation.spec.ts:361:1 › scrub suppresses calls at zero and mid-step; broken source reports failure and recovers (3.0s)
+  ok 196 [chromium] › e2e\editor-foundation.spec.ts:306:1 › 25/30 fps and half/normal/double speed use one effective clock and preserve stored keys (9.1s)
+  ok 199 [chromium] › e2e\editor-foundation.spec.ts:388:1 › document ports isolate transactions and refuse unknown source data without loss (2.0s)
+  ok 200 [chromium] › e2e\editor-images.spec.ts:27:1 › Image opens Assets; atomic import, byte deduplication, collisions, rename and safe delete each undo (3.8s)
+  ok 201 [chromium] › e2e\editor-images.spec.ts:65:46 › catalog: file chooser creates and replaces an image, fit and undo preserve source (2.8s)
+  ok 194 [chromium] › e2e\editor-foundation.spec.ts:263:1 › F4 records input-to-presented-pose latency and responsive geometry (17.4s)
+  ok 202 [chromium] › e2e\editor-images.spec.ts:65:46 › svg: file chooser creates and replaces an image, fit and undo preserve source (3.2s)
+  ok 203 [chromium] › e2e\editor-images.spec.ts:65:46 › f4: file chooser creates and replaces an image, fit and undo preserve source (3.5s)
+  ok 206 [chromium] › e2e\editor-images.spec.ts:163:55 › catalog-logo: replace existing artwork with aspect-preserving fit (2.6s)
+  ok 204 [chromium] › e2e\editor-images.spec.ts:95:1 › catalog opened through template search offers image creation (4.9s)
+  ok 205 [chromium] › e2e\editor-images.spec.ts:127:1 › OS drop and chooser produce the same source; asset drag and a drop over an image always add layers (5.0s)
+  ok 207 [chromium] › e2e\editor-images.spec.ts:163:55 › svg: replace existing artwork with aspect-preserving fit (2.9s)
+  ok 208 [chromium] › e2e\editor-images.spec.ts:163:55 › raster: replace existing artwork with aspect-preserving fit (2.9s)
+  ok 209 [chromium] › e2e\editor-images.spec.ts:186:1 › guards refuse unsupported sources, invalid geometry, missing assets and preserve unknown motion (1.9s)
+  ok 210 [chromium] › e2e\editor-images.spec.ts:217:1 › Escape, failed reads and stale revisions discard a whole file batch (2.6s)
+  ok 211 [chromium] › e2e\editor-images.spec.ts:250:1 › file validation guards refuse invalid resource batches and failed reads (2.4s)
+  ok 212 [chromium] › e2e\editor-images.spec.ts:280:1 › SVG, font and Lottie resource import stays separate from placement and binds SVG extension (3.2s)
+  ok 214 [chromium] › e2e\editor-images.spec.ts:331:1 › a canvas drop waits for pending drawing-space measurement instead of discarding the gesture (2.3s)
+  ok 213 [chromium] › e2e\editor-images.spec.ts:301:1 › Escape also cancels existing-asset placement and replacement after decode begins (2.7s)
+  ok 217 [chromium] › e2e\editor-key-ease.spec.ts:124:1 › right-click keeps the selection, the context menu matches the dropdown, and the keyboard opens it (3.3s)
+  ok 215 [chromium] › e2e\editor-images.spec.ts:357:1 › saved image and its binding reopen and execute in SPX, CasparCG and OGraf (4.8s)
+  ok 216 [chromium] › e2e\editor-key-ease.spec.ts:71:1 › a marquee across rows and the toolbar dropdown write key-side eases as one undo (5.0s)
+  ok 219 [chromium] › e2e\editor-key-ease.spec.ts:206:1 › the last key of one cue and the first of the next are one boundary key (2.8s)
+  ok 218 [chromium] › e2e\editor-key-ease.spec.ts:175:1 › Escape cancels a marquee, and a refused batch keeps source and history and says why (3.5s)
+  ok 220 [chromium] › e2e\editor-keys.spec.ts:11:1 › Quiz source-controlled animation is preserved and explains the base editing path (3.6s)
+  ok 221 [chromium] › e2e\editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1920 (10.9s)
+  ok 222 [chromium] › e2e\editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1366 (10.7s)
+  ok 223 [chromium] › e2e\editor-keys.spec.ts:74:41 › text and box second keys, cancel, history and reopen 1093 (11.6s)
+  ok 225 [chromium] › e2e\editor-keys.spec.ts:162:1 › nested SVG armed parent-coordinate drag and explicit base offset preserve motion (4.2s)
+  ok 224 [chromium] › e2e\editor-keys.spec.ts:143:1 › nonzero first key, diamond last removal, interpolated disable and exact undo (5.5s)
+  ok 227 [chromium] › e2e\editor-keys.spec.ts:209:1 › numeric animation controls are available on a created layer (1.8s)
+  ok 226 [chromium] › e2e\editor-keys.spec.ts:189:1 › bar movement carries disjoint spans and keys, cancel and refusal are atomic (4.4s)
+  ok 228 [chromium] › e2e\editor-keys.spec.ts:223:1 › armed scale handles key both axes in one transaction and stale numeric drafts refuse (3.9s)
+  ok 229 [chromium] › e2e\editor-keys.spec.ts:240:1 › mixed multi-selection keys only armed channels and commits one undo (3.8s)
+  ok 230 [chromium] › e2e\editor-keys.spec.ts:255:1 › explicit visibility preserves keyed opacity at a hold and resolves cue-side ownership (3.1s)
+  ok 231 [chromium] › e2e\editor-keys.spec.ts:279:1 › stored frames, source preservation, inheritance and atomic refusal (2.7s)
+  ok 232 [chromium] › e2e\editor-keys.spec.ts:320:1 › known legacy interpreter upgrades for spans while customized source refuses (2.8s)
+  ok 234 [chromium] › e2e\editor-out-step.spec.ts:170:31 › Out from each step leaves from what is on screen in simulator (2.5s)
+  ok 233 [chromium] › e2e\editor-keys.spec.ts:343:1 › visibility intervals and numeric poses match executable SPX, CasparCG and OGraf packages (5.1s)
+  ok 235 [chromium] › e2e\editor-out-step.spec.ts:170:31 › Out from each step leaves from what is on screen in spx (2.7s)
+  ok 236 [chromium] › e2e\editor-out-step.spec.ts:170:31 › Out from each step leaves from what is on screen in casparcg (2.9s)
+  ok 237 [chromium] › e2e\editor-out-step.spec.ts:170:31 › Out from each step leaves from what is on screen in ograf (2.9s)
+  ok 238 [chromium] › e2e\editor-out-step.spec.ts:170:31 › Out from each step leaves from what is on screen in single-file (2.7s)
+  ok 241 [chromium] › e2e\editor-out-step.spec.ts:280:1 › a paused Out preview refuses edits until the playhead moves (3.3s)
+  ok 240 [chromium] › e2e\editor-out-step.spec.ts:273:1 › a last flag a float step short of its cue end still plays the authored exit in the editor (4.5s)
+  ok 242 [chromium] › e2e\editor-out-step.spec.ts:305:1 › a graphic saved with the R1.2a.2 interpreter upgrades once and then leaves from any step (2.2s)
+  ok 243 [chromium] › e2e\editor-out-step.spec.ts:330:1 › a machine graphic parked at its first state keeps its authored exit (2.0s)
+  ok 244 [chromium] › e2e\editor-out.spec.ts:55:1 › permanent one-step Out offers Set Out at playhead (1.8s)
+  ok 245 [chromium] › e2e\editor-out.spec.ts:60:1 › Out at 40 percent starts from the live rendered pose (2.0s)
+  ok 246 [chromium] › e2e\editor-out.spec.ts:79:1 › one-step Out is an instant cut rather than another entrance (1.9s)
+  ok 239 [chromium] › e2e\editor-out-step.spec.ts:264:1 › the editor Out button from a flag plays what the simulator plays (12.3s)
+  ok 247 [chromium] › e2e\editor-out.spec.ts:90:41 › Set Out reverse, cancel, history, hold and save/reopen 1920 (8.8s)
+  ok 248 [chromium] › e2e\editor-out.spec.ts:90:41 › Set Out reverse, cancel, history, hold and save/reopen 1366 (8.5s)
+  ok 249 [chromium] › e2e\editor-out.spec.ts:90:41 › Set Out reverse, cancel, history, hold and save/reopen 1093 (8.1s)
+  ok 251 [chromium] › e2e\editor-out.spec.ts:159:1 › Out operations preserve clocks and refuse unsupported or stale batches atomically (2.2s)
+  ok 250 [chromium] › e2e\editor-out.spec.ts:136:1 › manual Out zero frame and extended end use numeric keys with one undo each (3.9s)
+  ok 253 [chromium] › e2e\editor-out.spec.ts:275:65 › 40 percent interruption, repeat and replay in executable simulator (2.0s)
+  ok 254 [chromium] › e2e\editor-out.spec.ts:275:65 › 40 percent interruption, repeat and replay in executable spx (1.9s)
+  ok 252 [chromium] › e2e\editor-out.spec.ts:215:1 › saved one-step interpreter upgrades once and preserves foreign source (3.9s)
+  ok 255 [chromium] › e2e\editor-out.spec.ts:275:65 › 40 percent interruption, repeat and replay in executable casparcg (2.2s)
+  ok 256 [chromium] › e2e\editor-out.spec.ts:275:65 › 40 percent interruption, repeat and replay in executable ograf (2.1s)
+  ok 257 [chromium] › e2e\editor-out.spec.ts:310:65 › Out interrupting an In shortened across its keys starts from the live pose in simulator (2.2s)
+  ok 258 [chromium] › e2e\editor-out.spec.ts:310:65 › Out interrupting an In shortened across its keys starts from the live pose in spx (2.2s)
+  ok 259 [chromium] › e2e\editor-out.spec.ts:310:65 › Out interrupting an In shortened across its keys starts from the live pose in casparcg (2.2s)
+  ok 260 [chromium] › e2e\editor-out.spec.ts:310:65 › Out interrupting an In shortened across its keys starts from the live pose in ograf (2.2s)
+  ok 261 [chromium] › e2e\editor-out.spec.ts:345:1 › reverse mirrors destination eases and independent entrance keys (2.1s)
+  ok 263 [chromium] › e2e\editor-out.spec.ts:375:1 › exit timing preserves leading delay, bypasses waypoints and never reveals unseen layers (2.4s)
+  ok 262 [chromium] › e2e\editor-out.spec.ts:362:1 › editor Out restarts its playback clock during In (4.5s)
+  ok 264 [chromium] › e2e\editor-out.spec.ts:394:1 › author the text and box entrance with controls and drag, then hold and reverse Out (8.0s)
+  ok 267 [chromium] › e2e\editor-out.spec.ts:501:1 › Set Out snaps an off-grid playhead and keeps its arriving held side (2.3s)
+  ok 265 [chromium] › e2e\editor-out.spec.ts:429:37 › wizard text-and-box through reverse Out without source replacement (11.5s)
+  ok 268 [chromium] › e2e\editor-out.spec.ts:517:1 › Set Out before the last In key moves the rest of the entrance into Out as one undo (3.9s)
+  ok 269 [chromium] › e2e\editor-out.spec.ts:548:1 › a Set Out that fills the exit closes a reverse choice left open (3.1s)
+  ok 270 [chromium] › e2e\editor-out.spec.ts:560:1 › a Set Out that cannot split a crossed segment keeps source and history and says why (2.1s)
+  ok 266 [chromium] › e2e\editor-out.spec.ts:429:37 › wizard text-and-box through manual Out without source replacement (14.5s)
+  ok 271 [chromium] › e2e\editor-out.spec.ts:577:1 › Set Out inside a Next cue carries the rest of its motion into Out as one undo (3.1s)
+  ok 274 [chromium] › e2e\editor-out.spec.ts:633:1 › empty Out immediately clears a visible static layer outside the root (1.8s)
+  ok 273 [chromium] › e2e\editor-out.spec.ts:619:1 › known two-cue predecessor plays Out read-only without source mutation (3.4s)
+catalog { pen: 1, points: 0 }
+  ok 272 [chromium] › e2e\editor-out.spec.ts:602:1 › pause and resume an interrupted Out retain its live exit trajectory (6.5s)
+svg { pen: 1, points: 0 }
+f4 { pen: 1, points: 0 }
+  ok 275 [chromium] › e2e\editor-pen.spec.ts:42:1 › baseline probe: existing canvas path capabilities (2.3s)
+  ok 276 [chromium] › e2e\editor-pen.spec.ts:48:49 › catalog: triangle creation is one transaction with selection, centered pivot and bar (3.0s)
+  ok 277 [chromium] › e2e\editor-pen.spec.ts:48:49 › svg: triangle creation is one transaction with selection, centered pivot and bar (3.3s)
+  ok 278 [chromium] › e2e\editor-pen.spec.ts:48:49 › f4: triangle creation is one transaction with selection, centered pivot and bar (3.9s)
+  ok 279 [chromium] › e2e\editor-pen.spec.ts:62:1 › open polyline, Backspace, cancellation and one-point refusal leave source intact (3.6s)
+  ok 281 [chromium] › e2e\editor-pen.spec.ts:96:1 › stale draft cannot commit after another source edit (2.3s)
+  ok 280 [chromium] › e2e\editor-pen.spec.ts:82:1 › curved path, paint, point and handle gestures preserve motion and each undo once (4.1s)
+  ok 283 [chromium] › e2e\editor-pen.spec.ts:116:1 › draft playhead change refuses completion without source or history (2.3s)
+  ok 284 [chromium] › e2e\editor-pen.spec.ts:125:1 › zero-scale point inspection is safe and editing refuses a singular parent (2.9s)
+  ok 282 [chromium] › e2e\editor-pen.spec.ts:102:1 › real template search reaches a created path in Hairline drawing space (5.2s)
+  ok 285 [chromium] › e2e\editor-pen.spec.ts:137:1 › raster graphic draws a path, supports layer scale/rotation, None paint and canceled edits (4.5s)
+  ok 286 [chromium] › e2e\editor-pen.spec.ts:161:1 › a horizontal open path can be selected and moved by its visible stroke (3.5s)
+  ok 287 [chromium] › e2e\editor-pen.spec.ts:172:1 › edited path remains selectable outside its initial transform frame (3.5s)
+  ok 290 [chromium] › e2e\editor-pen.spec.ts:232:1 › guards refuse unsupported geometry, driven source, CSS paint, changed topology and lossy motion (3.0s)
+  ok 289 [chromium] › e2e\editor-pen.spec.ts:218:1 › SVG stroke width reads pixels and refuses relative units without source changes (3.9s)
+  ok 288 [chromium] › e2e\editor-pen.spec.ts:181:1 › imported path point and tangent editing maps transformed parents and mints identity once (4.8s)
+  ok 292 [chromium] › e2e\editor-steps.spec.ts:243:31 › step authoring keeps playback on the ruler in simulator (3.5s)
+  ok 293 [chromium] › e2e\editor-steps.spec.ts:243:31 › step authoring keeps playback on the ruler in spx (3.8s)
+  ok 291 [chromium] › e2e\editor-pen.spec.ts:266:1 › path paint, movement, playhead visibility and save/reopen execute on all export targets (7.3s)
+  ok 294 [chromium] › e2e\editor-steps.spec.ts:243:31 › step authoring keeps playback on the ruler in casparcg (4.0s)
+  ok 295 [chromium] › e2e\editor-steps.spec.ts:243:31 › step authoring keeps playback on the ruler in ograf (3.9s)
+  ok 297 [chromium] › e2e\editor-steps.spec.ts:280:1 › a graphic saved with the R1.2a.3 interpreter upgrades once and then holds a one-key Out track (2.3s)
+  ok 296 [chromium] › e2e\editor-steps.spec.ts:243:31 › step authoring keeps playback on the ruler in single-file (3.5s)
+  ok 300 [chromium] › e2e\editor-steps.spec.ts:438:1 › at a flag an existing layer keys the arriving end and a layer starting there its departing start (3.2s)
+  ok 299 [chromium] › e2e\editor-steps.spec.ts:403:1 › flags stay ordered: a drag or nudge onto or past a neighbour refuses and changes nothing (4.5s)
+  ok 298 [chromium] › e2e\editor-steps.spec.ts:349:1 › Add Step, rename, delete and drags are one undo each and survive save and reopen (6.4s)
+  ok 301 [chromium] › e2e\editor-steps.spec.ts:479:1 › at 30 fps Add Step parks the playhead on its own flag, on the arriving side (3.0s)
+  ok 302 [chromium] › e2e\editor-steps.spec.ts:507:1 › a flag drag the runtime cannot play shows its reason while held and changes nothing (2.0s)
+  ok 304 [chromium] › e2e\editor-steps.spec.ts:553:1 › card26 keeps its reveals appearing where they did when a step is added, deleted or moved (2.3s)
+  ok 303 [chromium] › e2e\editor-steps.spec.ts:528:1 › the editor Out button from an earlier flag holds a one-key Out track as the simulator does (4.5s)
+{
+ "blocked": 354,
+ "designs": 129,
+ "channel": [],
+ "applied": {
+  "move": 330,
+  "trim": 354,
+  "key": 354
+ },
+ "refused": {
+  "move: <layer> scale would move past the end of Out. No keys changed.": 24
+ },
+ "keyFailures": []
+}
+  ok 305 [chromium] › e2e\editor-transforms.spec.ts:122:1 › no catalog layer refuses as another channel: its bar moves and trims and its Position Y keys (3.0s)
+  ok 308 [chromium] › e2e\editor-transforms.spec.ts:283:1 › House Question: #f1 shows and moves the motion stored under .audience-question (4.0s)
+  ok 307 [chromium] › e2e\editor-transforms.spec.ts:240:1 › Frosted Panel: Scale handles key the box's scale track, linked Scale agrees, and one axis refuses (4.3s)
+  ok 306 [chromium] › e2e\editor-transforms.spec.ts:185:1 › Clean Steps: Position Y reads a row's yPercent, and the field and a canvas drag key it at the playhead (5.5s)
+  ok 311 [chromium] › e2e\editor-transforms.spec.ts:440:1 › the edited Clean Steps plays in the simulator and SPX as the editor samples it (2.5s)
+  ok 309 [chromium] › e2e\editor-transforms.spec.ts:313:1 › refusals: a raw transform, a selector naming several layers or two naming one, autoAlpha bars; autoAlpha keys (3.6s)
+  ok 312 [chromium] › e2e\editor-typography.spec.ts:119:1 › weight lists the font’s own weights and writes the line’s rule; one undo each, with a preview (3.0s)
+  ok 313 [chromium] › e2e\editor-typography.spec.ts:149:1 › alignment: point text keeps its X as the aligned edge, a text box aligns its rows inside it (3.5s)
+  ok 314 [chromium] › e2e\editor-typography.spec.ts:181:1 › line and letter spacing write the line’s rule and space the rendered text (3.3s)
+  ok 310 [chromium] › e2e\editor-transforms.spec.ts:388:1 › Clean Steps: a row's bar across a Step flag, trim, key move, key ease, Add Step and Set Out are one undo each and reopen (9.6s)
+  ok 315 [chromium] › e2e\editor-typography.spec.ts:209:1 › long text: Shrink to fit, Wrap and Run on answer a 61-character value, each one undo (4.6s)
+  ok 317 [chromium] › e2e\editor-typography.spec.ts:345:1 › catalog lines and SVG text take weight and spacing; alignment and fit stay with the design or the import (3.4s)
+  ok 316 [chromium] › e2e\editor-typography.spec.ts:264:1 › a text box resizes from its sides without stretching its letters; its corners and point text still scale (7.0s)
+  ok 318 [chromium] › e2e\editor-typography.spec.ts:383:1 › typed type survives save and reopen, and the simulator fits the long value as the editor does (5.6s)
+  ok 319 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring Hairline 1920 (11.2s)
+  ok 320 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring Hairline 1366 (11.1s)
+  ok 321 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring Hairline 1093 (11.1s)
+  ok 322 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring House Quiz 1920 (12.3s)
+  ok 323 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring House Quiz 1366 (12.3s)
+  ok 325 [chromium] › e2e\editor-usability.spec.ts:140:1 › B11 losing pointer capture cancels Space panning without playback (3.7s)
+  ok 324 [chromium] › e2e\editor-usability.spec.ts:40:3 › B02 B04 B13 usable authoring House Quiz 1093 (12.4s)
+  ok 327 [chromium] › e2e\editor-usability.spec.ts:203:1 › B02 Quiz whole selection, modifier selection and pointer cancellation preserve source (5.2s)
+  ok 326 [chromium] › e2e\editor-usability.spec.ts:159:1 › B04 appearance drafts survive focus changes and refuse invalid/stale input (6.0s)
+  -  329 [chromium] › e2e\import-graphic.spec.ts:152:1 › import graphic: the wizard is a setup flow — create lands in the editor, Data tab open
+  -  330 [chromium] › e2e\import-graphic.spec.ts:199:1 › import graphic: fields added from the Data tab are real placed layers — the wizard step, replaced
+  ok 328 [chromium] › e2e\import-graphic.spec.ts:113:1 › import graphic: a multi-file drop names the design used and every design skipped (7.8s)
+  -  331 [chromium] › e2e\import-graphic.spec.ts:234:1 › import graphic: the imported design animates — whole unit in, whole unit out
+  -  332 [chromium] › e2e\import-graphic.spec.ts:267:1 › import graphic: a cropped design is placed as an object, not stretched
+  -  333 [chromium] › e2e\import-graphic.spec.ts:282:1 › import graphic: a 2× export is shown frame-sized, not pushed off the frame
+  -  334 [chromium] › e2e\import-graphic.spec.ts:317:1 › import graphic: dragging a field places it in the CSS — never a keyframe
+  -  335 [chromium] › e2e\import-graphic.spec.ts:350:1 › import graphic: Escape cancels a placement drag without touching the code
+  -  336 [chromium] › e2e\import-graphic.spec.ts:375:1 › import graphic: an added field is live — sample data drives it with no manual wiring
+  -  337 [chromium] › e2e\import-graphic.spec.ts:394:1 › import graphic: adding an image field creates a placed slot on the design
+  -  338 [chromium] › e2e\import-graphic.spec.ts:463:1 › import graphic: arrow keys nudge a selected field — one placement apply per burst
+  -  339 [chromium] › e2e\import-graphic.spec.ts:486:1 › import graphic: the corner handle resizes a field's text in the CSS
+  -  340 [chromium] › e2e\import-graphic.spec.ts:511:1 › import graphic: the Inspector Style tab restyles a selected placed field
+  -  341 [chromium] › e2e\import-graphic.spec.ts:579:1 › import graphic: the Style tab's Content rows rename and retext a field
+  -  342 [chromium] › e2e\import-graphic.spec.ts:668:1 › import graphic: a new field is born with a slot, so a long value cannot run off the design
+  -  343 [chromium] › e2e\import-graphic.spec.ts:693:1 › import graphic: a long name shrinks to stay inside its slot, and a short one springs back
+  -  344 [chromium] › e2e\import-graphic.spec.ts:712:1 › import graphic: wrap flows a long value onto more rows, Free lets it run
+  -  345 [chromium] › e2e\import-graphic.spec.ts:739:1 › import graphic: the artwork and a field animate as separate layers from the Inspector
+  -  346 [chromium] › e2e\import-graphic.spec.ts:771:1 › import graphic: the exported SPX package validates
+  ok 347 [chromium] › e2e\import-graphic.spec.ts:778:1 › the Text step places fields in the artwork’s empty panel by itself (3.0s)
+  ok 349 [chromium] › e2e\import-graphic.spec.ts:842:1 › import graphic: a finished .html template comes in as itself, fields and all (1.9s)
+  ok 348 [chromium] › e2e\import-graphic.spec.ts:808:1 › the Text step gives the placement canvas more room than the passive preview (2.9s)
+  ok 350 [chromium] › e2e\import-graphic.spec.ts:869:1 › import graphic: the production door goes straight to the rundown, never through the editor (2.2s)
+  ok 351 [chromium] › e2e\import-graphic.spec.ts:909:1 › import graphic: the imported template exports as the code that was dropped (2.5s)
+  -  352 [chromium] › e2e\import-graphic.spec.ts:931:1 › the Text step places a picture slot the operator fills from the control panel
+  ok 353 [chromium] › e2e\import-graphic.spec.ts:978:1 › import graphic: full-frame artwork with no transparency says it will cover the picture (3.1s)
+  ok 354 [chromium] › e2e\import-graphic.spec.ts:1124:1 › the Prepare step opens with the baked-in text already boxed (2.4s)
+  ok 355 [chromium] › e2e\import-graphic.spec.ts:1154:1 › a design with two baked blocks offers them one at a time until nothing is left (2.5s)
+  ok 357 [chromium] › e2e\import-graphic.spec.ts:1253:1 › a proposal against the artwork edge still has grips you can grab (2.2s)
+  ok 356 [chromium] › e2e\import-graphic.spec.ts:1217:1 › the proposed box is dragged and resized before it is accepted (2.3s)
+  ok 358 [chromium] › e2e\import-graphic.spec.ts:1304:1 › artwork with no baked-in text is offered nothing, and names the rule that refused (2.5s)
+  -  361 [chromium] › e2e\inspector.spec.ts:27:1 › inspector: sits in the right dock, empty until something is selected
+  -  362 [chromium] › e2e\inspector.spec.ts:43:1 › inspector: selecting a timeline row shows that layer — selection synced all around
+  -  363 [chromium] › e2e\inspector.spec.ts:65:1 › inspector: canvas clicks drive it too (select it to affect it)
+  -  364 [chromium] › e2e\inspector.spec.ts:78:1 › inspector: a new selection reveals it; an explicit close holds until the selection changes
+  -  365 [chromium] › e2e\inspector.spec.ts:99:1 › inspector: the pivot sets the transform-origin, and the runtime honours it
+  -  366 [chromium] › e2e\inspector.spec.ts:150:1 › inspector: the 3D transform rows arm and key a rotation (docs/PRESET_MODEL_REVIEW.md gap 7)
+  ok 359 [chromium] › e2e\import-graphic.spec.ts:1332:1 › detected text walked past unerased follows to the Text step as an honest note (2.9s)
+  -  367 [chromium] › e2e\inspector.spec.ts:187:1 › redo: Ctrl+Shift+Z restores an undone edit; a new edit clears the redo branch
+  -  368 [chromium] › e2e\inspector.spec.ts:211:1 › inspector: filter rows compose into one filter track without clobbering each other (gap 8)
+  -  370 [chromium] › e2e\legacy-timeline.spec.ts:46:1 › the dock picks the surface from the CODE: data edits, readable legacy converts
+  -  371 [chromium] › e2e\legacy-timeline.spec.ts:72:1 › a region the importer refuses is still CHARTED — read-only, and honest about why
+  ok 360 [chromium] › e2e\import-graphic.spec.ts:1352:1 › "it is meant to be there" is an answer the wizard remembers (3.3s)
+  -  372 [chromium] › e2e\legacy-timeline.spec.ts:96:1 › scrubbing the read-only chart drives the preview and writes nothing
+  -  374 [chromium] › e2e\legacy-timeline.spec.ts:124:1 › start over: the escape hatch out of unconvertible code writes DATA, and undo goes back
+  -  373 [chromium] › e2e\legacy-timeline.spec.ts:113:1 › the settled design view still works on a legacy template — no Play needed
+  -  375 [chromium] › e2e\machine-graph.spec.ts:52:1 › a machine-less template shows its derived walk, honestly labelled
+  -  376 [chromium] › e2e\machine-graph.spec.ts:35:1 › the dock toggles between the step timeline and the machine graph
+  -  377 [chromium] › e2e\machine-graph.spec.ts:62:1 › clicking a state snaps the preview there and its card opens the timeline at its step
+  -  378 [chromium] › e2e\machine-graph.spec.ts:78:1 › the transition card edits an arrow: event rename, illegal names refused, styles applied
+  -  379 [chromium] › e2e\machine-graph.spec.ts:154:1 › drawing an arrow from a port creates a transition; the walk's only edge refuses deletion
+  -  380 [chromium] › e2e\machine-graph.spec.ts:114:1 › a styled transition plays the arrow's change and lands exactly on the target pose
+  -  382 [chromium] › e2e\machine-graph.spec.ts:215:1 › branch states and parallel groups add and delete; a dragged box parks and persists
+  -  381 [chromium] › e2e\machine-graph.spec.ts:183:1 › a state nothing can enter is marked where it was authored, and the mark clears
+  -  383 [chromium] › e2e\machine-graph.spec.ts:246:1 › editing a derived machine materializes it, and Reset restores the shipped template
+  -  385 [chromium] › e2e\machine-graph.spec.ts:306:1 › a layer gets its own timeline from the graph: ▤ step, cut style, Delete restores by undo
+  -  386 [chromium] › e2e\machine-graph.spec.ts:342:1 › the timeline clips and the switch carry the layer/graphic vocabulary
+  -  387 [chromium] › e2e\machine-graph.spec.ts:350:1 › two complete graphic timelines chain on the path (the ◇ > ◇ rundown case)
+  ok 369 [chromium] › e2e\inspector.spec.ts:258:1 › filter track: every keyframe keeps the same shape, so the runtime really interpolates it (1.8s)
+  -  388 [chromium] › e2e\machine-graph.spec.ts:381:1 › a branch state gets its own timeline, and it really plays
+  -  389 [chromium] › e2e\machine-graph.spec.ts:492:1 › the timeline says how each step is really reached, timers included
+  -  390 [chromium] › e2e\machine-graph.spec.ts:522:1 › the editor greys an event the machine would drop
+  -  391 [chromium] › e2e\machine-graph.spec.ts:550:1 › a state that only fires a lifecycle call is not described as doing nothing
+  -  392 [chromium] › e2e\machine-graph.spec.ts:570:1 › the transition card names the two ends the way the boxes do
+  -  393 [chromium] › e2e\machine-graph.spec.ts:617:1 › every "+ state" entry is reachable at the default dock size
+  -  394 [chromium] › e2e\machine-graph.spec.ts:643:1 › the transition card is reachable and stays put while the diagram scrolls
+  -  395 [chromium] › e2e\machine-graph.spec.ts:675:1 › the entrance and exit are real arrows: stylable, guarded, and next() keeps its no-op parity
+  ok 384 [chromium] › e2e\machine-graph.spec.ts:279:1 › a style write under a pre-styles interpreter re-emits the region (the pairing rule) (1.9s)
+  ok 396 [chromium] › e2e\machine-graph.spec.ts:735:1 › the stop edge and its style survive step inserts and deletes (rehoming) (2.4s)
+  ok 397 [chromium] › e2e\machine-graph.spec.ts:786:1 › structural step edits carry the walk's arrows: a timer survives a delete, a split keeps its event (2.4s)
+  ok 398 [chromium] › e2e\machine-graph.spec.ts:852:1 › a styled lifecycle edge under an older interpreter re-emits the region (the pairing rule, one step on) (2.1s)
+  ok 400 [chromium] › e2e\motion-presets.spec.ts:156:1 › engine: a motion rewrite keeps lifecycle calls, ambient loops and layers outside the root, and clears a styled lifecycle arrow (2.3s)
+  ok 401 [chromium] › e2e\motion-presets.spec.ts:232:1 › wizard: an imported SVG picks from the same ten motions on its Animation step, and the control page reads the pick back (3.5s)
+  ok 399 [chromium] › e2e\motion-presets.spec.ts:94:1 › control page: the Motion section rewrites the entrance and exit on the graphic as one unit, saves it, and lights the card it reads back (4.2s)
+  ok 402 [chromium] › e2e\motion-presets.spec.ts:281:1 › wizard: the layer stagger spends its beats on what is visible, and the words take their turn (3.7s)
+  ok 403 [chromium] › e2e\motion-presets.spec.ts:350:1 › wizard: the easing list is what the picked motion can render, and an impossible curve falls back to Auto (3.5s)
+  -  406 [chromium] › e2e\multi-select.spec.ts:36:1 › shift-click builds a multi-selection synced across canvas, timeline, and Inspector
+  -  407 [chromium] › e2e\multi-select.spec.ts:77:1 › preview zoom: the buttons scale the viewport, and a click still hits the right element
+  -  408 [chromium] › e2e\multi-select.spec.ts:101:1 › timeline labels shift-click into the same multi-selection
+  -  409 [chromium] › e2e\multi-select.spec.ts:112:1 › a drag on empty canvas lassos the parts it touches — no code, no history
+  -  410 [chromium] › e2e\multi-select.spec.ts:148:1 › canvas: a selected layer shows scale + rotate handles that key at the playhead
+  ok 404 [chromium] › e2e\motion-presets.spec.ts:387:1 › control page: the operator can change the curve after creation, and it lands in the emitted code (3.9s)
+  -  411 [chromium] › e2e\pasteboard.spec.ts:44:1 › the pasteboard is sized by the authored motion, and grows when the motion does
+  -  412 [chromium] › e2e\pasteboard.spec.ts:109:1 › drag an element fully into the pasteboard: negative keyframe, still visible + selectable
+  -  413 [chromium] › e2e\pasteboard.spec.ts:144:1 › the pasteboard pad never enters persisted state; export stays clipped to the canvas
+  -  414 [chromium] › e2e\pasteboard.spec.ts:182:1 › code ↔ canvas: a negative x written in code renders on the pasteboard and stays selectable
+  -  415 [chromium] › e2e\pasteboard.spec.ts:227:1 › preset-authored off-canvas: a slide preset entrance renders + selects on the pasteboard
+  -  416 [chromium] › e2e\state-machine.spec.ts:82:1 › schema: migration on read, canonical fixed point over machines, shape rejections
+  -  417 [chromium] › e2e\state-machine.spec.ts:145:1 › derived machine: a catalog template answers as one linear group, editor and runtime agreeing
+  -  418 [chromium] › e2e\state-machine.spec.ts:184:1 › simplicity guard: a lower third is three states, drivable end-to-end with next alone
+  -  419 [chromium] › e2e\state-machine.spec.ts:227:1 › millionaire: selection is data on one state, lock makes select structurally illegal
+  -  420 [chromium] › e2e\state-machine.spec.ts:287:1 › scorebug: data stays data, parallel groups fire independently through one queue
+  -  421 [chromium] › e2e\state-machine.spec.ts:324:1 › ticker: timer auto-advance cycles items, pause/resume works, a settled preview never advances
+  -  422 [chromium] › e2e\state-machine.spec.ts:362:1 › compatibility: update/play/next/stop alone — the export surface — walk the default path
+  -  423 [chromium] › e2e\state-machine.spec.ts:398:1 › drift guards: the export gate accepts every machine, editor and runtime agree on the snap route
+  -  424 [chromium] › e2e\state-machine.spec.ts:434:1 › preview: snap-to-state works in the editor, and the event strip guards like the graph
+  -  425 [chromium] › e2e\template-insert.spec.ts:39:1 › insert an info card into a lower third — project preserved, everything namespaced, one undo
+  -  426 [chromium] › e2e\template-insert.spec.ts:95:1 › insert as a NEW NEXT STEP — a named step reveals the graphic, retargetable afterwards
+  -  427 [chromium] › e2e\template-insert.spec.ts:123:1 › a STEPPED donor keeps its middle steps — the run joins the host path after the placement
+  -  428 [chromium] › e2e\template-insert.spec.ts:177:1 › an inserted graphic's own text lines are selectable parts, without inflating the host design
+  -  429 [chromium] › e2e\template-insert.spec.ts:206:1 › after an insertion the Data panel still adds a REAL line to the HOST design
+  -  430 [chromium] › e2e\template-insert.spec.ts:225:1 › the canvas context menu opens the same insert flow
+  -  431 [chromium] › e2e\template-insert.spec.ts:244:1 › templates that need their own runtime are greyed with the reason, not hidden
+  -  432 [chromium] › e2e\timeline-v2.spec.ts:20:1 › v2: step clips on a ruler with cue markers — steps are the clips
+  -  433 [chromium] › e2e\timeline-v2.spec.ts:38:1 › v2: clicking the timeline moves the playhead and scrubs the preview — no history
+  -  434 [chromium] › e2e\timeline-v2.spec.ts:61:1 › v2: zoom scales the clips; row labels drive the shared selection
+  -  435 [chromium] › e2e\timeline-v2.spec.ts:87:1 › v2 keyframes: convert, arm at the playhead, auto-key, interpolate — the ratified workflow
+  -  436 [chromium] › e2e\timeline-v2.spec.ts:148:1 › v2 keyframes: dragging a diamond retimes it; Delete removes it; undo restores
+  -  437 [chromium] › e2e\timeline-v2.spec.ts:181:1 › v2 presets: In and Out apply independently; applying a preset cleanly swaps the targeted motion
+  -  438 [chromium] › e2e\timeline-v2.spec.ts:223:1 › v2 presets: a single layer takes a preset into ITS activation step (In is layer-relative)
+  -  439 [chromium] › e2e\timeline-v2.spec.ts:247:1 › v2: the canvas chip moves a layer between presses on a data template
+  -  440 [chromium] › e2e\timeline-v2.spec.ts:271:1 › v2 clips: right-edge resize preserves keyframe timing; Alt-drag stretches it
+  -  441 [chromium] › e2e\timeline-v2.spec.ts:329:1 › v2 clips: context menu duplicates, renames, deletes; the definition follows
+  -  442 [chromium] › e2e\timeline-v2.spec.ts:373:1 › v2 clips: »+ adds an authoring step; the hold popover edits how the graphic leaves
+  ok 405 [chromium] › e2e\motion-presets.spec.ts:458:1 › wizard: a catalog design keeps its own cards and offers the universal six under them (3.8s)
+  -  443 [chromium] › e2e\timeline-v2.spec.ts:398:1 › v2: Space plays; arrows nudge the selected keyframe on the grid
+  -  444 [chromium] › e2e\timeline-v2.spec.ts:424:1 › v2: a finished run reports itself FINISHED — the strip returns to idle
+  -  445 [chromium] › e2e\timeline-v2.spec.ts:488:1 › v2 polish: keyframe and step eases from the menus; ◀ ▶ jumps; label scrubbing
+  -  446 [chromium] › e2e\timeline-v2.spec.ts:459:1 › v2 polish: the playhead cap drags; the view follows playback when zoomed in
+  -  447 [chromium] › e2e\timeline-v2.spec.ts:537:1 › v2 layer blocks: the existence span renders; its left edge drags the activation
+  -  448 [chromium] › e2e\timeline-v2.spec.ts:571:1 › v2 layer blocks: the right edge sets an early exit (hides) and upgrades the interpreter
+  -  450 [chromium] › e2e\timeline-v2.spec.ts:656:1 › v2 keyframe lasso: a marquee over the rows selects diamonds; Ctrl/Cmd+D duplicates them
+  -  449 [chromium] › e2e\timeline-v2.spec.ts:597:1 › v2 keyframe sets: shift-click, group nudge, delete, copy/paste at the playhead
+  -  451 [chromium] › e2e\timeline-v2.spec.ts:704:1 › v2 property rows: a layer expands into per-property sub-rows with their own diamonds
+  -  452 [chromium] › e2e\timeline-v2.spec.ts:739:1 › v2: corner bugs create as data blocks — the step timeline is their native surface
+  -  453 [chromium] › e2e\timeline-v2.spec.ts:761:1 › v2: scoreboards create as data blocks — the score pop keeps working around the region
+  -  454 [chromium] › e2e\timeline-v2.spec.ts:807:1 › v2 read-only glyphs: a looping track shows a repeat tail, and lifecycle calls get their own row
+  -  455 [chromium] › e2e\timeline-v2.spec.ts:842:1 › v2 read-only glyphs: a finite repeat ends where it really ends, and is capped when it fits
+  -  456 [chromium] › e2e\timeline-v2.spec.ts:876:1 › v2: the quiz Continue is a real step — its reveal is a lifecycle call, and the SPX steps setting is derived
+  -  457 [chromium] › e2e\ux.spec.ts:38:1 › layout: code dock left ONCE OPENED, canvas + timeline in the centre, tool tabs right
+  -  459 [chromium] › e2e\ux.spec.ts:73:1 › data: add-field lands as a REAL line on a catalog template, in the assembler's own idiom
+  -  458 [chromium] › e2e\ux.spec.ts:58:1 › export: validation shows inline and gates the download on a broken template
+  -  460 [chromium] › e2e\ux.spec.ts:103:1 › data: the catalog-line add is gated on the standard line SHAPE, never the category
+  -  461 [chromium] › e2e\ux.spec.ts:128:1 › wizard: direction control mixes a different exit preset at create
+  -  462 [chromium] › e2e\ux.spec.ts:171:1 › style: a color change highlights the changed CSS lines
+
+  134 skipped
+  328 passed (7.4m)
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:33044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 35 tests using 3 workers
+
+(node:34308) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  2 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every lower-third slice 1 of 4 variant passes the bench (23.9s)
+  ok  3 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every lower-third slice 3 of 4 variant passes the bench (23.9s)
+  ok  1 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every lower-third slice 2 of 4 variant passes the bench (24.0s)
+  ok  6 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every info-card slice 2 of 4 variant passes the bench (21.9s)
+  ok  5 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every info-card slice 1 of 4 variant passes the bench (22.0s)
+  ok  4 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every lower-third slice 4 of 4 variant passes the bench (23.8s)
+  ok  9 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every end-credits variant passes the bench (11.3s)
+  ok  8 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every info-card slice 4 of 4 variant passes the bench (20.4s)
+  ok  7 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every info-card slice 3 of 4 variant passes the bench (21.0s)
+  ok 12 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every game-timer variant passes the bench (12.1s)
+  ok 10 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every ticker variant passes the bench (24.7s)
+  ok 11 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every starting-soon variant passes the bench (23.8s)
+  ok 14 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every corner-bug slice 1 of 2 variant passes the bench (21.6s)
+  ok 15 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every corner-bug slice 2 of 2 variant passes the bench (21.4s)
+  ok 16 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every infographic slice 1 of 2 variant passes the bench (18.8s)
+  ok 18 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every versus variant passes the bench (2.9s)
+  ok 17 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every infographic slice 2 of 2 variant passes the bench (18.8s)
+  ok 13 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every scoreboard variant passes the bench (55.8s)
+  ok 20 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every frame variant passes the bench (13.4s)
+  ok 21 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every transition variant passes the bench (22.4s)
+  ok 22 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every alert variant passes the bench (23.9s)
+  ok 19 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every quiz variant passes the bench (41.9s)
+  ok 23 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every public-info variant passes the bench (16.2s)
+  ok 24 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every esports-score variant passes the bench (16.8s)
+  ok 25 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every matchup variant passes the bench (23.9s)
+  ok 28 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every poll variant passes the bench (10.8s)
+  ok 26 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every results-board variant passes the bench (34.0s)
+  ok 27 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every reveal variant passes the bench (30.8s)
+  ok 30 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every stream-notification variant passes the bench (11.0s)
+  ok 29 [chromium] › e2e\catalog\catalog-bench.spec.ts:56:7 › catalog calibration tripwire › every audience variant passes the bench (26.8s)
+  ok 32 [chromium] › e2e\catalog\long-value-containment.spec.ts:87:1 › a lower third keeps its text on the frame when the operator types a long name (15.4s)
+  ok 33 [chromium] › e2e\catalog\mark-height.spec.ts:66:1 › a mark never makes a lower third taller (6.7s)
+  ok 34 [chromium] › e2e\catalog\multicol-containment.spec.ts:56:1 › a multi-column block keeps its columns inside its own width (14.2s)
+  ok 35 [chromium] › e2e\catalog\stage-fit-honesty.spec.ts:54:1 › a staged graphic ships the font size its CSS declares (36.2s)
+  ok 31 [chromium] › e2e\catalog\footprint-stability.spec.ts:61:1 › a staged graphic keeps its width whatever the operator types (1.1m)
+
+  35 passed (4.9m)
+e2e-affected: suite passed; catalog gate passed. Overall: passed.

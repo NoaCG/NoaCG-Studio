@@ -1,0 +1,40 @@
+=== j-3379 node docs/research/editor-r1-2b-5/mutations.mjs
+=== cwd C:\Users\ahonemi\.codex\worktrees\editor-r1-2b-5\NoaCG-Studio
+KILLED: distribution count
+KILLED: finite bounds and identities
+KILLED: equal gaps
+KILLED: rendered outer endpoints
+KILLED: scale precision
+KILLED: parent inverse
+KILLED: one source write on release
+KILLED: gesture cancellation
+KILLED: stale source and view
+KILLED: canceled repeats stay quiet
+SURVIVED: text-input ownership
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › e2e\editor-arrangement.spec.ts:163:1 › focus guards preserve input editing, timeline arrows and Pen drafting (1.7s)
+
+  1 passed (13.6s)
+[WebServer] (node:21348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:41908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+SURVIVED: Pen ownership
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  ok 1 [chromium] › e2e\editor-arrangement.spec.ts:163:1 › focus guards preserve input editing, timeline arrows and Pen drafting (1.8s)
+
+  1 passed (13.0s)
+[WebServer] (node:13636) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:39688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: resize collapse
+KILLED: parent-child refusal
+Every source restored byte-for-byte.
+12/14 mutations killed.
