@@ -20,6 +20,7 @@ const patcher = 'src/blocks/editorOrganization.ts';
 const cases = [
   ['folder parent ownership', patcher, 'if (memberScope(organization, member, parts, hierarchy) !== expectedScope)', 'if (false)', 'folder guards refuse mixed group scopes'],
   ['bin collision refusal', patcher, "if (dirs.some(dir => dir === operation.to || dir.startsWith(operation.to + '/') && !dir.startsWith(operation.from + '/')))", 'if (false)', 'bin rename retains field defaults'],
+  ['bin moving-path collision', patcher, 'if (moving.some(asset => template.assets.some(other => other.path === target(asset.path))))', 'if (false)', 'nested bin renames refuse occupied moving paths'],
   ['folder opening revision', 'src/components/editorFoundation/OrganizationControls.tsx', 'run(operation, current.expected)', 'run(operation)', 'organization refuses stale revisions'],
   ['bin opening revision', 'src/components/AssetsPanel.tsx', ' }, draft.expected);', ' }, actions!.bins!.revision());', 'bin rename retains field defaults'],
   ['inline Escape cancellation', 'src/components/editorFoundation/InlineOrganizationName.tsx', "finish(event.key === 'Enter')", 'finish(true)', 'folders organize, rename, collapse'],

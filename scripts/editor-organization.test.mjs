@@ -1,4 +1,4 @@
-// guards: src/model/editorOrganization.ts, src/blocks/assetOps.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
+// guards: src/model/editorOrganization.ts, src/blocks/assetOps.ts, src/blocks/editorOrganization.ts, src/blocks/editorImages.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -9,14 +9,18 @@ const modelUrl = 'data:text/javascript;base64,' + Buffer.from(compiled).toString
 const { readOrganization, writeOrganization, inspectOrganization } = await import(modelUrl);
 // These assertions exercise the real pure asset functions. Their unrelated browser
 // imports are omitted so Node can load them without a DOM/module bundler.
-async function assetModule(path) {
+const dataUrl = code => 'data:text/javascript;base64,' + Buffer.from(code).toString('base64');
+function assetModuleUrl(path, imports = '') {
   const source = readFileSync(path, 'utf8').replace(/^import[\s\S]*?;[ \t]*\r?$/gm, '');
-  const code = 'import { readOrganization, splitOrganizationHtml } from ' + JSON.stringify(modelUrl) + ';\n' + transform(source, { transforms: ['typescript'] }).code;
-  return import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+  const code = 'import { readOrganization, writeOrganization, validBin, splitOrganizationHtml } from ' + JSON.stringify(modelUrl) + ';\n' + imports + transform(source, { transforms: ['typescript'] }).code;
+  return dataUrl(code);
 }
-const { moveAsset } = await assetModule('src/blocks/assetOps.ts');
-const { inlineAssetRefs } = await assetModule('src/assets/assetUtils.ts');
-const { referenceCount } = await assetModule('src/assets/assetInfo.ts');
+const assetOpsUrl = assetModuleUrl('src/blocks/assetOps.ts');
+const { moveAsset } = await import(assetOpsUrl);
+const { inlineAssetRefs } = await import(assetModuleUrl('src/assets/assetUtils.ts'));
+const { referenceCount } = await import(assetModuleUrl('src/assets/assetInfo.ts'));
+const imagesUrl = assetModuleUrl('src/blocks/editorImages.ts', 'import {moveAsset} from ' + JSON.stringify(assetOpsUrl) + ';\n');
+const { applyOrganization } = await import(assetModuleUrl('src/blocks/editorOrganization.ts', 'import {renameGraphicAsset} from ' + JSON.stringify(imagesUrl) + ';\n'));
 const plain = { html: '<div id="art">Unchanged artwork</div>', css: '#art {color:red}', js: 'window.play=()=>{}', assets: [], fields: [] };
 const organization = { version: 1, folders: [{ id: 'folder:1', name: 'Plate --> <dark> & \'quote\'', scope: null, parent: null, members: ['#art'] }], bins: ['images/Sponsors'] };
 
@@ -60,4 +64,8 @@ test('inert organization labels do not count as asset references', () => {
   const source = writeOrganization(plain, { ...organization, folders: [{ ...organization.folders[0], name: path }] });
   assert.equal(referenceCount(source, path), 0);
   assert.equal(referenceCount({ ...source, html: source.html + '<img src="' + path + '">', css: 'url(./' + path + ')' }, path), 2);
+});
+test('nested bin renames refuse paths occupied by another moving asset', () => {
+  const source = writeOrganization({ ...plain, assets: [{ path: 'images/A/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' }, { path: 'images/A/B/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }] }, { version: 1, folders: [], bins: ['images/A'] });
+  assert.throws(() => applyOrganization(source, { kind: 'bin.rename', from: 'images/A', to: 'images/A/B' }), /collide/);
 });

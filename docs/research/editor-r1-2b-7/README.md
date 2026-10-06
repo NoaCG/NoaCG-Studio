@@ -5,11 +5,13 @@ The [bounded spec and acceptance ledger](../../work-specs/editor-folders-bins/sp
 The [written-first baseline](../../work-specs/editor-folders-bins/evidence/baseline.log) ran j-3516 on unchanged main product source: existing group navigation passed; four new cases failed on absent folder/bin controls. The real-task case was added before implementation.
 
 The [focused acceptance run](../../work-specs/editor-folders-bins/evidence/acceptance.log),
-j-3559, passed 19 cases with `E2E_WORKERS=3`. It covers folders and bins,
+j-3577, passed 20 cases with `E2E_WORKERS=3`. It covers folders and bins,
 group coexistence and exact ungroup, source preservation, atomic history,
 stale/cycle/collision/unknown-operation refusal and document-switch drafts,
 including reopening the same saved graphic. Unsupported metadata disables asset
 moves. Asset moves/removals preserve folder labels and retain emptied bins.
+Nested bin renames refuse paths occupied by another moving asset before any
+rewrite, preserving source, view, revision and history exactly.
 The Hairline task imports and places a sponsor image, saves/reopens through
 the existing API and executes SPX, CasparCG and OGraf outputs. Geometry agrees
 within 0.05px; the image resolves and no page errors occur.

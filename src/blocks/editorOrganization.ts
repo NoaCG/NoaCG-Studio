@@ -96,9 +96,8 @@ export function applyOrganization(template: SpxTemplate, operation: Organization
       if (operation.from === operation.to) return template;
       if (dirs.some(dir => dir === operation.to || dir.startsWith(operation.to + '/') && !dir.startsWith(operation.from + '/'))) throw new Error('An asset bin with this name already exists.');
       const moving = template.assets.filter(asset => asset.path.startsWith(operation.from + '/'));
-      const paths = new Set(moving.map(asset => asset.path));
       const target = (path: string) => operation.to + path.slice(operation.from.length);
-      if (moving.some(asset => template.assets.some(other => !paths.has(other.path) && other.path === target(asset.path)))) throw new Error('This rename would collide with another asset.');
+      if (moving.some(asset => template.assets.some(other => other.path === target(asset.path)))) throw new Error('This rename would collide with another asset.');
       for (const asset of moving) next = renameGraphicAsset(next, asset.path, target(asset.path));
       organization.bins = organization.bins.filter(dir => dir !== operation.from).map(dir => dir.startsWith(operation.from + '/') ? target(dir) : dir);
       organization.bins.push(operation.to);

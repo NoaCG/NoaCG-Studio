@@ -40,7 +40,13 @@ and passed after repair. Six further confirmed findings were fixed:
 - Moving the last asset out of an inferred bin lost that empty bin. Snapshot
   inferred directories in the existing atomic registry before moves/removals.
 
-All 11 findings passed their final coverage in j-3559 (19 tests) and the six
+One final nested-bin finding reproduced in both the native operation and
+j-3575 (`nested-bin-written-first.log`): excluding other moving paths from
+preflight let the existing move helper silently deduplicate an occupied path.
+Check every current asset path before moving any file. The browser case proves
+the refusal preserves source, view, revision and history exactly.
+
+All 12 findings passed their final coverage in j-3577 (20 tests) and the seven
 native organization tests. Initial reproductions and the corrected same-saved
 identity case are retained as evidence; the earlier incorrectly reset-ID case
 is not treated as proof.

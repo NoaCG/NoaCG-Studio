@@ -127,6 +127,18 @@ test('organization refuses stale revisions, mixed scopes, cycles and partial bat
   expect(result.refusal).not.toBe(''); expect(result.unchanged && result.selected && result.undo).toBe(true);
 });
 
+test('nested bin renames refuse occupied moving paths without changing source or history', async ({ page }) => {
+  await open(page);
+  await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/A/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' }, { path: 'images/A/B/C/red.svg', data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }] }, { kind: 'bin.create', dir: 'images/A' }]);
+  const result = await evaluateInPage(page, async () => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const before = s.port.read(), revision = s.version(), canUndo = s.canUndo(), view = JSON.stringify(s.port.view()); let refusal = '';
+    try { s.execute({ documentId: s.documentId, expected: revision, transactionId: crypto.randomUUID(), operations: [{ kind: 'bin.rename', from: 'images/A', to: 'images/A/B' }] }); } catch (cause) { refusal = String(cause); }
+    return { refusal, unchanged: s.port.read() === before && JSON.stringify(s.version()) === JSON.stringify(revision) && JSON.stringify(s.port.view()) === view && s.canUndo() === canUndo };
+  });
+  expect(result.refusal).toContain('collide'); expect(result.unchanged).toBe(true);
+});
+
 test('asset moves preserve folder labels and retain emptied inferred bins in one history receipt', async ({ page }) => {
   const ids = await open(page), label = 'images/First/red.svg';
   await execute(page, [{ kind: 'asset.import', assets: [{ path: label, data: 'data:image/svg+xml;base64,PHN2Zy8+' }] }, { kind: 'bin.create', dir: 'images/Second' }]);
