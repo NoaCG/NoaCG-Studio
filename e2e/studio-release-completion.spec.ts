@@ -129,6 +129,7 @@ test('older Bridge cannot silently stretch a default Fit picture', async ({ page
   await page.evaluate(async id => {
     (await import('/src/model/shows.ts')).addPlayoutItem(id, { adapter: 'casparcg', kind: 'media', mediaKind: 'still', name: 'G1/PHOTO', channel: 2 });
   }, id);
+  await settleDurableWrites(page);
   await page.reload();
   await page.locator('.pd-cue', { hasText: 'G1/PHOTO' }).getByTestId('select-cue').click();
   await expect(page.getByTestId('playout-cue-editor')).toContainText('Update NoaCG Bridge');

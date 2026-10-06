@@ -221,7 +221,7 @@ const PLAYS_EVERYTHING: Partial<FakeBridge> = { features: ['playback', 'sequence
 async function selectAddedCue(page: Page, name: string): Promise<void> {
   await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
   await page.getByTestId('picker-done').click();
-  await page.locator('.pd-cue', { hasText: name.split('/').pop()! }).getByTestId('select-cue').click();
+  await page.locator('.pd-cue', { hasText: name.split('/').pop()! }).last().getByTestId('select-cue').click();
 }
 
 /** A clip on the server, added from the picker and selected in the editor. */

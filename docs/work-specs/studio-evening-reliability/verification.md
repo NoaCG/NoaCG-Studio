@@ -474,3 +474,22 @@ as a code failure or as evidence supplied by automation.
 - Rollback baseline: website commit `1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d` and installed Bridge
   0.8.1. Release 0.9.0 does not automatically replace any installed Bridge or CasparCG server.
   Vercel deployment `dpl_pW9XKA9xmPk3zQvAagyjSSZeenz3` is READY and a rollback candidate.
+- Reconciled build j-3506 passes with its own exit 0: 2461 active gate checks, three skips,
+  TypeScript, lint, architecture, Vite, prerender and the client-secret scan. Integration j-3505
+  passes 1223 browser cases and its separate 35-case catalog gate, but records 23 failures from
+  tests collected before the changed picker/feedback expectations. It is not a passing job.
+  The corrected 46-case operator run j-3507 passes 43; its remaining failures reproduce two
+  ambiguous selectors when the new cue shares a name with an existing cue, and a test reload
+  before the inserted picture reaches durable storage. Select the appended matching cue and
+  await the existing durable-write helper before that reload. Playback assertions remain intact.
+  Final clean verification and release receipts belong in the pull request.
+- Corrected operator run j-3508 passes all 46 cases with its own exit 0. The old Bridge refuses
+  Fit and permits explicit Stretch; duplicate-name cues still exercise every legacy playback
+  assertion. CI run 37490672017 independently reproduces only the two ambiguous selectors;
+  its other nine browser shards, Build, Factory and catalog gate pass. Both test defects are
+  fixed, bringing the inline review to 36/36 confirmed corrections.
+- Guarded authenticated run 37489746149 passes 78 active tests, zero failures or flaky cases,
+  with ten allowlisted skips. Its schema guard verifies all 77 migrations, authenticated grants
+  and the Realtime publication; team refresh, save conflicts, account isolation and direct cue
+  relay are exercised against local Supabase. Historical home edits and physical ATEM audio
+  are still outside this evidence.
