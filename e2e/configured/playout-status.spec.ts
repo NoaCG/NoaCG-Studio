@@ -175,7 +175,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-tone', 'warn', { timeout: 30_000 });
   await expect(status).toContainText('Unpublished changes');
   await status.click();
-  await panel.getByTestId('production-republish').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   await expect
     .poll(async () => {

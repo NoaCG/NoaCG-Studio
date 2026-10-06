@@ -1,10 +1,56 @@
 // covers: src/components/home/CueShortcutDialog.tsx, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/home/CueRundown.tsx, src/components/home/ServerDiagnostics.tsx, src/model/cueShortcuts.ts, src/model/teamOutbox.ts, src/model/durableStore.ts, src/store/templateStore.ts, src/assets/svgImport.ts, src/control/productionAdmission.ts, src/output/prepare.ts, src/components/AccountAuthoringGate.tsx
 // covers: src/components/AccountSaveNotice.tsx, src/components/SyncStatus.tsx, src/backend/{auth,accountLibrary,syncController,sync,supabaseProvider,teamProductions}.ts
 // covers: src/components/home/useDeferredEdits.ts, src/packs/graphicsPack.ts, src/components/wizard/CreationWizard.tsx
+// covers: src/styles/{app-shell,wizard-and-dialogs,template-gallery,mobile,playout-dashboard,inspector}.css
 import { test, expect, type Page } from '@playwright/test';
 import { seedSettings, fakeBridge } from './_fakeBridge';
 import { awaitDurableReady, settleDurableWrites } from './_durable';
 import { parkFocusOffControls, holdKeyRepeats } from './_keys';
+import { chooseType, pickDesign } from './_browse';
+
+async function anonymousBackend(page: Page) {
+  await page.route('**/src/backend/config.ts*', route => route.fulfill({ contentType: 'text/javascript', body: `export function loadBackendConfig(){return {url:'https://cloudmock.invalid',anonKey:'test-public-key'}};export function isBackendConfigured(){return true}` }));
+  await page.route('https://cloudmock.invalid/**', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
+}
+
+test('local-work notice leaves anonymous wizard export reachable', async ({ page }) => {
+  await anonymousBackend(page);
+  await page.goto('/app');
+  await expect(page.getByTestId('account-save-notice')).toContainText('not saved to an account');
+  await page.locator('[data-entry="template"]').click();
+  await chooseType(page, 'Lower thirds');
+  await pickDesign(page, 'Hairline');
+  const wizard = await page.getByTestId('creation-wizard').boundingBox();
+  const notice = await page.getByTestId('account-save-notice').boundingBox();
+  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(notice!.y);
+  await page.getByTestId('wz-skip-to-finish').click();
+  await page.screenshot({ path: 'test-results/studio-anonymous-finish.png' });
+  await page.getByTestId('wz-finish-export').click();
+  await expect(page.getByTestId('export-window')).toBeVisible();
+  await expect(page.locator('.auth-card')).toHaveCount(0);
+});
+
+test('local-work notice leaves the phone analytics decision reachable', async ({ page }) => {
+  await anonymousBackend(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/app');
+  await expect(page.getByTestId('account-save-notice')).toBeVisible();
+  const wizard = await page.getByTestId('creation-wizard').boundingBox();
+  const saveNotice = await page.getByTestId('account-save-notice').boundingBox();
+  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(saveNotice!.y);
+  const consent = page.getByTestId('analytics-consent');
+  await expect(consent).toBeVisible();
+  const prompt = await consent.boundingBox();
+  const notice = await page.getByTestId('account-save-notice').boundingBox();
+  expect(prompt!.y + prompt!.height).toBeLessThanOrEqual(notice!.y);
+  await page.screenshot({ path: 'test-results/studio-anonymous-phone.png' });
+  await consent.getByRole('button', { name: 'No thanks' }).click();
+  await expect(consent).toHaveCount(0);
+  await page.getByTestId('creation-wizard').locator('.gallery-close').click();
+  await page.getByTestId('home-settings').click();
+  await page.getByTestId('settings-nav-privacy').click();
+  await expect(page.getByTestId('analytics-toggle')).not.toBeChecked();
+});
 
 async function rehearsal(page: Page) {
   await seedSettings(page);
@@ -331,6 +377,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   await expect(page.getByTestId('account-save-notice')).toContainText('Checking cloud revision');
   releaseLists();
   await expect(page.locator('.sync-status')).toHaveText(/Personal library saved to cloud/, { timeout: 20000 });
+  await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
+  expect(await page.locator('.home-page').evaluate(el => el.getBoundingClientRect().height)).toBe(await page.evaluate(() => window.innerHeight));
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
     const { syncNow } = await import('/src/backend/syncController.ts');
@@ -353,6 +401,13 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   await page.evaluate(async () => { const { getSupabase } = await import('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
   await expect(page.getByTestId('account-save-notice')).toContainText('Account editing paused');
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.getByTestId('analytics-consent').getByRole('button', { name: 'No thanks' }).click();
+  const lastControl = page.locator('.home-page').getByRole('button', { name: '+ New graphic', exact: true }).last();
+  await lastControl.scrollIntoViewIfNeeded();
+  const pausedNotice = await page.getByTestId('account-save-notice').boundingBox();
+  const control = await lastControl.boundingBox();
+  expect(control!.y + control!.height).toBeLessThanOrEqual(pausedNotice!.y);
   await page.screenshot({ path: 'test-results/studio-account-paused.png', fullPage: true });
   expect(await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');

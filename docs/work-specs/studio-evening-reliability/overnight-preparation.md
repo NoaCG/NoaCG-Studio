@@ -64,15 +64,35 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   baseline path. No product source or Windows baseline changed during this recording.
 - Initial branch CI: 1,196 active browser checks passed, 416 skipped, 6 failed solely on the
   old Linux baselines. Build, 317 factory candidates and 35 catalog checks passed. Publish the
-  inspected replacements and verify the resulting CI gate. Configured backend run `37387084551`
-  remains pending until its guarded report is recorded. Vercel confirmed the preview was cancelled
-  by its existing ignored-build step.
+  inspected replacements and verify the resulting CI gate. Replacement CI `37391651702` passed
+  all ten browser shards, Build, Factory and catalog calibration on `ff6bcf7a1`. This verifies the
+  six Linux baseline replacements. Vercel confirmed the preview was cancelled by its existing
+  ignored-build step.
+- Initial configured backend run `37387084551` reached its 40-minute cap. Schema, grants and
+  all seven private relay cases passed, including actual Realtime delivery of both cue verbs,
+  but the full suite did not finish. Do not treat this partial run as a clean backend verdict.
+- Focused diagnosis `37391668621`, with unchanged product/test sources, completed: 9 passed,
+  6 failed, 2 skipped. The errors identify two clicks intercepted by AccountSaveNotice, the
+  removed automatic expiry modal, two removed Publish selectors and the obsolete expectation
+  that a cue-field edit invalidates readiness. The full-suite guard intentionally remains red
+  for this subset. The temporary workflow command has been restored exactly; no timeout,
+  minimum count or skip allowance changed.
+- Notice overlap reproduced locally (`j-3459`, two failures) and corrected by reserving its
+  measured height. Mobile scroll pages reserve bottom space, the wizard and desktop playout
+  shell fit above it, and corner notices move above it. Phone recovery text gets its own row.
+  Rendered desktop and phone frames inspected. `j-3463` passes all 11 focused regressions,
+  including measured spacing, cloud acknowledgement cleanup and preserved expiry recovery.
+  `j-3464` is the required affected-browser run on these frozen corrected sources. Configured
+  expectations now exercise the unified readiness button, preserved metadata readiness and
+  version adoption without an output navigation. Publish this correction and rerun the normal
+  full guarded backend suite and branch CI before treating agent verification as complete.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
   SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
   Package manifest, archive paths and bundled-JavaScript syntax checked. This does not establish
-  Companion runtime behavior. Its direct-cue relay still needs the isolated backend check.
+  Companion runtime behavior. The isolated backend relay delivery cases passed in the partial
+  run; the complete guarded backend suite is still required.
 
 ## Continuation without a schedule
 

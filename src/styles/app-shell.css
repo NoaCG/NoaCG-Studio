@@ -2,7 +2,7 @@
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - var(--account-notice-height, 0px));
   overflow: hidden;
 }
 

@@ -194,6 +194,32 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   baselines are recorded in the next verification phase; check that phase's CI gate before landing.
   Vercel's actual commit status says "Canceled by Ignored Build Step". No preview was deployed.
 
+## Additional authenticated verification and UI correction
+
+- Replacement Linux CI [37391651702](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37391651702)
+  passed on `ff6bcf7a1`: all ten browser shards, Build, Factory and catalog calibration completed.
+  The six recorded Linux baselines pass. This predates the notice layout correction below.
+- Initial real isolated Supabase run
+  [37387084551](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37387084551) applied all 77
+  migrations and passed schema/grant/publication assertions and seven relay delivery tests.
+  It hit the 40-minute cap before completing the full suite. API/Realtime relay behavior was
+  observed, but the complete guarded backend verdict is still required on the corrected tip.
+- Focused [37391668621](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37391668621) completed
+  on the same product/test code: 9 passed, 6 failed, 2 skipped. Two anonymous clicks were blocked
+  by the full-width save notice. Four failures were stale expectations for the removed expiry
+  modal, removed Publish button (two tests) and cue fields invalidating prepared readiness.
+  The subset deliberately fails the unchanged full-suite minimum. Its temporary trace command
+  was restored exactly before the final normal run; timeout and skip/count gates stay intact.
+- Local notice reproductions `j-3459` failed on the same two intercepted clicks. The fix reserves
+  the notice's measured wrapped height, including on phone scroll pages and the full-screen
+  wizard. Analytics/storage notices sit above that space. Recovery remains outside the account
+  authoring gate, readable and operable. Desktop and phone frames were inspected. `j-3463`
+  passes 11/11, including actual clicked export/consent controls, measured separation, cloud
+  acknowledgement removing the reservation, and phone recovery controls above the strip.
+- Configured tests now use Publish & check readiness, require cue-only readiness to remain valid
+  and require v2 adoption without an output navigation. The full normal backend run and affected
+  browser run on these corrections remain pending until their receipts are recorded.
+
 ## Rollout hold
 
 Do not queue-merge: landing runs production migrations/deployment automatically. Complete the

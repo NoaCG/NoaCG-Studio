@@ -34,8 +34,8 @@
      `hidden` that `.app` sets: a `hidden` box is still a scroll container that
      `scrollIntoView` or a focus change can scroll by script, which would move everything in
      it. A `clip` box cannot be scrolled by anything. */
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - var(--account-notice-height, 0px));
+  height: calc(100dvh - var(--account-notice-height, 0px));
   overflow: clip;
   /* The header's own height. */
   --pd-header-h: 50px;
