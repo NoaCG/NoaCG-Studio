@@ -467,7 +467,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
         await firstRead;
         const kind = url.searchParams.get('kind')?.replace('eq.', '');
         const found = [...rows.values()].filter(row => row.kind === kind);
-        return respond(url.searchParams.get('select')?.includes('body') ? found : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
+        return respond(url.searchParams.get('select')?.includes('body,') ? found : found.map(row => ({ id: row.id, deleted: row.deleted, updatedAt: row.body.updatedAt })));
       }
       if (request.method() === 'POST') {
         if (failWrites) return respond({ message: 'Injected cloud write failure', code: 'XX000' }, 503);

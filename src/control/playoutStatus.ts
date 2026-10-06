@@ -36,7 +36,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files' | 'playback';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -56,6 +56,7 @@ export interface StatusFacts {
   managedOutput?: boolean;
   destinationCheck?: StatusCheck | null;
   fileCheck?: StatusCheck | null;
+  playbackCheck?: StatusCheck | null;
   /** The production is published: browser graphics use the hosted output. Native server cues
    *  send through the Bridge independently, including before publishing. */
   started: boolean;
@@ -248,6 +249,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   }
 
   if (f.fileCheck) checks.push(f.fileCheck);
+  if (f.playbackCheck) checks.push(f.playbackCheck);
   if (f.started && f.destinationCheck) checks.push(f.destinationCheck);
   const sorted = [...checks].sort((a, b) => RANK[b.tone] - RANK[a.tone]);
   if (!f.started) return { tone: 'idle', text: 'Offline', checks: sorted };

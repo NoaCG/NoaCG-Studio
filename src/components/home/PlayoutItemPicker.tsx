@@ -9,6 +9,15 @@ import type { ListItem } from '../../control/playoutProtocol';
 import { listLibrary, loadPlayoutSettings, type PlayoutResult } from '../../control/playoutLink';
 import { serverThumbnail } from './serverThumbnail';
 
+export interface PickerItem {
+  kind: 'template' | 'media';
+  name: string;
+  frames?: number;
+  fps?: number;
+  mediaKind?: PlayoutMediaKind;
+  fields?: PlayoutField[];
+}
+
 /**
  * "From the playout server…" - the rundown's door into the PLAYOUT SERVER'S OWN LIBRARY
  * (docs/BRIDGE.md §5): the HTML templates and clips already on the CasparCG box, listed
@@ -48,14 +57,7 @@ export default function PlayoutItemPicker({
   triggerRef?: RefObject<HTMLElement | null>;
   /** `mediaKind` is the server's own word for a media file (`movie`, `still`, `audio`), which is
    *  what puts an audio file on its own layer and keeps a still out of a sequence. */
-  onAdd: (item: {
-    kind: 'template' | 'media';
-    name: string;
-    frames?: number;
-    fps?: number;
-    mediaKind?: PlayoutMediaKind;
-    fields?: PlayoutField[];
-  }) => void;
+  onAdd: (items: PickerItem[]) => Promise<boolean>;
 }) {
   const [kind, setKind] = useState<'template' | 'media'>(mediaFilter ? 'media' : 'template');
   const [items, setItems] = useState<ListItem[] | null>(null);
@@ -65,17 +67,24 @@ export default function PlayoutItemPicker({
   const [fieldIds, setFieldIds] = useState('f0');
   /** The folder being browsed, as its path segments; [] is the top of the library. */
   const [folder, setFolder] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+  const anchor = useRef<string | null>(null);
+  const request = useRef(0);
 
   const refresh = async (which = kind) => {
+    const revision = ++request.current;
     setLoading(true);
     setResult(null);
     try {
       const settings = loadPlayoutSettings();
       const r = await listLibrary(settings, which);
+      if (request.current !== revision) return;
       setResult(r.result);
       setItems(r.items ?? null);
     } finally {
-      setLoading(false);
+      if (request.current === revision) setLoading(false);
     }
   };
 
@@ -83,6 +92,9 @@ export default function PlayoutItemPicker({
     if (!open) return;
     setItems(null);
     setFolder([]);
+    setSelected(new Set());
+    setAdded(null);
+    anchor.current = null;
     void refresh(kind);
     // The list is the server's answer for THIS kind; a re-fetch belongs to Refresh or a tab change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,23 +122,49 @@ export default function PlayoutItemPicker({
       .filter(Boolean)
       .map((id) => ({ field: id, title: id.toUpperCase(), value: '' }));
 
-  const add = (item: ListItem) => {
-    if (kind === 'media') onAdd({ kind, name: item.name, frames: item.frames, fps: item.fps, ...mediaKindOf(item.kind) });
-    else onAdd({ kind, name: item.name, fields: fieldsFor(item.name) ?? typedFields() });
-    onClose();
+  const add = async (batch: ListItem[]) => {
+    if (adding || !batch.length) return;
+    setAdding(true);
+    try {
+      const picked = batch.map(item => kind === 'media'
+        ? { kind, name: item.name, frames: item.frames, fps: item.fps, ...mediaKindOf(item.kind) }
+        : { kind, name: item.name, fields: fieldsFor(item.name) ?? typedFields() });
+      if (await onAdd(picked)) {
+        setAdded(`Added ${batch.length} ${batch.length === 1 ? 'cue' : 'cues'}`);
+        setSelected(current => new Set([...current].filter(name => !batch.some(item => item.name === name))));
+      }
+    } finally { setAdding(false); }
   };
 
-  const addTyped = () => {
+  const addTyped = async () => {
     const name = typed.trim();
-    if (!name) return;
-    if (kind === 'media') onAdd({ kind, name, ...(mediaFilter ? { mediaKind: mediaFilter } : {}) });
-    else onAdd({ kind, name, fields: fieldsFor(name) ?? typedFields() });
-    setTyped('');
-    onClose();
+    if (!name || adding) return;
+    setAdding(true);
+    try {
+      const item: PickerItem = kind === 'media' ? { kind, name, ...(mediaFilter ? { mediaKind: mediaFilter } : {}) } : { kind, name, fields: fieldsFor(name) ?? typedFields() };
+      if (await onAdd([item])) { setTyped(''); setAdded('Added 1 cue'); }
+    } finally { setAdding(false); }
   };
 
   const cannotList = result && result.state !== 'ok';
-  const view = items ? folderView(kind === 'media' && mediaFilter ? items.filter((item) => item.kind?.toLowerCase() === mediaFilter) : items, folder) : null;
+  const filtered = (items ?? []).filter(item => kind !== 'media' || !mediaFilter || item.kind?.toLowerCase() === mediaFilter);
+  const view = items ? folderView(filtered, folder) : null;
+  const batchOrder = (batch: ListItem[]) => [...new Map(batch.map(item => [item.name, item])).values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+  const folderItems = batchOrder(filtered.filter(item => folder.every((part, i) => item.name.split('/')[i]?.toLowerCase() === part.toLowerCase())));
+  const selectedItems = batchOrder(filtered.filter(item => selected.has(item.name)));
+  const select = (name: string, shift: boolean) => {
+    const names = view?.files.map(file => file.item.name) ?? [];
+    const a = anchor.current ? names.indexOf(anchor.current) : -1;
+    const b = names.indexOf(name);
+    setSelected(current => {
+      const next = new Set(current);
+      if (shift && a >= 0 && b >= 0) names.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(value => next.add(value));
+      else if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+    if (!shift) anchor.current = name;
+  };
 
   return (
     <LibMenu open={open} onClose={onClose} triggerRef={triggerRef} surface="pd-picker" role="none" testid="playout-picker">
@@ -225,12 +263,22 @@ export default function PlayoutItemPicker({
                 leaf={leaf}
                 kind={kind}
                 known={kind === 'template' && !!fieldsFor(item.name)}
-                onAdd={() => add(item)}
+                selected={selected.has(item.name)}
+                disabled={adding}
+                onSelect={shift => select(item.name, shift)}
+                onAdd={() => void add([item])}
               />
             ))}
           </ul>
         </>
       )}
+
+      <div className="pd-picker-bulk" data-testid="picker-bulk">
+        <button disabled={adding || loading || !selectedItems.length} onClick={() => void add(selectedItems)} data-testid="picker-add-selected">Add selected ({selectedItems.length})</button>
+        {kind === 'media' && <button disabled={adding || loading || !folderItems.length} title="Add this folder and its subfolders as ordinary cues" onClick={() => void add(folderItems)} data-testid="picker-add-folder">Add folder ({folderItems.length})</button>}
+        <button onClick={onClose} disabled={adding} data-testid="picker-done">Done</button>
+      </div>
+      {added && <p className="hint" role="status" data-testid="picker-added">{added}</p>}
 
       {/* The name box: the route that needs no list at all - for a server whose scanner is not
           running, and for an operator who knows the name. */}
@@ -239,7 +287,7 @@ export default function PlayoutItemPicker({
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') addTyped();
+            if (e.key === 'Enter') void addTyped();
           }}
           placeholder={kind === 'template' ? 'Or type a template name, e.g. FOLDER/NAME' : 'Or type a clip name'}
           spellCheck={false}
@@ -255,7 +303,7 @@ export default function PlayoutItemPicker({
             data-testid="picker-field-ids"
           />
         )}
-        <button onClick={addTyped} disabled={!typed.trim()} data-testid="picker-add-typed">
+        <button onClick={() => void addTyped()} disabled={!typed.trim() || adding} data-testid="picker-add-typed">
           ＋ Add
         </button>
       </div>
@@ -309,6 +357,9 @@ function PickerRow({
   kind,
   known,
   onAdd,
+  selected,
+  disabled,
+  onSelect,
 }: {
   item: ListItem;
   /** The file's own name inside the folder being browsed; the full server name is the hover. */
@@ -316,6 +367,9 @@ function PickerRow({
   kind: 'template' | 'media';
   known: boolean;
   onAdd: () => void;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: (shift: boolean) => void;
 }) {
   const ref = useRef<HTMLLIElement>(null);
   const [thumb, setThumb] = useState<string | null | undefined>(undefined);
@@ -339,6 +393,7 @@ function PickerRow({
 
   return (
     <li ref={ref} className="pd-picker-row" data-testid="picker-row" data-name={item.name}>
+      <button className="pd-picker-select" aria-pressed={selected} disabled={disabled} onClick={e => onSelect(e.shiftKey)} title={`Select ${item.name}`} data-testid="picker-select">
       {kind === 'media' && (
         <span className="pd-picker-thumb" aria-hidden="true">
           {thumb ? <img src={thumb} alt="" /> : null}
@@ -350,7 +405,9 @@ function PickerRow({
           {kind === 'template' ? (known ? 'template · fields known from your library' : 'template') : `${item.kind}${duration ? ` · ${duration}` : ''}`}
         </span>
       </span>
-      <button onClick={onAdd} title={`Add ${item.name}`} data-testid="picker-add">
+      {selected && <span aria-hidden="true">✓</span>}
+      </button>
+      <button onClick={onAdd} disabled={disabled} title={`Add ${item.name}`} data-testid="picker-add">
         ＋ Add
       </button>
     </li>

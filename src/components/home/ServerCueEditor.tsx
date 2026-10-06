@@ -4,6 +4,7 @@ import {
   MAX_PLAYOUT_LAYER,
   MIN_PLAYOUT_LAYER,
   setCuePlayback,
+  setCueImageFit,
   setPlayoutItemChannel,
   setPlayoutItemFields,
   setPlayoutItemLayer,
@@ -295,6 +296,23 @@ export default function ServerCueEditor({
       )}
       {media && (
         <AccountAuthoringGate>
+        {item.mediaKind === 'still' && (
+          <div className="pd-clip-row" data-testid="picture-fit">
+            <span className="pd-clip-label">Picture</span>
+            <span className="ctl-segmented" role="radiogroup" aria-label="Picture fitting">
+              {(['fit', 'stretch'] as const).map(mode => (
+                <button key={mode} role="radio" aria-checked={(cue.imageFit ?? 'fit') === mode}
+                  disabled={mode === 'fit' && cue.imageFit === 'stretch' && !!offerBlocked(ability, NEEDS.imageFit)}
+                  title={mode === 'fit' ? offerBlocked(ability, NEEDS.imageFit) ?? 'Keep proportions, centered with black bars' : 'Fill the frame without preserving proportions'}
+                  onClick={() => setShows(setCueImageFit(showId, cue.id, mode))}
+                  data-testid={`picture-choice-${mode}`}>
+                  {mode === 'fit' ? 'Fit' : 'Stretch'}
+                </button>
+              ))}
+            </span>
+            <span className="muted pd-clip-hint">{live ? 'Applies at the next Take' : 'Fit keeps proportions with black bars'}</span>
+          </div>
+        )}
         <ClipAdvanced
           item={item}
           cue={cue}

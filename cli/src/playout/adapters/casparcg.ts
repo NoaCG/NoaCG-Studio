@@ -18,8 +18,9 @@ import {
   type AmcpReply,
   type AmcpTarget,
 } from '../amcp.js';
-import { parseInfo, type InfoLayer } from '../info.js';
-import type { Follower, SlotReading } from '../slots.js';
+import { parseInfo, parseInitialPath, type InfoLayer } from '../info.js';
+import { pictureCanvas, pictureFilter, pictureUrl } from '../picture.js';
+import { playsItem, type Follower, type SlotReading } from '../slots.js';
 import type {
   AgentError,
   CasparSlot,
@@ -438,7 +439,9 @@ async function send(target: CasparTarget, line: string, listing = false, timeout
  *  from INFO, and a sequence is run by watching INFO. `IN`, `OUT` and `AF` are in the 2.3.3 and
  *  2.5.0 sources and were measured on both on this machine. */
 function casparCapabilities(version: string | undefined): TargetCapability[] {
-  return readsState(version) ? ['state', 'end', 'fade', 'trim', 'level', 'sequence'] : ['end'];
+  const parts = /^(\d+)\.(\d+)/.exec(version ?? '');
+  const fit = parts && (+parts[1] > 2 || (+parts[1] === 2 && +parts[2] >= 5)) ? ['image-fit' as const] : [];
+  return readsState(version) ? ['state', 'end', 'fade', 'trim', 'level', 'sequence', ...fit] : ['end'];
 }
 
 /**
@@ -449,6 +452,7 @@ function casparCapabilities(version: string | undefined): TargetCapability[] {
  */
 export function createCasparcgAdapter(now: () => number = () => performance.now()): PlayoutAdapter<CasparTarget> {
   const rates = new Map<string, { rate: number; at: number }>();
+  const fitted = new Map<string, { url: string; name: string }>();
   const rateKey = (target: CasparTarget, channel: number) => `${target.host}:${target.port} ${channel}`;
 
   /** One channel's INFO, read into its layers - and its rate remembered. */
@@ -462,7 +466,14 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
     try {
       const info = parseInfo(r.value.lines[0] ?? '');
       if (info.fps && info.fps > 0) rates.set(rateKey(target, channel), { rate: info.fps, at: now() });
-      return { ok: true, value: { layers: info.layers.map(slotReading), rate: info.fps }, raw: r.raw };
+      const layers = info.layers.map(layer => {
+        const reading = slotReading(layer);
+        const frame = fitted.get(`${rateKey(target, channel)}-${layer.layer}`);
+        if (!frame || reading.file !== frame.url) return reading;
+        const { segment: _segment, position: _position, starting: _starting, ...still } = reading;
+        return { ...still, file: frame.name, producer: 'still' as const, loop: false };
+      });
+      return { ok: true, value: { layers, rate: info.fps }, raw: r.raw };
     } catch (e) {
       return {
         ok: false,
@@ -509,6 +520,62 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       raws.push(r.raw);
     }
     return { ok: true, value: {}, raw: raws.join('; '), sent: lines.length };
+  }
+
+  async function fitPicture(target: CasparTarget, action: Extract<PlayoutAction, { verb: 'take' }>, context: ActContext): Promise<ActResult> {
+    const slot = action.slot as CasparSlot;
+    const at = casparAt(slot);
+    let loaded = !!context.follower && context.follower.file !== 'EMPTY';
+    try {
+      if (action.item.kind !== 'media' || action.loop || action.playback?.trim || (action.playback?.end && action.playback.end !== 'hold') || action.playback?.fadeOut !== undefined) {
+        throw new UsageError('Picture Fit requires a still without a loop, trim or automatic ending. It holds until Out.');
+      }
+      // Resolve through the same server producer as ordinary pictures. Loading background
+      // never puts it on air; this entire preparation is in the slot's serial Take queue.
+      const load = await send(target, `LOADBG ${at} ${mediaName(action.item)} SCALE_MODE FIT`);
+      if (!load.ok) throw load.error;
+      loaded = true;
+      let source: string | undefined;
+      let format: string | undefined;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const r = await send(target, `INFO ${slot.channel}`, false, STATE_TIMEOUT_MS);
+        if (!r.ok) throw r.error;
+        const info = parseInfo(r.value.lines[0] ?? '');
+        const bg = info.layers.find(l => l.layer === slot.layer)?.background;
+        format = info.format;
+        // A successful LOADBG can answer before INFO shows the new background. Never use
+        // a previously queued picture's path for the new cue.
+        if (bg?.path && playsItem(action.item, bg.path) && (bg.producer === 'image' || bg.transition?.producer === 'image')) { source = bg.path; break; }
+        if (bg && playsItem(action.item, bg.name ?? bg.path) && bg.producer !== 'empty' && bg.producer !== 'transition' && bg.producer !== 'image') {
+          throw new UsageError('Picture Fit requires a still image. Choose Stretch for this file.');
+        }
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      if (!source) throw new UsageError('CasparCG did not resolve the picture in time. The current foreground was kept.');
+      let initialPath: string | undefined;
+      if (!/^(?:[a-z]:[\\/]|[\\/])/i.test(source)) {
+        const paths = await send(target, 'INFO PATHS');
+        if (!paths.ok) throw paths.error;
+        initialPath = parseInitialPath(paths.value.lines[0] ?? '');
+      }
+      const url = pictureUrl(source, initialPath);
+      const vf = pictureFilter(pictureCanvas(format));
+      const fade = action.playback?.fadeIn;
+      const rate = await rateWhen(fade !== undefined, target, slot.channel);
+      if (!rate.ok) throw rate.error;
+      const mix = fade === undefined ? '' : ` MIX ${framesAt(fade, rate.value as number)}`;
+      const audio = action.playback?.gain === undefined ? '' : ` AF ${amcpQuote(volumeFilter(action.playback.gain))}`;
+      const play = await send(target, `PLAY ${at} ${amcpQuote(url)} VF ${amcpQuote(vf)}${audio}${mix}`);
+      if (!play.ok) throw play.error;
+      fitted.set(`${rateKey(target, slot.channel)}-${slot.layer}`, { url, name: action.item.name });
+      return { ok: true, value: { follower: null }, raw: play.raw };
+    } catch (error) {
+      const reported = error && typeof error === 'object' && 'hop' in error && 'detail' in error ? error as AgentError : failure(target, error, false);
+      const result: ActResult = { ok: false, error: reported };
+      if (!loaded) return result;
+      const disarm = await send(target, disarmLine(action.slot));
+      return disarm.ok ? { ...result, follower: null } : { ...result, error: { ...result.error, detail: `${result.error.detail} Background cleanup also failed: ${disarm.error.detail}` } };
+    }
   }
 
   return {
@@ -570,6 +637,7 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
     },
 
     async act(target, action, context = {}) {
+      if (action.verb === 'take' && action.imageFit === 'fit') return fitPicture(target, action, context);
       let lines: string[];
       try {
         const rate = await rateWhen(needsRate(action), target, (action.slot as CasparSlot).channel);
@@ -584,6 +652,7 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       const disarm = media && !!context.follower && context.follower.file !== 'EMPTY';
       const r = await sendLines(target, action.slot, lines, disarm);
       if (!r.ok) return r;
+      if (['take', 'out', 'clear', 'sequence'].includes(action.verb)) fitted.delete(`${rateKey(target, (action.slot as CasparSlot).channel)}-${(action.slot as CasparSlot).layer}`);
       // What waits behind the clip now. A PLAY of a file empties the background; a queued line fills it.
       let follower: ActDone['follower'];
       if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;

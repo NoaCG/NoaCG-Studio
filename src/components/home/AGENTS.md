@@ -162,12 +162,10 @@ Two surfaces here mount it, and both must ask the SAME gate: **`useTeamsAvailabl
   team: one card per team with its members, its productions and the join-code door.
 - **ProductionPage** - Share is an item of the header's **Setup** menu (`home/ProductionSetupMenu`),
   with the Panel door, Playout settings, Export and the unused Data and Audience
-  views. A team production shows the TEAM's chip in the header instead, FIRST in the right
-  cluster and left of Setup: its width changes (personal, team, saving), and the cluster is
-  right-aligned, so only what sits left of a control can never move it. Setup and ■ All out keep
-  their places in every team state, because operators press them by muscle memory
-  (`e2e/configured/teams.spec.ts` measures it). The chip's name stands down under 1440px, and
-  "edited by" lives in its tooltip. Opened cold on a team production before the first team fetch,
+  views. A team production puts its TEAM identity/action and "edited by" metadata inside Setup.
+  Pending and failed save states remain visible left of Setup, so operators cannot miss them.
+  Setup and ■ All out keep their places in every team state because operators press them by
+  muscle memory (`e2e/configured/teams.spec.ts` measures it). Opened cold before the first team fetch,
   the page says "Loading" rather than "no longer exists".
 
 **Never gate a team surface on `useAuthState().signedIn`** - it is TRUE offline (deliberately,

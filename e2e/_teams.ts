@@ -43,7 +43,7 @@ export const TEAM = {
   /** The Teams entry in Home's nav, and the section it opens. */
   navTeams: 'home-nav-teams',
   teamsSection: 'teams-section',
-  /** A team production's header: its team chip and save state. */
+  /** A team production's identity/action inside Setup. Save failures remain in the header. */
   productionTeam: 'production-team',
   moveToTeam: 'move-to-team',
   moved: 'team-moved',

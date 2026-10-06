@@ -192,7 +192,7 @@ test('which servers can be read: 2.3 and later', () => {
   // Everything phase 3 plays needs INFO read in this shape too: a fade or a trim is counted in the
   // channel's frames, read from INFO, and a sequence is run by watching it. A Clear at the end is a
   // plain `LOADBG … EMPTY AUTO`, which every version has.
-  assert.deepEqual(casparcgAdapter.capabilities('2.5.0 69e8ad5 Stable').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
+  assert.deepEqual(casparcgAdapter.capabilities('2.5.0 69e8ad5 Stable').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence', 'image-fit']);
   assert.deepEqual(casparcgAdapter.capabilities('2.3.2 4de6d18f Dev').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
   assert.deepEqual(casparcgAdapter.capabilities('2.0.7').target, ['end']);
 });
@@ -412,9 +412,9 @@ test('/health says what the Bridge understands; /status says what this server ca
   t.after(() => caspar.close());
   const { call, casparTarget } = await bridge(t, caspar);
   const health = await call('/health');
-  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels']);
+  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit']);
   const status = await call('/status', { target: casparTarget });
-  assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
+  assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence', 'image-fit']);
 });
 
 test('/channels reads the server\'s channels off a bare INFO, and touches no layer', async (t) => {

@@ -268,7 +268,7 @@ import {
 import BrandLogo from '../BrandLogo';
 import NewGraphicButton from '../NewGraphicButton';
 import { copyLink } from './copyLink';
-import { IconTv, IconUsers } from '../icons';
+import { IconTv } from '../icons';
 import PlayoutSettingsDialog from '../PlayoutSettingsDialog';
 import { PanelDialog, panelTone, usePanelAnswer, type PanelAnswerState } from '../control/PanelControl';
 import { PANEL_VERBS, panelClip, rundownPanelRows, type PanelVerb } from '../../control/panelFeedback';
@@ -277,7 +277,8 @@ import { useTeamsAvailable } from '../teams/useTeamsAvailable';
 import { useTeamState } from '../teams/useTeamState';
 import { editedWhen } from '../teams/teamLabels';
 import { teamShowsStatus } from '../../model/teamShows';
-import { dismissTeamNote, teamMemberName } from '../../backend/teamProductions';
+import { dismissTeamNote, teamMemberName, flushTeamProduction, refreshTeams, getTeamState } from '../../backend/teamProductions';
+import { syncNow, getSyncState } from '../../backend/syncController';
 import { ReadyOutputList, announcedExpected, useExpectedOutputs, useLivePresence, useReadinessView } from '../control/OutputHealth';
 import { usePublishDrift } from './usePublishDrift';
 import { directCue } from '../../model/cueShortcuts';
@@ -479,6 +480,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const [clip, setClip] = useState<CueClip | null>(null);
   /** What the rundown's authoring last said: a refused drop, or a folder write that did not land. */
   const [rundownNote, setRundownNote] = useState<string | null>(null);
+  const rundownFeedback = useRef<HTMLDivElement>(null);
+  const [refreshingRundown, setRefreshingRundown] = useState(false);
+  const refreshingId = useRef<string | null>(null);
   /** Why each cue of the last folder Take did not go on air, by cue id - until that cue is taken, the
    *  folder is taken again, or it is taken off. Page memory. */
   const [takeMisses, setTakeMisses] = useState<Readonly<Record<string, string>>>({});
@@ -1282,6 +1286,42 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setDraft(null);
     }
   }, [id]);
+  const refreshRundown = async () => {
+    if (refreshingId.current || !show) return;
+    if (!backendConfigured) { setRundownNote('This is a local workspace. There is no cloud rundown to refresh.'); return; }
+    if (!user || !canAuthorAccount()) { openSignIn('Sign in to refresh your rundown. Pending work is preserved.', 'resume'); return; }
+    const owner = { id, userId: user.id };
+    refreshingId.current = id;
+    setRefreshingRundown(true);
+    setRundownNote('Refreshing rundown…');
+    try {
+      window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+      const storageError = await commitDurableWrites();
+      if (storageError) throw new Error(storageError);
+      if (show.teamId) {
+        const saveError = await flushTeamProduction(id);
+        if (saveError) throw new Error(saveError);
+        await refreshTeams();
+        const fresh = getTeamState();
+        if (fresh.loadError || fresh.saving[id]) throw new Error(fresh.loadError ?? fresh.notes[id] ?? 'Saving is not yet confirmed.');
+        if (!fresh.heads[id]) throw new Error('This production is no longer available to your account.');
+      } else {
+        // Applying a cloud pull announces a durable change and schedules a confirmation
+        // pass. Await that pass too; receiving new cues must not itself look like failure.
+        for (let pass = 0; pass < 3; pass++) {
+          await syncNow();
+          if (getSyncState().phase !== 'pending') break;
+        }
+        const fresh = getSyncState();
+        if (fresh.phase !== 'synced') throw new Error(fresh.detail ?? 'The current cloud revision could not be confirmed.');
+      }
+      if (publishOwner.current.id !== owner.id || publishOwner.current.userId !== owner.userId) return;
+      setShows(loadShows());
+      setRundownNote('Rundown refreshed from cloud.');
+    } catch (error) {
+      if (publishOwner.current.id === owner.id && publishOwner.current.userId === owner.userId) setRundownNote(`Refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally { refreshingId.current = null; setRefreshingRundown(false); }
+  };
   useEffect(() => {
     window.addEventListener('noacg-account-authoring-pausing', flushDraft);
     window.addEventListener('noacg-account-authoring-flush', flushDraft);
@@ -4159,6 +4199,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const upHereLayers = started ? [] : liveLayers;
   const publishedLabel = versionLabel(publishedVer);
   const readySummary = readiness.summary.show ? readiness.summary : null;
+  const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout').map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
   const playoutStatus = describePlayoutStatus({
     started,
     unpublished: requiresPreparation,
@@ -4169,6 +4210,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     managedOutput: hasCasparOutput(show.outputSetup),
     destinationCheck: destinationCheck(show.outputSetup, livePresence.peers),
     fileCheck: needsServerFiles && bridgeOk ? serverFiles?.key === serverFileKey ? serverFiles.check : { key: 'files', tone: 'warn', short: 'Checking server files…', label: 'Checking referenced CasparCG files…' } : null,
+    playbackCheck: unsupportedCue ? { key: 'playback', tone: 'bad', short: 'Cue settings unavailable', label: `${unsupportedCue.cue.label}: cannot Take`, advice: unsupportedCue.reason! } : null,
   });
 
   // WHICH VIEWS THE SWITCHER SHOWS (docs/PLAYOUT_DASHBOARD.md §2, owner 2026-10-03): Data and
@@ -4559,6 +4601,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             the stage head above it and the rundown beside it never move. */}
         <div className="pd-control-area" data-testid="control-area">
         {note && <p className={note.startsWith('✓') ? 'status-ok' : 'status-bad'} data-testid="production-note">{note}</p>}
+        <div ref={rundownFeedback} className="pd-rundown-feedback" />
 
         {/* A held folder row: its panel (home/FolderEditor), where a cue's editor would be. */}
         {selectedFolder &&
@@ -5000,6 +5043,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         manualLane={manualLane}
         stepNext={stepNext}
         rundownNote={rundownNote}
+        feedbackTarget={rundownFeedback}
         clashes={clashes}
         offstage={!!sub}
         cueView={cueView}
@@ -5023,6 +5067,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         setRundownNote={setRundownNote}
         uploadPictures={uploadPictures}
         flushDraft={flushDraft}
+        refreshRundown={refreshRundown}
+        refreshing={refreshingRundown}
         setShows={setShows}
       />
       </>)}
@@ -5269,26 +5315,9 @@ function ProductionShell({
             answers. Each status sits LEFT of Setup and ■ All out because its width changes with
             its state and the cluster is right-aligned, so those two never move (owner,
             2026-10-01: operators build muscle memory).
-            The team chip is the door to the team (docs/TEAMS_PLAN.md §6). It is absent offline
-            and signed out - `useTeamsAvailable` is the one gate, and this surface asks it rather
-            than testing the auth state itself. Its name gives way to the people icon under
-            1440px and "edited by" rides the tooltip. Saving… and Not saved are never hidden -
-            they are the two states an operator must not miss. */}
-        {teamsAvailable && team && (
-          <button
-            className="pd-team"
-            onClick={() => openTeam(team.id)}
-            title={`Shared with team “${team.name}”${edited ? ` · ${edited}` : ''} - see its members and join code`}
-            aria-label={`Team ${team.name}`}
-            data-testid="production-team"
-          >
-            <IconUsers />
-            <span className="pd-team-name">{team.name}</span>
-            <span className={`pd-team-save${saving ? ` ${saving}` : ''}`} data-testid="production-team-save">
-              {saving === 'pending' ? 'Saving…' : saving === 'failed' ? 'Not saved' : edited}
-            </span>
-          </button>
-        )}
+            Team identity and its door live inside Setup, gated by useTeamsAvailable.
+            Saving… and Not saved stay visible: an operator must not miss either state. */}
+        {show.teamId && saving && <span className={`pd-team-save ${saving}`} role="status" data-testid="production-team-save">{saving === 'pending' ? 'Saving…' : 'Not saved'}</span>}
         {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
             connecting. A press opens its dialog, as the Setup menu's item does. */}
         {panelState !== 'off' && (
@@ -5303,6 +5332,7 @@ function ProductionShell({
         )}
         <ProductionSetupMenu
           showId={show.id}
+          team={teamsAvailable && team ? { name: team.name, detail: `Shared with team “${team.name}”${edited ? ` · ${edited}` : ''}`, open: () => openTeam(team.id) } : undefined}
           onShare={teamsAvailable && !show.teamId ? () => openShare(show.id, show.name) : undefined}
           panel={panel}
           onPanel={onPanel}

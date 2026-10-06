@@ -115,7 +115,8 @@ test('takeBlocker knows folders: a member takes by its folder\'s rules, a folder
   assert.equal(takeBlocker(folders[0], cues, items, address, BRIDGE_06, folders), expected);
   // The still itself is taken on its own Take, as outside any folder.
   assert.equal(throughFolderOf(cues[2], cues, items, folders), undefined);
-  assert.equal(takeBlocker(cues[2], cues, items, address, BRIDGE_06, folders), null);
+  assert.match(takeBlocker(cues[2], cues, items, address, BRIDGE_06, folders), /Update NoaCG Bridge/);
+  assert.equal(takeBlocker({ ...cues[2], imageFit: 'stretch' }, cues, items, address, BRIDGE_06, folders), null);
   // Without folders, nothing changed.
   assert.equal(takeBlocker(cues[0], cues, items, address, BRIDGE_05), null);
 

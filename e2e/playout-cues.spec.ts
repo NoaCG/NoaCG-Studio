@@ -215,7 +215,7 @@ const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length 
 
 /** A Bridge from this build in front of a CasparCG 2.5: it plays every setting. It is asked for no
  *  `/state` here (no `state` feature), which this spec does not fake; the clock's specs do. */
-const PLAYS_EVERYTHING: Partial<FakeBridge> = { features: ['playback', 'sequence'], capabilities: ['end', 'fade', 'trim', 'level', 'sequence'] };
+const PLAYS_EVERYTHING: Partial<FakeBridge> = { features: ['playback', 'sequence', 'image-fit'], capabilities: ['end', 'fade', 'trim', 'level', 'sequence', 'image-fit'] };
 
 /** A clip on the server, added from the picker and selected in the editor. */
 async function addClip(page: Page, name = 'GIORNO'): Promise<void> {

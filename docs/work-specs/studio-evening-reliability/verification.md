@@ -3,7 +3,7 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Verified product commit `1464afaee` is published; the branch is not merged or deployed.
+The earlier verified product commit `1464afaee` is pushed; release completion continues below.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
 an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
@@ -12,9 +12,11 @@ The frozen product sources at `1464afaee` pass the full local browser/catalog ru
 branch CI and guarded database-backed suite. The diagnostic persistence race exposed by an
 earlier documentation-only CI run is reproduced and corrected. Review and simplification ran inline; all
 28 confirmed findings are fixed, including the two original-media follow-up defects below.
-Release verification remains held for the updated application/Bridge rehearsal, recorded
-program audio and cross-device rehearsal. The receipts below preserve earlier failures
-as well as their passing replacements.
+The owner approved finishing and releasing on 2026-10-06, waiving the exact historical graphic
+and further manual studio checks as release gates. Representative sound, cloud, Bridge and UI
+checks remain required. Physical ATEM routing remains unverified. The receipts below preserve
+earlier failures and their passing replacements; the release completion section supersedes
+the earlier development-only holds.
 
 ## Review and simplification
 
@@ -421,11 +423,48 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   scope plus the complete follow-up delta: 134 files including the read-only supplied photo.
   Both additional confirmed defects are fixed, for 28/28 overall. No further cleanup was needed.
 
-Do not queue-merge: landing runs production migrations/deployment automatically. Complete the
-receiving-host/copied-production and cross-device rehearsals in the existing owner queue, and
-use the original-media comparison above. The full guarded isolated-backend suite and recorded Linux
-baselines pass. Retain the working application, Bridge and studio configuration for rollback.
+The original development hold above is superseded by the owner's approved release completion.
+Physical ATEM routing and historical home-account writes remain unverified; neither is presented
+as a code failure or as evidence supplied by automation.
 
-Release verification remains incomplete. Record a failing check stamp until the
-actual-media/receiving-host/cross-device gates pass.
-Passing development checks do not authorize the production deployment path.
+## Release completion, 2026-10-06
+
+- Added + Add / Refresh rundown with durable draft flush, personal cloud confirmation and team
+  compare-and-swap flush. A reproduced pull/confirmation race is fixed: a successful fresh read
+  no longer reports failure merely because applying it schedules a confirmation pass.
+- Moved team identity and edited-by metadata into Setup; pending/failed save state stays visible.
+- Added persistent multi-selection, Add selected and recursive Add folder with stable path order,
+  exact filenames and one production edit. A refused save retains the selection and never reports
+  Added; the current operational selection stays in place.
+- Native pictures default to Fit with opaque black padding on their own layer. Stretch is an
+  explicit per-cue choice applied at the next Take. An older Bridge refuses Fit with update advice.
+  The fitted producer resolves the requested background image, never a stale queued picture;
+  preparation failure preserves foreground and disarms background. Unsupported still settings
+  and server formats are reported before Take rather than silently ignored.
+- Rundown feedback, including a refused drop, lives beside the editor. It cannot resize the cue
+  viewport. The 36-cue bottom-scroll regression holds every row coordinate, height and scroll
+  position through Refresh feedback. Existing Space/unidentified diagnostics also stay off the rail.
+- Isolated CasparCG 2.5.0 on port 5251 recorded portrait, square and original supplied pictures.
+  A 400x800 portrait occupies exactly 540 of 1920 pixels; a square occupies 1080. Padding pixels
+  are opaque black above a green lower layer. Stretch fills the frame. Missing-file failure retains
+  the current foreground, and Clear leaves the other test layer running. Only the owned isolated
+  server was stopped; original media and installed server/configuration remain unchanged.
+  Inspected [Fit](built/studio-picture-fit-portrait.png) and
+  [Stretch](built/studio-picture-stretch-portrait.png) captures use synthetic images.
+- Operator browser job j-3503 passes all six scenarios, including cloud pull, draft flush/failure,
+  old Bridge refusal, persisted Stretch, retryable bulk save failure and stable rundown geometry.
+  The earlier failures were assertion mismatches with actual labels and the storage error copy;
+  those assertions now require the specific user-visible messages without weakening behavior.
+- Representative graphic In/step/Out sound browser checks pass all 18 scenarios. Real physical
+  broadcast/ATEM audio remains outside this evidence; attached graphic audio follows its output
+  channel, while independent native audio defaults to channel 2, layer 5.
+- Full application build j-3500 passes 2459 active gate checks / three skips, TypeScript, lint,
+  architecture and all artifact checks. The feedback relocation was added afterwards and requires
+  the final reconciled build below. CLI 0.9.0 passes 240 active checks / 18 skips. Companion tests
+  pass 30/30 and its lint/package build produces the 0.1.1 developer bundle.
+- Inline review/simplification retains the prior 28 confirmed corrections and fixes four further
+  findings: false bulk-save success, stale background picture resolution, false refresh failure
+  during confirmation, and feedback resizing the rundown viewport. Final integration/CI and
+  release receipts must be recorded before claiming deployment.
+- Rollback baseline: website commit `1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d` and installed Bridge
+  0.8.1. Release 0.9.0 does not automatically replace any installed Bridge or CasparCG server.

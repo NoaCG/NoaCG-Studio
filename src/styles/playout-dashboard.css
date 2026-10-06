@@ -2077,7 +2077,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-rundown .pd-drop-end[data-drop='into'] { border: 2px solid #cfd8e6; color: var(--text); }
 .pd-rundown .pd-drop-end[data-drop='refused'] { border: 2px dashed var(--danger); }
-.pd-rundown .pd-rundown-note { flex: none; margin: 0; padding: 6px 12px 0; font-size: 12px; }
+.pd-control-area .pd-rundown-note { margin: 0 0 8px; font-size: 12px; }
+.pd-rundown-feedback { order: 3; }
 /* The range's count and its verb, under the list while a shift-click selection stands. */
 .pd-rundown .pd-range-bar {
   flex: none;
@@ -2469,6 +2470,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-picker-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; min-width: 0; }
 /* The Add button never shrinks and never scrolls away; the name gives way instead. */
 .pd-picker-row > button { flex: none; }
+.pd-picker-row > .pd-picker-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 4px; text-align: left; border-color: transparent; background: none; }
+.pd-picker-select[aria-pressed='true'] { border-color: var(--amber); background: rgba(255, 190, 70, 0.08); }
+.pd-picker-bulk { display: flex; gap: 6px; flex-wrap: wrap; }
+.pd-picker-bulk button { font-size: 12px; }
 /* A folder row is one button across the row: the whole line opens the folder. */
 .pd-picker-row > .pd-picker-folder {
   flex: 1;

@@ -266,6 +266,28 @@ export function refreshTeams(): Promise<void> {
   return refreshing;
 }
 
+/** Confirm this production's pending edits before an operator requests a fresh cloud read. */
+export async function flushTeamProduction(id: string): Promise<string | null> {
+  const owner = running;
+  if (!owner || !canAuthorAccount() || owner.userId !== libraryInUse()) return 'Sign in to refresh this team production. Pending work is preserved.';
+  if (!dirty.has(id) && !inflight.has(id)) return state.saving[id] === 'failed' ? state.notes[id] ?? 'The save failed.' : null;
+  const timer = timers.get(id);
+  if (timer) { clearTimeout(timer); timers.delete(id); }
+  await pushSave(id);
+  if (running !== owner) return 'The account changed while saving. Pending work is preserved.';
+  if (state.saving[id] === 'pending') {
+    await new Promise<void>(resolve => {
+      const unsubscribe = subscribeTeamState(() => {
+        if (running !== owner || state.saving[id] !== 'pending') done();
+      });
+      const timeout = setTimeout(done, 15_000);
+      function done() { clearTimeout(timeout); unsubscribe(); resolve(); }
+    });
+  }
+  if (running !== owner) return 'The account changed while saving. Pending work is preserved.';
+  return state.saving[id] ? state.notes[id] ?? 'Saving is not yet confirmed. Pending work is preserved.' : null;
+}
+
 async function refreshOnce(): Promise<void> {
   const owner = running;
   const [teamsAnswer, membersAnswer, headsAnswer] = await Promise.all([

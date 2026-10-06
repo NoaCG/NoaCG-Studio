@@ -56,7 +56,7 @@ export const DEFAULT_BRIDGE_PORT = 8899;
 export const DEFAULT_AMCP_PORT = 5250;
 
 /** What this build understands beyond the routes every v2 Bridge answers (`/health`). */
-export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels'];
+export const BRIDGE_FEATURES: readonly BridgeFeature[] = ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit'];
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0:0:0:0:0:0:0:1']);
 
@@ -314,6 +314,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   const a = body.action;
   if (!isRecord(a)) throw new UsageError('The request has no action.');
   const slot = readSlot(a.slot);
+  if (a.imageFit !== undefined && (a.verb !== 'take' || (a.imageFit !== 'fit' && a.imageFit !== 'stretch') || slot.adapter !== 'casparcg')) throw new UsageError('imageFit is Fit or Stretch on a CasparCG media Take.');
   // A field on the wrong verb is refused rather than dropped: a level on an update would otherwise
   // look applied and change nothing (docs/CLIP_PLAYBACK_PLAN.md §6.6, a level applies at the next Take).
   if (a.playback !== undefined && a.verb !== 'take' && a.verb !== 'ending') throw new UsageError(`A ${String(a.verb)} carries no playback: a clip's ending, fades, level and trim go with its Take.`);
@@ -323,8 +324,10 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
   switch (a.verb) {
     case 'take': {
       const item = readItem(a.item);
+      if (a.imageFit !== undefined && item.kind !== 'media') throw new UsageError('Only a still media file carries imageFit.');
       const playback = readPlayback(a.playback);
       if (playback && item.kind !== 'media') throw new UsageError(`Only a clip carries playback; this is a ${item.kind}.`);
+      if (a.imageFit === 'fit' && (a.loop === true || playback?.trim || (playback?.end && playback.end !== 'hold') || playback?.fadeOut !== undefined)) throw new UsageError('Picture Fit requires a still without a loop, trim or automatic ending. It holds until Out.');
       if (a.loop === true && playback?.end !== undefined && playback.end !== 'loop') throw new UsageError(`A clip cannot both loop and ${playback.end} at its end.`);
       return {
         verb: 'take',
@@ -334,6 +337,7 @@ export function readAction(body: Record<string, unknown>): PlayoutAction {
         loop: a.loop === true,
         ...readCueId(a.cueId),
         ...playbackField(playback),
+        ...(a.imageFit === 'fit' || a.imageFit === 'stretch' ? { imageFit: a.imageFit } : {}),
       };
     }
     case 'update': {

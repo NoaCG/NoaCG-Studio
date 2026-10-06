@@ -8,7 +8,9 @@ serves: now
 The earlier Publish/output setup work landed separately. Automated checks cover its setup flow,
 legacy compatibility, routing commands and sound regressions. Actual receiving software,
 physical channel routing and audio buses still need a studio check before on-air use.
-The evening reliability branch below remains held before merge and deployment.
+The owner approved release on 2026-10-06 and waived additional studio checks as merge gates.
+Keep these optional receiving-host checks for the next pre-show rehearsal. Agent-verifiable
+checks, the additive migration and the normal release workflow still apply.
 
 ## The route, under a minute
 
@@ -46,5 +48,5 @@ exact workflow and evidence to retain.
    Test temporary offline work, expiry, sign-in recovery and a team conflict. Pending work must
    never claim cloud confirmation, and expired authoring must leave running playout available.
 
-Do not merge this branch into the automatic production deployment path until this rehearsal,
-the migration check and the agent-verifiable checks in its verification record are complete.
+This optional rehearsal does not hold the release. Physical audio routing and receiving-host
+behavior remain venue responsibilities; record any result before relying on that route on air.

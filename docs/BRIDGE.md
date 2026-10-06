@@ -1,5 +1,13 @@
 # NoaCG Bridge - the local program that lets the NoaCG page drive a playout server
 
+Version 0.9.0 preserves significant filename spaces in playback state and supports exact-slot
+Stop/Clear recovery. Native picture cues default to Fit with opaque black padding on their own
+slot; choose Stretch in the selected cue editor when proportions should change. Fit requires
+Bridge 0.9.0 and CasparCG 2.5 or later. An older Bridge or unsupported file/channel format gives
+an explicit error before replacing foreground. Updating the Bridge does not require changing
+CasparCG configuration or upgrading the server. Existing Bridge installations are not updated
+automatically by a website release.
+
 **What this is.** NoaCG runs in the cloud; CasparCG runs on a studio network that must never be
 reachable from the internet. NoaCG Bridge is a small program on the operator's own machine that
 holds the socket a browser cannot, so the NoaCG page can put a production on a CasparCG channel,

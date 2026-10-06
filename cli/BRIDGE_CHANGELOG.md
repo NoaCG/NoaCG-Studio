@@ -12,7 +12,17 @@ Write a section the way you would tell an operator what they get by downloading 
 wrong or missing, what it does now, and anything they have to do. No pull request lists, no
 usernames, no internal names, nothing about how the program is built.
 
-## Unreleased
+## 0.9.0 - 2026-10-06
+
+**Pictures keep their proportions.** The selected picture cue now offers Fit and Stretch.
+Fit centers the complete picture with opaque black bars and is the default. Stretch fills
+the frame when you deliberately want to change the proportions. Changes apply at the next
+Take, and Out/Clear removes the complete picture from its own slot.
+
+Update the Bridge to use Fit with CasparCG 2.5 or later. An older Bridge is identified in the
+cue editor and readiness status, so a Fit request cannot silently play stretched. PNG/JPEG
+and standard HD/UHD channel formats are supported. Unsupported formats report the problem
+before replacing the current picture; Stretch remains available through the native producer.
 
 **Clip names keep their spaces.** A file with a space before its extension could play normally
 but lose its countdown and Out controls. The Bridge now keeps the exact filename reported by

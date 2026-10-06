@@ -40,6 +40,14 @@ const ours = { where: '1-20', channel: 1, holds: 'ours' };
 // `lead`, `preparing` and `broken` there).
 const readyOne = { tone: 'ok', label: '● Ready for playout · 1 of 1 output', lead: 'Ready for playout · 1 of 1 output', outputs: 1, ready: 1 };
 
+test('unsupported native cue settings override a ready graphics output', () => {
+  const result = describePlayoutStatus({ started: true, unpublished: false, version: 'v1', bridge: null, ready: readyOne,
+    playbackCheck: { key: 'playback', tone: 'bad', label: 'Photo cannot Take', short: 'Cue settings unavailable', advice: 'Update NoaCG Bridge or choose Stretch.' } });
+  assert.equal(result.tone, 'bad');
+  assert.equal(result.text, 'Cue settings unavailable');
+  assert.equal(result.checks[0].key, 'playback');
+});
+
 test('Bridge and output-slot relevance follows actual outputs, server cues and intended CasparCG', () => {
   const browser = { kind: 'output', engine: 'OBS · Chromium 127', name: 'Main output' };
   const facts = { configured: true, serverCues: false, peers: [browser], expected: [], casparActivity: false };

@@ -10,7 +10,13 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
-## Unreleased
+## 0.9.0 - 2026-10-06
+
+**Picture cues support Fit and Stretch through the Bridge.** Fit preserves the whole image
+with opaque black padding on the same slot. It holds until Out and remains identified as a
+still, without a video countdown. A refused preparation keeps the current foreground and
+disarms its queued follower. This requires CasparCG 2.5 or later and the updated Bridge;
+unsupported combinations report a clear error instead of silently dropping the setting.
 
 **The Bridge recognizes clips with spaces before the extension.** These files could play but
 lose their countdown and Out controls. CasparCG's exact filename is now preserved when reading

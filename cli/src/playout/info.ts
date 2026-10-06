@@ -172,3 +172,10 @@ export function parseInfo(xml: string): InfoChannel {
     layers,
   };
 }
+
+/** INFO PATHS is read only when the native image producer reports a relative file path. */
+export function parseInitialPath(xml: string): string | undefined {
+  const paths = kid(parseXml(xml), 'paths');
+  if (!paths) throw new UsageError('INFO PATHS answered without a <paths> document.');
+  return kid(paths, 'initial-path')?.text;
+}

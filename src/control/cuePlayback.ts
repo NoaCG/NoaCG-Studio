@@ -154,6 +154,7 @@ export interface PlaybackNeed {
 /** What each setting asks of the Bridge and its server: the one table both the editor's controls
  *  (`offerBlocked`) and the Take's check (`playbackNeeds`) read, so they can never disagree. */
 export const NEEDS = {
+  imageFit: { feature: 'image-fit', capability: 'image-fit', what: 'fits its picture with black bars', undo: 'choose Stretch' },
   clear: { feature: 'playback', capability: 'end', what: 'clears at its end', undo: 'set it to Hold' },
   next: { feature: 'sequence', capability: 'sequence', what: 'plays the next clip', undo: 'set it to Hold' },
   fade: { feature: 'playback', capability: 'fade', what: 'fades', undo: 'set its fades to Cut' },
@@ -165,10 +166,11 @@ export const NEEDS = {
 } as const satisfies Record<string, PlaybackNeed>;
 
 /** What this cue needs beyond a plain Take (plan §6.9). None for a legacy cue or a Loop. */
-export function playbackNeeds(cue: Pick<ShowCue, 'playback'>, item: Pick<PlayoutItem, 'loop' | 'mediaKind'>): PlaybackNeed[] {
+export function playbackNeeds(cue: Pick<ShowCue, 'playback' | 'imageFit'>, item: Pick<PlayoutItem, 'loop' | 'mediaKind'>): PlaybackNeed[] {
   const p = cue.playback;
   const end = effectiveEnd(cue, item);
   const needs: PlaybackNeed[] = [];
+  if (item.mediaKind === 'still' && cue.imageFit !== 'stretch') needs.push(NEEDS.imageFit);
   if (end === 'clear') needs.push(NEEDS.clear);
   if (end === 'next') needs.push(NEEDS.next);
   if (p?.fadeIn || p?.fadeOut) needs.push(NEEDS.fade);

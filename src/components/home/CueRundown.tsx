@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
-  addPlayoutItem,
+  addPlayoutItems,
   addShowCue,
   graphicLayer,
   type PlayoutItem,
@@ -47,6 +48,7 @@ import CueShortcutDialog from './CueShortcutDialog';
 import { cueShortcutLabel } from '../../model/cueShortcuts';
 import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { useAccountAuthoring } from '../AccountAuthoringGate';
+import { commitDurableWrites } from '../../model/durableStore';
 
 /** "A, B and C" — a warning an operator reads under pressure has to be a sentence. */
 export function nameList(names: string[]): string {
@@ -143,6 +145,7 @@ export default function CueRundown({
   manualLane,
   stepNext,
   rundownNote,
+  feedbackTarget,
   clashes,
   offstage,
   cueView,
@@ -167,6 +170,8 @@ export default function CueRundown({
   uploadPictures,
   flushDraft,
   setShows,
+  refreshRundown,
+  refreshing,
 }: {
   show: Show;
   cues: ShowCue[];
@@ -215,6 +220,8 @@ export default function CueRundown({
   stepNext: ReadonlySet<string>;
   /** What the rundown's authoring last said: a refused drop, a write that did not land. */
   rundownNote: string | null;
+  /** Feedback belongs beside the editor, so it cannot resize the operational cue list. */
+  feedbackTarget: RefObject<HTMLDivElement | null>;
   /** Layers two or more graphics share (model/shows `duplicateLayers`). */
   clashes: ReadonlyMap<number, SavedGraphic[]>;
   /** A workspace is in front: the rail stays mounted, out of sight. */
@@ -249,6 +256,8 @@ export default function CueRundown({
   uploadPictures: (files: File[]) => Promise<void>;
   flushDraft: () => void;
   setShows: (shows: Show[]) => void;
+  refreshRundown: () => Promise<void>;
+  refreshing: boolean;
 }) {
   const navigate = useRouter((s) => s.navigate);
   const [addPick, setAddPick] = useState('');
@@ -470,6 +479,12 @@ export default function CueRundown({
   ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
   const rangeInFolder = [...range].some((id) => !!rundown.rowOf.get(id) && cues.some((c) => c.id === id && !!c.folderId && rundown.folders.has(c.folderId)));
+  const feedback = aim?.plan?.refused ?? rundownNote;
+  let feedbackTone = 'status-bad';
+  if (!aim?.plan?.refused) {
+    if (feedback === 'Rundown refreshed from cloud.') feedbackTone = 'status-ok';
+    else if (feedback?.startsWith('Refreshing') || feedback?.includes('local workspace')) feedbackTone = 'hint';
+  }
 
   return (
     <aside ref={rail} id="pd-rundown" className={`pd-rail pd-rundown${offstage ? ' pd-offstage' : ''}`}>
@@ -490,7 +505,6 @@ export default function CueRundown({
         <div className="lib-menu-host pd-rundown-add">
           <button
             title="Add to the rundown"
-            disabled={!authoring}
             aria-haspopup="menu"
             aria-expanded={addOpen}
             onClick={() => { setPickerOpen(false); setAddOpen((o) => !o); }}
@@ -499,7 +513,9 @@ export default function CueRundown({
             + Add
           </button>
           <LibMenu open={addOpen} onClose={() => setAddOpen(false)} testid="rundown-add-menu" className="pd-rundown-add-menu">
-            {addActions.map(action => <button key={action.id} role="menuitem" disabled={action.disabled} title={action.help} data-testid={action.id === 'add-cue' ? action.id : `menu-${action.id}`} onClick={pickAdd(action.run)}>{action.label}</button>)}
+            {addActions.map(action => <button key={action.id} role="menuitem" disabled={!authoring || action.disabled} title={action.help} data-testid={action.id === 'add-cue' ? action.id : `menu-${action.id}`} onClick={pickAdd(action.run)}>{action.label}</button>)}
+            <div role="separator" className="pd-setup-sep" />
+            <button role="menuitem" disabled={refreshing} onClick={pickAdd(() => void refreshRundown())} data-testid="rundown-refresh">{refreshing ? 'Refreshing…' : 'Refresh rundown'}</button>
             <p className="hint">Uploaded images stay in NoaCG. CasparCG files must already be on the server.{!playoutConfigured(playoutSettings) && ' Set up NoaCG Bridge and CasparCG under Setup to browse server files.'}</p>
           </LibMenu>
           {playoutConfigured(playoutSettings) && <PlayoutItemPicker
@@ -510,17 +526,19 @@ export default function CueRundown({
             triggerRef={serverPick}
             onClose={() => setPickerOpen(false)}
             library={library}
-            onAdd={(item) => {
+            onAdd={async (items) => {
+              if (!authoring) return false;
               // Retain the server picker's kind-specific channel and safe default layer.
               const settings = loadPlayoutSettings();
-              const channel = defaultChannelFor(settings, item.kind);
-              const { shows: next, cueId } = addPlayoutItem(
+              const { shows: next, cueIds, error: writeError } = addPlayoutItems(
                 show.id,
-                { adapter: 'casparcg', ...item, channel },
+                items.map(item => ({ adapter: 'casparcg', ...item, channel: defaultChannelFor(settings, item.kind) })),
                 { output: { channel: settings.channel, layer: settings.layer } },
               );
               setShows(next);
-              if (cueId) selectCue(cueId);
+              const error = await commitDurableWrites() ?? writeError;
+              setRundownNote(error);
+              return !error && cueIds.length > 0;
             }}
           />}
         </div>
@@ -1079,12 +1097,11 @@ export default function CueRundown({
         )}
       </div>
 
-      {/* The rundown's own note: why a drop is refused - read while it hovers, and kept after - or a
-          folder write that did not land. Under the list, where it is never clipped. */}
-      {(aim?.plan?.refused ?? rundownNote) && (
-        <p className="status-bad pd-rundown-note" role="status" data-testid="rundown-note">
-          {aim?.plan?.refused ?? rundownNote}
-        </p>
+      {/* Authoring feedback sits outside the rail, including a refused drop while it hovers. */}
+      {feedback && feedbackTarget.current && createPortal(
+        <p className={`${feedbackTone} pd-rundown-note`} role="status" data-testid="rundown-note">
+          {feedback}
+        </p>, feedbackTarget.current
       )}
 
       {/* THE RANGE (owner, 2026-09-28): while a shift-click selection stands, its count and its verb,

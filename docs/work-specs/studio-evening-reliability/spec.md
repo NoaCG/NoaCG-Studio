@@ -93,3 +93,33 @@ before /queue-merge because landing starts production migrations/deployment auto
 First rehearse copied productions and test accounts, record program audio and compare the three
 original clips. Then use the normal merge flow for the controlled rollout, with rollback to the
 last working application/Bridge/configuration. No automatic deployment during development.
+
+## Approved release completion, 2026-10-06
+
+The owner approved implementing and releasing the complete plan after the studio shows. This
+supersedes the development-only deployment hold above. Continue on the existing feature branch,
+verify with /check, land through /queue-merge, and verify the normal website/database deployment
+and Bridge/CLI 0.9.0 release workflows. Preserve the previous website deployment and Bridge
+binary for rollback; do not change CasparCG configuration or upgrade the server.
+
+- Refresh rundown belongs in + Add. Flush pending edits, reconcile the current personal/team
+  production, and confirm fresh cloud state. Failure/conflict retains drafts. Selection and
+  scroll survive when their cue survives; refresh never publishes, Takes or reloads output.
+- Move the existing team name/action into Setup. Pending and failed cloud-save notices stay
+  independently visible during playout.
+- Pictures default to Fit: centered proportions and opaque black padding on the same slot.
+  The cue editor offers Fit/Stretch, persisted with the cue and applied at the next Take.
+  Native fitting uses a held server-side scaled/padded frame, resolved through background INFO;
+  failed preparation disarms its background while preserving the foreground. An explicit
+  Bridge/server capability prevents an older Bridge silently stretching a Fit request.
+- Media addition keeps the picker open until Done. Add selected and Add folder show counts;
+  folders include descendants, respect filters, and append ordinary cues in stable path order
+  in one production edit. Significant filename whitespace, routes and selection survive.
+- The exact historical quiz graphic and additional owner checks are not release gates. Verify
+  representative In/step/Out graphic sound, independent effects and two-browser cloud sync.
+  Studio ATEM routing and unavailable historical account logs remain explicitly unverified.
+- Re-run the complete build, affected browser tests, CLI/Bridge tests, guarded backend checks
+  and Companion package checks. The final exact commit needs a passing check stamp and CI;
+  cancelled checkout jobs are not passing browser evidence. Verify original picture shapes,
+  black padding above lower layers, clear/replacement, bulk addition, menu placement, save
+  failure/expiry/conflict and stable rundown geometry before landing.

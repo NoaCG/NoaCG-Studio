@@ -9,7 +9,9 @@ Browser proofs cover the Web Audio graph, packaged OGraf component, levels, reco
 cleanup. They do not prove the venue's audio route or recorded picture/sound skew.
 The 2026-10-05 studio report confirms native CasparCG audio files and video audio already
 reach the broadcast bus. The remaining question is attached graphic sound through the HTML
-producer. Hold the evening reliability branch before deployment; follow its
+producer. The owner waived further studio checks as release gates on 2026-10-06. The
+representative automated sound checks remain required. This optional venue check measures
+physical routing and recorded picture/sound skew after release; follow the
 [operator guide](../../work-specs/studio-evening-reliability/operator-guide.md) on a test route.
 Rehearse each host used for the production: OBS Browser Source, vMix browser input,
 CasparCG HTML producer, or the external OGraf renderer. Record host/version and routing.

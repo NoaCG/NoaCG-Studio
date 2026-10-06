@@ -1,5 +1,8 @@
 # Overnight preparation, 2026-10-05
 
+Historical checkpoint. The approved release completion in [the spec](spec.md) supersedes this
+checkpoint's deployment hold; current evidence belongs in [verification](verification.md).
+
 The owner authorized unattended preparation while sleeping. Production, studio services,
 configuration, deployment and merging remain outside this run. On 2026-10-06 the owner explicitly
 approved the feature-branch push and existing test workflows. The existing preview opt-in guard
