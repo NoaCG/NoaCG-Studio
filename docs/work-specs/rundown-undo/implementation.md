@@ -42,6 +42,14 @@ retry ownership intact; no restore dispatches a live command.
 - Team transport is stubbed at the RPC boundary; no production cloud account was modified.
 - A temporary copy with the semantic comparison disabled failed the stale-rundown guard test;
   the unchanged real kernel then passed all twelve Node tests. The refusal assertion is not vacuous.
+- Full build passed, including unit, type, lint, layering, contract and bundle gates.
+- The affected browser suite passed 685 cases and skipped 113 configured/quarantined cases.
+  Four startup-wizard assertions timed out on that broad run; all four passed an isolated
+  single-worker rerun without source or assertion changes. These remain recorded loading flakes.
+- Review and simplification ran inline. Review fixed database rollback after multiple failures,
+  inverse drain/identity ownership, team revision ownership during a newer local edit, and
+  rejection of malformed conflict documents. Simplification kept restore in the existing save
+  controller and retained the ordinary public mutator wrappers.
 
 Phase B connects this kernel to the page's authoring queue, native-safe shortcuts and grouped
 cue drafts. It requires the remaining live, identity, keyboard, remote and multi-step browser
