@@ -3,14 +3,14 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Previously verified product commit `bdab14b66` is published; the branch is not merged or deployed.
+Verified product commit `1464afaee` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
 an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
 
-The completed checks on `bdab14b66` passed, but the later documentation-only CI run exposed a
-diagnostic persistence race. Its contained correction is reproduced and focused checks pass;
-final verification of that correction is pending. Review and simplification ran inline; all
+The frozen product sources at `1464afaee` pass the full local browser/catalog run, clean build,
+branch CI and guarded database-backed suite. The diagnostic persistence race exposed by an
+earlier documentation-only CI run is reproduced and corrected. Review and simplification ran inline; all
 26 confirmed findings are fixed. Release verification remains held for the actual media,
 recorded program audio and cross-device rehearsal. The receipts below preserve earlier failures
 as well as their passing replacements.
@@ -349,7 +349,30 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   queued-media advice and exact-slot Clear are readable outside the operational cue list.
   The npm-wrapped target `j-3481` completed with exit 0, one passed (17.7 seconds); its frame
   preserves cue positions. No runtime command, timing rule or ownership claim changed.
-  Final full affected/build/CI/backend receipts are pending on frozen corrected sources.
+  Correction `1464afaee` is published. Full affected run `j-3482`, CI
+  [37408229045](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37408229045) and full guarded
+  backend [37408233348](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37408233348) use the
+  frozen corrected sources. Their actual verdicts and the final clean build are recorded below.
+  CI `37408229045` completed successfully on its first attempt: all ten shards, combined report,
+  CI gate, Build, Factory and catalog. The formerly failing shard passes all 99 active checks,
+  including delayed opening of the restart diagnostic. Build passes 2,453 active checks / eight
+  skips, the separate 321/321 suite and CLI 231 active / 18 skips. No retry job ran. Vercel
+  confirms the unchanged ignored-build cancellation. Full backend `37408233348` also passes:
+  78 passed, zero failed, zero flaky and ten allowed skips (19.2 minutes), with the unchanged
+  minimum 71 and skip allowlist. All migration/schema/grant/auth checks, seven private relay
+  cases, live preparation and three-member reconciliation pass.
+- Final local affected run `j-3482` passed with its own exit 0 on frozen `1464afaee` sources:
+  1,463 active browser checks / 542 skips (29.2 minutes), then catalog 35/35 (3.1 minutes).
+  All 26 generated PNG/JSON captures, including the stopped-sequence frame, were retained under
+  `bench-health/studio-night/affected-j3482-generated` and their committed bytes restored.
+  The successful full backend log and report were retained in the same ignored evidence area.
+- Final clean build `j-3483` passed with its own exit 0: 2,458 active gate checks / three skips
+  (2,461 total), the separate 321/321 suite, TypeScript, full lint, architecture, Vite, prerender,
+  client-secret scan and line-ending checks. No executable or test source changed afterwards.
+  The refreshed inline review covers the same 125-file scope against `origin/main` at
+  `7878a4ef4`; this includes the supplied photo as read-only evidence, excluded from commits.
+  Only result documentation changes for the morning checkpoint. Its automatic CI must be
+  checked against that checkpoint SHA; do not dispatch another backend run for result prose.
 
 ## Rollout hold
 

@@ -139,7 +139,21 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   and target `j-3480` passed, but their wrappers lost exit receipts; do not call those jobs green.
   The corrected warning frame was inspected. The npm-wrapped target `j-3481` completed with
   exit 0 (one passed, 17.7 seconds). No playout command or timing rule changed. Final frozen
-  affected/build/CI/backend checks are pending.
+  affected/build/CI/backend checks now pass. Correction `1464afaee` is published; local full
+  run `j-3482`, CI `37408229045` and guarded backend `37408233348` use frozen corrected sources.
+  CI `37408229045` now passes on its first attempt: all ten shards and prerequisites, combined
+  report and final gate. Its formerly failing shard passes 99 active checks, including the
+  delayed diagnostic. Build passes 2,453 active / eight skips, plus 321/321 and CLI 231 / 18 skips.
+  No retry job ran, and Vercel confirms the ignored-build cancellation. Full backend
+  `37408233348` also passes: 78 passed, zero failed, zero flaky and ten allowed skips (19.2 minutes).
+  All migration/schema/grant/auth checks and seven private relay cases pass, with the unchanged
+  full-suite minimum/allowlist. Local `j-3482` passed with exit 0: 1,463 active browser checks /
+  542 skips (29.2 minutes), plus catalog 35/35 (3.1 minutes). All 26 generated captures, including
+  `built/studio-sequence-stopped.png`, were retained separately and restored before the build.
+  Final clean build `j-3483` passed with exit 0: 2,458 active gate checks / three skips, the
+  separate 321/321 suite, TypeScript, full lint, architecture, bundle, prerender and final scans.
+  Product and test sources remained frozen at `1464afaee`. Only result documentation changed
+  for the morning checkpoint; check its automatic CI by exact SHA without repeating backend work.
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
   SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
@@ -149,7 +163,7 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
 
 ## Continuation without a schedule
 
-One contained diagnostic correction needs final automated verification. Physical gates require the original three clips,
+Automated verification of the corrected product is complete. Physical gates require the original three clips,
 recorded ATEM audio, actual receiving-host rehearsal and two devices. Supply an isolated test
 build before the operator follows the rehearsal checklist; these controls are not deployed.
 The historical home-edit incident still needs the student's account/time/home-browser evidence.
@@ -158,7 +172,8 @@ boundary, not a request for another permission mark.
 
 Resume this same checkout and branch. Read this file, `verification.md`, and compact job state.
 Inspect existing job receipts before starting anything; never duplicate an owned or waiting job.
-Complete independent preparation while jobs wait. Continue only finishable work above. A missing
+Check any pending documentation-only CI before starting further work; do not repeat completed
+local/browser/backend runs unless a new change or failure warrants it. A missing
 runtime, physical equipment or source file is an honest boundary, not a reason to loosen the hold.
 
 No scheduled follow-up was created. Automatic approval review refused the proposed heartbeat
@@ -168,7 +183,10 @@ Automatic approval review also initially rejected the feature-branch push, citin
 source and external CI without explicit authorization. The owner subsequently authorized that
 exact branch and test path; the approved direct push succeeded. Merge and deployment remain held.
 
-The run ends when preparation is complete or at 2026-10-06 06:00 UTC, whichever is first.
+The owner's morning request replaces the overnight time limit: leave a clean stopping point
+by approximately 2026-10-06 04:25 UTC, allowing time to report before departure. Finish current
+verification, retain its receipts and commit/push the checkpoint. If documentation-only CI is
+still running, report its exact run rather than extending this session or changing product code.
 If all remaining work needs unavailable infrastructure or the owner, write the report and stop.
 Report completed checks, actionable failures or a required next step. Do not
 start a schedule or keep an idle run waiting for tomorrow's files.
