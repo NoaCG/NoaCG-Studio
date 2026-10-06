@@ -33,6 +33,77 @@ import {
 import { mergeTeamShow } from '../model/teamShowMerge';
 import { canAuthorAccount, commitDurableWrites, libraryInUse } from '../model/durableStore';
 import { acknowledgeTeamEdit, pendingTeamEdits, retainTeamEdit } from '../model/teamOutbox';
+import { replaceRundown, rundownSlice, sameRundown, RUNDOWN_CHANGED, type RundownSlice } from '../model/rundownHistory';
+
+export interface TeamRundownReceipt { owner: object | null; token: string | null; id: string }
+export function beginTeamRundownEdit(id: string): TeamRundownReceipt {
+  return { owner: running, token: server.get(id)?.token ?? null, id };
+}
+/** A clean global saving flag alone cannot acknowledge a specific edit. */
+export async function commitTeamRundownEdit(receipt: TeamRundownReceipt, intended: RundownSlice): Promise<string | null> {
+  const error = await flushTeamProduction(receipt.id);
+  if (error) return error;
+  const known = server.get(receipt.id), local = loadTeamShows().find(s => s.id === receipt.id);
+  if (receipt.owner !== running || !receipt.token || !known || known.token === receipt.token) return 'This rundown save has not been confirmed.';
+  if (!local || !sameRundown(rundownSlice(known.doc), intended) || !sameRundown(rundownSlice(local), intended)) return RUNDOWN_CHANGED;
+  return null;
+}
+
+export interface TeamRestoreResult { status: 'saved' | 'refused' | 'failed'; error: string | null }
+/** Share the save pump's lock, but never merge an inverse onto somebody else's rundown. */
+export async function restoreTeamRundown(
+  id: string, expected: RundownSlice, replacement: RundownSlice, stillValid: () => boolean,
+): Promise<TeamRestoreResult> {
+  const owner = running;
+  const refused = (error: string): TeamRestoreResult => ({ status: 'refused', error });
+  const valid = () => owner === running && !!owner && owner.userId === libraryInUse() && canAuthorAccount() && stillValid();
+  if (!valid()) return refused('The editing session changed. Undo was not saved.');
+  if (dirty.has(id) || inflight.has(id) || state.saving[id]) return refused('Wait for this team production to finish saving.');
+  const known = server.get(id), local = loadTeamShows().find(s => s.id === id);
+  if (!known || !local || !sameRundown(rundownSlice(local), expected) || !sameRundown(rundownSlice(known.doc), expected)) return refused(RUNDOWN_CHANGED);
+  inflight.add(id);
+  setSaving(id, 'pending');
+  let base = known.doc, token = known.token;
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const now = loadTeamShows().find(s => s.id === id);
+      if (!valid() || dirty.has(id) || !now || !sameRundown(rundownSlice(now), expected)) return refused(RUNDOWN_CHANGED);
+      const next = replaceRundown({ ...base, teamId: known.teamId }, expected, replacement);
+      if (!next.show) return refused(next.refused!);
+      const { answer, error } = await saveTeamProduction(id, token, teamDoc(next.show));
+      if (!valid()) return refused('The editing session changed. Undo history was cleared.');
+      if (!answer) return { status: 'failed', error: error ?? 'Undo was not saved to the team.' };
+      const current = loadTeamShows().find(s => s.id === id);
+      if (answer.saved) {
+        // Keep the old base/token if newer work is waiting. Its ordinary save must encounter
+        // this accepted inverse as a CAS conflict and merge that newer work onto it.
+        if (dirty.has(id) || !current || !sameRundown(rundownSlice(current), expected)) return refused(RUNDOWN_CHANGED);
+        server.set(id, { ...known, token: answer.updatedAt, doc: teamDoc(next.show), updatedBy: answer.updatedBy });
+        setState({ heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } } });
+        applyServerTeamShow(next.show);
+        return { status: 'saved', error: null };
+      }
+      // A newer local edit keeps its old base for the normal merge pump; do not adopt over it.
+      if (dirty.has(id) || !current || !sameRundown(rundownSlice(current), expected)) return refused(RUNDOWN_CHANGED);
+      if (!answer.doc || answer.doc.version !== 2 || !Array.isArray(answer.doc.graphics)) return { status: 'failed', error: 'The team revision could not be read safely.' };
+      const fresh = teamDoc(teamRecord(answer.doc, { id, team_id: known.teamId, updated_at: answer.updatedAt, updated_by: answer.updatedBy }));
+      server.set(id, { ...known, token: answer.updatedAt, doc: fresh, updatedBy: answer.updatedBy });
+      applyServerTeamShow({ ...fresh, teamId: known.teamId });
+      setState({ heads: { ...state.heads, [id]: { id, teamId: known.teamId, updatedAt: answer.updatedAt, updatedBy: answer.updatedBy } } });
+      if (!sameRundown(rundownSlice(fresh), expected)) return refused(RUNDOWN_CHANGED);
+      base = fresh; token = answer.updatedAt;
+    }
+    return refused('The team production keeps changing. Try again after it settles.');
+  } catch (error) {
+    return { status: 'failed', error: error instanceof Error ? error.message : 'Undo was not saved to the team.' };
+  } finally {
+    if (owner === running) {
+      inflight.delete(id);
+      setSaving(id, dirty.has(id) ? 'pending' : null);
+      if (dirty.has(id)) scheduleSave(id);
+    }
+  }
+}
 
 /** A row of `team_productions` without its document - what the poll asks for. */
 export interface TeamProductionHead {
