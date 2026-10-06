@@ -221,9 +221,9 @@ export function usePrepareForLive({
           return;
         }
         version = written;
-        setPublishLine({ key: 'publish', tone: 'ok', label: `Published your changes as v${written.n}` });
+        setPublishLine({ key: 'publish', tone: 'ok', label: 'Published your changes' });
       } else {
-        setPublishLine({ key: 'publish', tone: 'ok', label: `Nothing changed since v${published.n}` });
+        setPublishLine({ key: 'publish', tone: 'ok', label: 'No unpublished changes' });
       }
       if (!version) { busyRun.current = false; setPhase('idle'); return; }
       setTarget(version);

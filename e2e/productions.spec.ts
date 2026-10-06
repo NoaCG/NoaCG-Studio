@@ -1115,7 +1115,8 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
   await expect(page.getByTestId('production-page')).toBeVisible();
   await expect(page.getByTestId('no-cues')).toBeVisible();
   await expect(page.getByTestId('add-pictures')).toContainText('Upload image');
-  await expect(page.getByTestId('add-pictures')).toHaveAttribute('title', /does not copy files to the CasparCG server/);
+  await expect(page.getByTestId('add-pictures')).toHaveAttribute('title', /PNG\/JPG graphics/);
+  await expect(page.getByTestId('add-pictures')).not.toHaveAttribute('title', /CasparCG/);
 
   // Two pictures at once — the input takes multiple, because a rundown of stills is how this
   // gets used and adding them one at a time would be the wrong shape of work.

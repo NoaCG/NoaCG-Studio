@@ -84,7 +84,8 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   await expect(panel.getByTestId('status-check-production')).toContainText('Published changes are available to outputs');
   await expect(panel.getByTestId('publish-guarantees')).toContainText('check changed graphics and assets automatically');
   await expect(panel.getByTestId('prepare-for-live-button')).toHaveText('Check readiness');
-  await expect(panel.getByTestId('prepare-for-live')).toContainText('tests command delivery');
+  await panel.getByTestId('prepare-for-live').locator('summary').click();
+  await expect(panel.getByTestId('prepare-for-live')).toContainText('command delivery');
   await expect(panel.getByTestId('playout-panel-setup')).toHaveAttribute('open');
   await expect(panel.getByTestId('production-output-setup')).toContainText('Existing setup (unconfirmed)');
   await page.screenshot({ path: test.info().outputPath('browser-health-desktop.png'), fullPage: true });
@@ -100,6 +101,7 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   bridge.missing = true;
   await panel.getByTestId('prepare-for-live-button').click();
   await expect(status).toContainText('Bridge not running');
+  await expect(panel.getByTestId('prepare-checklist')).not.toContainText(/\bv\d+\b/);
   await page.reload();
   await expect(status).toContainText('Bridge not running');
   bridge.missing = false;
@@ -121,6 +123,9 @@ test('browser output history ignores an unused Bridge, while CasparCG activity s
   expect(await page.evaluate(async (showId) => (await import('/src/model/readyMemory.ts')).loadReadyMemory(showId).casparOutput, id), 'an older slot reply must not restore intent after Take off').toBeUndefined();
   await expect(panel.getByTestId('status-check-bridge')).toHaveCount(0);
   // The settings dialog's existing action proves the same intent, without waiting for /state.
+  // Actual legacy activity makes CasparCG settings relevant without changing this published fixture.
+  await panel.getByTestId('caspar-put-on-air').click();
+  await expect(panel.getByTestId('caspar-air-result')).toHaveAttribute('data-state', 'ok');
   if (!(await panel.getByTestId('playout-panel-setup').evaluate(d => (d as HTMLDetailsElement).open))) await panel.getByTestId('playout-panel-setup').locator('summary.pd-panel-section-title').click();
   await panel.getByTestId('playout-settings-open').click();
   await page.getByTestId('playout-put-on-air').click();
