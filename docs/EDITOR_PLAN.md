@@ -7,6 +7,13 @@ Review entry point: [review brief](research/editor-review-brief-2026-09-18.md) a
 [whole workspace](research/editor-whole-workspace-2026-09-19/README.md) plus [workflow decisions](research/editor-workflow-review-2026-09-19/README.md).
 Review of d5e8c1db: ready with named corrections, recorded below. Mockups are not product evidence.
 
+Owner review 2026-10-06: [feedback and phase mapping](research/editor-owner-feedback-2026-10-06.md).
+The group journey mostly made sense; root/Composition navigation needs clearer context in
+R1.2b.7. Drawing/transform/layer/property usability and save-state corrections remain named
+follow-ups in their existing scopes. Lottie and alpha image sequences remain R2.1; native
+visual authoring remains required. This feedback does not expand folders/bins into a general
+editor rewrite or close whole-row acceptance.
+
 ## Destination
 
 ### Visual authoring

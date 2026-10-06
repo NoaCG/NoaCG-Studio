@@ -3,7 +3,7 @@ kind: desktop
 date: 2026-10-05
 because: taste
 serves: now
-answered: false
+answered: true
 ---
 # Group a badge and edit its members
 
@@ -29,3 +29,19 @@ bar/local time feel clear and comfortable at your desktop size.
 The [engineering receipt](../../research/editor-r1-2b-6/README.md) records the
 complete task, save/reopen and executed SPX, CasparCG and OGraf exports. This asks
 for product judgment. Full B02/B04 and physical receiving-host acceptance stay open.
+
+## Owner response, 2026-10-06
+
+The owner completed the listed group/transform/Undo/Redo/member-edit/save/reopen/
+Ungroup journey. The group workflow mostly made sense and canvas movement for
+animation felt natural. Returning to Composition/root was not immediately
+obvious; hierarchy clarity needs a follow-up in R1.2b.7.
+
+The review also raised drawing-tool persistence, linked-scale/handle behavior,
+familiar layer/keyboard conventions, property/key controls and leave-editor/cloud
+save feedback. The [phase mapping](../../research/editor-owner-feedback-2026-10-06.md)
+records every observation and the existing animated-asset direction. Answered
+means the feedback was received, not that the owner accepted the complete editor.
+The reports are not independently reproduced by this documentation change.
+Full B02/B04, final owner acceptance and physical receiving-host acceptance remain
+open.
