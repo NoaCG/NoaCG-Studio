@@ -2078,7 +2078,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-rundown .pd-drop-end[data-drop='into'] { border: 2px solid #cfd8e6; color: var(--text); }
 .pd-rundown .pd-drop-end[data-drop='refused'] { border: 2px dashed var(--danger); }
 .pd-control-area .pd-rundown-note { margin: 0 0 8px; font-size: 12px; }
-.pd-rundown-feedback { order: 3; }
+.pd-rundown-feedback:empty { display: none; }
 /* The range's count and its verb, under the list while a shift-click selection stands. */
 .pd-rundown .pd-range-bar {
   flex: none;
@@ -2124,6 +2124,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-body { display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; }
   .pd-main,
   .pd-control-area { display: contents; }
+  .pd-rundown-feedback { order: 3; margin: 0 12px; }
   /* The stage head stands down HERE TOO, for the same reason .pd-main does: this breakpoint
      orders the monitors, the rail, the editor and the verb bar as siblings of one scrolling
      column, and a wrapper around two of them would take them out of that ordering - the verbs
