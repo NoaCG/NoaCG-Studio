@@ -24,7 +24,15 @@ Project scrolls, with the selected bin in view and asset controls within its wid
 The proxy uses a 1093×614 CSS viewport for a 1366×768 screen at 125%.
 Actual OS/browser zoom remains part of asynchronous desktop judgment.
 
-Isolated mutations, broader regressions, build and landing are still pending.
+The [isolated mutation run](../../work-specs/editor-folders-bins/evidence/mutations.log),
+j-3578, killed all eight guards after a green control and restored every source
+byte-for-byte. The [complete integration run](../../work-specs/editor-folders-bins/evidence/regressions.log),
+j-3584, passed 1,528 browser tests with 542 existing skips and all 35 catalog
+checks, using `E2E_WORKERS=3` in one queued job with cap 120. It includes editor,
+asset, anim-engine and inspector regressions after integrating landed main.
+The build exposed a missing npm entry for the already verified mutation bench;
+script discovery passed after registering it. Exact-tip build, queue and
+production observations are tracked separately in the acceptance ledger.
 The [desktop item](../../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
 asks for product judgment only after the complete task passed.
 

@@ -1,0 +1,515 @@
+=== j-3589 npm run build
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+
+> noacg-studio@0.1.0 build
+> node scripts/gates.mjs run && node scripts/build-player-host.mjs && node scripts/build-production-pack.mjs && tsc && tsc -p tsconfig.api.json && eslint . --max-warnings 0 && depcruise --config .dependency-cruiser.cjs src && vite build && node scripts/prerender.mjs && node scripts/write-version.mjs && node scripts/check-client-secrets.mjs dist && node scripts/gates.mjs run --gate after-build
+
+
+[gates] check:shared-instructions: node scripts/check-shared-instructions.mjs
+[measured] 55 AGENTS.md contracts
+[measured] 14 workflow definitions
+Modular workflow orchestrator: core 164/200 lines, 14 module(s), all linked; common path 559/640 lines (core + 6 every-plan module(s)).
+Shared instructions OK: 55 AGENTS.md/CLAUDE.md pair(s), 14 Claude/Codex workflow pair(s), 2 alias(es), 1 documented tool-specific exception(s).
+Tightest instruction chain(s) against project_doc_max_bytes=65536, which FAILS the build below 4096 bytes free (55 chain(s) checked):
+  - src/ai/pro/harness/AGENTS.md: 56571 bytes used, 8965 free (86.3%)  <-- near the limit
+  - src/components/wizard/AGENTS.md: 56467 bytes used, 9069 free (86.2%)  <-- near the limit
+  - src/templates/importedDesign/AGENTS.md: 53940 bytes used, 11596 free (82.3%)  <-- near the limit
+[gates] check:shared-instructions ok (2.2s) - 55 AGENTS.md contracts, 14 workflow definitions
+
+[gates] check:tree-shape: node scripts/check-tree-shape.mjs
+[measured] 7641 tracked paths
+Tree shape OK - no unexpected top-level entries, no flag-shaped path segments.
+[gates] check:tree-shape ok (0.1s) - 7641 tracked paths
+
+[gates] check:package-merge: node scripts/package-merge-driver.mjs --check
+[measured] 13 recorded package.json resolutions replayed
+[measured] 953 contract files
+[measured] 551 rule ids in contracts/rules
+[package-merge-driver] OK - 13 recorded resolution(s) reproduced, package.json merged by noacg-package
+[gates] check:package-merge ok (2.6s) - 13 recorded package.json resolutions replayed
+
+[gates] check:contract-freshness: node scripts/check-contract-freshness.mjs
+Contract freshness OK: 953 contract file(s), every referenced script, doc and path exists.
+[gates] check:contract-freshness ok (0.5s) - 953 contract files
+
+[gates] check:contract-citations: node scripts/check-contract-citations.mjs
+[measured] 4333 text files scanned for citations
+Contract citations OK: 4333 file(s), every cited rule id and contract section exists.
+[gates] check:contract-citations ok (3.3s) - 551 rule ids in contracts/rules, 4333 text files scanned for citations
+
+[gates] check:workflows: node scripts/check-workflows.mjs
+[measured] 16 workflow files
+Workflows OK: 18 validated (catalog-gates.yml, ci.yml, cloud-queue-merge.yml, configured-suite.yml, deploy-verify.yml, e2e-durations-refresh.yml, feedback-digest.yml, hosted-latency.yml, nightly-drift.yml, nightly.yml, post-land.yml, quarantine.yml, release-bridge.yml, release-cli.yml, rerecord-screenshots.yml, weekly-audit.yml, .github/actions/node-modules/action.yml, .github/actions/playwright-chromium/action.yml).
+[gates] check:workflows ok (2.1s) - 16 workflow files
+
+[gates] check:docs-index: node scripts/check-docs-index.mjs
+[measured] 156 top-level docs
+[measured] 158 docs/README.md index rows
+check-docs-index: OK - all 156 top-level docs in docs/ have exactly one row in docs/README.md (subdirectories are exempt).
+[gates] check:docs-index ok (0.1s) - 156 top-level docs, 158 docs/README.md index rows
+
+[gates] check:goals-budget: node scripts/check-goals-budget.mjs
+[measured] 200 lines of docs/GOALS.md
+check-goals-budget: OK - docs/GOALS.md is 200 lines, inside the 200 it declares.
+[gates] check:goals-budget ok (0.1s) - 200 lines of docs/GOALS.md
+
+[gates] check:whats-new: node scripts/whats-new.mjs --check
+[measured] 1 updates in docs/whats-new
+whats-new: OK - 1 update(s), 11 bullets, newest 2026-10-02.
+[gates] check:whats-new ok (0.1s) - 1 updates in docs/whats-new
+
+[gates] check:roadmap: node scripts/roadmap.mjs --check
+[measured] 8 outcomes in docs/GOALS.md
+roadmap: OK - 8 outcomes in GOALS, 6 now, 1 next, 2 later.
+[gates] check:roadmap ok (0.1s) - 8 outcomes in docs/GOALS.md
+
+[gates] check:client-secrets: node scripts/check-client-secrets.mjs
+[measured] 3566 source files scanned
+[measured] 14 generated files
+[measured] 227 gates audited
+
+check-gate-coverage: 1 problem(s):
+
+  - scripts/editor-organization-mutation-bench.mjs declares `gate: none` but no check: or test: script names it - add the script so the build can discover it and a person can run it, or drop the header
+
+[measured] 7 route rules
+[measured] 14 behaviour words
+[measured] 6 cheat-sheet copies
+[measured] 14 example SVGs
+[measured] 13 serverless functions under api/
+[measured] 32 client /api paths
+[measured] 13 api functions
+Client secret scan OK (src, e2e, scripts, docs).
+[gates] check:client-secrets ok (1.3s) - 3566 source files scanned
+
+[gates] check:skill: node cli/scripts/build-skill.mjs --check
+build-skill --check OK: 14 generated files match the source (noacg v0.9.0).
+[gates] check:skill ok (0.1s) - 14 generated files
+
+[gates] check:gate-coverage: node scripts/check-gate-coverage.mjs
+[gates] check:gate-coverage FAILED (exit 1, 1.3s)
+
+[gates] check:vercel-config: node scripts/check-vercel-config.mjs
+vercel.json routing config is valid.
+[gates] check:vercel-config ok (0.1s) - 7 route rules
+
+[gates] check:behaviour-docs: node scripts/behaviour-docs.mjs --check
+behaviour-docs: docs/SVG_AUTHORING.md §5b matches words.json
+behaviour-docs: docs.html #svg-layers matches words.json
+[gates] check:behaviour-docs ok (0.1s) - 14 behaviour words
+
+[gates] check:example-layers: node scripts/check-example-layers.mjs
+check-example-layers: exempt docs/tutorials/talk-show-set - the 2026-09-24 talk-show set predates the settled Board rule (Show name, Background, Role 1 and Person 1) and the owner removes it himself; it is never edited to pass
+check-example-layers: ok public/docs/examples/countdown.svg
+check-example-layers: ok public/docs/examples/end-credits.svg
+check-example-layers: ok public/docs/examples/live-vote.svg
+check-example-layers: ok public/docs/examples/name-tag.svg
+check-example-layers: ok public/docs/examples/quiz.svg
+check-example-layers: ok public/docs/examples/scoreboard.svg
+check-example-layers: ok public/docs/examples/ticker.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/countdown.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/end-credits.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/lower-third.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/quiz.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/scoreboard.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/ticker.svg
+check-example-layers: ok docs/tutorials/svg-examples/SVG/title.svg
+[gates] check:example-layers ok (0.1s) - 6 cheat-sheet copies, 14 example SVGs
+
+[gates] check:function-budget: node scripts/check-function-budget.mjs
+api/ routes 13 serverless functions, 0 under the cap of 13.
+[gates] check:function-budget ok (0.1s) - 13 serverless functions under api/
+
+[gates] check:api-route-depth: node scripts/check-api-route-depth.mjs
+API routing OK (32 client path(s) reaching 11 of 13 function(s), read from 1316 source file(s)).
+[gates] check:api-route-depth ok (0.3s) - 32 client /api paths, 13 api functions
+
+[gates] check:client-neutral: node scripts/check-client-neutral.mjs
+[measured] 234 user-readable source files scanned
+Client-neutral copy - SPX may be named as a TARGET, never as the product's own vocabulary
+
+PASS - no client name is doing a general concept's job.
+[gates] check:client-neutral ok (0.2s) - 234 user-readable source files scanned
+
+[gates] check:copy: node scripts/check-copy.mjs
+[measured] 894 source files scanned
+[measured] 501 copy baseline rows
+Copy tells - user-facing text must not read as machine-written
+
+PASS - no new tells, and the baseline still matches the tree.
+[gates] check:copy ok (0.6s) - 894 source files scanned, 501 copy baseline rows
+
+[gates] check:preview-serialization: node scripts/check-preview-serialization.mjs
+[measured] 1312 source files scanned
+[check:preview-serialization] ok - every serialized helper goes through serializeHelper
+[gates] check:preview-serialization ok (0.5s) - 1312 source files scanned
+
+[gates] test:ai-gateway: node scripts/run-ai-gateway-tests.mjs
+[measured] 25 ai gateway test files
+✔ the refusal is one fixed 404, and nothing else (41.645ms)
+✔ an unconfigured backend has no admin surface (5.1003ms)
+✔ a configured backend still refuses a caller with no token (2.3664ms)
+✔ no-backend and no-token are indistinguishable to the caller (3.7217ms)
+✔ a malformed authorization header is not a token (6.6489ms)
+✔ the burst gate refuses with the same 404, never a 429 (2.8564ms)
+✔ role ranking is ordered and an unknown minimum is not satisfied by accident (0.514ms)
+✔ a cheap, available, structured-output OpenRouter model is eligible with no blocks (4.383ms)
+✔ each ceiling is enforced on its own, so a cheap input cannot subsidize a dear output (0.6032ms)
+✔ an unpriced model is blocked rather than treated as free (0.3089ms)
+✔ a non-OpenRouter provider is never funded-eligible however cheap it is (0.3404ms)
+✔ missing structured output and unavailability each block on their own (0.4475ms)
+✔ ZDR is reported as audited only for a catalog route, never inferred from a listing (0.3994ms)
+✔ an approved route stays approved even when the live listing would block it (0.3237ms)
+✔ "new" means recently listed AND not already approved (0.3388ms)
+✔ nothing in a row can carry provider prose or a quality claim (0.3752ms)
+✔ an approved route the provider stopped listing is reported as missing (0.5823ms)
+✔ in-use marks the routes the task registry actually points at, and nothing else (0.4153ms)
+✔ omitting the in-use map leaves every route unmarked rather than throwing (0.2237ms)
+✔ approved and in-use are independent facts (0.2838ms)
+✔ a curated route carries no slot, so nothing invents a fallback it does not have (0.2255ms)
+✔ one route can be used by several callers at once (0.4539ms)
+✔ the reporting timezone defaults to Helsinki and refuses an unusable override (43.217ms)
+✔ the day boundary is local midnight, not UTC midnight (4.9048ms)
+✔ the week starts on Monday, and a Monday is its own week start (8.4846ms)
+✔ a week that contains a DST change still starts at local midnight (5.1727ms)
+✔ the month boundary is the 1st at local midnight, across a year change (2.0486ms)
+✔ every window ends at now, so nothing counts time that has not happened (4.5822ms)
+✔ the comparison span is the same elapsed length, one period earlier (5.6922ms)
+✔ a comparison span never runs into the window it is being compared against (7.5942ms)
+✔ January compares against December of the previous year (4.7854ms)
+✔ the windows nest: today sits inside this week sits inside this month (5.4367ms)
+✔ every generation status classifies exactly as migration 0026 classifies it (1.8786ms)
+✔ only `failed` is a failure - a decline and an abandoned reservation are not (1.6677ms)
+✔ an unknown status is in-flight, never a failure (0.3026ms)
+✔ spend counts only generations that reached a provider (0.4266ms)
+✔ the fleet bar counts reservations at their ceiling, unlike spend (0.473ms)
+✔ prod's own numbers: 43 generations split 17 usable / 19 failed / 7 declined (3.3239ms)
+✔ a correctly configured two-arm comparison passes (5.4741ms)
+✔ a saved model in the ambient environment cannot silently override a candidate (2.4036ms)
+✔ arms that resolve to the same model are refused even when each arm is valid (7.0557ms)
+✔ a route missing from the approved catalog fails closed, and says so (2.1026ms)
+✔ a missing provider allowlist is caught before the spend, not during it (1.7098ms)
+✔ a single-arm run is flagged as having no baseline (1.2237ms)
+✔ the incumbent is whatever the profile serves by default, not a copied constant (0.8561ms)
+✔ the preflight leaves the ambient process environment exactly as it found it (1.2156ms)
+✔ credential and flag mistakes are reported together, not one per run (0.4948ms)
+✔ import-analysis: correctly configured vision arms pass (1.9337ms)
+✔ import-analysis: a withdrawn vision candidate is refused before the spend (1.6042ms)
+✔ import-analysis: an arm whose environment leaves the kill switch off is named (1.73ms)
+✔ import-analysis: a saved route in .env cannot silently override a candidate (1.6183ms)
+✔ import-analysis: the allowlist falls back to Lite's, and the runner's own injection wins (1.8678ms)
+✔ import-analysis: an arm wrong in two ways gets both findings in one dry run (0.4989ms)
+✔ the import-analysis incumbent is derived from the profile default, not copied (0.632ms)
+✔ credential findings: a task that injects its own flag can skip the ambient flag check (0.2754ms)
+✔ the analysis size cap is orientation-independent (0.3454ms)
+✔ a hand-supplied token is accepted but its expiry is called out (0.209ms)
+✔ selects OpenAI Responses and normalizes usage and configured cost (48.8447ms)
+✔ selects Vercel AI Gateway through its OpenAI-compatible endpoint (3.0141ms)
+✔ selects Hugging Face through its OpenAI-compatible inference router (1.8251ms)
+✔ selects Google through its OpenAI-compatible surface, and never forwards a seed (1.7582ms)
+✔ a model the account cannot call is reported as that, not as a bare rejection (2.0768ms)
+✔ sends the managed gateway routing policy and normalizes the answer (1.4346ms)
+✔ an empty provider allowlist is omitted rather than sent as "no provider is permitted" (1.5181ms)
+✔ thinking: off rides as chat_template_kwargs and is OMITTED unless asked for (2.0637ms)
+✔ a ZDR refusal is reported as its own code, not as a bad credential (2.534ms)
+✔ a filter no provider satisfies is its own code - a plan will not fix it (1.5457ms)
+✔ an ordinary 403 still reads as a rejected credential (1.2312ms)
+✔ supports forced-tool structured output through OpenRouter (6.4738ms)
+✔ reports a missing key before making a provider request (0.5734ms)
+✔ rejects malformed provider responses (1.0499ms)
+✔ validates structured output after the provider parses it (1.4261ms)
+✔ enforces structured string and numeric constraints at the gateway boundary (0.9836ms)
+✔ enforces an integer range, and the rejection is retryable (2.0508ms)
+✔ uses an explicitly ordered fallback but never invents one (1.4013ms)
+✔ retries a transient failure only within the configured bound (2.4238ms)
+✔ shares a hard attempt ceiling across retries and fallback routes (1.6522ms)
+✔ never includes provider secrets or upstream error text in errors (0.821ms)
+✔ rejects invalid provider selection and malformed request bodies (0.8567ms)
+✔ the surface discriminator is allowlisted, preserved, and optional (0.6439ms)
+✔ an OpenRouter image request asks for the image modality and normalizes the answer (1.6132ms)
+✔ an image request answered without an image is a retryable malformed response (0.9167ms)
+✔ providers without an image API refuse expect:image instead of answering in text (0.644ms)
+✔ the body validator holds the image-request contract (0.6307ms)
+✔ seals user keys in a tamper-evident HttpOnly cookie (10.1935ms)
+✔ a sealed key is honoured only for the account that saved it (2.3358ms)
+✔ a policied surface asks the gateway for zero-data-retention routing (0.4574ms)
+✔ an unpoliced or untagged surface is left exactly as it was (0.2606ms)
+✔ no per-request price cap is sent, because the gateway has no field for one (0.2666ms)
+✔ a ZDR-verified claim in the catalog is backed by a written audit (0.3378ms)
+✔ a nested array handed back as a JSON string is decoded, not refused (0.4016ms)
+✔ the tool envelope repeated inside its own property is unwrapped (0.3346ms)
+✔ decoding recurses, so an encoded array INSIDE an encoded array still arrives (0.5605ms)
+✔ a single-key object that is NOT the property name is left alone - only the envelope unwraps (0.6173ms)
+✔ a string that is not JSON at all survives untouched, so the refusal still happens (0.66ms)
+✔ decoding widens what is UNDERSTOOD, never what is accepted (1.4804ms)
+✔ a gateway answer cut off by the token limit says so instead of reading as a bad model (0.986ms)
+✔ a normal finish_reason still parses - the truncation guard is not swallowing good answers (0.9819ms)
+✔ gateway rate limit caps read env overrides and default to 60/minute (3.4855ms)
+✔ the gateway refuses a hammering client with 429 + Retry-After before reading the body (56.2955ms)
+✔ a video-tagged call from a caller the server cannot recognise is NOT refused (6.4817ms)
+✔ a pro-tagged call follows the same recognised-account-only gate as video (5.1737ms)
+✔ an unknown surface is refused outright rather than downgraded to the ungated path (2.3202ms)
+✔ the ledger entry is content-free accounting: route, key source, usage, outcome - never text (5.1014ms)
+✔ a pro-tagged execution ledgers as pro-generate so gateway accounting can tell it apart (0.5048ms)
+✔ a failed execution ledgers the primary route with zero usage and the error code (0.3826ms)
+✔ the gateway ledger requires the Supabase URL and secret key (0.4449ms)
+✔ a managed Pro call leaves the process asking for zero data retention (6.2234ms)
+✔ an untagged call is unchanged - the policy is opt-in per surface (2.0347ms)
+✔ a BYO Pro call is NOT policied - a user key is not ours to route (3.6752ms)
+✔ Lite profile is disabled and OpenRouter routing fails closed by default (4.3822ms)
+✔ Lite permits an explicit server-only non-ZDR forced-tool route (2.145ms)
+✔ managed Lite requires a durable server ledger and private IP-hash salt (1.0965ms)
+✔ local evaluation can use an explicit non-production memory ledger (0.9586ms)
+✔ request JSON limits reject declared and streamed oversize bodies (68.4469ms)
+✔ non-graphic requests screen early while category language reaches inference (3.3667ms)
+✔ the managed model receives a ready-only lower-third schema, and neither dead axis (2.2069ms)
+✔ no intent kind is servable by a single chassis (0.7044ms)
+✔ the FIRST line role decides the intent kind, not whichever role a scan reaches first (4.6541ms)
+✔ a line with a blank sample is dropped instead of reserving a band nothing paints (2.5728ms)
+✔ Lite accepts only a semantically matching allowlisted catalog spec (1.0639ms)
+✔ Lite rejects missing requested field roles and unreadable bespoke palettes (0.8808ms)
+✔ a low-contrast palette is clamped to the floor instead of failing the generation (3.294ms)
+✔ a REQUESTED brand palette is applied verbatim in identity and never dropped (1.0037ms)
+✔ a chassis that cannot hold the emitted lines is RE-PICKED, not refused (0.9403ms)
+✔ repair guidance names the EDIT, not the verdict (3.2577ms)
+✔ a skin reaching for a webfont keeps its styling instead of dying (1.9414ms)
+✔ Lite semantic validation recognizes natural person and team role requests (0.5741ms)
+✔ Lite semantic validation preserves documentary subjects and story headlines (0.7095ms)
+✔ Lite semantic validation treats a professional title as a person role (0.5971ms)
+✔ memory ledger enforces idempotency, concurrency, and successful-generation allowances (2.8997ms)
+✔ fleet admission reserves worst-case session cost before provider reconciliation (1.0272ms)
+✔ judge admission gates ownership, liveness, the per-generation cap, and fleet spend (1.337ms)
+✔ judge admission refuses once the daily fleet spend ceiling would be crossed (0.9812ms)
+✔ content-free accepted and discarded outcomes become thresholded chassis priors (1.9278ms)
+✔ the skin prompt teaches strap shape as geometry, not as a way to fail (1.9732ms)
+✔ the skin judge fails closed and prices its own route (2.21ms)
+✔ judge scores validate strictly and one weak axis sinks the verdict (1.3551ms)
+✔ the judge prompt and schema cover exactly the scored axes (1.1518ms)
+✔ the judge prompt refuses instructions rendered into the frame it grades (0.5178ms)
+✔ the default Lite route pair fits its own per-request cost ceiling (0.5325ms)
+✔ no Lite schema carries an enum a structured-output backend cannot express (1.115ms)
+✔ a failure with no accounted result still names the route that was dispatched to (0.531ms)
+✔ an accounted result wins over the dispatched route and the conservative cost (0.5113ms)
+✔ a long rejection reason is truncated to what the column holds (0.4743ms)
+✔ a transient fleet spike admits the same request after an active slot is released (6.9975ms)
+✔ classroom retry headroom is calculated from measured turnover and request limits (0.8102ms)
+✔ failed, ready, and expired generations release only the capacity they still own (0.9769ms)
+✔ spend, concurrency, user overlap, and provider throttling have separate diagnostics (42.3882ms)
+✔ the durable usage RPC releases ready and stale rows from fleet capacity (17.8251ms)
+✔ normalizes gateway capabilities, per-token pricing, and free routes (9.01ms)
+✔ a model without the tool-use tag cannot be trusted with a forced schema (0.5062ms)
+✔ a deprecated model is reported unavailable rather than silently listed (0.4315ms)
+✔ keeps only live structured Hugging Face endpoints as available inference routes (0.8634ms)
+✔ an image route reports the gateway price PER IMAGE, in the gateway unit it publishes (0.3856ms)
+✔ the price key spans the two ways one model is named (0.587ms)
+✔ a direct-provider row is priced from the catalog and filtered to schema-capable models (0.5659ms)
+✔ an unreachable price book costs prices, never the listing (0.2691ms)
+✔ a model that publishes no per-image price reports null, never zero (0.266ms)
+✔ the registry re-expresses Lite as the lite-design-spec task profile (4.8022ms)
+✔ the configured default routes pass the registry gate (1.8417ms)
+✔ a free-tier route outside the approved catalog fails closed even when priced (1.2719ms)
+✔ BYO/paid tiers are not catalog-gated; free and anonymous are (1.226ms)
+✔ free-tier route policy defaults to zero-data-retention routing (1.4038ms)
+✔ the imported-graphic-analysis task is off by default and fails closed (3.171ms)
+✔ openWeights is preference metadata, never an approval gate (0.4948ms)
+✔ every catalog entry is complete enough for the free-route policy to price it (0.5986ms)
+✔ every TEXT catalog entry could serve a NoaCG-funded route (plan §15 decision 5) (0.4715ms)
+✔ a catalogued IMAGE route cannot be pointed at a registered task (1.3336ms)
+✔ the funded-route ceiling admits cheap models and refuses flagship pricing (0.4988ms)
+✔ an env price override above the ceiling fails the free tier closed (1.273ms)
+✔ the Lite price table is the catalog snapshot plus explicit env overrides (0.92ms)
+✔ a plain values body parses, with numbers and booleans stringified (8.4637ms)
+✔ non-scalar values, empty values, and graphic+cue together are refused (0.5768ms)
+✔ a single-graphic production needs no target - the scorebug case (0.4804ms)
+✔ a multi-graphic production without a target is refused, naming the graphics (0.9325ms)
+✔ graphic names match normalized, like the dataset binding (0.3383ms)
+✔ an unknown graphic is refused with the available names (0.455ms)
+✔ a cue label resolves to the graphic its cues drive (0.4059ms)
+✔ two same-graphic cues sharing a label are fine; two cross-graphic ones are ambiguous (0.3202ms)
+✔ labels map to fN ids case-insensitively; extras are reported, never dropped silently (0.6459ms)
+✔ the fN id addresses its field even untitled (0.4686ms)
+✔ a duplicated title is ambiguous and skipped rather than guessed (0.3025ms)
+✔ a title shaped like another field's fN id never captures that id - the id wins, both panel orders (0.6409ms)
+✔ non-data ftypes (buttons, captions) never take a value; hidden fields do (0.2646ms)
+✔ normalizeLabel is the dataset binding: trim + case-fold (2.3108ms)
+✔ parseDataPatch takes any JSON object as the tree to merge (0.4296ms)
+✔ parseDataPatch refuses the shapes that are never intended (0.2375ms)
+✔ parseDataPatch unwraps a {data: …} envelope, the likeliest caller mistake (0.1771ms)
+✔ parseDataPatch leaves a REAL `data` path alone when it is not the only key (0.221ms)
+✔ parseDataPatch does not unwrap a `data` key holding a scalar or an array (0.2129ms)
+✔ an empty patch is valid - it is how a caller asks for the tree without changing it (0.194ms)
+✔ no plan, no grants: every limit inherits, so nothing is restricted (3.5046ms)
+✔ the defaults reproduce the shipped tiers (0.6209ms)
+✔ an assigned plan overrides the default and says so (1.6179ms)
+✔ a temporary grant outranks the plan and carries its expiry (0.7419ms)
+✔ a permanent override outranks a temporary grant (0.4231ms)
+✔ expired, future, revoked and malformed grants do not apply (0.488ms)
+✔ a quota grant replaces the plan number, including clearing it (0.3472ms)
+✔ a grant of the wrong shape for its kind is ignored (0.2984ms)
+✔ suspension denies every feature but keeps the plan visible (0.3601ms)
+✔ a suspended account is not rescued by a grant (0.3544ms)
+✔ anonymous callers ignore plans and grants entirely (0.2689ms)
+✔ the legacy env override widens AI access without taking anything away (0.2569ms)
+✔ observe-only limits never become enforceable (0.4141ms)
+✔ the render tier still resolves to today's answer when no plan names one (0.2648ms)
+✔ a plan can move the render tier, but only to one that exists (0.1682ms)
+✔ a tier name read back out of storage never lands as undefined caps (0.1985ms)
+✔ a suspended account drops to the anonymous render tier (0.1888ms)
+✔ with no plan configured the Lite profile comes back untouched (1.5385ms)
+✔ a plan moves only the five AI allowances, never the routing (0.6216ms)
+✔ a plan cannot set per-user concurrency to zero and silently break every reservation (0.4059ms)
+✔ a quota grant reaches the Lite profile with the plan overridden (0.4493ms)
+✔ an instance-wide kill switch beats a plan, a grant AND a manual override (0.2281ms)
+✔ the kill switch reaches anonymous visitors too (0.1476ms)
+✔ with no plan the allowed formats are exactly the tier's (0.2451ms)
+✔ a plan replaces the format list, and may grant one its tier lacks (0.1738ms)
+✔ a plan naming only unknown formats falls back instead of refusing everything (0.1289ms)
+✔ the render request check honours the plan's formats end to end (0.3519ms)
+✔ a suspended account cannot render a format its plan granted (0.1952ms)
+✔ account-free BYO stays allowed by default, because a gate now enforces it (0.1582ms)
+✔ the feature keys the server gates on are all on by default for a signed-in user (0.1442ms)
+✔ the key guards reject unknown strings (0.1657ms)
+✔ every key carries a label and a default in both built-in plans (0.2105ms)
+✔ a gateway surface maps to exactly one feature key, and no surface gates nothing (0.2501ms)
+✔ a recognised account whose plan withholds ai.video is refused (0.2074ms)
+✔ a recognised account with the default plan is not refused (0.1763ms)
+✔ suspension and the instance-wide kill switch both reach the surface gate (1.5729ms)
+✔ an UNRECOGNISED caller is never refused, whatever the resolved answer says (0.2756ms)
+✔ same-rank grants are last-wins, so the loader must hand them over ordered (0.3032ms)
+✔ an email domain is read strictly, so a malformed address matches no plan (0.3672ms)
+✔ a domain plan is an ASSIGNED plan, so a grant and an override still outrank it (0.3481ms)
+✔ closing ai.pro on the default plan denies it, which is what makes the domain the door (0.2497ms)
+✔ a bare thumb is a complete submission (2.7369ms)
+✔ a generation rating does NOT require a ledger id (0.3454ms)
+✔ reasons are validated against the KIND, not against one merged list (0.4551ms)
+✔ reasons are deduplicated and capped (0.2735ms)
+✔ an over-long message is REFUSED, not truncated (0.2837ms)
+✔ the enumerated fields refuse anything outside their vocabulary (0.9254ms)
+✔ ids must look like ids (0.693ms)
+✔ a variant id is a slug, so the column cannot become free text (0.5325ms)
+✔ the generation reason vocabulary is the 0011 set minus the two the APP writes (0.3449ms)
+✔ a well-formed event normalizes to a row (3.6415ms)
+✔ only the five funnel events are storable (0.6001ms)
+✔ a row without a usable visitor id is dropped, not stored anonymously (0.4327ms)
+✔ the identity on the row comes from the token, never the body (0.3115ms)
+✔ free text cannot reach the table through detail (0.3278ms)
+✔ withdrawal accepts only the explicit action and a valid visitor id (0.2565ms)
+✔ a detail slug is bounded in length and charset (0.2872ms)
+✔ the permission vocabulary is labelled, enforced honestly, and never hands playout to a key (3.3746ms)
+✔ permits() asks both questions: the credential carries it AND the account allows it (3.362ms)
+✔ an unconfigured backend answers every key route with one honest 503 (41.3967ms)
+✔ begin refuses an anonymous caller and a malformed consent (8.2944ms)
+✔ redeem mints the key ONCE, with the verifier, inside the TTL - and burns the code either way (9.0293ms)
+✔ the minted key resolves to a scoped principal; revocation ends it; it can only revoke itself (11.0905ms)
+✔ an unknown or malformed bearer is anonymous, never an error (4.4114ms)
+[agent-save] duplicate key value violates unique constraint
+✔ the shape guard admits the bridge record and refuses what is not one (9.6079ms)
+✔ an anonymous caller is 401, a key without the permission is 403, a revoked key is 401 (50.4421ms)
+✔ a save is INSERTED under the server's id, clock and origin - never the client's (7.8113ms)
+✔ a malformed body is 400, an oversized one 413, and the wrong method 405 (30.0906ms)
+✔ nothing on the save path executes the template code (0.4443ms)
+✔ the shape guard admits a pack file and refuses what is not one (6.0877ms)
+✔ an anonymous caller is 401, a key without the permission is 403, a revoked key is 401 (55.9375ms)
+✔ a package is stored narrowed, with the server's origin, and answers where it waits (3.6139ms)
+✔ refusals: offline, wrong method, bad JSON, bad shape, and the waiting cap (27.5441ms)
+✔ nothing on the path ever executed the package's code (0.4674ms)
+✔ only the exact pinned manifest and database-derived publisher can sign private sound bytes (45.2452ms)
+✔ JSON cannot authorize another private owner and preparation failures remain retryable (1.0493ms)
+✔ the ceiling still clears the dearest generation either engine has produced (1.365ms)
+✔ …and is still low enough to stop a runaway rather than merely exist (0.2894ms)
+✔ the ceiling is a real number a reservation can book against (0.2855ms)
+✔ a deployment with no accounts backend cannot enforce an allowance, and is left alone (2.8158ms)
+✔ a real backend deployment CAN enforce it, whether or not hosted Pro is switched on (1.3872ms)
+✔ hosted Pro switched off refuses the managed key and names the alternative (2.2641ms)
+✔ an unauthenticated caller is refused before any route or ledger work (2.1498ms)
+✔ a route the profile does not fund is refused before it is billed (1.4275ms)
+✔ a managed Pro call with no reservation is refused (1.1213ms)
+✔ the first settlement REPLACES the booked worst case; every later one adds (3.6915ms)
+✔ a generation past its ceiling admits no further call (0.4894ms)
+✔ the call cap bounds a reservation even when every call is cheap (0.7638ms)
+✔ an expired reservation and somebody else's answer without revealing which (0.7707ms)
+Pro call settlement failed: Pro call settlement failed: TypeError: fetch failed
+✔ a settlement the ledger refuses never fails the request that was already billed (173.8205ms)
+✔ settlement is skipped entirely when the provider billed nothing accountable (0.3355ms)
+✔ a Pro call never touches attempt_count, which belongs to Lite (0.3343ms)
+✔ the Pro task fails closed without an audited provider allowlist, and opens with one (0.6215ms)
+✔ hosted Pro funds exactly the route it spends on, and no image route at all (0.883ms)
+✔ disabling the retired IMAGE route from /admin leaves hosted Pro up (0.3361ms)
+✔ the browser and the server hold a Pro generation to the SAME ceiling (0.2108ms)
+✔ the fleet slot is retried, and only the fleet slot (0.3654ms)
+✔ a durable refusal returns at once - retrying it would only spend the room's budget (0.2696ms)
+✔ a settled call RENEWS the lease, and a late short one never shortens it (0.2445ms)
+✔ the lease covers one call, not the whole profile expiry - that is what frees a class seat (0.2296ms)
+✔ a live zero-call reservation counts its start and its full booking (4.7071ms)
+✔ a failed run with zero settled calls releases its start and its booking (0.8705ms)
+✔ a failed run WITH a settled call keeps its start and its real cost (0.7394ms)
+✔ an abandoned reservation releases itself when its lease runs out - no sweep, no report (0.5079ms)
+✔ the release rule is pro-only: a failed pre-call Lite run keeps Lite semantics (0.5241ms)
+✔ re-POSTing a reservation with the same idempotency key returns the same record - one start, one booking (0.4649ms)
+✔ a call that failed before settling leaves the reservation admissible - the retry pays from the SAME booking (0.5738ms)
+✔ the settled-call cap still ends a run - retries cannot loop past maxCalls once calls settle (0.4595ms)
+✔ a re-POST that lands on a FAILED record gets the dead record back - a new generation needs a new key (0.624ms)
+✔ the in-session retry fires on a provider outage, once, and on nothing else (0.7049ms)
+✔ a fresh reservation after an infra failure is admitted within the same day (0.8312ms)
+✔ a short-window gate's sweep never wipes a long-window gate's live counter (30.183ms)
+✔ a genuinely dead bucket is swept by its own gate's age, freeing the memory (27.0589ms)
+✔ every component is checked and reported when all are up (56.121ms)
+✔ the database check runs a real query with the server key; the others use the publishable key (7.0414ms)
+✔ the realtime check joins a channel over the websocket, as the playout link does (4.8084ms)
+✔ one component down makes the answer 503 and names it, the rest stay operational (4.1721ms)
+✔ a hanging upstream reads as a timeout, a refused connection as unreachable (53.0141ms)
+✔ realtime: a refused join, a dropped socket and silence are each down (60.1421ms)
+✔ a missing backend configuration is down, never silently operational (4.1823ms)
+✔ the answer never carries the project address, a key or upstream error text (2.7882ms)
+✔ one component answers alone, and only that one is checked (0.5907ms)
+✔ an unknown component is a 400 and a write method a 405 (0.8985ms)
+✔ HEAD answers with the same status and no body (9.0976ms)
+✔ repeat calls inside the memo window share one measurement, then it is measured again (0.7142ms)
+✔ the server resolves the Supabase variables as the rest of api/ does (0.2376ms)
+✔ with no backend configured, nothing is hidden (4.1154ms)
+✔ a broken backend hides nothing rather than emptying the catalog (99.6871ms)
+✔ the entitlement decides who sees beta and internal (0.6901ms)
+ℹ tests 321
+ℹ suites 0
+ℹ pass 321
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 758.2817
+[gates] test:ai-gateway ok (4.2s) - 25 ai gateway test files
+
+[gates] check:owner-receipts: node scripts/owner-receipts.mjs --check
+Owner receipts OK: 67 receipt(s), 58 standing ask(s), 2 finding(s).
+[gates] check:owner-receipts ok (0.1s) - 67 backlog items
+
+[gates] check:owner-queue: node scripts/check-owner-queue.mjs
+check-owner-queue: OK - 45 item(s), all carry kind: and date:.
+[gates] check:owner-queue ok (0.1s) - 45 owner queue items, 39 queue items grouped by route (of 39 open phone/desktop/agent; 4 place(s))
+
+[gates] check:contracts: node scripts/compile-contracts.mjs --check
+[measured] 67 backlog items
+[measured] 45 owner queue items
+[measured] 39 queue items grouped by route (of 39 open phone/desktop/agent; 4 place(s))
+[measured] 551 rules in the store
+[measured] 9 directories the compiler owns
+[measured] 25 contracts measured
+[measured] 953 instruction files
+[measured] 6 retired mechanisms
+[measured] 408 scripts scanned for a bare local `main` revision
+
+[gates] 1 check(s) failed: check:gate-coverage - tests not run
+[compile-contracts] OK - 551 rule(s), 254 generated file(s) current
+[gates] check:contracts ok (23.7s) - 551 rules in the store, 9 directories the compiler owns
+
+[gates] check:contract-evidence: node scripts/check-contract-evidence.mjs
+[check-contract-evidence] OK - 90 evidence line(s) across 25 contract(s), none new
+[gates] check:contract-evidence ok (0.1s) - 25 contracts measured
+
+[gates] check:retired-names: node scripts/check-retired-names.mjs
+Retired names OK: 953 instruction file(s), 6 retired mechanism(s), none instructed.
+[gates] check:retired-names ok (0.4s) - 953 instruction files, 6 retired mechanisms
+
+[gates] check:landed-ref: node scripts/check-landed-ref.mjs
+check-landed-ref: OK - 408 script(s) scanned, 2 deliberate use(s) of the bare local ref, 0 stale reads.
+[gates] check:landed-ref ok (0.3s) - 408 scripts scanned for a bare local `main` revision

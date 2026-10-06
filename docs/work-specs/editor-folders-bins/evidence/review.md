@@ -1,7 +1,9 @@
 # Inline review: R1.2b.7
 
-Review scope starts at `ba8ad8738758c6a87580f40e35a34c05b88bee13`, from
-`node scripts/review-request.mjs`, on `codex/editor-folders-bins-r1-2b-7`.
+The initial review scope starts at `ba8ad8738758c6a87580f40e35a34c05b88bee13`.
+After integrating landed main, the final merge base from
+`node scripts/review-request.mjs` is `297591f7262164c62e2d08cd897a4b35cdbe60ca`,
+on `codex/editor-folders-bins-r1-2b-7`.
 Review and simplification run inline because this session has no callable
 independent review mode. The final scope and verification verdict are recorded
 in the check receipt after required regressions/build complete.
@@ -50,6 +52,12 @@ All 12 findings passed their final coverage in j-3577 (20 tests) and the seven
 native organization tests. Initial reproductions and the corrected same-saved
 identity case are retained as evidence; the earlier incorrectly reset-ID case
 is not treated as proof.
+
+The build found one additional integration finding: the isolated mutation bench
+declared its manual gate but lacked an npm entry. j-3589 refused script discovery
+(`build-discovery.log`). Registering `test:editor-organization:mutations` beside
+the existing group bench makes `node scripts/check-gate-coverage.mjs` pass with
+228 audited gates. The bench's isolation and restoration guards stay intact.
 
 Simplify: inline. Reuse the existing source parser, asset move/import APIs,
 session transaction/history and saved graphic API. Share one guarded inline
