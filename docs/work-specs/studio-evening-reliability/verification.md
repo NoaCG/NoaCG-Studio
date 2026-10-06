@@ -3,16 +3,17 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Corrected product commit `bdab14b66` is published; the branch is not merged or deployed.
+Previously verified product commit `bdab14b66` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
 an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
 
-Automated verification is complete on `bdab14b66`: first-attempt CI, the full guarded backend
-suite, the local affected browser/catalog suite and the clean build pass. Review and
-simplification ran inline; all 25 confirmed findings are fixed. Release verification remains
-held for the actual media, recorded program audio and cross-device rehearsal. The receipts
-below preserve earlier failures as well as their final passing replacements.
+The completed checks on `bdab14b66` passed, but the later documentation-only CI run exposed a
+diagnostic persistence race. Its contained correction is reproduced and focused checks pass;
+final verification of that correction is pending. Review and simplification ran inline; all
+26 confirmed findings are fixed. Release verification remains held for the actual media,
+recorded program audio and cross-device rehearsal. The receipts below preserve earlier failures
+as well as their passing replacements.
 
 ## Review and simplification
 
@@ -60,6 +61,9 @@ Confirmed corrections during review:
 25. Cloud confirmations flush only an unsaved cue draft, then release it after a successful
     write. Repeated confirmations cannot advance publication timestamps or replace landed
     teammate values. A refused write retains the draft; same-tick edits are visible to the flush.
+26. A stopped-sequence diagnostic survives subsequent unidentified readings and a queued-file
+    switch. Empty/cleared slots and newly identified takes remove the warning; unchanged polls
+    retain the same ownership object. Opening diagnostics later cannot miss the restart cause.
 
 Simplification: inline. Kept existing playout adapters, durable storage, team compare-and-swap,
 production eligibility, shared keyboard transport and capability-protected panel relay. Removed
@@ -329,6 +333,23 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   line-ending checks. Executable sources were unchanged from `bdab14b66`; only verification
   result prose was updated afterwards. The refreshed review scope is the same 124 files against
   current `origin/main` at `7878a4ef4`, including the uncommitted supplied photo as read-only evidence.
+- Documentation-only CI
+  [37405745401](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37405745401) passed Build,
+  Factory, catalog and nine browser shards, but the Bridge-restart folder warning failed in
+  shard 3. Its trace/frame show the unidentified slot remained while the sequence-stop detail
+  disappeared. A normal rerun `j-3477` passed; the state test and delayed-panel browser
+  reproduction `j-3478` fail deterministically because the second poll drops that detail.
+  Retain the cause while the slot remains unidentified, including queued-file advancement.
+  All 43 focused state checks, TypeScript and focused lint pass after correction. Removing
+  only the new instance guard fails the inverse assertion for a foreign take; the exact source
+  bytes were restored, then the unmutated check passed.
+  All 64 folder/studio checks in `j-3479` and the rendered target in `j-3480` passed, but both
+  wrappers were reaped without an exit receipt, so neither job is recorded as green. The
+  [corrected warning frame](built/studio-sequence-stopped.png) was inspected: folder name,
+  queued-media advice and exact-slot Clear are readable outside the operational cue list.
+  The npm-wrapped target `j-3481` completed with exit 0, one passed (17.7 seconds); its frame
+  preserves cue positions. No runtime command, timing rule or ownership claim changed.
+  Final full affected/build/CI/backend receipts are pending on frozen corrected sources.
 
 ## Rollout hold
 

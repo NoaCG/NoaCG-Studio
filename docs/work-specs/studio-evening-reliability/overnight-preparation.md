@@ -130,6 +130,16 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   tests / three skips, TypeScript, full lint, architecture, bundle, prerender and final scans.
   Executable sources remained unchanged from `bdab14b66`. Only result prose changed afterwards.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
+- Final documentation-only CI `37405745401` found a disappearing Bridge-restart folder warning;
+  Build, Factory, catalog and nine shards passed. The state test and deliberately delayed panel
+  reproduction `j-3478` failed before correction. Repeated unidentified readings now retain the
+  stopped-sequence cause/cue until a clear, empty slot or newly identified take. All 43 focused
+  state checks, TypeScript and lint pass. The new instance guard's inverse assertion was
+  mutation-tested, and source bytes restored exactly. Folder/studio `j-3479` passed 64 checks
+  and target `j-3480` passed, but their wrappers lost exit receipts; do not call those jobs green.
+  The corrected warning frame was inspected. The npm-wrapped target `j-3481` completed with
+  exit 0 (one passed, 17.7 seconds). No playout command or timing rule changed. Final frozen
+  affected/build/CI/backend checks are pending.
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
   SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
@@ -139,7 +149,7 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
 
 ## Continuation without a schedule
 
-Automated preparation is complete. The remaining gates require the original three clips,
+One contained diagnostic correction needs final automated verification. Physical gates require the original three clips,
 recorded ATEM audio, actual receiving-host rehearsal and two devices. Supply an isolated test
 build before the operator follows the rehearsal checklist; these controls are not deployed.
 The historical home-edit incident still needs the student's account/time/home-browser evidence.

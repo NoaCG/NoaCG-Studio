@@ -316,7 +316,10 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     }
     // Its row already says the slot was replaced; a second line would say it twice.
     if (Object.values(replaced).some((r) => slotAddress(r.slot) === a)) continue;
-    unidentified.push({ slot, producer: s.producer, ...withFile });
+    // A restart's cause survives later polls and the server's already queued file switch.
+    // A new Bridge-owned instance is a different take; it must not inherit that warning.
+    const stopped = !s.instance && ownership.unidentified.find(u => slotAddress(u.slot) === a && u.sequenceStopped);
+    unidentified.push({ slot, producer: s.producer, ...withFile, ...(stopped ? { sequenceStopped: true, ...(stopped.cueId ? { cueId: stopped.cueId } : {}) } : {}) });
   }
 
   unidentified.sort((x, y) => x.slot.channel - y.slot.channel || x.slot.layer - y.slot.layer);

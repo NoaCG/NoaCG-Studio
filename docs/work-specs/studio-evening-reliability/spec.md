@@ -18,6 +18,8 @@ operator's next action predictable without disturbing working output.
 - Investigate the bad video against the two working originals before claiming a file-specific
   fix. Keep timing confidence separate from ownership; provide explicit immediate slot clearing.
 - Diagnostics never enter the operational cue list or change its geometry or selection.
+  A known sequence-stop warning remains while its slot stays unidentified; repeated polls and
+  queued-file advancement cannot erase its cause. Clearing or identifying the slot removes it.
 - Attached sound executes with program graphic lifecycle. Independent effects are real audio
   cues through existing adapters, not invisible graphics or another playback system.
 - Browser/host audio support requires a recorded program-output rehearsal. No deployment,
@@ -42,6 +44,7 @@ operator's next action predictable without disturbing working output.
 3. All three actual clips have correct or explicitly unavailable timing, and Space on the selected
    live cue performs its displayed Out. Immediate clearing works even without cue ownership.
 4. Unknown-item appearance/disappearance leaves cue row coordinates, scroll and focus unchanged.
+   A Bridge-restart warning still names the stopped folder after subsequent polls and a queued switch.
 5. Attached In/Out/step sounds reach recorded program audio on each supported host/channel, with
    silent monitors and no duplicate recovery stings. Independent audio does not replace video/graphics.
 6. Metadata-heavy SVG imports fit the unchanged budget without visual loss; off-canvas fields are
