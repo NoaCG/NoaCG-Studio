@@ -1,11 +1,22 @@
-// guards: src/model/editorOrganization.ts
+// guards: src/model/editorOrganization.ts, src/blocks/assetOps.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { transform } from 'sucrase';
 
 const compiled = transform(readFileSync('src/model/editorOrganization.ts', 'utf8'), { transforms: ['typescript'] }).code;
-const { readOrganization, writeOrganization, inspectOrganization } = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
+const modelUrl = 'data:text/javascript;base64,' + Buffer.from(compiled).toString('base64');
+const { readOrganization, writeOrganization, inspectOrganization } = await import(modelUrl);
+// These assertions exercise the real pure asset functions. Their unrelated browser
+// imports are omitted so Node can load them without a DOM/module bundler.
+async function assetModule(path) {
+  const source = readFileSync(path, 'utf8').replace(/^import[\s\S]*?;[ \t]*\r?$/gm, '');
+  const code = 'import { readOrganization, splitOrganizationHtml } from ' + JSON.stringify(modelUrl) + ';\n' + transform(source, { transforms: ['typescript'] }).code;
+  return import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+}
+const { moveAsset } = await assetModule('src/blocks/assetOps.ts');
+const { inlineAssetRefs } = await assetModule('src/assets/assetUtils.ts');
+const { referenceCount } = await assetModule('src/assets/assetInfo.ts');
 const plain = { html: '<div id="art">Unchanged artwork</div>', css: '#art {color:red}', js: 'window.play=()=>{}', assets: [], fields: [] };
 const organization = { version: 1, folders: [{ id: 'folder:1', name: 'Plate --> <dark> & \'quote\'', scope: null, parent: null, members: ['#art'] }], bins: ['images/Sponsors'] };
 
@@ -31,4 +42,22 @@ test('future versions, unknown fields and invalid trees stay read-only', () => {
 test('a metadata-shaped string inside artwork code cannot be rewritten as a source header', () => {
   const html = '<script>var note=\'<!-- NOACG_ORGANIZATION ' + JSON.stringify({ version: 1, folders: [], bins: ['images/Sponsors'] }) + ' -->\';</script>' + plain.html;
   assert.throws(() => readOrganization({ html }), /unsupported/);
+});
+test('asset moves and inlining preserve folder labels while rewriting artwork verbatim', () => {
+  const path = 'images/First/red.svg', data = 'data:image/svg+xml;base64,PHN2Zy8+';
+  const source = writeOrganization({ ...plain, html: '<img src="./' + path + '">', assets: [{ path, data }] }, { ...organization, folders: [{ ...organization.folders[0], name: path }] });
+  const moved = moveAsset(source, path, 'images/Second/red.svg').template;
+  assert.equal(readOrganization(moved).folders[0].name, path);
+  assert.ok(moved.html.endsWith('<img src="./images/Second/red.svg">'));
+  const inline = inlineAssetRefs(source.html, source.assets);
+  assert.deepEqual(readOrganization({ html: inline }), readOrganization(source));
+  assert.ok(inline.endsWith('<img src="' + data + '">'));
+  const future = { ...source, html: source.html.replace('"version":1', '"version":99') };
+  assert.throws(() => moveAsset(future, path, 'images/Second/red.svg'), /unsupported/);
+});
+test('inert organization labels do not count as asset references', () => {
+  const path = 'images/First/red.svg';
+  const source = writeOrganization(plain, { ...organization, folders: [{ ...organization.folders[0], name: path }] });
+  assert.equal(referenceCount(source, path), 0);
+  assert.equal(referenceCount({ ...source, html: source.html + '<img src="' + path + '">', css: 'url(./' + path + ')' }, path), 2);
 });

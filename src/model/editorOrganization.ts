@@ -8,6 +8,12 @@ const empty = (): EditorOrganization => ({ version: 1, folders: [], bins: [] });
 const keysAre = (value: object, keys: string[]) => Object.keys(value).every(key => keys.includes(key));
 export const validBin = (dir: string) => /^(images|fonts|videos|sounds|lottie|assets)\/[\w-]+(?:\/[\w-]+)*$/.test(dir);
 
+/** Keep the inert source header opaque when rewriting artwork references. */
+export function splitOrganizationHtml(html: string): [string, string] {
+  const first = html.matchAll(marker).next().value;
+  return first?.index === 0 ? [first[0], html.slice(first[0].length)] : ['', html];
+}
+
 /** Old documents migrate on read to empty v1. Unknown/malformed versions are read-only. */
 export function readOrganization(template: Pick<SpxTemplate, 'html'>): EditorOrganization {
   const matches = [...template.html.matchAll(marker)];
