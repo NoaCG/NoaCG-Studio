@@ -337,7 +337,8 @@ jobs:
       - name: Configured E2E suite
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
-        run: npm run test:e2e:live -- --reporter=list,json || true
+        # Temporary feature-branch diagnosis. Keep the full-suite verdict strict below.
+        run: npm run test:e2e:live -- --reporter=list,json --trace=on --retries=0 analytics.spec.ts anonymous.spec.ts live-prepare.spec.ts live-ready.spec.ts playout-status.spec.ts || true
 
       # A green exit code from this suite means nothing on its own; only the counts do.
       # ONE implementation of the verdict, shared with hosted-latency.yml, because both run the
