@@ -76,14 +76,13 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   // ── AC-8: nothing unpublished, so it only checks, and says so before it is pressed. ──
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openPanel(page, 'production-status');
-  const prepare = page.getByTestId('prepare-for-live');
-  await expect(prepare).toContainText('Every output is checked on v1');
+  await expect(page.getByTestId('prepare-for-live-button')).toHaveText('Check readiness');
   await page.getByTestId('prepare-for-live-button').click();
   const stamp = page.getByTestId('prepare-stamp');
-  await expect(stamp).toContainText(/(Ready for Live, checked \d\d:\d\d \(v1\))|(Checked \d\d:\d\d \(v1\): \d+ warning)/, { timeout: 90_000 });
+  await expect(stamp).toContainText(/(Ready for Live, checked \d\d:\d\d)|(Checked \d\d:\d\d: \d+ warning)/, { timeout: 90_000 });
   const clean = /Ready for Live/.test((await stamp.textContent()) ?? '');
   test.info().annotations.push({ type: 'stamp', description: (await stamp.textContent()) ?? '' });
-  await expect(page.getByTestId('prepare-checklist')).toContainText('Nothing changed since v1');
+  await expect(page.getByTestId('prepare-checklist')).toContainText('No unpublished changes');
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A');
   // ── AC-12: one ping through the command path, answered by the output (migration 0072). ──
   await expect(page.getByTestId('prepare-checklist')).toContainText(/Desk A: .* · (command path \d+ ms|commands reach it)/);
@@ -109,7 +108,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await openPanel(page, 'production-status');
   await expect(page.getByTestId('prepare-stamp')).toHaveText(metadataStamp!);
   if (clean) await expect(desk).toHaveAttribute('data-tone', 'ok');
-  await expect(prepare).toContainText('Your unpublished changes will be published and included');
+  await expect(page.getByTestId('prepare-for-live-button')).toHaveText('Publish & check readiness');
   await page.getByTestId('prepare-for-live-button').click();
   // The panel shuts on any click outside it (a Take, say), here while the run is still publishing;
   // the run goes on to its stamp regardless, and the checklist is there when the panel reopens.
@@ -126,8 +125,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
     )
     .toBe(2);
   await openPanel(page, 'production-status');
-  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2');
-  await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d \(v2\)/i, { timeout: 90_000 });
+  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes');
+  await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d/i, { timeout: 90_000 });
   await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 30_000 }).toBe(2);
   expect(reloads, 'cue metadata must not reload the output').toBe(metadataReloads);
 
@@ -150,10 +149,10 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
     return !error && !(await commitDurableWrites());
   }, showId);
   expect(edited, 'the production names its graphic in the library').toBe(true);
-  await expect(prepare).toContainText('Your unpublished changes will be published and included', { timeout: 15_000 });
+  await expect(page.getByTestId('prepare-for-live-button')).toHaveText('Publish & check readiness', { timeout: 15_000 });
   expect(await readUpdatedAt()).toBe(recordBefore);
   await page.getByTestId('prepare-for-live-button').click();
-  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v3', { timeout: 90_000 });
+  await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes', { timeout: 90_000 });
   await expect
     .poll(async () => (await readyOf(air))?.v?.n ?? 0, { timeout: 90_000 })
     .toBe(3);
@@ -161,7 +160,7 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   // ── AC-11: an output that has gone makes the stamp say so. ──
   await air.close();
   await page.getByTestId('prepare-for-live-button').click();
-  await expect(page.getByTestId('prepare-stamp')).toContainText(/Not ready, checked \d\d:\d\d \(v3\): 1 problem/, { timeout: 90_000 });
+  await expect(page.getByTestId('prepare-stamp')).toContainText(/Not ready, checked \d\d:\d\d: 1 problem/, { timeout: 90_000 });
   await expect(page.getByTestId('prepare-checklist')).toContainText('Desk A: not answering');
   await page.screenshot({ path: shot('desk-1920-not-ready') });
 

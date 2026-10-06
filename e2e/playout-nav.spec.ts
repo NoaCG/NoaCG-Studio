@@ -101,21 +101,24 @@ test('the Playout panel opens Playout settings: the same form as Settings, saved
   await tab.goto(`/app#/production/${id}`);
   await expect(tab.getByTestId('production-page')).toBeVisible();
 
-  // Nothing paired: the panel's Setup says so, unfolded, without asking the network anything.
+  // Browser productions show their output settings without a disconnected-server form.
   await tab.getByTestId('production-status').click();
-  await expect(tab.getByTestId('playout-setup-summary')).toContainText('Browser outputs do not require NoaCG Bridge');
+  await expect(tab.getByTestId('playout-setup-summary')).toHaveCount(0);
   const door = tab.getByTestId('playout-settings-open');
-  await expect(door).toHaveText('Set up CasparCG…');
+  await expect(door).toHaveText('Playout settings…');
   await door.click();
 
   const dialog = tab.getByTestId('playout-settings');
   await expect(dialog).toBeVisible();
-  // WHERE graphics play, answered before the form asks for an address.
-  await expect(dialog.getByTestId('playout-system-casparcg')).toContainText('NoaCG Bridge');
-  await expect(dialog.getByTestId('playout-browser-source-note')).toContainText('OBS, vMix');
-  // The Bridge is one click away, and so is the page that explains it.
+  await expect(dialog).toContainText('OBS, vMix');
+  await expect(dialog.getByTestId('caspar-host')).toHaveCount(0);
+  await dialog.getByTestId('settings-change-output').click();
+  await tab.getByTestId('output-profile').selectOption('casparcg');
+  await tab.getByTestId('confirm-output').click();
+  await tab.getByTestId('production-setup').click();
+  await tab.getByTestId('setup-playout-settings').click();
+  await expect(dialog).toContainText('CasparCG through NoaCG Bridge');
   await expect(dialog.getByTestId('bridge-download')).toHaveAttribute('href', '/downloads#bridge');
-  await expect(dialog.getByTestId('playout-settings-downloads')).toHaveAttribute('href', '/downloads#bridge');
 
   // One form, one record: a server named here is the server Settings -> Playout shows.
   await dialog.getByTestId('settings-playout').getByTestId('caspar-host').fill('studio-caspar.lan');

@@ -1,91 +1,62 @@
 import { useRef } from 'react';
-import { PLAYOUT_SYSTEMS, DEFAULT_PLAYOUT_SYSTEM } from '../control/playoutSystems';
-import { DOWNLOADS_BRIDGE_URL } from '../downloads/links';
 import PlayoutSettingsPanel from './PlayoutSettingsPanel';
 import type { PlayoutResult } from '../control/playoutLink';
+import { outputSetupLabel, type ProductionOutputSetup } from '../model/outputSetup';
 import { useModalGate } from './spaceKey';
 
-/**
- * PLAYOUT SETTINGS, opened from the production page itself.
- *
- * An operator setting up CasparCG is standing on the production page, and should not have to
- * leave it for their profile and dig through general settings to find the server's address.
- * So this dialog is the SAME form the general Settings dialog shows under "Playout"
- * (PlayoutSettingsPanel, one component, one stored record in control/playoutLink.ts) - a second
- * door onto the same settings, never a second copy of them.
- *
- * What it adds is the question a new user actually has - "where do my graphics play?" - answered
- * above the form: the systems NoaCG can be set up to drive (control/playoutSystems.ts, CasparCG
- * today), and the plain fact that OBS, vMix and any other browser source need no setup here at
- * all, only the output URL.
- */
+/** Production outputs first; the shared studio server form appears only when used. */
 export default function PlayoutSettingsDialog({
-  onClose,
-  outputUrl,
-  onOutputOnAir,
+  onClose, setup, casparRelevant, browserUrl, onChooseOutput, onCopyBrowser,
+  onDownloadTemplate, copied, outputUrl, onOutputOnAir,
 }: {
   onClose: () => void;
-  /** The production's output URL, null until it is started: the form's Put on air airs it. */
+  setup?: ProductionOutputSetup;
+  casparRelevant: boolean;
+  browserUrl: string | null;
+  onChooseOutput: () => void;
+  onCopyBrowser: () => void;
+  onDownloadTemplate: () => void;
+  copied: boolean;
   outputUrl: string | null;
   onOutputOnAir?: (result: PlayoutResult, target: string) => void;
 }) {
   useModalGate();
   const pressedOnBackdrop = useRef(false);
-  return (
-    <div
-      className="gallery-backdrop"
-      onMouseDown={(event) => { pressedOnBackdrop.current = event.target === event.currentTarget; }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget && pressedOnBackdrop.current) onClose();
-        pressedOnBackdrop.current = false;
-      }}
-    >
-      <div
-        className="wz-modal settings-modal playout-settings-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Playout settings"
-        data-testid="playout-settings"
-      >
-        <div className="wz-header">
-          <h2>Playout settings</h2>
-          <p className="hint wz-header-sub">Where your graphics play. Saved in this browser, for every production.</p>
-          <button className="gallery-close" onClick={onClose} title="Close" data-testid="playout-settings-close">
-            ✕
-          </button>
-        </div>
-
-        <div className="settings-content">
-          <section>
-            <p className="dlg-caption">Playout system</p>
-            <ul className="playout-systems" data-testid="playout-systems">
-              {PLAYOUT_SYSTEMS.map((system) => (
-                <li key={system.id} className="playout-system on" data-testid={`playout-system-${system.id}`}>
-                  <strong>{system.name}</strong> <span className="muted">{system.via}</span>
-                  <span className="hint">{system.summary}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="hint" data-testid="playout-browser-source-note">
-              Using OBS, vMix or another browser source instead? Nothing to set up here: open{' '}
-              the <strong>Playout panel</strong> after you start the production and add the output
-              URL from its Links as a browser source.
-            </p>
-            <p className="hint">
-              New to NoaCG Bridge?{' '}
-              <a href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="playout-settings-downloads">
-                Get it and see how it works
-              </a>
-              .
-            </p>
-          </section>
-          <section>
-            <p className="dlg-caption">{DEFAULT_PLAYOUT_SYSTEM.name}</p>
-            <PlayoutSettingsPanel outputUrl={outputUrl} onOutputOnAir={onOutputOnAir} />
-          </section>
-        </div>
+  return <div className="gallery-backdrop"
+    onMouseDown={event => { pressedOnBackdrop.current = event.target === event.currentTarget; }}
+    onClick={event => {
+      if (event.target === event.currentTarget && pressedOnBackdrop.current) onClose();
+      pressedOnBackdrop.current = false;
+    }}>
+    <div className="wz-modal settings-modal playout-settings-modal" role="dialog" aria-modal="true"
+      aria-label="Playout settings" data-testid="playout-settings"
+      onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}>
+      <div className="wz-header">
+        <h2>Playout settings</h2>
+        <button className="gallery-close" onClick={onClose} title="Close" data-testid="playout-settings-close">✕</button>
+      </div>
+      <div className="settings-content">
+        <section>
+          <p className="dlg-caption">This production</p>
+          <div className="pd-output-setup" data-testid="settings-production-output">
+            <strong>{setup ? outputSetupLabel(setup) : 'Existing output setup'}</strong>
+            <button onClick={onChooseOutput} data-testid="settings-change-output">Change output…</button>
+          </div>
+        </section>
+        <section>
+          <p className="dlg-caption">Browser source</p>
+          <p className="hint">OBS, vMix and other HTML sources</p>
+          {browserUrl ? <div className="dlg-pair">
+            <input readOnly value={browserUrl} aria-label="Browser source URL" data-testid="settings-browser-url" />
+            <button onClick={onCopyBrowser}>{copied ? 'Copied' : 'Copy URL'}</button>
+          </div> : <p className="hint">Publish &amp; check readiness to get the URL.</p>}
+          <button disabled={!browserUrl} onClick={onDownloadTemplate} data-testid="settings-spx-template">Download SPX template</button>
+        </section>
+        {casparRelevant && <section>
+          <p className="dlg-caption">CasparCG through NoaCG Bridge</p>
+          <PlayoutSettingsPanel outputUrl={outputUrl} onOutputOnAir={onOutputOnAir} />
+        </section>}
       </div>
     </div>
-  );
+  </div>;
 }
-

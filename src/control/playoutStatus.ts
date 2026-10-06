@@ -146,7 +146,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       tone: 'idle',
       label: 'Browser graphics not started',
       short: 'Offline',
-      advice: 'Browser graphics preview here until you start the production. CasparCG server cues play directly on their assigned output, even before publishing.',
+      advice: f.bridge ? 'Browser graphics preview here until you publish. CasparCG server cues use Bridge directly.' : 'Publish and check readiness to use a browser source. Graphics preview here until then.',
     });
   } else if (f.unpublished) {
     checks.push({

@@ -10,6 +10,8 @@ export const OUTPUT_PROFILES: readonly { id: OutputProfile; label: string }[] = 
 ];
 export const OUTPUT_DEFAULT_KEY = 'noacg_output_default_v1';
 export function outputProfileLabel(profile: OutputProfile): string {
+  if (profile === 'browser' || profile === 'obs' || profile === 'vmix') return 'Browser source';
+  if (profile === 'casparcg') return 'CasparCG through Bridge';
   return OUTPUT_PROFILES.find(p => p.id === profile)?.label ?? profile;
 }
 export function readOutputSetup(value: unknown): ProductionOutputSetup | null {

@@ -8,7 +8,7 @@ import { useAuthUi } from './auth/authUi';
  * Topbar cloud-sync indicator (Era 5.2). Renders nothing in offline mode. When a backend is
  * configured it kicks off auto-sync and shows the live status; click to force a sync now.
  */
-export default function SyncStatus() {
+export default function SyncStatus({ compact = false }: { compact?: boolean } = {}) {
   const [state, setState] = useState<SyncState>(getSyncState());
 
   useEffect(() => {
@@ -20,12 +20,14 @@ export default function SyncStatus() {
   // Unconfigured builds stay offline. Configured anonymous work is explicitly local.
   if (!isBackendConfigured()) return null;
 
+  const checking = !!libraryInUse() && state.firstPass && (state.phase === 'syncing' || state.phase === 'pending');
   const label =
-    state.phase === 'syncing'
-      ? state.firstPass ? 'Checking cloud revision…' : 'Not saved to cloud · saving…'
+    checking ? 'Checking cloud revision…' : state.phase === 'syncing'
+      ? 'Not saved to cloud · saving…'
       : state.phase === 'synced'
         ? 'Personal library saved to cloud'
         : libraryInUse() ? 'Not saved to cloud' : 'Local workspace';
+  const compactLabel = checking ? 'Checking cloud…' : state.phase === 'synced' ? 'Saved to cloud' : state.phase === 'syncing' ? 'Saving to cloud…' : label;
   const title =
     state.phase === 'error'
       ? state.detail ?? 'Cloud save failed. Pending changes remain on this device.'
@@ -41,7 +43,7 @@ export default function SyncStatus() {
       disabled={state.phase === 'syncing'}
     >
       <span className="sync-dot" />
-      {label}
+      {compact ? compactLabel : label}
     </button>
   );
 }

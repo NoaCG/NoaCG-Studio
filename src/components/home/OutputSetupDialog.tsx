@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { useModalGate } from '../spaceKey';
-import { hasCasparOutput, OUTPUT_PROFILES, outputChoice, readOutputSetup, type OutputProfile, type ProductionOutputSetup } from '../../model/outputSetup';
+import { hasCasparOutput, outputChoice, readOutputSetup, type OutputProfile, type ProductionOutputSetup } from '../../model/outputSetup';
 
 export function OutputChoiceFields({ setup, onChange, disabled = false, autoFocus = false }: { setup: ProductionOutputSetup | null; onChange: (s: ProductionOutputSetup) => void; disabled?: boolean; autoFocus?: boolean }) {
   const id = useId();
@@ -9,20 +9,22 @@ export function OutputChoiceFields({ setup, onChange, disabled = false, autoFocu
   const primary = browser?.profile ?? (caspar ? 'casparcg' : '');
   return <>
     <div className="dlg-row">
-      <label htmlFor={id}>Output software</label>
-      <select autoFocus={autoFocus} id={id} value={primary} disabled={disabled} data-testid="output-profile" onChange={e => {
+      <label htmlFor={id}>Output</label>
+      <select autoFocus={autoFocus} id={id} value={primary === 'obs' || primary === 'vmix' ? 'browser' : primary} disabled={disabled} data-testid="output-profile" onChange={e => {
         const value = e.target.value as OutputProfile;
         onChange(value === 'casparcg' ? outputChoice(null, true) : value ? outputChoice(value, browser ? caspar : false) : outputChoice(null, false));
       }}>
         <option value="">Choose output…</option>
-        {OUTPUT_PROFILES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+        <option value="browser">Browser source (OBS, vMix)</option>
+        <option value="casparcg">CasparCG through Bridge</option>
+        <option value="spx">SPX template</option>
       </select>
     </div>
     {browser && <label className="dlg-check">
       <input type="checkbox" checked={caspar} disabled={disabled} onChange={e => onChange(outputChoice(browser.profile as Exclude<OutputProfile, 'casparcg'>, e.target.checked))} data-testid="output-also-caspar" />
-      <span>Also use CasparCG<span className="hint">Mirror NoaCG graphics through NoaCG Bridge. Server files keep their own channels.</span></span>
+      <span>Also use CasparCG through Bridge</span>
     </label>}
-    <p className="hint">{primary === 'spx' ? 'Download the existing SPX template after publishing. SPX shows or hides the frame; NoaCG operates its cues.' : primary === 'casparcg' ? 'Use NoaCG Bridge to put this production on the configured CasparCG output. Choose browser software above to add a browser mirror.' : 'Use the same NoaCG output URL in your browser source. You can prepare and publish before connecting in the studio.'}</p>
+    <details className="hint"><summary>About these outputs</summary><p>{primary === 'spx' ? 'Download the SPX template after publishing. Operate the graphics from NoaCG.' : primary === 'casparcg' ? 'Bridge connects NoaCG to CasparCG. A browser source URL is also available in Playout settings.' : 'Add the URL to a browser source in OBS, vMix or another HTML system.'}</p></details>
   </>;
 }
 
