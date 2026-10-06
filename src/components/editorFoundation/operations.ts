@@ -1,5 +1,6 @@
 import type { SpxTemplate } from '../../model/types';
 import { getTemplateParts } from '../../model/structure';
+import { readOrganization, writeOrganization } from '../../model/editorOrganization';
 import { locateAnimData, parseAnimData, serializeAnimData, spliceAnimData } from '../../blocks/animData';
 import { applySound, type SoundOperation } from '../../blocks/soundEdit';
 import { setKeyframe } from '../../blocks/animEdit';
@@ -14,10 +15,12 @@ import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset,
 import type { AssetFile } from '../../model/types';
 import { createPath, editPath, editPathPaint, type PathPaint } from '../../blocks/editorPaths';
 import { applyGroup, type GroupOperation } from '../../blocks/editorGroups';
+import { applyOrganization, assetBinDirs, reconcileOrganization, type OrganizationOperation } from '../../blocks/editorOrganization';
 import type { PathGeometry } from '../../blocks/pathGeometry';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | OrganizationOperation
   | GroupOperation
   | SoundOperation
   | AnimationOperation
@@ -67,12 +70,16 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
   const targets = new Set<string>();
   const identities: Record<string, string> = {};
   for (let operation of operations) {
-    if (committed && operation.kind === 'group.create') {
-      operation = { ...operation, selectors: operation.selectors.map(original => {
+    if (committed && (operation.kind === 'group.create' || operation.kind === 'folder.create' || operation.kind === 'folder.move')) {
+      const originals = operation.kind === 'group.create' ? operation.selectors : operation.members;
+      const selectors = originals.map(original => {
+        if (original.startsWith('folder:')) return original;
         const identity = commitSvgIdentity(next, original); next = identity.template;
         if (identity.selector !== original) identities[original] = identity.selector;
         return identity.selector;
-      }) };
+      });
+      operation = operation.kind === 'group.create' ? { ...operation, selectors } : { ...operation, members: selectors };
+      next = reconcileOrganization(template, next, identities);
     }
     if (committed && 'selector' in operation) {
       const original = operation.selector;
@@ -81,8 +88,13 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'group.create' || operation.kind === 'group.ungroup' || operation.kind === 'group.move' || operation.kind === 'group.trim') {
-      const result = applyGroup(next, operation); next = result.template; result.targets.forEach(target => targets.add(target));
+    if (operation.kind === 'folder.create' || operation.kind === 'folder.rename' || operation.kind === 'folder.remove' || operation.kind === 'folder.move' || operation.kind === 'folder.reorder' || operation.kind === 'bin.create' || operation.kind === 'bin.rename' || operation.kind === 'bin.remove') {
+      next = applyOrganization(next, operation);
+    } else if (operation.kind === 'group.create' || operation.kind === 'group.ungroup' || operation.kind === 'group.move' || operation.kind === 'group.trim') {
+      const before = next, result = applyGroup(next, operation);
+      const replacement = operation.kind === 'group.create' ? { from: operation.selectors, to: result.targets }
+        : operation.kind === 'group.ungroup' ? { from: [operation.selector], to: result.targets } : undefined;
+      next = reconcileOrganization(before, result.template, identities, replacement); result.targets.forEach(target => targets.add(target));
     } else if (operation.kind === 'path.create') {
       const result = createPath(next, operation.geometry, operation.time); next = result.template; targets.add(result.selector);
     } else if (operation.kind === 'path.edit') {
@@ -94,9 +106,15 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
     } else if (operation.kind === 'asset.import') {
       next = importAssets(next, operation.assets).template;
     } else if (operation.kind === 'asset.move') {
+      const organization = readOrganization(next), before = next;
+      organization.bins = assetBinDirs(next, organization);
       next = renameGraphicAsset(next, operation.from, operation.to);
+      if (next !== before) next = writeOrganization(next, organization);
     } else if (operation.kind === 'asset.delete') {
+      const organization = readOrganization(next);
+      organization.bins = assetBinDirs(next, organization);
       next = removeUnusedAsset(next, operation.path);
+      next = writeOrganization(next, organization);
     } else if (operation.kind === 'image.place') {
       const result = placeGraphicImage(next, operation.assetPath, operation.geometry, operation.time);
       next = result.template; targets.add(result.selector);
@@ -129,6 +147,7 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       next = applyKeyOperations(next, [operation]).template; targets.add(operation.selector);
     } else throw new Error('Unknown editor operation.');
   }
+  if (operations.some(op => op.kind === 'layer.delete' || op.kind === 'layer.duplicate') || Object.keys(identities).length) next = reconcileOrganization(template, next, identities);
   const diff: OperationPatch['diff'] = (['html', 'css', 'js'] as const)
     .filter(file => template[file] !== next[file]).map(file => ({ file, before: template[file], after: next[file] }));
   if (template.assets.length !== next.assets.length || template.assets.some((asset, i) => asset.path !== next.assets[i]?.path || asset.data !== next.assets[i]?.data)) {

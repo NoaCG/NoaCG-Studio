@@ -40,7 +40,9 @@
 .ef-project .assets-panel { min-height: 140px; }
 .ef-project .assets-panel .row { flex-wrap: wrap; }
 .ef-project .asset-info-facts { min-width: 0; }
-.ef-project .asset-fact-value { min-width: 0; overflow-wrap: anywhere; }
+.ef-project .asset-info-body { flex-direction: column; }
+.ef-project .asset-fact-key { flex-basis: 72px; }
+.ef-project .asset-fact-value { min-width: 0; max-width: calc(100% - 80px); overflow-wrap: anywhere; }
 .ef-image-controls button { margin: 0 4px 4px 0; }
 .ef-canvas { min-width: 0; min-height: 0; display: grid; grid-template-rows: 38px auto minmax(0, 1fr) 26px; }
 .ef-toolbar { padding: 4px 10px; border-bottom: 1px solid var(--ef-border); background: var(--bg-panel); }
@@ -220,6 +222,26 @@
 .ef-group-breadcrumbs [aria-current=location] { color: var(--accent); border-color: var(--accent-line); }
 .ef-enter-group { flex-shrink: 0; }
 .ef-track[data-testid=foundation-parent-bar] { background: var(--accent-bg); border-bottom: 1px solid var(--accent-line); }
+.ef-root-return { flex-shrink: 0; border-color: var(--accent-line) !important; color: var(--accent) !important; }
+.ef-location-label, .ef-group-kind, .ef-folder-description { color: var(--ef-muted); font-size: 10px; }
+.ef-document-tab { max-width: 22%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ef-organization-controls { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.ef-organization-controls select { max-width: 150px; }
+.ef-organization-controls button { white-space: nowrap; }
+.ef-timeline > .ef-toolbar { overflow-x: auto; scrollbar-width: thin; }
+.ef-timeline > .ef-toolbar > * { flex-shrink: 0; }
+.ef-organization-error { color: var(--warn); max-width: 260px; white-space: normal; }
+.ef-organization-name { width: 130px; min-width: 60px; padding: 4px; font: inherit; color: var(--text); background: var(--bg-input); border: 1px solid var(--accent); }
+.ef-folder-row .ef-layer-cell { display: flex; }
+.ef-folder-row .ef-layer { flex: 1; gap: 6px; }
+.ef-folder-row small { margin-left: auto; color: var(--ef-muted); }
+.ef-folder-description { align-self: center; padding-left: 10px; }
+.ef-group-kind { padding-right: 4px; }
+.ef-local-context { color: var(--text-mid); font-size: 10px; }
+.ef-project .asset-folder-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ef-project .asset-folder-head button { padding: 3px 5px; min-height: 24px; }
+.ef-project .asset-folder-head small { font-size: 9px; color: var(--ef-muted); }
+@media (max-width: 1150px) { .ef-document-tab, .ef-location-label { display: none; } .ef-local-context { max-width: 170px; } }
 
 .ef-canvas > .ef-toolbar { overflow-x: auto; scrollbar-width: thin; white-space: nowrap; }
 .ef-canvas > .ef-toolbar > * { flex-shrink: 0; }

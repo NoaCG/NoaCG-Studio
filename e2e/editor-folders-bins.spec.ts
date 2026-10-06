@@ -1,4 +1,4 @@
-// covers: src/components/AssetsPanel.tsx, src/components/editorFoundation/**, src/blocks/editorOrganization.ts
+// covers: src/components/AssetsPanel.tsx, src/components/editorFoundation/**, src/blocks/editorOrganization.ts, src/model/editorOrganization.ts, src/blocks/assetOps.ts, src/assets/assetUtils.ts, src/assets/assetInfo.ts
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import type { SpxTemplate } from '../src/model/types';
@@ -6,6 +6,7 @@ import type { EditorOperation } from '../src/components/editorFoundation/operati
 import { evaluateInPage } from './_evaluate';
 import { settleDurableWrites } from './_durable';
 import { pickDesign } from './_browse';
+import { holdKeyRepeats } from './_keys';
 
 const ready = async (page: Page) => expect(page.getByTestId('foundation-canvas')).toHaveAttribute('data-pending', 'false');
 const source = (page: Page) => evaluateInPage(page, async () => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().template);
@@ -102,6 +103,7 @@ test('bins persist empty, rename and move references in one exact undo', async (
   await page.getByRole('button', { name: 'Collapse bin Partners', exact: true }).click();
   await expect(page.locator('.asset-row')).toHaveCount(0);
   await page.getByRole('button', { name: 'Expand bin Partners', exact: true }).click();
+  await page.locator('.asset-row').click();
   await page.getByRole('combobox', { name: 'Asset bin' }).selectOption(''); await ready(page);
   await expect(page.getByRole('button', { name: 'Bin Partners', exact: true })).toBeVisible();
   const saved = await source(page); await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Folders and bins'); await page.getByTestId('save-confirm').click();
@@ -123,6 +125,166 @@ test('organization refuses stale revisions, mixed scopes, cycles and partial bat
     return { refusal, unchanged: before === s.port.read(), selected: JSON.stringify(selected) === JSON.stringify(s.port.view().selectedParts), undo: undo === s.canUndo() };
   }, ids);
   expect(result.refusal).not.toBe(''); expect(result.unchanged && result.selected && result.undo).toBe(true);
+});
+
+test('asset moves preserve folder labels and retain emptied inferred bins in one history receipt', async ({ page }) => {
+  const ids = await open(page), label = 'images/First/red.svg';
+  await execute(page, [{ kind: 'asset.import', assets: [{ path: label, data: 'data:image/svg+xml;base64,PHN2Zy8+' }] }, { kind: 'bin.create', dir: 'images/Second' }]);
+  await folder(page, [ids[0]], label);
+  await page.getByRole('button', { name: /^Project/ }).click(); await page.locator('.asset-row').click();
+  const before = await source(page); await page.getByRole('combobox', { name: 'Asset bin' }).selectOption('Second'); await ready(page);
+  const moved = await source(page), organization = await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+  expect({ label: organization.folders[0].name, retained: organization.bins.includes('images/First') }).toEqual({ label, retained: true });
+  expect(moved.assets[0].path).toBe('images/Second/red.svg'); expect(moved.assets[0].data).toBe(before.assets[0].data);
+  await history(page); expect(await source(page)).toEqual(before); await history(page, true); expect(await source(page)).toEqual(moved);
+  await expect(page.getByRole('button', { name: 'Bin First', exact: true })).toBeVisible();
+  await execute(page, [{ kind: 'asset.delete', path: moved.assets[0].path }]);
+  const deleted = await source(page);
+  expect(deleted.assets).toEqual([]);
+  expect(await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders[0].name)).toBe(label);
+  await expect(page.getByRole('button', { name: 'Bin Second', exact: true })).toBeVisible();
+  await history(page); expect(await source(page)).toEqual(moved); await history(page, true); expect(await source(page)).toEqual(deleted);
+});
+
+test('folder guards refuse mixed group scopes and cycles; inline keys and names preserve artwork', async ({ page }) => {
+  const ids = await open(page);
+  await folder(page, ids.slice(0, 2), 'A'); await folder(page, [ids[2]], 'B');
+  const before = await source(page);
+  const verdicts = await evaluateInPage(page, async ids => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const { readOrganization } = await import('/src/model/editorOrganization.ts'); const [a, b] = readOrganization(s.port.read()).folders;
+    const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (error) { return String(error); } };
+    const move = run([{ kind: 'folder.move', members: [b.id], folder: a.id }]);
+    const moved = s.port.read(); const cycle = run([{ kind: 'folder.move', members: [a.id], folder: b.id }]);
+    const cycleExact = moved === s.port.read(); s.undo();
+    const grouped = s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'group.create', selectors: ids.slice(0, 2), box: { x: 220, y: -390, width: 280, height: 110 } }] });
+    const current = s.port.read(); const mixed = run([{ kind: 'folder.create', scope: null, name: 'Mixed', members: [ids[0], ids[2]] }]);
+    const mixedExact = current === s.port.read(); s.undo();
+    return { move, cycle, cycleExact, mixed, mixedExact, grouped: grouped.changedTargets.length };
+  }, ids);
+  expect(verdicts.move).toBe(''); expect(verdicts.cycle).toContain('contain'); expect(verdicts.cycleExact).toBe(true);
+  expect(verdicts.mixed).toContain('same group'); expect(verdicts.mixedExact).toBe(true); expect(await source(page)).toEqual(before);
+  const row = page.getByRole('button', { name: 'Folder A', exact: true }); await row.dblclick();
+  const input = page.getByRole('textbox', { name: 'Folder name' }), clock = await page.getByTestId('foundation-clock').textContent();
+  await holdKeyRepeats(page, 3, 'ArrowRight', 'ArrowRight'); await input.press('Delete'); await input.press('Space'); await input.press('Escape');
+  expect(await source(page)).toEqual(before); expect(await page.getByTestId('foundation-clock').textContent()).toBe(clock);
+  await row.dblclick(); await input.fill('Plate --> <dark>'); await input.press('Enter'); await ready(page);
+  expect(artwork(await source(page))).toEqual(artwork(before));
+  await expect(page.getByRole('button', { name: 'Folder Plate --> <dark>', exact: true })).toBeVisible();
+});
+
+test('grouping and exact ungroup retain outer and local folder membership', async ({ page }) => {
+  const ids = await open(page); await folder(page, ids, 'Outer');
+  await select(page, ids.slice(0, 2)); await page.getByRole('button', { name: 'Group selection', exact: true }).click(); await ready(page);
+  const group = (await selection(page))[0], grouped = await source(page);
+  await page.getByRole('button', { name: 'Enter group', exact: true }).click(); await folder(page, ids.slice(0, 2), 'Local');
+  await page.getByRole('button', { name: 'Back to Composition', exact: true }).click(); await select(page, [group]);
+  await page.getByRole('button', { name: 'Ungroup selection', exact: true }).click(); await ready(page);
+  await expect(page.getByRole('button', { name: 'Folder Local', exact: true })).toBeVisible();
+  await expect(page.locator(`.ef-track[data-selector="${ids[0]}"]`)).toHaveCount(1);
+  const folders = await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template).folders);
+  expect(folders.find(folder => folder.name === 'Local')?.scope).toBeNull();
+  expect(folders.find(folder => folder.name === 'Local')?.parent).toBe(folders.find(folder => folder.name === 'Outer')?.id);
+  expect(folders.find(folder => folder.name === 'Outer')?.members).toEqual([ids[2]]);
+  await history(page); await history(page); expect(await source(page)).toEqual(grouped);
+});
+
+test('bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions', async ({ page }) => {
+  await open(page);
+  const data = (color: string) => 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="' + color + '"/></svg>').toString('base64');
+  await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/First/red.svg', data: data('red') }, { path: 'images/Second/blue.svg', data: data('blue') }] }, { kind: 'image.place', assetPath: 'images/First/red.svg', geometry: { x: 250, y: -250, width: 40, height: 40 }, time: .1 }]);
+  const before = await source(page);
+  const refusal = await evaluateInPage(page, async () => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(), before = s.port.read();
+    let message = ''; try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: [{ kind: 'bin.rename', from: 'images/First', to: 'images/Second' }] }); } catch (cause) { message = String(cause); }
+    return { message, exact: before === s.port.read() };
+  });
+  expect(refusal.message).toContain('already exists'); expect(refusal.exact).toBe(true);
+  await execute(page, [{ kind: 'bin.rename', from: 'images/First', to: 'images/Brand' }]);
+  const renamed = await source(page), field = renamed.fields.find(field => field.value === 'images/Brand/red.svg')!;
+  expect(field).toBeTruthy(); expect(renamed.assets.map(asset => asset.data)).toEqual(before.assets.map(asset => asset.data));
+  expect(await evaluateInPage(page, async name => (await import('/src/store/templateStore.ts')).useTemplateStore.getState().sampleData[name], field.field)).toBe('images/Brand/red.svg');
+  await history(page); expect(await source(page)).toEqual(before); await history(page, true); expect(await source(page)).toEqual(renamed);
+  await page.getByRole('button', { name: /^Project/ }).click(); await page.getByRole('button', { name: 'Bin Brand', exact: true }).dblclick();
+  const input = page.getByRole('textbox', { name: 'Bin name' }); await input.fill('Stale');
+  await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/new.svg', data: data('green') }] }]);
+  const current = await source(page); await input.press('Enter'); await expect(page.getByRole('alert')).toContainText('changed'); expect(await source(page)).toEqual(current);
+});
+
+test('folder ordering changes editor order only; unknown metadata remains read-only', async ({ page }) => {
+  const ids = await open(page), original = await source(page); await folder(page, [ids[0]], 'One'); await folder(page, [ids[1]], 'Two');
+  await page.getByRole('button', { name: 'Move folder up', exact: true }).click();
+  await expect(page.locator('.ef-folder-row .ef-layer')).toHaveText([/TwoFolder$/, /OneFolder$/]);
+  expect(artwork(await source(page))).toEqual(original);
+  await history(page); await expect(page.locator('.ef-folder-row .ef-layer')).toHaveText([/OneFolder$/, /TwoFolder$/]);
+  await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+  await expect(page.getByRole('button', { name: 'New layer folder' })).toBeDisabled();
+  await expect(page.getByRole('alert')).toContainText('unsupported organization metadata');
+});
+
+test('folder creation undo and redo restore the atomic artwork selection', async ({ page }) => {
+  const ids = await open(page); await select(page, ids.slice(0, 2));
+  await folder(page, ids.slice(0, 2), 'Selection'); expect(await selection(page)).toEqual([]);
+  await history(page); expect(await selection(page)).toEqual(ids.slice(0, 2));
+  await history(page, true); expect(await selection(page)).toEqual([]);
+});
+
+test('unsupported organization metadata disables asset bin moves and preserves source', async ({ page }) => {
+  await open(page);
+  await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/logo.svg', data: 'data:image/svg+xml;base64,PHN2Zy8+' }, { path: 'images/Target/other.svg', data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' }] }, { kind: 'bin.create', dir: 'images/Empty' }]);
+  await page.getByRole('button', { name: /^Project/ }).click(); await page.locator('.asset-row').filter({ hasText: 'logo.svg' }).click();
+  await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+  const before = await source(page);
+  await expect(page.getByRole('combobox', { name: 'Asset bin' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'New asset bin', exact: true })).toBeDisabled();
+  const transfer = await page.evaluateHandle(() => { const data = new DataTransfer(); data.setData('application/x-noacg-asset', 'images/logo.svg'); return data; });
+  await page.locator('.asset-folder').filter({ has: page.getByRole('button', { name: 'Bin Target', exact: true }) }).dispatchEvent('drop', { dataTransfer: transfer });
+  await expect(page.getByRole('alert').filter({ hasText: '✗' })).toContainText('unsupported');
+  expect(await source(page)).toEqual(before);
+});
+
+for (const saved of [false, true]) for (const kind of ['folder', 'bin'] as const) test(kind + ' drafts cannot cross a document switch' + (saved ? ' with the same saved identity' : ''), async ({ page }) => {
+  await open(page);
+  if (saved) {
+    await page.getByTestId('save-graphic').click(); await page.getByTestId('save-name').fill('Draft ownership'); await page.getByTestId('save-confirm').click();
+    await expect(page.getByTestId('save-status')).toHaveText('Saved'); await settleDurableWrites(page); await page.reload(); await ready(page);
+  }
+  const fixture = await source(page);
+  const openingId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  const swap = async () => {
+    await evaluateInPage(page, async ({ t, saved }) => {
+      const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState();
+      if (saved) (await import('/src/store/saveActions.ts')).openGraphicById(s.saved.graphicId!);
+      else s.applyTemplate(t, { resetSampleData: true });
+    }, { t: fixture, saved });
+    await ready(page);
+  };
+  if (kind === 'bin') await page.getByRole('button', { name: /^Project/ }).click();
+  await page.getByRole('button', { name: kind === 'folder' ? 'New layer folder' : 'New asset bin', exact: true }).click();
+  const name = kind === 'folder' ? 'Folder name' : 'Bin name';
+  await page.getByRole('textbox', { name }).fill('Old document'); await swap();
+  const nextId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+  if (saved) expect(nextId).toBe(openingId); else expect(nextId).not.toBe(openingId);
+  await expect(page.getByRole('textbox', { name })).toHaveCount(0);
+  expect(await source(page)).toEqual(fixture);
+});
+
+for (const kind of ['unknown', 'collision'] as const) test(kind + ' organization edits refuse atomically', async ({ page }) => {
+  const ids = await open(page);
+  await folder(page, [ids[0]], 'Parent'); await folder(page, [ids[1]], 'Same');
+  await page.getByRole('combobox', { name: 'Move to layer folder' }).selectOption({ label: 'Parent' });
+  await folder(page, [ids[2]], 'Same');
+  const verdict = await evaluateInPage(page, async kind => {
+    const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession();
+    const { readOrganization } = await import('/src/model/editorOrganization.ts');
+    const parent = readOrganization(s.port.read()).folders.find(folder => folder.name === 'Parent')!;
+    const before = s.port.read(), view = JSON.stringify(s.port.view()), undo = s.canUndo();
+    const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (cause) { return String(cause); } };
+    const refusal = run(kind === 'unknown' ? [{ kind: 'folder.rename', id: parent.id, name: 'Changed' }, { kind: 'folder.future' }]
+      : [{ kind: 'folder.remove', id: parent.id }]);
+    return { refusal, exact: before === s.port.read() && view === JSON.stringify(s.port.view()) && undo === s.canUndo() };
+  }, kind);
+  expect(verdict.refusal).toContain(kind === 'unknown' ? 'Unknown' : 'already exists'); expect(verdict.exact).toBe(true);
 });
 
 test('real template task uses folders, groups and bins, reopens and executes every export', async ({ page }) => {
@@ -154,6 +316,17 @@ test('real template task uses folders, groups and bins, reopens and executes eve
   await page.getByRole('button', { name: 'Place image', exact: true }).click();
   await expect.poll(() => selection(page)).not.toEqual([group]); await ready(page);
   const image = (await selection(page))[0]; await folder(page, [image], 'Sponsor');
+  for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) {
+    await page.setViewportSize({ width, height });
+    const project = page.getByRole('complementary', { name: 'Project', exact: true });
+    await project.evaluate(el => { el.scrollLeft = 0; });
+    const dock = (await project.boundingBox())!, move = (await page.getByRole('combobox', { name: 'Asset bin' }).boundingBox())!;
+    expect(move.x).toBeGreaterThanOrEqual(dock.x); expect(move.x + move.width).toBeLessThanOrEqual(dock.x + dock.width);
+    const sponsorBin = page.getByRole('button', { name: 'Bin Sponsors', exact: true });
+    await sponsorBin.scrollIntoViewIfNeeded(); await expect(sponsorBin).toBeInViewport();
+    expect((await page.getByTestId('foundation-canvas').boundingBox())!.height).toBeGreaterThan(150);
+    await page.screenshot({ path: 'docs/research/editor-r1-2b-7/' + label + '-bins.png', fullPage: true });
+  }
   await page.getByRole('button', { name: 'Close Project', exact: true }).click();
   for (const [width, height, label] of [[1920, 1080, 'desktop'], [1366, 768, 'laptop'], [1093, 614, 'laptop-125']] as const) {
     await page.setViewportSize({ width, height }); await select(page, [group]); await page.getByRole('button', { name: 'Enter group', exact: true }).click();

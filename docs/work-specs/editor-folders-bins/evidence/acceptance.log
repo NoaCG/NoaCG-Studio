@@ -1,0 +1,35 @@
+=== j-3559 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:45732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 19 tests using 3 workers
+
+(node:27024) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25296) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23216) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › e2e\editor-folders-bins.spec.ts:45:1 › baseline existing groups navigate locally without changing source (5.0s)
+  ok  2 [chromium] › e2e\editor-folders-bins.spec.ts:77:1 › folders coexist with groups and root return is visible (6.1s)
+  ok  3 [chromium] › e2e\editor-folders-bins.spec.ts:55:1 › folders organize, rename, collapse, nest and release with exact artwork and history (7.4s)
+  ok  5 [chromium] › e2e\editor-folders-bins.spec.ts:114:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches (3.8s)
+  ok  4 [chromium] › e2e\editor-folders-bins.spec.ts:90:1 › bins persist empty, rename and move references in one exact undo (8.1s)
+  ok  6 [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › asset moves preserve folder labels and retain emptied inferred bins in one history receipt (5.8s)
+  ok  7 [chromium] › e2e\editor-folders-bins.spec.ts:149:1 › folder guards refuse mixed group scopes and cycles; inline keys and names preserve artwork (5.0s)
+  ok  9 [chromium] › e2e\editor-folders-bins.spec.ts:192:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions (5.3s)
+  ok  8 [chromium] › e2e\editor-folders-bins.spec.ts:176:1 › grouping and exact ungroup retain outer and local folder membership (5.7s)
+  ok 10 [chromium] › e2e\editor-folders-bins.spec.ts:214:1 › folder ordering changes editor order only; unknown metadata remains read-only (4.6s)
+  ok 12 [chromium] › e2e\editor-folders-bins.spec.ts:232:1 › unsupported organization metadata disables asset bin moves and preserves source (4.1s)
+  ok 11 [chromium] › e2e\editor-folders-bins.spec.ts:225:1 › folder creation undo and redo restore the atomic artwork selection (4.4s)
+  ok 13 [chromium] › e2e\editor-folders-bins.spec.ts:246:83 › folder drafts cannot cross a document switch (3.8s)
+  ok 14 [chromium] › e2e\editor-folders-bins.spec.ts:246:83 › bin drafts cannot cross a document switch (4.2s)
+  ok 15 [chromium] › e2e\editor-folders-bins.spec.ts:246:83 › folder drafts cannot cross a document switch with the same saved identity (6.5s)
+  ok 16 [chromium] › e2e\editor-folders-bins.spec.ts:246:83 › bin drafts cannot cross a document switch with the same saved identity (6.8s)
+  ok 17 [chromium] › e2e\editor-folders-bins.spec.ts:272:55 › unknown organization edits refuse atomically (4.9s)
+  ok 18 [chromium] › e2e\editor-folders-bins.spec.ts:272:55 › collision organization edits refuse atomically (4.0s)
+  ok 19 [chromium] › e2e\editor-folders-bins.spec.ts:290:1 › real template task uses folders, groups and bins, reopens and executes every export (11.4s)
+
+  19 passed (59.4s)

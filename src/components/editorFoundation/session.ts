@@ -29,6 +29,7 @@ const assetEqual = (a: SpxTemplate, b: SpxTemplate) => a.assets.length === b.ass
  * Blobs are immutable, so identity catches changed bytes synchronously. The preview
  * additionally hashes the bytes before declaring readiness. No scene is persisted. */
 export class EditorSession {
+  readonly instanceId = crypto.randomUUID();
   private current: SpxTemplate;
   private revision: Revision = { source: 1, assets: 1 };
   private ownWrite = false;
@@ -102,7 +103,7 @@ export class EditorSession {
         this.port.restore({ ...this.port.view(), time: onFlag(readTimeline(this.current), frame), cue: undefined });
       }
       else if (request.operations.some(op => op.kind === 'step.delete' || op.kind === 'step.move')) this.port.restore({ ...this.port.view(), cue: undefined });
-      if (request.operations.some(op => op.kind === 'layer.delete')) this.port.restore({ ...this.port.view(), selectedParts: [] });
+      if (request.operations.some(op => op.kind === 'layer.delete' || op.kind === 'folder.create')) this.port.restore({ ...this.port.view(), selectedParts: [] });
     } finally { this.ownWrite = false; }
     this.past = [...this.past, { before, after: this.current, beforeView, afterView: structuredClone(this.port.view()) }].slice(-30);
     this.future = [];

@@ -1,0 +1,84 @@
+=== j-3542 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts --grep "drafts cannot cross a document switch.*same saved identity"
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:28920) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+Queued behind browser-driving work in another checkout - starting when it finishes (node scripts/e2e-runs.mjs --all to watch):
+  - C:/Users/ahonemi/.codex/worktrees/e770/NoaCG-Studio (pid 40568, 86 spec files, 13 min in)
+Run browser-driving work (suites, sweeps, benches, spikes) through `npm run queue`, because one runs per machine. Name a new browser-driving script like its siblings so `SWEEP_SCRIPTS` sees it, or add it there.
+
+Running 2 tests using 2 workers
+
+(node:40912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35916) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  2 [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › folder drafts cannot cross a document switch with the same saved identity (12.3s)
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › bin drafts cannot cross a document switch with the same saved identity (12.5s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › folder drafts cannot cross a document switch with the same saved identity 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('textbox', { name: 'Folder name' })
+    Expected: 0
+    Received: 1
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 7000ms
+      - waiting for getByRole('textbox', { name: 'Folder name' })
+        18 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      247 |   const nextId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+      248 |   if (saved) expect(nextId).toBe(openingId); else expect(nextId).not.toBe(openingId);
+    > 249 |   await expect(page.getByRole('textbox', { name })).toHaveCount(0);
+          |                                                     ^
+      250 |   expect(await source(page)).toEqual(fixture);
+      251 | });
+      252 |
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:249:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-folder-e11a7-ith-the-same-saved-identity-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-folder-e11a7-ith-the-same-saved-identity-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › bin drafts cannot cross a document switch with the same saved identity 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('textbox', { name: 'Bin name' })
+    Expected: 0
+    Received: 1
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toHaveCount" with timeout 7000ms
+      - waiting for getByRole('textbox', { name: 'Bin name' })
+        18 × locator resolved to 1 element
+           - unexpected value "1"
+
+
+      247 |   const nextId = await evaluateInPage(page, async () => (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession().documentId);
+      248 |   if (saved) expect(nextId).toBe(openingId); else expect(nextId).not.toBe(openingId);
+    > 249 |   await expect(page.getByRole('textbox', { name })).toHaveCount(0);
+          |                                                     ^
+      250 |   expect(await source(page)).toEqual(fixture);
+      251 | });
+      252 |
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:249:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-bin-dr-f88ad-ith-the-same-saved-identity-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-bin-dr-f88ad-ith-the-same-saved-identity-chromium\error-context.md
+
+  2 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › folder drafts cannot cross a document switch with the same saved identity 
+    [chromium] › e2e\editor-folders-bins.spec.ts:227:83 › bin drafts cannot cross a document switch with the same saved identity 

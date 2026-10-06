@@ -27,6 +27,8 @@ history and stale-revision refusal.
   Double-click or Enter renames inline; Escape cancels. Remove folder releases
   contents, never deletes artwork. Folder membership controls also accept a
   selected folder for nesting, with cycle refusal.
+  Ungrouping nests local folders under the group's former organizational
+  parent. Releasing folders refuses sibling-name collisions atomically.
 - Bins use existing bucket-relative asset directories and reference-safe move
   APIs. Empty bins persist in the same organization comment. Bin rename moves
   its assets atomically; collisions refuse rather than silently combine bins.
@@ -35,6 +37,8 @@ history and stale-revision refusal.
 - Collapse and selection are transient UI state. Opening a containing folder
   reveals canvas selection. Persistent names/membership/order undo together;
   rename carries its opening revision and refuses if source/assets changed.
+  A document switch discards drafts. Unknown organization commands refuse
+  the whole batch through the existing operation registry.
 - Show an explicit Back to Composition button in group context, current
   location breadcrumbs, and parent/local time labels beside the visible stage.
 

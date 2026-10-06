@@ -9,6 +9,7 @@ import OutControls, { type OutHandle } from './OutControls';
 import StepFlag, { AddStep, message, useReason } from './StepFlag';
 import KeyEase, { type KeyMenu } from './KeyEase';
 import { addKeys, keyId, layerKeys, liveKeys, movedKeys, toggleKeys } from './keySelection';
+import { useLayerOrganization } from './OrganizationControls';
 
 const PROPERTY_LABELS: Record<string, string> = { x: 'X', y: 'Y', scaleX: 'Scale X', scaleY: 'Scale Y', rotation: 'Rotation', opacity: 'Opacity',
   xPercent: 'X %', yPercent: 'Y %', scale: 'Scale', autoAlpha: 'Opacity (autoAlpha)' };
@@ -28,6 +29,7 @@ interface Props {
 }
 export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
   const visibleParts = view.parts.filter(part => part.selector === groupScope || (hierarchy.parent[part.selector] ?? null) === groupScope);
+  const organization = useLayerOrganization(session, visibleParts, groupScope, selection, select, pause);
   const localStart = groupScope ? Math.min(...view.bars.filter(bar => bar.selector === groupScope).map(bar => bar.start), view.duration) : 0;
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   // Key selection and the properties shown under each layer are editor UI state only.
@@ -253,7 +255,7 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
       role={landing ? undefined : 'alert'}>{landing ? display(at) : reasonText}</span>;
   };
   return <section className="ef-timeline" aria-label="Timeline" data-testid="foundation-timeline">
-    <div className="ef-toolbar"><strong>Layers &amp; Timeline</strong><span className="ef-muted">{view.parts.length} layers · Select a row to edit artwork</span>
+    <div className="ef-toolbar"><strong>Layers &amp; Timeline</strong>{organization.controls}
       <span className="ef-spacer" /><KeyEase session={session} data={view.data} keys={keys} menu={menu} close={closeMenu} pause={pause} /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
       <span className="ef-muted">{fps} fps</span></div>
     <div className="ef-transport">
@@ -266,7 +268,7 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
       <span className="ef-spacer" />
       {!groupScope && <AddStep session={session} view={view} time={time} pause={pause} seek={seek} />}
       {!groupScope && <OutControls ref={out} session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />}
-      {groupScope && <span className="ef-muted">Step and Out are edited in Composition</span>}
+      {groupScope && <span className="ef-local-context">Parent bar · Local ruler · Step/Out in Composition</span>}
       <label>Ruler <select aria-label="Ruler units" value={units} onChange={event => setUnits(event.target.value as typeof units)}>
         <option value="seconds">Seconds</option><option value="frames">Frames</option>
       </select></label>
@@ -303,13 +305,15 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
           <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
         </div>
       </div>
-      {visibleParts.map((part, index) => {
+      {organization.rows.map((row, index) => {
+        if ('folder' in row) return organization.folderRow(row.folder, row.depth);
+        const { part, depth } = row;
         const bars = view.bars.filter(b => b.selector === part.selector);
         // A layer's keys live under its owner (R1.2a.6): its own selector or another naming only it.
         const properties = layerKeys(view.data, ownerOf(view, part.selector)).filter(row => !hierarchy.groups.has(part.selector) || row.property !== 'transformOrigin'), open = expanded.includes(part.selector);
         return <div key={part.selector} className="ef-layer-group">
           <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector} data-testid={part.selector === groupScope ? "foundation-parent-bar" : undefined}>
-            <div className="ef-layer-cell">
+            <div className="ef-layer-cell" style={{ paddingInlineStart: depth * 12 }}>
               {properties.length ? <button className="ef-twirl" aria-label={'Animated properties of ' + part.label} aria-expanded={open}
                 onClick={() => setExpanded(open ? expanded.filter(s => s !== part.selector) : [...expanded, part.selector])}>{open ? '▾' : '▸'}</button> : <span className="ef-twirl" />}
               <button className="ef-layer" aria-pressed={selection.includes(part.selector)}
@@ -318,6 +322,7 @@ export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps,
                 <span className="ef-layer-icon">{hierarchy.groups.has(part.selector) ? '▣' : part.kind === 'line' ? 'T' : part.kind === 'image' ? '▧' : '◇'}</span>
                 <span style={{ paddingInlineStart: (part.depth ?? 0) * 8 }}>{part.label}</span>
               </button>
+              {hierarchy.groups.has(part.selector) && <small className="ef-group-kind">Group</small>}
               {hierarchy.groups.has(part.selector) && part.selector !== groupScope && <button className="ef-enter-group" aria-label={'Edit ' + part.label} onClick={() => enterGroup(part.selector)}>↳</button>}
             </div>
             <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' ? ' has-key-reason' : '')}>
