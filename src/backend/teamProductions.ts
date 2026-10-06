@@ -205,7 +205,7 @@ export function startTeamSync(userId: string): void {
   if (running?.userId === userId) return;
   stopTeamSync();
   setTeamShowsStatus('loading');
-  setState({ loaded: false, loadError: 'Checking team membership and the cloud revision.' });
+  setState({ loaded: false, loadError: null });
   const unsubscribeEdits = onTeamShowEdit(scheduleSave);
   const onVisible = () => {
     if (document.visibilityState === 'visible') void refreshTeams();

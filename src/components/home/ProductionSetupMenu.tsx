@@ -106,7 +106,7 @@ export function ProductionSetupMenu({
         <button
           role="menuitem"
           onClick={pick(onPlayoutSettings)}
-          title="Where graphics play: CasparCG through NoaCG Bridge, its channels and layers"
+          title="Production outputs and their settings"
           data-testid="setup-playout-settings"
         >
           <IconSliders /> Playout settings…

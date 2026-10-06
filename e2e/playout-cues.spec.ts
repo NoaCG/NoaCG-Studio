@@ -209,6 +209,13 @@ async function productionPage(page: Page, options: { saved?: boolean } = {}): Pr
     await expect(page.getByTestId('save-status')).toHaveText('Saved');
   }
   await openProductionWithCurrent(page, 'Evening News');
+  // This suite operates CasparCG files. A paired studio alone does not opt a production in.
+  await page.evaluate(async () => {
+    const m = await import('/src/model/shows.ts');
+    const show = m.loadShows().find(s => s.name === 'Evening News')!;
+    m.setShowOutputSetup(show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
+  });
+  await settleDurableWrites(page);
 }
 
 const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length - 1];
@@ -247,7 +254,7 @@ async function pickerFile(page: Page, name: string) {
 test('the CasparCG file action explains unavailable setup in both add surfaces', async ({ page }) => {
   await fakeBridge(page);
   await productionPage(page);
-  // The shared action stays discoverable, with the same help and disabled state in both surfaces.
+  // A production that selected CasparCG keeps its setup help while Bridge is unavailable.
   const footer = page.getByTestId('add-from-server');
   await expect(footer).toBeDisabled();
   await expect(footer).toContainText('CasparCG files');

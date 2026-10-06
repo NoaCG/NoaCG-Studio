@@ -295,16 +295,10 @@ export function PrepareForLive({
           ))}
         </ul>
       )}
-      <p className="pd-prepare-note">
-        {unpublishedChanges || !published
-          ? 'Your unpublished changes will be published and included. Every output then prepares them and is checked. Editing goes on as usual.'
-          : `Every output is checked on v${published.n}. Nothing is locked.`}
-      </p>
-      <p className="pd-prepare-note">
-        This action prepares graphics and assets and tests command delivery to each output and
-        any CasparCG connection this production uses. It never puts
-        an output on air or replaces graphics while they are on air.
-      </p>
+      <details className="pd-prepare-note"><summary>What is checked?</summary><p>
+        Graphics, assets, command delivery and the connections this production uses.
+        Changed assets wait until the output is clear. Checking does not put anything on air.
+      </p></details>
       <button type="button" className="pd-prepare-button" disabled={busy} onClick={() => void run()} data-testid="prepare-for-live-button">
         {busy ? 'Checking…' : unpublishedChanges || !published ? 'Publish & check readiness' : 'Check readiness'}
       </button>

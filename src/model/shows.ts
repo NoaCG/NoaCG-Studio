@@ -1834,6 +1834,7 @@ export function setCueAccentColor(showId: string, cueId: string, color: string |
     const cue = show.cues?.find(c => c.id === cueId);
     if (!cue) return false;
     const value = accentColor(color);
+    if ((cue.accentColor ?? undefined) === value) return false;
     if (value) cue.accentColor = value;
     else delete cue.accentColor;
     return true;
@@ -1843,6 +1844,7 @@ export function setRundownColor(showId: string, key: string, color: string | nul
   return patchShow(showId, show => {
     const colors = { ...show.rundownColors };
     const value = accentColor(color);
+    if (colors[key] === value) return false;
     if (value) colors[key] = value;
     else delete colors[key];
     if (Object.keys(colors).length) show.rundownColors = colors;
