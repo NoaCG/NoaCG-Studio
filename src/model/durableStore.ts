@@ -165,6 +165,26 @@ const pending = new Set<Promise<void>>();
 /** The newest write queued per key, so a failure knows whether it is still the current one. */
 const latestWrite = new Map<string, number>();
 let writeSeq = 0;
+export interface DurableWriteReceipt {
+  readonly sequence: number;
+  readonly key: string;
+  readonly value: string | null;
+  readonly account: string | null;
+  readonly settled: Promise<string | null>;
+}
+const receipts = new Map<string, DurableWriteReceipt>();
+const conditionalWrites = new Map<string, () => void>();
+
+/** Capture immediately after a synchronous model edit; this receipt belongs to that put. */
+export function lastDurableWrite(key: string): DurableWriteReceipt | undefined {
+  return receipts.get(key);
+}
+
+export async function commitDurableReceipt(receipt: DurableWriteReceipt): Promise<string | null> {
+  const error = await receipt.settled;
+  if (unclaimedFailure?.sequence === receipt.sequence) unclaimedFailure = null;
+  return error;
+}
 
 /**
  * A failure nobody has looked at yet. THE CLAIM PROTOCOL: a caller that cares which save failed
@@ -175,11 +195,11 @@ let writeSeq = 0;
  * writes resumes on a MICROTASK, while the announcement is scheduled as a MACROTASK, so a
  * claimer always gets there first.
  */
-let unclaimedFailure: { key: string; message: string } | null = null;
+let unclaimedFailure: { key: string; message: string; sequence?: number } | null = null;
 
 /** Hold the failure open for one macrotask so a caller can claim it, then announce what is left. */
-function reportError(key: string, message: string): void {
-  unclaimedFailure = { key, message };
+function reportError(key: string, message: string, sequence?: number): void {
+  unclaimedFailure = { key, message, sequence };
   setTimeout(() => {
     if (!unclaimedFailure) return;
     const failure = unclaimedFailure;
@@ -522,12 +542,14 @@ export const durable = {
 
   setItem(key: string, value: string): void {
     if (durableKeySet.has(key) && key !== 'spx-gfx-team-outbox') assertAccountAuthoring();
+    conditionalWrites.get(key)?.();
     if (!durableKeySet.has(key)) {
       lsSet(key, value);
       return;
     }
     if (!hydrated || !usingIndexedDb) {
       lsSet(physical(key), value);
+      receipts.set(key, { sequence: ++writeSeq, key, value, account: namespace, settled: Promise.resolve(null) });
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -537,6 +559,7 @@ export const durable = {
 
   removeItem(key: string): void {
     if (durableKeySet.has(key) && key !== 'spx-gfx-team-outbox') assertAccountAuthoring();
+    conditionalWrites.get(key)?.();
     if (!durableKeySet.has(key)) {
       lsRemove(key);
       return;
@@ -570,26 +593,30 @@ function queueWrite(key: string, value: string | null, previous: string | null):
   if (!target) return;
   writeSeq += 1;
   const seq = writeSeq;
+  const account = namespace, storedKey = accountKey(key, account);
   latestWrite.set(key, seq);
   // Opened NOW - see `pending` above for why the transaction must not wait for a microtask.
-  const write = idbWrite(target, [[physical(key), value]]).catch((e: unknown) => {
-    if (latestWrite.get(key) === seq) {
-      if (previous === null) mirror.delete(key);
-      else mirror.set(key, previous);
+  const settled = idbWrite(target, [[storedKey, value]]).then(() => null, async (e: unknown) => {
+    // The previous mirror value can itself belong to an earlier refused put. Read the last
+    // accepted database value; never latch that earlier optimistic edit as the rollback.
+    let accepted = previous;
+    try { accepted = await idbReadKey(target, storedKey); } catch { /* the previous value is the remaining fallback */ }
+    if (namespace === account && latestWrite.get(key) === seq) {
+      if (accepted === null) mirror.delete(key);
+      else mirror.set(key, accepted);
       // The surfaces that just rendered the accepted value have to re-read the real one.
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('spx-data-changed'));
       }
     }
-    if (isQuotaError(e)) {
-      reportError(
-        key,
-        'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.',
-      );
-    } else {
-      reportError(key, 'Your work could not be saved to browser storage.');
-    }
+    const message = isQuotaError(e)
+      ? 'Browser storage is full — delete an old graphic (large fonts/images count) or export and remove one.'
+      : 'Your work could not be saved to browser storage.';
+    if (namespace === account) reportError(key, message, seq);
+    return message;
   });
+  receipts.set(key, { sequence: seq, key, value, account, settled });
+  const write = settled.then(() => {});
   pending.add(write);
   void write.finally(() => {
     pending.delete(write);
@@ -597,6 +624,75 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     // cannot read the value the write was replacing.
     if (latestWrite.get(key) === seq) announceWrite(key);
   });
+}
+
+export type ConditionalWriteResult = { status: 'saved' | 'refused' | 'failed'; value: string | null; error: string | null };
+
+/** Read, compare and replace in one transaction. The callback is synchronous: no await can
+ * separate the comparison from the put. A newer ordinary write cancels the inverse. */
+export async function conditionalDurableWrite(
+  key: DurableKey,
+  update: (current: string | null) => { value: string } | { refused: string },
+  stillValid: () => boolean,
+): Promise<ConditionalWriteResult> {
+  const account = namespace, target = db, queued = latestWrite.get(key);
+  const refused = (error: string): ConditionalWriteResult => ({ status: 'refused', value: null, error });
+  if (!target || !usingIndexedDb) return refused('Undo needs browser storage. Enable IndexedDB and reopen.');
+  await flushDurableStore();
+  if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== queued) {
+    return refused('The rundown changed while saving. Try again after it settles.');
+  }
+  if (conditionalWrites.has(key)) return refused('A rundown edit is still saving.');
+  const operation = new Promise<ConditionalWriteResult>(resolve => {
+    const seq = ++writeSeq;
+    latestWrite.set(key, seq);
+    let value: string | null = null, refusal: string | null = null, writeError: unknown;
+    let tx: IDBTransaction;
+    try { tx = target.transaction(STORE, 'readwrite'); }
+    catch { resolve({ status: 'failed', value, error: 'Browser storage is unavailable.' }); return; }
+    const cancel = () => { refusal = 'A newer edit arrived. Undo was not saved.'; try { tx.abort(); } catch { /* already settled */ } };
+    conditionalWrites.set(key, cancel);
+    const finish = (result: ConditionalWriteResult) => {
+      if (conditionalWrites.get(key) === cancel) conditionalWrites.delete(key);
+      resolve(result);
+    };
+    const store = tx.objectStore(STORE), request = store.get(accountKey(key, account));
+    request.onsuccess = () => {
+      if (refusal) return;
+      try {
+        if (namespace !== account || !canAuthorAccount() || !stillValid() || latestWrite.get(key) !== seq) {
+          refusal = 'The editing session changed. Undo was not saved.'; tx.abort(); return;
+        }
+        const next = update(typeof request.result === 'string' ? request.result : null);
+        if ('refused' in next) { refusal = next.refused; tx.abort(); return; }
+        value = next.value;
+        store.put(value, accountKey(key, account));
+      } catch (error) {
+        writeError = error;
+        refusal = isQuotaError(error) ? null : 'The stored production could not be read safely.';
+        try { tx.abort(); } catch { /* already aborting */ }
+      }
+    };
+    tx.oncomplete = () => {
+      if (namespace !== account || latestWrite.get(key) !== seq) {
+        finish(refused('A newer edit arrived. Undo history was cleared.')); return;
+      }
+      mirror.set(key, value!);
+      announceWrite(key);
+      if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('spx-data-changed'));
+      finish({ status: 'saved', value, error: null });
+    };
+    const failed = () => finish(refusal ? refused(refusal) : {
+      status: 'failed', value: null,
+      error: isQuotaError(writeError ?? tx.error) ? 'Browser storage is full. Undo was not saved.' : 'Undo could not be saved to browser storage.',
+    });
+    tx.onerror = failed;
+    tx.onabort = failed;
+  });
+  const waiting = operation.then(() => {});
+  pending.add(waiting);
+  void waiting.finally(() => pending.delete(waiting));
+  return operation;
 }
 
 // ── CROSS-TAB INVALIDATION ────────────────────────────────────────────────────

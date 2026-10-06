@@ -11,7 +11,8 @@ import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { canAuthorAccount, durable } from './durableStore';
+import { canAuthorAccount, conditionalDurableWrite, durable, type ConditionalWriteResult } from './durableStore';
+import { replaceRundown, type RundownSlice } from './rundownHistory';
 import { uuid } from './id';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -421,6 +422,23 @@ function readEditable(): Show[] {
 /** Live shows for the UI (tombstones hidden), team productions included. */
 export function loadShows(): Show[] {
   return readEditable().filter((s) => !s.deleted);
+}
+
+/** Personal inverse only: compare the real database document, never the optimistic mirror. */
+export async function restorePersonalRundown(
+  showId: string, expected: RundownSlice, replacement: RundownSlice, stillValid: () => boolean,
+): Promise<ConditionalWriteResult> {
+  return conditionalDurableWrite(SHOWS_KEY, current => {
+    const all = JSON.parse(current ?? '[]') as Show[];
+    if (!Array.isArray(all)) return { refused: 'The stored productions could not be read safely.' };
+    const at = all.findIndex(s => s.id === showId);
+    const show = all[at];
+    if (!show || show.version !== 2 || show.teamId || teamShowIds().has(showId)) return { refused: 'The production changed or is no longer editable here.' };
+    const result = replaceRundown(show, expected, replacement);
+    if (!result.show) return { refused: result.refused! };
+    all[at] = result.show;
+    return { value: JSON.stringify(all) };
+  }, () => stillValid() && !teamShowIds().has(showId));
 }
 
 /** The live productions whose pool holds a copy of this LIBRARY graphic (SavedGraphic's
