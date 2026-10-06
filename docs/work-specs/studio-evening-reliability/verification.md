@@ -11,8 +11,9 @@ an in-memory SQL engine and a disposable Docker Supabase stack with the limitati
 The frozen product sources at `1464afaee` pass the full local browser/catalog run, clean build,
 branch CI and guarded database-backed suite. The diagnostic persistence race exposed by an
 earlier documentation-only CI run is reproduced and corrected. Review and simplification ran inline; all
-26 confirmed findings are fixed. Release verification remains held for the actual media,
-recorded program audio and cross-device rehearsal. The receipts below preserve earlier failures
+28 confirmed findings are fixed, including the two original-media follow-up defects below.
+Release verification remains held for the updated application/Bridge rehearsal, recorded
+program audio and cross-device rehearsal. The receipts below preserve earlier failures
 as well as their passing replacements.
 
 ## Review and simplification
@@ -64,6 +65,10 @@ Confirmed corrections during review:
 26. A stopped-sequence diagnostic survives subsequent unidentified readings and a queued-file
     switch. Empty/cleared slots and newly identified takes remove the warning; unchanged polls
     retain the same ownership object. Opening diagnostics later cannot miss the restart cause.
+27. The actual Insert 2 filename keeps its significant trailing space in INFO. Preserving literal
+    names and paths prevents losing the accepted cue's instance, countdown and Out controls.
+28. The CasparCG adapter implements the existing immediate Clear verb end to end. It clears the
+    requested foreground and queued background, resets follower memory and preserves other slots.
 
 Simplification: inline. Kept existing playout adapters, durable storage, team compare-and-swap,
 production eligibility, shared keyboard transport and capability-protected panel relay. Removed
@@ -76,8 +81,8 @@ stable rendering library separately from fresh picker choices. The 512 KB limit 
 |---|---|---|
 | Pending cloud state and expiry | Browser rehearsal covers pending debounce, paused authoring, retained working edits and durable team outbox across reload/account switch. | Student's actual account, home browser and time window have not been provided; historical writes are not reconstructed. |
 | Fresh cloud reconciliation | Configured backend mocks and account-library tests cover first-load state and isolated account scopes. | Two actual devices and test accounts during controlled rehearsal. |
-| Timing and Space/Out | Pure timing tests and existing clip/folder browser flows cover frozen/invalid positions, fades, Space modes and Bridge restart. Explicit clearing is independent of ownership. | The problematic original and two working originals are still missing. No file-specific cause or physical fix is claimed. |
-| Stable diagnostics | Browser rehearsal compares every row ID/top/height before and after an unidentified producer; explicit slot CLEAR removes it and its queued media. | Real Bridge/server rehearsal. |
+| Timing and Space/Out | All 15 supplied originals decode and pass full-duration timing/ownership/Out tests through a branch-built Bridge and real CasparCG. Insert 2's significant filename space reproduces the installed Bridge defect and is fixed. Exact-slot Clear passes a real queued-media/neighbor-slot probe. | Copied-production rehearsal using the updated browser and Bridge together. Historical BROADCASTTIMER cause remains unconfirmed. |
+| Stable diagnostics | Installed UI reproduces a 36-pixel jump on Space Out. Browser regressions require every row ID/top/height and selection to stay fixed for both transient Out residue and a Bridge restart; diagnostic clearing is also covered. | Updated UI rehearsal on the studio display. |
 | Attached and independent audio | Existing browser sound tests plus shared-cue rehearsal; independent native effects use their own slot and leave video/selection intact. | Recorded ATEM program audio from the installed HTML producer, channels 1 and 2. Host support remains unverified until recorded. |
 | SVG and eligibility | Browser rehearsal preserves painted definitions, strips oversized non-rendering metadata, flags off-canvas text, and refuses an oversized rundown draft. Existing import/export tests exercise the shared gate. | Actual corrected Illustrator delivery artwork review. Known quiz cause is not reopened. |
 | Unified readiness | Readiness tests and browser flow cover publishing/checking, cue-only adoption and deferred asset preparation while on air. | Actual receiving output and controlled studio rehearsal. |
@@ -376,9 +381,49 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
 
 ## Rollout hold
 
+### Original media verification, 2026-10-06
+
+- Found the supplied 45 files and the cloud-saved five-cue `6.10 post stream test` production.
+  Its saved timestamp stayed 09:01:05.377Z while a separately saved rehearsal copy was tested.
+- All 15 video files fully decode with no reported errors. Full packet inspection confirms
+  regular timing in Inserts 1/2/3; Insert 3 differs in container/audio codec and 24 fps rate.
+- Installed Bridge 0.8.1 reproduces lost ownership/countdown and disabled Out for Insert 2.
+  Actual INFO preserves the filename's trailing space; the parser removed it. Two regression
+  tests fail before the fix and pass after preserving raw file/name and file/path text.
+- A temporary branch-built Bridge played all 15 originals to their ends on local slot 2-90.
+  All 1,214 readings retained correct cue identity and usable timing after loading; each clip
+  reached its end and cleared. Full results are in ignored `bench-health/studio-night/stream-media-live.json`.
+- A real request also reproduced the missing CasparCG implementation of `clear`. Its added
+  adapter command passes owned/unowned queued-media regression tests and a real-server probe:
+  clear 2-90 removes Insert 2 and queued Insert 3 while Insert 1 continues on 2-89. Test slots
+  were cleared and temporary test servers closed; the installed Bridge/configuration is unchanged.
+- CLI build passes. All 72 focused adapter/parser/state checks pass. Full CLI `j-3486` passes
+  235 active checks / 18 skips, zero failures. A prior sandbox-only run failed three disposable
+  credential-file permission checks; the queued run passes them without changing product code.
+- The additional picture fitting and multi-file/folder addition are specified in
+  [Media follow-up](media-follow-up.md), not implemented in this investigation. The exact quiz
+  graphic/step binding and recorded program audio still need evidence; native channel 2 audio
+  does not prove audio attached to a graphic on channel 1. Earlier cross-device gates remain open.
+- Space Out with the working Insert 1 also reproduces a transient unidentified-item row and
+  a 36-pixel rundown jump in the installed application. This is separate from the Insert 2
+  filename defect; the stop succeeds. Focused browser job `j-3489` passes both diagnostics
+  regressions with its own exit 0, two passed. The new regression holds the unowned outgoing
+  file after accepted Space Out and proves cue geometry and selection stay fixed while the
+  warning appears and disappears. The inspected [prepared UI](built/studio-space-out-diagnostic.png)
+  shows the diagnostic inside the status panel, outside the operational rundown.
+- Full local build `j-3488` passes with its own exit 0: 2,458 active gate checks / three skips,
+  TypeScript, full lint, architecture, Vite, prerender and client-secret scan. The new browser
+  regression and result documentation were added afterwards; focused TypeScript/lint and
+  final full build `j-3490` also pass with their own exit 0. The final build repeats the same
+  2,458 active gate checks / three skips and all build stages over the final executable/test
+  sources. Only result prose changes afterwards. Refreshed review/simplification ran inline
+  against merge base `7878a4ef48210ac377504b6a943a819750260768`, carrying the reviewed morning
+  scope plus the complete follow-up delta: 134 files including the read-only supplied photo.
+  Both additional confirmed defects are fixed, for 28/28 overall. No further cleanup was needed.
+
 Do not queue-merge: landing runs production migrations/deployment automatically. Complete the
 receiving-host/copied-production and cross-device rehearsals in the existing owner queue, and
-compare the three originals first. The full guarded isolated-backend suite and recorded Linux
+use the original-media comparison above. The full guarded isolated-backend suite and recorded Linux
 baselines pass. Retain the working application, Bridge and studio configuration for rollback.
 
 Release verification remains incomplete. Record a failing check stamp until the

@@ -10,6 +10,15 @@ Write a section the way you would tell a colleague what they get by updating: wh
 missing, what it does now, and anything they have to do. No pull request lists, no usernames, no
 internal names.
 
+## Unreleased
+
+**The Bridge recognizes clips with spaces before the extension.** These files could play but
+lose their countdown and Out controls. CasparCG's exact filename is now preserved when reading
+playback state. There is no need to rename or convert the media.
+
+**Immediate slot clearing reaches CasparCG.** The Bridge now implements the Clear command used
+for recovery, removing playing and queued media on that slot while other slots continue.
+
 ## 0.8.1 - 2026-10-03
 
 **Short button labels, and labels that name the player.** The skill now tells your agent to keep a

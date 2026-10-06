@@ -254,6 +254,41 @@ test('unidentified producer diagnostics leave rundown geometry fixed and allow e
   expect(bridge.runs['2-10']).toBeUndefined();
 });
 
+test('Space Out diagnostics from a briefly unowned outgoing video keep cue positions and selection fixed', async ({ page }) => {
+  const { bridge } = await rehearsal(page);
+  const video = page.locator('.pd-cue', { hasText: 'VT' });
+  await video.getByTestId('select-cue').click();
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('verb-out')).toBeEnabled();
+  const outgoing = bridge.runs['2-10']!;
+  expect(outgoing.instance).toBeTruthy();
+  const positions = () => page.locator('.pd-cue').evaluateAll(rows => rows.map(r => ({ id: r.getAttribute('data-row'), top: r.getBoundingClientRect().top, height: r.getBoundingClientRect().height })));
+  const before = await positions();
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Space');
+  await expect.poll(() => bridge.actions.filter(a => a.verb === 'out').length).toBe(1);
+  await expect.poll(() => bridge.runs['2-10']).toBeUndefined();
+  // AMCP can accept Out before a fresh INFO shows the empty layer. Hold that intermediate
+  // reply so the actual studio symptom is deterministic: the file remains without its instance.
+  bridge.runs['2-10'] = { ...outgoing, instance: undefined };
+  await page.getByTestId('production-status').click();
+  const diagnostics = page.getByTestId('server-unidentified');
+  await expect(diagnostics).toContainText('Unidentified item on 2-10');
+  await expect(diagnostics).toContainText('VT');
+  await expect(diagnostics).toContainText('This is not a playback failure by itself');
+  await expect(page.locator('.pd-rundown').getByTestId('server-unidentified')).toHaveCount(0);
+  expect(await positions()).toEqual(before);
+  await expect(video).toHaveClass(/selected/);
+  await expect(page.locator('.pd-cue')).toHaveCount(4);
+  await page.screenshot({ path: 'test-results/studio-space-out-diagnostic.png', fullPage: true });
+  bridge.runs['2-10'] = undefined;
+  await expect(diagnostics).toHaveCount(0);
+  expect(await positions()).toEqual(before);
+  await expect(video).toHaveClass(/selected/);
+  expect(bridge.actions.filter(a => a.verb === 'clear')).toHaveLength(0);
+});
+
 test('account expiry flushes delayed editor work and retains team recovery across reload and account changes', async ({ page }) => {
   await page.goto('/app#/home');
   await awaitDurableReady(page);

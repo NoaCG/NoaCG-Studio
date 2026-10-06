@@ -61,6 +61,31 @@ Three original video files and repeated CLS/INFO readings; exact studio server/B
 consumer/channel audio routing and recorded ATEM output; student's home browser/account/time
 window. Missing physical evidence is reported as not checked, never inferred from unit tests.
 
+## Original-media follow-up, 2026-10-06
+
+Detailed findings and the additional feature acceptance are in [Media follow-up](media-follow-up.md).
+
+- All 15 supplied videos decode completely. Insert 2 has a significant trailing space in its
+  filename. A copied test production reproduces successful playback with lost timer/ownership
+  and disabled Out. CasparCG INFO preserves that space, but the Bridge trims it from file/name.
+  Preserve file names and paths exactly when parsing INFO, including foreground and queued
+  producers. Keep whitespace significant in identity comparisons; do not rename the originals.
+- Acceptance: the captured Insert 2 INFO keeps its exact name, its Bridge instance and cue ID
+  survive repeated readings beyond loading grace, and similarly named files remain distinct.
+  Existing version-specific timing, transitions and XML validation continue to pass.
+- A real Bridge request also reproduces a missing CasparCG adapter implementation of the
+  existing `clear` verb. Complete its exact-slot CLEAR command and advertise that verb. It
+  must clear foreground and queued background without cue ownership, forget that slot's
+  instance/follower and leave other layers playing. Verify the full HTTP-to-AMCP route.
+- Picture fitting and bulk media addition are additional requested work. Pictures should default
+  to preserving proportions, with an explicit Stretch choice in the selected cue editor.
+  Multi-file and whole-folder addition must preserve file identities and add the chosen files
+  in one production edit. Record their compatibility and UI acceptance before implementation.
+- Space Out also reproduces a transient unidentified producer and a 36-pixel rundown jump
+  with the working Insert 1, independently of the filename defect. Verify the already prepared
+  diagnostic relocation for accepted Out followed by a briefly nonempty, unowned INFO reading:
+  cue positions, heights, order and selection must remain fixed through its arrival and removal.
+
 ## Delivery
 
 Verified development on codex/studio-evening-reliability using repository /check. Hold the branch

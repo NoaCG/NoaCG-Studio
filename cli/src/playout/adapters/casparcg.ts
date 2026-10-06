@@ -337,6 +337,9 @@ export function casparLines(action: PlayoutAction, context: { rate?: number; fol
       // STOP keeps the background loaded; with a follower queued the layer goes whole, so nothing
       // queued behind the clip can ever play (§4 and §6.10, rule 5).
       return context.follower ? [`CLEAR ${at}`] : [`STOP ${at}`];
+    case 'clear':
+      // Recovery is immediate and removes queued media even without cue ownership.
+      return [`CLEAR ${at}`];
     case 'pause':
       return [`PAUSE ${at}`];
     case 'resume':
@@ -515,7 +518,7 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       return {
         lists: ['template', 'media'],
         thumbnails: true,
-        verbs: ['take', 'update', 'next', 'out', 'pause', 'resume', 'sequence', 'ending'],
+        verbs: ['take', 'update', 'next', 'out', 'clear', 'pause', 'resume', 'sequence', 'ending'],
         target: casparCapabilities(version),
       };
     },
@@ -585,7 +588,7 @@ export function createCasparcgAdapter(now: () => number = () => performance.now(
       let follower: ActDone['follower'];
       if (action.verb === 'take') follower = action.playback?.end === 'clear' && r.sent === 2 ? { file: 'EMPTY' } : null;
       else if (action.verb === 'sequence') follower = r.sent === 2 ? { file: action.entries[1].item.name } : null;
-      else if (action.verb === 'out') follower = null;
+      else if (action.verb === 'out' || action.verb === 'clear') follower = null;
       // The first line went, so what it queued or took away is so; only Loop takes its follower
       // away second, and a refusal of that leaves it queued behind a clip that never ends.
       else if (action.verb === 'ending') {

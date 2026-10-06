@@ -63,6 +63,11 @@ test('update, next, out, pause and resume', () => {
   assert.equal(casparLine({ verb: 'resume', slot }), 'RESUME 1-20');
 });
 
+test('immediate Clear empties the exact slot without a cue or timing parameters', () => {
+  assert.equal(casparLine({ verb: 'clear', slot }), 'CLEAR 1-20');
+  assert.ok(casparcgAdapter.capabilities('2.5.0').verbs.includes('clear'));
+});
+
 test('a carriage return in a name is refused - it would end the command - and data is safe by construction', () => {
   assert.throws(() => casparLine({ verb: 'take', item: { kind: 'media', name: 'x\r\nSTOP 1-20' }, slot }), /carriage return|newline/);
   // Data goes through JSON first, which turns a raw CR into the two characters `\r`, so no line
