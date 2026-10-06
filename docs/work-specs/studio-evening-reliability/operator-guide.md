@@ -1,7 +1,7 @@
 # Operator rehearsal guide
 
-This describes the development branch, not the studio's currently deployed application.
-Do not use this document as authority to restart, upgrade or change studio routing.
+This describes the approved studio reliability release. Deployment receipts are in
+[verification](verification.md). Installing a Bridge update remains an explicit operator action.
 
 ## Cloud work and account state
 
@@ -21,6 +21,11 @@ Anonymous work is explicitly a local workspace. Signing in opens the separate ac
 it does not silently adopt anonymous graphics. Transfer intended work by explicit export/import.
 Keep the original browser data while any save remains pending. Pending team work can be exported
 for recovery, including drafts whose team membership was revoked.
+
+For an edit from another computer, open **+ Add → Refresh rundown**. This flushes pending drafts
+and confirms a fresh cloud read without publishing, taking a cue or reloading output. Success says
+**Rundown refreshed from cloud**. A failed save/read keeps the draft and explains the failure.
+The team name and member access are under **Setup**; pending and failed saving remain visible.
 
 Use one authoring tab per production while offline. The existing personal-library whole-record
 storage and sync model has not been replaced with a collaborative offline editor. Simultaneous
@@ -61,6 +66,15 @@ applied during rollout before Companion can use the new verb against that backen
 Add an **Audio/effect cue** for a CasparCG media-folder sound. The existing native audio route
 defaults to its effects layer, separate from the video layer. Check the displayed channel/layer
 before rehearsal; two effects on the same slot intentionally replace/restart each other.
+
+The CasparCG files picker stays open until **Done**. Click files to select them, use Shift for a
+range, then **Add selected**. **Add folder** includes its subfolders and respects the current media
+filter. Both append ordinary cues and keep the next question selected.
+
+Native pictures default to **Fit**, preserving proportions with centered opaque black padding.
+Select a picture cue to choose **Fit / Stretch**; a change applies at its next Take. Fit requires
+Bridge 0.9.0 and CasparCG 2.5 or later. An older Bridge shows update advice and refuses Fit rather
+than silently stretching. Unsupported picture formats/settings also give explicit advice.
 
 Space follows the displayed Take/Out action for the selected cue and the chosen Space mode.
 It does not mean clear every playing item. Explicit Out applies the cue's authored exit behavior,

@@ -462,9 +462,12 @@ as a code failure or as evidence supplied by automation.
   architecture and all artifact checks. The feedback relocation was added afterwards and requires
   the final reconciled build below. CLI 0.9.0 passes 240 active checks / 18 skips. Companion tests
   pass 30/30 and its lint/package build produces the 0.1.1 developer bundle.
-- Inline review/simplification retains the prior 28 confirmed corrections and fixes four further
+- Inline review/simplification retains the prior 28 confirmed corrections and fixes five further
   findings: false bulk-save success, stale background picture resolution, false refresh failure
-  during confirmation, and feedback resizing the rundown viewport. Final integration/CI and
+  during confirmation, feedback resizing the rundown viewport, and spacing from its empty
+  feedback container. The generic authoring-feedback class also passes the unchanged folder
+  style scope gate. Final integration/CI and
   release receipts must be recorded before claiming deployment.
 - Rollback baseline: website commit `1d18eb43ac2b38bff3f544c4dd28ee9c6b71960d` and installed Bridge
   0.8.1. Release 0.9.0 does not automatically replace any installed Bridge or CasparCG server.
+  Vercel deployment `dpl_pW9XKA9xmPk3zQvAagyjSSZeenz3` is READY and a rollback candidate.
