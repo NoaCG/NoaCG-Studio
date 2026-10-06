@@ -15,7 +15,9 @@ history and stale-revision refusal.
 
 ## Reversible unattended decisions
 
-- Persist bounded, versioned organization metadata in an inert HTML comment.
+- Persist bounded, versioned organization metadata in an inert HTML header comment.
+  Require the header at the start of source so code strings resembling metadata
+  cannot be rewritten. Unknown or displaced metadata refuses organization edits.
   Never wrap artwork for a folder. Folders contain layers or nested folders
   within one transform-group scope. Folder order affects the editor only;
   artwork order within a folder follows source stacking. Loose layers follow
