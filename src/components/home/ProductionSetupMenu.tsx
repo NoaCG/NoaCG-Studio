@@ -22,6 +22,7 @@ import { panelTone, panelToneWords, type PanelAnswerState } from '../control/Pan
 export function ProductionSetupMenu({
   showId,
   onShare,
+  team,
   panel,
   onPanel,
   onPlayoutSettings,
@@ -32,6 +33,7 @@ export function ProductionSetupMenu({
   showId: string;
   /** The team door for a personal production, signed in; absent offline and on a team's. */
   onShare?: () => void;
+  team?: { name: string; detail?: string; open: () => void };
   panel: PanelAnswerState;
   onPanel: () => void;
   onPlayoutSettings: () => void;
@@ -76,6 +78,7 @@ export function ProductionSetupMenu({
         <span className="pd-setup-label">Setup</span> <span className="pd-setup-caret" aria-hidden="true">▾</span>
       </button>
       <LibMenu open={open} onClose={close} testid="production-setup-menu" className="pd-setup-menu">
+        {team && <button role="menuitem" onClick={pick(team.open)} title={team.detail} aria-label={`Team ${team.name}`} data-testid="production-team"><IconUsers /> {team.name}<span className="pd-setup-note">Team</span></button>}
         {onShare && (
           <button
             role="menuitem"

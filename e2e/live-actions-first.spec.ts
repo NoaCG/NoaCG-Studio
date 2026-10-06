@@ -144,7 +144,8 @@ test('a graphic with no actions keeps today\'s panel: the editor first, no fold,
   await expect(page.getByTestId('cue-actions')).toHaveCount(0);
   await expect(page.getByTestId('cue-fields-fold')).toHaveCount(0);
   // The editor is the first block of the control area, right under the monitors.
-  const first = await page.getByTestId('control-area').evaluate((el) => (el.firstElementChild as HTMLElement | null)?.dataset.testid);
+  const first = await page.getByTestId('control-area').evaluate((el) =>
+    (Array.from(el.children).find(child => child.getBoundingClientRect().height > 0) as HTMLElement | undefined)?.dataset.testid);
   expect(first).toBe('cue-editor');
 });
 

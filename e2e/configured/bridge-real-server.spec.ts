@@ -179,6 +179,8 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await page.getByTestId('picker-field-ids').fill('f0, f1');
   await strap.getByTestId('picker-add').click();
   const strapCue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await page.getByTestId('picker-done').click();
+  await strapCue.getByTestId('select-cue').click();
   await expect(strapCue).toContainText('Server template');
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok', WIRE);
   await expect(page.getByTestId('playout-cue-status')).toContainText('2.5');
@@ -209,6 +211,8 @@ test('the Bridge airs the production, the dashboard reveals and scores it in Cas
   await expect(still).toBeVisible();
   await still.getByTestId('picker-add').click();
   const stillCue = page.locator('.pd-cue', { hasText: 'JÄÄKIEKKO' });
+  await page.getByTestId('picker-done').click();
+  await stillCue.getByTestId('select-cue').click();
   await expect(stillCue).toContainText('Server image');
   await expect(stillCue.getByTestId('cue-layer')).toHaveText('1-10');
   await page.getByTestId('verb-take').click();
@@ -289,6 +293,8 @@ test('one rundown airs a server template on channel 1 and a clip on channel 2, m
   await page.getByTestId('picker-field-ids').fill('f0, f1');
   await strapRow.getByTestId('picker-add').click();
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
+  await page.getByTestId('picker-done').click();
+  await strap.getByTestId('select-cue').click();
   await expect(strap.getByTestId('cue-layer')).toHaveText('1-21');
   await page.getByTestId('cue-field-f0').fill('Channel 1 - graphics');
   await page.getByTestId('cue-field-f1').fill('NoaCG, one rundown, two channels');
@@ -300,6 +306,8 @@ test('one rundown airs a server template on channel 1 and a clip on channel 2, m
   await expect(clipRow).toBeVisible(WIRE);
   await clipRow.getByTestId('picker-add').click();
   const clip = page.locator('.pd-cue', { hasText: 'ILMARI_OHJAA_MUSATALO' });
+  await page.getByTestId('picker-done').click();
+  await clip.getByTestId('select-cue').click();
   await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok', WIRE);
 

@@ -197,6 +197,10 @@ export async function runSync(
   remote: StorageProvider,
   onPlan?: (plan: SyncPlan) => void,
 ): Promise<SyncResult> {
+  const workspaceKey = accountKey(SYNC_META_KEY);
+  const sameWorkspace = () => {
+    if (accountKey(SYNC_META_KEY) !== workspaceKey) throw new Error('The account changed during saving. Pending work remains in its original workspace.');
+  };
   const meta = loadSyncMeta();
   const arriving = !arrived(meta);
   // list() failures DO fail the whole pass: without both sides there is nothing to reconcile, and
@@ -212,6 +216,7 @@ export async function runSync(
   // Before anything is applied: a summary is never written, and a fetch that fails must fail
   // the pass rather than one record (see withWholeRecords).
   plan.toLocal = await withWholeRecords(remote, plan.toLocal);
+  sameWorkspace();
 
   const failures: SyncFailure[] = [];
   const pendingPush = new Set<string>();
@@ -229,6 +234,15 @@ export async function runSync(
       message: e instanceof Error ? e.message : String(e),
     });
   };
+  const original = new Map(localRecs.map(r => [recordKey(r), JSON.stringify(r)]));
+  const unchanged = async (r: StoredRecord): Promise<boolean> => {
+    const current = await local.get(r.kind, r.id);
+    sameWorkspace();
+    if (JSON.stringify(current ?? undefined) === original.get(recordKey(r))) return true;
+    pendingConflict.add(recordKey(r));
+    fail('pull', r, new Error('Edited on this device while the cloud revision was arriving. Both revisions will be reconciled on the next pass.'));
+    return false;
+  };
 
   // 1. Conflict copies FIRST: duplicate the losing local edit before the pull overwrites it, so a
   //    failure (or a crash) mid-pass can never lose the only copy of a user's work.
@@ -236,6 +250,7 @@ export async function runSync(
   for (const loser of plan.conflicts) {
     const copy = makeConflictCopy(loser);
     try {
+      sameWorkspace();
       await local.put(copy);
       conflicts += 1;
     } catch (e) {
@@ -248,6 +263,7 @@ export async function runSync(
     }
     // Push the copy best-effort; if it fails, next pass sees a local-only record and pushes it.
     try {
+      sameWorkspace();
       await remote.put(copy);
     } catch (e) {
       fail('push', copy, e);
@@ -285,6 +301,7 @@ export async function runSync(
       // everything an account keeps, so it is a user-facing defect, not only a slow test. The
       // same arithmetic is why summaries are fetched in batches (withWholeRecords).
       const full = hasStorageSentinel(r.body) ? ((await remote.get(r.kind, r.id)) ?? r) : r;
+      if (!(await unchanged(r))) continue;
       await local.put(full);
       pulled += 1;
     } catch (e) {
@@ -293,8 +310,11 @@ export async function runSync(
   }
   if (local.putMany && fetched.length > 0) {
     try {
-      await local.putMany(fetched);
-      pulled += fetched.length;
+      const safe: StoredRecord[] = [];
+      for (const r of fetched) if (await unchanged(r)) safe.push(r);
+      sameWorkspace();
+      await local.putMany(safe);
+      pulled += safe.length;
     } catch (e) {
       // Nothing is known to have landed, so every record is owed again; the next pass re-derives
       // them from the unchanged timestamps, as for any failed pull.
@@ -307,6 +327,7 @@ export async function runSync(
   //    say it was NOT copied anywhere (see the header for why it is never re-minted).
   for (const l of plan.toRemote) {
     try {
+      sameWorkspace();
       await remote.put(l);
       pushed += 1;
     } catch (e) {
@@ -324,6 +345,7 @@ export async function runSync(
 
   // The pass ran to completion, so the bookmark advances — per-record failures are carried in the
   // pending sets (rebuilt each pass from what actually failed), never by freezing the bookmark.
+  sameWorkspace();
   saveSyncMeta({
     lastSyncedAt: new Date().toISOString(),
     pendingPush: [...pendingPush],

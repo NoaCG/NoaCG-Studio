@@ -56,6 +56,27 @@ export function isAllowedExternal(url: string): boolean {
   }
 }
 
+/** Imported SPX files can keep runtime beside their definition. Inventory executable inline
+ * scripts without moving source or mistaking JSON data for code. */
+export function inlineScripts(html: string): { code: string; classic: boolean }[] {
+  const scripts: { code: string; classic: boolean }[] = [];
+  for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+    const attrs = new Map<string, string>();
+    for (const attr of match[1].matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+      const name = attr[1].toLowerCase();
+      if (!attrs.has(name)) attrs.set(name, attr[2] ?? attr[3] ?? attr[4] ?? '');
+    }
+    const type = (attrs.get('type') ?? '').trim().toLowerCase();
+    if (!attrs.has('src') && (!type || /^(?:text|application)\/(?:java|ecma)script$/.test(type) || type === 'module')) scripts.push({ code: match[2], classic: type !== 'module' });
+  }
+  return scripts;
+}
+
+/** Only classic scripts expose the globals required by the SPX runtime contract. */
+export function inlineClassicScripts(html: string): string[] {
+  return inlineScripts(html).filter(script => script.classic).map(script => script.code);
+}
+
 /** Detect the runtime entry points: classic globals OR the modern spxRenderer event API. */
 function hasRuntimeEntryPoints(js: string): { ok: boolean; missing: string[] } {
   const hasClassic =
@@ -128,6 +149,9 @@ export interface ValidateOptions {
 export function validateTemplate(template: SpxTemplate, options: ValidateOptions = {}): ValidationResult {
   const errors: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
+  const scripts = [...inlineClassicScripts(template.html), template.js];
+  // Validate the complete program while preserving the imported source and its physical size.
+  template = { ...template, js: scripts.join('\n') };
 
   // 0. The three code files must exist.
   if (!template.html.trim()) errors.push({ rule: 'files', message: 'The HTML is empty.' });
@@ -208,7 +232,8 @@ export function validateTemplate(template: SpxTemplate, options: ValidateOptions
   }
 
   // 5. JS syntax.
-  const syntax = jsCompiles(template.js);
+  // Each tag is a separate classic script, so a strict-mode directive applies only to that tag.
+  const syntax = scripts.map(jsCompiles).find(Boolean);
   if (syntax) {
     errors.push({ rule: 'syntax', message: `JavaScript syntax error: ${syntax}` });
   }

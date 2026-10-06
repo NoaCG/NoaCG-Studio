@@ -140,8 +140,10 @@ function producerOf(n: XmlNode | undefined): InfoProducer {
   const framesLeft = text(n, 'frames_left');
   return {
     producer: text(n, 'producer') ?? 'empty',
-    name: text(file, 'name'),
-    path: text(file, 'path'),
+    // File identity is literal: `insert 2 .mp4` reads back as `INSERT 2 `.
+    // Trimming it loses this Bridge's cue ownership, timer and Out controls.
+    name: kid(file, 'name')?.text,
+    path: kid(file, 'path')?.text,
     clip: pair(nums(file, 'clip')),
     time: pair(nums(file, 'time')),
     loop: bool(n, 'loop'),
@@ -169,4 +171,11 @@ export function parseInfo(xml: string): InfoChannel {
     fps: rate.length >= 2 && rate[1] > 0 ? rate[0] / rate[1] : undefined,
     layers,
   };
+}
+
+/** INFO PATHS is read only when the native image producer reports a relative file path. */
+export function parseInitialPath(xml: string): string | undefined {
+  const paths = kid(parseXml(xml), 'paths');
+  if (!paths) throw new UsageError('INFO PATHS answered without a <paths> document.');
+  return kid(paths, 'initial-path')?.text;
 }

@@ -17,7 +17,8 @@ import { hasChatGraphic, chatGraphicBlock, stripChatGraphic, chatBackendRefKey, 
 import { listMyShows, type ShowRow } from '../showchat/chatData';
 import ModerationPanel from '../showchat/ModerationPanel';
 import { slug } from '../model/slug';
-import { addGraphicToShow, createShowNamed, loadShows, type Show } from '../model/shows';
+import { createShowNamed, loadShows, type Show } from '../model/shows';
+import { addReadyGraphicToShow as addGraphicToShow } from '../control/productionAdmission';
 import { commitDurableWrites } from '../model/durableStore';
 import { useTemplateStore, type PlayoutAction } from '../store/templateStore';
 import { useRouter } from '../app/router';

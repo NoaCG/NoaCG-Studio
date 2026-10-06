@@ -162,6 +162,7 @@ export default function SignInDialog() {
         <p className="muted auth-sub" data-testid="auth-account-for">
           {throughDoor && !isResumeSignIn ? `${ACCOUNT_IS_FOR} ${NO_ACCOUNT_NEEDED}` : NO_ACCOUNT_NEEDED}
         </p>
+        {!isResumeSignIn && <p className="muted auth-sub">Your account opens a separate cloud workspace. Local work stays on this browser; use export and import to transfer it deliberately.</p>}
 
         {mode === 'signup' && (
           <p className="auth-legal">

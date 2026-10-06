@@ -248,7 +248,7 @@ export async function fakeBridge(page: Page, init: Partial<Omit<Fake, 'restart' 
           ...(a.verb === 'take' && (a.item as { kind?: string }).kind === 'url' ? { html: true } : {}),
         };
       }
-      if (a.verb === 'out') fake.runs[addr] = undefined;
+      if (a.verb === 'out' || a.verb === 'clear') fake.runs[addr] = undefined;
       return json(route, { ok: true, v: 2, raw: '202 OK', generation: fake.generation[addr], session: fake.session, ...(instance ? { instance } : {}) });
     }
     return json(route, { ok: true, v: 2, items: [] });

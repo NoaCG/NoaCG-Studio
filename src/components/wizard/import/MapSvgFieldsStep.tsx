@@ -441,6 +441,7 @@ export default function MapSvgFieldsStep({
   // It re-runs when a FONT lands (`fontKey` above), because the stage's text stops being laid
   // out in the fallback and the ink moves under a number the reader is looking at.
   const [layerBoxes, setLayerBoxes] = useState<Map<string, FillLayer['box']>>(new Map());
+  const [outsideCanvas, setOutsideCanvas] = useState<Set<string>>(new Set());
   useLayoutEffect(() => {
     const stage = stageRef.current;
     if (!svg || !stage) {
@@ -450,8 +451,18 @@ export default function MapSvgFieldsStep({
     // Deduped for `proposeFollowers`' reason: one id may sit in two inventories, because a
     // picture-filled backplate is offered both as a picture and as a panel that grows.
     const ids = [...new Set([...svg.groups, ...svg.shapes, ...svg.candidates, ...svg.images, ...svg.outlines].map((c) => c.id))];
-    setLayerBoxes(measureBoxes(stage, ids));
+    const boxes = measureBoxes(stage, ids);
+    const frame = stage.querySelector('svg')?.getBoundingClientRect();
+    setLayerBoxes(boxes);
+    setOutsideCanvas(new Set(frame ? svg.candidates.filter(c => {
+      const b = boxes.get(c.id);
+      return b && (b.right <= 0 || b.bottom <= 0 || b.left >= frame.width || b.top >= frame.height);
+    }).map(c => c.id) : []));
   }, [svg, fontKey]);
+  useEffect(() => {
+    if (!draft.svgFields.some(f => f.on && outsideCanvas.has(f.candidateId))) return;
+    onDraft({ svgFields: draft.svgFields.map(f => outsideCanvas.has(f.candidateId) ? { ...f, on: false, whenOff: 'keep' } : f) });
+  }, [outsideCanvas, draft.svgFields, onDraft]);
   /** The artwork the plate rule is measured against, from every box the step could read. */
   const artworkInk = useMemo(() => inkOfArtwork([...layerBoxes.values()]), [layerBoxes]);
 
@@ -1188,6 +1199,7 @@ export default function MapSvgFieldsStep({
             )}
             {showBoxGroups && capSentence(group.boxId, group.fields[0].candidateId)}
             {group.fields.map((f) => {
+            const outside = outsideCanvas.has(f.candidateId) || !!svg?.candidates.find(c => c.id === f.candidateId)?.outsideCanvas;
             // A LAYER THE VOTE WRITES IS NOT A FIELD, so this row does not offer the two boxes
             // that would pretend it is (owner walk, 2026-09-03: he selected a percentage, watched
             // it highlight in the preview, typed, and nothing happened). `draftToOptions` drops
@@ -1222,7 +1234,7 @@ export default function MapSvgFieldsStep({
                    GREYED rather than gone, which is the exception to "hide what cannot work":
                    this one is not inert, it is harmful, and it still carries the fact that the
                    layer is part of the graphic - which is the whole of what the row is for. */
-                disabled={driven}
+                disabled={driven || outside}
                 /* UNTICKING ASKS NOTHING (owner, 2026-09-21: ticking or unticking a field shows
                    no warning). It means the one safe thing, the words stay as drawn, and the row
                    says so with the other answer one press away. A dialog used to ask which
@@ -1242,6 +1254,7 @@ export default function MapSvgFieldsStep({
                         : 'Off. This text stays as drawn.'
                 }
               />
+              {outside && <span className="muted" data-testid={`map-svg-outside-${f.candidateId}`}>Outside canvas. Move this text onto the artboard and export again.</span>}
               {driven ? (
                 /* SHORT, because it is on EIGHT ROWS of his board. The reason lives once, in the
                    section's own note; a row only has to say which layer this is and that the

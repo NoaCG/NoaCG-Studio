@@ -108,7 +108,7 @@ test('a timed cue counts the same second on two pages and a reload, ends once, h
   await page.getByTestId('production-status').click();
   await expect(links).toBeVisible();
   await expect(page.getByTestId('publish-freshness')).toBeVisible({ timeout: 30_000 });
-  await page.getByTestId('production-republish').click();
+  await page.getByTestId('prepare-for-live-button').click();
   await expect(page.getByTestId('publish-freshness')).toBeHidden({ timeout: 60_000 });
   await page.getByTestId('production-status').click();
   await expect(links).toBeHidden();

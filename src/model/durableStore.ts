@@ -54,8 +54,8 @@
 // ONE LIBRARY PER ACCOUNT. Each account that signs in on this browser keeps its documents under
 // its own key names (model/accountScope.ts), and only the library in use is ever loaded into
 // the mirror. This is a naming change, not a format change: the signed-out workspace keeps the
-// plain names every earlier build wrote, so nothing already saved moves until an account adopts
-// it, and DB_VERSION stays where it is. A build from before this change sees only the plain
+// plain names every earlier build wrote. Signing in opens a separate library, and DB_VERSION
+// stays where it is. A build from before this change sees only the plain
 // names - an account's library is invisible to it, never damaged by it.
 
 import { accountKey, libraryAccount, unscopedKey } from './accountScope';
@@ -80,6 +80,7 @@ export const DURABLE_KEYS = [
   'spx-gfx-video-saved', // saved videos (model/videoProject.ts)
   'spx-gfx-looks', // brand looks (model/packets.ts)
   'spx-gfx-packets', // the retired package store, still read by library.ts's v1 migration
+  'spx-gfx-team-outbox', // unacknowledged team edits, scoped to the library's account
 ] as const;
 
 export type DurableKey = (typeof DURABLE_KEYS)[number];
@@ -95,6 +96,20 @@ const durableKeySet: ReadonlySet<string> = new Set<string>(DURABLE_KEYS);
 // change of account reloads the page (backend/accountLibrary.ts), and the one change made in
 // place - `adoptSignedOutLibrary` - updates it itself.
 let namespace: string | null = libraryAccount();
+
+let accountAuthoringEnabled = true;
+export function setAccountAuthoringEnabled(enabled: boolean): void {
+  if (accountAuthoringEnabled === enabled) return;
+  if (!enabled && namespace !== null && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('noacg-account-authoring-pausing'));
+  accountAuthoringEnabled = enabled;
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('noacg-account-authoring'));
+}
+export function canAuthorAccount(): boolean {
+  return namespace === null || accountAuthoringEnabled;
+}
+export function assertAccountAuthoring(): void {
+  if (!canAuthorAccount()) throw new Error('Account editing is paused. Sign in again. Pending work is preserved on this device.');
+}
 
 /** The name `key` is stored under in the library currently in use. */
 function physical(key: string): string {
@@ -506,6 +521,7 @@ export const durable = {
   },
 
   setItem(key: string, value: string): void {
+    if (durableKeySet.has(key) && key !== 'spx-gfx-team-outbox') assertAccountAuthoring();
     if (!durableKeySet.has(key)) {
       lsSet(key, value);
       return;
@@ -520,6 +536,7 @@ export const durable = {
   },
 
   removeItem(key: string): void {
+    if (durableKeySet.has(key) && key !== 'spx-gfx-team-outbox') assertAccountAuthoring();
     if (!durableKeySet.has(key)) {
       lsRemove(key);
       return;

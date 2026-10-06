@@ -7,6 +7,12 @@ serves: now
 
 Browser proofs cover the Web Audio graph, packaged OGraf component, levels, recovery and
 cleanup. They do not prove the venue's audio route or recorded picture/sound skew.
+The 2026-10-05 studio report confirms native CasparCG audio files and video audio already
+reach the broadcast bus. The remaining question is attached graphic sound through the HTML
+producer. The owner waived further studio checks as release gates on 2026-10-06. The
+representative automated sound checks remain required. This optional venue check measures
+physical routing and recorded picture/sound skew after release; follow the
+[operator guide](../../work-specs/studio-evening-reliability/operator-guide.md) on a test route.
 Rehearse each host used for the production: OBS Browser Source, vMix browser input,
 CasparCG HTML producer, or the external OGraf renderer. Record host/version and routing.
 
@@ -39,3 +45,9 @@ Sounds fetched by recovery are suppressed, so an outage does not produce a burst
 Browser permission or an unsupported codec blocks readiness. Enabled attachments require
 real-time audio; disable them for silent OGraf post-production export. Use a short WAV for the
 first rehearsal. The independent server audio workflow remains available.
+
+Repeat attached In/Out/step sounds on graphics routed to channel 1 and channel 2, recording
+ATEM program audio. Compare with the same WAV as an independent audio/effect cue. An effect
+on its own layer must leave the playing video and selected next question unchanged. Record
+the actual CasparCG build and consumer settings. Claim support for a host only after this
+recording passes; browser capability documentation alone does not establish NoaCG support.

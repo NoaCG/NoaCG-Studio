@@ -130,7 +130,8 @@ for (const width of [1600, 390]) {
     const menu = page.getByTestId('rundown-add-menu');
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Cue on selected graphic', 'Graphic from library…', 'New graphic…', 'Upload image…',
-      'CasparCG files…', 'Folder from selected cues',
+      'CasparCG files…', 'Audio / effect…', 'Folder from selected cues',
+      'Refresh rundown',
     ]);
     await capture(page, `add-menu-${width}`);
     await expect(menu).toBeInViewport({ ratio: 1 });
@@ -147,12 +148,11 @@ for (const width of [1600, 390]) {
     await capture(page, `server-picker-${width}`);
     await page.locator('.pd-picker-row', { hasText: 'OPENING' }).getByTestId('picker-add').click();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(2);
-    await add.click();
-    await menu.getByRole('menuitem', { name: 'CasparCG files…' }).click();
-    await page.getByTestId('picker-media').click();
-    await page.getByTestId('picker-folder').click();
+    await expect(page.getByTestId('playout-picker')).toBeVisible();
     await page.locator('.pd-picker-row', { hasText: 'THEME' }).getByTestId('picker-add').click();
     await expect(page.getByTestId('cue-list').locator('.pd-cue')).toHaveCount(3);
+    await page.getByTestId('picker-done').click();
+    await page.locator('.pd-cue', { hasText: 'THEME' }).getByTestId('select-cue').click();
     // The Add folder path groups the selected audio cue through the same folder writer.
     await add.click();
     await menu.getByRole('menuitem', { name: 'Folder from selected cues' }).click();

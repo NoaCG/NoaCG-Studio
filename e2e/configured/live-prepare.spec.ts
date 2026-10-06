@@ -68,6 +68,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect.poll(presence, { timeout: 30_000 }).not.toBe('joining');
   test.skip((await presence()) !== 'joined', 'this server has no live topic (migration 0068): Prepare for Live rides Presence');
   await expect.poll(async () => (await readyOf(air))?.n, { timeout: 30_000 }).toBe(1);
+  let reloads = 0;
+  air.on('domcontentloaded', () => { reloads++; });
   const desk = page.getByTestId('production-status');
   await expect(desk).toHaveAttribute('data-source', 'ready', { timeout: 30_000 });
 
@@ -96,14 +98,17 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await expect(hosted.getByTestId('ready-stamp')).toHaveText((await stamp.textContent())!, { timeout: 30_000 });
   await hosted.screenshot({ path: shot('phone-390-stamp') });
 
-  // ── AC-8, AC-11: an edit after the stamp keeps it honest, and the next run publishes it. Editing
-  //    is never frozen: the field takes the text while the stamp stands. ──
+  // Cue fields change metadata, not prepared assets. Readiness stays valid; the same button
+  // publishes the values and the output adopts their version without navigating.
+  const metadataStamp = await stamp.textContent();
+  const metadataReloads = reloads;
   await page.getByTestId('production-status').click();
   const teamA = page.getByTestId('cue-field-f0');
   await teamA.fill('PREPARED');
   await teamA.blur();
   await openPanel(page, 'production-status');
-  await expect(page.getByTestId('prepare-stamp')).toContainText(/Checked \d\d:\d\d on v1, 1 change since/, { timeout: 15_000 });
+  await expect(page.getByTestId('prepare-stamp')).toHaveText(metadataStamp!);
+  if (clean) await expect(desk).toHaveAttribute('data-tone', 'ok');
   await expect(prepare).toContainText('Your unpublished changes will be published and included');
   await page.getByTestId('prepare-for-live-button').click();
   // The panel shuts on any click outside it (a Take, say), here while the run is still publishing;
@@ -123,8 +128,8 @@ test('Prepare for Live publishes what changed, checks every output and ends in a
   await openPanel(page, 'production-status');
   await expect(page.getByTestId('prepare-checklist')).toContainText('Published your changes as v2');
   await expect(page.getByTestId('prepare-stamp')).toContainText(/checked \d\d:\d\d \(v2\)/i, { timeout: 90_000 });
-  // A cue-only change moved the number, not what the output renders: it prepared nothing, and holds v1.
-  expect((await readyOf(air))?.v?.n).toBe(1);
+  await expect.poll(async () => (await readyOf(air))?.v?.n, { timeout: 30_000 }).toBe(2);
+  expect(reloads, 'cue metadata must not reload the output').toBe(metadataReloads);
 
   // ── docs/work-specs/studio-day-playout AC-5: the graphic edited in the LIBRARY, as the editor's
   //    save does, with the production record untouched. It is still an unpublished change (a

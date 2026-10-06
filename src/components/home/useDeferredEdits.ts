@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { canAuthorAccount } from '../../model/durableStore';
 
 /**
  * ONE EDIT, ONE WRITE — where the text a person is typing lives until the edit is over.
@@ -78,6 +79,7 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     stopTimer();
     const pending = editRef.current;
     if (!pending) return;
+    if (!canAuthorAccount()) return;
     // Cleared BEFORE the commit, so the box goes back to reading the store in the same render the
     // commit's write lands in and never blinks through the old value.
     editRef.current = null;
@@ -87,6 +89,8 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
 
   const type = useCallback(
     (key: string, text: string) => {
+      if (!canAuthorAccount()) return;
+      window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
       // A different box: land the edit that one holds before this one takes over. Clicking away
       // blurs first in practice; this is what makes it not matter if something ever does not.
       if (editRef.current && editRef.current.key !== key) flush();
@@ -110,9 +114,13 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     };
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('pagehide', flush);
+    window.addEventListener('noacg-account-authoring-pausing', flush);
+    window.addEventListener('noacg-account-authoring-flush', flush);
     return () => {
       document.removeEventListener('visibilitychange', onHidden);
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('noacg-account-authoring-pausing', flush);
+      window.removeEventListener('noacg-account-authoring-flush', flush);
       flush();
     };
   }, [flush]);

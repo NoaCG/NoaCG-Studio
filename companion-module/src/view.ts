@@ -19,8 +19,8 @@ export function isSelected(state: PanelState | null, row: string): boolean {
 /** Whether the page would run this verb now, as its own button shows it. */
 export function isAllowed(state: PanelState | null, rows: PanelRows | null, verb: PanelVerb, row = ''): boolean {
 	if (!state) return false
-	if (verb === 'select-cue' || verb === 'take-cue') {
-		const known = !!rows?.rows.some((r) => r.id === row)
+	if (verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') {
+		const known = !!rows?.rows.some((r) => r.id === row && (verb !== 'trigger-cue' || r.kind === 'cue'))
 		return known && (verb === 'select-cue' || !state.blocked.includes(row))
 	}
 	return state.allowed[verb] === true

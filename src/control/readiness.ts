@@ -524,8 +524,8 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
       line: ready.v ? `Behind: showing v${ready.v.n}` : 'Behind: showing an older version',
       advice:
         chg && chg.s === 'waiting'
-          ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Take ${chg.air === 1 ? 'it' : 'them'} out and press Check readiness again, or reload this output when you choose.`
-          : `v${published.n} is published. Check readiness loads it here, or reload this output.`,
+          ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
+          : `v${published.n} is published. A deferred preparation retries automatically. Check readiness to request a fresh check.`,
     });
   }
   for (const d of degraded) problems.push({ line: d.line, advice: [d.advice] });

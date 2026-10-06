@@ -10,6 +10,7 @@ import { request as httpRequest } from 'node:http';
 import { test } from 'node:test';
 import { casparcgAdapter, framesAt, readsState, slotReading } from '../dist/playout/adapters/casparcg.js';
 import { parseInfo } from '../dist/playout/info.js';
+import { amcpSend } from '../dist/playout/amcp.js';
 import { createBridgeServer } from '../dist/playout/server.js';
 import { LOADING_GRACE_MS, playsItem, SlotMemoryBank } from '../dist/playout/slots.js';
 import { fakeCasparServer } from './_fakeCasparServer.mjs';
@@ -191,7 +192,7 @@ test('which servers can be read: 2.3 and later', () => {
   // Everything phase 3 plays needs INFO read in this shape too: a fade or a trim is counted in the
   // channel's frames, read from INFO, and a sequence is run by watching it. A Clear at the end is a
   // plain `LOADBG … EMPTY AUTO`, which every version has.
-  assert.deepEqual(casparcgAdapter.capabilities('2.5.0 69e8ad5 Stable').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
+  assert.deepEqual(casparcgAdapter.capabilities('2.5.0 69e8ad5 Stable').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence', 'image-fit']);
   assert.deepEqual(casparcgAdapter.capabilities('2.3.2 4de6d18f Dev').target, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
   assert.deepEqual(casparcgAdapter.capabilities('2.0.7').target, ['end']);
 });
@@ -202,6 +203,30 @@ const target = { adapter: 'casparcg', host: '127.0.0.1', port: 5250 };
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
 const clip = { kind: 'media', name: 'NOACG_FIXTURE/COUNT30' };
 const reading = (over = {}) => ({ layer: 10, producer: 'video', file: 'NOACG_FIXTURE/COUNT30', segment: { start: 0, length: 30 }, position: 1, paused: false, loop: false, ...over });
+
+test('the original studio Insert 2 keeps its significant filename space and ownership', () => {
+  const [s] = fixture('studio-insert2-whitespace').slots;
+  const item = { kind: 'media', name: 'STREAMS-5-10/G1/INSERT 2 ' };
+  assert.equal(s.file, item.name);
+  assert.equal(playsItem(item, s.file), true);
+  assert.equal(playsItem({ ...item, name: item.name.trim() }, s.file), false);
+  let now = 0;
+  const memory = new SlotMemoryBank('studio', () => now);
+  memory.advance(target, slot(2, 10));
+  memory.settled(target, slot(2, 10));
+  const instance = memory.started(target, slot(2, 10), item, 'insert-2');
+  for (const position of [2, 3, 4, 20]) {
+    now += LOADING_GRACE_MS + 1;
+    const [owned] = memory.annotate(target, 2, [{ ...s, position }]);
+    assert.deepEqual([owned.instance, owned.cueId], [instance, 'insert-2']);
+  }
+});
+
+test('INFO preserves significant whitespace in file paths and queued names', () => {
+  const info = parseInfo('<channel><stage><layer><layer_10><foreground><file><path> media\\still .png </path></file><producer>image</producer></foreground><background><file><name> INSERT 2 </name></file><producer>ffmpeg</producer></background></layer_10></layer></stage></channel>');
+  assert.equal(info.layers[0].foreground.path, ' media\\still .png ');
+  assert.equal(info.layers[0].background.name, ' INSERT 2 ');
+});
 
 test('a still and a template match by their path on the server; a clip by its name', () => {
   assert.equal(playsItem({ kind: 'media', name: 'GIORNO' }, 'media\\giorno.jpg'), true);
@@ -387,9 +412,9 @@ test('/health says what the Bridge understands; /status says what this server ca
   t.after(() => caspar.close());
   const { call, casparTarget } = await bridge(t, caspar);
   const health = await call('/health');
-  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels']);
+  assert.deepEqual(health.body.features, ['state', 'playback', 'sequence', 'sequence-loop', 'servers', 'studio', 'pair-link', 'ending', 'channels', 'image-fit']);
   const status = await call('/status', { target: casparTarget });
-  assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence']);
+  assert.deepEqual(status.body.capabilities, ['state', 'end', 'fade', 'trim', 'level', 'sequence', 'image-fit']);
 });
 
 test('/channels reads the server\'s channels off a bare INFO, and touches no layer', async (t) => {
@@ -451,6 +476,30 @@ test('/state reads a channel, and every action\'s reply carries the slot\'s gene
   assert.equal(refused.body.ok, false);
   state = await call('/state', { target: casparTarget, channel: 2 });
   assert.equal(state.body.slots[0].generation, 5);
+});
+
+test('immediate Clear removes owned or external media and its queue, keeping other slots', async (t) => {
+  const caspar = await fakeCasparServer({ media: { A: { kind: 'movie', seconds: 2, fps: 25 }, B: { kind: 'movie', seconds: 10, fps: 25 }, SOUND: { kind: 'movie', seconds: 30, fps: 25 } }, channels: { 2: { fps: 50 } } });
+  t.after(() => caspar.close());
+  const { call, casparTarget } = await bridge(t, caspar);
+  const at = { adapter: 'casparcg', channel: 2, layer: 10 };
+  await call('/act', { target: casparTarget, action: { verb: 'take', slot: { ...at, layer: 5 }, item: { kind: 'media', name: 'SOUND' } } });
+  for (const owned of [true, false]) {
+    if (owned) await call('/act', { target: casparTarget, action: { verb: 'take', slot: at, item: { kind: 'media', name: 'A' }, cueId: 'cue-a' } });
+    else await amcpSend(casparTarget, 'PLAY 2-10 "A"');
+    await amcpSend(casparTarget, 'LOADBG 2-10 "B" AUTO');
+    const cleared = await call('/act', { target: casparTarget, action: { verb: 'clear', slot: at } });
+    assert.equal(cleared.body.ok, true, JSON.stringify(cleared.body));
+    assert.equal(cleared.body.instance, undefined);
+    caspar.advance(3000);
+    const state = await call('/state', { target: casparTarget, channel: 2 });
+    const empty = state.body.slots.find(s => s.layer === 10);
+    assert.equal(empty.producer, 'empty');
+    assert.equal(empty.instance, undefined);
+    assert.equal(empty.queued, undefined, 'queued B cannot air after Clear');
+    assert.equal(state.body.slots.find(s => s.layer === 5).file, 'SOUND');
+  }
+  assert.equal(caspar.seen.filter(line => line === 'CLEAR 2-10').length, 2);
 });
 
 test('a reading taken while a take is still in flight counts as from before it', async (t) => {

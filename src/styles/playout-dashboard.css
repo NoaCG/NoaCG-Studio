@@ -34,8 +34,8 @@
      `hidden` that `.app` sets: a `hidden` box is still a scroll container that
      `scrollIntoView` or a focus change can scroll by script, which would move everything in
      it. A `clip` box cannot be scrolled by anything. */
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - var(--account-notice-height, 0px));
+  height: calc(100dvh - var(--account-notice-height, 0px));
   overflow: clip;
   /* The header's own height. */
   --pd-header-h: 50px;
@@ -132,6 +132,7 @@
 }
 .pd-status-dot { flex: none; font-size: 11px; }
 .pd-status-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pd-status-diagnostic { flex: none; color: var(--amber); font-weight: 700; }
 .pd-status-control--ok { color: #4ade80; background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.45); }
 .pd-status-control--warn { color: #f59e0b; background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.5); }
 .pd-status-control--bad { color: #fff; background: #b91c1c; border-color: #ef4444; }
@@ -1895,6 +1896,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   background: rgba(246, 166, 35, 0.06);
   font-size: 12px;
 }
+.pd-server-diagnostic { height: auto; min-height: 30px; flex-wrap: wrap; padding: 8px; margin-bottom: 8px; }
+.pd-server-diagnostic span { overflow-wrap: anywhere; }
 .pd-unidentified-what { flex: none; color: var(--amber); font-weight: 600; }
 .pd-cue-len {
   flex: none;
@@ -2074,7 +2077,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-rundown .pd-drop-end[data-drop='into'] { border: 2px solid #cfd8e6; color: var(--text); }
 .pd-rundown .pd-drop-end[data-drop='refused'] { border: 2px dashed var(--danger); }
-.pd-rundown .pd-rundown-note { flex: none; margin: 0; padding: 6px 12px 0; font-size: 12px; }
+.pd-control-area .pd-authoring-note { margin: 0 0 8px; font-size: 12px; }
+.pd-rundown-feedback:empty { display: none; }
 /* The range's count and its verb, under the list while a shift-click selection stands. */
 .pd-rundown .pd-range-bar {
   flex: none;
@@ -2120,6 +2124,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   .pd-body { display: flex; flex-direction: column; overflow: auto; overscroll-behavior: contain; }
   .pd-main,
   .pd-control-area { display: contents; }
+  .pd-rundown-feedback { order: 3; margin: 0 12px; }
   /* The stage head stands down HERE TOO, for the same reason .pd-main does: this breakpoint
      orders the monitors, the rail, the editor and the verb bar as siblings of one scrolling
      column, and a wrapper around two of them would take them out of that ordering - the verbs
@@ -2466,6 +2471,10 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-picker-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; min-width: 0; }
 /* The Add button never shrinks and never scrolls away; the name gives way instead. */
 .pd-picker-row > button { flex: none; }
+.pd-picker-row > .pd-picker-select { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 4px; text-align: left; border-color: transparent; background: none; }
+.pd-picker-select[aria-pressed='true'] { border-color: var(--amber); background: rgba(255, 190, 70, 0.08); }
+.pd-picker-bulk { display: flex; gap: 6px; flex-wrap: wrap; }
+.pd-picker-bulk button { font-size: 12px; }
 /* A folder row is one button across the row: the whole line opens the folder. */
 .pd-picker-row > .pd-picker-folder {
   flex: 1;
@@ -2637,6 +2646,9 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
    Badges use a separate variable: a cue highlight never communicates a routing change. */
 .pd-rundown .pd-cue:not(.selected):not(.on-air):not(.on-pvw):not(.up-here),
 .pd-cue-presented:not(.selected):not(.on-air):not(.on-pvw) { border-left: 3px solid var(--pd-cue-accent, var(--border)); }
+.pd-rundown .pd-cue, .pd-cue-presented { background-image: linear-gradient(color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent), color-mix(in srgb, var(--pd-cue-accent, #8fbfff) 26%, transparent)); }
+.pd-rundown .pd-cue:is(.on-air, .on-pvw, .selected, .up-here) { outline: 1px solid currentColor; outline-offset: -1px; }
+.pd-cue-hotkey { flex: none; padding: 1px 4px; font: 10px/1.2 monospace; color: #fff; border: 1px solid #a9b4c4; border-radius: 3px; }
 .pd-cue-type { flex: 0 100 auto; max-width: 96px; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); font-size: 10px; }
 .pd-cue-layer[data-ch]:not(.clash) { border-left: 2px solid var(--pd-ch); padding-left: 4px; }
 .pd-cue-kind:not(.pd-cue-kind--missing) { color: var(--text-dim); background: var(--surface); }
@@ -2662,3 +2674,9 @@ button.pd-auto.missed { flex: 0 100 auto; color: var(--amber); border-color: rgb
    The small type line uses the existing label height instead of competing with its name. */
 .pd-rundown .pd-cue-label { position: relative; padding-bottom: 11px; }
 .pd-rundown .pd-cue-type { position: absolute; left: 0; right: 0; bottom: 1px; max-width: none; line-height: 10px; }
+.wz-modal.pd-shortcut-dialog { width: min(560px, 94vw); height: auto; max-height: 90vh; }
+.pd-publish-short { display: none; }
+@media (max-width: 760px) {
+  .pd-publish-full { display: none; }
+  .pd-publish-short { display: inline; }
+}

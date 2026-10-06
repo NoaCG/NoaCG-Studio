@@ -90,6 +90,7 @@ import {
   stepSelection,
   takeFace,
   usePlayoutVerbKeys,
+  useCueShortcutSet,
   useSpaceMode,
   type PlayoutVerb,
   type SpaceAction,
@@ -108,7 +109,7 @@ import type { PanelVerb } from '../control/panelFeedback';
 
 /** What a hardware panel can run on this page: no server clips here, so no Pause or Resume. */
 const HOSTED_PANEL_VERBS: ReadonlySet<PanelVerb> = new Set<PanelVerb>([
-  'take', 'retake', 'update', 'next', 'out', 'select-prev', 'select-next', 'all-out', 'select-cue', 'take-cue',
+  'take', 'retake', 'update', 'next', 'out', 'select-prev', 'select-next', 'all-out', 'select-cue', 'take-cue', 'trigger-cue',
 ]);
 
 /**
@@ -890,8 +891,11 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     const auto = cue.auto ? readAuto({ auto: cue.auto }) : null;
     return auto ? markerAuto({ auto, next: cue.next ?? null }) : null;
   };
-  const takeCue = (cue: OutputCue) =>
-    sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto: markerFor(cue) }));
+  const takeCue = (cue: OutputCue, direct = false) => {
+    const ownAuto = cue.auto?.then === 'out' ? cue.auto : cue.auto?.then === 'out-next' ? { ...cue.auto, then: 'out' as const } : undefined;
+    const auto = direct ? ownAuto ? markerAuto({ auto: ownAuto, next: null }) : null : markerFor(cue);
+    return sendVerb(takeCueItems({ id: cue.id, graphic: cue.graphic, values: cueValues(cue), auto, direct }));
+  };
   /**
    * A TIMED CUE'S END ACTION, sent once: the server said `ok` to this page's fire (cueArmWire.ts).
    * Its Out, the armed next cue's Take, or both in that order, as the presses would send them, and
@@ -977,6 +981,10 @@ export default function HostedControlPage({ slug }: { slug: string }) {
     // whatever the SPACE mode, or takes it off when it is the one up on its layer, and leaves the
     // selection where the operator put it: a deck key never changes what SPACE acts on.
     const named = press?.cue ? cues.find((c) => c.id === press.cue) : undefined;
+    if (verb === 'trigger-cue') {
+      if (named && !press?.repeat) void takeCue(named, true);
+      return;
+    }
     if (named && verb === 'select-cue') selectCue(named);
     if (named && verb === 'take-cue') {
       if (liveCue[named.graphic] === named.id) void sendVerb(clearCueItems(named.graphic));
@@ -1153,6 +1161,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
             nextLabel={nextLabel}
             keptStates={keptStates}
             onKey={runVerb}
+            cues={cues}
+            productionId={slug}
           />
           </div>
 
@@ -1355,6 +1365,8 @@ export default function HostedControlPage({ slug }: { slug: string }) {
  * SPACE did nothing, and TAKE re-took a live cue instead of taking it off. Both are §2 contracts.
  */
 function HostedVerbs({
+  cues,
+  productionId,
   selectedIsLive,
   spaceNext,
   spaceMode,
@@ -1368,6 +1380,8 @@ function HostedVerbs({
   keptStates,
   onKey,
 }: {
+  cues: OutputCue[];
+  productionId: string;
   selectedIsLive: boolean;
   /** What SPACE does next - the button's face comes from the same decision the key runs. */
   spaceNext: SpaceAction;
@@ -1385,12 +1399,15 @@ function HostedVerbs({
   /** The states ✎ Update will keep on air, in the author's words (`controlModel movedStateNames`) —
    *  empty once nothing is up for Update to keep. */
   keptStates: string;
-  onKey: (verb: PlayoutVerb) => void;
+  onKey: (verb: PlayoutVerb, press?: VerbPress) => void;
 }) {
-  usePlayoutVerbKeys(onKey);
+  const shortcuts = useCueShortcutSet(cues, productionId);
+  usePlayoutVerbKeys(onKey, true, shortcuts.bindings);
   const face = takeFace(spaceNext);
   return (
     <div className="pd-verbs" data-testid="hosted-verbs">
+      {shortcuts.changed && <button className="pd-verb pd-verb-secondary" onClick={shortcuts.apply}>Apply cue shortcuts</button>}
+      {!!shortcuts.conflicts.length && <span role="status">Duplicate cue shortcuts disabled: {shortcuts.conflicts.join(', ')}</span>}
       {/* No → Preview button here either — parity with the in-app bar, and for the same reason:
           this page's PVW monitor is a local stage that follows the selection on its own. In
           'preview-then-take' mode the TOGGLE itself wears → PREVIEW on a fresh cue. */}

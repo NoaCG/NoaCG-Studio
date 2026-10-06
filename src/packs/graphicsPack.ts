@@ -9,7 +9,7 @@ import { accentColor } from '../model/outputSetup';
 // editing — without touching the wizard catalog or the template generators.
 //
 // This module owns the format: parsing/normalizing a pack file, validating every graphic
-// through the ONE export gate (validation/validateTemplate.ts), and installing the set
+// through the ONE publication gate (validation/publishGate.ts), and installing the set
 // through the ONE multi-template save path (model/templateSet.ts). It lives outside
 // src/model because the validation gate imports template machinery the model layer must not
 // reach (docs/ARCHITECTURE.md).
@@ -44,7 +44,7 @@ import {
   type SpxTemplate,
   type TemplateType,
 } from '../model/types';
-import { validateTemplate } from '../validation/validateTemplate';
+import { publishGate } from '../validation/publishGate';
 
 /** A prepared cue shipped with a pack graphic — label + field values, ready to Take. */
 export interface PackCue {
@@ -306,12 +306,12 @@ export function parsePack(json: string): { pack: GraphicsPack | null; error: str
 }
 
 /**
- * Validate every graphic of a pack through the export gate. Returns the first failure as a
+ * Validate every graphic of a pack through the production gate. Returns the first failure as a
  * user-readable message naming the graphic, or null when the whole pack passes.
  */
 export function validatePack(pack: GraphicsPack): string | null {
   for (const g of pack.graphics) {
-    const result = validateTemplate(g.template);
+    const result = publishGate(g.template, true);
     if (!result.ok) {
       const first = result.errors[0];
       return `“${g.template.name}” failed validation: ${first?.message ?? 'unknown error'}`;

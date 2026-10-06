@@ -29,11 +29,12 @@ export const PANEL_VERBS = [
   'all-out',
   'select-cue',
   'take-cue',
+  'trigger-cue',
 ] as const;
 export type PanelVerb = (typeof PANEL_VERBS)[number];
 /** The verbs whose enabled state is one flag; `select-cue` and `take-cue` are answered per row. */
-export type SharedPanelVerb = Exclude<PanelVerb, 'select-cue' | 'take-cue'>;
-export const SHARED_PANEL_VERBS = PANEL_VERBS.filter((v): v is SharedPanelVerb => v !== 'select-cue' && v !== 'take-cue');
+export type SharedPanelVerb = Exclude<PanelVerb, 'select-cue' | 'take-cue' | 'trigger-cue'>;
+export const SHARED_PANEL_VERBS = PANEL_VERBS.filter((v): v is SharedPanelVerb => v !== 'select-cue' && v !== 'take-cue' && v !== 'trigger-cue');
 
 export interface PanelRow {
   id: string;
@@ -276,6 +277,7 @@ const VERB_WORDS: Record<PanelVerb, string> = {
   'all-out': 'All out',
   'select-cue': 'Select a cue',
   'take-cue': 'Take a cue',
+  'trigger-cue': 'Trigger a cue',
 };
 
 export function verbWords(verb: PanelVerb): string {
@@ -302,11 +304,14 @@ export function judgePress(
   if (verb === 'take' && (!then || then.space !== now.space)) {
     return { outcome: 'stale', note: then ? 'what Take does changed' : 'the key was drawn too long ago' };
   }
-  if ((verb === 'select-cue' || verb === 'take-cue') && !isRow(target)) {
+  if ((verb === 'select-cue' || verb === 'take-cue' || verb === 'trigger-cue') && !isRow(target)) {
     return { outcome: 'stale', note: 'that cue is no longer in the rundown' };
   }
   if (verb === 'take-cue' && (!then || then.live.includes(target) !== now.live.includes(target))) {
     return { outcome: 'stale', note: then ? 'that cue went on or off air since' : 'the key was drawn too long ago' };
+  }
+  if (verb === 'trigger-cue' && (!then || !then.rows.some(r => r.id === target && r.kind === 'cue') || !now.rows.some(r => r.id === target && r.kind === 'cue'))) {
+    return { outcome: 'stale', note: 'that cue key is no longer current' };
   }
   if (verb === 'pause-toggle') {
     const was = then?.clip;
@@ -315,7 +320,7 @@ export function judgePress(
       return { outcome: 'stale', note: 'the clip changed since' };
     }
   }
-  if (verb === 'take-cue' ? now.blocked.includes(target) : verb !== 'select-cue' && !now.allowed[verb]) {
+  if (verb === 'take-cue' || verb === 'trigger-cue' ? now.blocked.includes(target) : verb !== 'select-cue' && !now.allowed[verb]) {
     return { outcome: 'not-allowed', note: `${verbWords(verb)} is not allowed right now` };
   }
   return null;

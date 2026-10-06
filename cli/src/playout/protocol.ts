@@ -121,7 +121,7 @@ export type PlayoutAction =
    *  match the slot back to its cue after a reload (docs/CLIP_PLAYBACK_PLAN.md §6.7). A Bridge
    *  from before it reads the action field by field and never sees it. `playback` is for media
    *  only; a Bridge that does not list the `playback` feature must never be sent one. */
-  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback }
+  | { verb: 'take'; item: ItemRef; slot: Slot; data?: Record<string, string>; loop?: boolean; cueId?: string; playback?: MediaPlayback; imageFit?: 'fit' | 'stretch' }
   | { verb: 'update'; slot: Slot; data: Record<string, string> }
   | { verb: 'next' | 'pause' | 'resume'; slot: Slot; item?: ItemRef }
   /** `fadeOut` fades a clip to nothing rather than cutting it. */
@@ -190,13 +190,13 @@ export interface AgentError {
  *  `/studio`, which keeps it. `pair-link` is `/pair-link`: a fresh pairing code for another browser.
  *  `ending` is the `ending` verb: a clip's ending changed while it plays. `channels` is `/channels`:
  *  the channels a server reports it has. */
-export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels';
+export type BridgeFeature = 'state' | 'playback' | 'sequence' | 'sequence-loop' | 'servers' | 'studio' | 'pair-link' | 'ending' | 'channels' | 'image-fit';
 
 /** What a TARGET can do, from its adapter and its version. `/status` lists them, because only
  *  a request that names a target can say. The page offers a control only when both lists say yes.
  *  `end` is a clip's Clear at its end, `fade` its fades, `trim` its start and end in the file,
  *  `level` its gain, and `sequence` playing one file after another. */
-export type TargetCapability = 'state' | 'end' | 'fade' | 'trim' | 'level' | 'sequence';
+export type TargetCapability = 'state' | 'end' | 'fade' | 'trim' | 'level' | 'sequence' | 'image-fit';
 
 /** What `GET /health` answers, to any origin and without a token. */
 export interface HealthReply {

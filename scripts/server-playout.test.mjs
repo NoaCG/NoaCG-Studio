@@ -15,7 +15,7 @@ const { runServerVerb, serverAction, serverCueLive, serverLayers, withTaken, wit
   '../src/control/serverPlayout.ts'
 );
 const { createServerPlayoutStore } = await import('../src/control/serverPlayoutStore.ts');
-const { NO_OWNERSHIP, applyAccepted, applyReading, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
+const { NO_OWNERSHIP, applyAccepted, applyClearedSlot, applyReading, clipClock, clockText, followedClip, isEstimated, namesItem, remainingAt, STALE_MS } =
   await import('../src/control/serverState.ts');
 
 const slot = (channel, layer) => ({ adapter: 'casparcg', channel, layer });
@@ -206,6 +206,7 @@ test('a reading that only moves the clip hands back the SAME ownership - the pag
     position: 5,
     paused: false,
     loop: false,
+    progressedAt: 1500,
     at: 1500,
     source: 'server',
   });
@@ -709,9 +710,21 @@ test('a Bridge restart during Play next leaves an unidentified item that says th
   const entry = { item: { kind: 'media', name: 'B' }, media: { kind: 'movie', seconds: 10 } };
   const taken = applyAccepted(START, { verb: 'take', slot: slot(2, 10), generation: 1, session: 'old', instance: 'old.1', itemId: 'a', cueId: '1', length: 10, now: 0, readable: true, sequence: { next: [entry] } });
   const ctx = { channel: 2, now: 5000, cues, items: [a], slotOf: (i) => slot(i.channel, i.layer) };
-  const parts = applyReading(taken, { ok: true, channel: 2, session: 'new', observedAt: 0, slots: [{ layer: 10, producer: 'video', file: 'A', paused: false, loop: false, generation: 0 }] }, ctx);
+  const restarted = { ok: true, channel: 2, session: 'new', observedAt: 0, slots: [{ layer: 10, producer: 'video', file: 'A', paused: false, loop: false, generation: 0 }] };
+  const parts = applyReading(taken, restarted, ctx);
   // It names the cue that was up, so the row can name the folder it played in.
   assert.deepEqual(parts.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'A', sequenceStopped: true, cueId: '1' }]);
+  const polled = applyReading(parts, restarted, { ...ctx, now: 5500 });
+  assert.deepEqual(polled.ownership.unidentified, parts.ownership.unidentified, 'the next poll must retain the stopped sequence and its cue');
+  assert.equal(polled.ownership, parts.ownership, 'an unchanged diagnostic does not rerender the whole production on every poll');
+  const advanced = applyReading(polled, { ...restarted, slots: [{ ...restarted.slots[0], file: 'B' }] }, { ...ctx, now: 11000 });
+  assert.deepEqual(advanced.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'B', sequenceStopped: true, cueId: '1' }], 'already queued media may advance without restoring the sequence');
+  const cleared = applyClearedSlot(advanced, { slot: slot(2, 10), generation: 1, session: 'new' });
+  assert.deepEqual(cleared.ownership.unidentified, []);
+  const empty = applyReading(advanced, { ...restarted, slots: [] }, { ...ctx, now: 11500 });
+  assert.deepEqual(empty.ownership.unidentified, [], 'an empty slot no longer needs a stopped-sequence warning');
+  const replaced = applyReading(advanced, { ...restarted, slots: [{ ...restarted.slots[0], instance: 'new.2', cueId: 'another-production' }] }, { ...ctx, now: 12000 });
+  assert.deepEqual(replaced.ownership.unidentified, [{ slot: slot(2, 10), producer: 'video', file: 'A' }], 'a newly identified foreign take does not inherit the stopped sequence');
 });
 
 test('P pauses the clip the operator is looking at: the selected cue when it is up, else the clock\'s', () => {

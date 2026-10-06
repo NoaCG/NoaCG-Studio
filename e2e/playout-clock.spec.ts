@@ -465,6 +465,7 @@ test('a reload finds its own clip by instance; another client\'s take is "replac
   // unidentified, and no cue is guessed from the file's name.
   fake.session = 'c0ffee';
   await page.reload();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-unidentified')).toContainText('Unidentified item on 2-10');
   await expect(page.getByTestId('server-unidentified')).toContainText('OPENER');
   await expect(row(page, 'OPENER')).not.toContainText('ON AIR');

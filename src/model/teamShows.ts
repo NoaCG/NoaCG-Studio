@@ -23,6 +23,7 @@
 // This module imports only the Show TYPE, so it can be imported by shows.ts without a cycle.
 
 import type { Show } from './shows';
+import { assertAccountAuthoring } from './durableStore';
 
 /** What the store knows about its own contents: `off` (no team session - offline, signed out, or
  *  not started), `loading` (the first fetch is out) and `ready` (at least one answer arrived). The
@@ -65,6 +66,7 @@ export function setTeamShowsStatus(next: TeamShowsStatus): void {
  * cost a round trip. The data-changed event is the envelope's to send, not this function's.
  */
 export function writeTeamShow(show: Show): void {
+  assertAccountAuthoring();
   if (!show.teamId) return;
   const json = JSON.stringify(show);
   if (records.get(show.id) === json) return;

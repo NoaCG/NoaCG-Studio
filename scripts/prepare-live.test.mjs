@@ -38,6 +38,15 @@ test('an output has finished preparing when it is ready on the target, or its ch
   assert.equal(outputSettled(undefined, V13, 20_000), true, 'gone for good');
 });
 
+test('a preparation request waits for cue metadata adoption even when the prepared assets match', () => {
+  const target = { n: 13, h: V12.h };
+  const old = entry({ n: 4, of: 4, v: V12, is: [] });
+  assert.equal(outputSettled(old, target, null), true, 'matching assets retain their ordinary readiness');
+  assert.equal(outputSettled(old, target, null, 'metadata-check'), false, 'do not withdraw the request before adoption');
+  assert.equal(outputSettled(entry({ n: 4, of: 4, v: target, is: [] }), target, null, 'metadata-check'), true);
+  assert.equal(outputSettled(entry({ n: 4, of: 4, v: { ...target, n: 14 }, is: [] }), target, null, 'metadata-check'), true, 'a newer matching version also answers');
+});
+
 test('the checklist keeps a settled output’s words, and one still going turns amber when the wait is over', () => {
   const lines = [
     { id: 'a', name: 'CasparCG 1-20', tone: 'ok', state: 'Ready for playout', detail: ['Holds v13 · CasparCG.'], present: true, gone: false },

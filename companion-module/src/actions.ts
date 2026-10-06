@@ -22,12 +22,14 @@ type PlainAction = keyof typeof ACTION_VERBS
 export type ActionsSchema = { [K in PlainAction]: { options: Record<string, never> } } & {
 	select_cue: { options: { row: string } }
 	take_cue: { options: { row: string } }
+	trigger_cue: { options: { row: string } }
 }
 
 const DESCRIPTIONS: Partial<Record<PanelVerb, string>> = {
 	take: 'The SPACE key on the answering page: takes the selected cue, or takes it off when it is on air.',
 	'all-out': 'Takes everything off air, like the header button on the production page.',
 	'take-cue': 'Airs this cue whatever the SPACE mode; pressed while it is on air, takes it off.',
+	'trigger-cue': 'Plays or restarts this cue, preserving selection and preview. Does not start a rundown sequence.',
 	'select-cue': 'Moves the selection to this cue. Nothing airs.',
 }
 
@@ -75,6 +77,19 @@ export function UpdateActions(self: ModuleInstance): void {
 			options: [rowOption],
 			callback: async (event) => {
 				await self.press('take-cue', String(event.options.row))
+			},
+		},
+		trigger_cue: {
+			name: VERB_NAMES['trigger-cue'],
+			description: DESCRIPTIONS['trigger-cue'],
+			options: [
+				{
+					...rowOption,
+					choices: choices.filter((c) => self.panel.rows?.rows.some((r) => r.id === c.id && r.kind === 'cue')),
+				},
+			],
+			callback: async (event) => {
+				await self.press('trigger-cue', String(event.options.row))
 			},
 		},
 	})

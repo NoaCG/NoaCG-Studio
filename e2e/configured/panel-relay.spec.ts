@@ -7,7 +7,7 @@
 // two kinds of client, as the real parties are: an ANONYMOUS client holding only a panel key (the
 // Companion module), and an anonymous client holding only the control slug (an operator page).
 // The page's own half (running a press through onVerb, publishing feedback) has its own spec.
-// covers: supabase/migrations/0073_panel_relay.sql
+// covers: supabase/migrations/{0073_panel_relay,0077_direct_cue_trigger}.sql
 
 import { test, expect } from '@playwright/test';
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
@@ -179,7 +179,7 @@ test('with no answering page a press is refused and nothing is relayed', async (
   expect(presses.got.map((m) => m.event)).toEqual(['claim']);
 });
 
-test('a press reaches the answering page stamped with its claim, with nothing but the four fields', async () => {
+test('a press reaches the answering page stamped with its claim, with only the permitted fields', async () => {
   const slug = await production();
   const { key, keyId } = await pair(slug, 'Desk deck');
   const page = client();
@@ -206,6 +206,19 @@ test('a press reaches the answering page stamped with its claim, with nothing bu
   // Realtime's own message id rides beside it and never replaces the press id.
   expect(got.rid).toEqual(expect.any(String));
   expect(got.rid).not.toBe('abcdef:2');
+
+  // Direct-cue and legacy toggle commands use the same real private-topic relay.
+  // Migration self-checks run before the local stack creates its account, so these calls
+  // also prove the new verb with a real key after the account exists.
+  for (const [i, verb] of ['trigger-cue', 'take-cue'].entries()) {
+    const from = presses.got.length;
+    const id = `abcdef:${3 + i}`;
+    expect(await rpc(module, 'panel_press', { p_key: key, p_press: press(id, { verb }) })).toEqual({ ok: true, claim: claimed.claim });
+    const delivered = await presses.next('press', from);
+    expect(delivered.payload).toEqual({ v: 1, verb, target: 'cue_a', seen: 4, press_id: id, claim: claimed.claim, panel: { id: keyId, label: 'Desk deck' } });
+    expect(delivered.rid).toEqual(expect.any(String));
+    expect(delivered.rid).not.toBe(id);
+  }
 
   // The relay's own hop, press to page, for the record (research §6.3 measured p50 68 ms).
   const hops: number[] = [];

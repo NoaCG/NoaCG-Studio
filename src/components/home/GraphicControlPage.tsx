@@ -30,7 +30,8 @@ import {
   type PreviewCmd,
   type PreviewMachineState,
 } from '../../preview/previewProtocol';
-import { addGraphicToShow, createShowNamedChecked } from '../../model/shows';
+import { createShowNamedChecked } from '../../model/shows';
+import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import { openGraphicById, useSaveUi } from '../../store/saveActions';
 import { graphicWhenSynced } from '../../backend/graphicWhenSynced';

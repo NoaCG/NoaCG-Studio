@@ -17,6 +17,8 @@
 import { boxInUserSpace } from './svgGeometry';
 
 export interface SvgTextCandidate {
+  /** Entirely outside the exported artboard. Kept as artwork, never silently made a field. */
+  outsideCanvas?: boolean;
   /** Stable marker id ("t0", "t1", …) — the value of data-noacg-candidate on the node. */
   id: string;
   /** Operator-facing label, prefilled from the layer name (data-name / id / nearest named
@@ -387,6 +389,15 @@ const SMIL_TAGS = new Set(['animate', 'animatetransform', 'animatemotion', 'set'
  */
 function sanitize(svg: Element): string[] {
   const notices: string[] = [];
+  let metadataBytes = 0;
+  // Illustrator's editing payload can dwarf the visible SVG. Metadata/named-view nodes do
+  // not render. Keep paint, definitions, fonts, title and description byte-faithful here.
+  for (const el of Array.from(svg.querySelectorAll('*'))) {
+    if (el.localName.toLowerCase() !== 'metadata' && el.localName.toLowerCase() !== 'namedview') continue;
+    metadataBytes += new TextEncoder().encode(new XMLSerializer().serializeToString(el)).length;
+    el.remove();
+  }
+  if (metadataBytes) notices.push(`Removed ${Math.ceil(metadataBytes / 1024)} KB of non-rendering design metadata. Artwork was retained.`);
   let scripts = 0;
   let foreign = 0;
   let smil = 0;
@@ -1824,6 +1835,26 @@ export function importSvgMarkup(source: string): SvgImportResult {
       'Text inside a reusable symbol is drawn but cannot become an operator field — every copy of a symbol shows the same words. Move that text onto the artboard if it should be editable.',
     );
   }
+
+  // Measure the browser's transformed ink against the root viewport, including a non-zero
+  // viewBox origin. Doing this at import also covers the Skip to finish door.
+  const measure = document.createElement('div');
+  measure.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none';
+  const drawing = document.importNode(svg, true) as unknown as SVGSVGElement;
+  drawing.style.width = `${size.width}px`;
+  drawing.style.height = `${size.height}px`;
+  measure.append(drawing);
+  document.body.append(measure);
+  try {
+    const frame = drawing.getBoundingClientRect();
+    if (frame.width > 0 && frame.height > 0) for (const candidate of candidates) {
+      const node = drawing.querySelector(`[${SVG_CANDIDATE_ATTR}="${candidate.id}"]`);
+      const ink = node?.getBoundingClientRect();
+      if (ink && ink.width > 0 && ink.height > 0 && (ink.right <= frame.left || ink.bottom <= frame.top || ink.left >= frame.right || ink.top >= frame.bottom)) candidate.outsideCanvas = true;
+    }
+  } finally { measure.remove(); }
+  const outside = candidates.filter(c => c.outsideCanvas);
+  if (outside.length) notices.push(`${outside.length} text layer${outside.length === 1 ? ' is' : 's are'} outside the canvas and cannot be an operator field. Move the intended text onto the artboard and export that artboard again.`);
 
   return {
     markup: new XMLSerializer().serializeToString(svg),

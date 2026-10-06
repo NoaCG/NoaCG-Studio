@@ -223,6 +223,12 @@
 .sync-syncing .sync-dot { background: var(--accent-2); }
 .sync-error .sync-dot { background: var(--danger); }
 .sync-error { color: var(--danger); border-color: var(--danger); }
+.sync-pending { color: var(--amber); border-color: var(--amber); }
+.account-save-notice { position: fixed; bottom: 8px; left: 8px; right: 8px; z-index: var(--z-notice); display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #35270f; border: 1px solid var(--amber); color: #fff4d7; font-size: 12px; border-radius: 6px; flex-wrap: wrap; }
+.account-save-notice span { flex: 1; }
+@media (max-width: 768px) {
+  .account-save-notice span { flex: 1 0 100%; }
+}
 
 /* Show chat (Era 5.4) */
 .sendin { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); padding: 24px; }

@@ -33,9 +33,9 @@
    community, moderation, saved-videos) keeps the classic .wz-modal frame. This promotes what
    the ≤768px block below always did. The base type steps up one notch with it: the wizard
    sets the size the student actually reads. */
-.wz-wizard {
+.wz-modal.wz-wizard {
   width: 100vw;
-  height: 100dvh;
+  height: calc(100dvh - var(--account-notice-height, 0px));
   max-width: none;
   border-radius: 0;
   border: none;

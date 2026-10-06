@@ -11,7 +11,7 @@ import type { ProjectBrand } from './brand';
 import type { JsonObject, ProductionBindings } from './productionData';
 import type { ShowProfile } from './profile';
 import { readShowProfile, serializeShowProfile } from './profile';
-import { durable } from './durableStore';
+import { canAuthorAccount, durable } from './durableStore';
 import { uuid } from './id';
 import { accentColor, readOutputSetup, type ProductionOutputSetup, type RundownColors } from './outputSetup';
 import { loadTeamShows, teamShowIds, writeTeamShow } from './teamShows';
@@ -34,6 +34,7 @@ import {
   type Place,
 } from './showFolders.ts';
 import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
+import { normalizeCueShortcut } from './cueShortcuts.ts';
 
 /**
  * One prepared, orderable data row of a production — "what airs next", not a graphic.
@@ -42,8 +43,12 @@ import { cutPlaceRefusal, pasteCopies, type CueClip } from './cueClipboard.ts';
  * at cue 7 without a second copy of the template (docs/CLOUD_PLAYOUT.md §2).
  */
 export interface ShowCue {
+  /** Optional production-owned direct trigger, e.g. v or shift+f. */
+  hotkey?: string;
   /** Optional visual highlight only; never a route or tally color. */
   accentColor?: string;
+  /** Still-picture presentation. Absent means Fit; applied only by the next Take. */
+  imageFit?: 'fit' | 'stretch';
   id: string;
   /** The pool entry this cue drives (SavedGraphic.id) - or, when `source` is `playout`, the
    *  PlayoutItem (Show.playoutItems) it drives. */
@@ -365,6 +370,7 @@ function notifyDataChanged(): void {
  * this account's other devices.
  */
 function saveAll(list: Show[]): string | null {
+  if (!canAuthorAccount()) return 'Account editing is paused. Sign in again; pending work is preserved.';
   const personal: Show[] = [];
   for (const show of list) {
     if (show.teamId) writeTeamShow(show);
@@ -538,6 +544,7 @@ export function addGraphicToShow(
   opts?: { graphicId?: string | null },
 ): { shows: Show[]; error: string | null } {
   const all = readEditable();
+  if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   if (!show) return { shows: all.filter((s) => !s.deleted), error: 'That show no longer exists.' };
   const existing = show.graphics.findIndex((g) => g.name === template.name);
@@ -634,6 +641,7 @@ export function setGraphicSounds(showId: string, graphicId: string, sounds: Prod
  *  folder write that tells the operator anything reports, with `commitDurableWrites` after it. */
 function patchShowChecked(showId: string, mutate: (show: Show, at: string) => boolean): { shows: Show[]; error: string | null } {
   const all = readEditable();
+  if (!canAuthorAccount()) return { shows: all.filter(s => !s.deleted), error: 'Account editing is paused. Sign in again; pending work is preserved.' };
   const show = all.find((s) => s.id === showId && !s.deleted);
   let error: string | null = null;
   if (show) {
@@ -735,32 +743,45 @@ export function addPlayoutItem(
   item: Omit<PlayoutItem, 'id' | 'layer'> & { layer?: number },
   { output }: { output?: { channel: number; layer: number } } = {},
 ): { shows: Show[]; cueId: string | null } {
-  let cueId: string | null = null;
-  const shows = patchShow(showId, (show) => {
-    const items = show.playoutItems ?? [];
-    let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
-    if (!entry) {
-      // The output's layer is taken only on the output's own channel; no channel means that one.
-      const avoid = output && (item.channel ?? output.channel) === output.channel ? output.layer : undefined;
-      entry = { ...item, id: uuid(), layer: item.layer ?? defaultItemLayer(item, show, items, avoid) };
-      show.playoutItems = [...items, entry];
-    } else {
-      if (item.fields && !entry.fields?.length) entry.fields = item.fields;
-      // An item saved before the server's kind was kept learns it the next time it is picked.
-      if (item.mediaKind && !entry.mediaKind) entry.mediaKind = item.mediaKind;
+  const result = addPlayoutItems(showId, [item], { output });
+  return { shows: result.shows, cueId: result.cueIds[0] ?? null };
+}
+
+/** Append a picker batch in one production edit, reusing each file's stable pool entry. */
+export function addPlayoutItems(
+  showId: string,
+  batch: readonly (Omit<PlayoutItem, 'id' | 'layer'> & { layer?: number })[],
+  { output }: { output?: { channel: number; layer: number } } = {},
+): { shows: Show[]; cueIds: string[]; error: string | null } {
+  const cueIds: string[] = [];
+  const { shows, error } = patchShowChecked(showId, (show) => {
+    if (!batch.length) return false;
+    for (const item of batch) {
+      const items = show.playoutItems ?? [];
+      let entry = items.find((i) => i.adapter === item.adapter && i.kind === item.kind && i.name === item.name);
+      if (!entry) {
+        // The output's layer is taken only on the output's own channel; no channel means that one.
+        const avoid = output && (item.channel ?? output.channel) === output.channel ? output.layer : undefined;
+        entry = { ...item, id: uuid(), layer: item.layer ?? defaultItemLayer(item, show, items, avoid) };
+        show.playoutItems = [...items, entry];
+      } else {
+        if (item.fields && !entry.fields?.length) entry.fields = item.fields;
+        // An item saved before the server's kind was kept learns it the next time it is picked.
+        if (item.mediaKind && !entry.mediaKind) entry.mediaKind = item.mediaKind;
+      }
+      const cue: ShowCue = {
+        id: uuid(),
+        sourceId: entry.id,
+        source: 'playout',
+        label: entry.name.split('/').pop() || entry.name,
+        values: seedPlayoutValues(entry),
+      };
+      show.cues = [...(show.cues ?? []), cue];
+      cueIds.push(cue.id);
     }
-    const cue: ShowCue = {
-      id: uuid(),
-      sourceId: entry.id,
-      source: 'playout',
-      label: entry.name.split('/').pop() || entry.name,
-      values: seedPlayoutValues(entry),
-    };
-    show.cues = [...(show.cues ?? []), cue];
-    cueId = cue.id;
     return true;
   });
-  return { shows, cueId };
+  return { shows: error ? loadShows() : shows, cueIds: error ? [] : cueIds, error };
 }
 
 /** The range a CasparCG channel number lives in, here and in Settings -> Playout. A studio with
@@ -801,6 +822,16 @@ export function setPlayoutItemMediaKind(showId: string, itemId: string, mediaKin
     const item = show.playoutItems?.find((i) => i.id === itemId);
     if (!item || item.kind !== 'media' || item.mediaKind === mediaKind) return false;
     item.mediaKind = mediaKind;
+    return true;
+  });
+}
+
+export function setCueImageFit(showId: string, cueId: string, imageFit: 'fit' | 'stretch'): Show[] {
+  return patchShow(showId, show => {
+    const cue = show.cues?.find(c => c.id === cueId);
+    if (!cue || (cue.imageFit ?? 'fit') === imageFit) return false;
+    if (imageFit === 'fit') delete cue.imageFit;
+    else cue.imageFit = imageFit;
     return true;
   });
 }
@@ -920,13 +951,34 @@ export function updateShowCue(
   cueId: string,
   patch: { label?: string; values?: Record<string, string>; note?: string | null },
 ): Show[] {
-  return patchShow(showId, (show) => {
+  return updateShowCueChecked(showId, cueId, patch).shows;
+}
+
+/** A draft is cleared only after this write succeeds; a refused write keeps it recoverable. */
+export function updateShowCueChecked(
+  showId: string,
+  cueId: string,
+  patch: { label?: string; values?: Record<string, string>; note?: string | null },
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return false;
     if (patch.label !== undefined) cue.label = patch.label;
     if (patch.values) cue.values = { ...cue.values, ...patch.values };
     if (patch.note === null) delete cue.note;
     else if (patch.note !== undefined) cue.note = patch.note;
+    return true;
+  });
+}
+
+export function setCueShortcut(showId: string, cueId: string, value: string | null): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, show => {
+    const cue = show.cues?.find(c => c.id === cueId);
+    if (!cue) throw new Error('This cue was removed.');
+    const key = value === null ? null : normalizeCueShortcut(value);
+    if (value !== null && !key) throw new Error('Choose a letter or digit, optionally with Shift.');
+    if (key && show.cues?.some(c => c.id !== cueId && normalizeCueShortcut(c.hotkey) === key)) throw new Error('That key is already assigned. Remove its other assignment first.');
+    if (key) cue.hotkey = key; else delete cue.hotkey;
     return true;
   });
 }

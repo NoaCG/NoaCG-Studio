@@ -159,39 +159,23 @@ test.describe('anonymous visitor (open editor)', () => {
     await expect(card).toHaveCount(0);
   });
 
-  test('a session-expiry reopen says the reason and the no-wall line, not the free-account sentence', async ({ page }) => {
-    // docs/backlog/session-expired-reopen-shows-the-free-account-line.md. The dialog this event
-    // opens is answering a token refresh, not "why sign in at all" - the reader already has an
-    // account, so the sentence written for someone who has never signed in must not appear here,
-    // even though the event supplies a reason and every OTHER door with a reason shows it (the
-    // Community door above is the contrasting case: same shape, ACCOUNT_IS_FOR present).
+  test('an expiry notification leaves anonymous creation usable and sign-in stays explicit', async ({ page }) => {
+    // Expiry no longer raises a modal over the operator's keys. Cached account authoring is
+    // paused with a recovery notice; an anonymous workspace remains clearly local and usable.
+    // Actual account loss and preserved pending work are covered by studio-evening-reliability.
     await page.goto('/app');
-    // `page.evaluate` runs in the page immediately - it does not wait for anything, unlike a
-    // locator action. Dispatched before React has mounted and App.tsx's effect has attached its
-    // `spx-session-expired` listener, the event fires into an empty page and is gone; nothing
-    // reopens the dialog later; the assertions below then time out waiting for it. Waiting for the
-    // wizard first (every other test in this file reaches it through a locator action, which
-    // carries its own actionability wait) is what makes the dispatch land on a listening app.
     await expect(page.locator('.wz-modal')).toBeVisible();
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('spx-session-expired')));
     const card = page.locator('.auth-card');
+    await expect(card).toHaveCount(0);
+    await expect(page.getByTestId('account-save-notice')).toContainText('not saved to an account');
+    await page.locator('[data-entry="template"]').click();
+    await expect(page.getByTestId('wz-browse-type')).toBeEnabled();
+    await page.getByTestId('creation-wizard').getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(card).toBeVisible();
-    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
-    await expect(card.getByTestId('auth-account-for')).toHaveText(NO_ACCOUNT_NEEDED);
-    await expect(card.getByTestId('auth-account-for')).not.toContainText(ACCOUNT_IS_FOR);
-    await expect(card.locator('.auth-submit')).toHaveText('Sign in');
-
-    // The other direction: the reader is NOT locked out of signup. If they toggle to "Create a
-    // free account" from this same dialog, they are now the someone the free-account sentence is
-    // for - the suppression must track what is ON SCREEN (the form mode), not just why the dialog
-    // first opened, or a person mid-signup from a resume gate would never see what the account
-    // buys them.
-    await card.locator('.auth-toggle', { hasText: 'Create a free account' }).click();
-    await expect(card.locator('.auth-submit')).toHaveText('Create account');
-    await expect(card.getByTestId('auth-account-for')).toContainText(ACCOUNT_IS_FOR);
+    await expect(card.getByTestId('auth-reason')).toContainText(ACCOUNT_IS_FOR);
     await expect(card.getByTestId('auth-account-for')).toContainText(NO_ACCOUNT_NEEDED);
-    // And the reason line still names the expired session - toggling modes never loses it.
-    await expect(card.getByTestId('auth-reason')).toContainText('Your session expired');
+    await expect(card.locator('.auth-submit')).toHaveText('Sign in');
   });
 
   test('the topbar says which account state it is in, not only what it offers', async ({ page }) => {

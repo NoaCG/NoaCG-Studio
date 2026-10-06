@@ -132,7 +132,7 @@ test('READY: every output says whether it is ready, both surfaces read one line,
   //    docs/work-specs/studio-day-playout AC-10, e2e/configured/playout-status.spec.ts.) ──
   await addCatalogGraphic(page, showId, 'Hairline');
   await page.getByTestId('production-status').click();
-  await page.getByTestId('production-republish').click();
+  await page.getByTestId('prepare-for-live-button').click();
   await expect.poll(async () => (await stampOf())?.n, { timeout: 30_000 }).toBe(2);
   await page.getByTestId('production-status').click();
   await expect(desk).toHaveAttribute('data-ready-label', /Behind: showing v1/, { timeout: 30_000 });

@@ -4,7 +4,7 @@
 @media (max-width: 768px) {
   /* Let the document scroll instead of trapping everything in a 100vh flexbox. */
   html, body, #root { height: auto; min-height: 100%; }
-  .app { height: auto; min-height: 100dvh; overflow: visible; }
+  .app { height: auto; min-height: 100dvh; overflow: visible; padding-bottom: var(--account-notice-height, 0px); }
 
   /* Topbar: brand on its own row, actions wrap onto the next row(s); drop desktop-only detail. */
   .topbar {

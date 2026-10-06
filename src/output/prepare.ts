@@ -14,9 +14,8 @@
 //   The published version is the one it holds   it runs its checks again: pressing again re-runs
 //                                                everything.
 //
-// Nothing here happens outside Prepare for Live, and a request can do no more than a real one: the
-// payload is re-read from the server, so an output only ever moves onto what the server holds, and
-// at most once every PREPARE_EVERY_MS.
+// A deferred preparation resumes after air clears, reading the latest server payload again.
+// An output only ever moves onto what the server holds, at most once every PREPARE_EVERY_MS.
 //
 // Old CEF: CasparCG 2.3 runs this in Chromium 71.
 
@@ -53,6 +52,8 @@ function markHandled(id: string): void {
 }
 
 export interface Preparer {
+  /** Retry a prepared change once air clears, resolving the latest payload again first. */
+  tick(): void;
   /** A request seen on the live topic (or handed in by a spec): acted on once, in its turn. */
   request(prep: PrepRequest): void;
 }
@@ -100,30 +101,41 @@ export function createPreparer(opts: {
   report: (chg: ChangePrep | undefined) => void;
   /** Reload onto the published version if this page's own URL answers; false when it did not. */
   reload: () => Promise<boolean>;
+  /** Accept cue-only metadata when every running graphic remains byte-identical. */
+  adopt?: (payload: OutputPayload) => boolean;
   now?: () => number;
 }): Preparer {
   const now = opts.now ?? (() => Date.now());
+  let held = opts.held;
   let running = false;
   let lastStart = -Infinity;
   let queued: PrepRequest | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let waiting: PrepRequest | null = null;
 
   const run = async (prep: PrepRequest) => {
     running = true;
+    waiting = null;
     lastStart = now();
     markHandled(prep.id);
     try {
       const payload = await opts.resolve();
       const next = payload ? payload.ver : undefined;
       if (!payload || !next) return;
-      const held = opts.held;
       if (held && held.h === next.h) {
+        if (held.n !== next.n && opts.adopt?.(payload)) held = next;
         await opts.recheck();
         opts.report(undefined);
         return;
       }
       const version = { n: next.n, h: next.h };
       const changed = changedGraphics(held, next, payload.graphics.map((g) => g.key));
+      if (!changed.length && held && Object.keys(held.g).length === payload.graphics.length && opts.adopt?.(payload)) {
+        held = next;
+        await opts.recheck();
+        opts.report(undefined);
+        return;
+      }
       const chg: ChangePrep = { s: 'preparing', v: version, of: changed.length, n: 0, id: prep.id };
       opts.report(chg);
       const firstCue = (key: string) => {
@@ -146,10 +158,11 @@ export function createPreparer(opts: {
       }
       const air = opts.onAir();
       if (air > 0) {
+        waiting = prep;
         opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air, id: prep.id });
         return;
       }
-      if (!(await opts.reload())) opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: 0, id: prep.id });
+      if (!(await opts.reload())) { waiting = prep; opts.report({ s: 'waiting', v: version, of: changed.length, n: changed.length, air: 0, id: prep.id }); }
     } catch {
       // The server did not answer as expected: this page keeps its version and says nothing new.
       opts.report(undefined);
@@ -175,6 +188,9 @@ export function createPreparer(opts: {
   };
 
   return {
+    tick() {
+      if (waiting && !running && !queued && opts.onAir() === 0) { queued = waiting; waiting = null; pump(); }
+    },
     request(prep) {
       if (handledIds().indexOf(prep.id) >= 0) return;
       if (queued && queued.id === prep.id) return;

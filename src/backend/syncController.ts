@@ -7,7 +7,7 @@
 import { isBackendConfigured } from './config';
 import { consumeDeliberateSignOut, getSignedInUserId, subscribeAuth } from './auth';
 import { bindLibraryToAccount, followLibraryChangesInOtherTabs } from './accountLibrary';
-import { changeSyncedElsewhere, libraryInUse, markOwnWritesSynced } from '../model/durableStore';
+import { canAuthorAccount, changeSyncedElsewhere, commitDurableWrites, libraryInUse, markOwnWritesSynced, setAccountAuthoringEnabled } from '../model/durableStore';
 import { LocalStorageProvider } from './storage';
 import { SupabaseProvider } from './supabaseProvider';
 import { libraryHasArrived, runSync, type SyncResult } from './sync';
@@ -17,7 +17,7 @@ import { purgeOldShowTombstones } from '../model/shows';
 import { purgeOldVideoTombstones } from '../model/videoProject';
 import { purgeOldGraphicTombstones } from '../model/library';
 
-export type SyncPhase = 'offline' | 'syncing' | 'synced' | 'error';
+export type SyncPhase = 'offline' | 'pending' | 'syncing' | 'synced' | 'error';
 
 /** What a pass is about to pull, in the things Home lists. A tombstone brings nothing to look at,
  *  so it is not counted. */
@@ -38,6 +38,7 @@ export interface SyncState {
   firstPass?: boolean;
   /** On a first pass, once the cloud has been listed: how much is on its way. */
   incoming?: IncomingCounts;
+  verifiedAt?: string;
 }
 
 function countIncoming(records: StoredRecord[]): IncomingCounts {
@@ -87,6 +88,9 @@ async function canSync(): Promise<boolean> {
 
 let running = false;
 let queued = false;
+let revision = 0;
+let sessionEpoch = 0;
+let checkedThisPage = false;
 
 
 /**
@@ -119,7 +123,8 @@ function answer(list: Array<() => void>): void {
  */
 export async function syncNow(): Promise<void> {
   if (!(await canSync())) {
-    setState({ phase: 'offline' });
+    if (libraryInUse()) setAccountAuthoringEnabled(false);
+    setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
     // RELEASING THE WAITERS HERE IS ONLY HONEST WHEN NOTHING IS COMING. This branch is reached
     // by any caller at any moment - a debounced push, a boot pass fired while the session is
     // still being read - and a pass that is running or queued will still answer them. Releasing
@@ -147,13 +152,21 @@ export async function syncNow(): Promise<void> {
     });
   }
   running = true;
+  if (debounce) clearTimeout(debounce);
+  debounce = null;
+  const startedRevision = revision;
+  const epoch = sessionEpoch;
   // Everyone who asked DURING the previous pass is answered when this one finishes; everyone
   // who asks during THIS pass goes into the fresh list and waits for the next.
   const answered = waiting;
   waiting = [];
-  const firstPass = !libraryHasArrived();
+  const firstPass = !checkedThisPage || !libraryHasArrived();
   setState({ phase: 'syncing', firstPass });
   try {
+    // Manual checks can arrive before autosave. Confirm the working revision first.
+    window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+    const storageError = await commitDurableWrites();
+    if (storageError) throw new Error(storageError);
     // Sync's own pull-writes dispatch 'spx-data-changed' too; that's fine — runSync is idempotent,
     // so the extra pass they schedule finds nothing to do. Not suppressing them means a genuine
     // user edit that lands DURING a sync is never swallowed and gets its own follow-up pass.
@@ -162,6 +175,7 @@ export async function syncNow(): Promise<void> {
       remote,
       firstPass ? (plan) => setState({ phase: 'syncing', firstPass: true, incoming: countIncoming(plan.toLocal) }) : undefined,
     );
+    if (epoch !== sessionEpoch) return;
     // Coordinated tombstone purge: drop deletes older than the grace period from BOTH sides (same
     // cutoff), so a purged tombstone can't be re-pulled. 90 days is generous; a device offline
     // longer than that could resurrect a delete — an acceptable edge for a beta. Best-effort.
@@ -175,6 +189,7 @@ export async function syncNow(): Promise<void> {
     } catch {
       // Never fail a sync on cleanup.
     }
+    if (epoch !== sessionEpoch) return;
     if (result.failures.length > 0) {
       // The pass completed and the bookmark advanced, but some records could not be applied —
       // surface them (SyncStatus shows the detail as its tooltip). They retry next pass.
@@ -185,14 +200,18 @@ export async function syncNow(): Promise<void> {
         detail: `${result.failures.length} record${result.failures.length === 1 ? '' : 's'} failed to sync — ${shown.join('; ')}${extra}`,
         last: result,
         // A first pass whose pulls the store refused has not brought the library either.
-        firstPass: !libraryHasArrived(),
+        firstPass,
       });
     } else {
-      setState({ phase: 'synced', last: result });
+      checkedThisPage = true;
+      if (startedRevision !== revision) {
+        queued = true;
+        setState({ phase: 'pending', last: result, detail: 'The current revision has not been confirmed in the cloud.' });
+      } else setState({ phase: 'synced', last: result, verifiedAt: new Date().toISOString() });
     }
   } catch (e) {
     // A pass that throws never moved the bookmark, so a first pass is still owed.
-    setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
+    if (epoch === sessionEpoch) setState({ phase: 'error', detail: e instanceof Error ? e.message : String(e), firstPass });
   } finally {
     running = false;
     answer(answered);
@@ -219,6 +238,8 @@ export async function syncNow(): Promise<void> {
 const DEBOUNCE_MS = 2500;
 let debounce: ReturnType<typeof setTimeout> | null = null;
 function scheduleSync(event?: Event): void {
+  revision++;
+  if (libraryInUse()) setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Not saved to cloud. Changes on this device are awaiting confirmation.' });
   if (event && changeSyncedElsewhere(event)) return;
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
@@ -268,38 +289,61 @@ let started = false;
 export function startAutoSync(): void {
   if (started || typeof window === 'undefined' || !isBackendConfigured()) return;
   started = true;
+  setAccountAuthoringEnabled(false);
+  if (libraryInUse()) setState({ phase: 'syncing', firstPass: true, detail: 'Checking the account session and cloud revision. Cached work is not yet confirmed.' });
   window.addEventListener('spx-data-changed', scheduleSync);
+  window.addEventListener('spx-account-edit-pending', scheduleSync);
   markOwnWritesSynced();
   handOverOnClose();
   followLibraryChangesInOtherTabs();
+  window.addEventListener('online', () => void syncNow());
+  window.addEventListener('offline', () => setState({ phase: 'pending', firstPass: !checkedThisPage, detail: 'Offline. This revision is not confirmed saved to cloud.' }));
+  window.addEventListener('focus', () => { if (!running) void syncNow(); });
   // Tracked by ACCOUNT, not by signed-in-ness: a different account signing in over a live
   // session is a change of library even though "signed in" never went false in between.
   let lastUser: string | null | undefined;
+  let expiry: ReturnType<typeof setTimeout> | undefined;
   subscribeAuth((auth) => {
     const user = auth.status === 'signed-in' ? (auth.user?.id ?? null) : null;
-    if (user === lastUser) return;
+    clearTimeout(expiry);
+    if (user && auth.expiresAt) expiry = setTimeout(() => {
+      setAccountAuthoringEnabled(false);
+      sessionEpoch++;
+      setState({ phase: 'offline', detail: 'Account session expired. Sign in again. Pending work is preserved.' });
+      window.dispatchEvent(new CustomEvent('spx-session-expired'));
+    }, Math.max(0, auth.expiresAt - Date.now()));
+    if (user === lastUser) {
+      if (user && user === libraryInUse() && !canAuthorAccount() && (!auth.expiresAt || auth.expiresAt > Date.now())) {
+        setAccountAuthoringEnabled(true);
+        void syncNow();
+      }
+      return;
+    }
+    sessionEpoch++;
+    if (user) checkedThisPage = false;
+    setAccountAuthoringEnabled(false);
     const hadSession = !!lastUser;
     lastUser = user;
     if (user) {
       // The library on screen becomes this account's first (accountLibrary.ts); sync follows only
       // when it already is. A switch reloads the page, and the reloaded page syncs.
       void bindLibraryToAccount(user).then((binding) => {
-        if (binding === 'ready') void syncNow();
+        if (user !== lastUser) return;
+        if (binding === 'ready') { setAccountAuthoringEnabled(true); void syncNow(); }
         else if (binding === 'failed') {
           setState({
             phase: 'error',
-            detail: 'The work on this browser could not be moved into your account, so nothing was synced. Reload to try again.',
+            detail: 'The account workspace could not be opened. Pending work is preserved; reload to try again.',
           });
         }
       });
       return;
     }
-    setState({ phase: 'offline' });
+    setState({ phase: 'offline', firstPass: !!libraryInUse() && !checkedThisPage, detail: libraryInUse() ? 'Account session unavailable. Editing is paused; pending work is preserved. Sign in again.' : 'Local workspace. Work here is not saved to an account.' });
     // A session that DIES (refresh token expired or revoked) used to end here silently: the
     // chip fell to 'offline' and nothing said why, so sync just stopped. Surface it — unless
     // the user pressed Sign out themselves, which is the same transition and not a problem.
-    // The event (not a direct UI import — backend never imports components) is answered in
-    // App.tsx with the sign-in prompt; local work is untouched either way.
+    // AccountSaveNotice supplies a persistent notice without opening a modal over transport.
     if (hadSession && !consumeDeliberateSignOut()) {
       window.dispatchEvent(new CustomEvent('spx-session-expired'));
     }

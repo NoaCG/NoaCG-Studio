@@ -116,7 +116,7 @@ export function serverLayers(onAir: ServerOnAir, items: PlayoutItem[], cues: Sho
  * Out fades when the cue has a fade out. `cue` is the cue whose settings apply: the one taken, and
  * for Out the one on air.
  */
-export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string, cue?: Pick<ShowCue, 'playback'>): PlayoutAction {
+export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, values: Record<string, string>, cueId?: string, cue?: Pick<ShowCue, 'playback' | 'imageFit'>): PlayoutAction {
   const itemRef = { kind: item.kind, name: item.name };
   if (verb === 'take') {
     const media = item.kind === 'media' ? takePlayback(cue ?? {}, item) : { loop: false };
@@ -128,6 +128,7 @@ export function serverAction(verb: ServerVerb, item: PlayoutItem, slot: Slot, va
       // A looping clip is CasparCG's own `PLAY … LOOP`: the server repeats it until Out.
       ...(media.loop ? { loop: true } : {}),
       ...(cueId ? { cueId } : {}),
+      ...(item.kind === 'media' && item.mediaKind === 'still' && cue?.imageFit !== 'stretch' ? { imageFit: 'fit' as const } : {}),
       ...('playback' in media && media.playback ? { playback: media.playback } : {}),
     };
   }
@@ -280,6 +281,9 @@ export function takeBlocker(
   // A clip of a Play-through folder plays by the folder's rules: from itself to the folder's end.
   const through = throughFolderOf(cue, cues, items, folders);
   if (through) return folderRunBlocker(folderRun(through, cues, items, cue.id), ability);
+  if (item.mediaKind === 'still' && cue.imageFit !== 'stretch' && (cue.playback?.trimIn !== undefined || cue.playback?.trimOut !== undefined || effectiveEnd(cue, item) === 'loop')) {
+    return 'Picture Fit holds until Out. Clear its trim and Loop setting, or choose Stretch.';
+  }
   const own = playbackBlocker(playbackNeeds(cue, item), ability);
   if (own) return own;
   if (effectiveEnd(cue, item) !== 'next') return null;

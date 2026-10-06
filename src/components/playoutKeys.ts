@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { asSpaceMode, SPACE_FACES, spaceAction, type SpaceAction, type SpaceMode } from '../control/spaceMode';
 import { loadPrefs, savePrefs } from '../model/prefs';
+import { cueShortcutBindings, normalizeCueShortcut } from '../model/cueShortcuts';
+import type { ShowCue } from '../model/shows';
 
 /**
  * THE VERB KEYS of the playout dashboard (docs/PLAYOUT_DASHBOARD.md §2), as one implementation.
@@ -45,6 +47,7 @@ export type PlayoutVerb =
   // `VerbPress.cue`. A surface without them ignores both.
   | 'select-cue'
   | 'take-cue'
+  | 'trigger-cue'
   // Editing the rundown (docs/CLIP_PLAYBACK_PLAN.md §20.2): copy, cut and paste the selection
   // (Ctrl or Cmd with C, X, V), Escape to drop it, Shift with Up or Down to extend it. Nothing here
   // airs. The hosted page has no rundown to edit and ignores them.
@@ -127,7 +130,20 @@ function textSelected(): boolean {
 }
 
 /** Verbs a held key fires once, not once per auto-repeat: each press means the opposite of the last. */
-const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle', 'hold']);
+const NO_REPEAT = new Set<PlayoutVerb>(['take', 'retake', 'update', 'next', 'out', 'trigger-cue', 'pause-toggle', 'hold']);
+
+export function cueShortcutReserved(key: string): boolean {
+  return !normalizeCueShortcut(key) || !!KEY_MAP[key.replace('shift+', '')];
+}
+
+export function useCueShortcutSet(cues: readonly Pick<ShowCue, 'id' | 'hotkey'>[], productionId: string) {
+  const current = JSON.stringify(cueShortcutBindings(cues));
+  const [held, setHeld] = useState({ productionId, value: current });
+  if (held.productionId !== productionId) setHeld({ productionId, value: current });
+  const value = held.productionId === productionId ? held.value : current;
+  const parsed = JSON.parse(value) as ReturnType<typeof cueShortcutBindings>;
+  return { ...parsed, changed: value !== current, apply: () => setHeld({ productionId, value: current }) };
+}
 
 /**
  * Bind the verb keys while the playout surface is the one ON SCREEN. Never while typing - the
@@ -147,10 +163,11 @@ const NO_REPEAT = new Set<PlayoutVerb>(['pause-toggle', 'hold']);
  * A verb acts on what the operator can SEE. When they cannot see PROGRAM, the keys are not
  * theirs to press.
  */
-export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) => void, enabled = true): void {
+export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) => void, enabled = true, shortcuts: Record<string, string> = {}): void {
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.isComposing || e.getModifierState('AltGraph') || document.querySelector('[aria-modal="true"]')) return;
       if (typingInto(e.target)) return;
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         const verb = MOD_MAP[e.key.toLowerCase()];
@@ -161,7 +178,13 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) 
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       let verb = KEY_MAP[e.key.toLowerCase()];
-      if (!verb) return;
+      if (!verb) {
+        if (document.querySelector('[role="menu"]')) return;
+        const key = `${e.shiftKey ? 'shift+' : ''}${e.key.toLowerCase()}`;
+        const cue = !cueShortcutReserved(key) ? shortcuts[key] : undefined;
+        if (cue) { e.preventDefault(); if (!e.repeat) onKey('trigger-cue', { repeat: false, cue }); }
+        return;
+      }
       // Shift with Up or Down extends the selection; the cursor stays where it is.
       if (e.shiftKey && verb === 'select-prev') verb = 'extend-prev';
       if (e.shiftKey && verb === 'select-next') verb = 'extend-next';
@@ -173,7 +196,7 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) 
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onKey, enabled]);
+  }, [onKey, enabled, shortcuts]);
 }
 
 /**

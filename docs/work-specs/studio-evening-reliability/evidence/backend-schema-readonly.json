@@ -1,0 +1,230 @@
+{
+  "observedAt": "2026-10-05",
+  "scope": "Read-only catalog metadata; no application rows or writes",
+  "relay": {
+    "settings": [
+      "search_path=\"\""
+    ],
+    "privileges": "{postgres=X/postgres,service_role=X/postgres,anon=X/postgres,authenticated=X/postgres}",
+    "accepts_new_verb": false,
+    "security_definer": true
+  },
+  "columns": [
+    {
+      "type": "uuid",
+      "table": "control_shows",
+      "column": "id"
+    },
+    {
+      "type": "uuid",
+      "table": "control_shows",
+      "column": "owner_id"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "slug"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "title"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "panel"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "staged"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "live"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "control_shows",
+      "column": "updated_at"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "control_shows",
+      "column": "created_at"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "output_slug"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "output"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "control_shows",
+      "column": "output_seen_at"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "live_cue"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "join_slug"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "presenter_slug"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "audience_state"
+    },
+    {
+      "type": "text",
+      "table": "control_shows",
+      "column": "data_key"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "data"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "bindings"
+    },
+    {
+      "type": "uuid",
+      "table": "control_shows",
+      "column": "team_id"
+    },
+    {
+      "type": "jsonb",
+      "table": "control_shows",
+      "column": "profile"
+    },
+    {
+      "type": "uuid",
+      "table": "control_shows",
+      "column": "audio_owner_id"
+    },
+    {
+      "type": "uuid",
+      "table": "panel_keys",
+      "column": "id"
+    },
+    {
+      "type": "uuid",
+      "table": "panel_keys",
+      "column": "show_id"
+    },
+    {
+      "type": "text",
+      "table": "panel_keys",
+      "column": "label"
+    },
+    {
+      "type": "bytea",
+      "table": "panel_keys",
+      "column": "key_hash"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_keys",
+      "column": "created_at"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_keys",
+      "column": "last_used_at"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_keys",
+      "column": "revoked_at"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_keys",
+      "column": "window_start"
+    },
+    {
+      "type": "integer",
+      "table": "panel_keys",
+      "column": "window_count"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_keys",
+      "column": "hello_start"
+    },
+    {
+      "type": "integer",
+      "table": "panel_keys",
+      "column": "hello_count"
+    },
+    {
+      "type": "uuid",
+      "table": "panel_rooms",
+      "column": "show_id"
+    },
+    {
+      "type": "text",
+      "table": "panel_rooms",
+      "column": "press_token"
+    },
+    {
+      "type": "text",
+      "table": "panel_rooms",
+      "column": "feedback_token"
+    },
+    {
+      "type": "bigint",
+      "table": "panel_rooms",
+      "column": "claim"
+    },
+    {
+      "type": "boolean",
+      "table": "panel_rooms",
+      "column": "answering"
+    },
+    {
+      "type": "text",
+      "table": "panel_rooms",
+      "column": "claim_page"
+    },
+    {
+      "type": "text",
+      "table": "panel_rooms",
+      "column": "claim_where"
+    },
+    {
+      "type": "text",
+      "table": "panel_rooms",
+      "column": "claim_label"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_rooms",
+      "column": "claimed_at"
+    },
+    {
+      "type": "timestamp with time zone",
+      "table": "panel_rooms",
+      "column": "created_at"
+    }
+  ],
+  "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+}

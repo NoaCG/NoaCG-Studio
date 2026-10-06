@@ -31,6 +31,7 @@ async function account(page:Page,state:Backend) {
     }
     if(url.pathname.endsWith('/control_shows')) {
       const id=(url.searchParams.get('id')??'').replace('eq.','');
+      if(method==='DELETE') { delete state.published[id]; return answer(null); }
       if(method==='PATCH'||method==='POST') {
         state.writes++; if(state.failPublish)return answer({message:'Publish refused for test',code:'test'},503);
         const data=req.postDataJSON(); const key=data.id??id;
@@ -49,7 +50,9 @@ async function account(page:Page,state:Backend) {
   });
 }
 async function seed(page:Page,legacy=false) {
-  await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible(); await awaitDurableReady(page);
+  // A fresh mock account first reloads onto its isolated library. Allow that cold boot to
+  // finish before seeding; the short interaction timeout was measuring Vite/auth startup.
+  await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible({timeout:30_000}); await awaitDurableReady(page);
   const owner=await page.evaluate(async()=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();return sb ? (await sb.auth.getSession()).data.session?.user.id : null;});
   if(owner) await expect.poll(()=>page.evaluate(async()=> (await import('/src/model/durableStore.ts')).libraryInUse())).toBe(owner);
   const id=await page.evaluate(async old=>{
@@ -65,6 +68,20 @@ async function seed(page:Page,legacy=false) {
 }
 async function record(page:Page,id:string){ return page.evaluate(async key=>(await import('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
 async function openSetup(page:Page){const panel=page.getByTestId('production-status-panel');if(!await panel.isVisible())await page.getByTestId('production-status').click();const section=page.getByTestId('playout-panel-setup');if(!await section.getByRole('button',{name:'Change output…'}).isVisible())await section.locator('summary.pd-panel-section-title').click();return section;}
+
+test('publishing again after Unpublish writes the production instead of checking its old version',async({page})=>{
+  const b=backend();b.defaults[A]=choice('browser');await account(page,b);const id=await seed(page);
+  await publishProduction(page);
+  await expect(page.getByTestId('prepare-for-live-button')).toBeEnabled({timeout:30_000});
+  const before=await record(page,id);const writes=b.writes;
+  await page.getByTestId('production-unpublish').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','false');
+  await page.getByTestId('production-publish').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true',{timeout:8_000});
+  expect(b.writes).toBeGreaterThan(writes);
+  const after=await record(page,id);
+  expect(after.hostedSlug).toBe(before.hostedSlug);expect(after.outputSlug).toBe(before.outputSlug);
+});
 
 test('first Publish has no selection, cancellation is inert, remembered choice saves only after publication',async({page})=>{
   const b=backend();await account(page,b);const id=await seed(page);
@@ -85,6 +102,7 @@ test('first Publish has no selection, cancellation is inert, remembered choice s
   b.failPublish=false;b.failDefault=true;await page.getByTestId('production-publish').click();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true');
   await expect(page.getByTestId('output-default-failure')).toContainText('Published successfully');
+  await page.screenshot({path:test.info().outputPath('studio-readiness-result.png')});
   expect((await record(page,id)).outputSetup).toEqual(choice('spx'));
   b.failDefault=false;await page.getByRole('button',{name:'Retry saving default'}).click();await expect(page.getByTestId('output-default-failure')).toBeHidden();
   expect(b.defaults[A]).toEqual(choice('spx'));expect(b.preferences).toEqual([A]);
@@ -114,7 +132,10 @@ test('legacy open, save, duplicate and republish preserve routes, cues, capabili
   const b=backend();b.defaults[A]=choice('spx');await account(page,b);const id=await seed(page,true);
   const before=await record(page,id);await page.getByTestId('production-publish').click();await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true');await expect(page.getByTestId('output-setup-dialog')).toHaveCount(0);
   const published=await record(page,id);expect(published.outputSetup).toBeUndefined();expect(published.cues).toEqual(before.cues);expect(published.graphics).toEqual(before.graphics);
-  await page.getByTestId('production-republish').click();await expect(page.getByTestId('production-note')).toContainText('Changes published');
+  await settleDurableWrites(page);await page.reload();await expect(page.getByTestId('production-page')).toBeVisible();
+  await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const current=S.loadShows().find(s=>s.id===key)!;S.upsertShow({...current,name:'Output proof republished',updatedAt:new Date(Date.now()+1).toISOString()});},id);
+  await page.getByTestId('production-status').click();
+  await page.getByTestId('prepare-for-live-button').click();await expect(page.getByTestId('production-note')).toContainText('Changes published');
   const again=await record(page,id);expect(again.outputSlug).toBe(published.outputSlug);expect(again.hostedSlug).toBe(published.hostedSlug);expect(again.outputSetup).toBeUndefined();
   const copy=await page.evaluate(async key=>{const S=await import('/src/model/shows.ts');const copy=S.duplicateShowChecked(key).show!;await (await import('/src/model/durableStore.ts')).commitDurableWrites();return copy;},id);
   expect(copy.outputSetup).toBeUndefined();expect(copy.outputSlug).toBeUndefined();expect(copy.cues).toEqual(published.cues);

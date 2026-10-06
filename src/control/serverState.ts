@@ -90,6 +90,8 @@ export interface SlotTiming {
   /** An estimate a reading is expected to replace at once: not called `estimated` until it is
    *  older than a reading may be. */
   provisional?: boolean;
+  /** Time the server position last advanced. A responding server can still have a stuck clock. */
+  progressedAt?: number;
 }
 
 /** TIMING, keyed by slot address (`2-10`). */
@@ -140,16 +142,25 @@ function holdsSomething(s: SlotState | undefined): s is SlotState {
 
 /** The timing a reading gives a slot, carrying a hold's start across readings. */
 function timingOf(s: SlotState, prev: SlotTiming | undefined, now: number): SlotTiming {
+  const sameClip = !!prev && prev.file === s.file && (!s.segment || same(prev.segment, s.segment));
+  const valid = !!s.segment && Number.isFinite(s.segment.length) && s.segment.length > 0 && Number.isFinite(s.position) && s.position! >= 0;
+  const frozen = valid && sameClip && !s.paused && !s.loop && s.position === prev?.position && s.position! < s.segment!.length - 0.001;
+  const progressedAt = frozen ? prev?.progressedAt ?? prev?.at ?? now : now;
+  if ((!valid || (frozen && now - progressedAt > STALE_MS)) && sameClip && prev?.segment && prev.position !== undefined) {
+    // Retain the last usable anchor, explicitly estimated. No inferred timing changes ownership.
+    return { ...prev, producer: s.producer, paused: s.paused, loop: s.loop, source: 'estimate', provisional: false, progressedAt };
+  }
   const t: SlotTiming = {
     producer: s.producer,
     ...(s.file ? { file: s.file } : {}),
-    ...(s.segment ? { segment: s.segment, position: s.position ?? 0 } : {}),
+    ...(valid ? { segment: s.segment, position: s.position } : {}),
     paused: s.paused,
     loop: s.loop,
     at: now,
     source: 'server',
+    progressedAt,
   };
-  if (s.segment && !s.loop && (s.position ?? 0) >= s.segment.length - 0.001) {
+  if (valid && s.segment && !s.loop && s.position! >= s.segment.length - 0.001) {
     const sameClip = !!prev && prev.file === t.file && same(prev.segment, t.segment);
     t.endedAt =
       sameClip && prev.endedAt !== undefined
@@ -305,7 +316,10 @@ export function applyReading(parts: ServerParts, reply: StateReply, ctx: Reading
     }
     // Its row already says the slot was replaced; a second line would say it twice.
     if (Object.values(replaced).some((r) => slotAddress(r.slot) === a)) continue;
-    unidentified.push({ slot, producer: s.producer, ...withFile });
+    // A restart's cause survives later polls and the server's already queued file switch.
+    // A new Bridge-owned instance is a different take; it must not inherit that warning.
+    const stopped = !s.instance && ownership.unidentified.find(u => slotAddress(u.slot) === a && u.sequenceStopped);
+    unidentified.push({ slot, producer: s.producer, ...withFile, ...(stopped ? { sequenceStopped: true, ...(stopped.cueId ? { cueId: stopped.cueId } : {}) } : {}) });
   }
 
   unidentified.sort((x, y) => x.slot.channel - y.slot.channel || x.slot.layer - y.slot.layer);
@@ -381,6 +395,24 @@ export function applyAccepted(
   return {
     ownership: settle(ownership, { onAir, generations, replaced, unidentified, queued: ownership.queued, sequences }),
     timing: nextTiming,
+  };
+}
+
+/** An explicit CLEAR acknowledges the entire slot, even when no cue owns its producer. */
+export function applyClearedSlot(parts: ServerParts, action: { slot: Slot; generation?: number; session?: string }): ServerParts {
+  const at = slotAddress(action.slot);
+  const exceptSlot = <T>(values: Readonly<Record<string, T>>) => Object.fromEntries(Object.entries(values).filter(([address]) => address !== at));
+  const ownership = parts.ownership;
+  return {
+    ownership: settle(ownership, {
+      ...ownership,
+      onAir: Object.fromEntries(Object.entries(ownership.onAir).filter(([, live]) => slotAddress(live.slot) !== at)),
+      replaced: Object.fromEntries(Object.entries(ownership.replaced).filter(([, live]) => slotAddress(live.slot) !== at)),
+      unidentified: ownership.unidentified.filter(u => slotAddress(u.slot) !== at),
+      queued: exceptSlot(ownership.queued), sequences: exceptSlot(ownership.sequences),
+      generations: action.generation === undefined ? ownership.generations : { ...ownership.generations, [at]: { generation: action.generation, ...(action.session ? { session: action.session } : {}) } },
+    }),
+    timing: exceptSlot(parts.timing),
   };
 }
 

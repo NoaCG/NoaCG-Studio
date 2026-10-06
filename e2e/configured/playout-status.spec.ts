@@ -82,7 +82,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
 
   // ── Another production on that slot: red, by name. ──
   studio.showPage('1-20', 'https://noacg.studio/output?production=someone-else&name=CasparCG%201-20');
-  await panel.getByTestId('playout-check-again').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   await expect(status).toHaveAttribute('data-tone', 'bad');
   await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
   await expect(panel.getByTestId('status-check-slot')).toContainText('Channel 1 shows another production on 1-20');
@@ -90,12 +90,12 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   // ── A server that will not say what the slot shows (a channel it does not have): red, with its
   //    own sentence, never "Checking…" for ever. ──
   studio.refuseState = true;
-  await panel.getByTestId('playout-check-again').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   await expect(status).toContainText('Cannot read 1-20', { timeout: 20_000 });
   await expect(status).toHaveAttribute('data-tone', 'bad');
   await expect(panel.getByTestId('status-check-slot')).toContainText('401 INFO ERROR');
   studio.refuseState = false;
-  await panel.getByTestId('playout-check-again').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   await expect(status).toContainText('Another production on 1-20', { timeout: 20_000 });
 
   // ── Put on air: read again at once, without waiting for the next 10 s read. The page is on the
@@ -156,13 +156,13 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   if (fontsOk) await expect(status).toContainText('Ready · on air 1-20', { timeout: 5_000 });
   // A successful CasparCG action proves intent, even when a browser output stays healthy.
   studio.missing = true;
-  await panel.getByTestId('playout-check-again').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   await expect(status).toContainText('Bridge not running', { timeout: 30_000 });
   await page.reload();
   await expect(status).toContainText('Bridge not running', { timeout: 30_000 });
   studio.missing = false;
   await status.click();
-  await panel.getByTestId('playout-check-again').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   await expect(panel.getByTestId('status-check-bridge')).toHaveAttribute('data-tone', 'ok', { timeout: 30_000 });
   await page.keyboard.press('Escape');
 
@@ -175,7 +175,7 @@ test('the playout status: grey offline, amber with no output, red when the slot 
   await expect(status).toHaveAttribute('data-tone', 'warn', { timeout: 30_000 });
   await expect(status).toContainText('Unpublished changes');
   await status.click();
-  await panel.getByTestId('production-republish').click();
+  await panel.getByTestId('prepare-for-live-button').click();
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   await expect
     .poll(async () => {

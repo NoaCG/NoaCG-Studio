@@ -268,8 +268,8 @@ test('the links panel stays whole on a short screen — it caps and scrolls itse
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(560);
   // Nothing was dropped to achieve that: the tail is inside the panel, one scroll away.
-  await page.getByTestId('production-republish').scrollIntoViewIfNeeded();
-  await expect(page.getByTestId('production-republish')).toBeVisible();
+  await page.getByTestId('prepare-for-live-button').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('prepare-for-live-button')).toBeVisible();
 
   // Escape closes it. Worth pinning HERE because this popover's other closing routes are only
   // reachable against a real backend (the e2e/configured specs dismiss it after a live publish),

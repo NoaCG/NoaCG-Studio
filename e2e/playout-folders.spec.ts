@@ -690,10 +690,12 @@ test('All out stops what plays on the rundown\'s slots after a Bridge restart, w
   await page.getByTestId('verb-take').click();
   await expect(cue(page, 'ALPHA')).toContainText('ON AIR');
   fake.restart();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-unidentified')).toContainText('Unidentified item on 2-10', { timeout: 10_000 });
   await expect(cue(page, 'ALPHA')).not.toContainText('ON AIR');
   await expect(page.getByTestId('verb-out-all')).toBeEnabled();
   await page.getByTestId('verb-out-all').click();
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-unidentified')).toHaveCount(0, { timeout: 10_000 });
   expect(sent(fake)).toEqual(['take 2-10 ALPHA', 'out 2-10']);
   await expect(page.getByTestId('verb-out-all')).toBeDisabled();
@@ -1181,7 +1183,13 @@ test('a Bridge restart mid-loop says the folder stopped, by its name', async ({ 
   await page.keyboard.press(' ');
   await expect(cue(page, 'ALPHA')).toContainText('ON AIR');
   fake.restart();
+  // An operator may open diagnostics after several polls, not in the first half-second.
+  const restartingAt = fake.stateCalls;
+  await expect.poll(() => fake.stateCalls).toBeGreaterThan(restartingAt + 2);
+  await page.getByTestId('production-status').click();
   await expect(page.getByTestId('server-sequence-stopped')).toHaveText('Block A stopped: NoaCG Bridge restarted', { timeout: 10_000 });
+  await expect(page.getByTestId('server-sequence-stopped')).toBeVisible();
+  await page.screenshot({ path: 'docs/work-specs/studio-evening-reliability/built/studio-sequence-stopped.png' });
 });
 
 // ── All together, seeded ─────────────────────────────────────────────────────────────────────

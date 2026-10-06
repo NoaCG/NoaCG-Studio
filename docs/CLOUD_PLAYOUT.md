@@ -248,7 +248,11 @@ The page:
   `&debug=1` line. The version stamp is `output.ver` (`src/control/payloadVersion.ts`), written by
   every publish: a digest per graphic and one over them all, and a number for the label.
 - **Preparing a newer version** (`src/output/prepare.ts`, Phase 6 Step 3 landing b). An open
-  renderer keeps the version it booted with. When Prepare for Live asks (a `prep: {id, n, h}` in
+  renderer keeps its prepared graphics while a newer version is checked. The production page
+  has one **Publish & check readiness / Check readiness** action; Put on air remains separate.
+  Cue-only versions adopt their new stamp without rebuilding byte-identical graphics, so cue
+  ordering, notes and shortcuts do not invalidate already prepared assets. When the action asks
+  (a `prep: {id, n, h}` in
   the production page's own Presence entry), it re-reads the published payload, builds only the
   new and changed graphics in hidden frames beside the ones on air, one at a time, and runs the
   same checks on them. Every change prepared and nothing on air here: it reloads onto the new
@@ -256,8 +260,11 @@ The page:
   keeps the version it runs ("Ready · 1 change not prepared: Frost Quiz (script error)"). A
   graphic on air: it keeps its version and says so ("Behind", with how many are on air). The
   same version as it holds: it only checks again. Each answer names the request it answers, a
-  request is acted on once (session storage keeps the ids across the reload), and a preparation
-  starts at most every 15 s. "On air" is the log's own head summary on the numbered log.
+  request is accepted once (session storage keeps the ids across the reload). Deferred asset
+  preparation retries automatically after air clears, re-reading the latest published payload;
+  preparation starts at most every 15 s. Air is checked again immediately before a reload.
+  "On air" is the log's own head summary on the numbered log. Amber guidance distinguishes
+  responding prepared output with changes pending from output whose health is unconfirmed.
 - **The command path ping** (migration 0072, Phase 6 Step 3 landing c). `control_ping_seq` writes
   one row `{t: 'ping', id, at}` with an empty graphic under the next number, with the same locks
   and burst cap as a Take, so it takes a Take's road on both protocols (the per-row `log-`

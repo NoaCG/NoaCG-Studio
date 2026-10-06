@@ -1,0 +1,195 @@
+# Overnight preparation, 2026-10-05
+
+Historical checkpoint. The approved release completion in [the spec](spec.md) supersedes this
+checkpoint's deployment hold; current evidence belongs in [verification](verification.md).
+
+The owner authorized unattended preparation while sleeping. Production, studio services,
+configuration, deployment and merging remain outside this run. On 2026-10-06 the owner explicitly
+approved the feature-branch push and existing test workflows. The existing preview opt-in guard
+returned exit 0 (skip) for the published commit `cc2d27fb1`.
+No commit may contain the preview opt-in marker;
+do not request a preview, create a pull request, enter the merge queue or push `main`.
+The earlier automatic approval rejection was resolved by that explicit authorization. The branch
+was pushed directly to the existing origin; no indirect upload or alternate remote was used.
+
+## Finishable work
+
+1. Reconcile the local feature branch with current `origin/main` and run integration checks.
+   Main `7878a4ef4` merged without conflicts at local tip `20715d255`.
+2. Exercise the exact panel relay SQL in an isolated in-memory Postgres engine. Record its
+   limitations: dependency fixtures and captured sends do not prove hosted Realtime delivery,
+   PostgREST, production schema compatibility or concurrent lock behavior.
+3. Prepare a short off-air rehearsal checklist and inspect its steps against the implemented UI.
+4. Review the new evidence, run the required build, commit verified preparation and refresh the
+   check stamp with a failing release verdict while acceptance remains incomplete.
+
+Do not modify executable product code under a running browser job. Follow the repository queue.
+Do not cancel another checkout's jobs or reclaim its processes. No new agent delegation.
+
+## Runtime findings
+
+- WSL has only a stopped `docker-desktop` distribution. No Docker/Postgres executable is on PATH.
+  No WSL, database, container or studio service was started.
+- No existing Supabase development branch is available. Production is the sole default branch.
+  Only read-only catalog metadata was queried. No hosted migration or data write was executed.
+- The pinned Vercel Sandbox SDK is installed, but no local Sandbox token or saved CLI auth is
+  available. Do not initiate an interactive sign-in or change deployment configuration overnight.
+- The repository's existing `vercel-ignore-build.mjs` skips every non-main branch without the
+  preview opt-in marker. A child-process check returned exit 0 (skip). Production migration,
+  release and alarm workflows are main/tag guarded. Automatic branch CI is offline. The manual
+  `configured-suite.yml` workflow starts a disposable Docker Supabase stack on Ubuntu, uses
+  local test accounts and no hosted credentials, and never files/closes main's alarm on a branch.
+  This would supply the missing SQL/API/Realtime and Linux runtime without creating cloud resources
+  or changing studio configuration. Push only this feature branch after committing preparation.
+  Configured-suite and rerecord-screenshots were dispatched on its exact published tip. Download and inspect
+  Linux frames before committing them. Never substitute Windows frames for Linux baselines.
+
+## Job receipts
+
+- `j-3431`: passed, 1,202 active browser tests / 416 skipped, plus 35/35 catalog checks.
+- Rendered review found false preview-only wording beside a native CasparCG Take. The copy is
+  now scoped to browser graphics; no transport logic changed. Status tests pass 9/9 and focused
+  studio/output browser checks `j-3438` pass 15/15. The corrected diagnostic frame was inspected.
+- `j-3441`: final affected browser run passed after that correction, on frozen product sources:
+  1,202 active tests / 416 skipped, plus 35/35 catalog checks. Generated research artifacts were
+  retained separately and restored before the clean build.
+- `j-3432`: cancelled while waiting so test-generated research captures can be retained separately
+  and restored before a replacement clean build. No running build was interrupted.
+- `j-3446`: replacement clean build passed, exit 0. 2,457 active gate tests / 3 skipped; the
+  separate 321-test suite, TypeScript, lint, architecture, bundle, prerender and final checks pass.
+- Local SQL behavior: 14 checks passed on each of PostgreSQL 17.5 and 18.3 through pinned PGlite
+  runtimes, no hosted connection. The read-only catalog reports production uses PostgreSQL 17.6.
+- Remote push: the first attempt was rejected before execution. After explicit owner approval,
+  `cc2d27fb1` was pushed successfully. CI run `37387066039`, configured backend run `37387084551`
+  and Linux screenshot run `37387085907` are the initial verification receipts.
+- Linux screenshots: `37387085907` passed all 6 captures. Every Ubuntu-generated frame was
+  downloaded into the ignored evidence folder, visually inspected and copied to its exact Linux
+  baseline path. No product source or Windows baseline changed during this recording.
+- Initial branch CI: 1,196 active browser checks passed, 416 skipped, 6 failed solely on the
+  old Linux baselines. Build, 317 factory candidates and 35 catalog checks passed. Publish the
+  inspected replacements and verify the resulting CI gate. Replacement CI `37391651702` passed
+  all ten browser shards, Build, Factory and catalog calibration on `ff6bcf7a1`. This verifies the
+  six Linux baseline replacements. Vercel confirmed the preview was cancelled by its existing
+  ignored-build step.
+- Initial configured backend run `37387084551` reached its 40-minute cap. Schema, grants and
+  all seven private relay cases passed, including actual Realtime delivery of both cue verbs,
+  but the full suite did not finish. Do not treat this partial run as a clean backend verdict.
+- Focused diagnosis `37391668621`, with unchanged product/test sources, completed: 9 passed,
+  6 failed, 2 skipped. The errors identify two clicks intercepted by AccountSaveNotice, the
+  removed automatic expiry modal, two removed Publish selectors and the obsolete expectation
+  that a cue-field edit invalidates readiness. The full-suite guard intentionally remains red
+  for this subset. The temporary workflow command has been restored exactly; no timeout,
+  minimum count or skip allowance changed.
+- Notice overlap reproduced locally (`j-3459`, two failures) and corrected by reserving its
+  measured height. Mobile scroll pages reserve bottom space, the wizard and desktop playout
+  shell fit above it, and corner notices move above it. Phone recovery text gets its own row.
+  Rendered desktop and phone frames inspected. `j-3463` passes all 11 focused regressions,
+  including measured spacing, cloud acknowledgement cleanup and preserved expiry recovery.
+  `j-3464` passed on these frozen corrected sources: 1,460 active browser tests / 542 skipped,
+  plus catalog 35/35, exit 0. Its 25 generated captures were retained separately and restored.
+  Configured
+  expectations now exercise the unified readiness button, preserved metadata readiness and
+  version adoption without an output navigation. Correction `82e1f69ad` is published. CI
+  `37393800289` passed all ten shards, Build, Factory, catalog, combined report and the CI gate.
+  Clean build `j-3465` passed, exit 0, with 2,457 active gate tests / 3 skips and the separate
+  321/321 suite. The normal full guarded backend run `37393801898` reached its unchanged
+  40-minute cap. Four tests failed before the cap: live preparation, persistent production
+  links, timed-cue recovery and signed-in publish wording. Seven real relay cases and the
+  corrected consent/export/readiness-fault cases passed. Focused diagnostic `37397674432`
+  runs unchanged product/test sources without retries to capture exact assertions; it must
+  fail the unchanged full-suite minimum. Restore the normal workflow command afterwards.
+- Focused diagnostic `37397674432` completed with four failures and two skips. It confirms
+  two product defects: Publish after Unpublish was checking a retained old version, and a
+  metadata-only check could withdraw its Presence request before the renderer adopted v2.
+  The other failures are the removed timed-cue selector and old Publish wording. An additional
+  teammate selector was corrected consistently. The normal workflow command is restored exactly.
+  Local reproduction `j-3466` failed as expected; after the publication guard correction,
+  `j-3469` passed all 18 studio/output-setup checks. Earlier reruns exposed short mock-account
+  boot waits, now bounded at 30 seconds without changing interaction assertions. The pure
+  metadata-adoption reproduction failed before its correction; all 34 readiness/version checks
+  pass afterwards. Correction `9ae6c5037` is published. Full backend run `37398871977`, CI
+  `37398866012` and local affected run `j-3470` used frozen executable sources. CI passed all
+  ten shards and prerequisites on an identical retry after one editor seeding navigation failure.
+  Local affected passed 1,461 active / 542 skipped plus catalog 35/35; all 25 generated captures
+  were preserved/restored. The full backend guard completed with 76 passed / two failed /
+  zero flaky / ten allowed skips. v2 adoption and republishing pass. Its later failures identify
+  repeated cue timestamp changes and stale teammate text. A cloud-confirmation flush was locally
+  reproduced (`j-3471`) rewriting an already saved draft. The corrected focused run `j-3473`
+  passes 20/20, including same-tick flushes and a refused-write recovery. Clear a draft only after
+  accepting it and flush only actual pending input. Verify this correction against the complete
+  isolated backend and frozen affected suite, then clean generated captures before the final build.
+- Correction `bdab14b66` is committed/pushed. Fault-clock fixture `j-3474`, TypeScript and focused
+  lint pass. Full backend `37402521872`, CI `37402512539` and local affected run `j-3475` use
+  the frozen executable sources. No workflow, retry/count guard, hosted configuration or studio
+  service was changed.
+  CI `37402512539` now passed on its first attempt, all ten shards, combined report, gate,
+  Build, Factory and catalog. Vercel confirms it skipped deployment. The full backend run also
+  passed: 78 passed, zero failed, zero flaky and ten allowed skips, above the unchanged minimum
+  of 71. All migrations/schema/grants/auth checks and seven private relay cases passed against
+  the disposable Supabase stack. The live preparation and three-member team reconciliation
+  regressions now pass. Local `j-3475` passed, exit 0: 1,463 active browser checks / 542 skips,
+  plus catalog 35/35. Its 25 generated captures were retained/restored, and the passing full
+  backend report was downloaded. Final clean build `j-3476` passed, exit 0: 2,458 active gate
+  tests / three skips, TypeScript, full lint, architecture, bundle, prerender and final scans.
+  Executable sources remained unchanged from `bdab14b66`. Only result prose changed afterwards.
+- Build, browser and SQL receipts are recorded in [verification](verification.md).
+- Final documentation-only CI `37405745401` found a disappearing Bridge-restart folder warning;
+  Build, Factory, catalog and nine shards passed. The state test and deliberately delayed panel
+  reproduction `j-3478` failed before correction. Repeated unidentified readings now retain the
+  stopped-sequence cause/cue until a clear, empty slot or newly identified take. All 43 focused
+  state checks, TypeScript and lint pass. The new instance guard's inverse assertion was
+  mutation-tested, and source bytes restored exactly. Folder/studio `j-3479` passed 64 checks
+  and target `j-3480` passed, but their wrappers lost exit receipts; do not call those jobs green.
+  The corrected warning frame was inspected. The npm-wrapped target `j-3481` completed with
+  exit 0 (one passed, 17.7 seconds). No playout command or timing rule changed. Final frozen
+  affected/build/CI/backend checks now pass. Correction `1464afaee` is published; local full
+  run `j-3482`, CI `37408229045` and guarded backend `37408233348` use frozen corrected sources.
+  CI `37408229045` now passes on its first attempt: all ten shards and prerequisites, combined
+  report and final gate. Its formerly failing shard passes 99 active checks, including the
+  delayed diagnostic. Build passes 2,453 active / eight skips, plus 321/321 and CLI 231 / 18 skips.
+  No retry job ran, and Vercel confirms the ignored-build cancellation. Full backend
+  `37408233348` also passes: 78 passed, zero failed, zero flaky and ten allowed skips (19.2 minutes).
+  All migration/schema/grant/auth checks and seven private relay cases pass, with the unchanged
+  full-suite minimum/allowlist. Local `j-3482` passed with exit 0: 1,463 active browser checks /
+  542 skips (29.2 minutes), plus catalog 35/35 (3.1 minutes). All 26 generated captures, including
+  `built/studio-sequence-stopped.png`, were retained separately and restored before the build.
+  Final clean build `j-3483` passed with exit 0: 2,458 active gate checks / three skips, the
+  separate 321/321 suite, TypeScript, full lint, architecture, bundle, prerender and final scans.
+  Product and test sources remained frozen at `1464afaee`. Only result documentation changed
+  for the morning checkpoint; check its automatic CI by exact SHA without repeating backend work.
+- Local Companion prerelease archive prepared without installation/publication:
+  `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
+  SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
+  Package manifest, archive paths and bundled-JavaScript syntax checked. This does not establish
+  Companion runtime behavior. The isolated relay delivery cases and complete guarded backend
+  suite pass; physical panel and receiving-host behavior still require off-air rehearsal.
+
+## Continuation without a schedule
+
+Automated verification of the corrected product is complete. Physical gates require the original three clips,
+recorded ATEM audio, actual receiving-host rehearsal and two devices. Supply an isolated test
+build before the operator follows the rehearsal checklist; these controls are not deployed.
+The historical home-edit incident still needs the student's account/time/home-browser evidence.
+Keep release verification failing until the physical acceptance gates pass; this is an evidence
+boundary, not a request for another permission mark.
+
+Resume this same checkout and branch. Read this file, `verification.md`, and compact job state.
+Inspect existing job receipts before starting anything; never duplicate an owned or waiting job.
+Check any pending documentation-only CI before starting further work; do not repeat completed
+local/browser/backend runs unless a new change or failure warrants it. A missing
+runtime, physical equipment or source file is an honest boundary, not a reason to loosen the hold.
+
+No scheduled follow-up was created. Automatic approval review refused the proposed heartbeat
+because it would create recurring work beyond the preparation request. Preparation continues
+in the active run. A later manual continuation can resume the recorded jobs safely.
+Automatic approval review also initially rejected the feature-branch push, citing the export of
+source and external CI without explicit authorization. The owner subsequently authorized that
+exact branch and test path; the approved direct push succeeded. Merge and deployment remain held.
+
+The owner's morning request replaces the overnight time limit: leave a clean stopping point
+by approximately 2026-10-06 04:25 UTC, allowing time to report before departure. Finish current
+verification, retain its receipts and commit/push the checkpoint. If documentation-only CI is
+still running, report its exact run rather than extending this session or changing product code.
+If all remaining work needs unavailable infrastructure or the owner, write the report and stop.
+Report completed checks, actionable failures or a required next step. Do not
+start a schedule or keep an idle run waiting for tomorrow's files.

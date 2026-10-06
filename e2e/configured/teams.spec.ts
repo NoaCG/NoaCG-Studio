@@ -35,6 +35,14 @@ import {
 import { settleDurableWrites } from '../_durable';
 import { FAKE_JOIN_ROUTE, TEAM } from '../_teams';
 
+async function expectTeamInSetup(page: Page, name: string, editedBy?: string) {
+  await expect(page.getByTestId(TEAM.productionTeam)).toHaveCount(0);
+  await page.getByTestId('production-setup').click();
+  await expect(page.getByTestId(TEAM.productionTeam)).toContainText(name, { timeout: 20000 });
+  if (editedBy) await expect(page.getByTestId(TEAM.productionTeam)).toHaveAttribute('title', new RegExp(`edited by ${editedBy}`), { timeout: 20000 });
+  await page.getByTestId('production-setup').click();
+}
+
 // Teams (docs/TEAMS_PLAN.md §7): the DOOR in both of its shapes (stage 3), with a second account
 // the invited teammate FINDING the team and what it holds (stage 4), and with a third the shared
 // production proved end to end (stage 5): three members build it, and it plays out with its
@@ -460,8 +468,8 @@ test.describe('teams: the share door', () => {
         expect(showId).toMatch(/^[0-9a-f-]{36}$/);
         // The header's primary controls keep their places when the production becomes a team's:
         // Share and the team's button differ in width, and operators press these by muscle memory
-        // (docs/work-specs/studio-day-playout AC-6). Share is in the Setup menu, and the team's
-        // chip appears left of Setup, so neither moves Setup or All out (docs/PLAYOUT_DASHBOARD.md §2).
+        // (docs/work-specs/studio-day-playout AC-6). Share and team identity are in Setup.
+        // Pending/failed save state remains visible without moving Setup or All out.
         const fixedControls = ['production-status', 'production-setup', 'verb-out-all'];
         // Each control must be ON SCREEN to be measured: a missing box would compare equal to itself.
         const controlXs = () =>
@@ -489,8 +497,8 @@ test.describe('teams: the share door', () => {
         await expect(owner.getByTestId(TEAM.moved)).toBeVisible({ timeout: 20_000 });
         await shot(owner, 'teams-moved');
         await owner.getByRole('button', { name: 'Done', exact: true }).click();
-        // The page stays on the same production - same id - now wearing the team's chip.
-        await expect(owner.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        // The page stays on the same production; team identity is available inside Setup.
+        await expectTeamInSetup(owner, teamName);
         expect(await controlXs()).toEqual(personalXs);
         await shot(owner, 'teams-production-header');
 
@@ -540,19 +548,25 @@ test.describe('teams: the share door', () => {
 
         // B opens it from there and makes an edit: a data table, on the Data workspace.
         await teamCard.getByTestId('team-card-production').filter({ hasText: showName }).click();
-        await expect(mate.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        await expectTeamInSetup(mate, teamName);
         await mate.goto(`/app#/production/${showId}/data`);
         await mate.getByTestId('add-dataset').click();
         await expect(mate.getByTestId('dataset-name')).toHaveCount(1);
-        // The save has reached the server once the header stops saying "Saving…".
-        await expect(mate.getByTestId('production-team-save')).toContainText('edited by you', { timeout: 20_000 });
+        await mate.goto(`/app#/production/${showId}`);
+        await mate.getByTestId('rundown-add').click();
+        await mate.getByTestId('rundown-refresh').click();
+        await expect(mate.getByTestId('rundown-note')).toHaveText('Rundown refreshed from cloud.', { timeout: 20000 });
+        expect((await serverRundown(mate, showId))?.datasets).toHaveLength(1);
+        // Cloud-confirmed editor metadata is in Setup; the header keeps pending/failed state.
+        await expectTeamInSetup(mate, teamName, 'you');
+        await expect(mate.getByTestId('production-team-save')).toHaveCount(0);
 
         // A opens the production COLD (a reload - the path a teammate's link takes) and reads
         // B's edit and B's name off the server row.
         await owner.goto(`/app#/production/${showId}/data`);
         await owner.reload();
         await expect(owner.getByTestId('dataset-name')).toHaveCount(1, { timeout: 20_000 });
-        await expect(owner.getByTestId('production-team-save')).toContainText('edited by Ben Teammate');
+        await expectTeamInSetup(owner, teamName, 'Ben Teammate');
 
         // B gets BACK to the team from Home, owning nothing: the band's door opens the team with
         // its members, the link to pass on and Leave - and B changes the name teammates see, in
@@ -655,7 +669,7 @@ test.describe('teams: the share door', () => {
         await anna.getByTestId(TEAM.moveToTeam).click();
         await expect(anna.getByTestId(TEAM.moved)).toBeVisible({ timeout: 20_000 });
         await anna.getByRole('button', { name: 'Done', exact: true }).click();
-        await expect(anna.getByTestId(TEAM.productionTeam)).toContainText(teamName);
+        await expectTeamInSetup(anna, teamName);
 
         // Published FROM the team: the row is team-stamped, and the slugs travel in the team's doc.
         await publishProduction(anna);
@@ -688,9 +702,9 @@ test.describe('teams: the share door', () => {
           .getByTestId(`production-row-${showId}`)
           .getByTestId('open-production-name')
           .click();
-        await expect(ben.getByTestId(TEAM.productionTeam)).toContainText(teamName, { timeout: 20_000 });
+        await expectTeamInSetup(ben, teamName);
         await cleo.goto(`/app#/production/${showId}`);
-        await expect(cleo.getByTestId(TEAM.productionTeam)).toContainText(teamName, { timeout: 20_000 });
+        await expectTeamInSetup(cleo, teamName);
 
         // ── Each adds a graphic from their OWN library and types its text. ─────────────────────
         await addFromLibrary(ben, gfx.ben, said.ben);
@@ -736,7 +750,7 @@ test.describe('teams: the share door', () => {
         // graphics - and the output address is the one A's publish minted.
         await expect(ben.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
         await ben.getByTestId('production-status').click();
-        await ben.getByTestId('production-republish').click();
+        await ben.getByTestId('prepare-for-live-button').click();
         await expect(ben.getByTestId('publish-freshness')).toHaveCount(0, { timeout: 30_000 });
         await ben.getByTestId('production-status').click();
         await expect(ben.getByTestId('production-links')).toBeHidden();

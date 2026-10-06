@@ -52,4 +52,5 @@ test('on a phone Setup and its Panel door stand down and All out stays reachable
   const allOut = await page.getByTestId('verb-out-all').boundingBox();
   expect(allOut).not.toBeNull();
   expect(allOut!.x + allOut!.width).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: 'test-results/studio-phone.png', fullPage: true });
 });

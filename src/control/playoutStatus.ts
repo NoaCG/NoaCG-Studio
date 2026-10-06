@@ -36,7 +36,7 @@ export interface SlotReading {
 
 /** One line of the panel: what was checked, how it stands, and what to do when it is not fine. */
 export interface StatusCheck {
-  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files';
+  key: 'production' | 'bridge' | 'slot' | 'outputs' | 'destinations' | 'files' | 'playback';
   tone: StatusTone;
   label: string;
   /** The words on the header control when this check decides the status. */
@@ -56,7 +56,9 @@ export interface StatusFacts {
   managedOutput?: boolean;
   destinationCheck?: StatusCheck | null;
   fileCheck?: StatusCheck | null;
-  /** The production is started (published): verbs go on the wire. */
+  playbackCheck?: StatusCheck | null;
+  /** The production is published: browser graphics use the hosted output. Native server cues
+   *  send through the Bridge independently, including before publishing. */
   started: boolean;
   /** A publish now would change what the outputs get (the record, or what they render). */
   unpublished: boolean;
@@ -137,13 +139,14 @@ function bridgeCheck(b: NonNullable<StatusFacts['bridge']>): StatusCheck {
 
 export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   const checks: StatusCheck[] = [];
+  const ready = f.ready?.outputs ? f.ready : null;
   if (!f.started) {
     checks.push({
       key: 'production',
       tone: 'idle',
-      label: 'Not started',
+      label: 'Browser graphics not started',
       short: 'Offline',
-      advice: 'Takes play only on this page until you start the production.',
+      advice: 'Browser graphics preview here until you start the production. CasparCG server cues play directly on their assigned output, even before publishing.',
     });
   } else if (f.unpublished) {
     checks.push({
@@ -151,7 +154,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
       tone: 'warn',
       label: `Unpublished changes${f.version ? ` since ${f.version}` : ''}`,
       short: 'Unpublished changes',
-      advice: 'The outputs run the published version until you publish the changes.',
+      advice: ready?.tone === 'ok' && !ready.broken ? 'Current prepared graphics are responding and ready. Continue those cues while their output and connection checks stay green. Publish and check before using new or changed assets.' : 'Current output safety is not confirmed. Check the output and connection details; avoid taking unprepared assets.',
     });
   } else {
     checks.push({ key: 'production', tone: 'ok', label: 'Published changes are available to outputs', short: 'Published' });
@@ -163,7 +166,6 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   // Is something there to air it? The output's slot on CasparCG, read through the Bridge, and the
   // outputs' own reports. A slot that holds nothing is broken only when nothing else will air the
   // graphics: a studio may drive clips through the Bridge and run its graphics in OBS.
-  const ready = f.ready?.outputs ? f.ready : null;
   // An output is REPORTING: ready, still loading, or amber about something. One that is only
   // remembered - gone, or not answering yet - airs nothing (measured on 2.5: Take off left the
   // CasparCG output "not answering" for 15 s, and the status read Checking meanwhile).
@@ -247,6 +249,7 @@ export function describePlayoutStatus(f: StatusFacts): PlayoutStatus {
   }
 
   if (f.fileCheck) checks.push(f.fileCheck);
+  if (f.playbackCheck) checks.push(f.playbackCheck);
   if (f.started && f.destinationCheck) checks.push(f.destinationCheck);
   const sorted = [...checks].sort((a, b) => RANK[b.tone] - RANK[a.tone]);
   if (!f.started) return { tone: 'idle', text: 'Offline', checks: sorted };

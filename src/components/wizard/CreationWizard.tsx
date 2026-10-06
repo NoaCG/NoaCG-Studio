@@ -86,7 +86,9 @@ import { DEFAULT_VIDEO_FORMAT, formatProjectSummary } from '../../model/projectF
 import { trackEvent } from '../../backend/events';
 import { captureLookFromTemplate } from '../../model/packets';
 import { saveTemplateSetToProduction } from '../../model/templateSet';
-import { addGraphicToShow, createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
+import { createShowNamedChecked, loadShows, setShowLook, type Show } from '../../model/shows';
+import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
+import { publishGate } from '../../validation/publishGate';
 import { commitDurableWrites } from '../../model/durableStore';
 import { raiseStorageAlert } from '../../store/storageAlert';
 import type { ProductionDest } from './steps/FinishStep';
@@ -1090,6 +1092,11 @@ export default function CreationWizard() {
     setKitBusy(true);
     setKitError(null);
     try {
+      // Refuse the whole set before writing its library or rundown, matching single admission.
+      for (const template of templates) {
+        const gate = publishGate(template, true);
+        if (!gate.ok) throw new Error(`"${template.name}" failed validation: ${gate.errors[0]?.message ?? 'unknown error'}. Fix the graphic before adding this set to a production.`);
+      }
       const target = await saveTemplateSetToProduction(templates, fallbackName, dest);
       trackEvent('activation', activation);
       return target;
@@ -1343,6 +1350,11 @@ export default function CreationWizard() {
     }
     const s = useTemplateStore.getState();
     let created: string | null = null;
+    const gate = publishGate(s.template, true);
+    if (!gate.ok) {
+      raiseStorageAlert({ action: `Adding “${name}” to a production`, error: gate.errors.map(e => e.message).join(' '), outcome: 'The graphic is preserved in your library. Correct it before adding it to the rundown.' });
+      return;
+    }
     let show: Show | undefined;
     if (dest.kind === 'existing') {
       show = loadShows().find((x) => x.id === dest.id);
@@ -1917,7 +1929,7 @@ export default function CreationWizard() {
                   // one, which is a choice in the field list rather than in the behaviour's own
                   // pickers (`armTimerClock`, and it is the same call the mapping step's picker
                   // makes). Every other behaviour leaves the fields exactly as they were.
-                  const proposed = proposeSvgBehaviour(result);
+                  const proposed = proposeSvgBehaviour({ ...result, candidates: result.candidates.filter(c => !c.outsideCanvas) });
                   const written = pollDrivenLayers(proposed);
                   const furniture = (c: { id: string; drawing: boolean }) => c.drawing && !written.has(c.id);
                   patch({
@@ -1943,7 +1955,8 @@ export default function CreationWizard() {
                     svgFields: armTimerClock(
                       [...result.candidates.filter((c) => !furniture(c)), ...result.candidates.filter(furniture)].map((c) => ({
                         candidateId: c.id,
-                        on: !furniture(c),
+                        on: !furniture(c) && !c.outsideCanvas,
+                        ...(c.outsideCanvas ? { whenOff: 'keep' as const } : {}),
                         title: c.label,
                         sample: c.sample,
                         numeric: c.numeric,

@@ -4,6 +4,7 @@ import {
   MAX_PLAYOUT_LAYER,
   MIN_PLAYOUT_LAYER,
   setCuePlayback,
+  setCueImageFit,
   setPlayoutItemChannel,
   setPlayoutItemFields,
   setPlayoutItemLayer,
@@ -34,6 +35,7 @@ import {
 import { channelLabel, channelOf, itemSlot, slotAddress, type PlayoutResult, type PlayoutSettings } from '../../control/playoutLink';
 import { nextClipWords, type PlayNext } from '../../control/serverPlayout';
 import { FieldRow } from '../fields/FieldControl';
+import AccountAuthoringGate, { useAccountAuthoring } from '../AccountAuthoringGate';
 import { THROUGH_END, type ThroughRole } from '../../control/serverPlayout';
 import { useModalGate } from '../spaceKey';
 import { useDeferredEdits } from './useDeferredEdits';
@@ -158,9 +160,10 @@ export default function ServerCueEditor({
       />
     </label>
   );
+  const authoringAllowed = useAccountAuthoring();
   return (
     <div className={`pd-editor${live ? ' live' : ''}`} data-testid="playout-cue-editor">
-      <div className="pd-editor-head">
+      <div className="pd-editor-head" inert={!authoringAllowed}>
         <span className="pd-editor-kicker">
           {media ? (item.mediaKind === 'audio' ? 'AUDIO' : item.mediaKind === 'still' ? 'SERVER IMAGE' : item.mediaKind === 'movie' ? 'VIDEO' : 'SERVER MEDIA (UNSPECIFIED)') : 'SERVER TEMPLATE'}
           {live ? ' · ON AIR' : ''}
@@ -211,7 +214,7 @@ export default function ServerCueEditor({
         </p>
       )}
       {item.kind === 'template' && (
-        <div className="pd-band-fields" data-testid="playout-cue-fields">
+        <div className="pd-band-fields" data-testid="playout-cue-fields" inert={!authoringAllowed}>
           {(item.fields ?? []).map((f) => (
             <FieldRow
               key={f.field}
@@ -234,6 +237,7 @@ export default function ServerCueEditor({
         </div>
       )}
       {media && (
+        <AccountAuthoringGate>
         <ClipSettings
           item={item}
           cue={cue}
@@ -243,6 +247,7 @@ export default function ServerCueEditor({
           through={through}
           set={(patch) => setShows(setCuePlayback(showId, cue.id, patch))}
         />
+        </AccountAuthoringGate>
       )}
       {media && live && (
         <div className="row pd-clip-transport" data-testid="playout-clip-transport">
@@ -260,7 +265,7 @@ export default function ServerCueEditor({
           since) stays listed as itself rather than silently moving the cue. Every server item
           shows both here, beside its note, so moving a clip to another channel is as easy as
           moving it to another layer (owner, 2026-10-01). */}
-      <div className="pd-cue-meta pd-cue-meta--slot" data-testid="cue-meta">
+      <div className="pd-cue-meta pd-cue-meta--slot" data-testid="cue-meta" inert={!authoringAllowed}>
         <label className="pd-field pd-field-note">
           <span>Operator note</span>
           <input
@@ -290,6 +295,24 @@ export default function ServerCueEditor({
         </p>
       )}
       {media && (
+        <AccountAuthoringGate>
+        {item.mediaKind === 'still' && (
+          <div className="pd-clip-row" data-testid="picture-fit">
+            <span className="pd-clip-label">Picture</span>
+            <span className="ctl-segmented" role="radiogroup" aria-label="Picture fitting">
+              {(['fit', 'stretch'] as const).map(mode => (
+                <button key={mode} role="radio" aria-checked={(cue.imageFit ?? 'fit') === mode}
+                  disabled={mode === 'fit' && cue.imageFit === 'stretch' && !!offerBlocked(ability, NEEDS.imageFit)}
+                  title={mode === 'fit' ? offerBlocked(ability, NEEDS.imageFit) ?? 'Keep proportions, centered with black bars' : 'Fill the frame without preserving proportions'}
+                  onClick={() => setShows(setCueImageFit(showId, cue.id, mode))}
+                  data-testid={`picture-choice-${mode}`}>
+                  {mode === 'fit' ? 'Fit' : 'Stretch'}
+                </button>
+              ))}
+            </span>
+            <span className="muted pd-clip-hint">{live ? 'Applies at the next Take' : 'Fit keeps proportions with black bars'}</span>
+          </div>
+        )}
         <ClipAdvanced
           item={item}
           cue={cue}
@@ -297,6 +320,7 @@ export default function ServerCueEditor({
           setTrim={(trim) => setShows(setCuePlayback(showId, cue.id, trim))}
           setKind={(kind) => setShows(setPlayoutItemMediaKind(showId, item.id, kind))}
         />
+        </AccountAuthoringGate>
       )}
     </div>
   );
