@@ -337,7 +337,9 @@ jobs:
       - name: Configured E2E suite
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: configured-report.json
-        run: npm run test:e2e:live -- --reporter=list,json || true
+        # Temporary diagnosis on unchanged product/test sources. The full-suite guard below
+        # deliberately rejects this subset; restore the normal command after reading assertions.
+        run: npm run test:e2e:live -- e2e/configured/live-prepare.spec.ts e2e/configured/production-links.spec.ts e2e/configured/rundown-timing-recovery.spec.ts e2e/configured/signed-in-ux.spec.ts --retries=0 --trace=on --reporter=list,json || true
 
       # A green exit code from this suite means nothing on its own; only the counts do.
       # ONE implementation of the verdict, shared with hosted-latency.yml, because both run the
