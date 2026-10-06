@@ -153,7 +153,9 @@ export function outputSettled(entry: LiveEntry | undefined, target: HeldVersion,
   const chg = ready.chg;
   const answersThis = !!chg && (request === undefined || chg.id === request);
   if (chg && answersThis && chg.v.h === target.h && (chg.s === 'failed' || chg.s === 'waiting')) return true;
-  return !!ready.v && ready.v.h === target.h && ready.n >= ready.of && !(chg && chg.s === 'preparing');
+  // Matching assets stay ready, but an active check must remain announced until the output
+  // adopts its cue metadata. Otherwise the request can vanish before Presence delivers it.
+  return !!ready.v && ready.v.h === target.h && (request === undefined || ready.v.n >= target.n) && ready.n >= ready.of && !(chg && chg.s === 'preparing');
 }
 
 /** Every output Prepare for Live waits for: the expected ones and any other present, by id. */

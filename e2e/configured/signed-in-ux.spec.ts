@@ -230,7 +230,7 @@ test.describe('signed-in UX walk (configured)', () => {
     await expect(publish).toBeEnabled();
     // The cloud-playout wave renamed rundowns to productions in user-facing strings — the
     // surface must speak "production", never "show" or "rundown".
-    await expect(publish).toHaveText('Publish');
+    await expect(publish).toHaveAccessibleName('Publish & check readiness');
     // Read the production page itself. `.control-page-main` was the hosted operator page's old
     // shell class; that surface renders the playout dashboard now, and a locator matching
     // nothing makes a "does not contain" assertion pass for the wrong reason.

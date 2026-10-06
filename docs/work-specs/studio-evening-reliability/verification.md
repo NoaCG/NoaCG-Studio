@@ -3,10 +3,10 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Commit `cc2d27fb1` is published; the branch is not merged or deployed.
+Corrected product commit `82e1f69ad` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
-change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data
-and an in-memory SQL engine with the limitations recorded below.
+change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
+an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
 
 ## Review and simplification
 
@@ -38,6 +38,19 @@ Confirmed corrections during review:
 16. Pre-publish guidance distinguishes browser graphics from native CasparCG cues. The video
     regression rendered a completed Take through the fake Bridge beside the incorrect promise
     that Takes stayed on this page. Corrected the displayed scope without changing transport.
+17. The save notice no longer covers wizard, consent or recovery controls. Its measured height
+    reserves space on desktop and phone, including wrapped recovery actions.
+18. Configured playout, timed-cue and teammate tests use the unified readiness button instead
+    of the removed Publish button.
+19. Cue-field metadata preserves the readiness stamp and adopts its version without navigating
+    the output; the configured acceptance test now requires that behavior.
+20. The anonymous expiry test requires no automatic modal and an explicit, usable sign-in door.
+21. An unpublished production no longer supplies its old version to the combined action.
+    The new network-owned regression first reproduced refusal to publish again without reloading.
+22. The configured publish wording test checks the combined action's accessible name.
+23. Mock-account seeds wait for their cold library-rebinding boot before interaction assertions.
+24. An active check waits for metadata version adoption even when the prepared graphic digest
+    matches. Otherwise its Presence request could disappear before the renderer received it.
 
 Simplification: inline. Kept existing playout adapters, durable storage, team compare-and-swap,
 production eligibility, shared keyboard transport and capability-protected panel relay. Removed
@@ -219,6 +232,42 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
 - Configured tests now use Publish & check readiness, require cue-only readiness to remain valid
   and require v2 adoption without an output navigation. The full normal backend run and affected
   browser run on these corrections remain pending until their receipts are recorded.
+
+## Corrected product verification
+
+- CI [37393800289](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37393800289) passed on
+  `82e1f69ad`. All ten browser shards, the combined report and CI gate passed. Build passed
+  with 2,452 active gate tests / 8 platform skips, the separate 321/321 suite and 231 active
+  CLI checks / 18 skips. Factory passed 317/317 and catalog calibration passed 35/35.
+- Local affected run `j-3464` completed with exit 0: 1,460 browser tests passed, 542 skipped,
+  plus catalog calibration 35/35. The wider stylesheet scope selected 2,002 browser tests.
+  Its 25 generated research/sound captures were retained in the ignored evidence folder and
+  restored before the clean build; a Windows line-ending metadata false positive was cleared
+  while proving the indexed geometry content still matches HEAD.
+- Clean local build `j-3465` completed with exit 0: 2,457 active gate tests, 3 skips and the
+  separate 321/321 suite; TypeScript, full lint, architecture, bundle, prerender, secret scan
+  and final line-ending checks passed. Product and test sources were unchanged during it.
+- The normal full backend run
+  [37393801898](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37393801898) hit its unchanged
+  40-minute cap on `82e1f69ad`. Account/settings flows, phone consent/export, library arrival,
+  readiness faults, seven real private relay cases and ordinary playout status passed. Four
+  tests failed before the cap: live preparation, persistent production links, timed-cue recovery
+  and signed-in publish wording. This partial run is not a clean backend verdict. Focused
+  diagnosis on unchanged product/test sources is collecting their exact assertions; its subset
+  must fail the unchanged full-suite minimum.
+- Local republish reproduction `j-3466` failed with the production still unpublished after the
+  second press. The corrected regression passed in `j-3467`, alongside 16 other checks. That
+  run and an unchanged rerun `j-3468` exposed short mock-account cold-boot waits on different
+  startup pages. The bounded boot wait is now 30 seconds; interaction assertions stay unchanged.
+  Final focused run `j-3469` passed all 18 checks in 40.8 seconds. No failing run is recorded
+  as a passing suite.
+- Focused backend diagnosis
+  [37397674432](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37397674432) completed on
+  unchanged `82e1f69ad` product/test sources: four failed, two skipped, zero passed. It confirms
+  the republish defect, removed timed-cue selector, old publish wording and v2 being stamped while
+  the renderer still held v1. The last condition was reproduced by the new pure adoption test
+  before correcting `outputSettled`. All 34 focused readiness/version checks then passed.
+  The workflow command is restored exactly; the next run uses the full normal suite and guard.
 
 ## Rollout hold
 

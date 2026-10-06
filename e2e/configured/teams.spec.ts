@@ -736,7 +736,7 @@ test.describe('teams: the share door', () => {
         // graphics - and the output address is the one A's publish minted.
         await expect(ben.getByTestId('production-status')).toHaveAttribute('data-started', 'true');
         await ben.getByTestId('production-status').click();
-        await ben.getByTestId('production-republish').click();
+        await ben.getByTestId('prepare-for-live-button').click();
         await expect(ben.getByTestId('publish-freshness')).toHaveCount(0, { timeout: 30_000 });
         await ben.getByTestId('production-status').click();
         await expect(ben.getByTestId('production-links')).toBeHidden();

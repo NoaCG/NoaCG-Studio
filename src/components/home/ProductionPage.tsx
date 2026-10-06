@@ -657,7 +657,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  in this browser and announced on the live topic so the hosted page and the phone count the
    *  same ones. */
   const [publishedStamp, setPublishedStamp] = useState<PayloadVersion | null>(null);
-  const publishedVer = useMemo<HeldVersion | null>(() => (publishedStamp ? { n: publishedStamp.n, h: publishedStamp.h } : null), [publishedStamp]);
+  const publishedVer = useMemo<HeldVersion | null>(() => (hostedSlug && publishedStamp ? { n: publishedStamp.n, h: publishedStamp.h } : null), [hostedSlug, publishedStamp]);
   /** Changed since the last publish: the record itself, or what the outputs would render (a graphic
    *  edited in the library, which never touches the record) - usePublishDrift. */
   const authoringAllowed = useAccountAuthoring();

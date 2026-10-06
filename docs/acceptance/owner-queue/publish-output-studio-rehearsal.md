@@ -5,7 +5,10 @@ serves: now
 ---
 # Publish output and rundown in the studio
 
-Overnight automated checks cover the setup flow, legacy compatibility, routing commands and sound regression cases. Actual receiving software, physical channel routing and audio buses still need a studio check before on-air use. The owner authorized the overnight merge with that limitation.
+The earlier Publish/output setup work landed separately. Automated checks cover its setup flow,
+legacy compatibility, routing commands and sound regressions. Actual receiving software,
+physical channel routing and audio buses still need a studio check before on-air use.
+The evening reliability branch below remains held before merge and deployment.
 
 ## The route, under a minute
 

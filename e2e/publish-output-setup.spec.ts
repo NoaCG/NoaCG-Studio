@@ -31,6 +31,7 @@ async function account(page:Page,state:Backend) {
     }
     if(url.pathname.endsWith('/control_shows')) {
       const id=(url.searchParams.get('id')??'').replace('eq.','');
+      if(method==='DELETE') { delete state.published[id]; return answer(null); }
       if(method==='PATCH'||method==='POST') {
         state.writes++; if(state.failPublish)return answer({message:'Publish refused for test',code:'test'},503);
         const data=req.postDataJSON(); const key=data.id??id;
@@ -49,7 +50,9 @@ async function account(page:Page,state:Backend) {
   });
 }
 async function seed(page:Page,legacy=false) {
-  await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible(); await awaitDurableReady(page);
+  // A fresh mock account first reloads onto its isolated library. Allow that cold boot to
+  // finish before seeding; the short interaction timeout was measuring Vite/auth startup.
+  await page.goto('/app#/home'); await expect(page.getByTestId('home-page')).toBeVisible({timeout:30_000}); await awaitDurableReady(page);
   const owner=await page.evaluate(async()=>{const sb=await (await import('/src/backend/supabase.ts')).getSupabase();return sb ? (await sb.auth.getSession()).data.session?.user.id : null;});
   if(owner) await expect.poll(()=>page.evaluate(async()=> (await import('/src/model/durableStore.ts')).libraryInUse())).toBe(owner);
   const id=await page.evaluate(async old=>{
@@ -65,6 +68,20 @@ async function seed(page:Page,legacy=false) {
 }
 async function record(page:Page,id:string){ return page.evaluate(async key=>(await import('/src/model/shows.ts')).loadShows().find(s=>s.id===key)!,id); }
 async function openSetup(page:Page){const panel=page.getByTestId('production-status-panel');if(!await panel.isVisible())await page.getByTestId('production-status').click();const section=page.getByTestId('playout-panel-setup');if(!await section.getByRole('button',{name:'Change output…'}).isVisible())await section.locator('summary.pd-panel-section-title').click();return section;}
+
+test('publishing again after Unpublish writes the production instead of checking its old version',async({page})=>{
+  const b=backend();b.defaults[A]=choice('browser');await account(page,b);const id=await seed(page);
+  await publishProduction(page);
+  await expect(page.getByTestId('prepare-for-live-button')).toBeEnabled({timeout:30_000});
+  const before=await record(page,id);const writes=b.writes;
+  await page.getByTestId('production-unpublish').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','false');
+  await page.getByTestId('production-publish').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true',{timeout:8_000});
+  expect(b.writes).toBeGreaterThan(writes);
+  const after=await record(page,id);
+  expect(after.hostedSlug).toBe(before.hostedSlug);expect(after.outputSlug).toBe(before.outputSlug);
+});
 
 test('first Publish has no selection, cancellation is inert, remembered choice saves only after publication',async({page})=>{
   const b=backend();await account(page,b);const id=await seed(page);

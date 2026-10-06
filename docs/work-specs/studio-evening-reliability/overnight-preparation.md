@@ -82,10 +82,29 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   shell fit above it, and corner notices move above it. Phone recovery text gets its own row.
   Rendered desktop and phone frames inspected. `j-3463` passes all 11 focused regressions,
   including measured spacing, cloud acknowledgement cleanup and preserved expiry recovery.
-  `j-3464` is the required affected-browser run on these frozen corrected sources. Configured
+  `j-3464` passed on these frozen corrected sources: 1,460 active browser tests / 542 skipped,
+  plus catalog 35/35, exit 0. Its 25 generated captures were retained separately and restored.
+  Configured
   expectations now exercise the unified readiness button, preserved metadata readiness and
-  version adoption without an output navigation. Publish this correction and rerun the normal
-  full guarded backend suite and branch CI before treating agent verification as complete.
+  version adoption without an output navigation. Correction `82e1f69ad` is published. CI
+  `37393800289` passed all ten shards, Build, Factory, catalog, combined report and the CI gate.
+  Clean build `j-3465` passed, exit 0, with 2,457 active gate tests / 3 skips and the separate
+  321/321 suite. The normal full guarded backend run `37393801898` reached its unchanged
+  40-minute cap. Four tests failed before the cap: live preparation, persistent production
+  links, timed-cue recovery and signed-in publish wording. Seven real relay cases and the
+  corrected consent/export/readiness-fault cases passed. Focused diagnostic `37397674432`
+  runs unchanged product/test sources without retries to capture exact assertions; it must
+  fail the unchanged full-suite minimum. Restore the normal workflow command afterwards.
+- Focused diagnostic `37397674432` completed with four failures and two skips. It confirms
+  two product defects: Publish after Unpublish was checking a retained old version, and a
+  metadata-only check could withdraw its Presence request before the renderer adopted v2.
+  The other failures are the removed timed-cue selector and old Publish wording. An additional
+  teammate selector was corrected consistently. The normal workflow command is restored exactly.
+  Local reproduction `j-3466` failed as expected; after the publication guard correction,
+  `j-3469` passed all 18 studio/output-setup checks. Earlier reruns exposed short mock-account
+  boot waits, now bounded at 30 seconds without changing interaction assertions. The pure
+  metadata-adoption reproduction failed before its correction; all 34 readiness/version checks
+  pass afterwards. Publish these corrections and require a full guarded backend verdict.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
