@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "specSha256": "5b9332f9f50efb1a3a6a8bf276ea240606463ed9ea6825070731228922d6d04d",
+  "specSha256": "b30c0d72069f73bdb851cf9a9af87bedaf955fd29d1ab44959c119bb0ad16845",
   "authority": {
     "status": "agreed",
     "source": "Owner request in Codex chat, 2026-10-06: Implement R1.2b.7 folders and bins (B02) as an unattended bounded slice; preserve protected ownership and land through check/queue-merge."

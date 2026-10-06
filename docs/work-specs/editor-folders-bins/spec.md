@@ -33,6 +33,8 @@ history and stale-revision refusal.
   APIs. Empty bins persist in the same organization comment. Bin rename moves
   its assets atomically; collisions refuse rather than silently combine bins.
   Bucket roots remain fixed, files retain their bucket, bytes and ordering.
+  Moving/removing the last asset retains its bin. Asset rewrites, export
+  inlining and reference counts treat the inert header separately from artwork.
   Keep existing AssetsPanel callers compatible; enable bins only in the editor.
 - Collapse and selection are transient UI state. Opening a containing folder
   reveals canvas selection. Persistent names/membership/order undo together;
@@ -92,4 +94,7 @@ Build, check, queue-merge, confirm queue entry/merge and deployed revision.
 
 ## Evidence
 
-Pending execution. This record makes no broader acceptance claim.
+The [engineering receipt](../../research/editor-r1-2b-7/README.md), hashed
+evidence and `work.json` record observations per criterion. Queue entry,
+merge and production revision are observed after landing. This bounded record
+makes no broader acceptance claim.

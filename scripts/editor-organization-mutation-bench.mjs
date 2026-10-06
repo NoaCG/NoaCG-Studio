@@ -4,10 +4,18 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { transform } from 'sucrase';
-import { activeRuns, selfAndAncestors } from './e2e-runs.mjs';
+import { activeRuns, blockingRuns, nodeProcesses, selfAndAncestors, describeRuns } from './e2e-runs.mjs';
 import { measured } from './measured.mjs';
 
-if (activeRuns({ excludePids: selfAndAncestors() }).length) throw new Error('Another browser job is active. Run this bench alone through the queue.');
+const self = { pid: process.pid, startedAt: nodeProcesses().find(item => item.pid === process.pid)?.startedAt ?? Date.now() };
+const waitingSince = Date.now();
+let blockers = blockingRuns(activeRuns({ excludePids: selfAndAncestors() }), self);
+if (blockers.length) console.log('Waiting for earlier browser work before any mutation:\n' + describeRuns(blockers));
+while (blockers.length) {
+  if (Date.now() - waitingSince > 30 * 60_000) throw new Error('Browser isolation wait expired. No mutation was started.');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  blockers = blockingRuns(activeRuns({ excludePids: selfAndAncestors() }), self);
+}
 const patcher = 'src/blocks/editorOrganization.ts';
 const cases = [
   ['folder parent ownership', patcher, 'if (memberScope(organization, member, parts, hierarchy) !== expectedScope)', 'if (false)', 'folder guards refuse mixed group scopes'],
