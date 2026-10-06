@@ -1099,7 +1099,7 @@ export default function CueRundown({
 
       {/* Authoring feedback sits outside the rail, including a refused drop while it hovers. */}
       {feedback && feedbackTarget.current && createPortal(
-        <p className={`${feedbackTone} pd-rundown-note`} role="status" data-testid="rundown-note">
+        <p className={`${feedbackTone} pd-authoring-note`} role="status" data-testid="rundown-note">
           {feedback}
         </p>, feedbackTarget.current
       )}

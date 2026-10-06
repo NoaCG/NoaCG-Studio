@@ -2077,7 +2077,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 .pd-rundown .pd-drop-end[data-drop='into'] { border: 2px solid #cfd8e6; color: var(--text); }
 .pd-rundown .pd-drop-end[data-drop='refused'] { border: 2px dashed var(--danger); }
-.pd-control-area .pd-rundown-note { margin: 0 0 8px; font-size: 12px; }
+.pd-control-area .pd-authoring-note { margin: 0 0 8px; font-size: 12px; }
 .pd-rundown-feedback:empty { display: none; }
 /* The range's count and its verb, under the list while a shift-click selection stands. */
 .pd-rundown .pd-range-bar {

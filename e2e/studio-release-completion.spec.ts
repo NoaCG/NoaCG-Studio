@@ -162,7 +162,7 @@ test('Refresh lives inside Add and reports local workspace without affecting sel
   await page.getByTestId('rundown-add').click();
   await expect(page.getByTestId('rundown-refresh')).toBeVisible();
   await page.getByTestId('rundown-refresh').click();
-  await expect(page.locator('.pd-rundown-note')).toContainText('local workspace');
+  await expect(page.getByTestId('rundown-note')).toContainText('local workspace');
   await expect(page.locator('.pd-rundown [data-testid="rundown-note"]')).toHaveCount(0);
   expect(await geometry()).toEqual(before);
   await expect(page.locator(`[data-row="${question}"]`)).toHaveClass(/selected/);
