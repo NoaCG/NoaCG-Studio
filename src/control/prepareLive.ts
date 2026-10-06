@@ -212,10 +212,10 @@ export function stampOf(lines: readonly CheckLine[], target: HeldVersion, now: n
 export function stampWords(stamp: ReadyStamp, published: HeldVersion | null, unpublished: boolean): string {
   const at = clockWords(stamp.at);
   const since = (published && published.h !== stamp.v.h ? Math.max(1, published.n - stamp.v.n) : 0) + (unpublished ? 1 : 0);
-  if (since > 0) return `Checked ${at} on v${stamp.v.n}, ${plural(since, 'change')} since`;
-  if (stamp.problems > 0) return `Not ready, checked ${at} (v${stamp.v.n}): ${plural(stamp.problems, 'problem')}`;
-  if (stamp.warnings > 0) return `Checked ${at} (v${stamp.v.n}): ${plural(stamp.warnings, 'warning')}`;
-  return `Ready for Live, checked ${at} (v${stamp.v.n})`;
+  if (since > 0) return `Checked ${at}. Changes since this check.`;
+  if (stamp.problems > 0) return `Not ready, checked ${at}: ${plural(stamp.problems, 'problem')}`;
+  if (stamp.warnings > 0) return `Checked ${at}: ${plural(stamp.warnings, 'warning')}`;
+  return `Ready for Live, checked ${at}`;
 }
 
 /** What Prepare for Live found about NoaCG Bridge and CasparCG, gathered by the page (read-only). */

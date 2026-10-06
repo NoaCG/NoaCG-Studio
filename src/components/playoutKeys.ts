@@ -199,6 +199,24 @@ export function usePlayoutVerbKeys(onKey: (verb: PlayoutVerb, press: VerbPress) 
   }, [onKey, enabled, shortcuts]);
 }
 
+export type RundownEditKey = 'delete' | 'undo' | 'redo';
+/** Local authoring keys, separate from live verbs and hardware/exported controllers. */
+export function useRundownEditKeys(onKey: (key: RundownEditKey) => boolean, enabled: boolean): void {
+  useEffect(() => {
+    if (!enabled) return;
+    const press = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat || e.isComposing || e.altKey || e.getModifierState('AltGraph') || typingInto(e.target) || document.querySelector('[aria-modal="true"], [role="menu"]')) return;
+      const key = e.key.toLowerCase(), modified = e.ctrlKey || e.metaKey;
+      const action: RundownEditKey | null = modified
+        ? key === 'z' ? e.shiftKey ? 'redo' : 'undo' : key === 'y' && e.ctrlKey && !e.shiftKey ? 'redo' : null
+        : key === 'delete' && !e.shiftKey ? 'delete' : null;
+      if (action && onKey(action)) e.preventDefault();
+    };
+    window.addEventListener('keydown', press);
+    return () => window.removeEventListener('keydown', press);
+  }, [onKey, enabled]);
+}
+
 /**
  * Walk a rundown by one step and reveal the row. Shared for the same reason the map is: the two
  * React surfaces disagreed about what Up does from nothing selected, which is the one case an

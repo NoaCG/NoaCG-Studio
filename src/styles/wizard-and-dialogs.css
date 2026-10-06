@@ -438,7 +438,7 @@
 /* PLAYOUT SETTINGS (components/PlayoutSettingsDialog.tsx): the Settings sheet's Playout form,
    opened from a production page. Same frame, no section nav - there is one subject - so the
    content column is the whole sheet and takes the height the nav's grid used to give it. */
-.wz-modal.settings-modal.playout-settings-modal { width: min(720px, 94vw); max-width: 720px; height: min(680px, 88vh); }
+.wz-modal.settings-modal.playout-settings-modal { width: min(720px, 94vw); max-width: 720px; height: auto; max-height: 88dvh; }
 .playout-settings-modal .settings-content { flex: 1; }
 /* The playout systems, one card each. With a single system the card is not a chooser, it is
    the answer to "what does this connect to?" - stated before the form asks for an address. */

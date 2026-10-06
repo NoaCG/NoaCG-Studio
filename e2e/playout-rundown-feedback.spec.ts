@@ -25,11 +25,11 @@ test.afterEach(({ page }, info) => {
 });
 
 /** Save first, then reopen: an existing production must retain its old declarations. */
-async function savedProduction(page: Page, variant: string, legacy = false): Promise<{ id: string; js: string }> {
+async function savedProduction(page: Page, variant: string, legacy = false, caspar = false): Promise<{ id: string; js: string }> {
   await page.goto('/app#/home');
   await expect(page.getByTestId('home-page')).toBeVisible({ timeout: 30_000 });
   const snapshot = legacy ? JSON.parse(readFileSync(`e2e/fixtures/pre-671/${variant}.json`, 'utf8')) : null;
-  const seeded = await page.evaluate(async ({ variant, snapshot }) => {
+  const seeded = await page.evaluate(async ({ variant, snapshot, caspar }) => {
     const { variantById } = await import('/src/templates/catalog.ts');
     const { createGraphic } = await import('/src/model/library.ts');
     const shows = await import('/src/model/shows.ts');
@@ -37,9 +37,10 @@ async function savedProduction(page: Page, variant: string, legacy = false): Pro
     const { doc, error } = createGraphic(template, { name: template.name });
     if (error) throw new Error(error);
     const show = shows.createShowNamed(`Saved ${variant}`);
+    if (caspar) shows.setShowOutputSetup(show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     shows.addGraphicToShow(show.id, template, { graphicId: doc!.id });
     return { id: show.id, js: template.js };
-  }, { variant, snapshot });
+  }, { variant, snapshot, caspar });
   await settleDurableWrites(page);
   await page.goto(`/app#/production/${seeded.id}`);
   await expect(page.getByTestId('production-page')).toBeVisible();
@@ -124,7 +125,7 @@ for (const width of [1600, 390]) {
       { name: 'NEWS/THEME', kind: 'audio', frames: 250, fps: 25 },
       { name: 'NEWS/POSTER', kind: 'still' },
     ];
-    await savedProduction(page, 'qz01');
+    await savedProduction(page, 'qz01', false, true);
     const add = page.getByTestId('rundown-add');
     await add.click();
     const menu = page.getByTestId('rundown-add-menu');
@@ -182,7 +183,7 @@ for (const width of [1600, 390]) {
 
   test(`Add works with no selected graphic and explains missing server setup at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    const { id } = await savedProduction(page, 'qz01');
+    const { id } = await savedProduction(page, 'qz01', false, true);
     await page.evaluate(async (id) => {
       const m = await import('/src/model/shows.ts');
       m.removeShowCues(id, m.loadShows().find((s) => s.id === id)!.cues!.map((c) => c.id));

@@ -14,16 +14,15 @@ async function anonymousBackend(page: Page) {
   await page.route('https://cloudmock.invalid/**', route => route.fulfill({ contentType: 'application/json', body: '[]' }));
 }
 
-test('local-work notice leaves anonymous wizard export reachable', async ({ page }) => {
+test('quiet local-work state leaves anonymous wizard export reachable', async ({ page }) => {
   await anonymousBackend(page);
   await page.goto('/app');
-  await expect(page.getByTestId('account-save-notice')).toContainText('not saved to an account');
+  await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   await page.locator('[data-entry="template"]').click();
   await chooseType(page, 'Lower thirds');
   await pickDesign(page, 'Hairline');
   const wizard = await page.getByTestId('creation-wizard').boundingBox();
-  const notice = await page.getByTestId('account-save-notice').boundingBox();
-  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(notice!.y);
+  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
   await page.getByTestId('wz-skip-to-finish').click();
   await page.screenshot({ path: 'test-results/studio-anonymous-finish.png' });
   await page.getByTestId('wz-finish-export').click();
@@ -31,19 +30,17 @@ test('local-work notice leaves anonymous wizard export reachable', async ({ page
   await expect(page.locator('.auth-card')).toHaveCount(0);
 });
 
-test('local-work notice leaves the phone analytics decision reachable', async ({ page }) => {
+test('quiet local-work state leaves the phone analytics decision reachable', async ({ page }) => {
   await anonymousBackend(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/app');
-  await expect(page.getByTestId('account-save-notice')).toBeVisible();
+  await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   const wizard = await page.getByTestId('creation-wizard').boundingBox();
-  const saveNotice = await page.getByTestId('account-save-notice').boundingBox();
-  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(saveNotice!.y);
+  expect(wizard!.y + wizard!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
   const consent = page.getByTestId('analytics-consent');
   await expect(consent).toBeVisible();
   const prompt = await consent.boundingBox();
-  const notice = await page.getByTestId('account-save-notice').boundingBox();
-  expect(prompt!.y + prompt!.height).toBeLessThanOrEqual(notice!.y);
+  expect(prompt!.y + prompt!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
   await page.screenshot({ path: 'test-results/studio-anonymous-phone.png' });
   await consent.getByRole('button', { name: 'No thanks' }).click();
   await expect(consent).toHaveCount(0);
@@ -480,7 +477,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return respond([]);
   });
   await page.goto('/app#/home');
-  await expect(page.getByTestId('account-save-notice')).toContainText('Checking cloud revision');
+  await expect(page.locator('.sync-status')).toContainText('Checking cloud revision');
+  await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   releaseLists();
   await expect(page.locator('.sync-status')).toHaveText(/Personal library saved to cloud/, { timeout: 20000 });
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);

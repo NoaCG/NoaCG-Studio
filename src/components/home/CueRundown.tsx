@@ -120,6 +120,8 @@ interface Aim {
  * where; a drop a Play-through folder refuses says why while it hovers.
  */
 export default function CueRundown({
+  accentPreview,
+  onAccentPreview,
   show,
   cues,
   rundown,
@@ -173,6 +175,8 @@ export default function CueRundown({
   refreshRundown,
   refreshing,
 }: {
+  accentPreview?: { cueId: string; color: string } | null;
+  onAccentPreview: (cueId: string, color: string | null) => void;
   show: Show;
   cues: ShowCue[];
   /** The rows as drawn (model/rundownRows.ts). */
@@ -472,9 +476,11 @@ export default function CueRundown({
       else { libraryPick.current?.scrollIntoView({ block: 'nearest' }); libraryPick.current?.focus(); }
     } },
     { id: 'production-new-graphic', label: 'New graphic…', help: 'Create a graphic using this production’s look.', disabled: false, footer: true, run: createGraphic },
-    { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics hosted by NoaCG, up to ${MAX_PICTURES}. Uploading does not copy files to the CasparCG server.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
-    { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add images, videos, audio or templates already on the CasparCG server.' : 'Set up NoaCG Bridge and CasparCG under Setup to browse server files.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
-    { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer. Does not replace a video on the normal video layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
+    { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics, up to ${MAX_PICTURES}.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
+    ...(hasCasparOutput(show.outputSetup) || cues.some(c => c.source === 'playout') ? [
+      { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add files already on the CasparCG server.' : 'Set up NoaCG Bridge in Playout settings.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
+      { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
+    ] : []),
     { id: 'add-folder', label: 'Folder from selected cues', help: 'Group the selected rundown cues.', disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
   ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
@@ -716,7 +722,7 @@ export default function CueRundown({
               className={`pd-cue${isSelected ? ' selected' : ''}${cueAirs ? ' on-air' : cueIsLive ? ' up-here' : isPreviewed ? ' on-pvw' : ''}${inFolder ? ' in-folder' : ''}${range.has(cue.id) ? ' in-range' : ''}${cutIds.has(cue.id) ? ' cut' : ''}`}
               data-testid={rowTestId(row)}
               data-row={row.id}
-              style={{ '--pd-cue-accent': accentColor(cue.accentColor) ?? routeTone } as CSSProperties}
+              style={{ '--pd-cue-accent': accentPreview?.cueId === cue.id ? accentPreview.color : accentColor(cue.accentColor) ?? routeTone } as CSSProperties}
               {...(drop ? { 'data-drop': 'refused' in drop ? 'refused' : drop.edge } : {})}
               {...(drop && !('refused' in drop) ? { 'data-drop-inside': String(drop.inside) } : {})}
               {...(litFolder && row.folderId === litFolder ? { 'data-drop-target': '' } : {})}
@@ -916,7 +922,7 @@ export default function CueRundown({
                   }}
                   testid="cue-actions-menu"
                 >
-                  <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} />
+                  <CueAccentControl show={show} cue={cue} setShows={setShows} fallback={routeTone} onPreview={color => onAccentPreview(cue.id, color)} />
                   <button role="menuitem" data-testid="cue-shortcut" onClick={() => { setMenuRowId(null); setShortcutCue(cue.id); }}>Keyboard shortcut…</button>
                   <button
                     role="menuitem"
@@ -1142,7 +1148,6 @@ export default function CueRundown({
         {addActions.filter(action => action.footer).map(action => <button key={action.id}
           className="pd-new-graphic" disabled={action.disabled} title={action.help} data-testid={action.id}
           ref={action.id === 'add-from-server' ? serverPick : undefined} onClick={pickAdd(action.run)}>＋ {action.label}</button>)}
-        <p className="hint pd-upload-help">Uploads stay in NoaCG; they are not copied to CasparCG.</p>
         <input
           ref={pictureInput}
           type="file"

@@ -1,0 +1,138 @@
+// covers: src/components/{AccountSaveNotice,SyncStatus,PlayoutSettingsDialog}.tsx
+// covers: src/components/playoutKeys.ts, src/components/home/{ProductionPage,CueRundown,RundownColors,OutputSetupDialog}.tsx
+// covers: src/model/{shows,outputSetup}.ts
+// covers: src/styles/wizard-and-dialogs.css
+import { test, expect, type Page } from '@playwright/test';
+import { settleDurableWrites } from './_durable';
+import { seedSettings } from './_fakeBridge';
+import { parkFocusOffControls } from './_keys';
+
+async function production(page: Page, caspar = false) {
+  await seedSettings(page);
+  await page.goto('/app#/home');
+  await expect(page.getByTestId('home-page')).toBeVisible();
+  const id = await page.evaluate(async caspar => {
+    const { variantsFor } = await import('/src/templates/catalog.ts');
+    const m = await import('/src/model/shows.ts');
+    const show = m.createShowNamedChecked('Output rehearsal').show;
+    const result = m.addGraphicToShow(show.id, variantsFor('lower-third')[0].create({}));
+    if (result.error) throw new Error(result.error);
+    const source = m.loadShows().find(s => s.id === show.id)!.graphics[0];
+    for (const label of ['Second', 'Third', 'Fourth']) m.addShowCue(show.id, source.id, { label });
+    m.setShowOutputSetup(show.id, { v: 1, destinations: [{ id: caspar ? 'casparcg' : 'browser', profile: caspar ? 'casparcg' : 'browser' }] });
+    return show.id;
+  }, caspar);
+  await settleDurableWrites(page);
+  await page.goto(`/app#/production/${id}`);
+  await expect(page.locator('.pd-cue')).toHaveCount(4);
+  return id;
+}
+
+test('routine anonymous work uses persistent header state without a global notice', async ({ page }) => {
+  await page.route('**/src/backend/config.ts*', r => r.fulfill({ contentType: 'text/javascript', body: "export function loadBackendConfig(){return {url:'https://cloudmock.invalid',anonKey:'test-public-key'}};export function isBackendConfigured(){return true}" }));
+  await page.route('https://cloudmock.invalid/**', r => r.fulfill({ contentType: 'application/json', body: '[]' }));
+  await page.goto('/app#/home');
+  await expect(page.locator('.sync-status')).toHaveText('Local workspace');
+  await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/studio-feedback-quiet-saving.png' });
+});
+
+test('browser settings name the current output and hide CasparCG controls', async ({ page }) => {
+  await production(page);
+  await expect(page.getByTestId('add-from-server')).toHaveCount(0);
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  const dialog = page.getByTestId('playout-settings');
+  await expect(dialog.getByTestId('output-profile')).toHaveCount(0);
+  await expect(dialog.getByTestId('settings-production-output')).toContainText('Browser source');
+  await expect(dialog.getByTestId('caspar-host')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/studio-feedback-browser-settings.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'test-results/studio-feedback-browser-settings-phone.png' });
+});
+
+test('Delete removes the selected range and leaves native fields and open menus alone', async ({ page }) => {
+  await production(page);
+  const rows = page.locator('.pd-cue');
+  await page.locator('.pd-cue-label').nth(0).click(); await page.locator('.pd-cue-label').nth(2).click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('range-count')).toHaveText('3 selected');
+  await parkFocusOffControls(page); await page.keyboard.press('Delete');
+  await expect(rows).toHaveCount(1);
+  const field = page.getByTestId('cue-label');
+  await expect(field).toBeVisible(); await field.focus(); await page.keyboard.press('Delete'); await expect(rows).toHaveCount(1);
+  await page.getByTestId('production-setup').click();
+  await page.keyboard.press('Delete'); await expect(rows).toHaveCount(1);
+  await settleDurableWrites(page); await page.reload(); await expect(rows).toHaveCount(1);
+});
+
+test('color picker previews every event and persists one settled edit', async ({ page }) => {
+  const id = await production(page);
+  const input = page.locator('[aria-label="Cue highlight color"]');
+  await expect(input).toBeVisible();
+  const counts = await input.evaluate(async el => {
+    const { durable } = await import('/src/model/durableStore.ts');
+    const original = durable.setItem;
+    let writes = 0;
+    durable.setItem = function(key, value) { if (key === 'spx-gfx-shows') writes++; original.call(this, key, value); };
+    try {
+      for (const value of ['#112233', '#223344', '#334455', '#445566', '#556677']) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        setter.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(requestAnimationFrame);
+      }
+      const preview = document.querySelector('.pd-cue')!.getAttribute('style');
+      const beforeSettle = writes;
+      (el as HTMLInputElement).blur();
+      await new Promise(resolve => setTimeout(resolve, 600));
+      return { beforeSettle, writes, preview };
+    } finally { durable.setItem = original; }
+  });
+  expect(counts.beforeSettle).toBe(0);
+  expect(counts.writes).toBe(1);
+  expect(counts.preview).toContain('#556677');
+  await settleDurableWrites(page);
+  expect(await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!.cues![0].accentColor, id)).toBe('#556677');
+  await page.reload();
+  await expect(input).toHaveValue('#556677');
+});
+
+test('CasparCG setup can return to browser output without changing sources or links', async ({ page }) => {
+  const id = await production(page, true);
+  const before = await page.evaluate(async id => {
+    const m = await import('/src/model/shows.ts');
+    m.setShowOutputSlug(id, 'rehearsal-output');
+    return m.loadShows().find(s => s.id === id)!;
+  }, id);
+  await settleDurableWrites(page);
+  await page.getByTestId('production-setup').click();
+  await page.getByTestId('setup-playout-settings').click();
+  await expect(page.getByTestId('settings-browser-url')).toHaveValue(/rehearsal-output/);
+  await expect(page.getByTestId('caspar-host')).toBeVisible();
+  await page.getByTestId('settings-change-output').click();
+  await page.getByTestId('output-profile').selectOption('browser');
+  await page.getByTestId('confirm-output').click();
+  await expect(page.getByTestId('add-from-server')).toHaveCount(0);
+  const after = await page.evaluate(async id => (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!, id);
+  expect(after.cues).toEqual(before.cues);
+  expect(after.graphics).toEqual(before.graphics);
+  expect(after.outputSlug).toBe(before.outputSlug);
+  expect(after.outputSetup).toEqual({ v: 1, destinations: [{ id: 'browser', profile: 'browser' }] });
+  await page.getByTestId('production-status').click();
+  await expect(page.getByTestId('production-status-checks')).not.toContainText('Bridge');
+});
+
+test('additive selection, range selection and clipboard act on the intended rows', async ({ page }) => {
+  await production(page);
+  const labels = page.locator('.pd-cue-label');
+  await labels.nth(0).click();
+  await labels.nth(2).click({ modifiers: ['Control'] });
+  await expect(page.getByTestId('range-count')).toHaveText('2 selected');
+  await labels.nth(0).click();
+  await labels.nth(2).click({ modifiers: ['Shift'] });
+  await expect(page.getByTestId('range-count')).toHaveText('3 selected');
+  await parkFocusOffControls(page);
+  await page.keyboard.press('Control+c');
+  await page.keyboard.press('Control+v');
+  await expect(page.locator('.pd-cue')).toHaveCount(7);
+});

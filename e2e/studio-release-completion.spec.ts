@@ -23,9 +23,10 @@ async function rehearsal(page: Page) {
   await expect(page.getByTestId('home-page')).toBeVisible();
   const seeded = await page.evaluate(async () => {
     const { variantsFor } = await import('/src/templates/catalog.ts');
-    const { createShowNamedChecked, addGraphicToShow, loadShows } = await import('/src/model/shows.ts');
+    const { createShowNamedChecked, addGraphicToShow, loadShows, setShowOutputSetup } = await import('/src/model/shows.ts');
     const made = createShowNamedChecked('Release rehearsal');
     if (made.error) throw new Error(made.error);
+    setShowOutputSetup(made.show.id, { v: 1, destinations: [{ id: 'casparcg', profile: 'casparcg' }] });
     const template = variantsFor('lower-third')[0].create({});
     addGraphicToShow(made.show.id, { ...template, name: 'NEXT QUESTION' });
     const show = loadShows().find(s => s.id === made.show.id)!;

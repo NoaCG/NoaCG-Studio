@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { saveAs } from 'file-saver';
+import SyncStatus from '../SyncStatus';
 import { routeHash, useRouter, type ProductionSub } from '../../app/router';
 import { useTemplateStore } from '../../store/templateStore';
 import {
@@ -122,6 +123,8 @@ import {
   stepSelection,
   takeFace,
   usePlayoutVerbKeys,
+  useRundownEditKeys,
+  type RundownEditKey,
   useSpaceMode,
   type PlayoutVerb,
   type SpaceMode,
@@ -285,7 +288,7 @@ import { directCue } from '../../model/cueShortcuts';
 import { addReadyGraphicToShow as addGraphicToShow } from '../../control/productionAdmission';
 import { readMarkerAuto } from '../../control/cueAuto';
 import { useCueShortcutSet } from '../playoutKeys';
-import { versionLabel, type PayloadVersion } from '../../control/payloadVersion';
+import { type PayloadVersion } from '../../control/payloadVersion';
 import type { HeldVersion, ReadyStamp } from '../../control/readiness';
 import { requestId, slotHolds, PREPARE_WAIT_MS, type PrepRequest } from '../../control/prepareLive';
 import { casparOutputTarget, describePlayoutStatus, destinationCheck, relevantPlayout, type SlotReading, type StatusCheck } from '../../control/playoutStatus';
@@ -398,6 +401,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const rememberOutput = useRef<{ userId: string; setup: ProductionOutputSetup } | null>(null);
   const [serverFiles, setServerFiles] = useState<{ key: string; check: StatusCheck | null } | null>(null);
   const [defaultFailure, setDefaultFailure] = useState<string | null>(null);
+  const [accentPreview, setAccentPreview] = useState<{ productionId: string; cueId: string; color: string } | null>(null);
   const retryDefault = async () => {
     const pending = rememberOutput.current;
     if (!pending) return;
@@ -2277,7 +2281,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const outputUrl = show.outputSlug ? outputPageUrl(show.outputSlug) : null;
   const chosenOutput = readOutputSetup(show.outputSetup);
   const browserDestination = chosenOutput?.destinations.find(d => d.profile !== 'casparcg');
-  const browserOutputUrl = destinationUrl(outputUrl, browserDestination?.id ?? chosenOutput?.destinations[0]?.id);
+  const browserOutputUrl = destinationUrl(outputUrl, browserDestination?.id);
   const managedOutputUrl = destinationUrl(outputUrl, chosenOutput?.destinations.find(d => d.profile === 'casparcg')?.id);
   /** The PUBLIC audience URL. Only a production published against a server carrying migration
    *  0035 has one, so it stays absent rather than showing a link that would not resolve. */
@@ -4197,13 +4201,12 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  output, while a server cue airs through NoaCG Bridge either way (studio-day-playout D16). */
   const airingLayers = started ? [...liveLayers, ...livePlayoutLayers] : livePlayoutLayers;
   const upHereLayers = started ? [] : liveLayers;
-  const publishedLabel = versionLabel(publishedVer);
   const readySummary = readiness.summary.show ? readiness.summary : null;
   const unsupportedCue = bridgeOk ? cues.filter(c => c.source === 'playout').map(c => ({ cue: c, reason: takeBlocker(c, cues, playoutItems, addressOfItem, playbackAbility, folders, graphicOfCue) })).find(c => c.reason) : null;
   const playoutStatus = describePlayoutStatus({
     started,
     unpublished: requiresPreparation,
-    version: publishedLabel,
+    version: '',
     bridge: playoutRelevance.bridge ? (playoutIsConfigured ? (bridgeStatus ?? { state: 'pending', detail: '' }) : { state: 'config', detail: 'Set up NoaCG Bridge and CasparCG to play the server cues in this rundown.' }) : null,
     slot: playoutRelevance.slot && outputSlot ? { where: slotAddress(slotOf(playoutSettings)), channel: playoutSettings.channel, ...outputSlot } : undefined,
     ready: readySummary,
@@ -4243,7 +4246,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           <PlayoutStatusControl
             status={playoutStatus}
             started={started}
-            version={publishedLabel}
+            version=""
             open={statusOpen}
             onToggle={() => setStatusOpen((o) => !o)}
             onClose={() => setStatusOpen(false)}
@@ -4271,7 +4274,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 />
               ) : (
                 <p className="pd-ready-empty" data-testid="playout-panel-start-hint">
-                  Press Publish &amp; check readiness beside the status to prepare browser graphics and get their output URL. CasparCG server cues play directly on their assigned output, even before publishing.
+                  Publish &amp; check readiness to prepare graphics and get the browser source URL.
                 </p>
               )}
               {defaultFailure && <p className="status-warn" role="alert" data-testid="output-default-failure">Published successfully, but your account default was not saved: {defaultFailure} <button onClick={() => void retryDefault()}>Retry saving default</button></p>}
@@ -4300,13 +4303,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 <button disabled={busy || !authoringAllowed} onClick={() => setOutputDialog({ id: show.id, publishing: false, forPrepare: false })}>Change output…</button>
                 {!show.outputSetup && <p className="hint">Existing links and routes are unchanged. Select an output here to tailor setup and readiness.</p>}
               </div>
-              <p className="pd-ready-empty" data-testid="playout-setup-summary">
+              {playoutRelevance.bridge && <p className="pd-ready-empty" data-testid="playout-setup-summary">
                 {playoutIsConfigured
                   ? `CasparCG ${playoutSettings.host}:${playoutSettings.amcpPort} · NoaCG output ${slotAddress(slotOf(playoutSettings))} · ${playoutSettings.channels.length} channel${playoutSettings.channels.length === 1 ? '' : 's'}`
-                  : playoutRelevance.bridge ? 'Pair NoaCG Bridge to use CasparCG.' : 'CasparCG is optional. Browser outputs do not require NoaCG Bridge.'}
-              </p>
+                  : 'Pair NoaCG Bridge to use CasparCG.'}
+              </p>}
               <button onClick={() => setPlayoutSettingsOpen(true)} data-testid="playout-settings-open">
-                {playoutIsConfigured ? 'Server and channels…' : 'Set up CasparCG…'}
+                Playout settings…
               </button>
               <AccountAuthoringGate><RundownColors show={show} settings={playoutSettings} setShows={setShows} /></AccountAuthoringGate>
             </PlayoutPanelSection>
@@ -4360,6 +4363,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       views={views}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
+      onEditKey={key => {
+        if (key !== 'delete' || !canAuthorAccount()) return false;
+        const ids = editIds();
+        if (!ids.length) return false;
+        void removeCues(ids);
+        return true;
+      }}
       renders={renders.current}
       sub={sub ?? null}
       onTab={() => navigate({ view: 'production', id: show.id })}
@@ -5010,7 +5020,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           />
         )}
 
-        {editingCue && <CueAccentControl show={show} cue={editingCue} setShows={setShows} fallback={routeColor(show.rundownColors, selectedPlayoutItem ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : itemSlot(playoutSettings, selectedPlayoutItem).channel : undefined)} />}
+        {editingCue && <CueAccentControl key={`${show.id}:${editingCue.id}`} show={show} cue={editingCue} setShows={setShows} onPreview={color => setAccentPreview(color ? { productionId: show.id, cueId: editingCue.id, color } : null)} fallback={routeColor(show.rundownColors, selectedPlayoutItem ? throughRoleOf(editingCue) ? folderSlot(playoutSettings, throughRoleOf(editingCue)!.folder).channel : itemSlot(playoutSettings, selectedPlayoutItem).channel : undefined)} />}
         {!liveFirst && liveBlock}
 
         <ActionLog entries={wireLog} published={!!hostedSlug && backendConfigured} />
@@ -5018,6 +5028,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       </section>
 
       <CueRundown
+        accentPreview={accentPreview?.productionId === show.id ? accentPreview : null}
+        onAccentPreview={(cueId, color) => setAccentPreview(color ? { productionId: show.id, cueId, color } : null)}
         show={show}
         cues={cues}
         rundown={rundown}
@@ -5088,6 +5100,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       {exportOpen && <ProductionExportDialog show={show} onClose={() => setExportOpen(false)} />}
       {playoutSettingsOpen && (
         <PlayoutSettingsDialog
+          setup={show.outputSetup}
+          casparRelevant={playoutRelevance.bridge}
+          browserUrl={browserOutputUrl}
+          onChooseOutput={() => { setPlayoutSettingsOpen(false); setOutputDialog({ id: show.id, publishing: false, forPrepare: false }); }}
+          onCopyBrowser={() => browserOutputUrl && copy('output', browserOutputUrl)}
+          onDownloadTemplate={downloadEmbed}
+          copied={copied === 'output'}
           outputUrl={managedOutputUrl}
           onOutputOnAir={(result, target) => onAirChanged('air', result, target)}
           onClose={() => {
@@ -5124,6 +5143,7 @@ function ProductionShell({
   views,
   onExport,
   onKey,
+  onEditKey,
   renders,
   children,
 }: {
@@ -5156,6 +5176,7 @@ function ProductionShell({
   views: { data: boolean; audience: boolean; waiting: number };
   onExport: () => void;
   onKey: (key: PlayoutVerb, press?: VerbPress) => void;
+  onEditKey: (key: RundownEditKey) => boolean;
   /** The page's render count, for the spec that proves a clip's clock does not re-render it. */
   renders?: number;
   children: React.ReactNode;
@@ -5168,6 +5189,7 @@ function ProductionShell({
   // from a screen showing neither monitor. The hosted page has no workspaces and passes nothing.
   const shortcuts = useCueShortcutSet(show.cues ?? [], show.id);
   usePlayoutVerbKeys(onKey, sub === null, shortcuts.bindings);
+  useRundownEditKeys(onEditKey, sub === null);
   const teamsAvailable = useTeamsAvailable();
   const openShare = useTeamsUi((s) => s.openShare);
   const openTeam = useTeamsUi((s) => s.openTeam);
@@ -5317,6 +5339,7 @@ function ProductionShell({
             2026-10-01: operators build muscle memory).
             Team identity and its door live inside Setup, gated by useTeamsAvailable.
             Saving… and Not saved stay visible: an operator must not miss either state. */}
+        {!show.teamId && <SyncStatus compact />}
         {show.teamId && saving && <span className={`pd-team-save ${saving}`} role="status" data-testid="production-team-save">{saving === 'pending' ? 'Saving…' : 'Not saved'}</span>}
         {/* The panel's status, only while it is switched on: "Panel ✓" answering, "Panel …"
             connecting. A press opens its dialog, as the Setup menu's item does. */}

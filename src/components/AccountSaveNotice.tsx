@@ -15,7 +15,10 @@ export default function AccountSaveNotice() {
   useEffect(() => subscribeTeamState(() => setTeams(getTeamState())), []);
   const owner = libraryInUse();
   const pending = Object.keys(teams.saving).length > 0;
-  const visible = isBackendConfigured() && !(owner && sync.phase === 'synced' && !pending && !teams.loadError);
+  const paused = owner && !canAuthorAccount();
+  // Ordinary saving belongs in the header. Keep recovery visible only when action is needed.
+  const failed = sync.phase === 'error' || Object.values(teams.saving).includes('failed') || !!teams.loadError;
+  const visible = isBackendConfigured() && !!owner && (paused || failed);
   // Reserve the actual wrapped height, including the bottom margins. The notice stays outside
   // the authoring gate, so recovery remains reachable, without covering a wizard or consent key.
   useLayoutEffect(() => {
@@ -31,11 +34,8 @@ export default function AccountSaveNotice() {
     };
   }, [visible]);
   if (!visible) return null;
-  const paused = owner && !canAuthorAccount();
-  const label = !owner ? 'Local workspace. This work is not saved to an account.'
-    : paused ? 'Account editing paused. Sign in again. Pending work is preserved on this device.'
-    : sync.firstPass ? 'Checking cloud revision. Cached work is not yet confirmed.'
-    : 'Not saved to cloud. Keep this device’s work until saving is confirmed.';
+  const label = paused ? 'Account editing paused. Sign in again. Pending work is preserved on this device.'
+    : 'Not saved to cloud. Pending work stays on this device.';
   const recover = () => {
     if (!owner) return;
     const url = URL.createObjectURL(new Blob([exportPendingTeamWork(owner) ?? '{}'], { type: 'application/json' }));

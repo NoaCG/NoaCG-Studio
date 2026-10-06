@@ -1,4 +1,4 @@
-import { outputProfileLabel, type OutputProfile } from '../../model/outputSetup';
+import { type OutputProfile } from '../../model/outputSetup';
 import { useState } from 'react';
 import { casparOutputTarget } from '../../control/playoutStatus';
 import {
@@ -304,7 +304,7 @@ export function ProductionLinkRows({
   return (
     <div data-testid="production-links">
       <LinkRow
-        label={outputProfile ? `${outputProfileLabel(outputProfile)} URL` : 'Output URL'}
+        label={outputProfile === 'spx' ? 'SPX URL' : 'Browser source'}
         testId="output-url"
         help={
           <>

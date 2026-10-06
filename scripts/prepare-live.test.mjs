@@ -74,15 +74,15 @@ test('the stamp counts what the checklist found, and says it in the plan’s wor
     at,
   );
   assert.deepEqual(clean, { at, v: V12, outputs: 2, ready: 2, warnings: 0, problems: 0 });
-  assert.equal(stampWords(clean, V12, false), 'Ready for Live, checked 14:02 (v12)');
+  assert.equal(stampWords(clean, V12, false), 'Ready for Live, checked 14:02');
   // It keeps its honesty after a change.
-  assert.equal(stampWords(clean, V13, false), 'Checked 14:02 on v12, 1 change since');
-  assert.equal(stampWords(clean, V12, true), 'Checked 14:02 on v12, 1 change since');
-  assert.equal(stampWords(clean, { n: 14, h: 'c' }, true), 'Checked 14:02 on v12, 3 changes since');
+  assert.equal(stampWords(clean, V13, false), 'Checked 14:02. Changes since this check.');
+  assert.equal(stampWords(clean, V12, true), 'Checked 14:02. Changes since this check.');
+  assert.equal(stampWords(clean, { n: 14, h: 'c' }, true), 'Checked 14:02. Changes since this check.');
   const warned = stampOf([{ key: 'output-a', tone: 'warn', label: 'A: Using a fallback font' }], V12, at);
-  assert.equal(stampWords(warned, V12, false), 'Checked 14:02 (v12): 1 warning');
+  assert.equal(stampWords(warned, V12, false), 'Checked 14:02: 1 warning');
   const bad = stampOf([{ key: 'output-a', tone: 'bad', label: 'A: not answering' }, { key: 'bridge', tone: 'bad', label: 'x' }], V12, at);
-  assert.equal(stampWords(bad, V12, false), 'Not ready, checked 14:02 (v12): 2 problems');
+  assert.equal(stampWords(bad, V12, false), 'Not ready, checked 14:02: 2 problems');
 });
 
 test('a prepare request is read defensively', () => {
