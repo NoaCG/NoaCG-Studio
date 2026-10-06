@@ -43,6 +43,7 @@ export function inspectOrganization(template: Pick<SpxTemplate, 'html'>) {
   catch (cause) { return { ...empty(), reason: cause instanceof Error ? cause.message : String(cause) }; }
 }
 export function writeOrganization(template: SpxTemplate, value: EditorOrganization): SpxTemplate {
+  readOrganization(template);
   // Escaping every hyphen/angle bracket prevents comment termination in user names.
   const json = JSON.stringify(value).replace(/-/g, '\\u002d').replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
   const comment = value.folders.length || value.bins.length ? '<!-- NOACG_ORGANIZATION ' + json + ' -->\n' : '';

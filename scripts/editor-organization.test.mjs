@@ -25,6 +25,7 @@ test('future versions, unknown fields and invalid trees stay read-only', () => {
   for (const value of [{ ...organization, version: 99 }, { ...organization, future: true }, { ...organization, folders: [{ ...organization.folders[0], parent: 'folder:1' }] }, { ...organization, folders: [{ ...organization.folders[0], members: ['#art', '#art'] }] }]) {
     const source = { ...plain, html: '<!-- NOACG_ORGANIZATION ' + JSON.stringify(value) + ' -->\n' + plain.html };
     assert.throws(() => readOrganization(source), /unsupported/); assert.match(inspectOrganization(source).reason, /unsupported/);
+    assert.throws(() => writeOrganization(source, organization), /unsupported/);
   }
 });
 test('a metadata-shaped string inside artwork code cannot be rewritten as a source header', () => {
