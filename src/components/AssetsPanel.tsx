@@ -33,6 +33,7 @@ export interface AssetPanelActions {
   move: (from: string, to: string) => string;
   remove: (path: string) => void;
   place: (asset: AssetFile) => void;
+  placeReason?: string;
   replace?: (asset: AssetFile) => void;
 }
 
@@ -520,8 +521,9 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
       {selected && <><AssetInfoSection asset={selected} bucketFolders={foldersFor(selected)} onMove={handleMove} onRemove={actions ? path => {
         try { actions.remove(path); setNote(null); } catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
       } : undefined} />
-        {actions && isImageAsset(selected.path) && <div className="row"><button onClick={() => actions.place(selected)}>Place image</button>
-          {actions.replace && <button onClick={() => actions.replace?.(selected)}>Replace selected image</button>}</div>}
+        {actions && isImageAsset(selected.path) && <><div className="row"><button disabled={!!actions.placeReason} onClick={() => actions.place(selected)}>Place image</button>
+          {actions.replace && <button onClick={() => actions.replace?.(selected)}>Replace selected image</button>}</div>
+          {actions.placeReason && <p className="hint">{actions.placeReason}</p>}</>}
       </>}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import type { groupHierarchy } from '../../blocks/editorGroups';
 import type { KeyRef } from '../../blocks/animEdit';
 import { ownerOf, readTimeline, type TimelineView } from './timelineView';
 import type { EditorSession, Revision } from './session';
@@ -17,6 +18,7 @@ type Marquee = { x0: number; y0: number; x1: number; y1: number; base: KeyRef[] 
 type KeyDrag = { keys: KeyRef[]; ids: Set<string>; select: boolean; row: string; time: number; x: number; width: number; expected: Revision; moved: boolean; delta: number; refused: string; checked: Map<number, string> };
 
 interface Props {
+  groupScope: string | null; enterGroup: (selector: string) => void; hierarchy: ReturnType<typeof groupHierarchy>;
   view: TimelineView; fps: number; time: number; selection: string[];
   seek: (time: number) => void; select: (selector: string | null, toggle: boolean) => void;
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean;
@@ -24,7 +26,9 @@ interface Props {
   session: EditorSession; pause: () => void;
   inspectOut: () => void; playOut: () => void; parkOut: () => void; inspectStep: (index: number) => void;
 }
-export default function Timeline({ view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
+export default function Timeline({ groupScope, enterGroup, hierarchy, view, fps, time, selection, seek, select, undo, redo, canUndo, canRedo, playing, togglePlayback, session, pause, inspectOut, playOut, parkOut, inspectStep }: Props) {
+  const visibleParts = view.parts.filter(part => part.selector === groupScope || (hierarchy.parent[part.selector] ?? null) === groupScope);
+  const localStart = groupScope ? Math.min(...view.bars.filter(bar => bar.selector === groupScope).map(bar => bar.start), view.duration) : 0;
   const [units, setUnits] = useState<'seconds' | 'frames'>('seconds');
   // Key selection and the properties shown under each layer are editor UI state only.
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -69,7 +73,8 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
   const limit = session.port.view().cue === view.segments.length - 1 ? extent : view.duration;
   const interval = extent <= 5 ? 0.5 : extent <= 12 ? 1 : Math.ceil(extent / 10);
   const ticks = Array.from({ length: Math.floor(extent / interval) + 1 }, (_, i) => i * interval);
-  const display = (value: number) => units === 'seconds' ? value.toFixed(2) + ' s' : Math.round(value * fps) + ' f';
+  const displayRoot = (value: number) => units === 'seconds' ? value.toFixed(2) + ' s' : Math.round(value * fps) + ' f';
+  const display = (value: number) => displayRoot(value - localStart);
   const fromPointer = (clientX: number) => {
     const box = ruler.current?.getBoundingClientRect();
     if (box) seek(Math.max(0, Math.min(limit, Math.round((clientX - box.left) / box.width * extent * 1e6) / 1e6)));
@@ -252,15 +257,16 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
       <span className="ef-spacer" /><KeyEase session={session} data={view.data} keys={keys} menu={menu} close={closeMenu} pause={pause} /><button disabled={!canUndo} onClick={undo}>Undo</button><button disabled={!canRedo} onClick={redo}>Redo</button>
       <span className="ef-muted">{fps} fps</span></div>
     <div className="ef-transport">
-      <button disabled={!!view.reason} onClick={() => seek(0)} aria-label="Go to beginning">|◀</button>
+      <button disabled={!!view.reason} onClick={() => seek(localStart)} aria-label="Go to beginning">|◀</button>
       <button disabled={!!view.reason} onClick={() => seek(Math.max(0, (Math.round(time * fps) - 1) / fps))} aria-label="Previous frame" title="Previous frame">‹|</button>
       <button disabled={!!view.reason || !view.duration} onClick={togglePlayback} aria-label={playing ? 'Pause' : 'Play'} title="Space: play/pause. At a cue, replay the current segment.">{playing ? 'Ⅱ Pause' : '▶ Play'}</button>
       <button disabled={!!view.reason} onClick={() => seek(Math.min(limit, (Math.round(time * fps) + 1) / fps))} aria-label="Next frame" title="Next frame">|›</button>
-      <output data-testid="foundation-clock">{display(time)}</output>
+      <output data-testid="foundation-clock">{displayRoot(time)}</output>
       <span className="ef-muted">{Math.round(time * fps)} frames</span>
       <span className="ef-spacer" />
-      <AddStep session={session} view={view} time={time} pause={pause} seek={seek} />
-      <OutControls ref={out} session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />
+      {!groupScope && <AddStep session={session} view={view} time={time} pause={pause} seek={seek} />}
+      {!groupScope && <OutControls ref={out} session={session} view={view} time={time} pause={pause} inspect={inspectOut} playOut={playOut} park={parkOut} />}
+      {groupScope && <span className="ef-muted">Step and Out are edited in Composition</span>}
       <label>Ruler <select aria-label="Ruler units" value={units} onChange={event => setUnits(event.target.value as typeof units)}>
         <option value="seconds">Seconds</option><option value="frames">Frames</option>
       </select></label>
@@ -268,9 +274,9 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
     {view.reason ? <p className="ef-notice">{view.reason}</p> : null}
     <div className="ef-track-scroll" ref={tracks} onPointerDown={startMarquee} onPointerMove={moveMarquee} onPointerUp={endMarquee}
       onPointerCancel={cancelMarquee} onLostPointerCapture={cancelMarquee}>
-      <div className="ef-ruler-row"><span className="ef-layer-heading">Layers</span>
-        <div ref={ruler} className="ef-ruler" role="slider" aria-label="Playhead" tabIndex={0} data-extent={extent}
-          aria-valuemin={0} aria-valuemax={limit} aria-valuenow={time} aria-valuetext={display(time)}
+      <div className="ef-ruler-row" data-testid={groupScope ? "foundation-local-ruler" : undefined}><span className="ef-layer-heading">{groupScope ? "Group local time · " + display(time) : "Layers"}</span>
+        <div ref={ruler} className="ef-ruler" role="slider" aria-label={groupScope ? "Group local playhead" : "Playhead"} tabIndex={0} data-extent={extent}
+          aria-valuemin={-localStart} aria-valuemax={limit - localStart} aria-valuenow={time - localStart} aria-valuetext={display(time)}
           aria-disabled={!!view.reason} data-testid="foundation-ruler"
           onPointerDown={event => {
             if (view.reason || event.button !== 0) return;
@@ -283,37 +289,39 @@ export default function Timeline({ view, fps, time, selection, seek, select, und
           onKeyDown={event => {
             if (event.key === 'Escape' && startTime.current !== null) { seek(startTime.current); startTime.current = null; return; }
             if (view.reason) return;
-            const next = event.key === 'Home' ? 0 : event.key === 'End' ? view.duration :
+            const next = event.key === 'Home' ? localStart : event.key === 'End' ? view.duration :
               event.key === 'ArrowLeft' ? (Math.round(time * fps) - (event.shiftKey ? 10 : 1)) / fps :
               event.key === 'ArrowRight' ? (Math.round(time * fps) + (event.shiftKey ? 10 : 1)) / fps : null;
             if (next !== null) { event.preventDefault(); seek(Math.max(0, Math.min(limit, next))); }
           }}>
           {ticks.map(tick => <span className="ef-tick" key={tick} style={{ left: tick / extent * 100 + '%' }}>{display(tick)}</span>)}
           <span className="ef-flag" style={{ left: 0 }}>In</span>
-          {!view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
+          {groupScope && view.segments.filter(segment => segment.index > 0).map(segment => <span className="ef-flag" key={segment.index} style={{left:segment.start / extent * 100 + '%'}}>{segment.name}</span>)}
+          {!groupScope && !view.reason && view.segments.filter(s => s.index > 0).map(s => <StepFlag key={s.index} segment={s} view={view} extent={extent} fps={fps}
             snaps={snaps} playhead={time} selected={cue === s.index} session={session} pause={pause} display={display}
             inspect={() => inspectStep(s.index)} setOut={to => out.current?.setOutAt(to)} />)}
           <span className="ef-playhead-head" style={{ left: time / extent * 100 + '%' }} />
         </div>
       </div>
-      {view.parts.map((part, index) => {
+      {visibleParts.map((part, index) => {
         const bars = view.bars.filter(b => b.selector === part.selector);
         // A layer's keys live under its owner (R1.2a.6): its own selector or another naming only it.
-        const properties = layerKeys(view.data, ownerOf(view, part.selector)), open = expanded.includes(part.selector);
+        const properties = layerKeys(view.data, ownerOf(view, part.selector)).filter(row => !hierarchy.groups.has(part.selector) || row.property !== 'transformOrigin'), open = expanded.includes(part.selector);
         return <div key={part.selector} className="ef-layer-group">
-          <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector}>
+          <div className={'ef-track' + (selection.includes(part.selector) ? ' is-selected' : '')} data-selector={part.selector} data-testid={part.selector === groupScope ? "foundation-parent-bar" : undefined}>
             <div className="ef-layer-cell">
               {properties.length ? <button className="ef-twirl" aria-label={'Animated properties of ' + part.label} aria-expanded={open}
                 onClick={() => setExpanded(open ? expanded.filter(s => s !== part.selector) : [...expanded, part.selector])}>{open ? '▾' : '▸'}</button> : <span className="ef-twirl" />}
               <button className="ef-layer" aria-pressed={selection.includes(part.selector)}
                 onClick={event => select(part.selector, event.shiftKey || event.ctrlKey || event.metaKey)}>
                 <span className="ef-layer-number">{String(index + 1).padStart(2, '0')}</span>
-                <span className="ef-layer-icon">{part.kind === 'line' ? 'T' : part.kind === 'image' ? '▧' : '◇'}</span>
+                <span className="ef-layer-icon">{hierarchy.groups.has(part.selector) ? '▣' : part.kind === 'line' ? 'T' : part.kind === 'image' ? '▧' : '◇'}</span>
                 <span style={{ paddingInlineStart: (part.depth ?? 0) * 8 }}>{part.label}</span>
               </button>
+              {hierarchy.groups.has(part.selector) && part.selector !== groupScope && <button className="ef-enter-group" aria-label={'Edit ' + part.label} onClick={() => enterGroup(part.selector)}>↳</button>}
             </div>
             <div className={'ef-track-lane' + (reasonRow === part.selector + '\n' ? ' has-key-reason' : '')}>
-              {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} bar={bar} label={part.label} extent={extent} speed={speed} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
+              {bars.map((bar, i) => <LayerBar key={bar.step + ':' + i} group={hierarchy.groups.has(part.selector)} bar={bar} label={part.label} extent={extent} speed={speed} fps={fps} session={session} pause={pause} select={() => select(part.selector, false)} />)}
               {moments(properties.flatMap(row => row.keys)).map(group => keyButton(group, part.selector, part.label, part.selector + '\n'))}
               {keyMoveReason(part.selector + '\n')}
               <span className="ef-playhead-line" style={{ left: time / extent * 100 + '%' }} />

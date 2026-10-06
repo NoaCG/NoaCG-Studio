@@ -121,6 +121,7 @@ export function editArtworkStyle(template: SpxTemplate, selector: string, patch:
     }
   }
   for (const color of [patch.color, patch.fill]) if (color !== undefined && !/^#[\da-f]{6}$/i.test(color)) throw new Error('Choose a solid six-digit hex colour.');
+  if (patch.fill !== undefined && node.hasAttribute('data-noacg-group')) throw new Error('Select a group member to change its fill. The group owns their transform.');
   if (patch.fill !== undefined && (text || !['div', 'rect', 'ellipse', 'circle', 'path', 'polygon'].includes(node.tagName.toLowerCase()))) throw new Error('Select a solid shape to change its fill.');
   const properties = [patch.fontId !== undefined && 'font-family', patch.fontSize !== undefined && 'font-size', patch.color !== undefined && (svg ? 'fill' : 'color'), patch.fill !== undefined && (svg ? 'fill' : 'background'), patch.opacity !== undefined && 'opacity',
     patch.weight !== undefined && 'font-weight', patch.lineHeight !== undefined && 'line-height', patch.letterSpacing !== undefined && 'letter-spacing'].filter(Boolean) as string[];

@@ -13,10 +13,12 @@ import { commitSvgIdentity } from '../../blocks/svgIdentity';
 import { importAssets, placeGraphicImage, removeUnusedAsset, renameGraphicAsset, replaceGraphicImage } from '../../blocks/editorImages';
 import type { AssetFile } from '../../model/types';
 import { createPath, editPath, editPathPaint, type PathPaint } from '../../blocks/editorPaths';
+import { applyGroup, type GroupOperation } from '../../blocks/editorGroups';
 import type { PathGeometry } from '../../blocks/pathGeometry';
 
 /** Bounded source operations. New tools extend this registry, never mutate their own scene. */
 export type EditorOperation =
+  | GroupOperation
   | SoundOperation
   | AnimationOperation
   | KeyEaseOperation
@@ -65,6 +67,13 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
   const targets = new Set<string>();
   const identities: Record<string, string> = {};
   for (let operation of operations) {
+    if (committed && operation.kind === 'group.create') {
+      operation = { ...operation, selectors: operation.selectors.map(original => {
+        const identity = commitSvgIdentity(next, original); next = identity.template;
+        if (identity.selector !== original) identities[original] = identity.selector;
+        return identity.selector;
+      }) };
+    }
     if (committed && 'selector' in operation) {
       const original = operation.selector;
       const identity = identities[original] ? { template: next, selector: identities[original] } : commitSvgIdentity(next, original);
@@ -72,7 +81,9 @@ export function applyOperations(template: SpxTemplate, operations: EditorOperati
       if (identity.selector !== original) identities[original] = identity.selector;
       operation = { ...operation, selector: identity.selector };
     }
-    if (operation.kind === 'path.create') {
+    if (operation.kind === 'group.create' || operation.kind === 'group.ungroup' || operation.kind === 'group.move' || operation.kind === 'group.trim') {
+      const result = applyGroup(next, operation); next = result.template; result.targets.forEach(target => targets.add(target));
+    } else if (operation.kind === 'path.create') {
       const result = createPath(next, operation.geometry, operation.time); next = result.template; targets.add(result.selector);
     } else if (operation.kind === 'path.edit') {
       next = editPath(next, operation.selector, operation.geometry); targets.add(operation.selector);

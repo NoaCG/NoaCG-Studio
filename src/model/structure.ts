@@ -213,6 +213,7 @@ export function getTemplateParts(html: string, fields: SpxField[] = [], nestedSv
     const art = unique(`.${prefix}-art`);
     if (art && art.tagName.toLowerCase() === 'svg') {
       for (const child of svgLayerElements(art)) {
+        if (child.hasAttribute('data-noacg-carrier')) continue;
         parts.push({
           selector: `#${child.getAttribute('id')}`,
           kind: 'block',
@@ -221,7 +222,7 @@ export function getTemplateParts(html: string, fields: SpxField[] = [], nestedSv
         });
       }
       if (nestedSvg) for (const node of art.querySelectorAll('g,rect,circle,ellipse,path,polygon,polyline,line,text,image,use')) {
-        if (node.closest('defs,clipPath,mask,symbol,pattern,marker')) continue;
+        if (node.closest('defs,clipPath,mask,symbol,pattern,marker') || node.hasAttribute('data-noacg-carrier')) continue;
         let hidden = false;
         for (let ancestor: Element | null = node; ancestor && ancestor !== art; ancestor = ancestor.parentElement) {
           if (isHiddenNode(ancestor, art) || /(?:^|\s)[\w-]+-(?:outlined|removed|[a-z]+state|look)(?:\s|$)/.test(ancestor.getAttribute('class') ?? '')) hidden = true;
@@ -336,6 +337,8 @@ export function getTemplateParts(html: string, fields: SpxField[] = [], nestedSv
     if (/^f\d+$/.test(el.id) || !unique(`#${el.id}`) || parts.some(part => part.selector === '#' + el.id)) continue; // field imgs handled above
     parts.push({ selector: `#${el.id}`, kind: 'block', label: el.id, channel: 'rise' });
   }
+
+  for (const part of parts) if (doc.querySelector(part.selector)?.hasAttribute('data-noacg-group')) part.label = 'Group ' + part.selector.replace(/^#group-/, '');
 
   if (nestedSvg) {
     const nodes = new Map(parts.map(part => [part.selector, doc.querySelector(part.selector)!]));

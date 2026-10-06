@@ -5,19 +5,20 @@ import { locateAnimData } from './animData';
 import { addFieldToDefinition } from './edit';
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-function layerNode(template: SpxTemplate, selector: string) {
+export function artworkLayerNode(template: SpxTemplate, selector: string) {
   const node = artworkNode(template, selector);
   const placed = placedLines(template.html, template.css)[selector];
   const wrapper = placed ? node.ownerDocument.getElementById(placed.wrapperId) : null;
   // Catalog masks belong to their sole text line, not to the surrounding panel.
   const mask = node.parentElement;
-  const target = wrapper ?? (mask?.className && typeof mask.className === 'string' && /(?:^|\s)[\w-]+-mask(?:\s|$)/.test(mask.className) && mask.children.length === 1 ? mask : node);
+  let target = wrapper ?? (mask?.className && typeof mask.className === 'string' && /(?:^|\s)[\w-]+-mask(?:\s|$)/.test(mask.className) && mask.children.length === 1 ? mask : node);
+  while (target.parentElement?.hasAttribute('data-noacg-carrier') && target.parentElement.children.length === 1) target = target.parentElement;
   if (!target.parentElement || target.closest('defs') || target === node.ownerDocument.body || /-box$/.test(target.className?.toString() ?? '')) throw new Error('Select an artwork layer inside the graphic, not its container.');
   return target;
 }
 
 export function reorderArtwork(template: SpxTemplate, selector: string, direction: 'forward' | 'backward'): SpxTemplate {
-  const node = layerNode(template, selector);
+  const node = artworkLayerNode(template, selector);
   const sibling = direction === 'forward' ? node.nextElementSibling : node.previousElementSibling;
   if (!sibling || ['script', 'style', 'defs'].includes(sibling.tagName.toLowerCase())) return template;
   const a = artworkRange(template.html, node), b = artworkRange(template.html, sibling);
@@ -102,7 +103,7 @@ function layerCss(css: string, mapping: Map<string, string>, remove: boolean) {
 }
 
 export function changeArtworkLayer(template: SpxTemplate, selector: string, action: 'duplicate' | 'delete') {
-  const node = layerNode(template, selector), range = artworkRange(template.html, node);
+  const node = artworkLayerNode(template, selector), range = artworkRange(template.html, node);
   const markup = template.html.slice(range.start, range.end);
   if (node.matches('[data-noacg-role], [data-noacg-el]') || node.querySelector('[data-noacg-role], [data-noacg-el]')) throw new Error('This layer belongs to a behavior or responsive layout. Keep its structural bindings intact.');
   const ids = [node, ...node.querySelectorAll('[id]')].map(n => n.id).filter(Boolean);
