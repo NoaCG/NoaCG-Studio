@@ -115,15 +115,36 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   passes 20/20, including same-tick flushes and a refused-write recovery. Clear a draft only after
   accepting it and flush only actual pending input. Verify this correction against the complete
   isolated backend and frozen affected suite, then clean generated captures before the final build.
+- Correction `bdab14b66` is committed/pushed. Fault-clock fixture `j-3474`, TypeScript and focused
+  lint pass. Full backend `37402521872`, CI `37402512539` and local affected run `j-3475` use
+  the frozen executable sources. No workflow, retry/count guard, hosted configuration or studio
+  service was changed.
+  CI `37402512539` now passed on its first attempt, all ten shards, combined report, gate,
+  Build, Factory and catalog. Vercel confirms it skipped deployment. The full backend run also
+  passed: 78 passed, zero failed, zero flaky and ten allowed skips, above the unchanged minimum
+  of 71. All migrations/schema/grants/auth checks and seven private relay cases passed against
+  the disposable Supabase stack. The live preparation and three-member team reconciliation
+  regressions now pass. Local `j-3475` passed, exit 0: 1,463 active browser checks / 542 skips,
+  plus catalog 35/35. Its 25 generated captures were retained/restored, and the passing full
+  backend report was downloaded. Final clean build `j-3476` passed, exit 0: 2,458 active gate
+  tests / three skips, TypeScript, full lint, architecture, bundle, prerender and final scans.
+  Executable sources remained unchanged from `bdab14b66`. Only result prose changed afterwards.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).
   SHA-256 `B7124D78628A1DA81D2F1D359B99089D9A7E7EA2409DE701A931F6F756642FCD`.
   Package manifest, archive paths and bundled-JavaScript syntax checked. This does not establish
-  Companion runtime behavior. The isolated backend relay delivery cases passed in the partial
-  run; the complete guarded backend suite is still required.
+  Companion runtime behavior. The isolated relay delivery cases and complete guarded backend
+  suite pass; physical panel and receiving-host behavior still require off-air rehearsal.
 
 ## Continuation without a schedule
+
+Automated preparation is complete. The remaining gates require the original three clips,
+recorded ATEM audio, actual receiving-host rehearsal and two devices. Supply an isolated test
+build before the operator follows the rehearsal checklist; these controls are not deployed.
+The historical home-edit incident still needs the student's account/time/home-browser evidence.
+Keep release verification failing until the physical acceptance gates pass; this is an evidence
+boundary, not a request for another permission mark.
 
 Resume this same checkout and branch. Read this file, `verification.md`, and compact job state.
 Inspect existing job receipts before starting anything; never duplicate an owned or waiting job.

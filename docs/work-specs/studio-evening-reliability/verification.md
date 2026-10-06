@@ -3,10 +3,16 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Corrected product commit `9ae6c5037` is published; the branch is not merged or deployed.
+Corrected product commit `bdab14b66` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
 an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
+
+Automated verification is complete on `bdab14b66`: first-attempt CI, the full guarded backend
+suite, the local affected browser/catalog suite and the clean build pass. Review and
+simplification ran inline; all 25 confirmed findings are fixed. Release verification remains
+held for the actual media, recorded program audio and cross-device rehearsal. The receipts
+below preserve earlier failures as well as their final passing replacements.
 
 ## Review and simplification
 
@@ -71,7 +77,7 @@ stable rendering library separately from fresh picker choices. The 512 KB limit 
 | Attached and independent audio | Existing browser sound tests plus shared-cue rehearsal; independent native effects use their own slot and leave video/selection intact. | Recorded ATEM program audio from the installed HTML producer, channels 1 and 2. Host support remains unverified until recorded. |
 | SVG and eligibility | Browser rehearsal preserves painted definitions, strips oversized non-rendering metadata, flags off-canvas text, and refuses an oversized rundown draft. Existing import/export tests exercise the shared gate. | Actual corrected Illustrator delivery artwork review. Known quiz cause is not reopened. |
 | Unified readiness | Readiness tests and browser flow cover publishing/checking, cue-only adoption and deferred asset preparation while on air. | Actual receiving output and controlled studio rehearsal. |
-| Direct cue shortcuts | V/F restart independent effects with the next question selected; typing, duplicates, reserved keys, removed bindings and held-key repeats stay quiet. Companion module tests cover the same fixed cue-ID verb. | Companion relay migration executed only in an isolated test database before rollout; actual panel rehearsal. |
+| Direct cue shortcuts | V/F restart independent effects with the next question selected; typing, duplicates, reserved keys, removed bindings and held-key repeats stay quiet. Companion module tests cover the same fixed cue-ID verb; isolated SQL/API/Realtime delivery passes. | Actual Companion panel rehearsal and receiving host. |
 | Stronger cue colors | Windows and Linux desktop baselines at 1920×1080 and 1366×768 were rendered and inspected; rehearsal screenshots show full-row colors, route badges and V/F bindings. | Operator judgment on the actual studio display. |
 
 ## Checks
@@ -301,14 +307,36 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   a dirty draft for same-tick Take and for retry after refusal, but clears it after acceptance.
   ProductionPage also stays mounted on the Data tab, explaining how a retained draft can
   continue interfering with team reconciliation. Full corrected backend verification is required.
+- Final fault-clock fixture `j-3474` passed after preserving/restoring Date's descriptor in the
+  isolated test realm; TypeScript and focused lint passed. Correction `bdab14b66` is published.
+  CI [37402512539](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37402512539) passed on the
+  first attempt: all ten browser shards, combined report, CI gate, Build, Factory and catalog.
+  Build passes 2,453 active gate checks / 8 platform skips, the separate 321/321 suite and
+  231 active CLI checks / 18 skips. No retry job ran; Vercel confirms its ignored-build cancellation.
+  Full backend [37402521872](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37402521872)
+  passed on the same commit: 78 passed, zero failed, zero flaky and ten allowed skips (18.7 minutes).
+  The normal guard passed with its unchanged minimum of 71 executed tests and unchanged skip
+  allowlist. All migrations, schema/grant/auth checks and seven private relay cases passed in
+  the disposable Supabase stack. Both the live preparation and three-member reconciliation
+  failures pass after the dirty-draft correction. No hosted database was touched.
+  Local affected run `j-3475` passed with exit 0 on these frozen executable sources: 1,463
+  active browser tests / 542 skips (29.2 minutes), then catalog 35/35 (3.1 minutes). All thirteen
+  studio regressions and seven publication/setup checks passed. Its 25 generated captures
+  were retained under the ignored evidence directory and their committed bytes restored.
+  The successful full backend report was also downloaded and retained there.
+- Final clean local build `j-3476` passed, exit 0: 2,458 active gate tests / three skips (2,461
+  total), TypeScript, full lint, architecture, Vite, prerender, client-secret scan and final
+  line-ending checks. Executable sources were unchanged from `bdab14b66`; only verification
+  result prose was updated afterwards. The refreshed review scope is the same 124 files against
+  current `origin/main` at `7878a4ef4`, including the uncommitted supplied photo as read-only evidence.
 
 ## Rollout hold
 
 Do not queue-merge: landing runs production migrations/deployment automatically. Complete the
-full guarded isolated-backend verdict and receiving-host/copied-production rehearsals in the
-existing owner queue, and compare the three originals first. The recorded Linux baselines already
-pass CI. Retain the currently working application, Bridge and studio configuration for rollback.
+receiving-host/copied-production and cross-device rehearsals in the existing owner queue, and
+compare the three originals first. The full guarded isolated-backend suite and recorded Linux
+baselines pass. Retain the working application, Bridge and studio configuration for rollback.
 
-Release verification remains incomplete. Record a failing check stamp until the full isolated
-Supabase verdict and actual-media/receiving-host/cross-device gates pass.
+Release verification remains incomplete. Record a failing check stamp until the
+actual-media/receiving-host/cross-device gates pass.
 Passing development checks do not authorize the production deployment path.
