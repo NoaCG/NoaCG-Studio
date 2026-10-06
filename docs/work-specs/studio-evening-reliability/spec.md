@@ -13,6 +13,8 @@ operator's next action predictable without disturbing working output.
   Expired authentication preserves pending work and suspends account authoring, not playout.
   Fetch/reconcile cloud state before treating cached account data as current.
 - Preserve account scopes, team compare-and-swap conflict handling and durable browser storage.
+- Cloud confirmation flushes only pending cue edits. A saved draft cannot create another
+  edit timestamp or overwrite a newer teammate value; a refused write retains its draft.
 - Investigate the bad video against the two working originals before claiming a file-specific
   fix. Keep timing confidence separate from ownership; provide explicit immediate slot clearing.
 - Diagnostics never enter the operational cue list or change its geometry or selection.
@@ -35,6 +37,7 @@ operator's next action predictable without disturbing working output.
 
 1. Pending/new edits never appear cloud-saved, including debounce, first load, expiry and failure.
    Team pending edits survive closure/expiry, reconnect safely and are scoped to their account.
+   Repeated confirmations create no cue edits; saved fields follow landed teammate updates.
 2. Opening the account on another computer reconciles cloud data before claiming the view is current.
 3. All three actual clips have correct or explicitly unavailable timing, and Space on the selected
    live cue performs its displayed Out. Immediate clearing works even without cue ownership.

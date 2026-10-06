@@ -3,7 +3,7 @@
 Development branch: `codex/studio-evening-reliability`, based on
 `5b34aefb477c246b50180ad2357877dd5b040c42`, later reconciled with `origin/main` at `7878a4ef4`.
 The owner authorized the feature-branch push and existing test workflows on 2026-10-06.
-Corrected product commit `82e1f69ad` is published; the branch is not merged or deployed.
+Corrected product commit `9ae6c5037` is published; the branch is not merged or deployed.
 This work executed no hosted database migration, studio server restart, studio configuration
 change or CasparCG upgrade. Checks use isolated local development servers, mocked backend data,
 an in-memory SQL engine and a disposable Docker Supabase stack with the limitations below.
@@ -51,6 +51,9 @@ Confirmed corrections during review:
 23. Mock-account seeds wait for their cold library-rebinding boot before interaction assertions.
 24. An active check waits for metadata version adoption even when the prepared graphic digest
     matches. Otherwise its Presence request could disappear before the renderer received it.
+25. Cloud confirmations flush only an unsaved cue draft, then release it after a successful
+    write. Repeated confirmations cannot advance publication timestamps or replace landed
+    teammate values. A refused write retains the draft; same-tick edits are visible to the flush.
 
 Simplification: inline. Kept existing playout adapters, durable storage, team compare-and-swap,
 production eligibility, shared keyboard transport and capability-protected panel relay. Removed
@@ -230,8 +233,8 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   passes 11/11, including actual clicked export/consent controls, measured separation, cloud
   acknowledgement removing the reservation, and phone recovery controls above the strip.
 - Configured tests now use Publish & check readiness, require cue-only readiness to remain valid
-  and require v2 adoption without an output navigation. The full normal backend run and affected
-  browser run on these corrections remain pending until their receipts are recorded.
+  and require v2 adoption without an output navigation. Their later receipts below distinguish
+  the actual adoption defect from these corrected expectations.
 
 ## Corrected product verification
 
@@ -268,15 +271,44 @@ mocks and the local dependency fixtures do not prove the real Supabase relay.
   the renderer still held v1. The last condition was reproduced by the new pure adoption test
   before correcting `outputSettled`. All 34 focused readiness/version checks then passed.
   The workflow command is restored exactly; the next run uses the full normal suite and guard.
+- Correction `9ae6c5037` is published. Full configured run
+  [37398871977](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37398871977), CI
+  [37398866012](https://github.com/NoaCG/NoaCG-Studio/actions/runs/37398866012) and local affected
+  run `j-3470` used these frozen executable sources.
+  CI Build has passed: 2,453 active gate checks / 8 platform skips, separate 321/321 checks,
+  and 231 active CLI checks / 18 skips. Factory and catalog jobs passed. Shard 1 failed in
+  the unchanged editor-pen fixture while seeding a template: its execution context disappeared
+  during page navigation, before the editing assertions. That exact test passed locally in
+  `j-3470`. All other nine shards passed. Branch CI does not automatically retry shards;
+  `gh run rerun 37398866012 --failed` started attempt 2 on the identical commit. GitHub reran
+  all ten shards and their prerequisites; all passed, including Build, Factory, catalog,
+  combined report and CI gate. Vercel confirms "Canceled by Ignored Build Step".
+- Local `j-3470` passed with exit 0: 1,461 browser checks / 542 skips, plus catalog 35/35.
+  All eleven studio regressions and seven publication/setup checks passed. Its 25 generated
+  captures were retained under the ignored evidence directory and restored afterwards.
+- Full backend `37398871977` completed its unchanged guard: 76 passed, two failed, zero flaky,
+  ten allowed skips (78 executed, above the unchanged minimum 71). Republish, timed recovery,
+  publish wording and v2 metadata adoption now pass their earlier failure points. The remaining
+  live-prepare failure saw an unexpected v4 on rechecking unchanged v3; its retry saw the
+  production's timestamp move after a library-only edit. The three-member team test twice saw
+  Cleo's open page retain the earlier text while the database held Ben's update. The downloaded
+  traces confirm Cleo continued polling heads, so this is not explained by a hidden tab.
+  These are failures, not a clean backend verdict.
+- Local `j-3471` reproduced the repeated clean-draft write: the confirmation changed the already
+  saved cue's timestamp. Clearing accepted drafts made all 19 focused checks pass in `j-3472`.
+  Further regressions force two confirmation flushes in one tick and refuse/recover a browser
+  write. `j-3473` passed all 20 studio/publication checks in 45.8 seconds. The correction keeps
+  a dirty draft for same-tick Take and for retry after refusal, but clears it after acceptance.
+  ProductionPage also stays mounted on the Data tab, explaining how a retained draft can
+  continue interfering with team reconciliation. Full corrected backend verification is required.
 
 ## Rollout hold
 
 Do not queue-merge: landing runs production migrations/deployment automatically. Complete the
-receiving-host and copied-production rehearsals in the existing owner queue, run the relay checks
-against a real isolated Supabase stack, confirm CI with the recorded Linux baselines, and compare
-the three originals first. Retain the currently working application, Bridge and studio
-configuration for rollback.
+full guarded isolated-backend verdict and receiving-host/copied-production rehearsals in the
+existing owner queue, and compare the three originals first. The recorded Linux baselines already
+pass CI. Retain the currently working application, Bridge and studio configuration for rollback.
 
-Release verification remains incomplete. Record a failing check stamp until the real isolated
-Supabase API/Realtime checks, Linux baselines and actual-media/receiving-host/cross-device gates pass.
+Release verification remains incomplete. Record a failing check stamp until the full isolated
+Supabase verdict and actual-media/receiving-host/cross-device gates pass.
 Passing development checks do not authorize the production deployment path.

@@ -926,7 +926,16 @@ export function updateShowCue(
   cueId: string,
   patch: { label?: string; values?: Record<string, string>; note?: string | null },
 ): Show[] {
-  return patchShow(showId, (show) => {
+  return updateShowCueChecked(showId, cueId, patch).shows;
+}
+
+/** A draft is cleared only after this write succeeds; a refused write keeps it recoverable. */
+export function updateShowCueChecked(
+  showId: string,
+  cueId: string,
+  patch: { label?: string; values?: Record<string, string>; note?: string | null },
+): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     const cue = show.cues?.find((c) => c.id === cueId);
     if (!cue) return false;
     if (patch.label !== undefined) cue.label = patch.label;

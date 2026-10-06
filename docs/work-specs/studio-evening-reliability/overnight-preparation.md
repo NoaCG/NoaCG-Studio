@@ -104,7 +104,17 @@ Do not cancel another checkout's jobs or reclaim its processes. No new agent del
   `j-3469` passed all 18 studio/output-setup checks. Earlier reruns exposed short mock-account
   boot waits, now bounded at 30 seconds without changing interaction assertions. The pure
   metadata-adoption reproduction failed before its correction; all 34 readiness/version checks
-  pass afterwards. Publish these corrections and require a full guarded backend verdict.
+  pass afterwards. Correction `9ae6c5037` is published. Full backend run `37398871977`, CI
+  `37398866012` and local affected run `j-3470` used frozen executable sources. CI passed all
+  ten shards and prerequisites on an identical retry after one editor seeding navigation failure.
+  Local affected passed 1,461 active / 542 skipped plus catalog 35/35; all 25 generated captures
+  were preserved/restored. The full backend guard completed with 76 passed / two failed /
+  zero flaky / ten allowed skips. v2 adoption and republishing pass. Its later failures identify
+  repeated cue timestamp changes and stale teammate text. A cloud-confirmation flush was locally
+  reproduced (`j-3471`) rewriting an already saved draft. The corrected focused run `j-3473`
+  passes 20/20, including same-tick flushes and a refused-write recovery. Clear a draft only after
+  accepting it and flush only actual pending input. Verify this correction against the complete
+  isolated backend and frozen affected suite, then clean generated captures before the final build.
 - Build, browser and SQL receipts are recorded in [verification](verification.md).
 - Local Companion prerelease archive prepared without installation/publication:
   `companion-module/noacg-studio-rehearsal-b76d238.tgz` (ignored output, 81,189 bytes).

@@ -21,6 +21,7 @@ import {
   setShowOutputSetup,
   setShowProfile,
   updateShowCue,
+  updateShowCueChecked,
   playoutItemOf,
   removePlayoutItem,
   fillPlayoutItemFacts,
@@ -1264,6 +1265,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── The cue draft: edits echo locally, persist on idle / switch / take / unmount. ──
   const [draft, setDraft] = useState<CueDraft | null>(null);
   const draftRef = useRef<CueDraft | null>(null);
+  const draftPending = useRef(false);
   draftRef.current = draft;
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flushDraft = useCallback(() => {
@@ -1272,8 +1274,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       flushTimer.current = null;
     }
     const d = draftRef.current;
-    if (!d || !canAuthorAccount()) return;
-    setShows(updateShowCue(id, d.cueId, { label: d.label, note: d.note || null, values: d.values }));
+    if (!d || !draftPending.current || !canAuthorAccount()) return;
+    const result = updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values });
+    setShows(result.shows);
+    if (!result.error) {
+      draftPending.current = false;
+      setDraft(null);
+    }
   }, [id]);
   useEffect(() => {
     window.addEventListener('noacg-account-authoring-pausing', flushDraft);
@@ -2614,13 +2621,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const editDraft = (patch: Partial<Pick<CueDraft, 'label' | 'note'>> & { values?: Record<string, string> }) => {
     if (!editingCue || !canAuthorAccount()) return;
     window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
-    setDraft((d) => {
-      const base: CueDraft =
-        d && d.cueId === editingCue.id
-          ? d
-          : { cueId: editingCue.id, label: editingCue.label, note: editingCue.note ?? '', values: { ...editingCue.values } };
-      return { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
-    });
+    const d = draftRef.current;
+    const base: CueDraft = d && d.cueId === editingCue.id
+      ? d
+      : { cueId: editingCue.id, label: editingCue.label, note: editingCue.note ?? '', values: { ...editingCue.values } };
+    const next = { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
+    // A confirmation/expiry flush in this same tick must see the edit before React renders.
+    draftRef.current = next;
+    draftPending.current = true;
+    setDraft(next);
     if (flushTimer.current) clearTimeout(flushTimer.current);
     flushTimer.current = setTimeout(flushDraft, 300);
   };

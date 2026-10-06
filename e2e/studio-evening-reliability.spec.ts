@@ -1,6 +1,7 @@
 // covers: src/components/home/CueShortcutDialog.tsx, src/components/playoutKeys.ts, src/components/home/ProductionPage.tsx, src/components/home/CueRundown.tsx, src/components/home/ServerDiagnostics.tsx, src/model/cueShortcuts.ts, src/model/teamOutbox.ts, src/model/durableStore.ts, src/store/templateStore.ts, src/assets/svgImport.ts, src/control/productionAdmission.ts, src/output/prepare.ts, src/components/AccountAuthoringGate.tsx
 // covers: src/components/AccountSaveNotice.tsx, src/components/SyncStatus.tsx, src/backend/{auth,accountLibrary,syncController,sync,supabaseProvider,teamProductions}.ts
 // covers: src/components/home/useDeferredEdits.ts, src/packs/graphicsPack.ts, src/components/wizard/CreationWizard.tsx
+// covers: src/model/shows.ts
 // covers: src/styles/{app-shell,wizard-and-dialogs,template-gallery,mobile,playout-dashboard,inspector}.css
 import { test, expect, type Page } from '@playwright/test';
 import { seedSettings, fakeBridge } from './_fakeBridge';
@@ -86,6 +87,76 @@ async function assign(page: Page, label: string, key: string) {
   await dialog.getByRole('button', { name: 'Assign shortcut' }).click();
   await expect(dialog).toHaveCount(0);
 }
+
+test('cloud confirmation never rewrites a saved cue draft or replaces a teammate update', async ({ page }) => {
+  const { id, question } = await rehearsal(page);
+  const field = page.getByTestId('cue-field-f0');
+  await field.fill('SAVED QUESTION');
+  await field.blur();
+  const held = () => page.evaluate(async ({ id, question }) => {
+    const show = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
+    return { at: show.updatedAt, value: show.cues!.find(c => c.id === question)!.values.f0 };
+  }, { id, question });
+  await expect.poll(async () => (await held()).value).toBe('SAVED QUESTION');
+  const saved = await held();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  expect(await held()).toEqual(saved);
+  // A landed remote record uses the same data-changed path as cloud/team reconciliation.
+  await page.evaluate(async ({ id, question }) => {
+    const { loadShows, upsertShow } = await import('/src/model/shows.ts');
+    const show = loadShows().find(s => s.id === id)!;
+    upsertShow({ ...show, cues: show.cues!.map(c => c.id === question ? { ...c, values: { ...c.values, f0: 'TEAMMATE QUESTION' } } : c) });
+  }, { id, question });
+  await expect(field).toHaveValue('TEAMMATE QUESTION');
+  const remote = await held();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  expect(await held()).toEqual(remote);
+  await field.fill('PENDING QUESTION');
+  const sameTick = await page.evaluate(async id => {
+    const { loadShows } = await import('/src/model/shows.ts');
+    const NativeDate = Date;
+    const dateDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Date')!;
+    let tick = Date.now();
+    // Force distinct write timestamps without yielding to React between the two flushes.
+    Object.defineProperty(globalThis, 'Date', { ...dateDescriptor, value: new Proxy(NativeDate, { construct: (target, args, ctor) => Reflect.construct(target, args.length ? args : [++tick], ctor) }) });
+    try {
+      window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+      const first = loadShows().find(s => s.id === id)!.updatedAt;
+      window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+      return { first, second: loadShows().find(s => s.id === id)!.updatedAt };
+    } finally { Object.defineProperty(globalThis, 'Date', dateDescriptor); }
+  }, id);
+  expect(sameTick.second).toBe(sameTick.first);
+  await expect.poll(async () => (await held()).value).toBe('PENDING QUESTION');
+});
+
+test('a refused cue draft write stays on screen and can be flushed after storage recovers', async ({ page }) => {
+  const { id, question } = await rehearsal(page);
+  const field = page.getByTestId('cue-field-f0');
+  await page.evaluate(async () => {
+    const { durable } = await import('/src/model/durableStore.ts');
+    const original = durable.setItem;
+    durable.setItem = (key, value) => {
+      if (key === 'spx-gfx-shows') throw new Error('Injected full store');
+      original(key, value);
+    };
+    (window as unknown as { restoreCueWrite: () => void }).restoreCueWrite = () => { durable.setItem = original; };
+  });
+  await field.fill('RECOVER THIS QUESTION');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush')));
+  await expect(field).toHaveValue('RECOVER THIS QUESTION');
+  const heldValue = () => page.evaluate(async ({ id, question }) => {
+    const show = (await import('/src/model/shows.ts')).loadShows().find(s => s.id === id)!;
+    return show.cues!.find(c => c.id === question)!.values.f0;
+  }, { id, question });
+  expect(await heldValue()).not.toBe('RECOVER THIS QUESTION');
+  await page.evaluate(() => {
+    (window as unknown as { restoreCueWrite: () => void }).restoreCueWrite();
+    window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+  });
+  await expect.poll(heldValue).toBe('RECOVER THIS QUESTION');
+  await expect(field).toHaveValue('RECOVER THIS QUESTION');
+});
 
 test('V and F directly restart independent effects while selection and video stay parked; typing and repeats are quiet', async ({ page, request }) => {
   if (process.env.STUDIO_MUTATE_REPEAT) {
