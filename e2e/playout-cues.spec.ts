@@ -217,11 +217,19 @@ const lastAction = (bridge: FakeBridge) => bridge.actions[bridge.actions.length 
  *  `/state` here (no `state` feature), which this spec does not fake; the clock's specs do. */
 const PLAYS_EVERYTHING: Partial<FakeBridge> = { features: ['playback', 'sequence', 'image-fit'], capabilities: ['end', 'fade', 'trim', 'level', 'sequence', 'image-fit'] };
 
+/** Adding keeps the next question selected. Done, then choose a cue to edit or play it. */
+async function selectAddedCue(page: Page, name: string): Promise<void> {
+  await expect(page.getByTestId('picker-added')).toHaveText('Added 1 cue');
+  await page.getByTestId('picker-done').click();
+  await page.locator('.pd-cue', { hasText: name.split('/').pop()! }).getByTestId('select-cue').click();
+}
+
 /** A clip on the server, added from the picker and selected in the editor. */
 async function addClip(page: Page, name = 'GIORNO'): Promise<void> {
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await (await pickerFile(page, name)).getByTestId('picker-add').click();
+  await selectAddedCue(page, name);
   await expect(page.getByTestId('playout-cue-editor')).toBeVisible();
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
 }
@@ -268,6 +276,7 @@ test('a clip from the server becomes a cue on the clip layer, and Take, Pause, R
   // A thumbnail was asked for only once the row was on screen, by the server's own name.
   await expect.poll(() => bridge.thumbnails).toContain('GIORNO');
   await rows.first().getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
 
   // The cue: the server's name, the kind word, and the shared clip layer below every graphic -
   // on the studio's one channel, since this studio has named no other.
@@ -363,6 +372,7 @@ test('a deep media library is browsed folder by folder, a long name gives way, a
 
   // Adding from inside a folder still adds the server's full name, and the cue reads its own.
   await (await pickerFile(page, LONG)).getByTestId('picker-add').click();
+  await selectAddedCue(page, LONG);
   await expect(page.getByTestId('playout-cue-where')).toContainText(LONG);
   await expect(page.getByTestId('cue-label')).toHaveValue(LONG.split('/').pop()!);
 });
@@ -696,6 +706,7 @@ test('a server template takes the next free layer, carries its typed fields as J
   // A template NoaCG did not make: the field ids are typed once, beside the name.
   await page.getByTestId('picker-field-ids').fill('f0, f1');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HOUSE_STRAP/HOUSE_STRAP');
 
   const cue = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(cue.getByRole('img', { name: 'Server template · 1-21' })).toBeVisible();
@@ -747,6 +758,7 @@ test('a template NoaCG exported brings its own fields, matched by the export slu
   const row = page.locator('[data-testid="picker-row"][data-name="HAIRLINE"]');
   await expect(row).toContainText('fields known from your library');
   await row.getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HAIRLINE');
   const editor = page.getByTestId('playout-cue-editor');
   // The graphic's own field titles, not bare ids.
   await expect(editor.getByTestId('playout-cue-fields')).toContainText('F0 · ');
@@ -764,6 +776,7 @@ test('the server that cannot list says so, and a typed name still makes a cue', 
   await expect(page.getByTestId('picker-row')).toHaveCount(0);
   await page.getByTestId('picker-typed').fill('NEW1/POWER_CLOCK');
   await page.getByTestId('picker-add-typed').click();
+  await selectAddedCue(page, 'NEW1/POWER_CLOCK');
   await expect(page.locator('.pd-cue', { hasText: 'POWER_CLOCK' })).toHaveCount(1);
   await page.getByTestId('verb-take').click();
   await expect.poll(() => lastAction(bridge)).toMatchObject({ verb: 'take', item: { kind: 'template', name: 'NEW1/POWER_CLOCK' } });
@@ -776,6 +789,7 @@ test('with no Bridge running a server cue cannot be taken, and the editor names 
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.getByTestId('picker-row').first().getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
   await expect(page.getByTestId('playout-cue-status')).toHaveAttribute('data-state', 'ok');
 
   // The Bridge goes away mid-show: the next poll says so, and Take stays quiet rather than
@@ -794,6 +808,7 @@ test('a server cue and its item are removed together, and survive a reload as pa
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.getByTestId('picker-row').first().getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
   const cue = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(cue).toHaveCount(1);
 
@@ -820,6 +835,7 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HOUSE_STRAP/HOUSE_STRAP');
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(strap.getByTestId('cue-layer')).toHaveText('1-21');
   const editor = page.getByTestId('playout-cue-editor');
@@ -832,6 +848,7 @@ test('one rundown cues a template on the graphics channel and a clip on the inse
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
   const clip = page.locator('.pd-cue', { hasText: 'GIORNO' });
   await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
   // A clip shows its channel and layer beside its note, as a template does, with nothing to open
@@ -926,6 +943,7 @@ test('nothing replaces the NoaCG output: a server item on its slot is refused wi
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HOUSE_STRAP/HOUSE_STRAP');
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await expect(strap.getByTestId('cue-layer')).toHaveText('1-22');
 
@@ -951,14 +969,16 @@ test('nothing replaces the NoaCG output: a server item on its slot is refused wi
 
 test('a take on a slot another cue holds replaces it, and a channel the studio does not name stays listed as itself', async ({ page }) => {
   await seedSettings(page, TWO_CHANNELS);
-  const bridge = await fakeBridge(page);
+  const bridge = await fakeBridge(page, PLAYS_EVERYTHING);
   await productionPage(page);
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.locator('[data-testid="picker-row"][data-name="JÄÄKIEKKO"]').getByTestId('picker-add').click();
+  await selectAddedCue(page, 'JÄÄKIEKKO');
   const giorno = page.locator('.pd-cue', { hasText: 'GIORNO' });
   const still = page.locator('.pd-cue', { hasText: 'JÄÄKIEKKO' });
 
@@ -1007,9 +1027,11 @@ test('every verb sends the same action after a drag reorder and after a reload, 
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HOUSE_STRAP/HOUSE_STRAP');
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-media').click();
   await page.locator('[data-testid="picker-row"][data-name="GIORNO"]').getByTestId('picker-add').click();
+  await selectAddedCue(page, 'GIORNO');
   await page.keyboard.press('Escape');
 
   // The drag: the clip, dropped on the first row, moves to the top of the rundown.
@@ -1097,6 +1119,7 @@ test('a re-take onto a channel the server refuses leaves nothing marked ON AIR, 
   await page.getByTestId('add-from-server').click();
   await page.getByTestId('picker-field-ids').fill('f0');
   await (await pickerFile(page, 'HOUSE_STRAP/HOUSE_STRAP')).getByTestId('picker-add').click();
+  await selectAddedCue(page, 'HOUSE_STRAP/HOUSE_STRAP');
   const strap = page.locator('.pd-cue', { hasText: 'HOUSE_STRAP' });
   await page.getByTestId('verb-take').click();
   await expect(strap).toContainText('ON AIR');
