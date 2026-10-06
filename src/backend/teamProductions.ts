@@ -405,15 +405,17 @@ async function pushSave(id: string): Promise<void> {
   const owner = running;
   if (!owner || !canAuthorAccount() || owner.userId !== libraryInUse()) return;
   if (inflight.has(id)) return; // The in-flight save re-schedules itself when it sees `dirty`.
+  const storageError = await commitDurableWrites();
+  if (running !== owner || inflight.has(id)) return;
+  if (storageError) { setSaving(id, 'failed'); setState({ notes: { ...state.notes, [id]: storageError } }); return; }
+  // The operator may edit while IndexedDB is committing. Capture the document after that
+  // wait so clearing dirty cannot mistake the older snapshot for the confirmed revision.
   const known = server.get(id);
   let sent = loadTeamShows().find((s) => s.id === id);
   if (!known || !sent) {
     setSaving(id, 'failed');
     return;
   }
-  const storageError = await commitDurableWrites();
-  if (running !== owner || inflight.has(id)) return;
-  if (storageError) { setSaving(id, 'failed'); setState({ notes: { ...state.notes, [id]: storageError } }); return; }
   inflight.add(id);
   dirty.delete(id);
   let base = known.doc;
