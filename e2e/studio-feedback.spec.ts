@@ -32,7 +32,10 @@ test('routine anonymous work uses persistent header state without a global notic
   await page.route('**/src/backend/config.ts*', r => r.fulfill({ contentType: 'text/javascript', body: "export function loadBackendConfig(){return {url:'https://cloudmock.invalid',anonKey:'test-public-key'}};export function isBackendConfigured(){return true}" }));
   await page.route('https://cloudmock.invalid/**', r => r.fulfill({ contentType: 'application/json', body: '[]' }));
   await page.goto('/app#/home');
-  await expect(page.locator('.sync-status')).toHaveText('Local workspace');
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved on this device only');
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'local');
+  await page.locator('.sync-status').click();
+  await expect(page.getByTestId('sync-action')).toHaveText('Sign in');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/studio-feedback-quiet-saving.png' });
 });

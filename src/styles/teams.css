@@ -236,6 +236,9 @@
    productions are what the eye is there for and an underlined accent link out-shouted them. */
 .team-band-open { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .team-band > .hint { margin: 0 0 6px; }
+/* "Nothing shared yet." with its (i): the fact on the line, the how-to one press away
+   (home/InfoTip, styled in home.css). */
+.team-empty { display: inline-flex; align-items: center; gap: 4px; }
 /* A team production's card carries the team's chip and "edited by" under its name. The card keeps
    the ordinary skin - the chip is what marks it, so the green "has a live URL" tint still reads
    the same on a team card as on your own. */

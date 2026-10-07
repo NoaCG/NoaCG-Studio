@@ -192,7 +192,7 @@ export async function syncNow(): Promise<void> {
     if (epoch !== sessionEpoch) return;
     if (result.failures.length > 0) {
       // The pass completed and the bookmark advanced, but some records could not be applied —
-      // surface them (SyncStatus shows the detail as its tooltip). They retry next pass.
+      // surface them (SyncStatus shows the detail in its panel). They retry next pass.
       const shown = result.failures.slice(0, 3).map((f) => `${f.kind} "${f.name}": ${f.message}`);
       const extra = result.failures.length > shown.length ? '; …' : '';
       setState({

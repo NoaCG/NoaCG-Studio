@@ -234,6 +234,16 @@ export function IconControl(props: IconProps) {
 }
 
 /** A team - two people. Teams are the only surface that uses it (docs/TEAMS_PLAN.md §6). */
+/** An explanation behind a press (home/InfoTip). */
+export function IconInfo(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5M12 7.6v.1" />
+    </Svg>
+  );
+}
+
 export function IconUsers(props: IconProps) {
   return (
     <Svg {...props}>
