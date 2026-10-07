@@ -44,12 +44,8 @@ export default function VideosSection({
   return (
     <>
       <h2><IconFilm size={18} /> Videos <span className="muted">({videos.length})</span></h2>
-      <p className="hint">
-        Standalone AI video / animation projects — separate from live broadcast
-        graphics. The video editor has its own workspace.
-      </p>
       {videos.length === 0 && (
-        <p className="hint">Nothing yet — create one with “Video or animation with AI” in the wizard.</p>
+        <p className="hint">Nothing yet. Create one with “Video or animation with AI” in the wizard.</p>
       )}
       <VideoList videos={videos} onOpen={onOpen} onChanged={onChanged} />
     </>

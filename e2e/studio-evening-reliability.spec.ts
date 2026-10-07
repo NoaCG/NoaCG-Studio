@@ -477,11 +477,20 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     return respond([]);
   });
   await page.goto('/app#/home');
-  await expect(page.locator('.sync-status')).toContainText('Checking cloud revision');
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Checking cloud revision');
+  await expect(page.locator('.sync-status')).toHaveText('Sync');
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
   releaseLists();
-  await expect(page.locator('.sync-status')).toHaveText(/Personal library saved to cloud/, { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'ok');
   await expect(page.getByTestId('account-save-notice')).toHaveCount(0);
+  // The details open on demand, with the one action that helps.
+  await page.locator('.sync-status').click();
+  await expect(page.getByTestId('sync-detail')).toContainText('Confirmed at');
+  await expect(page.getByTestId('sync-action')).toHaveText('Sync now');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('sync-panel')).toHaveCount(0);
   expect(await page.locator('.home-page').evaluate(el => el.getBoundingClientRect().height)).toBe(await page.evaluate(() => window.innerHeight));
   await page.evaluate(async () => {
     const { useTemplateStore } = await import('/src/store/templateStore.ts');
@@ -490,7 +499,7 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     // Deliberately before the 800 ms autosave. Retry must cover this edit.
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveText(/Personal library saved to cloud/, { timeout: 20000 });
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Saved to cloud', { timeout: 20000 });
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
   failWrites = true;
   await page.evaluate(async () => {
@@ -499,7 +508,8 @@ test('cloud acknowledgement covers the current working revision; failed writes s
     useTemplateStore.getState().setCss('/* failed save stays here */');
     await syncNow();
   });
-  await expect(page.locator('.sync-status')).toHaveText(/Not saved to cloud/);
+  await expect(page.locator('.sync-status')).toHaveAccessibleName('Sync: Not saved to cloud');
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-tone', 'warn');
   await expect(page.getByTestId('account-save-notice')).toContainText('Not saved to cloud');
   expect([...rows.values()].find(row => row.kind === 'project')?.body.template?.css).toBe('/* current cloud revision */');
   await page.evaluate(async () => { const { getSupabase } = await import('/src/backend/supabase.ts'); await (await getSupabase())!.auth.signOut({ scope: 'local' }); });
@@ -508,7 +518,9 @@ test('cloud acknowledgement covers the current working revision; failed writes s
   await page.setViewportSize({ width: 390, height: 600 });
   await page.getByTestId('analytics-consent').getByRole('button', { name: 'No thanks' }).click();
   const lastControl = page.locator('.home-page').getByRole('button', { name: '+ New graphic', exact: true }).last();
-  await lastControl.scrollIntoViewIfNeeded();
+  // Scrolled to the END, which is what the reserved space is for: "if needed" stops scrolling as
+  // soon as the control is anywhere in the viewport, under the notice included.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const pausedNotice = await page.getByTestId('account-save-notice').boundingBox();
   const control = await lastControl.boundingBox();
   expect(control!.y + control!.height).toBeLessThanOrEqual(pausedNotice!.y);

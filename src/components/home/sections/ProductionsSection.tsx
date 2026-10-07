@@ -20,6 +20,7 @@ import { useTeamsUi } from '../../teams/teamsUi';
 import { useTeamsAvailable } from '../../teams/useTeamsAvailable';
 import { useTeamState } from '../../teams/useTeamState';
 import TeamChip from '../../teams/TeamChip';
+import { NothingSharedYet } from './TeamsSection';
 import JoinTeamCard from '../../teams/JoinTeamCard';
 import { deleteTeamProduction, teamMemberName, type TeamProductionHead } from '../../../backend/teamProductions';
 import type { Team, TeamMember } from '../../../backend/teams';
@@ -67,8 +68,8 @@ function ProductionStats({ show, onBrowse }: { show: Show; onBrowse?: (showId: s
  *
  * The heading is the answer to "where is the team I was invited to": its chip, how many people are
  * in it and whether it is yours, and the door to its members and join code. A team with nothing
- * in it yet still gets its band, saying how something gets there - an empty list with no heading
- * is exactly the "joined, and nothing happened" state this exists to end. Every team production
+ * in it yet still gets its band, saying so with the how-to one press away - an empty list with no
+ * heading is exactly the "joined, and nothing happened" state this exists to end. Every team production
  * is listed, in the dashboard too: the invitation is the news, and a cap would hide it.
  */
 function TeamBands({
@@ -123,10 +124,7 @@ function TeamBands({
             {held.length > 0 ? (
               <div className="prod-grid">{held.map(renderCard)}</div>
             ) : (
-              <p className="hint" data-testid="team-band-empty">
-                Nothing shared in this team yet. Anyone in it can open one of their own productions,
-                choose <strong>Share</strong> and move it here - it then appears for everybody.
-              </p>
+              <NothingSharedYet testid="team-band-empty" />
             )}
           </div>
         );
@@ -445,7 +443,7 @@ export default function ProductionsSection({
         <button
           onClick={() => setExportShow(r)}
           disabled={r.graphics.length === 0}
-          title="Export every graphic of this production — OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"
+          title="Export every graphic of this production: OGraf, CasparCG, SPX, OBS/vMix overlay, H2R, LiveOS"
           aria-label={`Export ${r.name}`}
           data-testid="export-production-row"
         >
@@ -459,16 +457,7 @@ export default function ProductionsSection({
   return (
     <>
       {duplicateError && <p className="status-bad" role="alert">{duplicateError}</p>}
-      {heading && (
-        <>
-          <h2><IconTv size={18} /> Productions</h2>
-          <p className="hint">
-            A production is the live unit: its graphics, a prepared CUE rundown, one persistent
-            browser-<strong>output URL</strong> for CasparCG/OBS/vMix, and one <strong>control
-            page</strong> for operating — see each production’s page for all of it.
-          </p>
-        </>
-      )}
+      {heading && <h2><IconTv size={18} /> Productions</h2>}
       {/* Packages a coding agent sent - one row each, Install turns it into a production and
           opens its rundown. Shown on the Home dashboard too: arriving is news. */}
       {waiting.length > 0 && (
@@ -526,9 +515,7 @@ export default function ProductionsSection({
       )}
       {personal.length === 0 && (
         <p className="hint" data-testid="no-productions">
-          {showTeams
-            ? 'None of your own yet. Name one below; what your teams share is listed under each team.'
-            : 'No productions yet — name one below, then add graphics and cues.'}
+          {showTeams ? 'None of your own yet.' : 'No productions yet.'}
         </p>
       )}
       {/* CARDS, not rows (re-design/handoff.md §5a). A production is the unit that airs — it
@@ -541,7 +528,6 @@ export default function ProductionsSection({
             create row above the list read as a stray form; here it is one of the choices. */}
         <div className="prod-card prod-card-new">
           <strong>New production</strong>
-          <p className="prod-card-stats">Name it, add graphics, publish for a live URL.</p>
           <div className="spacer" />
           <input
             value={newName}
@@ -572,11 +558,6 @@ export default function ProductionsSection({
         {!limit && (
           <div className="prod-card prod-card-new" data-testid="import-pack-card">
             <strong>Import a package</strong>
-            <p className="prod-card-stats">
-              A <code className="inline">.noacgpack.json</code> made with the NoaCG CLI
-              (<code className="inline">noacg pack</code>) or exported from a production —
-              installs as a production with its cue rundown and layers ready to operate.
-            </p>
             <div className="spacer" />
             <input
               ref={packInput}
@@ -589,7 +570,7 @@ export default function ProductionsSection({
             <button
               disabled={packBusy !== null}
               onClick={() => packInput.current?.click()}
-              title="Import a .noacgpack.json package file"
+              title="Import a .noacgpack.json made with the NoaCG CLI or exported from a production. It installs as a production, ready to operate."
             >
               <IconUpload /> Import a package file…
             </button>

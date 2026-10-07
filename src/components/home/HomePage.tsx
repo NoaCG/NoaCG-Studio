@@ -124,7 +124,9 @@ export default function HomePage({ route }: { route: Route }) {
   /* eslint-disable react-hooks/exhaustive-deps */
   const graphics = useMemo(() => loadGraphics().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
   const looks = useMemo(() => loadLooks(), [rev]);
-  const productions = useMemo(() => loadShows(), [rev]);
+  // NEWEST FIRST, like the graphics: the work you were just on is the upper-left card, and the
+  // dashboard's five are the five most recent rather than the five oldest.
+  const productions = useMemo(() => loadShows().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [rev]);
   const videos = useMemo(() => listSavedVideoProjects(), [rev]);
   /* eslint-enable react-hooks/exhaustive-deps */
   const personalCount = productions.filter((p) => !p.teamId).length;
