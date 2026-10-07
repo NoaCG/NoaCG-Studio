@@ -22,7 +22,6 @@
   font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--amber); margin: 4px 0 0;
 }
-.up-note { font-size: 14.5px; line-height: 1.5; color: var(--caption, var(--faint)); margin: 6px 0 0; }
 @media (max-width: 760px) {
   .up-row { grid-template-columns: minmax(0, 1fr); row-gap: 16px; }
 }
@@ -38,5 +37,44 @@
 .up-topic li { margin: 6px 0; }
 .up-topic li::marker { color: var(--faint); }
 
+/* The landing's two links on to the pages, under its list. */
+.up-more { display: flex; flex-wrap: wrap; gap: 10px 24px; }
+
 /* ── The two pages ── */
 .wn-list, .rm-list { padding: 18px 0 72px; font-family: var(--read); color: var(--text); }
+/* The heading, then one quiet link to the other page: no introduction, the list says what it is. */
+.up-hero h1 { margin-bottom: 8px; }
+.up-also { font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+.up-also:hover { color: var(--glow); }
+
+/* ── The roadmap: Now, Next and Later as one progression down a rail ──
+   A filled marker for what is being built, a ring for what comes next, a faint ring for later;
+   the rail runs solid from Now to Next and dashed on to Later. No dates, so no axis. */
+.rm-list { padding-top: 34px; }
+.rm-col { position: relative; border-top: 0; padding: 0 0 44px 40px; }
+.rm-col::before {
+  content: ""; position: absolute; left: 7px; top: 22px; bottom: -14px; width: 2px;
+  background: rgba(246, 166, 35, 0.45);
+}
+.rm-col#next::before {
+  background: repeating-linear-gradient(to bottom, var(--faint) 0 6px, transparent 6px 12px);
+}
+.rm-col:last-child::before { display: none; }
+.rm-col .up-label { position: relative; }
+.rm-col .up-label::before {
+  content: ""; position: absolute; left: -40px; top: 4px; width: 16px; height: 16px;
+  box-sizing: border-box; border-radius: 50%; border: 2px solid var(--amber); background: var(--void);
+}
+.rm-col#now .up-label::before { background: var(--amber); box-shadow: 0 0 14px rgba(246, 166, 35, 0.55); }
+.rm-col#later .up-label::before { border-color: var(--faint); }
+.rm-col h2 {
+  font-family: var(--mono); font-size: 15px; font-weight: 500; line-height: 24px;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--amber);
+}
+.rm-col#later h2 { color: var(--faint); }
+.rm-col .up-topic { max-width: none; }
+.rm-col .up-topic + .up-topic { margin-top: 0; }
+.rm-col .up-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 40px; }
+@media (max-width: 960px) {
+  .rm-col .up-topics { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+}
