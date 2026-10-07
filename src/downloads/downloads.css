@@ -79,10 +79,3 @@
 .dl-pill--no { border-color: rgba(229, 83, 75, 0.5); color: #e5908a; }
 .doc-body .dl-card ul.dl-note { padding-left: 20px; margin: 6px 0 12px; }
 .doc-body .dl-card ul.dl-note li { margin: 4px 0; }
-
-/* A phone header holds the wordmark, the current page and the button; at 390px the button's
-   label wrapped to two lines at the docs' spacing, so the row tightens here instead. */
-@media (max-width: 420px) {
-  header.top nav { gap: 14px; }
-  header.top .btn { padding: 10px 16px; white-space: nowrap; }
-}

@@ -360,6 +360,11 @@
     @media (max-width: 860px) {
       header nav a.gh { display: none; }
     }
+    /* The narrowest phones: the row tightens so the button stays inside the screen. */
+    @media (max-width: 360px) {
+      header nav { gap: 14px; }
+      header nav a.btn { padding: 10px 16px; }
+    }
 
     /* ═══ Motion system (src/landing/) ═══
        Masked headline lines and the pre-paint hero gate. All animation is transforms/opacity;
@@ -392,15 +397,7 @@
     <header>
       <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
       <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
-      <nav>
-        <a class="gh" href="#start">Create</a>
-        <a class="gh" href="#playout">Play or export</a>
-        <a class="gh" href="#ograf">OGraf</a>
-        <a class="gh" href="/whats-new">What's new</a>
-        <a href="/docs">Docs</a>
-        <a class="gh" href="/downloads">Downloads</a>
-        <a class="btn btn-amber" href="/app#/new">Start creating</a>
-      </nav>
+      <!--site:nav-->
     </header>
 
     <main>

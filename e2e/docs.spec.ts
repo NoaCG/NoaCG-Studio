@@ -40,7 +40,7 @@ test('/docs serves the static docs home, not the app', async ({ page }) => {
 test('the top bar is the landing top bar, with a readable button', async ({ page }) => {
   await page.goto('/docs');
   const nav = page.locator('header.top nav');
-  await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', 'Docs', 'Downloads', 'Start creating']);
+  await expect(nav.locator('a')).toHaveText(['Create', 'Play or export', 'OGraf', "What's new", 'Docs', 'Downloads', 'Start creating']);
   await expect(nav.locator('a[aria-current="page"]')).toHaveAttribute('href', '/docs');
   // The header's link colour once outranked the button's own, which painted the label grey on
   // amber. The label has to stay the landing's near-black.

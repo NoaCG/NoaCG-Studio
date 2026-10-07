@@ -82,12 +82,19 @@ header.top {
 header.top nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
 /* `:not(.btn)` keeps this colour off the button. Without it the rule outranks `.btn-amber` and
    paints the button label grey on amber. */
+header.top nav a { white-space: nowrap; }
 header.top nav a:not(.btn) { font-size: 14px; color: var(--dim); }
 header.top nav a:not(.btn):hover,
 header.top nav a[aria-current="page"] { color: var(--paper); }
-/* The section links leave the header before it would wrap, at the landing's 720px cut. */
-@media (max-width: 720px) {
+/* The section links leave the header before it would wrap, at the landing's 860px cut (the links
+   are scripts/site-nav.mjs, the same on every page). */
+@media (max-width: 860px) {
   header.top nav a.gh { display: none; }
+}
+/* The narrowest phones: the row tightens so the button stays inside the screen. */
+@media (max-width: 360px) {
+  header.top nav { gap: 14px; }
+  header.top nav a.btn { padding: 10px 16px; }
 }
 
 /* ── Buttons (the landing's) ── */
