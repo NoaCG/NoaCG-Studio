@@ -5,7 +5,7 @@ kind: ask
 raised: 2026-09-03
 state: advanced
 asked: "the whole import page right now is difficult to read. The info text is confusing ... We need to do an /unslop for this too, so it would read so a kid could understand what's happening"
-note: 7e7140ce and b28aca28 rewrote the long-text and behaviour blocks in his own words; the cold read-back by someone who has never seen the step has not happened
+note: 7e7140ce and b28aca28 rewrote the long-text and behaviour blocks in his own words; claude/e-wizard-copy (2026-10-08) cut the "What happens next" blocks, Prepare's mechanism paragraphs and lines repeating their heading across the wizard; the cold read-back by someone who has never seen the step has not happened
 ---
 # The import step explains itself at spec length, not at reading length
 
