@@ -64,7 +64,7 @@ export default function FolderEditor({
   takeBlocked: string | null;
   /** Where one cue plays on its own: `2-10`, or `L20` for a graphic. */
   addressOf: (cue: ShowCue) => string;
-  onRename: (name: string) => void;
+  onRename: (name: string, closing: boolean) => void;
   /** Answers why the mode was refused, or null. */
   onMode: (mode: ShowFolder['mode']) => string | null;
   onEnd: (end: 'loop' | null) => void;
@@ -75,9 +75,9 @@ export default function FolderEditor({
   const [refusal, setRefusal] = useState<string | null>(null);
   useEffect(() => setRefusal(null), [folder.id, mode]);
   // The name box is one edit, one write: a teammate's rename never lands mid-word (./useDeferredEdits).
-  const nameEdits = useDeferredEdits((_key, text) => {
+  const nameEdits = useDeferredEdits((_key, text, closing) => {
     const next = text.trim();
-    if (next && next !== folder.name) onRename(next);
+    if (next && next !== folder.name) onRename(next, closing);
   });
   const words = folderAirWords(air, missed);
   const throughOff = offerBlocked(ability, NEEDS.through);

@@ -15,7 +15,12 @@ test('inverse preserves metadata/collapse and restores exact source, cue, folder
 test('semantic change refuses inverse; orphan, duplicate and split folders are rejected', () => {
   const before = rundownSlice(show);
   assert.ok(replaceRundown({ ...show, cues: [] }, before, before).refused);
-  for (const bad of [{ ...before, graphics: [] }, { ...before, cues: [before.cues[0], before.cues[0]] }, { ...before, cues: [{ ...before.cues[0], folderId: 'gone' }] }]) assert.ok(replaceRundown(show, before, bad).refused);
+  for (const bad of [
+    { ...before, graphics: [] },
+    { ...before, cues: [before.cues[0], before.cues[0]] },
+    { ...before, cues: [{ ...before.cues[0], folderId: 'gone' }] },
+    { ...before, cues: [before.cues[0], { ...before.cues[0], id: 'middle', folderId: 'other' }, { ...before.cues[0], id: 'last' }], folders: [...before.folders, { id: 'other', name: 'Other', mode: 'manual' }] },
+  ]) assert.ok(replaceRundown(show, before, bad).refused);
 });
 test('50 steps retain adjacent shared slices; exact redo and new edit clears redo', () => {
   const h = new RundownHistory(); let before = rundownSlice(show);

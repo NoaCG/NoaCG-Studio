@@ -600,17 +600,18 @@ export function addGraphicToShow(
 }
 
 export function removeShowGraphic(showId: string, graphicId: string): Show[] {
-  const all = readEditable();
-  const show = all.find((s) => s.id === showId);
-  if (show) {
+  return removeShowGraphicChecked(showId, graphicId).shows;
+}
+
+export function removeShowGraphicChecked(showId: string, graphicId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, show => {
+    if (!show.graphics.some(g => g.id === graphicId)) return false;
     show.graphics = show.graphics.filter((g) => g.id !== graphicId);
     // Cues over a removed pool graphic have nothing left to drive — they go with it.
     if (show.cues?.length) show.cues = show.cues.filter((c) => c.sourceId !== graphicId);
     pruneShowFolders(show);
-    show.updatedAt = nowIso();
-  }
-  saveAll(all);
-  return all.filter((s) => !s.deleted);
+    return true;
+  });
 }
 
 // ── Cues (docs/CLOUD_PLAYOUT.md §2) ──────────────────────────────────────────
@@ -954,7 +955,11 @@ export function setPlayoutItemFields(showId: string, itemId: string, fields: Pla
 
 /** Remove a playout item and every cue prepared against it. */
 export function removePlayoutItem(showId: string, itemId: string): Show[] {
-  return patchShow(showId, (show) => {
+  return removePlayoutItemChecked(showId, itemId).shows;
+}
+
+export function removePlayoutItemChecked(showId: string, itemId: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     if (!show.playoutItems?.some((i) => i.id === itemId)) return false;
     show.playoutItems = show.playoutItems.filter((i) => i.id !== itemId);
     show.cues = (show.cues ?? []).filter((c) => c.sourceId !== itemId);
@@ -1130,8 +1135,12 @@ export function takeCuesOutOfFolders(showId: string, cueIds: readonly string[]):
 /** Remove several cues in one write, by the rules one removal follows (`removeShowCue`): a graphic
  *  or server item left with no cue goes with them, and so does a folder. */
 export function removeShowCues(showId: string, cueIds: readonly string[]): Show[] {
+  return removeShowCuesChecked(showId, cueIds).shows;
+}
+
+export function removeShowCuesChecked(showId: string, cueIds: readonly string[]): { shows: Show[]; error: string | null } {
   const gone = new Set(cueIds);
-  return patchShow(showId, (show) => {
+  return patchShowChecked(showId, (show) => {
     const removed = (show.cues ?? []).filter((c) => gone.has(c.id));
     if (!removed.length) return false;
     show.cues = (show.cues ?? []).filter((c) => !gone.has(c.id));
@@ -1220,7 +1229,11 @@ function folderOf(show: Show, folderId: string): ShowFolder | undefined {
 }
 
 export function renameFolder(showId: string, folderId: string, name: string): Show[] {
-  return patchShow(showId, (show) => {
+  return renameFolderChecked(showId, folderId, name).shows;
+}
+
+export function renameFolderChecked(showId: string, folderId: string, name: string): { shows: Show[]; error: string | null } {
+  return patchShowChecked(showId, (show) => {
     const folder = folderOf(show, folderId);
     const next = name.trim();
     if (!folder || !next || folder.name === next) return false;

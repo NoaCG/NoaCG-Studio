@@ -44,6 +44,28 @@ test('operation receipts keep a failed put distinct from a newer successful put'
   expect(await page.evaluate(async () => (await import('/src/model/shows.ts')).loadShows()[0].cues![0].label)).toBe('Newer');
 });
 
+test('a captured authoring operation retains every receipt including a reentrant write', async ({ page }) => {
+  const ids = await seed(page);
+  const result = await page.evaluate(async id => {
+    const d = await import('/src/model/durableStore.ts'), m = await import('/src/model/shows.ts'), put = IDBObjectStore.prototype.put;
+    let fail = true, nested = false;
+    IDBObjectStore.prototype.put = function(value, key) {
+      if (fail && key === 'spx-gfx-shows') { fail = false; throw new DOMException('Injected refusal', 'QuotaExceededError'); }
+      return put.call(this, value, key);
+    };
+    const onChange = () => {
+      if (nested) return; nested = true;
+      d.durable.setItem('spx-gfx-shows', d.durable.getItem('spx-gfx-shows')!.replace('Failed', 'Newer'));
+    };
+    window.addEventListener('spx-data-changed', onChange);
+    try {
+      const captured = d.captureDurableWrites('spx-gfx-shows', () => m.updateShowCueChecked(id, 'cue', { label: 'Failed' }));
+      return { count: captured.receipts.length, errors: await Promise.all(captured.receipts.map(d.commitDurableReceipt)), saved: d.durable.getItem('spx-gfx-shows') };
+    } finally { IDBObjectStore.prototype.put = put; window.removeEventListener('spx-data-changed', onChange); }
+  }, ids.first);
+  expect(result.count).toBe(2); expect(result.errors[0]).toContain('storage is full'); expect(result.errors[1]).toBeNull(); expect(result.saved).toContain('Newer');
+});
+
 test('conditional inverse reads the actual database and refuses a stale mirror', async ({ page }) => {
   const ids = await seed(page);
   const result = await page.evaluate(async ids => {

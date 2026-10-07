@@ -53,7 +53,8 @@ export type DeferredEdits = {
   flush: () => void;
 };
 
-export function useDeferredEdits(commit: (key: string, text: string) => void): DeferredEdits {
+/** Closing commits must capture text synchronously before account pause or teardown. */
+export function useDeferredEdits(commit: (key: string, text: string, closing: boolean) => void): DeferredEdits {
   const [edit, setEdit] = useState<PendingEdit | null>(null);
   // The ref, not the state, is what the timer and the unload listeners read: they are registered
   // once and would otherwise hold the first render's `edit` for ever. `type` and `flush` are the
@@ -75,7 +76,7 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     }
   };
 
-  const flush = useCallback(() => {
+  const flush = useCallback((closing = false) => {
     stopTimer();
     const pending = editRef.current;
     if (!pending) return;
@@ -84,8 +85,9 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     // commit's write lands in and never blinks through the old value.
     editRef.current = null;
     setEdit(null);
-    commitRef.current(pending.key, pending.text);
+    commitRef.current(pending.key, pending.text, closing);
   }, []);
+  const flushCurrent = useCallback(() => flush(), [flush]);
 
   const type = useCallback(
     (key: string, text: string) => {
@@ -98,7 +100,7 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
       editRef.current = next;
       setEdit(next);
       stopTimer();
-      timer.current = setTimeout(flush, EDIT_SETTLE_MS);
+      timer.current = setTimeout(() => flush(), EDIT_SETTLE_MS);
     },
     [flush],
   );
@@ -112,16 +114,18 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     const onHidden = () => {
       if (document.visibilityState === 'hidden') flush();
     };
+    const closing = () => flush(true);
+    const requested = () => flush();
     document.addEventListener('visibilitychange', onHidden);
-    window.addEventListener('pagehide', flush);
-    window.addEventListener('noacg-account-authoring-pausing', flush);
-    window.addEventListener('noacg-account-authoring-flush', flush);
+    window.addEventListener('pagehide', closing);
+    window.addEventListener('noacg-account-authoring-pausing', closing);
+    window.addEventListener('noacg-account-authoring-flush', requested);
     return () => {
       document.removeEventListener('visibilitychange', onHidden);
-      window.removeEventListener('pagehide', flush);
-      window.removeEventListener('noacg-account-authoring-pausing', flush);
-      window.removeEventListener('noacg-account-authoring-flush', flush);
-      flush();
+      window.removeEventListener('pagehide', closing);
+      window.removeEventListener('noacg-account-authoring-pausing', closing);
+      window.removeEventListener('noacg-account-authoring-flush', requested);
+      closing();
     };
   }, [flush]);
 
@@ -129,6 +133,6 @@ export function useDeferredEdits(commit: (key: string, text: string) => void): D
     text: (key, stored) => (edit && edit.key === key ? edit.text : stored),
     dirty: (key) => !!edit && edit.key === key,
     type,
-    flush,
+    flush: flushCurrent,
   };
 }
