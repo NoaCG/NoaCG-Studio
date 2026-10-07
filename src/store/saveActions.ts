@@ -148,6 +148,27 @@ export function openGraphicById(id: string): boolean {
   return true;
 }
 
+/**
+ * Would replacing the working document lose something the user did? This is the guard's
+ * question, and `saved.dirty` alone answers a different one.
+ *
+ * A LINKED document (it has a library record) has lost work exactly when it drifted from that
+ * record, which is what `dirty` says. A NEVER-SAVED one is dirty from birth: the whole-project
+ * swap that made it marks it so (templateStore `applyTemplate`), because it is in no library and
+ * the Save button must say so. The wizard's "Edit this graphic" door makes exactly that, by
+ * design - it saves nothing (e2e/editor-base-edits.spec.ts B01). Guarding on `dirty` then asked
+ * "has unsaved changes. Save them?" on the next + New graphic from Home with nothing edited at
+ * all (owner, 2026-10-07), on every visit, since the flag persists. Until it is edited such a
+ * document is still the pristine baseline it was created as, so it is compared with that:
+ * equal means nothing anyone did is at risk, and the switch goes ahead without asking.
+ */
+function hasUnsavedWork(): boolean {
+  const { saved, template, baseline } = useTemplateStore.getState();
+  if (!saved.dirty) return false;
+  if (saved.graphicId) return true;
+  return JSON.stringify(template) !== JSON.stringify(baseline);
+}
+
 // ── The save/guard UI store ──────────────────────────────────────────────────────────────────
 
 export interface SaveUiState {
@@ -164,8 +185,8 @@ export interface SaveUiState {
   /** Dismiss the guard because the switch happened (never runs `cancel`). */
   settleConfirm: () => void;
   /**
-   * Run `proceed` (an action that REPLACES the working document) behind the guard: dirty
-   * documents ask first, clean ones switch immediately.
+   * Run `proceed` (an action that REPLACES the working document) behind the guard: a document
+   * with work the switch would lose asks first (`hasUnsavedWork`), any other switches at once.
    */
   requestSwitch: (proceed: () => void, cancel?: () => void) => void;
 }
@@ -182,8 +203,7 @@ export const useSaveUi = create<SaveUiState>((set, get) => ({
   },
   settleConfirm: () => set({ confirmSwitch: null }),
   requestSwitch: (proceed, cancel) => {
-    const { saved } = useTemplateStore.getState();
-    if (saved.dirty) set({ confirmSwitch: { proceed, cancel } });
+    if (hasUnsavedWork()) set({ confirmSwitch: { proceed, cancel } });
     else proceed();
   },
 }));
