@@ -217,7 +217,6 @@
 /* Home's Join a team card (JoinTeamCard.tsx): the make-one slot's dashed skin, with the people
    icon in the title so it reads as the team door without a word of copy. */
 .team-join-card > strong { display: inline-flex; align-items: center; gap: 7px; }
-.team-join-card .prod-card-stats strong { font-size: inherit; }
 
 /* ── Team productions on Home (stage 4) ────────────────────────────────────────────────────────
    One band per team under "Shared with my teams": the team's own head row (chip, member count,

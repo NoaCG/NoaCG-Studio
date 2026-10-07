@@ -56,7 +56,7 @@ export default function TeamsSection({
       )}
       {loaded && teams.length === 0 && !loadError && (
         <p className="hint" data-testid="teams-section-empty">
-          You are not in a team any more. To join one, open the link a teammate sends you, or enter its code under <strong>Join a team</strong> on your productions list.
+          You are not in a team any more.
         </p>
       )}
       <div className="team-cards">

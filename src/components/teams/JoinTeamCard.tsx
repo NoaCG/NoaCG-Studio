@@ -10,6 +10,9 @@
 // team appears only after the door is opened" for SIGNED-IN accounts only: offline and signed out
 // the caller renders nothing, behind `useTeamsAvailable()` like every other team surface, and
 // `e2e/auth.spec.ts` pins it absent there.
+//
+// It carries no sentence: the title, the field's placeholder and the button say what it is for.
+// Starting a team is a production's Share, on the production card's menu, so it is not told here.
 
 import { useState } from 'react';
 import { useRouter } from '../../app/router';
@@ -32,11 +35,6 @@ export default function JoinTeamCard() {
   return (
     <div className="prod-card prod-card-new team-join-card" data-testid="join-team-card">
       <strong><IconUsers size={15} /> Join a team</strong>
-      <p className="prod-card-stats">
-        Got a join code or link from a teammate? Enter it here to work on the team’s productions
-        from your own account. To start a team, choose <strong>Share</strong> on one of your
-        productions.
-      </p>
       <div className="spacer" />
       <input
         value={text}
