@@ -196,7 +196,7 @@ test('the build fails when GOALS drops a priority the wording still places an it
 });
 
 test('a roadmap item is one capability in a line or two, never a task list', () => {
-  const listed = WORDING.replace(/^### Live data\n\n(- .*\n)/m, '### Live data\n\n$1- One.\n- Two.\n');
+  const listed = WORDING.replace(/^### Live data\r?\n\r?\n(- .*\r?\n)/m, '### Live data\n\n$1- One.\n- Two.\n');
   assert.notEqual(listed, WORDING, 'the Live data item not found; update this test with the wording');
   assert.ok(buildRoadmap(GOALS, listed).problems.some((p) => /"Live data" has 3 bullets; say it in 2 or fewer/.test(p)));
 });
