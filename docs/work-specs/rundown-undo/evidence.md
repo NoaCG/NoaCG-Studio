@@ -1,5 +1,8 @@
 # Rundown undo plan evidence
 
+This records the original docs-only verification. Current runtime implementation and
+verification are recorded in [implementation](implementation.md).
+
 Branch: `codex/e-rundown-undo`. Source baseline: `5f79c85a3`.
 Scope: `docs/work-specs/rundown-undo/` plus the authorized
 `docs/backlog/orchestrator-native-path-too-heavy.md` addition. No product/history implementation.

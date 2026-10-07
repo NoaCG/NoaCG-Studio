@@ -13,8 +13,7 @@ import {
   MIN_PLAYOUT_LAYER,
   nextFreeLayer,
   noteShowOutputOpened,
-  removeShowCue,
-  removeShowGraphic,
+  removeShowGraphicChecked,
   setShowGraphicLayer,
   setShowAudienceSlugs,
   setShowHostedSlug,
@@ -24,15 +23,15 @@ import {
   updateShowCue,
   updateShowCueChecked,
   playoutItemOf,
-  removePlayoutItem,
+  removePlayoutItemChecked,
   fillPlayoutItemFacts,
   addFolderFromSelection,
   moveInRundown,
   pasteInRundown,
-  removeShowCues,
+  removeShowCuesChecked,
   takeCuesOutOfFolders,
   removeFolder,
-  renameFolder,
+  renameFolderChecked,
   setFolderCollapsed,
   setFolderMode,
   setFolderPlayback,
@@ -124,12 +123,14 @@ import {
   takeFace,
   usePlayoutVerbKeys,
   useRundownEditKeys,
-  type RundownEditKey,
   useSpaceMode,
   type PlayoutVerb,
   type SpaceMode,
   type VerbPress,
+  type RundownEditKey,
 } from '../playoutKeys';
+import { useRundownHistory } from './useRundownHistory';
+import { liveRundownRefusal, type RundownSlice } from '../../model/rundownHistory';
 import { SpaceModeToggle } from '../SpaceModeToggle';
 import { PREVIEW_EMPTY_LABEL, type SpaceAction } from '../../control/spaceMode';
 import { cueDataRows, hasSideFields, nextRow, rowsForSide } from '../../control/cueData';
@@ -300,6 +301,7 @@ import { PrepareForLive, usePrepareForLive } from '../control/PrepareForLive';
  *  300 ms idle (a keystroke must not parse + rewrite the whole shows store — the store embeds
  *  full template snapshots, so that is a visible input-lag class of cost). */
 interface CueDraft {
+  productionId: string;
   cueId: string;
   label: string;
   note: string;
@@ -482,6 +484,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** THE RUNDOWN'S CLIPBOARD (docs/CLIP_PLAYBACK_PLAN.md §20.2): what Ctrl+C or Ctrl+X last took, in
    *  this page's memory only (model/cueClipboard.ts). */
   const [clip, setClip] = useState<CueClip | null>(null);
+  const pendingClip = useRef<Promise<CueClip | null> | null>(null);
   /** What the rundown's authoring last said: a refused drop, or a folder write that did not land. */
   const [rundownNote, setRundownNote] = useState<string | null>(null);
   const rundownFeedback = useRef<HTMLDivElement>(null);
@@ -1276,19 +1279,30 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const draftPending = useRef(false);
   draftRef.current = draft;
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftOwner = useRef(id); draftOwner.current = id;
+  const historyRef = useRef<ReturnType<typeof useRundownHistory> | null>(null);
+  const historySafety = useRef<(expected: RundownSlice, replacement: RundownSlice) => string | null>(() => 'Wait for the production to finish loading.');
+  const cancelDraft = useCallback(() => {
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = null; draftPending.current = false; draftRef.current = null; setDraft(null);
+  }, []);
+  const history = useRundownHistory(show ?? null, setShows, setRundownNote, (a, b) => historySafety.current(a, b), cancelDraft);
+  historyRef.current = history;
   const flushDraft = useCallback(() => {
     if (flushTimer.current) {
       clearTimeout(flushTimer.current);
       flushTimer.current = null;
     }
     const d = draftRef.current;
-    if (!d || !draftPending.current || !canAuthorAccount()) return;
-    const result = updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values });
-    setShows(result.shows);
-    if (!result.error) {
-      draftPending.current = false;
-      setDraft(null);
-    }
+    if (!d || !draftPending.current || !canAuthorAccount() || d.productionId !== id || draftOwner.current !== id) return Promise.resolve(true);
+    draftPending.current = false;
+    return historyRef.current!.writeDraft(() => updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values })).then(saved => {
+      if (draftRef.current === d && draftOwner.current === id) {
+        if (saved) { draftRef.current = null; setDraft(null); }
+        else draftPending.current = true;
+      }
+      return saved;
+    });
   }, [id]);
   const refreshRundown = async () => {
     if (refreshingId.current || !show) return;
@@ -1300,6 +1314,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     setRundownNote('Refreshing rundown…');
     try {
       window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+      await history.settle();
       const storageError = await commitDurableWrites();
       if (storageError) throw new Error(storageError);
       if (show.teamId) {
@@ -1327,14 +1342,31 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     } finally { refreshingId.current = null; setRefreshingRundown(false); }
   };
   useEffect(() => {
-    window.addEventListener('noacg-account-authoring-pausing', flushDraft);
-    window.addEventListener('noacg-account-authoring-flush', flushDraft);
-    return () => {
-      window.removeEventListener('noacg-account-authoring-pausing', flushDraft);
-      window.removeEventListener('noacg-account-authoring-flush', flushDraft);
-      flushDraft();
+    // Pausing and teardown cannot await a microtask: retain the captured production's last
+    // character synchronously before the account closes. No history survives this boundary.
+    const retainClosingDraft = () => {
+      const d = draftRef.current;
+      if (d?.productionId === id && draftPending.current && canAuthorAccount()) {
+        const result = updateShowCueChecked(id, d.cueId, { label: d.label, note: d.note || null, values: d.values });
+        if (!result.error) draftPending.current = false;
+      }
     };
-  }, [flushDraft]);
+    const flush = () => { void flushDraft(); };
+    window.addEventListener('noacg-account-authoring-pausing', retainClosingDraft);
+    window.addEventListener('noacg-account-authoring-flush', flush);
+    window.addEventListener('pagehide', retainClosingDraft);
+    const hidden = () => { if (document.visibilityState === 'hidden') retainClosingDraft(); };
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('noacg-account-authoring-pausing', retainClosingDraft);
+      window.removeEventListener('noacg-account-authoring-flush', flush);
+      window.removeEventListener('pagehide', retainClosingDraft);
+      document.removeEventListener('visibilitychange', hidden);
+      retainClosingDraft();
+    };
+  }, [flushDraft, id]);
+  useEffect(() => { cancelDraft(); }, [id, cancelDraft]);
+  useEffect(() => { void flushDraft(); void historyRef.current?.closeGroup(); }, [sub, flushDraft]);
 
   // ── PRODUCTION DATA: the tree, and what it resolves to (docs/PRODUCTION_DATA_PLAN.md) ────
   // Held on THIS page rather than in the Data workspace, because the one sender lives here and
@@ -1562,24 +1594,26 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     [bindings],
   );
 
-  /** The cue as the operator currently sees it — draft over record. */
+  const cuesRef = useRef(cues);
+  cuesRef.current = cues;
+  /** The cue as the operator currently sees it — draft over the latest mounted record.
+   * A save acknowledgement can clear the draft while a verb awaits it. */
   const cueView = useCallback(
     (cue: ShowCue): Pick<CueDraft, 'label' | 'note' | 'values'> => {
       const d = draftRef.current;
-      return d && d.cueId === cue.id ? d : { label: cue.label, note: cue.note ?? '', values: cue.values };
+      const current = cuesRef.current.find(c => c.id === cue.id) ?? cue;
+      return d && d.productionId === draftOwner.current && d.cueId === cue.id ? d : { label: current.label, note: current.note ?? '', values: current.values };
     },
     [],
   );
 
   // The log names cues by the LABEL the operator wrote, and it is read from long-lived
   // callbacks, so the lookup goes through a ref rather than a dependency.
-  const cuesRef = useRef(cues);
-  cuesRef.current = cues;
   const cueLabel = useCallback((cueId: string) => {
     // The DRAFT wins: a verb runs in the same tick as the `flushDraft()` before it, so reading
     // the record alone logged the name the cue had BEFORE the rename just made.
     const d = draftRef.current;
-    if (d && d.cueId === cueId) return d.label;
+    if (d && d.productionId === draftOwner.current && d.cueId === cueId) return d.label;
     return cuesRef.current.find((c) => c.id === cueId)?.label ?? null;
   }, []);
   // A ⚡ press is logged by its BUTTON's name, not the machine's event id (control/eventLog.ts).
@@ -1973,28 +2007,28 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
 
   const selectCue = useCallback(
     (cueId: string) => {
-      flushDraft();
-      setDraft(null);
+      void flushDraft(); void historyRef.current?.closeGroup();
+      cancelDraft();
       setSelectedCueId(cueId);
       setSelectedFolderRow(null);
       setRangeIds([]);
       setEditTarget('preview');
     },
-    [flushDraft],
+    [flushDraft, cancelDraft],
   );
   /** Hold a folder's header: its panel opens, and SPACE, TAKE and Out act on the folder. Its first cue
    *  becomes the selected cue behind it, so if the folder goes the cursor stays where it stood. */
   const selectFolder = useCallback(
     (folderId: string, rowId: string) => {
-      flushDraft();
-      setDraft(null);
+      void flushDraft(); void historyRef.current?.closeGroup();
+      cancelDraft();
       const first = rundown.members.get(folderId)?.[0];
       if (first) setSelectedCueId(first.id);
       setSelectedFolderRow({ folderId, rowId });
       setRangeIds([]);
       setEditTarget('preview');
     },
-    [flushDraft, rundown],
+    [flushDraft, rundown, cancelDraft],
   );
   /** A row clicked in the rundown. With shift, the range runs from the cursor to it and nothing else
    *  moves: not the cursor, not PREVIEW, not what SPACE takes. */
@@ -2478,7 +2512,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (needsSignIn) publishAfterSignIn.current = true;
       return null;
     }
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     setBusy(true);
     try {
       let current = loadShows().find((s) => s.id === show.id);
@@ -2666,9 +2700,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     if (!editingCue || !canAuthorAccount()) return;
     window.dispatchEvent(new CustomEvent('spx-account-edit-pending'));
     const d = draftRef.current;
-    const base: CueDraft = d && d.cueId === editingCue.id
+    history.beginGroup(`${editingCue.id}:${patch.label !== undefined ? 'label' : patch.note !== undefined ? 'note' : Object.keys(patch.values ?? {}).sort().join(',')}`);
+    const base: CueDraft = d && d.productionId === id && d.cueId === editingCue.id
       ? d
-      : { cueId: editingCue.id, label: editingCue.label, note: editingCue.note ?? '', values: { ...editingCue.values } };
+      : { productionId: id, cueId: editingCue.id, label: editingCue.label, note: editingCue.note ?? '', values: { ...editingCue.values } };
     const next = { ...base, ...patch, values: { ...base.values, ...(patch.values ?? {}) } };
     // A confirmation/expiry flush in this same tick must see the edit before React renders.
     draftRef.current = next;
@@ -2702,7 +2737,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       const blocked = options.direct ? directBlocker(cue) : takeBlockerFor(cue);
       if (blocked) return { ok: false, note: `${label} was not sent: ${blocked}`, accepted: [] };
     }
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     const settings = loadPlayoutSettings();
     const through = !options.direct && verb === 'take' && item.kind === 'media' ? places.get(cue.id)?.folder : undefined;
     const run = through ? folderRun(through, cues, playoutItems, cue.id) : null;
@@ -2786,7 +2821,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const takeGraphicCue = async (cue: ShowCue, label: string, direct = false): Promise<MemberTake | null> => {
     const graphic = cueGraphicName(cue);
     if (!graphic) return null;
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     // Bound fields come from the LIVE tree, not from what this cue stored when it was prepared
     // (plan §2.7) — otherwise taking an old cue would re-air a stale score.
     const values = withBoundValues(graphic, cueView(cue).values);
@@ -2827,7 +2862,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     const next = arm.next ? cues.find((c) => c.id === arm.next && c.source !== 'playout') : undefined;
     const nextGraphic = next ? cueGraphicName(next) : null;
     if (next && nextGraphic) {
-      flushDraft();
+      // The draft already owns preparation. Its cloud acknowledgement must not delay the timer.
+      void flushDraft(); void history.closeGroup();
       items.push(takeCueItems({ id: next.id, graphic: nextGraphic, values: withBoundValues(nextGraphic, cueView(next).values) }));
     }
     const words = `Auto ${END_WORDS[arm.then]}`;
@@ -2940,7 +2976,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     // Same overlay as Take: ✎ Update must not push a bound field back to its prepared value.
     const data = withBoundValues(selectedGraphic, cueView(editingCue).values);
     await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data } }]], 'Update');
@@ -2967,6 +3003,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    */
   const bumpLive = async (fieldKey: string, delta: number) => {
     if (!editingCue || !selectedGraphic || !editingIsLive) return;
+    await flushDraft(); await history.closeGroup();
     const path = boundFields(selectedGraphic)[fieldKey];
     if (path) {
       if (!boundPressReady()) return;
@@ -2976,7 +3013,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     const base = airedData[selectedGraphic]?.[fieldKey] ?? cueView(editingCue).values[fieldKey] ?? '0';
     const next = adjustedValue(base, delta);
-    editDraft({ values: { [fieldKey]: next } });
+    setShows(updateShowCueChecked(id, editingCue.id, { values: { [fieldKey]: next } }).shows);
     await runVerb([[{ graphic: selectedGraphic, msg: { t: 'update', data: { [fieldKey]: next } } }]], 'Update');
   };
 
@@ -3020,7 +3057,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // A server cue that is up goes off with its row, the same courtesy a graphic gets.
     if (serverCueLive(serverOnAir, playoutItemFor(cue), cue)) await playoutVerb(cue, 'out', 'Out');
     setDraft(null);
-    setShows(removeShowCue(show.id, cue.id));
+    await writeRundown(() => removeShowCuesChecked(show.id, [cue.id]), 'Delete cue');
   };
 
   /** Remove a graphic and every cue prepared against it — the one gesture for getting a graphic
@@ -3033,13 +3070,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       if (live) await playoutVerb(live, 'out', 'Out');
       if (playoutItems.some((i) => i.id === poolId)) {
         setDraft(null);
-        setShows(removePlayoutItem(show.id, poolId));
+        await writeRundown(() => removePlayoutItemChecked(show.id, poolId), 'Delete source');
       }
       return;
     }
     await takeOffAir(entry.name);
     setDraft(null);
-    setShows(removeShowGraphic(show.id, poolId));
+    await writeRundown(() => removeShowGraphicChecked(show.id, poolId), 'Delete source');
   };
 
   /** Clear the screen — the one an operator reaches for under pressure, which is why it sits
@@ -3231,6 +3268,13 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Up, for SPACE and the verbs: any of it on air, or its Take still being sent. */
   const folderUp = (folderId: string) => (folderStates[folderId]?.onAir.length ?? 0) > 0 || folderRuns.current.has(folderId) || sendingFolders.has(folderId);
   const selectedFolderUp = !!selectedFolder && folderUp(selectedFolder.id);
+  historySafety.current = (expected, replacement) => {
+    const ownership = serverPlayout.ownership.get();
+    const liveIds = new Set([...Object.values(liveCueRef.current).filter((cue): cue is string => !!cue), ...Object.values(ownership.onAir).map(item => item.cueId)]);
+    const sources = new Set(expected.cues.filter(c => liveIds.has(c.id)).map(c => c.sourceId));
+    for (const itemId of Object.keys(ownership.onAir)) sources.add(itemId);
+    return liveRundownRefusal(expected, replacement, { cues: liveIds, sources, folders: new Set(folders.filter(f => folderUp(f.id)).map(f => f.id)), unidentifiedServer: ownership.unidentified.length > 0 });
+  };
   /** A held One-by-one header's next cue, the one its press takes. */
   const heldStepCue = heldStep?.kind === 'take' ? (cues.find((c) => c.id === heldStep.cueId) ?? null) : null;
   const bridgeDown = bridgeStatus !== null && bridgeStatus.state !== 'ok';
@@ -3331,7 +3375,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       return;
     }
     if (folderRuns.current.has(folder.id)) return;
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     await runFolder(folder.id, async (run) => {
       clearMisses(members.map((c) => c.id));
       if (folderMode(folder) === 'through') {
@@ -3432,7 +3476,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       setNote(`Take was not sent: ${blocked}`);
       return;
     }
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     await runFolder(folder.id, async (run) => {
       const off = step.off.map((id) => cues.find((c) => c.id === id)).filter((c): c is ShowCue => !!c);
       if (!(await stepOff(off))) return;
@@ -3460,24 +3504,16 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   // ── THE RUNDOWN'S FOLDERS, as authored (plan §7). Making, moving and removing one tells the operator
   // only once the durable write has landed (components/never-report-save-storage-layer-has). ──
   /** One authoring write of the rundown, said only once it lands. True when it did. */
-  const writeRundown = async (write: () => { shows: Show[]; error: string | null; refused?: string | null }, failed: string): Promise<boolean> => {
-    flushDraft();
-    const r = write();
-    if (r.refused) {
-      setRundownNote(r.refused);
-      return false;
-    }
-    setShows(r.shows);
-    const failure = r.error ?? (await commitDurableWrites());
-    setRundownNote(failure ? `${failed}: ${failure}` : null);
-    return !failure;
+  const writeRundown = async (write: () => { shows: Show[]; error: string | null; refused?: string | null }, label: string, failed = 'The edit was not saved'): Promise<boolean> => {
+    if (!(await flushDraft())) return false;
+    return history.write(write, label, failed);
   };
 
   // ── EDITING THE RUNDOWN (docs/CLIP_PLAYBACK_PLAN.md §20.2): the selection's menu actions, and copy,
   // cut and paste. Nothing here airs, and none of it moves the cursor or PREVIEW. ──
   /** The production as saved once the edit being typed has landed: what a copy is made of. */
-  const freshShow = () => {
-    flushDraft();
+  const freshShow = async () => {
+    await flushDraft(); await history.settle();
     return loadShows().find((s) => s.id === show.id) ?? show;
   };
   /** The cues an edit takes: the selection, else the held folder's cues, else the cursor's cue. */
@@ -3486,7 +3522,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   /** Where a paste lands: after the cursor's cue, joining its folder; last in a held folder; at the end. */
   const pastePlace = (): Place => (selectedFolder ? { into: selectedFolder.id } : selectedCue ? { after: selectedCue.id } : { end: true });
   /** Paste a clip at a place, one write; what landed becomes the selection. */
-  const pasteAt = async (what: CueClip, place: Place, failed: string) => {
+  const pasteAt = async (what: CueClip, place: Place, failed: string, selectSingle = false) => {
     let landed: string[] = [];
     const ok = await writeRundown(() => {
       const r = pasteInRundown(show.id, what, place);
@@ -3495,16 +3531,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }, failed);
     if (!ok) return;
     if (what.kind === 'cut') setClip(null);
-    setRangeIds(landed);
+    if (selectSingle && landed.length === 1) selectCue(landed[0]);
+    else setRangeIds(landed);
     setRangeEnd(null);
   };
   const duplicateCues = async (ids: readonly string[]) => {
-    const copies = copyClip(freshShow(), ids, (label) => `${label} copy`);
+    const copies = copyClip(await freshShow(), ids, (label) => `${label} copy`);
     const last = inRundownOrder(ids).pop();
-    if (copies && last) await pasteAt(copies, { after: last }, 'The copies were not saved');
+    if (copies && last) await pasteAt(copies, { after: last }, 'Duplicate cues', ids.length === 1);
   };
   const takeOutOfFolders = async (ids: readonly string[]) => {
-    await writeRundown(() => takeCuesOutOfFolders(show.id, ids), 'The move was not saved');
+    await writeRundown(() => takeCuesOutOfFolders(show.id, ids), 'Move cues', 'The move was not saved');
   };
   /** Remove several cues: each goes off air first as one removal would - a graphic whose last cue is
    *  among them, and any server cue that is up - then one write. */
@@ -3519,17 +3556,17 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     for (const c of leaving) if (serverCueLive(serverOnAir, playoutItemFor(c), c)) await playoutVerb(c, 'out', 'Out');
     setDraft(null);
     setRangeIds([]);
-    setShows(removeShowCues(show.id, ids));
+    await writeRundown(() => removeShowCuesChecked(show.id, ids), 'Delete cues');
   };
   /** The cues Ctrl+X marked, still in the rundown. */
   const cutIds = new Set(clip?.kind === 'cut' ? clip.ids : []);
   const newFolder = async (cueIds: readonly string[]) => {
     if (!cueIds.length) return;
     setRangeIds([]);
-    await writeRundown(() => addFolderFromSelection(show.id, cueIds), 'The folder was not saved');
+    await writeRundown(() => addFolderFromSelection(show.id, cueIds), 'Create folder', 'The folder was not saved');
   };
-  const removeFolderOf = (folderId: string) => writeRundown(() => removeFolder(show.id, folderId), 'The folder was not removed');
-  const moveRundown = (what: Movable, place: Place) => writeRundown(() => moveInRundown(show.id, what, place), 'The move was not saved');
+  const removeFolderOf = (folderId: string) => writeRundown(() => removeFolder(show.id, folderId), 'Remove folder', 'The folder was not removed');
+  const moveRundown = (what: Movable, place: Place) => writeRundown(() => moveInRundown(show.id, what, place), 'Move cues', 'The move was not saved');
   /** Collapse or open a folder: a background write that reports nothing. */
   const toggleFolder = (folderId: string) => {
     if (!canAuthorAccount()) return;
@@ -3669,7 +3706,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  cue, so the cue and the air cannot drift apart and ⟳ Take / ✎ Update never regress it. */
   const fireEvent = async (button: ControlButton) => {
     if (!selectedGraphic || !selectedLayerLive) return;
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     const values = airValues();
     const bound = boundFields(selectedGraphic);
     // A press that would move a SHARED value waits for the tree, and the EVENT waits with it: a
@@ -3689,10 +3726,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           : values[key],
     );
     if (Object.keys(adjusted).length > 0 && airCue && canAuthorAccount()) {
-      // Into the draft when the on-air cue is the one being edited (its box repaints at once),
-      // straight into the record otherwise - either way the cue holds the figure air shows.
-      if (editingIsLive) editDraft({ values: adjusted });
-      else setShows(updateShowCue(id, airCue.id, { values: { ...airCue.values, ...adjusted } }));
+      // Persist accepted live values directly; a live event is outside preparation history.
+      setShows(updateShowCue(id, airCue.id, { values: adjusted }));
     }
     const msg = payload
       ? { t: 'event' as const, event: button.event, payload }
@@ -3713,7 +3748,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  from the fields. */
   const snapTo = async (groupId: string | null, stateId: string) => {
     if (!selectedGraphic || !selectedLayerLive) return;
-    flushDraft();
+    await flushDraft(); await history.closeGroup();
     const snap = groupId === null ? null : { [groupId]: stateId };
     await runVerb(
       [
@@ -3844,16 +3879,24 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     }
     if (key === 'copy' || key === 'cut') {
       const ids = editIds();
-      const taken = key === 'copy' ? copyClip(freshShow(), ids) : ids.length ? cutClip(show.id, ids) : null;
-      if (!taken) return;
-      setClip(taken);
-      const n = clipSize(taken);
-      const what = `${n} cue${n === 1 ? '' : 's'}`;
-      setNote(key === 'copy' ? `✓ ${what} copied. Ctrl+V pastes after the selected row.` : `✓ ${what} ready to move. Still in place until you paste. Select a row, then Ctrl+V to move after it, or select a folder to move into it. Esc cancels the move.`);
+      const copied = (async () => {
+        const taken = key === 'copy' ? copyClip(await freshShow(), ids) : ids.length ? cutClip(show.id, ids) : null;
+        if (!taken || draftOwner.current !== show.id) return null;
+        setClip(taken);
+        const n = clipSize(taken), what = `${n} cue${n === 1 ? '' : 's'}`;
+        setNote(key === 'copy' ? `✓ ${what} copied. Ctrl+V pastes after the selected row.` : `✓ ${what} ready to move. Still in place until you paste. Select a row, then Ctrl+V to move after it, or select a folder to move into it. Esc cancels the move.`);
+        return taken;
+      })();
+      pendingClip.current = copied;
+      void copied.finally(() => { if (pendingClip.current === copied) pendingClip.current = null; });
       return;
     }
     if (key === 'paste') {
-      if (clip) void pasteAt(clip, pastePlace(), 'The paste was not saved');
+      const copying = pendingClip.current, place = pastePlace();
+      void (async () => {
+        const taken = copying ? await copying : clip;
+        if (taken && draftOwner.current === show.id) await pasteAt(taken, place, 'Paste cues');
+      })();
       return;
     }
     if (key === 'select-clear') {
@@ -4364,10 +4407,20 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
       onEditKey={key => {
-        if (key !== 'delete' || !canAuthorAccount()) return false;
-        const ids = editIds();
-        if (!ids.length) return false;
-        void removeCues(ids);
+        if (!canAuthorAccount()) return false;
+        if (key === 'delete') {
+          const ids = editIds();
+          if (!ids.length) return false;
+          void removeCues(ids); return true;
+        }
+        if (history.busy) return false;
+        if (!(key === 'undo' ? history.canUndo : history.canRedo)) return false;
+        void (async () => {
+          window.dispatchEvent(new CustomEvent('noacg-account-authoring-flush'));
+          if (!(await flushDraft())) return;
+          await history.settle();
+          await history.restore(key);
+        })();
         return true;
       }}
       renders={renders.current}
@@ -4620,7 +4673,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             const id = selectedFolder.id;
             return (
               <AccountAuthoringGate><FolderEditor
-                key={id}
+                key={`${show.id}:${id}`}
                 folder={selectedFolder}
                 members={heldMembers}
                 items={playoutItems}
@@ -4636,7 +4689,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   const g = graphicByPoolId.get(c.sourceId);
                   return item ? addressOfItem(item) : g ? `L${graphicLayer(g)}` : '';
                 }}
-                onRename={(name) => setShows(renameFolder(show.id, id, name))}
+                onRename={(name, closing) => {
+                  if (closing) {
+                    // Account pause and teardown cannot await the history queue. Its history
+                    // is discarded at this boundary; preserve the captured production's text.
+                    const result = renameFolderChecked(show.id, id, name);
+                    setShows(result.shows);
+                    if (result.error) setRundownNote(`The folder was not saved: ${result.error}`);
+                  } else void writeRundown(() => renameFolderChecked(show.id, id, name), 'Rename folder', 'The folder was not saved');
+                }}
                 onMode={(mode) => {
                   const r = setFolderMode(show.id, id, mode);
                   if (r.error) return r.error;
@@ -4654,7 +4715,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
         {editingCue && editingView && poolGraphic && (
-          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="cue-editor" inert={!authoringAllowed}>
+          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
+            onBlurCapture={() => { void flushDraft(); void history.closeGroup(); }}>
             <div className="pd-editor-head">
               {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
                   same name and the same tally, so "EDITING ON-AIR CUE" over an editable title
@@ -5078,7 +5140,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         toggleFolder={toggleFolder}
         setRundownNote={setRundownNote}
         uploadPictures={uploadPictures}
-        flushDraft={flushDraft}
         refreshRundown={refreshRundown}
         refreshing={refreshingRundown}
         setShows={setShows}

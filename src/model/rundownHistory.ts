@@ -31,6 +31,27 @@ function ordered(value: unknown): unknown {
 export const sliceKey = (slice: RundownSlice): string => JSON.stringify(ordered(slice));
 export const sameRundown = (a: RundownSlice, b: RundownSlice): boolean => sliceKey(a) === sliceKey(b);
 
+export interface RundownLiveState { cues: ReadonlySet<string>; sources: ReadonlySet<string>; folders: ReadonlySet<string>; unidentifiedServer: boolean }
+/** An inverse changes preparation only. Refuse data that current air or a running folder uses. */
+export function liveRundownRefusal(expected: RundownSlice, replacement: RundownSlice, live: RundownLiveState): string | null {
+  for (const id of live.cues) {
+    const before = expected.cues.find(c => c.id === id), after = replacement.cues.find(c => c.id === id);
+    if (before && (!after || after.sourceId !== before.sourceId || after.source !== before.source)) return 'Take the affected cue off air before undoing this edit.';
+  }
+  for (const id of live.sources) {
+    const before = [...expected.graphics, ...expected.playoutItems].find(s => s.id === id);
+    const after = [...replacement.graphics, ...replacement.playoutItems].find(s => s.id === id);
+    if (before && JSON.stringify(ordered(before)) !== JSON.stringify(ordered(after))) return 'Take the affected source off air before undoing this edit.';
+  }
+  for (const id of live.folders) {
+    const members = (slice: RundownSlice) => slice.cues.filter(c => c.folderId === id).map(c => c.id);
+    if (JSON.stringify(members(expected)) !== JSON.stringify(members(replacement)) ||
+        JSON.stringify(ordered(expected.folders.find(f => f.id === id))) !== JSON.stringify(ordered(replacement.folders.find(f => f.id === id)))) return 'Stop the affected folder before undoing this edit.';
+  }
+  if (live.unidentifiedServer && JSON.stringify(ordered(expected.playoutItems)) !== JSON.stringify(ordered(replacement.playoutItems))) return 'Clear the unidentified server output before undoing this edit.';
+  return null;
+}
+
 export function rundownRefusal(slice: RundownSlice): string | null {
   const unique = (rows: readonly { id: string }[]) => rows.every(r => !!r.id) && new Set(rows.map(r => r.id)).size === rows.length;
   if (![slice.cues, slice.folders, slice.graphics, slice.playoutItems].every(unique)) return 'The saved rundown has duplicate or missing identifiers.';

@@ -170,7 +170,6 @@ export default function CueRundown({
   toggleFolder,
   setRundownNote,
   uploadPictures,
-  flushDraft,
   setShows,
   refreshRundown,
   refreshing,
@@ -258,7 +257,6 @@ export default function CueRundown({
   toggleFolder: (folderId: string) => void;
   setRundownNote: (note: string | null) => void;
   uploadPictures: (files: File[]) => Promise<void>;
-  flushDraft: () => void;
   setShows: (shows: Show[]) => void;
   refreshRundown: () => Promise<void>;
   refreshing: boolean;
@@ -488,7 +486,7 @@ export default function CueRundown({
   const feedback = aim?.plan?.refused ?? rundownNote;
   let feedbackTone = 'status-bad';
   if (!aim?.plan?.refused) {
-    if (feedback === 'Rundown refreshed from cloud.') feedbackTone = 'status-ok';
+    if (feedback?.startsWith('✓') || feedback === 'Rundown refreshed from cloud.') feedbackTone = 'status-ok';
     else if (feedback?.startsWith('Refreshing') || feedback?.includes('local workspace')) feedbackTone = 'hint';
   }
 
@@ -927,25 +925,8 @@ export default function CueRundown({
                   <button
                     role="menuitem"
                     onClick={() => {
-                      // The selection's row: copies of all of it, right after the last of them.
-                      if (takesRange) {
-                        setMenuRowId(null);
-                        void duplicateCues([...range]);
-                        return;
-                      }
-                      flushDraft();
-                      const v = cueView(cue);
-                      // The copy is of the cue, its playback too, and goes right after it - in its
-                      // folder when it is in one (plan §7).
-                      const { shows: next, cueId } = addShowCue(
-                        show.id,
-                        cue.sourceId,
-                        { label: `${v.label} copy`, values: v.values, note: v.note || undefined, ...(cue.accentColor ? { accentColor: cue.accentColor } : {}), ...(cue.playback ? { playback: cue.playback } : {}), ...(cue.auto ? { auto: cue.auto } : {}) },
-                        cue.id,
-                      );
-                      setShows(next);
                       setMenuRowId(null);
-                      if (cueId) selectCue(cueId);
+                      void duplicateCues(takesRange ? [...range] : [cue.id]);
                     }}
                   >
                     {takesRange ? `Duplicate the ${rangeCount} selected cues` : 'Duplicate'}

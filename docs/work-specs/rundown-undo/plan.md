@@ -1,6 +1,7 @@
 # Rundown undo and redo plan
 
-Status: proposed implementation, 2026-10-04. This change contains documentation only.
+Original planning record, 2026-10-04. Current delivered phases and runtime verification are
+recorded in [implementation](implementation.md).
 Source baseline: `5f79c85a3b8ab118573fc186e1f2aa8c7fda5e85`.
 
 ## Short spec
@@ -174,7 +175,7 @@ C. Wire local shortcuts and verify the rendered production page. Plan focused Pl
 | 51 small steps and an asset-heavy step over the budget | Oldest eviction and bounded serialized retention; oversized edit still saves and explains lost history |
 
 Risks: snapshot assets consume memory; strict slice equality clears history on unrelated source
-changes; team acknowledgements currently cannot identify an edit; personal LWW is still not
-lossless collaboration. The first implementation review should reassess transaction integration
-and live-source refusals before expanding beyond this scope. Runtime implementation, browser
-acceptance and owner production judgment remain future work.
+changes; at planning time team acknowledgements could not identify an edit; personal LWW is still
+not lossless collaboration. Reassess transaction integration and live-source refusals before
+expanding beyond this scope. Delivered persistence/UI phases and runtime acceptance are recorded
+in [implementation.md](implementation.md); physical production judgment remains an owner check.

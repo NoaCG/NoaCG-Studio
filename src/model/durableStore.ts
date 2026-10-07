@@ -173,7 +173,23 @@ export interface DurableWriteReceipt {
   readonly settled: Promise<string | null>;
 }
 const receipts = new Map<string, DurableWriteReceipt>();
+const receiptObservers = new Set<(receipt: DurableWriteReceipt) => void>();
 const conditionalWrites = new Map<string, () => void>();
+
+function recordReceipt(receipt: DurableWriteReceipt): void {
+  receipts.set(receipt.key, receipt);
+  for (const observer of receiptObservers) observer(receipt);
+}
+
+/** Collect the puts made by one synchronous edit, including reentrant change listeners. A
+ * later listener's successful put must not conceal the edit's earlier failed put. */
+export function captureDurableWrites<T>(key: DurableKey, write: () => T): { result: T; receipts: DurableWriteReceipt[] } {
+  const captured: DurableWriteReceipt[] = [], account = namespace;
+  const observer = (receipt: DurableWriteReceipt) => { if (receipt.key === key && receipt.account === account) captured.push(receipt); };
+  receiptObservers.add(observer);
+  try { return { result: write(), receipts: captured }; }
+  finally { receiptObservers.delete(observer); }
+}
 
 /** Capture immediately after a synchronous model edit; this receipt belongs to that put. */
 export function lastDurableWrite(key: string): DurableWriteReceipt | undefined {
@@ -549,7 +565,7 @@ export const durable = {
     }
     if (!hydrated || !usingIndexedDb) {
       lsSet(physical(key), value);
-      receipts.set(key, { sequence: ++writeSeq, key, value, account: namespace, settled: Promise.resolve(null) });
+      recordReceipt({ sequence: ++writeSeq, key, value, account: namespace, settled: Promise.resolve(null) });
       return;
     }
     const previous = mirror.get(key) ?? null;
@@ -615,7 +631,7 @@ function queueWrite(key: string, value: string | null, previous: string | null):
     if (namespace === account) reportError(key, message, seq);
     return message;
   });
-  receipts.set(key, { sequence: seq, key, value, account, settled });
+  recordReceipt({ sequence: seq, key, value, account, settled });
   const write = settled.then(() => {});
   pending.add(write);
   void write.finally(() => {
