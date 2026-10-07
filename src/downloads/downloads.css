@@ -1,6 +1,6 @@
-/* THE DOWNLOADS PAGE (downloads.html). Everything shared with the docs - the landing's header,
-   the buttons, headings, command blocks and the copy button - comes from src/docs/docs.css; this
-   file adds only the two tool cards. */
+/* THE DOWNLOADS PAGE (downloads.html). The header, footer and buttons are the site's
+   (src/site-chrome.css); the headings, command blocks and copy button are the docs'
+   (src/docs/docs.css); this file adds only the two tool cards. */
 
 /* Two tools side by side, each a card of the same height, so neither reads as the main one:
    they are for different people. One column on a phone or a narrow window. */

@@ -8,8 +8,9 @@
   a pull request list, names internal things, or runs long, so a bad note fails the build instead
   of reaching this page. How to write one: docs/whats-new/README.md.
 
-  Static and complete with no JavaScript. The shared header, type and footer come from the docs
-  stylesheet, so this page, /roadmap, /docs and /downloads read as one site.
+  Static and complete with no JavaScript. The header and footer are the site's
+  (scripts/site-nav.mjs, src/site-chrome.css) and the type is the docs stylesheet's, so this page,
+  /roadmap, /docs and /downloads read as one site.
 -->
 <html lang="en">
 <head>
@@ -26,16 +27,13 @@
   <meta property="og:description" content="The biggest changes, about twice a week, grouped by topic." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://noacg.studio/whats-new" />
+  <link rel="stylesheet" href="/src/site-chrome.css" />
   <link rel="stylesheet" href="/src/docs/docs.css" />
   <link rel="stylesheet" href="/src/landing/updates.css" />
 </head>
 <body>
   <div class="wrap">
-    <header class="top">
-      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
-      <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
-      <!--site:nav-->
-    </header>
+    <!--site:header-->
 
     <div class="doc-hero">
       <p class="kicker">What's new</p>
@@ -50,17 +48,7 @@
 <!--whats-new:updates-->
     </main>
 
-    <footer>
-      <span class="fm">NoaCG Studio &middot; What's new</span>
-      <span>
-        <a href="/">Home</a> &middot;
-        <a href="/roadmap">Roadmap</a> &middot;
-        <a href="/docs">Docs</a> &middot;
-        <a href="/downloads">Downloads</a> &middot;
-        <a href="https://github.com/NoaCG/NoaCG-Studio">Source</a> &middot;
-        <a href="mailto:contact.noacg@gmail.com">Contact</a>
-      </span>
-    </footer>
+    <!--site:footer-->
   </div>
 </body>
 </html>

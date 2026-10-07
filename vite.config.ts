@@ -11,7 +11,7 @@ import { meApiPlugin } from './scripts/meDevPlugin.mjs';
 import { dataApiPlugin } from './scripts/dataDevPlugin.mjs';
 import { renderLatestHtml, renderUpdatesHtml } from './scripts/whats-new.mjs';
 import { renderNowHtml, renderRoadmapHtml } from './scripts/roadmap.mjs';
-import { renderSiteNav } from './scripts/site-nav.mjs';
+import { renderSiteChrome } from './scripts/site-nav.mjs';
 
 // NoaCG Studio — dev/build config.
 // Thirteen pages: index.html is the static public landing at "/", docs.html is the public docs
@@ -91,8 +91,6 @@ const GENERATED: Record<string, () => string> = {
   '<!--roadmap:now-->': () => renderNowHtml(),
 };
 
-const SITE_NAV_MARKER = '<!--site:nav-->';
-
 function generatedPages(): Plugin {
   return {
     name: 'generated-pages',
@@ -103,9 +101,8 @@ function generatedPages(): Plugin {
         for (const [marker, render] of Object.entries(GENERATED)) {
           if (out.includes(marker)) out = out.replace(marker, () => render());
         }
-        // The top bar, one list for every page that carries it (scripts/site-nav.mjs).
-        if (out.includes(SITE_NAV_MARKER)) out = out.replace(SITE_NAV_MARKER, () => renderSiteNav(ctx.path));
-        return out;
+        // The top bar and the footer, one of each for every public page (scripts/site-nav.mjs).
+        return renderSiteChrome(out, ctx.path);
       },
     },
   };
