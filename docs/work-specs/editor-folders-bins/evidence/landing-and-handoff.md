@@ -5,6 +5,14 @@ and live. Folders remain inert source metadata; bins use existing asset
 ownership, references and save APIs. Groups retain transforms and local time.
 The editor now shows its location and an explicit Back to Composition control.
 
+Before publishing this receipt, current main also landed the independent
+rundown-history [PR #718](https://github.com/NoaCG/NoaCG-Studio/pull/718) as
+`0a2f3789692b8337e7094c6f3179bd17e747a95a`. This documentation branch reconciled
+cleanly with that revision. Folder/bin source, editor adapters, shared asset
+helpers and the focused browser cases match the verified feature merge exactly.
+The ledger review uses this current merged tree; only its review and the new
+hashed text receipts follow it. The spec and feature code are unchanged.
+
 ## Observed landing
 
 | Observation | Evidence |

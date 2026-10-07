@@ -6,7 +6,7 @@
     "source": "Owner request in Codex chat, 2026-10-06: Implement R1.2b.7 folders and bins (B02) as an unattended bounded slice; preserve protected ownership and land through check/queue-merge."
   },
   "review": {
-    "revision": "b362712bc06d6622fd446c6a642ef2a2e478ddea",
+    "revision": "0a2f3789692b8337e7094c6f3179bd17e747a95a",
     "specSha256": "b30c0d72069f73bdb851cf9a9af87bedaf955fd29d1ab44959c119bb0ad16845",
     "evidence": [
       {
@@ -19,7 +19,7 @@
       },
       {
         "path": "docs/work-specs/editor-folders-bins/evidence/landing-and-handoff.md",
-        "sha256": "aa3d2f7d67cce61fe78b1256c5b469024ed7c5825638fe6506bf7936ac0bebaf"
+        "sha256": "e1fde7ea122bb33160b55c4df0f4647fd27050d4c03deb8c3835d72918d4145b"
       }
     ],
     "criteria": [
@@ -141,7 +141,7 @@
           },
           {
             "path": "docs/work-specs/editor-folders-bins/evidence/landing-and-handoff.md",
-            "sha256": "aa3d2f7d67cce61fe78b1256c5b469024ed7c5825638fe6506bf7936ac0bebaf"
+            "sha256": "e1fde7ea122bb33160b55c4df0f4647fd27050d4c03deb8c3835d72918d4145b"
           }
         ]
       }
