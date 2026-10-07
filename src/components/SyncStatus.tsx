@@ -4,7 +4,6 @@ import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } fro
 import { libraryInUse } from '../model/durableStore';
 import { useAuthUi } from './auth/authUi';
 import LibMenu from './home/LibMenu';
-import { useKeepPanelInView } from './home/InfoTip';
 
 /** What the dot says: green is confirmed in the cloud, yellow is waiting or wrong, grey is a
  *  device-only workspace with no account to sync to. */
@@ -53,7 +52,6 @@ export default function SyncStatus(_props: { compact?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
-  useKeepPanelInView(host, open);
 
   useEffect(() => {
     if (!isBackendConfigured()) return;

@@ -40,7 +40,8 @@ function clipBounds(host: HTMLElement): { top: number; bottom: number } {
  * So the direction is MEASURED, never assumed. The menu always renders downward first, this
  * measures what that actually costs against the box it has to fit in (`clipBounds` — the
  * viewport, and any scrolling ancestor that cuts it off sooner), and flips it above the button
- * when it does not fit below and does fit above. The measurement runs in a LAYOUT effect, before
+ * when it does not fit below and does fit above, and nudges it sideways back inside the screen
+ * when it runs past either edge. The measurement runs in a LAYOUT effect, before
  * paint, so a flipped menu is never briefly drawn in the wrong place.
  *
  * A menu too tall for either side stays below and scrolls inside itself (every `surface` below
@@ -98,6 +99,13 @@ export default function LibMenu({
     const fitsBelow = menuRect.bottom <= bounds.bottom;
     const fitsAbove = hostRect.top - gap - menuRect.height >= bounds.top;
     setUp(!fitsBelow && fitsAbove);
+    // SIDEWAYS it is nudged back inside the screen by exactly its overflow. A menu hung off a
+    // control that wrapped to the far side of a phone's top bar (Sync), or off an icon mid-line
+    // (an info tip), ran past the edge with nothing to scroll to. The menu is freshly mounted
+    // here, so `menuRect` is its untranslated place.
+    const right = document.documentElement.clientWidth - MARGIN;
+    const shift = menuRect.left < MARGIN ? MARGIN - menuRect.left : menuRect.right > right ? right - menuRect.right : 0;
+    menu.style.translate = shift ? `${Math.round(shift)}px 0` : '';
   }, [open]);
 
   // ── AN OUTSIDE PRESS CLOSES IT — listened for, never caught by a covering element.

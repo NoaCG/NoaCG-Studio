@@ -208,6 +208,10 @@ h2 + .lib-row,
 .prod-card-new { border-style: dashed; border-color: var(--border); background: none; }
 .prod-card-new .spacer { flex: 1; min-height: 4px; }
 .prod-card-new strong { font-size: 15px; }
+/* The import card has ONE control where its neighbours have a field and a button, so its button
+   fills that whole space as an upload tile: no hole above it, and its edges line up with the
+   neighbours' field and button. */
+.prod-card-import > button { flex: 1; margin-top: 14px; } /* = the neighbours' spacer (4px) and its gap */
 /* Packages a coding agent sent, waiting above the grid for Install. A solid accent edge rather
    than the dashed make-one slot: this is something that ARRIVED, not an empty place. */
 .pack-waiting {

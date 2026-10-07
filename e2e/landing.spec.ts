@@ -163,6 +163,23 @@ test('the pages and anchors the landing links to exist', async ({ page }) => {
   }
 });
 
+// No public page scrolls sideways, from the smallest phone to a desktop. One long word was enough
+// to break it: a browser policy name in the Downloads page's body pushed the page 16px past a
+// 320px screen. The eight pages share the site's chrome, so one sweep holds them all.
+const PUBLIC_PAGES = ['/', '/docs', '/downloads', '/ograf', '/privacy', '/terms', '/roadmap', '/whats-new'];
+for (const width of [320, 375, 860, 1280]) {
+  test(`every public page fits ${width}px without scrolling sideways`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    for (const path of PUBLIC_PAGES) {
+      const response = await page.goto(path);
+      expect(response?.ok(), path).toBe(true);
+      await page.evaluate(() => document.fonts.ready);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `${path} at ${width}px`).toBeLessThanOrEqual(0);
+    }
+  });
+}
+
 // The OBS capture is a whole OBS window. On a desktop it shows whole; on a phone it would be too
 // small to read, so its frame closes in on the preview's lower third and the NoaCG dock.
 test('the OBS capture shows whole on a desktop and closes in on a phone', async ({ page }) => {

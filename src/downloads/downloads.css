@@ -59,6 +59,10 @@
 .doc-body .dl-card .dl-more a { color: var(--amber); }
 .doc-body .dl-card .dl-note { font-size: 14px; }
 .dl-card pre { margin: 8px 0; }
+/* An inline name in a sentence may break anywhere: a policy name such as
+   LoopbackNetworkAccessAllowedForUrls is one word wider than a 320px phone's card, and it pushed
+   the whole page sideways. A command block scrolls inside itself instead. */
+.dl-card :not(pre) > code { overflow-wrap: anywhere; }
 
 /* WHICH BROWSER: a two-column table, a verdict pill on the left and one sentence on the right.
    The pill's colour carries the verdict (amber recommended, plain supported, muted red not). */

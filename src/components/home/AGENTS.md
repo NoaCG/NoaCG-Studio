@@ -77,7 +77,8 @@ stays there, because every surface owes it.
   production rundown's last cue was the case that proved it). The GAP is read off the drawn menu
   rather than restated in the module, so a surface with a different CSS offset cannot make the
   decision and the drawing disagree. A menu too tall for either side stays down and scrolls
-  inside itself.
+  inside itself. SIDEWAYS the same measurement nudges it back inside the screen by its overflow
+  (a `translate`), which a phone's wrapped top bar needs for Sync and a mid-line (i) for its tip.
   It is not tied to the library's look: `surface` names the popover's base class (so
   `ProductionPage`'s Playout panel is `pd-ready-panel` through the same shell) and `role` says what the
   popover IS - a list of verbs is a `menu`, a disclosure panel of links and forms is not.
