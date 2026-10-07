@@ -325,8 +325,8 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
             {paletteReachesNothing
               ? 'this design carries its own colors'
               : paints('accent')
-                ? 'one accent + neutrals - retint anytime via the CSS variables'
-                : 'neutrals only, this design paints no accent - retint anytime via the CSS variables'}
+                ? 'one accent + neutrals'
+                : 'neutrals only, this design paints no accent'}
           </span>
         </h3>
         {/* A logo that has gone invisible against the package chosen here. Stated, never
@@ -545,11 +545,6 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
                 </button>
               ))}
             </div>
-            {/* Two identical S/M/L triplets under two near-identical labels read as a
-                duplicated control. They are not: this one scales the whole graphic. */}
-            <p className="hint" style={{ marginTop: 6 }}>
-              Scales the panel, the bars and the type as one, so the design keeps its proportions.
-            </p>
           </div>
 
           <div className="panel-section">
@@ -565,10 +560,6 @@ export default function StyleStep({ variant, draft, onDraft, builtCss, markWarni
                 </button>
               ))}
             </div>
-            <p className="hint" style={{ marginTop: 6 }}>
-              Type only, on top of the size above. Use it for longer names, or a heavier look at the
-              same footprint.
-            </p>
           </div>
 
           <div className="panel-section">

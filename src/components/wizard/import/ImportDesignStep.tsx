@@ -257,12 +257,13 @@ export default function ImportDesignStep({
         onChange={onFormat}
         disabled={!!art || !!templateFile || !!svg}
         idPrefix="import-design-format"
+        // Said only while the picker is LOCKED, to say why: an open picker explains itself.
         description={
           templateFile
-            ? 'A finished template brings its own canvas, and this is what it is read back against.'
+            ? 'A finished template brings its own canvas.'
             : art || svg
               ? 'Remove the current artwork before changing its authored canvas.'
-              : 'Choose the canvas before artwork is measured and placed.'
+              : undefined
         }
       />
 
@@ -501,7 +502,6 @@ export default function ImportDesignStep({
           {svg.candidates.length > 0 ? (
             <p className="hint" data-testid="import-svg-layers">
               {svg.candidates.length} text layer{svg.candidates.length === 1 ? '' : 's'} found.
-              Pick which ones the operator can retype, next step.
             </p>
           ) : (
             <p className="status-warn" data-testid="import-svg-nolayers">
@@ -589,17 +589,6 @@ export default function ImportDesignStep({
             )}
         </div>
       )}
-
-      <div className="panel-section" style={{ marginTop: 14 }}>
-        <h3>What happens next</h3>
-        <p className="hint">
-          {templateFile
-            ? 'Name it, then send it to a production or export it: OGraf, CasparCG, SPX, LiveOS or an OBS/vMix overlay. Your file is kept exactly as you wrote it.'
-            : svg
-              ? 'Next you pick which text layers the operator can edit, match the typefaces, and choose how it moves on and off air. The SVG is never redrawn. Your exact artwork goes on air.'
-              : 'Next you clean up the artwork if it needs it, place the text fields, and choose how it moves on and off air. Your artwork is never redrawn. NoaCG only adds the broadcast behaviour around it.'}
-        </p>
-      </div>
     </div>
   );
 }

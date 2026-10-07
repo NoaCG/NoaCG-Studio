@@ -295,21 +295,14 @@ export default function FinishStep({
   // below, one layer up: any production pooling that record has cues whose values address its
   // fields, and this version has no field for these.
   const strandedInLibrary = effect.kind === 'over' ? strandedBy(effect.holder.fields, fields) : [];
-  // WHAT EACH DOOR FACE SAYS ABOUT THE LIBRARY: a clause for the production door, which
-  // continues into what it does with the production, and a whole sentence for the export door,
-  // which asks nothing at all before it writes. Written out per case rather than assembled,
-  // because these sentences are the product and a reader should be able to edit one.
-  const libraryFace = renamingTo
-    ? {
-        clause: `Renames the graphic you just saved to ${graphicName}`,
-        sentence: `Renames the graphic you just saved to ${graphicName} first.`,
-      }
+  // WHAT BOTH DOOR FACES SAY ABOUT THE LIBRARY: one sentence, because neither door's title
+  // says it saves. Written out per case rather than assembled, because these sentences are the
+  // product and a reader should be able to edit one.
+  const librarySentence = renamingTo
+    ? `Renames the graphic you just saved to ${graphicName} first.`
     : savingOver
-      ? {
-          clause: `Saves over ${graphicName} in your library`,
-          sentence: `Saves over ${graphicName} in your library first.`,
-        }
-      : { clause: 'Saves it to your library', sentence: 'Saved to your library first.' };
+      ? `Saves over ${graphicName} in your library first.`
+      : 'Saved to your library first.';
   // WHAT THE REPLACEMENT DOES TO THE CUES ALREADY PREPARED. A cue's values are a flat map by
   // field id, and the payload a take sends is exactly that map: a key the new version has no
   // field for is ignored on air, and a field it adds starts from its own default. So the cues
@@ -329,12 +322,9 @@ export default function FinishStep({
           data-testid="wz-finish-name"
           aria-label="Graphic name"
         />
-        {/* Not cosmetic on the export branch: this name slugs the zip and, for the SPX and
-            CasparCG packages, the template FOLDER inside it — what the operator picks from
-            in the playout server. */}
-        {/* One line. The field already SHOWS what an empty name falls back to, as its
-            placeholder, so spending a second line to say so again cost the doors below. */}
-        <p className="hint">Used in the library, on the topbar, and as the exported folder name.</p>
+        {/* No line under the box: the heading asks for a name and the placeholder shows what an
+            empty one falls back to. (On the export branch the name also slugs the zip and the
+            SPX and CasparCG template FOLDER, which the operator meets there by itself.) */}
         {/* WHAT THIS NAME ALREADY MEANS. Every door below saves under it, and only the
             production one raises a dialog that can say so - the export door saves and leaves
             for the export window without asking anything. So the fact belongs on the field all
@@ -435,11 +425,10 @@ export default function FinishStep({
             />
           )}
         </div>
-        <p className="hint">
-          A production is what airs: its graphics, the cue rundown, the output URL, and the
-          control page. Name it for the show, like Friday Show or Class Quiz, not for this
-          graphic.
-        </p>
+        {/* The one mistake worth a line: naming the SHOW after this graphic. */}
+        {dest === 'new' && (
+          <p className="hint">Name it for the show, like Friday Show or Class Quiz, not for this graphic.</p>
+        )}
       </div>
 
       {/* Each door wears the shared card anatomy: a title row, then a short description block.
@@ -460,9 +449,7 @@ export default function FinishStep({
             <span className="wz-entry-icon">▶</span>
             <strong>Add to the production and go live</strong>
           </span>
-          <span className="hint">
-            {libraryFace.clause}, pools it into the production with its first cue ready.
-          </span>
+          <span className="hint">{librarySentence}</span>
         </button>
         <button
           className="wz-entry-card"
@@ -479,12 +466,12 @@ export default function FinishStep({
             {isRenderConfigured() ? ', or a rendered video' : ''}.{' '}
             {/* This door asks NOTHING before it writes - it saves and opens the export window -
                 so the one place the save can be described accurately is the door's own face. */}
-            {libraryFace.sentence}
+            {librarySentence}
           </span>
         </button>
         {onEditArtwork && <button className="wz-entry-card" onClick={onEditArtwork} disabled={busy} data-testid="wz-finish-edit-artwork">
           <span className="wz-entry-head"><strong>Edit this graphic <span className="wz-beta-tag">Alpha</span></strong></span>
-          <span className="hint">Move and scale artwork, or add text and shapes. Save when ready; no production item is added.</span>
+          <span className="hint">Move and scale artwork, or add text and shapes.</span>
         </button>}
       </div>
 
@@ -493,7 +480,6 @@ export default function FinishStep({
           {/* --text, not --fg: there has never been a `--fg` token, so this line rendered in
               whatever colour it inherited rather than the brightest one it asked for. */}
           <strong style={{ display: 'block', color: 'var(--text)' }}>How did we do?</strong>
-          <span className="hint">Let us know if you ran into any issues creating your graphic.</span>
         </div>
         <BetaFeedbackButton area="wizard" />
       </div>
@@ -569,12 +555,10 @@ export default function FinishStep({
                 </>
               )}
             </li>
-            <li>The wizard closes and you land on that production, ready to run it.</li>
           </ul>
-          <p className="hint">
-            Wrong production? Cancel and pick another one before you go.
-            {savingOver && ' Meant a separate graphic? Cancel and give it its own name.'}
-          </p>
+          {savingOver && (
+            <p className="hint">Meant a separate graphic? Cancel and give it its own name.</p>
+          )}
         </WizardConfirm>
       )}
     </div>

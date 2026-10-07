@@ -182,11 +182,6 @@ export default function KitPicker({ pack, selected, onPack, onSelected, query, o
 
   return (
     <div className="wz-kit" data-testid="kit-picker">
-      <p className="wz-kit-lede">
-        A kit is a set of graphics for one kind of production, in one Style. Pick yours: about
-        ten graphics come ticked, and you can add or drop any of them.
-      </p>
-
       {shows.length === 0 && (
         <div className="wz-browse-empty" data-testid="kit-no-shows">
           <p className="hint">No kit matches “{query.trim()}”.</p>

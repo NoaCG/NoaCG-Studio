@@ -398,15 +398,11 @@ export default function PrepareDesignStep({
         <h3>Baked-in text</h3>
         <p className="hint">
           Text that is part of the image file can't be edited on air. If your design has a name
-          or title baked in, mark it. The box is filled with the surrounding background, and a
-          real, editable text field takes its place when the project is created. Erasing only
-          works cleanly over a FLAT background, and it says so when it can't: the honest fix
-          then is to export the design again with the text left out.
+          or title baked in, mark it.
         </p>
         {scanRefusal && !proposedRect && erases.length === 0 && (
           <p className="hint" style={{ marginTop: 8 }} data-testid="erase-scan-refusal">
-            Nothing was drawn for you here: {scanRefusal} Mark it yourself if it is there. The
-            scan proposes nothing rather than proposing badly.
+            {scanRefusal}
           </p>
         )}
         {marking === null && (
@@ -455,9 +451,7 @@ export default function PrepareDesignStep({
         )}
         {marking && canErase && erases.length === 0 && !pending && (
           <p className="hint" style={{ marginTop: 10 }}>
-            Drag a box over the baked-in text on the artwork above, one box per piece of text,
-            so a name and a title each become their own field. Remove a box any time; the
-            artwork is always rebuilt from your original file.
+            Drag a box over each piece of baked-in text on the artwork above.
           </p>
         )}
       </div>
@@ -472,8 +466,8 @@ export default function PrepareDesignStep({
           >
             <strong>Fixed size</strong>
             <span className="hint">
-              The design always renders exactly as drawn. Long values shrink their text to fit.
-              Right for title cards, full-frame graphics, scoreboards, panels.
+              Long values shrink their text to fit. Right for title cards, full-frame graphics,
+              scoreboards, panels.
             </span>
           </button>
           <button
@@ -493,8 +487,7 @@ export default function PrepareDesignStep({
         {hz && (
           <>
             <p className="hint" style={{ marginTop: 10 }}>
-              Drag the two guides on the artwork: left of the first and right of the second stay
-              exactly as drawn; the band between them stretches. Then prove it below.
+              Drag the two guides on the artwork. The band between them stretches.
             </p>
             <label className="wz-prep-slider">
               Preview with wider content
@@ -513,15 +506,6 @@ export default function PrepareDesignStep({
             </label>
           </>
         )}
-      </div>
-
-      <div className="panel-section" style={{ marginTop: 14 }}>
-        <h3>What happens next</h3>
-        <p className="hint">
-          The next step places the editable fields, text and picture slots, on your artwork
-          and finds the empty panel for you when there is one. Nothing here is required: a
-          design with nothing baked in and no long values can go straight on.
-        </p>
       </div>
     </div>
   );

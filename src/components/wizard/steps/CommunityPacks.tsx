@@ -103,8 +103,7 @@ export default function CommunityPacks({ query, onClearQuery, onInstalled }: Pro
   return (
     <div className="wz-community" data-testid="community-packs">
       <p className="wz-kit-lede">
-        Install one and it opens as a production, rundown included. You fill in its fields; the
-        design stays as its maker made it.
+        Install one and it opens as a production, rundown included.
       </p>
       {loadError && <p className="wz-community-error" role="alert">{loadError}</p>}
       {!packs && !loadError && <p className="hint">Loading the shelf…</p>}

@@ -582,7 +582,8 @@ test('field plan: a ticker offers a rows editor, never line add/remove', async (
   // The items line renders as ROWS over the one textarea-backed source field.
   const rowsEditor = page.getByTestId('list-rows-editor');
   await expect(rowsEditor).toBeVisible();
-  await expect(page.getByTestId('field-plan-hint')).toContainText('Rows here are CONTENT');
+  // The heading says what the rows are; the hint under it no longer repeats it.
+  await expect(page.locator('.wz-step h3', { hasText: 'rows are content' })).toBeVisible();
   // …and the list's own TEXT FORMAT is stated on the step, not only in docs/. This is where a
   // person decides whether the template suits their show, so it is where the one mark the
   // field carries has to be readable (docs/TICKERS.md).
