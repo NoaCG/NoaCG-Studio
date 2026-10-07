@@ -29,6 +29,8 @@ export const GOALS_FILE = path.join(ROOT, 'docs', 'GOALS.md');
 export const WORDING_FILE = path.join(ROOT, 'docs', 'whats-new', 'roadmap.md');
 
 export const BUCKETS = ['now', 'next', 'later'];
+/** An item is one big capability, said in a line or two: more bullets turn it into a task list. */
+export const MAX_BULLETS_PER_ITEM = 2;
 
 /** Pure: GOALS's outcomes - number, title, and the priorities its heading names, first = its own. */
 export function goalsOutcomes(goalsText) {
@@ -133,6 +135,9 @@ export function buildRoadmap(goalsText, wordingText) {
         continue;
       }
       if (item.bullets.length === 0) problems.push(`line ${item.line}: "${item.title}" has no bullets`);
+      if (item.bullets.length > MAX_BULLETS_PER_ITEM) {
+        problems.push(`line ${item.line}: "${item.title}" has ${item.bullets.length} bullets; say it in ${MAX_BULLETS_PER_ITEM} or fewer`);
+      }
       for (const b of item.bullets) for (const p of bulletProblems(b.text)) problems.push(`line ${b.line}: ${p}`);
       if (/\b(19|20)\d\d\b|\bQ[1-4]\b/.test([item.title, ...item.bullets.map((b) => b.text)].join(' '))) {
         problems.push(`line ${item.line}: "${item.title}" carries a date; the roadmap gives none`);
@@ -153,11 +158,6 @@ export function loadRoadmap() {
 }
 
 const COLUMN_HEADINGS = { now: 'Now', next: 'Next', later: 'Later' };
-const COLUMN_NOTES = {
-  now: 'What we are building and improving at the moment.',
-  next: 'What comes once the current work is done.',
-  later: 'Planned, not started.',
-};
 
 const asTopics = (items) => items.map((item) => ({ name: item.title, bullets: item.bullets, outcome: item.outcome }));
 const outcomeAttr = (t) => ` data-outcome="${t.outcome}"`;
@@ -168,15 +168,15 @@ function refuseOutOfStep(roadmap) {
   }
 }
 
-/** The roadmap's Now, Next and Later as HTML, each a plain list of its items read top to bottom,
- *  the list What's new uses. Throws when GOALS and the wording disagree, so the page cannot be
- *  built from a roadmap that is out of step. */
+/** The roadmap's Now, Next and Later as HTML: three stages down one rail (src/landing/updates.css),
+ *  each holding its items in the list What's new uses. The stage names say enough, so no note is
+ *  printed under them. Throws when GOALS and the wording disagree, so the page cannot be built
+ *  from a roadmap that is out of step. */
 export function renderRoadmapHtml(roadmap = loadRoadmap()) {
   refuseOutOfStep(roadmap);
   return BUCKETS.map((bucket) =>
     `      <section class="up-row rm-col" id="${bucket}" aria-labelledby="rm-${bucket}">\n` +
-    `        <div class="up-label">\n          <h2 id="rm-${bucket}">${COLUMN_HEADINGS[bucket]}</h2>\n` +
-    `          <p class="up-note">${COLUMN_NOTES[bucket]}</p>\n        </div>\n` +
+    `        <div class="up-label">\n          <h2 id="rm-${bucket}">${COLUMN_HEADINGS[bucket]}</h2>\n        </div>\n` +
     `${renderTopicsHtml(asTopics(roadmap.columns[bucket]), { attrs: outcomeAttr })}\n      </section>`,
   ).join('\n');
 }
@@ -187,8 +187,7 @@ export function renderRoadmapHtml(roadmap = loadRoadmap()) {
 export function renderNowHtml(roadmap = loadRoadmap()) {
   refuseOutOfStep(roadmap);
   const leads = roadmap.columns.now.map((item) => ({ ...item, bullets: item.bullets.slice(0, 1) }));
-  return `        <div class="up-label">\n          <h3>Now on the roadmap</h3>\n` +
-    `          <p class="up-note">${COLUMN_NOTES.now}</p>\n        </div>\n` +
+  return `        <div class="up-label">\n          <h3>Now on the roadmap</h3>\n        </div>\n` +
     renderTopicsHtml(asTopics(leads), { level: 4, attrs: outcomeAttr });
 }
 
