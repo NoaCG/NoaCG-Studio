@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import LibMenu from './LibMenu';
+import { IconInfo } from '../icons';
 
 const EDGE = 8;
 
@@ -8,6 +9,8 @@ const EDGE = 8;
  * a control that wraps to the far side of a phone's top bar, or off an icon mid-line, can still
  * run past the left or right edge, so this nudges it back by exactly the overflow. Runs after
  * LibMenu's own measurement (a child's layout effect runs first), before paint.
+ * TODO: this belongs inside LibMenu's measuring effect, where every popover would get it; it sits
+ * here only because LibMenu was owned by another change when this was written.
  */
 export function useKeepPanelInView(hostRef: RefObject<HTMLElement | null>, open: boolean): void {
   useLayoutEffect(() => {
@@ -30,6 +33,7 @@ export function useKeepPanelInView(hostRef: RefObject<HTMLElement | null>, open:
 export default function InfoTip({ label, children, testid }: { label: string; children: ReactNode; testid?: string }) {
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLSpanElement>(null);
+  const close = useCallback(() => setOpen(false), []);
   useKeepPanelInView(host, open);
   return (
     <span ref={host} className="lib-menu-host info-tip">
@@ -41,13 +45,9 @@ export default function InfoTip({ label, children, testid }: { label: string; ch
         onClick={() => setOpen((o) => !o)}
         data-testid={testid}
       >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-          <circle cx="8" cy="8" r="6.5" />
-          <path d="M8 7.2v4" strokeLinecap="round" />
-          <circle cx="8" cy="4.9" r="0.4" fill="currentColor" />
-        </svg>
+        <IconInfo size={15} />
       </button>
-      <LibMenu open={open} onClose={() => setOpen(false)} className="info-tip-panel" role="note" testid={testid && `${testid}-panel`}>
+      <LibMenu open={open} onClose={close} className="info-tip-panel" role="note" testid={testid && `${testid}-panel`}>
         {children}
       </LibMenu>
     </span>

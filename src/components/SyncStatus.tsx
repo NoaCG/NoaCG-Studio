@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isBackendConfigured } from '../backend/config';
 import { getSyncState, onSyncState, startAutoSync, syncNow, type SyncState } from '../backend/syncController';
 import { libraryInUse } from '../model/durableStore';
@@ -12,7 +12,7 @@ type Tone = 'ok' | 'warn' | 'local';
 
 /** One reading of the sync state: the dot, the one-line answer, its detail, and the one action
  *  that helps. Every surface that mounts the control reads the same words. */
-function describe(state: SyncState): { tone: Tone; summary: string; detail: string; action: 'sync' | 'sign-in' } {
+function describe(state: SyncState): { tone: Tone; summary: string; detail: string; action: 'sync' | 'sign-in' | 'resume' } {
   const owner = !!libraryInUse();
   if (owner && state.firstPass && (state.phase === 'syncing' || state.phase === 'pending')) {
     return { tone: 'warn', summary: 'Checking cloud revision', detail: state.detail ?? 'Cached work is not yet confirmed in the cloud.', action: 'sync' };
@@ -32,7 +32,7 @@ function describe(state: SyncState): { tone: Tone; summary: string; detail: stri
       return { tone: 'warn', summary: 'Not saved to cloud', detail: state.detail ?? 'Cloud save failed. Pending changes stay on this device.', action: 'sync' };
     case 'offline':
       return owner
-        ? { tone: 'warn', summary: 'Not saved to cloud', detail: 'Sign in to resume. Pending work stays on this device.', action: 'sign-in' }
+        ? { tone: 'warn', summary: 'Not saved to cloud', detail: 'Sign in to resume. Pending work stays on this device.', action: 'resume' }
         : { tone: 'local', summary: 'Saved on this device only', detail: 'Sign in to keep your work in the cloud and on your other devices.', action: 'sign-in' };
   }
 }
@@ -52,6 +52,7 @@ export default function SyncStatus(_props: { compact?: boolean } = {}) {
   const [state, setState] = useState<SyncState>(getSyncState());
   const [open, setOpen] = useState(false);
   const host = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
   useKeepPanelInView(host, open);
 
   useEffect(() => {
@@ -66,14 +67,17 @@ export default function SyncStatus(_props: { compact?: boolean } = {}) {
   const { tone, summary, detail, action } = describe(state);
   const act = () => {
     setOpen(false);
-    if (action === 'sign-in') {
-      const resume = !!libraryInUse();
-      useAuthUi.getState().openSignIn(resume ? 'Sign in to resume account editing. Pending work is preserved.' : undefined, resume ? 'resume' : undefined);
-    } else void syncNow();
+    if (action === 'resume') useAuthUi.getState().openSignIn('Sign in to resume account editing. Pending work is preserved.', 'resume');
+    else if (action === 'sign-in') useAuthUi.getState().openSignIn();
+    else {
+      // The panel holding the focused button is about to unmount: hand focus back to the trigger.
+      host.current?.querySelector<HTMLButtonElement>('.sync-status')?.focus();
+      void syncNow();
+    }
   };
 
   return (
-    <div ref={host} className="lib-menu-host sync-host">
+    <div ref={host} className="lib-menu-host">
       <button
         className={`sync-status sync-${state.phase}`}
         data-tone={tone}
@@ -86,14 +90,14 @@ export default function SyncStatus(_props: { compact?: boolean } = {}) {
         <span className="sync-dot" data-tone={tone} aria-hidden="true" />
         Sync
       </button>
-      <LibMenu open={open} onClose={() => setOpen(false)} className="sync-panel" role="group" testid="sync-panel">
+      <LibMenu open={open} onClose={close} className="sync-panel" role="group" testid="sync-panel">
         <strong className="sync-panel-summary">
           <span className="sync-dot" data-tone={tone} aria-hidden="true" />
           {summary}
         </strong>
         <p className="hint" data-testid="sync-detail">{detail}</p>
         <button className="sync-panel-action" onClick={act} disabled={state.phase === 'syncing'} data-testid="sync-action">
-          {action === 'sign-in' ? 'Sign in' : 'Sync now'}
+          {action === 'sync' ? 'Sync now' : 'Sign in'}
         </button>
       </LibMenu>
     </div>
