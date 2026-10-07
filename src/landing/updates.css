@@ -1,7 +1,7 @@
 /* WHAT'S NEW (whats-new.html), THE ROADMAP (roadmap.html) AND THE LANDING'S WHAT'S NEW SECTION
    (index.html #updates). The markup is written at build by scripts/whats-new.mjs and
-   scripts/roadmap.mjs. On the two pages the header, type, footer and colours come from
-   src/docs/docs.css; the landing brings its own and inherits its font here.
+   scripts/roadmap.mjs. The colours are the site's (src/site-chrome.css); on the two pages the
+   type comes from src/docs/docs.css, and the landing brings its own and inherits its font here.
 
    All three show one plain list, read top to bottom: a label (a date, Now, Next, Later), then a
    heading per topic with its bullets beneath. No cards: the owner asked for headings and bullets

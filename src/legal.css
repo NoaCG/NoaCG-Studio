@@ -1,3 +1,6 @@
+/* THE TERMS AND PRIVACY PAGES (terms.html, privacy.html). The top bar, the footer and the page
+   width are the site's (src/site-chrome.css, linked first); this file sets the policy text. */
+
 :root {
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -16,35 +19,12 @@ body {
     #090b0f;
 }
 
-a { color: #f6a623; text-underline-offset: 3px; }
-a:hover { color: #ffc462; }
+.legal-card a { color: #f6a623; text-underline-offset: 3px; }
+.legal-card a:hover { color: #ffc462; }
 
-.legal-shell {
-  width: min(860px, calc(100% - 40px));
-  margin: 0 auto;
-  padding: 28px 0 72px;
-}
-
-.legal-nav {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding-bottom: 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.legal-brand {
-  margin-right: auto;
-  color: #f2f4f7;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-decoration: none;
-}
-
-.legal-brand span { color: #f6a623; }
-.legal-nav > a:not(.legal-brand) { font-size: 14px; }
-
-.legal-hero { padding: 58px 0 34px; }
+/* The policy column starts under the logo, as the docs' text does, and keeps its reading width. */
+.legal-hero, .legal-card { max-width: 860px; }
+.legal-hero { padding: 36px 0 34px; }
 .legal-kicker {
   margin: 0 0 12px;
   color: #f6a623;
@@ -75,6 +55,7 @@ h1 {
 }
 
 .legal-card {
+  margin-bottom: 72px;
   padding: clamp(24px, 5vw, 42px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -109,21 +90,7 @@ strong { color: #f2f4f7; }
   background: rgba(246, 166, 35, 0.07);
 }
 
-.legal-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  margin-top: 28px;
-  color: #777f8c;
-  font-size: 13px;
-}
-
-.legal-footer span { margin-right: auto; }
-
 @media (max-width: 600px) {
-  .legal-shell { width: min(100% - 24px, 860px); padding-top: 18px; }
-  .legal-nav { gap: 12px; }
-  .legal-nav > a:not(.legal-brand) { font-size: 13px; }
-  .legal-hero { padding: 42px 6px 26px; }
-  .legal-card { border-radius: 7px; }
+  .legal-hero { padding: 24px 0 26px; }
+  .legal-card { margin-bottom: 56px; padding: 22px 18px; border-radius: 7px; }
 }

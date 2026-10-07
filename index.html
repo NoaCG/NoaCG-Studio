@@ -17,6 +17,7 @@
   <link rel="apple-touch-icon" href="/noacg-icon-256.png" />
   <link rel="preload" href="/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/src/site-chrome.css" />
   <link rel="stylesheet" href="/src/landing/updates.css" />
   <meta property="og:title" content="NoaCG Studio - Broadcast graphics and playout in your browser" />
   <meta property="og:description" content="Make on-air graphics in your browser and run them from a rundown. Free and open source, no sign-up to try." />
@@ -76,31 +77,9 @@
 
   <style>
     /* NoaCG Studio landing. Brand system: dark control-room ground, one amber "on-air"
-       accent, restrained glow (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). */
-    @font-face {
-      font-family: "Space Grotesk";
-      src: url("/fonts/space-grotesk.woff2") format("woff2");
-      font-weight: 400 700;
-      font-display: swap;
-    }
-    @font-face {
-      font-family: "JetBrains Mono";
-      src: url("/fonts/jetbrains-mono.woff2") format("woff2");
-      font-weight: 400 700;
-      font-display: swap;
-    }
-
-    :root {
-      --void: #0a0c10;
-      --panel: #141922;
-      --amber: #f6a623;
-      --glow: #ffc65c;
-      --paper: #e8edf2;
-      --dim: #b7bcc4;
-      --faint: #7c8798;
-      --line: rgba(232, 237, 242, 0.09);
-      --mono: "JetBrains Mono", Consolas, monospace;
-    }
+       accent, restrained glow (NoaCG-Brand-Kit/BRAND-MANUAL.md §3). The brand tokens and faces,
+       the width, the top bar, the buttons and the footer are src/site-chrome.css, shared with
+       every public page; this holds only the landing's own. */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
@@ -113,43 +92,11 @@
       -webkit-font-smoothing: antialiased;
     }
     a { color: inherit; text-decoration: none; }
-    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 
-    /* ── Top bar ── */
-    header {
-      display: flex; align-items: center; gap: 14px;
-      padding: 22px 0;
-    }
-    .mark { display: flex; flex-direction: column; gap: 3px; width: 26px; }
-    .mark i { display: block; height: 6px; border-radius: 2px; }
-    .mark i:nth-child(1) { width: 100%; background: var(--amber); box-shadow: 0 0 10px rgba(246, 166, 35, 0.6); }
-    .mark i:nth-child(2) { width: 66%; background: var(--paper); }
-    .mark i:nth-child(3) { width: 40%; background: rgba(232, 237, 242, 0.3); }
-    .wordmark { font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
-    .wordmark span { color: var(--amber); }
-    .wordmark small {
-      display: block; font-family: var(--mono); font-weight: 400; font-size: 9px;
-      letter-spacing: 0.42em; color: var(--dim); text-transform: uppercase; margin-top: 1px;
-    }
-    header nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
-    header nav a { font-size: 14px; color: var(--dim); white-space: nowrap; }
-    header nav a:hover { color: var(--paper); }
-
-    /* ── Buttons ── */
-    .btn {
-      display: inline-block; padding: 12px 26px; border-radius: 8px;
-      font-weight: 600; font-size: 15px; letter-spacing: 0.01em;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
-    }
+    /* ── Buttons (`.btn` and `.btn-amber` are the site's, src/site-chrome.css) ── */
     .btn:active { transform: translateY(0) scale(0.98); }
     .btn .arr { display: inline-block; margin-left: 6px; transition: transform 0.18s ease; }
     .btn:hover .arr { transform: translateX(3px); }
-    .btn-amber {
-      background: var(--amber); color: #14100a;
-      box-shadow: 0 0 26px rgba(246, 166, 35, 0.28);
-    }
-    .btn-amber:hover { background: var(--glow); transform: translateY(-1px); box-shadow: 0 0 34px rgba(246, 166, 35, 0.4); }
-    header nav a.btn-amber { color: #14100a; }
     .btn-ghost { border: 1px solid var(--line); color: var(--paper); }
     .btn-ghost:hover { border-color: rgba(232, 237, 242, 0.25); }
 
@@ -207,7 +154,6 @@
     .sub a, .feat p a { color: var(--amber); }
     .sub a:hover, .feat p a:hover { color: var(--glow); }
     .sub + .sub { margin-top: 12px; }
-    .note { margin-top: 18px; font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: 0.04em; }
 
     /* What's new (#updates): the list itself is src/landing/updates.css, shared with
        /whats-new and /roadmap; here only its place on this page. */
@@ -342,28 +288,15 @@
     .bottom h2 { font-size: 30px; }
     .bottom .cta-row { justify-content: center; margin-top: 22px; }
 
-    footer {
-      display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between;
-      padding: 34px 0 44px; color: var(--faint); font-size: 13px;
-    }
-    footer .fm { font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-    footer a { color: var(--dim); }
-    footer a:hover { color: var(--paper); }
+    /* The bottom band above draws the rule, so the footer under it carries none of its own. The
+       selector outranks src/site-chrome.css by itself: the build moves linked stylesheets after
+       this inline style, so source order cannot decide it. */
+    .bottom + .wrap > footer.site { border-top: 0; padding-top: 34px; }
 
     @media (max-width: 640px) {
       .hero { padding-top: 40px; }
       .kicker { font-size: 12px; letter-spacing: 0.2em; }
       section { padding-top: 72px; }
-    }
-    /* The anchor links leave the header before it would wrap (measured: the full row needs about
-       830px). */
-    @media (max-width: 860px) {
-      header nav a.gh { display: none; }
-    }
-    /* The narrowest phones: the row tightens so the button stays inside the screen. */
-    @media (max-width: 360px) {
-      header nav { gap: 14px; }
-      header nav a.btn { padding: 10px 16px; }
     }
 
     /* ═══ Motion system (src/landing/) ═══
@@ -388,17 +321,13 @@
 
     @media (prefers-reduced-motion: reduce) {
       html { scroll-behavior: auto; }
-      .btn, .btn .arr, .way { transition: none; }
+      .btn .arr, .way { transition: none; }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div class="mark" aria-hidden="true"><i></i><i></i><i></i></div>
-      <a href="/" class="wordmark">Noa<span>CG</span><small>Studio</small></a>
-      <!--site:nav-->
-    </header>
+    <!--site:header-->
 
     <main>
       <!-- The page's whole job is that a stranger understands NoaCG in about thirty seconds:
@@ -625,20 +554,7 @@
   </div>
 
   <div class="wrap">
-    <footer>
-      <span class="fm">NoaCG Studio · Broadcast graphics and playout</span>
-      <span>
-        <a href="mailto:contact.noacg@gmail.com">contact.noacg@gmail.com</a> ·
-        <a href="/docs">Docs</a> ·
-        <a href="/downloads">Downloads</a> ·
-        <a href="/whats-new">What's new</a> ·
-        <a href="/roadmap">Roadmap</a> ·
-        <a href="/terms">Terms</a> ·
-        <a href="/privacy">Privacy</a> ·
-        <a href="https://github.com/NoaCG/NoaCG-Studio" target="_blank" rel="noopener noreferrer">Source</a> ·
-        Free, AGPL-3.0
-      </span>
-    </footer>
+    <!--site:footer-->
   </div>
 
   <!-- The GSAP motion system (hero entrance and scroll reveals).

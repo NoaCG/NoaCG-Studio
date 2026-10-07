@@ -1,4 +1,4 @@
-// covers: src/landing/**, index.html
+// covers: src/landing/**, index.html, src/site-chrome.css, scripts/site-nav.mjs
 // focus
 //
 // The public docs home (docs.html + src/docs/, docs/AGENT_CLI.md's landing half).
