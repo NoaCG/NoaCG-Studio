@@ -195,6 +195,12 @@ test('the build fails when GOALS drops a priority the wording still places an it
   assert.throws(() => renderRoadmapHtml(buildRoadmap(noNext, WORDING)), /out of step/);
 });
 
+test('a roadmap item is one capability in a line or two, never a task list', () => {
+  const listed = WORDING.replace(/^### Live data\n\n(- .*\n)/m, '### Live data\n\n$1- One.\n- Two.\n');
+  assert.notEqual(listed, WORDING, 'the Live data item not found; update this test with the wording');
+  assert.ok(buildRoadmap(GOALS, listed).problems.some((p) => /"Live data" has 3 bullets; say it in 2 or fewer/.test(p)));
+});
+
 test('the build fails when GOALS adds or renames an outcome the wording does not describe', () => {
   const added = `${GOALS.trimEnd()}\n\n### 9. Hardware panels (next)\n\n- **Why:** something.\n`;
   assert.ok(buildRoadmap(added, WORDING).problems.some((p) => /outcome 9 \("Hardware panels"\) has no wording/.test(p)));
