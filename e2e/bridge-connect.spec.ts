@@ -515,7 +515,8 @@ test('a second browser paired with the same Bridge opens with the studio setup, 
   await expect(section.getByTestId('caspar-channel-name').nth(1)).toHaveValue('Inserts');
   await expect(section.getByTestId('caspar-layer')).toHaveValue('30');
   await expect(section.getByTestId('caspar-clip-channel')).toHaveValue('2');
-  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in NoaCG Bridge');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('title', 'NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
 });
 
 test('a setup changed in Playout settings is kept in the Bridge for its server, and two servers keep their own', async ({ page }) => {
@@ -532,7 +533,8 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   const keeper = section.getByTestId('playout-studio-keeper');
   // An untouched default is nobody's choice, so opening gives the Bridge nothing (D18).
   await expect(keeper).toHaveAttribute('data-keeper', 'ready');
-  await expect(keeper).toHaveText('Change anything here and NoaCG Bridge keeps it for 192.168.1.20, for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in NoaCG Bridge');
+  await expect(keeper).toHaveAttribute('title', 'Change anything here and NoaCG Bridge keeps it for 192.168.1.20, for every browser paired with it.');
   expect(bridge.studios).toEqual([]);
 
   await section.getByTestId('caspar-channel-add').click();
@@ -540,7 +542,8 @@ test('a setup changed in Playout settings is kept in the Bridge for its server, 
   await expect
     .poll(() => bridge.servers?.find((s) => s.host === '192.168.1.20')?.studio)
     .toEqual({ channels: [{ channel: 1, name: 'Channel 1' }, { channel: 2, name: 'Inserts' }], output: { channel: 1, layer: 20 }, newMedia: 2 });
-  await expect(keeper).toHaveText('NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in NoaCG Bridge');
+  await expect(keeper).toHaveAttribute('title', 'NoaCG Bridge keeps this setup for 192.168.1.20, for every browser paired with it.');
 
   // The other server is one press, and its own setup comes with it.
   const recent = section.getByTestId('caspar-recent');
@@ -585,7 +588,8 @@ test('a change made while the Bridge is not running is given to it the next time
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
-  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveText('Kept in this browser');
+  await expect(section.getByTestId('playout-studio-keeper')).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge is given it the next time it answers.');
 
   // The Bridge is started again, still holding the setup from before the change.
   bridge.missing = false;
@@ -604,7 +608,8 @@ test('Playout settings left open on Home give a waiting change to the Bridge as 
   const section = page.getByTestId('settings-playout');
   await section.getByTestId('caspar-channel-name').nth(1).fill('Clean feed');
   const keeper = section.getByTestId('playout-studio-keeper');
-  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge is given it the next time it answers.');
+  await expect(keeper).toHaveText('Kept in this browser');
+  await expect(keeper).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge is given it the next time it answers.');
   // The Bridge is started while the panel is still open. Home has no status poll, and the change
   // used to wait there until the panel was closed and opened again.
   bridge.missing = false;
@@ -631,7 +636,8 @@ test('with a Bridge older than 0.8.0 the setup stays in this browser, and it say
   await openPlayoutSettings(page);
   const section = page.getByTestId('settings-playout');
   const keeper = section.getByTestId('playout-studio-keeper');
-  await expect(keeper).toHaveText('Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.');
+  await expect(keeper).toHaveText('Kept in this browser');
+  await expect(keeper).toHaveAttribute('title', 'Kept in this browser. NoaCG Bridge 0.8.0 or newer keeps it for every browser paired with it.');
   await section.getByTestId('caspar-channel-add').click();
   // The change is synced as with a new Bridge (one more reading of the list) and nothing is sent.
   const readings = () => bridge.routes.filter((r) => r === '/servers').length;
@@ -922,8 +928,8 @@ test('the server is configured once, app-wide, and survives a reload', async ({ 
   await section.getByTestId('caspar-channel-number').first().fill('2');
   await section.getByTestId('caspar-layer').fill('30');
   await section.getByTestId('bridge-token').fill(TOKEN);
-  // The hint tracks the numbers, so what CasparCG will be told is visible before it is sent.
-  await expect(section).toContainText('2-30');
+  // The NoaCG output's tooltip tracks the numbers, so where CasparCG will be told is there before it is sent.
+  await expect(section.locator('label[for="caspar-graphics-channel"]')).toHaveAttribute('title', /2-30/);
 
   await page.reload();
   await reopenPlayoutSettings(page);
@@ -1089,7 +1095,8 @@ for (const [features, which] of [
     await expect(verdict(page)).toContainText('Connected');
     if (asks) await expect.poll(reads).toBeGreaterThan(before);
     // Had the page asked the older Bridge, the second row would read "Not on server" by now.
-    await expect(section.getByTestId('caspar-channels-hint')).toContainText('casparcg.config');
+    // A server that does not report its channels gets no count line (playout-workflow-simplification AC-10).
+    await expect(section.getByTestId('caspar-channels-hint')).toHaveCount(0);
     await expect(section.getByTestId('caspar-channel-mode')).toHaveCount(0);
     if (!asks) expect(bridge.routes).not.toContain('/channels');
   });

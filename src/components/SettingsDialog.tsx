@@ -274,7 +274,7 @@ export default function SettingsDialog({ onClose }: Props) {
       <div className="wz-modal settings-modal" role="dialog" aria-modal="true" aria-label="Settings" data-testid="settings">
         <div className="wz-header">
           <h2>Settings</h2>
-          <p className="hint wz-header-sub">Device preferences stay in this browser. Your output default follows your account. Provider keys stay server-side.</p>
+          <p className="hint wz-header-sub">Device preferences stay in this browser. Your CasparCG default follows your account. Provider keys stay server-side.</p>
           <button className="gallery-close" onClick={onClose} title="Close">✕</button>
         </div>
 
@@ -365,17 +365,18 @@ export default function SettingsDialog({ onClose }: Props) {
                       <option key={target.id} value={target.id}>{target.label}</option>
                     ))}
                   </select>
-                  <p className="dlg-hint">
-                    Preselected when you export. Picking a target there updates this too.
-                  </p>
                 </div>
               </div>
               <p className="dlg-hint">
-                On a school or corporate network that blocks parts of the app, the{' '}
-                <a href="/app?diag=1" target="_blank" rel="noreferrer" data-testid="settings-diag-link">
-                  connection check
-                </a>{' '}
-                shows what is blocked — screenshot it when reporting a problem.
+                <a
+                  href="/app?diag=1"
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Shows what a school or corporate network blocks. Screenshot it when reporting a problem."
+                  data-testid="settings-diag-link"
+                >
+                  Connection check
+                </a>
               </p>
             </section>
 

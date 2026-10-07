@@ -427,9 +427,9 @@ test('manual takes and the server moving on never make a step re-take or skip ba
 
 test('the TAKE button says what a step does and names the cues in its tooltip', () => {
   const label = (id) => id.toUpperCase();
-  assert.deepEqual(stepFace({ kind: 'take', cueId: 'g1', off: [] }, 'Straps', label, false), { text: '⟳ TAKE', title: 'Take G1. SPACE does the same', tone: 'take' });
+  assert.deepEqual(stepFace({ kind: 'take', cueId: 'g1', off: [] }, 'Straps', label, false), { text: '⟳ TAKE', title: 'Take G1', tone: 'take' });
   assert.equal(stepFace({ kind: 'take', cueId: 'g2', off: ['g1'] }, 'Straps', label, true).text, '⟳ NEXT');
-  assert.equal(stepFace({ kind: 'take', cueId: 'g2', off: ['g1'] }, 'Straps', label, true).title, 'Take G2, and G1 off. SPACE does the same');
+  assert.equal(stepFace({ kind: 'take', cueId: 'g2', off: ['g1'] }, 'Straps', label, true).title, 'Take G2, and G1 off');
   assert.equal(stepFace({ kind: 'top', off: ['g2'] }, 'Straps', label, true).text, '■ TAKE OFF');
   assert.equal(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).text, '↺ FROM THE TOP');
   assert.match(stepFace({ kind: 'top', off: [] }, 'Straps', label, true).title, /its clips play on/);

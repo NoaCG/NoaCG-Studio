@@ -467,13 +467,13 @@ export default function CueRundown({
   };
   // One definition owns both entry points: terminology, help, availability and action.
   const addActions = [
-    { id: 'add-cue', label: 'Cue on selected graphic', help: 'Add another cue using the selected graphic.', disabled: !selectedGraphicId, footer: false, run: () => {
+    { id: 'add-cue', label: 'Cue on selected graphic', help: undefined, disabled: !selectedGraphicId, footer: false, run: () => {
       if (!selectedGraphicId) return;
       const result = addShowCue(show.id, selectedGraphicId);
       setShows(result.shows);
       if (result.cueId) selectCue(result.cueId);
     } },
-    { id: 'add-graphic', label: 'Graphic from library…', help: 'Choose an existing graphic from your library.', disabled: false, footer: false, run: () => {
+    { id: 'add-graphic', label: 'Graphic from library…', help: undefined, disabled: false, footer: false, run: () => {
       const doc = library.find(g => g.id === addPick);
       if (doc) { const result = addGraphicToShow(show.id, doc.template, { graphicId: doc.id }); setShows(result.shows); setRundownNote(result.error); if (!result.error) setAddPick(''); }
       else { libraryPick.current?.scrollIntoView({ block: 'nearest' }); libraryPick.current?.focus(); }
@@ -481,10 +481,10 @@ export default function CueRundown({
     { id: 'production-new-graphic', label: 'New graphic…', help: 'Create a graphic using this production’s look.', disabled: false, footer: true, run: createGraphic },
     { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics, up to ${MAX_PICTURES}.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
     ...(casparOn ? [
-      { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add files already on the CasparCG server.' : 'Set up NoaCG Bridge in Playout settings.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
+      { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? undefined : 'Set up NoaCG Bridge in Playout settings.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
       { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
     ] : []),
-    { id: 'add-folder', label: 'Folder from selected cues', help: 'Group the selected rundown cues.', disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
+    { id: 'add-folder', label: 'Folder from selected cues', help: undefined, disabled: !folderCueIds.length, footer: false, run: () => void newFolder(folderCueIds) },
   ];
   /** Some cue of the selection is in a folder: its menu offers to take them out. */
   const rangeInFolder = [...range].some((id) => !!rundown.rowOf.get(id) && cues.some((c) => c.id === id && !!c.folderId && rundown.folders.has(c.folderId)));
@@ -513,7 +513,6 @@ export default function CueRundown({
         <div className="spacer" />
         <div className="lib-menu-host pd-rundown-add">
           <button
-            title="Add to the rundown"
             aria-haspopup="menu"
             aria-expanded={addOpen}
             onClick={() => { setPickerOpen(false); setAddOpen((o) => !o); }}
@@ -525,7 +524,6 @@ export default function CueRundown({
             {addActions.map(action => <button key={action.id} role="menuitem" disabled={!authoring || action.disabled} title={action.help} data-testid={action.id === 'add-cue' ? action.id : `menu-${action.id}`} onClick={pickAdd(action.run)}>{action.label}</button>)}
             <div role="separator" className="pd-setup-sep" />
             <button role="menuitem" disabled={refreshing} onClick={pickAdd(() => void refreshRundown())} data-testid="rundown-refresh">{refreshing ? 'Refreshing…' : 'Refresh rundown'}</button>
-            <p className="hint">Uploaded images stay in NoaCG. CasparCG files must already be on the server.{!playoutConfigured(playoutSettings) && ' Set up NoaCG Bridge and CasparCG under Setup to browse server files.'}</p>
           </LibMenu>
           {playoutConfigured(playoutSettings) && <PlayoutItemPicker
             // Named media shortcuts start on their own tab each time they open.
@@ -837,7 +835,7 @@ export default function CueRundown({
               ) : cueIsLive ? (
                 <span
                   className="pd-tag up"
-                  title="Up on this page only: the production is not started, so nothing goes on air."
+                  title="Up on this page only: the production is not published."
                   aria-label="Up, not live"
                   data-testid="cue-up-here"
                 >
@@ -964,7 +962,7 @@ export default function CueRundown({
                         key={f.id}
                         role="menuitem"
                         disabled={!!refused}
-                        title={refused ?? `Put ${takesRange ? `the ${rangeCount} selected cues` : view.label} last in ${folderName(f)}`}
+                        title={refused ?? undefined}
                         onClick={() => {
                           setMenuRowId(null);
                           void moveRundown(what, { into: f.id });
@@ -984,7 +982,6 @@ export default function CueRundown({
                         setMenuRowId(null);
                         void takeOutOfFolders([...range]);
                       }}
-                      title="Put each selected cue right after its folder, in no folder"
                       data-testid="cue-out-of-folder"
                     >
                       Take the {rangeCount} selected out of their folders
@@ -997,7 +994,6 @@ export default function CueRundown({
                         setMenuRowId(null);
                         void moveRundown({ cueId: cue.id }, { afterFolder: ownFolder.id });
                       }}
-                      title={`Put ${view.label} right after ${folderName(ownFolder)}, in no folder`}
                       data-testid="cue-out-of-folder"
                     >
                       Take out of ▤ {folderName(ownFolder)}
@@ -1042,7 +1038,7 @@ export default function CueRundown({
                     title={
                       siblingCues === 1
                         ? `The last cue on ${cueGraphic ?? playoutItem?.name ?? 'this graphic'}. The graphic leaves the production with it.`
-                        : 'Remove this cue; the graphic and its other cues stay'
+                        : undefined
                     }
                     data-testid="delete-cue"
                   >
@@ -1067,7 +1063,6 @@ export default function CueRundown({
                         setArmedRemove(null);
                         setMenuRowId(null);
                       }}
-                      title={`Remove ${cueGraphic ?? playoutItem?.name ?? 'this graphic'} from the production, with every cue prepared against it`}
                       data-testid="delete-graphic"
                     >
                       {armedRemove === 'graphic'

@@ -100,7 +100,7 @@ export function withPing(checks: readonly CheckLine[], peers: readonly LiveEntry
     });
   }
   if (ping.state === 'failed') {
-    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Check readiness again.' });
+    return checks.concat({ key: 'ping', tone: 'warn', label: 'Could not send the command path check', advice: ping.detail ?? 'Press Check now again.' });
   }
   return checks.map((check): CheckLine => {
     if (check.key.indexOf('output-') !== 0) return check;
@@ -177,7 +177,7 @@ export function outputChecks(lines: readonly OutputLine[], settled: ReadonlySet<
         key: 'outputs-none',
         tone: 'warn',
         label: 'No output is connected to this production',
-        advice: 'Load the output URL in your browser source (OBS, vMix) or put it on air on CasparCG, then press Check readiness again.',
+        advice: 'Load the output URL in your browser source, or Load it on CasparCG, then press Check now.',
       },
     ];
   }

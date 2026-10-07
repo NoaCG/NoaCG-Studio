@@ -259,13 +259,12 @@ export function CasparSection({
           </button>
         </div>
       )}
-      {on && !facts.unpaired && (
-        <div className="pd-pp-actions">
-          <button type="button" onClick={onSettings} data-testid="panel-playout-settings">
-            Playout settings…
-          </button>
-        </div>
-      )}
+      {/* Always: Playout settings also holds the rundown colours (D9). */}
+      <div className="pd-pp-actions">
+        <button type="button" onClick={onSettings} data-testid="panel-playout-settings">
+          Playout settings…
+        </button>
+      </div>
     </Section>
   );
 }

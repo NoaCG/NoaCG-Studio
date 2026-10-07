@@ -36,6 +36,13 @@ const KEEP_AFTER_MS = 600;
 /** How often an open panel asks again while a change waits for NoaCG Bridge: the status poll's pace. */
 const RETRY_WAITING_MS = 3000;
 
+/** Where the setup above is kept, in a few words; `keeperLine` is the whole account (D17). A
+ *  failure keeps its whole sentence, since it says what to do. */
+function keeperShort(keeper: StudioKeeper, s: PlayoutSettings, reason?: PlayoutState): string {
+  if (keeper === 'away') return keeperLine(keeper, s, reason);
+  return keeper === 'bridge' || keeper === 'ready' ? 'Kept in NoaCG Bridge' : 'Kept in this browser';
+}
+
 /** Where the setup above is kept, in one line (D17). */
 function keeperLine(keeper: StudioKeeper, s: PlayoutSettings, reason?: PlayoutState): string {
   switch (keeper) {
@@ -254,15 +261,19 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
 
   return (
     <div data-testid="settings-playout">
+      {/* No explanatory paragraph (playout-workflow-simplification AC-10): the download, and why
+          it is needed in its tooltip. */}
       <p className="hint">
-        Put a production on a CasparCG channel from its own page, and play the templates and clips
-        already on the server, without the CasparCG Client. A browser cannot open the AMCP socket
-        itself, so <strong>NoaCG Bridge</strong>, a small program on this machine, holds it.{' '}
-        <a href={DOWNLOADS_BRIDGE_URL} target="_blank" rel="noopener" data-testid="bridge-download">
+        <a
+          href={DOWNLOADS_BRIDGE_URL}
+          target="_blank"
+          rel="noopener"
+          title="A browser cannot open CasparCG's AMCP socket, so NoaCG Bridge, a small program on this computer, holds it. Run it and it opens a page that pairs this browser."
+          data-testid="bridge-download"
+        >
           Download NoaCG Bridge
         </a>{' '}
-        (Windows, with a short guide to setting it up) and double-click it; it opens a page that
-        pairs this browser. Loading a production&rsquo;s output URL by hand keeps working exactly as before.
+        (Windows)
       </p>
 
       <div className="dlg-rows">
@@ -287,10 +298,13 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
               data-testid="bridge-token"
             />
           </div>
-          <p className="dlg-hint" data-testid="bridge-paired" data-paired={paired ? 'yes' : 'no'}>
-            {paired
-              ? 'Paired. The token stays in this browser; the Bridge only ever listens on this machine.'
-              : 'Not paired yet. Start NoaCG Bridge and open the link it prints; both boxes fill in by themselves.'}
+          <p
+            className="dlg-hint"
+            title={paired ? 'The token stays in this browser; the Bridge only listens on this computer.' : undefined}
+            data-testid="bridge-paired"
+            data-paired={paired ? 'yes' : 'no'}
+          >
+            {paired ? 'Paired' : 'Not paired yet. Start NoaCG Bridge and open the link it prints.'}
           </p>
           {/* ANOTHER BROWSER, or another account in its own browser profile, pairs with a link this
               one asks the Bridge for (D19), so nobody has to find the Bridge window for it. */}
@@ -310,6 +324,7 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
           <div className="dlg-pair dlg-pair--num">
             <input
               id="caspar-host"
+              title="The computer running CasparCG, and its AMCP port (5250 unless changed). Reached from this computer only."
               value={settings.host}
               onChange={(e) => set({ host: e.target.value })}
               placeholder="127.0.0.1"
@@ -340,10 +355,6 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
               testId="caspar-recent"
             />
           )}
-          <p className="dlg-hint">
-            The machine running CasparCG on your studio network, and its AMCP port (5250 unless it
-            was changed). It is reached from this machine only, never from the internet.
-          </p>
         </div>
 
         {/* THE CHANNELS, named once so every cue in a rundown picks one from a short list beside
@@ -428,23 +439,20 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
               Change the row&rsquo;s number, or remove a row you do not use.
             </p>
           )}
-          <p className="dlg-hint" data-testid="caspar-channels-hint">
-            {onServer ? (
-              `The server reports ${plural(onServer.length, 'channel')}.`
-            ) : (
-              <>
-                The channels in this server&rsquo;s <code>casparcg.config</code>.
-              </>
-            )}{' '}
-            A name is optional. Every server item in a rundown picks one of these beside its layer.
-          </p>
+          {onServer && (
+            <p className="dlg-hint" data-testid="caspar-channels-hint">
+              The server reports {plural(onServer.length, 'channel')}.
+            </p>
+          )}
         </div>
 
         {/* THE NOACG OUTPUT'S SLOT, stored as `channel` and `layer` since before channels had
             names. NoaCG does not say what a channel is for (owner, 2026-10-01): this is only
             where its own output plays, and the one slot a server item may never take. */}
         <div className="dlg-row">
-          <label htmlFor="caspar-graphics-channel">NoaCG output</label>
+          <label htmlFor="caspar-graphics-channel" title={`NoaCG's own graphics play on ${slotAddress(slotOf(settings))}. No server item may use that slot.`}>
+            NoaCG output
+          </label>
           <div className="dlg-pair dlg-pair--num">
             <select
               id="caspar-graphics-channel"
@@ -471,14 +479,12 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
               data-testid="caspar-layer"
             />
           </div>
-          <p className="dlg-hint">
-            NoaCG&rsquo;s own graphics play on <code>{slotAddress(slotOf(settings))}</code>. No server item
-            may use that slot.
-          </p>
         </div>
 
         <div className="dlg-row">
-          <label htmlFor="caspar-clip-channel">New media</label>
+          <label htmlFor="caspar-clip-channel" title="The channel a server video, still or audio file starts on. Each can move in its own editor.">
+            New media
+          </label>
           <select
             id="caspar-clip-channel"
             value={settings.clipChannel}
@@ -491,16 +497,18 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
               </option>
             ))}
           </select>
-          <p className="dlg-hint">
-            The channel a server video, still or audio file starts on. Each can move in its own editor.
-          </p>
         </div>
       </div>
       {/* WHERE THE SETUP ABOVE IS KEPT (D17): in NoaCG Bridge for this server, so every browser and
           account paired with it opens with it, or in this browser only, and why. */}
       {keeper && (
-        <p className="dlg-hint" data-testid="playout-studio-keeper" data-keeper={keeper.keeper}>
-          {keeperLine(keeper.keeper, settings, keeper.reason)}
+        <p
+          className="hint"
+          title={keeperLine(keeper.keeper, settings, keeper.reason)}
+          data-testid="playout-studio-keeper"
+          data-keeper={keeper.keeper}
+        >
+          {keeperShort(keeper.keeper, settings, keeper.reason)}
         </p>
       )}
 
@@ -523,12 +531,12 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
             title={outputUrl ? `Load this production's output URL on ${slotAddress(slotOf(settings))} of ${serverAddress(targetOf(settings))}` : 'Publish the production first'}
             data-testid="playout-put-on-air"
           >
-            {busy === 'air' ? 'Sending…' : 'Put on air'}
+            {busy === 'air' ? 'Sending…' : 'Load'}
           </button>
         )}
       </div>
       {outputUrl === null && (
-        <p className="dlg-hint" data-testid="playout-air-unstarted">
+        <p className="hint" data-testid="playout-air-unstarted">
           Publish the production first.
         </p>
       )}
@@ -542,24 +550,19 @@ export default function PlayoutSettingsPanel({ outputUrl, onOutputOnAir }: { out
           {result.result.state === 'ok' ? result.ok : result.result.detail}
         </p>
       )}
-      <p className="dlg-hint">
-        No connection? <code>noacg caspar status</code> in a terminal makes the same call without a
-        browser, and says whether the problem is this page or the server. Chrome, Edge and Firefox
-        work; Safari refuses a secure page reaching a local address outright, and there{' '}
-        <code>noacg caspar play</code> airs a production with no browser at all. A browser that
-        asks for permission again and again is set to forget it:{' '}
-        <a href="/downloads#browsers" target="_blank" rel="noopener">
-          the browser notes
-        </a>{' '}
-        name the setting.
-      </p>
-      <p className="dlg-hint">
-        Which server versions work, what to put on a channel by hand, and how to play an exported
-        file are in the{' '}
+      <p className="hint">
+        <a
+          href="/downloads#browsers"
+          target="_blank"
+          rel="noopener"
+          title="noacg caspar status in a terminal makes the same call without a browser. Chrome, Edge and Firefox work; Safari refuses a secure page reaching a local address."
+        >
+          Troubleshooting
+        </a>
+        {' · '}
         <a href="/docs#casparcg" target="_blank" rel="noreferrer">
           CasparCG guide
         </a>
-        .
       </p>
     </div>
   );

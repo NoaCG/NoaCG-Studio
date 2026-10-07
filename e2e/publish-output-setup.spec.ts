@@ -323,3 +323,21 @@ test('a native cue Take goes to the Bridge while the save of its edit still hang
   await expect(page.getByTestId('production-note').filter({hasText:/not saved|failed/i})).toHaveCount(0);
   await page.unrouteAll({behavior:'ignoreErrors'});
 });
+
+// AC-3 item 4: the panel's CasparCG section ends in Playout settings, with the switch on or off,
+// since the rundown colours live there too.
+test('the panel opens Playout settings with CasparCG off and on',async({page})=>{
+  const b=backend();await account(page,b);await seed(page);
+  const panel=page.getByTestId('production-status-panel');const dialog=page.getByTestId('playout-settings');
+  await page.getByTestId('production-status').click();
+  await expect(panel.getByTestId('caspar-switch')).not.toBeChecked();
+  await panel.getByTestId('panel-playout-settings').click();
+  await expect(panel).toBeHidden();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('settings-playout')).toHaveCount(0);
+  await page.getByTestId('playout-settings-close').click();
+  await setCasparSwitch(page,true);
+  await page.getByTestId('production-status').click();
+  await panel.getByTestId('panel-playout-settings').click();
+  await expect(dialog.getByTestId('settings-playout')).toBeVisible();
+});

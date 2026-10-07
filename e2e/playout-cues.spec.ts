@@ -558,7 +558,7 @@ test('an audio file plays on its own layer, 5, below the clips, and a still offe
   await addClip(page, 'GIORNO');
   await expect(page.locator('.pd-cue', { hasText: 'GIORNO' }).getByTestId('cue-layer')).toHaveText('1-10');
   await addClip(page, 'LOGO');
-  await expect(page.getByTestId('clip-end-still')).toHaveText('A still has no end: it holds until Out.');
+  await expect(page.getByTestId('clip-end-still')).toHaveText('Holds until Out');
   await expect(page.getByTestId('clip-end')).toHaveCount(0);
 });
 

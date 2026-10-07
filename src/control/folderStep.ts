@@ -71,12 +71,12 @@ export function stepFace(
   if (step.kind === 'take') {
     return {
       text: started ? '⟳ NEXT' : '⟳ TAKE',
-      title: `Take ${labelOf(step.cueId)}${step.off.length ? `, and ${names(step.off)} off` : ''}. SPACE does the same`,
+      title: `Take ${labelOf(step.cueId)}${step.off.length ? `, and ${names(step.off)} off` : ''}`,
       tone: 'take',
     };
   }
   if (step.kind === 'top') {
-    const back = `${folderName} starts again from its first cue; its clips play on. SPACE does the same`;
+    const back = `${folderName} starts again from its first cue; its clips play on.`;
     return step.off.length
       ? { text: '■ TAKE OFF', title: `Take ${names(step.off)} off. ${back}`, tone: 'off' }
       : { text: '↺ FROM THE TOP', title: back, tone: 'still' };

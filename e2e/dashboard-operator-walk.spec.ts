@@ -144,7 +144,7 @@ test('an imported quiz and scoreboard run from one dashboard through every press
   await page.getByTestId('action-log').locator('summary').click();
   await expect(page.getByTestId('action-log-row')).toHaveCount(0);
   await expect(page.getByTestId('action-log-empty')).toHaveText(
-    /not published, so the list starts empty each time the page opens/,
+    /Not published, so the list starts empty each time the page opens/,
   );
   await shot(page, '2-after-reload');
   await selectCue(page, 'Team score');

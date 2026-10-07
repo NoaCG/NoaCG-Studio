@@ -20,7 +20,7 @@ function ServerStill({ thumb, testId }: { thumb: string | null; testId: string }
   return (
     <>
       <img className="pd-frame-still" src={thumb} alt="" data-testid={`${testId}-still`} />
-      <span className="pd-still-tag" title="A still picture of the clip. The server plays the video; this page never shows it moving." data-testid={`${testId}-still-tag`}>
+      <span className="pd-still-tag" title="A still of the clip. The server plays the video." data-testid={`${testId}-still-tag`}>
         STILL
       </span>
     </>
@@ -223,7 +223,7 @@ export default function PlayoutMonitors({
               <ServerStill thumb={previewThumb} testId="preview" />
               <p className="hint pd-frame-server-name">{previewServer.name}</p>
               {previewServer.kind === 'media' && lengthText(previewSeconds) && (
-                <span className="pd-frame-length" title="The clip's length" data-testid="preview-length">
+                <span className="pd-frame-length" data-testid="preview-length">
                   {lengthText(previewSeconds)}
                 </span>
               )}
@@ -268,7 +268,7 @@ export default function PlayoutMonitors({
           {serverLayers.length > 0 && (
             <span
               className="pd-layer-badge pd-server-badge"
-              title="Playing on the playout server through NoaCG Bridge. A clip shows here as its still picture, never its moving video."
+              title="Playing on the playout server through NoaCG Bridge."
               data-testid="playout-on-air"
             >
               server: {serverLayers.map((l) => `${l.label} (${slotAddress(l.slot)})`).join(' · ')}

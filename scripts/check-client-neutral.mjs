@@ -95,9 +95,6 @@ const ALLOWED = [
   //    already chosen that host, so telling them where its templates folder is IS the help.
   { file: 'src/components/home/ProductionExportDialog.tsx', line: "spx: ' Controlled by your SPX rundown.',", why: "the per-target note, keyed by the target id the user picked" },
   { file: 'src/components/home/ProductionExportDialog.tsx', line: '<strong> live</strong> production into SPX instead - cued from here, from the control', why: 'contrasts the offline package with driving that same host live' },
-  { file: 'src/components/home/ProductionPage.tsx', line: "setNote('✓ Template file downloaded. Drop it into SPX ASSETS/templates (or your CasparCG template folder) and add it to a rundown.');", why: 'where the downloaded file goes, in the two hosts that load template files' },
-  { file: 'src/components/home/ProductionLinks.tsx', line: 'For playout that loads template <em>files</em> instead of URLs - SPX, or a CasparCG', why: 'names which hosts this download is for' },
-  { file: 'src/components/home/ProductionLinks.tsx', line: 'template folder. Drop it into SPX&rsquo;s <code>ASSETS/templates</code> and add it to a', why: 'the actual path in that host' },
   { file: 'src/export/showExport.ts', line: "'In an SPX rundown the fields appear by name and you never type an id. A CasparCG ' +", why: 'the exported FIELDS.md explaining how each host addresses fields' },
   { file: 'src/export/showExport.ts', line: "`Serve this folder over http (SPX's template server, or any local web server), run each\\n` +", why: 'names one concrete way to serve the folder' },
   { file: 'src/export/showExport.ts', line: '`every local file its own private origin. In an SPX or CasparCG rundown you do not need the\\n` +', why: 'says which hosts make the bundled panel unnecessary' },

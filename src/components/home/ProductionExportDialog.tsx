@@ -87,10 +87,6 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
           <button className="gallery-close" onClick={onClose} title="Close">✕</button>
         </div>
         <div className="prod-export-body">
-          <p className="hint">
-            One package with every graphic of this production ({show.graphics.length}), each on
-            its own playout layer. Pick the platform:
-          </p>
           {EXPORT_TARGETS.map((t) => (
             <label className="issue prod-export-target" key={t.id}>
               <input
@@ -120,7 +116,7 @@ export default function ProductionExportDialog({ show, onClose }: { show: Show; 
           <p className="hint">
             A package is a self-contained copy, driven by the playout host. To put this
             <strong> live</strong> production into SPX instead - cued from here, from the control
-            page or from a phone - use <strong>Links → Template file</strong> on the production page.
+            page or from a phone - use <strong>Template file</strong> in the production's Playout panel.
           </p>
           <p className="hint">
             To <strong>share or back up</strong> this production for NoaCG itself — graphics,

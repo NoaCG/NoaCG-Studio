@@ -113,7 +113,7 @@ export default function ActionArranger({
               ? 'A hidden action cannot be pinned. Show it first.'
               : pinned
                 ? 'Pinned to the top row. Press to unpin.'
-                : 'Pin it to the top row, where the hand goes first'
+                : 'Pin to the top row'
           }
           onClick={() => patch(b.event, { pinned: pinned ? undefined : true })}
           data-testid={`arrange-pin-${b.event}`}

@@ -527,7 +527,7 @@ function presentLine(entry: LiveEntry, name: string, published: HeldVersion | nu
       advice:
         chg && chg.s === 'waiting'
           ? `v${published.n} is prepared, but ${plural(chg.air ?? 1, 'graphic')} ${chg.air === 1 ? 'is' : 'are'} on air here. Preparation resumes automatically after all graphics are off air. Keep running the current prepared cues while output and connection checks stay green.`
-          : `v${published.n} is published. A deferred preparation retries automatically. Check readiness to request a fresh check.`,
+          : `v${published.n} is published. A deferred preparation retries automatically. Check now asks again.`,
     });
   }
   for (const d of degraded) problems.push({ line: d.line, advice: [d.advice] });

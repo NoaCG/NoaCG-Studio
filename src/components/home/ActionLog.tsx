@@ -30,8 +30,8 @@ export default function ActionLog({ entries, published }: { entries: LogEntry[];
       {entries.length === 0 ? (
         <p className="hint" data-testid="action-log-empty">
           {published
-            ? 'Nothing yet. Every Take, Update, Next and Out lands here, whoever sends it.'
-            : 'Every Take, Update, Next and Out lands here. This production is not published, so the list starts empty each time the page opens.'}
+            ? 'Nothing yet.'
+            : 'Nothing yet. Not published, so the list starts empty each time the page opens.'}
         </p>
       ) : (
         <ol className="prod-log-list">

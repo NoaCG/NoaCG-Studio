@@ -2415,7 +2415,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
     // The file IS the output URL, so downloading it sets an output up exactly as copying the
     // link does - and the header's heartbeat starts answering for both.
     setShows(noteShowOutputOpened(show.id));
-    setNote('✓ Template file downloaded. Drop it into SPX ASSETS/templates (or your CasparCG template folder) and add it to a rundown.');
+    setNote('✓ Template file downloaded');
   };
 
   /**
@@ -3370,8 +3370,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           disabled: folderSpace === 'take-off' ? false : !folderCanTake || !!selectedFolderBlocked,
           title:
             folderSpace === 'take-off'
-              ? `Take all of ${folderName(selectedFolder)} off. SPACE does the same`
-              : (selectedFolderBlocked ?? `Take ${folderName(selectedFolder)}. SPACE does the same`),
+              ? `Take all of ${folderName(selectedFolder)} off`
+              : (selectedFolderBlocked ?? `Take ${folderName(selectedFolder)}`),
         }
     : {
         face,
@@ -4153,7 +4153,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         void snapTo(v.slice(0, i), v.slice(i + 1));
                       }
                     }}
-                    title="RECOVERY. Jumps the live graphic straight to a state with no animation."
                     data-testid="machine-snap"
                   >
                     <option value="">Snap to state…</option>
@@ -4179,8 +4178,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   readOnlyProfile
                     ? 'This production’s control profile was written by a newer build, so it is read-only here.'
                     : arranging
-                      ? 'Back to operating: the buttons fire again'
-                      : 'Pin, hide or rename these actions for this production. Nothing fires while arranging.'
+                      ? undefined
+                      : 'Pin, hide or rename these actions. Nothing fires while arranging.'
                 }
                 onClick={() => setArrangingFor(arranging ? null : selectedGraphic)}
                 data-testid="cue-actions-arrange"
@@ -4257,7 +4256,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 ? 'The graphic is not on air. Take the cue first.'
                 : !editingIsLive
                   ? 'Another cue is on air. Select the live cue to bump its numbers.'
-                  : `Changes "${d.label}" on air immediately`;
+                  : undefined;
               return (
                 <span key={d.key} className="pd-live-number" data-testid={`live-number-${d.key}`}>
                   <span className="pd-live-number-label">{d.label}</span>
@@ -4669,13 +4668,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             disabled={!selectedLayerLive || !nextMoves}
             onClick={() => void nextLive()}
             title={
-              !selectedGraphic
-                ? 'Advance the layer'
-                : selectedLayerLive && !nextMoves
-                  ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
-                  : nextLabel
-                    ? `Advance ${selectedGraphic} to its next step: ${nextLabel}`
-                    : `Advance ${selectedGraphic} to its next step`
+              selectedGraphic && selectedLayerLive && !nextMoves
+                ? `${selectedGraphic} is on its last step - Out takes it off, Re-take starts it again`
+                : undefined
             }
             data-testid="verb-next"
           >
@@ -4697,13 +4692,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
             className="pd-verb"
             disabled={selectedFolder ? !selectedFolderUp && !heldStarted : !selectedLayerLive}
             onClick={() => onVerb('out')}
-            title={
-              selectedFolder
-                ? `Take all of ${folderName(selectedFolder)} off. Nothing outside it moves.`
-                : selectedGraphic
-                  ? `Play ${selectedGraphic} off. The other layers stay up.`
-                  : 'Play this layer off'
-            }
             data-testid="verb-out"
           >
             {/* SPACE belongs to the toggle above, and only there. This button is about the
@@ -4875,7 +4863,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                     return next;
                   })
                 }
-                title={fieldsFolded ? 'Show the setup fields' : 'Fold the setup fields away under the live actions'}
                 data-testid="cue-fields-fold"
               >
                 <span className="pd-advanced-caret" aria-hidden="true">{fieldsFolded ? '▸' : '▾'}</span>
@@ -4910,7 +4897,6 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             type="button"
                             className={loadSide === s ? 'active' : ''}
                             onClick={() => setLoadSide(s)}
-                            title={`Load the picked row into side ${s}`}
                             data-testid={`cue-load-side-${s}`}
                           >
                             {s}
@@ -4937,7 +4923,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                         !editingCue ||
                         !nextRow(dataRows, loadSide, lastLoaded[editingCue.id] ?? null)
                       }
-                      title="Load the next row of the table into this cue. Nothing airs until a Take."
+                      title="Load the next row of the table into this cue"
                       data-testid="cue-load-next"
                     >
                       Load next row
@@ -5005,8 +4991,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                             images={cueImages}
                             imageHint={
                               poolGraphic.type === 'picture'
-                                ? 'Pictures come from this production. Add more with Upload image…; uploads are not copied to CasparCG.'
-                                : "Pictures come from the graphic itself. Add one in the editor's Assets tab."
+                                ? 'Add pictures with Upload image…'
+                                : "Add pictures in the graphic's Assets tab."
                             }
                           />
                         );
@@ -5083,7 +5069,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                 aria-controls="pd-advanced-graphic"
                 disabled={layerClash}
                 onClick={() => setAdvancedFor(advancedOpen ? null : poolGraphic.id)}
-                title={layerClash ? 'Open while the layer is shared: two graphics on one layer replace each other on air' : undefined}
+                title={layerClash ? 'Two graphics share this layer' : undefined}
                 data-testid="cue-advanced-toggle"
               >
                 <span className="pd-advanced-caret" aria-hidden="true">{advancedOpen ? '▾' : '▸'}</span>
@@ -5365,10 +5351,10 @@ function ProductionShell({
             words rather than a bare arrow, so neither is mistaken for the other, and Home is
             the word alone like every Home door (src/components/AGENTS.md). The logo before them
             is the site root, as on every surface, so Home is the word and not the logo. */}
-        <button className="pd-back" onClick={onBack} title="Back to where you came from" data-testid="production-back">
+        <button className="pd-back" onClick={onBack} data-testid="production-back">
           ← Back
         </button>
-        <button className="pd-home" onClick={onHome} title="Your NoaCG home" data-testid="production-home">
+        <button className="pd-home" onClick={onHome} data-testid="production-home">
           Home
         </button>
         {/* The wizard door, in the SHARED LEFT ORDER every shell uses (owner walk, 2026-08-29:
@@ -5399,7 +5385,7 @@ function ProductionShell({
           <span
             className="pd-mode pd-mode-idle"
             data-testid="production-follow"
-            title="The server is not answering, so this page cannot follow the production yet. It keeps asking and follows it as soon as the server answers."
+            title="The server is not answering. Retrying."
           >
             ○ server not answering, retrying
           </span>
@@ -5407,7 +5393,7 @@ function ProductionShell({
           <span
             className="pd-mode pd-mode-idle"
             data-testid="production-follow"
-            title={`The live connection has not joined (last status: ${follow.status || 'none'}). Commands still arrive on the slower road, about every 30 seconds.`}
+            title={`Live connection not joined (${follow.status || 'none'}). Commands arrive about every 30 s.`}
           >
             ○ not joined, polling
           </span>
@@ -5457,7 +5443,6 @@ function ProductionShell({
                   href={routeHash({ view: 'production', id: show.id, sub: tab })}
                   target="_blank"
                   rel="noopener"
-                  title={`Open ${label} in a new tab. This one keeps Playout on screen.`}
                   data-testid={`tab-${tab}`}
                 >
                   {label}
