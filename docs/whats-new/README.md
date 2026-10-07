@@ -17,14 +17,20 @@ About twice a week, only the biggest changes, so a visitor can tell in a minute 
    ```
    ## Playout and Bridge
 
-   - Rundowns have folders. A folder can step through its cues one by one, and All out
-     clears everything on air.
-   - The Bridge remembers your CasparCG servers and connects to the last one by itself.
+   - Timed cues: Set how long a graphic stays on air and what happens when the timer ends.
+   - Safer rundown editing: Undo and redo rundown changes without affecting the current output.
+
+   ## Editor and templates
+
+   - Custom drawing: Draw shapes and lines and edit their points, curves, fill and stroke.
 
    ## AI workflows
 
-   - Create with AI starts with your own coding agent and the NoaCG CLI.
+   - Easier setup: NoaCG MCP is in the official MCP Registry, and the Claude Code plugin
+     installs with one command.
    ```
+
+   Very, very short: a reader should get the whole update from the labels alone.
 
    - Three topics, in this order, the parts of NoaCG worked on all the time:
      - **Playout and Bridge**: the NoaCG playout system (productions, rundowns, the control
@@ -33,8 +39,10 @@ About twice a week, only the biggest changes, so a visitor can tell in a minute 
      - **AI workflows**: the CLI, the MCP server, and the plugins for Claude Code and Codex.
 
      Leave out a topic with nothing big in it; never write it empty.
-   - At most 6 bullets a topic and 12 an update, each at most 30 words. A wrapped bullet
-     continues on a line indented two spaces.
+   - Each bullet is a label of at most 4 words, a colon, then one sentence (two at most) of at
+     most 18 words. The pages show the label in bold. A wrapped bullet continues on a line
+     indented two spaces.
+   - At most 5 bullets a topic and 12 an update.
    - Say what changed for the user, in plain words: what they can now do, or what no longer goes
      wrong. Not the pull request title, not how it was built.
    - Only what is true and public today: check each claim against the current state in
