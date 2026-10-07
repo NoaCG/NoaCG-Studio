@@ -1,0 +1,47 @@
+=== j-3545 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts --grep "asset moves preserve folder labels"
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:3808) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+Queued behind browser-driving work in another checkout - starting when it finishes (node scripts/e2e-runs.mjs --all to watch):
+  - C:/Users/ahonemi/.codex/visualizations/2026/10/06/01a112e6-de71-7af3-9b95-f727497129e6/rundown-undo (pid 18424, 78 spec files, 1.4 min in)
+Run browser-driving work (suites, sweeps, benches, spikes) through `npm run queue`, because one runs per machine. Name a new browser-driving script like its siblings so `SWEEP_SCRIPTS` sees it, or add it there.
+
+Running 1 test using 1 worker
+
+(node:4532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › asset moves preserve folder labels and retain emptied inferred bins in one history receipt (3.1s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › asset moves preserve folder labels and retain emptied inferred bins in one history receipt 
+
+    Error: expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "label": "images/First/red.svg",
+    -   "retained": true,
+    +   "label": "images/Second/red.svg",
+    +   "retained": false,
+      }
+
+      135 |   const before = await source(page); await page.getByRole('combobox', { name: 'Asset bin' }).selectOption('Second'); await ready(page);
+      136 |   const moved = await source(page), organization = await evaluateInPage(page, async () => (await import('/src/model/editorOrganization.ts')).readOrganization((await import('/src/store/templateStore.ts')).useTemplateStore.getState().template));
+    > 137 |   expect({ label: organization.folders[0].name, retained: organization.bins.includes('images/First') }).toEqual({ label, retained: true });
+          |                                                                                                         ^
+      138 |   expect(moved.assets[0].path).toBe('images/Second/red.svg'); expect(moved.assets[0].data).toBe(before.assets[0].data);
+      139 |   await history(page); expect(await source(page)).toEqual(before); await history(page, true); expect(await source(page)).toEqual(moved);
+      140 |   await expect(page.getByRole('button', { name: 'Bin First', exact: true })).toBeVisible();
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:137:105
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-asset--57e41-bins-in-one-history-receipt-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-asset--57e41-bins-in-one-history-receipt-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › asset moves preserve folder labels and retain emptied inferred bins in one history receipt 

@@ -4,6 +4,7 @@
 import type { SpxTemplate } from '../model/types';
 import { splitAssetPath } from '../assets/assetUtils';
 import { addLayer, appendCss, insertGraphicHtml } from './edit';
+import { readOrganization, splitOrganizationHtml } from '../model/editorOrganization';
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -160,6 +161,8 @@ export function moveAsset(
 ): { template: SpxTemplate; newPath: string } {
   const asset = template.assets.find((a) => a.path === fromPath);
   if (!asset || fromPath === toPath) return { template, newPath: fromPath };
+  readOrganization(template);
+  const [header, artwork] = splitOrganizationHtml(template.html);
   const newPath = dedupePath(toPath, template, fromPath);
 
   // ./-prefixed references are covered automatically (the bare path is a substring).
@@ -169,7 +172,7 @@ export function moveAsset(
   return {
     template: {
       ...template,
-      html: rewrite(template.html),
+      html: header + rewrite(artwork),
       css: rewrite(template.css),
       js: rewrite(template.js),
       fields: template.fields.map(field => typeof field.value === 'string' ? { ...field, value: rewrite(field.value) } : field),

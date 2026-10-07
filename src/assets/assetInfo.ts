@@ -4,6 +4,7 @@
 
 import type { AssetFile, SpxTemplate } from '../model/types';
 import { extOf, isDataUrl, isFontAsset, isImageAsset, isLottieAsset, isVideoAsset, parseDataUrl } from './assetUtils';
+import { splitOrganizationHtml } from '../model/editorOrganization';
 
 export interface AssetInfo {
   kind: 'image' | 'lottie' | 'font' | 'video' | 'other';
@@ -314,7 +315,7 @@ export function referenceCount(template: SpxTemplate, path: string): number {
   const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(escaped, 'g');
   let count = 0;
-  for (const code of [template.html, template.css, template.js]) {
+  for (const code of [splitOrganizationHtml(template.html)[1], template.css, template.js]) {
     count += (code.match(re) ?? []).length;
   }
   return count;

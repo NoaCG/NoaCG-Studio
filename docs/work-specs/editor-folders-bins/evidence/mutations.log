@@ -1,0 +1,316 @@
+=== j-3578 node scripts/editor-organization-mutation-bench.mjs
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+Unmodified control passed.
+KILLED: folder parent ownership
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:161:1 › folder guards refuse mixed group scopes and cycles; inline keys and names preserve artwork (2.7s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:161:1 › folder guards refuse mixed group scopes and cycles; inline keys and names preserve artwork 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "same group"
+    Received string:    ""
+
+      176 |   }, ids);
+      177 |   expect(verdicts.move).toBe(''); expect(verdicts.cycle).toContain('contain'); expect(verdicts.cycleExact).toBe(true);
+    > 178 |   expect(verdicts.mixed).toContain('same group'); expect(verdicts.mixedExact).toBe(true); expect(await source(page)).toEqual(before);
+          |                          ^
+      179 |   const row = page.getByRole('button', { name: 'Folder A', exact: true }); await row.dblclick();
+      180 |   const input = page.getByRole('textbox', { name: 'Folder name' }), clock = await page.getByTestId('foundation-clock').textContent();
+      181 |   await holdKeyRepeats(page, 3, 'ArrowRight', 'ArrowRight'); await input.press('Delete'); await input.press('Space'); await input.press('Escape');
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:178:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-folder-7eef2--and-names-preserve-artwork-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-folder-7eef2--and-names-preserve-artwork-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:161:1 › folder guards refuse mixed group scopes and cycles; inline keys and names preserve artwork 
+[WebServer] (node:42864) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:45844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: bin collision refusal
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions (2.3s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "already exists"
+    Received string:    ""
+
+      212 |     return { message, exact: before === s.port.read() };
+      213 |   });
+    > 214 |   expect(refusal.message).toContain('already exists'); expect(refusal.exact).toBe(true);
+          |                           ^
+      215 |   await execute(page, [{ kind: 'bin.rename', from: 'images/First', to: 'images/Brand' }]);
+      216 |   const renamed = await source(page), field = renamed.fields.find(field => field.value === 'images/Brand/red.svg')!;
+      217 |   expect(field).toBeTruthy(); expect(renamed.assets.map(asset => asset.data)).toEqual(before.assets.map(asset => asset.data));
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:214:27
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-bin-re-429b3-s-and-stale-asset-revisions-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-bin-re-429b3-s-and-stale-asset-revisions-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions 
+[WebServer] (node:8252) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:30824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: bin moving-path collision
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history (2.3s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "collide"
+    Received string:    ""
+
+      137 |     return { refusal, unchanged: s.port.read() === before && JSON.stringify(s.version()) === JSON.stringify(revision) && JSON.stringify(s.port.view()) === view && s.canUndo() === canUndo };
+      138 |   });
+    > 139 |   expect(result.refusal).toContain('collide'); expect(result.unchanged).toBe(true);
+          |                          ^
+      140 | });
+      141 |
+      142 | test('asset moves preserve folder labels and retain emptied inferred bins in one history receipt', async ({ page }) => {
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:139:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-nested-836ee--changing-source-or-history-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-nested-836ee--changing-source-or-history-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history 
+[WebServer] (node:20728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:19904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: folder opening revision
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:114:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches (9.2s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:114:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected substring: "changed"
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('alert')
+
+
+      118 |   await execute(page, [{ kind: 'base.set', selector: ids[2], values: { x: 610 } }]);
+      119 |   const before = await source(page); await input.press('Enter');
+    > 120 |   await expect(page.getByRole('alert')).toContainText('changed'); expect(await source(page)).toEqual(before);
+          |                                         ^
+      121 |   const result = await evaluateInPage(page, async ids => {
+      122 |     const s = (await import('/src/components/editorFoundation/documentAdapter.ts')).activeEditorSession(); const before = s.port.read(), selected = s.port.view().selectedParts, undo = s.canUndo();
+      123 |     const run = (operations: unknown[]) => { try { s.execute({ documentId: s.documentId, expected: s.version(), transactionId: crypto.randomUUID(), operations: operations as EditorOperation[] }); return ''; } catch (error) { return String(error); } };
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:120:41
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-organi-c3415--cycles-and-partial-batches-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-organi-c3415--cycles-and-partial-batches-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:114:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches 
+[WebServer] (node:21680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:7212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: bin opening revision
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions (10.0s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('alert')
+    Expected substring: "changed"
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toContainText" with timeout 7000ms
+      - waiting for getByRole('alert')
+
+
+      221 |   const input = page.getByRole('textbox', { name: 'Bin name' }); await input.fill('Stale');
+      222 |   await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/new.svg', data: data('green') }] }]);
+    > 223 |   const current = await source(page); await input.press('Enter'); await expect(page.getByRole('alert')).toContainText('changed'); expect(await source(page)).toEqual(current);
+          |                                                                                                         ^
+      224 | });
+      225 |
+      226 | test('folder ordering changes editor order only; unknown metadata remains read-only', async ({ page }) => {
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:223:105
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-bin-re-429b3-s-and-stale-asset-revisions-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-bin-re-429b3-s-and-stale-asset-revisions-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:204:1 › bin rename retains field defaults, live samples, bytes and rejects collisions and stale asset revisions 
+[WebServer] (node:1148) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:37384) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: inline Escape cancellation
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:55:1 › folders organize, rename, collapse, nest and release with exact artwork and history (9.6s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:55:1 › folders organize, rename, collapse, nest and release with exact artwork and history 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: 'Folder Accents', exact: true })
+    Expected: visible
+    Timeout: 7000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" with timeout 7000ms
+      - waiting for getByRole('button', { name: 'Folder Accents', exact: true })
+
+
+      63 |   await page.getByRole('button', { name: 'Expand folder Accents', exact: true }).click();
+      64 |   await row.dblclick(); const input = page.getByRole('textbox', { name: 'Folder name' });
+    > 65 |   await input.fill('Cancelled'); await input.press('Escape'); await expect(row).toBeVisible();
+         |                                                                                 ^
+      66 |   await row.focus(); await row.press('Enter'); await input.fill('Badge'); await input.press('Enter');
+      67 |   const renamed = await source(page); await history(page); await expect(row).toBeVisible(); await history(page, true); expect(await source(page)).toEqual(renamed);
+      68 |   await folder(page, [ids[2]], 'Other');
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:65:81
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-folder-487e4-h-exact-artwork-and-history-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-folder-487e4-h-exact-artwork-and-history-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:55:1 › folders organize, rename, collapse, nest and release with exact artwork and history 
+[WebServer] (node:44224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:28488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: future organization version
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+
+Running 1 test using 1 worker
+
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:244:1 › unsupported organization metadata disables asset bin moves and preserves source (9.2s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:244:1 › unsupported organization metadata disables asset bin moves and preserves source 
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  getByRole('combobox', { name: 'Asset bin' })
+    Expected: disabled
+    Received: enabled
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toBeDisabled" with timeout 7000ms
+      - waiting for getByRole('combobox', { name: 'Asset bin' })
+        18 × locator resolved to <select aria-label="Asset bin" class="asset-fact-value" title="Move to a folder (references in the code update automatically)">…</select>
+           - unexpected value "enabled"
+
+
+      248 |   await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+      249 |   const before = await source(page);
+    > 250 |   await expect(page.getByRole('combobox', { name: 'Asset bin' })).toBeDisabled();
+          |                                                                   ^
+      251 |   await expect(page.getByRole('button', { name: 'New asset bin', exact: true })).toBeDisabled();
+      252 |   const transfer = await page.evaluateHandle(() => { const data = new DataTransfer(); data.setData('application/x-noacg-asset', 'images/logo.svg'); return data; });
+      253 |   await page.locator('.asset-folder').filter({ has: page.getByRole('button', { name: 'Bin Target', exact: true }) }).dispatchEvent('drop', { dataTransfer: transfer });
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:250:67
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-unsupp-c455f--moves-and-preserves-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-unsupp-c455f--moves-and-preserves-source-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:244:1 › unsupported organization metadata disables asset bin moves and preserves source 
+[WebServer] (node:24788) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+(node:38532) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+KILLED: inert source header ownership
+✖ a metadata-shaped string inside artwork code cannot be rewritten as a source header (1.5855ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 208.7775
+
+✖ failing tests:
+
+test at scripts\editor-organization.test.mjs:46:1
+✖ a metadata-shaped string inside artwork code cannot be rewritten as a source header (1.5855ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///C:/Users/ahonemi/.codex/worktrees/8738/NoaCG-Studio/scripts/editor-organization.test.mjs:48:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /unsupported/,
+    operator: 'throws',
+    diff: 'simple'
+  }
+Every source restored byte-for-byte.
+[measured] 8 editor organization guard mutations
+8/8 mutations killed.

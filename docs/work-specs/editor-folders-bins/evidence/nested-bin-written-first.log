@@ -1,0 +1,40 @@
+=== j-3575 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts --grep nested.bin.renames
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:1780) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+Queued behind browser-driving work in another checkout - starting when it finishes (node scripts/e2e-runs.mjs --all to watch):
+  - C:/Users/ahonemi/.codex/visualizations/2026/10/06/01a112e6-de71-7af3-9b95-f727497129e6/rundown-history (pid 35880, 1 spec file, 0.8 min in)
+Run browser-driving work (suites, sweeps, benches, spikes) through `npm run queue`, because one runs per machine. Name a new browser-driving script like its siblings so `SWEEP_SCRIPTS` sees it, or add it there.
+
+Running 1 test using 1 worker
+
+(node:43832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history (2.2s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history 
+
+    Error: expect(received).toContain(expected) // indexOf
+
+    Expected substring: "collide"
+    Received string:    ""
+
+      137 |     return { refusal, unchanged: s.port.read() === before && JSON.stringify(s.version()) === JSON.stringify(revision) && JSON.stringify(s.port.view()) === view && s.canUndo() === canUndo };
+      138 |   });
+    > 139 |   expect(result.refusal).toContain('collide'); expect(result.unchanged).toBe(true);
+          |                          ^
+      140 | });
+      141 |
+      142 | test('asset moves preserve folder labels and retain emptied inferred bins in one history receipt', async ({ page }) => {
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:139:26
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-nested-836ee--changing-source-or-history-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-nested-836ee--changing-source-or-history-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:130:1 › nested bin renames refuse occupied moving paths without changing source or history 

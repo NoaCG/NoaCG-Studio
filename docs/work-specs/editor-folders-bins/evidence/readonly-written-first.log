@@ -1,0 +1,46 @@
+=== j-3539 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts --grep "unsupported organization metadata disables"
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:33464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:34300) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  1 [chromium] › e2e\editor-folders-bins.spec.ts:213:1 › unsupported organization metadata disables asset bin moves and preserves source (9.3s)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:213:1 › unsupported organization metadata disables asset bin moves and preserves source 
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  getByRole('combobox', { name: 'Asset bin' })
+    Expected: disabled
+    Received: enabled
+    Timeout:  7000ms
+
+    Call log:
+      - Expect "toBeDisabled" with timeout 7000ms
+      - waiting for getByRole('combobox', { name: 'Asset bin' })
+        18 × locator resolved to <select aria-label="Asset bin" class="asset-fact-value" title="Move to a folder (references in the code update automatically)">…</select>
+           - unexpected value "enabled"
+
+
+      217 |   await evaluateInPage(page, async () => { const s = (await import('/src/store/templateStore.ts')).useTemplateStore.getState(); s.applyTemplate({ ...s.template, html: s.template.html.replace('"version":1', '"version":99') }); });
+      218 |   const before = await source(page);
+    > 219 |   await expect(page.getByRole('combobox', { name: 'Asset bin' })).toBeDisabled();
+          |                                                                   ^
+      220 |   await expect(page.getByRole('button', { name: 'New asset bin', exact: true })).toBeDisabled();
+      221 |   expect(await source(page)).toEqual(before);
+      222 | });
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:219:67
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-unsupp-c455f--moves-and-preserves-source-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-unsupp-c455f--moves-and-preserves-source-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:213:1 › unsupported organization metadata disables asset bin moves and preserves source 

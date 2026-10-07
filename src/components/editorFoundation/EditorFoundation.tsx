@@ -18,6 +18,8 @@ import type { PreviewController } from './PreviewController';
 import type { RenderedPart } from './protocol';
 import type { SpxTemplate } from '../../model/types';
 import { groupHierarchy } from '../../blocks/editorGroups';
+import { assetBinDirs } from '../../blocks/editorOrganization';
+import { inspectOrganization } from '../../model/editorOrganization';
 import './foundation.css';
 
 /** Opt-in composition only. Existing wizard, library, runtime and exporters stay authoritative. */
@@ -34,6 +36,7 @@ export default function EditorFoundation() {
   const [clock, setClock] = useState({ documentId: session.documentId, time: session.port.view().time });
   const [groupLocation, setGroupLocation] = useState<{ document: string; path: string[] }>({ document: session.documentId, path: [] });
   const hierarchy = useMemo(() => groupHierarchy(template), [template]);
+  const organization = useMemo(() => inspectOrganization(template), [template]);
   const groupPath = groupLocation.document === session.documentId ? groupLocation.path.filter(selector => hierarchy.groups.has(selector)) : [];
   const groupScope = groupPath[groupPath.length - 1] ?? null;
   const [projectOpen, setProjectOpen] = useState(false);
@@ -143,19 +146,28 @@ export default function EditorFoundation() {
     </header>
     <div className="ef-document-strip"><button aria-expanded={projectOpen} aria-controls="ef-project" onClick={() => setProjectOpen(!projectOpen)}>Project {projectOpen ? '▾' : '▸'}</button>
       <span className="ef-document-tab">{template.name}</span><span className="ef-spacer" />
-      <nav className="ef-group-breadcrumbs" aria-label="Group breadcrumbs"><button onClick={() => navigateGroup(null)} aria-current={!groupScope ? 'location' : undefined}>Composition</button>{groupPath.map(selector => <button key={selector} onClick={() => navigateGroup(selector)} aria-current={selector === groupScope ? 'location' : undefined}>{view.parts.find(part => part.selector === selector)?.label ?? selector}</button>)}</nav></div>
+      {groupScope && <button className="ef-root-return" aria-label="Back to Composition" onClick={() => navigateGroup(null)}>← Back to Composition</button>}
+      <span className="ef-location-label">Editing</span><nav className="ef-group-breadcrumbs" aria-label="Group breadcrumbs"><button onClick={() => navigateGroup(null)} aria-current={!groupScope ? 'location' : undefined}>Composition</button>{groupPath.map(selector => <button key={selector} onClick={() => navigateGroup(selector)} aria-current={selector === groupScope ? 'location' : undefined}>{view.parts.find(part => part.selector === selector)?.label ?? selector}</button>)}</nav></div>
     <div className="ef-workspace">
       <aside id="ef-project" className="ef-project" aria-label="Project" hidden={!projectOpen}>
         <div className="ef-toolbar"><h2>Project</h2><span className="ef-spacer" /><button onClick={() => setProjectOpen(false)} aria-label="Close Project">×</button></div><span className="ef-section-label">Current graphic</span>
         <p className="ef-current-graphic">{template.name}</p>
         <span className="ef-section-label">Assets · {template.assets.length}</span>
-        <AssetsPanel actions={{
+        <AssetsPanel key={session.instanceId} actions={{
+          bins: {
+            directories: assetBinDirs(template, organization), reason: organization.reason,
+            revision: () => session.version(),
+            execute: (operation, expected) => { pause(); session.cancel(); images.execute([operation], expected); },
+          },
           sound: (operation, expectedJs) => {
             if (session.port.read().js !== expectedJs) throw new Error('This graphic changed while the sound was loading. Choose it again.');
             pause(); images.execute([operation]);
           },
           importFiles: files => images.files(files, 'assets'),
-          move: (from, to) => { const result = images.execute([{ kind: 'asset.move', from, to }]); return result.template.assets[template.assets.findIndex(a => a.path === from)]?.path ?? from; },
+          move: (from, to) => {
+            if (from.split('/')[0] !== to.split('/')[0]) throw new Error('Choose a bin within this asset bucket.');
+            const result = images.execute([{ kind: 'asset.move', from, to }]); return result.template.assets[template.assets.findIndex(a => a.path === from)]?.path ?? from;
+          },
           remove: path => { images.execute([{ kind: 'asset.delete', path }]); },
           placeReason: groupScope ? 'Add artwork in Composition, then group it.' : undefined,
           place: asset => { pause(); void images.place(asset); },
@@ -171,7 +183,7 @@ export default function EditorFoundation() {
       <Canvas key={session.documentId} template={template} sampleData={sampleData} session={session} time={time} selection={selection} select={select} linked={linked} groupScope={groupScope} enterGroup={navigateGroup} setSelection={setSelection} onAppearance={setAppearance} onDrawingSpace={setDrawingSpace} rootSelector={view.parts.find(p => p.kind === 'root')?.selector} connectPreview={connectPreview} togglePlayback={togglePlayback} pause={pause} openAssets={openAssets} pathEditing={pathEditing} onPathEditing={setPathEditing} />
       <Inspector time={time} pause={pause} view={view} template={template} selection={selection} select={select} session={session} linked={linked} setLinked={setLinked} appearance={appearance[selection[0]]} previewCss={previewCss} previewTemplate={previewTemplate} openAssets={openAssets} editPoints={setPathEditing} />
     </div>
-    <Timeline key={groupScope ?? "composition"} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
+    <Timeline key={session.instanceId + ':' + (groupScope ?? 'composition')} groupScope={groupScope} enterGroup={navigateGroup} hierarchy={hierarchy} view={view} fps={template.fps} time={time} selection={selection} seek={next => { pause(); preview.current?.stopExit(); seek(next, next >= view.out && session.port.view().cue === view.segments.length - 1 ? session.port.view().cue : undefined); }} select={select} playing={playing} togglePlayback={togglePlayback} session={session} pause={pause} inspectOut={inspectOut} playOut={playOut} parkOut={parkOut} inspectStep={inspectStep}
       canUndo={session.canUndo()} canRedo={session.canRedo()} undo={() => history(false)} redo={() => history(true)} />
     <footer className="ef-status"><span>Artwork editing · Alpha</span><span>Stopwatch: animate · Diamond: key at playhead</span></footer>
   </main>;

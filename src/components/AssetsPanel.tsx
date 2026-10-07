@@ -26,8 +26,16 @@ import { useInsertTemplateUi } from './InsertTemplateDialog';
 import { ASSET_ACCEPT } from '../assets/fileImport';
 import SoundsControls from './SoundsControls';
 import type { SoundOperation } from '../blocks/soundEdit';
+import type { OrganizationOperation } from '../blocks/editorOrganization';
+import InlineOrganizationName from './editorFoundation/InlineOrganizationName';
 
 export interface AssetPanelActions {
+  bins?: {
+    directories: string[];
+    revision: () => { source: number; assets: number };
+    execute: (operation: OrganizationOperation, expected: { source: number; assets: number }) => void;
+    reason?: string;
+  };
   sound?: (operation: SoundOperation, expectedJs: string) => void | Promise<void>;
   importFiles: (files: File[]) => Promise<string>;
   move: (from: string, to: string) => string;
@@ -118,6 +126,8 @@ function AssetInfoSection({
   bucketFolders,
   onMove,
   onRemove,
+  bins,
+  binReason,
 }: {
   asset: AssetFile;
   /** Existing + pending folder names offered by the Move select. */
@@ -125,6 +135,8 @@ function AssetInfoSection({
   /** Move/rename the asset to a target path (reference-safe, one undo step). */
   onMove: (fromPath: string, toPath: string) => void;
   onRemove?: (path: string) => void;
+  bins?: boolean;
+  binReason?: string;
 }) {
   const template = useTemplateStore((s) => s.template);
   const removeAsset = useTemplateStore((s) => s.removeAsset);
@@ -250,10 +262,12 @@ function AssetInfoSection({
             <span className="asset-fact-value">{refs > 0 ? `${refs}× in the template` : 'not referenced (bloats the export)'}</span>
           </div>
           <div className="asset-fact">
-            <span className="asset-fact-key">Folder</span>
+            <span className="asset-fact-key">{bins ? 'Bin' : 'Folder'}</span>
             <select
+              aria-label={bins ? 'Asset bin' : 'Asset folder'}
+              disabled={!!binReason}
               className="asset-fact-value"
-              value={folder ?? ''}
+              value={bins ? dirOf(asset.path).slice(bucket.length + 1) : folder ?? ''}
               onChange={(e) => moveToFolder(e.target.value)}
               title="Move to a folder (references in the code update automatically)"
             >
@@ -261,7 +275,7 @@ function AssetInfoSection({
               {bucketFolders.map((f) => (
                 <option key={f} value={f}>{bucket}/{f}/</option>
               ))}
-              <option value="__new__">New folder…</option>
+              {!bins && <option value="__new__">New folder…</option>}
             </select>
           </div>
         </div>
@@ -284,6 +298,10 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   const [dragging, setDragging] = useState(false);
   const [dropDir, setDropDir] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedBin, setSelectedBin] = useState<string | null>(null);
+  const [collapsedBins, setCollapsedBins] = useState<string[]>([]);
+  const [binBucket, setBinBucket] = useState('images');
+  const [binDraft, setBinDraft] = useState<{ from: string | null; name: string; bucket: string; expected: { source: number; assets: number } } | null>(null);
   // Folders the user created that hold nothing yet. Deliberately ephemeral component
   // state: assets sync/share as template JSON, and a folder only becomes real (part of
   // an asset's path) once something lands in it — persisting a cosmetic empty-folder
@@ -296,6 +314,20 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   const assets = template.assets;
   const selected = assets.find((a) => a.path === selectedPath) ?? null;
   const totalBytes = assets.reduce((sum, a) => sum + assetBytes(a), 0);
+  const editBin = (dir?: string) => {
+    if (!actions?.bins) return;
+    const bucket = dir?.split('/')[0] ?? binBucket;
+    setNote(null); setBinDraft({ from: dir ?? null, name: dir?.slice(bucket.length + 1) ?? '', bucket, expected: actions.bins.revision() });
+  };
+  const binNameInput = (draft: NonNullable<typeof binDraft>) => <InlineOrganizationName key={draft.from ?? 'new'} name={draft.name} label="Bin name" cancel={() => setBinDraft(null)} commit={name => {
+    setBinDraft(null);
+    const dir = draft.bucket + '/' + name.trim();
+    try {
+      actions!.bins!.execute(draft.from ? { kind: 'bin.rename', from: draft.from, to: dir } : { kind: 'bin.create', dir }, draft.expected);
+      if (draft.from && selectedPath?.startsWith(draft.from + '/')) setSelectedPath(dir + selectedPath.slice(draft.from.length));
+      setSelectedBin(dir); setNote(null);
+    } catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
+  }} />;
 
   /** Move/rename via the reference-rewriting transform — ONE undoable apply, then patch
    *  any sample value that still holds the old path (a filelist field's live value). */
@@ -394,6 +426,8 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   for (const f of pendingFolders) {
     if (!groups.has(`images/${f}`)) groups.set(`images/${f}`, []);
   }
+  for (const dir of actions?.bins?.directories ?? []) if (!groups.has(dir)) groups.set(dir, []);
+  if (actions?.bins) for (const dir of [...groups.keys()]) if (!groups.has(dir.split('/')[0])) groups.set(dir.split('/')[0], []);
   const sortedDirs = Array.from(groups.keys()).sort((a, b) => {
     const [ba, bb] = [a.split('/')[0], b.split('/')[0]];
     const oa = order.indexOf(ba);
@@ -406,6 +440,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
   // folders in that bucket plus the pending ones (offered for images).
   const foldersFor = (asset: AssetFile): string[] => {
     const { bucket } = splitAssetPath(asset.path);
+    if (actions?.bins) return sortedDirs.filter(dir => dir.startsWith(bucket + '/')).map(dir => dir.slice(bucket.length + 1));
     const existing = assets
       .map((a) => splitAssetPath(a.path))
       .filter((p) => p.bucket === bucket && p.folder)
@@ -484,7 +519,11 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
             ✚ Template graphic…
           </button>}
           {!actions && <button onClick={newFolder} data-testid="assets-new-folder">🗀 New folder…</button>}
+          {actions?.bins && <><select aria-label="New bin asset bucket" value={binBucket} onChange={event => setBinBucket(event.target.value)}>{order.map(bucket => <option key={bucket} value={bucket}>{bucket}</option>)}</select>
+            <button aria-label="New asset bin" disabled={!!actions.bins.reason} onClick={() => editBin()}>+ Bin</button></>}
         </div>
+        {binDraft?.from === null && binNameInput(binDraft)}
+        {actions?.bins?.reason && <p role="alert">{actions.bins.reason}</p>}
         {note && <p role={note.startsWith('✗') ? 'alert' : 'status'} className={note.startsWith('✗') ? 'status-bad' : 'hint'} style={{ marginTop: 8 }}>{note}</p>}
         {actions && <p className="hint">Drop files here to import without placing. SVG files are image assets; editable SVG artwork uses Import graphic.</p>}
       </div>
@@ -493,9 +532,17 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
         <div className="panel-section">
           {sortedDirs.map((dir) => (
             <div key={dir} className={`asset-folder${dropDir === dir ? ' drop-target' : ''}`} {...folderDropProps(dir)}>
-              <div className="asset-folder-head">{dir}/</div>
-              {(groups.get(dir) as AssetFile[]).length === 0 ? (
-                <p className="hint asset-folder-empty">empty — drag an asset here (kept until reload)</p>
+              <div className="asset-folder-head">{actions?.bins && dir.includes('/') ? <>
+                <button aria-label={(collapsedBins.includes(dir) ? 'Expand' : 'Collapse') + ' bin ' + dir.slice(dir.indexOf('/') + 1)} aria-expanded={!collapsedBins.includes(dir)} onClick={() => setCollapsedBins(current => current.includes(dir) ? current.filter(item => item !== dir) : [...current, dir])}>{collapsedBins.includes(dir) ? '▸' : '▾'}</button>
+                {binDraft?.from === dir ? binNameInput(binDraft) : <button aria-label={'Bin ' + dir.slice(dir.indexOf('/') + 1)} aria-pressed={selectedBin === dir} onClick={() => { setSelectedBin(dir); setSelectedPath(null); }} onDoubleClick={() => editBin(dir)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); editBin(dir); } }}>{dir.slice(dir.indexOf('/') + 1)}</button>}
+                <small>{dir.split('/')[0]} · Bin</small>
+                {selectedBin === dir && <button aria-label="Remove empty asset bin" disabled={(groups.get(dir)?.length ?? 0) > 0} onClick={() => {
+                  try { actions.bins!.execute({ kind: 'bin.remove', dir }, actions.bins!.revision()); setSelectedBin(null); setNote(null); }
+                  catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
+                }}>×</button>}
+              </> : dir + '/'}</div>
+              {collapsedBins.includes(dir) ? null : (groups.get(dir) as AssetFile[]).length === 0 ? (
+                <p className="hint asset-folder-empty">{actions?.bins ? 'Empty. Drag an asset here.' : 'empty — drag an asset here (kept until reload)'}</p>
               ) : (
                 (groups.get(dir) as AssetFile[]).map((a) => (
                   <AssetRow
@@ -503,7 +550,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
                     asset={a}
                     refs={referenceCount(template, a.path)}
                     selected={a.path === selectedPath}
-                    onSelect={() => setSelectedPath(a.path)}
+                    onSelect={() => { setSelectedPath(a.path); setSelectedBin(null); }}
                   />
                 ))
               )}
@@ -518,7 +565,7 @@ export default function AssetsPanel({ actions }: { actions?: AssetPanelActions }
       )}
 
       {actions?.sound && <SoundsControls template={template} onEdit={actions.sound} />}
-      {selected && <><AssetInfoSection asset={selected} bucketFolders={foldersFor(selected)} onMove={handleMove} onRemove={actions ? path => {
+      {selected && <><AssetInfoSection key={selected.path} asset={selected} bins={!!actions?.bins} binReason={actions?.bins?.reason} bucketFolders={foldersFor(selected)} onMove={handleMove} onRemove={actions ? path => {
         try { actions.remove(path); setNote(null); } catch (error) { setNote('✗ ' + (error instanceof Error ? error.message : String(error))); }
       } : undefined} />
         {actions && isImageAsset(selected.path) && <><div className="row"><button disabled={!!actions.placeReason} onClick={() => actions.place(selected)}>Place image</button>

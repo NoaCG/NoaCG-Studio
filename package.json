@@ -188,7 +188,8 @@
     "metrics:ci": "node scripts/metrics/ci-minutes.mjs",
     "land:ruleset": "node scripts/landing-ruleset.mjs",
     "gates": "node scripts/gates.mjs",
-    "test:editor-groups:mutations": "node scripts/editor-group-mutation-bench.mjs"
+    "test:editor-groups:mutations": "node scripts/editor-group-mutation-bench.mjs",
+    "test:editor-organization:mutations": "node scripts/editor-organization-mutation-bench.mjs"
   },
   "overrides": {
     "dompurify": "3.4.13",

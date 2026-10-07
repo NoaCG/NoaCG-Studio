@@ -1,0 +1,127 @@
+=== j-3516 set E2E_WORKERS=3&& npx playwright test e2e/editor-folders-bins.spec.ts
+=== cwd C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio
+[e2e] 3 workers - E2E_WORKERS=3 (pinned)
+[WebServer] (node:11720) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 3 workers
+
+(node:21200) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:42448) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\editor-folders-bins.spec.ts:43:1 › baseline existing groups navigate locally without changing source (4.0s)
+  x  2 [chromium] › e2e\editor-folders-bins.spec.ts:53:1 › folders organize, rename, collapse, nest and release with exact artwork and history (1.0m)
+  x  3 [chromium] › e2e\editor-folders-bins.spec.ts:75:1 › folders coexist with groups and root return is visible (1.0m)
+(node:22680) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  x  4 [chromium] › e2e\editor-folders-bins.spec.ts:88:1 › bins persist empty, rename and move references in one exact undo (1.0m)
+  x  5 [chromium] › e2e\editor-folders-bins.spec.ts:111:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches (1.0m)
+
+
+  1) [chromium] › e2e\editor-folders-bins.spec.ts:53:1 › folders organize, rename, collapse, nest and release with exact artwork and history 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'New layer folder', exact: true })
+
+
+      34 | async function history(page: Page, redo = false) { await page.getByRole('button', { name: redo ? 'Redo' : 'Undo', exact: true }).click(); await ready(page); }
+      35 | async function folder(page: Page, ids: string[], name: string) {
+    > 36 |   await select(page, ids); await page.getByRole('button', { name: 'New layer folder', exact: true }).click();
+         |                                                                                                      ^
+      37 |   const input = page.getByRole('textbox', { name: 'Folder name', exact: true });
+      38 |   await input.fill(name); await input.press('Enter'); await ready(page);
+      39 |   return page.getByRole('button', { name: 'Folder ' + name, exact: true });
+        at folder (C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:36:102)
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:55:15
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-folder-487e4-h-exact-artwork-and-history-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-folder-487e4-h-exact-artwork-and-history-chromium\error-context.md
+
+  2) [chromium] › e2e\editor-folders-bins.spec.ts:75:1 › folders coexist with groups and root return is visible 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'New layer folder', exact: true })
+
+
+      34 | async function history(page: Page, redo = false) { await page.getByRole('button', { name: redo ? 'Redo' : 'Undo', exact: true }).click(); await ready(page); }
+      35 | async function folder(page: Page, ids: string[], name: string) {
+    > 36 |   await select(page, ids); await page.getByRole('button', { name: 'New layer folder', exact: true }).click();
+         |                                                                                                      ^
+      37 |   const input = page.getByRole('textbox', { name: 'Folder name', exact: true });
+      38 |   await input.fill(name); await input.press('Enter'); await ready(page);
+      39 |   return page.getByRole('button', { name: 'Folder ' + name, exact: true });
+        at folder (C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:36:102)
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:78:45
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-folder-70b2f--and-root-return-is-visible-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-folder-70b2f--and-root-return-is-visible-chromium\error-context.md
+
+  3) [chromium] › e2e\editor-folders-bins.spec.ts:88:1 › bins persist empty, rename and move references in one exact undo 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'New asset bin', exact: true })
+
+
+      90 |   await execute(page, [{ kind: 'asset.import', assets: [{ path: 'images/mark.svg', data: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSJyZWQiLz48L3N2Zz4=' }] }]);
+      91 |   await page.getByRole('button', { name: /^Project/ }).click();
+    > 92 |   await page.getByRole('button', { name: 'New asset bin', exact: true }).click();
+         |                                                                          ^
+      93 |   const input = page.getByRole('textbox', { name: 'Bin name', exact: true }); await input.fill('Sponsors'); await input.press('Enter');
+      94 |   await page.locator('.asset-row').filter({ hasText: 'mark.svg' }).click();
+      95 |   await page.getByRole('combobox', { name: 'Asset bin' }).selectOption('Sponsors'); await ready(page);
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:92:74
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-bins-p-81e87-eferences-in-one-exact-undo-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-bins-p-81e87-eferences-in-one-exact-undo-chromium\error-context.md
+
+  4) [chromium] › e2e\editor-folders-bins.spec.ts:111:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches 
+
+    Test timeout of 60000ms exceeded.
+
+    Error: locator.click: Test timeout of 60000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'New layer folder', exact: true })
+
+
+      111 | test('organization refuses stale revisions, mixed scopes, cycles and partial batches', async ({ page }) => {
+      112 |   const ids = await open(page);
+    > 113 |   await page.getByRole('button', { name: 'New layer folder', exact: true }).click();
+          |                                                                             ^
+      114 |   const input = page.getByRole('textbox', { name: 'Folder name' }); await input.fill('Stale');
+      115 |   await execute(page, [{ kind: 'base.set', selector: ids[2], values: { x: 610 } }]);
+      116 |   const before = await source(page); await input.press('Enter');
+        at C:\Users\ahonemi\.codex\worktrees\8738\NoaCG-Studio\e2e\editor-folders-bins.spec.ts:113:77
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\editor-folders-bins-organi-c3415--cycles-and-partial-batches-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\editor-folders-bins-organi-c3415--cycles-and-partial-batches-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\editor-folders-bins.spec.ts:53:1 › folders organize, rename, collapse, nest and release with exact artwork and history 
+    [chromium] › e2e\editor-folders-bins.spec.ts:75:1 › folders coexist with groups and root return is visible 
+    [chromium] › e2e\editor-folders-bins.spec.ts:88:1 › bins persist empty, rename and move references in one exact undo 
+    [chromium] › e2e\editor-folders-bins.spec.ts:111:1 › organization refuses stale revisions, mixed scopes, cycles and partial batches 
+  1 passed (2.2m)

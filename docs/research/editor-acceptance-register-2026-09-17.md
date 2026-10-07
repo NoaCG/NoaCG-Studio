@@ -503,3 +503,21 @@ This advances E07 and G08's group portion only. Full B02/B04, folders/bins,
 reusable P-COMP instances, owner judgment and physical receiving-host acceptance
 remain open. [Group a badge and edit its members](../acceptance/owner-queue/2026-10-05-editor-groups.md)
 asks for asynchronous desktop product judgment after the complete task worked.
+
+## R1.2b.7 scoped folders, bins and navigation receipt, 2026-10-07
+
+The [bounded spec and evidence](editor-r1-2b-7/README.md) cover layer folders
+in root/local group contexts, nesting, inline naming, collapse, source-safe
+membership/order and release. Folders add no artwork transform or timing.
+Groups retain their parent bar/local ruler, and Back to Composition stays
+above the visible stage. Asset bins retain empty directories, move/rename
+through existing reference-safe APIs, and preserve bytes, fields and live
+samples. Atomic history, source/assets revision refusal, exact ungroup,
+document-switch draft ownership, save/reopen and browser-executed
+SPX/CasparCG/OGraf appearance have scoped engineering evidence.
+
+This advances the specified folders/bins portion of B02 and navigation only.
+Full B02/B04, reusable P-COMP instances, owner judgment, actual desktop zoom
+and physical receiving-host acceptance remain open. No whole row is closed.
+[Organize a badge and its assets](../acceptance/owner-queue/2026-10-07-editor-folders-bins.md)
+asks for asynchronous desktop product judgment after the complete task worked.

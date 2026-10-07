@@ -13,6 +13,7 @@
 // verbatim, so deeper paths flow through unchanged.
 
 import type { AssetFile } from '../model/types';
+import { splitOrganizationHtml } from '../model/editorOrganization';
 
 /** Read a File (from an <input type="file">) into a base64 data URL. */
 export function fileToDataUrl(file: Blob): Promise<string> {
@@ -145,7 +146,8 @@ export function uniqueAssetPath(name: string, existing: AssetFile[], folder?: st
  * Used for both HTML (src/href) and CSS (url(...)).
  */
 export function inlineAssetRefs(code: string, assets: AssetFile[]): string {
-  let out = code;
+  const [header, artwork] = splitOrganizationHtml(code);
+  let out = artwork;
   for (const asset of assets) {
     if (!isDataUrl(asset.data)) continue;
     // Match the relative path, optionally prefixed with ./ , inside quotes or url().
@@ -153,5 +155,5 @@ export function inlineAssetRefs(code: string, assets: AssetFile[]): string {
     const re = new RegExp(`(\\.\\/)?${rel}`, 'g');
     out = out.replace(re, asset.data);
   }
-  return out;
+  return header + out;
 }
