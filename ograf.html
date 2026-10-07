@@ -50,7 +50,7 @@
       .badges li { border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; color: var(--text-dim); }
       .grid {
         display: grid; gap: 18px; margin: 34px 0 10px;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
       }
       article.starter {
         border: 1px solid var(--border); border-radius: 12px; background: var(--bg-panel);
