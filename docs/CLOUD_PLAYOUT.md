@@ -602,7 +602,7 @@ One action slot beside it holds at most one button: Publish, Load on the CasparC
 Publish changes when a change the outputs draw is waiting. A press on the status opens the
 Playout panel: problems, then outputs with their command path, the browser source, CasparCG.
 The links live in Setup › Links…. The monitor says the
-same thing in its heading: "PROGRAM · ON AIR" when started, "PREVIEW · NOT LIVE" when not, except
+same thing in its heading: "PROGRAM · ON AIR" when started, "PROGRAM · NOT PUBLISHED" when not, except
 while server media this page took is playing: NoaCG Bridge airs that either way, so the monitor is
 on air then too. There
 is no third state and no mode to choose.

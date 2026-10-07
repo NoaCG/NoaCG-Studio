@@ -36,7 +36,7 @@ the surface serves it.
 - **ON AIR only when it is** (docs/work-specs/studio-day-playout D16). A production that is not
   started keeps every verb, but a graphic's Take then plays on this page only: its row reads `UP`
   in grey with a dashed border, the line under the verbs says "up, not live", and the program
-  monitor reads PREVIEW · NOT LIVE. A server cue plays through NoaCG Bridge either way and reads
+  monitor reads PROGRAM · NOT PUBLISHED. A server cue plays through NoaCG Bridge either way and reads
   ON AIR in red.
 
 ## 2. Layout — desktop
@@ -375,8 +375,10 @@ between the two columns is a handle: the rundown is as wide as the operator drag
   instead of taking it off, the exact behaviour §2 says one surface must never wear twice. A new
   key or a changed meaning goes in that module and in the controller's `keydown` block, never in
   a surface.
-- **The editor edits the PREVIEW cue by default** and says so ("changes air on ⟳ Take"). A
-  switch offers the ON-AIR cue instead, where ✎ Update pushes edits live.
+- **The editor edits the PREVIEW cue by default** and its heading says so ("EDITING PREVIEW CUE").
+  A switch offers the ON-AIR cue instead, where ✎ Update pushes edits live. Before the first
+  publish that cue is UP rather than on air, and every word of the editor says so
+  (playout-workflow-simplification D12).
 - **An edit to the ON-AIR cue says it has not been sent.** Data never airs by itself — that is
   the staged-vs-take rule and it does not change — so the surface has to say when what is on
   screen is ahead of what is on air: the fate line names how many changes are waiting and ✎

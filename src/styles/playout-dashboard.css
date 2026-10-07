@@ -108,9 +108,9 @@
 .pd-back,
 .pd-home { padding: 4px 9px; white-space: nowrap; flex: none; }
 
-/* THE ONE PLAYOUT STATUS (home/PlayoutStatusControl.tsx, docs/work-specs/studio-day-playout AC-7):
-   a colour AND a short text in the owner's four - grey offline, amber attention, green ready, red
-   broken - beside the production's name. Its WIDTH IS FIXED, so a state that changes during a show
+/* THE ONE PLAYOUT STATUS (home/PlayoutStatusControl.tsx, docs/work-specs/playout-workflow-
+   simplification AC-2): a colour AND a short text - grey quiet, amber attention, green connected,
+   red broken - beside the production's name. Its WIDTH IS FIXED, so a state that changes during a show
    ("Ready · on air 1-20" to "Behind: showing v12") never moves the tabs to its right; a longer
    text ends in an ellipsis, and the tooltip and the panel say it whole. Red is FILLED: it is the
    one state that has to be seen from across the room. */
@@ -984,6 +984,11 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
    states would be the very confusion this toggle exists to end. */
 .pd-verb-take.pd-verb-live { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
 .pd-verb-take.pd-verb-live:hover:not(:disabled) { background: #35353d; }
+/* Rehearsal (playout-workflow-simplification D12): before the first publish a graphic's Take
+   reaches no air, so TAKE drops the red and keeps its weight. */
+.pd-verb-take.pd-verb-rehearsal { background: #2a2a30; border-color: rgba(255, 255, 255, 0.32); color: #f4f4f5; }
+.pd-verb-take.pd-verb-rehearsal:hover:not(:disabled) { background: #35353d; }
+.pd-verb-take.pd-verb-rehearsal kbd { background: transparent; border-color: rgba(255, 255, 255, 0.25); color: var(--text-dim); }
 /* The toggle's PREVIEW face ('preview-then-take' SPACE mode, on a cue not yet on PREVIEW).
    Amber - the preview colour the monitors and the rundown tally already use - and never red,
    because this press airs nothing. Same button, same key, same place; only the face changes,
@@ -1043,6 +1048,8 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 }
 /* Typing into a live cue and typing into a draft must never look the same. */
 .pd-editor.live { border-color: rgba(239, 68, 68, 0.75); box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.4); }
+/* Up on this page only, before the first publish (D12): marked, in the UP tag's grey, never air's red. */
+.pd-editor.up { border-color: rgba(255, 255, 255, 0.32); }
 .pd-editor-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
 .pd-editor-kicker {
   font-family: var(--mono, monospace);
@@ -1052,6 +1059,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   white-space: nowrap;
 }
 .pd-editor.live .pd-editor-kicker { color: #ef4444; }
+.pd-editor.up .pd-editor-kicker { color: var(--text); }
 .pd-cue-title {
   font: inherit;
   font-size: 14px;
@@ -1918,6 +1926,7 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
 .pd-tag.air { color: #fff; background: #ef4444; }
 .pd-tag.pvw { color: #1a1205; background: var(--amber); }
 .pd-tag.up { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-dim); }
+.pd-tag.off { color: var(--text-dim); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18); }
 .pd-cue-menu-host { position: relative; flex: none; }
 .pd-cue-more { opacity: 0; }
 .pd-cue:hover .pd-cue-more,
@@ -2311,9 +2320,9 @@ body.resizing-cols .pd-rail-resizer::before { background: var(--accent); }
   /* The playout status stays, narrower: it is the one way a phone operator learns the screens are
      not hearing them. The production's name is the one that truncates. */
   .pd-status-control { width: 9.5em; padding: 4px 8px; font-size: 11px; }
-  /* ...except offline, where "Offline" costs 110px to repeat what ▶ Start production beside it
-     already says, and the production's NAME was paying for it (0px wide at 390). The monitor
-     still reads PREVIEW · NOT LIVE. */
+  /* ...except before the first publish, where "Not published" costs 110px to repeat what Publish
+     beside it already says, and the production's NAME was paying for it (0px wide at 390). The
+     monitor still reads PROGRAM · NOT PUBLISHED. */
   .pd-status-host--offline { display: none; }
   /* The READY line (the hosted page's header) keeps its SHORT form here ("● Ready 2/2"). */
   .pd-health { flex: none; font-size: 11px; }

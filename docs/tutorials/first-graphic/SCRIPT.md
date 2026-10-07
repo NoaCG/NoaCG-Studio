@@ -122,7 +122,7 @@ already on air.
 Typing is different, and this is the one thing to take away from the whole video.
 
 Type a new team name into the cue and watch both monitors. Preview changes. Program does not.
-Along the top of the fields, in amber: one change not on air yet, press Update.
+Along the top of the fields, in amber: one change not on program yet, press Update.
 
 Your audience is still looking at the old name, and it will keep looking at it for as long as you
 leave it there.

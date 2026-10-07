@@ -14,7 +14,7 @@ import {
 import type { SavedGraphic } from '../../model/packets';
 import type { GraphicDoc } from '../../model/library';
 import { graphicKindLabel } from '../../model/types';
-import { accentColor, routeColor, outputProfileLabel, hasCasparOutput, readOutputSetup } from '../../model/outputSetup';
+import { accentColor, routeColor } from '../../model/outputSetup';
 import { CueAccentControl } from './RundownColors';
 import { folderMode, placeRefusal, type Movable, type Place } from '../../model/showFolders';
 import { bandAt, folderName, headerBandAt, planDrop, rowCueIds, rowTestId, type DropPlan, type RundownRow, type RundownView } from '../../model/rundownRows';
@@ -130,6 +130,7 @@ export default function CueRundown({
   playoutSettings,
   liveCue,
   started,
+  casparOn,
   unsentOnAir,
   serverOwnership,
   serverTiming,
@@ -188,6 +189,10 @@ export default function CueRundown({
   /** The production is started, so a graphic's Take reaches air. Not started, a graphic that is up
    *  plays on this page only and its row says UP, never ON AIR (the program monitor's rule). */
   started: boolean;
+  /** The production's CasparCG switch (playout-workflow-simplification AC-4): on, the graphics'
+   *  badge names the slot they ride on and the CasparCG add items show; off, a native cue reads
+   *  "CasparCG off" and cannot be taken. */
+  casparOn: boolean;
   /** The ON-AIR cues edited since they were sent (the editor's "not on air yet", said on the row). */
   unsentOnAir: ReadonlySet<string>;
   /** What this page put up on the playout server, and what the server says besides. Read-only. */
@@ -475,7 +480,7 @@ export default function CueRundown({
     } },
     { id: 'production-new-graphic', label: 'New graphic…', help: 'Create a graphic using this production’s look.', disabled: false, footer: true, run: createGraphic },
     { id: 'add-pictures', label: 'Upload image…', help: `PNG/JPG graphics, up to ${MAX_PICTURES}.`, disabled: false, footer: true, run: () => pictureInput.current?.click() },
-    ...(hasCasparOutput(show.outputSetup) || cues.some(c => c.source === 'playout') ? [
+    ...(casparOn ? [
       { id: 'add-from-server', label: 'CasparCG files…', help: playoutConfigured(playoutSettings) ? 'Add files already on the CasparCG server.' : 'Set up NoaCG Bridge in Playout settings.', disabled: !playoutConfigured(playoutSettings), footer: true, run: () => openMedia() },
       { id: 'add-audio', label: 'Audio / effect…', help: 'A sound-only cue on its own audio layer.', disabled: !playoutConfigured(playoutSettings), footer: false, run: () => openMedia('audio') },
     ] : []),
@@ -662,12 +667,11 @@ export default function CueRundown({
                 : { glyph: '?', tone: 'server', name: 'Server media (unspecified)' }
               : playoutItem ? { glyph: 'T', tone: 'server', name: 'Server template' }
                 : { glyph: '?', tone: 'missing', name: 'Missing graphic' };
-          const destinations = readOutputSetup(show.outputSetup)?.destinations;
-          const browser = destinations?.find(d => d.profile !== 'casparcg');
-          const managed = hasCasparOutput(show.outputSetup);
+          // THE BADGE NAMES THE LAYER (D10): the output word went; with CasparCG on, the slot the
+          // graphics ride on there comes first, since that is where they air.
           const carrier = `${playoutSettings.channel}-${playoutSettings.layer}`;
-          const graphicBadge = `${browser ? outputProfileLabel(browser.profile) : managed ? 'CG' : 'NoaCG'}${managed ? `${browser ? '+' : ' '}${carrier}` : ''} · G${layer}`;
-          const graphicRouteHelp = `NoaCG graphic layer ${layer}${browser ? `; ${outputProfileLabel(browser.profile)}` : ''}${managed ? `; CasparCG carrier ${carrier} (whole output)` : ''}`;
+          const graphicBadge = casparOn ? `${carrier} · G${layer}` : `G${layer}`;
+          const graphicRouteHelp = `NoaCG graphic layer ${layer}${casparOn ? `; CasparCG ${carrier}` : ''}`;
           const routeTone = routeColor(show.rundownColors, playoutItem ? channelOfCue(cue) : undefined);
           // THE DIM SUMMARY after the name: what tells two cues of one graphic apart at a glance -
           // a graphic's first words ("Alexandra Riva"), a server item's own name. A graphic with
@@ -817,7 +821,11 @@ export default function CueRundown({
                 // (docs/research/control-surfaces-review-2026-10-02 S1, slice 1).
                 <span
                   className="pd-tag unsent"
-                  title="Edited since it was sent: air still shows the old values. Select it and press ✎ Update to send the edit."
+                  title={
+                    started || playoutItem
+                      ? 'Edited since it was sent: air still shows the old values. Select it and press ✎ Update to send the edit.'
+                      : 'Edited since it was taken: PROGRAM still shows the old values. Select it and press ✎ Update.'
+                  }
                   aria-label="Edited, not sent"
                   data-testid="cue-unsent-mark"
                 >
@@ -839,6 +847,10 @@ export default function CueRundown({
                 // A folder's Take did not put this cue on air: said on its own row, with why.
                 <span className="pd-tag miss" title={miss} aria-label={`Not taken: ${miss}`} data-testid="cue-take-miss">
                   NOT TAKEN
+                </span>
+              ) : playoutItem && !casparOn ? (
+                <span className="pd-tag off" title="Switch CasparCG on in the Playout panel to take this cue." data-testid="cue-caspar-off">
+                  CasparCG off
                 </span>
               ) : isPreviewed ? (
                 <span className="pd-tag pvw">PVW</span>

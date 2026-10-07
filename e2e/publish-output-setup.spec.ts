@@ -219,3 +219,107 @@ test('cue highlight survives copy and reorder while a fresh reference uses its r
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:test.info().outputPath('rundown-phone.png')});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBe(false);
 });
+
+// AC-7: before the first publish a graphic's Take plays on this page only, and every word says so.
+test('before the first publish a graphic Take is rehearsal, and the first publish clears it',async({page})=>{
+  const b=backend();await account(page,b);await seed(page);
+  const row=page.locator('.pd-cue').first();const take=page.getByTestId('verb-take');
+  await row.getByTestId('select-cue').click();
+  await expect(take).toHaveClass(/pd-verb-rehearsal/);
+  await take.click();
+  await expect(row.getByTestId('cue-up-here')).toHaveText('UP');
+  await expect(row.locator('.pd-tag.air')).toHaveCount(0);
+  await expect(take).toHaveClass(/pd-verb-rehearsal/);
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
+  await expect(page.getByTestId('program-monitor')).toHaveAttribute('data-live','false');
+  await expect(page.locator('.pd-editor-kicker')).not.toContainText(/ON.AIR/);
+  await page.screenshot({path:test.info().outputPath('rehearsal-1366.png')});
+  await publishProduction(page);
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','true',{timeout:30_000});
+  await page.keyboard.press('Escape');
+  // Nothing rehearsed is left up to be mistaken for air.
+  await expect(row.getByTestId('cue-up-here')).toHaveCount(0);
+  await expect(row.locator('.pd-tag.air')).toHaveCount(0);
+  await expect(page.getByTestId('program-monitor').locator('.pd-what')).toHaveText('nothing on air');
+  await expect(take).not.toHaveClass(/pd-verb-rehearsal/);
+});
+
+// AC-6: a native CasparCG cue plays through NoaCG Bridge before any publish, and is called on air.
+test('native CasparCG cues take, update, next and clear before any publish',async({page})=>{
+  await seedSettings(page);const bridge=await fakeBridge(page);
+  const b=backend();await account(page,b);const id=await seed(page);
+  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
+  const cue=page.getByTestId(`cue-${cueId}`);
+  await cue.getByTestId('select-cue').click();
+  await expect(page.getByTestId('production-status')).toHaveAttribute('data-started','false');
+  const take=page.getByTestId('verb-take');
+  await expect(take).not.toHaveClass(/pd-verb-rehearsal/);
+  await take.click();
+  await expect.poll(()=>bridge.actions.map(a=>a.verb)).toEqual(['take']);
+  await expect(cue.locator('.pd-tag.air')).toHaveText('ON AIR');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · ON AIR');
+  await page.getByTestId('verb-update').click();
+  await expect.poll(()=>bridge.actions.map(a=>a.verb)).toEqual(['take','update']);
+  await page.getByTestId('verb-next').click();
+  await expect.poll(()=>bridge.actions.map(a=>a.verb)).toEqual(['take','update','next']);
+  await page.getByTestId('verb-out-all').click();
+  await expect.poll(()=>bridge.actions.length).toBeGreaterThan(3);
+  await expect(cue.locator('.pd-tag.air')).toHaveCount(0);
+  expect(b.writes,'nothing was published').toBe(0);
+  await page.unrouteAll({behavior:'ignoreErrors'});
+});
+
+// AC-9 / D10: the badge loses its output word; the layer, its clash repair and the server address stay.
+test('the rundown badge reads the layer, with the CasparCG slot only when CasparCG is on',async({page})=>{
+  await seedSettings(page);const bridge=await fakeBridge(page);
+  const b=backend();await account(page,b);const id=await seed(page);
+  const graphic=page.locator('.pd-cue').first().getByTestId('cue-layer');
+  await expect(graphic).toHaveText(/^G\d+$/);
+  const before=await page.locator('.pd-cue').first().boundingBox();
+  await setCasparSwitch(page,true);
+  await expect(graphic).toHaveText(/^1-20 · G\d+$/);
+  expect((await page.locator('.pd-cue').first().boundingBox())!.height).toBe(before!.height);
+  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'media',name:'OPENER',channel:2,layer:10}).cueId,id);
+  const clip=page.getByTestId(`cue-${cueId}`);
+  await expect(clip.getByTestId('cue-layer')).toHaveText('2-10');
+  await expect(clip.getByTestId('cue-caspar-off')).toHaveCount(0);
+  // Switched off, a native cue says why it cannot be taken, in place.
+  await setCasparSwitch(page,false);
+  await expect(graphic).toHaveText(/^G\d+$/);
+  await expect(clip.getByTestId('cue-caspar-off')).toHaveText('CasparCG off');
+  expect(bridge.actions).toEqual([]);
+  await page.unrouteAll({behavior:'ignoreErrors'});
+});
+
+// AC-14: a native cue's Take never waits on a save. The save is made to hang for real: a write
+// transaction held open on the app's own store, so the cue's edit cannot land until it is released.
+test('a native cue Take goes to the Bridge while the save of its edit still hangs',async({page})=>{
+  await seedSettings(page);const bridge=await fakeBridge(page);
+  const b=backend();await account(page,b);const id=await seed(page);
+  const cueId=await page.evaluate(async showId=>(await import('/src/model/shows.ts')).addPlayoutItem(showId,{adapter:'casparcg',kind:'template',name:'HOUSE_STRAP/HOUSE_STRAP',channel:1,layer:21}).cueId,id);
+  const cue=page.getByTestId(`cue-${cueId}`);
+  await cue.getByTestId('select-cue').click();
+  await page.evaluate(()=>new Promise<void>((resolve,reject)=>{
+    const open=indexedDB.open('noacg-studio');
+    open.onerror=()=>reject(open.error);
+    open.onsuccess=()=>{
+      const db=open.result;const tx=db.transaction('kv','readwrite');const store=tx.objectStore('kv');
+      const w=window as unknown as {__hold:boolean;__held:number};w.__hold=true;w.__held=0;
+      const spin=()=>{w.__held++;if(w.__hold)store.get('__e2e_hold').onsuccess=spin;};
+      spin();tx.oncomplete=()=>db.close();resolve();
+    };
+  }));
+  await page.getByTestId('cue-label').fill('Strap typed before the Take');
+  const sent=Date.now();
+  await page.getByTestId('verb-take').click();
+  await expect.poll(()=>bridge.actions.map(a=>a.verb),{timeout:3_000}).toEqual(['take']);
+  expect(Date.now()-sent,'the Take went within the Bridge round trip, not after the save').toBeLessThan(3_000);
+  // The save is still held: the Take did not wait for it.
+  expect(await page.evaluate(()=>(window as unknown as {__hold:boolean}).__hold)).toBe(true);
+  expect(await page.evaluate(async()=>{const {commitDurableWrites}=await import('/src/model/durableStore.ts');return Promise.race([commitDurableWrites().then(()=>'landed'),new Promise(r=>setTimeout(()=>r('pending'),300))]);}),'the edit has not reached the disk yet').toBe('pending');
+  // Released, the edit lands behind the Take, and nothing reports a failure.
+  await page.evaluate(()=>{(window as unknown as {__hold:boolean}).__hold=false;});
+  await expect.poll(()=>page.evaluate(async([showId,cid])=>{const {commitDurableWrites}=await import('/src/model/durableStore.ts');await commitDurableWrites();return (await import('/src/model/shows.ts')).loadShows().find(s=>s.id===showId)?.cues?.find(c=>c.id===cid)?.label??null;},[id,cueId] as const),{timeout:15_000}).toBe('Strap typed before the Take');
+  await expect(page.getByTestId('production-note').filter({hasText:/not saved|failed/i})).toHaveCount(0);
+  await page.unrouteAll({behavior:'ignoreErrors'});
+});

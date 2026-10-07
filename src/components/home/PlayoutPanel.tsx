@@ -149,7 +149,7 @@ export function BrowserSourceRow({
           type="button"
           onClick={onTemplate}
           disabled={!url}
-          title="The same output as an HTML template file, for SPX or a CasparCG template folder"
+          title="The same output as an HTML template file, for a playout system that loads files instead of links"
           data-testid="download-output-embed"
         >
           Template file

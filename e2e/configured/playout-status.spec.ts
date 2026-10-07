@@ -42,7 +42,7 @@ test('the playout status: quiet until something reports, green when it does, red
   await expect(status).toHaveAttribute('data-tone', 'idle');
   await expect(status).toContainText('Not published');
   await expect(page.getByTestId('production-publish')).toBeVisible();
-  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
 
   // ── Published with nothing reporting: grey "Not connected". A page opened before the studio is
   //    up is quiet. ──

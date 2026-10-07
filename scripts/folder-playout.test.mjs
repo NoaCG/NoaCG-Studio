@@ -345,6 +345,13 @@ test('one function lights every folder, from what is up and never from the clock
   assert.equal(folderAirWords(air.T, 0).title, 'Plays through on 2-10 and starts over after its last clip, until Out.');
   assert.deepEqual(folderAirWords({ ...air.A, onAir: [], lit: 'off' }, 1).tag, 'NOT TAKEN');
   assert.equal(folderAirWords({ ...air.A, onAir: [], lit: 'off' }, 0), null);
+  // Before the first publish a graphic plays on this page only: UP, and ON AIR only for what airs.
+  const rehearsal = folderAir({ folders, cues, items, ownership, liveCue: { 'g-bug': 'bug', 'g-strap': 'strap' }, graphicName: (c) => c.sourceId, graphicsAir: false });
+  assert.equal(rehearsal.M.upHere, 1);
+  assert.deepEqual(folderAirWords(rehearsal.M, 0), { tag: '1 UP', tone: 'up', title: '1 cue up on this page only: the production is not published.' });
+  assert.equal(folderAirWords(rehearsal.A, 0).tag, '1 ON AIR · 1 UP', 'the bed airs through the Bridge, the strap is up here');
+  assert.equal(rehearsal.T.upHere, undefined, 'clips air either way');
+  assert.equal(folderAirWords(rehearsal.T, 0).tag, 'ON AIR');
   // Readings that move only the clock hand the page the same ownership object, so this never runs twice a second.
 
   // Whether it loops is the server's word, never the record's: a page that learned the take from a

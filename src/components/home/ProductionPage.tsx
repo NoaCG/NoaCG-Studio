@@ -414,7 +414,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   const openSignIn = useAuthUi((s) => s.openSignIn);
   const signInOpen = useAuthUi((s) => s.signInOpen);
   /**
-   * Start production was pressed while signed out, and the sign-in dialog is up because of it.
+   * Publish was pressed while signed out, and the sign-in dialog is up because of it.
    * Signing in from that dialog finishes what the press asked for, so the reader does not have to
    * find the button a second time; closing the dialog without signing in forgets the press, so a
    * sign-in much later (from the topbar, say) never puts a production online by surprise. If the
@@ -1047,8 +1047,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
    *  lights (control/folderAir.ts). From the OWNERSHIP part and liveCue only, never the timing part,
    *  so a reading that moves only a clip's position does not re-render the page. */
   const folderStates = useMemo(
-    () => folderAir({ folders, cues, items: playoutItems, ownership: serverOwnership, liveCue, graphicName: cueGraphicName }),
-    [folders, cues, playoutItems, serverOwnership, liveCue, cueGraphicName],
+    () => folderAir({ folders, cues, items: playoutItems, ownership: serverOwnership, liveCue, graphicName: cueGraphicName, graphicsAir: !!hostedSlug }),
+    [folders, cues, playoutItems, serverOwnership, liveCue, cueGraphicName, hostedSlug],
   );
   /** A One-by-one folder's cues as its step reads them: a pool graphic or a server template is a
    *  graphic the step takes off, a clip, audio file or still is not (control/folderStep.ts). */
@@ -2614,6 +2614,15 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           setPrepRequest(prep);
           setTimeout(() => dropPrep(prep.id), PREPARE_WAIT_MS);
         }
+        // REHEARSAL ENDS AT THE FIRST PUBLISH (AC-7): what a Take put up before it played on this
+        // page only, so it leaves PROGRAM rather than be mistaken for air.
+        if (!wasStarted) {
+          const rehearsed = Object.keys(liveCueRef.current).filter((g) => liveCueRef.current[g]);
+          if (rehearsed.length) {
+            applyProgram(clearAllCueBatches(rehearsed).flat());
+            setLiveCue({});
+          }
+        }
         // PUBLISH LOADS THE CASPARCG SLOT (AC-5): the first publish with CasparCG switched on puts
         // this production's renderer on its slot, the step that used to be its own Put on air. It
         // asks before replacing another production, and a failure names the step.
@@ -3348,6 +3357,10 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
   };
   /** The TAKE button, which IS the key: with a folder held its face, state and title are the
    *  folder's, from the same decision SPACE runs. */
+  /** REHEARSAL (playout-workflow-simplification D12): before the first publish a graphic's Take
+   *  plays on this page only, so TAKE is not the red of air and the editor never says on air. A
+   *  server cue airs through NoaCG Bridge either way and keeps its on-air looks. */
+  const rehearsing = !hostedSlug && !selectedFolder && !selectedPlayoutItem;
   const takeButton = selectedFolder
     ? heldStep
       ? stepButton(selectedFolder, heldStep)
@@ -4475,7 +4488,8 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
       onPanel={() => setPanelOpen(true)}
       panelDialog={panelOpen && <PanelDialog slug={hostedSlug} answer={panel} onClose={() => setPanelOpen(false)} />}
       onPlayoutSettings={() => setPlayoutSettingsOpen(true)}
-      onLinks={backendConfigured ? () => setLinksOpen(true) : undefined}
+      // A build that cannot publish has no links to show, unless the record already holds some.
+      onLinks={backendConfigured || hostedSlug ? () => setLinksOpen(true) : undefined}
       views={views}
       onExport={() => setExportOpen(true)}
       onKey={onVerb}
@@ -4538,6 +4552,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           // Server media goes through NoaCG Bridge whether or not the production is started, so
           // with a clip up the monitor is showing air even offline (studio-day-playout D16).
           live={started || livePlayoutLayers.length > 0}
+          graphicsAir={started}
           stage={stage}
           previewDoc={previewDoc}
           previewTemplate={previewTemplate}
@@ -4609,7 +4624,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
           {/* A held folder row wears the folder's face: TAKE starts it by how it plays, TAKE OFF takes
               all of it off. One by one's steps: each press names the cue it takes. */}
           <button
-            className={takeButton.face.className}
+            className={`${takeButton.face.className}${rehearsing && takeButton.space !== 'preview' ? ' pd-verb-rehearsal' : ''}`}
             disabled={takeButton.disabled}
             onClick={() => onVerb('take')}
             title={takeButton.title}
@@ -4788,7 +4803,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         {/* The editor. It edits the PREVIEW cue by default and says so; the switch points it at
             the cue already on air on that layer, where ✎ Update pushes edits live. */}
         {editingCue && editingView && poolGraphic && (
-          <div className={`pd-editor${editingIsLive ? ' live' : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
+          <div className={`pd-editor${editingIsLive ? (rehearsing ? ' up' : ' live') : ''}`} data-testid="cue-editor" inert={!authoringAllowed}
             onBlurCapture={() => { void flushDraft(); void history.closeGroup(); }}>
             <div className="pd-editor-head">
               {/* The cue's POSITION, not just its state. Two cues of the same graphic carry the
@@ -4798,7 +4813,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               {/* "PREVIEW CUE" only while the cue IS on PREVIEW: in 'preview-then-take' mode
                   the editor follows the cursor, which walks on ahead of the monitor. */}
               <span className="pd-editor-kicker">
-                EDITING {editingIsLive ? 'ON-AIR CUE' : selectedCueStaged ? 'PREVIEW CUE' : 'SELECTED CUE'}
+                EDITING {editingIsLive ? (rehearsing ? 'UP CUE' : 'ON-AIR CUE') : selectedCueStaged ? 'PREVIEW CUE' : 'SELECTED CUE'}
                 {editingCueNo > 0 ? ` · ${editingCueNo}` : ''}
               </span>
               {/* The cue's own title, editable HERE: mislabelling "Guest lower third" as "Host"
@@ -4816,11 +4831,9 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
               >
                 {hasUnsent
                   ? keptStates
-                    ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. ✎ Update keeps ${keptStates} on air, ⟳ Re-take starts over with these values`
-                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not on air yet. Press ✎ Update`
-                  : editingIsLive
-                    ? 'changes push live on ✎ Update'
-                    : 'changes air on ⟳ Take'}
+                    ? `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. ✎ Update keeps ${keptStates} ${rehearsing ? 'up' : 'on air'}, ⟳ Re-take starts over with these values`
+                    : `${unsentFields.length} change${unsentFields.length === 1 ? '' : 's'} not ${rehearsing ? 'on PROGRAM' : 'on air'} yet. Press ✎ Update`
+                  : null}
               </span>
               <CueOverflowNote keys={overflowKeys} descriptors={descriptors} />
               {/* Phone only (the bottom bar carries TAKE/Next/Out): Update belongs beside the
@@ -4837,7 +4850,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
                   onClick={() => setEditTarget((t) => (t === 'preview' ? 'air' : 'preview'))}
                   data-testid="cue-editor-switch"
                 >
-                  {editTarget === 'preview' ? 'switch to on-air cue ▾' : 'switch to preview cue ▾'}
+                  {editTarget === 'preview' ? (rehearsing ? 'switch to up cue ▾' : 'switch to on-air cue ▾') : 'switch to preview cue ▾'}
                 </button>
               )}
             </div>
@@ -5173,6 +5186,7 @@ export default function ProductionPage({ id, sub }: { id: string; sub?: Producti
         playoutSettings={playoutSettings}
         liveCue={liveCue}
         started={started}
+        casparOn={casparOn}
         unsentOnAir={unsentOnAir}
         serverOwnership={serverOwnership}
         serverTiming={serverPlayout.timing}
@@ -5368,12 +5382,10 @@ function ProductionShell({
         <NewGraphicButton productionId={show.id} />
         <h1 title={show.name}><IconTv /> <span className="pd-name">{show.name}</span></h1>
         {/* THE ONE PLAYOUT STATUS, beside the production's name where its state has always been
-            read (docs/work-specs/studio-day-playout AC-7, AC-8; owner, 2026-10-01): a colour and
-            a short text, worst first, and a press opens the Playout panel with the checks behind
-            it, the actions, the setup and the links. It replaced the SHOW / NOT PUBLISHED chip,
-            the Output links button, the READY line and the CasparCG dot, which each knew a part.
-            Its width is fixed, so a state that changes during a show never moves the tabs beside
-            it. Offline, ▶ Start production follows it: the one action an offline production has. */}
+            read (docs/work-specs/playout-workflow-simplification AC-1, AC-2): a colour and a
+            short text, worst first, and a press opens the Playout panel. Its width is fixed, so a
+            state that changes during a show never moves what is beside it, and the one action
+            slot after it (Publish, Load or Publish changes) keeps its own width too. */}
         {status}
         {shortcuts.changed && <button onClick={shortcuts.apply} data-testid="apply-cue-shortcuts">Apply cue shortcuts</button>}
         {shortcuts.conflicts.length > 0 && <span role="status">Conflicting cue shortcuts disabled: {shortcuts.conflicts.join(', ')}</span>}

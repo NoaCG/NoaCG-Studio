@@ -122,7 +122,8 @@ test('the selected cue is still identifiable once it is on air, and the editor n
 
   // And the editor says WHICH cue, by its place in the rundown - the only thing that separates
   // two cues of one graphic, which carry the same name and the same tally.
-  await expect(page.locator('.pd-editor-kicker')).toHaveText(/ON-AIR CUE · 1/);
+  // Not published, so it is the cue UP on this page (playout-workflow-simplification D12).
+  await expect(page.locator('.pd-editor-kicker')).toHaveText(/UP CUE · 1/);
 });
 
 test('quiz actions on the production page: greying, select/lock, live update keeps the lock, snap recovers the verdict', async ({ page }) => {
@@ -526,7 +527,7 @@ test('± LIVE NUMBERS on the EXPORTED controller: the bump is a partial, carryin
       .map((r) => (r.msg as { data: Record<string, string> }).data);
 
   // Stage an edit that must NOT ride the bump: a half-typed name. Typing STAGES on this
-  // surface too - the editor header has always promised "changes push live on ✎ Update".
+  // surface too: an edit to the cue that is up waits for ✎ Update.
   const nameRow = ctl.locator('.field', { hasText: /^F1 · / });
   await nameRow.locator('input[type="text"]').fill('ZO');
   await ctl.waitForTimeout(300);

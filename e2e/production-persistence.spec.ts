@@ -94,7 +94,6 @@ test('operator clarity: the editor says which cue it edits and where those edits
   const editor = page.getByTestId('cue-editor');
   await expect(editor).toContainText('EDITING PREVIEW CUE');
   await expect(page.getByTestId('cue-label')).toHaveValue('Guest Strap'); // seeded label
-  await expect(editor).toContainText('changes air on ⟳ Take');
   await expect(page.getByTestId('live-cue-chip')).toContainText('nothing on air');
   // Update is meaningless until something of this layer is on air, and says so by being dead.
   await expect(page.getByTestId('verb-update')).toBeDisabled();
@@ -102,8 +101,9 @@ test('operator clarity: the editor says which cue it edits and where those edits
   // Take: the editor follows the cue onto air and changes what it promises about edits.
   await page.getByTestId('verb-take').click();
   await expect(page.getByTestId('live-cue-chip')).toContainText('Guest Strap');
-  await expect(editor).toContainText('EDITING ON-AIR CUE');
-  await expect(editor).toContainText('changes push live on ✎ Update');
+  // Not published, so the taken cue is UP, never on air (playout-workflow-simplification D12).
+  await expect(editor).toContainText('EDITING UP CUE');
+  await expect(editor).not.toContainText(/ON.AIR/);
   await expect(page.getByTestId('verb-update')).toBeEnabled();
 
   // Out clears the layer; the tally returns to honest silence and the editor to a draft.
@@ -211,8 +211,8 @@ test('the audience and presenter links are offered separately, and only once the
   await page.goto(`/app#/production/${id}`);
 
   // Before publish there are no links at all: the status reads Not published beside Publish, and
-  // Setup › Links… offers no URL - there is no audience plane yet, and a URL that would not resolve
-  // is worse than none. The Playout panel carries no people links at all (AC-3, D7).
+  // there is no audience plane yet - a URL that would not resolve is worse than none. The Playout
+  // panel carries no people links at all (AC-3, D7).
   await expect(page.getByTestId('production-publish')).toBeVisible();
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-started', 'false');
   await expect(page.getByTestId('production-status')).toHaveText(/Not published/);
@@ -221,16 +221,12 @@ test('the audience and presenter links are offered separately, and only once the
   await expect(page.getByTestId('production-status-panel').getByTestId('presenter-url')).toHaveCount(0);
   await expect(page.getByTestId('production-status-panel').getByTestId('join-url')).toHaveCount(0);
   await page.keyboard.press('Escape');
+  // This build cannot publish, so until the record holds links Setup offers no Links… at all.
   await page.getByTestId('production-setup').click();
-  await page.getByTestId('setup-links').click();
+  await expect(page.getByTestId('production-setup-menu')).toBeVisible();
+  await expect(page.getByTestId('setup-links')).toHaveCount(0);
+  await page.keyboard.press('Escape');
   const links = page.getByTestId('production-links');
-  for (const row of ['control-url', 'presenter-url', 'join-url']) {
-    await expect(links.getByTestId(row)).toContainText('Available after publishing');
-  }
-  await expect(links.getByTestId('copy-presenter-url')).toBeDisabled();
-  await expect(links.getByTestId('copy-join-url')).toBeDisabled();
-  await expect(links.getByTestId('join-name')).toHaveCount(0);
-  await links.getByTestId('production-links-close').click();
 
   await page.evaluate(async (showId) => {
     const { setShowHostedSlug, setShowAudienceSlugs } = await import('/src/model/shows.ts');

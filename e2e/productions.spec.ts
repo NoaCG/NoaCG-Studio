@@ -636,8 +636,8 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   // the layer chips are gone (§5).
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
   await expect(rowLayers).toHaveCount(2);
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
-  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G21');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(rowLayers.nth(1)).toHaveText('G21');
 
   // Typing a number is the whole interaction. Selecting a cue points the editor at its graphic,
   // whose layer sits under Advanced, closed with the number in its summary (plan §6.5).
@@ -647,7 +647,7 @@ test('every graphic gets its own playout layer, typed, and it is what the output
   await page.getByTestId('cue-advanced-toggle').click();
   await page.getByTestId('graphic-layer').fill('30');
   await expect.poll(() => layerOf('Bug')).toBe(30);
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G30');
+  await expect(rowLayers.nth(0)).toHaveText('G30');
   // No clash, so no warning colour anywhere in the rundown.
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
@@ -821,7 +821,7 @@ test('a published production reads SHOW; an unpublished one says so and offers n
   await expect(page.getByTestId('production-status')).toHaveAttribute('data-tone', 'idle');
   await expect(page.getByTestId('production-status')).toHaveText(/Not published/);
   await expect(page.getByTestId('production-status')).not.toContainText('Offline');
-  await expect(page.getByTestId('program-monitor-name')).toHaveText('PREVIEW · NOT LIVE');
+  await expect(page.getByTestId('program-monitor-name')).toHaveText('PROGRAM · NOT PUBLISHED');
   await expect(page.locator('[data-testid="toggle-rehearsal"]')).toHaveCount(0);
 
   // Fake a published record (the wire itself is backend-gated and lives on the live checklist).
@@ -1148,8 +1148,8 @@ test('pictures upload straight into the rundown: one cue each, one layer, and th
     });
   expect(await poolCount()).toBe(1);
   const rowLayers = page.getByTestId('cue-list').locator('[data-testid="cue-layer"]');
-  await expect(rowLayers.nth(0)).toHaveText('NoaCG · G20');
-  await expect(rowLayers.nth(1)).toHaveText('NoaCG · G20');
+  await expect(rowLayers.nth(0)).toHaveText('G20');
+  await expect(rowLayers.nth(1)).toHaveText('G20');
   await expect(page.getByTestId('cue-list').locator('[data-testid="cue-layer"].clash')).toHaveCount(0);
 
   // A third upload joins the SAME graphic rather than minting a second picture layer.
