@@ -33,19 +33,28 @@ test('every update in the repository passes the check, and there is at least one
 test('an update names only the three topics, in their order', () => {
   assert.deepEqual(TOPICS, ['Playout and Bridge', 'Editor and templates', 'AI workflows']);
   for (const old of ['Playout systems', 'NoaCG Bridge', 'CLI', 'MCP server']) {
-    assert.ok(parseUpdate(`## ${old}\n\n- Something a reader can now do.\n`).problems.some((p) => /is not a topic/.test(p)), old);
+    assert.ok(parseUpdate(`## ${old}\n\n- Something: A reader can now do it.\n`).problems.some((p) => /is not a topic/.test(p)), old);
   }
 });
 
 test('a plain, short update passes', () => {
   const { topics, problems } = parseUpdate(
-    '## Playout and Bridge\n\n- Rundowns have folders, and All out clears everything on air.\n' +
-      '- The Bridge remembers your CasparCG servers and connects to the last one\n  by itself.\n\n' +
-      '## AI workflows\n\n- The MCP server lists your productions.\n',
+    '## Playout and Bridge\n\n- Rundown folders: Group cues into folders, and All out clears everything on air.\n' +
+      '- Saved servers: The Bridge remembers your CasparCG servers and connects to the last\n  one by itself.\n\n' +
+      '## AI workflows\n\n- Productions over MCP: The MCP server lists your productions.\n',
   );
   assert.deepEqual(problems, []);
   assert.deepEqual(topics.map((t) => t.name), ['Playout and Bridge', 'AI workflows']);
-  assert.equal(topics[0].bullets[1].text, 'The Bridge remembers your CasparCG servers and connects to the last one by itself.');
+  assert.equal(topics[0].bullets[1].text, 'Saved servers: The Bridge remembers your CasparCG servers and connects to the last one by itself.');
+});
+
+test('a bullet is a short label, a colon and one short sentence', () => {
+  const problemsOf = (bullet) => parseUpdate(`## AI workflows\n\n- ${bullet}\n`).problems;
+  assert.deepEqual(problemsOf('Timed cues: Set how long a graphic stays on air and what happens when the timer ends.'), []);
+  assert.ok(problemsOf('Set how long a graphic stays on air.').some((p) => /start with a short label and a colon/.test(p)));
+  assert.ok(problemsOf('A much longer label than allowed: Set how long it stays.').some((p) => /label is 6 words; keep it to 4/.test(p)));
+  assert.ok(problemsOf('timed cues: Set how long it stays.').some((p) => /label with a capital/.test(p)));
+  assert.ok(problemsOf(`Timed cues: ${'word '.repeat(19).trim()}.`).some((p) => /19 words after the label; keep it to 18/.test(p)));
 });
 
 test('a seeded slop update is refused, for each reason it is slop', () => {
@@ -87,9 +96,9 @@ test('a seeded slop update is refused, for each reason it is slop', () => {
 });
 
 test('an update keeps only the biggest changes, in the fixed topic order', () => {
-  const many = (topic, n) => `## ${topic}\n\n${Array.from({ length: n }, (_, i) => `- Change number ${i + 1} for the reader.`).join('\n')}\n`;
-  assert.deepEqual(parseUpdate(many('AI workflows', 6)).problems, []);
-  assert.ok(parseUpdate(many('AI workflows', 7)).problems.some((p) => /keep the 6 biggest/.test(p)));
+  const many = (topic, n) => `## ${topic}\n\n${Array.from({ length: n }, (_, i) => `- Change ${i + 1}: Something new for the reader.`).join('\n')}\n`;
+  assert.deepEqual(parseUpdate(many('AI workflows', 5)).problems, []);
+  assert.ok(parseUpdate(many('AI workflows', 6)).problems.some((p) => /keep the 5 biggest/.test(p)));
   const thirteen = TOPICS.map((t, i) => many(t, i < 1 ? 5 : 4)).join('\n');
   assert.ok(parseUpdate(thirteen).problems.some((p) => /13 bullets; keep the 12 biggest/.test(p)));
   assert.ok(parseUpdate(`${many('AI workflows', 1)}\n${many('Playout and Bridge', 1)}`).problems.some((p) => /out of order/.test(p)));
@@ -111,16 +120,16 @@ test('the page refuses to render a bad update, and escapes what it renders', () 
   const bad = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## AI workflows\n\n- Fix #12\n') }];
   assert.throws(() => renderUpdatesHtml(bad), /not fit to publish/);
   assert.throws(() => renderLatestHtml(bad), /not fit to publish/);
-  const good = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## AI workflows\n\n- Names with <b> and & show as typed.\n') }];
-  assert.match(renderUpdatesHtml(good), /Names with &lt;b&gt; and &amp; show as typed\./);
+  const good = [{ file: '2026-10-02.md', date: '2026-10-02', ...parseUpdate('## AI workflows\n\n- Names <i>: Names with <b> and & show as typed.\n') }];
+  assert.match(renderUpdatesHtml(good), /<li><strong>Names &lt;i&gt;:<\/strong> Names with &lt;b&gt; and &amp; show as typed\.<\/li>/);
   assert.match(renderUpdatesHtml(good), /<time datetime="2026-10-02">2 October 2026<\/time>/);
 });
 
 test('the landing shows the newest update alone, in the list the page uses', () => {
-  const update = (date, topic) => ({ file: `${date}.md`, date, ...parseUpdate(`## ${topic}\n\n- Something new on ${date}.\n`) });
+  const update = (date, topic) => ({ file: `${date}.md`, date, ...parseUpdate(`## ${topic}\n\n- Something new: Shipped on ${date}.\n`) });
   const html = renderLatestHtml([update('2026-10-06', 'Editor and templates'), update('2026-10-02', 'AI workflows')]);
   assert.match(html, /<time datetime="2026-10-06">6 October 2026<\/time>/);
-  assert.match(html, /<div class="up-topic">\s*<h4>Editor and templates<\/h4>\s*<ul>\s*<li>Something new on 2026-10-06\.<\/li>/);
+  assert.match(html, /<div class="up-topic">\s*<h4>Editor and templates<\/h4>\s*<ul>\s*<li><strong>Something new:<\/strong> Shipped on 2026-10-06\.<\/li>/);
   assert.doesNotMatch(html, /2026-10-02/);
 });
 

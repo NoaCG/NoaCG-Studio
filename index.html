@@ -132,7 +132,7 @@
       letter-spacing: 0.42em; color: var(--dim); text-transform: uppercase; margin-top: 1px;
     }
     header nav { margin-left: auto; display: flex; align-items: center; gap: 22px; }
-    header nav a { font-size: 14px; color: var(--dim); }
+    header nav a { font-size: 14px; color: var(--dim); white-space: nowrap; }
     header nav a:hover { color: var(--paper); }
 
     /* ── Buttons ── */
@@ -355,8 +355,9 @@
       .kicker { font-size: 12px; letter-spacing: 0.2em; }
       section { padding-top: 72px; }
     }
-    /* The anchor links leave the header before it would wrap. */
-    @media (max-width: 720px) {
+    /* The anchor links leave the header before it would wrap (measured: the full row needs about
+       830px). */
+    @media (max-width: 860px) {
       header nav a.gh { display: none; }
     }
 
@@ -395,6 +396,7 @@
         <a class="gh" href="#start">Create</a>
         <a class="gh" href="#playout">Play or export</a>
         <a class="gh" href="#ograf">OGraf</a>
+        <a class="gh" href="/whats-new">What's new</a>
         <a href="/docs">Docs</a>
         <a class="gh" href="/downloads">Downloads</a>
         <a class="btn btn-amber" href="/app#/new">Start creating</a>
