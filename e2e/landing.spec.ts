@@ -1,6 +1,4 @@
 // covers: src/landing/**, index.html, src/site-chrome.css, scripts/site-nav.mjs
-// The sideways-scroll sweep loads every public page, so the pages it alone covers ride along.
-// covers: {ograf,privacy,terms}.html, src/legal.css
 // focus
 //
 // The public docs home (docs.html + src/docs/, docs/AGENT_CLI.md's landing half).

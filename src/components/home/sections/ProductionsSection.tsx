@@ -556,9 +556,8 @@ export default function ProductionsSection({
             through the template wizard. Dashboard mode hides it; the full section is where a
             production is set up. */}
         {!limit && (
-          <div className="prod-card prod-card-new" data-testid="import-pack-card">
+          <div className="prod-card prod-card-new prod-card-import" data-testid="import-pack-card">
             <strong>Import a package</strong>
-            <div className="spacer" />
             <input
               ref={packInput}
               type="file"
