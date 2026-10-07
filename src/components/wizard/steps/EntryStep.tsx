@@ -130,8 +130,7 @@ export default function EntryStep({
             <span className="wz-continue-text">
               <strong>Home</strong>
               <span className="hint">
-                Your saved graphics, productions, control panels and videos. Pick up where
-                you left off.
+                Your saved graphics, productions, control panels and videos.
               </span>
             </span>
           </button>
@@ -169,7 +168,7 @@ export default function EntryStep({
           {/* The kit is named HERE because there is no kit card: the switch that makes a whole
               set sits at the top of Browse. */}
           <span className="hint">
-            Pick a design, one graphic or a whole kit. Then set its fields, style and motion.
+            Pick a design, one graphic or a whole kit.
           </span>
         </button>
         <button className="wz-entry-card" onClick={onImportGraphic} data-entry="import-graphic">

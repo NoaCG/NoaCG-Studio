@@ -392,8 +392,7 @@ export default function AiStep({
       ? 'Create with AI runs on NoaCG’s own service. There is nothing to choose and no key to supply, '
         + 'and it costs you nothing. It is still under construction, so do not rely on it for work '
         + 'that has to be right today.'
-      : 'Create with AI on NoaCG’s own service is not available on this build. Your own coding agent '
-        + 'above, or your own AI account below, are the routes here.';
+      : 'Create with AI on NoaCG’s own service is not available on this build.';
   const settingsSummary = ownKeyMode
     ? [
       AI_PROVIDERS.find((provider) => provider.id === settings.provider)?.label ?? settings.provider,
@@ -1221,7 +1220,7 @@ export default function AiStep({
         value={format}
         onChange={onFormat}
         idPrefix="ai-format"
-        description="This resolution and frame rate are fixed before the first generation. AI cannot override them."
+        description="This resolution and frame rate are fixed before the first generation."
       />
 
       {/* The legibility settings ride EVERY generation's context as the design-rules prompt
@@ -1253,7 +1252,7 @@ export default function AiStep({
             <>Image input is paused while Create with AI concentrates on lower-third quality. Existing <code className="inline">.html</code> or <code className="inline">.zip</code> templates can still be opened unchanged.</>
           ) : (
             <>A logo to place, a design to follow, a mood board, or a shot of the real background.
-              You say what each one is for after dropping it. An{' '}
+              An{' '}
               <code className="inline">.html</code> file or an SPX-style <code className="inline">.zip</code>{' '}
               can be opened as code unchanged, or converted to house standards with AI.</>
           )}
@@ -1490,8 +1489,7 @@ export default function AiStep({
           {turns.length === 0 && !liteMode && (
             <p className="hint" style={{ marginTop: 6 }}>
               Not sure yet? Describe the show or the moment ("halftime of a local derby, we need
-              something for substitutions") and press <b>Talk it through</b>. The conversation
-              travels with the brief when you generate.
+              something for substitutions") and press <b>Talk it through</b>.
             </p>
           )}
 
@@ -1738,11 +1736,7 @@ export default function AiStep({
                 </span>
               </label>
               {/* Fixed on, not merely ticked: with no hosted path there is nothing to switch
-                  back to, and a box that silently re-ticks itself is worse than one that says
-                  why it cannot move. */}
-              {hostedResolved && !liteOffered && (
-                <p className="hint">This build has no hosted route, so your own account is the only one here.</p>
-              )}
+                  back to. The hosted note above already says why it cannot move. */}
               {/* Pro has NO chooser at all — no provider, no model, no key. The copy states the
                   outcome and stops there, so replacing what runs underneath costs no wording
                   and promises nothing about how it is done. */}

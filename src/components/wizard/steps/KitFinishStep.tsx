@@ -171,10 +171,9 @@ export default function KitFinishStep({
             />
           )}
         </div>
-        <p className="hint">
-          A production is what airs: its graphics, the cue rundown, the output URL, and the
-          control page.
-        </p>
+        {dest === 'new' && (
+          <p className="hint">Name it for the show, like Friday Show or Class Quiz.</p>
+        )}
       </div>
 
       {!onOpen && graphics}
@@ -192,7 +191,7 @@ export default function KitFinishStep({
             <strong>{target ? `Add to ${target.name}` : 'Open the production'}</strong>
           </span>
           <span className="hint">
-            Saves {allOfThem}, pools them with their cues ready, and opens the cockpit.
+            Saves {allOfThem} to your library first.
           </span>
         </button>
         <button
@@ -215,7 +214,7 @@ export default function KitFinishStep({
             {target
               ? `One package with all ${target.graphics.length + built.length} graphics in that production, the kit and what was already there, each on its own playout layer.`
               : 'One package with every graphic on its own playout layer.'}{' '}
-            Saved first, so nothing is lost.
+            Saved first.
           </span>
         </button>
       </div>

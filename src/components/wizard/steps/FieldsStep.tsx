@@ -147,29 +147,20 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
           </button>
         )}
         {/* Why the structure stops where it does. Prose, not a control - it answers a real
-            question without presenting itself as something to do. */}
+            question without presenting itself as something to do. A rows list has nothing to
+            add beyond its heading unless it carries a text format. */}
+        {(plan.kind !== 'list' || plan.editor === 'paste' || plan.formatNote) && (
         <p className="hint" style={{ marginTop: 10 }} data-testid="field-plan-hint">
           {plan.kind === 'lines' && (
             <>
-              The wizard keeps to the lines this design actually shows. Extra fields and custom
-              layouts come after creating, where the design can adapt to them. The Data tab
-              adds a field, and AI editing or the canvas works it into the graphic.
+              Add more fields after creating, from the Data tab.
             </>
           )}
           {plan.kind === 'fixed' && plan.reason}
           {plan.kind === 'list' && plan.editor === 'paste' && (
             <>
-              This is ONE field, not a field per person: paste the whole list in and the design
-              rebuilds itself from it, here and again on air. A line ending in a colon is a
-              role and every line under it is one of that role&rsquo;s names, so one
-              &ldquo;Camera Operators:&rdquo; credits as many people as the show had. A tab or
-              a <code>|</code> works too, which is what a paste from a spreadsheet gives you.
-            </>
-          )}
-          {plan.kind === 'list' && plan.editor !== 'paste' && (
-            <>
-              Rows here are CONTENT, not fields: on air you edit them as one value and the
-              design rebuilds itself. Add as many as the show needs.
+              A line ending in a colon is a role, and the lines under it are its names. A tab or
+              a <code>|</code> works too.
             </>
           )}
           {/* The list's own TEXT FORMAT, when it has one. A format stated only in docs/ is a
@@ -182,16 +173,12 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
             </>
           )}
         </p>
+        )}
       </div>
 
       {setup.length > 0 && (
         <div className="panel-section" data-testid="wz-setup">
-          <h3>
-            Setup{' '}
-            <span className="muted">
-              decided now - what an operator sends it on air stays theirs
-            </span>
-          </h3>
+          <h3>Setup</h3>
           {setup.map((field) => (
             <div className="wz-setup-row" key={field.key}>
               <span className="wz-setup-label">{field.label}</span>
@@ -216,7 +203,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
 
       {variant.logo !== 'none' && (
         <div className="panel-section">
-          <h3>Logo <span className="muted">a real image field, so you can swap the file at playout</span></h3>
+          <h3>Logo</h3>
           {/* The one checkbox row (re-design/handoff.md §6). */}
           <label className="dlg-check" style={{ cursor: variant.logo === 'built-in' ? 'default' : 'pointer' }}>
             <input
@@ -230,7 +217,7 @@ export default function FieldsStep({ variant, draft, onDraft }: Props) {
               <span className="dlg-check-desc">
                 {variant.logo === 'built-in'
                   ? 'This design always carries its logo slot. Upload yours, or pick a file later at playout.'
-                  : 'Adds an image field to the design; leave it empty for a clean placeholder.'}
+                  : 'An image field you can swap at playout.'}
               </span>
             </span>
           </label>
