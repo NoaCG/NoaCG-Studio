@@ -6,20 +6,20 @@
     "source": "Owner request in Codex chat, 2026-10-06: Implement R1.2b.7 folders and bins (B02) as an unattended bounded slice; preserve protected ownership and land through check/queue-merge."
   },
   "review": {
-    "revision": "99398353619d172b6f85409755a85de143893d42",
+    "revision": "b362712bc06d6622fd446c6a642ef2a2e478ddea",
     "specSha256": "b30c0d72069f73bdb851cf9a9af87bedaf955fd29d1ab44959c119bb0ad16845",
     "evidence": [
-      {
-        "path": "docs/work-specs/editor-folders-bins/evidence/review.md",
-        "sha256": "adbec407e18b8a122977db0280a230b0b054f585aec96cd14f7c077e7901b7e2"
-      },
       {
         "path": "docs/work-specs/editor-folders-bins/evidence/check.md",
         "sha256": "4d8a1b4068699fb98e940c523a4bff45fec4073cd7d2ff1269e6dfb9c752326b"
       },
       {
-        "path": "docs/work-specs/editor-folders-bins/evidence/regressions.log",
-        "sha256": "d3093e25f5b3af27a332ccb82ee3805482c89849e483d45ff5f7e553463cb7ce"
+        "path": "docs/work-specs/editor-folders-bins/evidence/build.log",
+        "sha256": "34d4262538e36ba2bcca548ceca5c55fff181b2100140075f7fd8129e1aa5f28"
+      },
+      {
+        "path": "docs/work-specs/editor-folders-bins/evidence/landing-and-handoff.md",
+        "sha256": "aa3d2f7d67cce61fe78b1256c5b469024ed7c5825638fe6506bf7936ac0bebaf"
       }
     ],
     "criteria": [
@@ -133,11 +133,15 @@
       },
       {
         "id": "AC-7",
-        "status": "unverified",
+        "status": "pass",
         "evidence": [
           {
-            "path": "docs/work-specs/editor-folders-bins/evidence/check.md",
-            "sha256": "4d8a1b4068699fb98e940c523a4bff45fec4073cd7d2ff1269e6dfb9c752326b"
+            "path": "docs/work-specs/editor-folders-bins/evidence/build.log",
+            "sha256": "34d4262538e36ba2bcca548ceca5c55fff181b2100140075f7fd8129e1aa5f28"
+          },
+          {
+            "path": "docs/work-specs/editor-folders-bins/evidence/landing-and-handoff.md",
+            "sha256": "aa3d2f7d67cce61fe78b1256c5b469024ed7c5825638fe6506bf7936ac0bebaf"
           }
         ]
       }
