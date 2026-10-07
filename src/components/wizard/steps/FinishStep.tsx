@@ -427,7 +427,7 @@ export default function FinishStep({
         </div>
         {/* The one mistake worth a line: naming the SHOW after this graphic. */}
         {dest === 'new' && (
-          <p className="hint">Name it for the show, like Friday Show or Class Quiz.</p>
+          <p className="hint">Name it for the show, like Friday Show or Class Quiz, not for this graphic.</p>
         )}
       </div>
 
